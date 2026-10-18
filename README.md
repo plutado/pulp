@@ -1,5 +1,10 @@
 # Pulp
 
+[![CI](https://github.com/plutado/pulp/actions/workflows/ci.yml/badge.svg)](https://github.com/plutado/pulp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Electron](https://img.shields.io/badge/Electron-44-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
 Pulp is a desktop app for video editors who use motion-graphics templates: lower thirds, titles, transitions and overlays. You browse a library of templates, preview them, change their text, colors and fonts, and render them to files your editing software can use, including formats that keep the alpha channel so the graphic sits on top of your footage.
 
 Templates use an open, documented format: a folder with a `template.json` manifest and an HTML/Canvas animation. Anyone can write one with a text editor, and there is no lock-in to a store or a subscription. Pulp also indexes your own media folders so templates and footage can be searched together.
@@ -7,6 +12,23 @@ Templates use an open, documented format: a folder with a `template.json` manife
 "Pulp" is a working name and may change.
 
 **Status: early development.** The core library, the template format, a basic UI and a first working renderer exist. Expect breaking changes to the format and the app until 1.0. See [ROADMAP.md](ROADMAP.md).
+
+![Pulp showing the bundled sample library, a live preview of the Lower Third Bar template over a transparency checkerboard, and the parameter form generated from its manifest](docs/images/app-window.png)
+
+*The library on the left, the live preview with play and scrub in the middle, and the parameter form and render presets on the right. All content shown is from the bundled sample templates.*
+
+### Sample output
+
+Frames rendered with the headless render mode (PNG sequence with alpha) and composited over a checkerboard so the transparent areas are visible.
+
+| Lower Third Bar | Diagonal Wipe | Title Card |
+|---|---|---|
+| ![Lower Third Bar frame: name and title on a dark panel with an amber accent bar, over transparency](docs/images/sample-lower-third-bar.png) | ![Diagonal Wipe frame: dark and red angled bands entering from the left, the rest of the frame transparent](docs/images/sample-diagonal-wipe.png) | ![Title Card frame: serif title and italic subtitle centered on a solid dark background](docs/images/sample-title-card.png) |
+| Transparent except for the name strap | Transparent outside the bands | Opaque by design (solid background) |
+
+The lower third animating in, holding and animating out (15 fps preview of the 30 fps render):
+
+![Lower Third Bar animating over a transparency checkerboard](docs/images/lower-third.gif)
 
 ## Who it is for
 
@@ -23,6 +45,22 @@ Templates use an open, documented format: a folder with a `template.json` manife
 - A headless command-line render mode (below).
 
 Not yet: drag-out to editing apps, template pack import, media preview, user tags, installers. These are on the [roadmap](ROADMAP.md).
+
+## What's next
+
+The [roadmap](ROADMAP.md) breaks the path to 1.0 into milestones with task-level estimates. Estimates are working hours for one developer, including tests and docs.
+
+| Milestone | What it delivers | Estimate |
+|---|---|---|
+| Production-quality renderer | End-to-end render tests checked with ffprobe, explicit HiDPI handling, 4K/8K and portrait sizes, raw RGBA piping instead of PNG, documented color handling, a render queue | 12-20 h |
+| Alpha export and NLE verification | Each alpha preset verified in Premiere Pro, DaVinci Resolve and Final Cut Pro, straight vs. premultiplied alpha settled, QuickTime Animation and HEVC-with-alpha presets | 8-14 h |
+| Parameter editor | Color picker with alpha, sliders, saved parameter presets per template, batch renders from CSV, undo/redo | 10-16 h |
+| Library | User tags, a persistent index with file watching, ffprobe metadata filters, cached thumbnails, media preview | 12-20 h |
+| Drag-out to editing apps | Drag a rendered file, or render on drag, straight into an NLE bin or timeline, verified on macOS and Windows | 8-16 h |
+| Template packs | A documented pack format, zip import with validation and license display, pack export | 6-10 h |
+| Packaging and 1.0 | Signed installers for macOS, Windows and Linux with auto-update; frozen format v1 with a JSON Schema, an authoring guide, an accessibility pass, more sample templates | 18-32 h |
+
+Total through 1.0: **74-128 hours**. Post-1.0 items (image and media parameters, audio in templates, a separate CLI, optional on-device semantic search) add 12-26 hours.
 
 ## Template format
 
