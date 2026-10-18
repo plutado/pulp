@@ -1,0 +1,10 @@
+The sample templates in this folder (lower-third-bar, title-card,
+diagonal-wipe) were written for Pulp by David Fugate and are dedicated to the
+public domain under CC0 1.0 Universal.
+
+To the extent possible under law, David Fugate has waived all copyright and
+related or neighboring rights to these sample templates. You can copy,
+modify, distribute and use them, including for commercial work, without
+asking permission or giving credit.
+
+Full legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode

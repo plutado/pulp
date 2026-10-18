@@ -1,0 +1,33 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.title-card",
+  "name": "Title Card",
+  "description": "Centered title and subtitle that fade and track in over a solid background, with a thin rule between them.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "tags": ["title", "opener", "minimal"],
+  "duration": 5,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "title", "type": "text", "label": "Title", "default": "Field Notes", "maxLength": 48 },
+    { "id": "subtitle", "type": "text", "label": "Subtitle", "default": "Episode 1: Early Light", "maxLength": 80 },
+    { "id": "background", "type": "color", "label": "Background", "default": "#0f172a", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#f8fafc", "group": "Colors" },
+    { "id": "rule", "type": "color", "label": "Rule color", "default": "#38bdf8", "group": "Colors" },
+    {
+      "id": "font",
+      "type": "font",
+      "label": "Font",
+      "default": "Georgia, Times New Roman, serif",
+      "options": ["Helvetica Neue, Arial, sans-serif", "Georgia, Times New Roman, serif", "Menlo, Consolas, monospace"]
+    },
+    { "id": "uppercase", "type": "boolean", "label": "Uppercase title", "default": true },
+    { "id": "tracking", "type": "number", "label": "Letter spacing (px)", "default": 12, "min": 0, "max": 40, "step": 1 }
+  ]
+}

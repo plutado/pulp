@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Title Card</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Sample template for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInOutSine(x) { return -(Math.cos(Math.PI * x) - 1) / 2; }
+
+  // Draw text with manual letter spacing so it behaves the same in every Chromium version.
+  function spacedText(text, cx, y, spacing) {
+    var widths = [], total = 0;
+    for (var i = 0; i < text.length; i++) {
+      var w = ctx.measureText(text[i]).width;
+      widths.push(w);
+      total += w + (i < text.length - 1 ? spacing : 0);
+    }
+    var x = cx - total / 2;
+    ctx.textAlign = 'left';
+    for (var j = 0; j < text.length; j++) {
+      ctx.fillText(text[j], x, y);
+      x += widths[j] + spacing;
+    }
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var s = H / 1080;
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = p.background;
+    ctx.fillRect(0, 0, W, H);
+
+    var fadeIn = easeInOutSine(clamp01(t / 1.2));
+    var fadeOut = easeInOutSine(clamp01((t - (d - 0.8)) / 0.8));
+    var vis = fadeIn * (1 - fadeOut);
+
+    var title = p.uppercase ? p.title.toUpperCase() : p.title;
+    var tracking = (p.tracking + (1 - fadeIn) * 24) * s;
+
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = p.text;
+    ctx.globalAlpha = vis;
+    ctx.font = '400 ' + (96 * s) + 'px ' + p.font;
+    spacedText(title, W / 2, H / 2 - 24 * s, tracking);
+
+    var ruleW = 360 * s * easeInOutSine(clamp01((t - 0.3) / 1.2)) * (1 - fadeOut);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = p.rule;
+    ctx.fillRect(W / 2 - ruleW / 2, H / 2 + 6 * s, ruleW, 3 * s);
+
+    ctx.globalAlpha = easeInOutSine(clamp01((t - 0.7) / 1.0)) * (1 - fadeOut);
+    ctx.fillStyle = p.text;
+    ctx.font = 'italic 400 ' + (38 * s) + 'px ' + p.font;
+    ctx.textAlign = 'center';
+    ctx.fillText(p.subtitle, W / 2, H / 2 + 70 * s);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

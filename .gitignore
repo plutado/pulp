@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+out/
+dist/
+release/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Render output
+renders/
+*.mov
+*.mp4
+*.webm
+*.mxf
+*_[0-9][0-9][0-9][0-9][0-9].png
+
+# Tooling
+coverage/
+*.log
+.DS_Store
+.vscode/
+.idea/

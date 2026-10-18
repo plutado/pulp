@@ -1,0 +1,114 @@
+:root {
+  --bg: #16181d;
+  --panel: #1d2026;
+  --panel-2: #252931;
+  --border: #30353f;
+  --text: #e6e8eb;
+  --muted: #9aa1ad;
+  --accent: #f59e0b;
+  --danger: #f87171;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); }
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+}
+button { cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #1a1205; font-weight: 600; }
+input[type="color"] { padding: 2px; height: 28px; width: 48px; }
+input[type="checkbox"] { width: auto; }
+
+.app {
+  display: grid;
+  grid-template-columns: 280px 1fr 300px;
+  height: 100vh;
+}
+
+.sidebar, .inspector {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.inspector { border-right: 0; border-left: 1px solid var(--border); padding: 12px; overflow-y: auto; }
+.inspector h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 8px 0 10px; }
+
+.sidebar-head { padding: 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--border); }
+.sidebar-head input { width: 100%; }
+.sidebar-actions { display: flex; gap: 6px; }
+
+.results { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
+.results li {
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+}
+.results li:hover { background: var(--panel-2); }
+.results li[aria-selected="true"] { background: var(--panel-2); outline: 1px solid var(--accent); }
+.results .name { font-weight: 600; }
+.results .meta { color: var(--muted); font-size: 11px; }
+
+.summary { padding: 8px 12px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--border); }
+.summary .problem { color: var(--danger); }
+
+.stage { display: flex; flex-direction: column; min-width: 0; padding: 16px; gap: 12px; }
+.preview-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+.preview {
+  position: relative;
+  width: 100%;
+  max-height: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border);
+}
+.preview iframe {
+  position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent;
+  /* Must match the template document's color scheme, or Chromium paints an opaque backdrop behind it. */
+  color-scheme: normal;
+}
+.preview-empty[hidden] { display: none; }
+.preview-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.checker {
+  background-color: #2a2d33;
+  background-image:
+    linear-gradient(45deg, #34383f 25%, transparent 25%),
+    linear-gradient(-45deg, #34383f 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #34383f 75%),
+    linear-gradient(-45deg, transparent 75%, #34383f 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+
+.transport { display: flex; align-items: center; gap: 10px; }
+.transport input[type="range"] { flex: 1; padding: 0; }
+.timecode { font-family: Menlo, Consolas, monospace; color: var(--muted); min-width: 150px; text-align: right; }
+
+.details { color: var(--muted); font-size: 12px; min-height: 2.5em; }
+
+.params { display: grid; gap: 10px; }
+.field { display: grid; gap: 4px; }
+.field > span { color: var(--muted); font-size: 12px; }
+.field input:not([type="checkbox"]):not([type="color"]), .field select, .field textarea { width: 100%; }
+.field.inline { grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
+.group-label { font-size: 11px; color: var(--muted); margin-top: 6px; border-top: 1px solid var(--border); padding-top: 8px; }
+
+.note { color: var(--muted); font-size: 12px; margin: 6px 0; line-height: 1.4; }
+.note.error { color: var(--danger); }
+.render-actions { display: flex; gap: 8px; margin-top: 8px; }
+progress { width: 100%; margin-top: 8px; }

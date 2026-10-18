@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: pulp-template:; frame-src pulp-template:; connect-src 'self' ws:">
+  <title>Pulp</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <input id="search" type="search" placeholder="Search (try tag:wipe or type:template)" autocomplete="off" spellcheck="false">
+        <div class="sidebar-actions">
+          <button id="add-folder" type="button">Add folder</button>
+          <button id="rescan" type="button">Rescan</button>
+        </div>
+      </div>
+      <ul id="results" class="results" aria-label="Library"></ul>
+      <div id="library-summary" class="summary"></div>
+    </aside>
+
+    <main class="stage">
+      <div class="preview-wrap">
+        <div id="preview-frame" class="preview checker">
+          <iframe id="preview" title="Template preview" sandbox="allow-scripts allow-same-origin"></iframe>
+          <div id="preview-empty" class="preview-empty">Select a template</div>
+        </div>
+      </div>
+      <div class="transport">
+        <button id="play" type="button" disabled>Play</button>
+        <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
+        <span id="timecode" class="timecode">--</span>
+      </div>
+      <div id="details" class="details"></div>
+    </main>
+
+    <section class="inspector">
+      <h2>Parameters</h2>
+      <form id="params" class="params"></form>
+      <h2>Render</h2>
+      <label class="field">
+        <span>Output preset</span>
+        <select id="preset"></select>
+      </label>
+      <p id="preset-note" class="note"></p>
+      <div class="render-actions">
+        <button id="render" type="button" class="primary" disabled>Render...</button>
+        <button id="cancel" type="button" hidden>Cancel</button>
+      </div>
+      <progress id="progress" max="1" value="0" hidden></progress>
+      <p id="render-status" class="note" role="status"></p>
+      <p id="ffmpeg-status" class="note"></p>
+    </section>
+  </div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

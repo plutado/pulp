@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Lower Third Bar</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Sample template for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = easeOutCubic(clamp01(t / dur));
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var show = inT * (1 - outT);
+    if (show <= 0) return;
+
+    var s = H / 1080;
+    var margin = 96 * s;
+    var nameSize = 54 * s, titleSize = 30 * s;
+    ctx.font = '600 ' + nameSize + 'px ' + p.font;
+    var nameW = ctx.measureText(p.name).width;
+    ctx.font = '400 ' + titleSize + 'px ' + p.font;
+    var titleW = ctx.measureText(p.title).width;
+
+    var padX = 36 * s, barW = 10 * s;
+    var panelW = Math.max(nameW, titleW) + padX * 2;
+    var panelH = 150 * s;
+    var y = H - margin - panelH;
+    var right = p.side === 'right';
+    var x = right ? W - margin - panelW - barW : margin;
+
+    // Accent bar grows first, panel wipes out from it.
+    var barH = panelH * clamp01(show * 1.6);
+    var barX = right ? x + panelW : x;
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(barX, y + (panelH - barH) / 2, barW, barH);
+
+    var reveal = clamp01((show - 0.25) / 0.75);
+    var visibleW = panelW * reveal;
+    if (visibleW <= 0) return;
+    var panelX = right ? x + panelW - visibleW : x + barW;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(panelX, y, visibleW, panelH);
+    ctx.clip();
+    ctx.fillStyle = p.panel;
+    ctx.fillRect(panelX, y, visibleW, panelH);
+
+    var textX = right ? x + panelW - padX : x + barW + padX;
+    ctx.textAlign = right ? 'right' : 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.globalAlpha = clamp01((show - 0.5) / 0.5);
+    ctx.fillStyle = p.text;
+    ctx.font = '600 ' + nameSize + 'px ' + p.font;
+    ctx.fillText(p.name, textX, y + 72 * s);
+    ctx.globalAlpha *= 0.8;
+    ctx.font = '400 ' + titleSize + 'px ' + p.font;
+    ctx.fillText(p.title, textX, y + 118 * s);
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

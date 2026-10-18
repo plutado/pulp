@@ -1,0 +1,32 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.diagonal-wipe",
+  "name": "Diagonal Wipe",
+  "description": "Two angled color bands sweep across the frame, covering it fully at the midpoint. Place over a cut on the track above.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "tags": ["transition", "wipe", "graphic"],
+  "duration": 1.5,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "lead", "type": "color", "label": "Leading band", "default": "#f43f5e" },
+    { "id": "main", "type": "color", "label": "Main band", "default": "#1e293b" },
+    { "id": "angle", "type": "number", "label": "Angle (degrees)", "default": 20, "min": 0, "max": 45, "step": 1 },
+    {
+      "id": "direction",
+      "type": "select",
+      "label": "Direction",
+      "default": "ltr",
+      "options": [
+        { "value": "ltr", "label": "Left to right" },
+        { "value": "rtl", "label": "Right to left" }
+      ]
+    }
+  ]
+}

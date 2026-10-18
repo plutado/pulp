@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": []
+  },
+  "include": ["src/renderer", "src/shared", "src/core/manifest.ts", "src/core/library-types.ts", "src/core/params.ts", "src/core/search.ts", "src/core/tags.ts", "src/core/render-plan.ts", "src/core/runtime.ts"]
+}

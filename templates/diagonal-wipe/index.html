@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Diagonal Wipe</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Sample template for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInOutCubic(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+
+  // Fill a band between two x positions measured along the horizontal axis, sheared by the angle.
+  function band(x0, x1, H, shear, color) {
+    if (x1 <= x0) return;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x0 + shear, 0);
+    ctx.lineTo(x1 + shear, 0);
+    ctx.lineTo(x1 - shear, H);
+    ctx.lineTo(x0 - shear, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    ctx.clearRect(0, 0, W, H);
+
+    var shear = Math.tan(p.angle * Math.PI / 180) * H / 2;
+    var span = W + shear * 2;       // distance needed to fully cover the frame
+    var leadW = 80 * (H / 1080);
+    var travel = span + leadW;
+    var x0 = -shear - leadW;        // left edge of coverage at the start
+
+    // First half: front edge moves across. Second half: back edge follows.
+    var front = x0 + travel * easeInOutCubic(clamp01(state.progress * 2));
+    var back = x0 + travel * easeInOutCubic(clamp01(state.progress * 2 - 1));
+
+    ctx.save();
+    if (p.direction === 'rtl') {
+      ctx.translate(W, 0);
+      ctx.scale(-1, 1);
+    }
+    band(back, front - leadW, H, shear, p.main);
+    band(Math.max(back, front - leadW), front, H, shear, p.lead);
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

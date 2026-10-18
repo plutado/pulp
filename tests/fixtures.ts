@@ -1,0 +1,41 @@
+import type { TemplateManifest } from '../src/core/manifest';
+
+/** A minimal valid manifest as raw JSON-like data. */
+export function rawManifest(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    formatVersion: 1,
+    id: 'test.basic-title',
+    name: 'Basic Title',
+    version: '1.0.0',
+    license: 'CC0-1.0',
+    category: 'title',
+    tags: ['Title', 'minimal'],
+    duration: 2,
+    fps: 30,
+    width: 1920,
+    height: 1080,
+    alpha: true,
+    parameters: [
+      { id: 'title', type: 'text', label: 'Title', default: 'Hello', maxLength: 10 },
+      { id: 'color', type: 'color', label: 'Color', default: '#FF0000' },
+      { id: 'size', type: 'number', label: 'Size', default: 50, min: 10, max: 100, step: 5 },
+      { id: 'shadow', type: 'boolean', label: 'Shadow', default: false },
+      {
+        id: 'align',
+        type: 'select',
+        label: 'Align',
+        default: 'left',
+        options: [
+          { value: 'left', label: 'Left' },
+          { value: 'right', label: 'Right' },
+        ],
+      },
+      { id: 'font', type: 'font', label: 'Font', default: 'Georgia, serif', options: ['Georgia, serif', 'Arial, sans-serif'] },
+    ],
+    ...overrides,
+  };
+}
+
+export function timing(overrides: Partial<TemplateManifest> = {}) {
+  return { fps: 30, width: 1920, height: 1080, duration: 2, alpha: true, ...overrides };
+}

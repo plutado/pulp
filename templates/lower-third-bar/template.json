@@ -1,0 +1,42 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.lower-third-bar",
+  "name": "Lower Third Bar",
+  "description": "Name and title on a panel with an accent bar that slides in, holds, and slides out.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "tags": ["lower-third", "name", "interview", "clean"],
+  "duration": 6,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "name", "type": "text", "label": "Name", "default": "Alex Rivera", "maxLength": 60 },
+    { "id": "title", "type": "text", "label": "Title", "default": "Director of Photography", "maxLength": 80 },
+    { "id": "accent", "type": "color", "label": "Accent color", "default": "#f59e0b", "group": "Colors" },
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#111827d9", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
+    {
+      "id": "font",
+      "type": "font",
+      "label": "Font",
+      "default": "Helvetica Neue, Arial, sans-serif",
+      "options": ["Helvetica Neue, Arial, sans-serif", "Georgia, Times New Roman, serif", "Menlo, Consolas, monospace"]
+    },
+    {
+      "id": "side",
+      "type": "select",
+      "label": "Position",
+      "default": "left",
+      "options": [
+        { "value": "left", "label": "Bottom left" },
+        { "value": "right", "label": "Bottom right" }
+      ]
+    },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.6, "min": 0.1, "max": 2, "step": 0.1 }
+  ]
+}
