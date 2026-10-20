@@ -129,8 +129,8 @@ Open questions: whether to run templates in a separate session partition, and wh
 ## Testing
 
 - `tests/` runs with Vitest in Node. It covers validation, parameter resolution, frame timing, bridge injection, scanning on temporary folders, search, ffmpeg detection with a fake process runner, and the ffmpeg arguments for every preset. It also validates every bundled sample.
-- Tests do not need Electron or ffmpeg, so CI skips the Electron binary download.
-- The Electron render path is checked manually with the headless `--render` mode and `ffprobe`. An automated end-to-end render test that runs when ffmpeg is present is planned.
+- Unit tests do not need Electron or ffmpeg, so CI skips the Electron binary download.
+- `tests/e2e/render.e2e.test.ts` covers the Electron render path. It builds the app, renders samples through the headless `--render` mode to ProRes 4444, VP9 WebM, a PNG sequence and H.264, and checks frame count, size, pixel format and decoded alpha values with ffprobe and ffmpeg. Two fixture templates in `tests/e2e/templates` check the error report for a template that throws and the frame timeout for one that hangs, and that neither leaves output behind. The suite runs when the Electron binary, ffmpeg and ffprobe are available (and a display on Linux) and is skipped otherwise, which includes CI today.
 
 ## Packaging (planned)
 

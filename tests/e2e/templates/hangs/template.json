@@ -1,0 +1,15 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.hangs",
+  "name": "Test Hangs",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "title",
+  "tags": ["test"],
+  "duration": 1,
+  "fps": 30,
+  "width": 320,
+  "height": 180,
+  "alpha": true,
+  "parameters": []
+}
