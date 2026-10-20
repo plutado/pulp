@@ -36,7 +36,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [ ] Large frames: verify 4K and 8K, and portrait sizes for vertical video (1-2 h)
 - [ ] Throughput: avoid PNG encode/decode by piping raw RGBA (`-f rawvideo -pix_fmt bgra`) from the offscreen `paint` event; benchmark against the current path (3-5 h)
 - [ ] Color: decide and document sRGB/Rec.709 handling (tags in ProRes/H.264 output, `colorspace` filter) (2-3 h)
-- [ ] Robustness: per-frame timeout for hung templates, delete partial output on cancel or failure, clear errors when a template throws (1-2 h)
+- [x] Robustness: per-frame timeout for hung templates, delete partial output on cancel or failure, clear errors when a template throws (1-2 h)
 - [ ] Render queue: several renders in sequence with progress per job (1-2 h)
 
 ## 2. Alpha export presets and NLE verification (8-14 h)

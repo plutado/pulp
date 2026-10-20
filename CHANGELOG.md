@@ -6,6 +6,20 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+
+- Per-frame render timeout (10 seconds by default) and a 30-second load timeout, so a hung template stops the render with a clear message instead of hanging it.
+- Headless mode flags `--library <folder>` (extra template folder for one run) and `--frame-timeout <seconds>`.
+
+### Changed
+
+- When a template throws during a render, the error names the template, the frame, the error type and the file and line inside the template.
+- The template bridge script is injected on one line so line numbers in template errors match the template's own file.
+
+### Fixed
+
+- Cancelled or failed renders no longer leave partial output files behind. Files that existed before a render without overwrite are kept.
+
 ## [0.1.0] - 2026-10-18
 
 ### Added

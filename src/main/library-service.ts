@@ -10,9 +10,10 @@ export function bundledTemplatesDir(): string {
 
 let current: LibraryIndex | null = null;
 
-export async function rescan(): Promise<LibraryIndex> {
+/** Rescan all roots. `extraFolders` are scanned too but not saved (headless `--library`). */
+export async function rescan(extraFolders: string[] = []): Promise<LibraryIndex> {
   const settings = await loadSettings();
-  current = await scanLibrary([bundledTemplatesDir(), ...settings.libraryFolders]);
+  current = await scanLibrary([bundledTemplatesDir(), ...settings.libraryFolders, ...extraFolders]);
   return current;
 }
 

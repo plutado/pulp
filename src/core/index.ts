@@ -4,5 +4,6 @@ export * from './runtime';
 export * from './tags';
 export * from './search';
 export * from './render-plan';
+export * from './render-guard';
 export * from './library';
 export * from './ffmpeg';

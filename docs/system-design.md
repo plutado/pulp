@@ -49,6 +49,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 | `tags.ts`, `search.ts` | yes | Tag normalization, query parsing and scoring over an index. |
 | `library-types.ts` | yes | Index data types (shared over IPC). |
 | `render-plan.ts` | yes | Output presets and `buildRenderPlan`, which returns the exact ffmpeg arguments. |
+| `render-guard.ts` | yes | Render loop guards: `withTimeout`, the frame call script, template error messages, which partial files to remove. |
 | `library.ts` | Node | `scanLibrary`: walk folders, load templates, index media. |
 | `ffmpeg.ts` | Node | `detectFfmpeg` with an injectable process runner, encoder checks. |
 
@@ -90,6 +91,12 @@ The index is rebuilt on start and on demand. Persistent caching and file watchin
 4. For each frame: `executeJavaScript(window.__pulp.render(state))`, `capturePage()`, resize if the capture size differs (HiDPI), `toPNG()`, write to ffmpeg stdin with backpressure.
 5. ffmpeg reads `-f image2pipe -c:v png -i pipe:0` and encodes. Exit code and the tail of stderr are reported.
 
+Failure handling (`src/core/render-guard.ts`, applied in `render.ts`):
+
+- Loading the page has 30 seconds; each frame (render call plus capture) has 10 seconds by default. A frame that runs over is reported with its number, and the template's renderer process is crashed on purpose, because a synchronous infinite loop would otherwise block it forever.
+- The frame call catches errors inside the page and returns them as data (`executeJavaScript` alone only reports "Script failed to execute"). The message names the template, the frame, the error type and the first location inside the template, for example `index.html:42:7`. The bridge is injected on a single line so these line numbers match the author's file.
+- On cancel or any failure, ffmpeg is killed and the files this render wrote are removed: the output file, or for sequences only the frame numbers this render covers. Without overwrite, files that existed before the render are left alone.
+
 One informal measurement on an Apple Silicon Mac: the 150-frame Title Card sample (1920x1080) rendered to H.264 in about 4 seconds, including app startup. No benchmark suite exists yet.
 
 ### Output presets
@@ -117,7 +124,7 @@ Open questions: whether to run templates in a separate session partition, and wh
 
 - Validation and scanning collect issues and keep going. The UI shows the first few problems with details on hover.
 - Parameter problems never stop a render; they fall back to defaults and are listed as warnings.
-- Render failures return a message rather than throwing across IPC. Cancel kills ffmpeg and leaves a partial file (cleanup is a roadmap item).
+- Render failures return a message rather than throwing across IPC. Cancel and failures kill ffmpeg and remove partial output (see Render above).
 
 ## Testing
 

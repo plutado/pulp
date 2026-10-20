@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BRIDGE_SCRIPT, frameState, injectBridge } from '../src/core/runtime';
+import { BRIDGE_SCRIPT, BRIDGE_SCRIPT_INLINE, frameState, injectBridge } from '../src/core/runtime';
 import { timing } from './fixtures';
 
 describe('frameState', () => {
@@ -22,7 +22,7 @@ describe('injectBridge', () => {
   it('inserts the bridge as the first element of <head>', () => {
     const out = injectBridge('<!doctype html><html><head><title>x</title></head><body></body></html>');
     expect(out.indexOf(tag)).toBe(out.indexOf('<head>') + '<head>'.length);
-    expect(out).toContain(BRIDGE_SCRIPT);
+    expect(out).toContain(BRIDGE_SCRIPT_INLINE);
   });
 
   it('handles <head> with attributes and mixed case', () => {
@@ -41,5 +41,13 @@ describe('injectBridge', () => {
 
   it('bridge script is syntactically valid JavaScript', () => {
     expect(() => new Function(BRIDGE_SCRIPT)).not.toThrow();
+  });
+
+  it('injects the bridge on one line so template line numbers are unchanged', () => {
+    const html = '<!doctype html>\n<html><head>\n<title>x</title></head>\n<body><script>draw()</script></body></html>';
+    const out = injectBridge(html);
+    expect(BRIDGE_SCRIPT_INLINE).not.toContain('\n');
+    expect(() => new Function(BRIDGE_SCRIPT_INLINE)).not.toThrow();
+    expect(out.split('\n')).toHaveLength(html.split('\n').length);
   });
 });

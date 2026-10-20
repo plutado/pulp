@@ -104,8 +104,19 @@ function registerIpc(): void {
 /**
  * Headless mode for scripting and smoke tests:
  *   electron . --render <template-id> --preset <preset-id> --out <path> [--param key=value ...]
+ *     [--library <folder> ...] [--frame-timeout <seconds>]
+ * `--library` adds template folders for this run only; they are not saved to settings.
  */
-function parseCliRender(argv: string[]): { templateId: string; presetId: string; out: string; params: Record<string, string> } | null {
+interface CliRender {
+  templateId: string;
+  presetId: string;
+  out: string;
+  params: Record<string, string>;
+  libraries: string[];
+  frameTimeoutMs?: number;
+}
+
+function parseCliRender(argv: string[]): CliRender | null {
   const i = argv.indexOf('--render');
   if (i === -1) return null;
   const get = (flag: string): string | undefined => {
@@ -113,22 +124,28 @@ function parseCliRender(argv: string[]): { templateId: string; presetId: string;
     return at === -1 ? undefined : argv[at + 1];
   };
   const params: Record<string, string> = {};
+  const libraries: string[] = [];
   argv.forEach((arg, idx) => {
     if (arg === '--param') {
       const pair = argv[idx + 1] ?? '';
       const eq = pair.indexOf('=');
       if (eq > 0) params[pair.slice(0, eq)] = pair.slice(eq + 1);
     }
+    if (arg === '--library' && argv[idx + 1]) libraries.push(resolve(argv[idx + 1]!));
   });
+  const frameTimeout = Number(get('--frame-timeout'));
   return {
     templateId: argv[i + 1] ?? '',
     presetId: get('--preset') ?? 'prores-4444',
     out: get('--out') ?? '',
     params,
+    libraries,
+    ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
   };
 }
 
-async function runCliRender(cli: NonNullable<ReturnType<typeof parseCliRender>>): Promise<number> {
+async function runCliRender(cli: CliRender): Promise<number> {
+  if (cli.libraries.length > 0) await rescan(cli.libraries);
   const template = await findTemplate(cli.templateId);
   if (!template) {
     console.error(`Template "${cli.templateId}" not found.`);
@@ -144,6 +161,7 @@ async function runCliRender(cli: NonNullable<ReturnType<typeof parseCliRender>>)
     presetId: cli.presetId,
     outputPath: resolve(cli.out),
     overwrite: true,
+    ...(cli.frameTimeoutMs ? { frameTimeoutMs: cli.frameTimeoutMs } : {}),
     onProgress: ({ frame, totalFrames }) => {
       if (frame === totalFrames || frame % 30 === 0) console.log(`frame ${frame}/${totalFrames}`);
     },

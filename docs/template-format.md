@@ -115,6 +115,7 @@ It may return a Promise; the host waits for it to settle before capturing.
 4. **Fill the viewport.** The host sizes the page to `width` x `height` when rendering and scales it in the preview. A canvas with `width`/`height` attributes equal to the manifest size and CSS `width: 100%; height: 100%` handles both.
 5. **Offline.** Only files inside the template folder can be loaded. Network requests are blocked.
 6. **Ready means loaded.** The host waits for the window `load` event and `document.fonts.ready` before the first call. Load fonts and images before that point (for example with `@font-face` in CSS or `<img>` tags in the page).
+7. **Fast and finite.** When rendering, the page has 30 seconds to load and each frame has 10 seconds by default. A template that runs over, or that throws (or rejects, if `pulpRender` returns a Promise), stops the render with an error naming the frame and, where available, the file and line.
 
 DOM and CSS animation are possible as long as they are driven from `state` (for example, setting styles inside `pulpRender`), but Canvas 2D is recommended for predictable output.
 

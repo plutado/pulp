@@ -101,6 +101,8 @@ npx electron . --render pulp.samples.lower-third-bar --preset prores-4444 \
 
 Preset ids: `prores-4444`, `prores-422hq`, `png-sequence`, `webm-vp9-alpha`, `h264-mp4`.
 
+`--library <folder>` adds a template folder for that run only (repeatable; not saved to settings). `--frame-timeout <seconds>` changes how long one frame may take before the template is treated as hung (default 10).
+
 ## Project layout
 
 ```

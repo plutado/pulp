@@ -64,7 +64,10 @@ export const TEMPLATE_CSP = [
   "form-action 'none'",
 ].join('; ');
 
-/** Source of the bridge script. Kept as plain ES2017 so it runs in any Chromium. */
+/**
+ * Source of the bridge script. Kept as plain ES2017 so it runs in any Chromium.
+ * No line comments: it is injected on a single line (see injectBridge).
+ */
 export const BRIDGE_SCRIPT = `(function () {
   'use strict';
   var ready = new Promise(function (resolve) {
@@ -82,7 +85,7 @@ export const BRIDGE_SCRIPT = `(function () {
       }
       return window.pulpRender(state);
     }).then(function () {
-      // Wait for the next animation frame so the drawn pixels are composited before capture.
+      /* Wait for the next animation frame so the drawn pixels are composited before capture. */
       return new Promise(function (resolve) { requestAnimationFrame(function () { resolve(true); }); });
     });
   }
@@ -102,9 +105,12 @@ export const BRIDGE_SCRIPT = `(function () {
   });
 })();`;
 
+/** The bridge on one line, so injecting it does not shift line numbers in template error locations. */
+export const BRIDGE_SCRIPT_INLINE = BRIDGE_SCRIPT.replace(/\s*\n\s*/g, ' ');
+
 /** Insert the bridge as the first script of the document so it runs before template code. */
 export function injectBridge(html: string): string {
-  const tag = `<script data-pulp-bridge>${BRIDGE_SCRIPT}</script>`;
+  const tag = `<script data-pulp-bridge>${BRIDGE_SCRIPT_INLINE}</script>`;
   const head = /<head(\s[^>]*)?>/i.exec(html);
   if (head) {
     const at = head.index + head[0].length;

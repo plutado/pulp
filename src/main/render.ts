@@ -11,11 +11,23 @@
 import { BrowserWindow } from 'electron';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir } from 'node:fs/promises';
+import { access, mkdir, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { checkPresetSupport, detectFfmpeg } from '../core/ffmpeg';
 import { buildRenderPlan } from '../core/render-plan';
 import { resolveParams } from '../core/params';
+import {
+  DEFAULT_FRAME_TIMEOUT_MS,
+  DEFAULT_LOAD_TIMEOUT_MS,
+  frameCallScript,
+  frameTimeoutMessage,
+  loadTimeoutMessage,
+  partialOutputFiles,
+  RenderTimeoutError,
+  templateThrewMessage,
+  withTimeout,
+  type TemplateErrorDetail,
+} from '../core/render-guard';
 import { frameState } from '../core/runtime';
 import type { TemplateEntry } from '../core/library';
 import type { RenderProgress, RenderResult } from '../shared/api';
@@ -29,6 +41,10 @@ export interface RenderJob {
   background?: string;
   overwrite?: boolean;
   signal?: AbortSignal;
+  /** Time allowed per frame before the template is treated as hung. */
+  frameTimeoutMs?: number;
+  /** Time allowed for the template page to load. */
+  loadTimeoutMs?: number;
   onProgress?: (progress: RenderProgress) => void;
 }
 
@@ -73,40 +89,73 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     },
   });
 
+  const overwrite = job.overwrite ?? false;
+  const frameTimeoutMs = job.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS;
+  const loadTimeoutMs = job.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
   let child: ReturnType<typeof spawn> | null = null;
+  let exited: Promise<[number | null, NodeJS.Signals | null]> | null = null;
+  let existedBefore = new Set<string>();
+
+  /** Stop ffmpeg and remove whatever it wrote, then report the failure. */
+  const fail = async (result: Extract<RenderResult, { ok: false }>): Promise<RenderResult> => {
+    if (child && exited) {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      await exited;
+      const files = partialOutputFiles({
+        output: plan.output,
+        sequence: plan.preset.sequence,
+        totalFrames: plan.totalFrames,
+        overwrite,
+        existedBefore,
+      });
+      await Promise.all(files.map((f) => rm(f, { force: true })));
+    }
+    return result;
+  };
+
   try {
     // Offscreen windows are not clamped to the screen size, so 4K templates still get a full-size surface.
     win.setContentSize(manifest.width, manifest.height);
-    await win.loadURL(templateUrlFor(manifest.id, manifest.entry));
-    await win.webContents.executeJavaScript('window.__pulp.ready');
+    try {
+      await withTimeout(
+        win.loadURL(templateUrlFor(manifest.id, manifest.entry)).then(() =>
+          win.webContents.executeJavaScript('window.__pulp.ready'),
+        ),
+        loadTimeoutMs,
+        loadTimeoutMessage(manifest.name, loadTimeoutMs),
+      );
+    } catch (err) {
+      if (err instanceof RenderTimeoutError) return { ok: false, message: err.message };
+      return { ok: false, message: `Could not load template "${manifest.name}": ${(err as Error).message}` };
+    }
 
     await mkdir(dirname(plan.output), { recursive: true });
+    existedBefore = await existingFiles(
+      partialOutputFiles({ output: plan.output, sequence: plan.preset.sequence, totalFrames: plan.totalFrames, overwrite: false, existedBefore: new Set() }),
+    );
     child = spawn(ffmpeg.path, plan.args, { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });
     let stderr = '';
     child.stderr?.on('data', (chunk: Buffer) => {
       stderr = (stderr + chunk.toString('utf8')).slice(-8000);
     });
-    const exited = once(child, 'close') as Promise<[number | null, NodeJS.Signals | null]>;
+    exited = once(child, 'close') as Promise<[number | null, NodeJS.Signals | null]>;
     // Writes after ffmpeg exits raise EPIPE; the exit code is reported below instead.
     child.stdin?.on('error', () => undefined);
 
     for (let frame = 0; frame < plan.totalFrames; frame++) {
-      if (job.signal?.aborted) {
-        child.kill('SIGKILL');
-        await exited;
-        return { ok: false, cancelled: true, message: 'Render cancelled.' };
-      }
+      if (job.signal?.aborted) return await fail({ ok: false, cancelled: true, message: 'Render cancelled.' });
       if (child.exitCode !== null) break;
 
       const state = frameState(manifest, frame, values);
-      await win.webContents.executeJavaScript(`window.__pulp.render(${JSON.stringify(state)})`);
-      let image = await win.webContents.capturePage();
-      const size = image.getSize();
-      if (size.width !== manifest.width || size.height !== manifest.height) {
-        // HiDPI or a clamped window; scale to the template's declared size.
-        image = image.resize({ width: manifest.width, height: manifest.height, quality: 'best' });
+      let png: Buffer;
+      try {
+        png = await withTimeout(captureFrame(win, state, manifest), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs));
+      } catch (err) {
+        // A template stuck in a synchronous loop blocks its renderer; crash it so the window can be destroyed.
+        if (err instanceof RenderTimeoutError) win.webContents.forcefullyCrashRenderer();
+        const message = err instanceof TemplateError ? templateThrewMessage(manifest.name, frame, err.detail) : (err as Error).message;
+        return await fail({ ok: false, message });
       }
-      const png = image.toPNG();
       if (!child.stdin?.write(png)) await once(child.stdin!, 'drain');
       job.onProgress?.({ frame: frame + 1, totalFrames: plan.totalFrames });
     }
@@ -114,13 +163,40 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     child.stdin?.end();
     const [code] = await exited;
     if (code !== 0) {
-      return { ok: false, message: `ffmpeg exited with code ${code}: ${stderr.trim() || 'no error output'}` };
+      return await fail({ ok: false, message: `ffmpeg exited with code ${code}: ${stderr.trim() || 'no error output'}` });
     }
     return { ok: true, output: plan.output, frames: plan.totalFrames, warnings };
   } catch (err) {
-    child?.kill('SIGKILL');
-    return { ok: false, message: `Render failed: ${(err as Error).message}` };
+    return await fail({ ok: false, message: `Render failed: ${(err as Error).message}` });
   } finally {
     win.destroy();
   }
+}
+
+class TemplateError extends Error {
+  constructor(readonly detail: TemplateErrorDetail) {
+    super(detail.message ?? 'template error');
+  }
+}
+
+/** Draw one frame in the template page and capture it as PNG at the template's size. */
+async function captureFrame(
+  win: BrowserWindow,
+  state: ReturnType<typeof frameState>,
+  manifest: { width: number; height: number },
+): Promise<Buffer> {
+  const detail = (await win.webContents.executeJavaScript(frameCallScript(state))) as TemplateErrorDetail | null;
+  if (detail) throw new TemplateError(detail);
+  let image = await win.webContents.capturePage();
+  const size = image.getSize();
+  if (size.width !== manifest.width || size.height !== manifest.height) {
+    // HiDPI or a clamped window; scale to the template's declared size.
+    image = image.resize({ width: manifest.width, height: manifest.height, quality: 'best' });
+  }
+  return image.toPNG();
+}
+
+async function existingFiles(paths: string[]): Promise<Set<string>> {
+  const found = await Promise.all(paths.map((p) => access(p).then(() => p, () => null)));
+  return new Set(found.filter((p): p is string => p !== null));
 }
