@@ -42,7 +42,10 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install ffmpeg
-        run: choco install ffmpeg -y --no-progress
+        # Pinned to the 8.x series this renderer is verified against. Chocolatey's
+        # ffmpeg 9.0.2 shifts raw-path colors by one step (likely the swscale
+        # rewrite); unpin once the raw path is verified against ffmpeg 9.
+        run: choco install ffmpeg -y --no-progress --version=8.1.2
       - run: npm ci
       - name: Unit and end-to-end tests
         run: npm test
@@ -50,6 +53,7 @@ jobs:
         # Runs even when tests fail: the "frames:" line says what toBitmap() returns here.
         if: always()
         run: |
+          ffmpeg -version | Select-Object -First 1
           New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/probe" | Out-Null
           npx electron . --render pulp.samples.lower-third-bar --preset png-sequence --out "$env:RUNNER_TEMP/probe/lt" --param "panel=#ffffffd9"
           # Written to a file first: PowerShell pipes are text streams and corrupt binary output.
