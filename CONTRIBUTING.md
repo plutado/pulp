@@ -14,6 +14,7 @@ Before sending a pull request:
 ```sh
 npm run lint
 npm test
+npm run build
 ```
 
 `npm test` includes an end-to-end render test (`tests/e2e`) that builds the app and renders the bundled samples. It runs when the Electron binary, ffmpeg and ffprobe are installed, takes about 15 seconds, and is skipped otherwise (or with `PULP_E2E=0`). `npm run test:e2e` runs it alone.
@@ -25,6 +26,15 @@ npm test
 - Larger design choices get a short record in `docs/decisions/`.
 - Only contribute media, fonts or templates you created yourself or that carry a license compatible with redistribution (CC0, CC BY, MIT, SIL OFL for fonts). Say which license in the pull request.
 - Plain, direct writing in docs and UI text.
+
+## Commits
+
+- **Issue references by milestone.** GitHub issues #1 to #8 are the milestones in `ROADMAP.md`, numbered the same. A commit that advances a milestone ends its message with `Part of #N`. Use `Fixes #N` only in the commit that completes the whole milestone. Work outside the roadmap carries no issue reference.
+- **Roadmap ticks and changelog entries.** When a checklist item is finished, tick it in `ROADMAP.md` and add an entry under "Unreleased" in `CHANGELOG.md`, in the same commit as the change itself.
+- **Test, lint and build before committing.** `npm test`, `npm run lint` and `npm run build` must pass for every commit, not only before the pull request.
+- **Only intended files.** Check `git status` before committing. No render output, scratch files or editor leftovers.
+- **Small commits.** One change per commit, with a message that says what changed and why.
+- **No rewriting history.** Do not amend, squash or force-push commits that have been shared. Add a new commit instead.
 
 ## Writing templates
 
