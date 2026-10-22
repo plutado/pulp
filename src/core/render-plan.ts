@@ -2,14 +2,25 @@
  * Render planner: turns a template's timing/size plus an output preset into
  * the exact ffmpeg argument list. Pure; does not spawn anything.
  *
- * Frames are produced by the host as PNG images (RGBA) and written to
- * ffmpeg's stdin, so every plan uses the same input side:
+ * Frames are captured by the host and written to ffmpeg's stdin, either as
+ * PNG images:
  *   -f image2pipe -framerate <fps> -c:v png -i pipe:0
+ * or as raw BGRA pixels, which skip a PNG encode and decode per frame:
+ *   -f rawvideo -pixel_format bgra -video_size WxH -framerate <fps> -i pipe:0
+ *
+ * Chromium hands out premultiplied pixels. PNG encoding undoes that; raw
+ * frames from alpha templates go through ffmpeg's unpremultiply filter so
+ * semi-transparent edges keep their color instead of darkening.
  */
 
 import { frameCount, isValidColor, type TemplateManifest } from './manifest';
 
 export type PresetId = 'prores-4444' | 'prores-422hq' | 'png-sequence' | 'webm-vp9-alpha' | 'h264-mp4';
+
+/** How captured frames are handed to ffmpeg: raw BGRA pixels or PNG images. */
+export type FrameFormat = 'raw' | 'png';
+export const FRAME_FORMATS: readonly FrameFormat[] = ['raw', 'png'];
+export const DEFAULT_FRAME_FORMAT: FrameFormat = 'png';
 
 export interface OutputPreset {
   id: PresetId;
@@ -107,10 +118,13 @@ export interface RenderPlanInput {
   overwrite?: boolean;
   /** Background used when flattening an alpha template into a non-alpha preset. Default #000000. */
   background?: string;
+  /** Frame encoding on the pipe. Defaults to DEFAULT_FRAME_FORMAT. */
+  frameFormat?: FrameFormat;
 }
 
 export interface RenderPlan {
   preset: OutputPreset;
+  frameFormat: FrameFormat;
   /** Arguments to pass to ffmpeg (not including the executable). */
   args: string[];
   /** Final output path or, for sequences, the printf-style pattern. */
@@ -174,28 +188,31 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   const fps = fpsToRational(manifest.fps);
   const totalFrames = frameCount(manifest);
   const output = normalizeOutputPath(input.outputPath, preset);
+  const frameFormat = input.frameFormat ?? DEFAULT_FRAME_FORMAT;
+  const size = `${manifest.width}x${manifest.height}`;
 
-  const args: string[] = [
-    '-hide_banner',
-    '-loglevel', 'error',
-    input.overwrite ? '-y' : '-n',
-    '-f', 'image2pipe',
-    '-framerate', fps,
-    '-c:v', 'png',
-    '-i', 'pipe:0',
-  ];
+  const args: string[] = ['-hide_banner', '-loglevel', 'error', input.overwrite ? '-y' : '-n'];
+  if (frameFormat === 'raw') {
+    args.push('-f', 'rawvideo', '-pixel_format', 'bgra', '-video_size', size, '-framerate', fps, '-i', 'pipe:0');
+  } else {
+    args.push('-f', 'image2pipe', '-framerate', fps, '-c:v', 'png', '-i', 'pipe:0');
+  }
+
+  // Raw pixels arrive premultiplied; opaque templates have nothing to undo.
+  const unpremultiply = frameFormat === 'raw' && manifest.alpha ? 'unpremultiply=inplace=1' : null;
 
   if (!preset.alpha && manifest.alpha) {
-    const size = `${manifest.width}x${manifest.height}`;
+    const foreground = unpremultiply ? `[0:v]${unpremultiply}[fg];[bg][fg]` : '[bg][0:v]';
     args.push(
       '-filter_complex',
-      `color=c=${hexToFfmpegColor(background)}:s=${size}:r=${fps}[bg];[bg][0:v]overlay=shortest=1:format=auto,format=${preset.pixelFormat}[out]`,
+      `color=c=${hexToFfmpegColor(background)}:s=${size}:r=${fps}[bg];${foreground}overlay=shortest=1:format=auto,format=${preset.pixelFormat}[out]`,
       '-map', '[out]',
     );
   } else {
+    if (unpremultiply) args.push('-vf', unpremultiply);
     args.push('-pix_fmt', preset.pixelFormat);
   }
 
   args.push(...preset.codecArgs, '-frames:v', String(totalFrames), '-r', fps, output);
-  return { preset, args, output, totalFrames, warnings };
+  return { preset, frameFormat, args, output, totalFrames, warnings };
 }

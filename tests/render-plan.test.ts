@@ -16,24 +16,44 @@ function flag(args: string[], name: string): string | undefined {
 }
 
 describe('buildRenderPlan', () => {
-  it('uses the same PNG pipe input for every preset', () => {
+  it('uses the same raw BGRA pipe input for every preset', () => {
     for (const presetId of PRESET_IDS) {
-      const { args } = buildRenderPlan({ manifest: timing(), presetId, outputPath: '/out/clip' });
-      expect(args.slice(0, 13)).toEqual([
+      const plan = buildRenderPlan({ manifest: timing(), presetId, outputPath: '/out/clip', frameFormat: 'raw' });
+      expect(plan.frameFormat).toBe('raw');
+      expect(plan.args.slice(0, 14)).toEqual([
         '-hide_banner', '-loglevel', 'error', '-n',
-        '-f', 'image2pipe', '-framerate', '30', '-c:v', 'png', '-i', 'pipe:0',
-        args[12],
+        '-f', 'rawvideo', '-pixel_format', 'bgra', '-video_size', '1920x1080', '-framerate', '30', '-i', 'pipe:0',
       ]);
-      expect(flag(args, '-frames:v')).toBe('60');
+      expect(flag(plan.args, '-frames:v')).toBe('60');
     }
   });
 
+  it('uses the PNG pipe input for every preset by default', () => {
+    for (const presetId of PRESET_IDS) {
+      const plan = buildRenderPlan({ manifest: timing(), presetId, outputPath: '/out/clip' });
+      expect(plan.frameFormat).toBe('png');
+      expect(plan.args.slice(0, 12)).toEqual([
+        '-hide_banner', '-loglevel', 'error', '-n',
+        '-f', 'image2pipe', '-framerate', '30', '-c:v', 'png', '-i', 'pipe:0',
+      ]);
+      expect(plan.args.join(' ')).not.toContain('unpremultiply');
+    }
+  });
+
+  it('unpremultiplies raw frames from alpha templates, and only those', () => {
+    const alpha = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t.mov', frameFormat: 'raw' });
+    expect(flag(alpha.args, '-vf')).toBe('unpremultiply=inplace=1');
+    const opaque = buildRenderPlan({ manifest: timing({ alpha: false }), presetId: 'prores-4444', outputPath: '/o/t.mov', frameFormat: 'raw' });
+    expect(opaque.args).not.toContain('-vf');
+    expect(opaque.args.join(' ')).not.toContain('unpremultiply');
+  });
+
   it('prores-4444 keeps alpha', () => {
-    const plan = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/out/lt.mov', overwrite: true });
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/out/lt.mov', overwrite: true, frameFormat: 'raw' });
     expect(plan.output).toBe('/out/lt.mov');
     expect(plan.args).toContain('-y');
     expect(flag(plan.args, '-pix_fmt')).toBe('yuva444p10le');
-    expect(flag(plan.args, '-c:v', )).toBe('png'); // input codec comes first
+    expect(flag(plan.args, '-c:v')).toBe('prores_ks');
     expect(plan.args.join(' ')).toContain('-c:v prores_ks -profile:v 4444 -vendor apl0 -alpha_bits 16');
     expect(plan.args.at(-1)).toBe('/out/lt.mov');
     expect(plan.args).not.toContain('-filter_complex');
@@ -41,10 +61,10 @@ describe('buildRenderPlan', () => {
   });
 
   it('png-sequence writes a numbered RGBA sequence starting at 0', () => {
-    const plan = buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/out/lt.png' });
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/out/lt.png', frameFormat: 'raw' });
     expect(plan.output).toBe('/out/lt_%05d.png');
     expect(flag(plan.args, '-pix_fmt')).toBe('rgba');
-    expect(flag(plan.args, '-f', )).toBe('image2pipe');
+    expect(flag(plan.args, '-f')).toBe('rawvideo');
     expect(plan.args.join(' ')).toContain('-c:v png -f image2 -start_number 0');
   });
 
@@ -61,13 +81,21 @@ describe('buildRenderPlan', () => {
       presetId: 'h264-mp4',
       outputPath: '/out/lt.mp4',
       background: '#102030',
+      frameFormat: 'raw',
     });
     expect(flag(plan.args, '-filter_complex')).toBe(
-      'color=c=0x102030:s=1280x720:r=30000/1001[bg];[bg][0:v]overlay=shortest=1:format=auto,format=yuv420p[out]',
+      'color=c=0x102030:s=1280x720:r=30000/1001[bg];[0:v]unpremultiply=inplace=1[fg];[bg][fg]overlay=shortest=1:format=auto,format=yuv420p[out]',
     );
     expect(flag(plan.args, '-map')).toBe('[out]');
     expect(plan.args).not.toContain('-pix_fmt');
     expect(flag(plan.args, '-framerate')).toBe('30000/1001');
+  });
+
+  it('flattens PNG frames without unpremultiplying', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'h264-mp4', outputPath: '/out/lt.mp4', frameFormat: 'png' });
+    expect(flag(plan.args, '-filter_complex')).toBe(
+      'color=c=0x000000:s=1920x1080:r=30[bg];[bg][0:v]overlay=shortest=1:format=auto,format=yuv420p[out]',
+    );
   });
 
   it('non-alpha presets skip flattening for opaque templates', () => {
