@@ -268,7 +268,7 @@ describe.skipIf(!available)('end-to-end render', () => {
       });
       expect(result.code, result.stderr).toBe(0);
       const transport = /^frames: .*$/m.exec(result.stdout)?.[0] ?? '(no frames line)';
-      // Printed so a CI log shows what this platform's capture bitmap looks like.
+      // Shown when the reporter prints console output; the Windows CI job also prints this line in its own step.
       console.info(`${process.platform} ${format} path: ${transport}`);
       // The raw path must really be raw here; a PNG fallback would hide a platform the probe cannot read.
       if (format === 'raw') expect(transport, result.stderr).toMatch(/^frames: raw \((bgra|rgba), (premultiplied|straight) alpha\)$/);

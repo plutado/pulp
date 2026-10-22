@@ -46,3 +46,10 @@ jobs:
       - run: npm ci
       - name: Unit and end-to-end tests
         run: npm test
+      - name: Report the capture bitmap layout on this platform
+        # Runs even when tests fail: the "frames:" line says what toBitmap() returns here.
+        if: always()
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/probe" | Out-Null
+          npx electron . --render pulp.samples.lower-third-bar --preset png-sequence --out "$env:RUNNER_TEMP/probe/lt" --param "panel=#ffffffd9"
+          ffmpeg -v error -i "$env:RUNNER_TEMP/probe/lt_00090.png" -vf "format=rgba,crop=1:1:120:840" -frames:v 1 -f rawvideo -pix_fmt rgba - | Format-Hex
