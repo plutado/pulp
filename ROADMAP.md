@@ -33,7 +33,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 
 - [x] Automated end-to-end render test that runs when Electron and ffmpeg are available, checking frame count, size and alpha with ffprobe (2-3 h)
 - [x] HiDPI: render at device scale 1 explicitly instead of resizing captured frames; verified on a Retina display (2-3 h)
-- [ ] HiDPI: verify on Windows at 150% scaling. Verified without a Windows machine: the e2e suite renders with Chromium's `--force-device-scale-factor=1.5` (the primary display reports 1.5, as Windows does at 150%) and checks the frames stay pixel-exact; CI runs the suite on `windows-latest` with `PULP_E2E=1`. Tick once that job has passed on GitHub (1 h)
+- [x] HiDPI: verify on Windows at 150% scaling. Verified by simulated 150% scaling on Windows CI: the e2e suite renders with Chromium's `--force-device-scale-factor=1.5` (the primary display reports 1.5, as Windows does at 150%) and checks the frames stay pixel-exact; the `windows-latest` job runs the whole suite with `PULP_E2E=1` and passed on ffmpeg 9.0.2 (1 h)
 - [x] Large frames: verify 4K and 8K, and portrait sizes for vertical video (1-2 h)
 - [x] Throughput: avoid PNG encode/decode by piping raw BGRA (`-f rawvideo -pixel_format bgra`) from `capturePage()`, with `unpremultiply` for alpha templates (ADR 0003 explains why not the `paint` event); benchmarked against the PNG path in `docs/system-design.md` (3-5 h)
 - [x] Color: decide and document sRGB/Rec.709 handling: video presets convert with the BT.709 matrix to limited range and tag every frame BT.709 (`scale` + `setparams`), PNG stays sRGB; ADR 0004 (2-3 h)
