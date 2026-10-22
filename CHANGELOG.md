@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- Render queue: clicking Render asks where to save and queues the job, so several renders can be lined up and run one after another. Each job shows its own progress, result or error, and can be cancelled; finished jobs stay listed until cleared.
 - Per-frame render timeout (10 seconds by default) and a 30-second load timeout, so a hung template stops the render with a clear message instead of hanging it.
 - Headless mode flags `--library <folder>` (extra template folder for one run) and `--frame-timeout <seconds>`.
 - End-to-end render test (`npm run test:e2e`, also part of `npm test`): renders the samples to ProRes 4444, VP9 WebM, PNG sequence and H.264 and checks frame count, size and alpha with ffprobe, plus the error and timeout paths. Skipped when Electron, ffmpeg or ffprobe is missing.

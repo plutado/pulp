@@ -5,6 +5,9 @@
 
 import type { LibraryIndex } from '../core/library-types';
 import type { PresetId } from '../core/render-plan';
+import type { RenderQueueSnapshot } from '../core/render-queue';
+
+export type { RenderJobStatus, RenderQueueJob, RenderQueueSnapshot } from '../core/render-queue';
 
 export interface FfmpegInfo {
   ok: boolean;
@@ -32,16 +35,24 @@ export interface RenderProgress {
   totalFrames: number;
 }
 
+/** Outcome of adding a render to the queue; the render itself reports through the queue snapshot. */
+export type EnqueueResult = { ok: true; jobId: number } | { ok: false; cancelled?: boolean; message: string };
+
 export interface PulpApi {
   getLibrary(): Promise<LibraryIndex>;
   rescanLibrary(): Promise<LibraryIndex>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */
   addLibraryFolder(): Promise<LibraryIndex | null>;
   ffmpegStatus(): Promise<FfmpegInfo>;
-  /** Opens a save dialog, then renders. */
-  render(request: RenderRequest): Promise<RenderResult>;
-  cancelRender(): Promise<void>;
-  onRenderProgress(listener: (progress: RenderProgress) => void): () => void;
+  /** Opens a save dialog, then adds the render to the queue. Jobs run one after another. */
+  render(request: RenderRequest): Promise<EnqueueResult>;
+  /** Cancel a queued or running job. */
+  cancelRender(jobId: number): Promise<void>;
+  /** Remove done, failed and cancelled jobs from the queue. */
+  clearFinishedRenders(): Promise<void>;
+  getRenderQueue(): Promise<RenderQueueSnapshot>;
+  /** Called with the whole queue whenever a job is added, progresses, finishes or is removed. */
+  onRenderQueue(listener: (snapshot: RenderQueueSnapshot) => void): () => void;
 }
 
 export const TEMPLATE_SCHEME = 'pulp-template';

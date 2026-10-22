@@ -48,11 +48,14 @@
       <p id="preset-note" class="note"></p>
       <div class="render-actions">
         <button id="render" type="button" class="primary" disabled>Render...</button>
-        <button id="cancel" type="button" hidden>Cancel</button>
       </div>
-      <progress id="progress" max="1" value="0" hidden></progress>
       <p id="render-status" class="note" role="status"></p>
       <p id="ffmpeg-status" class="note"></p>
+      <div class="queue-head">
+        <h2>Queue</h2>
+        <button id="clear-finished" type="button" disabled>Clear finished</button>
+      </div>
+      <ul id="queue" class="queue" aria-label="Render queue" aria-live="polite"></ul>
     </section>
   </div>
   <script type="module" src="./main.ts"></script>

@@ -38,7 +38,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [x] Throughput: avoid PNG encode/decode by piping raw BGRA (`-f rawvideo -pixel_format bgra`) from `capturePage()`, with `unpremultiply` for alpha templates (ADR 0003 explains why not the `paint` event); benchmarked against the PNG path in `docs/system-design.md` (3-5 h)
 - [ ] Color: decide and document sRGB/Rec.709 handling (tags in ProRes/H.264 output, `colorspace` filter) (2-3 h)
 - [x] Robustness: per-frame timeout for hung templates, delete partial output on cancel or failure, clear errors when a template throws (1-2 h)
-- [ ] Render queue: several renders in sequence with progress per job (1-2 h)
+- [x] Render queue: several renders in sequence with progress per job (1-2 h)
 
 ## 2. Alpha export presets and NLE verification (8-14 h)
 

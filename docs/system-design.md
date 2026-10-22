@@ -21,10 +21,11 @@ Non-goals for 1.0: a timeline or general video editor, a visual template authori
 |  - library list + search          - window, IPC handlers                |
 |  - preview iframe  <--postMessage-- pulp-template:// protocol           |
 |  - parameter form                 |   serves template folders,          |
-|  - render controls                |   injects bridge, sets CSP          |
+|  - render controls + queue        |   injects bridge, sets CSP          |
 |        |                          - library service (scan, settings)    |
-|        | window.pulp (preload)    - renderer: offscreen window -> PNG   |
-|        +------------ IPC -------->    frames -> ffmpeg stdin            |
+|        | window.pulp (preload)    - render queue, one job at a time     |
+|        +------------ IPC -------->  - renderer: offscreen window -> raw |
+|                                       BGRA frames -> ffmpeg stdin       |
 |                                                                         |
 +--------------------------------|----------------------------------------+
                                  | imports
@@ -50,6 +51,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 | `library-types.ts` | yes | Index data types (shared over IPC). |
 | `render-plan.ts` | yes | Output presets and `buildRenderPlan`, which returns the exact ffmpeg arguments. |
 | `render-guard.ts` | yes | Render loop guards: `withTimeout`, the frame call script, template error messages, which partial files to remove. |
+| `render-queue.ts` | yes | `RenderQueue`: job list with status and progress, one running at a time; snapshots go to the UI unchanged. |
 | `library.ts` | Node | `scanLibrary`: walk folders, load templates, index media. |
 | `ffmpeg.ts` | Node | `detectFfmpeg` with an injectable process runner, encoder checks. |
 
@@ -60,6 +62,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 - `library-service.ts`: holds the current index; roots are the bundled `templates/` folder plus user folders from settings.
 - `settings.ts`: `settings.json` in Electron's `userData` folder.
 - `render.ts`: the render loop (below).
+- `render-queue-service.ts`: shows the save dialog when a render is requested, adds the job to a `RenderQueue`, runs queued jobs one after another through `renderTemplate`, and sends the whole queue to the UI on every change (`queue:changed`).
 
 ### src/renderer and src/preload
 
@@ -84,6 +87,8 @@ The index is rebuilt on start and on demand. Persistent caching and file watchin
 3. On play, scrub or parameter change, the UI computes `frameState` and posts `pulp:render`. Only one frame is in flight; newer requests replace queued ones, so slow templates drop frames instead of lagging.
 
 ### Render
+
+Clicking Render opens the save dialog at once; the job is queued as soon as a path is chosen, so several renders can be lined up while the first one runs. The queue runs one job at a time (two offscreen windows plus two ffmpeg processes would compete for the same cores and memory), reports progress per job, and keeps finished jobs with their output path or error until the user clears them. Cancel on a queued job marks it cancelled; on the running job it aborts the render below. Each job:
 
 1. `detectFfmpeg` checks `PULP_FFMPEG_PATH`, `ffmpeg` on PATH, then the Homebrew locations (GUI apps on macOS do not inherit the shell PATH). If none works, the user gets an actionable message.
 2. `buildRenderPlan` produces the ffmpeg arguments and output path; `checkPresetSupport` confirms the encoder exists.
@@ -134,7 +139,7 @@ Open questions: whether to run templates in a separate session partition, and wh
 
 - Validation and scanning collect issues and keep going. The UI shows the first few problems with details on hover.
 - Parameter problems never stop a render; they fall back to defaults and are listed as warnings.
-- Render failures return a message rather than throwing across IPC. Cancel and failures kill ffmpeg and remove partial output (see Render above).
+- Render failures return a message rather than throwing across IPC, and stay visible on the job in the queue. Cancel and failures kill ffmpeg and remove partial output (see Render above). A failed job does not stop the jobs behind it.
 
 ## Testing
 

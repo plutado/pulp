@@ -2,6 +2,7 @@ import type { LibraryEntry, LibraryIndex, TemplateEntry } from '../core/library-
 import { frameCount, type TemplateParameter } from '../core/manifest';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { OUTPUT_PRESETS, PRESET_IDS, type PresetId } from '../core/render-plan';
+import { isFinished, type RenderQueueJob, type RenderQueueSnapshot } from '../core/render-queue';
 import { frameState } from '../core/runtime';
 import { searchLibrary } from '../core/search';
 import { templateUrlFor } from '../shared/api';
@@ -29,10 +30,10 @@ const els = {
   preset: $<HTMLSelectElement>('preset'),
   presetNote: $<HTMLParagraphElement>('preset-note'),
   render: $<HTMLButtonElement>('render'),
-  cancel: $<HTMLButtonElement>('cancel'),
-  progress: $<HTMLProgressElement>('progress'),
   renderStatus: $<HTMLParagraphElement>('render-status'),
   ffmpegStatus: $<HTMLParagraphElement>('ffmpeg-status'),
+  queue: $<HTMLUListElement>('queue'),
+  clearFinished: $<HTMLButtonElement>('clear-finished'),
 };
 
 interface State {
@@ -46,7 +47,8 @@ interface State {
   inFlight: boolean;
   pendingFrame: number | null;
   ffmpegOk: boolean;
-  rendering: boolean;
+  /** Waiting for the save dialog after a click on Render. */
+  choosingOutput: boolean;
 }
 
 const state: State = {
@@ -60,7 +62,7 @@ const state: State = {
   inFlight: false,
   pendingFrame: null,
   ffmpegOk: false,
-  rendering: false,
+  choosingOutput: false,
 };
 
 // ---------------------------------------------------------------- library
@@ -374,16 +376,14 @@ function updateControls(): void {
   const hasTemplate = state.selected !== null;
   els.play.disabled = !hasTemplate || !state.previewReady;
   els.scrub.disabled = !hasTemplate;
-  els.render.disabled = !hasTemplate || !state.ffmpegOk || state.rendering;
-  els.cancel.hidden = !state.rendering;
-  els.progress.hidden = !state.rendering;
+  els.render.disabled = !hasTemplate || !state.ffmpegOk || state.choosingOutput;
 }
 
-async function startRender(): Promise<void> {
+/** Ask for an output path and add the render to the queue; the queue list shows progress and results. */
+async function queueRender(): Promise<void> {
   if (!state.selected) return;
   stop();
-  state.rendering = true;
-  els.progress.value = 0;
+  state.choosingOutput = true;
   els.renderStatus.classList.remove('error');
   els.renderStatus.textContent = 'Choose where to save...';
   updateControls();
@@ -394,16 +394,78 @@ async function startRender(): Promise<void> {
       presetId: els.preset.value as PresetId,
     });
     if (result.ok) {
-      els.renderStatus.textContent = `Wrote ${result.output} (${result.frames} frames).${
-        result.warnings.length ? ` Warnings: ${result.warnings.join('; ')}` : ''
-      }`;
+      els.renderStatus.textContent = '';
     } else {
       els.renderStatus.classList.toggle('error', !result.cancelled);
-      els.renderStatus.textContent = result.message;
+      els.renderStatus.textContent = result.cancelled ? '' : result.message;
     }
   } finally {
-    state.rendering = false;
+    state.choosingOutput = false;
     updateControls();
+  }
+}
+
+function jobStatusText(job: RenderQueueJob): string {
+  switch (job.status) {
+    case 'queued':
+      return `Queued · ${job.totalFrames} frames`;
+    case 'running':
+      return `Rendering frame ${job.frame} of ${job.totalFrames}...`;
+    case 'done':
+      return `Wrote ${job.output ?? job.outputPath} (${job.frame} frames).${
+        job.warnings.length ? ` Warnings: ${job.warnings.join('; ')}` : ''
+      }`;
+    case 'failed':
+    case 'cancelled':
+      return job.message ?? job.status;
+  }
+}
+
+function renderQueue(snapshot: RenderQueueSnapshot): void {
+  els.queue.replaceChildren();
+  els.clearFinished.disabled = !snapshot.jobs.some(isFinished);
+  if (snapshot.jobs.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'No renders yet.';
+    els.queue.append(li);
+    return;
+  }
+  for (const job of snapshot.jobs) {
+    const li = document.createElement('li');
+    const head = document.createElement('div');
+    head.className = 'job-head';
+    const name = document.createElement('span');
+    name.className = 'job-name';
+    name.textContent = job.templateName;
+    const preset = document.createElement('span');
+    preset.className = 'job-preset';
+    preset.textContent = OUTPUT_PRESETS[job.presetId as PresetId]?.label ?? job.presetId;
+    head.append(name, preset);
+    li.append(head);
+
+    if (job.status === 'running') {
+      const bar = document.createElement('progress');
+      bar.max = 1;
+      bar.value = job.totalFrames > 0 ? job.frame / job.totalFrames : 0;
+      li.append(bar);
+    }
+
+    const status = document.createElement('div');
+    status.className = `job-status ${job.status === 'failed' ? 'error' : job.status}`;
+    status.textContent = jobStatusText(job);
+    status.title = job.outputPath;
+    li.append(status);
+
+    if (!isFinished(job)) {
+      const cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.className = 'job-cancel';
+      cancel.textContent = 'Cancel';
+      cancel.addEventListener('click', () => void window.pulp.cancelRender(job.id));
+      li.append(cancel);
+    }
+    els.queue.append(li);
   }
 }
 
@@ -417,16 +479,15 @@ els.scrub.addEventListener('input', () => {
   stop();
   requestFrame(Number(els.scrub.value));
 });
-els.render.addEventListener('click', () => void startRender());
-els.cancel.addEventListener('click', () => void window.pulp.cancelRender());
+els.render.addEventListener('click', () => void queueRender());
+els.clearFinished.addEventListener('click', () => void window.pulp.clearFinishedRenders());
 els.params.addEventListener('submit', (e) => e.preventDefault());
-window.pulp.onRenderProgress(({ frame, totalFrames }) => {
-  els.progress.value = frame / totalFrames;
-  els.renderStatus.textContent = `Rendering frame ${frame} of ${totalFrames}...`;
-});
+window.pulp.onRenderQueue(renderQueue);
 
 populatePresets();
 updateControls();
+renderQueue({ jobs: [] });
+void window.pulp.getRenderQueue().then(renderQueue);
 void loadLibrary(window.pulp.getLibrary());
 void window.pulp.ffmpegStatus().then((info) => {
   state.ffmpegOk = info.ok;

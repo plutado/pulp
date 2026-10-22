@@ -1,17 +1,16 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
-import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
-import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId } from '../core/render-plan';
-import type { FfmpegInfo, RenderRequest, RenderResult } from '../shared/api';
+import { FRAME_FORMATS, type FrameFormat } from '../core/render-plan';
+import type { FfmpegInfo, RenderRequest } from '../shared/api';
 import { addLibraryFolder, findTemplate, getLibrary, rescan } from './library-service';
 import { handleTemplateProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
+import { cancelRender, clearFinishedRenders, enqueueRender, getRenderQueue } from './render-queue-service';
 
 registerTemplateScheme();
 
 let mainWindow: BrowserWindow | null = null;
-let activeRender: AbortController | null = null;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -63,42 +62,10 @@ function registerIpc(): void {
     return status.ok ? { ok: true, path: status.path, version: status.version } : { ok: false, message: status.message };
   });
 
-  ipcMain.handle('render:start', async (event, request: RenderRequest): Promise<RenderResult> => {
-    if (activeRender) return { ok: false, message: 'A render is already running.' };
-    const template = await findTemplate(request.templateId);
-    if (!template) return { ok: false, message: `Template "${request.templateId}" not found.` };
-    const preset = OUTPUT_PRESETS[request.presetId as PresetId];
-    if (!preset) return { ok: false, message: `Unknown preset "${request.presetId}".` };
-
-    const defaultName = `${template.manifest.id.split('.').pop() ?? 'render'}${preset.extension}`;
-    const save = await dialog.showSaveDialog({
-      title: `Render ${template.manifest.name}`,
-      defaultPath: join(app.getPath('videos') || homedir(), defaultName),
-      filters: [{ name: preset.label, extensions: [preset.extension.slice(1)] }],
-    });
-    if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: 'Render cancelled.' };
-
-    activeRender = new AbortController();
-    try {
-      return await renderTemplate({
-        template,
-        params: request.params,
-        presetId: request.presetId,
-        outputPath: save.filePath,
-        // The save dialog already asked about replacing an existing file.
-        overwrite: true,
-        signal: activeRender.signal,
-        ...(request.background ? { background: request.background } : {}),
-        onProgress: (progress) => event.sender.send('render:progress', progress),
-      });
-    } finally {
-      activeRender = null;
-    }
-  });
-
-  ipcMain.handle('render:cancel', () => {
-    activeRender?.abort();
-  });
+  ipcMain.handle('queue:add', (_event, request: RenderRequest) => enqueueRender(request));
+  ipcMain.handle('queue:cancel', (_event, jobId: number) => cancelRender(jobId));
+  ipcMain.handle('queue:clear-finished', () => clearFinishedRenders());
+  ipcMain.handle('queue:get', () => getRenderQueue());
 }
 
 /**

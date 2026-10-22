@@ -111,4 +111,18 @@ input[type="checkbox"] { width: auto; }
 .note { color: var(--muted); font-size: 12px; margin: 6px 0; line-height: 1.4; }
 .note.error { color: var(--danger); }
 .render-actions { display: flex; gap: 8px; margin-top: 8px; }
-progress { width: 100%; margin-top: 8px; }
+
+.queue-head { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.queue-head h2 { margin: 0; }
+.queue-head button { font-size: 12px; padding: 3px 8px; }
+.queue { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.queue li { background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 8px; display: grid; gap: 4px; }
+.queue .job-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.queue .job-name { font-weight: 600; }
+.queue .job-preset { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.queue .job-status { color: var(--muted); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.queue .job-status.error { color: var(--danger); }
+.queue .job-status.done { color: var(--text); }
+.queue .job-cancel { justify-self: start; font-size: 12px; padding: 3px 8px; }
+.queue .empty { color: var(--muted); font-size: 12px; background: none; border: 0; padding: 0; }
+progress { width: 100%; margin: 2px 0; }
