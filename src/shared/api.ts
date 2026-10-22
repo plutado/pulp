@@ -27,7 +27,14 @@ export interface RenderRequest {
 }
 
 export type RenderResult =
-  | { ok: true; output: string; frames: number; warnings: string[] }
+  | {
+      ok: true;
+      output: string;
+      frames: number;
+      warnings: string[];
+      /** How frames reached ffmpeg, for example "raw (bgra, premultiplied alpha)" or "png". */
+      transport: string;
+    }
   | { ok: false; cancelled?: boolean; message: string };
 
 export interface RenderProgress {

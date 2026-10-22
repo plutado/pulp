@@ -8,6 +8,7 @@ import {
   REC709_CONVERT,
   REC709_TAGS,
   RenderPlanError,
+  UNPREMULTIPLY,
 } from '../src/core/render-plan';
 import { timing } from './fixtures';
 
@@ -42,18 +43,39 @@ describe('buildRenderPlan', () => {
     }
   });
 
-  it('unpremultiplies raw frames from alpha templates, and only those', () => {
+  it('unpremultiplies premultiplied raw frames from alpha templates, through planar RGB, and only those', () => {
     const alpha = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t.mov', frameFormat: 'raw' });
-    expect(flag(alpha.args, '-vf')).toMatch(/^unpremultiply=inplace=1,/);
+    expect(UNPREMULTIPLY).toBe('format=gbrap,unpremultiply=inplace=1');
+    expect(flag(alpha.args, '-vf')!.startsWith(`${UNPREMULTIPLY},`)).toBe(true);
     const opaque = buildRenderPlan({ manifest: timing({ alpha: false }), presetId: 'prores-4444', outputPath: '/o/t.mov', frameFormat: 'raw' });
     expect(opaque.args.join(' ')).not.toContain('unpremultiply');
+    const straight = buildRenderPlan({
+      manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t.mov', frameFormat: 'raw',
+      rawInput: { pixelFormat: 'bgra', premultiplied: false },
+    });
+    expect(straight.args.join(' ')).not.toContain('unpremultiply');
+  });
+
+  it('takes the raw byte order from the measured capture format', () => {
+    for (const pixelFormat of ['bgra', 'rgba'] as const) {
+      const plan = buildRenderPlan({
+        manifest: timing(), presetId: 'h264-mp4', outputPath: '/o/t.mp4', frameFormat: 'raw',
+        rawInput: { pixelFormat, premultiplied: true },
+      });
+      expect(flag(plan.args, '-pixel_format')).toBe(pixelFormat);
+    }
+    const png = buildRenderPlan({
+      manifest: timing(), presetId: 'h264-mp4', outputPath: '/o/t.mp4', frameFormat: 'png',
+      rawInput: { pixelFormat: 'rgba', premultiplied: false },
+    });
+    expect(png.args).not.toContain('-pixel_format');
   });
 
   it('prores-4444 keeps alpha', () => {
     const plan = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/out/lt.mov', overwrite: true, frameFormat: 'raw' });
     expect(plan.output).toBe('/out/lt.mov');
     expect(plan.args).toContain('-y');
-    expect(flag(plan.args, '-vf')).toBe(`unpremultiply=inplace=1,${REC709_CONVERT},${REC709_TAGS},format=yuva444p10le`);
+    expect(flag(plan.args, '-vf')).toBe(`${UNPREMULTIPLY},${REC709_CONVERT},${REC709_TAGS},format=yuva444p10le`);
     expect(plan.args).not.toContain('-pix_fmt');
     expect(flag(plan.args, '-c:v')).toBe('prores_ks');
     expect(plan.args.join(' ')).toContain('-c:v prores_ks -profile:v 4444 -vendor apl0 -alpha_bits 16');
@@ -65,7 +87,7 @@ describe('buildRenderPlan', () => {
   it('png-sequence writes a numbered RGBA sequence starting at 0', () => {
     const plan = buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/out/lt.png', frameFormat: 'raw' });
     expect(plan.output).toBe('/out/lt_%05d.png');
-    expect(flag(plan.args, '-vf')).toBe('unpremultiply=inplace=1,format=rgba');
+    expect(flag(plan.args, '-vf')).toBe(`${UNPREMULTIPLY},format=rgba`);
     expect(flag(plan.args, '-f')).toBe('rawvideo');
     expect(plan.args.join(' ')).toContain('-c:v png -f image2 -start_number 0');
   });
@@ -86,7 +108,7 @@ describe('buildRenderPlan', () => {
       frameFormat: 'raw',
     });
     expect(flag(plan.args, '-filter_complex')).toBe(
-      `color=c=0x102030:s=1280x720:r=30000/1001[bg];[0:v]unpremultiply=inplace=1[fg];[bg][fg]overlay=shortest=1:format=rgb,${REC709_CONVERT},${REC709_TAGS},format=yuv420p[out]`,
+      `color=c=0x102030:s=1280x720:r=30000/1001[bg];[0:v]${UNPREMULTIPLY}[fg];[bg][fg]overlay=shortest=1:format=rgb,${REC709_CONVERT},${REC709_TAGS},format=yuv420p[out]`,
     );
     expect(flag(plan.args, '-map')).toBe('[out]');
     expect(plan.args).not.toContain('-pix_fmt');

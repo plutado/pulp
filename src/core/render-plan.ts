@@ -3,14 +3,17 @@
  * the exact ffmpeg argument list. Pure; does not spawn anything.
  *
  * Frames are captured by the host and written to ffmpeg's stdin. The default
- * is raw BGRA pixels, which skip a PNG encode and decode per frame:
+ * is raw pixels, which skip a PNG encode and decode per frame:
  *   -f rawvideo -pixel_format bgra -video_size WxH -framerate <fps> -i pipe:0
  * The PNG path is kept for comparison (frameFormat 'png'):
  *   -f image2pipe -framerate <fps> -c:v png -i pipe:0
  *
- * Chromium hands out premultiplied pixels. PNG encoding undoes that; raw
- * frames from alpha templates go through ffmpeg's unpremultiply filter so
- * semi-transparent edges keep their color instead of darkening.
+ * The raw bitmap's byte order and whether its colors are premultiplied by
+ * alpha are measured by the host (capture-format.ts) and passed in as
+ * `rawInput`. Premultiplied frames from alpha templates go through ffmpeg's
+ * unpremultiply filter so semi-transparent edges keep their color. That
+ * filter is fed planar RGB explicitly: left to negotiate, some ffmpeg builds
+ * pick a Y'CbCr intermediate and every color lands one step off.
  *
  * Color (ADR 0004): templates draw in sRGB. Video presets convert to Y'CbCr
  * with the BT.709 matrix at limited range and tag every frame BT.709 /
@@ -26,6 +29,17 @@ export type PresetId = 'prores-4444' | 'prores-422hq' | 'png-sequence' | 'webm-v
 export type FrameFormat = 'raw' | 'png';
 export const FRAME_FORMATS: readonly FrameFormat[] = ['raw', 'png'];
 export const DEFAULT_FRAME_FORMAT: FrameFormat = 'raw';
+
+/** Layout of the raw frames on the pipe. */
+export interface RawInput {
+  pixelFormat: 'bgra' | 'rgba';
+  premultiplied: boolean;
+}
+/** What Chromium produces on macOS; the host measures the real value before each render. */
+export const DEFAULT_RAW_INPUT: RawInput = { pixelFormat: 'bgra', premultiplied: true };
+
+/** Undo premultiplied alpha without going through Y'CbCr. */
+export const UNPREMULTIPLY = 'format=gbrap,unpremultiply=inplace=1';
 
 export interface OutputPreset {
   id: PresetId;
@@ -137,6 +151,8 @@ export interface RenderPlanInput {
   background?: string;
   /** Frame encoding on the pipe. Defaults to DEFAULT_FRAME_FORMAT. */
   frameFormat?: FrameFormat;
+  /** Byte layout of raw frames. Defaults to DEFAULT_RAW_INPUT. Ignored for PNG frames. */
+  rawInput?: RawInput;
 }
 
 export interface RenderPlan {
@@ -206,17 +222,19 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   const totalFrames = frameCount(manifest);
   const output = normalizeOutputPath(input.outputPath, preset);
   const frameFormat = input.frameFormat ?? DEFAULT_FRAME_FORMAT;
+  const rawInput = input.rawInput ?? DEFAULT_RAW_INPUT;
   const size = `${manifest.width}x${manifest.height}`;
 
   const args: string[] = ['-hide_banner', '-loglevel', 'error', input.overwrite ? '-y' : '-n'];
   if (frameFormat === 'raw') {
-    args.push('-f', 'rawvideo', '-pixel_format', 'bgra', '-video_size', size, '-framerate', fps, '-i', 'pipe:0');
+    args.push('-f', 'rawvideo', '-pixel_format', rawInput.pixelFormat, '-video_size', size, '-framerate', fps, '-i', 'pipe:0');
   } else {
     args.push('-f', 'image2pipe', '-framerate', fps, '-c:v', 'png', '-i', 'pipe:0');
   }
 
-  // Raw pixels arrive premultiplied; opaque templates have nothing to undo.
-  const unpremultiply = frameFormat === 'raw' && manifest.alpha ? 'unpremultiply=inplace=1' : null;
+  // Premultiplied raw pixels are undone here; PNG frames and straight bitmaps need nothing, and
+  // opaque templates have nothing to undo.
+  const unpremultiply = frameFormat === 'raw' && rawInput.premultiplied && manifest.alpha ? UNPREMULTIPLY : null;
   // From straight RGB to the preset's pixel format. Rec.709 presets convert and tag; the format
   // filter last makes the scale step do the conversion, with the matrix and range given above.
   const toOutput = preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [];

@@ -267,6 +267,12 @@ describe.skipIf(!available)('end-to-end render', () => {
         extra: ['--frame-format', format, ...panel],
       });
       expect(result.code, result.stderr).toBe(0);
+      const transport = /^frames: .*$/m.exec(result.stdout)?.[0] ?? '(no frames line)';
+      // Printed so a CI log shows what this platform's capture bitmap looks like.
+      console.info(`${process.platform} ${format} path: ${transport}`);
+      // The raw path must really be raw here; a PNG fallback would hide a platform the probe cannot read.
+      if (format === 'raw') expect(transport, result.stderr).toMatch(/^frames: raw \((bgra|rgba), (premultiplied|straight) alpha\)$/);
+      else expect(transport).toBe('frames: png');
     }
     // Frame 90 is mid-hold; (120, 840) is inside the panel, clear of the text and the accent bar.
     const png = await pixels(join(out, 'lt-png_00090.png'), 120, 840);

@@ -26,6 +26,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- Raw frames no longer depend on assumptions about the capture bitmap. The renderer measures the byte order and premultiplication of `toBitmap()` output with a probe page before the first render (Electron documents the layout as platform-dependent), passes the result to ffmpeg, and falls back to PNG frames with a warning if the bytes fit no known layout. The unpremultiply step is fed planar RGB explicitly, because some ffmpeg builds otherwise route it through Y'CbCr and shift every color by one step. Found by the Windows CI job.
 - Cancelled or failed renders no longer leave partial output files behind. Files that existed before a render without overwrite are kept.
 
 ## [0.1.0] - 2026-10-18

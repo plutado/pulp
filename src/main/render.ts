@@ -1,7 +1,10 @@
 /**
  * Headless renderer: steps a template frame by frame in an offscreen
- * BrowserWindow, captures each frame and pipes it into ffmpeg as raw BGRA
- * pixels (or as PNG with frameFormat 'png', kept for comparison).
+ * BrowserWindow, captures each frame and pipes it into ffmpeg as raw pixels
+ * (or as PNG with frameFormat 'png', kept for comparison). The raw bitmap's
+ * byte order and premultiplication are measured once per process with a
+ * probe page (core/capture-format.ts); if the result fits no known layout,
+ * the render falls back to PNG frames and says so in its warnings.
  *
  * Status: first working version. Verified on macOS (Retina display) with the
  * bundled samples for all presets (1920x1080, alpha preserved in ProRes 4444,
@@ -18,6 +21,7 @@ import { once } from 'node:events';
 import { access, mkdir, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { checkPresetSupport, detectFfmpeg } from '../core/ffmpeg';
+import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, type FrameFormat } from '../core/render-plan';
 import { resolveParams } from '../core/params';
 import {
@@ -66,11 +70,69 @@ function offscreenDeviceScaleFactor(): number {
   return Number.isFinite(override) && override > 0 ? override : 1;
 }
 
+/** Result of the capture probe: the bitmap layout, or why it could not be classified. */
+type CaptureProbe = { format: CaptureFormat } | { format: null; reason: string };
+
+let captureProbe: Promise<CaptureProbe> | null = null;
+
+/**
+ * Measure what capturePage().toBitmap() returns on this platform, once per
+ * process: draw known pixels in a tiny offscreen window and classify the bytes.
+ */
+function detectCaptureFormat(): Promise<CaptureProbe> {
+  captureProbe ??= (async () => {
+    const win = new BrowserWindow({
+      show: false,
+      width: CAPTURE_PROBE_SIZE,
+      height: CAPTURE_PROBE_SIZE,
+      useContentSize: true,
+      frame: false,
+      transparent: true,
+      backgroundColor: '#00000000',
+      webPreferences: { offscreen: { deviceScaleFactor: 1 }, sandbox: true, contextIsolation: true, nodeIntegration: false },
+    });
+    try {
+      win.setContentSize(CAPTURE_PROBE_SIZE, CAPTURE_PROBE_SIZE);
+      await withTimeout(win.loadURL(CAPTURE_PROBE_URL), 10_000, 'capture probe did not load within 10 s');
+      // Two animation frames so the drawn canvas is composited before capture.
+      await win.webContents.executeJavaScript('new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); })');
+      const image = await win.webContents.capturePage();
+      const size = image.getSize();
+      if (size.width !== CAPTURE_PROBE_SIZE || size.height !== CAPTURE_PROBE_SIZE) {
+        return { format: null, reason: `probe captured at ${size.width}x${size.height} instead of ${CAPTURE_PROBE_SIZE}x${CAPTURE_PROBE_SIZE}` };
+      }
+      const bytes = image.toBitmap();
+      const format = classifyCapture(bytes);
+      return format ? { format } : { format: null, reason: describeProbePixels(bytes) };
+    } catch (err) {
+      return { format: null, reason: (err as Error).message };
+    } finally {
+      win.destroy();
+    }
+  })();
+  return captureProbe;
+}
+
 export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   const { manifest } = job.template;
 
   const ffmpeg = await detectFfmpeg();
   if (!ffmpeg.ok) return { ok: false, message: ffmpeg.message };
+
+  // Raw frames need the capture layout. If it cannot be determined, PNG frames are always right.
+  let frameFormat: FrameFormat = job.frameFormat ?? 'raw';
+  let transport = 'png';
+  const warnings: string[] = [];
+  let probe: CaptureProbe | null = null;
+  if (frameFormat === 'raw') {
+    probe = await detectCaptureFormat();
+    if (probe.format) {
+      transport = `raw (${describeCaptureFormat(probe.format)})`;
+    } else {
+      frameFormat = 'png';
+      warnings.push(`Could not determine the capture pixel format (${probe.reason}); frames are sent to ffmpeg as PNG instead.`);
+    }
+  }
 
   let plan;
   try {
@@ -79,8 +141,9 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       presetId: job.presetId,
       outputPath: job.outputPath,
       overwrite: job.overwrite ?? false,
+      frameFormat,
       ...(job.background ? { background: job.background } : {}),
-      ...(job.frameFormat ? { frameFormat: job.frameFormat } : {}),
+      ...(probe?.format ? { rawInput: probe.format } : {}),
     });
   } catch (err) {
     return { ok: false, message: (err as Error).message };
@@ -89,7 +152,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   if (unsupported) return { ok: false, message: unsupported };
 
   const { values, issues } = resolveParams(manifest, job.params);
-  const warnings = [...plan.warnings, ...issues.map((i) => `parameter ${i.id}: ${i.message}`)];
+  warnings.push(...plan.warnings, ...issues.map((i) => `parameter ${i.id}: ${i.message}`));
 
   const win = new BrowserWindow({
     show: false,
@@ -190,7 +253,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     if (code !== 0) {
       return await fail({ ok: false, message: `ffmpeg exited with code ${code}: ${stderr.trim() || 'no error output'}` });
     }
-    return { ok: true, output: plan.output, frames: plan.totalFrames, warnings };
+    return { ok: true, output: plan.output, frames: plan.totalFrames, warnings, transport };
   } catch (err) {
     return await fail({ ok: false, message: `Render failed: ${(err as Error).message}` });
   } finally {
@@ -206,8 +269,9 @@ class TemplateError extends Error {
 
 /**
  * Draw one frame in the template page and capture it, which must be exactly the
- * template's size. Raw frames are the capture's own BGRA buffer (premultiplied;
- * the render plan undoes that in ffmpeg), so no image codec runs per frame.
+ * template's size. Raw frames are the capture's own bitmap, in the layout the
+ * probe measured (the render plan undoes premultiplication in ffmpeg if needed),
+ * so no image codec runs per frame.
  */
 async function captureFrame(
   win: BrowserWindow,

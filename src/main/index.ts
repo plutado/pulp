@@ -149,6 +149,7 @@ async function runCliRender(cli: CliRender): Promise<number> {
     return 1;
   }
   for (const w of result.warnings) console.warn(`warning: ${w}`);
+  console.log(`frames: ${result.transport}`);
   const seconds = (Date.now() - started) / 1000;
   console.log(`wrote ${result.output} (${result.frames} frames in ${seconds.toFixed(1)} s, ${(result.frames / seconds).toFixed(1)} frames/s)`);
   return 0;
