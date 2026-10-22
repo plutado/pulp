@@ -1,6 +1,7 @@
 /**
  * Headless renderer: steps a template frame by frame in an offscreen
- * BrowserWindow, captures each frame as PNG and pipes it into ffmpeg.
+ * BrowserWindow, captures each frame and pipes it into ffmpeg as raw BGRA
+ * pixels (or as PNG with frameFormat 'png', kept for comparison).
  *
  * Status: first working version. Verified on macOS (Retina display) with the
  * bundled samples for all presets (1920x1080, alpha preserved in ProRes 4444,
@@ -17,9 +18,10 @@ import { once } from 'node:events';
 import { access, mkdir, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { checkPresetSupport, detectFfmpeg } from '../core/ffmpeg';
-import { buildRenderPlan } from '../core/render-plan';
+import { buildRenderPlan, type FrameFormat } from '../core/render-plan';
 import { resolveParams } from '../core/params';
 import {
+  captureBytesMessage,
   captureSizeMessage,
   DEFAULT_FRAME_TIMEOUT_MS,
   DEFAULT_LOAD_TIMEOUT_MS,
@@ -49,6 +51,8 @@ export interface RenderJob {
   frameTimeoutMs?: number;
   /** Time allowed for the template page to load. */
   loadTimeoutMs?: number;
+  /** How frames travel to ffmpeg. Default raw BGRA; 'png' is the slower reference path. */
+  frameFormat?: FrameFormat;
   onProgress?: (progress: RenderProgress) => void;
 }
 
@@ -76,6 +80,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       outputPath: job.outputPath,
       overwrite: job.overwrite ?? false,
       ...(job.background ? { background: job.background } : {}),
+      ...(job.frameFormat ? { frameFormat: job.frameFormat } : {}),
     });
   } catch (err) {
     return { ok: false, message: (err as Error).message };
@@ -163,16 +168,20 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       if (child.exitCode !== null) break;
 
       const state = frameState(manifest, frame, values);
-      let png: Buffer;
+      let pixels: Buffer;
       try {
-        png = await withTimeout(captureFrame(win, state, manifest), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs));
+        pixels = await withTimeout(
+          captureFrame(win, state, manifest, plan.frameFormat),
+          frameTimeoutMs,
+          frameTimeoutMessage(manifest.name, frame, frameTimeoutMs),
+        );
       } catch (err) {
         // A template stuck in a synchronous loop blocks its renderer; crash it so the window can be destroyed.
         if (err instanceof RenderTimeoutError) win.webContents.forcefullyCrashRenderer();
         const message = err instanceof TemplateError ? templateThrewMessage(manifest.name, frame, err.detail) : (err as Error).message;
         return await fail({ ok: false, message });
       }
-      if (!child.stdin?.write(png)) await once(child.stdin!, 'drain');
+      if (!child.stdin?.write(pixels)) await once(child.stdin!, 'drain');
       job.onProgress?.({ frame: frame + 1, totalFrames: plan.totalFrames });
     }
 
@@ -195,11 +204,16 @@ class TemplateError extends Error {
   }
 }
 
-/** Draw one frame in the template page and capture it as PNG, which must be exactly the template's size. */
+/**
+ * Draw one frame in the template page and capture it, which must be exactly the
+ * template's size. Raw frames are the capture's own BGRA buffer (premultiplied;
+ * the render plan undoes that in ffmpeg), so no image codec runs per frame.
+ */
 async function captureFrame(
   win: BrowserWindow,
   state: ReturnType<typeof frameState>,
   manifest: { name: string; width: number; height: number },
+  frameFormat: FrameFormat,
 ): Promise<Buffer> {
   const detail = (await win.webContents.executeJavaScript(frameCallScript(state))) as TemplateErrorDetail | null;
   if (detail) throw new TemplateError(detail);
@@ -210,7 +224,13 @@ async function captureFrame(
     // platform scaled or clamped it. Resampling would hide that and soften every frame.
     throw new Error(captureSizeMessage(manifest.name, state.frame, manifest, size));
   }
-  return image.toPNG();
+  if (frameFormat === 'png') return image.toPNG();
+  const pixels = image.toBitmap();
+  const expectedBytes = manifest.width * manifest.height * 4;
+  if (pixels.length !== expectedBytes) {
+    throw new Error(captureBytesMessage(manifest.name, state.frame, expectedBytes, pixels.length));
+  }
+  return pixels;
 }
 
 async function existingFiles(paths: string[]): Promise<Set<string>> {

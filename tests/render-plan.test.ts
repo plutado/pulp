@@ -16,9 +16,9 @@ function flag(args: string[], name: string): string | undefined {
 }
 
 describe('buildRenderPlan', () => {
-  it('uses the same raw BGRA pipe input for every preset', () => {
+  it('uses the same raw BGRA pipe input for every preset by default', () => {
     for (const presetId of PRESET_IDS) {
-      const plan = buildRenderPlan({ manifest: timing(), presetId, outputPath: '/out/clip', frameFormat: 'raw' });
+      const plan = buildRenderPlan({ manifest: timing(), presetId, outputPath: '/out/clip' });
       expect(plan.frameFormat).toBe('raw');
       expect(plan.args.slice(0, 14)).toEqual([
         '-hide_banner', '-loglevel', 'error', '-n',
@@ -28,9 +28,9 @@ describe('buildRenderPlan', () => {
     }
   });
 
-  it('uses the PNG pipe input for every preset by default', () => {
+  it('keeps the PNG pipe input available for every preset', () => {
     for (const presetId of PRESET_IDS) {
-      const plan = buildRenderPlan({ manifest: timing(), presetId, outputPath: '/out/clip' });
+      const plan = buildRenderPlan({ manifest: timing(), presetId, outputPath: '/out/clip', frameFormat: 'png' });
       expect(plan.frameFormat).toBe('png');
       expect(plan.args.slice(0, 12)).toEqual([
         '-hide_banner', '-loglevel', 'error', '-n',

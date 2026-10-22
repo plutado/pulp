@@ -96,6 +96,14 @@ export function captureSizeMessage(
   );
 }
 
+/** Message for a raw frame whose byte count is not width * height * 4 (padded rows or an unexpected pixel format). */
+export function captureBytesMessage(templateName: string, frame: number, expectedBytes: number, actualBytes: number): string {
+  return (
+    `Template "${templateName}" frame ${frame} produced ${actualBytes} bytes of pixel data instead of ${expectedBytes}. ` +
+    'Raw frames must be tightly packed 32-bit BGRA; use --frame-format png as a workaround.'
+  );
+}
+
 function formatSeconds(ms: number): string {
   const s = ms / 1000;
   return `${Number.isInteger(s) ? s : s.toFixed(1)} s`;

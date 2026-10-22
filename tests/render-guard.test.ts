@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  captureBytesMessage,
   captureSizeMessage,
   expandSequence,
   formatTemplateError,
@@ -156,5 +157,14 @@ describe('captureSizeMessage', () => {
     const message = captureSizeMessage('T', 0, { width: 7680, height: 4320 }, { width: 7680, height: 2000 });
     expect(message).toContain('captured at 7680x2000 instead of 7680x4320. ');
     expect(message).not.toContain('(scale');
+  });
+});
+
+describe('captureBytesMessage', () => {
+  it('names the template, frame and both byte counts', () => {
+    expect(captureBytesMessage('T', 2, 8_294_400, 8_355_840)).toBe(
+      'Template "T" frame 2 produced 8355840 bytes of pixel data instead of 8294400. ' +
+        'Raw frames must be tightly packed 32-bit BGRA; use --frame-format png as a workaround.',
+    );
   });
 });

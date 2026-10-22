@@ -208,6 +208,24 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(info).toMatchObject({ width: 1080, height: 1920, pix_fmt: 'yuv420p', nb_read_frames: '3' });
   }, 240_000);
 
+  it('keeps straight alpha on the raw frame path: a semi-transparent pixel matches the PNG path', async () => {
+    // The lower-third panel is 85% opaque. Captured pixels are premultiplied, so a white panel left
+    // as-is would read 217 per channel instead of 255; the PNG encoder undoes it, the raw path must too.
+    const panel = ['--param', 'panel=#ffffffd9'];
+    for (const [format, file] of [['raw', 'lt-raw'], ['png', 'lt-png']] as const) {
+      const result = await render('pulp.samples.lower-third-bar', 'png-sequence', file, {
+        extra: ['--frame-format', format, ...panel],
+      });
+      expect(result.code, result.stderr).toBe(0);
+    }
+    // Frame 90 is mid-hold; (120, 840) is inside the panel, clear of the text and the accent bar.
+    const png = await pixels(join(out, 'lt-png_00090.png'), 120, 840);
+    const raw = await pixels(join(out, 'lt-raw_00090.png'), 120, 840);
+    expect(png[3]).toBe(217);
+    for (let i = 0; i < 3; i++) expect(Math.abs(png[i]! - 255), `png channel ${i}`).toBeLessThanOrEqual(1);
+    for (let i = 0; i < 4; i++) expect(Math.abs(raw[i]! - png[i]!), `raw vs png channel ${i}`).toBeLessThanOrEqual(1);
+  }, 240_000);
+
   it('renders ProRes 4444 with a real alpha channel', async () => {
     const result = await render('pulp.samples.lower-third-bar', 'prores-4444', 'lower-third.mov');
     expect(result.code, result.stderr).toBe(0);

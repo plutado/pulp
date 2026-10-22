@@ -2,11 +2,11 @@
  * Render planner: turns a template's timing/size plus an output preset into
  * the exact ffmpeg argument list. Pure; does not spawn anything.
  *
- * Frames are captured by the host and written to ffmpeg's stdin, either as
- * PNG images:
- *   -f image2pipe -framerate <fps> -c:v png -i pipe:0
- * or as raw BGRA pixels, which skip a PNG encode and decode per frame:
+ * Frames are captured by the host and written to ffmpeg's stdin. The default
+ * is raw BGRA pixels, which skip a PNG encode and decode per frame:
  *   -f rawvideo -pixel_format bgra -video_size WxH -framerate <fps> -i pipe:0
+ * The PNG path is kept for comparison (frameFormat 'png'):
+ *   -f image2pipe -framerate <fps> -c:v png -i pipe:0
  *
  * Chromium hands out premultiplied pixels. PNG encoding undoes that; raw
  * frames from alpha templates go through ffmpeg's unpremultiply filter so
@@ -20,7 +20,7 @@ export type PresetId = 'prores-4444' | 'prores-422hq' | 'png-sequence' | 'webm-v
 /** How captured frames are handed to ffmpeg: raw BGRA pixels or PNG images. */
 export type FrameFormat = 'raw' | 'png';
 export const FRAME_FORMATS: readonly FrameFormat[] = ['raw', 'png'];
-export const DEFAULT_FRAME_FORMAT: FrameFormat = 'png';
+export const DEFAULT_FRAME_FORMAT: FrameFormat = 'raw';
 
 export interface OutputPreset {
   id: PresetId;

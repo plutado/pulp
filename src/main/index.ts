@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
-import { OUTPUT_PRESETS, type PresetId } from '../core/render-plan';
+import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId } from '../core/render-plan';
 import type { FfmpegInfo, RenderRequest, RenderResult } from '../shared/api';
 import { addLibraryFolder, findTemplate, getLibrary, rescan } from './library-service';
 import { handleTemplateProtocol, registerTemplateScheme } from './protocol';
@@ -104,8 +104,10 @@ function registerIpc(): void {
 /**
  * Headless mode for scripting and smoke tests:
  *   electron . --render <template-id> --preset <preset-id> --out <path> [--param key=value ...]
- *     [--library <folder> ...] [--frame-timeout <seconds>]
+ *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png]
  * `--library` adds template folders for this run only; they are not saved to settings.
+ * `--frame-format png` uses the slower PNG pipe to ffmpeg, for comparison with the raw default.
+ * The final line reports the elapsed time and frames per second.
  */
 interface CliRender {
   templateId: string;
@@ -114,6 +116,7 @@ interface CliRender {
   params: Record<string, string>;
   libraries: string[];
   frameTimeoutMs?: number;
+  frameFormat?: string;
 }
 
 function parseCliRender(argv: string[]): CliRender | null {
@@ -134,6 +137,7 @@ function parseCliRender(argv: string[]): CliRender | null {
     if (arg === '--library' && argv[idx + 1]) libraries.push(resolve(argv[idx + 1]!));
   });
   const frameTimeout = Number(get('--frame-timeout'));
+  const frameFormat = get('--frame-format');
   return {
     templateId: argv[i + 1] ?? '',
     presetId: get('--preset') ?? 'prores-4444',
@@ -141,6 +145,7 @@ function parseCliRender(argv: string[]): CliRender | null {
     params,
     libraries,
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
+    ...(frameFormat !== undefined ? { frameFormat } : {}),
   };
 }
 
@@ -155,6 +160,11 @@ async function runCliRender(cli: CliRender): Promise<number> {
     console.error('Missing --out <path>.');
     return 2;
   }
+  if (cli.frameFormat !== undefined && !(FRAME_FORMATS as readonly string[]).includes(cli.frameFormat)) {
+    console.error(`Unknown frame format "${cli.frameFormat}" (expected one of: ${FRAME_FORMATS.join(', ')}).`);
+    return 2;
+  }
+  const started = Date.now();
   const result = await renderTemplate({
     template,
     params: cli.params,
@@ -162,6 +172,7 @@ async function runCliRender(cli: CliRender): Promise<number> {
     outputPath: resolve(cli.out),
     overwrite: true,
     ...(cli.frameTimeoutMs ? { frameTimeoutMs: cli.frameTimeoutMs } : {}),
+    ...(cli.frameFormat !== undefined ? { frameFormat: cli.frameFormat as FrameFormat } : {}),
     onProgress: ({ frame, totalFrames }) => {
       if (frame === totalFrames || frame % 30 === 0) console.log(`frame ${frame}/${totalFrames}`);
     },
@@ -171,7 +182,8 @@ async function runCliRender(cli: CliRender): Promise<number> {
     return 1;
   }
   for (const w of result.warnings) console.warn(`warning: ${w}`);
-  console.log(`wrote ${result.output} (${result.frames} frames)`);
+  const seconds = (Date.now() - started) / 1000;
+  console.log(`wrote ${result.output} (${result.frames} frames in ${seconds.toFixed(1)} s, ${(result.frames / seconds).toFixed(1)} frames/s)`);
   return 0;
 }
 
