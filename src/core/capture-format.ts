@@ -14,7 +14,12 @@ export interface CaptureFormat {
   premultiplied: boolean;
 }
 
-export const CAPTURE_PROBE_SIZE = 16;
+/**
+ * Probe window size. Windows enforces a minimum window size even for frameless
+ * windows (a 16x16 probe came back as 32x39 on windows-latest), so the probe is
+ * large enough to be honored everywhere. 256 KB of pixels, once per process.
+ */
+export const CAPTURE_PROBE_SIZE = 256;
 
 /** Left half: red at 50% alpha. Right half: opaque blue. */
 export const CAPTURE_PROBE_HTML =
@@ -27,9 +32,9 @@ export const CAPTURE_PROBE_HTML =
 
 export const CAPTURE_PROBE_URL = `data:text/html;charset=utf-8,${encodeURIComponent(CAPTURE_PROBE_HTML)}`;
 
-/** Sample points: one inside each half, away from the edges. */
-const HALF_RED = { x: 3, y: 8 };
-const OPAQUE_BLUE = { x: 12, y: 8 };
+/** Sample points: the center of each half, far from the edges. */
+const HALF_RED = { x: CAPTURE_PROBE_SIZE / 4, y: CAPTURE_PROBE_SIZE / 2 };
+const OPAQUE_BLUE = { x: (CAPTURE_PROBE_SIZE * 3) / 4, y: CAPTURE_PROBE_SIZE / 2 };
 
 function pixelAt(bytes: Uint8Array, width: number, x: number, y: number): [number, number, number, number] {
   const i = (y * width + x) * 4;

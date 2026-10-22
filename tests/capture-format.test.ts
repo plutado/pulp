@@ -54,8 +54,10 @@ describe('classifyCapture', () => {
 
 describe('probe page and descriptions', () => {
   it('draws half-transparent red on the left and opaque blue on the right', () => {
-    expect(CAPTURE_PROBE_HTML).toContain("fillStyle='rgba(255,0,0,0.5)';x.fillRect(0,0,8,16)");
-    expect(CAPTURE_PROBE_HTML).toContain("fillStyle='rgb(0,0,255)';x.fillRect(8,0,8,16)");
+    const s = CAPTURE_PROBE_SIZE;
+    expect(s).toBeGreaterThanOrEqual(64); // above the Windows minimum window size
+    expect(CAPTURE_PROBE_HTML).toContain(`fillStyle='rgba(255,0,0,0.5)';x.fillRect(0,0,${s / 2},${s})`);
+    expect(CAPTURE_PROBE_HTML).toContain(`fillStyle='rgb(0,0,255)';x.fillRect(${s / 2},0,${s / 2},${s})`);
     expect(CAPTURE_PROBE_URL.startsWith('data:text/html;charset=utf-8,')).toBe(true);
     expect(decodeURIComponent(CAPTURE_PROBE_URL.split(',')[1]!)).toBe(CAPTURE_PROBE_HTML);
   });
