@@ -26,6 +26,12 @@
     var W = state.width, H = state.height;
     ctx.clearRect(0, 0, W, H);
 
+    // Templates that size canvases by devicePixelRatio must see 1; mark the center otherwise.
+    if (window.devicePixelRatio !== 1) {
+      ctx.fillStyle = '#ff00ff';
+      ctx.fillRect(W / 2 - 8, H / 2 - 8, 16, 16);
+    }
+
     ctx.fillStyle = '#ff0000'; ctx.fillRect(0, 0, 16, 16);
     ctx.fillStyle = '#00ff00'; ctx.fillRect(W - 16, 0, 16, 16);
     ctx.fillStyle = '#0000ff'; ctx.fillRect(0, H - 16, 16, 16);

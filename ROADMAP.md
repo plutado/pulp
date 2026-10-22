@@ -32,7 +32,8 @@ Estimates are working hours for one developer, including tests and docs. They ar
 A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone makes it dependable.
 
 - [x] Automated end-to-end render test that runs when Electron and ffmpeg are available, checking frame count, size and alpha with ffprobe (2-3 h)
-- [ ] HiDPI: render at device scale 1 explicitly instead of resizing captured frames; verify on a Retina display and on Windows at 150% scaling (2-3 h)
+- [x] HiDPI: render at device scale 1 explicitly instead of resizing captured frames; verified on a Retina display (2-3 h)
+- [ ] HiDPI: verify on Windows at 150% scaling (1 h)
 - [x] Large frames: verify 4K and 8K, and portrait sizes for vertical video (1-2 h)
 - [ ] Throughput: avoid PNG encode/decode by piping raw RGBA (`-f rawvideo -pix_fmt bgra`) from the offscreen `paint` event; benchmark against the current path (3-5 h)
 - [ ] Color: decide and document sRGB/Rec.709 handling (tags in ProRes/H.264 output, `colorspace` filter) (2-3 h)

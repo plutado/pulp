@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  captureSizeMessage,
   expandSequence,
   formatTemplateError,
   frameCallScript,
@@ -136,5 +137,24 @@ describe('partialOutputFiles', () => {
   it('removes files that existed before when the user chose to overwrite them', () => {
     const existedBefore = new Set(['/out/a.mov']);
     expect(partialOutputFiles({ ...base, existedBefore, output: '/out/a.mov' })).toEqual(['/out/a.mov']);
+  });
+});
+
+describe('captureSizeMessage', () => {
+  it('names the template, frame, both sizes and the scale', () => {
+    expect(captureSizeMessage('Lower Third', 0, { width: 1920, height: 1080 }, { width: 3840, height: 2160 })).toBe(
+      'Template "Lower Third" frame 0 was captured at 3840x2160 instead of 1920x1080 (scale 2). ' +
+        'Pulp renders offscreen at device scale 1 and does not resize captured frames.',
+    );
+  });
+
+  it('rounds fractional scales', () => {
+    expect(captureSizeMessage('T', 3, { width: 320, height: 180 }, { width: 480, height: 270 })).toContain('(scale 1.5)');
+  });
+
+  it('omits the scale when the aspect ratio changed (clamped window)', () => {
+    const message = captureSizeMessage('T', 0, { width: 7680, height: 4320 }, { width: 7680, height: 2000 });
+    expect(message).toContain('captured at 7680x2000 instead of 7680x4320. ');
+    expect(message).not.toContain('(scale');
   });
 });

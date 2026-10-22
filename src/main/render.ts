@@ -2,11 +2,13 @@
  * Headless renderer: steps a template frame by frame in an offscreen
  * BrowserWindow, captures each frame as PNG and pipes it into ffmpeg.
  *
- * Status: first working version. Verified on macOS with the bundled samples
- * for all presets (1920x1080, alpha preserved in ProRes 4444, PNG and VP9)
- * and with pixel-exact size fixtures at 4K, 8K and portrait 1080x1920.
- * Not yet verified: Windows/Linux, HiDPI capture, color management, and
- * long renders. See milestone 1 in ROADMAP.md.
+ * Status: first working version. Verified on macOS (Retina display) with the
+ * bundled samples for all presets (1920x1080, alpha preserved in ProRes 4444,
+ * PNG and VP9) and with pixel-exact size fixtures at 4K, 8K and portrait
+ * 1080x1920. The offscreen window renders at device scale 1 on purpose, so
+ * captures are exactly the template's size; any other size fails the render.
+ * Not yet verified: Windows/Linux (including Windows at 150% scaling), color
+ * management, and long renders. See milestone 1 in ROADMAP.md.
  */
 
 import { BrowserWindow } from 'electron';
@@ -18,6 +20,7 @@ import { checkPresetSupport, detectFfmpeg } from '../core/ffmpeg';
 import { buildRenderPlan } from '../core/render-plan';
 import { resolveParams } from '../core/params';
 import {
+  captureSizeMessage,
   DEFAULT_FRAME_TIMEOUT_MS,
   DEFAULT_LOAD_TIMEOUT_MS,
   frameCallScript,
@@ -47,6 +50,16 @@ export interface RenderJob {
   /** Time allowed for the template page to load. */
   loadTimeoutMs?: number;
   onProgress?: (progress: RenderProgress) => void;
+}
+
+/**
+ * Device scale factor of the offscreen window. Always 1; PULP_OFFSCREEN_SCALE
+ * exists only so tests can simulate a HiDPI surface and check that such a
+ * render is refused rather than resized.
+ */
+function offscreenDeviceScaleFactor(): number {
+  const override = Number(process.env.PULP_OFFSCREEN_SCALE);
+  return Number.isFinite(override) && override > 0 ? override : 1;
 }
 
 export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
@@ -82,7 +95,9 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     transparent: true,
     backgroundColor: '#00000000',
     webPreferences: {
-      offscreen: true,
+      // Scale 1 on purpose: a 1920x1080 template is captured as 1920x1080 pixels on any display,
+      // and window.devicePixelRatio is 1 inside the template.
+      offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() },
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
@@ -180,19 +195,20 @@ class TemplateError extends Error {
   }
 }
 
-/** Draw one frame in the template page and capture it as PNG at the template's size. */
+/** Draw one frame in the template page and capture it as PNG, which must be exactly the template's size. */
 async function captureFrame(
   win: BrowserWindow,
   state: ReturnType<typeof frameState>,
-  manifest: { width: number; height: number },
+  manifest: { name: string; width: number; height: number },
 ): Promise<Buffer> {
   const detail = (await win.webContents.executeJavaScript(frameCallScript(state))) as TemplateErrorDetail | null;
   if (detail) throw new TemplateError(detail);
-  let image = await win.webContents.capturePage();
+  const image = await win.webContents.capturePage();
   const size = image.getSize();
   if (size.width !== manifest.width || size.height !== manifest.height) {
-    // HiDPI or a clamped window; scale to the template's declared size.
-    image = image.resize({ width: manifest.width, height: manifest.height, quality: 'best' });
+    // The window is at scale 1 (see offscreenDeviceScaleFactor), so a different size means the
+    // platform scaled or clamped it. Resampling would hide that and soften every frame.
+    throw new Error(captureSizeMessage(manifest.name, state.frame, manifest, size));
   }
   return image.toPNG();
 }

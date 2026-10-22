@@ -75,6 +75,27 @@ export function loadTimeoutMessage(templateName: string, ms: number): string {
   return `Template "${templateName}" did not finish loading within ${formatSeconds(ms)}.`;
 }
 
+/**
+ * Message for a captured frame whose pixel size is not the template's declared
+ * size. The offscreen window renders at device scale 1 on purpose, so this
+ * means the platform scaled or clamped it; frames are never resampled to hide that.
+ */
+export function captureSizeMessage(
+  templateName: string,
+  frame: number,
+  expected: { width: number; height: number },
+  actual: { width: number; height: number },
+): string {
+  const sx = actual.width / expected.width;
+  const sy = actual.height / expected.height;
+  const scale = sx === sy ? ` (scale ${Number(sx.toFixed(2))})` : '';
+  return (
+    `Template "${templateName}" frame ${frame} was captured at ${actual.width}x${actual.height} ` +
+    `instead of ${expected.width}x${expected.height}${scale}. ` +
+    'Pulp renders offscreen at device scale 1 and does not resize captured frames.'
+  );
+}
+
 function formatSeconds(ms: number): string {
   const s = ms / 1000;
   return `${Number.isInteger(s) ? s : s.toFixed(1)} s`;

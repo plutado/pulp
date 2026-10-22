@@ -69,10 +69,19 @@ describe.skipIf(!available)('end-to-end render', () => {
     if (out) await rm(out, { recursive: true, force: true });
   });
 
-  async function render(templateId: string, preset: string, file: string, opts: { timeoutMs?: number; extra?: string[] } = {}) {
+  async function render(
+    templateId: string,
+    preset: string,
+    file: string,
+    opts: { timeoutMs?: number; extra?: string[]; env?: Record<string, string> } = {},
+  ) {
     const args = ['.', '--render', templateId, '--preset', preset, '--out', join(out, file), ...(opts.extra ?? [])];
     try {
-      const { stdout, stderr } = await run(electron, args, { cwd: ROOT, timeout: opts.timeoutMs ?? 90_000 });
+      const { stdout, stderr } = await run(electron, args, {
+        cwd: ROOT,
+        timeout: opts.timeoutMs ?? 90_000,
+        env: { ...process.env, ...opts.env },
+      });
       return { code: 0, stdout, stderr };
     } catch (err) {
       const e = err as { code?: number; stdout?: string; stderr?: string };
@@ -136,7 +145,8 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(await pixels(file, width - 1, 0)).toEqual([0, 255, 0, 255]);
     expect(await pixels(file, 0, height - 1)).toEqual([0, 0, 255, 255]);
     expect(await pixels(file, width - 1, height - 1)).toEqual([255, 255, 255, 255]);
-    // Away from the markers the frame is fully transparent.
+    // Away from the markers the frame is fully transparent. The fixture marks the center if the
+    // page saw a devicePixelRatio other than 1, so this also checks the explicit scale 1.
     expect((await pixels(file, Math.floor(width / 2), Math.floor(height / 2)))[3]).toBe(0);
     // The 1px checkerboard at (32, 32) survives exactly only if the frame was never rescaled.
     const row = await pixels(file, 32, 40, 16);
@@ -165,6 +175,19 @@ describe.skipIf(!available)('end-to-end render', () => {
       await expectProbeMarkers(frame, width, height);
     }, timeoutMs + 60_000);
   }
+
+  it('refuses a HiDPI offscreen surface instead of resizing the frames', async () => {
+    // PULP_OFFSCREEN_SCALE simulates a display that renders the offscreen window at 2x.
+    const result = await render('pulp.test.size-portrait', 'png-sequence', 'scaled', {
+      extra: ['--library', FIXTURES],
+      env: { PULP_OFFSCREEN_SCALE: '2' },
+    });
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      'Template "Test Size Portrait" frame 0 was captured at 2160x3840 instead of 1080x1920 (scale 2).',
+    );
+    expect((await readdir(out)).filter((f) => f.startsWith('scaled_'))).toEqual([]);
+  }, 120_000);
 
   it('renders ProRes 4444 with alpha at 8K', async () => {
     const result = await render('pulp.test.size-8k', 'prores-4444', 'size-8k.mov', { extra: ['--library', FIXTURES], timeoutMs: 300_000 });

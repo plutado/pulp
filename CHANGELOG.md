@@ -12,9 +12,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Headless mode flags `--library <folder>` (extra template folder for one run) and `--frame-timeout <seconds>`.
 - End-to-end render test (`npm run test:e2e`, also part of `npm test`): renders the samples to ProRes 4444, VP9 WebM, PNG sequence and H.264 and checks frame count, size and alpha with ffprobe, plus the error and timeout paths. Skipped when Electron, ffmpeg or ffprobe is missing.
 - Size verification at 4K (3840x2160), 8K (7680x4320) and portrait 1080x1920 for vertical video. Three size-probe fixture templates under `tests/e2e/templates` render as PNG sequences and the test reads pixels back to confirm dimensions, orientation and that the frame was captured at full size; 8K ProRes 4444 and portrait H.264 cover the video presets at those sizes.
+- End-to-end check that a 2x offscreen surface (simulated with `PULP_OFFSCREEN_SCALE=2`) fails the render with the capture-size message instead of producing resized frames.
 
 ### Changed
 
+- The offscreen render window is created at device scale factor 1 on purpose (Electron's `offscreen.deviceScaleFactor`), so templates see `devicePixelRatio` 1 and frames are captured at exactly the declared size on HiDPI displays. A capture at any other size now fails the render with a clear message instead of being silently resampled.
 - When a template throws during a render, the error names the template, the frame, the error type and the file and line inside the template.
 - The template bridge script is injected on one line so line numbers in template errors match the template's own file.
 
