@@ -16,6 +16,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Changed
 
+- Frames travel to ffmpeg as raw BGRA pixels instead of PNG images, removing a PNG encode in the app and a decode in ffmpeg per frame. Frames from alpha templates are unpremultiplied in ffmpeg, so semi-transparent edges keep their color. `--frame-format png` keeps the old path for comparison, and headless mode prints elapsed time and frames per second. Measurements are in `docs/system-design.md`; the reasoning is in decision record 0003.
 - The offscreen render window is created at device scale factor 1 on purpose (Electron's `offscreen.deviceScaleFactor`), so templates see `devicePixelRatio` 1 and frames are captured at exactly the declared size on HiDPI displays. A capture at any other size now fails the render with a clear message instead of being silently resampled.
 - When a template throws during a render, the error names the template, the frame, the error type and the file and line inside the template.
 - The template bridge script is injected on one line so line numbers in template errors match the template's own file.
