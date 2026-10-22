@@ -13,6 +13,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Headless mode flags `--library <folder>` (extra template folder for one run) and `--frame-timeout <seconds>`.
 - End-to-end render test (`npm run test:e2e`, also part of `npm test`): renders the samples to ProRes 4444, VP9 WebM, PNG sequence and H.264 and checks frame count, size and alpha with ffprobe, plus the error and timeout paths. Skipped when Electron, ffmpeg or ffprobe is missing.
 - Size verification at 4K (3840x2160), 8K (7680x4320) and portrait 1080x1920 for vertical video. Three size-probe fixture templates under `tests/e2e/templates` render as PNG sequences and the test reads pixels back to confirm dimensions, orientation and that the frame was captured at full size; 8K ProRes 4444 and portrait H.264 cover the video presets at those sizes.
+- End-to-end check that frames stay pixel-exact with the display scaled to 150% (Chromium's `--force-device-scale-factor=1.5`), and a CI job on `windows-latest` that installs ffmpeg and runs the whole suite including the end-to-end tests. `PULP_E2E=1` makes the suite fail instead of skipping when a tool is missing.
 - End-to-end check that a 2x offscreen surface (simulated with `PULP_OFFSCREEN_SCALE=2`) fails the render with the capture-size message instead of producing resized frames.
 
 ### Changed

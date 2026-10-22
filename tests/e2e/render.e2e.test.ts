@@ -4,7 +4,8 @@
  *
  * Runs only when the Electron binary, ffmpeg and ffprobe are available (and a
  * display on Linux); otherwise the suite is skipped with the reason printed.
- * Set PULP_E2E=0 to skip it explicitly.
+ * Set PULP_E2E=0 to skip it explicitly, or PULP_E2E=1 to fail instead of
+ * skipping when something is missing (used in CI).
  */
 
 import { execFile } from 'node:child_process';
@@ -44,6 +45,9 @@ async function findTools(): Promise<{ electron: string; ffmpeg: string; ffprobe:
 }
 
 const tools = await findTools();
+if (typeof tools === 'string' && process.env.PULP_E2E === '1') {
+  throw new Error(`End-to-end render tests are required (PULP_E2E=1) but cannot run: ${tools}.`);
+}
 if (typeof tools === 'string') console.info(`Skipping end-to-end render tests: ${tools}.`);
 const available = typeof tools === 'string' ? null : tools;
 
@@ -182,6 +186,20 @@ describe.skipIf(!available)('end-to-end render', () => {
       await expectProbeMarkers(frame, width, height);
     }, timeoutMs + 60_000);
   }
+
+  it('keeps frames pixel-exact when the display is scaled to 150%', async () => {
+    // Chromium's switch makes the primary display report scale 1.5, as Windows does at 150% scaling.
+    // The offscreen window is pinned to scale 1, so the output must be identical to the unscaled render.
+    const result = await render('pulp.test.size-portrait', 'png-sequence', 'scaled150', {
+      extra: ['--force-device-scale-factor=1.5', '--library', FIXTURES],
+    });
+    expect(result.code, result.stderr).toBe(0);
+    const frames = (await readdir(out)).filter((f) => f.startsWith('scaled150_')).sort();
+    expect(frames).toHaveLength(3);
+    const frame = join(out, frames[1]!);
+    expect(await probe(frame)).toMatchObject({ width: 1080, height: 1920, pix_fmt: 'rgba' });
+    await expectProbeMarkers(frame, 1080, 1920);
+  }, 180_000);
 
   it('refuses a HiDPI offscreen surface instead of resizing the frames', async () => {
     // PULP_OFFSCREEN_SCALE simulates a display that renders the offscreen window at 2x.

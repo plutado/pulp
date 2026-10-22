@@ -17,7 +17,7 @@ npm test
 npm run build
 ```
 
-`npm test` includes an end-to-end render test (`tests/e2e`) that builds the app and renders the bundled samples. It runs when the Electron binary, ffmpeg and ffprobe are installed, takes about 15 seconds, and is skipped otherwise (or with `PULP_E2E=0`). `npm run test:e2e` runs it alone.
+`npm test` includes an end-to-end render test (`tests/e2e`) that builds the app and renders the bundled samples. It runs when the Electron binary, ffmpeg and ffprobe are installed, takes about 30 seconds, and is skipped otherwise (or with `PULP_E2E=0`). `PULP_E2E=1` fails instead of skipping, which CI uses on Windows. `npm run test:e2e` runs it alone.
 
 ## Guidelines
 

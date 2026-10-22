@@ -27,3 +27,22 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  render-windows:
+    # Full render path on Windows: Electron offscreen window, ffmpeg, and the
+    # end-to-end suite including the 150% display scaling check.
+    runs-on: windows-latest
+    env:
+      # Fail instead of skipping if Electron, ffmpeg or ffprobe is missing.
+      PULP_E2E: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install ffmpeg
+        run: choco install ffmpeg -y --no-progress
+      - run: npm ci
+      - name: Unit and end-to-end tests
+        run: npm test
