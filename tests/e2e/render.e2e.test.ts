@@ -52,6 +52,10 @@ interface StreamInfo {
   height: number;
   pix_fmt: string;
   nb_read_frames: string;
+  color_range?: string;
+  color_space?: string;
+  color_transfer?: string;
+  color_primaries?: string;
   tags?: Record<string, string>;
 }
 
@@ -94,7 +98,7 @@ describe.skipIf(!available)('end-to-end render', () => {
       '-v', 'error',
       '-count_frames',
       '-select_streams', 'v:0',
-      '-show_entries', 'stream=width,height,pix_fmt,nb_read_frames:stream_tags',
+      '-show_entries', 'stream=width,height,pix_fmt,nb_read_frames,color_range,color_space,color_transfer,color_primaries:stream_tags',
       '-of', 'json',
       file,
     ]);
@@ -127,11 +131,14 @@ describe.skipIf(!available)('end-to-end render', () => {
     return [min, max];
   }
 
-  /** RGBA values of `count` pixels in a row starting at (x, y) of the first frame. */
+  /**
+   * RGBA values of `count` pixels in a row starting at (x, y) of the first frame.
+   * Converts to RGBA before cropping: on chroma-subsampled video a 1px crop would round to nothing.
+   */
   async function pixels(file: string, x: number, y: number, count = 1): Promise<number[]> {
     const { stdout } = await run(
       ffmpeg,
-      ['-v', 'error', '-i', file, '-vf', `crop=${count}:1:${x}:${y}`, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-'],
+      ['-v', 'error', '-i', file, '-vf', `format=rgba,crop=${count}:1:${x}:${y}`, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-'],
       { encoding: 'buffer' },
     );
     expect(stdout.length).toBe(count * 4);
@@ -188,6 +195,31 @@ describe.skipIf(!available)('end-to-end render', () => {
     );
     expect((await readdir(out)).filter((f) => f.startsWith('scaled_'))).toEqual([]);
   }, 120_000);
+
+  it('tags video output as Rec.709 limited range and keeps saturated colors', async () => {
+    // The size probe's corner markers are pure sRGB red, green, blue and white. Converted with the
+    // BT.709 matrix and tagged, they decode back to the same values; the untagged BT.601 default
+    // would read red as about (255, 25, 0).
+    const expected = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 255]];
+    const spots = [[4, 4], [1080 - 5, 4], [4, 1920 - 5], [1080 - 5, 1920 - 5]];
+    const check = async (file: string, tolerance: number) => {
+      expect(await probe(file)).toMatchObject({ color_space: 'bt709', color_transfer: 'bt709', color_primaries: 'bt709' });
+      for (const [i, [x, y]] of spots.entries()) {
+        const px = await pixels(file, x!, y!);
+        for (let c = 0; c < 3; c++) {
+          expect(Math.abs(px[c]! - expected[i]![c]!), `${basename(file)} marker ${i} channel ${c}`).toBeLessThanOrEqual(tolerance);
+        }
+      }
+    };
+    // H.264 flattens the alpha fixture over black, so this covers the composite-then-convert chain.
+    const mp4 = await render('pulp.test.size-portrait', 'h264-mp4', 'color.mp4', { extra: ['--library', FIXTURES] });
+    expect(mp4.code, mp4.stderr).toBe(0);
+    expect((await probe(join(out, 'color.mp4'))).color_range).toBe('tv');
+    await check(join(out, 'color.mp4'), 4);
+    const mov = await render('pulp.test.size-portrait', 'prores-4444', 'color.mov', { extra: ['--library', FIXTURES] });
+    expect(mov.code, mov.stderr).toBe(0);
+    await check(join(out, 'color.mov'), 2);
+  }, 240_000);
 
   it('renders ProRes 4444 with alpha at 8K', async () => {
     const result = await render('pulp.test.size-8k', 'prores-4444', 'size-8k.mov', { extra: ['--library', FIXTURES], timeoutMs: 300_000 });

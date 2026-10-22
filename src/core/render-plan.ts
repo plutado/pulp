@@ -11,6 +11,11 @@
  * Chromium hands out premultiplied pixels. PNG encoding undoes that; raw
  * frames from alpha templates go through ffmpeg's unpremultiply filter so
  * semi-transparent edges keep their color instead of darkening.
+ *
+ * Color (ADR 0004): templates draw in sRGB. Video presets convert to Y'CbCr
+ * with the BT.709 matrix at limited range and tag every frame BT.709 /
+ * limited, after any compositing over the background color. PNG sequences
+ * stay full-range RGB.
  */
 
 import { frameCount, isValidColor, type TemplateManifest } from './manifest';
@@ -38,7 +43,14 @@ export interface OutputPreset {
   encoder: string;
   pixelFormat: string;
   codecArgs: readonly string[];
+  /** 'rec709': BT.709 matrix, limited range, tagged. 'rgb': full-range RGB left untouched. */
+  color: 'rec709' | 'rgb';
 }
+
+/** Rec.709 output, step 1: convert RGB to Y'CbCr with the BT.709 matrix at limited (video) range. */
+export const REC709_CONVERT = 'scale=out_color_matrix=bt709:out_range=tv';
+/** Rec.709 output, step 2: tag every frame so the muxer writes colr / VUI / Matroska Colour. */
+export const REC709_TAGS = 'setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv';
 
 export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   'prores-4444': {
@@ -51,6 +63,7 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
     requiresEvenDimensions: false,
     encoder: 'prores_ks',
     pixelFormat: 'yuva444p10le',
+    color: 'rec709',
     codecArgs: ['-c:v', 'prores_ks', '-profile:v', '4444', '-vendor', 'apl0', '-alpha_bits', '16'],
   },
   'prores-422hq': {
@@ -63,6 +76,7 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
     requiresEvenDimensions: true,
     encoder: 'prores_ks',
     pixelFormat: 'yuv422p10le',
+    color: 'rec709',
     codecArgs: ['-c:v', 'prores_ks', '-profile:v', 'hq', '-vendor', 'apl0'],
   },
   'png-sequence': {
@@ -75,6 +89,7 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
     requiresEvenDimensions: false,
     encoder: 'png',
     pixelFormat: 'rgba',
+    color: 'rgb',
     codecArgs: ['-c:v', 'png', '-f', 'image2', '-start_number', '0'],
   },
   'webm-vp9-alpha': {
@@ -87,6 +102,7 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
     requiresEvenDimensions: true,
     encoder: 'libvpx-vp9',
     pixelFormat: 'yuva420p',
+    color: 'rec709',
     codecArgs: ['-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '30', '-row-mt', '1', '-auto-alt-ref', '0'],
   },
   'h264-mp4': {
@@ -99,6 +115,7 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
     requiresEvenDimensions: true,
     encoder: 'libx264',
     pixelFormat: 'yuv420p',
+    color: 'rec709',
     codecArgs: ['-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-movflags', '+faststart'],
   },
 };
@@ -200,17 +217,21 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
 
   // Raw pixels arrive premultiplied; opaque templates have nothing to undo.
   const unpremultiply = frameFormat === 'raw' && manifest.alpha ? 'unpremultiply=inplace=1' : null;
+  // From straight RGB to the preset's pixel format. Rec.709 presets convert and tag; the format
+  // filter last makes the scale step do the conversion, with the matrix and range given above.
+  const toOutput = preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [];
+  toOutput.push(`format=${preset.pixelFormat}`);
 
   if (!preset.alpha && manifest.alpha) {
+    // Composite in RGB so the background color and the template pixels share one conversion.
     const foreground = unpremultiply ? `[0:v]${unpremultiply}[fg];[bg][fg]` : '[bg][0:v]';
     args.push(
       '-filter_complex',
-      `color=c=${hexToFfmpegColor(background)}:s=${size}:r=${fps}[bg];${foreground}overlay=shortest=1:format=auto,format=${preset.pixelFormat}[out]`,
+      `color=c=${hexToFfmpegColor(background)}:s=${size}:r=${fps}[bg];${foreground}overlay=shortest=1:format=rgb,${toOutput.join(',')}[out]`,
       '-map', '[out]',
     );
   } else {
-    if (unpremultiply) args.push('-vf', unpremultiply);
-    args.push('-pix_fmt', preset.pixelFormat);
+    args.push('-vf', [unpremultiply, ...toOutput].filter((f): f is string => f !== null).join(','));
   }
 
   args.push(...preset.codecArgs, '-frames:v', String(totalFrames), '-r', fps, output);

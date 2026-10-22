@@ -5,6 +5,8 @@ import {
   normalizeOutputPath,
   OUTPUT_PRESETS,
   PRESET_IDS,
+  REC709_CONVERT,
+  REC709_TAGS,
   RenderPlanError,
 } from '../src/core/render-plan';
 import { timing } from './fixtures';
@@ -42,9 +44,8 @@ describe('buildRenderPlan', () => {
 
   it('unpremultiplies raw frames from alpha templates, and only those', () => {
     const alpha = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t.mov', frameFormat: 'raw' });
-    expect(flag(alpha.args, '-vf')).toBe('unpremultiply=inplace=1');
+    expect(flag(alpha.args, '-vf')).toMatch(/^unpremultiply=inplace=1,/);
     const opaque = buildRenderPlan({ manifest: timing({ alpha: false }), presetId: 'prores-4444', outputPath: '/o/t.mov', frameFormat: 'raw' });
-    expect(opaque.args).not.toContain('-vf');
     expect(opaque.args.join(' ')).not.toContain('unpremultiply');
   });
 
@@ -52,7 +53,8 @@ describe('buildRenderPlan', () => {
     const plan = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/out/lt.mov', overwrite: true, frameFormat: 'raw' });
     expect(plan.output).toBe('/out/lt.mov');
     expect(plan.args).toContain('-y');
-    expect(flag(plan.args, '-pix_fmt')).toBe('yuva444p10le');
+    expect(flag(plan.args, '-vf')).toBe(`unpremultiply=inplace=1,${REC709_CONVERT},${REC709_TAGS},format=yuva444p10le`);
+    expect(plan.args).not.toContain('-pix_fmt');
     expect(flag(plan.args, '-c:v')).toBe('prores_ks');
     expect(plan.args.join(' ')).toContain('-c:v prores_ks -profile:v 4444 -vendor apl0 -alpha_bits 16');
     expect(plan.args.at(-1)).toBe('/out/lt.mov');
@@ -63,14 +65,14 @@ describe('buildRenderPlan', () => {
   it('png-sequence writes a numbered RGBA sequence starting at 0', () => {
     const plan = buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/out/lt.png', frameFormat: 'raw' });
     expect(plan.output).toBe('/out/lt_%05d.png');
-    expect(flag(plan.args, '-pix_fmt')).toBe('rgba');
+    expect(flag(plan.args, '-vf')).toBe('unpremultiply=inplace=1,format=rgba');
     expect(flag(plan.args, '-f')).toBe('rawvideo');
     expect(plan.args.join(' ')).toContain('-c:v png -f image2 -start_number 0');
   });
 
   it('webm-vp9-alpha uses yuva420p and disables alt-ref frames', () => {
     const plan = buildRenderPlan({ manifest: timing(), presetId: 'webm-vp9-alpha', outputPath: '/out/lt.webm' });
-    expect(flag(plan.args, '-pix_fmt')).toBe('yuva420p');
+    expect(flag(plan.args, '-vf')).toMatch(/,format=yuva420p$/);
     expect(flag(plan.args, '-auto-alt-ref')).toBe('0');
     expect(plan.args).toContain('libvpx-vp9');
   });
@@ -84,7 +86,7 @@ describe('buildRenderPlan', () => {
       frameFormat: 'raw',
     });
     expect(flag(plan.args, '-filter_complex')).toBe(
-      'color=c=0x102030:s=1280x720:r=30000/1001[bg];[0:v]unpremultiply=inplace=1[fg];[bg][fg]overlay=shortest=1:format=auto,format=yuv420p[out]',
+      `color=c=0x102030:s=1280x720:r=30000/1001[bg];[0:v]unpremultiply=inplace=1[fg];[bg][fg]overlay=shortest=1:format=rgb,${REC709_CONVERT},${REC709_TAGS},format=yuv420p[out]`,
     );
     expect(flag(plan.args, '-map')).toBe('[out]');
     expect(plan.args).not.toContain('-pix_fmt');
@@ -94,20 +96,39 @@ describe('buildRenderPlan', () => {
   it('flattens PNG frames without unpremultiplying', () => {
     const plan = buildRenderPlan({ manifest: timing(), presetId: 'h264-mp4', outputPath: '/out/lt.mp4', frameFormat: 'png' });
     expect(flag(plan.args, '-filter_complex')).toBe(
-      'color=c=0x000000:s=1920x1080:r=30[bg];[bg][0:v]overlay=shortest=1:format=auto,format=yuv420p[out]',
+      `color=c=0x000000:s=1920x1080:r=30[bg];[bg][0:v]overlay=shortest=1:format=rgb,${REC709_CONVERT},${REC709_TAGS},format=yuv420p[out]`,
     );
   });
 
   it('non-alpha presets skip flattening for opaque templates', () => {
     const plan = buildRenderPlan({ manifest: timing({ alpha: false }), presetId: 'prores-422hq', outputPath: '/o/t.mov' });
     expect(plan.args).not.toContain('-filter_complex');
-    expect(flag(plan.args, '-pix_fmt')).toBe('yuv422p10le');
+    expect(flag(plan.args, '-vf')).toBe(`${REC709_CONVERT},${REC709_TAGS},format=yuv422p10le`);
     expect(flag(plan.args, '-profile:v')).toBe('hq');
   });
 
   it('warns when an alpha preset is used for an opaque template', () => {
     const plan = buildRenderPlan({ manifest: timing({ alpha: false }), presetId: 'prores-4444', outputPath: '/o/t.mov' });
     expect(plan.warnings).toHaveLength(1);
+  });
+
+  it('converts video presets to Rec.709 limited range after compositing, and leaves PNG as RGB', () => {
+    for (const presetId of PRESET_IDS) {
+      const preset = OUTPUT_PRESETS[presetId];
+      for (const frameFormat of ['raw', 'png'] as const) {
+        const plan = buildRenderPlan({ manifest: timing(), presetId, outputPath: '/o/t', frameFormat, background: '#ffffff' });
+        const chain = flag(plan.args, '-filter_complex') ?? flag(plan.args, '-vf') ?? '';
+        if (preset.color === 'rec709') {
+          expect(chain).toContain(`${REC709_CONVERT},${REC709_TAGS},format=${preset.pixelFormat}`);
+          // Conversion comes after the background composite, so both go through it the same way.
+          if (chain.includes('overlay')) expect(chain.indexOf('overlay')).toBeLessThan(chain.indexOf(REC709_CONVERT));
+        } else {
+          expect(presetId).toBe('png-sequence');
+          expect(plan.args.join(' ')).not.toContain('bt709');
+          expect(chain).toMatch(/format=rgba$/);
+        }
+      }
+    }
   });
 
   it('rejects odd dimensions for chroma-subsampled presets only', () => {

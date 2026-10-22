@@ -116,6 +116,7 @@ It may return a Promise; the host waits for it to settle before capturing.
 5. **Offline.** Only files inside the template folder can be loaded. Network requests are blocked.
 6. **Ready means loaded.** The host waits for the window `load` event and `document.fonts.ready` before the first call. Load fonts and images before that point (for example with `@font-face` in CSS or `<img>` tags in the page).
 7. **Fast and finite.** When rendering, the page has 30 seconds to load and each frame has 10 seconds by default. A template that runs over, or that throws (or rejects, if `pulpRender` returns a Promise), stops the render with an error naming the frame and, where available, the file and line.
+8. **Colors are sRGB.** Pick colors as you would for the web and draw in the Canvas default color space. Video outputs are converted to Rec.709 (BT.709 matrix, limited range) and tagged as such, so editors show the colors you chose; PNG sequences keep full-range sRGB. No conversion is needed inside the template.
 
 DOM and CSS animation are possible as long as they are driven from `state` (for example, setting styles inside `pulpRender`), but Canvas 2D is recommended for predictable output.
 
