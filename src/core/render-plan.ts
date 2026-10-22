@@ -12,8 +12,14 @@
  * alpha are measured by the host (capture-format.ts) and passed in as
  * `rawInput`. Premultiplied frames from alpha templates go through ffmpeg's
  * unpremultiply filter so semi-transparent edges keep their color. That
- * filter is fed planar RGB explicitly: left to negotiate, some ffmpeg builds
- * pick a Y'CbCr intermediate and every color lands one step off.
+ * filter is fed planar RGB explicitly, so format negotiation cannot route it
+ * through a lossy Y'CbCr intermediate.
+ *
+ * ffmpeg 8.1 and later negotiate an alpha mode on filter links. Untagged raw
+ * input counts as straight alpha there, and the graph silently premultiplies
+ * it before an unpremultiply filter, which leaves the output premultiplied
+ * and one step low everywhere. When the host reports `tagAlphaMode`, raw
+ * frames are tagged with the measured layout as the first filter.
  *
  * Color (ADR 0004): templates draw in sRGB. Video presets convert to Y'CbCr
  * with the BT.709 matrix at limited range and tag every frame BT.709 /
@@ -40,6 +46,11 @@ export const DEFAULT_RAW_INPUT: RawInput = { pixelFormat: 'bgra', premultiplied:
 
 /** Undo premultiplied alpha without going through Y'CbCr. */
 export const UNPREMULTIPLY = 'format=gbrap,unpremultiply=inplace=1';
+
+/** Tell ffmpeg 8.1+ what the raw frames' alpha is, so it does not guess (and premultiply) for us. */
+export function alphaModeTag(premultiplied: boolean): string {
+  return `setparams=alpha_mode=${premultiplied ? 'premultiplied' : 'straight'}`;
+}
 
 export interface OutputPreset {
   id: PresetId;
@@ -153,6 +164,8 @@ export interface RenderPlanInput {
   frameFormat?: FrameFormat;
   /** Byte layout of raw frames. Defaults to DEFAULT_RAW_INPUT. Ignored for PNG frames. */
   rawInput?: RawInput;
+  /** Tag raw frames with their alpha mode (needs ffmpeg 8.1 or later; see FfmpegStatus.alphaModeAware). Default false. */
+  tagAlphaMode?: boolean;
 }
 
 export interface RenderPlan {
@@ -232,9 +245,12 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
     args.push('-f', 'image2pipe', '-framerate', fps, '-c:v', 'png', '-i', 'pipe:0');
   }
 
-  // Premultiplied raw pixels are undone here; PNG frames and straight bitmaps need nothing, and
-  // opaque templates have nothing to undo.
-  const unpremultiply = frameFormat === 'raw' && rawInput.premultiplied && manifest.alpha ? UNPREMULTIPLY : null;
+  // Steps applied to the raw frames before anything else: say what their alpha is (ffmpeg 8.1+
+  // would otherwise assume straight and premultiply them), then undo premultiplication for alpha
+  // templates. PNG frames and straight bitmaps need no undo, and opaque templates have nothing to undo.
+  const prepare: string[] = [];
+  if (frameFormat === 'raw' && input.tagAlphaMode) prepare.push(alphaModeTag(rawInput.premultiplied));
+  if (frameFormat === 'raw' && rawInput.premultiplied && manifest.alpha) prepare.push(UNPREMULTIPLY);
   // From straight RGB to the preset's pixel format. Rec.709 presets convert and tag; the format
   // filter last makes the scale step do the conversion, with the matrix and range given above.
   const toOutput = preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [];
@@ -242,14 +258,14 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
 
   if (!preset.alpha && manifest.alpha) {
     // Composite in RGB so the background color and the template pixels share one conversion.
-    const foreground = unpremultiply ? `[0:v]${unpremultiply}[fg];[bg][fg]` : '[bg][0:v]';
+    const foreground = prepare.length > 0 ? `[0:v]${prepare.join(',')}[fg];[bg][fg]` : '[bg][0:v]';
     args.push(
       '-filter_complex',
       `color=c=${hexToFfmpegColor(background)}:s=${size}:r=${fps}[bg];${foreground}overlay=shortest=1:format=rgb,${toOutput.join(',')}[out]`,
       '-map', '[out]',
     );
   } else {
-    args.push('-vf', [unpremultiply, ...toOutput].filter((f): f is string => f !== null).join(','));
+    args.push('-vf', [...prepare, ...toOutput].join(','));
   }
 
   args.push(...preset.codecArgs, '-frames:v', String(totalFrames), '-r', fps, output);

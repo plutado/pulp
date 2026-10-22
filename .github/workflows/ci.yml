@@ -42,10 +42,9 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install ffmpeg
-        # Pinned to the 8.x series this renderer is verified against. Chocolatey's
-        # ffmpeg 9.0.2 shifts raw-path colors by one step (likely the swscale
-        # rewrite); unpin once the raw path is verified against ffmpeg 9.
-        run: choco install ffmpeg -y --no-progress --version=8.1.2
+        # Latest from Chocolatey (9.x at the time of writing), which is what a fresh
+        # install gets. The e2e suite also runs locally on ffmpeg 8.0, so both series stay covered.
+        run: choco install ffmpeg -y --no-progress
       - run: npm ci
       - name: Unit and end-to-end tests
         run: npm test

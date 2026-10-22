@@ -15,7 +15,14 @@ export interface RunResult {
 export type ProcessRunner = (command: string, args: string[]) => Promise<RunResult>;
 
 export type FfmpegStatus =
-  | { ok: true; path: string; version: string; encoders: string[] }
+  | {
+      ok: true;
+      path: string;
+      version: string;
+      encoders: string[];
+      /** True if filter links carry an alpha mode (ffmpeg 8.1 and later): raw input must then be tagged. */
+      alphaModeAware: boolean;
+    }
   | { ok: false; message: string };
 
 export const FFMPEG_MISSING_MESSAGE =
@@ -57,6 +64,11 @@ export function parseEncoders(output: string): string[] {
   return names;
 }
 
+/** True if `ffmpeg -h filter=setparams` lists an alpha_mode option, which arrived with alpha mode negotiation in 8.1. */
+export function parseAlphaModeSupport(output: string): boolean {
+  return /^\s*alpha_mode\s+<int>/m.test(output);
+}
+
 export function candidatePaths(env: Record<string, string | undefined>): string[] {
   const list: string[] = [];
   if (env.PULP_FFMPEG_PATH) list.push(env.PULP_FFMPEG_PATH);
@@ -86,7 +98,14 @@ export async function detectFfmpeg(
     } catch {
       // Version worked but encoder listing did not; report what we have.
     }
-    return { ok: true, path: candidate, version, encoders };
+    let alphaModeAware = false;
+    try {
+      const help = await run(candidate, ['-hide_banner', '-h', 'filter=setparams']);
+      if (help.code === 0) alphaModeAware = parseAlphaModeSupport(help.stdout);
+    } catch {
+      // Treated as an older ffmpeg: no alpha mode tagging.
+    }
+    return { ok: true, path: candidate, version, encoders, alphaModeAware };
   }
   return { ok: false, message: FFMPEG_MISSING_MESSAGE };
 }

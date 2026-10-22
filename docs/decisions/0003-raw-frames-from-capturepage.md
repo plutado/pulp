@@ -25,6 +25,7 @@ Option 1. The render loop still draws one frame, waits for the template's render
 
 - `capturePage()` is a readback per frame. The paint event could in principle reuse the frame the compositor already produced, and with `offscreen.useSharedTexture` avoid a copy entirely. The measurements in `docs/system-design.md` show the raw path is no longer limited by frame transport at the sizes we render, so this is not needed yet.
 - Unpremultiplying in ffmpeg adds a filter step and a planar conversion per frame. It is far cheaper than a PNG round trip.
+- Raw input tells ffmpeg nothing about its alpha, so the renderer has to: the capture layout is measured with a probe page, and with ffmpeg 8.1 or later the frames are tagged `setparams=alpha_mode=...` first, because those versions otherwise assume straight alpha and premultiply before an unpremultiply step. PNG frames carry this information themselves.
 
 ## Revisit if
 

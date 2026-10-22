@@ -9,6 +9,7 @@ import {
   REC709_TAGS,
   RenderPlanError,
   UNPREMULTIPLY,
+  alphaModeTag,
 } from '../src/core/render-plan';
 import { timing } from './fixtures';
 
@@ -54,6 +55,31 @@ describe('buildRenderPlan', () => {
       rawInput: { pixelFormat: 'bgra', premultiplied: false },
     });
     expect(straight.args.join(' ')).not.toContain('unpremultiply');
+  });
+
+  it('tags raw frames with their alpha mode when ffmpeg understands it, before anything else', () => {
+    const base = { manifest: timing(), outputPath: '/o/t', frameFormat: 'raw' as const, tagAlphaMode: true };
+    const premul = buildRenderPlan({ ...base, presetId: 'png-sequence' });
+    expect(flag(premul.args, '-vf')).toBe(`${alphaModeTag(true)},${UNPREMULTIPLY},format=rgba`);
+    expect(alphaModeTag(true)).toBe('setparams=alpha_mode=premultiplied');
+
+    const straight = buildRenderPlan({ ...base, presetId: 'png-sequence', rawInput: { pixelFormat: 'rgba', premultiplied: false } });
+    expect(flag(straight.args, '-vf')).toBe('setparams=alpha_mode=straight,format=rgba');
+
+    // Opaque template: tagged, nothing to undo, straight into the Rec.709 steps.
+    const opaque = buildRenderPlan({ ...base, manifest: timing({ alpha: false }), presetId: 'prores-422hq' });
+    expect(flag(opaque.args, '-vf')).toBe(`${alphaModeTag(true)},${REC709_CONVERT},${REC709_TAGS},format=yuv422p10le`);
+
+    // Flattened: the tag and the undo run on the foreground before compositing.
+    const flat = buildRenderPlan({ ...base, presetId: 'h264-mp4' });
+    expect(flag(flat.args, '-filter_complex')).toContain(`[0:v]${alphaModeTag(true)},${UNPREMULTIPLY}[fg];[bg][fg]overlay`);
+
+    // PNG frames carry their own alpha mode; no tag.
+    const png = buildRenderPlan({ ...base, presetId: 'png-sequence', frameFormat: 'png' });
+    expect(png.args.join(' ')).not.toContain('alpha_mode');
+    // Older ffmpeg (default): no tag either, since setparams would reject the option.
+    const old = buildRenderPlan({ ...base, presetId: 'png-sequence', tagAlphaMode: false });
+    expect(old.args.join(' ')).not.toContain('alpha_mode');
   });
 
   it('takes the raw byte order from the measured capture format', () => {

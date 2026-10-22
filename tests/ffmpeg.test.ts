@@ -4,6 +4,7 @@ import {
   checkPresetSupport,
   detectFfmpeg,
   FFMPEG_MISSING_MESSAGE,
+  parseAlphaModeSupport,
   parseEncoders,
   parseFfmpegVersion,
   type ProcessRunner,
@@ -20,13 +21,29 @@ const ENCODERS_OUTPUT = `Encoders:
  A....D aac                  AAC (Advanced Audio Coding)
 `;
 
+const SETPARAMS_HELP_OLD = `Filter setparams
+  Force field, or color property for the output video frame.
+setparams AVOptions:
+   field_mode        <int>        ..FV....... select interlace mode (from -1 to 2) (default auto)
+   range             <int>        ..FV....... select color range (from -1 to 2) (default auto)
+   color_primaries   <int>        ..FV....... select color primaries (from -1 to 22) (default auto)
+`;
+
+const SETPARAMS_HELP_NEW = SETPARAMS_HELP_OLD + `   alpha_mode        <int>        ..FV....... select alpha moda (from -1 to 2) (default auto)
+     auto            -1           ..FV....... keep the same alpha mode
+     unspecified     0            ..FV.......
+     premultiplied   1            ..FV.......
+     straight        2            ..FV.......
+`;
+
 /** Fake runner: only `found` exists; everything else behaves like ENOENT. */
-function fakeRunner(found: string, encoders = ENCODERS_OUTPUT): ProcessRunner & { calls: string[] } {
+function fakeRunner(found: string, encoders = ENCODERS_OUTPUT, setparamsHelp = SETPARAMS_HELP_OLD): ProcessRunner & { calls: string[] } {
   const calls: string[] = [];
   const run = (async (command: string, args: string[]) => {
     calls.push(command);
     if (command !== found) throw Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' });
     if (args.includes('-encoders')) return { code: 0, stdout: encoders, stderr: '' };
+    if (args.includes('filter=setparams')) return { code: 0, stdout: setparamsHelp, stderr: '' };
     return { code: 0, stdout: 'ffmpeg version 7.1.1 Copyright (c) 2000-2025\n', stderr: '' };
   }) as ProcessRunner & { calls: string[] };
   run.calls = calls;
@@ -43,14 +60,38 @@ describe('parsers', () => {
   it('parseEncoders reads names after the separator line', () => {
     expect(parseEncoders(ENCODERS_OUTPUT)).toEqual(['libx264', 'png', 'prores_ks', 'aac']);
   });
+
+  it('parseAlphaModeSupport spots the setparams alpha_mode option', () => {
+    expect(parseAlphaModeSupport(SETPARAMS_HELP_OLD)).toBe(false);
+    expect(parseAlphaModeSupport(SETPARAMS_HELP_NEW)).toBe(true);
+    expect(parseAlphaModeSupport('')).toBe(false);
+  });
 });
 
 describe('detectFfmpeg', () => {
   it('prefers PULP_FFMPEG_PATH', async () => {
     const run = fakeRunner('/custom/ffmpeg');
     const status = await detectFfmpeg(run, { PULP_FFMPEG_PATH: '/custom/ffmpeg' });
-    expect(status).toEqual({ ok: true, path: '/custom/ffmpeg', version: '7.1.1', encoders: ['libx264', 'png', 'prores_ks', 'aac'] });
+    expect(status).toEqual({
+      ok: true, path: '/custom/ffmpeg', version: '7.1.1', encoders: ['libx264', 'png', 'prores_ks', 'aac'], alphaModeAware: false,
+    });
     expect(run.calls[0]).toBe('/custom/ffmpeg');
+  });
+
+  it('detects alpha mode support from the setparams help', async () => {
+    const status = await detectFfmpeg(fakeRunner('ffmpeg', ENCODERS_OUTPUT, SETPARAMS_HELP_NEW), {});
+    expect(status.ok && status.alphaModeAware).toBe(true);
+  });
+
+  it('treats a failing setparams help as no alpha mode support', async () => {
+    const run: ProcessRunner = async (command, args) => {
+      if (command !== 'ffmpeg') throw Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' });
+      if (args.includes('filter=setparams')) return { code: 1, stdout: '', stderr: 'Unknown filter' };
+      if (args.includes('-encoders')) return { code: 0, stdout: ENCODERS_OUTPUT, stderr: '' };
+      return { code: 0, stdout: 'ffmpeg version 8.0\n', stderr: '' };
+    };
+    const status = await detectFfmpeg(run, {});
+    expect(status.ok && status.alphaModeAware).toBe(false);
   });
 
   it('falls back to PATH and then Homebrew locations', async () => {

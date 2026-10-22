@@ -26,7 +26,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
-- Raw frames no longer depend on assumptions about the capture bitmap. The renderer measures the byte order and premultiplication of `toBitmap()` output with a probe page before the first render (Electron documents the layout as platform-dependent), passes the result to ffmpeg, and falls back to PNG frames with a warning if the bytes fit no known layout. The unpremultiply step is fed planar RGB explicitly, because some ffmpeg builds otherwise route it through Y'CbCr and shift every color by one step. Found by the Windows CI job.
+- Raw frames with ffmpeg 8.1 and later. Those versions negotiate an alpha mode on filter links and treat untagged raw input as straight alpha, so ffmpeg premultiplied the already premultiplied frames before the unpremultiply step: semi-transparent pixels came out dark (a white 85% panel read 216 instead of 255) and every color one step low. The renderer now detects alpha mode support and tags raw frames with their measured layout first. Verified with ffmpeg 8.0 and 9.0.2; found by the Windows CI job.
+- Raw frames no longer depend on assumptions about the capture bitmap. The renderer measures the byte order and premultiplication of `toBitmap()` output with a probe page before the first render (Electron documents the layout as platform-dependent), passes the result to ffmpeg, and falls back to PNG frames with a warning if the bytes fit no known layout. The unpremultiply step is fed planar RGB explicitly so format negotiation cannot pick a lossy Y'CbCr intermediate.
 - Cancelled or failed renders no longer leave partial output files behind. Files that existed before a render without overwrite are kept.
 
 ## [0.1.0] - 2026-10-18

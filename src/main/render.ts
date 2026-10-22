@@ -142,6 +142,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       outputPath: job.outputPath,
       overwrite: job.overwrite ?? false,
       frameFormat,
+      tagAlphaMode: ffmpeg.alphaModeAware,
       ...(job.background ? { background: job.background } : {}),
       ...(probe?.format ? { rawInput: probe.format } : {}),
     });
