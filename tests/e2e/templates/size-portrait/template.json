@@ -1,0 +1,15 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.size-portrait",
+  "name": "Test Size Portrait",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "title",
+  "tags": ["test"],
+  "duration": 0.1,
+  "fps": 30,
+  "width": 1080,
+  "height": 1920,
+  "alpha": true,
+  "parameters": []
+}

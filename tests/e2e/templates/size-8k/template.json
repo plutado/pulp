@@ -1,0 +1,15 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.size-8k",
+  "name": "Test Size 8K",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "title",
+  "tags": ["test"],
+  "duration": 0.1,
+  "fps": 30,
+  "width": 7680,
+  "height": 4320,
+  "alpha": true,
+  "parameters": []
+}

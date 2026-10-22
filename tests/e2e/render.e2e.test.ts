@@ -69,10 +69,10 @@ describe.skipIf(!available)('end-to-end render', () => {
     if (out) await rm(out, { recursive: true, force: true });
   });
 
-  async function render(templateId: string, preset: string, file: string, ...extra: string[]) {
-    const args = ['.', '--render', templateId, '--preset', preset, '--out', join(out, file), ...extra];
+  async function render(templateId: string, preset: string, file: string, opts: { timeoutMs?: number; extra?: string[] } = {}) {
+    const args = ['.', '--render', templateId, '--preset', preset, '--out', join(out, file), ...(opts.extra ?? [])];
     try {
-      const { stdout, stderr } = await run(electron, args, { cwd: ROOT, timeout: 90_000 });
+      const { stdout, stderr } = await run(electron, args, { cwd: ROOT, timeout: opts.timeoutMs ?? 90_000 });
       return { code: 0, stdout, stderr };
     } catch (err) {
       const e = err as { code?: number; stdout?: string; stderr?: string };
@@ -104,7 +104,8 @@ describe.skipIf(!available)('end-to-end render', () => {
         '-frames:v', '1',
         '-f', 'rawvideo', '-pix_fmt', 'rgba', '-',
       ],
-      { encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 },
+      // One raw RGBA frame; 8K needs 7680 * 4320 * 4 = ~127 MiB.
+      { encoding: 'buffer', maxBuffer: 192 * 1024 * 1024 },
     );
     let min = 255;
     let max = 0;
@@ -116,6 +117,73 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(stdout.length).toBeGreaterThan(0);
     return [min, max];
   }
+
+  /** RGBA values of `count` pixels in a row starting at (x, y) of the first frame. */
+  async function pixels(file: string, x: number, y: number, count = 1): Promise<number[]> {
+    const { stdout } = await run(
+      ffmpeg,
+      ['-v', 'error', '-i', file, '-vf', `crop=${count}:1:${x}:${y}`, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-'],
+      { encoding: 'buffer' },
+    );
+    expect(stdout.length).toBe(count * 4);
+    return [...stdout];
+  }
+
+  /** Check the size-probe fixture's pattern in a lossless RGBA frame. */
+  async function expectProbeMarkers(file: string, width: number, height: number) {
+    // Opaque corner markers prove the full canvas is present and not rotated.
+    expect(await pixels(file, 0, 0)).toEqual([255, 0, 0, 255]);
+    expect(await pixels(file, width - 1, 0)).toEqual([0, 255, 0, 255]);
+    expect(await pixels(file, 0, height - 1)).toEqual([0, 0, 255, 255]);
+    expect(await pixels(file, width - 1, height - 1)).toEqual([255, 255, 255, 255]);
+    // Away from the markers the frame is fully transparent.
+    expect((await pixels(file, Math.floor(width / 2), Math.floor(height / 2)))[3]).toBe(0);
+    // The 1px checkerboard at (32, 32) survives exactly only if the frame was never rescaled.
+    const row = await pixels(file, 32, 40, 16);
+    for (let i = 0; i < 16; i++) {
+      const v = (i + 8) % 2 === 0 ? 255 : 0;
+      expect(row.slice(i * 4, (i + 1) * 4), `checkerboard pixel ${i}`).toEqual([v, v, v, 255]);
+    }
+  }
+
+  // The bundled samples are all 1920x1080, so larger and portrait sizes use the
+  // size-probe fixtures (ROADMAP milestone 1: verify 4K and above).
+  const sizes = [
+    { label: '4K', id: 'pulp.test.size-4k', file: 'size-4k', width: 3840, height: 2160, timeoutMs: 180_000 },
+    { label: '8K', id: 'pulp.test.size-8k', file: 'size-8k', width: 7680, height: 4320, timeoutMs: 300_000 },
+    { label: 'portrait 1080x1920', id: 'pulp.test.size-portrait', file: 'size-portrait', width: 1080, height: 1920, timeoutMs: 180_000 },
+  ] as const;
+
+  for (const { label, id, file, width, height, timeoutMs } of sizes) {
+    it(`renders a pixel-exact PNG sequence at ${label}`, async () => {
+      const result = await render(id, 'png-sequence', file, { extra: ['--library', FIXTURES], timeoutMs });
+      expect(result.code, result.stderr).toBe(0);
+      const frames = (await readdir(out)).filter((f) => f.startsWith(`${file}_`)).sort();
+      expect(frames).toHaveLength(3);
+      const frame = join(out, frames[1]!);
+      expect(await probe(frame)).toMatchObject({ width, height, pix_fmt: 'rgba' });
+      await expectProbeMarkers(frame, width, height);
+    }, timeoutMs + 60_000);
+  }
+
+  it('renders ProRes 4444 with alpha at 8K', async () => {
+    const result = await render('pulp.test.size-8k', 'prores-4444', 'size-8k.mov', { extra: ['--library', FIXTURES], timeoutMs: 300_000 });
+    expect(result.code, result.stderr).toBe(0);
+    const file = join(out, 'size-8k.mov');
+    const info = await probe(file);
+    expect(info).toMatchObject({ width: 7680, height: 4320, nb_read_frames: '3' });
+    expect(info.pix_fmt).toMatch(/^yuva444p/);
+    const [min, max] = await alphaRange(file, 1);
+    expect(min).toBe(0);
+    expect(max).toBeGreaterThan(200);
+  }, 360_000);
+
+  it('renders H.264 in portrait orientation, flattened over the background', async () => {
+    const result = await render('pulp.test.size-portrait', 'h264-mp4', 'size-portrait.mp4', { extra: ['--library', FIXTURES], timeoutMs: 180_000 });
+    expect(result.code, result.stderr).toBe(0);
+    const info = await probe(join(out, 'size-portrait.mp4'));
+    expect(info).toMatchObject({ width: 1080, height: 1920, pix_fmt: 'yuv420p', nb_read_frames: '3' });
+  }, 240_000);
 
   it('renders ProRes 4444 with a real alpha channel', async () => {
     const result = await render('pulp.samples.lower-third-bar', 'prores-4444', 'lower-third.mov');
@@ -161,7 +229,7 @@ describe.skipIf(!available)('end-to-end render', () => {
   }, 120_000);
 
   it('reports a template error with frame and location, and leaves no output', async () => {
-    const result = await render('pulp.test.throws', 'prores-4444', 'throws.mov', '--library', FIXTURES);
+    const result = await render('pulp.test.throws', 'prores-4444', 'throws.mov', { extra: ['--library', FIXTURES] });
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('Template "Test Throws" threw an error on frame 5: RangeError: frame 5 is out of range (index.html:8:');
     expect(existsSync(join(out, 'throws.mov'))).toBe(false);
@@ -169,7 +237,7 @@ describe.skipIf(!available)('end-to-end render', () => {
 
   it('stops a hung template at the frame timeout, and leaves no output', async () => {
     const started = Date.now();
-    const result = await render('pulp.test.hangs', 'png-sequence', 'hangs', '--library', FIXTURES, '--frame-timeout', '1');
+    const result = await render('pulp.test.hangs', 'png-sequence', 'hangs', { extra: ['--library', FIXTURES, '--frame-timeout', '1'] });
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('Template "Test Hangs" did not finish frame 3 within 1 s.');
     expect(Date.now() - started).toBeLessThan(30_000);

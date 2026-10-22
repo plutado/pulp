@@ -3,9 +3,10 @@
  * BrowserWindow, captures each frame as PNG and pipes it into ffmpeg.
  *
  * Status: first working version. Verified on macOS with the bundled samples
- * for all presets (1920x1080, alpha preserved in ProRes 4444, PNG and VP9).
- * Not yet verified: Windows/Linux, HiDPI capture, 4K and above, color
- * management, and long renders. See milestone 1 in ROADMAP.md.
+ * for all presets (1920x1080, alpha preserved in ProRes 4444, PNG and VP9)
+ * and with pixel-exact size fixtures at 4K, 8K and portrait 1080x1920.
+ * Not yet verified: Windows/Linux, HiDPI capture, color management, and
+ * long renders. See milestone 1 in ROADMAP.md.
  */
 
 import { BrowserWindow } from 'electron';

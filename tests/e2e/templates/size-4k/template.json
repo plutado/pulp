@@ -1,0 +1,15 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.size-4k",
+  "name": "Test Size 4K",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "title",
+  "tags": ["test"],
+  "duration": 0.1,
+  "fps": 30,
+  "width": 3840,
+  "height": 2160,
+  "alpha": true,
+  "parameters": []
+}
