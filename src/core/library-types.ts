@@ -8,6 +8,8 @@ export interface TemplateEntry {
   kind: 'template';
   /** Unique key within the index. */
   key: string;
+  /** True when the item's library root is not reachable right now; the item is kept so user data survives. */
+  offline?: boolean;
   dir: string;
   root: string;
   manifest: TemplateManifest;
@@ -19,6 +21,7 @@ export interface TemplateEntry {
 export interface MediaEntry {
   kind: 'media';
   key: string;
+  offline?: boolean;
   path: string;
   root: string;
   name: string;
