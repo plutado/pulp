@@ -26,7 +26,7 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
 | **Total through 1.0 (milestones 1-8, 10-13, 17 and 18)** | **133-226 h** |
-| **Still open through 1.0 (unticked items only)** | **62-103 h** |
+| **Still open through 1.0 (unticked items only)** | **55-92 h** |
 | **Total including post-1.0 items** | **165-284 h** |
 
 ## 0. Foundation (done)

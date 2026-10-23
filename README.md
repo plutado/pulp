@@ -65,7 +65,7 @@ Milestones 1-6 and 11 (renderer, alpha export, parameter editor, library, drag-o
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 | 8. 1.0 hardening and docs | Frozen template and pack formats v1 with a JSON Schema, an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 
-The milestones through 1.0 total **133-226 hours**, of which **62-103 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **133-226 hours**, of which **55-92 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
