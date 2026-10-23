@@ -12,7 +12,7 @@ Status: the guide milestone 18 builds to, written 2026-10-23. Rules here are bin
 - media kinds: `video` → "Video"; extensions: `mov` → "MOV"; codecs: `prores` → "ProRes", `h264` → "H.264"
 - resolutions: "1920 × 1080" (multiplication sign, spaces), with the short alias ("1080p") where it helps
 - rates, durations, sizes: "29.97 fps", "6 s" or timecode, "12 MB"
-- folder roots: the bundled root is "Built-in templates"; user folders keep their own names
+- folder roots: the bundled root is "Built-in templates"; a user folder's name is humanized like a tag ("media-library" → "Media library"; "News Pack" stays as it is), with the full path in the tooltip
 - **tags and themes: stored normalized (lowercase, dashes) for search; displayed humanized** — dashes and underscores become spaces, sentence case: `lower-third` → "Lower third", `my-show` → "My show"
 
 **Official styling wins over sentence case.** Proper names and initialisms keep the form their owners use; this is the one list, and the style test reads it as its set of exceptions:

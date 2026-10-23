@@ -38,6 +38,9 @@ export function initSearchBar(): void {
     const scope = appState.value.scope;
     chip.hidden = scope === null;
     chipLabel.textContent = scope ? `in: ${scope.label}` : '';
+    // A folder scope shows its humanized name; the full path is in the tooltip.
+    if (scope?.root) chipLabel.dataset.tip = scope.root;
+    else delete chipLabel.dataset.tip;
     const slot = $('scope-chip-icon');
     slot.querySelector('svg')?.remove();
     if (scope?.kind) setIcon(slot, SCOPE_ICONS[scope.kind]);

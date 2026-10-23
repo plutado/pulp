@@ -22,6 +22,7 @@ function Node({ scope }: { scope: Scope }) {
         class={active ? 'browse-node active' : 'browse-node'}
         aria-pressed={active}
         aria-label={scope.label}
+        data-tip={scope.root}
         onClick={() => dispatch((s) => setScope(s, active ? null : scope))}
       >
         <Icon name={NODE_ICONS[scope.kind ?? 'folder']} />

@@ -788,9 +788,10 @@ describe.skipIf(!electron)('inspector UI', () => {
 
     it('scopes the results to a browse node, shows the chip, and clears it with the ×', async () => {
       await clearSearch();
-      await page.eval(`[...document.querySelectorAll('#browse-nodes .browse-node')].find((b) => b.textContent === 'media-library').click()`);
+      await page.eval(`[...document.querySelectorAll('#browse-nodes .browse-node')].find((b) => b.textContent === 'Media library').click()`);
       await until(async () => !(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)), 'the scope chip');
-      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: media-library');
+      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Media library');
+      expect(await page.eval<string>(`document.getElementById('scope-chip-label').dataset.tip`)).toBe(mediaDir);
       const scoped = await names();
       expect(scoped).toContain('tiny');
       expect(scoped).not.toContain('Lower Third Bar');

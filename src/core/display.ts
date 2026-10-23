@@ -101,8 +101,12 @@ export function audioLabel(codec: string, channels?: number, sampleRate?: number
   return [codecLabel(codec), channels ? `${channels} ch` : '', sampleRate ? `${sampleRate / 1000} kHz` : ''].filter(Boolean).join(' · ');
 }
 
-/** A library root as a browse node: the bundled samples are "Built-in templates"; user folders keep their own names. */
+/**
+ * A library root as a browse node: the bundled samples are "Built-in templates"; a user
+ * folder's name is humanized like a tag ("media-library" → "Media library"), which leaves
+ * names already in readable form alone ("News Pack"). The full path belongs in the tooltip.
+ */
 export function rootLabel(root: string, builtInRoot: string | undefined): string {
   if (builtInRoot !== undefined && root === builtInRoot) return 'Built-in templates';
-  return root.split(/[\\/]/).filter(Boolean).pop() ?? root;
+  return humanize(root.split(/[\\/]/).filter(Boolean).pop() ?? root);
 }

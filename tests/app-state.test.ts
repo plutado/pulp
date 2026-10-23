@@ -95,7 +95,7 @@ describe('scopes', () => {
     expect(browseScopes(null).map((n) => n.label)).toEqual(['Favorites', 'Recently used']);
     const idx = { ...index([], []), roots: ['/app/templates', '/lib/News Pack/', 'C:\\Media\\b-roll'], builtInRoot: '/app/templates' };
     const nodes = browseScopes(idx);
-    expect(nodes.map((n) => n.label)).toEqual(['Favorites', 'Recently used', 'Built-in templates', 'News Pack', 'b-roll']);
+    expect(nodes.map((n) => n.label)).toEqual(['Favorites', 'Recently used', 'Built-in templates', 'News Pack', 'B roll']);
     expect(nodes[3]?.root).toBe('/lib/News Pack/');
   });
 

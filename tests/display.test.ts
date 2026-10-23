@@ -67,9 +67,10 @@ describe('media facts', () => {
 });
 
 describe('rootLabel', () => {
-  it('names the bundled root and keeps user folder names', () => {
+  it('names the bundled root and humanizes user folder names, leaving readable ones alone', () => {
     expect(rootLabel('/app/templates', '/app/templates')).toBe('Built-in templates');
     expect(rootLabel('/Users/x/Footage/News Pack/', '/app/templates')).toBe('News Pack');
-    expect(rootLabel('C:\\Media\\b-roll', undefined)).toBe('b-roll');
+    expect(rootLabel('/Users/x/media-library', undefined)).toBe('Media library');
+    expect(rootLabel('C:\\Media\\b-roll', undefined)).toBe('B roll');
   });
 });
