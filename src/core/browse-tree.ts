@@ -1,10 +1,11 @@
 /**
- * The browse tree (docs/ui-layout.md, milestone 10): Library (Favorites, Recently used),
- * Types (group → type, plus Untyped), Themes (built-in groups plus Custom), Styles, and
- * Folders, each node with the count of entries it would scope to. Counts come from the
+ * The browse tree (docs/ui-layout.md, milestone 10): Quick access (Favorites, Recently
+ * used), Types (group → type, plus Untyped), Themes (built-in groups plus Custom), Styles,
+ * and Folders, each node with the count of entries it would scope to. Counts come from the
  * entries passed in — the typed query and chips applied, the scope not — in one pass.
  * Empty taxonomy nodes are left out: the tree is a map of what the library has, not of
- * the whole vocabulary. Pure.
+ * the whole vocabulary. The fixed places — Favorites, Recently used, Untyped, folders —
+ * are always there and dim at zero. Pure.
  */
 
 import type { Scope } from './app-state';
@@ -57,9 +58,9 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     if (entry.lastUsed) recent += 1;
   }
 
-  const library: TreeNode = {
-    id: 'library',
-    label: 'Library',
+  const quick: TreeNode = {
+    id: 'quick',
+    label: 'Quick access',
     count: entries.length,
     scope: null,
     children: [
@@ -81,9 +82,8 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
       children: [],
     })),
   }));
-  if (untyped > 0) {
-    typeGroups.push({ id: 'untyped', label: 'Untyped', count: untyped, scope: { label: 'Untyped', filter: 'type:untyped', kind: 'untyped' }, children: [] });
-  }
+  // Always present: the place for what has no type yet, dimmed when nothing is there.
+  typeGroups.push({ id: 'untyped', label: 'Untyped', count: untyped, scope: { label: 'Untyped', filter: 'type:untyped', kind: 'untyped' }, children: [] });
   const types: TreeNode = { id: 'types', label: 'Types', count: entries.length - untyped, scope: null, children: typeGroups };
 
   const themeGroups: TreeNode[] = THEME_GROUPS.map((g): TreeNode => ({
@@ -132,6 +132,6 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     }),
   };
 
-  // Sections with nothing under them are left out, except Library and Folders, which are fixed entry points.
-  return [library, types, themes, styles, folders].filter((section) => section.id === 'library' || section.id === 'folders' || section.children.length > 0);
+  // Sections with nothing under them are left out, except the fixed entry points (Quick access, Types with Untyped, Folders).
+  return [quick, types, themes, styles, folders].filter((section) => section.id === 'quick' || section.id === 'folders' || section.children.length > 0);
 }

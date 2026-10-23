@@ -195,6 +195,7 @@ describe('browse tree counts', () => {
     // The typed query does.
     s = setQuery(s, 'clip');
     expect(typesOf(select(s))).toEqual([['untyped', 1]]);
+    expect(typesOf(select(setQuery(s, 'straps')))).toEqual([['group:titles', 1], ['untyped', 0]]); // Untyped stays, at zero
     expect(facetEntries(s).map((e) => e.key)).toEqual(['clip']);
   });
 });

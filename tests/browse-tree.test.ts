@@ -32,8 +32,9 @@ describe('buildBrowseTree', () => {
   for (const e of entries) if (e.kind === 'template' && e.manifest.themes) e.themes = [...e.manifest.themes];
   const tree = buildBrowseTree(entries, ['/app/templates', '/lib', '/media'], '/app/templates');
 
-  it('has the five sections with fixed Library and Folders entry points', () => {
-    expect(tree.map((s) => s.id)).toEqual(['library', 'types', 'themes', 'styles', 'folders']);
+  it('has the five sections, with Quick access and Folders as fixed entry points', () => {
+    expect(tree.map((s) => s.id)).toEqual(['quick', 'types', 'themes', 'styles', 'folders']);
+    expect(tree[0]?.label).toBe('Quick access');
     expect(find(tree, 'favorites')?.count).toBe(1);
     expect(find(tree, 'recent')?.count).toBe(1);
     expect(find(tree, 'folders')?.children.map((n) => [n.label, n.count])).toEqual([['Built-in templates', 0], ['Lib', 3], ['Media', 2]]);
@@ -58,10 +59,13 @@ describe('buildBrowseTree', () => {
     expect(find(tree, 'styles')?.children.map((n) => [n.id, n.count])).toEqual([['style:clean', 2], ['style:grunge', 1]]);
   });
 
-  it('drops empty taxonomy sections but never Library or Folders', () => {
+  it('drops empty taxonomy sections but keeps Quick access, Untyped and Folders, dimmed at zero', () => {
     const bare = buildBrowseTree([media('x')], ['/media'], undefined);
-    expect(bare.map((s) => s.id)).toEqual(['library', 'types', 'folders']);
+    expect(bare.map((s) => s.id)).toEqual(['quick', 'types', 'folders']);
     expect(find(bare, 'types')?.children.map((n) => n.id)).toEqual(['untyped']);
-    expect(buildBrowseTree([], [], undefined).map((s) => s.id)).toEqual(['library', 'folders']);
+    const empty = buildBrowseTree([], [], undefined);
+    expect(empty.map((s) => s.id)).toEqual(['quick', 'types', 'folders']);
+    expect(find(empty, 'untyped')?.count).toBe(0); // shown, dimmed, like Favorites at zero
+    expect(find(empty, 'favorites')?.count).toBe(0);
   });
 });
