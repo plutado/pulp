@@ -3,7 +3,10 @@ import {
   browseScopes,
   createResultsSelector,
   deriveResults,
+  dragFileFor,
   effectiveQuery,
+  resolveDragJob,
+  setDrag,
   sameScope,
   setSort,
   toggleFilter,
@@ -170,6 +173,28 @@ describe('hasFinishedJobs', () => {
     expect(hasFinishedJobs(initialAppState)).toBe(false);
     expect(hasFinishedJobs(setJobs(initialAppState, { jobs: [job('running')] }))).toBe(false);
     expect(hasFinishedJobs(setJobs(initialAppState, { jobs: [job('done')] }))).toBe(true);
+  });
+});
+
+describe('drag target', () => {
+  const job = (over: Partial<RenderQueueJob>): RenderQueueJob => ({ id: 7, templateId: 't', templateName: 'T', presetId: 'prores-4444', outputPath: '/out/x_%05d.png', totalFrames: 60, status: 'done', frame: 60, warnings: [], ...over });
+
+  it('dragFileFor resolves a sequence pattern to its first frame file', () => {
+    expect(dragFileFor(job({ output: '/out/x.mov', outputPath: '/out/x.mov' }))).toBe('/out/x.mov');
+    expect(dragFileFor(job({ output: '/out/x_%05d.png' }))).toBe('/out/x_00000.png');
+    expect(dragFileFor(job({ output: '/out/x_%05d.png', firstFrame: 60 }))).toBe('/out/x_00060.png');
+  });
+
+  it('resolveDragJob arms the handle when its job finishes and reports a failure', () => {
+    const waiting = setDrag(setJobs(initialAppState, { jobs: [job({ status: 'running' })] }), { jobId: 7 });
+    expect(resolveDragJob(waiting)).toBeNull();
+    expect(resolveDragJob(setDrag(initialAppState, { file: '/x.mov', templateId: 't' }))).toBeNull();
+
+    const done = setJobs(waiting, { jobs: [job({ output: '/out/x_%05d.png' })] });
+    expect(resolveDragJob(done)).toEqual({ drag: { file: '/out/x_00000.png', templateId: 't' }, status: 'Ready to drag.', error: false, cacheChanged: true });
+
+    const failed = setJobs(waiting, { jobs: [job({ status: 'failed', message: 'boom' })] });
+    expect(resolveDragJob(failed)).toEqual({ drag: null, status: 'boom', error: true, cacheChanged: false });
   });
 });
 

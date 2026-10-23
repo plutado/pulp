@@ -22,3 +22,6 @@ const selectResults = createResultsSelector();
 export const results = computed(() => selectResults(appState.value));
 export const hasIndex = computed(() => appState.value.index !== null);
 export const selectedKey = computed(() => appState.value.selectedKey);
+
+/** True while the Render button is blocked (no template, no ffmpeg, bad options); the tray's Prepare button follows it. */
+export const renderBlocked = signal(true);
