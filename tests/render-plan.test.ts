@@ -7,6 +7,7 @@ import {
   PRESET_IDS,
   REC709_CONVERT,
   REC709_TAGS,
+  RGB_FULL_TAGS,
   RenderPlanError,
   UNPREMULTIPLY,
   alphaModeTag,
@@ -61,11 +62,11 @@ describe('buildRenderPlan', () => {
   it('tags raw frames with their alpha mode when ffmpeg understands it, before anything else', () => {
     const base = { manifest: timing(), outputPath: '/o/t', frameFormat: 'raw' as const, tagAlphaMode: true };
     const premul = buildRenderPlan({ ...base, presetId: 'png-sequence' });
-    expect(flag(premul.args, '-vf')).toBe(`${alphaModeTag(true)},${UNPREMULTIPLY},format=rgba`);
+    expect(flag(premul.args, '-vf')).toBe(`${alphaModeTag(true)},${UNPREMULTIPLY},${RGB_FULL_TAGS},format=rgba`);
     expect(alphaModeTag(true)).toBe('setparams=alpha_mode=premultiplied');
 
     const straight = buildRenderPlan({ ...base, presetId: 'png-sequence', rawInput: { pixelFormat: 'rgba', premultiplied: false } });
-    expect(flag(straight.args, '-vf')).toBe('setparams=alpha_mode=straight,format=rgba');
+    expect(flag(straight.args, '-vf')).toBe(`setparams=alpha_mode=straight,${RGB_FULL_TAGS},format=rgba`);
 
     // Opaque template: tagged, nothing to undo, straight into the Rec.709 steps.
     const opaque = buildRenderPlan({ ...base, manifest: timing({ alpha: false }), presetId: 'prores-422hq' });
@@ -114,7 +115,7 @@ describe('buildRenderPlan', () => {
   it('png-sequence writes a numbered RGBA sequence starting at 0', () => {
     const plan = buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/out/lt.png', frameFormat: 'raw' });
     expect(plan.output).toBe('/out/lt_%05d.png');
-    expect(flag(plan.args, '-vf')).toBe(`${UNPREMULTIPLY},format=rgba`);
+    expect(flag(plan.args, '-vf')).toBe(`${UNPREMULTIPLY},${RGB_FULL_TAGS},format=rgba`);
     expect(flag(plan.args, '-f')).toBe('rawvideo');
     expect(plan.args.join(' ')).toContain('-c:v png -f image2 -start_number 0 -frames:v 60');
   });
@@ -173,7 +174,8 @@ describe('buildRenderPlan', () => {
           if (chain.includes('overlay')) expect(chain.indexOf('overlay')).toBeLessThan(chain.indexOf(REC709_CONVERT));
         } else {
           expect(['png-sequence', 'qt-animation']).toContain(presetId);
-          expect(plan.args.join(' ')).not.toContain('bt709');
+          expect(chain).not.toContain(REC709_CONVERT);
+          expect(chain).toContain(`${RGB_FULL_TAGS},format=`); // full-range RGB, declared
           expect(chain).toMatch(/format=(rgba|argb)$/);
         }
       }
@@ -183,7 +185,9 @@ describe('buildRenderPlan', () => {
   it('qt-animation writes lossless ARGB QuickTime Animation', () => {
     const plan = buildRenderPlan({ manifest: timing(), presetId: 'qt-animation', outputPath: '/o/t', frameFormat: 'raw' });
     expect(plan.output).toBe('/o/t.mov');
-    expect(flag(plan.args, '-vf')).toBe(`${UNPREMULTIPLY},format=argb`);
+    expect(flag(plan.args, '-vf')).toBe(`${UNPREMULTIPLY},${RGB_FULL_TAGS},format=argb`);
+    expect(RGB_FULL_TAGS).toContain('range=pc');
+    expect(RGB_FULL_TAGS).toContain('colorspace=gbr');
     expect(plan.args.join(' ')).toContain('-c:v qtrle');
     expect(OUTPUT_PRESETS['qt-animation']).toMatchObject({ alpha: true, color: 'rgb', requiresEvenDimensions: false });
   });

@@ -42,8 +42,9 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 
 ## 2. Alpha export presets and NLE verification (8-14 h)
 
-- [ ] Verify each alpha preset imports with correct transparency in Premiere Pro, DaVinci Resolve and Final Cut Pro; record results in docs. Checklist, test files and results table: `docs/nle-verification.md` (3-5 h)
-- [ ] Straight versus premultiplied alpha: confirm what Chromium captures and what each NLE expects; add a setting if needed. Established and tested: Chromium captures premultiplied (measured per platform by a probe), every alpha preset is written straight; see `docs/nle-verification.md`. Remaining: what each app assumes on import (2-3 h)
+- [x] Verify each alpha preset imports with correct transparency in Premiere Pro and DaVinci Resolve on macOS; results in `docs/nle-verification.md`. ProRes 4444 and PNG pass with defaults; QuickTime Animation needs Data Levels: Full in Resolve (now tagged full-range RGB, re-check); HEVC: no alpha in Premiere, Alpha Mode: Straight in Resolve; WebM: not importable in Premiere, broken alpha in Resolve (3-5 h)
+- [ ] Verify alpha import in Final Cut Pro (macOS), and in Premiere Pro and Resolve on Windows; check whether Resolve's Data Levels Auto honors the new QuickTime Animation tag (2-3 h)
+- [x] Straight versus premultiplied alpha: Chromium captures premultiplied (measured by a probe), every preset is written straight, Premiere and Resolve read ProRes, PNG and Animation as straight; no export option, HEVC's Resolve default documented as a caveat; ADR 0008 (2-3 h)
 - [x] Additional presets: QuickTime Animation (qtrle) for older workflows, HEVC with alpha on macOS via VideoToolbox where available; shown as unavailable elsewhere with the reason; ADR 0005 (2-3 h)
 - [x] Preset options: frame-rate override from the standard list, background color picker for flattening, in/out points as timecode or frames; in the inspector and as `--fps`, `--background`, `--in-point`, `--out-point`; verified on macOS and Windows CI (1-3 h)
 

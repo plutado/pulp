@@ -81,6 +81,14 @@ export interface OutputPreset {
 export const REC709_CONVERT = 'scale=out_color_matrix=bt709:out_range=tv';
 /** Rec.709 output, step 2: tag every frame so the muxer writes colr / VUI / Matroska Colour. */
 export const REC709_TAGS = 'setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv';
+/**
+ * RGB output (PNG, QuickTime Animation): full range, the GBR matrix (meaning
+ * "this is RGB, not Y'CbCr") and BT.709 primaries and transfer. QuickTime's
+ * colr atom has no range field for RGB codecs; the GBR matrix is how a reader
+ * knows the data is full-range RGB, and without it Resolve's Data Levels
+ * "Auto" treated QuickTime Animation as video range and scaled the alpha.
+ */
+export const RGB_FULL_TAGS = 'setparams=range=pc:color_primaries=bt709:color_trc=bt709:colorspace=gbr';
 
 export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   'prores-4444': {
@@ -331,7 +339,7 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   if (frameFormat === 'raw' && rawInput.premultiplied && manifest.alpha) prepare.push(UNPREMULTIPLY);
   // From straight RGB to the preset's pixel format. Rec.709 presets convert and tag; the format
   // filter last makes the scale step do the conversion, with the matrix and range given above.
-  const toOutput = preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [];
+  const toOutput = preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [RGB_FULL_TAGS];
   toOutput.push(`format=${preset.pixelFormat}`);
 
   if (!preset.alpha && manifest.alpha) {

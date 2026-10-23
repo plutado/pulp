@@ -72,6 +72,12 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 - `registerSchemesAsPrivileged` may be called once, before `ready`, with every custom scheme; `pulp-template` and `pulp-media` are registered together.
 - A privileged scheme enforces CORS by default: `fetch` from the app page (origin `file://`) to it fails with "Failed to fetch" unless responses carry `Access-Control-Allow-Origin`, while `<img>`, `<video>` and `<audio>` load fine (no-cors). `pulp-media` keeps it that way on purpose and has `supportFetchAPI: false`.
 
+## Editing apps (measured 2026-10-23, macOS)
+
+- **Premiere Pro 2026** does not read HEVC alpha layers at all and decodes those files with video levels; it cannot import WebM; image sequences import at 29.97 fps by default; new sequences composite in linear color by default, which changes blended values of semi-transparent pixels (expected, not a file fault).
+- **DaVinci Resolve Studio 20.2.3** defaults HEVC alpha to Premultiplied (Straight fixes it); offers only None and Premultiplied for VP9 and decodes its alpha badly; its Data Levels Auto scaled QuickTime Animation alpha by about 255/235 when the file had no `colr` atom. QuickTime's `colr` atom has no range field for RGB codecs; declaring the GBR matrix is how full-range RGB is signalled, and ffprobe will still report `color_range` unknown for such files.
+- Both apps link to dropped files rather than copying them; deleting the file takes the clip offline.
+
 ## Drag out of the window
 
 - `webContents.startDrag({ file, icon })` must be called from the main process in response to the renderer's `dragstart` (which calls `preventDefault`); the drag is native from then on. The `icon` must be a non-empty `NativeImage` on macOS and Windows, or the call throws; Pulp uses the template thumbnail or a generated 48x48 PNG.

@@ -317,7 +317,8 @@ describe.skipIf(!available)('end-to-end render', () => {
     const result = await render('pulp.test.size-portrait', 'qt-animation', 'anim.mov', { extra: ['--library', FIXTURES] });
     expect(result.code, result.stderr).toBe(0);
     const file = join(out, 'anim.mov');
-    expect(await probe(file)).toMatchObject({ codec_name: 'qtrle', pix_fmt: 'argb', width: 1080, height: 1920, nb_read_frames: '3' });
+    // MOV has no range flag for RGB codecs; the colr atom's GBR matrix is what declares full-range RGB.
+    expect(await probe(file)).toMatchObject({ codec_name: 'qtrle', pix_fmt: 'argb', width: 1080, height: 1920, nb_read_frames: '3', color_space: 'gbr', color_primaries: 'bt709' });
     // RLE is lossless and stays RGB, so the probe markers must come back exactly, alpha included.
     await expectProbeMarkers(file, 1080, 1920);
   }, 180_000);
