@@ -1,0 +1,14 @@
+# Text files are LF in the repository and in every checkout, Windows included. Tests read
+# repo files (docs, markup, styles) and match on "\n"; a CRLF checkout broke two of them on
+# windows-latest (docs/platform-notes.md, "Windows CI").
+* text=auto eol=lf
+
+# Binary assets, never converted.
+*.png binary
+*.gif binary
+*.jpg binary
+*.wav binary
+*.mp4 binary
+*.mov binary
+*.zip binary
+*.sqlite binary

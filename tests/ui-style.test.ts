@@ -12,7 +12,9 @@ import { audioLabel, codecLabel, durationLabel, frameRateLabel, sizeLabel } from
 import { STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES } from '../src/core/taxonomy';
 
 const ROOT = join(__dirname, '..');
-const read = (p: string) => readFile(join(ROOT, p), 'utf8');
+/** Repo files, with line endings normalized: a Windows checkout may hand back CRLF, and the
+ * fence regex below must still see the "\n" it anchors on (docs/platform-notes.md). */
+const read = async (p: string) => (await readFile(join(ROOT, p), 'utf8')).replace(/\r\n?/g, '\n');
 
 /** The official-styling list in docs/ui-style.md is the one source of exceptions. */
 async function officialStyling(): Promise<string[]> {
