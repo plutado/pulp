@@ -12,10 +12,11 @@ Estimates are working hours for one developer, including tests and docs. They ar
 | 5. Drag-out to editing apps | 8-16 h |
 | 6. Template packs import | 6-10 h |
 | 7. Packaging and signing (macOS, Windows, Linux) | 10-18 h |
+| 10. Categorization by type and theme (before 8) | 14-23 h |
 | 8. 1.0 hardening and docs | 8-14 h |
 | 9. Later (post-1.0) | 12-26 h |
-| **Remaining through 1.0 (milestones 1-8)** | **74-128 h** |
-| **Including post-1.0 items** | **86-154 h** |
+| **Remaining through 1.0 (milestones 1-8 and 10)** | **88-151 h** |
+| **Including post-1.0 items** | **100-177 h** |
 
 ## 0. Foundation (done)
 
@@ -90,13 +91,25 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [ ] Release workflow in GitHub Actions producing draft releases; auto-update (electron-updater) (2-4 h)
 - [ ] Decide on ffmpeg distribution: keep "user installs ffmpeg", offer a download helper, or bundle an LGPL build; document license implications (ADR)
 
+## 10. Categorization by type and theme (14-23 h)
+
+Numbered 10 so milestones 1-8 keep their issue numbers, but it comes **before milestone 8**: it changes the template manifest and must land before format v1 is frozen.
+
+- [ ] Taxonomy: built-in, versioned lists of types (grouped on two levels: titles and text, backgrounds, transitions, overlays, design elements, video clips, stills, music, sound effects), themes (corporate, news, sports, holidays and more) and styles (clean, grunge, retro, cinematic and more) in a pure core module; users extend them with their own themes, stored like tags and shown in a separate custom group; ADR for the three axes and the extension rule (2-4 h)
+- [ ] Template format: `type` checked against the list, optional `themes` and `styles` arrays; `category` stays valid and maps onto the type list, so existing templates keep working; validator, `docs/template-format.md` and changelog updated (2-3 h)
+- [ ] Media files: type from the media kind plus folder names (for example `sfx/whoosh/...`), themes from folder names or assigned by the user; stored per item in the library database, surviving offline roots like tags do (2-3 h)
+- [ ] Search: `type:`, `theme:` and `style:` filters, combinable with the existing ones; `type:` keeps matching the media kinds video, image and audio (1-2 h)
+- [ ] Browse tree in the sidebar: type group, type, theme, plus packs, each with item counts; selecting a node narrows the list and scopes the search box to it, clearing the selection widens again (3-5 h)
+- [ ] Packs: `pack.json` may declare default types, themes and styles for its templates (1 h)
+- [ ] Sample templates: original CC0 templates that fill empty type and theme combinations, starting with matched sets (one look shared across lower third, title, transition, overlay and background) for corporate, sports, holiday and news (3-5 h)
+
 ## 8. 1.0 hardening and docs (8-14 h)
 
-- [ ] Freeze template format v1; add a JSON Schema file generated from or checked against the validator (2-3 h)
+- [ ] Freeze template format v1 (after milestone 10's manifest changes have landed); add a JSON Schema file generated from or checked against the validator (2-3 h)
 - [ ] Template authoring guide with a step-by-step walkthrough and a `pulp-template` starter folder (2-3 h)
 - [ ] Accessibility pass: keyboard navigation, focus states, screen reader labels (2-3 h)
 - [ ] Crash and error reporting that stays local (log file, "copy diagnostics" button) (1-2 h)
-- [ ] Five to ten more original CC0 sample templates covering each category (1-3 h)
+- [ ] Five to ten more original CC0 sample templates, filling type and theme gaps left after milestone 10 (1-3 h)
 
 ## 9. Later, after 1.0 (12-26 h)
 
