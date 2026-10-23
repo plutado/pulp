@@ -6,6 +6,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Changed
+
+- The library result list is now rendered by Preact from a shared state module (`src/core/app-state.ts`); keyed updates keep thumbnails alive while typing in search instead of rebuilding the list. No visible change otherwise. Decision record 0009 (superseding 0006) sets the approach for the coming UI work: Preact with signals, ported region by region behind the UI end-to-end test, today's parameter controls kept as they are; Preact is pinned to 10 after 11 missed the spike's bundle budget.
+
 ### Added
 
 - Editing-app results recorded in `docs/nle-verification.md` from Premiere Pro 2026 and DaVinci Resolve Studio 20.2.3 on macOS: ProRes 4444 and PNG sequences import with correct alpha by default; QuickTime Animation needs Resolve's Data Levels set to Full; HEVC with alpha has no alpha in Premiere and needs Alpha Mode: Straight in Resolve; WebM cannot be imported in Premiere and decodes with broken alpha in Resolve; Premiere's linear compositing changes blended values by design. Drops into both apps' bins and timelines work from the queue and from Prepare for drag. Decision record 0008: straight alpha everywhere, no premultiplied option.

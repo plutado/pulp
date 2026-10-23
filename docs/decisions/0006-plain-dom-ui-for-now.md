@@ -1,7 +1,7 @@
 # 0006. Stay with plain DOM for the UI; revisit at the library milestone
 
 Date: 2026-10-23
-Status: Accepted
+Status: Superseded by 0009 (2026-10-23)
 
 ## Context
 

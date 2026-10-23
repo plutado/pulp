@@ -1,4 +1,7 @@
 import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
+import { describeMeta, formatBytes, setIndex, setJobs, setQuery, setSelection } from '../core/app-state';
+import { dispatch, results } from './store';
+import { mountResults } from './results';
 import { frameCount, type TemplateParameter } from '../core/manifest';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
@@ -147,93 +150,13 @@ const state: State = {
 
 // ---------------------------------------------------------------- library
 
-function entryLabel(entry: LibraryEntry): { name: string; meta: string } {
-  if (entry.kind === 'template') {
-    const m = entry.manifest;
-    return { name: m.name, meta: `${m.category} · ${m.duration}s · ${m.width}x${m.height}${m.alpha ? ' · alpha' : ''}` };
-  }
-  return { name: entry.name, meta: [`${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)}`, describeMeta(entry)].filter(Boolean).join(' · ') };
-}
-
-/** "1920x1080 · 00:00:06:00 · prores · alpha", from probed metadata; empty until probed. */
-function describeMeta(entry: MediaEntry): string {
-  const m = entry.meta;
-  if (!m) return '';
-  const parts: string[] = [];
-  if (m.width && m.height) parts.push(`${m.width}x${m.height}`);
-  if (m.duration) {
-    const fps = m.fps ?? 25;
-    parts.push(formatTimecode(Math.round(m.duration * fps), fps));
-  }
-  if (m.fps && entry.mediaKind === 'video') parts.push(`${m.fps} fps`);
-  if (m.codec) parts.push(m.codec);
-  if (m.alpha) parts.push('alpha');
-  if (m.audioCodec && !m.codec) parts.push(`${m.audioCodec}${m.channels ? ` · ${m.channels}ch` : ''}${m.sampleRate ? ` · ${m.sampleRate / 1000} kHz` : ''}`);
-  return parts.join(' · ');
-}
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 ** 2) return `${(n / 1024).toFixed(0)} KB`;
-  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
-  return `${(n / 1024 ** 3).toFixed(2)} GB`;
-}
-
+/** Pushes index, query and selection into the shared state (the Results component renders the list from it) and redraws the summary. */
 function renderResults(): void {
+  dispatch((s) => setSelection(setQuery(setIndex(s, state.index), els.search.value), state.selected?.key ?? null));
+  els.exportPack.disabled = !results.value.canExportPack;
   const index = state.index;
-  els.results.replaceChildren();
-  if (!index) return;
-  const hits = searchLibrary(index, els.search.value);
-  for (const { entry } of hits.slice(0, 500)) {
-    const li = document.createElement('li');
-    const { name, meta } = entryLabel(entry);
-    // Thumbnail on the left: the cached image when there is one, a kind marker otherwise.
-    const thumb = document.createElement('span');
-    thumb.className = `thumb checker${entry.thumbnail ? '' : ' empty'}`;
-    if (entry.thumbnail) {
-      const img = document.createElement('img');
-      img.src = entry.thumbnail;
-      img.alt = '';
-      thumb.append(img);
-    } else {
-      thumb.textContent = entry.kind === 'template' ? 'T' : entry.mediaKind === 'audio' ? '♫' : '';
-    }
-    li.append(thumb);
-    const text = document.createElement('span');
-    text.className = 'text';
-    const nameEl = document.createElement('span');
-    nameEl.className = 'name';
-    nameEl.textContent = name;
-    const star = document.createElement('span');
-    star.className = 'fav';
-    star.textContent = entry.favorite ? '★' : '';
-    star.hidden = !entry.favorite;
-    const metaEl = document.createElement('span');
-    metaEl.className = 'meta';
-    const withTags = entry.tags.length ? `${meta} · ${entry.tags.join(', ')}` : meta;
-    metaEl.textContent = entry.offline ? `offline · ${withTags}` : withTags;
-    if (entry.offline) li.classList.add('offline');
-    const head = document.createElement('span');
-    head.className = 'name-row';
-    head.append(star, nameEl);
-    text.append(head, metaEl);
-    li.append(text);
-    li.setAttribute('role', 'option');
-    li.dataset.id = entry.id;
-    li.dataset.kind = entry.kind;
-    li.setAttribute('aria-selected', String(state.selected?.key === entry.key));
-    li.addEventListener('click', () => select(entry));
-    els.results.append(li);
-  }
-  if (hits.length === 0) {
-    const li = document.createElement('li');
-    li.className = 'meta';
-    li.textContent = 'No matches.';
-    els.results.append(li);
-  }
-
-  els.exportPack.disabled = !hits.some((h) => h.entry.kind === 'template' && !h.entry.offline);
   els.summary.replaceChildren();
+  if (!index) return;
   const counts = document.createElement('div');
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
   counts.textContent = [
@@ -1391,6 +1314,7 @@ function jobStatusText(job: RenderQueueJob): string {
 }
 
 function renderQueue(snapshot: RenderQueueSnapshot): void {
+  dispatch((s) => setJobs(s, snapshot));
   els.queue.replaceChildren();
   els.clearFinished.disabled = !snapshot.jobs.some(isFinished);
   if (snapshot.jobs.length === 0) {
@@ -1578,6 +1502,7 @@ showDragState();
 populatePresets();
 populateFrameRates();
 updateControls();
+mountResults(els.results, select);
 renderQueue({ jobs: [] });
 void window.pulp.getRenderQueue().then(renderQueue);
 void window.pulp.getRecentColors().then(setRecentColors);

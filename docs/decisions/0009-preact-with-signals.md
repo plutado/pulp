@@ -1,7 +1,7 @@
 # 0009. Preact with signals for the UI, ported region by region
 
 Date: 2026-10-23
-Status: Proposed (criteria below are fixed; the spike has not run yet)
+Status: Accepted (spike passed; result below)
 Supersedes: 0006
 
 ## Context
@@ -37,7 +37,17 @@ Any failure is a **no-go**: revert the port, record the result here with the dec
 
 ## Result
 
-Pending.
+**Go**, on Preact 10 — with one measurement worth recording honestly. The spike ported the results list to a component (`src/renderer/results.tsx`) rendering from the shared state (`src/core/app-state.ts`, pure, 7 unit tests; wrapped in signals by `src/renderer/store.ts`), with `main.ts` dispatching into the store where it used to rebuild the list.
+
+| Criterion | Measured |
+|---|---|
+| 1. Lint and both tsc projects | Pass, no suppressions |
+| 2. Tests with no edits under `tests/` | Pass: 279 tests in 29 files, the UI end-to-end test untouched and green against the Preact-rendered list |
+| 3. Build; CSP byte-for-byte unchanged | Pass: `index.html` diff is empty |
+| 4. Bundle growth < 30 kB minified | **Preact 11.0.1 + signals 2.11.3 failed this: 114.15 kB, +30.98 kB.** Pinned to the mature line instead: Preact 10.29.8 + signals 1.3.4 give 112.44 kB, **+29.27 kB, pass**. The criterion was not changed. |
+| 5. Component no longer than the code it replaces | Pass: 57 lines against 59 |
+
+Consequence of criterion 4: `preact` stays pinned to `^10` and `@preact/signals` to `^1`. Moving to Preact 11 is a decision with a bundle-budget discussion, not a routine upgrade.
 
 ## Costs and risks
 
