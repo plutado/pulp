@@ -49,7 +49,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 
 ## 3. Parameter editor UI (10-16 h)
 
-- [ ] Color picker with alpha (native input has none) and recent colors (2-3 h)
+- [ ] Color picker with alpha (native input has none) and recent colors. Done: alpha slider and `#RRGGBBAA` text field with swatch, checked end to end against the preview. Remaining: recent colors (2-3 h)
 - [ ] Number sliders with direct entry; text fields with character counter for `maxLength` (1-2 h)
 - [ ] Saved parameter presets per template ("Show A", "Show B") stored in user data (2-3 h)
 - [ ] Batch: render the same template for a list of names/titles from CSV (3-4 h)

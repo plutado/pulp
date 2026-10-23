@@ -107,6 +107,14 @@ input[type="checkbox"] { width: auto; }
 .field > span { color: var(--muted); font-size: 12px; }
 .field input:not([type="checkbox"]):not([type="color"]), .field select, .field textarea { width: 100%; }
 .field.inline { grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
+.color-field { display: grid; grid-template-columns: 28px 48px 1fr 36px; grid-template-rows: auto auto; gap: 6px 8px; align-items: center; }
+.color-field .swatch { position: relative; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0; }
+.color-field .swatch-fill { position: absolute; inset: 0; }
+.color-field input[type="color"] { width: 48px; }
+.color-field .alpha { padding: 0; min-width: 0; }
+.color-field .alpha-value { color: var(--muted); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+.color-field .hex { grid-column: 1 / -1; font-family: Menlo, Consolas, monospace; }
+.color-field .hex.error { border-color: var(--danger); }
 .group-label { font-size: 11px; color: var(--muted); margin-top: 6px; border-top: 1px solid var(--border); padding-top: 8px; }
 
 .note { color: var(--muted); font-size: 12px; margin: 6px 0; line-height: 1.4; }

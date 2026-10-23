@@ -1,6 +1,7 @@
 import type { LibraryEntry, LibraryIndex, TemplateEntry } from '../core/library-types';
 import { frameCount, type TemplateParameter } from '../core/manifest';
 import { resolveParams, type ResolvedParams } from '../core/params';
+import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { isFinished, type RenderQueueJob, type RenderQueueSnapshot } from '../core/render-queue';
@@ -219,16 +220,8 @@ function inputFor(param: TemplateParameter): HTMLElement {
       el.addEventListener('input', () => onChange(el.value));
       return el;
     }
-    case 'color': {
-      // <input type=color> has no alpha; keep any alpha suffix from the default.
-      const el = document.createElement('input');
-      el.type = 'color';
-      const hex = String(value);
-      const alpha = hex.length === 9 ? hex.slice(7) : '';
-      el.value = hex.slice(0, 7);
-      el.addEventListener('input', () => onChange(el.value + alpha));
-      return el;
-    }
+    case 'color':
+      return colorField(String(value), onChange);
     case 'number': {
       const el = document.createElement('input');
       el.type = 'number';
@@ -264,6 +257,74 @@ function inputFor(param: TemplateParameter): HTMLElement {
       return el;
     }
   }
+}
+
+/**
+ * Color control with alpha. The native color input only holds `#rrggbb`, so it
+ * edits the RGB part, a slider edits the alpha as a percentage, and a text
+ * field shows and accepts the whole `#rrggbb[aa]` value. A swatch over a
+ * checkerboard previews the result.
+ */
+function colorField(initial: string, onChange: (hex: string) => void): HTMLElement {
+  let { rgb, alpha } = splitColor(initial);
+  const field = document.createElement('div');
+  field.className = 'color-field';
+  const swatch = document.createElement('span');
+  swatch.className = 'swatch checker';
+  const fill = document.createElement('span');
+  fill.className = 'swatch-fill';
+  swatch.append(fill);
+  const picker = document.createElement('input');
+  picker.type = 'color';
+  picker.title = 'Color';
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = '0';
+  slider.max = '100';
+  slider.step = '1';
+  slider.className = 'alpha';
+  slider.title = 'Alpha';
+  const percent = document.createElement('span');
+  percent.className = 'alpha-value';
+  const text = document.createElement('input');
+  text.type = 'text';
+  text.className = 'hex';
+  text.spellcheck = false;
+  text.title = '#RRGGBB or #RRGGBBAA';
+
+  const show = () => {
+    const hex = joinColor(rgb, alpha);
+    fill.style.background = toCssRgba(hex);
+    picker.value = rgb;
+    slider.value = String(alphaToPercent(alpha));
+    percent.textContent = `${alphaToPercent(alpha)}%`;
+    text.value = hex;
+    text.classList.remove('error');
+  };
+  const apply = () => {
+    show();
+    onChange(joinColor(rgb, alpha));
+  };
+  picker.addEventListener('input', () => {
+    rgb = picker.value;
+    apply();
+  });
+  slider.addEventListener('input', () => {
+    alpha = percentToAlpha(Number(slider.value));
+    apply();
+  });
+  text.addEventListener('change', () => {
+    const parsed = parseColorText(text.value);
+    if (!parsed) {
+      text.classList.add('error');
+      return;
+    }
+    ({ rgb, alpha } = splitColor(parsed));
+    apply();
+  });
+  show();
+  field.append(swatch, picker, slider, percent, text);
+  return field;
 }
 
 function buildParamForm(parameters: TemplateParameter[]): void {
