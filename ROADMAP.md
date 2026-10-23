@@ -2,6 +2,8 @@
 
 Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done.
 
+Milestones keep the number they were given when they were added, so GitHub issues #1 to #8 stay aligned with milestones 1 to 8. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
+
 | Milestone | Estimate |
 |---|---|
 | 0. Foundation | done |
@@ -12,11 +14,17 @@ Estimates are working hours for one developer, including tests and docs. They ar
 | 5. Drag-out to editing apps | 8-16 h |
 | 6. Template packs import | 6-10 h |
 | 7. Packaging and signing (macOS, Windows, Linux) | 10-18 h |
-| 10. Categorization by type and theme (before 8) | 14-23 h |
-| 8. 1.0 hardening and docs | 8-14 h |
-| 9. Later (post-1.0) | 12-26 h |
-| **Remaining through 1.0 (milestones 1-8 and 10)** | **88-151 h** |
-| **Including post-1.0 items** | **100-177 h** |
+| 11. UI shell: regions and the framework decision | 12-20 h |
+| 10. Categorization by type and theme | 14-23 h |
+| 12. Browse and preview | 10-16 h |
+| 13. Collections | 8-14 h |
+| 8. 1.0 hardening and docs | 9-16 h |
+| 14. Defaults per type and guided setup (post-1.0) | 6-10 h |
+| 15. Convert library media (post-1.0) | 8-12 h |
+| 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
+| 9. Later (post-1.0) | 10-22 h |
+| **Remaining through 1.0 (milestones 1-8 and 10-13)** | **119-203 h** |
+| **Including post-1.0 items** | **151-261 h** |
 
 ## 0. Foundation (done)
 
@@ -91,29 +99,78 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [ ] Release workflow in GitHub Actions producing draft releases; auto-update (electron-updater) (2-4 h)
 - [ ] Decide on ffmpeg distribution: keep "user installs ffmpeg", offer a download helper, or bundle an LGPL build; document license implications (ADR)
 
+## 11. UI shell: regions and the framework decision (12-20 h)
+
+First of the UI milestones. ADR 0006 deferred the plain DOM question to the library milestone, which has since been built in plain DOM; the decision is made here, before the big UI build rather than halfway through it. Once the regions exist, milestone 10's browse tree and milestone 12's player upgrades slot straight in. The regions, where today's features move, and the shared state are in `docs/ui-layout.md`.
+
+- [ ] ADR 0009, revisiting ADR 0006: a time-boxed spike that builds one region (the results list with its filters) both as plain DOM and in a small framework (Preact or Svelte), compares code, bundle and what the UI test needs, and records the decision either way; the UI end-to-end test must pass unchanged across whichever port follows (2-4 h)
+- [ ] Shell: the regions from `docs/ui-layout.md` (browse panel, search bar, results, stage, inspector, collection tray, status bar) as resizable, collapsible panes with sizes and collapsed state kept in `settings.json`; each region is a module that renders from the shared state (scope, query, selection, shown item, jobs) and never reaches into another region's DOM (3-5 h)
+- [ ] Move today's features into the regions with no loss: folders, rescan and pack import and export into the browse panel; the result list into the results region as list view; preview and transport into the stage; parameters, presets, render options, trim and CSV batch into the inspector's Parameters and Output tabs, details, tags and favorite into Info; queue, drag handle and cache into the collection tray, still working as the queue until milestone 13 (4-6 h)
+- [ ] Search bar: a scope chip showing the selected node with × to clear (folders, favorites and recent until milestone 10 adds types and themes), recent searches, sort, and filter chips for the existing filters (2-3 h)
+- [ ] Status bar: ffmpeg found or missing, library counts, cache size, scans and renders in progress (1-2 h)
+
 ## 10. Categorization by type and theme (14-23 h)
 
-Numbered 10 so milestones 1-8 keep their issue numbers, but it comes **before milestone 8**: it changes the template manifest and must land before format v1 is frozen.
+After milestone 11 (the browse panel it fills) and before milestone 8: it changes the template manifest and must land before format v1 is frozen.
 
 - [ ] Taxonomy: built-in, versioned lists of types (grouped on two levels: titles and text, backgrounds, transitions, overlays, design elements, video clips, stills, music, sound effects), themes (corporate, news, sports, holidays and more) and styles (clean, grunge, retro, cinematic and more) in a pure core module; users extend them with their own themes, stored like tags and shown in a separate custom group; ADR for the three axes and the extension rule (2-4 h)
 - [ ] Template format: `type` checked against the list, optional `themes` and `styles` arrays; `category` stays valid and maps onto the type list, so existing templates keep working; validator, `docs/template-format.md` and changelog updated (2-3 h)
-- [ ] Media files: type from the media kind plus folder names (for example `sfx/whoosh/...`), themes from folder names or assigned by the user; stored per item in the library database, surviving offline roots like tags do (2-3 h)
+- [ ] Media files: type from the media kind plus folder names (for example `sfx/whoosh/...`), themes from folder names or assigned by the user in the inspector's Info tab; stored per item in the library database, surviving offline roots like tags do (2-3 h)
 - [ ] Search: `type:`, `theme:` and `style:` filters, combinable with the existing ones; `type:` keeps matching the media kinds video, image and audio (1-2 h)
-- [ ] Browse tree in the sidebar: type group, type, theme, plus packs, each with item counts; selecting a node narrows the list and scopes the search box to it, clearing the selection widens again (3-5 h)
+- [ ] Browse tree in the browse panel: Types (group → type), Themes, Styles and Packs, each node with an item count; selecting a node sets the scope chip and narrows the results and the search, clearing it widens again; counts follow the scope (3-5 h)
 - [ ] Packs: `pack.json` may declare default types, themes and styles for its templates (1 h)
 - [ ] Sample templates: original CC0 templates that fill empty type and theme combinations, starting with matched sets (one look shared across lower third, title, transition, overlay and background) for corporate, sports, holiday and news (3-5 h)
 
-## 8. 1.0 hardening and docs (8-14 h)
+## 12. Browse and preview (10-16 h)
+
+Fills the results region and the stage described in `docs/ui-layout.md`.
+
+- [ ] Results grid: cards with thumbnail, name and badges (alpha, loop, duration, resolution, pack); grid/list toggle and thumbnail size in the search bar; list view stays for audio and long lists, with name, duration, type, themes and file columns (3-4 h)
+- [ ] Hover-scrub: a sprite strip of a few frames per video and template, cached like thumbnails and stepped by pointer position over the card (2-3 h)
+- [ ] Player: loop toggle, frame step, in and out marks tied to the Output tab's trim, volume and mute; background toggle (checkerboard, black, white, custom color); title-safe and action-safe overlay (2-4 h)
+- [ ] Waveforms: peak data per audio file computed once with ffmpeg, cached in user data, drawn under the scrub bar and in list rows (2-3 h)
+- [ ] Audition mode for audio lists: autoplay, arrow keys move to the next item, Escape stops (1-2 h)
+
+## 13. Collections (8-14 h)
+
+Turns the queue in the collection tray into collections; the separate queue panel goes away.
+
+- [ ] Collection tray: add items from the results, the stage or by drag; small cards with their own output settings (preset, size, frame rate, trim, and parameters for templates); remove, reorder, Apply to all (2-4 h)
+- [ ] Save and load a collection as a file: items by library id with their settings; missing or offline items flagged on load, so a collection also serves as a project archive (2-3 h)
+- [ ] Render all: every item through the render queue with per-item and total progress, one save folder for all or per item; finished items keep their drag handle (3-5 h)
+- [ ] Headless: `--collection file` renders a saved collection (1-2 h)
+
+## 8. 1.0 hardening and docs (9-16 h)
 
 - [ ] Freeze template format v1 (after milestone 10's manifest changes have landed); add a JSON Schema file generated from or checked against the validator (2-3 h)
 - [ ] Template authoring guide with a step-by-step walkthrough and a `pulp-template` starter folder (2-3 h)
-- [ ] Accessibility pass: keyboard navigation, focus states, screen reader labels (2-3 h)
-- [ ] Crash and error reporting that stays local (log file, "copy diagnostics" button) (1-2 h)
+- [ ] Accessibility pass across every region: keyboard navigation for the tree, the grid, the player and the tray, focus states, screen reader labels (2-3 h)
+- [ ] Crash and error reporting that stays local (log file, "copy diagnostics" in the status bar) (1-2 h)
 - [ ] Five to ten more original CC0 sample templates, filling type and theme gaps left after milestone 10 (1-3 h)
+- [ ] User guide for the window: regions, keyboard shortcuts, search syntax; README and screenshots updated for the new layout (1-2 h)
 
-## 9. Later, after 1.0 (12-26 h)
+## 14. Defaults per type and guided setup (6-10 h, after 1.0)
+
+- [ ] "Save as default for this type" in the Output tab; new items of that type (a template type, video, image or audio) start from it (2-3 h)
+- [ ] Guided setup: a modal with numbered steps (what it is for, size and frame rate, format and alpha, audio, where to save), a live preview over a checkerboard, a settings summary, a save-as-default checkbox, and Add to collection at the end (4-7 h)
+
+## 15. Convert library media (8-12 h, after 1.0)
+
+- [ ] Output tab for media items: transcode video, stills and audio with the same presets; audio-only options (sample rate, channels, bit depth); works in collections and Render all (3-4 h)
+- [ ] Loop tools for loopable backgrounds: extend to any duration with a crossfade join; speed control (2-3 h)
+- [ ] Matte pass: a separate alpha matte file next to the render, for codecs and editors without alpha (HEVC in Premiere Pro, WebM) (2-3 h)
+- [ ] Recolor: a tint at render time for stock media, next to template color parameters (1-2 h)
+
+## 16. Audio: stems, variants and pairing (8-14 h, after 1.0)
+
+Takes over "audio in templates" from the Later list. Manifest additions are optional fields.
+
+- [ ] Audio in templates (stingers for transitions), muxed into the output or written as a separate file (2-4 h)
+- [ ] Paired sound effects with variations on transitions: declared by the template or the pack, chosen in the stage's variant picker, shown as badges on cards, embedded on render (2-4 h)
+- [ ] Stems: layered music as several files or a stem manifest; one lane per layer with waveform and mute and solo in the stage; render the selected mix or one file per stem (4-6 h)
+
+## 9. Later, after 1.0 (10-22 h)
 
 - [ ] `image` and `media` parameter types (logos, background plates) (3-5 h)
-- [ ] Audio in templates (stingers for transitions), muxed into output (2-4 h)
 - [ ] Command-line interface as a separate entry point for scripted batch renders (2-4 h)
 - [ ] Optional local semantic search over the library (on-device embeddings, off by default, no network) (5-13 h)
