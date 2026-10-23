@@ -1,11 +1,12 @@
 import { protocol } from 'electron';
-import { readFile } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { MEDIA_SCHEME, serveMedia } from '../core/media-serve';
+import { THUMB_SCHEME } from '../core/thumbnails';
 import { injectBridge, TEMPLATE_CSP } from '../core/runtime';
 import { TEMPLATE_SCHEME } from '../shared/api';
-import { findTemplate, lookupMedia } from './library-service';
+import { findTemplate, lookupMedia, lookupThumbnail, thumbnailDir } from './library-service';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -35,7 +36,49 @@ export function registerTemplateScheme(): void {
     // `stream` lets <video> and <audio> play from it. No fetch: only media elements need it, and the
     // scheme enforces CORS, so even the app window cannot read responses as data.
     { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: false, stream: true } },
+    // Thumbnails: small PNGs for <img> only, same rules as media (by id, bare 404s, no fetch).
+    { scheme: THUMB_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: false } },
   ]);
+}
+
+/**
+ * Serve cached thumbnails to the app window at pulp-thumb://<item-id>/. The
+ * file must be the store's current thumbnail for that id and must really lie
+ * in the thumbnail cache folder; anything else, including template referrers,
+ * is a bare 404.
+ */
+export function handleThumbProtocol(): void {
+  protocol.handle(THUMB_SCHEME, async (request) => {
+    const refuse = () => new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
+    if (request.method !== 'GET' && request.method !== 'HEAD') return refuse();
+    const referrer = request.referrer || request.headers.get('referer') || '';
+    if (referrer.startsWith('pulp-template://')) return refuse();
+    let url: URL;
+    try {
+      url = new URL(request.url);
+    } catch {
+      return refuse();
+    }
+    if ((url.pathname !== '' && url.pathname !== '/') || url.search) return refuse();
+    const file = lookupThumbnail(url.hostname);
+    if (!file) return refuse();
+    let real: string;
+    let dir: string;
+    try {
+      [real, dir] = await Promise.all([realpath(file), realpath(thumbnailDir())]);
+    } catch {
+      return refuse();
+    }
+    if (!real.startsWith(dir + sep) || extname(real).toLowerCase() !== '.png') return refuse();
+    let body: Buffer;
+    try {
+      body = await readFile(real);
+    } catch {
+      return refuse();
+    }
+    const headers = { 'Content-Type': 'image/png', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
+    return new Response(request.method === 'HEAD' ? null : new Uint8Array(body), { status: 200, headers });
+  });
 }
 
 /**

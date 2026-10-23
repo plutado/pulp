@@ -131,6 +131,20 @@ function renderResults(): void {
   for (const { entry } of hits.slice(0, 500)) {
     const li = document.createElement('li');
     const { name, meta } = entryLabel(entry);
+    // Thumbnail on the left: the cached image when there is one, a kind marker otherwise.
+    const thumb = document.createElement('span');
+    thumb.className = `thumb checker${entry.thumbnail ? '' : ' empty'}`;
+    if (entry.thumbnail) {
+      const img = document.createElement('img');
+      img.src = entry.thumbnail;
+      img.alt = '';
+      thumb.append(img);
+    } else {
+      thumb.textContent = entry.kind === 'template' ? 'T' : entry.mediaKind === 'audio' ? '♫' : '';
+    }
+    li.append(thumb);
+    const text = document.createElement('span');
+    text.className = 'text';
     const nameEl = document.createElement('span');
     nameEl.className = 'name';
     nameEl.textContent = name;
@@ -139,7 +153,8 @@ function renderResults(): void {
     const withTags = entry.tags.length ? `${meta} · ${entry.tags.join(', ')}` : meta;
     metaEl.textContent = entry.offline ? `offline · ${withTags}` : withTags;
     if (entry.offline) li.classList.add('offline');
-    li.append(nameEl, metaEl);
+    text.append(nameEl, metaEl);
+    li.append(text);
     li.setAttribute('role', 'option');
     li.dataset.id = entry.id;
     li.dataset.kind = entry.kind;

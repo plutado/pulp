@@ -178,6 +178,37 @@ describe('LibraryStore incremental scans', () => {
     expect(store.pendingMetadata().map((m) => m.name)).toEqual(['a']);
   });
 
+  it('tracks thumbnails by size and mtime, skips audio, and forgets them when the item changes', async () => {
+    const root = join(dir, 'lib');
+    await writeTemplate(join(root, 'tpl'));
+    await touch(join(root, 'clip.mov'), 10);
+    await touch(join(root, 'voice.wav'), 10);
+    store.setRoots([root]);
+    await store.scanRoots([root]);
+    const pending = store.pendingThumbnails();
+    expect(pending.map((e) => (e.kind === 'template' ? 'tpl' : e.name)).sort()).toEqual(['clip', 'tpl']);
+
+    const clip = pending.find((e) => e.kind === 'media')!;
+    const tpl = pending.find((e) => e.kind === 'template')!;
+    store.setThumbnail(clip, '/cache/clip.png');
+    store.setThumbnail(tpl, null); // generation failed; not retried until the template changes
+    expect(store.pendingThumbnails()).toEqual([]);
+    let index = store.toIndex();
+    expect(index.media.find((m) => m.name === 'clip')?.thumbnail).toBe(`pulp-thumb://${clip.id}/`);
+    expect(index.media.find((m) => m.name === 'voice')?.thumbnail).toBeUndefined();
+    expect(index.templates[0]?.thumbnail).toBeUndefined();
+    expect(store.findThumbnailById(clip.id)).toBe('/cache/clip.png');
+    expect(store.findThumbnailById(tpl.id)).toBeUndefined();
+
+    await sleep(20);
+    await touch(join(root, 'clip.mov'), 20);
+    await store.scanRoots([root]);
+    index = store.toIndex();
+    expect(index.media.find((m) => m.name === 'clip')?.thumbnail).toBeUndefined();
+    expect(store.findThumbnailById(clip.id)).toBeUndefined();
+    expect(store.pendingThumbnails().map((e) => e.kind === 'media' && e.name)).toEqual(['clip']);
+  });
+
   it('persists across close and reopen', async () => {
     const root = join(dir, 'lib');
     await writeTemplate(join(root, 'tpl'));

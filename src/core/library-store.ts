@@ -21,6 +21,7 @@ import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEn
 import { folderTags, itemId, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES } from './library-scan';
 import type { MediaLookup } from './media-serve';
 import type { MediaMetadata } from './media-meta';
+import { thumbUrlFor, wantsThumbnail } from './thumbnails';
 
 export interface ScanOptions {
   /** Maximum directory depth below each root. Default 12. */
@@ -100,6 +101,12 @@ CREATE TABLE IF NOT EXISTS media_meta (
   size INTEGER NOT NULL,
   mtime_ms REAL NOT NULL,
   meta TEXT
+);
+CREATE TABLE IF NOT EXISTS thumbs (
+  key TEXT PRIMARY KEY,
+  size INTEGER NOT NULL,
+  mtime_ms REAL NOT NULL,
+  file TEXT
 );
 CREATE TABLE IF NOT EXISTS user_items (
   key TEXT PRIMARY KEY,
@@ -341,11 +348,15 @@ export class LibraryStore {
       meta: string;
     }[];
     const metaByKey = new Map(metaRows.map((m) => [m.key, m]));
+    const thumbRows = this.db.prepare('SELECT key, size, mtime_ms FROM thumbs WHERE file IS NOT NULL').all() as unknown as { key: string; size: number; mtime_ms: number }[];
+    const thumbByKey = new Map(thumbRows.map((t) => [t.key, t]));
     const seenIds = new Map<string, string>();
     const duplicates: LibraryProblem[] = [];
     for (const row of rows) {
       const entry = JSON.parse(row.entry) as LibraryEntry;
       if (offline.has(row.root)) entry.offline = true;
+      const t = thumbByKey.get(row.key);
+      if (t && t.size === row.size && t.mtime_ms === row.mtime_ms) entry.thumbnail = thumbUrlFor(row.id);
       if (entry.kind === 'template') {
         const previous = seenIds.get(entry.manifest.id);
         if (previous) {
@@ -404,6 +415,35 @@ export class LibraryStore {
           'ON CONFLICT(key) DO UPDATE SET size = excluded.size, mtime_ms = excluded.mtime_ms, meta = excluded.meta',
       )
       .run(entry.key, entry.size, entry.mtimeMs, meta ? JSON.stringify(meta) : null);
+  }
+
+  /** Items in online roots that want a thumbnail and have none for their current size and mtime. */
+  pendingThumbnails(limit = 20): LibraryEntry[] {
+    const rows = this.db
+      .prepare(
+        'SELECT items.entry AS entry FROM items JOIN roots ON roots.path = items.root ' +
+          'LEFT JOIN thumbs ON thumbs.key = items.key AND thumbs.size = items.size AND thumbs.mtime_ms = items.mtime_ms ' +
+          'WHERE roots.online = 1 AND thumbs.key IS NULL ORDER BY items.rowid LIMIT ?',
+      )
+      .all(limit * 2) as unknown as { entry: string }[];
+    return rows.map((r) => JSON.parse(r.entry) as LibraryEntry).filter(wantsThumbnail).slice(0, limit);
+  }
+
+  /** Record a thumbnail for the item as it is now; null means generation failed and is not retried until the item changes. */
+  setThumbnail(entry: LibraryEntry, file: string | null): void {
+    const row = this.db.prepare('SELECT size, mtime_ms FROM items WHERE key = ?').get(entry.key) as { size: number; mtime_ms: number } | undefined;
+    if (!row) return;
+    this.db
+      .prepare('INSERT INTO thumbs (key, size, mtime_ms, file) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET size = excluded.size, mtime_ms = excluded.mtime_ms, file = excluded.file')
+      .run(entry.key, row.size, row.mtime_ms, file);
+  }
+
+  /** The cache file of an item's current thumbnail by id, or undefined. Audio and never-generated items have none. */
+  findThumbnailById(id: string): string | undefined {
+    const row = this.db
+      .prepare('SELECT thumbs.file AS file FROM items JOIN thumbs ON thumbs.key = items.key AND thumbs.size = items.size AND thumbs.mtime_ms = items.mtime_ms WHERE items.id = ? AND thumbs.file IS NOT NULL')
+      .get(id) as { file: string } | undefined;
+    return row?.file;
   }
 
   itemCount(): number {

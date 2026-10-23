@@ -92,4 +92,5 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 
 - Read pixels from the *first* frame somewhere, not only from later ones, and use at least one fixture whose frames differ. The stale-capture bug hid for four days behind tests that read `frames[1]` and fixtures that draw the same picture every frame.
 - When a job passes unexpectedly, check that the path under test actually ran: the first "fixed" Windows run had silently fallen back to PNG frames because the capture probe failed. The `frames:` line and the raw-path assertion exist for that.
+- Generate binary fixtures, do not hand-write them. A base64 "2x2 PNG" typed into a test had a damaged zlib stream; Chromium's image decoder showed it anyway, ffmpeg refused it, and the thumbnail test waited for a file that was correctly recorded as failed. Build fixtures with code (`zlib`, ffmpeg) and let a strict reader check them.
 - Reproduce a platform failure locally before theorizing. The static ffmpeg 9 build settled "ffmpeg or Windows" in minutes both times; once it was ffmpeg, once it was not.

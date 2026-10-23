@@ -11,10 +11,14 @@
 
 import { app, BrowserWindow } from 'electron';
 import { existsSync } from 'node:fs';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { detectFfmpeg, nodeRunner } from '../core/ffmpeg';
 import { LibraryStore, type ScanStats } from '../core/library-store';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
+import { mediaThumbArgs, posterThumbArgs, thumbFileName } from '../core/thumbnails';
+import { renderTemplate } from './render';
 import type { LibraryIndex, TemplateEntry } from '../core/library-types';
 import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
@@ -46,6 +50,13 @@ let monitor: ReturnType<typeof setInterval> | null = null;
 let chain: Promise<unknown> = Promise.resolve();
 let probing = false;
 let ffprobe: string | null | undefined;
+let thumbnailing = false;
+let ffmpegPath: string | null | undefined;
+
+/** Folder of cached thumbnails inside user data. */
+export function thumbnailDir(): string {
+  return join(app.getPath('userData'), 'thumbnails');
+}
 
 /** Headless mode: no database on disk; `--library` folders are indexed for the run only. */
 export function useInMemoryLibrary(): void {
@@ -122,7 +133,81 @@ async function probePendingMetadata(): Promise<void> {
     }
   } finally {
     probing = false;
+    void generatePendingThumbnails();
   }
+}
+
+/**
+ * Make thumbnails for items that have none for their current size and mtime,
+ * one at a time, in the background after metadata. Media frames come from
+ * ffmpeg; template posters are one frame rendered at mid-progress through the
+ * normal renderer, then shrunk. Skipped in headless mode and without ffmpeg.
+ */
+async function generatePendingThumbnails(): Promise<void> {
+  if (thumbnailing || !persistent) return;
+  thumbnailing = true;
+  try {
+    if (ffmpegPath === undefined) {
+      const status = await detectFfmpeg();
+      ffmpegPath = status.ok ? status.path : null;
+    }
+    if (!ffmpegPath) return;
+    const st = getStore();
+    const dir = thumbnailDir();
+    await mkdir(dir, { recursive: true });
+    for (;;) {
+      const pending = st.pendingThumbnails(10);
+      if (pending.length === 0) break;
+      for (const entry of pending) {
+        const out = join(dir, thumbFileName(entry.id));
+        let ok = false;
+        try {
+          if (entry.kind === 'media') {
+            const result = await nodeRunner(ffmpegPath, mediaThumbArgs(entry.path, out, entry.meta?.duration, entry.mediaKind === 'video'));
+            ok = result.code === 0 && existsSync(out);
+          } else {
+            ok = await renderPoster(entry, out);
+          }
+        } catch {
+          ok = false;
+        }
+        // Re-read the row: the item may have changed while we worked, in which case the next scan makes it pending again.
+        st.setThumbnail(entry, ok ? out : null);
+      }
+      broadcast(st.toIndex());
+    }
+  } finally {
+    thumbnailing = false;
+  }
+}
+
+/** One frame of a template at mid-progress, with default parameters, shrunk into the cache. */
+async function renderPoster(entry: TemplateEntry, out: string): Promise<boolean> {
+  const tmp = await mkdtemp(join(tmpdir(), 'pulp-poster-'));
+  try {
+    const total = Math.max(1, Math.round(entry.manifest.duration * entry.manifest.fps));
+    const mid = Math.floor(total / 2);
+    const result = await renderTemplate({
+      template: entry,
+      params: {},
+      presetId: 'png-sequence',
+      outputPath: join(tmp, 'poster'),
+      options: { inFrame: mid, outFrame: mid },
+      overwrite: true,
+      frameTimeoutMs: 10_000,
+    });
+    if (!result.ok) return false;
+    const frame = join(tmp, `poster_${String(mid).padStart(5, '0')}.png`);
+    const scaled = await nodeRunner(ffmpegPath!, posterThumbArgs(frame, out));
+    return scaled.code === 0 && existsSync(out);
+  } finally {
+    await rm(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}
+
+/** For the pulp-thumb:// handler: the cache file behind an id, if any. */
+export function lookupThumbnail(id: string): string | undefined {
+  return getStore().findThumbnailById(id);
 }
 
 /** Rescan every configured root (plus `extraFolders` for this run) incrementally and tell the UI. */

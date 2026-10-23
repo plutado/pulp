@@ -13,6 +13,8 @@ export interface TemplateEntry {
   key: string;
   /** Opaque library id, stable for the item while it exists; used to address it without exposing its path. */
   id: string;
+  /** pulp-thumb://<id>/ once a thumbnail exists for the item as it is now. */
+  thumbnail?: string;
   /** True when the item's library root is not reachable right now; the item is kept so user data survives. */
   offline?: boolean;
   dir: string;
@@ -27,6 +29,7 @@ export interface MediaEntry {
   kind: 'media';
   key: string;
   id: string;
+  thumbnail?: string;
   offline?: boolean;
   path: string;
   root: string;

@@ -15,6 +15,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import { deflateSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { detectFfmpeg } from '../../src/core/ffmpeg';
 
@@ -103,6 +104,40 @@ class Session {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** A valid 2x2 RGBA PNG: red, green on the top row; blue, white below. */
+function tinyPng(): Buffer {
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc32 = (buf: Buffer) => {
+    let c = 0xffffffff;
+    for (const b of buf) c = crcTable[(c ^ b) & 0xff]! ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type: string, data: Buffer) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([len, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(2, 0);
+  ihdr.writeUInt32BE(2, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 6; // RGBA
+  const rows = Buffer.from([0, 255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255, 255]); // filter byte + 2 px per row
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', deflateSync(rows)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
 describe.skipIf(!electron)('inspector UI', () => {
   const port = 9300 + Math.floor(Math.random() * 500);
   let app: ChildProcess | null = null;
@@ -113,11 +148,9 @@ describe.skipIf(!electron)('inspector UI', () => {
   let mediaDir = '';
   let haveVideo = false;
 
-  // 2x2 opaque PNG (red, green / blue, white).
-  const TINY_PNG = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP4z8DwHwyBNAPDfwYGBgA6XQb6kQ5J8QAAAABJRU5ErkJggg==',
-    'base64',
-  );
+  // 2x2 opaque PNG (red, green / blue, white), built here so it is a valid file: a hand-written base64
+  // PNG with a damaged zlib stream was accepted by Chromium's lenient decoder but refused by ffmpeg.
+  const TINY_PNG = tinyPng();
 
   async function targets(): Promise<Target[]> {
     try {
@@ -136,10 +169,12 @@ describe.skipIf(!electron)('inspector UI', () => {
   }
 
   /** Read one preview pixel (straight RGBA, as the template's canvas holds it) in template coordinates. */
-  async function previewPixel(x: number, y: number): Promise<number[]> {
+  async function previewPixel(x: number, y: number, templateId = 'pulp.samples.lower-third-bar'): Promise<number[]> {
     const expr = `(() => { const d = document.getElementById('c').getContext('2d').getImageData(${x}, ${y}, 1, 1).data; return [...d]; })()`;
-    // The template frame is its own target when Chromium puts it out of process, otherwise a context on the page.
-    const frame = (await targets()).find((t) => t.url.startsWith('pulp-template://'));
+    // The preview iframe is its own target when Chromium puts it out of process, otherwise a context on the
+    // page. Background poster renders open offscreen windows on pulp-template:// too; those are 'page'
+    // targets and are not the preview.
+    const frame = (await targets()).find((t) => t.type !== 'page' && t.url.startsWith(`pulp-template://${templateId}/`));
     if (frame) {
       const s = await Session.connect(frame.webSocketDebuggerUrl);
       try {
@@ -148,7 +183,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         s.close();
       }
     }
-    const ctx = page.contexts.find((c) => (c.origin ?? '').startsWith('pulp-template'));
+    const ctx = [...page.contexts].reverse().find((c) => (c.origin ?? '').startsWith(`pulp-template://${templateId}`));
     return page.eval<number[]>(expr, ctx?.id);
   }
 
@@ -164,6 +199,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     mediaDir = join(userData, 'media-library');
     await mkdir(mediaDir, { recursive: true });
     await writeFile(join(mediaDir, 'tiny.png'), TINY_PNG);
+    await writeFile(join(mediaDir, 'silence.wav'), await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'silence.wav')));
     const ffmpeg = await detectFfmpeg();
     if (ffmpeg.ok) {
       try {
@@ -406,6 +442,38 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`)).toEqual(['Diagonal Wipe', 'Lower Third Bar', 'Title Card']);
       await setSearch('');
     }, 90_000);
+
+    it('shows cached thumbnails for templates and visual media, and refuses unknown ids', async () => {
+      if (!haveVideo) {
+        console.info('ffmpeg not available; thumbnail check skipped.');
+        return;
+      }
+      // Posters for the three bundled templates and frames for tiny.png and clip.mp4 arrive in the background.
+      await until(
+        () => page.eval<boolean>(`(() => { const imgs = [...document.querySelectorAll('#results li .thumb img')]; return imgs.length >= 5 && imgs.every((i) => i.complete && i.naturalWidth > 0); })()`),
+        'thumbnails for every template and visual media item',
+        240,
+      );
+      const info = await page.eval<{ name: string; src: string; w: number; h: number }[]>(
+        `[...document.querySelectorAll('#results li')].filter((li) => li.querySelector('.thumb img')).map((li) => { const i = li.querySelector('.thumb img'); return { name: li.querySelector('.name').textContent, src: i.src, w: i.naturalWidth, h: i.naturalHeight }; })`,
+      );
+      const byName = Object.fromEntries(info.map((i) => [i.name, i]));
+      expect(Object.keys(byName).sort()).toEqual(['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'clip', 'tiny']);
+      for (const i of info) expect(i.src).toMatch(/^pulp-thumb:\/\/[0-9a-f]{24}\/$/);
+      expect(byName['Title Card']).toMatchObject({ w: 240, h: 135 }); // 1920x1080 poster, fit into 240
+      expect(byName['clip']).toMatchObject({ w: 64, h: 36 }); // smaller than the thumbnail size: not enlarged
+      expect(byName['tiny']).toMatchObject({ w: 2, h: 2 });
+      // Audio has no thumbnail, by design.
+      expect(await page.eval<boolean>(`[...document.querySelectorAll('#results li[data-kind=media]')].some((li) => li.querySelector('.thumb.empty'))`)).toBe(true);
+      // Unknown id and a path on the URL are refused.
+      const outcome = (src: string) =>
+        page.eval<string>(
+          `new Promise((resolve) => { const i = new Image(); i.onload = () => resolve('loaded'); i.onerror = () => resolve('refused'); i.src = ${JSON.stringify(src)}; setTimeout(() => resolve('timeout'), 5000); })`,
+        );
+      expect(await outcome('pulp-thumb://deadbeefdeadbeefdeadbeef/')).toBe('refused');
+      expect(await outcome(`${byName['tiny']!.src}tiny.png`)).toBe('refused');
+      expect(await outcome(byName['tiny']!.src)).toBe('loaded');
+    }, 180_000);
 
     it('refuses an unknown id and a path on the URL, and serves a known id, as seen by an <img>', async () => {
       const outcome = (src: string) =>
