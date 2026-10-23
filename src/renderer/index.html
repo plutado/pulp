@@ -47,6 +47,27 @@
       </label>
       <p id="preset-note" class="note"></p>
       <p id="preset-unavailable" class="note" hidden></p>
+      <div class="render-options">
+        <label class="field">
+          <span>Frame rate (fps)</span>
+          <input id="opt-fps" type="number" min="1" max="240" step="any" placeholder="template">
+        </label>
+        <label class="field" id="opt-background-field" hidden>
+          <span>Background for flattening</span>
+          <input id="opt-background" type="color" value="#000000">
+        </label>
+        <div class="trim">
+          <label class="field">
+            <span>Trim start (s)</span>
+            <input id="opt-trim-start" type="number" min="0" step="any" placeholder="0">
+          </label>
+          <label class="field">
+            <span>Trim end (s)</span>
+            <input id="opt-trim-end" type="number" min="0" step="any" placeholder="end">
+          </label>
+        </div>
+        <p id="options-note" class="note"></p>
+      </div>
       <div class="render-actions">
         <button id="render" type="button" class="primary" disabled>Render...</button>
       </div>

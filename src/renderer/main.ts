@@ -2,7 +2,7 @@ import type { LibraryEntry, LibraryIndex, TemplateEntry } from '../core/library-
 import { frameCount, type TemplateParameter } from '../core/manifest';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
-import { OUTPUT_PRESETS, PRESET_IDS, type PresetId } from '../core/render-plan';
+import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { isFinished, type RenderQueueJob, type RenderQueueSnapshot } from '../core/render-queue';
 import { frameState } from '../core/runtime';
 import { searchLibrary } from '../core/search';
@@ -31,6 +31,12 @@ const els = {
   preset: $<HTMLSelectElement>('preset'),
   presetNote: $<HTMLParagraphElement>('preset-note'),
   presetUnavailable: $<HTMLParagraphElement>('preset-unavailable'),
+  optFps: $<HTMLInputElement>('opt-fps'),
+  optBackgroundField: $<HTMLLabelElement>('opt-background-field'),
+  optBackground: $<HTMLInputElement>('opt-background'),
+  optTrimStart: $<HTMLInputElement>('opt-trim-start'),
+  optTrimEnd: $<HTMLInputElement>('opt-trim-end'),
+  optionsNote: $<HTMLParagraphElement>('options-note'),
   render: $<HTMLButtonElement>('render'),
   renderStatus: $<HTMLParagraphElement>('render-status'),
   ffmpegStatus: $<HTMLParagraphElement>('ffmpeg-status'),
@@ -51,6 +57,8 @@ interface State {
   ffmpegOk: boolean;
   /** Waiting for the save dialog after a click on Render. */
   choosingOutput: boolean;
+  /** False while the frame rate or trim fields hold something the planner rejects. */
+  optionsValid: boolean;
 }
 
 const state: State = {
@@ -65,6 +73,7 @@ const state: State = {
   pendingFrame: null,
   ffmpegOk: false,
   choosingOutput: false,
+  optionsValid: true,
 };
 
 // ---------------------------------------------------------------- library
@@ -175,6 +184,12 @@ function select(entry: LibraryEntry): void {
   els.preview.src = templateUrlFor(m.id, m.entry);
   els.scrub.max = String(frameCount(m) - 1);
   els.scrub.value = '0';
+  // Placeholders show the template's own timing; a trim from the previous template would not fit.
+  els.optFps.placeholder = String(m.fps);
+  els.optTrimEnd.placeholder = String(m.duration);
+  els.optTrimStart.value = '';
+  els.optTrimEnd.value = '';
+  updateOptionsNote();
   els.details.textContent = [m.description, `License: ${m.license}`, m.author ? `Author: ${m.author}` : '']
     .filter(Boolean)
     .join('  ·  ');
@@ -368,10 +383,51 @@ function populatePresets(): void {
     els.preset.append(opt);
   }
   const showNote = () => {
-    els.presetNote.textContent = OUTPUT_PRESETS[els.preset.value as PresetId].description;
+    const preset = OUTPUT_PRESETS[els.preset.value as PresetId];
+    els.presetNote.textContent = preset.description;
+    // The background only matters when an alpha template is flattened into a preset without alpha.
+    els.optBackgroundField.hidden = preset.alpha;
   };
   els.preset.addEventListener('change', showNote);
   showNote();
+}
+
+/** The render options as entered; blank fields mean the template's own value. */
+function readRenderOptions(): RenderOptions {
+  const options: RenderOptions = {};
+  const number = (el: HTMLInputElement): number | undefined => (el.value.trim() === '' ? undefined : Number(el.value));
+  const fps = number(els.optFps);
+  const trimStart = number(els.optTrimStart);
+  const trimEnd = number(els.optTrimEnd);
+  if (fps !== undefined) options.fps = fps;
+  if (trimStart !== undefined) options.trimStart = trimStart;
+  if (trimEnd !== undefined) options.trimEnd = trimEnd;
+  if (!OUTPUT_PRESETS[els.preset.value as PresetId].alpha) options.background = els.optBackground.value;
+  return options;
+}
+
+/** Say what the options amount to (frames and rate), or why the planner would refuse them. */
+function updateOptionsNote(): void {
+  const m = state.selected?.manifest;
+  if (!m) {
+    els.optionsNote.textContent = '';
+    state.optionsValid = true;
+    updateControls();
+    return;
+  }
+  try {
+    const t = resolveTiming(m, readRenderOptions());
+    const seconds = t.totalFrames / t.fps;
+    const changed = t.fps !== m.fps || t.totalFrames !== frameCount(m);
+    els.optionsNote.classList.remove('error');
+    els.optionsNote.textContent = changed ? `${t.totalFrames} frames at ${t.fps} fps (${seconds.toFixed(2)} s)` : '';
+    state.optionsValid = true;
+  } catch (err) {
+    els.optionsNote.classList.add('error');
+    els.optionsNote.textContent = err instanceof RenderPlanError ? err.message : String(err);
+    state.optionsValid = false;
+  }
+  updateControls();
 }
 
 /** Disable presets the detected ffmpeg cannot write and say why; move the selection off a disabled one. */
@@ -399,7 +455,7 @@ function updateControls(): void {
   const hasTemplate = state.selected !== null;
   els.play.disabled = !hasTemplate || !state.previewReady;
   els.scrub.disabled = !hasTemplate;
-  els.render.disabled = !hasTemplate || !state.ffmpegOk || state.choosingOutput;
+  els.render.disabled = !hasTemplate || !state.ffmpegOk || state.choosingOutput || !state.optionsValid;
 }
 
 /** Ask for an output path and add the render to the queue; the queue list shows progress and results. */
@@ -415,6 +471,7 @@ async function queueRender(): Promise<void> {
       templateId: state.selected.manifest.id,
       params: state.rawParams,
       presetId: els.preset.value as PresetId,
+      options: readRenderOptions(),
     });
     if (result.ok) {
       els.renderStatus.textContent = '';
@@ -503,6 +560,8 @@ els.scrub.addEventListener('input', () => {
   requestFrame(Number(els.scrub.value));
 });
 els.render.addEventListener('click', () => void queueRender());
+for (const el of [els.optFps, els.optTrimStart, els.optTrimEnd]) el.addEventListener('input', updateOptionsNote);
+els.preset.addEventListener('change', updateOptionsNote);
 els.clearFinished.addEventListener('click', () => void window.pulp.clearFinishedRenders());
 els.params.addEventListener('submit', (e) => e.preventDefault());
 window.pulp.onRenderQueue(renderQueue);

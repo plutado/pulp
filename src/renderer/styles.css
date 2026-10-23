@@ -110,6 +110,8 @@ input[type="checkbox"] { width: auto; }
 
 .note { color: var(--muted); font-size: 12px; margin: 6px 0; line-height: 1.4; }
 .note.error { color: var(--danger); }
+.render-options { display: grid; gap: 10px; margin-top: 10px; }
+.render-options .trim { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .render-actions { display: flex; gap: 8px; margin-top: 8px; }
 
 .queue-head { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
