@@ -11,11 +11,11 @@ Templates use an open, documented format: a folder with a `template.json` manife
 
 "Pulp" is a working name and may change.
 
-**Status: early development.** The core library, the template format, a basic UI and a first working renderer exist. Expect breaking changes to the format and the app until 1.0. See [ROADMAP.md](ROADMAP.md).
+**Status: early development.** The renderer, the template format, search, template packs, drag-out to editing apps and the window shell are in place; categorization, a card grid, collections and installers are still to come. Expect breaking changes to the format and the app until 1.0. See [ROADMAP.md](ROADMAP.md).
 
-![Pulp showing the bundled sample library, a live preview of the Lower Third Bar template over a transparency checkerboard, and the parameter form generated from its manifest](docs/images/app-window.png)
+![Pulp's window: the browse panel on the left, the search bar with filter chips above a live preview of the Lower Third Bar template and the result list in the center, the inspector with Parameters, Output and Info tabs on the right, the render tray collapsed to a one-line summary at the bottom, and a status bar](docs/images/app-window.png)
 
-*The library on the left, the live preview with play and scrub in the middle, and the parameter form and render presets on the right. All content shown is from the bundled sample templates.*
+*The browse panel (Favorites, Recently used, folders) on the left; the search bar with filter chips and sorting over the stage — a live preview with play and scrub — and the result list in the center; the inspector with its Parameters, Output and Info tabs on the right; the render tray and a status bar along the bottom. Panes resize and collapse, and the layout is remembered. All content shown is from the bundled sample templates.*
 
 ### Sample output
 
@@ -38,29 +38,33 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 
 ## What works today
 
-- Library scan of the bundled samples and any folders you add: templates are validated, media files (video, image, audio) are indexed with tags derived from folder names.
-- Search with free text plus filters: `tag:`, `type:`, `category:`, and from metadata `duration:>5`, `width:>=1920`, `height:`, `fps:`, `res:1080p` (also `4k`, `hd`), `codec:prores`, `alpha:yes`, `favorite:yes`, `recent:10`. Add your own tags and favorites to any item; they are kept in the library database and survive folders going offline.
-- Live preview with play and scrub, and a parameter form generated from the manifest.
-- Rendering through ffmpeg to ProRes 4444 (alpha), ProRes 422 HQ, PNG sequence (alpha), WebM VP9 (alpha) and H.264 MP4. Verified on macOS with the bundled samples; see the roadmap for what is not yet verified.
+- Library scan of the bundled samples and any folders you add: templates are validated; media files (video, image, audio) are indexed with tags from folder names and metadata from ffprobe, with cached thumbnails and preview in the app (video, image and audio play in the stage).
+- Search with free text plus filters: `tag:`, `type:`, `category:`, and from metadata `duration:>5`, `width:>=1920`, `height:`, `fps:`, `res:1080p` (also `4k`, `hd`), `codec:prores`, `alpha:yes`, `favorite:yes`, `recent:10`. Scope the search to Favorites, Recently used or one folder from the browse panel; narrow with filter chips (templates, video, images, audio, alpha, favorites); sort by relevance, name, recently used or duration. The last eight searches are remembered. Your tags and favorites are kept in the library database and survive folders going offline.
+- Live preview with play and scrub (templates open on their mid-progress frame, so transitions don't show a blank first frame), and a parameter form generated from the manifest: color pickers with alpha and recent colors, sliders, character counters, per-template undo/redo, saved parameter presets, and batch rendering from CSV.
+- Rendering through ffmpeg to ProRes 4444 (alpha), ProRes 422 HQ, PNG sequence (alpha), QuickTime Animation (alpha), WebM VP9 (alpha), H.264 MP4 and, on macOS, HEVC with alpha — with frame-rate override, background flattening and in/out trim. Alpha import verified in Premiere Pro and DaVinci Resolve on macOS ([docs/nle-verification.md](docs/nle-verification.md)).
+- Drag a finished render from the queue into your editor's bin or timeline, or "Prepare for drag" to render into a managed cache first; verified in Premiere Pro and Resolve on macOS.
+- Template packs: import a `.zip` or folder with a license-and-collision preview, export the listed templates as a pack.
+- A resizable window shell whose panes collapse and are remembered, a render queue in a bottom tray, and a status bar with ffmpeg, library counts, cache size and activity.
 - A headless command-line render mode (below).
 
-Not yet: drag-out to editing apps, template pack import, media preview, user tags, installers. These are on the [roadmap](ROADMAP.md).
+Not yet: browsing by type and theme, a thumbnail card grid, collections (gather items, render all), installers and signed builds, verification on Windows and in Final Cut Pro. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
 The [roadmap](ROADMAP.md) breaks the path to 1.0 into milestones with task-level estimates. Estimates are working hours for one developer, including tests and docs.
 
+Milestones 1-6 and 11 (renderer, alpha export, parameter editor, library, drag-out, template packs, the window shell) are done apart from verification items that need a Windows machine or Final Cut Pro. In planned order, what remains to 1.0:
+
 | Milestone | What it delivers | Estimate |
 |---|---|---|
-| Production-quality renderer | End-to-end render tests checked with ffprobe, explicit HiDPI handling, 4K/8K and portrait sizes, raw RGBA piping instead of PNG, documented color handling, a render queue | 12-20 h |
-| Alpha export and NLE verification | Each alpha preset verified in Premiere Pro, DaVinci Resolve and Final Cut Pro, straight vs. premultiplied alpha settled, QuickTime Animation and HEVC-with-alpha presets | 8-14 h |
-| Parameter editor | Color picker with alpha, sliders, saved parameter presets per template, batch renders from CSV, undo/redo | 10-16 h |
-| Library | User tags, a persistent index with file watching, ffprobe metadata filters, cached thumbnails, media preview | 12-20 h |
-| Drag-out to editing apps | Drag a rendered file, or render on drag, straight into an NLE bin or timeline, verified on macOS and Windows | 8-16 h |
-| Template packs | A documented pack format, zip import with validation and license display, pack export | 6-10 h |
-| Packaging and 1.0 | Signed installers for macOS, Windows and Linux with auto-update; frozen format v1 with a JSON Schema, an authoring guide, an accessibility pass, more sample templates | 18-32 h |
+| 10. Categorization by type and theme | Built-in type, theme and style lists (user-extendable), a browse tree with counts and scoped search, `type:`/`theme:`/`style:` filters, matched sample sets for corporate, sports, holiday and news | 14-23 h |
+| 12. Browse and preview | A card grid with badges and hover-scrub, virtualized results, a richer player (loop, background toggle, safe areas, waveforms), audition mode for audio | 12-19 h |
+| 13. Collections | Gather items while browsing, save and load as a file, render all with per-item settings | 8-14 h |
+| 17. Unsigned builds and releases | electron-builder, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 7-12 h |
+| 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
+| 8. 1.0 hardening and docs | Frozen template and pack formats v1 with a JSON Schema, an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 
-Total through 1.0: **74-128 hours**. Post-1.0 items (image and media parameters, audio in templates, a separate CLI, optional on-device semantic search) add 12-26 hours.
+Remaining through 1.0: **124-211 hours** including the finished milestones' leftovers. Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
@@ -69,7 +73,8 @@ The format is specified in [docs/template-format.md](docs/template-format.md). T
 ## Built with
 
 - Electron and TypeScript, built with electron-vite (Vite)
-- A pure TypeScript core in `src/core` (manifest validation, parameter resolution, library indexer, search, render planning), tested with Vitest without Electron
+- A pure TypeScript core in `src/core` (manifest validation, parameter resolution, library indexer, search, render planning, shared UI state), tested with Vitest without Electron
+- Preact with signals for the UI regions (pinned to Preact 10; decision record 0009)
 - ffmpeg for encoding (installed separately)
 
 Template packs (a `.zip` or folder with `pack.json` and one folder per template) can be imported with a preview of licenses, authors and id collisions, and exported from the listed templates; the format is in the template specification. Design notes: [docs/system-design.md](docs/system-design.md). Decisions: [docs/decisions/](docs/decisions/). Platform findings (Electron capture, ffmpeg versions, Windows and macOS): [docs/platform-notes.md](docs/platform-notes.md).
@@ -99,7 +104,7 @@ npx electron . --render pulp.samples.lower-third-bar --preset prores-4444 \
   --out renders/lower-third.mov --param "name=Sam Okafor" --param side=right
 ```
 
-Preset ids: `prores-4444`, `prores-422hq`, `png-sequence`, `webm-vp9-alpha`, `h264-mp4`.
+Preset ids: `prores-4444`, `prores-422hq`, `png-sequence`, `qt-animation`, `webm-vp9-alpha`, `h264-mp4`, and on macOS `hevc-alpha`.
 
 `--fps <rate>` samples the template at another frame rate, one of the standard rates 23.976, 24, 25, 29.97, 30, 47.952, 48, 50, 59.94, 60, 100, 119.88 and 120 (a 30 fps template rendered at 60 fps gets twice the frames, same duration). `--background #RRGGBB` is the color alpha templates are flattened over in presets without alpha (default black). `--in-point` and `--out-point` are the first and last frame to render, inclusive, counted at the output rate: timecode such as `00:00:02:00` (semicolons for drop-frame at 29.97 and 59.94, three frame digits at 100 fps and above), a frame number such as `60`, or seconds such as `2.5s`. PNG sequences are numbered with the frame indices they hold, so a render from frame 60 starts at `_00060.png`. `--batch file.csv` renders one output per CSV row into the `--out` folder: headers match a parameter id or label (any case), a `name` column names the files, unknown columns are reported before rendering. `--library <folder>` adds a template folder for that run only (repeatable; not saved to settings). `--frame-timeout <seconds>` changes how long one frame may take before the template is treated as hung (default 10).
 
@@ -109,7 +114,7 @@ Preset ids: `prores-4444`, `prores-422hq`, `png-sequence`, `webm-vp9-alpha`, `h2
 src/core/       pure TypeScript: format, params, library, search, render planning, ffmpeg detection
 src/main/       Electron main process: window, IPC, template protocol, renderer
 src/preload/    the window.pulp API exposed to the UI
-src/renderer/   UI (plain TypeScript and DOM)
+src/renderer/   UI: one module per window region (Preact components and imperative hosts) over a shared state
 src/shared/     types shared by preload and UI
 templates/      bundled sample templates (CC0)
 tests/          Vitest tests for src/core and the samples
