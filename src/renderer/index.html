@@ -112,6 +112,22 @@
         <div id="batch-summary" class="note"></div>
       </details>
       <p id="render-status" class="note" role="status"></p>
+      <div class="drag-out">
+        <div id="drag-handle" class="drag-handle" draggable="false" title="Prepare a render, then drag this into your editor's bin or timeline">
+          <span id="drag-handle-text">Drag to editor</span>
+        </div>
+        <button id="drag-prepare" type="button" disabled title="Render with the current parameters and preset into the cache, so it can be dragged">Prepare for drag</button>
+        <p id="drag-status" class="note"></p>
+      </div>
+      <details class="cache">
+        <summary>Render cache</summary>
+        <p id="cache-summary" class="note"></p>
+        <div class="render-actions">
+          <button id="cache-clear" type="button">Clear cache</button>
+          <button id="cache-dir" type="button">Change folder…</button>
+          <label class="field inline"><span>Limit (MB)</span><input id="cache-limit" type="number" min="64" step="64"></label>
+        </div>
+      </details>
       <p id="ffmpeg-status" class="note"></p>
       <div class="queue-head">
         <h2>Queue</h2>

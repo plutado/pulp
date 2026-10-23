@@ -19,7 +19,9 @@ import {
 } from './library-service';
 import { handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
-import { cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue } from './render-queue-service';
+import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag } from './render-queue-service';
+import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
+import { sanitizeCacheMaxMB } from '../core/render-cache';
 import { deletePreset, listPresets, savePreset } from './preset-service';
 import { chooseExportFile, choosePackFile, exportPackTo, installPack, listInstalledPacks, previewPack } from './pack-service';
 import type { CollisionChoice } from '../core/pack';
@@ -92,6 +94,14 @@ function registerIpc(): void {
 
   ipcMain.handle('queue:add', (_event, request: RenderRequest) => enqueueRender(request));
   ipcMain.handle('queue:add-batch', (_event, request: BatchRequest) => enqueueBatch(request));
+  ipcMain.handle('drag:prepare', (_event, request: RenderRequest) => prepareDrag(request));
+  ipcMain.handle('drag:start', (event, path: string, templateId?: string) =>
+    startDragOut(event.sender, String(path), allowedDragFiles(), typeof templateId === 'string' ? templateId : undefined),
+  );
+  ipcMain.handle('cache:stats', () => cacheStats());
+  ipcMain.handle('cache:clear', () => clearRenderCache());
+  ipcMain.handle('cache:choose-dir', () => chooseRenderCacheDir());
+  ipcMain.handle('cache:set-limit', (_event, maxMB: unknown) => setRenderCacheLimit(sanitizeCacheMaxMB(maxMB)));
   ipcMain.handle('packs:choose', () => choosePackFile());
   ipcMain.handle('packs:preview', (_event, path: string) => previewPack(String(path)));
   ipcMain.handle('packs:install', (_event, path: string, choices: Record<string, CollisionChoice>) =>

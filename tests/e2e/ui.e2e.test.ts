@@ -462,6 +462,65 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 60_000);
   });
 
+  describe('render and drag', () => {
+    it('prepares a render into the cache, arms the drag handle, reuses the cache, and clears it', async () => {
+      if (!haveVideo) {
+        console.info('ffmpeg not available; render-and-drag check skipped.');
+        return;
+      }
+      await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Diagonal Wipe').click()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the diagonal wipe preview');
+      // A short range keeps the test quick: three frames of the wipe into the cache.
+      await page.eval(`(() => { const i = document.getElementById('opt-in'); i.value = '10'; i.dispatchEvent(new Event('input', { bubbles: true })); const o = document.getElementById('opt-out'); o.value = '12'; o.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'png-sequence'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      expect(await page.eval<string>(`document.getElementById('drag-handle').getAttribute('draggable')`)).toBe('false');
+      await page.eval(`document.getElementById('drag-prepare').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('drag-status').textContent.includes('Rendering into the cache')`), 'the drag render to be queued');
+      await until(() => page.eval<boolean>(`document.getElementById('drag-handle').getAttribute('draggable') === 'true'`), 'the drag handle to be armed', 240);
+      const file = await page.eval<string>(`document.getElementById('drag-handle').dataset.file`);
+      expect(file.startsWith(join(userData, 'render-cache'))).toBe(true);
+      expect(file).toMatch(/-diagonal-wipe_00010\.png$/); // a sequence drags as its first frame, numbered with the in point
+      expect(existsSync(file)).toBe(true);
+      expect(await page.eval<string>(`document.getElementById('drag-handle-text').textContent`)).toMatch(/^Drag .*\.png into your editor$/);
+      // The finished job in the queue is draggable too.
+      expect(await page.eval<boolean>(`!!document.querySelector('#queue li[draggable="true"]')`)).toBe(true);
+      await until(() => page.eval<boolean>(`document.getElementById('cache-summary').textContent.includes('3 files')`), 'the cache summary');
+
+      // Preparing again with the same inputs finds the cached render without a new job.
+      const jobsBefore = await page.eval<number>(`document.querySelectorAll('#queue li:not(.empty)').length`);
+      await page.eval(`document.getElementById('drag-prepare').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('drag-status').textContent === 'Already rendered; ready to drag.'`), 'the cache hit');
+      expect(await page.eval<number>(`document.querySelectorAll('#queue li:not(.empty)').length`)).toBe(jobsBefore);
+
+      // A drag of something outside the cache and not a finished output is refused; the cached file is allowed.
+      expect(await page.eval<boolean>(`window.pulp.startDrag('/etc/hosts')`)).toBe(false);
+      // (A real native drag cannot be observed here; startDrag with the cached file is exercised by the handle's dragstart.)
+
+      await page.eval(`document.getElementById('cache-clear').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('cache-summary').textContent.includes('0 files')`), 'the cache to be cleared');
+      expect(existsSync(file)).toBe(false);
+      expect(await page.eval<string>(`document.getElementById('drag-handle').getAttribute('draggable')`)).toBe('false');
+      expect(await page.eval<string>(`document.getElementById('drag-status').textContent`)).toBe('Cache cleared; prepare again to drag.');
+      // Reset the options for later tests.
+      await page.eval(`(() => { for (const id of ['opt-in', 'opt-out']) { const i = document.getElementById(id); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); } const s = document.getElementById('preset'); s.value = 'prores-4444'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    }, 120_000);
+
+    it('keeps the cache limit in settings and shows it', async () => {
+      await page.eval(`(() => { const l = document.getElementById('cache-limit'); l.value = '512'; l.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(() => page.eval<boolean>(`document.getElementById('cache-summary').textContent.includes('of 512 MB')`), 'the new limit in the summary');
+      await until(async () => {
+        try {
+          return (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { renderCacheMaxMB?: number }).renderCacheMaxMB === 512;
+        } catch {
+          return false;
+        }
+      }, 'the limit in settings.json');
+      // Below the floor falls back to the default.
+      await page.eval(`(() => { const l = document.getElementById('cache-limit'); l.value = '5'; l.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(() => page.eval<boolean>(`document.getElementById('cache-limit').value === '2048'`), 'the default limit to be restored');
+    }, 60_000);
+  });
+
   describe('template packs', () => {
     const html = Buffer.from('<!doctype html><html><head><meta charset="utf-8"></head><body><canvas id="c" width="320" height="180"></canvas><script>window.pulpRender=function(){};</script></body></html>');
     const tpl = (over: Record<string, unknown>) => Buffer.from(JSON.stringify(rawManifest({ width: 320, height: 180, ...over })));

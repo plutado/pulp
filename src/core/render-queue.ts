@@ -15,6 +15,8 @@ export interface RenderQueueJob {
   presetId: string;
   outputPath: string;
   totalFrames: number;
+  /** First frame index on the output timeline (sequence numbering starts here). Default 0. */
+  firstFrame?: number;
   status: RenderJobStatus;
   /** Frames finished so far. */
   frame: number;
@@ -34,7 +36,7 @@ export type RenderOutcome =
   | { ok: true; output: string; frames: number; warnings: string[] }
   | { ok: false; cancelled?: boolean; message: string };
 
-export type NewRenderJob = Pick<RenderQueueJob, 'templateId' | 'templateName' | 'presetId' | 'outputPath' | 'totalFrames'> & Pick<RenderQueueJob, 'label'>;
+export type NewRenderJob = Pick<RenderQueueJob, 'templateId' | 'templateName' | 'presetId' | 'outputPath' | 'totalFrames'> & Pick<RenderQueueJob, 'label' | 'firstFrame'>;
 
 export const FINISHED_STATUSES: readonly RenderJobStatus[] = ['done', 'failed', 'cancelled'];
 

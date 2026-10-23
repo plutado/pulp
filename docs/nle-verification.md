@@ -60,3 +60,21 @@ If a step fails only after switching the app's alpha interpretation, record whic
 | HEVC (alpha) | | | | macOS only |
 
 Fill in app version, default alpha interpretation, and pass/fail per checklist step. Record anything that needed a setting change.
+
+## Drag-out checklist, per app
+
+Pulp renders into its cache and starts a native file drag from the "Drag to editor" handle, or from a finished job in the queue. In Premiere Pro, DaVinci Resolve and Final Cut Pro (macOS), and Premiere Pro and Resolve (Windows):
+
+1. **Bin / media pool drop.** Drag the handle onto the project bin or media pool. The file imports as a clip with alpha where the preset has it.
+2. **Timeline drop.** Drag onto a track above a clip. The app places it at the drop point; note whether it asks about frame rate or scaling.
+3. **PNG sequence.** With the PNG sequence preset, the drag carries the first frame. Note whether the app imports the whole sequence (Premiere Pro: Import as Image Sequence may need to be set beforehand; Resolve: frames are grouped in the media pool when "frame display mode" is sequence) or only one still.
+4. **Second drag of the same render.** Prepare again (a cache hit) and drag again: the app should treat it as the same file.
+5. **Windows.** Repeat 1 to 3; note whether the drop needs the app window to be focused first, and whether Resolve accepts drops from other apps on Windows (older versions did not).
+
+| App | Bin drop | Timeline drop | PNG sequence | Notes |
+|---|---|---|---|---|
+| Premiere Pro (macOS) | | | | |
+| DaVinci Resolve (macOS) | | | | |
+| Final Cut Pro | | | | |
+| Premiere Pro (Windows) | | | | |
+| DaVinci Resolve (Windows) | | | | |

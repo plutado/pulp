@@ -87,6 +87,14 @@ const els = {
   renderStatus: $<HTMLParagraphElement>('render-status'),
   ffmpegStatus: $<HTMLParagraphElement>('ffmpeg-status'),
   queue: $<HTMLUListElement>('queue'),
+  dragHandle: $<HTMLDivElement>('drag-handle'),
+  dragHandleText: $<HTMLSpanElement>('drag-handle-text'),
+  dragPrepare: $<HTMLButtonElement>('drag-prepare'),
+  dragStatus: $<HTMLParagraphElement>('drag-status'),
+  cacheSummary: $<HTMLParagraphElement>('cache-summary'),
+  cacheClear: $<HTMLButtonElement>('cache-clear'),
+  cacheDir: $<HTMLButtonElement>('cache-dir'),
+  cacheLimit: $<HTMLInputElement>('cache-limit'),
   clearFinished: $<HTMLButtonElement>('clear-finished'),
 };
 
@@ -109,6 +117,8 @@ interface State {
   presets: Record<string, Record<string, unknown>>;
   /** The last previewed batch, ready to queue. */
   batch: BatchPlan | null;
+  /** The cached file ready to drag, or the job being rendered for it. */
+  drag: { file: string; templateId: string } | { jobId: number } | null;
   /** Waiting for the save dialog after a click on Render. */
   choosingOutput: boolean;
   /** False while the frame rate or trim fields hold something the planner rejects. */
@@ -130,6 +140,7 @@ const state: State = {
   shown: null,
   presets: {},
   batch: null,
+  drag: null,
   choosingOutput: false,
   optionsValid: true,
 };
@@ -397,6 +408,11 @@ function select(entry: LibraryEntry): void {
   state.batch = null;
   els.batchSummary.textContent = '';
   els.batchQueue.disabled = true;
+  if (state.drag && 'file' in state.drag && state.drag.templateId !== m.id) {
+    state.drag = null;
+    els.dragStatus.textContent = '';
+  }
+  showDragState();
   updateControls();
   renderResults();
 }
@@ -1257,6 +1273,7 @@ function updateControls(): void {
   els.play.disabled = !hasTemplate || !state.previewReady;
   els.scrub.disabled = !hasTemplate;
   els.render.disabled = !hasTemplate || !state.ffmpegOk || state.choosingOutput || !state.optionsValid || state.selected?.offline === true;
+  els.dragPrepare.disabled = els.render.disabled || (state.drag !== null && 'jobId' in state.drag);
 }
 
 /** Ask for an output path and add the render to the queue; the queue list shows progress and results. */
@@ -1284,6 +1301,77 @@ async function queueRender(): Promise<void> {
     state.choosingOutput = false;
     updateControls();
   }
+}
+
+// ---------------------------------------------------------------- drag out
+
+function showDragState(): void {
+  const d = state.drag;
+  const ready = d !== null && 'file' in d;
+  els.dragHandle.setAttribute('draggable', String(ready));
+  els.dragHandle.dataset.file = ready ? d.file : '';
+  els.dragHandleText.textContent = ready ? `Drag ${d.file.split(/[\\/]/).pop()} into your editor` : d ? 'Rendering for drag…' : 'Drag to editor';
+  updateControls();
+}
+
+/** Render the current template, parameters, preset and options into the cache (or reuse), then arm the handle. */
+async function prepareDrag(): Promise<void> {
+  if (!state.selected) return;
+  els.dragStatus.classList.remove('error');
+  els.dragStatus.textContent = '';
+  const result = await window.pulp.prepareDrag({
+    templateId: state.selected.manifest.id,
+    params: state.rawParams,
+    presetId: els.preset.value as PresetId,
+    options: readRenderOptions(),
+  });
+  if (!result.ok) {
+    els.dragStatus.classList.add('error');
+    els.dragStatus.textContent = result.message;
+    return;
+  }
+  if (result.cached) {
+    state.drag = { file: result.file, templateId: state.selected.manifest.id };
+    els.dragStatus.textContent = 'Already rendered; ready to drag.';
+  } else {
+    state.drag = { jobId: result.jobId };
+    els.dragStatus.textContent = 'Rendering into the cache; progress is in the queue.';
+  }
+  showDragState();
+  void refreshCacheStats();
+}
+
+/** When the drag job finishes, arm the handle with its file. */
+function followDragJob(snapshot: RenderQueueSnapshot): void {
+  if (!state.drag || !('jobId' in state.drag)) return;
+  const jobId = state.drag.jobId;
+  const job = snapshot.jobs.find((j) => j.id === jobId);
+  if (!job || job.status === 'queued' || job.status === 'running') return;
+  if (job.status === 'done' && job.output) {
+    state.drag = { file: dragFileFor(job), templateId: job.templateId };
+    els.dragStatus.textContent = 'Ready to drag.';
+    void refreshCacheStats();
+  } else {
+    state.drag = null;
+    els.dragStatus.classList.add('error');
+    els.dragStatus.textContent = job.message ?? 'The render did not finish.';
+  }
+  showDragState();
+}
+
+/** A sequence output pattern drags as its first frame file. */
+function dragFileFor(job: RenderQueueJob): string {
+  const output = job.output ?? job.outputPath;
+  const m = /%(0?)(\d*)d/.exec(output);
+  if (!m) return output;
+  const width = m[2] ? Number(m[2]) : 0;
+  return output.slice(0, m.index) + String(job.firstFrame ?? 0).padStart(width, m[1] === '0' ? '0' : ' ') + output.slice(m.index + m[0].length);
+}
+
+async function refreshCacheStats(): Promise<void> {
+  const stats = await window.pulp.renderCacheStats();
+  els.cacheSummary.textContent = `${stats.summary} · ${stats.dir}`;
+  els.cacheLimit.value = String(stats.maxMB);
 }
 
 function jobStatusText(job: RenderQueueJob): string {
@@ -1337,6 +1425,15 @@ function renderQueue(snapshot: RenderQueueSnapshot): void {
     status.textContent = jobStatusText(job);
     status.title = job.outputPath;
     li.append(status);
+    if (job.status === 'done') {
+      // A finished render can be dragged straight into an editing app.
+      li.setAttribute('draggable', 'true');
+      li.dataset.file = dragFileFor(job);
+      li.addEventListener('dragstart', (e) => {
+        e.preventDefault();
+        void window.pulp.startDrag(dragFileFor(job), job.templateId);
+      });
+    }
 
     if (!isFinished(job)) {
       const cancel = document.createElement('button');
@@ -1444,7 +1541,39 @@ els.optFps.addEventListener('change', updateOptionsNote);
 els.preset.addEventListener('change', updateOptionsNote);
 els.clearFinished.addEventListener('click', () => void window.pulp.clearFinishedRenders());
 els.params.addEventListener('submit', (e) => e.preventDefault());
-window.pulp.onRenderQueue(renderQueue);
+window.pulp.onRenderQueue((snapshot) => {
+  renderQueue(snapshot);
+  followDragJob(snapshot);
+});
+els.dragPrepare.addEventListener('click', () => void prepareDrag());
+els.dragHandle.addEventListener('dragstart', (e) => {
+  e.preventDefault();
+  const d = state.drag;
+  if (d && 'file' in d) void window.pulp.startDrag(d.file, d.templateId);
+});
+els.cacheClear.addEventListener('click', () => {
+  void window.pulp.clearRenderCache().then((stats) => {
+    els.cacheSummary.textContent = `${stats.summary} · ${stats.dir}`;
+    if (state.drag && 'file' in state.drag) {
+      state.drag = null;
+      els.dragStatus.textContent = 'Cache cleared; prepare again to drag.';
+      showDragState();
+    }
+  });
+});
+els.cacheDir.addEventListener('click', () => {
+  void window.pulp.chooseRenderCacheDir().then((stats) => {
+    if (stats) els.cacheSummary.textContent = `${stats.summary} · ${stats.dir}`;
+  });
+});
+els.cacheLimit.addEventListener('change', () => {
+  void window.pulp.setRenderCacheLimit(Number(els.cacheLimit.value)).then((stats) => {
+    els.cacheSummary.textContent = `${stats.summary} · ${stats.dir}`;
+    els.cacheLimit.value = String(stats.maxMB);
+  });
+});
+void refreshCacheStats();
+showDragState();
 
 populatePresets();
 populateFrameRates();

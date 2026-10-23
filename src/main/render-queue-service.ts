@@ -10,7 +10,10 @@ import { join } from 'node:path';
 import type { TemplateEntry } from '../core/library';
 import { OUTPUT_PRESETS, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { RenderQueue, type RenderQueueSnapshot } from '../core/render-queue';
-import type { BatchRequest, EnqueueBatchResult, EnqueueResult, RenderRequest } from '../shared/api';
+import type { BatchRequest, EnqueueBatchResult, EnqueueResult, PrepareDragResult, RenderRequest } from '../shared/api';
+import { cacheFileName, cacheKey } from '../core/render-cache';
+import { dragFileFor, ensureCacheDir, evictIfNeeded, isCachedFile } from './render-cache-service';
+import { existsSync } from 'node:fs';
 import { findTemplate, markItemUsed } from './library-service';
 import { renderTemplate } from './render';
 
@@ -19,6 +22,15 @@ interface JobInputs {
   template: TemplateEntry;
   params: Record<string, unknown>;
   options?: RenderOptions;
+  /** A render into the cache folder, for dragging. */
+  forCache?: boolean;
+}
+
+/** Files that may be dragged: outputs of finished jobs (cache files are allowed by location). */
+const finishedOutputs = new Set<string>();
+
+export function allowedDragFiles(): ReadonlySet<string> {
+  return finishedOutputs;
 }
 
 const queue = new RenderQueue(broadcast);
@@ -43,9 +55,9 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
   const preset = OUTPUT_PRESETS[request.presetId as PresetId];
   if (!preset) return { ok: false, message: `Unknown preset "${request.presetId}".` };
   // Validate the options before asking where to save.
-  let totalFrames: number;
+  let timing;
   try {
-    totalFrames = resolveTiming(template.manifest, request.options).totalFrames;
+    timing = resolveTiming(template.manifest, request.options);
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }
@@ -63,12 +75,50 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
     templateName: template.manifest.name,
     presetId: preset.id,
     outputPath: save.filePath,
-    totalFrames,
+    totalFrames: timing.totalFrames,
+    firstFrame: timing.firstFrame,
   });
   inputs.set(job.id, { template, params: request.params, ...(request.options ? { options: request.options } : {}) });
   markItemUsed(template.id);
   void pump();
   return { ok: true, jobId: job.id };
+}
+
+/**
+ * Render into the cache for dragging, unless the same render is already
+ * cached. Resolves at once with either the cached file or the queued job.
+ */
+export async function prepareDrag(request: RenderRequest): Promise<PrepareDragResult> {
+  const template = await findTemplate(request.templateId);
+  if (!template) return { ok: false, message: `Template "${request.templateId}" not found.` };
+  const preset = OUTPUT_PRESETS[request.presetId as PresetId];
+  if (!preset) return { ok: false, message: `Unknown preset "${request.presetId}".` };
+  let timing;
+  try {
+    timing = resolveTiming(template.manifest, request.options);
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
+  }
+  const key = cacheKey({ templateId: template.manifest.id, manifest: template.manifest, params: request.params, presetId: preset.id, options: request.options });
+  const dir = await ensureCacheDir();
+  const outputPath = join(dir, cacheFileName(key, template.manifest.id, preset.extension));
+  const existing = dragFileFor(preset.sequence ? outputPath.replace(preset.extension, `_%05d${preset.extension}`) : outputPath, timing.firstFrame);
+  if (existsSync(existing) && (await isCachedFile(existing))) {
+    return { ok: true, cached: true, file: existing };
+  }
+  const job = queue.add({
+    templateId: template.manifest.id,
+    templateName: template.manifest.name,
+    label: `${template.manifest.name} · for drag`,
+    presetId: preset.id,
+    outputPath,
+    totalFrames: timing.totalFrames,
+    firstFrame: timing.firstFrame,
+  });
+  inputs.set(job.id, { template, params: request.params, forCache: true, ...(request.options ? { options: request.options } : {}) });
+  markItemUsed(template.id);
+  void pump();
+  return { ok: true, cached: false, jobId: job.id };
 }
 
 /** Ask for a folder once, then queue one job per row, named and filed by the row. */
@@ -78,9 +128,9 @@ export async function enqueueBatch(request: BatchRequest): Promise<EnqueueBatchR
   const preset = OUTPUT_PRESETS[request.presetId as PresetId];
   if (!preset) return { ok: false, message: `Unknown preset "${request.presetId}".` };
   if (request.rows.length === 0) return { ok: false, message: 'The batch has no rows.' };
-  let totalFrames: number;
+  let timing;
   try {
-    totalFrames = resolveTiming(template.manifest, request.options).totalFrames;
+    timing = resolveTiming(template.manifest, request.options);
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }
@@ -100,7 +150,8 @@ export async function enqueueBatch(request: BatchRequest): Promise<EnqueueBatchR
       label: `${template.manifest.name} · ${row.label}`,
       presetId: preset.id,
       outputPath: join(folder, `${row.fileName}${preset.extension}`),
-      totalFrames,
+      totalFrames: timing.totalFrames,
+      firstFrame: timing.firstFrame,
     });
     inputs.set(job.id, { template, params: row.params, ...(request.options ? { options: request.options } : {}) });
     jobIds.push(job.id);
@@ -147,6 +198,12 @@ async function pump(): Promise<void> {
       });
       active = null;
       queue.finish(id, result);
+      if (result.ok) {
+        // Finished outputs may be dragged into an editing app; sequences drag their first frame.
+        const plan = { output: result.output, firstFrame: 0 };
+        finishedOutputs.add(dragFileFor(plan.output, resolveTiming(input.template.manifest, input.options).firstFrame));
+        if (input.forCache) await evictIfNeeded(new Set([dragFileFor(plan.output, resolveTiming(input.template.manifest, input.options).firstFrame)]));
+      }
     }
   } finally {
     pumping = false;

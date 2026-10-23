@@ -72,6 +72,13 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 - `registerSchemesAsPrivileged` may be called once, before `ready`, with every custom scheme; `pulp-template` and `pulp-media` are registered together.
 - A privileged scheme enforces CORS by default: `fetch` from the app page (origin `file://`) to it fails with "Failed to fetch" unless responses carry `Access-Control-Allow-Origin`, while `<img>`, `<video>` and `<audio>` load fine (no-cors). `pulp-media` keeps it that way on purpose and has `supportFetchAPI: false`.
 
+## Drag out of the window
+
+- `webContents.startDrag({ file, icon })` must be called from the main process in response to the renderer's `dragstart` (which calls `preventDefault`); the drag is native from then on. The `icon` must be a non-empty `NativeImage` on macOS and Windows, or the call throws; Pulp uses the template thumbnail or a generated 48x48 PNG.
+- The file must exist when the drag starts; a render cannot be awaited inside the gesture. Hence "Prepare for drag" first, then drag.
+- A PNG sequence is dragged as its first frame file; Premiere Pro and Resolve offer to import the sequence from a frame when the file names are numbered. Recorded as a quirk to confirm in `docs/nle-verification.md`.
+- Dragging is not observable from the DevTools protocol; the UI test checks the arming of the handle, the allowed-file rule and the cache, not the drop.
+
 ## Files written by the app
 
 - **Settings were written in place and a test read a half-written file.** The recent-colors UI test read `settings.json` right after a color was committed; on one Windows run the read landed while `writeFile` was still replacing the content and `JSON.parse` failed. The same read had passed on earlier runs: a timing race, not a platform rule. Two fixes, both kept: `settings.json` is now written atomically (`src/core/atomic-file.ts`: temporary file in the same folder, `fsync`, `rename` over the target, so any reader or a crash sees the old file or the new one, never a partial or empty one), and the test retries until the file parses and carries the value instead of reading once. Settings changes also go through a queue (`updateSettings`), so two changes close together cannot overwrite each other's work.

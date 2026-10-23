@@ -72,6 +72,20 @@ export interface PackInstallResult {
   packDir: string;
 }
 
+/** Preparing a render for drag: an existing cached file, or a queued job to wait for. */
+export type PrepareDragResult =
+  | { ok: true; cached: true; file: string }
+  | { ok: true; cached: false; jobId: number }
+  | { ok: false; message: string };
+
+export interface RenderCacheStats {
+  dir: string;
+  files: number;
+  bytes: number;
+  maxMB: number;
+  summary: string;
+}
+
 /** Outcome of adding a render to the queue; the render itself reports through the queue snapshot. */
 export type EnqueueResult = { ok: true; jobId: number } | { ok: false; cancelled?: boolean; message: string };
 
@@ -93,6 +107,16 @@ export interface PulpApi {
   render(request: RenderRequest): Promise<EnqueueResult>;
   /** Opens a folder picker, then queues one render per row. */
   renderBatch(request: BatchRequest): Promise<EnqueueBatchResult>;
+  /** Render into the cache for dragging, or find the same render already cached. */
+  prepareDrag(request: RenderRequest): Promise<PrepareDragResult>;
+  /** Start a native drag of a rendered file (cache file or finished job output). False if refused. */
+  startDrag(path: string, templateId?: string): Promise<boolean>;
+  /** The file a finished job's output would be dragged as (a sequence drags its first frame). */
+  renderCacheStats(): Promise<RenderCacheStats>;
+  clearRenderCache(): Promise<RenderCacheStats>;
+  /** Folder picker for the cache; null when cancelled. */
+  chooseRenderCacheDir(): Promise<RenderCacheStats | null>;
+  setRenderCacheLimit(maxMB: number): Promise<RenderCacheStats>;
   /** Cancel a queued or running job. */
   cancelRender(jobId: number): Promise<void>;
   /** Saved parameter presets of a template: name to the values that differ from the defaults. */

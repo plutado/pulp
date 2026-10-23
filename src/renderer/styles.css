@@ -146,6 +146,15 @@ input[type="checkbox"] { width: auto; }
 .confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .confirm[hidden] { display: none; }
 .confirm button { font-size: 11px; padding: 2px 7px; }
+.drag-out { margin-top: 10px; display: grid; gap: 6px; }
+.drag-handle { border: 1px dashed var(--border); border-radius: 6px; padding: 14px; text-align: center; color: var(--muted); font-size: 12px; user-select: none; }
+.drag-handle[draggable="true"] { border-style: solid; border-color: var(--accent); color: var(--text); cursor: grab; background: var(--panel-2); }
+.drag-handle[draggable="true"]:active { cursor: grabbing; }
+.cache { margin-top: 10px; }
+.cache summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.cache .field.inline input { width: 90px; }
+.queue li[draggable="true"] { cursor: grab; }
+.queue li[draggable="true"] .job-status::after { content: ' · drag me into your editor'; color: var(--accent); }
 .batch { margin-top: 10px; }
 .batch summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .batch textarea { width: 100%; font-family: Menlo, Consolas, monospace; font-size: 11px; margin-top: 6px; }

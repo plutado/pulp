@@ -3,15 +3,20 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
 import { sanitizeRecentColors } from '../core/recent-colors';
+import { DEFAULT_CACHE_MAX_MB, sanitizeCacheMaxMB } from '../core/render-cache';
 
 export interface Settings {
   /** User-chosen library folders, in the order they were added. */
   libraryFolders: string[];
   /** Recently used parameter colors, shared across templates, most recent first. */
   recentColors: string[];
+  /** Folder for renders made for dragging; default render-cache in user data. */
+  renderCacheDir?: string;
+  /** Size limit of that folder in MiB; the oldest files are removed first. */
+  renderCacheMaxMB: number;
 }
 
-const DEFAULTS: Settings = { libraryFolders: [], recentColors: [] };
+const DEFAULTS: Settings = { libraryFolders: [], recentColors: [], renderCacheMaxMB: DEFAULT_CACHE_MAX_MB };
 
 function settingsPath(): string {
   return join(app.getPath('userData'), 'settings.json');
@@ -21,6 +26,8 @@ function sanitize(raw: Partial<Settings>): Settings {
   return {
     libraryFolders: Array.isArray(raw.libraryFolders) ? raw.libraryFolders.filter((f): f is string => typeof f === 'string') : [],
     recentColors: sanitizeRecentColors(raw.recentColors),
+    renderCacheMaxMB: sanitizeCacheMaxMB(raw.renderCacheMaxMB),
+    ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
   };
 }
 
