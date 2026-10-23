@@ -715,15 +715,15 @@ describe.skipIf(!electron)('inspector UI', () => {
         return;
       }
       await until(
-        () => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-kind=media]')].some((li) => li.querySelector('.name')?.textContent === 'clip' && li.querySelector('.meta').textContent.includes('64x36'))`),
+        () => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-kind=media]')].some((li) => li.querySelector('.name')?.textContent === 'clip' && li.querySelector('.meta').textContent.includes('64 × 36'))`),
         'probed metadata to reach the list',
         120,
       );
       const meta = await page.eval<string>(`[...document.querySelectorAll('#results li[data-kind=media]')].find((li) => li.querySelector('.name')?.textContent === 'clip').querySelector('.meta').textContent`);
-      expect(meta).toContain('64x36');
+      expect(meta).toContain('64 × 36');
       expect(meta).toContain('00:00:02:00');
       expect(meta).toContain('10 fps');
-      expect(meta).toContain('h264');
+      expect(meta).toContain('H.264');
       const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       try {
         await setSearch('codec:h264 duration:>1');

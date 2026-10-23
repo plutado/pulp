@@ -66,5 +66,7 @@ export interface LibraryIndex {
   media: MediaEntry[];
   problems: LibraryProblem[];
   builtAt: string;
+  /** The root holding the bundled sample templates, shown as "Built-in templates". */
+  builtInRoot?: string;
 }
 

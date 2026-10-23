@@ -93,10 +93,10 @@ describe('sorting', () => {
 describe('scopes', () => {
   it('browseScopes lists favorites, recent and one node per folder', () => {
     expect(browseScopes(null).map((n) => n.label)).toEqual(['Favorites', 'Recently used']);
-    const idx = { ...index([], []), roots: ['/lib/News Pack/', 'C:\\Media\\b-roll'] };
+    const idx = { ...index([], []), roots: ['/app/templates', '/lib/News Pack/', 'C:\\Media\\b-roll'], builtInRoot: '/app/templates' };
     const nodes = browseScopes(idx);
-    expect(nodes.map((n) => n.label)).toEqual(['Favorites', 'Recently used', 'News Pack', 'b-roll']);
-    expect(nodes[2]?.root).toBe('/lib/News Pack/');
+    expect(nodes.map((n) => n.label)).toEqual(['Favorites', 'Recently used', 'Built-in templates', 'News Pack', 'b-roll']);
+    expect(nodes[3]?.root).toBe('/lib/News Pack/');
   });
 
   it('a root scope narrows results to that folder', () => {
@@ -190,7 +190,7 @@ describe('shown item', () => {
     const refreshed = setIndex(s, index([t], [{ ...m, favorite: true }]));
     expect(shownEntry(refreshed)?.favorite).toBe(true);
     expect(shownEntry(setShown(s, 'gone'))).toBeNull();
-    expect(itemDetails(m)).toBe('video · mov · 2 KB · /lib/clip.mov');
+    expect(itemDetails(m)).toBe('Video · MOV · 2 KB · /lib/clip.mov');
     expect(itemDetails(t)).toContain('License: CC0-1.0');
   });
 });

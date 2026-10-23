@@ -120,6 +120,12 @@ export const SCHEMA_VERSION = 2;
 
 export class LibraryStore {
   private readonly db: DatabaseSync;
+  private builtInRoot: string | undefined;
+
+  /** Which root is the bundled samples, so the index can label it. */
+  setBuiltInRoot(root: string | undefined): void {
+    this.builtInRoot = root;
+  }
 
   constructor(readonly file: string = ':memory:') {
     this.db = new DatabaseSync(file);
@@ -337,6 +343,7 @@ export class LibraryStore {
       problems: [],
       builtAt: new Date().toISOString(),
     };
+    if (this.builtInRoot !== undefined) index.builtInRoot = this.builtInRoot;
 
     const rows = this.db.prepare('SELECT key, id, root, kind, size, mtime_ms, entry FROM items').all() as unknown as ItemRow[];
     rows.sort((a, b) => (order.get(a.root) ?? 0) - (order.get(b.root) ?? 0) || a.key.localeCompare(b.key));

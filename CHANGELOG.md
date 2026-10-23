@@ -6,6 +6,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Changed
+
+- Labels are human-readable everywhere a stored value used to show: "Lower third · 6 s · 1920 × 1080 · Alpha" instead of "lower-third · 6s · 1920x1080 · alpha", "Video · MOV · 12 MB · H.264" for media, tags and themes shown as words ("Lower third", "My show") while search keeps the stored ids, and the bundled samples' folder is "Built-in templates" in the browse panel. Render… uses a real ellipsis.
+
 ### Added
 
 - Template manifests may declare a `type` from the built-in list, `themes` (built-in or your own, normalized like tags) and `styles` (built-in only); all three are optional and validated, `category` keeps working and maps onto a type, so existing templates are untouched. Documented in the template format specification.

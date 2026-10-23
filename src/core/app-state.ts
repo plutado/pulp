@@ -5,6 +5,7 @@
  */
 
 import type { LibraryEntry, LibraryIndex } from './library-types';
+import { audioLabel, categoryLabel, codecLabel, dimensionsLabel, durationLabel, extensionLabel, frameRateLabel, mediaKindLabel, rootLabel, sizeLabel, typeLabel } from './display';
 import { formatTimecode } from './timecode';
 import { isFinished, type RenderJobStatus, type RenderQueueJob, type RenderQueueSnapshot } from './render-queue';
 import { searchLibrary } from './search';
@@ -117,7 +118,7 @@ export function itemDetails(entry: LibraryEntry): string {
     const m = entry.manifest;
     return [m.description, `License: ${m.license}`, m.author ? `Author: ${m.author}` : ''].filter(Boolean).join('  ·  ');
   }
-  return [`${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)}`, describeMeta(entry), entry.path].filter(Boolean).join(' · ');
+  return [`${mediaKindLabel(entry.mediaKind)} · ${extensionLabel(entry.ext)} · ${sizeLabel(entry.size)}`, describeMeta(entry), entry.path].filter(Boolean).join(' · ');
 }
 
 /** A sequence output pattern drags as its first frame file. */
@@ -221,10 +222,7 @@ export function createResultsSelector(): (s: ResultsInput) => ResultsView {
 
 /** The browse panel's nodes until milestone 10 adds the tree: Favorites, Recently used, one per folder. */
 export function browseScopes(index: LibraryIndex | null): Scope[] {
-  const folders = (index?.roots ?? []).map((root) => ({
-    label: root.split(/[\\/]/).filter(Boolean).pop() ?? root,
-    root,
-  }));
+  const folders = (index?.roots ?? []).map((root) => ({ label: rootLabel(root, index?.builtInRoot), root }));
   return [{ label: 'Favorites', filter: 'favorite:yes' }, { label: 'Recently used', filter: 'recent:yes' }, ...folders];
 }
 
@@ -252,31 +250,29 @@ export function traySummary(s: AppState): string {
 export function entryLabel(entry: LibraryEntry): { name: string; meta: string } {
   if (entry.kind === 'template') {
     const m = entry.manifest;
-    return { name: m.name, meta: `${m.category} · ${m.duration}s · ${m.width}x${m.height}${m.alpha ? ' · alpha' : ''}` };
+    // The declared type when there is one; the category it was written with otherwise.
+    const kind = m.type ? typeLabel(m.type) : categoryLabel(m.category);
+    return { name: m.name, meta: `${kind} · ${durationLabel(m.duration)} · ${dimensionsLabel(m.width, m.height)}${m.alpha ? ' · Alpha' : ''}` };
   }
-  return { name: entry.name, meta: [`${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)}`, describeMeta(entry)].filter(Boolean).join(' · ') };
+  return { name: entry.name, meta: [`${mediaKindLabel(entry.mediaKind)} · ${extensionLabel(entry.ext)} · ${sizeLabel(entry.size)}`, describeMeta(entry)].filter(Boolean).join(' · ') };
 }
 
-/** "1920x1080 · 00:00:06:00 · prores · alpha", from probed metadata; empty until probed. */
+/** "1920 × 1080 · 00:00:06:00 · ProRes · Alpha", from probed metadata; empty until probed. */
 export function describeMeta(entry: Extract<LibraryEntry, { kind: 'media' }>): string {
   const m = entry.meta;
   if (!m) return '';
   const parts: string[] = [];
-  if (m.width && m.height) parts.push(`${m.width}x${m.height}`);
+  if (m.width && m.height) parts.push(dimensionsLabel(m.width, m.height));
   if (m.duration) {
     const fps = m.fps ?? 25;
     parts.push(formatTimecode(Math.round(m.duration * fps), fps));
   }
-  if (m.fps && entry.mediaKind === 'video') parts.push(`${m.fps} fps`);
-  if (m.codec) parts.push(m.codec);
-  if (m.alpha) parts.push('alpha');
-  if (m.audioCodec && !m.codec) parts.push(`${m.audioCodec}${m.channels ? ` · ${m.channels}ch` : ''}${m.sampleRate ? ` · ${m.sampleRate / 1000} kHz` : ''}`);
+  if (m.fps && entry.mediaKind === 'video') parts.push(frameRateLabel(m.fps));
+  if (m.codec) parts.push(codecLabel(m.codec));
+  if (m.alpha) parts.push('Alpha');
+  if (m.audioCodec && !m.codec) parts.push(audioLabel(m.audioCodec, m.channels, m.sampleRate));
   return parts.join(' · ');
 }
 
-export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 ** 2) return `${(n / 1024).toFixed(0)} KB`;
-  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
-  return `${(n / 1024 ** 3).toFixed(2)} GB`;
-}
+/** Kept under its old name for callers; the implementation lives in display.ts. */
+export const formatBytes = sizeLabel;

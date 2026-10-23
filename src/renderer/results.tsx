@@ -2,6 +2,7 @@
 
 import { render } from 'preact';
 import { entryLabel } from '../core/app-state';
+import { tagLabel } from '../core/display';
 import type { LibraryEntry } from '../core/library-types';
 import { hasIndex, results, selectedKey } from './store';
 
@@ -13,7 +14,7 @@ interface RowProps {
 
 function Row({ entry, selected, onSelect }: RowProps) {
   const { name, meta } = entryLabel(entry);
-  const withTags = entry.tags.length ? `${meta} · ${entry.tags.join(', ')}` : meta;
+  const withTags = entry.tags.length ? `${meta} · ${entry.tags.map(tagLabel).join(', ')}` : meta;
   return (
     <li
       class={entry.offline ? 'offline' : undefined}
@@ -31,7 +32,7 @@ function Row({ entry, selected, onSelect }: RowProps) {
           <span class="fav" hidden={!entry.favorite}>{entry.favorite ? '★' : ''}</span>
           <span class="name">{name}</span>
         </span>
-        <span class="meta">{entry.offline ? `offline · ${withTags}` : withTags}</span>
+        <span class="meta">{entry.offline ? `Offline · ${withTags}` : withTags}</span>
       </span>
     </li>
   );

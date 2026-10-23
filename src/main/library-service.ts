@@ -65,7 +65,10 @@ export function useInMemoryLibrary(): void {
 }
 
 function getStore(): LibraryStore {
-  store ??= new LibraryStore(persistent ? join(app.getPath('userData'), 'library.sqlite') : ':memory:');
+  if (!store) {
+    store = new LibraryStore(persistent ? join(app.getPath('userData'), 'library.sqlite') : ':memory:');
+    store.setBuiltInRoot(bundledTemplatesDir());
+  }
   return store;
 }
 

@@ -8,6 +8,7 @@
 import { render } from 'preact';
 import { computed, effect } from '@preact/signals';
 import { itemDetails, shownEntry } from '../core/app-state';
+import { tagLabel } from '../core/display';
 import type { LibraryEntry } from '../core/library-types';
 import { appState } from './store';
 
@@ -46,7 +47,7 @@ function Tools({ entry, ids }: { entry: LibraryEntry; ids: Ids }) {
       <div id={ids.chips} class="tag-chips">
         {entry.tags.map((tag) => (
           <span key={tag} class={user.has(tag) ? 'tag-chip user' : 'tag-chip folder'} data-tag={tag} title={user.has(tag) ? 'Your tag' : 'From the folder or manifest'}>
-            {tag}
+            {tagLabel(tag)}
             {user.has(tag) && (
               <button
                 type="button"
