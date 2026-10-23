@@ -85,8 +85,13 @@ export const BRIDGE_SCRIPT = `(function () {
       }
       return window.pulpRender(state);
     }).then(function () {
-      /* Wait for the next animation frame so the drawn pixels are composited before capture. */
-      return new Promise(function (resolve) { requestAnimationFrame(function () { resolve(true); }); });
+      /* Two animation frames: the first callback runs before the frame holding the draw is
+         committed to the compositor, so resolving there can let a capture see the previous frame
+         (observed on Windows CI as a blank or one-frame-stale first capture). The second callback
+         runs after that commit. */
+      return new Promise(function (resolve) {
+        requestAnimationFrame(function () { requestAnimationFrame(function () { resolve(true); }); });
+      });
     });
   }
   window.__pulp = { ready: ready, render: render };

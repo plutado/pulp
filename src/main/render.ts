@@ -282,6 +282,28 @@ class TemplateError extends Error {
 }
 
 /**
+ * Make sure the offscreen backing store holds the frame the page just drew:
+ * force a repaint and wait for it to arrive. The renderer-side double
+ * requestAnimationFrame (see BRIDGE_SCRIPT) orders the draw before the next
+ * commit; this closes the remaining browser-side gap, because capturePage on
+ * an offscreen window returns the last painted frame, not a fresh one. The
+ * timeout keeps an occluded or otherwise non-painting window from hanging the
+ * frame; the capture then behaves as before the wait existed.
+ */
+function paintComposited(win: BrowserWindow): Promise<void> {
+  return new Promise((resolve) => {
+    const done = (): void => {
+      clearTimeout(timer);
+      win.webContents.removeListener('paint', done);
+      resolve();
+    };
+    const timer = setTimeout(done, 500);
+    win.webContents.once('paint', done);
+    win.webContents.invalidate();
+  });
+}
+
+/**
  * Draw one frame in the template page and capture it, which must be exactly the
  * template's size. Raw frames are the capture's own bitmap, in the layout the
  * probe measured (the render plan undoes premultiplication in ffmpeg if needed),
@@ -295,6 +317,7 @@ async function captureFrame(
 ): Promise<Buffer> {
   const detail = (await win.webContents.executeJavaScript(frameCallScript(state))) as TemplateErrorDetail | null;
   if (detail) throw new TemplateError(detail);
+  await paintComposited(win);
   const image = await win.webContents.capturePage();
   const size = image.getSize();
   if (size.width !== manifest.width || size.height !== manifest.height) {
