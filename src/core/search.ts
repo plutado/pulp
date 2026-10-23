@@ -5,7 +5,7 @@
  *   lower third          free-text terms, all must match (AND)
  *   tag:news             entry must carry this tag
  *   type:template        template | media | video | image | audio, or a taxonomy type (type:whoosh)
- *                        or type group (type:sfx); several type: terms are alternatives
+ *                        or type group (type:sfx), or untyped; several type: terms are alternatives
  *   theme:news           entry carries this theme (built-in id or a custom word; all theme: terms must match)
  *   style:grunge         template declares this style (templates only; all style: terms must match)
  *   category:title       template category
@@ -153,8 +153,9 @@ function matchesType(entry: LibraryEntry, type: string): boolean {
   if (type === 'template' || type === 'templates') return entry.kind === 'template';
   if (type === 'media') return entry.kind === 'media';
   if (entry.kind === 'media' && entry.mediaKind === type) return true;
-  // A taxonomy type, or a whole type group.
+  // A taxonomy type, a whole type group, or the items that have neither.
   const own = entryType(entry);
+  if (type === 'untyped') return own === undefined;
   if (!own) return false;
   return own === type || typeInfo(own)?.group === type;
 }

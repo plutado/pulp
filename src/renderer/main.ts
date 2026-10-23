@@ -306,7 +306,7 @@ initInspectorOutput();
 initSearchBar();
 initStatusBar();
 initTray(buildRenderRequest);
-mountBrowse($('browse-nodes'));
+mountBrowse($('browse-tree'));
 mountResults(els.results, select);
 mountItemInfo($('item-tools'), { favorite: 'favorite', chips: 'tag-chips', input: 'tag-input' }, false);
 mountItemInfo($('info-item'), {}, true);

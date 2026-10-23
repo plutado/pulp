@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   browseScopes,
   createResultsSelector,
+  createTreeSelector,
   deriveResults,
+  facetEntries,
   dragFileFor,
   effectiveQuery,
   itemDetails,
@@ -176,6 +178,24 @@ describe('hasFinishedJobs', () => {
     expect(hasFinishedJobs(initialAppState)).toBe(false);
     expect(hasFinishedJobs(setJobs(initialAppState, { jobs: [job('running')] }))).toBe(false);
     expect(hasFinishedJobs(setJobs(initialAppState, { jobs: [job('done')] }))).toBe(true);
+  });
+});
+
+describe('browse tree counts', () => {
+  it('follow the query and the chips but not the scope, and rebuild only when those change', () => {
+    const select = createTreeSelector();
+    const t = template('straps');
+    let s = setIndex(initialAppState, index([t], [media('clip'), media('other')]));
+    const all = select(s);
+    const typesOf = (tree: ReturnType<typeof select>) => tree.find((n) => n.id === 'types')?.children.map((n) => [n.id, n.count]);
+    expect(typesOf(all)).toEqual([['group:titles', 1], ['untyped', 2]]);
+    // The scope does not change the counts (selecting a node must not zero the others), nor rebuild the tree.
+    expect(select(setScope(s, { label: 'Untyped', filter: 'type:untyped', kind: 'untyped' }))).toBe(all);
+    expect(select(setSelection(s, 'clip'))).toBe(all);
+    // The typed query does.
+    s = setQuery(s, 'clip');
+    expect(typesOf(select(s))).toEqual([['untyped', 1]]);
+    expect(facetEntries(s).map((e) => e.key)).toEqual(['clip']);
   });
 });
 

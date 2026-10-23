@@ -7,7 +7,7 @@
  */
 
 import { computed, signal } from '@preact/signals';
-import { createResultsSelector, initialAppState, type AppState } from '../core/app-state';
+import { createResultsSelector, createTreeSelector, initialAppState, type AppState } from '../core/app-state';
 import type { TemplateEntry } from '../core/library-types';
 
 export const appState = signal<AppState>(initialAppState);
@@ -22,6 +22,10 @@ const selectResults = createResultsSelector();
 /** Results: searched only when index, query or scope changed; the same object otherwise. */
 export const results = computed(() => selectResults(appState.value));
 export const hasIndex = computed(() => appState.value.index !== null);
+
+const selectTree = createTreeSelector();
+/** The browse tree with counts: rebuilt only when the index, query or chips change. */
+export const browseTree = computed(() => selectTree(appState.value));
 export const selectedKey = computed(() => appState.value.selectedKey);
 
 /** True while the Render button is blocked (no template, no ffmpeg, bad options); the tray's Prepare button follows it. */

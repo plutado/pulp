@@ -788,7 +788,19 @@ describe.skipIf(!electron)('inspector UI', () => {
 
     it('scopes the results to a browse node, shows the chip, and clears it with the ×', async () => {
       await clearSearch();
-      await page.eval(`[...document.querySelectorAll('#browse-nodes .browse-node')].find((b) => b.textContent === 'Media library').click()`);
+      await page.eval(`document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]').click()`);
+      await until(async () => !(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)), 'the scope chip for a type node');
+      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower third');
+      const lowerThirds = await names();
+      expect(lowerThirds).toContain('Lower Third Bar');
+      expect(lowerThirds).not.toContain('Diagonal Wipe');
+      expect(lowerThirds).not.toContain('tiny');
+      // The node's count agrees with the results it scopes to.
+      expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]').dataset.count`))).toBe(lowerThirds.length);
+      await page.eval(`document.getElementById('scope-chip-clear').click()`);
+      await until(async () => (await names()).includes('Diagonal Wipe'), 'the full library after clearing the type scope');
+
+      await page.eval(`[...document.querySelectorAll('#browse-tree .browse-node')].find((b) => b.querySelector('.label')?.textContent === 'Media library').click()`);
       await until(async () => !(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)), 'the scope chip');
       expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Media library');
       expect(await page.eval<string>(`document.getElementById('scope-chip-label').dataset.tip`)).toBe(mediaDir);

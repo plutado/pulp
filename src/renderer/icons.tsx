@@ -28,6 +28,9 @@ import info from '@phosphor-icons/core/assets/regular/info.svg?raw';
 import magnifyingGlass from '@phosphor-icons/core/assets/regular/magnifying-glass.svg?raw';
 import musicNotes from '@phosphor-icons/core/assets/regular/music-notes.svg?raw';
 import packageIcon from '@phosphor-icons/core/assets/regular/package.svg?raw';
+import palette from '@phosphor-icons/core/assets/regular/palette.svg?raw';
+import question from '@phosphor-icons/core/assets/regular/question.svg?raw';
+import tag from '@phosphor-icons/core/assets/regular/tag.svg?raw';
 import pause from '@phosphor-icons/core/assets/regular/pause.svg?raw';
 import play from '@phosphor-icons/core/assets/regular/play.svg?raw';
 import shapes from '@phosphor-icons/core/assets/regular/shapes.svg?raw';
@@ -67,7 +70,9 @@ const ICONS = {
   'magnifying-glass': magnifyingGlass,
   'music-notes': musicNotes,
   package: packageIcon,
+  palette,
   pause,
+  question,
   play,
   shapes,
   'sliders-horizontal': slidersHorizontal,
@@ -77,6 +82,7 @@ const ICONS = {
   stack,
   star,
   'star-fill': starFill,
+  tag,
   'text-aa': textAa,
   trash,
   'upload-simple': uploadSimple,
@@ -137,6 +143,22 @@ export const TYPE_GROUP_ICONS: Record<string, IconName> = {
   music: 'music-notes',
   sfx: 'speaker-high',
 };
+
+/** One icon per scope kind, shared by the tree, the icon rail and the scope chip (type and group scopes use their group's icon). */
+export function scopeIcon(kind: string | undefined, group: string | undefined): IconName {
+  switch (kind) {
+    case 'favorites': return 'star';
+    case 'recent': return 'clock';
+    case 'built-in': return 'package';
+    case 'folder': return 'folder';
+    case 'type':
+    case 'group': return group ? (TYPE_GROUP_ICONS[group] ?? 'shapes') : 'shapes';
+    case 'untyped': return 'question';
+    case 'theme': return 'tag';
+    case 'style': return 'palette';
+    default: return 'folder';
+  }
+}
 
 export const MEDIA_KIND_ICONS: Record<string, IconName> = {
   video: 'film-strip',

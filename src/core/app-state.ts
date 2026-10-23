@@ -6,6 +6,7 @@
 
 import type { LibraryEntry, LibraryIndex } from './library-types';
 import { audioLabel, categoryLabel, codecLabel, dimensionsLabel, durationLabel, extensionLabel, frameRateLabel, mediaKindLabel, rootLabel, sizeLabel, typeLabel } from './display';
+import { buildBrowseTree, type TreeNode } from './browse-tree';
 
 import { formatTimecode } from './timecode';
 import { isFinished, type RenderJobStatus, type RenderQueueJob, type RenderQueueSnapshot } from './render-queue';
@@ -20,8 +21,10 @@ export interface Scope {
   label: string;
   filter?: string;
   root?: string;
-  /** What kind of node this is, so the UI can pick its icon; absent for taxonomy nodes until milestone 10 adds them. */
-  kind?: 'favorites' | 'recent' | 'built-in' | 'folder';
+  /** What kind of node this is, so the UI can pick its icon. */
+  kind?: 'favorites' | 'recent' | 'built-in' | 'folder' | 'type' | 'group' | 'untyped' | 'theme' | 'style';
+  /** For type and group scopes: the type group, which chooses the icon. */
+  group?: string;
 }
 
 export type SortKey = 'relevance' | 'name' | 'recent' | 'duration';
@@ -224,7 +227,27 @@ export function createResultsSelector(): (s: ResultsInput) => ResultsView {
   };
 }
 
-/** The browse panel's nodes until milestone 10 adds the tree: Favorites, Recently used, one per folder. */
+/**
+ * The entries the browse tree counts: what the typed query and the chips leave, before
+ * the scope narrows it, so selecting a node never zeroes out the others.
+ */
+export function facetEntries(s: ResultsInput): LibraryEntry[] {
+  if (!s.index) return [];
+  return searchLibrary(s.index, effectiveQuery({ query: s.query, filters: s.filters, scope: null })).map((h) => h.entry);
+}
+
+/** Rebuilds the tree only when the index, the query or the chips changed; the same object otherwise. */
+export function createTreeSelector(): (s: ResultsInput) => TreeNode[] {
+  let last: { index: LibraryIndex | null; query: string; filters: FilterChipId[]; tree: TreeNode[] } | null = null;
+  return (s) => {
+    if (last && last.index === s.index && last.query === s.query && last.filters === s.filters) return last.tree;
+    const tree = buildBrowseTree(facetEntries(s), s.index?.roots ?? [], s.index?.builtInRoot);
+    last = { index: s.index, query: s.query, filters: s.filters, tree };
+    return tree;
+  };
+}
+
+/** The flat list of fixed nodes; the tree (browse-tree.ts) supersedes it for the panel, it stays for the Favorites and Recent scopes. */
 export function browseScopes(index: LibraryIndex | null): Scope[] {
   const folders = (index?.roots ?? []).map(
     (root): Scope => ({ label: rootLabel(root, index?.builtInRoot), root, kind: root === index?.builtInRoot ? 'built-in' : 'folder' }),

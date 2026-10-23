@@ -153,6 +153,7 @@ describe('searchLibrary taxonomy filters', () => {
     expect(names(index, 'type:whoosh')).toEqual(['swipe']);
     expect(names(index, 'type:sfx')).toEqual(['swipe']);
     expect(names(index, 'type:glitch type:whoosh')).toEqual(['Glitchy', 'swipe']); // alternatives
+    expect(names(index, 'type:untyped')).toEqual(['rink']); // a folder named a theme, not a type
   });
 
   it('type: still means the media kinds', async () => {
