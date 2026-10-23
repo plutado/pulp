@@ -2,7 +2,7 @@
 
 Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done.
 
-Milestones keep the number they were given when they were added, so GitHub issues #1 to #16 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
+Milestones keep the number they were given when they were added, so GitHub issues #1 to #17 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
 | Milestone | Estimate |
 |---|---|
@@ -13,18 +13,19 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 4. Library: tagging, search, media preview | 12-20 h |
 | 5. Drag-out to editing apps | 8-16 h |
 | 6. Template packs import | 6-10 h |
-| 7. Packaging and signing (macOS, Windows, Linux) | 10-18 h |
 | 11. UI shell: regions and the framework decision | 14-24 h |
 | 10. Categorization by type and theme | 14-23 h |
 | 12. Browse and preview | 12-19 h |
 | 13. Collections | 8-14 h |
+| 17. Unsigned builds and releases | 7-12 h |
+| 7. Signing and auto-update (blocked on accounts) | 4-7 h |
 | 8. 1.0 hardening and docs | 9-16 h |
 | 14. Defaults per type and guided setup (post-1.0) | 6-10 h |
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
-| **Remaining through 1.0 (milestones 1-8 and 10-13)** | **123-210 h** |
-| **Including post-1.0 items** | **155-268 h** |
+| **Remaining through 1.0 (milestones 1-8, 10-13 and 17)** | **124-211 h** |
+| **Including post-1.0 items** | **156-269 h** |
 
 ## 0. Foundation (done)
 
@@ -52,7 +53,8 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 ## 2. Alpha export presets and NLE verification (8-14 h)
 
 - [x] Verify each alpha preset imports with correct transparency in Premiere Pro and DaVinci Resolve on macOS; results in `docs/nle-verification.md`. ProRes 4444 and PNG pass with defaults; QuickTime Animation needs Data Levels: Full in Resolve (now tagged full-range RGB, re-check); HEVC: no alpha in Premiere, Alpha Mode: Straight in Resolve; WebM: not importable in Premiere, broken alpha in Resolve (3-5 h)
-- [ ] Verify alpha import in Final Cut Pro (macOS), and in Premiere Pro and Resolve on Windows; check whether Resolve's Data Levels Auto honors the new QuickTime Animation tag (2-3 h)
+- [ ] On the test Mac: re-check whether Resolve's Data Levels Auto honors the new full-range QuickTime Animation tag, and verify alpha import in Final Cut Pro once it is installed (1-2 h)
+- [ ] Hardware-blocked: verify alpha import in Premiere Pro and Resolve on Windows; needs a Windows machine with the apps — milestone 17's unsigned builds make the session easy when one is available (1 h)
 - [x] Straight versus premultiplied alpha: Chromium captures premultiplied (measured by a probe), every preset is written straight, Premiere and Resolve read ProRes, PNG and Animation as straight; no export option, HEVC's Resolve default documented as a caveat; ADR 0008 (2-3 h)
 - [x] Additional presets: QuickTime Animation (qtrle) for older workflows, HEVC with alpha on macOS via VideoToolbox where available; shown as unavailable elsewhere with the reason; ADR 0005 (2-3 h)
 - [x] Preset options: frame-rate override from the standard list, background color picker for flattening, in/out points as timecode or frames; in the inspector and as `--fps`, `--background`, `--in-point`, `--out-point`; verified on macOS and Windows CI (1-3 h)
@@ -80,7 +82,8 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [x] Drag a rendered file from Pulp into an NLE bin or timeline using `webContents.startDrag`: finished queue jobs and the drag handle; only cache files and finished outputs may be dragged (2-3 h)
 - [x] "Render and drag": Prepare for drag renders into the cache through the queue (progress, cancel), reuses a cached render with the same key, then arms the drag handle (2-4 h)
 - [x] Verify drop behavior in Premiere Pro and DaVinci Resolve on macOS: bin and timeline drops from a queue job and from Prepare for drag all land with alpha intact; both apps link to the file, so cache clearing takes clips offline (warned in the app) (3-6 h)
-- [ ] Verify drop behavior in Final Cut Pro (macOS) and in Premiere Pro and Resolve on Windows; also the PNG sequence preset and a second drag of a cached render (2-3 h)
+- [ ] On the test Mac: the PNG sequence preset and a second drag of a cached render in Premiere Pro and Resolve, and drop behavior in Final Cut Pro once it is installed (1-2 h)
+- [ ] Hardware-blocked: drop behavior in Premiere Pro and Resolve on Windows, including whether the target window must be focused and whether Resolve accepts drops from other apps there (1 h)
 - [x] Render cache management: folder setting, size limit with oldest-first eviction, Clear cache (1-3 h)
 
 ## 6. Template packs import (6-10 h)
@@ -89,15 +92,6 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [x] Import from zip or folder with validation (own ZIP reader with safe names and limits), collision handling (library copies skipped, pack copies kept or replaced) and a preview; installs into the `packs` folder of user data (3-5 h)
 - [x] Show license and author per pack and per template; warn on missing, non-open or unknown licenses (1-2 h)
 - [x] Export the listed templates as a pack with name, author and license (1 h)
-
-## 7. Packaging and signing (10-18 h)
-
-- [ ] electron-builder config; bundled templates in `resources/templates` (2-3 h)
-- [ ] macOS: universal build, hardened runtime, signing and notarization (Apple Developer account required) (3-5 h)
-- [ ] Windows: NSIS installer and code signing (certificate required) (2-4 h)
-- [ ] Linux: AppImage (1-2 h)
-- [ ] Release workflow in GitHub Actions producing draft releases; auto-update (electron-updater) (2-4 h)
-- [ ] Decide on ffmpeg distribution: keep "user installs ffmpeg", offer a download helper, or bundle an LGPL build; document license implications (ADR)
 
 ## 11. UI shell: regions and the framework decision (14-24 h)
 
@@ -112,13 +106,13 @@ First of the UI milestones. ADR 0006 deferred the plain DOM question to the libr
 
 ## 10. Categorization by type and theme (14-23 h)
 
-After milestone 11 (the browse panel it fills) and before milestone 8: it changes the template manifest and must land before format v1 is frozen.
+After milestone 11 (the browse panel it fills) and before milestone 8: it changes the template manifest and `pack.json`, and must land before format v1 is frozen. Housekeeping for the first commit: fold `main.ts`'s remaining `state.index` into the shared state, so the index lives in one place before the tree builds on it.
 
 - [ ] Taxonomy: built-in, versioned lists of types (grouped on two levels: titles and text, backgrounds, transitions, overlays, design elements, video clips, stills, music, sound effects), themes (corporate, news, sports, holidays and more) and styles (clean, grunge, retro, cinematic and more) in a pure core module; users extend them with their own themes, stored like tags and shown in a separate custom group; ADR for the three axes and the extension rule (2-4 h)
 - [ ] Template format: `type` checked against the list, optional `themes` and `styles` arrays; `category` stays valid and maps onto the type list, so existing templates keep working; validator, `docs/template-format.md` and changelog updated (2-3 h)
 - [ ] Media files: type from the media kind plus folder names (for example `sfx/whoosh/...`), themes from folder names or assigned by the user in the inspector's Info tab; stored per item in the library database, surviving offline roots like tags do (2-3 h)
-- [ ] Search: `type:`, `theme:` and `style:` filters, combinable with the existing ones; `type:` keeps matching the media kinds video, image and audio (1-2 h)
-- [ ] Browse tree in the browse panel: Types (group → type), Themes, Styles and Packs, each node with an item count; selecting a node sets the scope chip and narrows the results and the search, clearing it widens again; counts follow the scope (3-5 h)
+- [ ] Search: `type:`, `theme:` and `style:` filters, combinable with the existing ones; `type:` keeps matching the media kinds video, image and audio. Reconcile the search bar's filter chips with the taxonomy: the tree owns template types, the chips keep the cross-cutting roles (media kinds, alpha, favorites), so the two never offer competing "type" vocabularies (1-2 h)
+- [ ] Browse tree in the browse panel, replacing milestone 11's flat node list: Types (group → type), Themes, Styles and Packs alongside Favorites, Recently used and Folders, each node with an item count; the bundled samples' root is labeled "Built-in templates". Selecting a node sets the scope chip and narrows the results and the search, clearing it widens again; counts follow the scope (3-5 h)
 - [ ] Packs: `pack.json` may declare default types, themes and styles for its templates (1 h)
 - [ ] Sample templates: original CC0 templates that fill empty type and theme combinations, starting with matched sets (one look shared across lower third, title, transition, overlay and background) for corporate, sports, holiday and news (3-5 h)
 
@@ -128,7 +122,7 @@ Fills the results region and the stage described in `docs/ui-layout.md`.
 
 - [ ] Results grid: cards with thumbnail, name and badges (alpha, loop, duration, resolution, pack); grid/list toggle and thumbnail size in the search bar; list view stays for audio and long lists, with name, duration, type, themes and file columns (3-4 h)
 - [ ] Virtualized results: only the rows and cards in view are in the DOM, so a library of thousands of items scrolls smoothly in both views; the results keep today's 500-item cap until this lands, and it is removed here (2-3 h)
-- [ ] Hover-scrub: a sprite strip of a few frames per video and template, cached like thumbnails and stepped by pointer position over the card (2-3 h)
+- [ ] Hover-scrub: a sprite strip of a few frames per video and template, cached like thumbnails and stepped by pointer position over the card; template strips render all their frames through one offscreen window per template, not one per frame (2-3 h)
 - [ ] Player: loop toggle, frame step, in and out marks tied to the Output tab's trim, volume and mute; background toggle (checkerboard, black, white, custom color); title-safe and action-safe overlay (2-4 h)
 - [ ] Waveforms: peak data per audio file computed once with ffmpeg, cached in user data, drawn under the scrub bar and in list rows (2-3 h)
 - [ ] Audition mode for audio lists: autoplay, arrow keys move to the next item, Escape stops (1-2 h)
@@ -142,11 +136,30 @@ Turns the queue in the collection tray into collections; the separate queue pane
 - [ ] Render all: every item through the render queue with per-item and total progress, one save folder for all or per item; finished items keep their drag handle (3-5 h)
 - [ ] Headless: `--collection file` renders a saved collection (1-2 h)
 
+## 17. Unsigned builds and releases (7-12 h)
+
+The buildable half of the old "Packaging and signing" milestone; signing is milestone 7, blocked on account decisions. Unsigned artifacts also make the hardware-blocked verification sessions in milestones 2 and 5 easier to run when a machine is available.
+
+- [ ] electron-builder config; bundled templates in `resources/templates`, labeled "Built-in templates" in the library (2-3 h)
+- [ ] macOS: universal build with hardened runtime, unsigned (1-2 h)
+- [ ] Windows: NSIS installer, unsigned (1-2 h)
+- [ ] Linux: AppImage (1-2 h)
+- [ ] Release workflow in GitHub Actions producing draft releases with the unsigned artifacts (2-3 h)
+- [ ] Decide on ffmpeg distribution: keep "user installs ffmpeg", offer a download helper, or bundle an LGPL build; document license implications (ADR)
+
+## 7. Signing and auto-update (4-7 h)
+
+**Blocked on David's account decisions** (Apple Developer account, Windows code-signing certificate). Builds come from milestone 17.
+
+- [ ] macOS: signing and notarization (2-3 h)
+- [ ] Windows: code signing (1-2 h)
+- [ ] Auto-update (electron-updater; needs signed builds on macOS) (1-2 h)
+
 ## 8. 1.0 hardening and docs (9-16 h)
 
-- [ ] Freeze template format v1 (after milestone 10's manifest changes have landed); add a JSON Schema file generated from or checked against the validator (2-3 h)
+- [ ] Freeze template format v1 and pack format (`pack.json`) v1, after milestone 10's manifest and pack changes have landed; add a JSON Schema file generated from or checked against the validator (2-3 h)
 - [ ] Template authoring guide with a step-by-step walkthrough and a `pulp-template` starter folder (2-3 h)
-- [ ] Accessibility pass across every region: keyboard navigation for the tree, the grid, the player and the tray, focus states, screen reader labels (2-3 h)
+- [ ] Accessibility pass across every region: keyboard navigation for the browse tree and nodes, the grid, the player, the tray, the inspector tabs (arrow keys, roving tabindex), the filter chips and the scope chip; splitter keyboard resizing kept; focus states and screen reader labels throughout (2-3 h)
 - [ ] Crash and error reporting that stays local (log file, "copy diagnostics" in the status bar) (1-2 h)
 - [ ] Five to ten more original CC0 sample templates, filling type and theme gaps left after milestone 10 (1-3 h)
 - [ ] User guide for the window: regions, keyboard shortcuts, search syntax; README and screenshots updated for the new layout (1-2 h)

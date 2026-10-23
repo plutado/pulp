@@ -30,7 +30,7 @@ npm run build
 
 ## Commits
 
-- **Issue references by milestone.** GitHub issues #1 to #16 are the milestones in `ROADMAP.md`, numbered the same; the roadmap lists them in planned order, which is not numeric order. A commit that advances a milestone ends its message with `Part of #N`. Use `Fixes #N` only in the commit that completes the whole milestone. Work outside the roadmap carries no issue reference.
+- **Issue references by milestone.** GitHub issues #1 to #17 are the milestones in `ROADMAP.md`, numbered the same; the roadmap lists them in planned order, which is not numeric order. A commit that advances a milestone ends its message with `Part of #N`. Use `Fixes #N` only in the commit that completes the whole milestone. Work outside the roadmap carries no issue reference.
 - **Roadmap ticks and changelog entries.** When a checklist item is finished, tick it in `ROADMAP.md` and add an entry under "Unreleased" in `CHANGELOG.md`, in the same commit as the change itself.
 - **Test, lint and build before committing.** `npm test`, `npm run lint` and `npm run build` must pass for every commit, not only before the pull request.
 - **Only intended files.** Check `git status` before committing. No render output, scratch files or editor leftovers.
