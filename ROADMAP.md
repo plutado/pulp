@@ -51,8 +51,8 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 
 - [x] Color picker with alpha (native input has none) and recent colors: alpha slider and `#RRGGBBAA` text field with swatch; eight recent colors shared across templates in `settings.json` (2-3 h)
 - [x] Number sliders with direct entry; text fields with character counter for `maxLength` (1-2 h)
-- [ ] Saved parameter presets per template ("Show A", "Show B") stored in user data (2-3 h)
-- [ ] Batch: render the same template for a list of names/titles from CSV (3-4 h)
+- [x] Saved parameter presets per template ("Show A", "Show B") stored in user data: one file per template id, only values that differ from defaults, unknown parameters dropped quietly, replacing asks first (2-3 h)
+- [x] Batch: render the same template for a list of names/titles from CSV; headers match id or label ignoring case, unknown columns warned before queuing, one job per row named from the row; also `--batch` headless (3-4 h)
 - [x] Undo/redo for parameter edits (per template, typing coalesced, text fields keep their own Ctrl+Z); reset per field and for the whole template, both undoable (1-2 h)
 - [x] Evaluate moving the UI to a component framework once the form logic outgrows plain DOM; write an ADR either way. ADR 0006: stay with plain DOM, revisit at milestone 4 (1-2 h)
 

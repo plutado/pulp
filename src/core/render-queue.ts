@@ -10,6 +10,8 @@ export interface RenderQueueJob {
   id: number;
   templateId: string;
   templateName: string;
+  /** Shown instead of templateName when set, for example "Lower Third Bar · Alex" in a batch. */
+  label?: string;
   presetId: string;
   outputPath: string;
   totalFrames: number;
@@ -32,7 +34,7 @@ export type RenderOutcome =
   | { ok: true; output: string; frames: number; warnings: string[] }
   | { ok: false; cancelled?: boolean; message: string };
 
-export type NewRenderJob = Pick<RenderQueueJob, 'templateId' | 'templateName' | 'presetId' | 'outputPath' | 'totalFrames'>;
+export type NewRenderJob = Pick<RenderQueueJob, 'templateId' | 'templateName' | 'presetId' | 'outputPath' | 'totalFrames'> & Pick<RenderQueueJob, 'label'>;
 
 export const FINISHED_STATUSES: readonly RenderJobStatus[] = ['done', 'failed', 'cancelled'];
 

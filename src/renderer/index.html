@@ -54,6 +54,17 @@
           <button id="reset-all" type="button" disabled title="Reset every parameter to the template's defaults">Reset all</button>
         </div>
       </div>
+      <div class="param-presets">
+        <select id="param-preset-list" aria-label="Saved presets"><option value="">Saved presets…</option></select>
+        <input id="param-preset-name" type="text" placeholder="Preset name" aria-label="Preset name" autocomplete="off" spellcheck="false">
+        <button id="param-preset-save" type="button" disabled title="Save the current values that differ from the defaults under this name">Save</button>
+        <button id="param-preset-delete" type="button" disabled title="Delete the selected preset">Delete</button>
+      </div>
+      <div id="param-preset-confirm" class="note confirm" hidden>
+        <span id="param-preset-confirm-text"></span>
+        <button id="param-preset-replace" type="button">Replace</button>
+        <button id="param-preset-cancel" type="button">Cancel</button>
+      </div>
       <form id="params" class="params"></form>
       <h2>Render</h2>
       <label class="field">
@@ -86,6 +97,18 @@
       <div class="render-actions">
         <button id="render" type="button" class="primary" disabled>Render...</button>
       </div>
+      <details id="batch" class="batch">
+        <summary>Batch from CSV</summary>
+        <p class="note">One render per row. Column headers match a parameter id or label (any case); a <code>file</code> (or <code>name</code>, when that is not a parameter) column names the jobs and files.</p>
+        <textarea id="batch-csv" rows="5" placeholder="file,Name,Title&#10;Alex,Alex Rivera,Director of Photography&#10;Sam,Sam Lee,Editor" spellcheck="false" aria-label="CSV"></textarea>
+        <div class="render-actions">
+          <button id="batch-file" type="button">Choose CSV file…</button>
+          <input id="batch-file-input" type="file" accept=".csv,text/csv" hidden>
+          <button id="batch-preview" type="button" disabled>Preview</button>
+          <button id="batch-queue" type="button" class="primary" disabled>Queue</button>
+        </div>
+        <div id="batch-summary" class="note"></div>
+      </details>
       <p id="render-status" class="note" role="status"></p>
       <p id="ffmpeg-status" class="note"></p>
       <div class="queue-head">

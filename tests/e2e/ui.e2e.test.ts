@@ -396,6 +396,70 @@ describe.skipIf(!electron)('inspector UI', () => {
     expect(await page.eval<string>(`document.querySelector('#params .color-field .recent-swatch').dataset.color`)).toBe('#00ff0040');
   }, 60_000);
 
+  describe('saved presets and batch', () => {
+    const nameValue = () => page.eval<string>(`document.querySelector('[data-param=name] input').value`);
+    const options = () => page.eval<string[]>(`[...document.getElementById('param-preset-list').options].map((o) => o.value).filter(Boolean)`);
+
+    it('saves the values that differ from the defaults, applies them undoably, asks before replacing, deletes', async () => {
+      await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Lower Third Bar').click()`);
+      await until(() => page.eval<boolean>(`document.querySelector('[data-param=name] input') !== null`), 'the lower third form');
+      // Start from defaults, change the name, save as "Show A".
+      await page.eval(`document.getElementById('reset-all').disabled || document.getElementById('reset-all').click()`);
+      await page.eval(`(() => { const i = document.querySelector('[data-param=name] input'); i.value = 'Show A Name'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`(() => { const n = document.getElementById('param-preset-name'); n.value = 'Show A'; n.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await page.eval(`document.getElementById('param-preset-save').click()`);
+      await until(async () => (await options()).includes('Show A'), 'the preset to appear');
+      // The file holds only the changed value.
+      const file = JSON.parse(await readFile(join(userData, 'presets', 'pulp.samples.lower-third-bar.json'), 'utf8')) as { presets: Record<string, Record<string, unknown>> };
+      expect(file.presets['Show A']).toEqual({ name: 'Show A Name' });
+
+      // Change the name again, then apply the preset: it comes back, and undo takes it away.
+      await page.eval(`(() => { const i = document.querySelector('[data-param=name] input'); i.value = 'Other'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`(() => { const s = document.getElementById('param-preset-list'); s.value = 'Show A'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      expect(await nameValue()).toBe('Show A Name');
+      await page.eval(`document.getElementById('undo').click()`);
+      expect(await nameValue()).toBe('Other');
+
+      // Saving under the same name asks first; Replace stores the new values.
+      await page.eval(`(() => { const n = document.getElementById('param-preset-name'); n.value = 'Show A'; n.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await page.eval(`document.getElementById('param-preset-save').click()`);
+      expect(await page.eval<boolean>(`!document.getElementById('param-preset-confirm').hidden`)).toBe(true);
+      expect(await page.eval<string>(`document.getElementById('param-preset-confirm-text').textContent`)).toContain('Replace the preset "Show A"');
+      await page.eval(`document.getElementById('param-preset-replace').click()`);
+      await until(async () => {
+        try {
+          const f = JSON.parse(await readFile(join(userData, 'presets', 'pulp.samples.lower-third-bar.json'), 'utf8')) as { presets: Record<string, Record<string, unknown>> };
+          return f.presets['Show A']?.name === 'Other';
+        } catch {
+          return false;
+        }
+      }, 'the replaced preset to be written');
+      expect(await page.eval<boolean>(`document.getElementById('param-preset-confirm').hidden`)).toBe(true);
+
+      // Delete.
+      await page.eval(`(() => { const s = document.getElementById('param-preset-list'); s.value = 'Show A'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`document.getElementById('param-preset-delete').click()`);
+      await until(async () => !(await options()).includes('Show A'), 'the preset to be deleted');
+      await page.eval(`document.getElementById('reset-all').click()`);
+    }, 90_000);
+
+    it('previews a CSV batch with its columns, names and unknown-column warning before anything is queued', async () => {
+      await page.eval(`(() => { const t = document.getElementById('batch-csv'); t.value = 'file,Name,TITLE,Mood\\nAlex,Alex Rivera,Director of Photography,calm\\nSam,Sam Lee,Editor,bright'; t.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await page.eval(`document.getElementById('batch-preview').click()`);
+      const summary = await page.eval<string>(`document.getElementById('batch-summary').textContent`);
+      expect(summary).toContain('2 rows');
+      expect(summary).toContain('Name → name');
+      expect(summary).toContain('TITLE → title');
+      expect(summary).toContain('names from "file"');
+      expect(summary).toContain('Files: Alex, Sam');
+      expect(await page.eval<string>(`document.querySelector('#batch-summary .warning').textContent`)).toBe('Unknown column ignored: Mood.');
+      expect(await page.eval<string>(`document.getElementById('batch-queue').textContent`)).toBe('Queue 2 renders');
+      expect(await page.eval<boolean>(`document.getElementById('batch-queue').disabled`)).toBe(false);
+      // Nothing was queued by previewing.
+      expect(await page.eval<number>(`document.querySelectorAll('#queue li:not(.empty)').length`)).toBe(0);
+    }, 60_000);
+  });
+
   describe('tags, favorites and recently used', () => {
     const results = () => page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`);
     const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);

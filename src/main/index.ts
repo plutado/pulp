@@ -1,9 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
-import { FRAME_FORMATS, type FrameFormat, type RenderOptions } from '../core/render-plan';
+import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
 import { parseTimecode, TimecodeError } from '../core/timecode';
-import type { FfmpegInfo, RenderRequest } from '../shared/api';
+import type { BatchRequest, FfmpegInfo, RenderRequest } from '../shared/api';
 import {
   addLibraryFolder,
   closeLibrary,
@@ -19,7 +19,10 @@ import {
 } from './library-service';
 import { handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
-import { cancelRender, clearFinishedRenders, enqueueRender, getRenderQueue } from './render-queue-service';
+import { cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue } from './render-queue-service';
+import { deletePreset, listPresets, savePreset } from './preset-service';
+import { planBatch } from '../core/batch-csv';
+import { readFile } from 'node:fs/promises';
 import { addRecentColor } from '../core/recent-colors';
 import { loadSettings, updateSettings } from './settings';
 
@@ -86,6 +89,12 @@ function registerIpc(): void {
   });
 
   ipcMain.handle('queue:add', (_event, request: RenderRequest) => enqueueRender(request));
+  ipcMain.handle('queue:add-batch', (_event, request: BatchRequest) => enqueueBatch(request));
+  ipcMain.handle('presets:list', (_event, templateId: string) => listPresets(String(templateId)));
+  ipcMain.handle('presets:save', (_event, templateId: string, name: string, values: Record<string, unknown>) =>
+    savePreset(String(templateId), String(name), values && typeof values === 'object' ? values : {}),
+  );
+  ipcMain.handle('presets:delete', (_event, templateId: string, name: string) => deletePreset(String(templateId), String(name)));
   ipcMain.handle('queue:cancel', (_event, jobId: number) => cancelRender(jobId));
   ipcMain.handle('queue:clear-finished', () => clearFinishedRenders());
   ipcMain.handle('queue:get', () => getRenderQueue());
@@ -101,7 +110,9 @@ function registerIpc(): void {
  * Headless mode for scripting and smoke tests:
  *   electron . --render <template-id> --preset <preset-id> --out <path> [--param key=value ...]
  *     [--fps <rate>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
- *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png]
+ *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
+ * `--batch` renders one output per CSV row into the folder given by --out, parameters from the row's
+ * columns (headers match a parameter id or label, ignoring case) and the file name from its name column.
  * `--fps` samples the template at another standard frame rate; `--background` is the color alpha
  * templates are flattened over in non-alpha presets; `--in-point`/`--out-point` are the first and
  * last frame to render (inclusive), as timecode HH:MM:SS:FF, a frame number, or seconds like "2.5s".
@@ -117,6 +128,7 @@ interface CliRender {
   libraries: string[];
   frameTimeoutMs?: number;
   frameFormat?: string;
+  batch?: string;
   options: RenderOptions;
   /** In and out points as typed; parsed once the frame rate is known. */
   inPoint?: string;
@@ -156,6 +168,7 @@ function parseCliRender(argv: string[]): CliRender | null {
   if (background !== undefined) options.background = background;
   const inPoint = get('--in-point');
   const outPoint = get('--out-point');
+  const batch = get('--batch');
   return {
     templateId: argv[i + 1] ?? '',
     presetId: get('--preset') ?? 'prores-4444',
@@ -165,6 +178,7 @@ function parseCliRender(argv: string[]): CliRender | null {
     options,
     badNumbers,
     ...(inPoint !== undefined ? { inPoint } : {}),
+    ...(batch !== undefined ? { batch: resolve(batch) } : {}),
     ...(outPoint !== undefined ? { outPoint } : {}),
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
     ...(frameFormat !== undefined ? { frameFormat } : {}),
@@ -200,6 +214,7 @@ async function runCliRender(cli: CliRender): Promise<number> {
     console.error(`${cli.inPoint !== undefined && err.message.startsWith(`"${cli.inPoint}"`) ? '--in-point' : '--out-point'}: ${err.message}`);
     return 2;
   }
+  if (cli.batch !== undefined) return runCliBatch(cli, template);
   const started = Date.now();
   const result = await renderTemplate({
     template,
@@ -223,6 +238,49 @@ async function runCliRender(cli: CliRender): Promise<number> {
   const seconds = (Date.now() - started) / 1000;
   console.log(`wrote ${result.output} (${result.frames} frames in ${seconds.toFixed(1)} s, ${(result.frames / seconds).toFixed(1)} frames/s)`);
   return 0;
+}
+
+/** --batch: one render per CSV row into the --out folder. Warnings are printed before anything renders. */
+async function runCliBatch(cli: CliRender, template: NonNullable<Awaited<ReturnType<typeof findTemplate>>>): Promise<number> {
+  let csv: string;
+  try {
+    csv = await readFile(cli.batch!, 'utf8');
+  } catch (err) {
+    console.error(`Could not read ${cli.batch}: ${(err as Error).message}`);
+    return 2;
+  }
+  const plan = planBatch(template.manifest, csv);
+  for (const w of plan.warnings) console.warn(`warning: ${w}`);
+  if (plan.rows.length === 0) {
+    console.error('Nothing to render.');
+    return 2;
+  }
+  const preset = OUTPUT_PRESETS[cli.presetId as PresetId];
+  if (!preset) {
+    console.error(`Unknown preset "${cli.presetId}".`);
+    return 2;
+  }
+  const folder = resolve(cli.out);
+  console.log(`batch: ${plan.rows.length} renders of ${template.manifest.name} into ${folder}`);
+  let failed = 0;
+  for (const row of plan.rows) {
+    const result = await renderTemplate({
+      template,
+      params: row.params,
+      presetId: cli.presetId,
+      outputPath: join(folder, `${row.fileName}${preset.extension}`),
+      overwrite: true,
+      options: cli.options,
+      ...(cli.frameTimeoutMs ? { frameTimeoutMs: cli.frameTimeoutMs } : {}),
+      ...(cli.frameFormat !== undefined ? { frameFormat: cli.frameFormat as FrameFormat } : {}),
+    });
+    if (result.ok) console.log(`wrote ${result.output} (${row.label})`);
+    else {
+      failed += 1;
+      console.error(`${row.label}: ${result.message}`);
+    }
+  }
+  return failed === 0 ? 0 : 1;
 }
 
 const cli = parseCliRender(process.argv);

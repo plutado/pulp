@@ -129,6 +129,16 @@ input[type="checkbox"] { width: auto; }
 .params-head h2 { margin: 8px 0 10px; }
 .params-actions { display: flex; gap: 4px; }
 .params-actions button { font-size: 11px; padding: 2px 7px; }
+.param-presets { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 6px; margin-bottom: 10px; }
+.param-presets select, .param-presets input { min-width: 0; }
+.param-presets button { font-size: 11px; padding: 2px 7px; }
+.confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.confirm[hidden] { display: none; }
+.confirm button { font-size: 11px; padding: 2px 7px; }
+.batch { margin-top: 10px; }
+.batch summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.batch textarea { width: 100%; font-family: Menlo, Consolas, monospace; font-size: 11px; margin-top: 6px; }
+.batch .warning { color: var(--accent); }
 .params { display: grid; gap: 10px; }
 .field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
 .field-reset { font-size: 11px; padding: 0 5px; line-height: 16px; color: var(--muted); background: none; border-color: transparent; }

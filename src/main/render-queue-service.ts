@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import type { TemplateEntry } from '../core/library';
 import { OUTPUT_PRESETS, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { RenderQueue, type RenderQueueSnapshot } from '../core/render-queue';
-import type { EnqueueResult, RenderRequest } from '../shared/api';
+import type { BatchRequest, EnqueueBatchResult, EnqueueResult, RenderRequest } from '../shared/api';
 import { findTemplate, markItemUsed } from './library-service';
 import { renderTemplate } from './render';
 
@@ -69,6 +69,45 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
   markItemUsed(template.id);
   void pump();
   return { ok: true, jobId: job.id };
+}
+
+/** Ask for a folder once, then queue one job per row, named and filed by the row. */
+export async function enqueueBatch(request: BatchRequest): Promise<EnqueueBatchResult> {
+  const template = await findTemplate(request.templateId);
+  if (!template) return { ok: false, message: `Template "${request.templateId}" not found.` };
+  const preset = OUTPUT_PRESETS[request.presetId as PresetId];
+  if (!preset) return { ok: false, message: `Unknown preset "${request.presetId}".` };
+  if (request.rows.length === 0) return { ok: false, message: 'The batch has no rows.' };
+  let totalFrames: number;
+  try {
+    totalFrames = resolveTiming(template.manifest, request.options).totalFrames;
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
+  }
+  const pick = await dialog.showOpenDialog({
+    title: `Folder for ${request.rows.length} renders of ${template.manifest.name}`,
+    defaultPath: app.getPath('videos') || homedir(),
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  const folder = pick.filePaths[0];
+  if (pick.canceled || !folder) return { ok: false, cancelled: true, message: 'Batch cancelled.' };
+
+  const jobIds: number[] = [];
+  for (const row of request.rows) {
+    const job = queue.add({
+      templateId: template.manifest.id,
+      templateName: template.manifest.name,
+      label: `${template.manifest.name} · ${row.label}`,
+      presetId: preset.id,
+      outputPath: join(folder, `${row.fileName}${preset.extension}`),
+      totalFrames,
+    });
+    inputs.set(job.id, { template, params: row.params, ...(request.options ? { options: request.options } : {}) });
+    jobIds.push(job.id);
+  }
+  markItemUsed(template.id);
+  void pump();
+  return { ok: true, jobIds, folder };
 }
 
 export function cancelRender(jobId: number): void {

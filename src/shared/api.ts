@@ -46,6 +46,23 @@ export interface RenderProgress {
   totalFrames: number;
 }
 
+/** One render of a batch: the row's parameters, and its name for the queue and the output file. */
+export interface BatchRequestRow {
+  label: string;
+  /** File name without extension; the preset's extension is added. */
+  fileName: string;
+  params: Record<string, unknown>;
+}
+
+export interface BatchRequest {
+  templateId: string;
+  presetId: PresetId;
+  options?: RenderOptions;
+  rows: BatchRequestRow[];
+}
+
+export type EnqueueBatchResult = { ok: true; jobIds: number[]; folder: string } | { ok: false; cancelled?: boolean; message: string };
+
 /** Outcome of adding a render to the queue; the render itself reports through the queue snapshot. */
 export type EnqueueResult = { ok: true; jobId: number } | { ok: false; cancelled?: boolean; message: string };
 
@@ -65,8 +82,14 @@ export interface PulpApi {
   ffmpegStatus(): Promise<FfmpegInfo>;
   /** Opens a save dialog, then adds the render to the queue. Jobs run one after another. */
   render(request: RenderRequest): Promise<EnqueueResult>;
+  /** Opens a folder picker, then queues one render per row. */
+  renderBatch(request: BatchRequest): Promise<EnqueueBatchResult>;
   /** Cancel a queued or running job. */
   cancelRender(jobId: number): Promise<void>;
+  /** Saved parameter presets of a template: name to the values that differ from the defaults. */
+  listPresets(templateId: string): Promise<Record<string, Record<string, unknown>>>;
+  savePreset(templateId: string, name: string, values: Record<string, unknown>): Promise<Record<string, Record<string, unknown>>>;
+  deletePreset(templateId: string, name: string): Promise<Record<string, Record<string, unknown>>>;
   /** Remove done, failed and cancelled jobs from the queue. */
   clearFinishedRenders(): Promise<void>;
   getRenderQueue(): Promise<RenderQueueSnapshot>;

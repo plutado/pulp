@@ -10,7 +10,7 @@
 
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -294,6 +294,24 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(field.code).toBe(2);
     expect(field.stderr).toContain('--in-point: "00:00:00:30": the frames field must be below 30 at 30 fps');
   }, 180_000);
+
+  it('renders a batch from CSV, one file per row named from the name column, warning about unknown columns', async () => {
+    const csv = join(out, 'batch.csv');
+    // "name" is a parameter of this template, so it maps to the parameter; "file" names the outputs.
+    await writeFile(csv, 'file,Name,title,Mood\nAlex,Alex Rivera,Director of Photography,calm\nSam,Sam Lee,Editor,bright\n');
+    const result = await render('pulp.samples.lower-third-bar', 'png-sequence', 'batch-out', {
+      extra: ['--batch', csv, '--in-point', '90', '--out-point', '90'],
+      timeoutMs: 180_000,
+    });
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stderr).toContain('warning: Unknown column ignored: Mood.');
+    expect(result.stdout).toContain('batch: 2 renders of Lower Third Bar into');
+    const files = (await readdir(join(out, 'batch-out'))).sort();
+    expect(files).toEqual(['Alex_00090.png', 'Sam_00090.png']);
+    // Different names give different panel widths: the pixel past a short name's panel is transparent only for one of them.
+    const alex = await pixels(join(out, 'batch-out', 'Alex_00090.png'), 120, 840);
+    expect(alex[3]).toBe(217);
+  }, 240_000);
 
   it('renders QuickTime Animation losslessly with alpha', async () => {
     const result = await render('pulp.test.size-portrait', 'qt-animation', 'anim.mov', { extra: ['--library', FIXTURES] });

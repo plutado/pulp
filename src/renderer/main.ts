@@ -4,6 +4,8 @@ import { resolveParams, type ResolvedParams } from '../core/params';
 import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { History } from '../core/history';
+import { planBatch, type BatchPlan } from '../core/batch-csv';
+import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { addRecentColor } from '../core/recent-colors';
 import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { isFinished, type RenderQueueJob, type RenderQueueSnapshot } from '../core/render-queue';
@@ -39,6 +41,20 @@ const els = {
   tagChips: $<HTMLDivElement>('tag-chips'),
   tagInput: $<HTMLInputElement>('tag-input'),
   params: $<HTMLFormElement>('params'),
+  presetList: $<HTMLSelectElement>('param-preset-list'),
+  presetName: $<HTMLInputElement>('param-preset-name'),
+  presetSave: $<HTMLButtonElement>('param-preset-save'),
+  presetDelete: $<HTMLButtonElement>('param-preset-delete'),
+  presetConfirm: $<HTMLDivElement>('param-preset-confirm'),
+  presetConfirmText: $<HTMLSpanElement>('param-preset-confirm-text'),
+  presetReplace: $<HTMLButtonElement>('param-preset-replace'),
+  presetCancel: $<HTMLButtonElement>('param-preset-cancel'),
+  batchCsv: $<HTMLTextAreaElement>('batch-csv'),
+  batchFile: $<HTMLButtonElement>('batch-file'),
+  batchFileInput: $<HTMLInputElement>('batch-file-input'),
+  batchPreview: $<HTMLButtonElement>('batch-preview'),
+  batchQueue: $<HTMLButtonElement>('batch-queue'),
+  batchSummary: $<HTMLDivElement>('batch-summary'),
   undo: $<HTMLButtonElement>('undo'),
   redo: $<HTMLButtonElement>('redo'),
   resetAll: $<HTMLButtonElement>('reset-all'),
@@ -73,6 +89,10 @@ interface State {
   recentColors: string[];
   /** The library item shown in the stage (template or media), for tags and favorite. */
   shown: LibraryEntry | null;
+  /** Saved presets of the selected template, name to stored values. */
+  presets: Record<string, Record<string, unknown>>;
+  /** The last previewed batch, ready to queue. */
+  batch: BatchPlan | null;
   /** Waiting for the save dialog after a click on Render. */
   choosingOutput: boolean;
   /** False while the frame rate or trim fields hold something the planner rejects. */
@@ -92,6 +112,8 @@ const state: State = {
   ffmpegOk: false,
   recentColors: [],
   shown: null,
+  presets: {},
+  batch: null,
   choosingOutput: false,
   optionsValid: true,
 };
@@ -347,8 +369,116 @@ function select(entry: LibraryEntry): void {
     .join('  ·  ');
 
   buildParamForm(m.parameters);
+  state.presets = {};
+  showPresets();
+  void window.pulp.listPresets(m.id).then((presets) => {
+    if (state.selected?.manifest.id === m.id) {
+      state.presets = presets;
+      showPresets();
+    }
+  });
+  state.batch = null;
+  els.batchSummary.textContent = '';
+  els.batchQueue.disabled = true;
   updateControls();
   renderResults();
+}
+
+// ---------------------------------------------------------------- saved presets
+
+function showPresets(): void {
+  const current = els.presetList.value;
+  els.presetList.replaceChildren();
+  const head = document.createElement('option');
+  head.value = '';
+  head.textContent = Object.keys(state.presets).length ? 'Saved presets…' : 'No saved presets';
+  els.presetList.append(head);
+  for (const name of Object.keys(state.presets).sort((a, b) => a.localeCompare(b))) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    els.presetList.append(opt);
+  }
+  els.presetList.value = current in state.presets ? current : '';
+  els.presetConfirm.hidden = true;
+  updatePresetButtons();
+}
+
+function updatePresetButtons(): void {
+  els.presetSave.disabled = !state.selected || els.presetName.value.trim() === '';
+  els.presetDelete.disabled = !state.selected || els.presetList.value === '';
+}
+
+/** Store the values that differ from the defaults under the name; ask first if the name is taken. */
+async function savePresetAs(name: string, replace: boolean): Promise<void> {
+  if (!state.selected) return;
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  if (trimmed in state.presets && !replace) {
+    els.presetConfirmText.textContent = `Replace the preset "${trimmed}" with the current values?`;
+    els.presetConfirm.hidden = false;
+    return;
+  }
+  els.presetConfirm.hidden = true;
+  const values = diffFromDefaults(state.selected.manifest, state.rawParams);
+  state.presets = await window.pulp.savePreset(state.selected.manifest.id, trimmed, values);
+  els.presetName.value = '';
+  showPresets();
+  els.presetList.value = trimmed;
+  updatePresetButtons();
+}
+
+/** Apply a saved preset as one undoable step; parameters the template no longer has are dropped quietly. */
+function applySavedPreset(name: string): void {
+  if (!state.selected || !(name in state.presets)) return;
+  commitParams();
+  applySnapshot(applyPreset(state.selected.manifest, state.presets[name]!), true);
+  updateResetButtons();
+}
+
+// ---------------------------------------------------------------- batch from CSV
+
+function previewBatch(): void {
+  if (!state.selected) return;
+  const plan = planBatch(state.selected.manifest, els.batchCsv.value);
+  state.batch = plan;
+  els.batchSummary.replaceChildren();
+  const lines: { text: string; warning?: boolean }[] = [];
+  if (plan.rows.length > 0) {
+    lines.push({ text: `${plan.rows.length} row${plan.rows.length === 1 ? '' : 's'}, columns: ${plan.columns.map((c) => `${c.header} → ${c.paramId}`).join(', ') || 'none'}${plan.nameColumn ? `; names from "${plan.nameColumn}"` : ''}.` });
+    lines.push({ text: `Files: ${plan.rows.slice(0, 5).map((r) => r.fileName).join(', ')}${plan.rows.length > 5 ? ', …' : ''}` });
+  }
+  for (const w of plan.warnings) lines.push({ text: w, warning: true });
+  for (const line of lines) {
+    const div = document.createElement('div');
+    if (line.warning) div.className = 'warning';
+    div.textContent = line.text;
+    els.batchSummary.append(div);
+  }
+  els.batchQueue.textContent = plan.rows.length > 0 ? `Queue ${plan.rows.length} render${plan.rows.length === 1 ? '' : 's'}` : 'Queue';
+  els.batchQueue.disabled = plan.rows.length === 0 || plan.columns.length === 0 || !state.ffmpegOk || !state.optionsValid;
+}
+
+async function queueBatch(): Promise<void> {
+  if (!state.selected || !state.batch || state.batch.rows.length === 0) return;
+  els.batchQueue.disabled = true;
+  try {
+    const result = await window.pulp.renderBatch({
+      templateId: state.selected.manifest.id,
+      presetId: els.preset.value as PresetId,
+      options: readRenderOptions(),
+      rows: state.batch.rows.map((r) => ({ label: r.label, fileName: r.fileName, params: r.params })),
+    });
+    const div = document.createElement('div');
+    if (result.ok) div.textContent = `Queued ${result.jobIds.length} renders into ${result.folder}.`;
+    else {
+      div.className = result.cancelled ? '' : 'warning';
+      div.textContent = result.cancelled ? '' : result.message;
+    }
+    els.batchSummary.append(div);
+  } finally {
+    els.batchQueue.disabled = false;
+  }
 }
 
 // ---------------------------------------------------------------- edits, undo, reset
@@ -1019,7 +1149,7 @@ function renderQueue(snapshot: RenderQueueSnapshot): void {
     head.className = 'job-head';
     const name = document.createElement('span');
     name.className = 'job-name';
-    name.textContent = job.templateName;
+    name.textContent = job.label ?? job.templateName;
     const preset = document.createElement('span');
     preset.className = 'job-preset';
     preset.textContent = OUTPUT_PRESETS[job.presetId as PresetId]?.label ?? job.presetId;
@@ -1062,6 +1192,47 @@ els.scrub.addEventListener('input', () => {
   requestFrame(Number(els.scrub.value));
 });
 els.render.addEventListener('click', () => void queueRender());
+els.presetName.addEventListener('input', updatePresetButtons);
+els.presetName.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    void savePresetAs(els.presetName.value, false);
+  }
+});
+els.presetSave.addEventListener('click', () => void savePresetAs(els.presetName.value, false));
+els.presetReplace.addEventListener('click', () => void savePresetAs(els.presetName.value, true));
+els.presetCancel.addEventListener('click', () => {
+  els.presetConfirm.hidden = true;
+});
+els.presetList.addEventListener('change', () => {
+  updatePresetButtons();
+  if (els.presetList.value) applySavedPreset(els.presetList.value);
+});
+els.presetDelete.addEventListener('click', () => {
+  if (!state.selected || !els.presetList.value) return;
+  void window.pulp.deletePreset(state.selected.manifest.id, els.presetList.value).then((presets) => {
+    state.presets = presets;
+    els.presetList.value = '';
+    showPresets();
+  });
+});
+els.batchCsv.addEventListener('input', () => {
+  els.batchPreview.disabled = !state.selected || els.batchCsv.value.trim() === '';
+  els.batchQueue.disabled = true;
+  state.batch = null;
+});
+els.batchFile.addEventListener('click', () => els.batchFileInput.click());
+els.batchFileInput.addEventListener('change', () => {
+  const file = els.batchFileInput.files?.[0];
+  if (!file) return;
+  void file.text().then((text) => {
+    els.batchCsv.value = text;
+    els.batchPreview.disabled = !state.selected;
+    previewBatch();
+  });
+});
+els.batchPreview.addEventListener('click', previewBatch);
+els.batchQueue.addEventListener('click', () => void queueBatch());
 els.favorite.addEventListener('click', () => {
   if (state.shown) void window.pulp.setItemFavorite(state.shown.id, !state.shown.favorite);
 });
