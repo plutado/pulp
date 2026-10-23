@@ -208,4 +208,79 @@ describe.skipIf(!electron)('inspector UI', () => {
     expect(await previewPixel(120, 840)).toEqual([0, 255, 0, 64]);
     expect(await page.eval<boolean>(`document.querySelectorAll('#params .color-field')[1].querySelector('.hex').classList.contains('error')`)).toBe(true);
   }, 60_000);
+
+  /** Value of the first element matching the selector. */
+  const valueOf = (selector: string) => page.eval<string>(`document.querySelector(${JSON.stringify(selector)}).value`);
+  /** Set a value and dispatch an event on the first element matching the selector. */
+  const fire = (selector: string, value: string | null, event: string) =>
+    page.eval(
+      `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (${JSON.stringify(value)} !== null) el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event(${JSON.stringify(event)}, { bubbles: true })); })()`,
+    );
+
+  it('keeps a number slider and its entry in sync', async () => {
+    await fire('[data-param=inOut] input[type=range]', '1.5', 'input');
+    expect(await valueOf('[data-param=inOut] input[type=number]')).toBe('1.5');
+    await fire('[data-param=inOut] input[type=number]', '0.4', 'input');
+    expect(await valueOf('[data-param=inOut] input[type=range]')).toBe('0.4');
+    await fire('[data-param=inOut] input[type=number]', null, 'change');
+  }, 60_000);
+
+  it('counts characters for a text parameter with a maximum length', async () => {
+    expect(await page.eval<string>(`document.querySelector('[data-param=name] .counter').textContent`)).toBe('11/60');
+    await fire('[data-param=name] input', 'Ada Lovelace', 'input');
+    expect(await page.eval<string>(`document.querySelector('[data-param=name] .counter').textContent`)).toBe('12/60');
+    await fire('[data-param=name] input', null, 'change'); // commits the edit as one history step
+  }, 60_000);
+
+  it('undoes and redoes committed edits by button and by keyboard, but leaves text fields their own undo', async () => {
+    expect(await page.eval<boolean>(`document.getElementById('undo').disabled`)).toBe(false);
+    await page.eval(`document.getElementById('undo').click()`);
+    expect(await valueOf('[data-param=name] input')).toBe('Alex Rivera');
+    expect(await page.eval<string>(`document.querySelector('[data-param=name] .counter').textContent`)).toBe('11/60');
+    await page.eval(`document.getElementById('redo').click()`);
+    expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
+    // Ctrl+Z with focus outside a text field undoes through the app history.
+    await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }))`);
+    expect(await valueOf('[data-param=name] input')).toBe('Alex Rivera');
+    // Shift+Ctrl+Z redoes.
+    await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true, bubbles: true }))`);
+    expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
+    // The same shortcut dispatched on the text field is left to the field; the app history does not move.
+    await page.eval(`document.querySelector('[data-param=name] input').dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }))`);
+    expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
+  }, 60_000);
+
+  it('resets one field, then everything, and both are undoable', async () => {
+    // inOut was changed earlier, so its reset is visible; the untouched title has none.
+    expect(await page.eval<boolean>(`document.querySelector('[data-param=inOut] .field-reset').hidden`)).toBe(false);
+    expect(await page.eval<boolean>(`document.querySelector('[data-param=title] .field-reset').hidden`)).toBe(true);
+    await page.eval(`document.querySelector('[data-param=inOut] .field-reset').click()`);
+    expect(await valueOf('[data-param=inOut] input[type=number]')).toBe('0.6');
+    expect(await page.eval<boolean>(`document.querySelector('[data-param=inOut] .field-reset').hidden`)).toBe(true);
+
+    expect(await page.eval<boolean>(`document.getElementById('reset-all').disabled`)).toBe(false);
+    await page.eval(`document.getElementById('reset-all').click()`);
+    expect(await valueOf('[data-param=name] input')).toBe('Alex Rivera');
+    expect(await page.eval<string>(`document.querySelectorAll('#params .color-field')[1].querySelector('.hex').value`)).toBe('#111827d9');
+    expect(await page.eval<boolean>(`[...document.querySelectorAll('#params .field-reset')].every((b) => b.hidden)`)).toBe(true);
+    expect(await page.eval<boolean>(`document.getElementById('reset-all').disabled`)).toBe(true);
+    await scrubTo(90);
+    expect((await previewPixel(120, 840))[3]).toBe(217);
+
+    // Reset all is one history step: undo brings the edits back.
+    await page.eval(`document.getElementById('undo').click()`);
+    expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
+    expect(await page.eval<string>(`document.querySelectorAll('#params .color-field')[1].querySelector('.hex').value`)).toBe('#00ff0040');
+  }, 60_000);
+
+  it('keeps edits and history per template across a switch', async () => {
+    await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Title Card').click()`);
+    await until(() => page.eval<boolean>(`document.querySelector('[data-param=title] input') !== null`), 'the title card form');
+    expect(await page.eval<boolean>(`document.getElementById('undo').disabled`)).toBe(true);
+    expect(await valueOf('[data-param=title] input')).toBe('Field Notes');
+    await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Lower Third Bar').click()`);
+    await until(() => page.eval<boolean>(`document.querySelector('[data-param=name] input') !== null`), 'the lower third form');
+    expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
+    expect(await page.eval<boolean>(`document.getElementById('undo').disabled`)).toBe(false);
+  }, 60_000);
 });

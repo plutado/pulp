@@ -3,6 +3,7 @@ import { frameCount, type TemplateParameter } from '../core/manifest';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
+import { History } from '../core/history';
 import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { isFinished, type RenderQueueJob, type RenderQueueSnapshot } from '../core/render-queue';
 import { frameState } from '../core/runtime';
@@ -30,6 +31,9 @@ const els = {
   timecode: $<HTMLSpanElement>('timecode'),
   details: $<HTMLDivElement>('details'),
   params: $<HTMLFormElement>('params'),
+  undo: $<HTMLButtonElement>('undo'),
+  redo: $<HTMLButtonElement>('redo'),
+  resetAll: $<HTMLButtonElement>('reset-all'),
   preset: $<HTMLSelectElement>('preset'),
   presetNote: $<HTMLParagraphElement>('preset-note'),
   presetUnavailable: $<HTMLParagraphElement>('preset-unavailable'),
@@ -174,8 +178,9 @@ function select(entry: LibraryEntry): void {
   }
   stop();
   state.selected = entry;
-  state.rawParams = {};
-  state.params = resolveParams(entry.manifest).values;
+  // Each template keeps its own edits and undo history while the app runs.
+  state.rawParams = { ...editorFor(entry.manifest.id).current };
+  state.params = resolveParams(entry.manifest, state.rawParams).values;
   state.frame = 0;
   state.previewReady = false;
 
@@ -202,41 +207,219 @@ function select(entry: LibraryEntry): void {
   renderResults();
 }
 
+// ---------------------------------------------------------------- edits, undo, reset
+
+type Snapshot = Record<string, unknown>;
+
+/** Edits and undo history of one template, kept for the session; undo acts only on the selected template. */
+interface Editor {
+  history: History<Snapshot>;
+  /** Last state recorded in history (what an edit replaces). */
+  committed: Snapshot;
+  /** Live state, restored when the template is selected again. */
+  current: Snapshot;
+}
+
+const editors = new Map<string, Editor>();
+
+function editorFor(templateId: string): Editor {
+  let editor = editors.get(templateId);
+  if (!editor) {
+    editor = { history: new History<Snapshot>(), committed: {}, current: {} };
+    editors.set(templateId, editor);
+  }
+  return editor;
+}
+
+const sameSnapshot = (a: Snapshot, b: Snapshot): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+let commitTimer: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * Record the current parameters as one history step if they changed since
+ * the last step. Typing is coalesced: live edits schedule this with a delay,
+ * and a field's change event (blur, slider release) runs it at once.
+ */
+function commitParams(): void {
+  clearTimeout(commitTimer);
+  commitTimer = undefined;
+  if (!state.selected) return;
+  const editor = editorFor(state.selected.manifest.id);
+  if (!sameSnapshot(editor.committed, state.rawParams)) {
+    editor.history.push(editor.committed);
+    editor.committed = { ...state.rawParams };
+  }
+  updateHistoryButtons();
+}
+
+function scheduleCommit(): void {
+  clearTimeout(commitTimer);
+  commitTimer = setTimeout(commitParams, 400);
+}
+
+/** Apply a live edit: resolve, redraw the preview, and schedule a history step. */
+function setParam(id: string, value: unknown): void {
+  if (!state.selected) return;
+  state.rawParams[id] = value;
+  editorFor(state.selected.manifest.id).current = state.rawParams;
+  state.params = resolveParams(state.selected.manifest, state.rawParams).values;
+  requestFrame(state.frame);
+  scheduleCommit();
+  updateResetButtons();
+}
+
+/** Replace all parameters (undo, redo, reset) and rebuild the form to match. */
+function applySnapshot(snapshot: Snapshot, record: boolean): void {
+  if (!state.selected) return;
+  const editor = editorFor(state.selected.manifest.id);
+  clearTimeout(commitTimer);
+  commitTimer = undefined;
+  state.rawParams = { ...snapshot };
+  editor.current = state.rawParams;
+  if (record) {
+    if (!sameSnapshot(editor.committed, state.rawParams)) editor.history.push(editor.committed);
+  }
+  editor.committed = { ...state.rawParams };
+  state.params = resolveParams(state.selected.manifest, state.rawParams).values;
+  buildParamForm(state.selected.manifest.parameters);
+  requestFrame(state.frame);
+  updateHistoryButtons();
+}
+
+function undo(): void {
+  if (!state.selected) return;
+  commitParams(); // a pending typed edit becomes its own step first
+  const editor = editorFor(state.selected.manifest.id);
+  const previous = editor.history.undo(editor.committed);
+  if (previous) applySnapshot(previous, false);
+}
+
+function redo(): void {
+  if (!state.selected) return;
+  const editor = editorFor(state.selected.manifest.id);
+  const next = editor.history.redo(editor.committed);
+  if (next) applySnapshot(next, false);
+}
+
+function resetParam(id: string): void {
+  commitParams();
+  const next = { ...state.rawParams };
+  delete next[id];
+  applySnapshot(next, true);
+}
+
+function resetAll(): void {
+  commitParams();
+  applySnapshot({}, true);
+}
+
+function updateHistoryButtons(): void {
+  const editor = state.selected ? editorFor(state.selected.manifest.id) : null;
+  els.undo.disabled = !editor?.history.canUndo;
+  els.redo.disabled = !editor?.history.canRedo;
+  els.resetAll.disabled = !state.selected || Object.keys(state.rawParams).length === 0;
+}
+
+/** Show the per-field reset only where the value differs from the default. */
+function updateResetButtons(): void {
+  for (const button of els.params.querySelectorAll<HTMLButtonElement>('.field-reset')) {
+    button.hidden = !(button.dataset.param! in state.rawParams);
+  }
+  els.resetAll.disabled = !state.selected || Object.keys(state.rawParams).length === 0;
+}
+
+/** True while the keyboard focus is in a field with its own text undo. */
+function isTextEditing(target: EventTarget | null): boolean {
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLInputElement) return ['text', 'number', 'search', 'url', 'email', 'password'].includes(target.type);
+  return target instanceof HTMLElement && target.isContentEditable;
+}
+
+// ---------------------------------------------------------------- parameter controls
+
+/** A number control: slider plus direct entry when the parameter has a range, direct entry alone otherwise. */
+function numberField(param: Extract<TemplateParameter, { type: 'number' }>, value: number, onChange: (v: unknown) => void): HTMLElement {
+  const entry = document.createElement('input');
+  entry.type = 'number';
+  entry.value = String(value);
+  if (param.min !== undefined) entry.min = String(param.min);
+  if (param.max !== undefined) entry.max = String(param.max);
+  if (param.step !== undefined) entry.step = String(param.step);
+  if (param.min === undefined || param.max === undefined) {
+    entry.addEventListener('input', () => onChange(entry.value));
+    entry.addEventListener('change', commitParams);
+    return entry;
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'number-field';
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = String(param.min);
+  slider.max = String(param.max);
+  // Without a declared step, 100 positions across the range.
+  slider.step = String(param.step ?? (param.max - param.min) / 100);
+  slider.value = String(value);
+  slider.addEventListener('input', () => {
+    entry.value = slider.value;
+    onChange(slider.value);
+  });
+  slider.addEventListener('change', commitParams);
+  entry.addEventListener('input', () => {
+    if (entry.value.trim() !== '') slider.value = entry.value;
+    onChange(entry.value);
+  });
+  entry.addEventListener('change', commitParams);
+  wrap.append(slider, entry);
+  return wrap;
+}
+
+/** A text control; with a maxLength, a live character counter. */
+function textField(param: Extract<TemplateParameter, { type: 'text' }>, value: string, onChange: (v: unknown) => void): HTMLElement {
+  const el = param.multiline ? document.createElement('textarea') : document.createElement('input');
+  if (el instanceof HTMLInputElement) el.type = 'text';
+  el.value = value;
+  el.addEventListener('change', commitParams);
+  if (!param.maxLength) {
+    el.addEventListener('input', () => onChange(el.value));
+    return el;
+  }
+  el.maxLength = param.maxLength;
+  const wrap = document.createElement('div');
+  wrap.className = 'text-field';
+  const counter = document.createElement('span');
+  counter.className = 'counter';
+  const show = () => {
+    counter.textContent = `${el.value.length}/${param.maxLength}`;
+    counter.classList.toggle('full', el.value.length >= param.maxLength!);
+  };
+  el.addEventListener('input', () => {
+    show();
+    onChange(el.value);
+  });
+  show();
+  wrap.append(el, counter);
+  return wrap;
+}
+
 function inputFor(param: TemplateParameter): HTMLElement {
   const value = state.params[param.id];
-  const onChange = (v: unknown) => {
-    state.rawParams[param.id] = v;
-    if (!state.selected) return;
-    state.params = resolveParams(state.selected.manifest, state.rawParams).values;
-    requestFrame(state.frame);
-  };
+  const onChange = (v: unknown) => setParam(param.id, v);
 
   switch (param.type) {
-    case 'text': {
-      const el = param.multiline ? document.createElement('textarea') : document.createElement('input');
-      if (el instanceof HTMLInputElement) el.type = 'text';
-      el.value = String(value);
-      if (param.maxLength) el.maxLength = param.maxLength;
-      el.addEventListener('input', () => onChange(el.value));
-      return el;
-    }
+    case 'text':
+      return textField(param, String(value), onChange);
     case 'color':
       return colorField(String(value), onChange);
-    case 'number': {
-      const el = document.createElement('input');
-      el.type = 'number';
-      el.value = String(value);
-      if (param.min !== undefined) el.min = String(param.min);
-      if (param.max !== undefined) el.max = String(param.max);
-      if (param.step !== undefined) el.step = String(param.step);
-      el.addEventListener('input', () => onChange(el.value));
-      return el;
-    }
+    case 'number':
+      return numberField(param, Number(value), onChange);
     case 'boolean': {
       const el = document.createElement('input');
       el.type = 'checkbox';
       el.checked = Boolean(value);
-      el.addEventListener('change', () => onChange(el.checked));
+      el.addEventListener('change', () => {
+        onChange(el.checked);
+        commitParams();
+      });
       return el;
     }
     case 'select':
@@ -253,7 +436,10 @@ function inputFor(param: TemplateParameter): HTMLElement {
         el.append(opt);
       }
       el.value = String(value);
-      el.addEventListener('change', () => onChange(el.value));
+      el.addEventListener('change', () => {
+        onChange(el.value);
+        commitParams();
+      });
       return el;
     }
   }
@@ -309,10 +495,12 @@ function colorField(initial: string, onChange: (hex: string) => void): HTMLEleme
     rgb = picker.value;
     apply();
   });
+  picker.addEventListener('change', commitParams);
   slider.addEventListener('input', () => {
     alpha = percentToAlpha(Number(slider.value));
     apply();
   });
+  slider.addEventListener('change', commitParams);
   text.addEventListener('change', () => {
     const parsed = parseColorText(text.value);
     if (!parsed) {
@@ -321,6 +509,7 @@ function colorField(initial: string, onChange: (hex: string) => void): HTMLEleme
     }
     ({ rgb, alpha } = splitColor(parsed));
     apply();
+    commitParams();
   });
   show();
   field.append(swatch, picker, slider, percent, text);
@@ -347,14 +536,33 @@ function buildParamForm(parameters: TemplateParameter[]): void {
     group = param.group;
     const label = document.createElement('label');
     label.className = param.type === 'boolean' ? 'field inline' : 'field';
+    label.dataset.param = param.id;
     const span = document.createElement('span');
     span.textContent = param.label;
     if (param.description) label.title = param.description;
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'field-reset';
+    reset.dataset.param = param.id;
+    reset.textContent = 'Reset';
+    reset.title = `Reset ${param.label} to its default`;
+    reset.hidden = !(param.id in state.rawParams);
+    reset.addEventListener('click', (e) => {
+      e.preventDefault();
+      resetParam(param.id);
+    });
     const input = inputFor(param);
-    if (param.type === 'boolean') label.append(input, span);
-    else label.append(span, input);
+    if (param.type === 'boolean') {
+      label.append(input, span, reset);
+    } else {
+      const head = document.createElement('div');
+      head.className = 'field-head';
+      head.append(span, reset);
+      label.append(head, input);
+    }
     els.params.append(label);
   }
+  updateHistoryButtons();
 }
 
 // ---------------------------------------------------------------- preview
@@ -662,6 +870,23 @@ els.scrub.addEventListener('input', () => {
   requestFrame(Number(els.scrub.value));
 });
 els.render.addEventListener('click', () => void queueRender());
+els.undo.addEventListener('click', undo);
+els.redo.addEventListener('click', redo);
+els.resetAll.addEventListener('click', resetAll);
+window.addEventListener('keydown', (e) => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (!mod || e.altKey) return;
+  const key = e.key.toLowerCase();
+  // Inside a text or number field the field's own undo applies; the app history takes over elsewhere.
+  if (isTextEditing(e.target)) return;
+  if (key === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+  } else if ((key === 'z' && e.shiftKey) || (key === 'y' && e.ctrlKey && !e.metaKey)) {
+    e.preventDefault();
+    redo();
+  }
+});
 for (const el of [els.optIn, els.optOut]) el.addEventListener('input', updateOptionsNote);
 els.optFps.addEventListener('change', updateOptionsNote);
 els.preset.addEventListener('change', updateOptionsNote);

@@ -50,10 +50,10 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 ## 3. Parameter editor UI (10-16 h)
 
 - [ ] Color picker with alpha (native input has none) and recent colors. Done: alpha slider and `#RRGGBBAA` text field with swatch, checked end to end against the preview. Remaining: recent colors (2-3 h)
-- [ ] Number sliders with direct entry; text fields with character counter for `maxLength` (1-2 h)
+- [x] Number sliders with direct entry; text fields with character counter for `maxLength` (1-2 h)
 - [ ] Saved parameter presets per template ("Show A", "Show B") stored in user data (2-3 h)
 - [ ] Batch: render the same template for a list of names/titles from CSV (3-4 h)
-- [ ] Undo/redo for parameter edits; reset to defaults (1-2 h)
+- [x] Undo/redo for parameter edits (per template, typing coalesced, text fields keep their own Ctrl+Z); reset per field and for the whole template, both undoable (1-2 h)
 - [ ] Evaluate moving the UI to a component framework once the form logic outgrows plain DOM; write an ADR either way (1-2 h)
 
 ## 4. Library: tagging, search, media preview (12-20 h)

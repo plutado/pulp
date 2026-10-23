@@ -38,7 +38,14 @@
     </main>
 
     <section class="inspector">
-      <h2>Parameters</h2>
+      <div class="params-head">
+        <h2>Parameters</h2>
+        <div class="params-actions">
+          <button id="undo" type="button" disabled title="Undo (Ctrl+Z or Cmd+Z outside a text field)">Undo</button>
+          <button id="redo" type="button" disabled title="Redo (Shift+Ctrl+Z, Ctrl+Y or Shift+Cmd+Z)">Redo</button>
+          <button id="reset-all" type="button" disabled title="Reset every parameter to the template's defaults">Reset all</button>
+        </div>
+      </div>
       <form id="params" class="params"></form>
       <h2>Render</h2>
       <label class="field">

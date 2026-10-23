@@ -102,7 +102,21 @@ input[type="checkbox"] { width: auto; }
 
 .details { color: var(--muted); font-size: 12px; min-height: 2.5em; }
 
+.params-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.params-head h2 { margin: 8px 0 10px; }
+.params-actions { display: flex; gap: 4px; }
+.params-actions button { font-size: 11px; padding: 2px 7px; }
 .params { display: grid; gap: 10px; }
+.field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.field-reset { font-size: 11px; padding: 0 5px; line-height: 16px; color: var(--muted); background: none; border-color: transparent; }
+.field-reset:hover { color: var(--text); border-color: var(--border); }
+.field-reset[hidden] { display: none; }
+.number-field { display: grid; grid-template-columns: 1fr 72px; gap: 8px; align-items: center; }
+.number-field input[type="range"] { padding: 0; min-width: 0; }
+.number-field input[type="number"] { width: 72px; }
+.text-field { display: grid; gap: 2px; }
+.text-field .counter { color: var(--muted); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+.text-field .counter.full { color: var(--accent); }
 .field { display: grid; gap: 4px; }
 .field > span { color: var(--muted); font-size: 12px; }
 .field input:not([type="checkbox"]):not([type="color"]), .field select, .field textarea { width: 100%; }
