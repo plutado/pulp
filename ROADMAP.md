@@ -15,7 +15,7 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 6. Template packs import | 6-10 h |
 | 11. UI shell: regions and the framework decision | 14-24 h |
 | 10. Categorization by type and theme | 14-23 h |
-| 12. Browse and preview | 12-19 h |
+| 12. Browse and preview | 13-21 h |
 | 13. Collections | 8-14 h |
 | 17. Unsigned builds and releases | 7-12 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
@@ -24,8 +24,9 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
-| **Remaining through 1.0 (milestones 1-8, 10-13 and 17)** | **124-211 h** |
-| **Including post-1.0 items** | **156-269 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17)** | **125-213 h** |
+| **Still open through 1.0 (unticked items only)** | **59-99 h** |
+| **Total including post-1.0 items** | **157-271 h** |
 
 ## 0. Foundation (done)
 
@@ -116,12 +117,13 @@ After milestone 11 (the browse panel it fills) and before milestone 8: it change
 - [ ] Packs: `pack.json` may declare default types, themes and styles for its templates (1 h)
 - [ ] Sample templates: original CC0 templates that fill empty type and theme combinations, starting with matched sets (one look shared across lower third, title, transition, overlay and background) for corporate, sports, holiday and news (3-5 h)
 
-## 12. Browse and preview (12-19 h)
+## 12. Browse and preview (13-21 h)
 
 Fills the results region and the stage described in `docs/ui-layout.md`.
 
 - [ ] Results grid: cards with thumbnail, name and badges (alpha, loop, duration, resolution, pack); grid/list toggle and thumbnail size in the search bar; list view stays for audio and long lists, with name, duration, type, themes and file columns (3-4 h)
 - [ ] Virtualized results: only the rows and cards in view are in the DOM, so a library of thousands of items scrolls smoothly in both views; the results keep today's 500-item cap until this lands, and it is removed here (2-3 h)
+- [ ] First DOM-level component tests, which ADR 0009 defers until a region needs them — the virtualized grid is that region: a DOM environment under Vitest (happy-dom or jsdom) covering the windowing math against scroll positions and keyed node reuse; the other regions stay covered by the end-to-end test (1-2 h)
 - [ ] Hover-scrub: a sprite strip of a few frames per video and template, cached like thumbnails and stepped by pointer position over the card; template strips render all their frames through one offscreen window per template, not one per frame (2-3 h)
 - [ ] Player: loop toggle, frame step, in and out marks tied to the Output tab's trim, volume and mute; background toggle (checkerboard, black, white, custom color); title-safe and action-safe overlay (2-4 h)
 - [ ] Waveforms: peak data per audio file computed once with ffmpeg, cached in user data, drawn under the scrub bar and in list rows (2-3 h)

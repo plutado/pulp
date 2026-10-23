@@ -58,13 +58,13 @@ Milestones 1-6 and 11 (renderer, alpha export, parameter editor, library, drag-o
 | Milestone | What it delivers | Estimate |
 |---|---|---|
 | 10. Categorization by type and theme | Built-in type, theme and style lists (user-extendable), a browse tree with counts and scoped search, `type:`/`theme:`/`style:` filters, matched sample sets for corporate, sports, holiday and news | 14-23 h |
-| 12. Browse and preview | A card grid with badges and hover-scrub, virtualized results, a richer player (loop, background toggle, safe areas, waveforms), audition mode for audio | 12-19 h |
+| 12. Browse and preview | A card grid with badges and hover-scrub, virtualized results, a richer player (loop, background toggle, safe areas, waveforms), audition mode for audio | 13-21 h |
 | 13. Collections | Gather items while browsing, save and load as a file, render all with per-item settings | 8-14 h |
 | 17. Unsigned builds and releases | electron-builder, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 7-12 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 | 8. 1.0 hardening and docs | Frozen template and pack formats v1 with a JSON Schema, an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 
-Remaining through 1.0: **124-211 hours** including the finished milestones' leftovers. Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **125-213 hours**, of which **59-99 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
