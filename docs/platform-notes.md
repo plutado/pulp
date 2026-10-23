@@ -22,7 +22,7 @@ Findings about Electron, Chromium, ffmpeg, macOS and Windows that cost real time
 
 ### Windows enforces a minimum window size
 
-A 16x16 offscreen probe window came back as 32x39 on `windows-latest`. Even frameless offscreen windows are subject to the minimum. The capture-format probe is 256x256 for that reason; keep any probe or fixture window well above that.
+A 16x16 offscreen probe window came back as 32x39 on `windows-latest`, and a 64x36 fixture template failed its capture-size check there the same way. Even frameless offscreen windows are subject to the minimum. The capture-format probe is 256x256 and every fixture template is at least 320x180 for that reason; keep any probe or fixture window at or above 320x180.
 
 ### Bitmap layout of `toBitmap()`
 

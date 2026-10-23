@@ -8,8 +8,8 @@
   "tags": ["test"],
   "duration": 0.1,
   "fps": 10,
-  "width": 64,
-  "height": 36,
+  "width": 320,
+  "height": 180,
   "alpha": false,
   "parameters": [
     { "id": "url", "type": "text", "label": "URL to try", "default": "pulp-media://0000/", "maxLength": 200 }

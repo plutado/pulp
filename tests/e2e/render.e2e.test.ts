@@ -428,7 +428,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(result.code, result.stderr).toBe(0);
     const frames = (await readdir(out)).filter((f) => f.startsWith('leak_'));
     expect(frames).toHaveLength(1);
-    expect(await pixels(join(out, frames[0]!), 32, 18)).toEqual([255, 0, 0, 255]);
+    expect(await pixels(join(out, frames[0]!), 160, 90)).toEqual([255, 0, 0, 255]);
   }, 120_000);
 
   it('reports a template error with frame and location, and leaves no output', async () => {
