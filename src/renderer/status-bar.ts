@@ -28,3 +28,10 @@ export function initStatusBar(): void {
       active === 0 ? '' : active === 1 ? 'Rendering…' : `Rendering, ${active - 1} more queued…`;
   });
 }
+
+/** The ffmpeg line: version and path, or why rendering is unavailable. */
+export function setFfmpeg(info: { ok: boolean; version?: string; path?: string; message?: string }): void {
+  const el = $('ffmpeg-status');
+  el.classList.toggle('error', !info.ok);
+  el.textContent = info.ok ? `ffmpeg ${info.version} (${info.path})` : (info.message ?? 'ffmpeg not found');
+}

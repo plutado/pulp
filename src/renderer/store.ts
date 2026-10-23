@@ -8,6 +8,7 @@
 
 import { computed, signal } from '@preact/signals';
 import { createResultsSelector, initialAppState, type AppState } from '../core/app-state';
+import type { TemplateEntry } from '../core/library-types';
 
 export const appState = signal<AppState>(initialAppState);
 
@@ -25,3 +26,6 @@ export const selectedKey = computed(() => appState.value.selectedKey);
 
 /** True while the Render button is blocked (no template, no ffmpeg, bad options); the tray's Prepare button follows it. */
 export const renderBlocked = signal(true);
+
+/** The selected template (media items are shown, not selected); regions read this instead of each other. */
+export const selectedTemplate = signal<TemplateEntry | null>(null);
