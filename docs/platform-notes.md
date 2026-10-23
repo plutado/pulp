@@ -70,6 +70,7 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 
 - A scheme used by `<video>` or `<audio>` needs the `stream: true` privilege in `registerSchemesAsPrivileged`, and `protocol.handle` responses can carry a Node stream converted with `Readable.toWeb`. Byte ranges must be answered by the handler (206, `Content-Range`), or seeking stalls.
 - `registerSchemesAsPrivileged` may be called once, before `ready`, with every custom scheme; `pulp-template` and `pulp-media` are registered together.
+- A privileged scheme enforces CORS by default: `fetch` from the app page (origin `file://`) to it fails with "Failed to fetch" unless responses carry `Access-Control-Allow-Origin`, while `<img>`, `<video>` and `<audio>` load fine (no-cors). `pulp-media` keeps it that way on purpose and has `supportFetchAPI: false`.
 
 ## Windows CI
 

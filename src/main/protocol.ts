@@ -32,8 +32,9 @@ const MIME: Record<string, string> = {
 export function registerTemplateScheme(): void {
   protocol.registerSchemesAsPrivileged([
     { scheme: TEMPLATE_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
-    // `stream` lets <video> and <audio> play from it; fetch is allowed so the app window (and its tests) can probe it.
-    { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
+    // `stream` lets <video> and <audio> play from it. No fetch: only media elements need it, and the
+    // scheme enforces CORS, so even the app window cannot read responses as data.
+    { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: false, stream: true } },
   ]);
 }
 

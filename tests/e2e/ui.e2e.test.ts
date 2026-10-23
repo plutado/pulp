@@ -384,18 +384,17 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`(() => { const v = document.getElementById('media-video'); return !v.seeking && Math.abs(v.currentTime - 1.5) < 0.2 && v.readyState >= 2; })()`), 'the seek to finish');
     }, 60_000);
 
-    it('answers the app window with 404 for unknown ids and 206 for ranges', async () => {
-      const unknown = await page.eval<{ status: number; text: string }>(`fetch('pulp-media://deadbeefdeadbeefdeadbeef/').then(async (r) => ({ status: r.status, text: await r.text() }))`);
-      expect(unknown).toEqual({ status: 404, text: '' });
-      const id = await page.eval<string>(`document.querySelector('#results li[data-kind=media]').dataset.id`);
-      const ranged = await page.eval<{ status: number; range: string | null; length: number }>(
-        `fetch('pulp-media://${id}/', { headers: { Range: 'bytes=0-9' } }).then(async (r) => ({ status: r.status, range: r.headers.get('content-range'), length: (await r.arrayBuffer()).byteLength }))`,
-      );
-      expect(ranged.status).toBe(206);
-      expect(ranged.range).toMatch(/^bytes 0-9\/\d+$/);
-      expect(ranged.length).toBe(10);
-      // A path on the URL is not a folder listing or a file; it is nothing.
-      expect(await page.eval<number>(`fetch('pulp-media://${id}/tiny.png').then((r) => r.status)`)).toBe(404);
+    it('refuses an unknown id and a path on the URL, and serves a known id, as seen by an <img>', async () => {
+      const outcome = (src: string) =>
+        page.eval<string>(
+          `new Promise((resolve) => { const i = new Image(); i.onload = () => resolve('loaded'); i.onerror = () => resolve('refused'); i.src = ${JSON.stringify(src)}; setTimeout(() => resolve('timeout'), 5000); })`,
+        );
+      const id = await page.eval<string>(`[...document.querySelectorAll('#results li[data-kind=media]')].find((li) => li.querySelector('.name')?.textContent === 'tiny').dataset.id`);
+      expect(await outcome('pulp-media://deadbeefdeadbeefdeadbeef/')).toBe('refused');
+      expect(await outcome(`pulp-media://${id}/tiny.png`)).toBe('refused');
+      expect(await outcome(`pulp-media://${id}/`)).toBe('loaded');
+      // The scheme is for media elements only: the window cannot read it as data.
+      expect(await page.eval<string>(`fetch('pulp-media://${id}/').then(() => 'fetched', () => 'blocked')`)).toBe('blocked');
     }, 60_000);
   });
 });
