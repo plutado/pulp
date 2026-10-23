@@ -54,7 +54,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [ ] Saved parameter presets per template ("Show A", "Show B") stored in user data (2-3 h)
 - [ ] Batch: render the same template for a list of names/titles from CSV (3-4 h)
 - [x] Undo/redo for parameter edits (per template, typing coalesced, text fields keep their own Ctrl+Z); reset per field and for the whole template, both undoable (1-2 h)
-- [ ] Evaluate moving the UI to a component framework once the form logic outgrows plain DOM; write an ADR either way (1-2 h)
+- [x] Evaluate moving the UI to a component framework once the form logic outgrows plain DOM; write an ADR either way. ADR 0006: stay with plain DOM, revisit at milestone 4 (1-2 h)
 
 ## 4. Library: tagging, search, media preview (12-20 h)
 
