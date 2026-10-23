@@ -5,6 +5,14 @@
 import { effect } from '@preact/signals';
 import { FILTER_CHIPS, setScope, setSort, toggleFilter, type SortKey } from '../core/app-state';
 import { appState, dispatch } from './store';
+import { setIcon, type IconName } from './icons';
+
+const SCOPE_ICONS: Record<NonNullable<import('../core/app-state').Scope['kind']>, IconName> = {
+  favorites: 'star',
+  recent: 'clock',
+  'built-in': 'package',
+  folder: 'folder',
+};
 
 const $ = (id: string): HTMLElement => {
   const el = document.getElementById(id);
@@ -30,6 +38,9 @@ export function initSearchBar(): void {
     const scope = appState.value.scope;
     chip.hidden = scope === null;
     chipLabel.textContent = scope ? `in: ${scope.label}` : '';
+    const slot = $('scope-chip-icon');
+    slot.querySelector('svg')?.remove();
+    if (scope?.kind) setIcon(slot, SCOPE_ICONS[scope.kind]);
   });
   $('scope-chip-clear').addEventListener('click', () => dispatch((s) => setScope(s, null)));
 

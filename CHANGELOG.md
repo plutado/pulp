@@ -6,6 +6,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+
+- Icons throughout, from Phosphor (MIT; decision record 0011): the browse panel's nodes and tools, the search field, sort and filter chips, the inspector tabs, play/pause, favorite as an outline or filled star, type and kind icons as thumbnail placeholders, the tray and the status bar (ffmpeg found or missing, cache, a spinner while scanning or rendering). Icon-only buttons have accessible names and show a tooltip on hover and on keyboard focus. Collapsing the browse panel leaves an icon rail you can still browse from.
+
 ### Changed
 
 - Labels are human-readable everywhere a stored value used to show: "Lower third · 6 s · 1920 × 1080 · Alpha" instead of "lower-third · 6s · 1920x1080 · alpha", "Video · MOV · 12 MB · H.264" for media, tags and themes shown as words ("Lower third", "My show") while search keeps the stored ids, and the bundled samples' folder is "Built-in templates" in the browse panel. Render… uses a real ellipsis.

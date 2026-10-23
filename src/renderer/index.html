@@ -14,22 +14,22 @@
       <div class="sidebar-head">
         <div class="region-head">
           <span class="region-title">Library</span>
-          <button id="browse-toggle" type="button" class="region-toggle" title="Hide the browse panel" aria-expanded="true">⟨</button>
+          <button id="browse-toggle" type="button" class="region-toggle icon-button" data-icon="caret-left" aria-label="Hide the browse panel" aria-expanded="true"></button>
         </div>
         <div class="sidebar-actions">
-          <button id="add-folder" type="button">Add folder</button>
-          <button id="rescan" type="button">Rescan</button>
+          <button id="add-folder" type="button" data-icon="folder-plus" data-icon-size="20" aria-label="Add folder"><span class="label">Add folder</span></button>
+          <button id="rescan" type="button" data-icon="arrow-clockwise" data-icon-size="20" aria-label="Rescan"><span class="label">Rescan</span></button>
         </div>
         <div class="sidebar-actions">
-          <button id="import-pack" type="button" title="Install templates from a pack (.zip)">Import pack…</button>
-          <button id="export-pack" type="button" disabled title="Export the listed templates as a pack">Export…</button>
+          <button id="import-pack" type="button" data-icon="download-simple" data-icon-size="20" aria-label="Import pack" data-tip="Install templates from a pack (.zip)"><span class="label">Import pack…</span></button>
+          <button id="export-pack" type="button" disabled data-icon="upload-simple" data-icon-size="20" aria-label="Export pack" data-tip="Export the listed templates as a pack"><span class="label">Export…</span></button>
         </div>
       </div>
       <div class="browse-body">
         <!-- Milestone 10 replaces this flat list with the Types / Themes / Styles / Packs tree with counts. -->
         <ul id="browse-nodes" class="browse-nodes" aria-label="Browse"></ul>
       </div>
-      <button id="browse-expand" type="button" class="region-expand" title="Show the browse panel" hidden>Library</button>
+      <button id="browse-expand" type="button" class="region-expand icon-button" data-icon="caret-right" aria-label="Show the browse panel" hidden></button>
     </aside>
     <div id="split-browse" class="splitter v" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize the browse panel"></div>
 
@@ -37,26 +37,33 @@
       <div id="region-search" class="search-bar">
         <div class="search-row">
           <span id="scope-chip" class="scope-chip" hidden>
+            <span id="scope-chip-icon" class="icon-slot" aria-hidden="true"></span>
             <span id="scope-chip-label"></span>
-            <button id="scope-chip-clear" type="button" title="Search the whole library again" aria-label="Clear the search scope">×</button>
+            <button id="scope-chip-clear" type="button" class="icon-button" data-icon="x" aria-label="Clear the search scope" data-tip="Search the whole library again"></button>
           </span>
-          <input id="search" type="search" list="search-history" placeholder="Search (try tag:wipe, type:video, duration:>5, favorite:yes, recent:10)" autocomplete="off" spellcheck="false" title="Filters: tag: type: category: duration: width: height: fps: res: codec: alpha: favorite: recent:">
-          <datalist id="search-history"></datalist>
-          <select id="sort" aria-label="Sort results" title="Sort results">
-            <option value="relevance">Relevance</option>
-            <option value="name">Name</option>
-            <option value="recent">Recently used</option>
-            <option value="duration">Duration</option>
-          </select>
-          <button id="stage-toggle" type="button" class="region-toggle" title="Hide the preview" aria-expanded="true">Preview ⌃</button>
+          <span class="search-field">
+            <span class="search-icon" data-icon="magnifying-glass" aria-hidden="true"></span>
+            <input id="search" type="search" list="search-history" placeholder="Search (try tag:wipe, type:video, duration:>5, favorite:yes, recent:10)" autocomplete="off" spellcheck="false" title="Filters: tag: type: category: duration: width: height: fps: res: codec: alpha: favorite: recent:">
+            <datalist id="search-history"></datalist>
+          </span>
+          <span class="sort-wrap">
+            <span data-icon="sort-ascending" aria-hidden="true"></span>
+            <select id="sort" aria-label="Sort results">
+              <option value="relevance">Relevance</option>
+              <option value="name">Name</option>
+              <option value="recent">Recently used</option>
+              <option value="duration">Duration</option>
+            </select>
+          </span>
+          <button id="stage-toggle" type="button" class="region-toggle icon-button" data-icon="caret-up" aria-label="Hide the preview" aria-expanded="true"></button>
         </div>
         <div class="filter-chips" role="group" aria-label="Filters">
-          <button id="chip-templates" class="chip" type="button" data-chip="templates" aria-pressed="false">Templates</button>
-          <button id="chip-video" class="chip" type="button" data-chip="video" aria-pressed="false">Video</button>
-          <button id="chip-image" class="chip" type="button" data-chip="image" aria-pressed="false">Images</button>
-          <button id="chip-audio" class="chip" type="button" data-chip="audio" aria-pressed="false">Audio</button>
-          <button id="chip-alpha" class="chip" type="button" data-chip="alpha" aria-pressed="false">Alpha</button>
-          <button id="chip-favorites" class="chip" type="button" data-chip="favorites" aria-pressed="false">Favorites</button>
+          <button id="chip-templates" class="chip" type="button" data-chip="templates" data-icon="shapes" aria-pressed="false"><span class="label">Templates</span></button>
+          <button id="chip-video" class="chip" type="button" data-chip="video" data-icon="film-strip" aria-pressed="false"><span class="label">Video</span></button>
+          <button id="chip-image" class="chip" type="button" data-chip="image" data-icon="image" aria-pressed="false"><span class="label">Images</span></button>
+          <button id="chip-audio" class="chip" type="button" data-chip="audio" data-icon="music-notes" aria-pressed="false"><span class="label">Audio</span></button>
+          <button id="chip-alpha" class="chip" type="button" data-chip="alpha" data-icon="checkerboard" aria-pressed="false"><span class="label">Alpha</span></button>
+          <button id="chip-favorites" class="chip" type="button" data-chip="favorites" data-icon="star" aria-pressed="false"><span class="label">Favorites</span></button>
         </div>
       </div>
       <section id="region-stage" class="stage" aria-label="Stage">
@@ -70,7 +77,7 @@
           </div>
         </div>
         <div class="transport">
-          <button id="play" type="button" disabled>Play</button>
+          <button id="play" type="button" class="icon-button transport-button" data-icon="play" data-icon-size="24" aria-label="Play" disabled></button>
           <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
           <span id="timecode" class="timecode">--</span>
         </div>
@@ -86,9 +93,9 @@
     <div id="split-inspector" class="splitter v" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize the inspector"></div>
     <section id="region-inspector" class="inspector" aria-label="Inspector">
       <div class="tabs" role="tablist" aria-label="Inspector sections">
-        <button id="tab-parameters" class="tab" type="button" role="tab" aria-selected="true" aria-controls="pane-parameters">Parameters</button>
-        <button id="tab-output" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-output">Output</button>
-        <button id="tab-info" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-info">Info</button>
+        <button id="tab-parameters" class="tab" type="button" role="tab" aria-selected="true" aria-controls="pane-parameters" data-icon="sliders-horizontal"><span class="label">Parameters</span></button>
+        <button id="tab-output" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-output" data-icon="export"><span class="label">Output</span></button>
+        <button id="tab-info" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-info" data-icon="info"><span class="label">Info</span></button>
       </div>
       <div id="pane-parameters" class="tab-pane" role="tabpanel" aria-labelledby="tab-parameters">
       <div class="params-head">
@@ -167,9 +174,9 @@
     <div id="region-tray" class="tray" aria-label="Render tray">
       <div id="split-tray" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the tray"></div>
       <div class="tray-head">
-        <button id="tray-toggle" type="button" class="region-toggle" title="Show or hide the render tray" aria-expanded="false">Queue ⌄</button>
+        <button id="tray-toggle" type="button" class="region-toggle" data-icon="caret-up" aria-label="Show or hide the render tray" aria-expanded="false"><span class="label">Queue</span></button>
         <span id="tray-summary" class="tray-summary" aria-live="polite">No renders yet.</span>
-        <button id="clear-finished" type="button" disabled>Clear finished</button>
+        <button id="clear-finished" type="button" disabled data-icon="trash" aria-label="Clear finished"><span class="label">Clear finished</span></button>
       </div>
       <div class="tray-body">
         <div class="tray-queue">
@@ -178,6 +185,7 @@
         <div class="tray-side">
           <div class="drag-out">
             <div id="drag-handle" class="drag-handle" draggable="false" title="Prepare a render, then drag this into your editor's bin or timeline">
+              <span data-icon="dots-six-vertical" data-icon-size="20" aria-hidden="true"></span>
               <span id="drag-handle-text">Drag to editor</span>
             </div>
             <button id="drag-prepare" type="button" disabled title="Render with the current parameters and preset into the cache, so it can be dragged">Prepare for drag</button>
@@ -199,12 +207,12 @@
     </div>
 
     <footer id="region-status" class="status-bar" aria-label="Status">
-      <p id="ffmpeg-status" class="note"></p>
+      <p id="ffmpeg-status" class="note status-item"><span class="label"></span></p>
       <div id="library-summary" class="summary"></div>
       <span class="status-spacer"></span>
-      <span id="status-scan" class="note" role="status"></span>
-      <span id="status-renders" class="note" role="status"></span>
-      <span id="status-cache" class="note"></span>
+      <span id="status-scan" class="note status-item" role="status"><span class="label"></span></span>
+      <span id="status-renders" class="note status-item" role="status"><span class="label"></span></span>
+      <span id="status-cache" class="note status-item" data-icon="hard-drive"><span class="label"></span></span>
     </footer>
   </div>
   <dialog id="pack-dialog" class="pack-dialog">

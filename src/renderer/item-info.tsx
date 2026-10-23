@@ -11,6 +11,7 @@ import { itemDetails, shownEntry } from '../core/app-state';
 import { tagLabel } from '../core/display';
 import type { LibraryEntry } from '../core/library-types';
 import { appState } from './store';
+import { Icon } from './icons';
 
 const shown = computed(() => shownEntry(appState.value));
 
@@ -39,10 +40,10 @@ function Tools({ entry, ids }: { entry: LibraryEntry; ids: Ids }) {
         type="button"
         class="favorite"
         aria-pressed={entry.favorite === true ? 'true' : 'false'}
-        title="Favorite"
+        aria-label="Favorite"
         onClick={() => void window.pulp.setItemFavorite(entry.id, !entry.favorite)}
       >
-        {entry.favorite ? '★' : '☆'}
+        <Icon name={entry.favorite ? 'star-fill' : 'star'} />
       </button>
       <div id={ids.chips} class="tag-chips">
         {entry.tags.map((tag) => (
@@ -51,10 +52,10 @@ function Tools({ entry, ids }: { entry: LibraryEntry; ids: Ids }) {
             {user.has(tag) && (
               <button
                 type="button"
-                title={`Remove ${tag}`}
+                aria-label={`Remove ${tagLabel(tag)}`}
                 onClick={() => void window.pulp.setItemTags(entry.id, (entry.userTags ?? []).filter((t) => t !== tag))}
               >
-                ×
+                <Icon name="x" />
               </button>
             )}
           </span>

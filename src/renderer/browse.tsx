@@ -6,6 +6,9 @@ import { render } from 'preact';
 import { computed } from '@preact/signals';
 import { browseScopes, sameScope, setScope, type Scope } from '../core/app-state';
 import { appState, dispatch } from './store';
+import { Icon, type IconName } from './icons';
+
+const NODE_ICONS: Record<NonNullable<Scope['kind']>, IconName> = { favorites: 'star', recent: 'clock', 'built-in': 'package', folder: 'folder' };
 
 const nodes = computed(() => browseScopes(appState.value.index));
 const activeScope = computed(() => appState.value.scope);
@@ -18,10 +21,11 @@ function Node({ scope }: { scope: Scope }) {
         type="button"
         class={active ? 'browse-node active' : 'browse-node'}
         aria-pressed={active}
-        title={scope.root ?? undefined}
+        aria-label={scope.label}
         onClick={() => dispatch((s) => setScope(s, active ? null : scope))}
       >
-        {scope.label}
+        <Icon name={NODE_ICONS[scope.kind ?? 'folder']} />
+        <span class="label">{scope.label}</span>
       </button>
     </li>
   );

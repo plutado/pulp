@@ -10,6 +10,7 @@ import type { ResolvedParams } from '../core/params';
 import { frameState } from '../core/runtime';
 import { formatTimecode } from '../core/timecode';
 import { mediaUrlFor, templateUrlFor } from '../shared/api';
+import { setIcon } from './icons';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -95,14 +96,16 @@ function play(): void {
   s.playing = true;
   playStart = performance.now();
   playStartFrame = s.frame;
-  els.play.textContent = 'Pause';
+  setIcon(els.play, 'pause', 24);
+  els.play.setAttribute('aria-label', 'Pause');
   rafId = requestAnimationFrame(tick);
 }
 
 export function stageStop(): void {
   s.playing = false;
   cancelAnimationFrame(rafId);
-  els.play.textContent = 'Play';
+  setIcon(els.play, 'play', 24);
+  els.play.setAttribute('aria-label', 'Play');
 }
 
 function clearMediaPreview(): void {

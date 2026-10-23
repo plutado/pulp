@@ -9,7 +9,7 @@ The window grew an icon-shaped hole: collapse and clear controls are Unicode sta
 
 ## Decision
 
-**Phosphor Icons**, confirmed **MIT** on the npm registry on 2026-10-23 (`@phosphor-icons/core` 2.1.1 and `@phosphor-icons/web` 2.1.2 both declare `license: MIT`); the license file ships in the package and is verified again when the dependency is added (milestone 18's icon item).
+**Phosphor Icons**, confirmed **MIT** on the npm registry on 2026-10-23 (`@phosphor-icons/core` 2.1.1 and `@phosphor-icons/web` 2.1.2 both declare `license: MIT`); the packaged `LICENSE` file was read on install (`@phosphor-icons/core` 2.1.1: "MIT License, Copyright (c) 2023 Phosphor Icons") before the dependency was committed.
 
 Usage, per `docs/ui-style.md`:
 

@@ -19,6 +19,8 @@ export interface Scope {
   label: string;
   filter?: string;
   root?: string;
+  /** What kind of node this is, so the UI can pick its icon; absent for taxonomy nodes until milestone 10 adds them. */
+  kind?: 'favorites' | 'recent' | 'built-in' | 'folder';
 }
 
 export type SortKey = 'relevance' | 'name' | 'recent' | 'duration';
@@ -222,8 +224,10 @@ export function createResultsSelector(): (s: ResultsInput) => ResultsView {
 
 /** The browse panel's nodes until milestone 10 adds the tree: Favorites, Recently used, one per folder. */
 export function browseScopes(index: LibraryIndex | null): Scope[] {
-  const folders = (index?.roots ?? []).map((root) => ({ label: rootLabel(root, index?.builtInRoot), root }));
-  return [{ label: 'Favorites', filter: 'favorite:yes' }, { label: 'Recently used', filter: 'recent:yes' }, ...folders];
+  const folders = (index?.roots ?? []).map(
+    (root): Scope => ({ label: rootLabel(root, index?.builtInRoot), root, kind: root === index?.builtInRoot ? 'built-in' : 'folder' }),
+  );
+  return [{ label: 'Favorites', filter: 'favorite:yes', kind: 'favorites' }, { label: 'Recently used', filter: 'recent:yes', kind: 'recent' }, ...folders];
 }
 
 /** Two scopes are the same browse node. */

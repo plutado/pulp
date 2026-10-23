@@ -18,6 +18,7 @@ import {
   type SizedPane,
 } from '../core/layout';
 import { appState } from './store';
+import { setIcon } from './icons';
 
 const $ = (id: string): HTMLElement => {
   const el = document.getElementById(id);
@@ -36,11 +37,11 @@ function apply(app: HTMLElement): void {
   $('browse-toggle').setAttribute('aria-expanded', String(!layout.browseCollapsed));
   const stage = $('stage-toggle');
   stage.setAttribute('aria-expanded', String(!layout.stageCollapsed));
-  stage.textContent = layout.stageCollapsed ? 'Preview ⌄' : 'Preview ⌃';
-  stage.title = layout.stageCollapsed ? 'Show the preview' : 'Hide the preview';
+  stage.setAttribute('aria-label', layout.stageCollapsed ? 'Show the preview' : 'Hide the preview');
+  setIcon(stage, layout.stageCollapsed ? 'caret-down' : 'caret-up');
   const tray = $('tray-toggle');
   tray.setAttribute('aria-expanded', String(!layout.trayCollapsed));
-  tray.textContent = layout.trayCollapsed ? 'Queue ⌃' : 'Queue ⌄';
+  setIcon(tray, layout.trayCollapsed ? 'caret-up' : 'caret-down');
 }
 
 function set(app: HTMLElement, next: LayoutState, save: boolean): void {

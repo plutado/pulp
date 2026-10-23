@@ -12,6 +12,8 @@ import { mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
 import { initTray } from './tray';
+import { mountIcons } from './icons';
+import { initTooltips } from './tooltip';
 import { effect } from '@preact/signals';
 import type { CollisionChoice, PackPreview } from '../core/pack';
 
@@ -294,6 +296,8 @@ els.addFolder.addEventListener('click', () => void loadLibrary(window.pulp.addLi
 els.rescan.addEventListener('click', () => void loadLibrary(window.pulp.rescanLibrary()));
 window.pulp.onRenderQueue((snapshot) => dispatch((s) => setJobs(s, snapshot)));
 
+mountIcons();
+initTooltips();
 initShell();
 initStage();
 initInspectorTabs();

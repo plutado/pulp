@@ -4,7 +4,17 @@ import { render } from 'preact';
 import { entryLabel } from '../core/app-state';
 import { tagLabel } from '../core/display';
 import type { LibraryEntry } from '../core/library-types';
+import { templateType, typeInfo } from '../core/taxonomy';
+import { Icon, MEDIA_KIND_ICONS, TYPE_GROUP_ICONS, type IconName } from './icons';
 import { hasIndex, results, selectedKey } from './store';
+
+/** The empty-thumbnail placeholder: the template's type-group icon, or the media kind's. */
+function placeholderIcon(entry: LibraryEntry): IconName {
+  if (entry.kind === 'media') return MEDIA_KIND_ICONS[entry.mediaKind] ?? 'image';
+  const type = templateType(entry.manifest);
+  const group = type ? typeInfo(type)?.group : undefined;
+  return group ? (TYPE_GROUP_ICONS[group] ?? 'shapes') : 'shapes';
+}
 
 interface RowProps {
   entry: LibraryEntry;
@@ -25,11 +35,11 @@ function Row({ entry, selected, onSelect }: RowProps) {
       onClick={() => onSelect(entry)}
     >
       <span class={`thumb checker${entry.thumbnail ? '' : ' empty'}`}>
-        {entry.thumbnail ? <img src={entry.thumbnail} alt="" /> : entry.kind === 'template' ? 'T' : entry.mediaKind === 'audio' ? '♫' : ''}
+        {entry.thumbnail ? <img src={entry.thumbnail} alt="" /> : <Icon name={placeholderIcon(entry)} size={20} />}
       </span>
       <span class="text">
         <span class="name-row">
-          <span class="fav" hidden={!entry.favorite}>{entry.favorite ? '★' : ''}</span>
+          <span class="fav" hidden={!entry.favorite} aria-label="Favorite">{entry.favorite && <Icon name="star-fill" />}</span>
           <span class="name">{name}</span>
         </span>
         <span class="meta">{entry.offline ? `Offline · ${withTags}` : withTags}</span>
