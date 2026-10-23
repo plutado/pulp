@@ -127,6 +127,10 @@ export interface PulpApi {
   /** Remove done, failed and cancelled jobs from the queue. */
   clearFinishedRenders(): Promise<void>;
   getRenderQueue(): Promise<RenderQueueSnapshot>;
+  /** The last committed searches, most recent first. */
+  getRecentSearches(): Promise<string[]>;
+  /** Record a committed search; resolves to the updated list. */
+  addRecentSearch(query: string): Promise<string[]>;
   /** Shell pane sizes and collapsed state, from settings.json. */
   getLayout(): Promise<LayoutState>;
   /** Persist the shell layout; sanitized and written through the settings queue. */

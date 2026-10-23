@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  browseScopes,
   createResultsSelector,
   deriveResults,
   effectiveQuery,
+  sameScope,
+  setSort,
+  toggleFilter,
   hasFinishedJobs,
   initialAppState,
   RESULT_CAP,
@@ -47,12 +51,61 @@ describe('app-state actions', () => {
 });
 
 describe('effectiveQuery', () => {
-  it('prepends the scope filter to the typed query', () => {
+  it('joins the scope filter, pressed chips and the typed query', () => {
     let s = setQuery(initialAppState, 'lower');
     expect(effectiveQuery(s)).toBe('lower');
     s = setScope(s, { label: 'Favorites', filter: 'favorite:yes' });
     expect(effectiveQuery(s)).toBe('favorite:yes lower');
     expect(effectiveQuery(setQuery(s, ''))).toBe('favorite:yes');
+    s = toggleFilter(toggleFilter(s, 'templates'), 'alpha');
+    expect(effectiveQuery(s)).toBe('favorite:yes type:template alpha:yes lower');
+    expect(effectiveQuery(toggleFilter(s, 'templates'))).toBe('favorite:yes alpha:yes lower');
+  });
+
+  it('a root scope adds no query text; it is matched structurally', () => {
+    const s = setScope(setQuery(initialAppState, 'clip'), { label: 'media', root: '/lib/media' });
+    expect(effectiveQuery(s)).toBe('clip');
+  });
+});
+
+describe('sorting', () => {
+  const entries = () => [
+    media('bbb', { meta: { duration: 9 } as MediaEntry['meta'], lastUsed: '2026-10-20T00:00:00Z' }),
+    media('aaa', { meta: { duration: 3 } as MediaEntry['meta'] }),
+    media('ccc', { lastUsed: '2026-10-23T00:00:00Z' }),
+  ];
+
+  it('sorts by name, recently used and duration; missing values go last', () => {
+    const s = setIndex(initialAppState, index([], entries()));
+    const keys = (sort: Parameters<typeof setSort>[1]) => deriveResults(setSort(s, sort)).entries.map((e) => e.key);
+    expect(keys('name')).toEqual(['aaa', 'bbb', 'ccc']);
+    expect(keys('recent')).toEqual(['ccc', 'bbb', 'aaa']);
+    expect(keys('duration')).toEqual(['aaa', 'bbb', 'ccc']);
+  });
+});
+
+describe('scopes', () => {
+  it('browseScopes lists favorites, recent and one node per folder', () => {
+    expect(browseScopes(null).map((n) => n.label)).toEqual(['Favorites', 'Recently used']);
+    const idx = { ...index([], []), roots: ['/lib/News Pack/', 'C:\\Media\\b-roll'] };
+    const nodes = browseScopes(idx);
+    expect(nodes.map((n) => n.label)).toEqual(['Favorites', 'Recently used', 'News Pack', 'b-roll']);
+    expect(nodes[2]?.root).toBe('/lib/News Pack/');
+  });
+
+  it('a root scope narrows results to that folder', () => {
+    const inside = media('clip a', { root: '/lib/a' });
+    const outside = media('clip b', { root: '/lib/b' });
+    const s = setIndex(initialAppState, { ...index([], [inside, outside]), roots: ['/lib/a', '/lib/b'] });
+    const scoped = setScope(s, { label: 'a', root: '/lib/a' });
+    expect(deriveResults(scoped).entries.map((e) => e.key)).toEqual(['clip a']);
+    expect(deriveResults(scoped).canExportPack).toBe(false);
+  });
+
+  it('sameScope compares by content', () => {
+    expect(sameScope({ label: 'a', root: '/x' }, { label: 'a', root: '/x' })).toBe(true);
+    expect(sameScope({ label: 'a', root: '/x' }, { label: 'a', root: '/y' })).toBe(false);
+    expect(sameScope(null, { label: 'a' })).toBe(false);
   });
 });
 
@@ -97,7 +150,7 @@ describe('createResultsSelector', () => {
     expect(select(setSelection(s, 'clip'))).toBe(first);
   });
 
-  it('recomputes when the index, query or scope changes', () => {
+  it('recomputes when the index, query, scope, filters or sort changes', () => {
     const select = createResultsSelector();
     const s = setIndex(initialAppState, index([template('straps')], [media('clip')]));
     const first = select(s);
@@ -105,6 +158,8 @@ describe('createResultsSelector', () => {
     expect(byQuery).not.toBe(first);
     expect(byQuery.entries.map((e) => e.key)).toEqual(['clip']);
     expect(select(setScope(s, { label: 'Favorites', filter: 'favorite:yes' }))).not.toBe(first);
+    expect(select(toggleFilter(s, 'templates')).entries.map((e) => e.key)).toEqual(['straps']);
+    expect(select(setSort(s, 'name'))).not.toBe(first);
     expect(select(setIndex(s, index([], [media('other')]))).entries.map((e) => e.key)).toEqual(['other']);
   });
 });

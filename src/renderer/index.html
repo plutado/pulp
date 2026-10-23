@@ -25,15 +25,39 @@
           <button id="export-pack" type="button" disabled title="Export the listed templates as a pack">Export…</button>
         </div>
       </div>
-      <div class="browse-body"><!-- Milestone 10: the Types / Themes / Styles / Packs tree with counts. --></div>
+      <div class="browse-body">
+        <!-- Milestone 10 replaces this flat list with the Types / Themes / Styles / Packs tree with counts. -->
+        <ul id="browse-nodes" class="browse-nodes" aria-label="Browse"></ul>
+      </div>
       <button id="browse-expand" type="button" class="region-expand" title="Show the browse panel" hidden>Library</button>
     </aside>
     <div id="split-browse" class="splitter v" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize the browse panel"></div>
 
     <main class="center">
       <div id="region-search" class="search-bar">
-        <input id="search" type="search" placeholder="Search (try tag:wipe, type:video, duration:>5, favorite:yes, recent:10)" autocomplete="off" spellcheck="false" title="Filters: tag: type: category: duration: width: height: fps: res: codec: alpha: favorite: recent:">
-        <button id="stage-toggle" type="button" class="region-toggle" title="Hide the preview" aria-expanded="true">Preview ⌃</button>
+        <div class="search-row">
+          <span id="scope-chip" class="scope-chip" hidden>
+            <span id="scope-chip-label"></span>
+            <button id="scope-chip-clear" type="button" title="Search the whole library again" aria-label="Clear the search scope">×</button>
+          </span>
+          <input id="search" type="search" list="search-history" placeholder="Search (try tag:wipe, type:video, duration:>5, favorite:yes, recent:10)" autocomplete="off" spellcheck="false" title="Filters: tag: type: category: duration: width: height: fps: res: codec: alpha: favorite: recent:">
+          <datalist id="search-history"></datalist>
+          <select id="sort" aria-label="Sort results" title="Sort results">
+            <option value="relevance">Relevance</option>
+            <option value="name">Name</option>
+            <option value="recent">Recently used</option>
+            <option value="duration">Duration</option>
+          </select>
+          <button id="stage-toggle" type="button" class="region-toggle" title="Hide the preview" aria-expanded="true">Preview ⌃</button>
+        </div>
+        <div class="filter-chips" role="group" aria-label="Filters">
+          <button id="chip-templates" class="chip" type="button" data-chip="templates" aria-pressed="false">Templates</button>
+          <button id="chip-video" class="chip" type="button" data-chip="video" aria-pressed="false">Video</button>
+          <button id="chip-image" class="chip" type="button" data-chip="image" aria-pressed="false">Images</button>
+          <button id="chip-audio" class="chip" type="button" data-chip="audio" aria-pressed="false">Audio</button>
+          <button id="chip-alpha" class="chip" type="button" data-chip="alpha" aria-pressed="false">Alpha</button>
+          <button id="chip-favorites" class="chip" type="button" data-chip="favorites" aria-pressed="false">Favorites</button>
+        </div>
       </div>
       <section id="region-stage" class="stage" aria-label="Stage">
         <div class="preview-wrap">
@@ -185,6 +209,10 @@
     <footer id="region-status" class="status-bar" aria-label="Status">
       <p id="ffmpeg-status" class="note"></p>
       <div id="library-summary" class="summary"></div>
+      <span class="status-spacer"></span>
+      <span id="status-scan" class="note" role="status"></span>
+      <span id="status-renders" class="note" role="status"></span>
+      <span id="status-cache" class="note"></span>
     </footer>
   </div>
   <dialog id="pack-dialog" class="pack-dialog">

@@ -28,6 +28,7 @@ import type { CollisionChoice } from '../core/pack';
 import { planBatch } from '../core/batch-csv';
 import { readFile } from 'node:fs/promises';
 import { addRecentColor } from '../core/recent-colors';
+import { addRecentSearch } from '../core/recent-searches';
 import { sanitizeLayout } from '../core/layout';
 import { loadSettings, updateSettings } from './settings';
 
@@ -136,6 +137,12 @@ function registerIpc(): void {
   ipcMain.handle('colors:recent-add', async (_event, hex: string) => {
     const saved = await updateSettings((s) => ({ ...s, recentColors: addRecentColor(s.recentColors, hex) }));
     return saved.recentColors;
+  });
+
+  ipcMain.handle('searches:recent-get', async () => (await loadSettings()).recentSearches);
+  ipcMain.handle('searches:recent-add', async (_event, query: string) => {
+    const saved = await updateSettings((s) => ({ ...s, recentSearches: addRecentSearch(s.recentSearches, String(query)) }));
+    return saved.recentSearches;
   });
 
   ipcMain.handle('layout:get', async () => (await loadSettings()).layout);

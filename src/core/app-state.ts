@@ -9,11 +9,29 @@ import { formatTimecode } from './timecode';
 import { isFinished, type RenderJobStatus, type RenderQueueSnapshot } from './render-queue';
 import { searchLibrary } from './search';
 
-/** A browse-tree node narrowing the results: its label for the scope chip, its search filter text. */
+/**
+ * A browse node narrowing the results: its label for the scope chip, plus either
+ * search filter text (favorites, recent; types and themes in milestone 10) or a
+ * library root matched structurally, since a path does not survive query tokenizing.
+ */
 export interface Scope {
   label: string;
-  filter: string;
+  filter?: string;
+  root?: string;
 }
+
+export type SortKey = 'relevance' | 'name' | 'recent' | 'duration';
+
+/** The filter chips in the search bar; each contributes query text while pressed. */
+export const FILTER_CHIPS = [
+  { id: 'templates', label: 'Templates', filter: 'type:template' },
+  { id: 'video', label: 'Video', filter: 'type:video' },
+  { id: 'image', label: 'Images', filter: 'type:image' },
+  { id: 'audio', label: 'Audio', filter: 'type:audio' },
+  { id: 'alpha', label: 'Alpha', filter: 'alpha:yes' },
+  { id: 'favorites', label: 'Favorites', filter: 'favorite:yes' },
+] as const;
+export type FilterChipId = (typeof FILTER_CHIPS)[number]['id'];
 
 export interface AppState {
   index: LibraryIndex | null;
@@ -21,6 +39,9 @@ export interface AppState {
   query: string;
   /** The selected browse node, or null for the whole library. */
   scope: Scope | null;
+  /** Pressed filter chips. */
+  filters: FilterChipId[];
+  sort: SortKey;
   /** Key of the entry shown as selected in the results, or null. */
   selectedKey: string | null;
   jobs: RenderQueueSnapshot;
@@ -30,6 +51,8 @@ export const initialAppState: AppState = {
   index: null,
   query: '',
   scope: null,
+  filters: [],
+  sort: 'relevance',
   selectedKey: null,
   jobs: { jobs: [] },
 };
@@ -49,6 +72,15 @@ export function setScope(s: AppState, scope: Scope | null): AppState {
   return s.scope === scope ? s : { ...s, scope };
 }
 
+export function toggleFilter(s: AppState, id: FilterChipId): AppState {
+  const filters = s.filters.includes(id) ? s.filters.filter((f) => f !== id) : [...s.filters, id];
+  return { ...s, filters };
+}
+
+export function setSort(s: AppState, sort: SortKey): AppState {
+  return s.sort === sort ? s : { ...s, sort };
+}
+
 export function setSelection(s: AppState, selectedKey: string | null): AppState {
   return s.selectedKey === selectedKey ? s : { ...s, selectedKey };
 }
@@ -59,9 +91,10 @@ export function setJobs(s: AppState, jobs: RenderQueueSnapshot): AppState {
 
 // Derived values.
 
-/** The scope's filter text joined with the typed query; what the results are searched with. */
-export function effectiveQuery(s: Pick<AppState, 'query' | 'scope'>): string {
-  return s.scope ? `${s.scope.filter} ${s.query}`.trim() : s.query;
+/** Scope filter text, pressed chips and the typed query joined; what the results are searched with. */
+export function effectiveQuery(s: Pick<AppState, 'query' | 'scope' | 'filters'>): string {
+  const chipText = FILTER_CHIPS.filter((c) => s.filters.includes(c.id)).map((c) => c.filter);
+  return [s.scope?.filter ?? '', ...chipText, s.query].join(' ').trim();
 }
 
 /** Results beyond the cap are not rendered; milestone 12's virtualized list removes the cap. */
@@ -77,13 +110,39 @@ export interface ResultsView {
 }
 
 /** The only parts of the state the results depend on; a change elsewhere (selection, jobs) must not recompute them. */
-export type ResultsInput = Pick<AppState, 'index' | 'query' | 'scope'>;
+export type ResultsInput = Pick<AppState, 'index' | 'query' | 'scope' | 'filters' | 'sort'>;
+
+/** What an entry sorts by under each key; missing values go last. */
+function sortValue(entry: LibraryEntry, sort: SortKey): string | number | undefined {
+  if (sort === 'name') return entryLabel(entry).name.toLowerCase();
+  if (sort === 'recent') return entry.lastUsed;
+  if (sort === 'duration') return entry.kind === 'template' ? entry.manifest.duration : entry.meta?.duration;
+  return undefined;
+}
+
+function sortEntries(entries: LibraryEntry[], sort: SortKey): LibraryEntry[] {
+  if (sort === 'relevance') return entries;
+  const sorted = [...entries].sort((a, b) => {
+    const va = sortValue(a, sort);
+    const vb = sortValue(b, sort);
+    if (va === undefined && vb === undefined) return 0;
+    if (va === undefined) return 1;
+    if (vb === undefined) return -1;
+    if (va === vb) return 0;
+    // Name and duration ascending, most recently used first.
+    const less = va < vb ? -1 : 1;
+    return sort === 'recent' ? -less : less;
+  });
+  return sorted;
+}
 
 export function deriveResults(s: ResultsInput): ResultsView {
   if (!s.index) return { entries: [], total: 0, capped: false, canExportPack: false };
-  const hits = searchLibrary(s.index, effectiveQuery(s));
+  let hits = searchLibrary(s.index, effectiveQuery(s));
+  if (s.scope?.root !== undefined) hits = hits.filter((h) => h.entry.root === s.scope?.root);
+  const entries = sortEntries(hits.map((h) => h.entry), s.sort);
   return {
-    entries: hits.slice(0, RESULT_CAP).map((h) => h.entry),
+    entries: entries.slice(0, RESULT_CAP),
     total: hits.length,
     capped: hits.length > RESULT_CAP,
     canExportPack: hits.some((h) => h.entry.kind === 'template' && !h.entry.offline),
@@ -91,17 +150,31 @@ export function deriveResults(s: ResultsInput): ResultsView {
 }
 
 /**
- * A results selector that searches only when index, query or scope changed and otherwise
- * returns the previous view object, so a store can tell "nothing to re-render" by identity.
+ * A results selector that searches only when its inputs changed and otherwise returns
+ * the previous view object, so a store can tell "nothing to re-render" by identity.
  */
 export function createResultsSelector(): (s: ResultsInput) => ResultsView {
   let last: (ResultsInput & { view: ResultsView }) | null = null;
   return (s) => {
-    if (last && last.index === s.index && last.query === s.query && last.scope === s.scope) return last.view;
+    if (last && last.index === s.index && last.query === s.query && last.scope === s.scope && last.filters === s.filters && last.sort === s.sort) return last.view;
     const view = deriveResults(s);
-    last = { index: s.index, query: s.query, scope: s.scope, view };
+    last = { index: s.index, query: s.query, scope: s.scope, filters: s.filters, sort: s.sort, view };
     return view;
   };
+}
+
+/** The browse panel's nodes until milestone 10 adds the tree: Favorites, Recently used, one per folder. */
+export function browseScopes(index: LibraryIndex | null): Scope[] {
+  const folders = (index?.roots ?? []).map((root) => ({
+    label: root.split(/[\\/]/).filter(Boolean).pop() ?? root,
+    root,
+  }));
+  return [{ label: 'Favorites', filter: 'favorite:yes' }, { label: 'Recently used', filter: 'recent:yes' }, ...folders];
+}
+
+/** Two scopes are the same browse node. */
+export function sameScope(a: Scope | null, b: Scope | null): boolean {
+  return a?.label === b?.label && a?.filter === b?.filter && a?.root === b?.root;
 }
 
 export function hasFinishedJobs(s: AppState): boolean {

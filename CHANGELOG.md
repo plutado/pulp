@@ -6,6 +6,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+
+- The search bar grew up: the browse panel lists Favorites, Recently used and each library folder, and selecting one scopes the results and the search to it, shown as a chip ("in: media-library") with × to widen again; filter chips for templates, video, images, audio, alpha and favorites; sorting by relevance, name, recently used or duration; and the last eight searches you pressed Enter on are remembered in `settings.json` and offered as suggestions in the search field.
+- The status bar now shows the render cache size, "Scanning…" while the library rescans, and "Rendering…" with the queued count while renders run, next to the ffmpeg line and the library counts.
+
 ### Changed
 
 - Selecting a template shows the frame at mid-progress, the same frame its thumbnail uses, instead of the first frame, which is blank for transitions; the scrubber starts there and playing or scrubbing works as before.

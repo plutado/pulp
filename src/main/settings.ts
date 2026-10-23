@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
 import { DEFAULT_LAYOUT, sanitizeLayout, type LayoutState } from '../core/layout';
 import { sanitizeRecentColors } from '../core/recent-colors';
+import { sanitizeRecentSearches } from '../core/recent-searches';
 import { DEFAULT_CACHE_MAX_MB, sanitizeCacheMaxMB } from '../core/render-cache';
 
 export interface Settings {
@@ -11,6 +12,8 @@ export interface Settings {
   libraryFolders: string[];
   /** Recently used parameter colors, shared across templates, most recent first. */
   recentColors: string[];
+  /** The last committed searches, most recent first. */
+  recentSearches: string[];
   /** Folder for renders made for dragging; default render-cache in user data. */
   renderCacheDir?: string;
   /** Size limit of that folder in MiB; the oldest files are removed first. */
@@ -19,7 +22,7 @@ export interface Settings {
   layout: LayoutState;
 }
 
-const DEFAULTS: Settings = { libraryFolders: [], recentColors: [], renderCacheMaxMB: DEFAULT_CACHE_MAX_MB, layout: DEFAULT_LAYOUT };
+const DEFAULTS: Settings = { libraryFolders: [], recentColors: [], recentSearches: [], renderCacheMaxMB: DEFAULT_CACHE_MAX_MB, layout: DEFAULT_LAYOUT };
 
 function settingsPath(): string {
   return join(app.getPath('userData'), 'settings.json');
@@ -29,6 +32,7 @@ function sanitize(raw: Partial<Settings>): Settings {
   return {
     libraryFolders: Array.isArray(raw.libraryFolders) ? raw.libraryFolders.filter((f): f is string => typeof f === 'string') : [],
     recentColors: sanitizeRecentColors(raw.recentColors),
+    recentSearches: sanitizeRecentSearches(raw.recentSearches),
     renderCacheMaxMB: sanitizeCacheMaxMB(raw.renderCacheMaxMB),
     layout: sanitizeLayout(raw.layout),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),

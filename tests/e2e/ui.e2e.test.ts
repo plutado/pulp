@@ -781,4 +781,34 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<string>(`fetch('pulp-media://${id}/').then(() => 'fetched', () => 'blocked')`)).toBe('blocked');
     }, 60_000);
   });
+
+  describe('search bar scope and filter chips', () => {
+    const names = () => page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`);
+    const clearSearch = () => page.eval(`(() => { const s = document.getElementById('search'); s.value = ''; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+
+    it('scopes the results to a browse node, shows the chip, and clears it with the ×', async () => {
+      await clearSearch();
+      await page.eval(`[...document.querySelectorAll('#browse-nodes .browse-node')].find((b) => b.textContent === 'media-library').click()`);
+      await until(async () => !(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)), 'the scope chip');
+      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: media-library');
+      const scoped = await names();
+      expect(scoped).toContain('tiny');
+      expect(scoped).not.toContain('Lower Third Bar');
+      await page.eval(`document.getElementById('scope-chip-clear').click()`);
+      await until(async () => (await names()).includes('Lower Third Bar'), 'the full library after clearing the scope');
+      expect(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)).toBe(true);
+    }, 60_000);
+
+    it('a filter chip narrows the results while pressed', async () => {
+      await clearSearch();
+      await page.eval(`document.getElementById('chip-templates').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('chip-templates').getAttribute('aria-pressed') === 'true'`), 'the chip to be pressed');
+      const filtered = await names();
+      expect(filtered).toContain('Lower Third Bar');
+      expect(filtered).not.toContain('tiny');
+      await page.eval(`document.getElementById('chip-templates').click()`);
+      await until(async () => (await names()).includes('tiny'), 'media back in the results after releasing the chip');
+      expect(await page.eval<string>(`document.getElementById('chip-templates').getAttribute('aria-pressed')`)).toBe('false');
+    }, 60_000);
+  });
 });

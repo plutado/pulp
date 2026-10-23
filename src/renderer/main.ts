@@ -4,6 +4,10 @@ import { dispatch, results } from './store';
 import { mountResults } from './results';
 import { initShell } from './shell';
 import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
+import { mountBrowse } from './browse';
+import { initSearchBar } from './search-bar';
+import { initStatusBar, setCacheSummary, setScanning } from './status-bar';
+import { effect } from '@preact/signals';
 import { frameCount, type TemplateParameter } from '../core/manifest';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
@@ -17,7 +21,6 @@ import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type Preset
 import { isFinished, type RenderQueueJob, type RenderQueueSnapshot } from '../core/render-queue';
 import { frameState } from '../core/runtime';
 import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, timecodePattern } from '../core/timecode';
-import { searchLibrary } from '../core/search';
 import { mediaUrlFor, templateUrlFor } from '../shared/api';
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -159,7 +162,6 @@ const state: State = {
 /** Pushes index, query and selection into the shared state (the Results component renders the list from it) and redraws the summary. */
 function renderResults(): void {
   dispatch((s) => setSelection(setQuery(setIndex(s, state.index), els.search.value), state.selected?.key ?? null));
-  els.exportPack.disabled = !results.value.canExportPack;
   const index = state.index;
   els.summary.replaceChildren();
   if (!index) return;
@@ -181,7 +183,13 @@ function renderResults(): void {
 }
 
 async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
-  const index = await next;
+  setScanning(true);
+  let index: LibraryIndex | null;
+  try {
+    index = await next;
+  } finally {
+    setScanning(false);
+  }
   if (!index) return;
   state.index = index;
   if (state.selected) {
@@ -580,9 +588,8 @@ async function confirmPack(): Promise<void> {
 /** Export the templates currently listed (the search result), with a license warning if the chosen license is not open. */
 function showExportDialog(): void {
   if (!state.index) return;
-  const listed = searchLibrary(state.index, els.search.value)
-    .map((h) => h.entry)
-    .filter((e): e is TemplateEntry => e.kind === 'template' && !e.offline);
+  // "Export the listed templates": the same results the user sees, scope and chips included.
+  const listed = results.value.entries.filter((e): e is TemplateEntry => e.kind === 'template' && !e.offline);
   if (listed.length === 0) return;
   packState = { kind: 'export', ids: listed.map((t) => t.manifest.id) };
   els.packTitle.textContent = `Export ${listed.length} template${listed.length === 1 ? '' : 's'} as a pack`;
@@ -1315,6 +1322,7 @@ async function refreshCacheStats(): Promise<void> {
   const stats = await window.pulp.renderCacheStats();
   els.cacheSummary.textContent = `${stats.summary} · ${stats.dir}`;
   els.cacheLimit.value = String(stats.maxMB);
+  setCacheSummary(stats.summary);
 }
 
 function jobStatusText(job: RenderQueueJob): string {
@@ -1526,7 +1534,13 @@ populateFrameRates();
 updateControls();
 initShell();
 initInspectorTabs();
+initSearchBar();
+initStatusBar();
+mountBrowse($('browse-nodes'));
 mountResults(els.results, select);
+effect(() => {
+  els.exportPack.disabled = !results.value.canExportPack;
+});
 renderQueue({ jobs: [] });
 void window.pulp.getRenderQueue().then(renderQueue);
 void window.pulp.getRecentColors().then(setRecentColors);
