@@ -388,6 +388,63 @@ describe.skipIf(!electron)('inspector UI', () => {
     expect(await page.eval<string>(`document.querySelector('#params .color-field .recent-swatch').dataset.color`)).toBe('#00ff0040');
   }, 60_000);
 
+  describe('tags, favorites and recently used', () => {
+    const results = () => page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`);
+    const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+
+    it('adds and removes user tags on the shown item, searchable with tag:', async () => {
+      await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent.endsWith('Lower Third Bar')).click()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('item-tools').hidden`), 'the item tools');
+      await page.eval(`(() => { const i = document.getElementById('tag-input'); i.value = 'Show A, keeper'; i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#tag-chips .tag-chip.user[data-tag=show-a]')`), 'the new tag chips');
+      expect(await page.eval<string[]>(`[...document.querySelectorAll('#tag-chips .tag-chip.user')].map((c) => c.dataset.tag)`)).toEqual(['show-a', 'keeper']);
+      // Manifest tags are shown but not removable.
+      expect(await page.eval<boolean>(`!!document.querySelector('#tag-chips .tag-chip.folder[data-tag=interview]') && !document.querySelector('#tag-chips .tag-chip.folder[data-tag=interview] button')`)).toBe(true);
+      try {
+        await setSearch('tag:show-a');
+        expect(await results()).toEqual(['Lower Third Bar']);
+      } finally {
+        await setSearch('');
+      }
+      await page.eval(`document.querySelector('#tag-chips .tag-chip.user[data-tag=keeper] button').click()`);
+      await until(() => page.eval<boolean>(`!document.querySelector('#tag-chips .tag-chip[data-tag=keeper]')`), 'the tag to be removed');
+      expect(await page.eval<string[]>(`[...document.querySelectorAll('#tag-chips .tag-chip.user')].map((c) => c.dataset.tag)`)).toEqual(['show-a']);
+    }, 60_000);
+
+    it('toggles favorite, lists favorites and recently used, and keeps it all in the library database', async () => {
+      await page.eval(`document.getElementById('favorite').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('favorite').getAttribute('aria-pressed') === 'true'`), 'the favorite to be set');
+      try {
+        await setSearch('favorite:yes');
+        expect(await results()).toEqual(['Lower Third Bar']);
+        expect(await page.eval<boolean>(`!document.querySelector('#results li .fav').hidden`)).toBe(true);
+        // Selecting marked the lower third used; select the title card too, so it is the most recent.
+        await setSearch('');
+        await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Title Card').click()`);
+        await until(() => page.eval<boolean>(`document.querySelector('[data-param=title] input') !== null`), 'the title card form');
+        await setSearch('recent:2 type:template');
+        await until(async () => (await results())[0] === 'Title Card', 'the recent list to update');
+        expect(await results()).toEqual(['Title Card', 'Lower Third Bar']);
+      } finally {
+        await setSearch(''); // never leave a filter behind for the next test
+      }
+
+      // The user data is in the scratch library.sqlite, apart from the scan results.
+      const { DatabaseSync } = await import('node:sqlite');
+      const db = new DatabaseSync(join(userData, 'library.sqlite'), { readOnly: true });
+      try {
+        const rows = db.prepare('SELECT key, tags, favorite, last_used FROM user_items ORDER BY key').all() as { key: string; tags: string; favorite: number; last_used: string | null }[];
+        const lt = rows.find((r) => r.key.endsWith('lower-third-bar'))!;
+        expect(JSON.parse(lt.tags)).toEqual(['show-a']);
+        expect(lt.favorite).toBe(1);
+        expect(lt.last_used).toMatch(/^\d{4}-/);
+        expect(rows.find((r) => r.key.endsWith('title-card'))?.last_used).toMatch(/^\d{4}-/);
+      } finally {
+        db.close();
+      }
+    }, 60_000);
+  });
+
   describe('media preview through pulp-media://', () => {
     const selectMedia = async (name: string) => {
       await until(
@@ -436,11 +493,14 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(meta).toContain('10 fps');
       expect(meta).toContain('h264');
       const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-      await setSearch('codec:h264 duration:>1');
-      expect(await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`)).toEqual(['clip']);
-      await setSearch('res:1080p');
-      expect(await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`)).toEqual(['Diagonal Wipe', 'Lower Third Bar', 'Title Card']);
-      await setSearch('');
+      try {
+        await setSearch('codec:h264 duration:>1');
+        expect(await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`)).toEqual(['clip']);
+        await setSearch('res:1080p');
+        expect(await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`)).toEqual(['Diagonal Wipe', 'Lower Third Bar', 'Title Card']);
+      } finally {
+        await setSearch('');
+      }
     }, 90_000);
 
     it('shows cached thumbnails for templates and visual media, and refuses unknown ids', async () => {

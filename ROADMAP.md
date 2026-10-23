@@ -58,12 +58,12 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 
 ## 4. Library: tagging, search, media preview (12-20 h)
 
-- [ ] User tags on any item, stored in the library database. Storage decided and in place (ADR 0007: `node:sqlite` in user data, `user_items` table that survives offline roots); the tagging UI remains (3-5 h)
+- [x] User tags on any item, stored in the library database (ADR 0007: `node:sqlite` in user data, `user_items` table that survives offline roots); chips with removal and an add field in the stage, searchable with `tag:` (3-5 h)
 - [x] Persistent index with incremental rescans and a file watcher; also rescans on window focus and when a missing root returns, and marks items of missing roots offline instead of deleting them. 5,100 items: 145 ms first scan, 105 ms unchanged rescan (3-4 h)
 - [x] Media metadata via ffprobe: duration, resolution, codec, alpha; filter by them (`duration:`, `width:`, `height:`, `fps:`, `res:`, `codec:`, `alpha:`, applied to templates through their manifests too) (2-3 h)
 - [x] Thumbnails for templates (poster frame at mid-progress through the renderer) and media (ffmpeg frame grab), cached in user data by item signature, served at `pulp-thumb://<id>/` (2-4 h)
 - [x] Media preview in the stage area (video/image/audio) through `pulp-media://<id>/`: by id, real path checked against the root, media types only, ranges for seeking, bare 404s, off limits to templates; refusals tested (1-2 h)
-- [ ] Favorites and recently used (1-2 h)
+- [x] Favorites and recently used: a toggle on the shown item, `favorite:yes` and `recent:N` filters; selecting or rendering marks an item used (1-2 h)
 
 ## 5. Drag-out to editing apps (8-16 h)
 

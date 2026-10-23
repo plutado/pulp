@@ -350,6 +350,13 @@ export class LibraryStore {
     const metaByKey = new Map(metaRows.map((m) => [m.key, m]));
     const thumbRows = this.db.prepare('SELECT key, size, mtime_ms FROM thumbs WHERE file IS NOT NULL').all() as unknown as { key: string; size: number; mtime_ms: number }[];
     const thumbByKey = new Map(thumbRows.map((t) => [t.key, t]));
+    const userRows = this.db.prepare('SELECT key, tags, favorite, last_used FROM user_items').all() as unknown as {
+      key: string;
+      tags: string;
+      favorite: number;
+      last_used: string | null;
+    }[];
+    const userByKey = new Map(userRows.map((u) => [u.key, u]));
     const seenIds = new Map<string, string>();
     const duplicates: LibraryProblem[] = [];
     for (const row of rows) {
@@ -357,6 +364,16 @@ export class LibraryStore {
       if (offline.has(row.root)) entry.offline = true;
       const t = thumbByKey.get(row.key);
       if (t && t.size === row.size && t.mtime_ms === row.mtime_ms) entry.thumbnail = thumbUrlFor(row.id);
+      const u = userByKey.get(row.key);
+      if (u) {
+        const userTags = JSON.parse(u.tags) as string[];
+        if (userTags.length > 0) {
+          entry.userTags = userTags;
+          entry.tags = [...new Set([...entry.tags, ...userTags])];
+        }
+        if (u.favorite === 1) entry.favorite = true;
+        if (u.last_used) entry.lastUsed = u.last_used;
+      }
       if (entry.kind === 'template') {
         const previous = seenIds.get(entry.manifest.id);
         if (previous) {
@@ -448,6 +465,11 @@ export class LibraryStore {
 
   itemCount(): number {
     return (this.db.prepare('SELECT COUNT(*) AS n FROM items').get() as { n: number }).n;
+  }
+
+  /** The item key behind a library id, for any kind; undefined for unknown ids. */
+  keyForId(id: string): string | undefined {
+    return (this.db.prepare('SELECT key FROM items WHERE id = ?').get(id) as { key: string } | undefined)?.key;
   }
 
   getUserData(key: string): UserItemData {

@@ -9,8 +9,11 @@ import {
   closeLibrary,
   findTemplate,
   getLibrary,
+  markItemUsed,
   rescan,
   rescanIfStale,
+  setItemFavorite,
+  setItemTags,
   startLibraryMonitor,
   useInMemoryLibrary,
 } from './library-service';
@@ -62,6 +65,9 @@ function createWindow(): void {
 function registerIpc(): void {
   ipcMain.handle('library:get', () => getLibrary());
   ipcMain.handle('library:rescan', () => rescan());
+  ipcMain.handle('library:set-tags', (_event, id: string, tags: string[]) => setItemTags(id, Array.isArray(tags) ? tags.map(String) : []));
+  ipcMain.handle('library:set-favorite', (_event, id: string, favorite: boolean) => setItemFavorite(id, favorite === true));
+  ipcMain.handle('library:mark-used', (_event, id: string) => markItemUsed(id));
   ipcMain.handle('library:add-folder', async () => {
     const result = await dialog.showOpenDialog({
       title: 'Add library folder',

@@ -15,6 +15,11 @@ export interface TemplateEntry {
   id: string;
   /** pulp-thumb://<id>/ once a thumbnail exists for the item as it is now. */
   thumbnail?: string;
+  /** Tags the user added; also merged into `tags`. */
+  userTags?: string[];
+  favorite?: boolean;
+  /** ISO time the item was last selected or rendered. */
+  lastUsed?: string;
   /** True when the item's library root is not reachable right now; the item is kept so user data survives. */
   offline?: boolean;
   dir: string;
@@ -30,6 +35,9 @@ export interface MediaEntry {
   key: string;
   id: string;
   thumbnail?: string;
+  userTags?: string[];
+  favorite?: boolean;
+  lastUsed?: string;
   offline?: boolean;
   path: string;
   root: string;

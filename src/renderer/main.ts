@@ -34,6 +34,10 @@ const els = {
   scrub: $<HTMLInputElement>('scrub'),
   timecode: $<HTMLSpanElement>('timecode'),
   details: $<HTMLDivElement>('details'),
+  itemTools: $<HTMLDivElement>('item-tools'),
+  favorite: $<HTMLButtonElement>('favorite'),
+  tagChips: $<HTMLDivElement>('tag-chips'),
+  tagInput: $<HTMLInputElement>('tag-input'),
   params: $<HTMLFormElement>('params'),
   undo: $<HTMLButtonElement>('undo'),
   redo: $<HTMLButtonElement>('redo'),
@@ -67,6 +71,8 @@ interface State {
   ffmpegOk: boolean;
   /** Recently used colors, shared across templates, most recent first. */
   recentColors: string[];
+  /** The library item shown in the stage (template or media), for tags and favorite. */
+  shown: LibraryEntry | null;
   /** Waiting for the save dialog after a click on Render. */
   choosingOutput: boolean;
   /** False while the frame rate or trim fields hold something the planner rejects. */
@@ -85,6 +91,7 @@ const state: State = {
   pendingFrame: null,
   ffmpegOk: false,
   recentColors: [],
+  shown: null,
   choosingOutput: false,
   optionsValid: true,
 };
@@ -148,12 +155,19 @@ function renderResults(): void {
     const nameEl = document.createElement('span');
     nameEl.className = 'name';
     nameEl.textContent = name;
+    const star = document.createElement('span');
+    star.className = 'fav';
+    star.textContent = entry.favorite ? '★' : '';
+    star.hidden = !entry.favorite;
     const metaEl = document.createElement('span');
     metaEl.className = 'meta';
     const withTags = entry.tags.length ? `${meta} · ${entry.tags.join(', ')}` : meta;
     metaEl.textContent = entry.offline ? `offline · ${withTags}` : withTags;
     if (entry.offline) li.classList.add('offline');
-    text.append(nameEl, metaEl);
+    const head = document.createElement('span');
+    head.className = 'name-row';
+    head.append(star, nameEl);
+    text.append(head, metaEl);
     li.append(text);
     li.setAttribute('role', 'option');
     li.dataset.id = entry.id;
@@ -195,10 +209,42 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
     const still = index.templates.find((t) => t.manifest.id === state.selected?.manifest.id);
     if (!still) clearSelection();
   }
+  if (state.shown) {
+    const fresh = [...index.templates, ...index.media].find((e) => e.id === state.shown?.id);
+    if (fresh) showItemTools(fresh);
+  }
   renderResults();
 }
 
 // ---------------------------------------------------------------- selection + params
+
+/** Favorite button and tag chips for the item shown in the stage. User tags can be removed; folder and manifest tags cannot. */
+function showItemTools(entry: LibraryEntry | null): void {
+  state.shown = entry;
+  els.itemTools.hidden = entry === null;
+  if (!entry) return;
+  els.favorite.setAttribute('aria-pressed', String(entry.favorite === true));
+  els.favorite.textContent = entry.favorite ? '★' : '☆';
+  els.tagChips.replaceChildren();
+  const user = new Set(entry.userTags ?? []);
+  for (const tag of entry.tags) {
+    const chip = document.createElement('span');
+    chip.className = user.has(tag) ? 'tag-chip user' : 'tag-chip folder';
+    chip.dataset.tag = tag;
+    chip.textContent = tag;
+    chip.title = user.has(tag) ? 'Your tag' : 'From the folder or manifest';
+    if (user.has(tag)) {
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = '×';
+      remove.title = `Remove ${tag}`;
+      remove.addEventListener('click', () => void window.pulp.setItemTags(entry.id, (entry.userTags ?? []).filter((t) => t !== tag)));
+      chip.append(remove);
+    }
+    els.tagChips.append(chip);
+  }
+  els.tagInput.value = '';
+}
 
 /** Stop and hide the media preview elements. */
 function clearMediaPreview(): void {
@@ -218,6 +264,7 @@ function clearSelection(): void {
   stop();
   els.preview.removeAttribute('src');
   clearMediaPreview();
+  showItemTools(null);
   els.previewEmpty.textContent = 'Select a template';
   els.previewEmpty.hidden = false;
   els.params.replaceChildren();
@@ -228,6 +275,8 @@ function clearSelection(): void {
 /** Show a media item in the stage, served by id through pulp-media://. */
 function selectMedia(entry: MediaEntry): void {
   clearSelection();
+  showItemTools(entry);
+  void window.pulp.markItemUsed(entry.id);
   els.previewFrame.classList.add('checker');
   els.details.textContent = [`${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)}`, describeMeta(entry), entry.path].filter(Boolean).join(' · ');
   if (entry.offline) {
@@ -263,6 +312,8 @@ function select(entry: LibraryEntry): void {
   }
   stop();
   clearMediaPreview();
+  showItemTools(entry);
+  void window.pulp.markItemUsed(entry.id);
   state.selected = entry;
   // Each template keeps its own edits and undo history while the app runs.
   state.rawParams = { ...editorFor(entry.manifest.id).current };
@@ -1011,6 +1062,16 @@ els.scrub.addEventListener('input', () => {
   requestFrame(Number(els.scrub.value));
 });
 els.render.addEventListener('click', () => void queueRender());
+els.favorite.addEventListener('click', () => {
+  if (state.shown) void window.pulp.setItemFavorite(state.shown.id, !state.shown.favorite);
+});
+els.tagInput.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !state.shown) return;
+  e.preventDefault();
+  const added = els.tagInput.value.split(',').map((t) => t.trim()).filter(Boolean);
+  if (added.length === 0) return;
+  void window.pulp.setItemTags(state.shown.id, [...(state.shown.userTags ?? []), ...added]);
+});
 els.undo.addEventListener('click', undo);
 els.redo.addEventListener('click', redo);
 els.resetAll.addEventListener('click', resetAll);

@@ -11,7 +11,7 @@ import type { TemplateEntry } from '../core/library';
 import { OUTPUT_PRESETS, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { RenderQueue, type RenderQueueSnapshot } from '../core/render-queue';
 import type { EnqueueResult, RenderRequest } from '../shared/api';
-import { findTemplate } from './library-service';
+import { findTemplate, markItemUsed } from './library-service';
 import { renderTemplate } from './render';
 
 /** Per-job inputs the UI does not need to see. */
@@ -66,6 +66,7 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
     totalFrames,
   });
   inputs.set(job.id, { template, params: request.params, ...(request.options ? { options: request.options } : {}) });
+  markItemUsed(template.id);
   void pump();
   return { ok: true, jobId: job.id };
 }

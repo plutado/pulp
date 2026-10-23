@@ -14,6 +14,8 @@
  *   res:1080p            shorter side with "p" (also 4k, uhd, 8k, hd, fhd)
  *   codec:prores         video codec as ffprobe names it (media only)
  *   alpha:yes            alpha channel; yes | no
+ *   favorite:yes         favorites only (favorite:no for the rest)
+ *   recent:yes           items used before, most recent first (recent:10 for the ten most recent)
  * The numeric and alpha filters apply to templates through their manifest
  * and to media through probed metadata; media not yet probed does not match.
  */
@@ -40,6 +42,9 @@ export interface ParsedQuery {
   resolutions: string[];
   codecs: string[];
   alpha?: boolean;
+  favorite?: boolean;
+  /** Items used before, newest first; a number limits how many. */
+  recent?: number | true;
 }
 
 /** ">=1920", "5-10", "25" and the like; null if not a comparison. */
@@ -98,6 +103,8 @@ export function parseQuery(query: string): ParsedQuery {
       parsed.resolutions.push(RESOLUTION_ALIASES[v] ?? (/^\d+$/.test(v) ? `${v}p` : v));
     } else if (key === 'codec' && value) parsed.codecs.push(value.toLowerCase());
     else if (key === 'alpha' && value) parsed.alpha = ['yes', 'true', '1', 'on'].includes(value.toLowerCase());
+    else if (key === 'favorite' && value) parsed.favorite = ['yes', 'true', '1', 'on'].includes(value.toLowerCase());
+    else if (key === 'recent' && value) parsed.recent = /^\d+$/.test(value) ? Number(value) : true;
     else parsed.terms.push(token.toLowerCase());
   }
   return parsed;
@@ -156,6 +163,8 @@ export function searchLibrary(index: LibraryIndex, query: string): SearchHit[] {
     if (q.types.length > 0 && !q.types.some((t) => matchesType(entry, t))) continue;
     if (q.categories.length > 0 && (entry.kind !== 'template' || !q.categories.includes(entry.manifest.category))) continue;
     if (!q.tags.every((t) => entry.tags.includes(t))) continue;
+    if (q.favorite !== undefined && (entry.favorite === true) !== q.favorite) continue;
+    if (q.recent !== undefined && !entry.lastUsed) continue;
     if (q.numeric.length > 0 || q.resolutions.length > 0 || q.codecs.length > 0 || q.alpha !== undefined) {
       const f = facts(entry);
       if (!q.numeric.every((n) => compare(f[n.field], n.cmp))) continue;
@@ -178,6 +187,10 @@ export function searchLibrary(index: LibraryIndex, query: string): SearchHit[] {
     if (all) hits.push({ entry, score });
   }
 
+  if (q.recent !== undefined) {
+    hits.sort((a, b) => (b.entry.lastUsed ?? '').localeCompare(a.entry.lastUsed ?? ''));
+    return typeof q.recent === 'number' ? hits.slice(0, q.recent) : hits;
+  }
   hits.sort((a, b) => b.score - a.score || entryName(a.entry).localeCompare(entryName(b.entry)));
   return hits;
 }

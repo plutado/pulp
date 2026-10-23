@@ -4,6 +4,9 @@ import type { LibraryIndex, PulpApi, RenderQueueSnapshot } from '../shared/api';
 const api: PulpApi = {
   getLibrary: () => ipcRenderer.invoke('library:get'),
   rescanLibrary: () => ipcRenderer.invoke('library:rescan'),
+  setItemTags: (id, tags) => ipcRenderer.invoke('library:set-tags', id, tags),
+  setItemFavorite: (id, favorite) => ipcRenderer.invoke('library:set-favorite', id, favorite),
+  markItemUsed: (id) => ipcRenderer.invoke('library:mark-used', id),
   onLibraryChanged: (listener) => {
     const handler = (_event: IpcRendererEvent, index: LibraryIndex) => listener(index);
     ipcRenderer.on('library:changed', handler);

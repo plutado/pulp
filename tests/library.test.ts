@@ -220,6 +220,23 @@ describe('searchLibrary', () => {
     expect(names('duration:>5')).toEqual([]);
   });
 
+  it('filters favorites and lists recently used items newest first', async () => {
+    const index = await buildIndex();
+    const [basic, lt] = index.templates;
+    const anchor = index.media.find((m) => m.name === 'anchor desk')!;
+    basic!.favorite = true;
+    basic!.lastUsed = '2026-10-23T10:00:00.000Z';
+    anchor.lastUsed = '2026-10-23T12:00:00.000Z';
+    lt!.lastUsed = '2026-10-23T11:00:00.000Z';
+    const names = (q: string) => searchLibrary(index, q).map((h) => (h.entry.kind === 'template' ? h.entry.manifest.name : h.entry.name));
+    expect(names('favorite:yes')).toEqual(['Basic Title']);
+    expect(names('favorite:no')).toEqual(['anchor desk', 'News Lower Third', 'news theme']);
+    expect(names('recent:yes')).toEqual(['anchor desk', 'News Lower Third', 'Basic Title']);
+    expect(names('recent:2')).toEqual(['anchor desk', 'News Lower Third']);
+    expect(names('recent:yes type:template')).toEqual(['News Lower Third', 'Basic Title']);
+    expect(names('favorite:yes recent:yes')).toEqual(['Basic Title']);
+  });
+
   it('parses comparisons and leaves odd values as plain terms', () => {
     expect(parseComparison('>=1920')).toEqual({ op: '>=', value: 1920 });
     expect(parseComparison('5-10')).toEqual({ op: 'range', value: 5, to: 10 });

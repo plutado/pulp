@@ -55,6 +55,11 @@ export interface PulpApi {
   rescanLibrary(): Promise<LibraryIndex>;
   /** Called with the whole index after every scan: on demand, on folder changes, on focus, when a root returns. */
   onLibraryChanged(listener: (index: LibraryIndex) => void): () => void;
+  /** Replace an item's user tags. Resolves to the updated index. */
+  setItemTags(id: string, tags: string[]): Promise<LibraryIndex>;
+  setItemFavorite(id: string, favorite: boolean): Promise<LibraryIndex>;
+  /** Record that an item was selected or rendered now. */
+  markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */
   addLibraryFolder(): Promise<LibraryIndex | null>;
   ffmpegStatus(): Promise<FfmpegInfo>;

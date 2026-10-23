@@ -111,6 +111,19 @@ input[type="checkbox"] { width: auto; }
 .render-options .trim input { font-family: Menlo, Consolas, monospace; }
 
 .details { color: var(--muted); font-size: 12px; min-height: 2.5em; }
+.item-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.item-tools[hidden] { display: none; }
+.item-tools .favorite { font-size: 16px; line-height: 1; padding: 2px 8px; }
+.item-tools .favorite[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.tag-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.tag-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 6px 1px 8px; font-size: 11px; }
+.tag-chip.folder { opacity: 0.7; }
+.tag-chip button { padding: 0 3px; border: 0; background: none; color: var(--muted); font-size: 12px; line-height: 1; }
+.tag-chip button:hover { color: var(--danger); }
+.tag-input { width: 140px; padding: 3px 6px; font-size: 12px; }
+.results .name-row { display: flex; gap: 4px; align-items: baseline; min-width: 0; }
+.results .fav { color: var(--accent); }
+.results .fav[hidden] { display: none; }
 
 .params-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .params-head h2 { margin: 8px 0 10px; }

@@ -209,6 +209,22 @@ describe('LibraryStore incremental scans', () => {
     expect(store.pendingThumbnails().map((e) => e.kind === 'media' && e.name)).toEqual(['clip']);
   });
 
+  it('merges user tags, favorite and last used into the index and finds keys by id', async () => {
+    const root = join(dir, 'lib');
+    await touch(join(root, 'Stock', 'clip.mov'));
+    store.setRoots([root]);
+    await store.scanRoots([root]);
+    const clip = store.toIndex().media[0]!;
+    expect(store.keyForId(clip.id)).toBe(clip.key);
+    expect(store.keyForId('nope')).toBeUndefined();
+    store.setUserData(clip.key, { tags: ['keeper', 'stock'], favorite: true, lastUsed: '2026-10-23T00:00:00.000Z' });
+    const after = store.toIndex().media[0]!;
+    expect(after.tags).toEqual(['stock', 'keeper']); // folder tag first, user tag merged without duplicates
+    expect(after.userTags).toEqual(['keeper', 'stock']);
+    expect(after.favorite).toBe(true);
+    expect(after.lastUsed).toBe('2026-10-23T00:00:00.000Z');
+  });
+
   it('persists across close and reopen', async () => {
     const root = join(dir, 'lib');
     await writeTemplate(join(root, 'tpl'));

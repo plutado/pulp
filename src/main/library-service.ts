@@ -22,6 +22,7 @@ import { renderTemplate } from './render';
 import type { LibraryIndex, TemplateEntry } from '../core/library-types';
 import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
+import { normalizeTag } from '../core/tags';
 import { loadSettings, saveSettings } from './settings';
 
 /** Folder of sample templates shipped with the app. */
@@ -203,6 +204,34 @@ async function renderPoster(entry: TemplateEntry, out: string): Promise<boolean>
   } finally {
     await rm(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
+}
+
+/** Replace an item's user tags (normalized, deduplicated) and tell the UI. */
+export function setItemTags(id: string, tags: string[]): LibraryIndex {
+  const st = getStore();
+  const key = st.keyForId(id);
+  if (key) st.setUserData(key, { tags: [...new Set(tags.map(normalizeTag).filter((t) => t.length > 0))] });
+  const index = st.toIndex();
+  broadcast(index);
+  return index;
+}
+
+export function setItemFavorite(id: string, favorite: boolean): LibraryIndex {
+  const st = getStore();
+  const key = st.keyForId(id);
+  if (key) st.setUserData(key, { favorite });
+  const index = st.toIndex();
+  broadcast(index);
+  return index;
+}
+
+/** Record use now and push the index, so `recent:` sorts on current times. */
+export function markItemUsed(id: string): void {
+  const st = getStore();
+  const key = st.keyForId(id);
+  if (!key) return;
+  st.setUserData(key, { lastUsed: new Date().toISOString() });
+  broadcast(st.toIndex());
 }
 
 /** For the pulp-thumb:// handler: the cache file behind an id, if any. */
