@@ -51,6 +51,22 @@ describe('validateManifest', () => {
     );
   });
 
+  it('accepts type, themes and styles; normalizes themes; rejects unknown types and styles', () => {
+    const ok = validateManifest(rawManifest({ type: 'wipe', themes: ['News', 'My Show'], styles: ['Grunge'] }));
+    expect(ok.ok).toBe(true);
+    if (ok.ok) {
+      expect(ok.manifest.type).toBe('wipe');
+      expect(ok.manifest.themes).toEqual(['news', 'my-show']);
+      expect(ok.manifest.styles).toEqual(['grunge']);
+      expect(ok.warnings).toEqual([]);
+    }
+    const bare = validateManifest(rawManifest());
+    expect(bare.ok && bare.manifest.type === undefined && bare.manifest.themes === undefined).toBe(true);
+    expect(errorPaths(rawManifest({ type: 'explosion-of-joy' }))).toContain('type');
+    expect(errorPaths(rawManifest({ styles: ['brutalist'] }))).toContain('styles');
+    expect(errorPaths(rawManifest({ themes: ['ok', 7] }))).toContain('themes');
+  });
+
   it('rejects entry and thumbnail paths that escape the template folder', () => {
     expect(errorPaths(rawManifest({ entry: '../evil.html' }))).toContain('entry');
     expect(errorPaths(rawManifest({ entry: '/etc/index.html' }))).toContain('entry');

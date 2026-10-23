@@ -33,7 +33,10 @@ A UTF-8 JSON object.
 | `version` | string | yes | Semantic version of the template, e.g. `1.2.0`. |
 | `author` | string | no | Person or group that made it. |
 | `license` | string | yes | SPDX identifier for the template itself, e.g. `CC0-1.0`, `CC-BY-4.0`, `MIT`. |
-| `category` | string | yes | One of `lower-third`, `title`, `transition`, `overlay`, `background`, `other`. |
+| `category` | string | yes | One of `lower-third`, `title`, `transition`, `overlay`, `background`, `other`. When no `type` is declared, the category maps to one (`transition` → `wipe`, `background` → `animated-loop`, the rest keep their name; `other` maps to no type). |
+| `type` | string | no | What the template is, from the built-in type list (see below). More specific than `category`; one per template. |
+| `themes` | string[] | no | What it is about or for: built-in theme ids such as `corporate`, `news`, `sports`, `christmas`, or your own words. Normalized like tags (`"My Show"` → `my-show`); unknown ids are custom themes, not errors. |
+| `styles` | string[] | no | How it looks, from the built-in style list only: `clean`, `corporate`, `elegant`, `high-energy`, `grunge`, `retro`, `tech`, `cinematic`, `playful`, `hand-drawn`, `organic`. Unknown styles are errors. |
 | `tags` | string[] | no | Search tags. Normalized to lowercase and de-duplicated. |
 | `duration` | number | yes | Length in seconds, greater than 0 and at most 600. |
 | `fps` | number | yes | Frames per second, greater than 0 and at most 240. Use `23.976`, `29.97` or `59.94` for NTSC rates; the renderer converts them to exact rationals. |
@@ -46,6 +49,21 @@ A UTF-8 JSON object.
 Unknown top-level fields produce a warning. Put custom data in fields whose names start with `x-` (for example `x-studio-notes`); these are ignored without warnings.
 
 Frame count is `round(duration * fps)`, minimum 1.
+
+### Types
+
+The built-in types, grouped (the canonical list with labels is `src/core/taxonomy.ts`, version 1; ids are permanent):
+
+- **Titles and text:** `lower-third`, `title`, `opener`, `end-card`, `callout`, `social`
+- **Backgrounds:** `animated-loop`, `still-background`, `texture`
+- **Transitions:** `wipe`, `reveal`, `flash`, `glitch`
+- **Overlays:** `overlay`, `frame`, `light-particles`, `film-grunge`, `logo-bug`, `vignette`
+- **Design elements:** `shapes`, `icons`, `arrows`, `infographic`, `counter`, `countdown`
+- **Video clips:** `stock-footage` · **Stills:** `photo`, `illustration`, `layered-graphic`
+- **Music:** `full-mix`, `stems`, `sting`
+- **Sound effects:** `ambience`, `impact`, `whoosh`, `ui-tech`, `alarm`, `nature-weather`, `animals`, `vehicles`, `crowd`, `foley`, `explosion`, `sci-fi`, `musical-phrase`
+
+The built-in themes live in the same module: eight groups (business, media, sports, life events, holidays and seasons, community, world and nature, entertainment). Themes you invent are fine; they are yours, not errors.
 
 ### Parameters
 

@@ -7,6 +7,8 @@
  * sync.
  */
 
+import { isBuiltInStyle, isBuiltInType, normalizeTheme, STYLES } from './taxonomy';
+
 export const MANIFEST_FILENAME = 'template.json';
 export const CURRENT_FORMAT_VERSION = 1;
 
@@ -92,6 +94,12 @@ export interface TemplateManifest {
   /** SPDX license identifier of the template itself, e.g. `CC0-1.0` or `MIT`. */
   license: string;
   category: TemplateCategory;
+  /** What the template is, from the built-in type list (src/core/taxonomy.ts); when absent, the category maps to a type. */
+  type?: string;
+  /** What it is about or for: built-in theme ids or custom ones, normalized like tags. */
+  themes?: string[];
+  /** How it looks, from the built-in style list only. */
+  styles?: string[];
   tags: string[];
   /** Duration in seconds. */
   duration: number;
@@ -269,6 +277,31 @@ export function validateManifest(raw: unknown): ValidationResult {
     errors.push({ path: 'category', message: `must be one of: ${TEMPLATE_CATEGORIES.join(', ')}` });
   }
 
+  if (raw.type !== undefined && (typeof raw.type !== 'string' || !isBuiltInType(raw.type))) {
+    errors.push({ path: 'type', message: 'must be a type id from the built-in list (see docs/template-format.md)' });
+  }
+  let themes: string[] | undefined;
+  if (raw.themes !== undefined) {
+    if (!Array.isArray(raw.themes) || !raw.themes.every(isNonEmptyString)) {
+      errors.push({ path: 'themes', message: 'must be an array of non-empty strings' });
+    } else {
+      themes = [...new Set(raw.themes.map(normalizeTheme))].filter((t) => t.length > 0);
+    }
+  }
+  let styles: string[] | undefined;
+  if (raw.styles !== undefined) {
+    if (!Array.isArray(raw.styles) || !raw.styles.every(isNonEmptyString)) {
+      errors.push({ path: 'styles', message: 'must be an array of non-empty strings' });
+    } else {
+      styles = [...new Set(raw.styles.map((v) => v.trim().toLowerCase()))];
+      for (const style of styles) {
+        if (!isBuiltInStyle(style)) {
+          errors.push({ path: 'styles', message: `"${style}" is not a built-in style (${STYLES.map((v) => v.id).join(', ')})` });
+        }
+      }
+    }
+  }
+
   let tags: string[] = [];
   if (raw.tags !== undefined) {
     if (!Array.isArray(raw.tags) || !raw.tags.every(isNonEmptyString)) {
@@ -322,7 +355,7 @@ export function validateManifest(raw: unknown): ValidationResult {
   }
 
   const known = new Set([
-    'formatVersion', 'id', 'name', 'description', 'version', 'author', 'license', 'category', 'tags',
+    'formatVersion', 'id', 'name', 'description', 'version', 'author', 'license', 'category', 'type', 'themes', 'styles', 'tags',
     'duration', 'fps', 'width', 'height', 'alpha', 'entry', 'thumbnail', 'parameters',
   ]);
   for (const key of Object.keys(raw)) {
@@ -349,6 +382,9 @@ export function validateManifest(raw: unknown): ValidationResult {
     entry: entry as string,
     parameters,
   };
+  if (typeof raw.type === 'string') manifest.type = raw.type;
+  if (themes !== undefined) manifest.themes = themes;
+  if (styles !== undefined) manifest.styles = styles;
   if (typeof raw.description === 'string') manifest.description = raw.description;
   if (typeof raw.author === 'string') manifest.author = raw.author;
   if (typeof raw.thumbnail === 'string') manifest.thumbnail = raw.thumbnail;

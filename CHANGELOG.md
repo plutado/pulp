@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- Template manifests may declare a `type` from the built-in list, `themes` (built-in or your own, normalized like tags) and `styles` (built-in only); all three are optional and validated, `category` keeps working and maps onto a type, so existing templates are untouched. Documented in the template format specification.
 - The built-in taxonomy (decision record 0010): types on two levels (nine groups, 44 types), themes (eight groups, 50 built in, extendable with your own), and styles (eleven), in a pure, versioned core module. Nothing uses it yet; the template format, media typing and the browse tree pick it up next.
 
 - The search bar grew up: the browse panel lists Favorites, Recently used and each library folder, and selecting one scopes the results and the search to it, shown as a chip ("in: media-library") with × to widen again; filter chips for templates, video, images, audio, alpha and favorites; sorting by relevance, name, recently used or duration; and the last eight searches you pressed Enter on are remembered in `settings.json` and offered as suggestions in the search field.
