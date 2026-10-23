@@ -67,6 +67,7 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 - PowerShell pipes are text streams and corrupt binary output. Write ffmpeg's raw pixels to a file and `Format-Hex` the file.
 - The job has an always-run step that prints the ffmpeg version and the `frames:` line, so a log says which ffmpeg produced the bytes and what the capture bitmap looked like even when tests fail.
 - `choco install ffmpeg -y --no-progress` installs the current version; `--version=8.1.2` pins when a comparison is needed.
+- **Deleting a folder a process just used fails with EBUSY.** Windows refuses to delete a file or folder while any process holds a handle open; macOS and Linux unlink immediately and let the process keep its handle. The UI test's cleanup killed the app and deleted its scratch user data folder in the next statement, and the job failed on `EBUSY: resource busy or locked` with every test green. `child.kill()` returns before the process is gone, and Chromium's GPU and renderer helper processes can outlive the main process by a moment, each holding profile files (LevelDB, caches, the lock file). Fix in both end-to-end files: wait for the child's `exit` event (with a timeout), then `fs.rm` with `maxRetries` and `retryDelay`, which Node retries on EBUSY, ENOTEMPTY and EPERM. Apply the same to any folder a just-finished ffmpeg or Electron process wrote into.
 
 ## macOS
 

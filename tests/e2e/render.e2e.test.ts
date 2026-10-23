@@ -77,7 +77,8 @@ describe.skipIf(!available)('end-to-end render', () => {
   }, 120_000);
 
   afterAll(async () => {
-    if (out) await rm(out, { recursive: true, force: true });
+    // Retries: on Windows a just-exited ffmpeg or Electron can still hold a file for a moment (EBUSY).
+    if (out) await rm(out, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   async function render(

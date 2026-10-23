@@ -9,6 +9,7 @@
  */
 
 import { spawn, execFile, type ChildProcess } from 'node:child_process';
+import { once } from 'node:events';
 import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -172,8 +173,15 @@ describe.skipIf(!electron)('inspector UI', () => {
 
   afterAll(async () => {
     page?.close();
-    app?.kill('SIGKILL');
-    if (userData) await rm(userData, { recursive: true, force: true });
+    if (app && app.exitCode === null && app.signalCode === null) {
+      // kill() returns before the process is gone. Windows refuses to delete a folder while any
+      // process holds a file in it open (EBUSY), and Chromium's helper processes can outlive the
+      // main process by a moment, so wait for the exit and then delete with retries.
+      const exited = once(app, 'exit');
+      app.kill('SIGKILL');
+      await Promise.race([exited, new Promise((r) => setTimeout(r, 10_000))]);
+    }
+    if (userData) await rm(userData, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   it('shows the lower third with its 85% panel at the default color', async () => {
