@@ -1,9 +1,14 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { PulpApi, RenderQueueSnapshot } from '../shared/api';
+import type { LibraryIndex, PulpApi, RenderQueueSnapshot } from '../shared/api';
 
 const api: PulpApi = {
   getLibrary: () => ipcRenderer.invoke('library:get'),
   rescanLibrary: () => ipcRenderer.invoke('library:rescan'),
+  onLibraryChanged: (listener) => {
+    const handler = (_event: IpcRendererEvent, index: LibraryIndex) => listener(index);
+    ipcRenderer.on('library:changed', handler);
+    return () => ipcRenderer.removeListener('library:changed', handler);
+  },
   addLibraryFolder: () => ipcRenderer.invoke('library:add-folder'),
   ffmpegStatus: () => ipcRenderer.invoke('ffmpeg:status'),
   render: (request) => ipcRenderer.invoke('queue:add', request),

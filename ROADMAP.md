@@ -58,8 +58,8 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 
 ## 4. Library: tagging, search, media preview (12-20 h)
 
-- [ ] User tags on any item, stored in a library database (SQLite via better-sqlite3, or JSON per root; ADR) (3-5 h)
-- [ ] Persistent index with incremental rescans and a file watcher (3-4 h)
+- [ ] User tags on any item, stored in the library database. Storage decided and in place (ADR 0007: `node:sqlite` in user data, `user_items` table that survives offline roots); the tagging UI remains (3-5 h)
+- [x] Persistent index with incremental rescans and a file watcher; also rescans on window focus and when a missing root returns, and marks items of missing roots offline instead of deleting them. 5,100 items: 145 ms first scan, 105 ms unchanged rescan (3-4 h)
 - [ ] Media metadata via ffprobe: duration, resolution, codec, alpha; filter by them (2-3 h)
 - [ ] Thumbnails for templates (render a poster frame) and media (ffmpeg frame grab), cached (2-4 h)
 - [ ] Media preview in the stage area (video/image/audio) (1-2 h)

@@ -8,6 +8,7 @@ import type { PresetId, RenderOptions } from '../core/render-plan';
 import type { RenderQueueSnapshot } from '../core/render-queue';
 
 export type { RenderJobStatus, RenderQueueJob, RenderQueueSnapshot } from '../core/render-queue';
+export type { LibraryIndex } from '../core/library-types';
 export type { RenderOptions } from '../core/render-plan';
 
 export interface FfmpegInfo {
@@ -49,8 +50,11 @@ export interface RenderProgress {
 export type EnqueueResult = { ok: true; jobId: number } | { ok: false; cancelled?: boolean; message: string };
 
 export interface PulpApi {
+  /** The stored index at once; a fresh scan follows through onLibraryChanged. */
   getLibrary(): Promise<LibraryIndex>;
   rescanLibrary(): Promise<LibraryIndex>;
+  /** Called with the whole index after every scan: on demand, on folder changes, on focus, when a root returns. */
+  onLibraryChanged(listener: (index: LibraryIndex) => void): () => void;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */
   addLibraryFolder(): Promise<LibraryIndex | null>;
   ffmpegStatus(): Promise<FfmpegInfo>;

@@ -116,7 +116,9 @@ function renderResults(): void {
     nameEl.textContent = name;
     const metaEl = document.createElement('span');
     metaEl.className = 'meta';
-    metaEl.textContent = entry.tags.length ? `${meta} · ${entry.tags.join(', ')}` : meta;
+    const withTags = entry.tags.length ? `${meta} · ${entry.tags.join(', ')}` : meta;
+    metaEl.textContent = entry.offline ? `offline · ${withTags}` : withTags;
+    if (entry.offline) li.classList.add('offline');
     li.append(nameEl, metaEl);
     li.setAttribute('role', 'option');
     li.setAttribute('aria-selected', String(state.selected?.key === entry.key));
@@ -191,8 +193,15 @@ function select(entry: LibraryEntry): void {
   const m = entry.manifest;
   els.previewFrame.style.aspectRatio = `${m.width} / ${m.height}`;
   els.previewFrame.classList.toggle('checker', m.alpha);
-  els.previewEmpty.hidden = true;
-  els.preview.src = templateUrlFor(m.id, m.entry);
+  if (entry.offline) {
+    // The folder is not reachable; keep the item (and its edits) but do not try to load it.
+    els.preview.removeAttribute('src');
+    els.previewEmpty.textContent = 'This template\'s folder is offline. It will load again when the folder is back.';
+    els.previewEmpty.hidden = false;
+  } else {
+    els.previewEmpty.hidden = true;
+    els.preview.src = templateUrlFor(m.id, m.entry);
+  }
   els.scrub.max = String(frameCount(m) - 1);
   els.scrub.value = '0';
   // The frame rate list offers the template's own rate first; in/out points from the previous
@@ -817,7 +826,7 @@ function updateControls(): void {
   const hasTemplate = state.selected !== null;
   els.play.disabled = !hasTemplate || !state.previewReady;
   els.scrub.disabled = !hasTemplate;
-  els.render.disabled = !hasTemplate || !state.ffmpegOk || state.choosingOutput || !state.optionsValid;
+  els.render.disabled = !hasTemplate || !state.ffmpegOk || state.choosingOutput || !state.optionsValid || state.selected?.offline === true;
 }
 
 /** Ask for an output path and add the render to the queue; the queue list shows progress and results. */
@@ -953,6 +962,7 @@ renderQueue({ jobs: [] });
 void window.pulp.getRenderQueue().then(renderQueue);
 void window.pulp.getRecentColors().then(setRecentColors);
 void loadLibrary(window.pulp.getLibrary());
+window.pulp.onLibraryChanged((index) => void loadLibrary(Promise.resolve(index)));
 void window.pulp.ffmpegStatus().then((info) => {
   state.ffmpegOk = info.ok;
   els.ffmpegStatus.classList.toggle('error', !info.ok);

@@ -60,6 +60,12 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 - ffmpeg 8.0 and later decode the HEVC alpha layer; older builds return the base layer only (reads as fully opaque). The e2e test skips its alpha assertion in that case and says so.
 - Versions seen: Homebrew formula 8.0 then 9.0.2; Chocolatey `ffmpeg` has 8.0.0 through 8.1.2 and 9.0.0 through 9.0.2 and installs 9.0.2 by default. Local Mac testing of another version: a static build from `ffmpeg.martin-riedl.de` in a scratch folder, pointed to with `PULP_FFMPEG_PATH`, and deleted afterwards.
 
+## Node and Electron
+
+- `node:sqlite` is available in Electron 44 (Node 24.22) and in Node 22.13 and later; the tests run on 22.19. It prints an ExperimentalWarning on some versions; the API used (`DatabaseSync`: exec, prepare, run, get, all) has been stable in practice. It needs no native module and nothing extra at packaging time.
+- Recursive `fs.watch` works on macOS and Windows, and on Linux with Node 20 or later. `watchRoot` returns null where it throws, and the app falls back to rescans on focus and on demand.
+- Vitest 5 hides console output from passing tests by default; run with `--silent=false` to see lines such as the library benchmark's timings.
+
 ## Windows CI
 
 - GitHub's `windows-latest` runner has a desktop session; Electron offscreen rendering works there without extra setup.

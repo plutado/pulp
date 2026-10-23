@@ -53,14 +53,17 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 | `render-guard.ts` | yes | Render loop guards: `withTimeout`, the frame call script, template error messages, which partial files to remove. |
 | `capture-format.ts` | yes | The probe page and `classifyCapture`: byte order and premultiplication of `toBitmap()` output, measured rather than assumed. |
 | `render-queue.ts` | yes | `RenderQueue`: job list with status and progress, one running at a time; snapshots go to the UI unchanged. |
-| `library.ts` | Node | `scanLibrary`: walk folders, load templates, index media. |
+| `library-scan.ts` | Node | Media kinds, folder tags, loading one template folder. |
+| `library-store.ts` | Node | `LibraryStore` over `node:sqlite`: incremental scans, offline roots, per-item user data, `toIndex()`. |
+| `library-watch.ts` | Node | `watchRoot`: recursive `fs.watch` with coalescing, or null where unsupported. |
+| `library.ts` | Node | `scanLibrary`: one-shot scan through a throwaway in-memory store. |
 | `ffmpeg.ts` | Node | `detectFfmpeg` with an injectable process runner, encoder checks. |
 
 ### src/main
 
 - `index.ts`: app lifecycle, main window, IPC handlers, headless `--render` mode.
 - `protocol.ts`: `pulp-template://<template-id>/<path>` handler. Resolves paths inside the template folder only (rejects traversal), injects the bridge into the entry page, sets the CSP and `no-store`.
-- `library-service.ts`: holds the current index; roots are the bundled `templates/` folder plus user folders from settings.
+- `library-service.ts`: owns the persistent `LibraryStore`, serializes scans, keeps one watcher per online root, rescans on focus and when an offline root returns, and pushes `library:changed`. Headless mode switches it to an in-memory store.
 - `settings.ts`: `settings.json` in Electron's `userData` folder: library folders and recent colors. `PULP_USER_DATA` overrides the folder (tests).
 - `render.ts`: the render loop (below).
 - `render-queue-service.ts`: shows the save dialog when a render is requested, adds the job to a `RenderQueue`, runs queued jobs one after another through `renderTemplate`, and sends the whole queue to the UI on every change (`queue:changed`).
@@ -71,15 +74,17 @@ The preload exposes a small `window.pulp` API (`src/shared/api.ts`). The UI is p
 
 ## Data flow
 
-### Library scan
+### Library index
 
-1. Roots = bundled templates + user folders.
-2. `scanLibrary` walks each root (depth limit 12, file limit 100,000, skips hidden entries, symlinks, `node_modules`).
-3. A folder containing `template.json` is a template: validated, entry file checked, not descended into further. Problems are collected, not thrown.
-4. Other files are indexed as media by extension. Folder names between the root and the file become tags (`Stock/City Night/clip.mov` gets `stock`, `city-night`).
-5. The index is plain data, sent to the UI over IPC and searched there.
+1. Roots = bundled templates + user folders from settings (+ `--library` folders in headless mode, for that run only).
+2. The index lives in `library.sqlite` in the user data folder (`LibraryStore`, `node:sqlite`; ADR 0007). Headless mode uses an in-memory store.
+3. A scan walks each root (depth limit 12, file limit 100,000, skips hidden entries, symlinks, `node_modules`) and is incremental: a media file whose size and mtime match its row is kept without being read; a template folder whose `template.json` is unchanged and whose entry file still exists keeps its parsed entry; only new or changed items are loaded. Rows for files that are gone from an online root are deleted.
+4. A folder containing `template.json` is a template: validated, entry file checked, not descended into further. Problems are collected per root, not thrown.
+5. Other files are indexed as media by extension. Folder names between the root and the file become tags (`Stock/City Night/clip.mov` gets `stock`, `city-night`).
+6. A root that cannot be reached is marked offline. Its items stay in the index flagged `offline`, listed dimmed and not loadable, so tags and favorites attached to them (`user_items`, a table independent of scan results) survive until the root is back. Roots removed from settings are dropped with their items; their user data stays for a later return.
+7. The UI gets the stored index at once on start (`library:get`), and every scan result afterwards as `library:changed`. Scans run on demand (Rescan, Add folder), when a watched root changes (`fs.watch` recursive, coalesced into one rescan of that root per quiet period; absent where unsupported), when the window regains focus and the last scan is older than 5 s, and every 15 s if an offline root exists again. Scans are serialized.
 
-The index is rebuilt on start and on demand. Persistent caching and file watching are planned (roadmap milestone 4).
+Measured on a synthetic library of 5,100 items (5,000 tiny media files in 100 folders, 100 templates), Apple M3 Max, macOS, file-backed database: first scan 145 ms, unchanged rescan 105 ms, rescan with 10 changed and 10 new files 93 ms, building the index for the UI 12 ms. Target: a library of 5,000 items should scan from cold in under 1 s and rescan unchanged in under 500 ms on a laptop; the test in `tests/library-perf.test.ts` prints the numbers on every run (`--silent=false` to see them) and fails only above loose CI ceilings (15 s, 5 s).
 
 ### Preview
 
@@ -157,7 +162,7 @@ Findings about Electron, ffmpeg and the two platforms that shaped this pipeline,
 
 ## Testing
 
-- `tests/` runs with Vitest in Node. It covers validation, parameter resolution, frame timing, bridge injection, scanning on temporary folders, search, ffmpeg detection with a fake process runner, and the ffmpeg arguments for every preset. It also validates every bundled sample.
+- `tests/` runs with Vitest in Node. It covers validation, parameter resolution, frame timing, bridge injection, scanning on temporary folders, search, ffmpeg detection with a fake process runner, and the ffmpeg arguments for every preset. It also validates every bundled sample. The library store is tested for incremental behavior (kept, loaded and removed counts after changes), a template losing its entry file, a root going missing and coming back with user data intact, dropping unconfigured roots, and persistence across close and reopen; the watcher for coalescing; and scan timing on a synthetic 5,100-item library.
 - Unit tests do not need Electron or ffmpeg, so the Linux CI job skips the Electron binary download. A second job on `windows-latest` installs ffmpeg, downloads Electron and runs the whole suite with `PULP_E2E=1`, which fails instead of skipping if a tool is missing.
 - `tests/e2e/render.e2e.test.ts` covers the Electron render path. It builds the app, renders samples through the headless `--render` mode to ProRes 4444, VP9 WebM, a PNG sequence and H.264, and checks frame count, size, pixel format and decoded alpha values with ffprobe and ffmpeg. Two fixture templates in `tests/e2e/templates` check the error report for a template that throws and the frame timeout for one that hangs, and that neither leaves output behind. Three more fixtures (`size-4k`, `size-8k`, `size-portrait`) cover frame sizes the 1920x1080 samples cannot: each draws corner markers and a 1px checkerboard from `state.width`/`state.height`, and the test reads single pixels back with ffmpeg to confirm the output is the declared size, the right way up, and was never rescaled; 8K ProRes 4444 and portrait H.264 cover the video presets at those sizes. The size fixtures also mark their center when `devicePixelRatio` is not 1, so on a Retina display the pixel checks prove the template saw scale 1. One test sets `PULP_OFFSCREEN_SCALE=2`, a diagnostic environment variable that renders the offscreen window at 2x, and expects the render to fail with the capture-size message instead of producing resized frames. Another renders the lower-third sample through both frame paths (`--frame-format raw` and `png`) with a white 85% panel and compares a panel pixel: premultiplied pixels reaching the encoder would read 217 instead of 255, so the raw path must match the PNG path within one step. A color test renders the portrait size probe to H.264 and ProRes 4444, checks with ffprobe that the stream is tagged BT.709 (and limited range for the MP4), and decodes the pure red, green, blue and white corner markers back within a few steps, which the untagged BT.601 default would fail. Render options are checked end to end with ffprobe: a 0.1 s fixture at `--fps 60` yields 6 frames at 60/1, an in point of `00:00:02:00` and out point of `00:00:02:29` on the lower third yield 30 files numbered 00060 to 00089 whose first frame already shows the panel, `--background #336699` decodes at the center of a flattened H.264 render, and a non-standard rate, a malformed point and a frames field at the nominal rate are refused before anything is written. A display-scaling test renders with Chromium's `--force-device-scale-factor=1.5`, which makes the primary display report scale 1.5 as Windows does at 150%, and checks the frames stay pixel-exact; on the Windows CI job this stands in for a 150% desktop. The suite runs when the Electron binary, ffmpeg and ffprobe are available (and a display on Linux) and is skipped otherwise; the Linux CI job skips it, the Windows job requires it.
 - `tests/e2e/ui.e2e.test.ts` drives the real app. It starts Electron with a remote debugging port, selects the lower third through the library list over the DevTools protocol, and reads pixels back from the preview's canvas (in the template frame's own execution context). It checks that the panel's 85% alpha survives a color change through the native picker, that the alpha slider changes the preview's alpha and the text field, that a full `#RRGGBBAA` value typed into the text field updates picker, slider and preview, and that garbage is marked and ignored. It also checks that a number slider and its entry stay in sync, that a text counter follows the length, that undo and redo work by button and by Ctrl+Z while a shortcut sent to a text field leaves the history alone, that per-field and whole-template reset restore the defaults and are themselves undoable, and that edits and history survive switching to another template and back. Recent colors are checked too: committed colors appear most-recent-first on every color field, clicking one on another field applies it, the list lands in `settings.json` of a scratch user data folder (`PULP_USER_DATA`), and another template shows the same list. It needs only Electron, not ffmpeg. The two end-to-end files each build the app, so Vitest runs test files one at a time.

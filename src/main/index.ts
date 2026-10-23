@@ -4,7 +4,16 @@ import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, type FrameFormat, type RenderOptions } from '../core/render-plan';
 import { parseTimecode, TimecodeError } from '../core/timecode';
 import type { FfmpegInfo, RenderRequest } from '../shared/api';
-import { addLibraryFolder, findTemplate, getLibrary, rescan } from './library-service';
+import {
+  addLibraryFolder,
+  closeLibrary,
+  findTemplate,
+  getLibrary,
+  rescan,
+  rescanIfStale,
+  startLibraryMonitor,
+  useInMemoryLibrary,
+} from './library-service';
 import { handleTemplateProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { cancelRender, clearFinishedRenders, enqueueRender, getRenderQueue } from './render-queue-service';
@@ -218,16 +227,22 @@ app.whenReady().then(async () => {
   handleTemplateProtocol();
   if (cli) {
     app.dock?.hide();
+    useInMemoryLibrary();
     const code = await runCliRender(cli);
     app.exit(code);
     return;
   }
   registerIpc();
   createWindow();
+  startLibraryMonitor();
+  // Coming back to the app after working in a file manager: pick up what changed.
+  app.on('browser-window-focus', () => void rescanIfStale());
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+app.on('will-quit', () => closeLibrary());
 
 app.on('window-all-closed', () => {
   if (cli) return;

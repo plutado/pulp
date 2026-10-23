@@ -63,6 +63,7 @@ input[type="checkbox"] { width: auto; }
 .results li:hover { background: var(--panel-2); }
 .results li[aria-selected="true"] { background: var(--panel-2); outline: 1px solid var(--accent); }
 .results .name { font-weight: 600; }
+.results li.offline { opacity: 0.55; }
 .results .meta { color: var(--muted); font-size: 11px; }
 
 .summary { padding: 8px 12px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--border); }
