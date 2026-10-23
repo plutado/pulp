@@ -16,6 +16,8 @@
         <div class="sidebar-actions">
           <button id="add-folder" type="button">Add folder</button>
           <button id="rescan" type="button">Rescan</button>
+          <button id="import-pack" type="button" title="Install templates from a pack (.zip)">Import pack…</button>
+          <button id="export-pack" type="button" disabled title="Export the listed templates as a pack">Export…</button>
         </div>
       </div>
       <ul id="results" class="results" aria-label="Library"></ul>
@@ -118,6 +120,25 @@
       <ul id="queue" class="queue" aria-label="Render queue" aria-live="polite"></ul>
     </section>
   </div>
+  <dialog id="pack-dialog" class="pack-dialog">
+    <form method="dialog">
+      <h2 id="pack-title">Template pack</h2>
+      <p id="pack-meta" class="note"></p>
+      <p id="pack-license" class="note" hidden></p>
+      <ul id="pack-templates" class="pack-templates"></ul>
+      <div id="pack-problems" class="note error"></div>
+      <div id="pack-export-fields" class="pack-export" hidden>
+        <label class="field"><span>Pack name</span><input id="pack-export-name" type="text" autocomplete="off" spellcheck="false"></label>
+        <label class="field"><span>Author</span><input id="pack-export-author" type="text" autocomplete="off" spellcheck="false"></label>
+        <label class="field"><span>License (SPDX)</span><input id="pack-export-license" type="text" value="CC0-1.0" autocomplete="off" spellcheck="false"></label>
+      </div>
+      <div id="pack-result" class="note"></div>
+      <div class="render-actions">
+        <button id="pack-confirm" type="button" class="primary">Install</button>
+        <button id="pack-close" type="button">Close</button>
+      </div>
+    </form>
+  </dialog>
   <script type="module" src="./main.ts"></script>
 </body>
 </html>

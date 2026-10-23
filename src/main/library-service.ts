@@ -69,9 +69,16 @@ function getStore(): LibraryStore {
   return store;
 }
 
+/** Installed template packs; an implicit root like the bundled samples. */
+export function packsRoot(): string {
+  return join(app.getPath('userData'), 'packs');
+}
+
 async function configuredRoots(): Promise<string[]> {
   const settings = await loadSettings();
-  return [...new Set([bundledTemplatesDir(), ...settings.libraryFolders, ...extraRoots])];
+  const roots = [bundledTemplatesDir(), ...settings.libraryFolders, ...extraRoots];
+  if (persistent && existsSync(packsRoot())) roots.splice(1, 0, packsRoot());
+  return [...new Set(roots)];
 }
 
 function broadcast(index: LibraryIndex): void {

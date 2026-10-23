@@ -52,6 +52,17 @@ input[type="checkbox"] { width: auto; }
 .sidebar-head input { width: 100%; }
 .sidebar-actions { display: flex; gap: 6px; }
 
+.pack-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 16px; width: min(560px, 90vw); }
+.pack-dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+.pack-dialog h2 { margin: 0 0 6px; font-size: 14px; }
+.pack-templates { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; max-height: 40vh; overflow-y: auto; }
+.pack-templates li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 6px 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; font-size: 12px; }
+.pack-templates .status { color: var(--muted); grid-column: 1 / -1; }
+.pack-templates .status.warn { color: var(--accent); }
+.pack-templates .status.bad { color: var(--danger); }
+.pack-templates select { font-size: 11px; padding: 1px 4px; }
+.pack-export { display: grid; gap: 8px; margin: 8px 0; }
+.note.warn { color: var(--accent); }
 .results { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
 .results li {
   padding: 6px 10px;

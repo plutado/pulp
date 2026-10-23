@@ -21,6 +21,8 @@ import { handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, regis
 import { renderTemplate } from './render';
 import { cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue } from './render-queue-service';
 import { deletePreset, listPresets, savePreset } from './preset-service';
+import { chooseExportFile, choosePackFile, exportPackTo, installPack, listInstalledPacks, previewPack } from './pack-service';
+import type { CollisionChoice } from '../core/pack';
 import { planBatch } from '../core/batch-csv';
 import { readFile } from 'node:fs/promises';
 import { addRecentColor } from '../core/recent-colors';
@@ -90,6 +92,26 @@ function registerIpc(): void {
 
   ipcMain.handle('queue:add', (_event, request: RenderRequest) => enqueueRender(request));
   ipcMain.handle('queue:add-batch', (_event, request: BatchRequest) => enqueueBatch(request));
+  ipcMain.handle('packs:choose', () => choosePackFile());
+  ipcMain.handle('packs:preview', (_event, path: string) => previewPack(String(path)));
+  ipcMain.handle('packs:install', (_event, path: string, choices: Record<string, CollisionChoice>) =>
+    installPack(String(path), choices && typeof choices === 'object' ? choices : {}),
+  );
+  ipcMain.handle('packs:list', () => listInstalledPacks());
+  ipcMain.handle('packs:export', async (_event, templateIds: string[], meta: { name: string; author?: string; license: string; description?: string }) => {
+    const index = await getLibrary();
+    const ids = new Set(Array.isArray(templateIds) ? templateIds.map(String) : []);
+    const templates = index.templates.filter((t) => ids.has(t.manifest.id) && !t.offline);
+    if (templates.length === 0) return { ok: false, message: 'No templates to export.' };
+    const destination = await chooseExportFile(meta?.name || templates[0]!.manifest.name);
+    if (!destination) return { ok: false, cancelled: true, message: 'Export cancelled.' };
+    try {
+      const out = await exportPackTo(destination, templates, { name: String(meta?.name || 'Pack'), license: String(meta?.license || ''), ...(meta?.author ? { author: String(meta.author) } : {}), ...(meta?.description ? { description: String(meta.description) } : {}) });
+      return { ok: true, path: destination, bytes: out.bytes };
+    } catch (err) {
+      return { ok: false, message: (err as Error).message };
+    }
+  });
   ipcMain.handle('presets:list', (_event, templateId: string) => listPresets(String(templateId)));
   ipcMain.handle('presets:save', (_event, templateId: string, name: string, values: Record<string, unknown>) =>
     savePreset(String(templateId), String(name), values && typeof values === 'object' ? values : {}),

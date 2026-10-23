@@ -194,6 +194,38 @@ connect-src 'none'; frame-src 'none'; form-action 'none'
 
 The `license` field describes the template, not Pulp. When you share templates, include any font or image licenses they depend on in the folder. Pulp shows the license in the UI; it does not enforce it.
 
+## Template packs
+
+A pack is a folder, or a `.zip` of that folder, holding a `pack.json` and one folder per template:
+
+```
+news-pack/
+  pack.json
+  strap/
+    template.json
+    index.html
+  bug/
+    template.json
+    index.html
+```
+
+`pack.json`:
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `formatVersion` | `1` | yes | |
+| `name` | string | yes | Shown when importing; also the pack's folder name after install (lowercased, dashes). |
+| `version` | string | no | |
+| `author` | string | no | Shown when importing. |
+| `license` | string | yes | SPDX identifier for the pack as a whole. Templates carry their own `license`. Pulp warns, but does not refuse, when a license is missing, `UNLICENSED`, or not in its list of open licenses (CC0, CC BY, CC BY-SA, MIT, ISC, Apache-2.0, BSD, Unlicense, OFL, Zlib, MPL). |
+| `description` | string | no | |
+| `homepage` | string | no | |
+| `templates` | string[] | yes | Folder names inside the pack, one per template. Each must hold a valid `template.json` and its entry file. |
+
+A zip may wrap everything in one top-level folder. Entry names must be relative paths without `..`; the archive is read with limits (5,000 entries, 512 MiB unpacked) and anything else is refused.
+
+Importing shows a preview first: pack name, author and license, and for each template its id, license, size and what will happen. A template whose id already exists in the user's own library folders is skipped; one whose id exists from an earlier pack install can be kept or replaced. Installed packs live in the `packs` folder of the app's user data, never in library folders, and that folder is part of the library. Exporting writes a pack from the templates currently listed, with a `pack.json` from the fields the user fills in.
+
 ## Planned additions (not part of version 1)
 
-Tracked in ROADMAP.md: `image` and `media` parameter types (user-supplied logos or clips), audio tracks, template packs (a zip or folder of templates with pack-level metadata), localized labels, and an optional seeded random number generator provided by the bridge.
+Tracked in ROADMAP.md: `image` and `media` parameter types (user-supplied logos or clips), audio tracks, localized labels, and an optional seeded random number generator provided by the bridge.

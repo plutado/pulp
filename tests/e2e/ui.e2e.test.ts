@@ -18,6 +18,8 @@ import { promisify } from 'node:util';
 import { deflateSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { detectFfmpeg } from '../../src/core/ffmpeg';
+import { writeZip } from '../../src/core/zip';
+import { rawManifest } from '../fixtures';
 
 const run = promisify(execFile);
 const ROOT = join(__dirname, '..', '..');
@@ -460,6 +462,103 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 60_000);
   });
 
+  describe('template packs', () => {
+    const html = Buffer.from('<!doctype html><html><head><meta charset="utf-8"></head><body><canvas id="c" width="320" height="180"></canvas><script>window.pulpRender=function(){};</script></body></html>');
+    const tpl = (over: Record<string, unknown>) => Buffer.from(JSON.stringify(rawManifest({ width: 320, height: 180, ...over })));
+    const dialogText = (sel: string) => page.eval<string>(`document.querySelector(${JSON.stringify(sel)}).textContent`);
+
+    it('previews a pack with licenses and collisions, installs it into user data, and the templates appear', async () => {
+      const zip = writeZip([
+        { name: 'pack.json', data: Buffer.from(JSON.stringify({ formatVersion: 1, name: 'News Pack', author: 'Ada', license: 'CC0-1.0', templates: ['strap', 'bug', 'dupe'] })) },
+        { name: 'strap/template.json', data: tpl({ id: 'news.strap', name: 'News Strap', license: 'MIT' }) },
+        { name: 'strap/index.html', data: html },
+        { name: 'bug/template.json', data: tpl({ id: 'news.bug', name: 'Channel Bug', license: 'Acme-EULA' }) },
+        { name: 'bug/index.html', data: html },
+        // Collides with a bundled template: must be skipped, never replaced.
+        { name: 'dupe/template.json', data: tpl({ id: 'pulp.samples.title-card', name: 'Not The Title Card' }) },
+        { name: 'dupe/index.html', data: html },
+      ]);
+      const zipPath = join(userData, 'news-pack.zip');
+      await writeFile(zipPath, zip);
+
+      await page.eval(`window.pulpPreviewPack(${JSON.stringify(zipPath)})`);
+      await until(() => page.eval<boolean>(`document.getElementById('pack-dialog').open`), 'the pack dialog');
+      expect(await dialogText('#pack-title')).toBe('News Pack');
+      expect(await dialogText('#pack-meta')).toContain('by Ada · license CC0-1.0');
+      expect(await page.eval<boolean>(`document.getElementById('pack-license').hidden`)).toBe(true);
+      const rows = await page.eval<{ folder: string; statuses: string[] }[]>(
+        `[...document.querySelectorAll('#pack-templates li')].map((li) => ({ folder: li.dataset.folder, statuses: [...li.querySelectorAll('.status')].map((s) => s.textContent) }))`,
+      );
+      expect(rows.map((r) => r.folder)).toEqual(['strap', 'bug', 'dupe']);
+      expect(rows[0]!.statuses).toEqual(['Will install into packs/news-pack/strap.']);
+      expect(rows[1]!.statuses[0]).toBe('Will install into packs/news-pack/bug.');
+      expect(rows[1]!.statuses[1]).toContain('license "Acme-EULA" is not in the known open list');
+      expect(rows[2]!.statuses[0]).toMatch(/^Skipped: a template with this id is already in your library/);
+      expect(await page.eval<boolean>(`document.getElementById('pack-confirm').disabled`)).toBe(false);
+
+      await page.eval(`document.getElementById('pack-confirm').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('pack-result').textContent.includes('Installed')`), 'the install to finish');
+      const result = await dialogText('#pack-result');
+      expect(result).toContain('Installed: strap, bug.');
+      expect(result).toContain('Skipped: dupe');
+      expect(result).toContain(join(userData, 'packs', 'news-pack'));
+      expect(existsSync(join(userData, 'packs', 'news-pack', 'strap', 'index.html'))).toBe(true);
+      expect(existsSync(join(userData, 'packs', 'news-pack', 'pack.json'))).toBe(true);
+      expect(existsSync(join(userData, 'packs', 'news-pack', 'dupe'))).toBe(false);
+      await page.eval(`document.getElementById('pack-close').click()`);
+      await until(
+        () => page.eval<boolean>(`[...document.querySelectorAll('#results li .name')].some((n) => n.textContent === 'News Strap') && [...document.querySelectorAll('#results li .name')].some((n) => n.textContent === 'Channel Bug')`),
+        'the installed templates in the library',
+      );
+      // The bundled title card is untouched.
+      expect(await page.eval<number>(`[...document.querySelectorAll('#results li .name')].filter((n) => n.textContent === 'Title Card').length`)).toBe(1);
+    }, 90_000);
+
+    it('offers Replace only for templates installed from a pack, and refuses a broken zip with a plain message', async () => {
+      const zip = writeZip([
+        { name: 'pack.json', data: Buffer.from(JSON.stringify({ formatVersion: 1, name: 'News Pack', license: 'UNLICENSED', templates: ['strap'] })) },
+        { name: 'strap/template.json', data: tpl({ id: 'news.strap', name: 'News Strap v2', license: 'MIT' }) },
+        { name: 'strap/index.html', data: html },
+      ]);
+      const zipPath = join(userData, 'news-pack-2.zip');
+      await writeFile(zipPath, zip);
+      await page.eval(`window.pulpPreviewPack(${JSON.stringify(zipPath)})`);
+      await until(() => page.eval<boolean>(`document.getElementById('pack-dialog').open && document.getElementById('pack-title').textContent === 'News Pack'`), 'the second preview');
+      expect(await dialogText('#pack-license')).toBe('Pack license: not an open license.');
+      expect(await page.eval<boolean>(`!!document.querySelector('#pack-templates li[data-folder=strap] select')`)).toBe(true);
+      expect(await dialogText('#pack-templates li[data-folder=strap] .status')).toContain('Already installed from a pack.');
+      // Default keeps the installed copy; choose Replace.
+      await page.eval(`(() => { const s = document.querySelector('#pack-templates li[data-folder=strap] select'); s.value = 'replace'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`document.getElementById('pack-confirm').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('pack-result').textContent.includes('Replaced')`), 'the replace to finish');
+      expect(await dialogText('#pack-result')).toContain('Replaced: strap.');
+      await page.eval(`document.getElementById('pack-close').click()`);
+      await until(() => page.eval<boolean>(`[...document.querySelectorAll('#results li .name')].some((n) => n.textContent === 'News Strap v2')`), 'the replaced template name');
+
+      await writeFile(join(userData, 'broken.zip'), Buffer.from('this is not a zip'));
+      await page.eval(`window.pulpPreviewPack(${JSON.stringify(join(userData, 'broken.zip'))})`);
+      await until(() => page.eval<boolean>(`document.getElementById('pack-problems').textContent.includes('Not a usable pack')`), 'the error for a broken zip');
+      expect(await page.eval<boolean>(`document.getElementById('pack-confirm').hidden`)).toBe(true);
+      await page.eval(`document.getElementById('pack-close').click()`);
+    }, 90_000);
+
+    it('export is offered for the listed templates with a pack name and license', async () => {
+      await page.eval(`(() => { const s = document.getElementById('search'); s.value = 'type:template news'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      try {
+        expect(await page.eval<boolean>(`document.getElementById('export-pack').disabled`)).toBe(false);
+        await page.eval(`document.getElementById('export-pack').click()`);
+        await until(() => page.eval<boolean>(`document.getElementById('pack-dialog').open && !document.getElementById('pack-export-fields').hidden`), 'the export dialog');
+        expect(await dialogText('#pack-title')).toBe('Export 2 templates as a pack');
+        expect(await page.eval<string>(`document.getElementById('pack-export-license').value`)).toBe('CC0-1.0');
+        expect(await page.eval<number>(`document.querySelectorAll('#pack-templates li').length`)).toBe(2);
+        // The save dialog itself cannot be driven here; close without exporting.
+        await page.eval(`document.getElementById('pack-close').click()`);
+      } finally {
+        await page.eval(`(() => { const s = document.getElementById('search'); s.value = ''; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      }
+    }, 60_000);
+  });
+
   describe('tags, favorites and recently used', () => {
     const results = () => page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`);
     const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
@@ -590,7 +689,8 @@ describe.skipIf(!electron)('inspector UI', () => {
         `[...document.querySelectorAll('#results li')].filter((li) => li.querySelector('.thumb img')).map((li) => { const i = li.querySelector('.thumb img'); return { name: li.querySelector('.name').textContent, src: i.src, w: i.naturalWidth, h: i.naturalHeight }; })`,
       );
       const byName = Object.fromEntries(info.map((i) => [i.name, i]));
-      expect(Object.keys(byName).sort()).toEqual(['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'clip', 'tiny']);
+      // Templates installed from packs earlier in this run get posters too; the bundled ones and the media must be there.
+      expect(Object.keys(byName)).toEqual(expect.arrayContaining(['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'clip', 'tiny']));
       for (const i of info) expect(i.src).toMatch(/^pulp-thumb:\/\/[0-9a-f]{24}\/$/);
       expect(byName['Title Card']).toMatchObject({ w: 240, h: 135 }); // 1920x1080 poster, fit into 240
       expect(byName['clip']).toMatchObject({ w: 64, h: 36 }); // smaller than the thumbnail size: not enlarged

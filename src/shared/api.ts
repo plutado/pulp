@@ -6,9 +6,11 @@
 import type { LibraryIndex } from '../core/library-types';
 import type { PresetId, RenderOptions } from '../core/render-plan';
 import type { RenderQueueSnapshot } from '../core/render-queue';
+import type { CollisionChoice, PackManifest, PackPreview } from '../core/pack';
 
 export type { RenderJobStatus, RenderQueueJob, RenderQueueSnapshot } from '../core/render-queue';
 export type { LibraryIndex } from '../core/library-types';
+export type { CollisionChoice, PackManifest, PackPreview, PackTemplatePreview } from '../core/pack';
 export type { RenderOptions } from '../core/render-plan';
 
 export interface FfmpegInfo {
@@ -63,6 +65,13 @@ export interface BatchRequest {
 
 export type EnqueueBatchResult = { ok: true; jobIds: number[]; folder: string } | { ok: false; cancelled?: boolean; message: string };
 
+export interface PackInstallResult {
+  installed: string[];
+  replaced: string[];
+  skipped: { folder: string; reason: string }[];
+  packDir: string;
+}
+
 /** Outcome of adding a render to the queue; the render itself reports through the queue snapshot. */
 export type EnqueueResult = { ok: true; jobId: number } | { ok: false; cancelled?: boolean; message: string };
 
@@ -99,6 +108,15 @@ export interface PulpApi {
   addRecentColor(hex: string): Promise<string[]>;
   /** Called with the whole queue whenever a job is added, progresses, finishes or is removed. */
   onRenderQueue(listener: (snapshot: RenderQueueSnapshot) => void): () => void;
+  /** Open dialog for a .zip pack; null when cancelled. */
+  choosePackFile(): Promise<string | null>;
+  /** What a pack (zip or folder) contains and what installing it would do. */
+  previewPack(path: string): Promise<{ path: string; preview: PackPreview } | { error: string }>;
+  /** Install into the packs folder of user data, then rescan. */
+  installPack(path: string, choices: Record<string, CollisionChoice>): Promise<PackInstallResult | { error: string }>;
+  listInstalledPacks(): Promise<{ dir: string; manifest: PackManifest }[]>;
+  /** Save dialog, then zip the given templates with a pack.json. */
+  exportPack(templateIds: string[], meta: { name: string; author?: string; license: string; description?: string }): Promise<{ ok: true; path: string; bytes: number } | { ok: false; cancelled?: boolean; message: string }>;
 }
 
 export const TEMPLATE_SCHEME = 'pulp-template';

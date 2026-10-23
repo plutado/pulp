@@ -74,10 +74,10 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 
 ## 6. Template packs import (6-10 h)
 
-- [ ] Pack format: a folder or `.zip` with `pack.json` (name, author, license, list of templates); add to the spec (1-2 h)
-- [ ] Import from zip with validation, collision handling for template ids, and a preview of what will be installed (3-5 h)
-- [ ] Show license and author per pack; warn on missing or non-open licenses (1-2 h)
-- [ ] Export a template or a set of templates as a pack (1 h)
+- [x] Pack format: a folder or `.zip` with `pack.json` (name, author, license, list of templates); in `docs/template-format.md` (1-2 h)
+- [x] Import from zip or folder with validation (own ZIP reader with safe names and limits), collision handling (library copies skipped, pack copies kept or replaced) and a preview; installs into the `packs` folder of user data (3-5 h)
+- [x] Show license and author per pack and per template; warn on missing, non-open or unknown licenses (1-2 h)
+- [x] Export the listed templates as a pack with name, author and license (1 h)
 
 ## 7. Packaging and signing (10-18 h)
 
