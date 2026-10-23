@@ -1,6 +1,7 @@
 import { app } from 'electron';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { writeFileAtomic } from '../core/atomic-file';
 import { sanitizeRecentColors } from '../core/recent-colors';
 
 export interface Settings {
@@ -16,22 +17,44 @@ function settingsPath(): string {
   return join(app.getPath('userData'), 'settings.json');
 }
 
+function sanitize(raw: Partial<Settings>): Settings {
+  return {
+    libraryFolders: Array.isArray(raw.libraryFolders) ? raw.libraryFolders.filter((f): f is string => typeof f === 'string') : [],
+    recentColors: sanitizeRecentColors(raw.recentColors),
+  };
+}
+
 export async function loadSettings(): Promise<Settings> {
   try {
-    const raw = JSON.parse(await readFile(settingsPath(), 'utf8')) as Partial<Settings>;
-    return {
-      libraryFolders: Array.isArray(raw.libraryFolders)
-        ? raw.libraryFolders.filter((f): f is string => typeof f === 'string')
-        : [],
-      recentColors: sanitizeRecentColors(raw.recentColors),
-    };
+    return sanitize(JSON.parse(await readFile(settingsPath(), 'utf8')) as Partial<Settings>);
   } catch {
     return { ...DEFAULTS };
   }
 }
 
+/**
+ * Write the whole settings file atomically: a temporary file in the same
+ * folder, renamed over settings.json, so a crash or a concurrent reader sees
+ * the old file or the new one and never a half-written one.
+ */
 export async function saveSettings(settings: Settings): Promise<void> {
-  const path = settingsPath();
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+  await writeFileAtomic(settingsPath(), JSON.stringify(settings, null, 2) + '\n');
+}
+
+let chain: Promise<unknown> = Promise.resolve();
+
+/**
+ * Load, change and save under a queue, so two changes arriving close together
+ * (two recent colors, a folder and a color) cannot overwrite each other's work.
+ * Resolves to the saved settings.
+ */
+export function updateSettings(change: (current: Settings) => Settings | void): Promise<Settings> {
+  const next = chain.then(async () => {
+    const current = await loadSettings();
+    const updated = change(current) ?? current;
+    await saveSettings(updated);
+    return updated;
+  });
+  chain = next.catch(() => undefined);
+  return next;
 }

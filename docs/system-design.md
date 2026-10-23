@@ -60,6 +60,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 | `media-meta.ts` | yes | `MediaMetadata`, `parseFfprobe`, resolution labels and aliases. |
 | `media-probe.ts` | Node | `probeMedia` through the injectable runner, `ffprobePathFor`. |
 | `thumbnails.ts` | yes | Which items get thumbnails, ffmpeg arguments for frame and poster, cache file names, `pulp-thumb` URLs. |
+| `atomic-file.ts` | Node | `writeFileAtomic`: temp file in the same folder, fsync, rename over the target, rename retried while Windows holds it busy. |
 | `ffmpeg.ts` | Node | `detectFfmpeg` with an injectable process runner, encoder checks. |
 
 ### src/main
@@ -67,7 +68,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 - `index.ts`: app lifecycle, main window, IPC handlers, headless `--render` mode.
 - `protocol.ts`: `pulp-template://<template-id>/<path>` handler. Resolves paths inside the template folder only (rejects traversal), injects the bridge into the entry page, sets the CSP and `no-store`.
 - `library-service.ts`: owns the persistent `LibraryStore`, serializes scans, keeps one watcher per online root, rescans on focus and when an offline root returns, and pushes `library:changed`. Headless mode switches it to an in-memory store.
-- `settings.ts`: `settings.json` in Electron's `userData` folder: library folders and recent colors. `PULP_USER_DATA` overrides the folder (tests).
+- `settings.ts`: `settings.json` in Electron's `userData` folder: library folders and recent colors. Saved atomically (`core/atomic-file.ts`: temp file, fsync, rename) and changed through a queue (`updateSettings`) so concurrent changes are not lost. `PULP_USER_DATA` overrides the folder (tests).
 - `render.ts`: the render loop (below).
 - `render-queue-service.ts`: shows the save dialog when a render is requested, adds the job to a `RenderQueue`, runs queued jobs one after another through `renderTemplate`, and sends the whole queue to the UI on every change (`queue:changed`).
 

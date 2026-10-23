@@ -23,7 +23,7 @@ import type { LibraryIndex, TemplateEntry } from '../core/library-types';
 import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
 import { normalizeTag } from '../core/tags';
-import { loadSettings, saveSettings } from './settings';
+import { loadSettings, updateSettings } from './settings';
 
 /** Folder of sample templates shipped with the app. */
 export function bundledTemplatesDir(): string {
@@ -298,11 +298,7 @@ export async function getLibrary(): Promise<LibraryIndex> {
 }
 
 export async function addLibraryFolder(folder: string): Promise<LibraryIndex> {
-  const settings = await loadSettings();
-  if (!settings.libraryFolders.includes(folder)) {
-    settings.libraryFolders.push(folder);
-    await saveSettings(settings);
-  }
+  await updateSettings((s) => (s.libraryFolders.includes(folder) ? s : { ...s, libraryFolders: [...s.libraryFolders, folder] }));
   return rescan();
 }
 

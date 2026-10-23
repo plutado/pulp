@@ -21,7 +21,7 @@ import { handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, regis
 import { renderTemplate } from './render';
 import { cancelRender, clearFinishedRenders, enqueueRender, getRenderQueue } from './render-queue-service';
 import { addRecentColor } from '../core/recent-colors';
-import { loadSettings, saveSettings } from './settings';
+import { loadSettings, updateSettings } from './settings';
 
 registerTemplateScheme();
 
@@ -92,10 +92,8 @@ function registerIpc(): void {
 
   ipcMain.handle('colors:recent-get', async () => (await loadSettings()).recentColors);
   ipcMain.handle('colors:recent-add', async (_event, hex: string) => {
-    const settings = await loadSettings();
-    settings.recentColors = addRecentColor(settings.recentColors, hex);
-    await saveSettings(settings);
-    return settings.recentColors;
+    const saved = await updateSettings((s) => ({ ...s, recentColors: addRecentColor(s.recentColors, hex) }));
+    return saved.recentColors;
   });
 }
 

@@ -72,6 +72,12 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 - `registerSchemesAsPrivileged` may be called once, before `ready`, with every custom scheme; `pulp-template` and `pulp-media` are registered together.
 - A privileged scheme enforces CORS by default: `fetch` from the app page (origin `file://`) to it fails with "Failed to fetch" unless responses carry `Access-Control-Allow-Origin`, while `<img>`, `<video>` and `<audio>` load fine (no-cors). `pulp-media` keeps it that way on purpose and has `supportFetchAPI: false`.
 
+## Files written by the app
+
+- **Settings were written in place and a test read a half-written file.** The recent-colors UI test read `settings.json` right after a color was committed; on one Windows run the read landed while `writeFile` was still replacing the content and `JSON.parse` failed. The same read had passed on earlier runs: a timing race, not a platform rule. Two fixes, both kept: `settings.json` is now written atomically (`src/core/atomic-file.ts`: temporary file in the same folder, `fsync`, `rename` over the target, so any reader or a crash sees the old file or the new one, never a partial or empty one), and the test retries until the file parses and carries the value instead of reading once. Settings changes also go through a queue (`updateSettings`), so two changes close together cannot overwrite each other's work.
+- **Windows and `rename` over an open file.** On Windows, renaming over a file another process has open fails with EPERM, EBUSY or EACCES, where macOS and Linux replace it. The atomic writer retries the rename for about two seconds. Keep the temporary file in the same folder as the target: a rename across volumes is a copy, not an atomic replace.
+- A `.tmp` file left behind in user data means the app died between writing and renaming; it is harmless and can be deleted.
+
 ## Windows CI
 
 - GitHub's `windows-latest` runner has a desktop session; Electron offscreen rendering works there without extra setup.

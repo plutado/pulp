@@ -376,10 +376,18 @@ describe.skipIf(!electron)('inspector UI', () => {
     await page.eval(`document.querySelectorAll('#params .color-field')[0].querySelector('.recent-swatch').click()`);
     expect(await page.eval<string>(`document.querySelectorAll('#params .color-field')[0].querySelector('.hex').value`)).toBe('#00ff0040');
 
-    // The list is shared in settings.json of the (scratch) user data folder.
-    await until(async () => existsSync(join(userData, 'settings.json')), 'settings.json to be written');
-    const settings = JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { recentColors?: string[] };
-    expect(settings.recentColors?.[0]).toBe('#00ff0040');
+    // The list is shared in settings.json of the (scratch) user data folder. The save is atomic
+    // (temp file renamed over the old one), but it is asynchronous: retry until the file parses
+    // and carries the list, rather than reading once at an arbitrary moment.
+    let settings: { recentColors?: string[] } = {};
+    await until(async () => {
+      try {
+        settings = JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { recentColors?: string[] };
+        return settings.recentColors?.[0] === '#00ff0040';
+      } catch {
+        return false;
+      }
+    }, 'settings.json to carry the recent colors');
     expect(settings.recentColors).toEqual(rows[0]);
 
     // The same list shows on another template's color fields.
