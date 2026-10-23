@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { folderTags, mediaKindForPath, normalizeTag, scanLibrary } from '../src/core/library';
-import { searchLibrary, tagCounts } from '../src/core/search';
+import { compare, parseComparison, parseQuery, searchLibrary, tagCounts } from '../src/core/search';
 import { rawManifest } from './fixtures';
 
 let root: string;
@@ -188,5 +188,49 @@ describe('searchLibrary', () => {
     const index = await buildIndex();
     const counts = tagCounts(index);
     expect(counts[0]).toEqual({ tag: 'news', count: 2 });
+  });
+
+  it('filters by duration, size, frame rate, resolution, codec and alpha', async () => {
+    const index = await buildIndex();
+    // Templates answer from their manifests (2 s, 1920x1080, 30 fps, alpha); media from probed metadata.
+    const anchor = index.media.find((m) => m.name === 'anchor desk')!;
+    anchor.meta = { duration: 12.5, width: 3840, height: 2160, fps: 29.97, codec: 'prores', alpha: true };
+    const theme = index.media.find((m) => m.name === 'news theme')!;
+    theme.meta = { duration: 90, audioCodec: 'pcm_s16le', channels: 2, sampleRate: 48000 };
+    const names = (q: string) => searchLibrary(index, q).map((h) => (h.entry.kind === 'template' ? h.entry.manifest.name : h.entry.name)).sort();
+
+    expect(names('duration:>5')).toEqual(['anchor desk', 'news theme']);
+    expect(names('duration:<=2')).toEqual(['Basic Title', 'News Lower Third']);
+    expect(names('duration:10-20')).toEqual(['anchor desk']);
+    expect(names('width:>=1920')).toEqual(['Basic Title', 'News Lower Third', 'anchor desk']);
+    expect(names('height:2160')).toEqual(['anchor desk']);
+    expect(names('fps:29.97')).toEqual(['anchor desk']);
+    expect(names('res:1080p')).toEqual(['Basic Title', 'News Lower Third']);
+    expect(names('res:4k')).toEqual(['anchor desk']);
+    expect(names('res:2160')).toEqual(['anchor desk']);
+    expect(names('codec:prores')).toEqual(['anchor desk']);
+    expect(names('codec:PRORES type:video')).toEqual(['anchor desk']);
+    expect(names('alpha:yes')).toEqual(['Basic Title', 'News Lower Third', 'anchor desk']);
+    expect(names('alpha:no')).toEqual([]); // the audio file has no picture, so it neither has nor lacks alpha
+    expect(names('news duration:>60')).toEqual(['news theme']);
+    // Media without metadata does not match a metadata filter, and the codec is searchable as text.
+    anchor.meta = undefined;
+    expect(names('codec:prores')).toEqual([]);
+    theme.meta = undefined;
+    expect(names('duration:>5')).toEqual([]);
+  });
+
+  it('parses comparisons and leaves odd values as plain terms', () => {
+    expect(parseComparison('>=1920')).toEqual({ op: '>=', value: 1920 });
+    expect(parseComparison('5-10')).toEqual({ op: 'range', value: 5, to: 10 });
+    expect(parseComparison('29.97')).toEqual({ op: '=', value: 29.97 });
+    expect(parseComparison('long')).toBeNull();
+    expect(compare(10, { op: 'range', value: 5, to: 10 })).toBe(true);
+    expect(compare(undefined, { op: '>', value: 0 })).toBe(false);
+    const q = parseQuery('duration:long res:HD alpha:No codec:H264');
+    expect(q.terms).toEqual(['duration:long']);
+    expect(q.resolutions).toEqual(['720p']);
+    expect(q.alpha).toBe(false);
+    expect(q.codecs).toEqual(['h264']);
   });
 });

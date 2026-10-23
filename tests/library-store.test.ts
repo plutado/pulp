@@ -154,6 +154,30 @@ describe('LibraryStore incremental scans', () => {
     await rename(join(dir, 'gone'), root);
   });
 
+  it('caches metadata by size and mtime, re-probes changed files and remembers failures', async () => {
+    const root = join(dir, 'lib');
+    await touch(join(root, 'a.mov'), 10);
+    await touch(join(root, 'b.mov'), 10);
+    store.setRoots([root]);
+    await store.scanRoots([root]);
+    const pending = store.pendingMetadata();
+    expect(pending.map((m) => m.name)).toEqual(['a', 'b']);
+
+    store.setMetadata(pending[0]!, { duration: 3, width: 1920, height: 1080, codec: 'prores', alpha: true });
+    store.setMetadata(pending[1]!, null); // ffprobe could not read it
+    expect(store.pendingMetadata()).toEqual([]);
+    let index = store.toIndex();
+    expect(index.media.find((m) => m.name === 'a')?.meta).toMatchObject({ codec: 'prores', alpha: true });
+    expect(index.media.find((m) => m.name === 'b')?.meta).toBeUndefined();
+
+    await sleep(20);
+    await touch(join(root, 'a.mov'), 20); // changed: metadata is stale and the file is pending again
+    await store.scanRoots([root]);
+    index = store.toIndex();
+    expect(index.media.find((m) => m.name === 'a')?.meta).toBeUndefined();
+    expect(store.pendingMetadata().map((m) => m.name)).toEqual(['a']);
+  });
+
   it('persists across close and reopen', async () => {
     const root = join(dir, 'lib');
     await writeTemplate(join(root, 'tpl'));

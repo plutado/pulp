@@ -39,7 +39,7 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 ## What works today
 
 - Library scan of the bundled samples and any folders you add: templates are validated, media files (video, image, audio) are indexed with tags derived from folder names.
-- Search with free text plus `tag:`, `type:` and `category:` filters.
+- Search with free text plus filters: `tag:`, `type:`, `category:`, and from metadata `duration:>5`, `width:>=1920`, `height:`, `fps:`, `res:1080p` (also `4k`, `hd`), `codec:prores`, `alpha:yes`.
 - Live preview with play and scrub, and a parameter form generated from the manifest.
 - Rendering through ffmpeg to ProRes 4444 (alpha), ProRes 422 HQ, PNG sequence (alpha), WebM VP9 (alpha) and H.264 MP4. Verified on macOS with the bundled samples; see the roadmap for what is not yet verified.
 - A headless command-line render mode (below).

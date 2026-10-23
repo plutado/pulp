@@ -7,17 +7,64 @@
  *   type:template        template | media | video | image | audio
  *   category:title       template category
  *   "breaking news"      phrase matched as one term
+ *   duration:>5          seconds; also <, >=, <=, =, and ranges such as 5-10
+ *   width:>=1920         picture width, same comparisons
+ *   height:1080          picture height
+ *   fps:29.97            frame rate
+ *   res:1080p            shorter side with "p" (also 4k, uhd, 8k, hd, fhd)
+ *   codec:prores         video codec as ffprobe names it (media only)
+ *   alpha:yes            alpha channel; yes | no
+ * The numeric and alpha filters apply to templates through their manifest
+ * and to media through probed metadata; media not yet probed does not match.
  */
 
 import type { LibraryEntry, LibraryIndex } from './library-types';
+import { RESOLUTION_ALIASES, resolutionLabel } from './media-meta';
 import { normalizeTag } from './tags';
+
+export type NumericField = 'duration' | 'width' | 'height' | 'fps';
+
+export interface Comparison {
+  op: '<' | '<=' | '>' | '>=' | '=' | 'range';
+  value: number;
+  /** Upper bound for ranges. */
+  to?: number;
+}
 
 export interface ParsedQuery {
   terms: string[];
   tags: string[];
   types: string[];
   categories: string[];
+  numeric: { field: NumericField; cmp: Comparison }[];
+  resolutions: string[];
+  codecs: string[];
+  alpha?: boolean;
 }
+
+/** ">=1920", "5-10", "25" and the like; null if not a comparison. */
+export function parseComparison(text: string): Comparison | null {
+  const t = text.trim();
+  const range = /^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/.exec(t);
+  if (range) return { op: 'range', value: Number(range[1]), to: Number(range[2]) };
+  const m = /^(<=|>=|<|>|=)?(\d+(?:\.\d+)?)$/.exec(t);
+  if (!m) return null;
+  return { op: (m[1] as Comparison['op'] | undefined) ?? '=', value: Number(m[2]) };
+}
+
+export function compare(actual: number | undefined, cmp: Comparison): boolean {
+  if (actual === undefined) return false;
+  switch (cmp.op) {
+    case '<': return actual < cmp.value;
+    case '<=': return actual <= cmp.value;
+    case '>': return actual > cmp.value;
+    case '>=': return actual >= cmp.value;
+    case '=': return Math.abs(actual - cmp.value) < 0.001;
+    case 'range': return actual >= cmp.value && actual <= (cmp.to ?? cmp.value);
+  }
+}
+
+const NUMERIC_FIELDS = new Set<string>(['duration', 'width', 'height', 'fps']);
 
 export interface SearchHit {
   entry: LibraryEntry;
@@ -36,17 +83,35 @@ export function tokenizeQuery(query: string): string[] {
 }
 
 export function parseQuery(query: string): ParsedQuery {
-  const parsed: ParsedQuery = { terms: [], tags: [], types: [], categories: [] };
+  const parsed: ParsedQuery = { terms: [], tags: [], types: [], categories: [], numeric: [], resolutions: [], codecs: [] };
   for (const token of tokenizeQuery(query)) {
     const colon = token.indexOf(':');
     const key = colon > 0 ? token.slice(0, colon).toLowerCase() : '';
     const value = colon > 0 ? token.slice(colon + 1) : token;
+    const cmp = NUMERIC_FIELDS.has(key) ? parseComparison(value) : null;
     if (key === 'tag' && value) parsed.tags.push(normalizeTag(value));
     else if (key === 'type' && value) parsed.types.push(value.toLowerCase());
     else if (key === 'category' && value) parsed.categories.push(value.toLowerCase());
+    else if (cmp) parsed.numeric.push({ field: key as NumericField, cmp });
+    else if (key === 'res' && value) {
+      const v = value.toLowerCase();
+      parsed.resolutions.push(RESOLUTION_ALIASES[v] ?? (/^\d+$/.test(v) ? `${v}p` : v));
+    } else if (key === 'codec' && value) parsed.codecs.push(value.toLowerCase());
+    else if (key === 'alpha' && value) parsed.alpha = ['yes', 'true', '1', 'on'].includes(value.toLowerCase());
     else parsed.terms.push(token.toLowerCase());
   }
   return parsed;
+}
+
+/** The comparable facts about an entry: manifest values for templates, probed metadata for media. */
+function facts(entry: LibraryEntry): { duration?: number; width?: number; height?: number; fps?: number; alpha?: boolean; codec?: string } {
+  if (entry.kind === 'template') {
+    const m = entry.manifest;
+    return { duration: m.duration, width: m.width, height: m.height, fps: m.fps, alpha: m.alpha };
+  }
+  const meta = entry.meta;
+  if (!meta) return {};
+  return { duration: meta.duration, width: meta.width, height: meta.height, fps: meta.fps, alpha: meta.alpha, codec: meta.codec };
 }
 
 function entryName(entry: LibraryEntry): string {
@@ -58,7 +123,7 @@ function entryHaystack(entry: LibraryEntry): { name: string; words: string[]; ta
   const extra =
     entry.kind === 'template'
       ? [entry.manifest.id, entry.manifest.description ?? '', entry.manifest.category, entry.manifest.author ?? '']
-      : [entry.ext, entry.mediaKind];
+      : [entry.ext, entry.mediaKind, entry.meta?.codec ?? '', resolutionLabel(entry.meta?.width, entry.meta?.height) ?? ''];
   const text = [name, ...entry.tags, ...extra].join(' ').toLowerCase();
   return { name, words: name.split(/[^a-z0-9]+/).filter(Boolean), tags: entry.tags, text };
 }
@@ -91,6 +156,13 @@ export function searchLibrary(index: LibraryIndex, query: string): SearchHit[] {
     if (q.types.length > 0 && !q.types.some((t) => matchesType(entry, t))) continue;
     if (q.categories.length > 0 && (entry.kind !== 'template' || !q.categories.includes(entry.manifest.category))) continue;
     if (!q.tags.every((t) => entry.tags.includes(t))) continue;
+    if (q.numeric.length > 0 || q.resolutions.length > 0 || q.codecs.length > 0 || q.alpha !== undefined) {
+      const f = facts(entry);
+      if (!q.numeric.every((n) => compare(f[n.field], n.cmp))) continue;
+      if (q.resolutions.length > 0 && !q.resolutions.includes(resolutionLabel(f.width, f.height) ?? '')) continue;
+      if (q.codecs.length > 0 && (f.codec === undefined || !q.codecs.includes(f.codec.toLowerCase()))) continue;
+      if (q.alpha !== undefined && f.alpha !== q.alpha) continue;
+    }
 
     const h = entryHaystack(entry);
     let score = 0;

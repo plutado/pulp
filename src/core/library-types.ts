@@ -1,6 +1,9 @@
 /** Library index data types. Pure; shared with the renderer over IPC. */
 
 import type { TemplateManifest, ValidationIssue } from './manifest';
+import type { MediaMetadata } from './media-meta';
+
+export type { MediaMetadata } from './media-meta';
 
 export type MediaKind = 'video' | 'image' | 'audio';
 
@@ -34,6 +37,8 @@ export interface MediaEntry {
   mtimeMs: number;
   /** Folder-derived tags. */
   tags: string[];
+  /** From ffprobe, once probed; absent until then or when ffprobe could not read the file. */
+  meta?: MediaMetadata;
 }
 
 export type LibraryEntry = TemplateEntry | MediaEntry;

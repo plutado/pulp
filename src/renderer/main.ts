@@ -96,7 +96,24 @@ function entryLabel(entry: LibraryEntry): { name: string; meta: string } {
     const m = entry.manifest;
     return { name: m.name, meta: `${m.category} · ${m.duration}s · ${m.width}x${m.height}${m.alpha ? ' · alpha' : ''}` };
   }
-  return { name: entry.name, meta: `${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)}` };
+  return { name: entry.name, meta: [`${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)}`, describeMeta(entry)].filter(Boolean).join(' · ') };
+}
+
+/** "1920x1080 · 00:00:06:00 · prores · alpha", from probed metadata; empty until probed. */
+function describeMeta(entry: MediaEntry): string {
+  const m = entry.meta;
+  if (!m) return '';
+  const parts: string[] = [];
+  if (m.width && m.height) parts.push(`${m.width}x${m.height}`);
+  if (m.duration) {
+    const fps = m.fps ?? 25;
+    parts.push(formatTimecode(Math.round(m.duration * fps), fps));
+  }
+  if (m.fps && entry.mediaKind === 'video') parts.push(`${m.fps} fps`);
+  if (m.codec) parts.push(m.codec);
+  if (m.alpha) parts.push('alpha');
+  if (m.audioCodec && !m.codec) parts.push(`${m.audioCodec}${m.channels ? ` · ${m.channels}ch` : ''}${m.sampleRate ? ` · ${m.sampleRate / 1000} kHz` : ''}`);
+  return parts.join(' · ');
 }
 
 function formatBytes(n: number): string {
@@ -197,7 +214,7 @@ function clearSelection(): void {
 function selectMedia(entry: MediaEntry): void {
   clearSelection();
   els.previewFrame.classList.add('checker');
-  els.details.textContent = `${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)} · ${entry.path}`;
+  els.details.textContent = [`${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)}`, describeMeta(entry), entry.path].filter(Boolean).join(' · ');
   if (entry.offline) {
     els.previewEmpty.textContent = 'This file\'s folder is offline.';
     renderResults();

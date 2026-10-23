@@ -20,6 +20,7 @@ import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
 import { folderTags, itemId, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES } from './library-scan';
 import type { MediaLookup } from './media-serve';
+import type { MediaMetadata } from './media-meta';
 
 export interface ScanOptions {
   /** Maximum directory depth below each root. Default 12. */
@@ -94,6 +95,12 @@ CREATE TABLE IF NOT EXISTS problems (
   issues TEXT
 );
 CREATE INDEX IF NOT EXISTS problems_root ON problems(root);
+CREATE TABLE IF NOT EXISTS media_meta (
+  key TEXT PRIMARY KEY,
+  size INTEGER NOT NULL,
+  mtime_ms REAL NOT NULL,
+  meta TEXT
+);
 CREATE TABLE IF NOT EXISTS user_items (
   key TEXT PRIMARY KEY,
   tags TEXT NOT NULL DEFAULT '[]',
@@ -326,6 +333,14 @@ export class LibraryStore {
 
     const rows = this.db.prepare('SELECT key, id, root, kind, size, mtime_ms, entry FROM items').all() as unknown as ItemRow[];
     rows.sort((a, b) => (order.get(a.root) ?? 0) - (order.get(b.root) ?? 0) || a.key.localeCompare(b.key));
+    // Metadata is merged only while its stat signature matches the item; a changed file is probed again.
+    const metaRows = this.db.prepare('SELECT key, size, mtime_ms, meta FROM media_meta WHERE meta IS NOT NULL').all() as unknown as {
+      key: string;
+      size: number;
+      mtime_ms: number;
+      meta: string;
+    }[];
+    const metaByKey = new Map(metaRows.map((m) => [m.key, m]));
     const seenIds = new Map<string, string>();
     const duplicates: LibraryProblem[] = [];
     for (const row of rows) {
@@ -340,6 +355,8 @@ export class LibraryStore {
         seenIds.set(entry.manifest.id, entry.dir);
         index.templates.push(entry);
       } else {
+        const m = metaByKey.get(row.key);
+        if (m && m.size === row.size && m.mtime_ms === row.mtime_ms) entry.meta = JSON.parse(m.meta) as MediaMetadata;
         index.media.push(entry);
       }
     }
@@ -365,6 +382,28 @@ export class LibraryStore {
       .get(id) as { entry: string; root: string; online: number } | undefined;
     if (!row) return undefined;
     return { entry: JSON.parse(row.entry) as MediaEntry, root: row.root, online: row.online === 1 };
+  }
+
+  /** Media items in online roots that have no metadata for their current size and mtime, oldest first. */
+  pendingMetadata(limit = 50): MediaEntry[] {
+    const rows = this.db
+      .prepare(
+        'SELECT items.entry AS entry FROM items JOIN roots ON roots.path = items.root ' +
+          'LEFT JOIN media_meta ON media_meta.key = items.key AND media_meta.size = items.size AND media_meta.mtime_ms = items.mtime_ms ' +
+          "WHERE items.kind = 'media' AND roots.online = 1 AND media_meta.key IS NULL ORDER BY items.rowid LIMIT ?",
+      )
+      .all(limit) as unknown as { entry: string }[];
+    return rows.map((r) => JSON.parse(r.entry) as MediaEntry);
+  }
+
+  /** Store a probe result for the item as it is now; null records that ffprobe could not read it, so it is not retried until the file changes. */
+  setMetadata(entry: MediaEntry, meta: MediaMetadata | null): void {
+    this.db
+      .prepare(
+        'INSERT INTO media_meta (key, size, mtime_ms, meta) VALUES (?, ?, ?, ?) ' +
+          'ON CONFLICT(key) DO UPDATE SET size = excluded.size, mtime_ms = excluded.mtime_ms, meta = excluded.meta',
+      )
+      .run(entry.key, entry.size, entry.mtimeMs, meta ? JSON.stringify(meta) : null);
   }
 
   itemCount(): number {

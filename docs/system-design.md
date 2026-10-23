@@ -47,7 +47,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 | `manifest.ts` | yes | Manifest types, `validateManifest`, `parseManifest`, `frameCount`. |
 | `params.ts` | yes | `resolveParams`: merge user input with defaults, coerce, clamp, report issues. |
 | `runtime.ts` | yes | `frameState` for a frame index, the bridge script, `injectBridge`, template CSP. |
-| `tags.ts`, `search.ts` | yes | Tag normalization, query parsing and scoring over an index. |
+| `tags.ts`, `search.ts` | yes | Tag normalization, query parsing and scoring over an index; metadata filters (`duration:`, `width:`, `height:`, `fps:`, `res:`, `codec:`, `alpha:`) that read manifests for templates and probed metadata for media. |
 | `library-types.ts` | yes | Index data types (shared over IPC). |
 | `render-plan.ts` | yes | Output presets and `buildRenderPlan`, which returns the exact ffmpeg arguments. |
 | `render-guard.ts` | yes | Render loop guards: `withTimeout`, the frame call script, template error messages, which partial files to remove. |
@@ -57,6 +57,8 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 | `library-store.ts` | Node | `LibraryStore` over `node:sqlite`: incremental scans, offline roots, per-item user data, `toIndex()`. |
 | `library-watch.ts` | Node | `watchRoot`: recursive `fs.watch` with coalescing, or null where unsupported. |
 | `library.ts` | Node | `scanLibrary`: one-shot scan through a throwaway in-memory store. |
+| `media-meta.ts` | yes | `MediaMetadata`, `parseFfprobe`, resolution labels and aliases. |
+| `media-probe.ts` | Node | `probeMedia` through the injectable runner, `ffprobePathFor`. |
 | `ffmpeg.ts` | Node | `detectFfmpeg` with an injectable process runner, encoder checks. |
 
 ### src/main
@@ -82,7 +84,8 @@ The preload exposes a small `window.pulp` API (`src/shared/api.ts`). The UI is p
 4. A folder containing `template.json` is a template: validated, entry file checked, not descended into further. Problems are collected per root, not thrown.
 5. Other files are indexed as media by extension. Folder names between the root and the file become tags (`Stock/City Night/clip.mov` gets `stock`, `city-night`).
 6. A root that cannot be reached is marked offline. Its items stay in the index flagged `offline`, listed dimmed and not loadable, so tags and favorites attached to them (`user_items`, a table independent of scan results) survive until the root is back. Roots removed from settings are dropped with their items; their user data stays for a later return.
-7. The UI gets the stored index at once on start (`library:get`), and every scan result afterwards as `library:changed`. Scans run on demand (Rescan, Add folder), when a watched root changes (`fs.watch` recursive, coalesced into one rescan of that root per quiet period; absent where unsupported), when the window regains focus and the last scan is older than 5 s, and every 15 s if an offline root exists again. Scans are serialized.
+7. After each scan, media without metadata for its current size and mtime is probed with ffprobe in the background (two at a time, results pushed to the UI every 25 files; skipped in headless mode and without ffmpeg). `src/core/media-meta.ts` parses duration, picture size, frame rate, codecs and alpha (from the pixel format, or VP9's `alpha_mode` tag); `media-probe.ts` runs ffprobe; the store keeps results in `media_meta` keyed with the stat signature, so a changed file is probed again and a file ffprobe cannot read is not retried until it changes. The list and details show size, timecode duration, frame rate, codec and alpha once probed.
+8. The UI gets the stored index at once on start (`library:get`), and every scan result afterwards as `library:changed`. Scans run on demand (Rescan, Add folder), when a watched root changes (`fs.watch` recursive, coalesced into one rescan of that root per quiet period; absent where unsupported), when the window regains focus and the last scan is older than 5 s, and every 15 s if an offline root exists again. Scans are serialized.
 
 Measured on a synthetic library of 5,100 items (5,000 tiny media files in 100 folders, 100 templates), Apple M3 Max, macOS, file-backed database: first scan 145 ms, unchanged rescan 105 ms, rescan with 10 changed and 10 new files 93 ms, building the index for the UI 12 ms. Target: a library of 5,000 items should scan from cold in under 1 s and rescan unchanged in under 500 ms on a laptop; the test in `tests/library-perf.test.ts` prints the numbers on every run (`--silent=false` to see them) and fails only above loose CI ceilings (15 s, 5 s).
 

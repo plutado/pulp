@@ -384,6 +384,29 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`(() => { const v = document.getElementById('media-video'); return !v.seeking && Math.abs(v.currentTime - 1.5) < 0.2 && v.readyState >= 2; })()`), 'the seek to finish');
     }, 60_000);
 
+    it('fills in ffprobe metadata in the background and filters by it', async () => {
+      if (!haveVideo) {
+        console.info('ffmpeg not available; metadata check skipped.');
+        return;
+      }
+      await until(
+        () => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-kind=media]')].some((li) => li.querySelector('.name')?.textContent === 'clip' && li.querySelector('.meta').textContent.includes('64x36'))`),
+        'probed metadata to reach the list',
+        120,
+      );
+      const meta = await page.eval<string>(`[...document.querySelectorAll('#results li[data-kind=media]')].find((li) => li.querySelector('.name')?.textContent === 'clip').querySelector('.meta').textContent`);
+      expect(meta).toContain('64x36');
+      expect(meta).toContain('00:00:02:00');
+      expect(meta).toContain('10 fps');
+      expect(meta).toContain('h264');
+      const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await setSearch('codec:h264 duration:>1');
+      expect(await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`)).toEqual(['clip']);
+      await setSearch('res:1080p');
+      expect(await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`)).toEqual(['Diagonal Wipe', 'Lower Third Bar', 'Title Card']);
+      await setSearch('');
+    }, 90_000);
+
     it('refuses an unknown id and a path on the URL, and serves a known id, as seen by an <img>', async () => {
       const outcome = (src: string) =>
         page.eval<string>(

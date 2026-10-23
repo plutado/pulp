@@ -12,7 +12,9 @@
 import { app, BrowserWindow } from 'electron';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { detectFfmpeg, nodeRunner } from '../core/ffmpeg';
 import { LibraryStore, type ScanStats } from '../core/library-store';
+import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import type { LibraryIndex, TemplateEntry } from '../core/library-types';
 import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
@@ -27,6 +29,10 @@ export function bundledTemplatesDir(): string {
 export const FOCUS_RESCAN_AGE_MS = 5_000;
 /** How often missing roots are checked for having come back. */
 export const OFFLINE_ROOT_POLL_MS = 15_000;
+/** ffprobe processes run at once while filling in metadata. */
+const PROBE_CONCURRENCY = 2;
+/** Metadata results are pushed to the UI in batches of this many. */
+const PROBE_BATCH = 25;
 
 let store: LibraryStore | null = null;
 let persistent = true;
@@ -38,6 +44,8 @@ const watchers = new Map<string, RootWatcher>();
 let monitor: ReturnType<typeof setInterval> | null = null;
 /** Scans run one at a time, in order. */
 let chain: Promise<unknown> = Promise.resolve();
+let probing = false;
+let ffprobe: string | null | undefined;
 
 /** Headless mode: no database on disk; `--library` folders are indexed for the run only. */
 export function useInMemoryLibrary(): void {
@@ -83,6 +91,40 @@ function syncWatchers(): void {
   }
 }
 
+/**
+ * Fill in ffprobe metadata for media that has none for its current size and
+ * mtime. Runs after scans in the background, a few files at a time, and
+ * pushes the index to the UI after each batch. Skipped in headless mode and
+ * without ffmpeg.
+ */
+async function probePendingMetadata(): Promise<void> {
+  if (probing || !persistent) return;
+  probing = true;
+  try {
+    if (ffprobe === undefined) {
+      const status = await detectFfmpeg();
+      ffprobe = status.ok ? ffprobePathFor(status.path) : null;
+    }
+    if (!ffprobe) return;
+    const st = getStore();
+    for (;;) {
+      const pending = st.pendingMetadata(PROBE_BATCH);
+      if (pending.length === 0) break;
+      for (let i = 0; i < pending.length; i += PROBE_CONCURRENCY) {
+        await Promise.all(
+          pending.slice(i, i + PROBE_CONCURRENCY).map(async (entry) => {
+            const meta = await probeMedia(ffprobe!, entry.path, nodeRunner);
+            st.setMetadata(entry, meta);
+          }),
+        );
+      }
+      broadcast(st.toIndex());
+    }
+  } finally {
+    probing = false;
+  }
+}
+
 /** Rescan every configured root (plus `extraFolders` for this run) incrementally and tell the UI. */
 export function rescan(extraFolders: string[] = []): Promise<LibraryIndex> {
   if (extraFolders.length > 0) extraRoots = [...new Set([...extraRoots, ...extraFolders])];
@@ -95,6 +137,7 @@ export function rescan(extraFolders: string[] = []): Promise<LibraryIndex> {
     syncWatchers();
     const index = st.toIndex();
     broadcast(index);
+    void probePendingMetadata();
     return index;
   });
   firstScan ??= scan;
@@ -109,6 +152,7 @@ function rescanRoot(root: string): Promise<void> {
     lastScanAt = Date.now();
     syncWatchers();
     broadcast(st.toIndex());
+    void probePendingMetadata();
   });
 }
 
