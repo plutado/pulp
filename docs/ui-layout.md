@@ -19,9 +19,9 @@ It is close in spirit to the target. What it lacks: a way to browse by type and 
 | **Browse panel** | left | A tree with sections: Types (group → type), Themes, Styles, Packs, Folders, Favorites, Recent. Each node shows an item count. Selecting a node sets the **scope**: the results and the search are narrowed to it. Clearing the selection widens back to everything. |
 | **Search bar** | above the results | Search field; a **scope chip** naming the selected node ("in: Lower thirds › Sports", × to clear); recent searches; filter chips for alpha, loop, duration and resolution; sort; grid/list toggle; thumbnail size. |
 | **Results** | center | **Grid of cards**: thumbnail with hover-scrub, name, badges (alpha, loop, duration, resolution, audio variants, pack). **List view** for audio and long lists: name, duration, type, themes, file. **Audition mode**: autoplay with arrow keys. A card can be dragged to the collection tray, to the stage, or straight out to an editor once rendered. |
-| **Stage** | center, above the results in a resizable split | The player: play/pause, loop toggle, frame step, in and out marks, timecode, volume and mute. A **background toggle** (checkerboard, black, white, custom) for checking alpha. Title-safe and action-safe overlay. A **waveform** under the scrub bar for audio and for templates with sound. **Stem lanes** for layered music, one waveform per layer with mute and solo. A **variant picker** for paired sound effects. |
+| **Stage** | center, above the results in a resizable split; collapsible to a thin bar | The player: play/pause, loop toggle, frame step, in and out marks, timecode, volume and mute. A **background toggle** (checkerboard, black, white, custom) for checking alpha. Title-safe and action-safe overlay. A **waveform** under the scrub bar for audio and for templates with sound. **Stem lanes** for layered music, one waveform per layer with mute and solo. A **variant picker** for paired sound effects. |
 | **Inspector** | right | Tabs: **Parameters** (the form as today, with undo and presets), **Output** (preset, size, frame rate, duration and loop extension, speed, alpha type, matte pass, audio embedded or separate, save folder, file-name pattern), **Info** (metadata, license, pack, tags, favorite, themes and styles, editable where the item is the user's). |
-| **Collection tray** | right column below the inspector, or a bottom drawer; collapsible | Items gathered while browsing, as small cards, each with its own output settings. **Apply to all**, save and load as a file, **Render all** with per-item and total progress. It absorbs today's render queue. |
+| **Collection tray** | bottom drawer under the center and right columns; resizable, collapsible to a one-line summary, opens when the first item is added | Items gathered while browsing, as small cards, each with its own output settings. **Apply to all**, save and load as a file, **Render all** with per-item and total progress. It absorbs today's render queue. |
 | **Guided setup** | modal | Numbered steps: what it is for, size and frame rate, format and alpha, audio, where to save. A live preview over a checkerboard, a settings summary, "save as default for this type", Add to collection. |
 | **Status bar** | bottom | ffmpeg found or missing, library counts, cache size, scans and renders in progress, a "copy diagnostics" entry point. |
 
@@ -38,7 +38,8 @@ Nothing is dropped; everything moves into a region.
 | Pack import and export | Browse panel (Packs section) |
 | Flat result list with thumbnails | Results, list view (the grid is added later) |
 | Preview, play, scrub, timecode | Stage |
-| Details, favorite, tag chips | Inspector, Info tab |
+| Details | Inspector, Info tab |
+| Favorite, tag chips | A compact strip under the stage (star, chips, quick-add) and the Info tab; same state in both |
 | Parameter form, undo, saved presets | Inspector, Parameters tab |
 | Render options, trim, CSV batch, Render | Inspector, Output tab |
 | Drag handle, Prepare for drag, render cache | Collection tray (finished items keep a drag handle) |
@@ -98,9 +99,9 @@ Each of these is a checklist item in the milestone named.
 - Pane sizes, collapsed panes, view mode and thumbnail size are per user in `settings.json`, written atomically like the rest.
 - Keyboard: every region is reachable and operable without a pointer by milestone 8.
 
-## Open questions, to settle in milestone 11
+## Decisions on the open layout questions (David, 2026-10-23)
 
-- Collection tray: below the inspector in the right column, or a drawer along the bottom that spans the window. The drawer gives wider cards and room for progress; the column keeps the center for results. Prototype both in the shell and pick one.
-- Stage split: the stage above the results (the preview stays large) or the results filling the center with the stage as a resizable pane that can collapse. Default to the split with a remembered size.
-- Default view: grid for visual items and list for audio, or one setting for all. Default to per kind.
-- Whether Info (tags, favorite) also keeps a compact strip under the stage, as today, or lives only in the tab.
+- **Collection tray: bottom drawer**, spanning the center and right columns, resizable and collapsible to a one-line summary ("3 renders · 1 running"). It opens automatically when the first item is added; collapsing it again is remembered.
+- **Stage: above the results** in the center column, a resizable vertical split, collapsible to a thin bar; both the split size and the collapsed state are kept in `settings.json`.
+- **Default view: per media kind** — grid for visual items, list for audio — and each kind remembers its own grid/list toggle (built in milestone 12 with the grid).
+- **Tags and favorite: both places, one state.** A compact strip under the stage keeps the quick actions (favorite star, tag chips, quick-add field); the Info tab holds the full details — metadata, license, pack, and in milestone 10 themes and styles — with favorite and tags editable there too. Both render from the same shared state, so an edit in one place shows in the other at once.
