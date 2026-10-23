@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.alpha-check",
+  "name": "Alpha Check",
+  "description": "Alpha ramp, semi-transparent color patches, hairlines and moving text for checking straight versus premultiplied alpha in editing apps.",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "title",
+  "tags": ["test", "alpha"],
+  "duration": 2,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "parameters": []
+}

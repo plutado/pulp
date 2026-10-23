@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Alpha check for editing apps (docs/nle-verification.md). Everything that goes wrong when an app
+  // mistakes straight alpha for premultiplied, or the reverse, shows up here: the ramp darkens or
+  // clips, the 50% patches shift, and the hairlines and text grow dark or bright fringes.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  window.pulpRender = function (state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, s = H / 1080;
+    ctx.clearRect(0, 0, W, H);
+
+    // 1. White alpha ramp, 0% at the left to 100% at the right. Over black it must read as a plain
+    //    gray gradient; over white it must stay white. The 50% mark is at the center.
+    var ramp = ctx.createLinearGradient(0, 0, W, 0);
+    ramp.addColorStop(0, 'rgba(255,255,255,0)');
+    ramp.addColorStop(1, 'rgba(255,255,255,1)');
+    ctx.fillStyle = ramp;
+    ctx.fillRect(0, 60 * s, W, 160 * s);
+    ctx.fillStyle = 'rgba(255,255,255,1)';
+    ctx.fillRect(W / 2 - 1, 40 * s, 2, 200 * s); // opaque tick at the 50% mark
+
+    // 2. 50% color patches: red, green, blue, white, black. Over black, red must read (128,0,0).
+    var colors = ['255,0,0', '0,255,0', '0,0,255', '255,255,255', '0,0,0'];
+    for (var i = 0; i < colors.length; i++) {
+      ctx.fillStyle = 'rgba(' + colors[i] + ',0.5)';
+      ctx.fillRect((160 + i * 340) * s, 300 * s, 260 * s, 200 * s);
+    }
+
+    // 3. Opaque white hairlines on transparent: any fringe here is an alpha interpretation error.
+    ctx.fillStyle = '#ffffff';
+    for (var x = 160; x <= 1760; x += 80) ctx.fillRect(x * s, 560 * s, 1, 120 * s);
+    ctx.fillRect(160 * s, 620 * s, 1600 * s, 1);
+
+    // 4. Moving text with anti-aliased edges, plus the frame number so stills can be matched.
+    var tx = (200 + (W - 1200) * state.progress);
+    ctx.font = '600 ' + 96 * s + 'px Helvetica Neue, Arial, sans-serif';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillText('Alpha check', tx, 860 * s);
+    ctx.font = '400 ' + 40 * s + 'px Menlo, Consolas, monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('frame ' + state.frame + ' / ' + state.totalFrames, 160 * s, 1000 * s);
+  };
+</script>
+</body>
+</html>
