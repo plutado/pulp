@@ -59,6 +59,18 @@ describe('buildBrowseTree', () => {
     expect(find(tree, 'styles')?.children.map((n) => [n.id, n.count])).toEqual([['style:clean', 2], ['style:grunge', 1]]);
   });
 
+  it('lists packs the entries came from, and hides the section when there are none', () => {
+    const packed = buildBrowseTree(
+      [template('a', {}, { pack: { name: 'News Pack', slug: 'news-pack' } }), template('b', {}, { pack: { name: 'News Pack', slug: 'news-pack' } }), template('c', {}, { pack: { name: 'Holiday', slug: 'holiday' } }), media('x')],
+      ['/lib', '/media'],
+      undefined,
+    );
+    expect(packed.map((s) => s.id)).toEqual(['quick', 'types', 'packs', 'folders']);
+    expect(find(packed, 'packs')?.children.map((n) => [n.label, n.count])).toEqual([['Holiday', 1], ['News Pack', 2]]);
+    expect(find(packed, 'pack:news-pack')?.scope).toEqual({ label: 'News Pack', filter: 'pack:news-pack', kind: 'pack' });
+    expect(find(tree, 'packs')).toBeUndefined();
+  });
+
   it('drops empty taxonomy sections but keeps Quick access, Untyped and Folders, dimmed at zero', () => {
     const bare = buildBrowseTree([media('x')], ['/media'], undefined);
     expect(bare.map((s) => s.id)).toEqual(['quick', 'types', 'folders']);

@@ -180,6 +180,17 @@ describe('searchLibrary taxonomy filters', () => {
     expect(names(index, 'style:grunge alpha:yes')).toEqual(['Glitchy']);
   });
 
+  it('pack: matches templates found under a pack.json by its slug', async () => {
+    const pack = join(root, 'Holiday Pack');
+    await mkdir(pack, { recursive: true });
+    await writeFile(join(pack, 'pack.json'), JSON.stringify({ formatVersion: 1, name: 'Holiday Pack', license: 'CC0-1.0', templates: ['card'] }));
+    await writeTemplate(join(pack, 'card'), { id: 'test.card', name: 'Card' });
+    await writeTemplate(join(root, 'plain'), { id: 'test.plain', name: 'Plain' });
+    const index = await scanLibrary([root]);
+    expect(names(index, 'pack:holiday-pack')).toEqual(['Card']);
+    expect(names(index, 'pack:other')).toEqual([]);
+  });
+
   it('free text finds types and themes by their ids', async () => {
     const index = await buildIndex();
     expect(names(index, 'whoosh')).toEqual(['swipe']);

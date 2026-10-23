@@ -27,6 +27,8 @@ export interface TemplateEntry {
   userThemes?: string[];
   dir: string;
   root: string;
+  /** The pack this template was found under (a folder with a pack.json), if any. */
+  pack?: { name: string; slug: string };
   manifest: TemplateManifest;
   /** Manifest tags plus folder-derived tags. */
   tags: string[];

@@ -26,6 +26,15 @@ describe('pack manifest and licenses', () => {
     expect(parsePackManifest('{').ok).toBe(false);
   });
 
+  it('accepts default type, themes and styles for the pack and rejects unknown ones', () => {
+    const ok = parsePackManifest(JSON.stringify({ formatVersion: 1, name: 'News Pack', license: 'CC0-1.0', templates: ['strap'], type: 'lower-third', themes: ['News', 'My Show'], styles: ['Clean'] }));
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.manifest).toMatchObject({ type: 'lower-third', themes: ['news', 'my-show'], styles: ['clean'] });
+    const bad = parsePackManifest(JSON.stringify({ formatVersion: 1, name: 'x', license: 'MIT', templates: ['a'], type: 'explosion-of-joy', styles: ['brutalist'] }));
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.problems).toEqual(['type must be a type id from the built-in list', '"brutalist" is not a built-in style']);
+  });
+
   it('warns on missing, proprietary and unknown licenses', () => {
     expect(licenseWarning('CC0-1.0')).toBeNull();
     expect(licenseWarning('MIT')).toBeNull();

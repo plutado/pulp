@@ -38,6 +38,7 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
   const byTheme = new Map<string, number>();
   const byStyle = new Map<string, number>();
   const byRoot = new Map<string, number>();
+  const byPack = new Map<string, { name: string; count: number }>();
   let untyped = 0;
   let favorites = 0;
   let recent = 0;
@@ -54,6 +55,11 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     for (const theme of entry.themes ?? []) bump(byTheme, theme);
     if (entry.kind === 'template') for (const style of entry.manifest.styles ?? []) bump(byStyle, style);
     bump(byRoot, entry.root);
+    if (entry.kind === 'template' && entry.pack) {
+      const p = byPack.get(entry.pack.slug) ?? { name: entry.pack.name, count: 0 };
+      p.count += 1;
+      byPack.set(entry.pack.slug, p);
+    }
     if (entry.favorite) favorites += 1;
     if (entry.lastUsed) recent += 1;
   }
@@ -121,6 +127,16 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     })),
   };
 
+  const packs: TreeNode = {
+    id: 'packs',
+    label: 'Packs',
+    count: byPack.size,
+    scope: null,
+    children: [...byPack.entries()]
+      .sort((a, b) => a[1].name.localeCompare(b[1].name))
+      .map(([slug, p]) => ({ id: `pack:${slug}`, label: p.name, count: p.count, scope: { label: p.name, filter: `pack:${slug}`, kind: 'pack' as const }, children: [] })),
+  };
+
   const folders: TreeNode = {
     id: 'folders',
     label: 'Folders',
@@ -133,5 +149,5 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
   };
 
   // Sections with nothing under them are left out, except the fixed entry points (Quick access, Types with Untyped, Folders).
-  return [quick, types, themes, styles, folders].filter((section) => section.id === 'quick' || section.id === 'folders' || section.children.length > 0);
+  return [quick, types, themes, styles, packs, folders].filter((section) => section.id === 'quick' || section.id === 'folders' || section.children.length > 0);
 }

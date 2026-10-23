@@ -281,6 +281,27 @@ describe('LibraryStore incremental scans', () => {
     }
   });
 
+  it('gives templates under a pack.json the pack name and its default type, themes and styles', async () => {
+    const root = join(dir, 'lib');
+    const pack = join(root, 'newspack');
+    await mkdir(pack, { recursive: true });
+    await writeFile(join(pack, 'pack.json'), JSON.stringify({ formatVersion: 1, name: 'News Pack', license: 'CC0-1.0', templates: ['strap', 'opener'], type: 'lower-third', themes: ['news'], styles: ['clean'] }));
+    await writeTemplate(join(pack, 'strap'), { id: 'test.strap', name: 'Strap', category: 'other' });
+    await writeTemplate(join(pack, 'opener'), { id: 'test.opener', name: 'Opener', category: 'title', type: 'opener', themes: ['sports'], styles: ['grunge'] });
+    await writeTemplate(join(root, 'loose'), { id: 'test.loose', name: 'Loose' });
+    await writeFile(join(root, 'broken', 'pack.json').replace('broken/pack.json', 'broken-pack.json'), 'not json'); // a stray file, not a pack folder
+    store.setRoots([root]);
+    await store.scanRoots([root]);
+    const byName = Object.fromEntries(store.toIndex().templates.map((t) => [t.manifest.name, t]));
+    expect(byName['Strap']).toMatchObject({ pack: { name: 'News Pack', slug: 'news-pack' } });
+    expect(byName['Strap']!.manifest).toMatchObject({ type: 'lower-third', themes: ['news'], styles: ['clean'] });
+    // Its own type wins; themes and styles join the pack's.
+    expect(byName['Opener']!.manifest).toMatchObject({ type: 'opener', themes: ['sports', 'news'], styles: ['grunge', 'clean'] });
+    expect(byName['Opener']!.themes).toEqual(['sports', 'news']);
+    expect(byName['Loose']!.pack).toBeUndefined();
+    expect(byName['Loose']!.manifest.type).toBeUndefined();
+  });
+
   it('persists across close and reopen', async () => {
     const root = join(dir, 'lib');
     await writeTemplate(join(root, 'tpl'));

@@ -22,7 +22,7 @@ export interface Scope {
   filter?: string;
   root?: string;
   /** What kind of node this is, so the UI can pick its icon. */
-  kind?: 'favorites' | 'recent' | 'built-in' | 'folder' | 'type' | 'group' | 'untyped' | 'theme' | 'style';
+  kind?: 'favorites' | 'recent' | 'built-in' | 'folder' | 'type' | 'group' | 'untyped' | 'theme' | 'style' | 'pack';
   /** For type and group scopes: the type group, which chooses the icon. */
   group?: string;
 }

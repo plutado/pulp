@@ -149,7 +149,8 @@ export function scopeIcon(kind: string | undefined, group: string | undefined): 
   switch (kind) {
     case 'favorites': return 'star';
     case 'recent': return 'clock';
-    case 'built-in': return 'package';
+    case 'built-in':
+    case 'pack': return 'package';
     case 'folder': return 'folder';
     case 'type':
     case 'group': return group ? (TYPE_GROUP_ICONS[group] ?? 'shapes') : 'shapes';

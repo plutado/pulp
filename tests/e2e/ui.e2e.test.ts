@@ -573,6 +573,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       );
       // The bundled title card is untouched.
       expect(await page.eval<number>(`[...document.querySelectorAll('#results li .name')].filter((n) => n.textContent === 'Title Card').length`)).toBe(1);
+      // The installed pack appears in the browse tree, counting its templates.
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter^="pack:"]')`), 'the pack in the browse tree');
+      expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter^="pack:"]').dataset.count`))).toBe(2);
     }, 90_000);
 
     it('offers Replace only for templates installed from a pack, and refuses a broken zip with a plain message', async () => {

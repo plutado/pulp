@@ -13,12 +13,13 @@
  * a throwaway store, which is what `scanLibrary` uses.
  */
 
-import { readdir, stat } from 'node:fs/promises';
+import { readdir, stat, readFile } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
-import { folderTags, itemId, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES } from './library-scan';
+import { folderTags, itemId, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES, type PackContext } from './library-scan';
+import { PACK_FILENAME, parsePackManifest, slug } from './pack';
 import { inferMediaType, inferThemes } from './taxonomy';
 import type { MediaLookup } from './media-serve';
 import type { MediaMetadata } from './media-meta';
@@ -120,7 +121,7 @@ CREATE TABLE IF NOT EXISTS user_items (
 );
 `;
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4; // 4: templates re-read so pack defaults apply
 
 export class LibraryStore {
   private readonly db: DatabaseSync;
@@ -212,7 +213,7 @@ export class LibraryStore {
       const upserts: { key: string; kind: string; size: number; mtimeMs: number; entry: LibraryEntry }[] = [];
       let truncated = false;
 
-      const walk = async (dir: string, depth: number): Promise<void> => {
+      const walk = async (dir: string, depth: number, pack?: PackContext): Promise<void> => {
         if (fileCount >= maxFiles) return;
         let entries;
         try {
@@ -220,6 +221,21 @@ export class LibraryStore {
         } catch (err) {
           problems.push({ path: dir, message: `could not read folder: ${(err as Error).message}` });
           return;
+        }
+
+        if (entries.some((e) => e.isFile() && e.name === PACK_FILENAME)) {
+          // A pack folder: its pack.json names it and gives its templates their defaults.
+          try {
+            const parsed = parsePackManifest(await readFile(join(dir, PACK_FILENAME), 'utf8'));
+            if (parsed.ok) {
+              const m = parsed.manifest;
+              pack = { name: m.name, slug: slug(m.name, 'pack'), ...(m.type ? { type: m.type } : {}), ...(m.themes ? { themes: m.themes } : {}), ...(m.styles ? { styles: m.styles } : {}) };
+            } else {
+              problems.push({ path: join(dir, PACK_FILENAME), message: `invalid pack.json: ${parsed.problems.join('; ')}` });
+            }
+          } catch (err) {
+            problems.push({ path: join(dir, PACK_FILENAME), message: `could not read pack.json: ${(err as Error).message}` });
+          }
         }
 
         if (entries.some((e) => e.isFile() && e.name === MANIFEST_FILENAME)) {
@@ -240,7 +256,7 @@ export class LibraryStore {
             return;
           }
           stats.loaded += 1;
-          const loaded = await loadTemplate(dir, rootPath);
+          const loaded = await loadTemplate(dir, rootPath, pack);
           if ('kind' in loaded) upserts.push({ key, kind: 'template', size: info.size, mtimeMs: info.mtimeMs, entry: loaded });
           else {
             problems.push(loaded);
@@ -257,7 +273,7 @@ export class LibraryStore {
           if (entry.isSymbolicLink()) continue;
           if (entry.isDirectory()) {
             if (SKIP_DIRECTORIES.has(entry.name)) continue;
-            if (depth < maxDepth) await walk(full, depth + 1);
+            if (depth < maxDepth) await walk(full, depth + 1, pack);
             continue;
           }
           if (!entry.isFile()) continue;

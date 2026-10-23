@@ -237,6 +237,9 @@ news-pack/
 | `author` | string | no | Shown when importing. |
 | `license` | string | yes | SPDX identifier for the pack as a whole. Templates carry their own `license`. Pulp warns, but does not refuse, when a license is missing, `UNLICENSED`, or not in its list of open licenses (CC0, CC BY, CC BY-SA, MIT, ISC, Apache-2.0, BSD, Unlicense, OFL, Zlib, MPL). |
 | `description` | string | no | |
+| `type` | string | no | Default type for the pack's templates, from the built-in type list; a template that declares its own `type` keeps it. |
+| `themes` | string[] | no | Themes added to every template in the pack (built-in ids or your own words, normalized like tags). |
+| `styles` | string[] | no | Styles added to every template in the pack, from the built-in style list only. |
 | `homepage` | string | no | |
 | `templates` | string[] | yes | Folder names inside the pack, one per template. Each must hold a valid `template.json` and its entry file. |
 

@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, relative, sep } from 'node:path';
-import { MANIFEST_FILENAME, parseManifest } from './manifest';
+import { type TemplateManifest, MANIFEST_FILENAME, parseManifest } from './manifest';
 import type { LibraryProblem, MediaKind, TemplateEntry } from './library-types';
 import { normalizeTag } from './tags';
 
@@ -48,7 +48,26 @@ function unique(values: string[]): string[] {
 }
 
 /** Read and validate one template folder; problems are returned, not thrown. */
-export async function loadTemplate(dir: string, root: string): Promise<TemplateEntry | LibraryProblem> {
+/** The pack a template is found under: its name, install slug and the defaults its pack.json declares. */
+export interface PackContext {
+  name: string;
+  slug: string;
+  type?: string;
+  themes?: string[];
+  styles?: string[];
+}
+
+/** A template's manifest with its pack's defaults filled in: its own type wins; themes and styles are joined. */
+export function applyPackDefaults(manifest: TemplateManifest, pack: PackContext | undefined): TemplateManifest {
+  if (!pack) return manifest;
+  const out = { ...manifest };
+  if (out.type === undefined && pack.type) out.type = pack.type;
+  if (pack.themes?.length) out.themes = [...new Set([...(out.themes ?? []), ...pack.themes])];
+  if (pack.styles?.length) out.styles = [...new Set([...(out.styles ?? []), ...pack.styles])];
+  return out;
+}
+
+export async function loadTemplate(dir: string, root: string, pack?: PackContext): Promise<TemplateEntry | LibraryProblem> {
   const manifestPath = join(dir, MANIFEST_FILENAME);
   let text: string;
   try {
@@ -75,7 +94,8 @@ export async function loadTemplate(dir: string, root: string): Promise<TemplateE
     id: itemId(key),
     dir,
     root,
-    manifest: result.manifest,
+    ...(pack ? { pack: { name: pack.name, slug: pack.slug } } : {}),
+    manifest: applyPackDefaults(result.manifest, pack),
     tags,
     warnings: result.warnings,
   };

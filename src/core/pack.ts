@@ -7,6 +7,7 @@
  */
 
 import { MANIFEST_FILENAME, parseManifest, type TemplateManifest, type ValidationIssue } from './manifest';
+import { isBuiltInStyle, isBuiltInType, normalizeTheme } from './taxonomy';
 
 export const PACK_FILENAME = 'pack.json';
 
@@ -21,6 +22,10 @@ export interface PackManifest {
   homepage?: string;
   /** Folder names inside the pack, one per template. */
   templates: string[];
+  /** Defaults for the pack's templates: a template that declares its own type keeps it; themes and styles are added to its own. */
+  type?: string;
+  themes?: string[];
+  styles?: string[];
 }
 
 /** Licenses that permit redistribution without further terms. Anything else gets a warning, not a block. */
@@ -96,6 +101,20 @@ export function parsePackManifest(text: string): { ok: true; manifest: PackManif
   for (const key of ['version', 'author', 'description', 'homepage'] as const) {
     if (r[key] !== undefined && typeof r[key] !== 'string') problems.push(`${key} must be a string`);
   }
+  if (r.type !== undefined && (typeof r.type !== 'string' || !isBuiltInType(r.type))) problems.push('type must be a type id from the built-in list');
+  let themes: string[] | undefined;
+  if (r.themes !== undefined) {
+    if (!Array.isArray(r.themes) || !r.themes.every((t) => typeof t === 'string' && t.trim() !== '')) problems.push('themes must be a list of non-empty strings');
+    else themes = [...new Set((r.themes as string[]).map(normalizeTheme))].filter((t) => t.length > 0);
+  }
+  let styles: string[] | undefined;
+  if (r.styles !== undefined) {
+    if (!Array.isArray(r.styles) || !r.styles.every((v) => typeof v === 'string')) problems.push('styles must be a list of strings');
+    else {
+      styles = [...new Set((r.styles as string[]).map((v) => v.trim().toLowerCase()))];
+      for (const style of styles) if (!isBuiltInStyle(style)) problems.push(`"${style}" is not a built-in style`);
+    }
+  }
   if (problems.length > 0) return { ok: false, problems };
   return {
     ok: true,
@@ -108,6 +127,9 @@ export function parsePackManifest(text: string): { ok: true; manifest: PackManif
       ...(r.author !== undefined ? { author: r.author as string } : {}),
       ...(r.description !== undefined ? { description: r.description as string } : {}),
       ...(r.homepage !== undefined ? { homepage: r.homepage as string } : {}),
+      ...(typeof r.type === 'string' ? { type: r.type } : {}),
+      ...(themes !== undefined ? { themes } : {}),
+      ...(styles !== undefined ? { styles } : {}),
     },
   };
 }
