@@ -45,5 +45,8 @@ export function setFfmpeg(info: { ok: boolean; version?: string; path?: string; 
   const el = $('ffmpeg-status');
   el.classList.toggle('error', !info.ok);
   const message = info.message ?? 'FFmpeg not found';
-  setStatus(el, info.ok ? 'check-circle' : 'warning', info.ok ? `FFmpeg ${info.version} (${info.path})` : message.charAt(0).toUpperCase() + message.slice(1));
+  setStatus(el, info.ok ? 'check-circle' : 'warning', info.ok ? `FFmpeg ${info.version}` : message.charAt(0).toUpperCase() + message.slice(1));
+  // The executable path matters when the wrong ffmpeg is found; it lives in the tooltip.
+  if (info.ok && info.path) el.dataset.tip = info.path;
+  else delete el.dataset.tip;
 }

@@ -11,7 +11,7 @@ import { mkdir, readdir, realpath, rm, stat } from 'node:fs/promises';
 import { deflateSync } from 'node:zlib';
 import { basename, extname, join, resolve, sep } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
-import { CACHE_INDEX_FILE, cacheFileName, formatMB, planEviction, sanitizeCacheIndex, type CachedFile } from '../core/render-cache';
+import { CACHE_INDEX_FILE, cacheFileName, planEviction, sanitizeCacheIndex, type CachedFile } from '../core/render-cache';
 import { sizeLabel } from '../core/display';
 import { readFile } from 'node:fs/promises';
 import { expandSequence } from '../core/render-guard';
@@ -98,7 +98,7 @@ export async function cacheStats(): Promise<CacheStats> {
   const dir = await cacheDir();
   const files = await listCache(dir);
   const bytes = files.reduce((n, f) => n + f.bytes, 0);
-  return { dir, files: files.length, bytes, maxMB: settings.renderCacheMaxMB, summary: `${files.length} file${files.length === 1 ? '' : 's'}, ${formatMB(bytes)} of ${sizeLabel(settings.renderCacheMaxMB * 1024 * 1024)}` };
+  return { dir, files: files.length, bytes, maxMB: settings.renderCacheMaxMB, summary: `${files.length} file${files.length === 1 ? '' : 's'}, ${sizeLabel(bytes)} of ${sizeLabel(settings.renderCacheMaxMB * 1024 * 1024)}` };
 }
 
 /** Delete the oldest cached renders until the folder is under its limit. `keep` protects files in use. */

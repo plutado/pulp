@@ -15,6 +15,41 @@ Status: the guide milestone 18 builds to, written 2026-10-23. Rules here are bin
 - folder roots: the bundled root is "Built-in templates"; user folders keep their own names
 - **tags and themes: stored normalized (lowercase, dashes) for search; displayed humanized** — dashes and underscores become spaces, sentence case: `lower-third` → "Lower third", `my-show` → "My show"
 
+**Official styling wins over sentence case.** Proper names and initialisms keep the form their owners use; this is the one list, and the style test reads it as its set of exceptions:
+
+```official-styling
+FFmpeg
+ProRes
+H.264
+HEVC
+macOS
+DaVinci Resolve
+Premiere Pro
+QuickTime
+Motion JPEG
+PCM
+VP9
+VP8
+AV1
+DNxHD
+AAC
+MP3
+FLAC
+ALAC
+CSV
+MOV
+PNG
+JPEG
+GB
+MB
+KB
+kHz
+fps
+SPDX
+```
+
+File extensions shown through the display module ("MOV", "WAV") are initialisms by definition and always uppercase.
+
 Search syntax is the exception by design: what you type in the search field (`tag:lower-third`, `type:wipe`) stays the stored id — it is an address, not a label.
 
 **Writing rules:**

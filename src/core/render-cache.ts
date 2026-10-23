@@ -82,6 +82,3 @@ export function sanitizeCacheMaxMB(value: unknown): number {
   return Number.isFinite(n) && n >= 64 ? Math.round(n) : DEFAULT_CACHE_MAX_MB;
 }
 
-export function formatMB(bytes: number): string {
-  return `${(bytes / 1024 / 1024).toFixed(bytes < 100 * 1024 * 1024 ? 1 : 0)} MB`;
-}

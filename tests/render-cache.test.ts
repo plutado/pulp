@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cacheFileName, cacheKey, DEFAULT_CACHE_MAX_MB, formatMB, planEviction, sanitizeCacheIndex, sanitizeCacheMaxMB } from '../src/core/render-cache';
+import { cacheFileName, cacheKey, DEFAULT_CACHE_MAX_MB, planEviction, sanitizeCacheIndex, sanitizeCacheMaxMB } from '../src/core/render-cache';
 import { parseManifest } from '../src/core/manifest';
 import { rawManifest } from './fixtures';
 
@@ -46,8 +46,5 @@ describe('render cache', () => {
     expect(sanitizeCacheMaxMB(undefined)).toBe(DEFAULT_CACHE_MAX_MB);
     expect(sanitizeCacheMaxMB('512')).toBe(512);
     expect(sanitizeCacheMaxMB(10)).toBe(DEFAULT_CACHE_MAX_MB); // below the floor
-    expect(formatMB(0)).toBe('0.0 MB');
-    expect(formatMB(1536 * 1024)).toBe('1.5 MB');
-    expect(formatMB(300 * 1024 * 1024)).toBe('300 MB');
   });
 });

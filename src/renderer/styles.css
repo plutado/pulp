@@ -259,8 +259,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .tabs .tab[aria-selected="true"] { color: var(--text); background: var(--panel-2); border-color: var(--border); }
 .tab-pane[hidden] { display: none; }
 
-.params-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.params-head h2 { margin: 8px 0 10px; }
+.params-head { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 8px 0 10px; }
 .params-actions { display: flex; gap: 4px; }
 .params-actions button { font-size: var(--font-caption); padding: 2px 7px; }
 /* Two lines: the preset list on its own row, then name, Save and Delete; stays comfortable when the pane is narrowed. */

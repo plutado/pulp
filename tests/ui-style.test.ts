@@ -8,13 +8,19 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { FILTER_CHIPS } from '../src/core/app-state';
+import { audioLabel, codecLabel, durationLabel, frameRateLabel, sizeLabel } from '../src/core/display';
 import { STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES } from '../src/core/taxonomy';
 
 const ROOT = join(__dirname, '..');
 const read = (p: string) => readFile(join(ROOT, p), 'utf8');
 
-/** Initialisms editors read as words; anything else in caps is shouting. */
-const CAPS_ALLOWED = new Set(['CSV']);
+/** The official-styling list in docs/ui-style.md is the one source of exceptions. */
+async function officialStyling(): Promise<string[]> {
+  const doc = await read('docs/ui-style.md');
+  const block = /```official-styling\n([\s\S]*?)```/.exec(doc);
+  if (!block) throw new Error('docs/ui-style.md has no official-styling list');
+  return block[1]!.split('\n').map((l) => l.trim()).filter(Boolean);
+}
 
 describe('stylesheet', () => {
   it('has no uppercase transforms and no font sizes outside the tokens', async () => {
@@ -31,12 +37,13 @@ describe('markup', () => {
     expect(html.includes('...')).toBe(false);
   });
 
-  it('shows no ALL CAPS text', async () => {
+  it('shows no ALL CAPS text outside the official-styling list', async () => {
+    const official = new Set(await officialStyling());
     const html = await read('src/renderer/index.html');
     const text = html
       .replace(/<!--[\s\S]*?-->/g, ' ')
       .replace(/<[^>]*>/g, ' '); // attributes go with their tags; what remains is what the user reads
-    const shouting = [...text.matchAll(/\b[A-Z]{3,}\b/g)].map((m) => m[0]).filter((w) => !CAPS_ALLOWED.has(w));
+    const shouting = [...text.matchAll(/\b[A-Z]{3,}\b/g)].map((m) => m[0]).filter((w) => !official.has(w));
     expect(shouting).toEqual([]);
   });
 
@@ -51,6 +58,27 @@ describe('markup', () => {
       return !hasLabelSpan && inner === '' && !open.includes('aria-label');
     });
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('display formatter', () => {
+  it('emits sentence case except for the official-styling list', async () => {
+    const official = await officialStyling();
+    const officialWords = new Set(official.flatMap((entry) => entry.split(/\s+/)));
+    const sentenceWord = /^[A-Z]?[a-z0-9]*(-[a-z0-9]+)*$/;
+    const outputs = [
+      ...['prores', 'h264', 'hevc', 'vp9', 'vp8', 'av1', 'qtrle', 'png', 'mjpeg', 'dnxhd', 'aac', 'mp3', 'opus', 'flac', 'vorbis', 'alac', 'pcm_s16le', 'pcm_f32le'].map(codecLabel),
+      audioLabel('pcm_s24le', 2, 48000),
+      sizeLabel(512), sizeLabel(2048), sizeLabel(12.4 * 1024 ** 2), sizeLabel(2048 * 1024 ** 2),
+      frameRateLabel(29.97),
+      durationLabel(6),
+    ];
+    for (const output of outputs) {
+      for (const word of output.split(/[\s·,]+/).filter(Boolean)) {
+        const ok = officialWords.has(word) || sentenceWord.test(word) || /^[0-9][0-9.:x×-]*(-bit|ch|s)?$/.test(word);
+        expect(ok, `"${word}" in "${output}" is neither sentence case nor on the official-styling list`).toBe(true);
+      }
+    }
   });
 });
 
