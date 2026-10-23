@@ -186,7 +186,7 @@ async function queueRender(): Promise<void> {
   stageStop();
   o.choosingOutput = true;
   els.renderStatus.classList.remove('error');
-  els.renderStatus.textContent = 'Choose where to save...';
+  els.renderStatus.textContent = 'Choose where to save…';
   updateRenderControls();
   try {
     const result = await window.pulp.render(request);

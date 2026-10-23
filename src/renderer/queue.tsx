@@ -14,7 +14,7 @@ function jobStatusText(job: RenderQueueJob): string {
     case 'queued':
       return `Queued · ${job.totalFrames} frames`;
     case 'running':
-      return `Rendering frame ${job.frame} of ${job.totalFrames}...`;
+      return `Rendering frame ${job.frame} of ${job.totalFrames}…`;
     case 'done':
       return `Wrote ${job.output ?? job.outputPath} (${job.frame} frames).${
         job.warnings.length ? ` Warnings: ${job.warnings.join('; ')}` : ''

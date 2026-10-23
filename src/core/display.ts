@@ -92,8 +92,8 @@ export function durationLabel(seconds: number): string {
 export function sizeLabel(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1).replace(/\.0$/, '')} MB`;
+  return `${(bytes / 1024 ** 3).toFixed(2).replace(/\.?0+$/, '')} GB`;
 }
 
 /** Audio facts: "PCM 16-bit · 2 ch · 48 kHz" (parts that are known). */

@@ -58,7 +58,9 @@ describe('media facts', () => {
     expect(sizeLabel(512)).toBe('512 B');
     expect(sizeLabel(2048)).toBe('2 KB');
     expect(sizeLabel(12.4 * 1024 ** 2)).toBe('12.4 MB');
-    expect(sizeLabel(3 * 1024 ** 3)).toBe('3.00 GB');
+    expect(sizeLabel(512 * 1024 ** 2)).toBe('512 MB');
+    expect(sizeLabel(3 * 1024 ** 3)).toBe('3 GB');
+    expect(sizeLabel(2.5 * 1024 ** 3)).toBe('2.5 GB');
     expect(audioLabel('pcm_s16le', 2, 48000)).toBe('PCM 16-bit · 2 ch · 48 kHz');
     expect(audioLabel('aac')).toBe('AAC');
   });

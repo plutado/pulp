@@ -44,5 +44,6 @@ export function initStatusBar(): void {
 export function setFfmpeg(info: { ok: boolean; version?: string; path?: string; message?: string }): void {
   const el = $('ffmpeg-status');
   el.classList.toggle('error', !info.ok);
-  setStatus(el, info.ok ? 'check-circle' : 'warning', info.ok ? `ffmpeg ${info.version} (${info.path})` : (info.message ?? 'ffmpeg not found'));
+  const message = info.message ?? 'FFmpeg not found';
+  setStatus(el, info.ok ? 'check-circle' : 'warning', info.ok ? `FFmpeg ${info.version} (${info.path})` : message.charAt(0).toUpperCase() + message.slice(1));
 }
