@@ -1,6 +1,6 @@
 # Platform notes
 
-Findings about Electron, Chromium, ffmpeg, macOS and Windows that cost real time to establish. Check here before re-investigating a symptom; each entry says what was seen, what the cause was, and what the code does about it. Dates are when the finding was made; versions are what it was made on (Electron 44, Chromium 152, ffmpeg 8.0 and 9.0.2, macOS 15 on Apple Silicon, `windows-latest` on GitHub Actions).
+Findings about Electron, Chromium, ffmpeg, macOS and Windows that cost real time to establish. Check here before re-investigating a symptom; each entry says what was seen, what the cause was, and what the code does about it. Dates are when the finding was made; versions are what it was made on (Electron 44, Chromium 152, ffmpeg 8.0 and 9.0.2, macOS 26.5.1 on Apple Silicon, `windows-latest` on GitHub Actions).
 
 ## Offscreen rendering and capture
 
@@ -8,7 +8,7 @@ Findings about Electron, Chromium, ffmpeg, macOS and Windows that cost real time
 
 **Seen.** On Windows CI, a trimmed PNG sequence was numbered correctly (00060 onward) but the first file held the start of the template, and a flattened H.264 render's first frame was pure background with no markers. macOS never showed it.
 
-**Cause.** `capturePage()` on an offscreen window returns the last *painted* frame, not a fresh one. The template bridge resolved inside the first `requestAnimationFrame` callback, which runs *before* Chromium commits the frame that contains the draw. On a slow machine the capture could grab the previous, empty surface. It stayed invisible for a long time because most tests read later frames, and the size fixtures draw the same picture every frame, so a one-frame shift changes nothing they check. Only tests that look at frame content at the very first frame can see it.
+**Cause.** `capturePage()` on an offscreen window returns the last *painted* frame, not a fresh one. The template bridge resolved inside the first `requestAnimationFrame` callback, which runs *before* Chromium commits the frame that contains the draw. On a slow machine the capture could grab the previous, empty surface. It stayed invisible for the four days between the first renderer and the first-frame tests because most tests read later frames, and the size fixtures draw the same picture every frame, so a one-frame shift changes nothing they check. Only tests that look at frame content at the very first frame can see it.
 
 **Fix.** Two parts, both in place: the bridge resolves on the *second* animation frame (after the commit), and `captureFrame` calls `webContents.invalidate()` and waits for one `paint` event before `capturePage()`, with a 500 ms fallback so a window that never paints degrades to the old behavior rather than hanging. The paint event is used only as a sync signal; frames still come from `capturePage()` (ADR 0003).
 
@@ -77,6 +77,6 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 
 ## Test design lessons
 
-- Read pixels from the *first* frame somewhere, not only from later ones, and use at least one fixture whose frames differ. The stale-capture bug hid for weeks behind tests that read `frames[1]` and fixtures that draw the same picture every frame.
+- Read pixels from the *first* frame somewhere, not only from later ones, and use at least one fixture whose frames differ. The stale-capture bug hid for four days behind tests that read `frames[1]` and fixtures that draw the same picture every frame.
 - When a job passes unexpectedly, check that the path under test actually ran: the first "fixed" Windows run had silently fallen back to PNG frames because the capture probe failed. The `frames:` line and the raw-path assertion exist for that.
 - Reproduce a platform failure locally before theorizing. The static ffmpeg 9 build settled "ffmpeg or Windows" in minutes both times; once it was ffmpeg, once it was not.

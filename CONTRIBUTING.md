@@ -24,6 +24,7 @@ npm run build
 - Keep `src/core` free of Electron and DOM dependencies, and cover it with tests. Logic that can live in the core should.
 - Template format changes need a matching update to `docs/template-format.md` and to the validator, plus an entry in `CHANGELOG.md`.
 - Larger design choices get a short record in `docs/decisions/`.
+- Before investigating a capture, color or platform symptom, read `docs/platform-notes.md`: it records what was already found on Electron, ffmpeg, Windows and macOS, with causes and fixes. Add new findings there.
 - Only contribute media, fonts or templates you created yourself or that carry a license compatible with redistribution (CC0, CC BY, MIT, SIL OFL for fonts). Say which license in the pull request.
 - Plain, direct writing in docs and UI text.
 
