@@ -7,6 +7,7 @@ import {
   parseAlphaModeSupport,
   parseEncoders,
   parseFfmpegVersion,
+  presetUnavailableReason,
   type ProcessRunner,
 } from '../src/core/ffmpeg';
 import { OUTPUT_PRESETS } from '../src/core/render-plan';
@@ -122,6 +123,17 @@ describe('checkPresetSupport', () => {
     const status = await detectFfmpeg(fakeRunner('ffmpeg'), {});
     expect(checkPresetSupport(status, OUTPUT_PRESETS['prores-4444'])).toBeNull();
     expect(checkPresetSupport(status, OUTPUT_PRESETS['webm-vp9-alpha'])).toMatch(/libvpx-vp9/);
+  });
+
+  it('presetUnavailableReason names the missing encoder and the platform note', () => {
+    const have = ['libx264', 'prores_ks', 'qtrle'];
+    expect(presetUnavailableReason(have, OUTPUT_PRESETS['qt-animation'])).toBeNull();
+    expect(presetUnavailableReason(have, OUTPUT_PRESETS['hevc-alpha'])).toBe(
+      'no "hevc_videotoolbox" encoder in this ffmpeg (macOS only: Apple VideoToolbox)',
+    );
+    expect(presetUnavailableReason(have, OUTPUT_PRESETS['webm-vp9-alpha'])).toBe('no "libvpx-vp9" encoder in this ffmpeg');
+    // An empty list means the encoder listing failed; nothing is marked unavailable.
+    expect(presetUnavailableReason([], OUTPUT_PRESETS['hevc-alpha'])).toBeNull();
   });
 
   it('passes through the missing-ffmpeg message', () => {

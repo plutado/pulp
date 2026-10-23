@@ -44,7 +44,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 
 - [ ] Verify each alpha preset imports with correct transparency in Premiere Pro, DaVinci Resolve and Final Cut Pro; record results in docs (3-5 h)
 - [ ] Straight versus premultiplied alpha: confirm what Chromium captures and what each NLE expects; add a setting if needed (2-3 h)
-- [ ] Additional presets: QuickTime Animation (qtrle) for older workflows, HEVC with alpha on macOS via VideoToolbox where available (2-3 h)
+- [x] Additional presets: QuickTime Animation (qtrle) for older workflows, HEVC with alpha on macOS via VideoToolbox where available; shown as unavailable elsewhere with the reason; ADR 0005 (2-3 h)
 - [ ] Preset options: frame-rate override, background color picker for flattening, start/end trim (1-3 h)
 
 ## 3. Parameter editor UI (10-16 h)

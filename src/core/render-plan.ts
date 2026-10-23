@@ -29,7 +29,7 @@
 
 import { frameCount, isValidColor, type TemplateManifest } from './manifest';
 
-export type PresetId = 'prores-4444' | 'prores-422hq' | 'png-sequence' | 'webm-vp9-alpha' | 'h264-mp4';
+export type PresetId = 'prores-4444' | 'prores-422hq' | 'png-sequence' | 'webm-vp9-alpha' | 'h264-mp4' | 'qt-animation' | 'hevc-alpha';
 
 /** How captured frames are handed to ffmpeg: raw BGRA pixels or PNG images. */
 export type FrameFormat = 'raw' | 'png';
@@ -70,6 +70,8 @@ export interface OutputPreset {
   codecArgs: readonly string[];
   /** 'rec709': BT.709 matrix, limited range, tagged. 'rgb': full-range RGB left untouched. */
   color: 'rec709' | 'rgb';
+  /** Why the encoder may be missing, shown next to the preset when it is. */
+  platformNote?: string;
 }
 
 /** Rec.709 output, step 1: convert RGB to Y'CbCr with the BT.709 matrix at limited (video) range. */
@@ -142,6 +144,35 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
     pixelFormat: 'yuv420p',
     color: 'rec709',
     codecArgs: ['-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-movflags', '+faststart'],
+  },
+  'qt-animation': {
+    id: 'qt-animation',
+    label: 'QuickTime Animation (alpha)',
+    description: 'Lossless RLE .mov with alpha for older workflows. Small with lots of transparency, large for full-frame content.',
+    extension: '.mov',
+    alpha: true,
+    sequence: false,
+    requiresEvenDimensions: false,
+    encoder: 'qtrle',
+    pixelFormat: 'argb',
+    color: 'rgb',
+    codecArgs: ['-c:v', 'qtrle'],
+  },
+  'hevc-alpha': {
+    id: 'hevc-alpha',
+    label: 'HEVC (alpha, macOS only)',
+    description: '.mov with alpha encoded by Apple VideoToolbox. Small files for Final Cut Pro, Premiere Pro and recent macOS apps. Quality 80, alpha quality 0.9.',
+    extension: '.mov',
+    alpha: true,
+    sequence: false,
+    requiresEvenDimensions: true,
+    encoder: 'hevc_videotoolbox',
+    // 4:4:4 Y'CbCr with alpha, converted and tagged by the Rec.709 steps (ADR 0005): from BGRA the
+    // encoder converts itself and leaves the matrix untagged. hvc1 is the tag Apple's players expect.
+    pixelFormat: 'ayuv',
+    color: 'rec709',
+    codecArgs: ['-c:v', 'hevc_videotoolbox', '-q:v', '80', '-alpha_quality', '0.9', '-tag:v', 'hvc1'],
+    platformNote: 'macOS only: Apple VideoToolbox',
   },
 };
 

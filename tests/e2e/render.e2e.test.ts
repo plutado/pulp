@@ -21,7 +21,7 @@ const run = promisify(execFile);
 const ROOT = join(__dirname, '..', '..');
 const FIXTURES = join(__dirname, 'templates');
 
-async function findTools(): Promise<{ electron: string; ffmpeg: string; ffprobe: string } | string> {
+async function findTools(): Promise<{ electron: string; ffmpeg: string; ffprobe: string; encoders: string[] } | string> {
   if (process.env.PULP_E2E === '0') return 'PULP_E2E=0';
   if (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return 'no display';
   let electron: string;
@@ -41,7 +41,7 @@ async function findTools(): Promise<{ electron: string; ffmpeg: string; ffprobe:
   } catch {
     return 'ffprobe not found next to ffmpeg';
   }
-  return { electron, ffmpeg: ffmpeg.path, ffprobe };
+  return { electron, ffmpeg: ffmpeg.path, ffprobe, encoders: ffmpeg.encoders };
 }
 
 const tools = await findTools();
@@ -52,6 +52,8 @@ if (typeof tools === 'string') console.info(`Skipping end-to-end render tests: $
 const available = typeof tools === 'string' ? null : tools;
 
 interface StreamInfo {
+  codec_name?: string;
+  codec_tag_string?: string;
   width: number;
   height: number;
   pix_fmt: string;
@@ -64,7 +66,7 @@ interface StreamInfo {
 }
 
 describe.skipIf(!available)('end-to-end render', () => {
-  const { electron, ffmpeg, ffprobe } = available ?? { electron: '', ffmpeg: '', ffprobe: '' };
+  const { electron, ffmpeg, ffprobe, encoders } = available ?? { electron: '', ffmpeg: '', ffprobe: '', encoders: [] };
   let out = '';
 
   beforeAll(async () => {
@@ -102,7 +104,7 @@ describe.skipIf(!available)('end-to-end render', () => {
       '-v', 'error',
       '-count_frames',
       '-select_streams', 'v:0',
-      '-show_entries', 'stream=width,height,pix_fmt,nb_read_frames,color_range,color_space,color_transfer,color_primaries:stream_tags',
+      '-show_entries', 'stream=codec_name,codec_tag_string,width,height,pix_fmt,nb_read_frames,color_range,color_space,color_transfer,color_primaries:stream_tags',
       '-of', 'json',
       file,
     ]);
@@ -238,6 +240,43 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(mov.code, mov.stderr).toBe(0);
     await check(join(out, 'color.mov'), 2);
   }, 240_000);
+
+  it('renders QuickTime Animation losslessly with alpha', async () => {
+    const result = await render('pulp.test.size-portrait', 'qt-animation', 'anim.mov', { extra: ['--library', FIXTURES] });
+    expect(result.code, result.stderr).toBe(0);
+    const file = join(out, 'anim.mov');
+    expect(await probe(file)).toMatchObject({ codec_name: 'qtrle', pix_fmt: 'argb', width: 1080, height: 1920, nb_read_frames: '3' });
+    // RLE is lossless and stays RGB, so the probe markers must come back exactly, alpha included.
+    await expectProbeMarkers(file, 1080, 1920);
+  }, 180_000);
+
+  it.skipIf(!encoders.includes('hevc_videotoolbox'))('renders HEVC with alpha through VideoToolbox, tagged hvc1 and Rec.709', async () => {
+    const result = await render('pulp.test.size-portrait', 'hevc-alpha', 'hevc.mov', { extra: ['--library', FIXTURES] });
+    expect(result.code, result.stderr).toBe(0);
+    const file = join(out, 'hevc.mov');
+    const info = await probe(file);
+    expect(info).toMatchObject({
+      codec_name: 'hevc', codec_tag_string: 'hvc1', width: 1080, height: 1920, nb_read_frames: '3',
+      color_space: 'bt709', color_transfer: 'bt709', color_primaries: 'bt709',
+    });
+    // Lossy, so colors within a few steps; this also proves the matrix was BT.709 (an untagged
+    // VideoToolbox conversion decodes pure red as about 233).
+    const expected = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 255]];
+    const spots = [[4, 4], [1080 - 5, 4], [4, 1920 - 5], [1080 - 5, 1920 - 5]];
+    for (const [i, [x, y]] of spots.entries()) {
+      const px = await pixels(file, x!, y!);
+      for (let c = 0; c < 3; c++) expect(Math.abs(px[c]! - expected[i]![c]!), `marker ${i} channel ${c}`).toBeLessThanOrEqual(6);
+    }
+    // The alpha layer is an HEVC auxiliary layer. ffmpeg 8 and later decode it; older builds return
+    // the base layer only, which reads as fully opaque, so the alpha check is skipped there.
+    const [min, max] = await alphaRange(file, 1);
+    if (min === 255 && max === 255) {
+      console.info('ffmpeg here does not decode the HEVC alpha layer; alpha check skipped.');
+    } else {
+      expect(min).toBe(0);
+      expect(max).toBe(255);
+    }
+  }, 180_000);
 
   it('renders ProRes 4444 with alpha at 8K', async () => {
     const result = await render('pulp.test.size-8k', 'prores-4444', 'size-8k.mov', { extra: ['--library', FIXTURES], timeoutMs: 300_000 });

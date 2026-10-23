@@ -15,6 +15,8 @@ export interface FfmpegInfo {
   path?: string;
   version?: string;
   message?: string;
+  /** Encoder names from `ffmpeg -encoders`, so the UI can mark presets this build cannot write. */
+  encoders?: string[];
 }
 
 export interface RenderRequest {

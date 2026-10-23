@@ -6,6 +6,8 @@
 import { execFile } from 'node:child_process';
 import type { OutputPreset } from './render-plan';
 
+export { presetUnavailableReason } from './ffmpeg-presets';
+
 export interface RunResult {
   code: number;
   stdout: string;

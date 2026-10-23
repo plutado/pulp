@@ -1,6 +1,7 @@
 import type { LibraryEntry, LibraryIndex, TemplateEntry } from '../core/library-types';
 import { frameCount, type TemplateParameter } from '../core/manifest';
 import { resolveParams, type ResolvedParams } from '../core/params';
+import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { OUTPUT_PRESETS, PRESET_IDS, type PresetId } from '../core/render-plan';
 import { isFinished, type RenderQueueJob, type RenderQueueSnapshot } from '../core/render-queue';
 import { frameState } from '../core/runtime';
@@ -29,6 +30,7 @@ const els = {
   params: $<HTMLFormElement>('params'),
   preset: $<HTMLSelectElement>('preset'),
   presetNote: $<HTMLParagraphElement>('preset-note'),
+  presetUnavailable: $<HTMLParagraphElement>('preset-unavailable'),
   render: $<HTMLButtonElement>('render'),
   renderStatus: $<HTMLParagraphElement>('render-status'),
   ffmpegStatus: $<HTMLParagraphElement>('ffmpeg-status'),
@@ -372,6 +374,27 @@ function populatePresets(): void {
   showNote();
 }
 
+/** Disable presets the detected ffmpeg cannot write and say why; move the selection off a disabled one. */
+function markPresetAvailability(encoders: readonly string[]): void {
+  const reasons: string[] = [];
+  for (const opt of Array.from(els.preset.options)) {
+    const preset = OUTPUT_PRESETS[opt.value as PresetId];
+    const reason = presetUnavailableReason(encoders, preset);
+    opt.disabled = reason !== null;
+    opt.textContent = reason ? `${preset.label} (unavailable)` : preset.label;
+    if (reason) reasons.push(`${preset.label}: ${reason}.`);
+  }
+  if (els.preset.selectedOptions[0]?.disabled) {
+    const first = Array.from(els.preset.options).find((o) => !o.disabled);
+    if (first) {
+      els.preset.value = first.value;
+      els.preset.dispatchEvent(new Event('change'));
+    }
+  }
+  els.presetUnavailable.hidden = reasons.length === 0;
+  els.presetUnavailable.textContent = reasons.length ? `Unavailable: ${reasons.join(' ')}` : '';
+}
+
 function updateControls(): void {
   const hasTemplate = state.selected !== null;
   els.play.disabled = !hasTemplate || !state.previewReady;
@@ -493,5 +516,6 @@ void window.pulp.ffmpegStatus().then((info) => {
   state.ffmpegOk = info.ok;
   els.ffmpegStatus.classList.toggle('error', !info.ok);
   els.ffmpegStatus.textContent = info.ok ? `ffmpeg ${info.version} (${info.path})` : (info.message ?? 'ffmpeg not found');
+  if (info.ok) markPresetAvailability(info.encoders ?? []);
   updateControls();
 });

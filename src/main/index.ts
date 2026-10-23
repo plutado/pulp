@@ -59,7 +59,9 @@ function registerIpc(): void {
 
   ipcMain.handle('ffmpeg:status', async (): Promise<FfmpegInfo> => {
     const status = await detectFfmpeg();
-    return status.ok ? { ok: true, path: status.path, version: status.version } : { ok: false, message: status.message };
+    return status.ok
+      ? { ok: true, path: status.path, version: status.version, encoders: status.encoders }
+      : { ok: false, message: status.message };
   });
 
   ipcMain.handle('queue:add', (_event, request: RenderRequest) => enqueueRender(request));

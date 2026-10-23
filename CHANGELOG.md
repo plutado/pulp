@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- Two output presets. "QuickTime Animation (alpha)": lossless RLE .mov with alpha for older workflows, full-range sRGB like PNG. "HEVC (alpha, macOS only)": .mov with an HEVC alpha layer through Apple VideoToolbox at quality 80 and alpha quality 0.9, tagged `hvc1` and Rec.709. Presets whose encoder the installed ffmpeg lacks are listed as unavailable with the reason, so HEVC shows why it cannot be used on Windows and Linux. Decision record 0005 explains why the HEVC encoder is fed 4:4:4 Y'CbCr rather than BGRA.
 - Render queue: clicking Render asks where to save and queues the job, so several renders can be lined up and run one after another. Each job shows its own progress, result or error, and can be cancelled; finished jobs stay listed until cleared.
 - Per-frame render timeout (10 seconds by default) and a 30-second load timeout, so a hung template stops the render with a clear message instead of hanging it.
 - Headless mode flags `--library <folder>` (extra template folder for one run) and `--frame-timeout <seconds>`.

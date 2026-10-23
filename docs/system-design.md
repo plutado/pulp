@@ -125,10 +125,14 @@ At 1080p the PNG round trip was a small part of the frame time. At 4K the raw pa
 | `png-sequence` | .png | png, rgba | yes | `name_%05d.png` starting at 0. |
 | `webm-vp9-alpha` | .webm | libvpx-vp9, yuva420p, `-auto-alt-ref 0` | yes | Alpha support in NLEs varies. |
 | `h264-mp4` | .mp4 | libx264 CRF 18, yuv420p, faststart | no | Review and delivery copies. |
+| `qt-animation` | .mov | qtrle, argb | yes | Lossless RLE for older workflows. Full-range sRGB like PNG. Small with lots of transparency (lower third: 2 MB vs 15.7 MB ProRes 4444), large for full-frame content. |
+| `hevc-alpha` | .mov | hevc_videotoolbox, quality 80, alpha quality 0.9, `hvc1` | yes | macOS only (Apple VideoToolbox). Fed 4:4:4 Y'CbCr with alpha (`ayuv`) that the Rec.709 steps convert and tag; ADR 0005. About 0.3 MB for the 180-frame lower third at 54 dB PSNR. |
 
 Non-alpha presets flatten alpha templates with `color=...[bg];[bg][0:v]overlay=format=rgb`, compositing in RGB. Chroma-subsampled presets reject odd frame sizes before ffmpeg starts.
 
-Color (ADR 0004): templates draw in sRGB, the Canvas default. The four video presets convert to Y'CbCr with the BT.709 matrix at limited range (`scale=out_color_matrix=bt709:out_range=tv`) and tag every frame BT.709 primaries, transfer and matrix, limited range (`setparams`), which lands as the `colr` atom and H.264 VUI in .mov/.mp4 and the Colour element in WebM. The conversion runs after an alpha template is composited over its background, so background and template pixels take the same path. PNG sequences stay full-range sRGB RGBA, untouched. The transfer tag is BT.709 by convention rather than the strictly accurate sRGB tag, which QuickTime's documented color atom vocabulary does not include. This is fixed, not a setting.
+Presets whose encoder the detected ffmpeg lacks are listed as unavailable in the UI with the reason (`presetUnavailableReason`), for example HEVC on Windows and Linux; `checkPresetSupport` refuses them at render time as well.
+
+Color (ADR 0004): templates draw in sRGB, the Canvas default. The Y'CbCr video presets convert to Y'CbCr with the BT.709 matrix at limited range (`scale=out_color_matrix=bt709:out_range=tv`) and tag every frame BT.709 primaries, transfer and matrix, limited range (`setparams`), which lands as the `colr` atom and H.264 VUI in .mov/.mp4 and the Colour element in WebM. The conversion runs after an alpha template is composited over its background, so background and template pixels take the same path. PNG sequences stay full-range sRGB RGBA, untouched. The transfer tag is BT.709 by convention rather than the strictly accurate sRGB tag, which QuickTime's documented color atom vocabulary does not include. This is fixed, not a setting.
 
 ## Security model
 

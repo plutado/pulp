@@ -171,12 +171,29 @@ describe('buildRenderPlan', () => {
           // Conversion comes after the background composite, so both go through it the same way.
           if (chain.includes('overlay')) expect(chain.indexOf('overlay')).toBeLessThan(chain.indexOf(REC709_CONVERT));
         } else {
-          expect(presetId).toBe('png-sequence');
+          expect(['png-sequence', 'qt-animation']).toContain(presetId);
           expect(plan.args.join(' ')).not.toContain('bt709');
-          expect(chain).toMatch(/format=rgba$/);
+          expect(chain).toMatch(/format=(rgba|argb)$/);
         }
       }
     }
+  });
+
+  it('qt-animation writes lossless ARGB QuickTime Animation', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'qt-animation', outputPath: '/o/t', frameFormat: 'raw' });
+    expect(plan.output).toBe('/o/t.mov');
+    expect(flag(plan.args, '-vf')).toBe(`${UNPREMULTIPLY},format=argb`);
+    expect(plan.args.join(' ')).toContain('-c:v qtrle');
+    expect(OUTPUT_PRESETS['qt-animation']).toMatchObject({ alpha: true, color: 'rgb', requiresEvenDimensions: false });
+  });
+
+  it('hevc-alpha feeds VideoToolbox 4:4:4 Y\'CbCr with alpha, converted and tagged here, as hvc1', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'hevc-alpha', outputPath: '/o/t', frameFormat: 'raw' });
+    expect(plan.output).toBe('/o/t.mov');
+    expect(flag(plan.args, '-vf')).toBe(`${UNPREMULTIPLY},${REC709_CONVERT},${REC709_TAGS},format=ayuv`);
+    expect(plan.args.join(' ')).toContain('-c:v hevc_videotoolbox -q:v 80 -alpha_quality 0.9 -tag:v hvc1');
+    expect(OUTPUT_PRESETS['hevc-alpha']).toMatchObject({ alpha: true, color: 'rec709', requiresEvenDimensions: true, encoder: 'hevc_videotoolbox' });
+    expect(OUTPUT_PRESETS['hevc-alpha'].platformNote).toContain('macOS');
   });
 
   it('rejects odd dimensions for chroma-subsampled presets only', () => {
@@ -185,6 +202,8 @@ describe('buildRenderPlan', () => {
     expect(() => buildRenderPlan({ manifest: odd, presetId: 'webm-vp9-alpha', outputPath: '/o/t.webm' })).toThrow(/even/);
     expect(() => buildRenderPlan({ manifest: odd, presetId: 'prores-4444', outputPath: '/o/t.mov' })).not.toThrow();
     expect(() => buildRenderPlan({ manifest: odd, presetId: 'png-sequence', outputPath: '/o/t.png' })).not.toThrow();
+    expect(() => buildRenderPlan({ manifest: odd, presetId: 'qt-animation', outputPath: '/o/t.mov' })).not.toThrow();
+    expect(() => buildRenderPlan({ manifest: odd, presetId: 'hevc-alpha', outputPath: '/o/t.mov' })).toThrow(/even/);
   });
 
   it('rejects unknown presets and bad background colors', () => {
