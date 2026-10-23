@@ -203,6 +203,11 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   try {
     // Offscreen windows are not clamped to the screen size, so 4K templates still get a full-size surface.
     win.setContentSize(manifest.width, manifest.height);
+    // Begin-frame cadence, not the output rate. Each frame waits two animation frames and one paint
+    // (see captureFrame), which at the default 60 Hz caps the render near 30 frames/s; at Electron's
+    // maximum of 240 the waits cost ~4 ms. The offscreen.frameRate web preference has no effect here;
+    // setFrameRate does.
+    win.webContents.setFrameRate(240);
     try {
       await withTimeout(
         win.loadURL(templateUrlFor(manifest.id, manifest.entry)).then(() =>

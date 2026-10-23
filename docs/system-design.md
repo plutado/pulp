@@ -114,6 +114,8 @@ Frame transport measurements, raw BGRA pipe against the PNG pipe it replaced. Ap
 | size-4k fixture | 3840x2160 | 60 | ProRes 4444 | 4.9-5.7 s (11-12 fps) | 2.5-2.6 s (23-24 fps) |
 | size-8k fixture | 7680x4320 | 60 | ProRes 4444 | 14.6-17.6 s (3.4-4.1 fps) | 8.6-9.5 s (6.3-7.0 fps) |
 
+The table predates the paint-synchronized capture. That change first halved throughput (each frame waited two 60 Hz begin-frame intervals), then more than recovered it by raising the offscreen begin-frame rate with `setFrameRate(240)`: the 180-frame lower third now measures 2.7 s (67 frames/s) raw and 4.6 s (39 frames/s) PNG on the same machine, slightly faster than the table.
+
 At 1080p the PNG round trip was a small part of the frame time. At 4K the raw path halves the render time, and at 8K it saves about 40%, where encoding 33-megapixel ProRes frames is now the larger cost. Both paths produce the same pixels within one step per channel (checked by the alpha comparison test), so the ProRes files differ slightly in size. No benchmark suite exists yet; the numbers come from the `frames/s` line that headless mode prints.
 
 ### Output presets
