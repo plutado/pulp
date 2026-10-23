@@ -37,7 +37,7 @@ input[type="checkbox"] { width: auto; }
    without losing its stored size. */
 .app {
   display: grid;
-  grid-template-columns: var(--browse-w, 280px) 6px minmax(0, 1fr) 6px var(--inspector-w, 300px);
+  grid-template-columns: var(--browse-w, 220px) 6px minmax(0, 1fr) 6px var(--inspector-w, 350px);
   grid-template-rows: minmax(0, 1fr) auto auto;
   height: 100vh;
 }
@@ -82,7 +82,7 @@ input[type="checkbox"] { width: auto; }
 .splitter:hover, .splitter:focus-visible { background: var(--accent); outline: none; }
 
 /* Collapsed states. The browse panel keeps a slim strip with a vertical reopen button. */
-.app.browse-collapsed { grid-template-columns: 30px 0 minmax(0, 1fr) 6px var(--inspector-w, 300px); }
+.app.browse-collapsed { grid-template-columns: 30px 0 minmax(0, 1fr) 6px var(--inspector-w, 350px); }
 .app.browse-collapsed .sidebar-head, .app.browse-collapsed .browse-body, .app.browse-collapsed #split-browse { display: none; }
 .app.stage-collapsed #region-stage, .app.stage-collapsed #split-stage { display: none; }
 .app.tray-collapsed .tray-body, .app.tray-collapsed #split-tray { display: none; }
@@ -205,7 +205,9 @@ input[type="checkbox"] { width: auto; }
 .params-head h2 { margin: 8px 0 10px; }
 .params-actions { display: flex; gap: 4px; }
 .params-actions button { font-size: 11px; padding: 2px 7px; }
-.param-presets { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 6px; margin-bottom: 10px; }
+/* Two lines: the preset list on its own row, then name, Save and Delete; stays comfortable when the pane is narrowed. */
+.param-presets { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; margin-bottom: 10px; }
+.param-presets select { grid-column: 1 / -1; }
 .param-presets select, .param-presets input { min-width: 0; }
 .param-presets button { font-size: 11px; padding: 2px 7px; }
 .confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

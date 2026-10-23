@@ -310,7 +310,8 @@ function select(entry: LibraryEntry): void {
   // Each template keeps its own edits and undo history while the app runs.
   state.rawParams = { ...editorFor(entry.manifest.id).current };
   state.params = resolveParams(entry.manifest, state.rawParams).values;
-  state.frame = 0;
+  // Start at mid-progress, the frame the thumbnails use: a transition's first frame is blank.
+  state.frame = Math.floor(frameCount(entry.manifest) / 2);
   state.previewReady = false;
 
   const m = entry.manifest;
@@ -326,7 +327,7 @@ function select(entry: LibraryEntry): void {
     els.preview.src = templateUrlFor(m.id, m.entry);
   }
   els.scrub.max = String(frameCount(m) - 1);
-  els.scrub.value = '0';
+  els.scrub.value = String(state.frame);
   // The frame rate list offers the template's own rate first; in/out points from the previous
   // template would not fit, so they are cleared.
   els.optFps.options[0]!.textContent = `Template rate (${m.fps} fps)`;

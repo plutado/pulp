@@ -35,7 +35,7 @@ describe('layoutCssVariables', () => {
   it('maps sizes to custom properties', () => {
     expect(layoutCssVariables({ ...DEFAULT_LAYOUT, browseWidth: 200, stageShare: 0.625 })).toEqual({
       '--browse-w': '200px',
-      '--inspector-w': '300px',
+      '--inspector-w': '350px',
       '--stage-share': '62.5%',
       '--tray-h': '220px',
     });

@@ -27,8 +27,9 @@ export const LAYOUT_LIMITS = {
 } as const;
 
 export const DEFAULT_LAYOUT: LayoutState = {
-  browseWidth: 280,
-  inspectorWidth: 300,
+  // Browse stays narrow until milestone 10 fills it with the tree; the inspector needs room for the preset row.
+  browseWidth: 220,
+  inspectorWidth: 350,
   stageShare: 0.6,
   trayHeight: 220,
   browseCollapsed: false,
