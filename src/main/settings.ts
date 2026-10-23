@@ -2,6 +2,7 @@ import { app } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
+import { DEFAULT_LAYOUT, sanitizeLayout, type LayoutState } from '../core/layout';
 import { sanitizeRecentColors } from '../core/recent-colors';
 import { DEFAULT_CACHE_MAX_MB, sanitizeCacheMaxMB } from '../core/render-cache';
 
@@ -14,9 +15,11 @@ export interface Settings {
   renderCacheDir?: string;
   /** Size limit of that folder in MiB; the oldest files are removed first. */
   renderCacheMaxMB: number;
+  /** Shell pane sizes and collapsed state (src/core/layout.ts). */
+  layout: LayoutState;
 }
 
-const DEFAULTS: Settings = { libraryFolders: [], recentColors: [], renderCacheMaxMB: DEFAULT_CACHE_MAX_MB };
+const DEFAULTS: Settings = { libraryFolders: [], recentColors: [], renderCacheMaxMB: DEFAULT_CACHE_MAX_MB, layout: DEFAULT_LAYOUT };
 
 function settingsPath(): string {
   return join(app.getPath('userData'), 'settings.json');
@@ -27,6 +30,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     libraryFolders: Array.isArray(raw.libraryFolders) ? raw.libraryFolders.filter((f): f is string => typeof f === 'string') : [],
     recentColors: sanitizeRecentColors(raw.recentColors),
     renderCacheMaxMB: sanitizeCacheMaxMB(raw.renderCacheMaxMB),
+    layout: sanitizeLayout(raw.layout),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
   };
 }

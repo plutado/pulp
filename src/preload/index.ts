@@ -35,6 +35,8 @@ const api: PulpApi = {
   getRenderQueue: () => ipcRenderer.invoke('queue:get'),
   getRecentColors: () => ipcRenderer.invoke('colors:recent-get'),
   addRecentColor: (hex) => ipcRenderer.invoke('colors:recent-add', hex),
+  getLayout: () => ipcRenderer.invoke('layout:get'),
+  saveLayout: (layout) => ipcRenderer.invoke('layout:save', layout),
   onRenderQueue: (listener) => {
     const handler = (_event: IpcRendererEvent, snapshot: RenderQueueSnapshot) => listener(snapshot);
     ipcRenderer.on('queue:changed', handler);

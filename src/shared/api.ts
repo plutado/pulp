@@ -3,6 +3,7 @@
  * Types only; both sides import it.
  */
 
+import type { LayoutState } from '../core/layout';
 import type { LibraryIndex } from '../core/library-types';
 import type { PresetId, RenderOptions } from '../core/render-plan';
 import type { RenderQueueSnapshot } from '../core/render-queue';
@@ -126,6 +127,10 @@ export interface PulpApi {
   /** Remove done, failed and cancelled jobs from the queue. */
   clearFinishedRenders(): Promise<void>;
   getRenderQueue(): Promise<RenderQueueSnapshot>;
+  /** Shell pane sizes and collapsed state, from settings.json. */
+  getLayout(): Promise<LayoutState>;
+  /** Persist the shell layout; sanitized and written through the settings queue. */
+  saveLayout(layout: LayoutState): Promise<void>;
   /** Recently used parameter colors, shared across templates, most recent first. */
   getRecentColors(): Promise<string[]>;
   /** Record a color as recently used; resolves to the updated list. */
