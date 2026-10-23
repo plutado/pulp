@@ -10,6 +10,7 @@ import {
   RenderPlanError,
   UNPREMULTIPLY,
   alphaModeTag,
+  resolveTiming,
 } from '../src/core/render-plan';
 import { timing } from './fixtures';
 
@@ -130,7 +131,7 @@ describe('buildRenderPlan', () => {
       manifest: timing({ width: 1280, height: 720, fps: 29.97 }),
       presetId: 'h264-mp4',
       outputPath: '/out/lt.mp4',
-      background: '#102030',
+      options: { background: '#102030' },
       frameFormat: 'raw',
     });
     expect(flag(plan.args, '-filter_complex')).toBe(
@@ -164,7 +165,7 @@ describe('buildRenderPlan', () => {
     for (const presetId of PRESET_IDS) {
       const preset = OUTPUT_PRESETS[presetId];
       for (const frameFormat of ['raw', 'png'] as const) {
-        const plan = buildRenderPlan({ manifest: timing(), presetId, outputPath: '/o/t', frameFormat, background: '#ffffff' });
+        const plan = buildRenderPlan({ manifest: timing(), presetId, outputPath: '/o/t', frameFormat, options: { background: '#ffffff' } });
         const chain = flag(plan.args, '-filter_complex') ?? flag(plan.args, '-vf') ?? '';
         if (preset.color === 'rec709') {
           expect(chain).toContain(`${REC709_CONVERT},${REC709_TAGS},format=${preset.pixelFormat}`);
@@ -209,8 +210,30 @@ describe('buildRenderPlan', () => {
   it('rejects unknown presets and bad background colors', () => {
     expect(() => buildRenderPlan({ manifest: timing(), presetId: 'gif', outputPath: '/o/t' })).toThrow(/unknown output preset/);
     expect(() =>
-      buildRenderPlan({ manifest: timing(), presetId: 'h264-mp4', outputPath: '/o/t', background: 'black' }),
+      buildRenderPlan({ manifest: timing(), presetId: 'h264-mp4', outputPath: '/o/t', options: { background: 'black' } }),
     ).toThrow(/background/);
+  });
+
+  it('applies a frame-rate override to the input rate, the output rate, the frame count and the background source', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t', options: { fps: 60 } });
+    expect(plan.fps).toBe(60);
+    expect(plan.firstFrame).toBe(0);
+    expect(plan.totalFrames).toBe(120);
+    expect(flag(plan.args, '-framerate')).toBe('60');
+    expect(flag(plan.args, '-r')).toBe('60');
+    expect(flag(plan.args, '-frames:v')).toBe('120');
+
+    const ntsc = buildRenderPlan({ manifest: timing(), presetId: 'h264-mp4', outputPath: '/o/t', options: { fps: 29.97 } });
+    expect(flag(ntsc.args, '-framerate')).toBe('30000/1001');
+    expect(flag(ntsc.args, '-filter_complex')).toContain(':r=30000/1001[bg]');
+    expect(ntsc.totalFrames).toBe(60);
+  });
+
+  it('applies a trim to the frame count and reports the first frame', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/o/t', options: { trimStart: 0.5, trimEnd: 1.5 } });
+    expect(plan).toMatchObject({ fps: 30, firstFrame: 15, totalFrames: 30 });
+    expect(flag(plan.args, '-frames:v')).toBe('30');
+    expect(flag(plan.args, '-start_number')).toBe('0'); // output numbering still starts at 0
   });
 
   it('every preset declares an encoder that appears in its codec args', () => {
@@ -252,5 +275,42 @@ describe('fpsToRational', () => {
     expect(fpsToRational(59.94)).toBe('60000/1001');
     expect(fpsToRational(25)).toBe('25');
     expect(fpsToRational(12.5)).toBe('12.5');
+  });
+});
+
+describe('resolveTiming', () => {
+  const two = { fps: 30, duration: 2 };
+
+  it('defaults to the template timing', () => {
+    expect(resolveTiming(two)).toEqual({ fps: 30, firstFrame: 0, totalFrames: 60 });
+    expect(resolveTiming(two, {})).toEqual({ fps: 30, firstFrame: 0, totalFrames: 60 });
+  });
+
+  it('samples at the override rate over the same duration', () => {
+    expect(resolveTiming(two, { fps: 60 })).toEqual({ fps: 60, firstFrame: 0, totalFrames: 120 });
+    expect(resolveTiming(two, { fps: 25 })).toEqual({ fps: 25, firstFrame: 0, totalFrames: 50 });
+    expect(resolveTiming(two, { fps: 23.976 }).totalFrames).toBe(48);
+  });
+
+  it('trims on the template timeline, start inclusive, end exclusive', () => {
+    expect(resolveTiming(two, { trimStart: 0.5, trimEnd: 1.5 })).toEqual({ fps: 30, firstFrame: 15, totalFrames: 30 });
+    expect(resolveTiming(two, { trimStart: 1 })).toEqual({ fps: 30, firstFrame: 30, totalFrames: 30 });
+    expect(resolveTiming(two, { trimEnd: 0.5 })).toEqual({ fps: 30, firstFrame: 0, totalFrames: 15 });
+    expect(resolveTiming(two, { fps: 60, trimStart: 1, trimEnd: 2 })).toEqual({ fps: 60, firstFrame: 60, totalFrames: 60 });
+  });
+
+  it('rejects impossible frame rates and ranges with a clear message', () => {
+    expect(() => resolveTiming(two, { fps: 0 })).toThrow(RenderPlanError);
+    expect(() => resolveTiming(two, { fps: 241 })).toThrow(/frame rate must be a number between 0 and 240/);
+    expect(() => resolveTiming(two, { fps: Number.NaN })).toThrow(/frame rate/);
+    expect(() => resolveTiming(two, { trimStart: -1 })).toThrow(/trim start must be 0 or more/);
+    expect(() => resolveTiming(two, { trimEnd: 2.5 })).toThrow(/at most the template's duration \(2 s\)/);
+    expect(() => resolveTiming(two, { trimStart: 1, trimEnd: 1 })).toThrow(/trim end \(1 s\) must be after trim start \(1 s\)/);
+    expect(() => resolveTiming(two, { trimStart: 1.5, trimEnd: 0.5 })).toThrow(/must be after/);
+    expect(() => resolveTiming(two, { trimStart: 1.001, trimEnd: 1.002 })).toThrow(/holds no whole frame/);
+  });
+
+  it('still renders one frame for a template shorter than a frame, like frameCount', () => {
+    expect(resolveTiming({ fps: 30, duration: 0.01 })).toEqual({ fps: 30, firstFrame: 0, totalFrames: 1 });
   });
 });

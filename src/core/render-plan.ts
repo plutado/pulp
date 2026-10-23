@@ -27,7 +27,7 @@
  * stay full-range RGB.
  */
 
-import { frameCount, isValidColor, type TemplateManifest } from './manifest';
+import { isValidColor, type TemplateManifest } from './manifest';
 
 export type PresetId = 'prores-4444' | 'prores-422hq' | 'png-sequence' | 'webm-vp9-alpha' | 'h264-mp4' | 'qt-animation' | 'hevc-alpha';
 
@@ -182,6 +182,55 @@ export class RenderPlanError extends Error {
   override name = 'RenderPlanError';
 }
 
+/** Per-render choices on top of the template's timing and the preset. All optional. */
+export interface RenderOptions {
+  /** Output frame rate. Frames are sampled from the template's timeline at this rate. Default: the template's fps. */
+  fps?: number;
+  /** Background used when flattening an alpha template into a non-alpha preset. Default #000000. */
+  background?: string;
+  /** Start of the rendered range, in seconds of template time, inclusive. Default 0. */
+  trimStart?: number;
+  /** End of the rendered range, in seconds of template time, exclusive. Default: the template's duration. */
+  trimEnd?: number;
+}
+
+export interface RenderTiming {
+  /** Frame rate the frames are sampled and encoded at. */
+  fps: number;
+  /** Index of the first rendered frame on that timeline (time = frame / fps). */
+  firstFrame: number;
+  totalFrames: number;
+}
+
+export const MAX_FPS = 240;
+
+/**
+ * Frame rate and frame range for a render: the template's timing with the fps
+ * and trim options applied. Frame indices stay on the template's timeline, so
+ * a trimmed render shows the same picture at a given second as a full one.
+ */
+export function resolveTiming(manifest: Pick<TemplateManifest, 'fps' | 'duration'>, options: RenderOptions = {}): RenderTiming {
+  const fps = options.fps ?? manifest.fps;
+  if (!Number.isFinite(fps) || fps <= 0 || fps > MAX_FPS) {
+    throw new RenderPlanError(`frame rate must be a number between 0 and ${MAX_FPS}, got ${String(options.fps)}`);
+  }
+  const start = options.trimStart ?? 0;
+  const end = options.trimEnd ?? manifest.duration;
+  if (!Number.isFinite(start) || start < 0) throw new RenderPlanError(`trim start must be 0 or more seconds, got ${String(options.trimStart)}`);
+  if (!Number.isFinite(end) || end > manifest.duration) {
+    throw new RenderPlanError(`trim end must be at most the template's duration (${manifest.duration} s), got ${String(options.trimEnd)}`);
+  }
+  if (end <= start) throw new RenderPlanError(`trim end (${end} s) must be after trim start (${start} s)`);
+  const firstFrame = Math.round(start * fps);
+  let totalFrames = Math.round(end * fps) - firstFrame;
+  if (totalFrames < 1) {
+    // A whole template shorter than one frame still renders one frame, like frameCount; a trim that short is a mistake.
+    if (options.trimStart === undefined && options.trimEnd === undefined) totalFrames = 1;
+    else throw new RenderPlanError(`the range ${start} to ${end} s holds no whole frame at ${fps} fps`);
+  }
+  return { fps, firstFrame, totalFrames };
+}
+
 export interface RenderPlanInput {
   manifest: Pick<TemplateManifest, 'fps' | 'width' | 'height' | 'duration' | 'alpha'>;
   presetId: string;
@@ -189,8 +238,8 @@ export interface RenderPlanInput {
   outputPath: string;
   /** Overwrite an existing output file. Default false (ffmpeg -n). */
   overwrite?: boolean;
-  /** Background used when flattening an alpha template into a non-alpha preset. Default #000000. */
-  background?: string;
+  /** Frame rate, background and trim. */
+  options?: RenderOptions;
   /** Frame encoding on the pipe. Defaults to DEFAULT_FRAME_FORMAT. */
   frameFormat?: FrameFormat;
   /** Byte layout of raw frames. Defaults to DEFAULT_RAW_INPUT. Ignored for PNG frames. */
@@ -206,6 +255,10 @@ export interface RenderPlan {
   args: string[];
   /** Final output path or, for sequences, the printf-style pattern. */
   output: string;
+  /** Frame rate the frames are sampled and encoded at (the override, or the template's). */
+  fps: number;
+  /** First frame index on that timeline; 0 unless trimmed. */
+  firstFrame: number;
   totalFrames: number;
   warnings: string[];
 }
@@ -259,11 +312,12 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
     warnings.push('template does not declare alpha; output will carry an alpha channel but is likely fully opaque');
   }
 
-  const background = input.background ?? '#000000';
+  const background = input.options?.background ?? '#000000';
   if (!isValidColor(background)) throw new RenderPlanError(`background must be #RRGGBB, got "${background}"`);
 
-  const fps = fpsToRational(manifest.fps);
-  const totalFrames = frameCount(manifest);
+  const timing = resolveTiming(manifest, input.options);
+  const fps = fpsToRational(timing.fps);
+  const totalFrames = timing.totalFrames;
   const output = normalizeOutputPath(input.outputPath, preset);
   const frameFormat = input.frameFormat ?? DEFAULT_FRAME_FORMAT;
   const rawInput = input.rawInput ?? DEFAULT_RAW_INPUT;
@@ -300,5 +354,5 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   }
 
   args.push(...preset.codecArgs, '-frames:v', String(totalFrames), '-r', fps, output);
-  return { preset, frameFormat, args, output, totalFrames, warnings };
+  return { preset, frameFormat, args, output, fps: timing.fps, firstFrame: timing.firstFrame, totalFrames, warnings };
 }

@@ -4,10 +4,11 @@
  */
 
 import type { LibraryIndex } from '../core/library-types';
-import type { PresetId } from '../core/render-plan';
+import type { PresetId, RenderOptions } from '../core/render-plan';
 import type { RenderQueueSnapshot } from '../core/render-queue';
 
 export type { RenderJobStatus, RenderQueueJob, RenderQueueSnapshot } from '../core/render-queue';
+export type { RenderOptions } from '../core/render-plan';
 
 export interface FfmpegInfo {
   ok: boolean;
@@ -24,8 +25,8 @@ export interface RenderRequest {
   templateId: string;
   params: Record<string, unknown>;
   presetId: PresetId;
-  /** Background for flattening alpha templates into non-alpha presets. */
-  background?: string;
+  /** Frame rate override, background for flattening, start/end trim. */
+  options?: RenderOptions;
 }
 
 export type RenderResult =

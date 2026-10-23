@@ -22,7 +22,7 @@ import { access, mkdir, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { checkPresetSupport, detectFfmpeg } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
-import { buildRenderPlan, type FrameFormat } from '../core/render-plan';
+import { buildRenderPlan, type FrameFormat, type RenderOptions } from '../core/render-plan';
 import { resolveParams } from '../core/params';
 import {
   captureBytesMessage,
@@ -48,7 +48,8 @@ export interface RenderJob {
   params: Record<string, unknown>;
   presetId: string;
   outputPath: string;
-  background?: string;
+  /** Frame rate override, background for flattening, start/end trim. */
+  options?: RenderOptions;
   overwrite?: boolean;
   signal?: AbortSignal;
   /** Time allowed per frame before the template is treated as hung. */
@@ -143,7 +144,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       overwrite: job.overwrite ?? false,
       frameFormat,
       tagAlphaMode: ffmpeg.alphaModeAware,
-      ...(job.background ? { background: job.background } : {}),
+      ...(job.options ? { options: job.options } : {}),
       ...(probe?.format ? { rawInput: probe.format } : {}),
     });
   } catch (err) {
@@ -227,11 +228,15 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     // Writes after ffmpeg exits raise EPIPE; the exit code is reported below instead.
     child.stdin?.on('error', () => undefined);
 
-    for (let frame = 0; frame < plan.totalFrames; frame++) {
+    // Frames are sampled at the output frame rate; indices stay on the template's timeline, so a
+    // trimmed render starts at plan.firstFrame rather than 0.
+    const timeline = { ...manifest, fps: plan.fps };
+    for (let i = 0; i < plan.totalFrames; i++) {
       if (job.signal?.aborted) return await fail({ ok: false, cancelled: true, message: 'Render cancelled.' });
       if (child.exitCode !== null) break;
 
-      const state = frameState(manifest, frame, values);
+      const frame = plan.firstFrame + i;
+      const state = frameState(timeline, frame, values);
       let pixels: Buffer;
       try {
         pixels = await withTimeout(
@@ -246,7 +251,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
         return await fail({ ok: false, message });
       }
       if (!child.stdin?.write(pixels)) await once(child.stdin!, 'drain');
-      job.onProgress?.({ frame: frame + 1, totalFrames: plan.totalFrames });
+      job.onProgress?.({ frame: i + 1, totalFrames: plan.totalFrames });
     }
 
     child.stdin?.end();

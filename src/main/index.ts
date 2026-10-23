@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
-import { FRAME_FORMATS, type FrameFormat } from '../core/render-plan';
+import { FRAME_FORMATS, type FrameFormat, type RenderOptions } from '../core/render-plan';
 import type { FfmpegInfo, RenderRequest } from '../shared/api';
 import { addLibraryFolder, findTemplate, getLibrary, rescan } from './library-service';
 import { handleTemplateProtocol, registerTemplateScheme } from './protocol';
@@ -73,7 +73,10 @@ function registerIpc(): void {
 /**
  * Headless mode for scripting and smoke tests:
  *   electron . --render <template-id> --preset <preset-id> --out <path> [--param key=value ...]
+ *     [--fps <rate>] [--background #RRGGBB] [--trim-start <seconds>] [--trim-end <seconds>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png]
+ * `--fps` samples the template at another frame rate; `--background` is the color alpha templates
+ * are flattened over in non-alpha presets; `--trim-start`/`--trim-end` render a time range.
  * `--library` adds template folders for this run only; they are not saved to settings.
  * `--frame-format png` uses the slower PNG pipe to ffmpeg, for comparison with the raw default.
  * The final line reports the elapsed time and frames per second.
@@ -86,6 +89,9 @@ interface CliRender {
   libraries: string[];
   frameTimeoutMs?: number;
   frameFormat?: string;
+  options: RenderOptions;
+  /** Flags whose value was not a number, reported before anything runs. */
+  badNumbers: string[];
 }
 
 function parseCliRender(argv: string[]): CliRender | null {
@@ -107,12 +113,28 @@ function parseCliRender(argv: string[]): CliRender | null {
   });
   const frameTimeout = Number(get('--frame-timeout'));
   const frameFormat = get('--frame-format');
+  const options: RenderOptions = {};
+  const badNumbers: string[] = [];
+  const numberFlag = (flag: string, key: 'fps' | 'trimStart' | 'trimEnd') => {
+    const raw = get(flag);
+    if (raw === undefined) return;
+    const value = Number(raw);
+    if (raw.trim() === '' || !Number.isFinite(value)) badNumbers.push(`${flag} ${raw}`);
+    else options[key] = value;
+  };
+  numberFlag('--fps', 'fps');
+  numberFlag('--trim-start', 'trimStart');
+  numberFlag('--trim-end', 'trimEnd');
+  const background = get('--background');
+  if (background !== undefined) options.background = background;
   return {
     templateId: argv[i + 1] ?? '',
     presetId: get('--preset') ?? 'prores-4444',
     out: get('--out') ?? '',
     params,
     libraries,
+    options,
+    badNumbers,
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
     ...(frameFormat !== undefined ? { frameFormat } : {}),
   };
@@ -129,6 +151,10 @@ async function runCliRender(cli: CliRender): Promise<number> {
     console.error('Missing --out <path>.');
     return 2;
   }
+  if (cli.badNumbers.length > 0) {
+    console.error(`Expected a number: ${cli.badNumbers.join(', ')}.`);
+    return 2;
+  }
   if (cli.frameFormat !== undefined && !(FRAME_FORMATS as readonly string[]).includes(cli.frameFormat)) {
     console.error(`Unknown frame format "${cli.frameFormat}" (expected one of: ${FRAME_FORMATS.join(', ')}).`);
     return 2;
@@ -140,6 +166,7 @@ async function runCliRender(cli: CliRender): Promise<number> {
     presetId: cli.presetId,
     outputPath: resolve(cli.out),
     overwrite: true,
+    options: cli.options,
     ...(cli.frameTimeoutMs ? { frameTimeoutMs: cli.frameTimeoutMs } : {}),
     ...(cli.frameFormat !== undefined ? { frameFormat: cli.frameFormat as FrameFormat } : {}),
     onProgress: ({ frame, totalFrames }) => {

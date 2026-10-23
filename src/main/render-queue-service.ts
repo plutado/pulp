@@ -8,8 +8,7 @@ import { app, BrowserWindow, dialog } from 'electron';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { TemplateEntry } from '../core/library';
-import { frameCount } from '../core/manifest';
-import { OUTPUT_PRESETS, type PresetId } from '../core/render-plan';
+import { OUTPUT_PRESETS, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { RenderQueue, type RenderQueueSnapshot } from '../core/render-queue';
 import type { EnqueueResult, RenderRequest } from '../shared/api';
 import { findTemplate } from './library-service';
@@ -19,7 +18,7 @@ import { renderTemplate } from './render';
 interface JobInputs {
   template: TemplateEntry;
   params: Record<string, unknown>;
-  background?: string;
+  options?: RenderOptions;
 }
 
 const queue = new RenderQueue(broadcast);
@@ -43,6 +42,13 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
   if (!template) return { ok: false, message: `Template "${request.templateId}" not found.` };
   const preset = OUTPUT_PRESETS[request.presetId as PresetId];
   if (!preset) return { ok: false, message: `Unknown preset "${request.presetId}".` };
+  // Validate the options before asking where to save.
+  let totalFrames: number;
+  try {
+    totalFrames = resolveTiming(template.manifest, request.options).totalFrames;
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
+  }
 
   const defaultName = `${template.manifest.id.split('.').pop() ?? 'render'}${preset.extension}`;
   const save = await dialog.showSaveDialog({
@@ -57,9 +63,9 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
     templateName: template.manifest.name,
     presetId: preset.id,
     outputPath: save.filePath,
-    totalFrames: frameCount(template.manifest),
+    totalFrames,
   });
-  inputs.set(job.id, { template, params: request.params, ...(request.background ? { background: request.background } : {}) });
+  inputs.set(job.id, { template, params: request.params, ...(request.options ? { options: request.options } : {}) });
   void pump();
   return { ok: true, jobId: job.id };
 }
@@ -96,7 +102,7 @@ async function pump(): Promise<void> {
         // The save dialog already asked about replacing an existing file.
         overwrite: true,
         signal: active.signal,
-        ...(input.background ? { background: input.background } : {}),
+        ...(input.options ? { options: input.options } : {}),
         onProgress: ({ frame }) => queue.progress(id, frame),
       });
       active = null;

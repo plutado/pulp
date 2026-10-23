@@ -58,6 +58,7 @@ interface StreamInfo {
   height: number;
   pix_fmt: string;
   nb_read_frames: string;
+  r_frame_rate?: string;
   color_range?: string;
   color_space?: string;
   color_transfer?: string;
@@ -104,7 +105,7 @@ describe.skipIf(!available)('end-to-end render', () => {
       '-v', 'error',
       '-count_frames',
       '-select_streams', 'v:0',
-      '-show_entries', 'stream=codec_name,codec_tag_string,width,height,pix_fmt,nb_read_frames,color_range,color_space,color_transfer,color_primaries:stream_tags',
+      '-show_entries', 'stream=codec_name,codec_tag_string,width,height,pix_fmt,nb_read_frames,r_frame_rate,color_range,color_space,color_transfer,color_primaries:stream_tags',
       '-of', 'json',
       file,
     ]);
@@ -240,6 +241,52 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(mov.code, mov.stderr).toBe(0);
     await check(join(out, 'color.mov'), 2);
   }, 240_000);
+
+  it('samples the template at an overridden frame rate', async () => {
+    // The fixture is 0.1 s at 30 fps (3 frames); at 60 fps it is 6 frames at 60 fps.
+    const result = await render('pulp.test.size-portrait', 'prores-4444', 'fps60.mov', { extra: ['--fps', '60', '--library', FIXTURES] });
+    expect(result.code, result.stderr).toBe(0);
+    expect(await probe(join(out, 'fps60.mov'))).toMatchObject({ width: 1080, height: 1920, nb_read_frames: '6', r_frame_rate: '60/1' });
+    expect(result.stdout).toContain('(6 frames in');
+  }, 180_000);
+
+  it('renders a trimmed time range on the template timeline', async () => {
+    // Lower third: 6 s at 30 fps. Seconds 2 to 3 are mid-hold, so the panel is fully visible from the
+    // first trimmed frame; at t = 0 that pixel is transparent. 1 s at 30 fps is 30 frames.
+    const result = await render('pulp.samples.lower-third-bar', 'png-sequence', 'trim', {
+      extra: ['--trim-start', '2', '--trim-end', '3', '--param', 'panel=#ffffffd9'],
+    });
+    expect(result.code, result.stderr).toBe(0);
+    const frames = (await readdir(out)).filter((f) => /^trim_\d{5}\.png$/.test(f)).sort();
+    expect(frames).toHaveLength(30);
+    expect(frames[0]).toBe('trim_00000.png');
+    expect((await pixels(join(out, 'trim_00000.png'), 120, 840))[3]).toBe(217);
+    expect((await pixels(join(out, 'trim_00029.png'), 120, 840))[3]).toBe(217);
+  }, 180_000);
+
+  it('flattens an alpha template over the chosen background color', async () => {
+    const result = await render('pulp.test.size-portrait', 'h264-mp4', 'bg.mp4', { extra: ['--background', '#336699', '--library', FIXTURES] });
+    expect(result.code, result.stderr).toBe(0);
+    const file = join(out, 'bg.mp4');
+    expect(await probe(file)).toMatchObject({ width: 1080, height: 1920, pix_fmt: 'yuv420p', nb_read_frames: '3' });
+    // Transparent center takes the background; the opaque red marker is unaffected. H.264 is lossy.
+    const center = await pixels(file, 540, 960);
+    const expected = [0x33, 0x66, 0x99];
+    for (let c = 0; c < 3; c++) expect(Math.abs(center[c]! - expected[c]!), `background channel ${c}`).toBeLessThanOrEqual(4);
+    const red = await pixels(file, 4, 4);
+    expect(Math.abs(red[0]! - 255)).toBeLessThanOrEqual(4);
+    expect(red[1]).toBeLessThanOrEqual(4);
+  }, 180_000);
+
+  it('rejects impossible render options before rendering', async () => {
+    const bad = await render('pulp.test.size-portrait', 'prores-4444', 'bad.mov', { extra: ['--fps', '0', '--library', FIXTURES] });
+    expect(bad.code).toBe(1);
+    expect(bad.stderr).toContain('frame rate must be a number between 0 and 240, got 0');
+    expect(existsSync(join(out, 'bad.mov'))).toBe(false);
+    const nan = await render('pulp.test.size-portrait', 'prores-4444', 'bad2.mov', { extra: ['--trim-end', 'soon', '--library', FIXTURES] });
+    expect(nan.code).toBe(2);
+    expect(nan.stderr).toContain('Expected a number: --trim-end soon.');
+  }, 180_000);
 
   it('renders QuickTime Animation losslessly with alpha', async () => {
     const result = await render('pulp.test.size-portrait', 'qt-animation', 'anim.mov', { extra: ['--library', FIXTURES] });
