@@ -237,36 +237,101 @@ export function splitThemes(themes: readonly string[]): { builtIn: string[]; cus
   return { builtIn, custom };
 }
 
-/** Folder words that mean a type: the id, the label, each slash-part of the label, and simple plurals. */
+/**
+ * Folder words that mean an id: the id, the label, each part of the label split on "/"
+ * and " and ", and the singular and plural forms of all of those ("icons" and "icon",
+ * "whoosh" and "whooshes").
+ */
 function aliases(id: string, label: string): string[] {
-  const parts = label.split('/').map((p) => normalizeTag(p)).filter(Boolean);
-  const base = [id, normalizeTag(label), ...parts];
-  return [...new Set([...base, ...base.map((a) => `${a}s`)])];
+  const parts = label.split(/\s*\/\s*|\s+and\s+/).map((p) => normalizeTag(p)).filter(Boolean);
+  const base = [...new Set([id, normalizeTag(label), ...parts])];
+  const forms = base.flatMap((a) => [a, `${a}s`, `${a}es`, ...(a.endsWith('s') ? [a.slice(0, -1)] : [])]);
+  return [...new Set(forms)];
 }
+
+/** Folder words editors use that the labels do not say. */
+const TYPE_SYNONYMS: Record<string, string> = {
+  'light-leaks': 'light-particles',
+  'light-leak': 'light-particles',
+  leaks: 'light-particles',
+  'lens-flares': 'light-particles',
+  'lens-flare': 'light-particles',
+  flares: 'light-particles',
+  bokeh: 'light-particles',
+  loop: 'animated-loop',
+  loops: 'animated-loop',
+  looping: 'animated-loop',
+  'motion-backgrounds': 'animated-loop',
+  'motion-background': 'animated-loop',
+  'b-roll': 'stock-footage',
+  footage: 'stock-footage',
+  stinger: 'sting',
+  stingers: 'sting',
+  'lower-thirds': 'lower-third',
+  l3rd: 'lower-third',
+  l3rds: 'lower-third',
+  'logo-bugs': 'logo-bug',
+  bugs: 'logo-bug',
+  watermark: 'logo-bug',
+  watermarks: 'logo-bug',
+  'end-cards': 'end-card',
+  credits: 'end-card',
+  grain: 'film-grunge',
+  scratches: 'film-grunge',
+};
 
 const typeByAlias = new Map<string, string>();
 for (const t of TYPES) for (const a of aliases(t.id, t.label)) if (!typeByAlias.has(a)) typeByAlias.set(a, t.id);
+for (const [word, type] of Object.entries(TYPE_SYNONYMS)) typeByAlias.set(word, type);
+
+const groupByAlias = new Map<string, string>();
+for (const g of TYPE_GROUPS) for (const a of aliases(g.id, g.label)) if (!groupByAlias.has(a)) groupByAlias.set(a, g.id);
 
 const themeByAlias = new Map<string, string>();
 for (const g of THEME_GROUPS) for (const t of g.themes) for (const a of aliases(t.id, t.label)) if (!themeByAlias.has(a)) themeByAlias.set(a, t.id);
 
-/** Which type groups a media kind can carry. */
-const KIND_GROUPS: Record<'video' | 'image' | 'audio', readonly string[]> = {
-  video: ['video'],
-  image: ['stills'],
+type MediaKind = 'video' | 'image' | 'audio';
+
+/**
+ * Which type groups a media kind can carry. Library video is as often a background, an
+ * overlay, a transition or a lower third as it is stock footage; stills are backgrounds,
+ * textures, frames and icons as often as photos.
+ */
+const KIND_GROUPS: Record<MediaKind, readonly string[]> = {
+  video: ['video', 'backgrounds', 'overlays', 'transitions', 'titles', 'elements'],
+  image: ['stills', 'backgrounds', 'overlays', 'elements'],
   audio: ['music', 'sfx'],
+};
+
+/** A folder that names a whole group ("Backgrounds/loop.mov") gets the group's plain type for the kind. */
+const GROUP_DEFAULT_TYPE: Record<string, Partial<Record<MediaKind, string>>> = {
+  backgrounds: { video: 'animated-loop', image: 'still-background' },
+  overlays: { video: 'overlay', image: 'overlay' },
+  transitions: { video: 'wipe' },
+  titles: { video: 'title' },
+  elements: { video: 'shapes', image: 'shapes' },
+  video: { video: 'stock-footage' },
+  stills: { image: 'photo' },
+  music: { audio: 'full-mix' },
+  // Sound effects have no plain member; "SFX/x.wav" stays untyped until a folder says which.
 };
 
 /**
  * A media item's type from its kind and folder names: the deepest folder that names a
- * type in the kind's groups wins ("sfx/whoosh/…" → whoosh). No folder, no type — the
- * kind alone does not justify calling an mp4 stock footage or a wav a sting.
+ * type in the kind's groups wins ("Overlays/Light leaks/…" → light and particles), and a
+ * folder that names a group gives the group's plain type ("Backgrounds/…" → animated loop
+ * for video, still background for an image). No folder, no type — the kind alone does not
+ * justify calling an mp4 stock footage or a wav a sting.
  */
-export function inferMediaType(kind: 'video' | 'image' | 'audio', folderSegments: readonly string[]): string | undefined {
+export function inferMediaType(kind: MediaKind, folderSegments: readonly string[]): string | undefined {
   const allowed = new Set(KIND_GROUPS[kind]);
   for (let i = folderSegments.length - 1; i >= 0; i--) {
-    const type = typeByAlias.get(folderSegments[i]!);
+    const segment = folderSegments[i]!;
+    const type = typeByAlias.get(segment);
     if (type && allowed.has(typeById.get(type)!.group)) return type;
+    const group = groupByAlias.get(segment);
+    const fallback = group ? GROUP_DEFAULT_TYPE[group]?.[kind] : undefined;
+    if (fallback) return fallback;
   }
   return undefined;
 }

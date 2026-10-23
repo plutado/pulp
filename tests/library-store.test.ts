@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { itemId } from '../src/core/library-scan';
 import { LibraryStore } from '../src/core/library-store';
@@ -245,6 +246,39 @@ describe('LibraryStore incremental scans', () => {
     media = store.toIndex().media;
     expect(bySuffix('rink.mov').themes).toEqual(['sports', 'hockey', 'club-23']);
     expect(bySuffix('rink.mov').userThemes).toEqual(['hockey', 'club-23']);
+  });
+
+  it('upgrades a database written by the previous schema and keeps its tags and favorites', async () => {
+    const root = join(dir, 'lib');
+    const clipPath = join(root, 'clip.mov');
+    await touch(clipPath);
+    const file = join(dir, 'old.sqlite');
+    // Schema 2 as it was: user_items had no themes column; the items tables are rebuilt on upgrade anyway.
+    const old = new DatabaseSync(file);
+    old.exec(`
+      CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE user_items (key TEXT PRIMARY KEY, tags TEXT NOT NULL DEFAULT '[]', favorite INTEGER NOT NULL DEFAULT 0, last_used TEXT);
+      INSERT INTO meta (key, value) VALUES ('schema', '2');
+    `);
+    old.prepare('INSERT INTO user_items (key, tags, favorite, last_used) VALUES (?, ?, ?, ?)').run(`media:${clipPath}`, JSON.stringify(['keeper']), 1, '2026-10-01T00:00:00.000Z');
+    old.close();
+
+    const upgraded = new LibraryStore(file);
+    try {
+      expect(upgraded.getUserData(`media:${clipPath}`)).toEqual({ tags: ['keeper'], themes: [], favorite: true, lastUsed: '2026-10-01T00:00:00.000Z' });
+      upgraded.setRoots([root]);
+      await upgraded.scanRoots([root]);
+      const clip = upgraded.toIndex().media[0]!;
+      expect(clip.userTags).toEqual(['keeper']);
+      expect(clip.favorite).toBe(true);
+      expect(clip.lastUsed).toBe('2026-10-01T00:00:00.000Z');
+      // The new column works on the upgraded table too.
+      upgraded.setUserData(clip.key, { themes: ['news'] });
+      expect(upgraded.toIndex().media[0]!.themes).toEqual(['news']);
+      expect(upgraded.getUserData(clip.key).tags).toEqual(['keeper']);
+    } finally {
+      upgraded.close();
+    }
   });
 
   it('persists across close and reopen', async () => {
