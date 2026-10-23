@@ -1,9 +1,11 @@
 import { protocol } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
+import { Readable } from 'node:stream';
+import { MEDIA_SCHEME, serveMedia } from '../core/media-serve';
 import { injectBridge, TEMPLATE_CSP } from '../core/runtime';
 import { TEMPLATE_SCHEME } from '../shared/api';
-import { findTemplate } from './library-service';
+import { findTemplate, lookupMedia } from './library-service';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -26,11 +28,35 @@ const MIME: Record<string, string> = {
   '.webm': 'video/webm',
 };
 
-/** Must run before app "ready". */
+/** Must run before app "ready", once, with every custom scheme. */
 export function registerTemplateScheme(): void {
   protocol.registerSchemesAsPrivileged([
     { scheme: TEMPLATE_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
+    // `stream` lets <video> and <audio> play from it; fetch is allowed so the app window (and its tests) can probe it.
+    { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
   ]);
+}
+
+/**
+ * Serve library media to the app window at pulp-media://<item-id>/ (see
+ * core/media-serve.ts for the rules). The template CSP never lists this
+ * scheme, so template pages are stopped before a request is made; the
+ * referrer check in serveMedia refuses any that gets through.
+ */
+export function handleMediaProtocol(): void {
+  protocol.handle(MEDIA_SCHEME, async (request) => {
+    const result = await serveMedia(
+      {
+        method: request.method,
+        url: request.url,
+        range: request.headers.get('range'),
+        referrer: request.referrer || request.headers.get('referer'),
+      },
+      lookupMedia,
+    );
+    const body = result.body ? (Readable.toWeb(result.body) as ReadableStream) : null;
+    return new Response(body, { status: result.status, headers: result.headers });
+  });
 }
 
 /**

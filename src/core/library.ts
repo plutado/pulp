@@ -13,7 +13,7 @@ import { normalizeTag } from './tags';
 
 export { normalizeTag };
 export type * from './library-types';
-export { MEDIA_EXTENSIONS, folderTags, loadTemplate, mediaKindForPath } from './library-scan';
+export { MEDIA_EXTENSIONS, folderTags, itemId, loadTemplate, mediaKindForPath } from './library-scan';
 export type { ScanOptions } from './library-store';
 
 /** Scan the given roots and build a library index. Missing roots are reported as problems, not thrown. */

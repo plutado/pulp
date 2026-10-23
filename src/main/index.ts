@@ -14,7 +14,7 @@ import {
   startLibraryMonitor,
   useInMemoryLibrary,
 } from './library-service';
-import { handleTemplateProtocol, registerTemplateScheme } from './protocol';
+import { handleMediaProtocol, handleTemplateProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { cancelRender, clearFinishedRenders, enqueueRender, getRenderQueue } from './render-queue-service';
 import { addRecentColor } from '../core/recent-colors';
@@ -225,6 +225,7 @@ const cli = parseCliRender(process.argv);
 
 app.whenReady().then(async () => {
   handleTemplateProtocol();
+  handleMediaProtocol();
   if (cli) {
     app.dock?.hide();
     useInMemoryLibrary();

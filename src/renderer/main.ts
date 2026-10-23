@@ -1,4 +1,4 @@
-import type { LibraryEntry, LibraryIndex, TemplateEntry } from '../core/library-types';
+import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
 import { frameCount, type TemplateParameter } from '../core/manifest';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
@@ -10,7 +10,7 @@ import { isFinished, type RenderQueueJob, type RenderQueueSnapshot } from '../co
 import { frameState } from '../core/runtime';
 import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, timecodePattern } from '../core/timecode';
 import { searchLibrary } from '../core/search';
-import { templateUrlFor } from '../shared/api';
+import { mediaUrlFor, templateUrlFor } from '../shared/api';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -27,6 +27,9 @@ const els = {
   previewFrame: $<HTMLDivElement>('preview-frame'),
   preview: $<HTMLIFrameElement>('preview'),
   previewEmpty: $<HTMLDivElement>('preview-empty'),
+  mediaVideo: $<HTMLVideoElement>('media-video'),
+  mediaImage: $<HTMLImageElement>('media-image'),
+  mediaAudio: $<HTMLAudioElement>('media-audio'),
   play: $<HTMLButtonElement>('play'),
   scrub: $<HTMLInputElement>('scrub'),
   timecode: $<HTMLSpanElement>('timecode'),
@@ -121,6 +124,8 @@ function renderResults(): void {
     if (entry.offline) li.classList.add('offline');
     li.append(nameEl, metaEl);
     li.setAttribute('role', 'option');
+    li.dataset.id = entry.id;
+    li.dataset.kind = entry.kind;
     li.setAttribute('aria-selected', String(state.selected?.key === entry.key));
     li.addEventListener('click', () => select(entry));
     els.results.append(li);
@@ -163,26 +168,69 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
 
 // ---------------------------------------------------------------- selection + params
 
+/** Stop and hide the media preview elements. */
+function clearMediaPreview(): void {
+  for (const el of [els.mediaVideo, els.mediaAudio]) {
+    el.pause();
+    el.removeAttribute('src');
+    el.load();
+    el.hidden = true;
+  }
+  els.mediaImage.removeAttribute('src');
+  els.mediaImage.hidden = true;
+}
+
 function clearSelection(): void {
   state.selected = null;
   state.previewReady = false;
   stop();
   els.preview.removeAttribute('src');
+  clearMediaPreview();
+  els.previewEmpty.textContent = 'Select a template';
   els.previewEmpty.hidden = false;
   els.params.replaceChildren();
   els.details.textContent = '';
   updateControls();
 }
 
-function select(entry: LibraryEntry): void {
-  if (entry.kind === 'media') {
-    clearSelection();
-    els.previewEmpty.textContent = 'Media preview is not implemented yet.';
-    els.details.textContent = entry.path;
+/** Show a media item in the stage, served by id through pulp-media://. */
+function selectMedia(entry: MediaEntry): void {
+  clearSelection();
+  els.previewFrame.classList.add('checker');
+  els.details.textContent = `${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)} · ${entry.path}`;
+  if (entry.offline) {
+    els.previewEmpty.textContent = 'This file\'s folder is offline.';
     renderResults();
     return;
   }
+  els.previewEmpty.hidden = true;
+  const url = mediaUrlFor(entry.id);
+  const fit = (w: number, h: number) => {
+    if (w > 0 && h > 0) els.previewFrame.style.aspectRatio = `${w} / ${h}`;
+  };
+  if (entry.mediaKind === 'video') {
+    els.mediaVideo.hidden = false;
+    els.mediaVideo.onloadedmetadata = () => fit(els.mediaVideo.videoWidth, els.mediaVideo.videoHeight);
+    els.mediaVideo.src = url;
+  } else if (entry.mediaKind === 'image') {
+    els.mediaImage.hidden = false;
+    els.mediaImage.onload = () => fit(els.mediaImage.naturalWidth, els.mediaImage.naturalHeight);
+    els.mediaImage.src = url;
+  } else {
+    els.previewFrame.style.aspectRatio = '16 / 9';
+    els.mediaAudio.hidden = false;
+    els.mediaAudio.src = url;
+  }
+  renderResults();
+}
+
+function select(entry: LibraryEntry): void {
+  if (entry.kind === 'media') {
+    selectMedia(entry);
+    return;
+  }
   stop();
+  clearMediaPreview();
   state.selected = entry;
   // Each template keeps its own edits and undo history while the app runs.
   state.rawParams = { ...editorFor(entry.manifest.id).current };

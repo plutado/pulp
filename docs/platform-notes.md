@@ -66,6 +66,11 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 - Recursive `fs.watch` works on macOS and Windows, and on Linux with Node 20 or later. `watchRoot` returns null where it throws, and the app falls back to rescans on focus and on demand.
 - Vitest 5 hides console output from passing tests by default; run with `--silent=false` to see lines such as the library benchmark's timings.
 
+## Electron custom protocols
+
+- A scheme used by `<video>` or `<audio>` needs the `stream: true` privilege in `registerSchemesAsPrivileged`, and `protocol.handle` responses can carry a Node stream converted with `Readable.toWeb`. Byte ranges must be answered by the handler (206, `Content-Range`), or seeking stalls.
+- `registerSchemesAsPrivileged` may be called once, before `ready`, with every custom scheme; `pulp-template` and `pulp-media` are registered together.
+
 ## Windows CI
 
 - GitHub's `windows-latest` runner has a desktop session; Electron offscreen rendering works there without extra setup.

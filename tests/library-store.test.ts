@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { itemId } from '../src/core/library-scan';
 import { LibraryStore } from '../src/core/library-store';
 import { rawManifest } from './fixtures';
 
@@ -124,6 +125,33 @@ describe('LibraryStore incremental scans', () => {
     store.setRoots([a]);
     expect(store.toIndex().media.map((m) => m.name)).toEqual(['x']);
     expect(store.getUserData(yKey).favorite).toBe(true);
+  });
+
+  it('gives items opaque ids that stay stable across rescans and finds media by them', async () => {
+    const root = join(dir, 'lib');
+    await writeTemplate(join(root, 'tpl'));
+    await touch(join(root, 'clip.mov'));
+    store.setRoots([root]);
+    await store.scanRoots([root]);
+    const before = store.toIndex();
+    const clip = before.media[0]!;
+    expect(clip.id).toMatch(/^[0-9a-f]{24}$/);
+    expect(clip.id).toBe(itemId(clip.key));
+    expect(clip.id).not.toContain('clip');
+    expect(before.templates[0]!.id).toMatch(/^[0-9a-f]{24}$/);
+
+    await sleep(20);
+    await touch(join(root, 'clip.mov'), 50); // changed: reloaded, same id
+    await store.scanRoots([root]);
+    expect(store.toIndex().media[0]!.id).toBe(clip.id);
+
+    expect(store.findMediaById(clip.id)).toMatchObject({ online: true, root, entry: { path: join(root, 'clip.mov') } });
+    expect(store.findMediaById(before.templates[0]!.id)).toBeUndefined(); // templates are not served
+    expect(store.findMediaById('nope')).toBeUndefined();
+    await rename(root, join(dir, 'gone'));
+    await store.scanRoots([root]);
+    expect(store.findMediaById(clip.id)?.online).toBe(false);
+    await rename(join(dir, 'gone'), root);
   });
 
   it('persists across close and reopen', async () => {

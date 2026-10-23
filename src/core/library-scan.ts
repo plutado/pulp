@@ -3,6 +3,7 @@
  * folder tags, and loading one template folder. Uses node:fs only.
  */
 
+import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, relative, sep } from 'node:path';
 import { MANIFEST_FILENAME, parseManifest } from './manifest';
@@ -22,6 +23,11 @@ const EXTENSION_KIND = new Map<string, MediaKind>(
 );
 
 export const SKIP_DIRECTORIES = new Set(['node_modules', '.git', '__MACOSX', '$RECYCLE.BIN']);
+
+/** Library id for an item key: stable, opaque (a hash, not the path), 24 hex characters. */
+export function itemId(key: string): string {
+  return createHash('sha256').update(key).digest('hex').slice(0, 24);
+}
 
 export function mediaKindForPath(path: string): MediaKind | null {
   return EXTENSION_KIND.get(extname(path).toLowerCase()) ?? null;
@@ -62,9 +68,11 @@ export async function loadTemplate(dir: string, root: string): Promise<TemplateE
 
   // A template folder's own name is not a useful tag; only its parents are.
   const tags = unique([...result.manifest.tags, ...folderTags(root, join(dir, '..'))]);
+  const key = `template:${dir}`;
   return {
     kind: 'template',
-    key: `template:${dir}`,
+    key,
+    id: itemId(key),
     dir,
     root,
     manifest: result.manifest,

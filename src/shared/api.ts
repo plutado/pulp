@@ -74,6 +74,7 @@ export interface PulpApi {
 }
 
 export const TEMPLATE_SCHEME = 'pulp-template';
+export { MEDIA_SCHEME, mediaUrlFor } from '../core/media-url';
 
 /** Template ids are lowercase and dot/dash separated, so they are valid URL hosts as-is. */
 export function templateUrlFor(templateId: string, entry = 'index.html'): string {

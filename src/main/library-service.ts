@@ -14,6 +14,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { LibraryStore, type ScanStats } from '../core/library-store';
 import type { LibraryIndex, TemplateEntry } from '../core/library-types';
+import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
 import { loadSettings, saveSettings } from './settings';
 
@@ -145,6 +146,11 @@ export async function addLibraryFolder(folder: string): Promise<LibraryIndex> {
     await saveSettings(settings);
   }
   return rescan();
+}
+
+/** For the pulp-media:// handler: the stored media item behind an id, if any. */
+export function lookupMedia(id: string): MediaLookup | undefined {
+  return getStore().findMediaById(id);
 }
 
 export async function findTemplate(id: string): Promise<TemplateEntry | undefined> {

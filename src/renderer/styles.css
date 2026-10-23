@@ -83,6 +83,9 @@ input[type="checkbox"] { width: auto; }
   /* Must match the template document's color scheme, or Chromium paints an opaque backdrop behind it. */
   color-scheme: normal;
 }
+.preview .media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; }
+.preview .media[hidden] { display: none; }
+.preview audio.media { top: auto; height: 40px; }
 .preview-empty[hidden] { display: none; }
 .preview-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
 .checker {

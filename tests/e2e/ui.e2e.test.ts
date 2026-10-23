@@ -11,11 +11,12 @@
 import { spawn, execFile, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { detectFfmpeg } from '../../src/core/ffmpeg';
 
 const run = promisify(execFile);
 const ROOT = join(__dirname, '..', '..');
@@ -108,6 +109,15 @@ describe.skipIf(!electron)('inspector UI', () => {
   let page: Session;
   /** Scratch userData folder, so the app under test never reads or writes the real settings.json. */
   let userData = '';
+  /** A library folder with a tiny PNG and, when ffmpeg is available, a 2 s MP4. */
+  let mediaDir = '';
+  let haveVideo = false;
+
+  // 2x2 opaque PNG (red, green / blue, white).
+  const TINY_PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP4z8DwHwyBNAPDfwYGBgA6XQb6kQ5J8QAAAABJRU5ErkJggg==',
+    'base64',
+  );
 
   async function targets(): Promise<Target[]> {
     try {
@@ -151,6 +161,19 @@ describe.skipIf(!electron)('inspector UI', () => {
   beforeAll(async () => {
     await run(process.execPath, [join(ROOT, 'node_modules', 'electron-vite', 'bin', 'electron-vite.js'), 'build'], { cwd: ROOT });
     userData = await mkdtemp(join(tmpdir(), 'pulp-ui-'));
+    mediaDir = join(userData, 'media-library');
+    await mkdir(mediaDir, { recursive: true });
+    await writeFile(join(mediaDir, 'tiny.png'), TINY_PNG);
+    const ffmpeg = await detectFfmpeg();
+    if (ffmpeg.ok) {
+      try {
+        await run(ffmpeg.path, ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'clip.mp4')]);
+        haveVideo = true;
+      } catch {
+        haveVideo = false;
+      }
+    }
+    await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir] }));
     app = spawn(electron!, ['.', `--remote-debugging-port=${port}`], {
       cwd: ROOT,
       stdio: 'ignore',
@@ -328,4 +351,51 @@ describe.skipIf(!electron)('inspector UI', () => {
     await until(() => page.eval<boolean>(`document.querySelector('#params .color-field .recent-swatch') !== null`), 'recent colors on the title card');
     expect(await page.eval<string>(`document.querySelector('#params .color-field .recent-swatch').dataset.color`)).toBe('#00ff0040');
   }, 60_000);
+
+  describe('media preview through pulp-media://', () => {
+    const selectMedia = async (name: string) => {
+      await until(
+        () => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-kind=media] .name')].some((n) => n.textContent === ${JSON.stringify(name)})`),
+        `media item ${name} in the library`,
+      );
+      await page.eval(`[...document.querySelectorAll('#results li[data-kind=media]')].find((li) => li.querySelector('.name')?.textContent === ${JSON.stringify(name)}).click()`);
+    };
+
+    it('shows an image from the library, addressed by id', async () => {
+      await selectMedia('tiny');
+      await until(() => page.eval<boolean>(`(() => { const i = document.getElementById('media-image'); return !i.hidden && i.complete && i.naturalWidth > 0; })()`), 'the image to load');
+      const src = await page.eval<string>(`document.getElementById('media-image').src`);
+      expect(src).toMatch(/^pulp-media:\/\/[0-9a-f]{24}\/$/);
+      expect(src).not.toContain('tiny');
+      expect(await page.eval<number>(`document.getElementById('media-image').naturalWidth`)).toBe(2);
+      expect(await page.eval<boolean>(`document.getElementById('preview').hasAttribute('src')`)).toBe(false);
+    }, 60_000);
+
+    it('plays and seeks a video, which needs byte ranges', async () => {
+      if (!haveVideo) {
+        console.info('ffmpeg not available to make a test video; video preview check skipped.');
+        return;
+      }
+      await selectMedia('clip');
+      await until(() => page.eval<boolean>(`(() => { const v = document.getElementById('media-video'); return !v.hidden && v.readyState >= 1; })()`), 'video metadata');
+      const duration = await page.eval<number>(`document.getElementById('media-video').duration`);
+      expect(Math.abs(duration - 2)).toBeLessThan(0.3);
+      await page.eval(`document.getElementById('media-video').currentTime = 1.5`);
+      await until(() => page.eval<boolean>(`(() => { const v = document.getElementById('media-video'); return !v.seeking && Math.abs(v.currentTime - 1.5) < 0.2 && v.readyState >= 2; })()`), 'the seek to finish');
+    }, 60_000);
+
+    it('answers the app window with 404 for unknown ids and 206 for ranges', async () => {
+      const unknown = await page.eval<{ status: number; text: string }>(`fetch('pulp-media://deadbeefdeadbeefdeadbeef/').then(async (r) => ({ status: r.status, text: await r.text() }))`);
+      expect(unknown).toEqual({ status: 404, text: '' });
+      const id = await page.eval<string>(`document.querySelector('#results li[data-kind=media]').dataset.id`);
+      const ranged = await page.eval<{ status: number; range: string | null; length: number }>(
+        `fetch('pulp-media://${id}/', { headers: { Range: 'bytes=0-9' } }).then(async (r) => ({ status: r.status, range: r.headers.get('content-range'), length: (await r.arrayBuffer()).byteLength }))`,
+      );
+      expect(ranged.status).toBe(206);
+      expect(ranged.range).toMatch(/^bytes 0-9\/\d+$/);
+      expect(ranged.length).toBe(10);
+      // A path on the URL is not a folder listing or a file; it is nothing.
+      expect(await page.eval<number>(`fetch('pulp-media://${id}/tiny.png').then((r) => r.status)`)).toBe(404);
+    }, 60_000);
+  });
 });

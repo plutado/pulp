@@ -6,8 +6,10 @@ export type MediaKind = 'video' | 'image' | 'audio';
 
 export interface TemplateEntry {
   kind: 'template';
-  /** Unique key within the index. */
+  /** Unique key within the index (derived from the path). */
   key: string;
+  /** Opaque library id, stable for the item while it exists; used to address it without exposing its path. */
+  id: string;
   /** True when the item's library root is not reachable right now; the item is kept so user data survives. */
   offline?: boolean;
   dir: string;
@@ -21,6 +23,7 @@ export interface TemplateEntry {
 export interface MediaEntry {
   kind: 'media';
   key: string;
+  id: string;
   offline?: boolean;
   path: string;
   root: string;

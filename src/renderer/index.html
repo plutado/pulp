@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta
     http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: pulp-template:; frame-src pulp-template:; connect-src 'self' ws:">
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: pulp-template: pulp-media:; media-src 'self' pulp-media:; frame-src pulp-template:; connect-src 'self' ws: pulp-media:">
   <title>Pulp</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -26,6 +26,9 @@
       <div class="preview-wrap">
         <div id="preview-frame" class="preview checker">
           <iframe id="preview" title="Template preview" sandbox="allow-scripts allow-same-origin"></iframe>
+          <video id="media-video" class="media" controls preload="metadata" hidden></video>
+          <img id="media-image" class="media" alt="" hidden>
+          <audio id="media-audio" class="media" controls preload="metadata" hidden></audio>
           <div id="preview-empty" class="preview-empty">Select a template</div>
         </div>
       </div>

@@ -18,7 +18,8 @@ import { basename, extname, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
-import { folderTags, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES } from './library-scan';
+import { folderTags, itemId, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES } from './library-scan';
+import type { MediaLookup } from './media-serve';
 
 export interface ScanOptions {
   /** Maximum directory depth below each root. Default 12. */
@@ -58,6 +59,7 @@ interface RootRow {
 
 interface ItemRow {
   key: string;
+  id: string;
   root: string;
   kind: string;
   size: number;
@@ -76,6 +78,7 @@ CREATE TABLE IF NOT EXISTS roots (
 );
 CREATE TABLE IF NOT EXISTS items (
   key TEXT PRIMARY KEY,
+  id TEXT NOT NULL,
   root TEXT NOT NULL,
   kind TEXT NOT NULL,
   size INTEGER NOT NULL,
@@ -83,6 +86,7 @@ CREATE TABLE IF NOT EXISTS items (
   entry TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS items_root ON items(root);
+CREATE UNIQUE INDEX IF NOT EXISTS items_id ON items(id);
 CREATE TABLE IF NOT EXISTS problems (
   root TEXT NOT NULL,
   path TEXT NOT NULL,
@@ -98,7 +102,7 @@ CREATE TABLE IF NOT EXISTS user_items (
 );
 `;
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export class LibraryStore {
   private readonly db: DatabaseSync;
@@ -106,6 +110,12 @@ export class LibraryStore {
   constructor(readonly file: string = ':memory:') {
     this.db = new DatabaseSync(file);
     if (file !== ':memory:') this.db.exec('PRAGMA journal_mode = WAL');
+    this.db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+    const stored = (this.db.prepare("SELECT value FROM meta WHERE key = 'schema'").get() as { value: string } | undefined)?.value;
+    if (stored !== undefined && Number(stored) !== SCHEMA_VERSION) {
+      // Scan results are rebuilt by the next scan; user data has its own table and is kept.
+      this.db.exec('DROP TABLE IF EXISTS items; DROP TABLE IF EXISTS problems;');
+    }
     this.db.exec(SCHEMA);
     this.db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run('schema', String(SCHEMA_VERSION));
   }
@@ -167,7 +177,7 @@ export class LibraryStore {
       }
 
       const existing = new Map<string, ItemRow>();
-      for (const row of this.db.prepare('SELECT key, root, kind, size, mtime_ms, entry FROM items WHERE root = ?').all(rootPath) as unknown as ItemRow[]) {
+      for (const row of this.db.prepare('SELECT key, id, root, kind, size, mtime_ms, entry FROM items WHERE root = ?').all(rootPath) as unknown as ItemRow[]) {
         existing.set(row.key, row);
       }
       const seen = new Set<string>();
@@ -252,6 +262,7 @@ export class LibraryStore {
           const media: MediaEntry = {
             kind: 'media',
             key,
+            id: itemId(key),
             path: full,
             root: rootPath,
             name: basename(entry.name, extname(entry.name)),
@@ -270,10 +281,10 @@ export class LibraryStore {
       this.db.exec('BEGIN');
       try {
         const upsert = this.db.prepare(
-          'INSERT INTO items (key, root, kind, size, mtime_ms, entry) VALUES (?, ?, ?, ?, ?, ?) ' +
+          'INSERT INTO items (key, id, root, kind, size, mtime_ms, entry) VALUES (?, ?, ?, ?, ?, ?, ?) ' +
             'ON CONFLICT(key) DO UPDATE SET kind = excluded.kind, size = excluded.size, mtime_ms = excluded.mtime_ms, entry = excluded.entry',
         );
-        for (const u of upserts) upsert.run(u.key, rootPath, u.kind, u.size, u.mtimeMs, JSON.stringify(u.entry));
+        for (const u of upserts) upsert.run(u.key, itemId(u.key), rootPath, u.kind, u.size, u.mtimeMs, JSON.stringify(u.entry));
         if (!truncated) {
           const remove = this.db.prepare('DELETE FROM items WHERE key = ?');
           for (const key of existing.keys()) {
@@ -313,7 +324,7 @@ export class LibraryStore {
       builtAt: new Date().toISOString(),
     };
 
-    const rows = this.db.prepare('SELECT key, root, kind, size, mtime_ms, entry FROM items').all() as unknown as ItemRow[];
+    const rows = this.db.prepare('SELECT key, id, root, kind, size, mtime_ms, entry FROM items').all() as unknown as ItemRow[];
     rows.sort((a, b) => (order.get(a.root) ?? 0) - (order.get(b.root) ?? 0) || a.key.localeCompare(b.key));
     const seenIds = new Map<string, string>();
     const duplicates: LibraryProblem[] = [];
@@ -345,6 +356,15 @@ export class LibraryStore {
     index.problems.push(...duplicates);
     index.templates.sort((a, b) => a.manifest.name.localeCompare(b.manifest.name));
     return index;
+  }
+
+  /** A media item by library id, with whether its root is reachable; undefined for unknown ids and templates. */
+  findMediaById(id: string): MediaLookup | undefined {
+    const row = this.db
+      .prepare("SELECT items.entry AS entry, items.root AS root, roots.online AS online FROM items JOIN roots ON roots.path = items.root WHERE items.id = ? AND items.kind = 'media'")
+      .get(id) as { entry: string; root: string; online: number } | undefined;
+    if (!row) return undefined;
+    return { entry: JSON.parse(row.entry) as MediaEntry, root: row.root, online: row.online === 1 };
   }
 
   itemCount(): number {

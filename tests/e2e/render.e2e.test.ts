@@ -16,6 +16,8 @@ import { basename, dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { detectFfmpeg } from '../../src/core/ffmpeg';
+import { itemId } from '../../src/core/library-scan';
+import { mediaUrlFor } from '../../src/core/media-url';
 
 const run = promisify(execFile);
 const ROOT = join(__dirname, '..', '..');
@@ -414,6 +416,19 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(result.code, result.stderr).toBe(0);
     const info = await probe(join(out, 'title.mp4'));
     expect(info).toMatchObject({ width: 1920, height: 1080, pix_fmt: 'yuv420p', nb_read_frames: '150' });
+  }, 120_000);
+
+  it('refuses pulp-media:// to template pages, even for a valid library id', async () => {
+    // The fixtures folder is a library root for this run, so its media/silence.wav has an id the
+    // template could only have been told; the template tries fetch and <audio> and paints green on success.
+    const id = itemId(`media:${join(FIXTURES, 'media', 'silence.wav')}`);
+    const result = await render('pulp.test.media-leak', 'png-sequence', 'leak', {
+      extra: ['--library', FIXTURES, '--param', `url=${mediaUrlFor(id)}`],
+    });
+    expect(result.code, result.stderr).toBe(0);
+    const frames = (await readdir(out)).filter((f) => f.startsWith('leak_'));
+    expect(frames).toHaveLength(1);
+    expect(await pixels(join(out, frames[0]!), 32, 18)).toEqual([255, 0, 0, 255]);
   }, 120_000);
 
   it('reports a template error with frame and location, and leaves no output', async () => {

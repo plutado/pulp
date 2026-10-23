@@ -62,7 +62,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [x] Persistent index with incremental rescans and a file watcher; also rescans on window focus and when a missing root returns, and marks items of missing roots offline instead of deleting them. 5,100 items: 145 ms first scan, 105 ms unchanged rescan (3-4 h)
 - [ ] Media metadata via ffprobe: duration, resolution, codec, alpha; filter by them (2-3 h)
 - [ ] Thumbnails for templates (render a poster frame) and media (ffmpeg frame grab), cached (2-4 h)
-- [ ] Media preview in the stage area (video/image/audio) (1-2 h)
+- [x] Media preview in the stage area (video/image/audio) through `pulp-media://<id>/`: by id, real path checked against the root, media types only, ranges for seeking, bare 404s, off limits to templates; refusals tested (1-2 h)
 - [ ] Favorites and recently used (1-2 h)
 
 ## 5. Drag-out to editing apps (8-16 h)
