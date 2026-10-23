@@ -97,7 +97,8 @@ input[type="checkbox"] { width: auto; }
 
 .transport { display: flex; align-items: center; gap: 10px; }
 .transport input[type="range"] { flex: 1; padding: 0; }
-.timecode { font-family: Menlo, Consolas, monospace; color: var(--muted); min-width: 150px; text-align: right; }
+.timecode { font-family: Menlo, Consolas, monospace; color: var(--muted); min-width: 190px; text-align: right; }
+.render-options .trim input { font-family: Menlo, Consolas, monospace; }
 
 .details { color: var(--muted); font-size: 12px; min-height: 2.5em; }
 

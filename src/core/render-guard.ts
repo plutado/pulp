@@ -113,8 +113,8 @@ function formatSeconds(ms: number): string {
  * Files a failed or cancelled render may have written, for cleanup.
  *
  * A single-file output is one path. A sequence pattern such as
- * `out_%05d.png` expands to the frame numbers the render covers (ffmpeg
- * numbers from 0), so unrelated files in the folder are never touched.
+ * `out_%05d.png` expands to the frame numbers the render covers (from its
+ * first frame), so unrelated files in the folder are never touched.
  *
  * Without overwrite, ffmpeg refuses to replace files (-n), so anything that
  * existed before the render started belongs to the user and is kept.
@@ -123,20 +123,22 @@ export function partialOutputFiles(input: {
   output: string;
   sequence: boolean;
   totalFrames: number;
+  /** Index of the first frame, which sequence numbering starts at. Default 0. */
+  firstFrame?: number;
   overwrite: boolean;
   existedBefore: ReadonlySet<string>;
 }): string[] {
-  const files = input.sequence ? expandSequence(input.output, input.totalFrames) : [input.output];
+  const files = input.sequence ? expandSequence(input.output, input.totalFrames, input.firstFrame ?? 0) : [input.output];
   return input.overwrite ? files : files.filter((f) => !input.existedBefore.has(f));
 }
 
-/** Expand the first printf-style `%d` / `%05d` in a path for frames 0..count-1. */
-export function expandSequence(pattern: string, count: number): string[] {
+/** Expand the first printf-style `%d` / `%05d` in a path for frames start..start+count-1. */
+export function expandSequence(pattern: string, count: number, start = 0): string[] {
   const match = /%(0?)(\d*)d/.exec(pattern);
   if (!match) return [pattern];
   const width = match[2] ? Number(match[2]) : 0;
   const pad = match[1] === '0' ? '0' : ' ';
   const before = pattern.slice(0, match.index);
   const after = pattern.slice(match.index + match[0].length);
-  return Array.from({ length: count }, (_, i) => before + String(i).padStart(width, pad) + after);
+  return Array.from({ length: count }, (_, i) => before + String(start + i).padStart(width, pad) + after);
 }

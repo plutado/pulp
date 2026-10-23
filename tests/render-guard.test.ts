@@ -106,6 +106,10 @@ describe('expandSequence', () => {
     expect(expandSequence('f%d.png', 11).at(-1)).toBe('f10.png');
   });
 
+  it('starts at the first frame of a trimmed render', () => {
+    expect(expandSequence('/out/a_%05d.png', 3, 60)).toEqual(['/out/a_00060.png', '/out/a_00061.png', '/out/a_00062.png']);
+  });
+
   it('returns a path without a pattern unchanged', () => {
     expect(expandSequence('/out/a.png', 5)).toEqual(['/out/a.png']);
   });
@@ -123,6 +127,14 @@ describe('partialOutputFiles', () => {
       '/out/a_00000.png',
       '/out/a_00001.png',
       '/out/a_00002.png',
+    ]);
+  });
+
+  it('numbers sequence files from the first frame', () => {
+    expect(partialOutputFiles({ ...base, sequence: true, firstFrame: 60, output: '/out/a_%05d.png' })).toEqual([
+      '/out/a_00060.png',
+      '/out/a_00061.png',
+      '/out/a_00062.png',
     ]);
   });
 

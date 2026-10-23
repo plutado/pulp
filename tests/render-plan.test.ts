@@ -116,7 +116,7 @@ describe('buildRenderPlan', () => {
     expect(plan.output).toBe('/out/lt_%05d.png');
     expect(flag(plan.args, '-vf')).toBe(`${UNPREMULTIPLY},format=rgba`);
     expect(flag(plan.args, '-f')).toBe('rawvideo');
-    expect(plan.args.join(' ')).toContain('-c:v png -f image2 -start_number 0');
+    expect(plan.args.join(' ')).toContain('-c:v png -f image2 -start_number 0 -frames:v 60');
   });
 
   it('webm-vp9-alpha uses yuva420p and disables alt-ref frames', () => {
@@ -229,11 +229,13 @@ describe('buildRenderPlan', () => {
     expect(ntsc.totalFrames).toBe(60);
   });
 
-  it('applies a trim to the frame count and reports the first frame', () => {
-    const plan = buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/o/t', options: { trimStart: 0.5, trimEnd: 1.5 } });
+  it('applies in and out points to the frame count and numbers sequence files from the in point', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/o/t', options: { inFrame: 15, outFrame: 44 } });
     expect(plan).toMatchObject({ fps: 30, firstFrame: 15, totalFrames: 30 });
     expect(flag(plan.args, '-frames:v')).toBe('30');
-    expect(flag(plan.args, '-start_number')).toBe('0'); // output numbering still starts at 0
+    expect(flag(plan.args, '-start_number')).toBe('15');
+    const mov = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t', options: { inFrame: 15, outFrame: 44 } });
+    expect(mov.args).not.toContain('-start_number');
   });
 
   it('every preset declares an encoder that appears in its codec args', () => {
@@ -286,28 +288,35 @@ describe('resolveTiming', () => {
     expect(resolveTiming(two, {})).toEqual({ fps: 30, firstFrame: 0, totalFrames: 60 });
   });
 
-  it('samples at the override rate over the same duration', () => {
+  it('samples at a standard override rate over the same duration', () => {
     expect(resolveTiming(two, { fps: 60 })).toEqual({ fps: 60, firstFrame: 0, totalFrames: 120 });
     expect(resolveTiming(two, { fps: 25 })).toEqual({ fps: 25, firstFrame: 0, totalFrames: 50 });
     expect(resolveTiming(two, { fps: 23.976 }).totalFrames).toBe(48);
+    expect(resolveTiming(two, { fps: 119.88 }).totalFrames).toBe(240);
   });
 
-  it('trims on the template timeline, start inclusive, end exclusive', () => {
-    expect(resolveTiming(two, { trimStart: 0.5, trimEnd: 1.5 })).toEqual({ fps: 30, firstFrame: 15, totalFrames: 30 });
-    expect(resolveTiming(two, { trimStart: 1 })).toEqual({ fps: 30, firstFrame: 30, totalFrames: 30 });
-    expect(resolveTiming(two, { trimEnd: 0.5 })).toEqual({ fps: 30, firstFrame: 0, totalFrames: 15 });
-    expect(resolveTiming(two, { fps: 60, trimStart: 1, trimEnd: 2 })).toEqual({ fps: 60, firstFrame: 60, totalFrames: 60 });
+  it('only accepts frame rates from the standard list', () => {
+    expect(() => resolveTiming(two, { fps: 31 })).toThrow(RenderPlanError);
+    expect(() => resolveTiming(two, { fps: 31 })).toThrow(/frame rate must be one of 23.976, 24, 25, 29.97, 30, 47.952, 48, 50, 59.94, 60, 100, 119.88, 120, got 31/);
+    expect(() => resolveTiming(two, { fps: 0 })).toThrow(/must be one of/);
+    expect(() => resolveTiming(two, { fps: Number.NaN })).toThrow(/must be one of/);
+    // A non-standard template rate is fine when not overridden.
+    expect(resolveTiming({ fps: 12.5, duration: 2 })).toEqual({ fps: 12.5, firstFrame: 0, totalFrames: 25 });
   });
 
-  it('rejects impossible frame rates and ranges with a clear message', () => {
-    expect(() => resolveTiming(two, { fps: 0 })).toThrow(RenderPlanError);
-    expect(() => resolveTiming(two, { fps: 241 })).toThrow(/frame rate must be a number between 0 and 240/);
-    expect(() => resolveTiming(two, { fps: Number.NaN })).toThrow(/frame rate/);
-    expect(() => resolveTiming(two, { trimStart: -1 })).toThrow(/trim start must be 0 or more/);
-    expect(() => resolveTiming(two, { trimEnd: 2.5 })).toThrow(/at most the template's duration \(2 s\)/);
-    expect(() => resolveTiming(two, { trimStart: 1, trimEnd: 1 })).toThrow(/trim end \(1 s\) must be after trim start \(1 s\)/);
-    expect(() => resolveTiming(two, { trimStart: 1.5, trimEnd: 0.5 })).toThrow(/must be after/);
-    expect(() => resolveTiming(two, { trimStart: 1.001, trimEnd: 1.002 })).toThrow(/holds no whole frame/);
+  it('applies in and out points as inclusive frames at the output rate', () => {
+    expect(resolveTiming(two, { inFrame: 15, outFrame: 44 })).toEqual({ fps: 30, firstFrame: 15, totalFrames: 30 });
+    expect(resolveTiming(two, { inFrame: 30 })).toEqual({ fps: 30, firstFrame: 30, totalFrames: 30 });
+    expect(resolveTiming(two, { outFrame: 14 })).toEqual({ fps: 30, firstFrame: 0, totalFrames: 15 });
+    expect(resolveTiming(two, { inFrame: 10, outFrame: 10 })).toEqual({ fps: 30, firstFrame: 10, totalFrames: 1 });
+    expect(resolveTiming(two, { fps: 60, inFrame: 60, outFrame: 119 })).toEqual({ fps: 60, firstFrame: 60, totalFrames: 60 });
+  });
+
+  it('rejects impossible in and out points with a clear message', () => {
+    expect(() => resolveTiming(two, { inFrame: -1 })).toThrow(/in point must be a frame number of 0 or more/);
+    expect(() => resolveTiming(two, { inFrame: 1.5 })).toThrow(/in point/);
+    expect(() => resolveTiming(two, { outFrame: 60 })).toThrow(/out point must be at most the last frame \(59 at 30 fps\)/);
+    expect(() => resolveTiming(two, { inFrame: 20, outFrame: 10 })).toThrow(/out point \(frame 10\) must not be before the in point \(frame 20\)/);
   });
 
   it('still renders one frame for a template shorter than a frame, like frameCount', () => {

@@ -28,6 +28,9 @@
  */
 
 import { isValidColor, type TemplateManifest } from './manifest';
+import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
+
+export { fpsToRational } from './timecode';
 
 export type PresetId = 'prores-4444' | 'prores-422hq' | 'png-sequence' | 'webm-vp9-alpha' | 'h264-mp4' | 'qt-animation' | 'hevc-alpha';
 
@@ -117,7 +120,8 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
     encoder: 'png',
     pixelFormat: 'rgba',
     color: 'rgb',
-    codecArgs: ['-c:v', 'png', '-f', 'image2', '-start_number', '0'],
+    // -start_number is added by buildRenderPlan: the files carry the frame indices of the render.
+    codecArgs: ['-c:v', 'png', '-f', 'image2'],
   },
   'webm-vp9-alpha': {
     id: 'webm-vp9-alpha',
@@ -184,14 +188,14 @@ export class RenderPlanError extends Error {
 
 /** Per-render choices on top of the template's timing and the preset. All optional. */
 export interface RenderOptions {
-  /** Output frame rate. Frames are sampled from the template's timeline at this rate. Default: the template's fps. */
+  /** Output frame rate, one of STANDARD_FRAME_RATES. Frames are sampled from the template's timeline at this rate. Default: the template's fps. */
   fps?: number;
   /** Background used when flattening an alpha template into a non-alpha preset. Default #000000. */
   background?: string;
-  /** Start of the rendered range, in seconds of template time, inclusive. Default 0. */
-  trimStart?: number;
-  /** End of the rendered range, in seconds of template time, exclusive. Default: the template's duration. */
-  trimEnd?: number;
+  /** In point: first rendered frame, counted at the output frame rate. Default 0. */
+  inFrame?: number;
+  /** Out point: last rendered frame, inclusive as in editing apps, counted at the output frame rate. Default: the last frame. */
+  outFrame?: number;
 }
 
 export interface RenderTiming {
@@ -202,33 +206,29 @@ export interface RenderTiming {
   totalFrames: number;
 }
 
-export const MAX_FPS = 240;
-
 /**
  * Frame rate and frame range for a render: the template's timing with the fps
- * and trim options applied. Frame indices stay on the template's timeline, so
- * a trimmed render shows the same picture at a given second as a full one.
+ * override and in/out points applied. Frame indices stay on the (resampled)
+ * template timeline, so a trimmed render shows the same picture at a given
+ * second as a full one, and the output numbering can carry the same indices.
  */
 export function resolveTiming(manifest: Pick<TemplateManifest, 'fps' | 'duration'>, options: RenderOptions = {}): RenderTiming {
   const fps = options.fps ?? manifest.fps;
-  if (!Number.isFinite(fps) || fps <= 0 || fps > MAX_FPS) {
-    throw new RenderPlanError(`frame rate must be a number between 0 and ${MAX_FPS}, got ${String(options.fps)}`);
+  if (options.fps !== undefined && !isStandardFrameRate(options.fps)) {
+    throw new RenderPlanError(
+      `frame rate must be one of ${STANDARD_FRAME_RATES.map((r) => r.fps).join(', ')}, got ${String(options.fps)}`,
+    );
   }
-  const start = options.trimStart ?? 0;
-  const end = options.trimEnd ?? manifest.duration;
-  if (!Number.isFinite(start) || start < 0) throw new RenderPlanError(`trim start must be 0 or more seconds, got ${String(options.trimStart)}`);
-  if (!Number.isFinite(end) || end > manifest.duration) {
-    throw new RenderPlanError(`trim end must be at most the template's duration (${manifest.duration} s), got ${String(options.trimEnd)}`);
+  // Like frameCount: a template shorter than one frame still has one frame.
+  const lastFrame = Math.max(1, Math.round(manifest.duration * fps)) - 1;
+  const inFrame = options.inFrame ?? 0;
+  const outFrame = options.outFrame ?? lastFrame;
+  if (!Number.isInteger(inFrame) || inFrame < 0) throw new RenderPlanError(`in point must be a frame number of 0 or more, got ${String(options.inFrame)}`);
+  if (!Number.isInteger(outFrame) || outFrame > lastFrame) {
+    throw new RenderPlanError(`out point must be at most the last frame (${lastFrame} at ${fps} fps), got ${String(options.outFrame)}`);
   }
-  if (end <= start) throw new RenderPlanError(`trim end (${end} s) must be after trim start (${start} s)`);
-  const firstFrame = Math.round(start * fps);
-  let totalFrames = Math.round(end * fps) - firstFrame;
-  if (totalFrames < 1) {
-    // A whole template shorter than one frame still renders one frame, like frameCount; a trim that short is a mistake.
-    if (options.trimStart === undefined && options.trimEnd === undefined) totalFrames = 1;
-    else throw new RenderPlanError(`the range ${start} to ${end} s holds no whole frame at ${fps} fps`);
-  }
-  return { fps, firstFrame, totalFrames };
+  if (outFrame < inFrame) throw new RenderPlanError(`out point (frame ${outFrame}) must not be before the in point (frame ${inFrame})`);
+  return { fps, firstFrame: inFrame, totalFrames: outFrame - inFrame + 1 };
 }
 
 export interface RenderPlanInput {
@@ -261,13 +261,6 @@ export interface RenderPlan {
   firstFrame: number;
   totalFrames: number;
   warnings: string[];
-}
-
-/** ffmpeg-friendly frame rate: NTSC rates become exact rationals. */
-export function fpsToRational(fps: number): string {
-  const ntsc: Record<string, string> = { '23.976': '24000/1001', '29.97': '30000/1001', '59.94': '60000/1001' };
-  const key = String(Number(fps.toFixed(3)));
-  return ntsc[key] ?? String(fps);
 }
 
 /** Make the output path agree with the preset's extension (and frame pattern for sequences). */
@@ -353,6 +346,9 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
     args.push('-vf', [...prepare, ...toOutput].join(','));
   }
 
-  args.push(...preset.codecArgs, '-frames:v', String(totalFrames), '-r', fps, output);
+  args.push(...preset.codecArgs);
+  // Sequence files are numbered with the frame indices they hold, so a render from frame 60 starts at _00060.
+  if (preset.sequence) args.push('-start_number', String(timing.firstFrame));
+  args.push('-frames:v', String(totalFrames), '-r', fps, output);
   return { preset, frameFormat, args, output, fps: timing.fps, firstFrame: timing.firstFrame, totalFrames, warnings };
 }

@@ -191,6 +191,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
         output: plan.output,
         sequence: plan.preset.sequence,
         totalFrames: plan.totalFrames,
+        firstFrame: plan.firstFrame,
         overwrite,
         existedBefore,
       });
@@ -217,7 +218,14 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
 
     await mkdir(dirname(plan.output), { recursive: true });
     existedBefore = await existingFiles(
-      partialOutputFiles({ output: plan.output, sequence: plan.preset.sequence, totalFrames: plan.totalFrames, overwrite: false, existedBefore: new Set() }),
+      partialOutputFiles({
+        output: plan.output,
+        sequence: plan.preset.sequence,
+        totalFrames: plan.totalFrames,
+        firstFrame: plan.firstFrame,
+        overwrite: false,
+        existedBefore: new Set(),
+      }),
     );
     child = spawn(ffmpeg.path, plan.args, { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });
     let stderr = '';

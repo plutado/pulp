@@ -5,6 +5,7 @@ import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { isFinished, type RenderQueueJob, type RenderQueueSnapshot } from '../core/render-queue';
 import { frameState } from '../core/runtime';
+import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, timecodePattern } from '../core/timecode';
 import { searchLibrary } from '../core/search';
 import { templateUrlFor } from '../shared/api';
 
@@ -31,11 +32,11 @@ const els = {
   preset: $<HTMLSelectElement>('preset'),
   presetNote: $<HTMLParagraphElement>('preset-note'),
   presetUnavailable: $<HTMLParagraphElement>('preset-unavailable'),
-  optFps: $<HTMLInputElement>('opt-fps'),
+  optFps: $<HTMLSelectElement>('opt-fps'),
   optBackgroundField: $<HTMLLabelElement>('opt-background-field'),
   optBackground: $<HTMLInputElement>('opt-background'),
-  optTrimStart: $<HTMLInputElement>('opt-trim-start'),
-  optTrimEnd: $<HTMLInputElement>('opt-trim-end'),
+  optIn: $<HTMLInputElement>('opt-in'),
+  optOut: $<HTMLInputElement>('opt-out'),
   optionsNote: $<HTMLParagraphElement>('options-note'),
   render: $<HTMLButtonElement>('render'),
   renderStatus: $<HTMLParagraphElement>('render-status'),
@@ -184,11 +185,12 @@ function select(entry: LibraryEntry): void {
   els.preview.src = templateUrlFor(m.id, m.entry);
   els.scrub.max = String(frameCount(m) - 1);
   els.scrub.value = '0';
-  // Placeholders show the template's own timing; a trim from the previous template would not fit.
-  els.optFps.placeholder = String(m.fps);
-  els.optTrimEnd.placeholder = String(m.duration);
-  els.optTrimStart.value = '';
-  els.optTrimEnd.value = '';
+  // The frame rate list offers the template's own rate first; in/out points from the previous
+  // template would not fit, so they are cleared.
+  els.optFps.options[0]!.textContent = `Template rate (${m.fps} fps)`;
+  els.optFps.value = '';
+  els.optIn.value = '';
+  els.optOut.value = '';
   updateOptionsNote();
   els.details.textContent = [m.description, `License: ${m.license}`, m.author ? `Author: ${m.author}` : '']
     .filter(Boolean)
@@ -342,7 +344,7 @@ function updateTimecode(frame: number): void {
     return;
   }
   els.scrub.value = String(frame);
-  els.timecode.textContent = `${(frame / m.fps).toFixed(2)}s · ${frame + 1}/${frameCount(m)}`;
+  els.timecode.textContent = `${formatTimecode(frame, m.fps)} · ${frame + 1}/${frameCount(m)}`;
 }
 
 let rafId = 0;
@@ -392,16 +394,46 @@ function populatePresets(): void {
   showNote();
 }
 
-/** The render options as entered; blank fields mean the template's own value. */
+/** Frame rate choices: the template's own rate, then the standard list (film, PAL, NTSC and HFR). */
+function populateFrameRates(): void {
+  const own = document.createElement('option');
+  own.value = '';
+  own.textContent = 'Template rate';
+  els.optFps.append(own);
+  for (const rate of STANDARD_FRAME_RATES) {
+    const opt = document.createElement('option');
+    opt.value = String(rate.fps);
+    opt.textContent = rate.label;
+    els.optFps.append(opt);
+  }
+}
+
+/** The output frame rate as currently chosen: the override, or the template's. */
+function chosenFps(): number | undefined {
+  if (els.optFps.value !== '') return Number(els.optFps.value);
+  return state.selected?.manifest.fps;
+}
+
+/**
+ * The render options as entered; blank fields mean the template's own value.
+ * In and out points are parsed at the chosen frame rate; a TimecodeError names the bad field.
+ */
 function readRenderOptions(): RenderOptions {
   const options: RenderOptions = {};
-  const number = (el: HTMLInputElement): number | undefined => (el.value.trim() === '' ? undefined : Number(el.value));
-  const fps = number(els.optFps);
-  const trimStart = number(els.optTrimStart);
-  const trimEnd = number(els.optTrimEnd);
-  if (fps !== undefined) options.fps = fps;
-  if (trimStart !== undefined) options.trimStart = trimStart;
-  if (trimEnd !== undefined) options.trimEnd = trimEnd;
+  const fps = chosenFps();
+  if (els.optFps.value !== '') options.fps = Number(els.optFps.value);
+  const point = (el: HTMLInputElement, name: string): number | undefined => {
+    if (el.value.trim() === '' || fps === undefined) return undefined;
+    try {
+      return parseTimecode(el.value, fps);
+    } catch (err) {
+      throw err instanceof TimecodeError ? new TimecodeError(`${name}: ${err.message}`) : err;
+    }
+  };
+  const inFrame = point(els.optIn, 'In point');
+  const outFrame = point(els.optOut, 'Out point');
+  if (inFrame !== undefined) options.inFrame = inFrame;
+  if (outFrame !== undefined) options.outFrame = outFrame;
   if (!OUTPUT_PRESETS[els.preset.value as PresetId].alpha) options.background = els.optBackground.value;
   return options;
 }
@@ -415,16 +447,25 @@ function updateOptionsNote(): void {
     updateControls();
     return;
   }
+  const fps = chosenFps() ?? m.fps;
+  // Placeholders show the range at the chosen rate, in that rate's timecode form.
+  const lastFrame = Math.max(1, Math.round(m.duration * fps)) - 1;
+  els.optIn.placeholder = formatTimecode(0, fps);
+  els.optOut.placeholder = formatTimecode(lastFrame, fps);
+  els.optIn.title = els.optOut.title = `Timecode ${timecodePattern(fps)}, a frame number, or seconds such as 2.5s`;
   try {
     const t = resolveTiming(m, readRenderOptions());
     const seconds = t.totalFrames / t.fps;
-    const changed = t.fps !== m.fps || t.totalFrames !== frameCount(m);
+    const changed = t.fps !== m.fps || t.totalFrames !== frameCount(m) || t.firstFrame !== 0;
+    const last = t.firstFrame + t.totalFrames - 1;
     els.optionsNote.classList.remove('error');
-    els.optionsNote.textContent = changed ? `${t.totalFrames} frames at ${t.fps} fps (${seconds.toFixed(2)} s)` : '';
+    els.optionsNote.textContent = changed
+      ? `${t.totalFrames} frames at ${t.fps} fps (${seconds.toFixed(2)} s), ${formatTimecode(t.firstFrame, t.fps)} to ${formatTimecode(last, t.fps)}`
+      : '';
     state.optionsValid = true;
   } catch (err) {
     els.optionsNote.classList.add('error');
-    els.optionsNote.textContent = err instanceof RenderPlanError ? err.message : String(err);
+    els.optionsNote.textContent = err instanceof RenderPlanError || err instanceof TimecodeError ? err.message : String(err);
     state.optionsValid = false;
   }
   updateControls();
@@ -560,13 +601,15 @@ els.scrub.addEventListener('input', () => {
   requestFrame(Number(els.scrub.value));
 });
 els.render.addEventListener('click', () => void queueRender());
-for (const el of [els.optFps, els.optTrimStart, els.optTrimEnd]) el.addEventListener('input', updateOptionsNote);
+for (const el of [els.optIn, els.optOut]) el.addEventListener('input', updateOptionsNote);
+els.optFps.addEventListener('change', updateOptionsNote);
 els.preset.addEventListener('change', updateOptionsNote);
 els.clearFinished.addEventListener('click', () => void window.pulp.clearFinishedRenders());
 els.params.addEventListener('submit', (e) => e.preventDefault());
 window.pulp.onRenderQueue(renderQueue);
 
 populatePresets();
+populateFrameRates();
 updateControls();
 renderQueue({ jobs: [] });
 void window.pulp.getRenderQueue().then(renderQueue);

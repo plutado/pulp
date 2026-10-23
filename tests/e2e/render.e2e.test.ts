@@ -250,18 +250,19 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(result.stdout).toContain('(6 frames in');
   }, 180_000);
 
-  it('renders a trimmed time range on the template timeline', async () => {
-    // Lower third: 6 s at 30 fps. Seconds 2 to 3 are mid-hold, so the panel is fully visible from the
-    // first trimmed frame; at t = 0 that pixel is transparent. 1 s at 30 fps is 30 frames.
+  it('renders between in and out points, numbering the files with the template frame indices', async () => {
+    // Lower third: 6 s at 30 fps. 00:00:02:00 to 00:00:02:29 is mid-hold, so the panel is fully visible
+    // from the first rendered frame; at frame 0 that pixel is transparent. Inclusive out point: 30 frames.
     const result = await render('pulp.samples.lower-third-bar', 'png-sequence', 'trim', {
-      extra: ['--trim-start', '2', '--trim-end', '3', '--param', 'panel=#ffffffd9'],
+      extra: ['--in-point', '00:00:02:00', '--out-point', '00:00:02:29', '--param', 'panel=#ffffffd9'],
     });
     expect(result.code, result.stderr).toBe(0);
     const frames = (await readdir(out)).filter((f) => /^trim_\d{5}\.png$/.test(f)).sort();
     expect(frames).toHaveLength(30);
-    expect(frames[0]).toBe('trim_00000.png');
-    expect((await pixels(join(out, 'trim_00000.png'), 120, 840))[3]).toBe(217);
-    expect((await pixels(join(out, 'trim_00029.png'), 120, 840))[3]).toBe(217);
+    expect(frames[0]).toBe('trim_00060.png');
+    expect(frames.at(-1)).toBe('trim_00089.png');
+    expect((await pixels(join(out, 'trim_00060.png'), 120, 840))[3]).toBe(217);
+    expect((await pixels(join(out, 'trim_00089.png'), 120, 840))[3]).toBe(217);
   }, 180_000);
 
   it('flattens an alpha template over the chosen background color', async () => {
@@ -279,13 +280,16 @@ describe.skipIf(!available)('end-to-end render', () => {
   }, 180_000);
 
   it('rejects impossible render options before rendering', async () => {
-    const bad = await render('pulp.test.size-portrait', 'prores-4444', 'bad.mov', { extra: ['--fps', '0', '--library', FIXTURES] });
+    const bad = await render('pulp.test.size-portrait', 'prores-4444', 'bad.mov', { extra: ['--fps', '31', '--library', FIXTURES] });
     expect(bad.code).toBe(1);
-    expect(bad.stderr).toContain('frame rate must be a number between 0 and 240, got 0');
+    expect(bad.stderr).toContain('frame rate must be one of 23.976, 24, 25, 29.97, 30, 47.952, 48, 50, 59.94, 60, 100, 119.88, 120, got 31');
     expect(existsSync(join(out, 'bad.mov'))).toBe(false);
-    const nan = await render('pulp.test.size-portrait', 'prores-4444', 'bad2.mov', { extra: ['--trim-end', 'soon', '--library', FIXTURES] });
-    expect(nan.code).toBe(2);
-    expect(nan.stderr).toContain('Expected a number: --trim-end soon.');
+    const tc = await render('pulp.test.size-portrait', 'prores-4444', 'bad2.mov', { extra: ['--out-point', 'soon', '--library', FIXTURES] });
+    expect(tc.code).toBe(2);
+    expect(tc.stderr).toContain('--out-point: "soon" is not a frame number, seconds ("2.5s") or timecode (HH:MM:SS:FF)');
+    const field = await render('pulp.test.size-portrait', 'prores-4444', 'bad3.mov', { extra: ['--in-point', '00:00:00:30', '--library', FIXTURES] });
+    expect(field.code).toBe(2);
+    expect(field.stderr).toContain('--in-point: "00:00:00:30": the frames field must be below 30 at 30 fps');
   }, 180_000);
 
   it('renders QuickTime Animation losslessly with alpha', async () => {

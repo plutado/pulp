@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, type FrameFormat, type RenderOptions } from '../core/render-plan';
+import { parseTimecode, TimecodeError } from '../core/timecode';
 import type { FfmpegInfo, RenderRequest } from '../shared/api';
 import { addLibraryFolder, findTemplate, getLibrary, rescan } from './library-service';
 import { handleTemplateProtocol, registerTemplateScheme } from './protocol';
@@ -73,10 +74,11 @@ function registerIpc(): void {
 /**
  * Headless mode for scripting and smoke tests:
  *   electron . --render <template-id> --preset <preset-id> --out <path> [--param key=value ...]
- *     [--fps <rate>] [--background #RRGGBB] [--trim-start <seconds>] [--trim-end <seconds>]
+ *     [--fps <rate>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png]
- * `--fps` samples the template at another frame rate; `--background` is the color alpha templates
- * are flattened over in non-alpha presets; `--trim-start`/`--trim-end` render a time range.
+ * `--fps` samples the template at another standard frame rate; `--background` is the color alpha
+ * templates are flattened over in non-alpha presets; `--in-point`/`--out-point` are the first and
+ * last frame to render (inclusive), as timecode HH:MM:SS:FF, a frame number, or seconds like "2.5s".
  * `--library` adds template folders for this run only; they are not saved to settings.
  * `--frame-format png` uses the slower PNG pipe to ffmpeg, for comparison with the raw default.
  * The final line reports the elapsed time and frames per second.
@@ -90,6 +92,9 @@ interface CliRender {
   frameTimeoutMs?: number;
   frameFormat?: string;
   options: RenderOptions;
+  /** In and out points as typed; parsed once the frame rate is known. */
+  inPoint?: string;
+  outPoint?: string;
   /** Flags whose value was not a number, reported before anything runs. */
   badNumbers: string[];
 }
@@ -115,18 +120,16 @@ function parseCliRender(argv: string[]): CliRender | null {
   const frameFormat = get('--frame-format');
   const options: RenderOptions = {};
   const badNumbers: string[] = [];
-  const numberFlag = (flag: string, key: 'fps' | 'trimStart' | 'trimEnd') => {
-    const raw = get(flag);
-    if (raw === undefined) return;
-    const value = Number(raw);
-    if (raw.trim() === '' || !Number.isFinite(value)) badNumbers.push(`${flag} ${raw}`);
-    else options[key] = value;
-  };
-  numberFlag('--fps', 'fps');
-  numberFlag('--trim-start', 'trimStart');
-  numberFlag('--trim-end', 'trimEnd');
+  const fpsRaw = get('--fps');
+  if (fpsRaw !== undefined) {
+    const value = Number(fpsRaw);
+    if (fpsRaw.trim() === '' || !Number.isFinite(value)) badNumbers.push(`--fps ${fpsRaw}`);
+    else options.fps = value;
+  }
   const background = get('--background');
   if (background !== undefined) options.background = background;
+  const inPoint = get('--in-point');
+  const outPoint = get('--out-point');
   return {
     templateId: argv[i + 1] ?? '',
     presetId: get('--preset') ?? 'prores-4444',
@@ -135,6 +138,8 @@ function parseCliRender(argv: string[]): CliRender | null {
     libraries,
     options,
     badNumbers,
+    ...(inPoint !== undefined ? { inPoint } : {}),
+    ...(outPoint !== undefined ? { outPoint } : {}),
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
     ...(frameFormat !== undefined ? { frameFormat } : {}),
   };
@@ -157,6 +162,16 @@ async function runCliRender(cli: CliRender): Promise<number> {
   }
   if (cli.frameFormat !== undefined && !(FRAME_FORMATS as readonly string[]).includes(cli.frameFormat)) {
     console.error(`Unknown frame format "${cli.frameFormat}" (expected one of: ${FRAME_FORMATS.join(', ')}).`);
+    return 2;
+  }
+  // In and out points are frames at the output rate, so they are parsed once the template is known.
+  const fps = cli.options.fps ?? template.manifest.fps;
+  try {
+    if (cli.inPoint !== undefined) cli.options.inFrame = parseTimecode(cli.inPoint, fps);
+    if (cli.outPoint !== undefined) cli.options.outFrame = parseTimecode(cli.outPoint, fps);
+  } catch (err) {
+    if (!(err instanceof TimecodeError)) throw err;
+    console.error(`${cli.inPoint !== undefined && err.message.startsWith(`"${cli.inPoint}"`) ? '--in-point' : '--out-point'}: ${err.message}`);
     return 2;
   }
   const started = Date.now();

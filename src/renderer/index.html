@@ -49,8 +49,8 @@
       <p id="preset-unavailable" class="note" hidden></p>
       <div class="render-options">
         <label class="field">
-          <span>Frame rate (fps)</span>
-          <input id="opt-fps" type="number" min="1" max="240" step="any" placeholder="template">
+          <span>Frame rate</span>
+          <select id="opt-fps"></select>
         </label>
         <label class="field" id="opt-background-field" hidden>
           <span>Background for flattening</span>
@@ -58,12 +58,12 @@
         </label>
         <div class="trim">
           <label class="field">
-            <span>Trim start (s)</span>
-            <input id="opt-trim-start" type="number" min="0" step="any" placeholder="0">
+            <span>In point</span>
+            <input id="opt-in" type="text" inputmode="numeric" spellcheck="false" placeholder="00:00:00:00" title="Timecode HH:MM:SS:FF, a frame number, or seconds such as 2.5s">
           </label>
           <label class="field">
-            <span>Trim end (s)</span>
-            <input id="opt-trim-end" type="number" min="0" step="any" placeholder="end">
+            <span>Out point (inclusive)</span>
+            <input id="opt-out" type="text" inputmode="numeric" spellcheck="false" placeholder="last frame" title="Timecode HH:MM:SS:FF, a frame number, or seconds such as 2.5s">
           </label>
         </div>
         <p id="options-note" class="note"></p>
