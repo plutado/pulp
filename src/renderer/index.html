@@ -16,13 +16,11 @@
           <span class="region-title">Library</span>
           <button id="browse-toggle" type="button" class="region-toggle icon-button" data-icon="caret-left" aria-label="Hide the browse panel" aria-expanded="true"></button>
         </div>
-        <div class="sidebar-actions">
-          <button id="add-folder" type="button" data-icon="folder-plus" data-icon-size="20" aria-label="Add folder"><span class="label">Add folder</span></button>
-          <button id="rescan" type="button" data-icon="arrow-clockwise" data-icon-size="20" aria-label="Rescan"><span class="label">Rescan</span></button>
-        </div>
-        <div class="sidebar-actions">
-          <button id="import-pack" type="button" data-icon="download-simple" data-icon-size="20" aria-label="Import pack" data-tip="Install templates from a pack (.zip)"><span class="label">Import pack…</span></button>
-          <button id="export-pack" type="button" disabled data-icon="upload-simple" data-icon-size="20" aria-label="Export pack" data-tip="Export the listed templates as a pack"><span class="label">Export…</span></button>
+        <div class="sidebar-actions" role="toolbar" aria-label="Library tools">
+          <button id="add-folder" type="button" class="icon-button" data-icon="folder-plus" data-icon-size="20" aria-label="Add folder"><span class="label">Add folder</span></button>
+          <button id="rescan" type="button" class="icon-button" data-icon="arrow-clockwise" data-icon-size="20" aria-label="Rescan"><span class="label">Rescan</span></button>
+          <button id="import-pack" type="button" class="icon-button" data-icon="download-simple" data-icon-size="20" aria-label="Import pack" data-tip="Import pack… (install templates from a .zip or folder)"><span class="label">Import pack…</span></button>
+          <button id="export-pack" type="button" class="icon-button" disabled data-icon="upload-simple" data-icon-size="20" aria-label="Export pack" data-tip="Export… (the listed templates as a pack)"><span class="label">Export…</span></button>
         </div>
       </div>
       <div class="browse-body">

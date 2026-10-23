@@ -59,7 +59,10 @@ input[type="checkbox"] { width: auto; }
 .inspector h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 8px 0 10px; }
 
 .sidebar-head { padding: 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--border); }
+/* The library toolbar is icon-only (docs/ui-style.md): labels stay in the markup for assistive tech and tooltips. */
 .sidebar-actions { display: flex; gap: 6px; }
+.sidebar-actions .label { display: none; }
+.sidebar-actions .icon-button { padding: 6px 8px; }
 .browse-body { flex: 1; min-height: 0; overflow-y: auto; }
 
 .region-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
