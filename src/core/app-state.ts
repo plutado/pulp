@@ -6,7 +6,7 @@
 
 import type { LibraryEntry, LibraryIndex } from './library-types';
 import { formatTimecode } from './timecode';
-import { isFinished, type RenderQueueSnapshot } from './render-queue';
+import { isFinished, type RenderJobStatus, type RenderQueueSnapshot } from './render-queue';
 import { searchLibrary } from './search';
 
 /** A browse-tree node narrowing the results: its label for the scope chip, its search filter text. */
@@ -106,6 +106,17 @@ export function createResultsSelector(): (s: ResultsInput) => ResultsView {
 
 export function hasFinishedJobs(s: AppState): boolean {
   return s.jobs.jobs.some(isFinished);
+}
+
+/** One line for the collapsed tray: "No renders yet." or "3 renders · 1 running · 2 done". */
+export function traySummary(s: AppState): string {
+  const jobs = s.jobs.jobs;
+  if (jobs.length === 0) return 'No renders yet.';
+  const counts = new Map<RenderJobStatus, number>();
+  for (const j of jobs) counts.set(j.status, (counts.get(j.status) ?? 0) + 1);
+  const order: RenderJobStatus[] = ['running', 'queued', 'done', 'failed', 'cancelled'];
+  const parts = order.filter((st) => counts.has(st)).map((st) => `${counts.get(st)} ${st}`);
+  return `${jobs.length} ${jobs.length === 1 ? 'render' : 'renders'} · ${parts.join(' · ')}`;
 }
 
 /** Name and meta line for a result row or the stage details. */

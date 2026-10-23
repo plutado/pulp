@@ -2,6 +2,7 @@ import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../c
 import { describeMeta, formatBytes, setIndex, setJobs, setQuery, setSelection } from '../core/app-state';
 import { dispatch, results } from './store';
 import { mountResults } from './results';
+import { initShell } from './shell';
 import { frameCount, type TemplateParameter } from '../core/manifest';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
@@ -1502,6 +1503,7 @@ showDragState();
 populatePresets();
 populateFrameRates();
 updateControls();
+initShell();
 mountResults(els.results, select);
 renderQueue({ jobs: [] });
 void window.pulp.getRenderQueue().then(renderQueue);

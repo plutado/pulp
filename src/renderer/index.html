@@ -9,45 +9,62 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
+  <div id="app" class="app">
+    <aside id="region-browse" class="sidebar" aria-label="Browse">
       <div class="sidebar-head">
-        <input id="search" type="search" placeholder="Search (try tag:wipe, type:video, duration:>5, favorite:yes, recent:10)" autocomplete="off" spellcheck="false" title="Filters: tag: type: category: duration: width: height: fps: res: codec: alpha: favorite: recent:">
+        <div class="region-head">
+          <span class="region-title">Library</span>
+          <button id="browse-toggle" type="button" class="region-toggle" title="Hide the browse panel" aria-expanded="true">⟨</button>
+        </div>
         <div class="sidebar-actions">
           <button id="add-folder" type="button">Add folder</button>
           <button id="rescan" type="button">Rescan</button>
+        </div>
+        <div class="sidebar-actions">
           <button id="import-pack" type="button" title="Install templates from a pack (.zip)">Import pack…</button>
           <button id="export-pack" type="button" disabled title="Export the listed templates as a pack">Export…</button>
         </div>
       </div>
-      <ul id="results" class="results" aria-label="Library"></ul>
-      <div id="library-summary" class="summary"></div>
+      <div class="browse-body"><!-- Milestone 10: the Types / Themes / Styles / Packs tree with counts. --></div>
+      <button id="browse-expand" type="button" class="region-expand" title="Show the browse panel" hidden>Library</button>
     </aside>
+    <div id="split-browse" class="splitter v" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize the browse panel"></div>
 
-    <main class="stage">
-      <div class="preview-wrap">
-        <div id="preview-frame" class="preview checker">
-          <iframe id="preview" title="Template preview" sandbox="allow-scripts allow-same-origin"></iframe>
-          <video id="media-video" class="media" controls preload="metadata" hidden></video>
-          <img id="media-image" class="media" alt="" hidden>
-          <audio id="media-audio" class="media" controls preload="metadata" hidden></audio>
-          <div id="preview-empty" class="preview-empty">Select a template</div>
+    <main class="center">
+      <div id="region-search" class="search-bar">
+        <input id="search" type="search" placeholder="Search (try tag:wipe, type:video, duration:>5, favorite:yes, recent:10)" autocomplete="off" spellcheck="false" title="Filters: tag: type: category: duration: width: height: fps: res: codec: alpha: favorite: recent:">
+        <button id="stage-toggle" type="button" class="region-toggle" title="Hide the preview" aria-expanded="true">Preview ⌃</button>
+      </div>
+      <section id="region-stage" class="stage" aria-label="Stage">
+        <div class="preview-wrap">
+          <div id="preview-frame" class="preview checker">
+            <iframe id="preview" title="Template preview" sandbox="allow-scripts allow-same-origin"></iframe>
+            <video id="media-video" class="media" controls preload="metadata" hidden></video>
+            <img id="media-image" class="media" alt="" hidden>
+            <audio id="media-audio" class="media" controls preload="metadata" hidden></audio>
+            <div id="preview-empty" class="preview-empty">Select a template</div>
+          </div>
         </div>
-      </div>
-      <div class="transport">
-        <button id="play" type="button" disabled>Play</button>
-        <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
-        <span id="timecode" class="timecode">--</span>
-      </div>
-      <div id="details" class="details"></div>
-      <div id="item-tools" class="item-tools" hidden>
-        <button id="favorite" type="button" class="favorite" aria-pressed="false" title="Favorite">☆</button>
-        <div id="tag-chips" class="tag-chips"></div>
-        <input id="tag-input" type="text" class="tag-input" placeholder="Add tag, Enter" autocomplete="off" spellcheck="false" aria-label="Add tag">
-      </div>
+        <div class="transport">
+          <button id="play" type="button" disabled>Play</button>
+          <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
+          <span id="timecode" class="timecode">--</span>
+        </div>
+        <div id="details" class="details"></div>
+        <div id="item-tools" class="item-tools" hidden>
+          <button id="favorite" type="button" class="favorite" aria-pressed="false" title="Favorite">☆</button>
+          <div id="tag-chips" class="tag-chips"></div>
+          <input id="tag-input" type="text" class="tag-input" placeholder="Add tag, Enter" autocomplete="off" spellcheck="false" aria-label="Add tag">
+        </div>
+      </section>
+      <div id="split-stage" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the stage"></div>
+      <section id="region-results" class="results-region" aria-label="Results">
+        <ul id="results" class="results" aria-label="Library"></ul>
+      </section>
     </main>
 
-    <section class="inspector">
+    <div id="split-inspector" class="splitter v" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize the inspector"></div>
+    <section id="region-inspector" class="inspector" aria-label="Inspector">
       <div class="params-head">
         <h2>Parameters</h2>
         <div class="params-actions">
@@ -112,31 +129,46 @@
         <div id="batch-summary" class="note"></div>
       </details>
       <p id="render-status" class="note" role="status"></p>
-      <div class="drag-out">
-        <div id="drag-handle" class="drag-handle" draggable="false" title="Prepare a render, then drag this into your editor's bin or timeline">
-          <span id="drag-handle-text">Drag to editor</span>
-        </div>
-        <button id="drag-prepare" type="button" disabled title="Render with the current parameters and preset into the cache, so it can be dragged">Prepare for drag</button>
-        <p id="drag-status" class="note"></p>
-        <p class="note">Editors link to the dragged file rather than copying it. Keep prepared renders in the cache while a project uses them: clearing the cache, or the cache evicting old files, takes those clips offline in the editor.</p>
-      </div>
-      <details class="cache">
-        <summary>Render cache</summary>
-        <p id="cache-summary" class="note"></p>
-        <p class="note warn">Clearing or shrinking the cache removes files that editor projects may link to; those clips go offline there.</p>
-        <div class="render-actions">
-          <button id="cache-clear" type="button">Clear cache</button>
-          <button id="cache-dir" type="button">Change folder…</button>
-          <label class="field inline"><span>Limit (MB)</span><input id="cache-limit" type="number" min="64" step="64"></label>
-        </div>
-      </details>
-      <p id="ffmpeg-status" class="note"></p>
-      <div class="queue-head">
-        <h2>Queue</h2>
+    </section>
+
+    <div id="region-tray" class="tray" aria-label="Render tray">
+      <div id="split-tray" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the tray"></div>
+      <div class="tray-head">
+        <button id="tray-toggle" type="button" class="region-toggle" title="Show or hide the render tray" aria-expanded="false">Queue ⌄</button>
+        <span id="tray-summary" class="tray-summary" aria-live="polite">No renders yet.</span>
         <button id="clear-finished" type="button" disabled>Clear finished</button>
       </div>
-      <ul id="queue" class="queue" aria-label="Render queue" aria-live="polite"></ul>
-    </section>
+      <div class="tray-body">
+        <div class="tray-queue">
+          <ul id="queue" class="queue" aria-label="Render queue" aria-live="polite"></ul>
+        </div>
+        <div class="tray-side">
+          <div class="drag-out">
+            <div id="drag-handle" class="drag-handle" draggable="false" title="Prepare a render, then drag this into your editor's bin or timeline">
+              <span id="drag-handle-text">Drag to editor</span>
+            </div>
+            <button id="drag-prepare" type="button" disabled title="Render with the current parameters and preset into the cache, so it can be dragged">Prepare for drag</button>
+            <p id="drag-status" class="note"></p>
+            <p class="note">Editors link to the dragged file rather than copying it. Keep prepared renders in the cache while a project uses them: clearing the cache, or the cache evicting old files, takes those clips offline in the editor.</p>
+          </div>
+          <details class="cache">
+            <summary>Render cache</summary>
+            <p id="cache-summary" class="note"></p>
+            <p class="note warn">Clearing or shrinking the cache removes files that editor projects may link to; those clips go offline there.</p>
+            <div class="render-actions">
+              <button id="cache-clear" type="button">Clear cache</button>
+              <button id="cache-dir" type="button">Change folder…</button>
+              <label class="field inline"><span>Limit (MB)</span><input id="cache-limit" type="number" min="64" step="64"></label>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <footer id="region-status" class="status-bar" aria-label="Status">
+      <p id="ffmpeg-status" class="note"></p>
+      <div id="library-summary" class="summary"></div>
+    </footer>
   </div>
   <dialog id="pack-dialog" class="pack-dialog">
     <form method="dialog">
