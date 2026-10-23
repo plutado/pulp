@@ -5,8 +5,11 @@ import {
   deriveResults,
   dragFileFor,
   effectiveQuery,
+  itemDetails,
   resolveDragJob,
   setDrag,
+  setShown,
+  shownEntry,
   sameScope,
   setSort,
   toggleFilter,
@@ -173,6 +176,22 @@ describe('hasFinishedJobs', () => {
     expect(hasFinishedJobs(initialAppState)).toBe(false);
     expect(hasFinishedJobs(setJobs(initialAppState, { jobs: [job('running')] }))).toBe(false);
     expect(hasFinishedJobs(setJobs(initialAppState, { jobs: [job('done')] }))).toBe(true);
+  });
+});
+
+describe('shown item', () => {
+  it('shownEntry follows the key through a new index; itemDetails describes both kinds', () => {
+    const t = template('straps');
+    const m = media('clip', { size: 2048, path: '/lib/clip.mov' });
+    let s = setIndex(initialAppState, index([t], [m]));
+    expect(shownEntry(s)).toBeNull();
+    s = setShown(s, 'clip');
+    expect(shownEntry(s)?.id).toBe('id-clip');
+    const refreshed = setIndex(s, index([t], [{ ...m, favorite: true }]));
+    expect(shownEntry(refreshed)?.favorite).toBe(true);
+    expect(shownEntry(setShown(s, 'gone'))).toBeNull();
+    expect(itemDetails(m)).toBe('video · mov · 2 KB · /lib/clip.mov');
+    expect(itemDetails(t)).toContain('License: CC0-1.0');
   });
 });
 

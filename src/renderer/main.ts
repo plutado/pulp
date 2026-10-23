@@ -1,7 +1,8 @@
 import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
-import { describeMeta, formatBytes, setDrag, setIndex, setJobs, setQuery, setSelection } from '../core/app-state';
+import { formatBytes, setDrag, setIndex, setJobs, setQuery, setSelection, setShown } from '../core/app-state';
 import { appState, dispatch, renderBlocked, results } from './store';
 import { mountResults } from './results';
+import { mountItemInfo } from './item-info';
 import { initShell } from './shell';
 import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
 import { mountBrowse } from './browse';
@@ -59,15 +60,7 @@ const els = {
   play: $<HTMLButtonElement>('play'),
   scrub: $<HTMLInputElement>('scrub'),
   timecode: $<HTMLSpanElement>('timecode'),
-  details: $<HTMLDivElement>('details'),
-  itemTools: $<HTMLDivElement>('item-tools'),
-  favorite: $<HTMLButtonElement>('favorite'),
-  tagChips: $<HTMLDivElement>('tag-chips'),
-  tagInput: $<HTMLInputElement>('tag-input'),
-  infoTools: $<HTMLDivElement>('info-tools'),
-  infoFavorite: $<HTMLButtonElement>('info-favorite'),
-  infoTagChips: $<HTMLDivElement>('info-tag-chips'),
-  infoTagInput: $<HTMLInputElement>('info-tag-input'),
+  stageNote: $<HTMLParagraphElement>('stage-note'),
   params: $<HTMLFormElement>('params'),
   presetList: $<HTMLSelectElement>('param-preset-list'),
   presetName: $<HTMLInputElement>('param-preset-name'),
@@ -113,8 +106,6 @@ interface State {
   ffmpegOk: boolean;
   /** Recently used colors, shared across templates, most recent first. */
   recentColors: string[];
-  /** The library item shown in the stage (template or media), for tags and favorite. */
-  shown: LibraryEntry | null;
   /** Saved presets of the selected template, name to stored values. */
   presets: Record<string, Record<string, unknown>>;
   /** The last previewed batch, ready to queue. */
@@ -137,7 +128,6 @@ const state: State = {
   pendingFrame: null,
   ffmpegOk: false,
   recentColors: [],
-  shown: null,
   presets: {},
   batch: null,
   choosingOutput: false,
@@ -183,52 +173,10 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
     const still = index.templates.find((t) => t.manifest.id === state.selected?.manifest.id);
     if (!still) clearSelection();
   }
-  if (state.shown) {
-    const fresh = [...index.templates, ...index.media].find((e) => e.id === state.shown?.id);
-    if (fresh) showItemTools(fresh);
-  }
   renderResults();
 }
 
 // ---------------------------------------------------------------- selection + params
-
-/** Favorite button and tag chips for the item shown in the stage. User tags can be removed; folder and manifest tags cannot. */
-/** The stage strip and the Info tab show the same favorite and tags; one renderer serves both. */
-function itemToolGroups(): { tools: HTMLDivElement; favorite: HTMLButtonElement; chips: HTMLDivElement; input: HTMLInputElement }[] {
-  return [
-    { tools: els.itemTools, favorite: els.favorite, chips: els.tagChips, input: els.tagInput },
-    { tools: els.infoTools, favorite: els.infoFavorite, chips: els.infoTagChips, input: els.infoTagInput },
-  ];
-}
-
-function showItemTools(entry: LibraryEntry | null): void {
-  state.shown = entry;
-  for (const group of itemToolGroups()) {
-    group.tools.hidden = entry === null;
-    if (!entry) continue;
-    group.favorite.setAttribute('aria-pressed', String(entry.favorite === true));
-    group.favorite.textContent = entry.favorite ? '★' : '☆';
-    group.chips.replaceChildren();
-    const user = new Set(entry.userTags ?? []);
-    for (const tag of entry.tags) {
-      const chip = document.createElement('span');
-      chip.className = user.has(tag) ? 'tag-chip user' : 'tag-chip folder';
-      chip.dataset.tag = tag;
-      chip.textContent = tag;
-      chip.title = user.has(tag) ? 'Your tag' : 'From the folder or manifest';
-      if (user.has(tag)) {
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.textContent = '×';
-        remove.title = `Remove ${tag}`;
-        remove.addEventListener('click', () => void window.pulp.setItemTags(entry.id, (entry.userTags ?? []).filter((t) => t !== tag)));
-        chip.append(remove);
-      }
-      group.chips.append(chip);
-    }
-    group.input.value = '';
-  }
-}
 
 /** Stop and hide the media preview elements. */
 function clearMediaPreview(): void {
@@ -248,23 +196,23 @@ function clearSelection(): void {
   stop();
   els.preview.removeAttribute('src');
   clearMediaPreview();
-  showItemTools(null);
+  dispatch((s) => setShown(s, null));
   els.previewEmpty.textContent = 'Select a template';
   els.previewEmpty.hidden = false;
+  els.stageNote.hidden = true;
+  els.stageNote.textContent = '';
   els.params.replaceChildren();
-  els.details.textContent = '';
   updateControls();
 }
 
 /** Show a media item in the stage, served by id through pulp-media://. */
 function selectMedia(entry: MediaEntry): void {
   clearSelection();
-  showItemTools(entry);
+  dispatch((s) => setShown(s, entry.key));
   // A media item has no parameters; the Info tab is the one with content for it.
   showInspectorTab('info');
   void window.pulp.markItemUsed(entry.id);
   els.previewFrame.classList.add('checker');
-  els.details.textContent = [`${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)}`, describeMeta(entry), entry.path].filter(Boolean).join(' · ');
   if (entry.offline) {
     els.previewEmpty.textContent = 'This file\'s folder is offline.';
     renderResults();
@@ -298,8 +246,10 @@ function select(entry: LibraryEntry): void {
   }
   stop();
   clearMediaPreview();
-  showItemTools(entry);
+  dispatch((s) => setShown(s, entry.key));
   showInspectorTab('parameters');
+  els.stageNote.hidden = true;
+  els.stageNote.textContent = '';
   void window.pulp.markItemUsed(entry.id);
   state.selected = entry;
   // Each template keeps its own edits and undo history while the app runs.
@@ -330,10 +280,6 @@ function select(entry: LibraryEntry): void {
   els.optIn.value = '';
   els.optOut.value = '';
   updateOptionsNote();
-  els.details.textContent = [m.description, `License: ${m.license}`, m.author ? `Author: ${m.author}` : '']
-    .filter(Boolean)
-    .join('  ·  ');
-
   buildParamForm(m.parameters);
   state.presets = {};
   showPresets();
@@ -1039,7 +985,10 @@ window.addEventListener('message', (event) => {
     updateControls();
   } else if (data?.type === 'pulp:rendered' || data?.type === 'pulp:error') {
     state.inFlight = false;
-    if (data.type === 'pulp:error') els.details.textContent = `Template error: ${data.message ?? 'unknown'}`;
+    if (data.type === 'pulp:error') {
+      els.stageNote.hidden = false;
+      els.stageNote.textContent = `Template error: ${data.message ?? 'unknown'}`;
+    }
     if (state.pendingFrame !== null) {
       const next = state.pendingFrame;
       state.pendingFrame = null;
@@ -1300,18 +1249,6 @@ els.batchFileInput.addEventListener('change', () => {
 });
 els.batchPreview.addEventListener('click', previewBatch);
 els.batchQueue.addEventListener('click', () => void queueBatch());
-for (const group of itemToolGroups()) {
-  group.favorite.addEventListener('click', () => {
-    if (state.shown) void window.pulp.setItemFavorite(state.shown.id, !state.shown.favorite);
-  });
-  group.input.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' || !state.shown) return;
-    e.preventDefault();
-    const added = group.input.value.split(',').map((t) => t.trim()).filter(Boolean);
-    if (added.length === 0) return;
-    void window.pulp.setItemTags(state.shown.id, [...(state.shown.userTags ?? []), ...added]);
-  });
-}
 els.undo.addEventListener('click', undo);
 els.redo.addEventListener('click', redo);
 els.resetAll.addEventListener('click', resetAll);
@@ -1349,6 +1286,8 @@ initTray(() =>
 );
 mountBrowse($('browse-nodes'));
 mountResults(els.results, select);
+mountItemInfo($('item-tools'), { favorite: 'favorite', chips: 'tag-chips', input: 'tag-input' }, false);
+mountItemInfo($('info-item'), {}, true);
 effect(() => {
   els.exportPack.disabled = !results.value.canExportPack;
 });

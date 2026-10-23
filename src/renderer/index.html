@@ -74,11 +74,8 @@
           <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
           <span id="timecode" class="timecode">--</span>
         </div>
-        <div id="item-tools" class="item-tools" hidden>
-          <button id="favorite" type="button" class="favorite" aria-pressed="false" title="Favorite">☆</button>
-          <div id="tag-chips" class="tag-chips"></div>
-          <input id="tag-input" type="text" class="tag-input" placeholder="Add tag, Enter" autocomplete="off" spellcheck="false" aria-label="Add tag">
-        </div>
+        <div id="item-tools" class="item-tools" hidden></div>
+        <p id="stage-note" class="note error" hidden></p>
       </section>
       <div id="split-stage" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the stage"></div>
       <section id="region-results" class="results-region" aria-label="Results">
@@ -163,12 +160,7 @@
       </div>
       <div id="pane-info" class="tab-pane" role="tabpanel" aria-labelledby="tab-info" hidden>
         <h2>Info</h2>
-        <div id="details" class="details"></div>
-        <div id="info-tools" class="item-tools" hidden>
-          <button id="info-favorite" type="button" class="favorite" aria-pressed="false" title="Favorite">☆</button>
-          <div id="info-tag-chips" class="tag-chips"></div>
-          <input id="info-tag-input" type="text" class="tag-input" placeholder="Add tag, Enter" autocomplete="off" spellcheck="false" aria-label="Add tag">
-        </div>
+        <div id="info-item" hidden></div>
       </div>
     </section>
 

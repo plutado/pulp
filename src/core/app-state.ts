@@ -47,6 +47,8 @@ export interface AppState {
   sort: SortKey;
   /** Key of the entry shown as selected in the results, or null. */
   selectedKey: string | null;
+  /** Key of the entry the stage and Info tab show (a template or a media item), or null. */
+  shownKey: string | null;
   jobs: RenderQueueSnapshot;
   drag: DragTarget;
 }
@@ -58,6 +60,7 @@ export const initialAppState: AppState = {
   filters: [],
   sort: 'relevance',
   selectedKey: null,
+  shownKey: null,
   jobs: { jobs: [] },
   drag: null,
 };
@@ -96,6 +99,25 @@ export function setJobs(s: AppState, jobs: RenderQueueSnapshot): AppState {
 
 export function setDrag(s: AppState, drag: DragTarget): AppState {
   return s.drag === drag ? s : { ...s, drag };
+}
+
+export function setShown(s: AppState, shownKey: string | null): AppState {
+  return s.shownKey === shownKey ? s : { ...s, shownKey };
+}
+
+/** The entry the stage and Info tab show, looked up fresh so a rescan updates it. */
+export function shownEntry(s: Pick<AppState, 'index' | 'shownKey'>): LibraryEntry | null {
+  if (!s.shownKey || !s.index) return null;
+  return [...s.index.templates, ...s.index.media].find((e) => e.key === s.shownKey) ?? null;
+}
+
+/** The Info tab's details line. */
+export function itemDetails(entry: LibraryEntry): string {
+  if (entry.kind === 'template') {
+    const m = entry.manifest;
+    return [m.description, `License: ${m.license}`, m.author ? `Author: ${m.author}` : ''].filter(Boolean).join('  ·  ');
+  }
+  return [`${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)}`, describeMeta(entry), entry.path].filter(Boolean).join(' · ');
 }
 
 /** A sequence output pattern drags as its first frame file. */
