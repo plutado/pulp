@@ -3,6 +3,7 @@ import { formatBytes, setDrag, setIndex, setJobs, setQuery, setSelection, setSho
 import { appState, dispatch, renderBlocked, results } from './store';
 import { mountResults } from './results';
 import { mountItemInfo } from './item-info';
+import { initStage, stageClear, stageSetParams, stageShowMedia, stageShowTemplate, stageStop } from './stage';
 import { initShell } from './shell';
 import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
 import { mountBrowse } from './browse';
@@ -20,9 +21,7 @@ import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import type { CollisionChoice, PackPreview } from '../core/pack';
 import { addRecentColor } from '../core/recent-colors';
 import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
-import { frameState } from '../core/runtime';
 import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, timecodePattern } from '../core/timecode';
-import { mediaUrlFor, templateUrlFor } from '../shared/api';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -51,16 +50,6 @@ const els = {
   rescan: $<HTMLButtonElement>('rescan'),
   results: $<HTMLUListElement>('results'),
   summary: $<HTMLDivElement>('library-summary'),
-  previewFrame: $<HTMLDivElement>('preview-frame'),
-  preview: $<HTMLIFrameElement>('preview'),
-  previewEmpty: $<HTMLDivElement>('preview-empty'),
-  mediaVideo: $<HTMLVideoElement>('media-video'),
-  mediaImage: $<HTMLImageElement>('media-image'),
-  mediaAudio: $<HTMLAudioElement>('media-audio'),
-  play: $<HTMLButtonElement>('play'),
-  scrub: $<HTMLInputElement>('scrub'),
-  timecode: $<HTMLSpanElement>('timecode'),
-  stageNote: $<HTMLParagraphElement>('stage-note'),
   params: $<HTMLFormElement>('params'),
   presetList: $<HTMLSelectElement>('param-preset-list'),
   presetName: $<HTMLInputElement>('param-preset-name'),
@@ -98,11 +87,6 @@ interface State {
   selected: TemplateEntry | null;
   rawParams: Record<string, unknown>;
   params: ResolvedParams;
-  frame: number;
-  playing: boolean;
-  previewReady: boolean;
-  inFlight: boolean;
-  pendingFrame: number | null;
   ffmpegOk: boolean;
   /** Recently used colors, shared across templates, most recent first. */
   recentColors: string[];
@@ -121,11 +105,6 @@ const state: State = {
   selected: null,
   rawParams: {},
   params: {},
-  frame: 0,
-  playing: false,
-  previewReady: false,
-  inFlight: false,
-  pendingFrame: null,
   ffmpegOk: false,
   recentColors: [],
   presets: {},
@@ -179,28 +158,10 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
 // ---------------------------------------------------------------- selection + params
 
 /** Stop and hide the media preview elements. */
-function clearMediaPreview(): void {
-  for (const el of [els.mediaVideo, els.mediaAudio]) {
-    el.pause();
-    el.removeAttribute('src');
-    el.load();
-    el.hidden = true;
-  }
-  els.mediaImage.removeAttribute('src');
-  els.mediaImage.hidden = true;
-}
-
 function clearSelection(): void {
   state.selected = null;
-  state.previewReady = false;
-  stop();
-  els.preview.removeAttribute('src');
-  clearMediaPreview();
+  stageClear();
   dispatch((s) => setShown(s, null));
-  els.previewEmpty.textContent = 'Select a template';
-  els.previewEmpty.hidden = false;
-  els.stageNote.hidden = true;
-  els.stageNote.textContent = '';
   els.params.replaceChildren();
   updateControls();
 }
@@ -212,30 +173,7 @@ function selectMedia(entry: MediaEntry): void {
   // A media item has no parameters; the Info tab is the one with content for it.
   showInspectorTab('info');
   void window.pulp.markItemUsed(entry.id);
-  els.previewFrame.classList.add('checker');
-  if (entry.offline) {
-    els.previewEmpty.textContent = 'This file\'s folder is offline.';
-    renderResults();
-    return;
-  }
-  els.previewEmpty.hidden = true;
-  const url = mediaUrlFor(entry.id);
-  const fit = (w: number, h: number) => {
-    if (w > 0 && h > 0) els.previewFrame.style.aspectRatio = `${w} / ${h}`;
-  };
-  if (entry.mediaKind === 'video') {
-    els.mediaVideo.hidden = false;
-    els.mediaVideo.onloadedmetadata = () => fit(els.mediaVideo.videoWidth, els.mediaVideo.videoHeight);
-    els.mediaVideo.src = url;
-  } else if (entry.mediaKind === 'image') {
-    els.mediaImage.hidden = false;
-    els.mediaImage.onload = () => fit(els.mediaImage.naturalWidth, els.mediaImage.naturalHeight);
-    els.mediaImage.src = url;
-  } else {
-    els.previewFrame.style.aspectRatio = '16 / 9';
-    els.mediaAudio.hidden = false;
-    els.mediaAudio.src = url;
-  }
+  stageShowMedia(entry);
   renderResults();
 }
 
@@ -244,35 +182,16 @@ function select(entry: LibraryEntry): void {
     selectMedia(entry);
     return;
   }
-  stop();
-  clearMediaPreview();
   dispatch((s) => setShown(s, entry.key));
   showInspectorTab('parameters');
-  els.stageNote.hidden = true;
-  els.stageNote.textContent = '';
   void window.pulp.markItemUsed(entry.id);
   state.selected = entry;
   // Each template keeps its own edits and undo history while the app runs.
   state.rawParams = { ...editorFor(entry.manifest.id).current };
   state.params = resolveParams(entry.manifest, state.rawParams).values;
-  // Start at mid-progress, the frame the thumbnails use: a transition's first frame is blank.
-  state.frame = Math.floor(frameCount(entry.manifest) / 2);
-  state.previewReady = false;
+  stageShowTemplate(entry, state.params);
 
   const m = entry.manifest;
-  els.previewFrame.style.aspectRatio = `${m.width} / ${m.height}`;
-  els.previewFrame.classList.toggle('checker', m.alpha);
-  if (entry.offline) {
-    // The folder is not reachable; keep the item (and its edits) but do not try to load it.
-    els.preview.removeAttribute('src');
-    els.previewEmpty.textContent = 'This template\'s folder is offline. It will load again when the folder is back.';
-    els.previewEmpty.hidden = false;
-  } else {
-    els.previewEmpty.hidden = true;
-    els.preview.src = templateUrlFor(m.id, m.entry);
-  }
-  els.scrub.max = String(frameCount(m) - 1);
-  els.scrub.value = String(state.frame);
   // The frame rate list offers the template's own rate first; in/out points from the previous
   // template would not fit, so they are cleared.
   els.optFps.options[0]!.textContent = `Template rate (${m.fps} fps)`;
@@ -603,7 +522,7 @@ function setParam(id: string, value: unknown): void {
   state.rawParams[id] = value;
   editorFor(state.selected.manifest.id).current = state.rawParams;
   state.params = resolveParams(state.selected.manifest, state.rawParams).values;
-  requestFrame(state.frame);
+  stageSetParams(state.params);
   scheduleCommit();
   updateResetButtons();
 }
@@ -622,7 +541,7 @@ function applySnapshot(snapshot: Snapshot, record: boolean): void {
   editor.committed = { ...state.rawParams };
   state.params = resolveParams(state.selected.manifest, state.rawParams).values;
   buildParamForm(state.selected.manifest.parameters);
-  requestFrame(state.frame);
+  stageSetParams(state.params);
   updateHistoryButtons();
 }
 
@@ -955,86 +874,6 @@ function buildParamForm(parameters: TemplateParameter[]): void {
 
 // ---------------------------------------------------------------- preview
 
-function postFrame(frame: number): void {
-  const win = els.preview.contentWindow;
-  if (!win || !state.selected) return;
-  state.inFlight = true;
-  const fs = frameState(state.selected.manifest, frame, state.params);
-  win.postMessage({ type: 'pulp:render', id: frame, state: fs }, '*');
-  updateTimecode(frame);
-}
-
-/** Only one frame is in flight at a time; newer requests replace queued ones. */
-function requestFrame(frame: number): void {
-  state.frame = frame;
-  if (!state.previewReady) return;
-  if (state.inFlight) {
-    state.pendingFrame = frame;
-    return;
-  }
-  postFrame(frame);
-}
-
-window.addEventListener('message', (event) => {
-  if (event.source !== els.preview.contentWindow) return;
-  const data = event.data as { type?: string; message?: string };
-  if (data?.type === 'pulp:ready') {
-    state.previewReady = true;
-    state.inFlight = false;
-    requestFrame(state.frame);
-    updateControls();
-  } else if (data?.type === 'pulp:rendered' || data?.type === 'pulp:error') {
-    state.inFlight = false;
-    if (data.type === 'pulp:error') {
-      els.stageNote.hidden = false;
-      els.stageNote.textContent = `Template error: ${data.message ?? 'unknown'}`;
-    }
-    if (state.pendingFrame !== null) {
-      const next = state.pendingFrame;
-      state.pendingFrame = null;
-      postFrame(next);
-    }
-  }
-});
-
-function updateTimecode(frame: number): void {
-  const m = state.selected?.manifest;
-  if (!m) {
-    els.timecode.textContent = '--';
-    return;
-  }
-  els.scrub.value = String(frame);
-  els.timecode.textContent = `${formatTimecode(frame, m.fps)} · ${frame + 1}/${frameCount(m)}`;
-}
-
-let rafId = 0;
-let playStart = 0;
-let playStartFrame = 0;
-
-function tick(now: number): void {
-  const m = state.selected?.manifest;
-  if (!state.playing || !m) return;
-  const total = frameCount(m);
-  const frame = (playStartFrame + Math.floor(((now - playStart) / 1000) * m.fps)) % total;
-  if (frame !== state.frame) requestFrame(frame);
-  rafId = requestAnimationFrame(tick);
-}
-
-function play(): void {
-  if (!state.selected || !state.previewReady) return;
-  state.playing = true;
-  playStart = performance.now();
-  playStartFrame = state.frame;
-  els.play.textContent = 'Pause';
-  rafId = requestAnimationFrame(tick);
-}
-
-function stop(): void {
-  state.playing = false;
-  cancelAnimationFrame(rafId);
-  els.play.textContent = 'Play';
-}
-
 // ---------------------------------------------------------------- render
 
 function populatePresets(): void {
@@ -1154,8 +993,6 @@ function markPresetAvailability(encoders: readonly string[]): void {
 
 function updateControls(): void {
   const hasTemplate = state.selected !== null;
-  els.play.disabled = !hasTemplate || !state.previewReady;
-  els.scrub.disabled = !hasTemplate;
   els.render.disabled = !hasTemplate || !state.ffmpegOk || state.choosingOutput || !state.optionsValid || state.selected?.offline === true;
   renderBlocked.value = els.render.disabled;
 }
@@ -1163,7 +1000,7 @@ function updateControls(): void {
 /** Ask for an output path and add the render to the queue; the queue list shows progress and results. */
 async function queueRender(): Promise<void> {
   if (!state.selected) return;
-  stop();
+  stageStop();
   state.choosingOutput = true;
   els.renderStatus.classList.remove('error');
   els.renderStatus.textContent = 'Choose where to save...';
@@ -1202,11 +1039,6 @@ els.packClose.addEventListener('click', () => els.packDialog.close());
 (window as unknown as { pulpPreviewPack?: (path: string) => Promise<void> }).pulpPreviewPack = showPackPreview;
 els.addFolder.addEventListener('click', () => void loadLibrary(window.pulp.addLibraryFolder()));
 els.rescan.addEventListener('click', () => void loadLibrary(window.pulp.rescanLibrary()));
-els.play.addEventListener('click', () => (state.playing ? stop() : play()));
-els.scrub.addEventListener('input', () => {
-  stop();
-  requestFrame(Number(els.scrub.value));
-});
 els.render.addEventListener('click', () => void queueRender());
 els.presetName.addEventListener('input', updatePresetButtons);
 els.presetName.addEventListener('keydown', (e) => {
@@ -1276,6 +1108,7 @@ populatePresets();
 populateFrameRates();
 updateControls();
 initShell();
+initStage();
 initInspectorTabs();
 initSearchBar();
 initStatusBar();
