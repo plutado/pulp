@@ -4,7 +4,10 @@
  * Query syntax (whitespace separated, double quotes group words):
  *   lower third          free-text terms, all must match (AND)
  *   tag:news             entry must carry this tag
- *   type:template        template | media | video | image | audio
+ *   type:template        template | media | video | image | audio, or a taxonomy type (type:whoosh)
+ *                        or type group (type:sfx); several type: terms are alternatives
+ *   theme:news           entry carries this theme (built-in id or a custom word; all theme: terms must match)
+ *   style:grunge         template declares this style (templates only; all style: terms must match)
  *   category:title       template category
  *   "breaking news"      phrase matched as one term
  *   duration:>5          seconds; also <, >=, <=, =, and ranges such as 5-10
@@ -23,6 +26,7 @@
 import type { LibraryEntry, LibraryIndex } from './library-types';
 import { RESOLUTION_ALIASES, resolutionLabel } from './media-meta';
 import { normalizeTag } from './tags';
+import { normalizeTheme, templateType, typeInfo } from './taxonomy';
 
 export type NumericField = 'duration' | 'width' | 'height' | 'fps';
 
@@ -37,6 +41,8 @@ export interface ParsedQuery {
   terms: string[];
   tags: string[];
   types: string[];
+  themes: string[];
+  styles: string[];
   categories: string[];
   numeric: { field: NumericField; cmp: Comparison }[];
   resolutions: string[];
@@ -88,14 +94,16 @@ export function tokenizeQuery(query: string): string[] {
 }
 
 export function parseQuery(query: string): ParsedQuery {
-  const parsed: ParsedQuery = { terms: [], tags: [], types: [], categories: [], numeric: [], resolutions: [], codecs: [] };
+  const parsed: ParsedQuery = { terms: [], tags: [], types: [], themes: [], styles: [], categories: [], numeric: [], resolutions: [], codecs: [] };
   for (const token of tokenizeQuery(query)) {
     const colon = token.indexOf(':');
     const key = colon > 0 ? token.slice(0, colon).toLowerCase() : '';
     const value = colon > 0 ? token.slice(colon + 1) : token;
     const cmp = NUMERIC_FIELDS.has(key) ? parseComparison(value) : null;
     if (key === 'tag' && value) parsed.tags.push(normalizeTag(value));
-    else if (key === 'type' && value) parsed.types.push(value.toLowerCase());
+    else if (key === 'type' && value) parsed.types.push(normalizeTag(value));
+    else if (key === 'theme' && value) parsed.themes.push(normalizeTheme(value));
+    else if (key === 'style' && value) parsed.styles.push(normalizeTag(value));
     else if (key === 'category' && value) parsed.categories.push(value.toLowerCase());
     else if (cmp) parsed.numeric.push({ field: key as NumericField, cmp });
     else if (key === 'res' && value) {
@@ -125,12 +133,18 @@ function entryName(entry: LibraryEntry): string {
   return entry.kind === 'template' ? entry.manifest.name : entry.name;
 }
 
+/** The taxonomy type of an entry: a template's declared or category-mapped type, a media file's folder-inferred one. */
+function entryType(entry: LibraryEntry): string | undefined {
+  return entry.kind === 'template' ? templateType(entry.manifest) : entry.type;
+}
+
 function entryHaystack(entry: LibraryEntry): { name: string; words: string[]; tags: string[]; text: string } {
   const name = entryName(entry).toLowerCase();
   const extra =
     entry.kind === 'template'
-      ? [entry.manifest.id, entry.manifest.description ?? '', entry.manifest.category, entry.manifest.author ?? '']
+      ? [entry.manifest.id, entry.manifest.description ?? '', entry.manifest.category, entry.manifest.author ?? '', ...(entry.manifest.styles ?? [])]
       : [entry.ext, entry.mediaKind, entry.meta?.codec ?? '', resolutionLabel(entry.meta?.width, entry.meta?.height) ?? ''];
+  extra.push(entryType(entry) ?? '', ...(entry.themes ?? []));
   const text = [name, ...entry.tags, ...extra].join(' ').toLowerCase();
   return { name, words: name.split(/[^a-z0-9]+/).filter(Boolean), tags: entry.tags, text };
 }
@@ -138,7 +152,11 @@ function entryHaystack(entry: LibraryEntry): { name: string; words: string[]; ta
 function matchesType(entry: LibraryEntry, type: string): boolean {
   if (type === 'template' || type === 'templates') return entry.kind === 'template';
   if (type === 'media') return entry.kind === 'media';
-  return entry.kind === 'media' && entry.mediaKind === type;
+  if (entry.kind === 'media' && entry.mediaKind === type) return true;
+  // A taxonomy type, or a whole type group.
+  const own = entryType(entry);
+  if (!own) return false;
+  return own === type || typeInfo(own)?.group === type;
 }
 
 /**
@@ -163,6 +181,8 @@ export function searchLibrary(index: LibraryIndex, query: string): SearchHit[] {
     if (q.types.length > 0 && !q.types.some((t) => matchesType(entry, t))) continue;
     if (q.categories.length > 0 && (entry.kind !== 'template' || !q.categories.includes(entry.manifest.category))) continue;
     if (!q.tags.every((t) => entry.tags.includes(t))) continue;
+    if (q.themes.length > 0 && !q.themes.every((t) => entry.themes?.includes(t))) continue;
+    if (q.styles.length > 0 && (entry.kind !== 'template' || !q.styles.every((s) => entry.manifest.styles?.includes(s)))) continue;
     if (q.favorite !== undefined && (entry.favorite === true) !== q.favorite) continue;
     if (q.recent !== undefined && !entry.lastUsed) continue;
     if (q.numeric.length > 0 || q.resolutions.length > 0 || q.codecs.length > 0 || q.alpha !== undefined) {

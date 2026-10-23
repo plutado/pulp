@@ -134,6 +134,58 @@ describe('scanLibrary', () => {
   });
 });
 
+describe('searchLibrary taxonomy filters', () => {
+  async function buildIndex() {
+    await writeTemplate(join(root, 'glitchy'), { id: 'test.glitch', name: 'Glitchy', category: 'transition', type: 'glitch', themes: ['News', 'my show'], styles: ['grunge'] });
+    await writeTemplate(join(root, 'plain'), { id: 'test.plain', name: 'Plain Wipe', category: 'transition' });
+    await touch(join(root, 'SFX', 'Whoosh', 'swipe.wav'));
+    await touch(join(root, 'Sports', 'Hockey', 'rink.mov'));
+    return scanLibrary([root]);
+  }
+  const names = (index: Awaited<ReturnType<typeof scanLibrary>>, q: string) =>
+    searchLibrary(index, q).map((h) => (h.entry.kind === 'template' ? h.entry.manifest.name : h.entry.name)).sort();
+
+  it('type: matches taxonomy types and groups, declared or category-mapped or folder-inferred', async () => {
+    const index = await buildIndex();
+    expect(names(index, 'type:glitch')).toEqual(['Glitchy']);
+    expect(names(index, 'type:wipe')).toEqual(['Plain Wipe']); // category transition maps to wipe
+    expect(names(index, 'type:transitions')).toEqual(['Glitchy', 'Plain Wipe']); // the whole group
+    expect(names(index, 'type:whoosh')).toEqual(['swipe']);
+    expect(names(index, 'type:sfx')).toEqual(['swipe']);
+    expect(names(index, 'type:glitch type:whoosh')).toEqual(['Glitchy', 'swipe']); // alternatives
+  });
+
+  it('type: still means the media kinds', async () => {
+    const index = await buildIndex();
+    expect(names(index, 'type:audio')).toEqual(['swipe']);
+    expect(names(index, 'type:video')).toEqual(['rink']);
+    expect(names(index, 'type:template')).toEqual(['Glitchy', 'Plain Wipe']);
+  });
+
+  it('theme: matches manifest, folder and custom themes, all terms required', async () => {
+    const index = await buildIndex();
+    expect(names(index, 'theme:news')).toEqual(['Glitchy']);
+    expect(names(index, 'theme:"my show"')).toEqual(['Glitchy']);
+    expect(names(index, 'theme:hockey')).toEqual(['rink']);
+    expect(names(index, 'theme:sports theme:hockey')).toEqual(['rink']);
+    expect(names(index, 'theme:news theme:hockey')).toEqual([]);
+  });
+
+  it('style: matches templates only and combines with the other filters', async () => {
+    const index = await buildIndex();
+    expect(names(index, 'style:grunge')).toEqual(['Glitchy']);
+    expect(names(index, 'style:clean')).toEqual([]);
+    expect(names(index, 'type:transitions style:grunge')).toEqual(['Glitchy']);
+    expect(names(index, 'style:grunge alpha:yes')).toEqual(['Glitchy']);
+  });
+
+  it('free text finds types and themes by their ids', async () => {
+    const index = await buildIndex();
+    expect(names(index, 'whoosh')).toEqual(['swipe']);
+    expect(names(index, 'hockey')).toEqual(['rink']);
+  });
+});
+
 describe('searchLibrary', () => {
   async function buildIndex() {
     await writeTemplate(join(root, 'Titles', 'basic'));
