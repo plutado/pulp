@@ -1,3 +1,4 @@
+import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ProcessRunner } from '../src/core/ffmpeg';
 import { ffprobeArgs, ffprobePathFor, probeMedia } from '../src/core/media-probe';
@@ -77,8 +78,13 @@ describe('probeMedia and helpers', () => {
 
   it('finds ffprobe next to ffmpeg, or on PATH', () => {
     expect(ffprobePathFor('ffmpeg')).toBe('ffprobe');
-    expect(ffprobePathFor('/opt/homebrew/bin/ffmpeg')).toBe('/opt/homebrew/bin/ffprobe');
-    if (process.platform === 'win32') expect(ffprobePathFor('C:\\\\tools\\\\ffmpeg.exe')).toMatch(/ffprobe\\.exe$/);
+    // path.join writes the separator of the platform running the test, so compare against join, not a literal.
+    expect(ffprobePathFor(join('/opt/homebrew/bin', 'ffmpeg'))).toBe(join('/opt/homebrew/bin', 'ffprobe'));
+    if (process.platform === 'win32') {
+      expect(basename(ffprobePathFor('C:\\tools\\ffmpeg.exe'))).toBe('ffprobe.exe');
+    } else {
+      expect(basename(ffprobePathFor('/usr/local/bin/ffmpeg'))).toBe('ffprobe');
+    }
   });
 
   it('labels resolution by the shorter side', () => {
