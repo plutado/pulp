@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- Media files are typed from their folders: a `.wav` under `sfx/whoosh/` is a Whoosh, `Music/Stings` makes a Sting, and folders that name built-in themes (`Sports/Hockey`) attach them — type ids, display labels and simple plurals all work as folder names, and a file in no such folder simply has no type. The Info tab grew a themes row next to the tags: folder and manifest themes stay, your own (built-in or custom words) can be added and removed, and they are kept in the library database with your tags, surviving folders going offline.
 - Icons throughout, from Phosphor (MIT; decision record 0011): the browse panel's nodes and tools, the search field, sort and filter chips, the inspector tabs, play/pause, favorite as an outline or filled star, type and kind icons as thumbnail placeholders, the tray and the status bar (ffmpeg found or missing, cache, a spinner while scanning or rendering). Icon-only buttons have accessible names and show a tooltip on hover and on keyboard focus. Collapsing the browse panel leaves an icon rail you can still browse from.
 
 ### Changed

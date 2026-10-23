@@ -19,6 +19,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
 import { folderTags, itemId, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES } from './library-scan';
+import { inferMediaType, inferThemes } from './taxonomy';
 import type { MediaLookup } from './media-serve';
 import type { MediaMetadata } from './media-meta';
 import { thumbUrlFor, wantsThumbnail } from './thumbnails';
@@ -47,6 +48,8 @@ export interface ScanStats {
 /** Per-item user data, kept apart from scan results so it survives rescans and offline periods. */
 export interface UserItemData {
   tags: string[];
+  /** Themes the user added, normalized like tags; built-in or custom. */
+  themes: string[];
   favorite: boolean;
   /** ISO time of the last selection or render, if any. */
   lastUsed?: string;
@@ -111,12 +114,13 @@ CREATE TABLE IF NOT EXISTS thumbs (
 CREATE TABLE IF NOT EXISTS user_items (
   key TEXT PRIMARY KEY,
   tags TEXT NOT NULL DEFAULT '[]',
+  themes TEXT NOT NULL DEFAULT '[]',
   favorite INTEGER NOT NULL DEFAULT 0,
   last_used TEXT
 );
 `;
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export class LibraryStore {
   private readonly db: DatabaseSync;
@@ -137,6 +141,9 @@ export class LibraryStore {
       this.db.exec('DROP TABLE IF EXISTS items; DROP TABLE IF EXISTS problems;');
     }
     this.db.exec(SCHEMA);
+    // user_items predates themes and is never dropped; add the column where it is missing.
+    const userColumns = this.db.prepare('PRAGMA table_info(user_items)').all() as unknown as { name: string }[];
+    if (!userColumns.some((c) => c.name === 'themes')) this.db.exec("ALTER TABLE user_items ADD COLUMN themes TEXT NOT NULL DEFAULT '[]'");
     this.db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run('schema', String(SCHEMA_VERSION));
   }
 
@@ -279,6 +286,9 @@ export class LibraryStore {
             continue;
           }
           stats.loaded += 1;
+          const segments = folderTags(rootPath, dir);
+          const inferredType = inferMediaType(kind, segments);
+          const inferredThemes = inferThemes(segments);
           const media: MediaEntry = {
             kind: 'media',
             key,
@@ -290,7 +300,9 @@ export class LibraryStore {
             ext: extname(entry.name).toLowerCase(),
             size: info.size,
             mtimeMs: info.mtimeMs,
-            tags: folderTags(rootPath, dir),
+            tags: segments,
+            ...(inferredType ? { type: inferredType } : {}),
+            ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
           };
           upserts.push({ key, kind: 'media', size: info.size, mtimeMs: info.mtimeMs, entry: media });
         }
@@ -357,9 +369,10 @@ export class LibraryStore {
     const metaByKey = new Map(metaRows.map((m) => [m.key, m]));
     const thumbRows = this.db.prepare('SELECT key, size, mtime_ms FROM thumbs WHERE file IS NOT NULL').all() as unknown as { key: string; size: number; mtime_ms: number }[];
     const thumbByKey = new Map(thumbRows.map((t) => [t.key, t]));
-    const userRows = this.db.prepare('SELECT key, tags, favorite, last_used FROM user_items').all() as unknown as {
+    const userRows = this.db.prepare('SELECT key, tags, themes, favorite, last_used FROM user_items').all() as unknown as {
       key: string;
       tags: string;
+      themes: string;
       favorite: number;
       last_used: string | null;
     }[];
@@ -371,12 +384,19 @@ export class LibraryStore {
       if (offline.has(row.root)) entry.offline = true;
       const t = thumbByKey.get(row.key);
       if (t && t.size === row.size && t.mtime_ms === row.mtime_ms) entry.thumbnail = thumbUrlFor(row.id);
+      // The base themes come with the entry: the manifest's for templates, the folders' for media.
+      if (entry.kind === 'template' && entry.manifest.themes?.length) entry.themes = [...entry.manifest.themes];
       const u = userByKey.get(row.key);
       if (u) {
         const userTags = JSON.parse(u.tags) as string[];
         if (userTags.length > 0) {
           entry.userTags = userTags;
           entry.tags = [...new Set([...entry.tags, ...userTags])];
+        }
+        const userThemes = JSON.parse(u.themes ?? '[]') as string[];
+        if (userThemes.length > 0) {
+          entry.userThemes = userThemes;
+          entry.themes = [...new Set([...(entry.themes ?? []), ...userThemes])];
         }
         if (u.favorite === 1) entry.favorite = true;
         if (u.last_used) entry.lastUsed = u.last_used;
@@ -480,21 +500,21 @@ export class LibraryStore {
   }
 
   getUserData(key: string): UserItemData {
-    const row = this.db.prepare('SELECT tags, favorite, last_used FROM user_items WHERE key = ?').get(key) as
-      | { tags: string; favorite: number; last_used: string | null }
+    const row = this.db.prepare('SELECT tags, themes, favorite, last_used FROM user_items WHERE key = ?').get(key) as
+      | { tags: string; themes: string; favorite: number; last_used: string | null }
       | undefined;
-    if (!row) return { tags: [], favorite: false };
-    return { tags: JSON.parse(row.tags) as string[], favorite: row.favorite === 1, ...(row.last_used ? { lastUsed: row.last_used } : {}) };
+    if (!row) return { tags: [], themes: [], favorite: false };
+    return { tags: JSON.parse(row.tags) as string[], themes: JSON.parse(row.themes ?? '[]') as string[], favorite: row.favorite === 1, ...(row.last_used ? { lastUsed: row.last_used } : {}) };
   }
 
   setUserData(key: string, patch: Partial<UserItemData>): UserItemData {
     const next = { ...this.getUserData(key), ...patch };
     this.db
       .prepare(
-        'INSERT INTO user_items (key, tags, favorite, last_used) VALUES (?, ?, ?, ?) ' +
-          'ON CONFLICT(key) DO UPDATE SET tags = excluded.tags, favorite = excluded.favorite, last_used = excluded.last_used',
+        'INSERT INTO user_items (key, tags, themes, favorite, last_used) VALUES (?, ?, ?, ?, ?) ' +
+          'ON CONFLICT(key) DO UPDATE SET tags = excluded.tags, themes = excluded.themes, favorite = excluded.favorite, last_used = excluded.last_used',
       )
-      .run(key, JSON.stringify(next.tags), next.favorite ? 1 : 0, next.lastUsed ?? null);
+      .run(key, JSON.stringify(next.tags), JSON.stringify(next.themes), next.favorite ? 1 : 0, next.lastUsed ?? null);
     return next;
   }
 }

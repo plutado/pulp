@@ -14,6 +14,7 @@ import {
   rescanIfStale,
   setItemFavorite,
   setItemTags,
+  setItemThemes,
   startLibraryMonitor,
   useInMemoryLibrary,
 } from './library-service';
@@ -75,6 +76,7 @@ function registerIpc(): void {
   ipcMain.handle('library:get', () => getLibrary());
   ipcMain.handle('library:rescan', () => rescan());
   ipcMain.handle('library:set-tags', (_event, id: string, tags: string[]) => setItemTags(id, Array.isArray(tags) ? tags.map(String) : []));
+  ipcMain.handle('library:set-themes', (_event, id: string, themes: string[]) => setItemThemes(id, Array.isArray(themes) ? themes.map(String) : []));
   ipcMain.handle('library:set-favorite', (_event, id: string, favorite: boolean) => setItemFavorite(id, favorite === true));
   ipcMain.handle('library:mark-used', (_event, id: string) => markItemUsed(id));
   ipcMain.handle('library:add-folder', async () => {

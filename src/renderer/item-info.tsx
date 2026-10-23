@@ -8,7 +8,7 @@
 import { render } from 'preact';
 import { computed, effect } from '@preact/signals';
 import { itemDetails, shownEntry } from '../core/app-state';
-import { tagLabel } from '../core/display';
+import { tagLabel, themeLabel } from '../core/display';
 import type { LibraryEntry } from '../core/library-types';
 import { appState } from './store';
 import { Icon } from './icons';
@@ -80,6 +80,56 @@ function Tools({ entry, ids }: { entry: LibraryEntry; ids: Ids }) {
   );
 }
 
+/** Themes on the shown item: the manifest's or the folders' stay; the user's can be removed; anything can be added. */
+function Themes({ entry }: { entry: LibraryEntry }) {
+  const user = new Set(entry.userThemes ?? []);
+  const addThemes = (input: HTMLInputElement) => {
+    const added = input.value
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (added.length === 0) return;
+    input.value = '';
+    void window.pulp.setItemThemes(entry.id, [...(entry.userThemes ?? []), ...added]);
+  };
+  return (
+    <div class="item-tools">
+      <span class="field-name">Themes</span>
+      <div id="theme-chips" class="tag-chips">
+        {(entry.themes ?? []).map((theme) => (
+          <span key={theme} class={user.has(theme) ? 'tag-chip user' : 'tag-chip folder'} data-theme={theme} title={user.has(theme) ? 'Your theme' : entry.kind === 'template' ? 'From the manifest' : 'From the folder name'}>
+            {themeLabel(theme)}
+            {user.has(theme) && (
+              <button
+                type="button"
+                aria-label={`Remove ${themeLabel(theme)}`}
+                onClick={() => void window.pulp.setItemThemes(entry.id, (entry.userThemes ?? []).filter((t) => t !== theme))}
+              >
+                <Icon name="x" />
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
+      <input
+        key={entry.key}
+        id="theme-input"
+        type="text"
+        class="tag-input"
+        placeholder="Add theme, Enter"
+        autocomplete="off"
+        spellcheck={false}
+        aria-label="Add theme"
+        onKeyDown={(e: KeyboardEvent) => {
+          if (e.key !== 'Enter') return;
+          e.preventDefault();
+          addThemes(e.target as HTMLInputElement);
+        }}
+      />
+    </div>
+  );
+}
+
 function ItemInfo({ ids, withDetails }: { ids: Ids; withDetails: boolean }) {
   const entry = shown.value;
   if (!entry) return null;
@@ -93,6 +143,7 @@ function ItemInfo({ ids, withDetails }: { ids: Ids; withDetails: boolean }) {
       <div class="item-tools">
         <Tools entry={entry} ids={ids} />
       </div>
+      <Themes entry={entry} />
     </>
   );
 }

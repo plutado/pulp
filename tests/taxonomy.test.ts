@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   CATEGORY_TO_TYPE,
+  inferMediaType,
+  inferThemes,
   isBuiltInStyle,
   isBuiltInTheme,
   isBuiltInType,
@@ -57,6 +59,33 @@ describe('category mapping', () => {
     expect(templateType({ category: 'transition' })).toBe('wipe');
     expect(templateType({ type: 'glitch', category: 'transition' })).toBe('glitch');
     expect(templateType({ category: 'other' })).toBeUndefined();
+  });
+});
+
+describe('folder inference', () => {
+  it('types media from the deepest folder that names a type in the kind\'s groups', () => {
+    expect(inferMediaType('audio', ['sfx', 'whoosh'])).toBe('whoosh');
+    expect(inferMediaType('audio', ['music', 'stings'])).toBe('sting');
+    expect(inferMediaType('audio', ['stems'])).toBe('stems');
+    // A folder that names a type of another kind does not type this one.
+    expect(inferMediaType('video', ['sfx', 'whoosh'])).toBeUndefined();
+    expect(inferMediaType('video', ['stock-footage'])).toBe('stock-footage');
+    expect(inferMediaType('image', ['photos'])).toBe('photo');
+    expect(inferMediaType('image', ['illustrations', 'icons'])).toBe('illustration');
+    // No folder, no type: the kind alone does not justify one.
+    expect(inferMediaType('video', [])).toBeUndefined();
+  });
+
+  it('labels work as folder names too: "Sound effects/Impact / hit"', () => {
+    expect(inferMediaType('audio', ['sound-effects', 'impact-hit'])).toBe('impact');
+    expect(inferMediaType('audio', ['hits'])).toBe('impact');
+  });
+
+  it('collects built-in themes along the path, in order', () => {
+    expect(inferThemes(['sports', 'hockey', 'b-roll'])).toEqual(['sports', 'hockey']);
+    expect(inferThemes(['news-broadcast'])).toEqual(['news']);
+    expect(inferThemes(['broadcast'])).toEqual(['news']);
+    expect(inferThemes(['my-show'])).toEqual([]);
   });
 });
 

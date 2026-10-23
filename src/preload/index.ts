@@ -5,6 +5,7 @@ const api: PulpApi = {
   getLibrary: () => ipcRenderer.invoke('library:get'),
   rescanLibrary: () => ipcRenderer.invoke('library:rescan'),
   setItemTags: (id, tags) => ipcRenderer.invoke('library:set-tags', id, tags),
+  setItemThemes: (id, themes) => ipcRenderer.invoke('library:set-themes', id, themes),
   setItemFavorite: (id, favorite) => ipcRenderer.invoke('library:set-favorite', id, favorite),
   markItemUsed: (id) => ipcRenderer.invoke('library:mark-used', id),
   onLibraryChanged: (listener) => {

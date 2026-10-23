@@ -99,6 +99,8 @@ export interface PulpApi {
   /** Replace an item's user tags. Resolves to the updated index. */
   setItemTags(id: string, tags: string[]): Promise<LibraryIndex>;
   setItemFavorite(id: string, favorite: boolean): Promise<LibraryIndex>;
+  /** Replace an item's user themes (built-in ids or custom words, normalized like tags). */
+  setItemThemes(id: string, themes: string[]): Promise<LibraryIndex>;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */

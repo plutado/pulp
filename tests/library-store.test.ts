@@ -92,7 +92,7 @@ describe('LibraryStore incremental scans', () => {
     store.setRoots([root]);
     await store.scanRoots([root]);
     const clipKey = store.toIndex().media[0]!.key;
-    store.setUserData(clipKey, { tags: ['keeper'], favorite: true });
+    store.setUserData(clipKey, { tags: ['keeper'], themes: ['my-show'], favorite: true });
 
     await rename(root, join(dir, 'unplugged'));
     await store.scanRoots([root]);
@@ -101,7 +101,7 @@ describe('LibraryStore incremental scans', () => {
     expect(index.problems).toEqual([{ path: root, message: 'library root does not exist' }]);
     expect(index.templates[0]?.offline).toBe(true);
     expect(index.media[0]?.offline).toBe(true);
-    expect(store.getUserData(clipKey)).toEqual({ tags: ['keeper'], favorite: true });
+    expect(store.getUserData(clipKey)).toEqual({ tags: ['keeper'], themes: ['my-show'], favorite: true });
 
     await rename(join(dir, 'unplugged'), root);
     const stats = await store.scanRoots([root]);
@@ -209,7 +209,7 @@ describe('LibraryStore incremental scans', () => {
     expect(store.pendingThumbnails().map((e) => e.kind === 'media' && e.name)).toEqual(['clip']);
   });
 
-  it('merges user tags, favorite and last used into the index and finds keys by id', async () => {
+  it('merges user tags, themes, favorite and last used into the index and finds keys by id', async () => {
     const root = join(dir, 'lib');
     await touch(join(root, 'Stock', 'clip.mov'));
     store.setRoots([root]);
@@ -217,12 +217,34 @@ describe('LibraryStore incremental scans', () => {
     const clip = store.toIndex().media[0]!;
     expect(store.keyForId(clip.id)).toBe(clip.key);
     expect(store.keyForId('nope')).toBeUndefined();
-    store.setUserData(clip.key, { tags: ['keeper', 'stock'], favorite: true, lastUsed: '2026-10-23T00:00:00.000Z' });
+    store.setUserData(clip.key, { tags: ['keeper', 'stock'], themes: ['news', 'my-show'], favorite: true, lastUsed: '2026-10-23T00:00:00.000Z' });
     const after = store.toIndex().media[0]!;
     expect(after.tags).toEqual(['stock', 'keeper']); // folder tag first, user tag merged without duplicates
     expect(after.userTags).toEqual(['keeper', 'stock']);
+    expect(after.themes).toEqual(['news', 'my-show']);
+    expect(after.userThemes).toEqual(['news', 'my-show']);
     expect(after.favorite).toBe(true);
     expect(after.lastUsed).toBe('2026-10-23T00:00:00.000Z');
+  });
+
+  it('types media and collects themes from folder names, merged with the user themes', async () => {
+    const root = join(dir, 'lib');
+    await touch(join(root, 'SFX', 'Whoosh', 'swipe.wav'));
+    await touch(join(root, 'Sports', 'Hockey', 'rink.mov'));
+    await touch(join(root, 'loose.mov'));
+    store.setRoots([root]);
+    await store.scanRoots([root]);
+    let media = store.toIndex().media;
+    const bySuffix = (end: string) => media.find((m) => m.path.endsWith(end))!;
+    expect(bySuffix('swipe.wav').type).toBe('whoosh');
+    expect(bySuffix('rink.mov').type).toBeUndefined();
+    expect(bySuffix('rink.mov').themes).toEqual(['sports', 'hockey']);
+    expect(bySuffix('loose.mov').type).toBeUndefined();
+    expect(bySuffix('loose.mov').themes).toBeUndefined();
+    store.setUserData(bySuffix('rink.mov').key, { themes: ['hockey', 'club-23'] });
+    media = store.toIndex().media;
+    expect(bySuffix('rink.mov').themes).toEqual(['sports', 'hockey', 'club-23']);
+    expect(bySuffix('rink.mov').userThemes).toEqual(['hockey', 'club-23']);
   });
 
   it('persists across close and reopen', async () => {

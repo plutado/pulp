@@ -22,6 +22,9 @@ export interface TemplateEntry {
   lastUsed?: string;
   /** True when the item's library root is not reachable right now; the item is kept so user data survives. */
   offline?: boolean;
+  /** Manifest themes plus the user's; themes the user added; both like tags. */
+  themes?: string[];
+  userThemes?: string[];
   dir: string;
   root: string;
   manifest: TemplateManifest;
@@ -39,6 +42,11 @@ export interface MediaEntry {
   favorite?: boolean;
   lastUsed?: string;
   offline?: boolean;
+  /** From the built-in taxonomy, named by a folder on the item's path; absent when no folder says. */
+  type?: string;
+  /** Folder-inferred themes plus the user's; themes the user added. */
+  themes?: string[];
+  userThemes?: string[];
   path: string;
   root: string;
   name: string;

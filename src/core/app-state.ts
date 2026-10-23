@@ -6,6 +6,7 @@
 
 import type { LibraryEntry, LibraryIndex } from './library-types';
 import { audioLabel, categoryLabel, codecLabel, dimensionsLabel, durationLabel, extensionLabel, frameRateLabel, mediaKindLabel, rootLabel, sizeLabel, typeLabel } from './display';
+
 import { formatTimecode } from './timecode';
 import { isFinished, type RenderJobStatus, type RenderQueueJob, type RenderQueueSnapshot } from './render-queue';
 import { searchLibrary } from './search';
@@ -120,7 +121,8 @@ export function itemDetails(entry: LibraryEntry): string {
     const m = entry.manifest;
     return [m.description, `License: ${m.license}`, m.author ? `Author: ${m.author}` : ''].filter(Boolean).join('  ·  ');
   }
-  return [`${mediaKindLabel(entry.mediaKind)} · ${extensionLabel(entry.ext)} · ${sizeLabel(entry.size)}`, describeMeta(entry), entry.path].filter(Boolean).join(' · ');
+  const kind = entry.type ? `${mediaKindLabel(entry.mediaKind)} · ${typeLabel(entry.type)}` : mediaKindLabel(entry.mediaKind);
+  return [`${kind} · ${extensionLabel(entry.ext)} · ${sizeLabel(entry.size)}`, describeMeta(entry), entry.path].filter(Boolean).join(' · ');
 }
 
 /** A sequence output pattern drags as its first frame file. */

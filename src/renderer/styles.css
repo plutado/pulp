@@ -239,6 +239,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 
 .details { color: var(--text-secondary); font-size: var(--font-secondary); min-height: 2.5em; }
 .item-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.item-tools .field-name { color: var(--muted); font-size: var(--font-secondary); }
 .item-tools[hidden] { display: none; }
 .item-tools .favorite { display: inline-flex; align-items: center; line-height: 1; padding: 4px 8px; }
 .item-tools .favorite[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }

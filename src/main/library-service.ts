@@ -23,6 +23,7 @@ import type { LibraryIndex, TemplateEntry } from '../core/library-types';
 import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
 import { normalizeTag } from '../core/tags';
+import { normalizeTheme } from '../core/taxonomy';
 import { loadSettings, updateSettings } from './settings';
 
 /** Folder of sample templates shipped with the app. */
@@ -221,6 +222,15 @@ export function setItemTags(id: string, tags: string[]): LibraryIndex {
   const st = getStore();
   const key = st.keyForId(id);
   if (key) st.setUserData(key, { tags: [...new Set(tags.map(normalizeTag).filter((t) => t.length > 0))] });
+  const index = st.toIndex();
+  broadcast(index);
+  return index;
+}
+
+export function setItemThemes(id: string, themes: string[]): LibraryIndex {
+  const st = getStore();
+  const key = st.keyForId(id);
+  if (key) st.setUserData(key, { themes: [...new Set(themes.map(normalizeTheme).filter((t) => t.length > 0))] });
   const index = st.toIndex();
   broadcast(index);
   return index;

@@ -237,6 +237,50 @@ export function splitThemes(themes: readonly string[]): { builtIn: string[]; cus
   return { builtIn, custom };
 }
 
+/** Folder words that mean a type: the id, the label, each slash-part of the label, and simple plurals. */
+function aliases(id: string, label: string): string[] {
+  const parts = label.split('/').map((p) => normalizeTag(p)).filter(Boolean);
+  const base = [id, normalizeTag(label), ...parts];
+  return [...new Set([...base, ...base.map((a) => `${a}s`)])];
+}
+
+const typeByAlias = new Map<string, string>();
+for (const t of TYPES) for (const a of aliases(t.id, t.label)) if (!typeByAlias.has(a)) typeByAlias.set(a, t.id);
+
+const themeByAlias = new Map<string, string>();
+for (const g of THEME_GROUPS) for (const t of g.themes) for (const a of aliases(t.id, t.label)) if (!themeByAlias.has(a)) themeByAlias.set(a, t.id);
+
+/** Which type groups a media kind can carry. */
+const KIND_GROUPS: Record<'video' | 'image' | 'audio', readonly string[]> = {
+  video: ['video'],
+  image: ['stills'],
+  audio: ['music', 'sfx'],
+};
+
+/**
+ * A media item's type from its kind and folder names: the deepest folder that names a
+ * type in the kind's groups wins ("sfx/whoosh/…" → whoosh). No folder, no type — the
+ * kind alone does not justify calling an mp4 stock footage or a wav a sting.
+ */
+export function inferMediaType(kind: 'video' | 'image' | 'audio', folderSegments: readonly string[]): string | undefined {
+  const allowed = new Set(KIND_GROUPS[kind]);
+  for (let i = folderSegments.length - 1; i >= 0; i--) {
+    const type = typeByAlias.get(folderSegments[i]!);
+    if (type && allowed.has(typeById.get(type)!.group)) return type;
+  }
+  return undefined;
+}
+
+/** Built-in themes named by folders, in path order ("Sports/Hockey/…" → sports, hockey). */
+export function inferThemes(folderSegments: readonly string[]): string[] {
+  const themes: string[] = [];
+  for (const segment of folderSegments) {
+    const theme = themeByAlias.get(segment);
+    if (theme && !themes.includes(theme)) themes.push(theme);
+  }
+  return themes;
+}
+
 /** Today's manifest category mapped onto the type list; "other" has no type. */
 export const CATEGORY_TO_TYPE: Readonly<Record<string, string | undefined>> = {
   'lower-third': 'lower-third',
