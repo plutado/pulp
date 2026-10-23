@@ -44,14 +44,13 @@ const els = {
   summary: $<HTMLDivElement>('library-summary'),
 };
 
-const state: { index: LibraryIndex | null } = { index: null };
 
 // ---------------------------------------------------------------- library
 
 /** Pushes index, query and selection into the shared state (the Results component renders the list from it) and redraws the summary. */
 function renderResults(): void {
-  dispatch((s) => setSelection(setQuery(setIndex(s, state.index), els.search.value), selectedTemplate.value?.key ?? null));
-  const index = state.index;
+  dispatch((s) => setSelection(setQuery(s, els.search.value), selectedTemplate.value?.key ?? null));
+  const index = appState.value.index;
   els.summary.replaceChildren();
   if (!index) return;
   const counts = document.createElement('div');
@@ -80,7 +79,7 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
     setScanning(false);
   }
   if (!index) return;
-  state.index = index;
+  dispatch((s) => setIndex(s, index));
   if (selectedTemplate.value) {
     const still = index.templates.find((t) => t.manifest.id === selectedTemplate.value?.manifest.id);
     if (!still) clearSelection();
@@ -249,7 +248,7 @@ async function confirmPack(): Promise<void> {
 
 /** Export the templates currently listed (the search result), with a license warning if the chosen license is not open. */
 function showExportDialog(): void {
-  if (!state.index) return;
+  if (!appState.value.index) return;
   // "Export the listed templates": the same results the user sees, scope and chips included.
   const listed = results.value.entries.filter((e): e is TemplateEntry => e.kind === 'template' && !e.offline);
   if (listed.length === 0) return;
