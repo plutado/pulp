@@ -2,7 +2,7 @@
 
 Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done.
 
-Milestones keep the number they were given when they were added, so GitHub issues #1 to #17 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
+Milestones keep the number they were given when they were added, so GitHub issues #1 to #18 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
 | Milestone | Estimate |
 |---|---|
@@ -14,6 +14,7 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 5. Drag-out to editing apps | 8-16 h |
 | 6. Template packs import | 6-10 h |
 | 11. UI shell: regions and the framework decision | 14-24 h |
+| 18. Visual polish: labels, icons and hierarchy | 8-13 h |
 | 10. Categorization by type and theme | 14-23 h |
 | 12. Browse and preview | 13-21 h |
 | 13. Collections | 8-14 h |
@@ -24,9 +25,9 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17)** | **125-213 h** |
-| **Still open through 1.0 (unticked items only)** | **59-99 h** |
-| **Total including post-1.0 items** | **157-271 h** |
+| **Total through 1.0 (milestones 1-8, 10-13, 17 and 18)** | **133-226 h** |
+| **Still open through 1.0 (unticked items only)** | **62-103 h** |
+| **Total including post-1.0 items** | **165-284 h** |
 
 ## 0. Foundation (done)
 
@@ -104,6 +105,16 @@ First of the UI milestones. ADR 0006 deferred the plain DOM question to the libr
 - [x] Each region a module rendering from the shared state, never reaching into another region's DOM: results, browse panel, search bar, status bar, shell chrome, item info (one component in the stage strip and the Info tab), the tray (queue as a keyed component over the jobs state, drag target and its job-following in core, cache controls), the stage (preview, playback, transport behind an API), and the inspector's Parameters and Output tabs as the imperative host modules ADR 0009 allows, talking through the `selectedTemplate` and `renderBlocked` signals. `main.ts` went from 1,600 lines to 320 of orchestration (library, selection, packs, boot) (2-4 h)
 - [x] Search bar: browse nodes (Favorites, Recently used, one per library folder; folder scopes matched by root, not query text) set a scope shown as a chip with × to clear; sort by relevance, name, recently used or duration; filter chips for templates, video, images, audio, alpha and favorites; the last eight committed searches kept in `settings.json` and offered on the search field. Logic in `src/core/app-state.ts` and `src/core/recent-searches.ts` with unit tests; the end-to-end test covers the scope chip and a filter chip (2-3 h)
 - [x] Status bar: ffmpeg found or missing, library counts, cache size, scans in progress and renders in progress (1-2 h)
+
+## 18. Visual polish: labels, icons and hierarchy (8-13 h)
+
+Before milestone 10, so the browse tree, cards and badges are born with icons and display names instead of being retrofitted. The rules live in `docs/ui-style.md`; the icon set is Phosphor (ADR 0011, license confirmed MIT on the registry).
+
+- [x] Style guide `docs/ui-style.md`: sentence case everywhere, display names from one module, humanized tags, writing rules (one ellipsis character, units in display form), icon rules and map, design tokens, the enforcement plan (1-2 h)
+- [ ] Display-name module in `src/core` with tests, used everywhere a stored value is shown: category and type ids ("Lower third"), media kinds, extensions ("MOV") and codecs ("ProRes"), resolutions ("1920 × 1080"), rates, sizes, humanized tags and themes ("my-show" → "My show"), "Built-in templates" for the bundled root (2-3 h)
+- [ ] Phosphor icons: verify the license file in the package, add `@phosphor-icons/core`, inline only the used SVGs at build time through one `Icon` helper (16/20/24, `currentColor`, regular/fill for state); replace the Unicode stand-ins; icon-only toolbar buttons with `aria-label`s and focus tooltips; the collapsed browse panel becomes an icon rail (2-4 h)
+- [ ] Design tokens in `:root` (type scale, 4 px spacing grid, radii, focus ring, icon sizes) and `styles.css` moved onto them; three levels per region; the ALL CAPS heading transforms removed (2-3 h)
+- [ ] Enforcement test: fails on ALL CAPS display text, three-dot ellipses, raw ids in display strings, icon-only buttons without `aria-label`, and font-size literals outside the token block (1 h)
 
 ## 10. Categorization by type and theme (14-23 h)
 
