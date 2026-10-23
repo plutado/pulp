@@ -3,6 +3,7 @@ import { describeMeta, formatBytes, setIndex, setJobs, setQuery, setSelection } 
 import { dispatch, results } from './store';
 import { mountResults } from './results';
 import { initShell } from './shell';
+import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
 import { frameCount, type TemplateParameter } from '../core/manifest';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
@@ -60,6 +61,10 @@ const els = {
   favorite: $<HTMLButtonElement>('favorite'),
   tagChips: $<HTMLDivElement>('tag-chips'),
   tagInput: $<HTMLInputElement>('tag-input'),
+  infoTools: $<HTMLDivElement>('info-tools'),
+  infoFavorite: $<HTMLButtonElement>('info-favorite'),
+  infoTagChips: $<HTMLDivElement>('info-tag-chips'),
+  infoTagInput: $<HTMLInputElement>('info-tag-input'),
   params: $<HTMLFormElement>('params'),
   presetList: $<HTMLSelectElement>('param-preset-list'),
   presetName: $<HTMLInputElement>('param-preset-name'),
@@ -193,31 +198,41 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
 // ---------------------------------------------------------------- selection + params
 
 /** Favorite button and tag chips for the item shown in the stage. User tags can be removed; folder and manifest tags cannot. */
+/** The stage strip and the Info tab show the same favorite and tags; one renderer serves both. */
+function itemToolGroups(): { tools: HTMLDivElement; favorite: HTMLButtonElement; chips: HTMLDivElement; input: HTMLInputElement }[] {
+  return [
+    { tools: els.itemTools, favorite: els.favorite, chips: els.tagChips, input: els.tagInput },
+    { tools: els.infoTools, favorite: els.infoFavorite, chips: els.infoTagChips, input: els.infoTagInput },
+  ];
+}
+
 function showItemTools(entry: LibraryEntry | null): void {
   state.shown = entry;
-  els.itemTools.hidden = entry === null;
-  if (!entry) return;
-  els.favorite.setAttribute('aria-pressed', String(entry.favorite === true));
-  els.favorite.textContent = entry.favorite ? '★' : '☆';
-  els.tagChips.replaceChildren();
-  const user = new Set(entry.userTags ?? []);
-  for (const tag of entry.tags) {
-    const chip = document.createElement('span');
-    chip.className = user.has(tag) ? 'tag-chip user' : 'tag-chip folder';
-    chip.dataset.tag = tag;
-    chip.textContent = tag;
-    chip.title = user.has(tag) ? 'Your tag' : 'From the folder or manifest';
-    if (user.has(tag)) {
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.textContent = '×';
-      remove.title = `Remove ${tag}`;
-      remove.addEventListener('click', () => void window.pulp.setItemTags(entry.id, (entry.userTags ?? []).filter((t) => t !== tag)));
-      chip.append(remove);
+  for (const group of itemToolGroups()) {
+    group.tools.hidden = entry === null;
+    if (!entry) continue;
+    group.favorite.setAttribute('aria-pressed', String(entry.favorite === true));
+    group.favorite.textContent = entry.favorite ? '★' : '☆';
+    group.chips.replaceChildren();
+    const user = new Set(entry.userTags ?? []);
+    for (const tag of entry.tags) {
+      const chip = document.createElement('span');
+      chip.className = user.has(tag) ? 'tag-chip user' : 'tag-chip folder';
+      chip.dataset.tag = tag;
+      chip.textContent = tag;
+      chip.title = user.has(tag) ? 'Your tag' : 'From the folder or manifest';
+      if (user.has(tag)) {
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.textContent = '×';
+        remove.title = `Remove ${tag}`;
+        remove.addEventListener('click', () => void window.pulp.setItemTags(entry.id, (entry.userTags ?? []).filter((t) => t !== tag)));
+        chip.append(remove);
+      }
+      group.chips.append(chip);
     }
-    els.tagChips.append(chip);
+    group.input.value = '';
   }
-  els.tagInput.value = '';
 }
 
 /** Stop and hide the media preview elements. */
@@ -250,6 +265,8 @@ function clearSelection(): void {
 function selectMedia(entry: MediaEntry): void {
   clearSelection();
   showItemTools(entry);
+  // A media item has no parameters; the Info tab is the one with content for it.
+  showInspectorTab('info');
   void window.pulp.markItemUsed(entry.id);
   els.previewFrame.classList.add('checker');
   els.details.textContent = [`${entry.mediaKind} · ${entry.ext.slice(1)} · ${formatBytes(entry.size)}`, describeMeta(entry), entry.path].filter(Boolean).join(' · ');
@@ -287,6 +304,7 @@ function select(entry: LibraryEntry): void {
   stop();
   clearMediaPreview();
   showItemTools(entry);
+  showInspectorTab('parameters');
   void window.pulp.markItemUsed(entry.id);
   state.selected = entry;
   // Each template keeps its own edits and undo history while the app runs.
@@ -1434,16 +1452,18 @@ els.batchFileInput.addEventListener('change', () => {
 });
 els.batchPreview.addEventListener('click', previewBatch);
 els.batchQueue.addEventListener('click', () => void queueBatch());
-els.favorite.addEventListener('click', () => {
-  if (state.shown) void window.pulp.setItemFavorite(state.shown.id, !state.shown.favorite);
-});
-els.tagInput.addEventListener('keydown', (e) => {
-  if (e.key !== 'Enter' || !state.shown) return;
-  e.preventDefault();
-  const added = els.tagInput.value.split(',').map((t) => t.trim()).filter(Boolean);
-  if (added.length === 0) return;
-  void window.pulp.setItemTags(state.shown.id, [...(state.shown.userTags ?? []), ...added]);
-});
+for (const group of itemToolGroups()) {
+  group.favorite.addEventListener('click', () => {
+    if (state.shown) void window.pulp.setItemFavorite(state.shown.id, !state.shown.favorite);
+  });
+  group.input.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !state.shown) return;
+    e.preventDefault();
+    const added = group.input.value.split(',').map((t) => t.trim()).filter(Boolean);
+    if (added.length === 0) return;
+    void window.pulp.setItemTags(state.shown.id, [...(state.shown.userTags ?? []), ...added]);
+  });
+}
 els.undo.addEventListener('click', undo);
 els.redo.addEventListener('click', redo);
 els.resetAll.addEventListener('click', resetAll);
@@ -1504,6 +1524,7 @@ populatePresets();
 populateFrameRates();
 updateControls();
 initShell();
+initInspectorTabs();
 mountResults(els.results, select);
 renderQueue({ jobs: [] });
 void window.pulp.getRenderQueue().then(renderQueue);

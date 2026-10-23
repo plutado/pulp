@@ -50,7 +50,6 @@
           <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
           <span id="timecode" class="timecode">--</span>
         </div>
-        <div id="details" class="details"></div>
         <div id="item-tools" class="item-tools" hidden>
           <button id="favorite" type="button" class="favorite" aria-pressed="false" title="Favorite">☆</button>
           <div id="tag-chips" class="tag-chips"></div>
@@ -65,6 +64,12 @@
 
     <div id="split-inspector" class="splitter v" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize the inspector"></div>
     <section id="region-inspector" class="inspector" aria-label="Inspector">
+      <div class="tabs" role="tablist" aria-label="Inspector sections">
+        <button id="tab-parameters" class="tab" type="button" role="tab" aria-selected="true" aria-controls="pane-parameters">Parameters</button>
+        <button id="tab-output" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-output">Output</button>
+        <button id="tab-info" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-info">Info</button>
+      </div>
+      <div id="pane-parameters" class="tab-pane" role="tabpanel" aria-labelledby="tab-parameters">
       <div class="params-head">
         <h2>Parameters</h2>
         <div class="params-actions">
@@ -85,6 +90,8 @@
         <button id="param-preset-cancel" type="button">Cancel</button>
       </div>
       <form id="params" class="params"></form>
+      </div>
+      <div id="pane-output" class="tab-pane" role="tabpanel" aria-labelledby="tab-output" hidden>
       <h2>Render</h2>
       <label class="field">
         <span>Output preset</span>
@@ -129,6 +136,16 @@
         <div id="batch-summary" class="note"></div>
       </details>
       <p id="render-status" class="note" role="status"></p>
+      </div>
+      <div id="pane-info" class="tab-pane" role="tabpanel" aria-labelledby="tab-info" hidden>
+        <h2>Info</h2>
+        <div id="details" class="details"></div>
+        <div id="info-tools" class="item-tools" hidden>
+          <button id="info-favorite" type="button" class="favorite" aria-pressed="false" title="Favorite">☆</button>
+          <div id="info-tag-chips" class="tag-chips"></div>
+          <input id="info-tag-input" type="text" class="tag-input" placeholder="Add tag, Enter" autocomplete="off" spellcheck="false" aria-label="Add tag">
+        </div>
+      </div>
     </section>
 
     <div id="region-tray" class="tray" aria-label="Render tray">

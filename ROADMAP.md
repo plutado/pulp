@@ -14,7 +14,7 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 5. Drag-out to editing apps | 8-16 h |
 | 6. Template packs import | 6-10 h |
 | 7. Packaging and signing (macOS, Windows, Linux) | 10-18 h |
-| 11. UI shell: regions and the framework decision | 12-20 h |
+| 11. UI shell: regions and the framework decision | 14-24 h |
 | 10. Categorization by type and theme | 14-23 h |
 | 12. Browse and preview | 12-19 h |
 | 13. Collections | 8-14 h |
@@ -23,8 +23,8 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
-| **Remaining through 1.0 (milestones 1-8 and 10-13)** | **121-206 h** |
-| **Including post-1.0 items** | **153-264 h** |
+| **Remaining through 1.0 (milestones 1-8 and 10-13)** | **123-210 h** |
+| **Including post-1.0 items** | **155-268 h** |
 
 ## 0. Foundation (done)
 
@@ -99,13 +99,14 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [ ] Release workflow in GitHub Actions producing draft releases; auto-update (electron-updater) (2-4 h)
 - [ ] Decide on ffmpeg distribution: keep "user installs ffmpeg", offer a download helper, or bundle an LGPL build; document license implications (ADR)
 
-## 11. UI shell: regions and the framework decision (12-20 h)
+## 11. UI shell: regions and the framework decision (14-24 h)
 
 First of the UI milestones. ADR 0006 deferred the plain DOM question to the library milestone, which has since been built in plain DOM; the decision is made here, before the big UI build rather than halfway through it. Once the regions exist, milestone 10's browse tree and milestone 12's player upgrades slot straight in. The regions, where today's features move, and the shared state are in `docs/ui-layout.md`.
 
 - [x] ADR 0009, superseding ADR 0006: Preact with signals, ported region by region with the UI end-to-end test green at every commit, parameter controls kept inside host components, shared state as a pure `src/core/app-state.ts` module with unit tests. Decided by a go/no-go spike with criteria fixed and committed before it ran (lint and types clean, tests pass with no edits under `tests/`, CSP unchanged, bundle growth under 30 kB, the component no longer than the code it replaces); Preact 11 missed the bundle bar by 1 kB, Preact 10 passed at +29.27 kB and is pinned. The spike's port of the results list is the shell's first region (2-4 h)
-- [ ] Shell: the regions from `docs/ui-layout.md` (browse panel, search bar, results, stage, inspector, collection tray, status bar) as resizable, collapsible panes with sizes and collapsed state kept in `settings.json`; each region is a module that renders from the shared state (scope, query, selection, shown item, jobs) and never reaches into another region's DOM (3-5 h)
-- [ ] Move today's features into the regions with no loss: folders, rescan and pack import and export into the browse panel; the result list into the results region as list view; preview and transport into the stage; parameters, presets, render options, trim and CSV batch into the inspector's Parameters and Output tabs, details, tags and favorite into Info; queue, drag handle and cache into the collection tray, still working as the queue until milestone 13 (4-6 h)
+- [x] Shell: the regions from `docs/ui-layout.md` (browse panel, search bar, results, stage, inspector, collection tray, status bar) as resizable, collapsible panes (splitters with pointer and arrow keys), sizes and collapsed state in `settings.json` through a pure `src/core/layout.ts` with unit tests; the tray collapses to a one-line summary and opens itself when the first job arrives (3-5 h)
+- [x] Move today's features into the regions with no loss: folders, rescan and pack import and export into the browse panel; the result list into the results region as list view; preview and transport into the stage; parameters, presets, render options, trim and CSV batch into the inspector's Parameters and Output tabs, details, tags and favorite into Info with the favorite star and tag chips also in a strip under the stage, both editing the same state; queue, drag handle and cache into the collection tray, still working as the queue until milestone 13. The UI end-to-end test passed unchanged through every move (4-6 h)
+- [ ] Each region a module rendering from the shared state, never reaching into another region's DOM: done for the results list, the shell chrome and the tray summary; the browse panel, stage, inspector tabs and tray body still render from `main.ts` and move over as they are ported (2-4 h)
 - [ ] Search bar: a scope chip showing the selected node with × to clear (folders, favorites and recent until milestone 10 adds types and themes), recent searches, sort, and filter chips for the existing filters (2-3 h)
 - [ ] Status bar: ffmpeg found or missing, library counts, cache size, scans and renders in progress (1-2 h)
 

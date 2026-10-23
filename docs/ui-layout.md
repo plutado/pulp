@@ -4,13 +4,7 @@ Status: a plan, written 2026-10-23. It describes the window Pulp is heading for 
 
 ## Today's window
 
-Three columns, built in plain DOM (`src/renderer/main.ts`, ADR 0006):
-
-- **Sidebar** (left): search field, add folder, rescan, pack import and export, a flat result list with thumbnails, a library summary.
-- **Stage** (center): preview of a template or media item, play and scrub with timecode, details, favorite toggle and tag chips.
-- **Inspector** (right): parameter form with undo and saved presets, render options and trim, CSV batch, Render, the drag handle and render cache, the render queue, pack export.
-
-It is close in spirit to the target. What it lacks: a way to browse by type and theme, a grid, a richer player, a place to gather several items and render them together, output settings per item, and a guided path for first use.
+The shell from this plan is built (milestone 11): the regions below exist as resizable, collapsible panes with their sizes and collapsed state in `settings.json` (`src/core/layout.ts`, `src/renderer/shell.ts`), and today's features live in their target regions — the browse panel holds folders, rescan and packs (the tree comes with milestone 10), the inspector has its Parameters, Output and Info tabs, and the tray holds the queue, drag handle and render cache behind a one-line summary. What the window still lacks arrives with the milestones named below: the browse tree and scope chip (10), the card grid, richer player and virtualized results (12), collections (13), per-item output settings and the guided setup (14).
 
 ## Target: seven regions
 

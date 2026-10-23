@@ -195,6 +195,12 @@ input[type="checkbox"] { width: auto; }
 .results .fav { color: var(--accent); }
 .results .fav[hidden] { display: none; }
 
+.tabs { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.tabs .tab { font-size: 12px; padding: 3px 10px; color: var(--muted); background: none; border-color: transparent; }
+.tabs .tab:hover { color: var(--text); }
+.tabs .tab[aria-selected="true"] { color: var(--text); background: var(--panel-2); border-color: var(--border); }
+.tab-pane[hidden] { display: none; }
+
 .params-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .params-head h2 { margin: 8px 0 10px; }
 .params-actions { display: flex; gap: 4px; }
