@@ -153,6 +153,8 @@ Open questions: whether to run templates in a separate session partition, and wh
 - Parameter problems never stop a render; they fall back to defaults and are listed as warnings.
 - Render failures return a message rather than throwing across IPC, and stay visible on the job in the queue. Cancel and failures kill ffmpeg and remove partial output (see Render above). A failed job does not stop the jobs behind it.
 
+Findings about Electron, ffmpeg and the two platforms that shaped this pipeline, with their causes and fixes, are collected in `docs/platform-notes.md`; check it before re-investigating a capture or color symptom.
+
 ## Testing
 
 - `tests/` runs with Vitest in Node. It covers validation, parameter resolution, frame timing, bridge injection, scanning on temporary folders, search, ffmpeg detection with a fake process runner, and the ffmpeg arguments for every preset. It also validates every bundled sample.

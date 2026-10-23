@@ -72,7 +72,7 @@ The format is specified in [docs/template-format.md](docs/template-format.md). T
 - A pure TypeScript core in `src/core` (manifest validation, parameter resolution, library indexer, search, render planning), tested with Vitest without Electron
 - ffmpeg for encoding (installed separately)
 
-Design notes: [docs/system-design.md](docs/system-design.md). Decisions: [docs/decisions/](docs/decisions/).
+Design notes: [docs/system-design.md](docs/system-design.md). Decisions: [docs/decisions/](docs/decisions/). Platform findings (Electron capture, ffmpeg versions, Windows and macOS): [docs/platform-notes.md](docs/platform-notes.md).
 
 ## Running it
 
