@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createResultsSelector,
   deriveResults,
   effectiveQuery,
   hasFinishedJobs,
@@ -80,6 +81,30 @@ describe('deriveResults', () => {
     const s = setIndex(initialAppState, index([offline], [media('clip')]));
     expect(deriveResults(s).canExportPack).toBe(false);
     expect(deriveResults(setIndex(s, index([offline, template('here')]))).canExportPack).toBe(true);
+  });
+});
+
+describe('createResultsSelector', () => {
+  const job: RenderQueueJob = { id: 1, templateId: 't', templateName: 'T', presetId: 'prores-4444', outputPath: '/x.mov', totalFrames: 60, status: 'running', frame: 10, warnings: [] };
+
+  it('does not recompute the results for a jobs or selection update', () => {
+    const select = createResultsSelector();
+    const s = setIndex(initialAppState, index([template('straps')], [media('clip')]));
+    const first = select(s);
+    expect(first.entries).toHaveLength(2);
+    expect(select(setJobs(s, { jobs: [job] }))).toBe(first);
+    expect(select(setSelection(s, 'clip'))).toBe(first);
+  });
+
+  it('recomputes when the index, query or scope changes', () => {
+    const select = createResultsSelector();
+    const s = setIndex(initialAppState, index([template('straps')], [media('clip')]));
+    const first = select(s);
+    const byQuery = select(setQuery(s, 'clip'));
+    expect(byQuery).not.toBe(first);
+    expect(byQuery.entries.map((e) => e.key)).toEqual(['clip']);
+    expect(select(setScope(s, { label: 'Favorites', filter: 'favorite:yes' }))).not.toBe(first);
+    expect(select(setIndex(s, index([], [media('other')]))).entries.map((e) => e.key)).toEqual(['other']);
   });
 });
 

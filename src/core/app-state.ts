@@ -60,7 +60,7 @@ export function setJobs(s: AppState, jobs: RenderQueueSnapshot): AppState {
 // Derived values.
 
 /** The scope's filter text joined with the typed query; what the results are searched with. */
-export function effectiveQuery(s: AppState): string {
+export function effectiveQuery(s: Pick<AppState, 'query' | 'scope'>): string {
   return s.scope ? `${s.scope.filter} ${s.query}`.trim() : s.query;
 }
 
@@ -76,7 +76,10 @@ export interface ResultsView {
   canExportPack: boolean;
 }
 
-export function deriveResults(s: AppState): ResultsView {
+/** The only parts of the state the results depend on; a change elsewhere (selection, jobs) must not recompute them. */
+export type ResultsInput = Pick<AppState, 'index' | 'query' | 'scope'>;
+
+export function deriveResults(s: ResultsInput): ResultsView {
   if (!s.index) return { entries: [], total: 0, capped: false, canExportPack: false };
   const hits = searchLibrary(s.index, effectiveQuery(s));
   return {
@@ -84,6 +87,20 @@ export function deriveResults(s: AppState): ResultsView {
     total: hits.length,
     capped: hits.length > RESULT_CAP,
     canExportPack: hits.some((h) => h.entry.kind === 'template' && !h.entry.offline),
+  };
+}
+
+/**
+ * A results selector that searches only when index, query or scope changed and otherwise
+ * returns the previous view object, so a store can tell "nothing to re-render" by identity.
+ */
+export function createResultsSelector(): (s: ResultsInput) => ResultsView {
+  let last: (ResultsInput & { view: ResultsView }) | null = null;
+  return (s) => {
+    if (last && last.index === s.index && last.query === s.query && last.scope === s.scope) return last.view;
+    const view = deriveResults(s);
+    last = { index: s.index, query: s.query, scope: s.scope, view };
+    return view;
   };
 }
 

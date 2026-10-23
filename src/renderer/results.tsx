@@ -3,7 +3,7 @@
 import { render } from 'preact';
 import { entryLabel } from '../core/app-state';
 import type { LibraryEntry } from '../core/library-types';
-import { appState, results } from './store';
+import { hasIndex, results, selectedKey } from './store';
 
 interface RowProps {
   entry: LibraryEntry;
@@ -38,14 +38,14 @@ function Row({ entry, selected, onSelect }: RowProps) {
 }
 
 function Results({ onSelect }: { onSelect: (entry: LibraryEntry) => void }) {
-  if (!appState.value.index) return null;
+  if (!hasIndex.value) return null;
   const { entries } = results.value;
   if (entries.length === 0) return <li class="meta">No matches.</li>;
-  const selectedKey = appState.value.selectedKey;
+  const selected = selectedKey.value;
   return (
     <>
       {entries.map((entry) => (
-        <Row key={entry.key} entry={entry} selected={selectedKey === entry.key} onSelect={onSelect} />
+        <Row key={entry.key} entry={entry} selected={selected === entry.key} onSelect={onSelect} />
       ))}
     </>
   );
