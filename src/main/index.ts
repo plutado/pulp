@@ -8,8 +8,13 @@ import { addLibraryFolder, findTemplate, getLibrary, rescan } from './library-se
 import { handleTemplateProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { cancelRender, clearFinishedRenders, enqueueRender, getRenderQueue } from './render-queue-service';
+import { addRecentColor } from '../core/recent-colors';
+import { loadSettings, saveSettings } from './settings';
 
 registerTemplateScheme();
+
+// Tests point this at a scratch folder so they never touch the user's settings.json.
+if (process.env.PULP_USER_DATA) app.setPath('userData', resolve(process.env.PULP_USER_DATA));
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -69,6 +74,14 @@ function registerIpc(): void {
   ipcMain.handle('queue:cancel', (_event, jobId: number) => cancelRender(jobId));
   ipcMain.handle('queue:clear-finished', () => clearFinishedRenders());
   ipcMain.handle('queue:get', () => getRenderQueue());
+
+  ipcMain.handle('colors:recent-get', async () => (await loadSettings()).recentColors);
+  ipcMain.handle('colors:recent-add', async (_event, hex: string) => {
+    const settings = await loadSettings();
+    settings.recentColors = addRecentColor(settings.recentColors, hex);
+    await saveSettings(settings);
+    return settings.recentColors;
+  });
 }
 
 /**

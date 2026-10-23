@@ -10,6 +10,8 @@
 
 import { spawn, execFile, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -103,6 +105,8 @@ describe.skipIf(!electron)('inspector UI', () => {
   const port = 9300 + Math.floor(Math.random() * 500);
   let app: ChildProcess | null = null;
   let page: Session;
+  /** Scratch userData folder, so the app under test never reads or writes the real settings.json. */
+  let userData = '';
 
   async function targets(): Promise<Target[]> {
     try {
@@ -145,7 +149,12 @@ describe.skipIf(!electron)('inspector UI', () => {
 
   beforeAll(async () => {
     await run(process.execPath, [join(ROOT, 'node_modules', 'electron-vite', 'bin', 'electron-vite.js'), 'build'], { cwd: ROOT });
-    app = spawn(electron!, ['.', `--remote-debugging-port=${port}`], { cwd: ROOT, stdio: 'ignore' });
+    userData = await mkdtemp(join(tmpdir(), 'pulp-ui-'));
+    app = spawn(electron!, ['.', `--remote-debugging-port=${port}`], {
+      cwd: ROOT,
+      stdio: 'ignore',
+      env: { ...process.env, PULP_USER_DATA: userData },
+    });
     let target: Target | undefined;
     await until(async () => {
       target = (await targets()).find((t) => t.type === 'page' && /renderer\/index\.html/.test(t.url));
@@ -161,9 +170,10 @@ describe.skipIf(!electron)('inspector UI', () => {
     await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview to be ready');
   }, 120_000);
 
-  afterAll(() => {
+  afterAll(async () => {
     page?.close();
     app?.kill('SIGKILL');
+    if (userData) await rm(userData, { recursive: true, force: true });
   });
 
   it('shows the lower third with its 85% panel at the default color', async () => {
@@ -282,5 +292,32 @@ describe.skipIf(!electron)('inspector UI', () => {
     await until(() => page.eval<boolean>(`document.querySelector('[data-param=name] input') !== null`), 'the lower third form');
     expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
     expect(await page.eval<boolean>(`document.getElementById('undo').disabled`)).toBe(false);
+  }, 60_000);
+
+  it('remembers committed colors across fields and templates, and stores them in settings', async () => {
+    // Committed earlier in this run through the panel field's text input and picker.
+    const rows = await page.eval<string[][]>(
+      `[...document.querySelectorAll('#params .color-field')].map((f) => [...f.querySelectorAll('.recent-swatch')].map((b) => b.dataset.color))`,
+    );
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toEqual(rows[1]);
+    expect(rows[1]).toEqual(rows[2]);
+    expect(rows[0]![0]).toBe('#00ff0040'); // most recent first
+    expect(rows[0]!.length).toBeLessThanOrEqual(8);
+
+    // Using a recent color on another field (the accent) applies and commits it.
+    await page.eval(`document.querySelectorAll('#params .color-field')[0].querySelector('.recent-swatch').click()`);
+    expect(await page.eval<string>(`document.querySelectorAll('#params .color-field')[0].querySelector('.hex').value`)).toBe('#00ff0040');
+
+    // The list is shared in settings.json of the (scratch) user data folder.
+    await until(async () => existsSync(join(userData, 'settings.json')), 'settings.json to be written');
+    const settings = JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { recentColors?: string[] };
+    expect(settings.recentColors?.[0]).toBe('#00ff0040');
+    expect(settings.recentColors).toEqual(rows[0]);
+
+    // The same list shows on another template's color fields.
+    await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Title Card').click()`);
+    await until(() => page.eval<boolean>(`document.querySelector('#params .color-field .recent-swatch') !== null`), 'recent colors on the title card');
+    expect(await page.eval<string>(`document.querySelector('#params .color-field .recent-swatch').dataset.color`)).toBe('#00ff0040');
   }, 60_000);
 });

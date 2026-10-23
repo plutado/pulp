@@ -61,6 +61,10 @@ export interface PulpApi {
   /** Remove done, failed and cancelled jobs from the queue. */
   clearFinishedRenders(): Promise<void>;
   getRenderQueue(): Promise<RenderQueueSnapshot>;
+  /** Recently used parameter colors, shared across templates, most recent first. */
+  getRecentColors(): Promise<string[]>;
+  /** Record a color as recently used; resolves to the updated list. */
+  addRecentColor(hex: string): Promise<string[]>;
   /** Called with the whole queue whenever a job is added, progresses, finishes or is removed. */
   onRenderQueue(listener: (snapshot: RenderQueueSnapshot) => void): () => void;
 }

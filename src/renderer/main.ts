@@ -4,6 +4,7 @@ import { resolveParams, type ResolvedParams } from '../core/params';
 import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { History } from '../core/history';
+import { addRecentColor } from '../core/recent-colors';
 import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { isFinished, type RenderQueueJob, type RenderQueueSnapshot } from '../core/render-queue';
 import { frameState } from '../core/runtime';
@@ -61,6 +62,8 @@ interface State {
   inFlight: boolean;
   pendingFrame: number | null;
   ffmpegOk: boolean;
+  /** Recently used colors, shared across templates, most recent first. */
+  recentColors: string[];
   /** Waiting for the save dialog after a click on Render. */
   choosingOutput: boolean;
   /** False while the frame rate or trim fields hold something the planner rejects. */
@@ -78,6 +81,7 @@ const state: State = {
   inFlight: false,
   pendingFrame: null,
   ffmpegOk: false,
+  recentColors: [],
   choosingOutput: false,
   optionsValid: true,
 };
@@ -451,6 +455,20 @@ function inputFor(param: TemplateParameter): HTMLElement {
  * field shows and accepts the whole `#rrggbb[aa]` value. A swatch over a
  * checkerboard previews the result.
  */
+/** Every color field's recent-colors row, refreshed when the list changes. */
+const recentRows = new Set<(colors: string[]) => void>();
+
+function setRecentColors(colors: string[]): void {
+  state.recentColors = colors;
+  for (const refresh of recentRows) refresh(colors);
+}
+
+/** Remember a committed color: locally at once, then as the main process stored it. */
+function rememberColor(hex: string): void {
+  setRecentColors(addRecentColor(state.recentColors, hex));
+  void window.pulp.addRecentColor(hex).then(setRecentColors);
+}
+
 function colorField(initial: string, onChange: (hex: string) => void): HTMLElement {
   let { rgb, alpha } = splitColor(initial);
   const field = document.createElement('div');
@@ -491,16 +509,21 @@ function colorField(initial: string, onChange: (hex: string) => void): HTMLEleme
     show();
     onChange(joinColor(rgb, alpha));
   };
+  /** A finished edit: one history step and a recent color. */
+  const commit = () => {
+    commitParams();
+    rememberColor(joinColor(rgb, alpha));
+  };
   picker.addEventListener('input', () => {
     rgb = picker.value;
     apply();
   });
-  picker.addEventListener('change', commitParams);
+  picker.addEventListener('change', commit);
   slider.addEventListener('input', () => {
     alpha = percentToAlpha(Number(slider.value));
     apply();
   });
-  slider.addEventListener('change', commitParams);
+  slider.addEventListener('change', commit);
   text.addEventListener('change', () => {
     const parsed = parseColorText(text.value);
     if (!parsed) {
@@ -509,15 +532,44 @@ function colorField(initial: string, onChange: (hex: string) => void): HTMLEleme
     }
     ({ rgb, alpha } = splitColor(parsed));
     apply();
-    commitParams();
+    commit();
   });
+
+  // Recent colors, shared across templates: click one to use it here.
+  const recent = document.createElement('div');
+  recent.className = 'recent-colors';
+  const refresh = (colors: string[]) => {
+    recent.replaceChildren();
+    recent.hidden = colors.length === 0;
+    for (const hex of colors) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'recent-swatch checker';
+      button.title = hex;
+      button.dataset.color = hex;
+      const fillSpan = document.createElement('span');
+      fillSpan.className = 'swatch-fill';
+      fillSpan.style.background = toCssRgba(hex);
+      button.append(fillSpan);
+      button.addEventListener('click', () => {
+        ({ rgb, alpha } = splitColor(hex));
+        apply();
+        commit();
+      });
+      recent.append(button);
+    }
+  };
+  recentRows.add(refresh);
+  refresh(state.recentColors);
+
   show();
-  field.append(swatch, picker, slider, percent, text);
+  field.append(swatch, picker, slider, percent, text, recent);
   return field;
 }
 
 function buildParamForm(parameters: TemplateParameter[]): void {
   els.params.replaceChildren();
+  recentRows.clear();
   if (parameters.length === 0) {
     const p = document.createElement('p');
     p.className = 'note';
@@ -899,6 +951,7 @@ populateFrameRates();
 updateControls();
 renderQueue({ jobs: [] });
 void window.pulp.getRenderQueue().then(renderQueue);
+void window.pulp.getRecentColors().then(setRecentColors);
 void loadLibrary(window.pulp.getLibrary());
 void window.pulp.ffmpegStatus().then((info) => {
   state.ffmpegOk = info.ok;

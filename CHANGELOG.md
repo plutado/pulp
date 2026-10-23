@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- Recent colors: each color field shows up to eight recently used colors, shared across templates and kept in `settings.json`; a committed color edit moves it to the front, and clicking a swatch applies it to that field.
 - Parameter editing: number parameters with a range get a slider with direct entry; text parameters with a maximum length show a character counter. Undo and Redo (buttons, Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z or Ctrl+Y) record committed edits per template, with typing coalesced into one step; inside a text or number field the shortcut stays with the field's own undo. Each changed field shows a Reset, and Reset all clears the template; both are undoable. Edits and history are kept per template for the session.
 - `docs/platform-notes.md`: the Electron, Chromium, ffmpeg, Windows and macOS findings behind the renderer (stale captures and the 60 Hz begin-frame cost, device scale, bitmap layout, ffmpeg 8.1+ alpha modes, color tags, Windows CI handling) with causes and fixes, so they are not re-solved.
 - Color parameters have an alpha control. The native color input could only edit the RGB part and the alpha a template declared was kept but could not be seen or changed; each color field now has a slider for the alpha as a percentage, a text field for the whole `#RRGGBB` or `#RRGGBBAA` value, and a swatch over a checkerboard. A UI test drives the running app and reads the preview's pixels to confirm the alpha reaches the template.

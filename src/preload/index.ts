@@ -10,6 +10,8 @@ const api: PulpApi = {
   cancelRender: (jobId) => ipcRenderer.invoke('queue:cancel', jobId),
   clearFinishedRenders: () => ipcRenderer.invoke('queue:clear-finished'),
   getRenderQueue: () => ipcRenderer.invoke('queue:get'),
+  getRecentColors: () => ipcRenderer.invoke('colors:recent-get'),
+  addRecentColor: (hex) => ipcRenderer.invoke('colors:recent-add', hex),
   onRenderQueue: (listener) => {
     const handler = (_event: IpcRendererEvent, snapshot: RenderQueueSnapshot) => listener(snapshot);
     ipcRenderer.on('queue:changed', handler);
