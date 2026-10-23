@@ -27,10 +27,33 @@ export function cacheKey(input: CacheKeyInput): string {
   return createHash('sha256').update(payload).digest('hex').slice(0, 24);
 }
 
-/** File (or, for sequences, folder) name for a key: `<key>-<template-id-tail>.<ext>`. */
-export function cacheFileName(key: string, templateId: string, extension: string): string {
-  const tail = templateId.split('.').pop() ?? 'render';
-  return `${key}-${tail}${extension}`;
+/**
+ * A clean file name for a cached render: the template's name, lowercased with
+ * dashes, plus the extension; "-2", "-3" when another render already uses
+ * that name. Editors show this name as the clip name, so no hash prefix.
+ */
+export function cacheFileName(templateName: string, extension: string, taken: ReadonlySet<string> = new Set()): string {
+  const base =
+    templateName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'render';
+  let name = `${base}${extension}`;
+  for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${base}-${n}${extension}`;
+  return name;
+}
+
+/** The index file in the cache folder: cache key to file name, so the same render is found again by key. */
+export const CACHE_INDEX_FILE = '.index.json';
+
+export function sanitizeCacheIndex(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (/^[0-9a-f]{24}$/.test(k) && typeof v === 'string' && v && !v.includes('/') && !v.includes('\\') && !v.startsWith('.')) out[k] = v;
+  }
+  return out;
 }
 
 export interface CachedFile {

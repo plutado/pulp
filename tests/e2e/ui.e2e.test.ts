@@ -479,7 +479,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`document.getElementById('drag-handle').getAttribute('draggable') === 'true'`), 'the drag handle to be armed', 240);
       const file = await page.eval<string>(`document.getElementById('drag-handle').dataset.file`);
       expect(file.startsWith(join(userData, 'render-cache'))).toBe(true);
-      expect(file).toMatch(/-diagonal-wipe_00010\.png$/); // a sequence drags as its first frame, numbered with the in point
+      expect(file.split(/[\\/]/).pop()).toBe('diagonal-wipe_00010.png'); // clean name, no hash; a sequence drags as its first frame, numbered with the in point
       expect(existsSync(file)).toBe(true);
       expect(await page.eval<string>(`document.getElementById('drag-handle-text').textContent`)).toMatch(/^Drag .*\.png into your editor$/);
       // The finished job in the queue is draggable too.
@@ -500,7 +500,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`document.getElementById('cache-summary').textContent.includes('0 files')`), 'the cache to be cleared');
       expect(existsSync(file)).toBe(false);
       expect(await page.eval<string>(`document.getElementById('drag-handle').getAttribute('draggable')`)).toBe('false');
-      expect(await page.eval<string>(`document.getElementById('drag-status').textContent`)).toBe('Cache cleared; prepare again to drag.');
+      expect(await page.eval<string>(`document.getElementById('drag-status').textContent`)).toBe(
+        'Cache cleared; prepare again to drag. Clips linked to the old files are now offline in your editor.',
+      );
       // Reset the options for later tests.
       await page.eval(`(() => { for (const id of ['opt-in', 'opt-out']) { const i = document.getElementById(id); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); } const s = document.getElementById('preset'); s.value = 'prores-4444'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
     }, 120_000);

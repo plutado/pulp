@@ -10,7 +10,9 @@ import { app, dialog, nativeImage, type WebContents } from 'electron';
 import { mkdir, readdir, realpath, rm, stat } from 'node:fs/promises';
 import { deflateSync } from 'node:zlib';
 import { basename, extname, join, resolve, sep } from 'node:path';
-import { formatMB, planEviction, type CachedFile } from '../core/render-cache';
+import { writeFileAtomic } from '../core/atomic-file';
+import { CACHE_INDEX_FILE, cacheFileName, formatMB, planEviction, sanitizeCacheIndex, type CachedFile } from '../core/render-cache';
+import { readFile } from 'node:fs/promises';
 import { expandSequence } from '../core/render-guard';
 import { loadSettings, updateSettings } from './settings';
 import { lookupThumbnail } from './library-service';
@@ -26,6 +28,48 @@ export interface CacheStats {
   bytes: number;
   maxMB: number;
   summary: string;
+}
+
+async function readIndex(dir: string): Promise<Record<string, string>> {
+  try {
+    return sanitizeCacheIndex(JSON.parse(await readFile(join(dir, CACHE_INDEX_FILE), 'utf8')));
+  } catch {
+    return {};
+  }
+}
+
+async function writeIndex(dir: string, index: Record<string, string>): Promise<void> {
+  await writeFileAtomic(join(dir, CACHE_INDEX_FILE), JSON.stringify(index, null, 2) + '\n');
+}
+
+/** The file (pattern for sequences) under which a key is or will be cached; allocates a clean name on first use. */
+export async function cacheFileForKey(key: string, templateName: string, extension: string, sequence: boolean): Promise<{ path: string; fresh: boolean }> {
+  const dir = await ensureCacheDir();
+  const index = await readIndex(dir);
+  const existing = index[key];
+  if (existing) return { path: join(dir, sequence ? `${existing}_%05d${extension}` : existing), fresh: false };
+  const taken = new Set<string>([...Object.values(index).map((n) => n.toLowerCase()), ...(await readdir(dir)).map((n) => n.toLowerCase())]);
+  // A sequence's index name is its stem; its files are <stem>_00000.png and so on.
+  const base = cacheFileName(templateName, sequence ? '' : extension, taken);
+  index[key] = base;
+  await writeIndex(dir, index);
+  return { path: join(dir, sequence ? `${base}_%05d${extension}` : base), fresh: true };
+}
+
+/** Drop index entries whose files are gone. */
+async function pruneIndex(dir: string): Promise<void> {
+  const index = await readIndex(dir);
+  let changed = false;
+  for (const [key, name] of Object.entries(index)) {
+    const sequence = !extname(name);
+    const probe = sequence ? join(dir, `${name}_`) : join(dir, name);
+    const present = sequence ? (await readdir(dir)).some((n) => n.startsWith(`${name}_`)) : await stat(probe).then(() => true, () => false);
+    if (!present) {
+      delete index[key];
+      changed = true;
+    }
+  }
+  if (changed) await writeIndex(dir, index);
 }
 
 async function listCache(dir: string): Promise<CachedFile[]> {
@@ -62,12 +106,14 @@ export async function evictIfNeeded(keep: ReadonlySet<string> = new Set()): Prom
   const dir = await cacheDir();
   const victims = planEviction(await listCache(dir), settings.renderCacheMaxMB * 1024 * 1024, keep);
   for (const v of victims) await rm(v, { force: true, maxRetries: 10, retryDelay: 100 });
+  if (victims.length > 0) await pruneIndex(dir);
   return victims;
 }
 
 export async function clearRenderCache(): Promise<CacheStats> {
   const dir = await cacheDir();
   for (const f of await listCache(dir)) await rm(f.path, { force: true, maxRetries: 10, retryDelay: 100 });
+  await rm(join(dir, CACHE_INDEX_FILE), { force: true });
   return cacheStats();
 }
 

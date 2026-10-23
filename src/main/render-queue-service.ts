@@ -11,8 +11,8 @@ import type { TemplateEntry } from '../core/library';
 import { OUTPUT_PRESETS, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { RenderQueue, type RenderQueueSnapshot } from '../core/render-queue';
 import type { BatchRequest, EnqueueBatchResult, EnqueueResult, PrepareDragResult, RenderRequest } from '../shared/api';
-import { cacheFileName, cacheKey } from '../core/render-cache';
-import { dragFileFor, ensureCacheDir, evictIfNeeded, isCachedFile } from './render-cache-service';
+import { cacheKey } from '../core/render-cache';
+import { cacheFileForKey, dragFileFor, evictIfNeeded, isCachedFile } from './render-cache-service';
 import { existsSync } from 'node:fs';
 import { findTemplate, markItemUsed } from './library-service';
 import { renderTemplate } from './render';
@@ -100,9 +100,9 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
     return { ok: false, message: (err as Error).message };
   }
   const key = cacheKey({ templateId: template.manifest.id, manifest: template.manifest, params: request.params, presetId: preset.id, options: request.options });
-  const dir = await ensureCacheDir();
-  const outputPath = join(dir, cacheFileName(key, template.manifest.id, preset.extension));
-  const existing = dragFileFor(preset.sequence ? outputPath.replace(preset.extension, `_%05d${preset.extension}`) : outputPath, timing.firstFrame);
+  // Clean names (the editor shows them as clip names): lower-third-bar.mov, lower-third-bar-2.mov, keyed in the cache index.
+  const { path: outputPath } = await cacheFileForKey(key, template.manifest.name, preset.extension, preset.sequence);
+  const existing = dragFileFor(outputPath, timing.firstFrame);
   if (existsSync(existing) && (await isCachedFile(existing))) {
     return { ok: true, cached: true, file: existing };
   }

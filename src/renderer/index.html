@@ -118,10 +118,12 @@
         </div>
         <button id="drag-prepare" type="button" disabled title="Render with the current parameters and preset into the cache, so it can be dragged">Prepare for drag</button>
         <p id="drag-status" class="note"></p>
+        <p class="note">Editors link to the dragged file rather than copying it. Keep prepared renders in the cache while a project uses them: clearing the cache, or the cache evicting old files, takes those clips offline in the editor.</p>
       </div>
       <details class="cache">
         <summary>Render cache</summary>
         <p id="cache-summary" class="note"></p>
+        <p class="note warn">Clearing or shrinking the cache removes files that editor projects may link to; those clips go offline there.</p>
         <div class="render-actions">
           <button id="cache-clear" type="button">Clear cache</button>
           <button id="cache-dir" type="button">Change folder…</button>

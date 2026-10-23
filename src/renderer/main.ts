@@ -1556,7 +1556,7 @@ els.cacheClear.addEventListener('click', () => {
     els.cacheSummary.textContent = `${stats.summary} · ${stats.dir}`;
     if (state.drag && 'file' in state.drag) {
       state.drag = null;
-      els.dragStatus.textContent = 'Cache cleared; prepare again to drag.';
+      els.dragStatus.textContent = 'Cache cleared; prepare again to drag. Clips linked to the old files are now offline in your editor.';
       showDragState();
     }
   });

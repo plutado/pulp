@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cacheFileName, cacheKey, DEFAULT_CACHE_MAX_MB, formatMB, planEviction, sanitizeCacheMaxMB } from '../src/core/render-cache';
+import { cacheFileName, cacheKey, DEFAULT_CACHE_MAX_MB, formatMB, planEviction, sanitizeCacheIndex, sanitizeCacheMaxMB } from '../src/core/render-cache';
 import { parseManifest } from '../src/core/manifest';
 import { rawManifest } from './fixtures';
 
@@ -19,7 +19,15 @@ describe('render cache', () => {
     expect(cacheKey({ ...base, presetId: 'h264-mp4' })).not.toBe(k);
     expect(cacheKey({ ...base, options: { fps: 60 } })).not.toBe(k);
     expect(cacheKey({ ...base, manifest: { ...manifest, duration: 3 } })).not.toBe(k);
-    expect(cacheFileName(k, 'pulp.samples.lower-third-bar', '.mov')).toBe(`${k}-lower-third-bar.mov`);
+  });
+
+  it('names cached files after the template, without a hash, and avoids names already in use', () => {
+    expect(cacheFileName('Lower Third Bar', '.mov')).toBe('lower-third-bar.mov');
+    expect(cacheFileName('Lower Third Bar', '.mov', new Set(['lower-third-bar.mov']))).toBe('lower-third-bar-2.mov');
+    expect(cacheFileName('Lower Third Bar', '.mov', new Set(['lower-third-bar.mov', 'lower-third-bar-2.mov']))).toBe('lower-third-bar-3.mov');
+    expect(cacheFileName('***', '.png')).toBe('render.png');
+    expect(sanitizeCacheIndex({ ['a'.repeat(24)]: 'x.mov', bad: 'y', ['b'.repeat(24)]: '../z', ['c'.repeat(24)]: 3 })).toEqual({ ['a'.repeat(24)]: 'x.mov' });
+    expect(sanitizeCacheIndex(null)).toEqual({});
   });
 
   it('evicts the oldest files until under the limit, keeping protected ones', () => {

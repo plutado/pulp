@@ -70,7 +70,8 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 
 - [x] Drag a rendered file from Pulp into an NLE bin or timeline using `webContents.startDrag`: finished queue jobs and the drag handle; only cache files and finished outputs may be dragged (2-3 h)
 - [x] "Render and drag": Prepare for drag renders into the cache through the queue (progress, cancel), reuses a cached render with the same key, then arms the drag handle (2-4 h)
-- [ ] Verify drop behavior in Premiere Pro, DaVinci Resolve and Final Cut Pro on macOS, and Premiere Pro and Resolve on Windows; document quirks. Checklist and results table in `docs/nle-verification.md` (3-6 h)
+- [x] Verify drop behavior in Premiere Pro and DaVinci Resolve on macOS: bin and timeline drops from a queue job and from Prepare for drag all land with alpha intact; both apps link to the file, so cache clearing takes clips offline (warned in the app) (3-6 h)
+- [ ] Verify drop behavior in Final Cut Pro (macOS) and in Premiere Pro and Resolve on Windows; also the PNG sequence preset and a second drag of a cached render (2-3 h)
 - [x] Render cache management: folder setting, size limit with oldest-first eviction, Clear cache (1-3 h)
 
 ## 6. Template packs import (6-10 h)
