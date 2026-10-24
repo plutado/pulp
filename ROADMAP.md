@@ -2,7 +2,7 @@
 
 Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done. The "still open" row is the sum of the unticked items' own estimates, not the previous figure minus what was finished — recompute it from the items, or it drifts.
 
-Milestones keep the number they were given when they were added, so GitHub issues #1 to #20 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
+Milestones keep the number they were given when they were added, so GitHub issues #1 to #21 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
 | Milestone | Estimate |
 |---|---|
@@ -18,18 +18,19 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 10. Categorization by type and theme | 14-23 h |
 | 12. Browse and preview | 13-21 h |
 | 13. Collections | 10-17 h |
+| 21. Sample library coverage | 26-40 h |
 | 17. Unsigned builds and releases | 7-12 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
 | 19. Vertical and square formats | 13-21 h |
 | 20. Social-ready export | 8-13 h |
-| 8. 1.0 hardening and docs | 9-16 h |
+| 8. 1.0 hardening and docs | 8-13 h |
 | 14. Defaults per type and guided setup (post-1.0) | 6-10 h |
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-20)** | **156-263 h** |
-| **Still open through 1.0 (unticked items only)** | **41-69 h** |
-| **Total including post-1.0 items** | **188-321 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-21)** | **181-300 h** |
+| **Still open through 1.0 (unticked items only)** | **66-106 h** |
+| **Total including post-1.0 items** | **213-358 h** |
 
 ## 0. Foundation (done)
 
@@ -152,6 +153,63 @@ Turns the queue in the collection tray into collections; the separate queue pane
 - [x] Render all: one folder chosen once, then a job per item carrying that item's own preset, options and parameters, through the same queue as everything else. Per-item progress on each card, total progress in the tray head; two items of the same name do not render over each other. Items the library cannot reach, and media (converting it is milestone 15), are named as skipped rather than silently dropped, and the rest still renders. Finished items become the draggable render cards from this milestone's first item. The folder dialog cannot be driven over the DevTools protocol, so the render path is proved headlessly with `--collection` (3-5 h)
 - [x] Headless: `--collection <file>` renders a saved collection into `--out`, each item with its own settings, naming and skipping what the library cannot answer for. The end-to-end test renders one collection with two settings of the same template plus a missing template and a media item, and checks both outputs and both skips (1-2 h)
 
+## 21. Sample library coverage: every type three to five deep (26-40 h)
+
+The browse tree is only as convincing as what fills it. The bundled samples cover 7 of the taxonomy's 45 types (lower third, title, wipe, animated loop, frame, logo bug, light and particles), and five whole groups — design elements, video clips, stills, music, sound effects — have nothing. The rule the themes already follow applies to types: **every type in the tree has between three and five examples**, so a node never opens onto one item. Visual types are filled by original CC0 templates, spread across the four matched sets where the role fits (each set keeps one look) and by standalone templates in other styles so the styles list fills out too. Media types cannot be templates and binary files would bloat the repository, so they come from a **sample-media generator**: original CC0 files made with ffmpeg and the renderer on demand into a "Sample media" library folder, in folders whose names give each file its type. A test fails when any type has fewer than three examples across the templates and the generator's catalogue; while the milestone is open it names the types still to be filled, and that list only shrinks. Takes over "five to ten more sample templates" from milestone 8. Counts in parentheses are what exists today.
+
+- [ ] Plan and coverage test: this list; `tests/sample-coverage.test.ts` counts templates by declared type and the generator catalogue by folder-inferred type, and fails below three or above five for any type not named as still open (1-2 h)
+- [ ] Sample media generator: a pure catalogue in `src/core/sample-media.ts` (folder layout, one recipe per file: an ffmpeg `lavfi` graph for sound and music, a canvas page for stills, a bundled background template for clips) and a main-process service that writes what is missing into a folder, with `LICENSE-CC0.txt` and a README; headless `--sample-media <folder>`, and "Add sample media…" in the browse panel, which makes the folder and adds it to the library. Unit tests check every catalogue folder resolves to its intended type through the same inference the scan uses, that every expression balances, and the 3-5 rule per media type; the render test generates the whole folder and probes it (5-8 h)
+  - Video clips › stock footage (0): `Video clips/Stock footage/` boardroom-loop, newsdesk-loop, matchday-loop, festival-loop — the four background templates rendered to H.264 at 1280 × 720, four seconds each
+  - Stills › photo (0): `Stills/Photos/` sunset-haze, ocean-dusk, forest-light — photo-style gradients with bokeh and grain from a canvas page, as JPEG
+  - Stills › illustration (0): `Stills/Illustrations/` rolling-hills, skyline, rocket — flat-shape scenes from a canvas page
+  - Stills › layered graphic (0): `Stills/Layered graphics/` badge, ribbon-banner, speech-bubble — PNG with alpha from a canvas page
+  - Music › full mix (0): `Music/Full mix/` night-drive, boardroom-calm, matchday-pulse — sixteen-second synthesized pieces (kick, hat, bass, pad, lead) at 120, 84 and 140 bpm
+  - Music › stems (0): `Music/Stems/Night drive/` drums, bass, pad — the layers of the first full mix as separate files
+  - Music › sting (0): `Music/Stings/` major-hit, minor-swell, news-ident — two to three seconds each
+  - Sound effects › whoosh (0): `Sound effects/Whooshes/` soft, bright, low, reverse — band-passed noise under a shaped envelope
+  - Sound effects › impact (0): `Sound effects/Impacts/` deep-hit, snap, boom
+  - Sound effects › UI / tech (0): `Sound effects/UI tech/` click, beep, confirm, error
+  - Sound effects › alarm (0): `Sound effects/Alarms/` two-tone, beeper, buzzer
+  - Sound effects › ambience (0): `Sound effects/Ambience/` room-tone, wind, rain
+  - Sound effects › nature / weather (0): `Sound effects/Nature weather/` thunder, gust, stream
+  - Sound effects › animals (0): `Sound effects/Animals/` cricket, bird-chirp, frog — synthesized, and named as such
+  - Sound effects › vehicles (0): `Sound effects/Vehicles/` engine-idle, pass-by, siren
+  - Sound effects › crowd (0): `Sound effects/Crowd/` murmur, applause, cheer
+  - Sound effects › foley (0): `Sound effects/Foley/` knock, footsteps, clock-tick
+  - Sound effects › explosion (0): `Sound effects/Explosions/` blast, distant-boom, debris
+  - Sound effects › sci-fi (0): `Sound effects/Sci-fi/` laser, drone, computer
+  - Sound effects › musical phrase (0): `Sound effects/Musical phrases/` rising-arpeggio, falling-minor, three-note-ident
+- [ ] Titles and text, twelve templates (4-6 h)
+  - lower third (5): done — the four sets and Lower Third Bar
+  - title (5): done — the four sets and Title Card
+  - opener (0): Boardroom opener (a mark that draws itself, company name, tagline), Newsdesk opener (slash sweep, programme name, date line), Matchday opener (chevron burst, fixture, kick-off)
+  - end card / credits (0): Boardroom credits (a rolling list of roles and names), Festival end card (thank-you with confetti and a date), Newsdesk end card (programme credits and handles behind the slash)
+  - callout / caption (0): Boardroom callout (a pointer line to a numbered label), Newsdesk caption (a quote bar with attribution), Festival callout (a speech-bubble label)
+  - social / subscribe (0): Festival subscribe (bell and handle), Matchday follow (handle chip with chevrons), Newsdesk social strip (handle and hashtag bar)
+- [ ] Design elements, eighteen templates, mostly standalone so the styles list gains tech, retro, organic, hand-drawn, elegant and cinematic (6-9 h)
+  - shapes and accents (0): Tech hex burst (tech), Retro sun stripes (retro), Soft blobs (organic)
+  - icons (0): Line icons (clean; check, play, star, heart, bell chosen by parameter), Hand-drawn icons (hand-drawn), Playful icons (playful)
+  - arrows and pointers (0): Boardroom arrow (a hairline arrow that draws in), Newsdesk pointer (a slash-cut pointer), Hand-drawn arrow (hand-drawn)
+  - infographic and charts (0): Boardroom bar chart (up to five bars from parameters), Newsdesk poll (two to four options with percentages), Matchday head-to-head (two stats compared)
+  - counter / timer (0): Boardroom counter (a number counting to its target with prefix and suffix), Matchday clock (a match clock running from a start time), Elegant counter (elegant; serif figures)
+  - countdown leader (0): Matchday kick-off countdown (ten to zero in chevrons), Festival midnight countdown (ten to zero with confetti), Cinematic leader (cinematic; a film-leader ring and sweep)
+- [ ] Backgrounds, six templates (2-3 h)
+  - animated loop (4): done — the four sets
+  - still background (0): Boardroom paper (a still gradient with the dot grid), Cinematic gradient (cinematic), Soft gradient (organic)
+  - texture / pattern (0): Film grain field (grunge), Halftone dots (retro), Scanlines (tech)
+- [ ] Transitions, nine templates (3-5 h)
+  - wipe (5): done — the four sets and Diagonal Wipe
+  - reveal / matte (0): Boardroom blinds, Festival iris matte, Matchday split
+  - flash / light (0): Festival sparkle flash, Newsdesk flash cut, Cinematic light flash (cinematic)
+  - glitch (0): Newsdesk glitch, Tech glitch (tech), VHS glitch (retro)
+- [ ] Overlays, fourteen templates (5-7 h)
+  - overlay (0): Boardroom dot grid, Newsdesk ticker, Matchday chevron band, Festival ribbon
+  - frame / border (1): Boardroom frame exists; Festival frame, Matchday frame
+  - light and particles (1): Festival sparkle corners exists; Festival confetti burst, Dust motes (cinematic)
+  - film / grunge (0): Film grain (grunge), Scratches (grunge), VHS tracking (retro)
+  - logo bug / corner (2): Newsdesk bug and Matchday score bug exist; Boardroom bug
+  - vignette (0): Soft vignette (organic), Letterbox vignette (cinematic), Retro vignette (retro)
+
 ## 17. Unsigned builds and releases (7-12 h)
 
 The buildable half of the old "Packaging and signing" milestone; signing is milestone 7, blocked on account decisions. Unsigned artifacts also make the hardware-blocked verification sessions in milestones 2 and 5 easier to run when a machine is available.
@@ -195,13 +253,12 @@ After milestone 19, which it depends on: a platform preset is mostly an aspect, 
 - [ ] Cover image: a still from a frame picked on the scrub bar, written beside the video at the same aspect and resolution, for the thumbnail or cover a platform asks for separately (2-3 h)
 - [ ] Hand-off: "Share…" opens the system share sheet with the rendered file, and "Open upload page" opens the platform's own upload page in the browser with the file revealed in the file manager. An ADR records the choice of hand-off over integration, so the reasoning survives the first request for one-click posting (2-3 h)
 
-## 8. 1.0 hardening and docs (9-16 h)
+## 8. 1.0 hardening and docs (8-13 h)
 
 - [ ] A JSON Schema for the template manifest and `pack.json`, generated from or checked against the validator, and the compatibility rule stated where authors read it: fields are added rather than repurposed, and an incompatible change takes a new `formatVersion`. **No version freeze is planned.** This item used to be "freeze template format v1 here"; milestone 19 changes the format and later milestones may too, so the format stays versioned and documented rather than declared final (2-3 h)
 - [ ] Template authoring guide with a step-by-step walkthrough and a `pulp-template` starter folder (2-3 h)
 - [ ] Accessibility pass across every region: keyboard navigation for the browse tree and nodes, the grid, the player, the tray, the inspector tabs (arrow keys, roving tabindex), the filter chips and the scope chip; splitter keyboard resizing kept; focus states and screen reader labels throughout (2-3 h)
 - [ ] Crash and error reporting that stays local (log file, "copy diagnostics" in the status bar) (1-2 h)
-- [ ] Five to ten more original CC0 sample templates, filling type and theme gaps left after milestone 10 (1-3 h)
 - [ ] User guide for the window: regions, keyboard shortcuts, search syntax; README and screenshots updated for the new layout (1-2 h)
 
 ## 14. Defaults per type and guided setup (6-10 h, after 1.0)
