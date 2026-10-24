@@ -2,7 +2,7 @@
 
 Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done. The "still open" row is the sum of the unticked items' own estimates, not the previous figure minus what was finished — recompute it from the items, or it drifts.
 
-Milestones keep the number they were given when they were added, so GitHub issues #1 to #21 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
+Milestones keep the number they were given when they were added, so GitHub issues #1 to #22 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
 | Milestone | Estimate |
 |---|---|
@@ -22,15 +22,16 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 17. Unsigned builds and releases | 7-12 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
 | 19. Vertical and square formats | 13-21 h |
+| 22. Image slots in templates | 17-26 h |
 | 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 8-13 h |
 | 14. Defaults per type and guided setup (post-1.0) | 6-10 h |
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
-| 9. Later (post-1.0) | 10-22 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-21)** | **181-300 h** |
-| **Still open through 1.0 (unticked items only)** | **31-51 h** |
-| **Total including post-1.0 items** | **213-358 h** |
+| 9. Later (post-1.0) | 7-17 h |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-22)** | **198-326 h** |
+| **Still open through 1.0 (unticked items only)** | **48-77 h** |
+| **Total including post-1.0 items** | **230-384 h** |
 
 ## 0. Foundation (done)
 
@@ -242,6 +243,18 @@ Before milestone 8, which writes the authoring guide and the JSON Schema: both s
 - [x] Cards take the item's own shape instead of letterboxing a portrait thumbnail into a 16:9 box: each picture carries its own `aspect-ratio`, between 16:9 and a full 9:16 (anything taller is boxed inside 9:16). The windowing math wants one row pitch, so a grid takes its row height from the tallest picture in it (`tallestRatio`, `cardHeight(width, ratio)` in `src/core/results-view.ts`) and the container publishes that pitch and the picture height as custom properties; an all-wide grid is exactly what it was. The Info tab's poster takes the shape too. Unit tests on the geometry, a DOM test that a tall item grows the row and only its own card, and an end-to-end test on a tall fixture clip (2-3 h)
 - [x] The bundled templates move to the aspect model: the 23 originals that declared 1920 × 1080 now declare the four aspects, scale from the short side and lay out from the frame they are handed, with their 16:9 output byte-identical to before. Each set's lower third and title re-lay out for a tall frame rather than scaling down — the lower third sits above the caption band and left of the controls column with its text shrunk or wrapped to fit, the title wraps its headline and centres above the middle — so one template is its own vertical version. The samples test checks that every bundled template declares its aspects, has no pixel size, reads the state's size and takes no scale from one side alone; the render test renders a lower third and a title at 9:16 and reads pixels inside the graphic, in the caption band and in the controls column (3-5 h)
 
+## 22. Image slots in templates (17-26 h, plus 3-5 h after 1.0)
+
+Right after milestone 19, because both touch the template format and milestone 8's schema and authoring guide should describe the format as it ends up. Today a lower third takes text and colours but not a logo; adding the logo in the editor means re-keyframing it to follow every move the graphic makes. Instead, a template declares **image slots that ride its own animation**: the image is drawn inside the template's layers, so it follows every move, fade, mask, wipe and light pass for nothing. Takes over the `image` and `media` parameter types from milestone 9; the media half (a video plate behind a title) stays last and may land after 1.0.
+
+- [ ] Template format: an `image` parameter — a box in the layout (position and size as fractions of the frame, per aspect where the template needs it), a fit (`contain` or `cover`), an alignment and a safe margin inside the box; the template draws the image inside its animated layers, and with no image chosen the slot is skipped or falls back to the company name set in type (a `fallbackText` reference to a text parameter). Treatments as parameters alongside: original colours, tinted with a colour, or white or black for contrast; an optional shadow or glow. PNG and SVG with alpha are the normal case; JPEG and other library stills are accepted. The state carries the image as an element the template can draw (`state.images[id]`, loaded and decoded by the host before the first frame, so a frame is never drawn with a half-loaded logo). Validator with tests, `docs/template-format.md`, an entry in `CHANGELOG.md` (3-4 h)
+- [ ] Security, with an ADR: templates are blocked from library files today (`pulp-media://` refuses template referrers), and that stays the rule. A template is granted exactly the images chosen for its parameters, by library id, for the duration of a preview or render, and nothing else: no path, no folder, no other item. The grant lives in the main process and is checked by the protocol handler; the end-to-end test proves a template cannot read a chosen image's neighbour, or any image when none is chosen (2-3 h)
+- [ ] Parameters tab: an image picker per slot with a thumbnail of the choice — from the library (stills, with search) or from a file, in which case the file is copied into a managed "Imported" library folder under user data and indexed like any other item, so the library stays the single source of what a template may see. Clear, and a note when the chosen item is offline. Saved parameter presets remember the choice by library id, and a preset whose image has gone says so instead of failing (3-5 h)
+- [ ] Renders, collections, CSV batch and the cache: the chosen image travels with the parameters (by id) through the queue, Prepare for drag, collection cards and `--param slot=<id>` headlessly; a CSV column can choose a different logo per row (an id, or a file name resolved against the Imported folder); the render cache key includes the image's id, size and modification time so a replaced logo renders afresh; a missing file is flagged on the card and in the Info tab like an offline item and the render refuses it with the reason rather than drawing a blank (2-3 h)
+- [ ] Slots in the samples, where a logo belongs: a badge on each set's lower third, a mark above each set's title, a logo in each corner bug, a logo at the centre of each set's transition stinger, a lockup with handles on each end card, and a watermark on each background; the standalone Lower Third Bar and Title Card gain one each. All default to the fallback text, so the templates render as they do today with no image chosen; the samples test checks that every slot declares a box, a fit and a fallback (3-5 h)
+- [ ] A "logo reveal" type in the Titles and text group (the type list is closed and versioned, so the taxonomy version moves to 2, with ADR 0010's extension rule followed: added, never renamed; the coverage test picks it up). Three to five standalone reveals across families canvas does well — minimal, elegant line, glitch, particles, light sweep, ink — each around a slot, and a short ident for each matched set (one to three seconds, dark ground, one move) in its look. All original CC0, inspired by common patterns, never copied; each rendered and checked at 16:9 and 9:16 (4-6 h)
+- [ ] Media slots, after the image slots and possibly after 1.0: a `media` parameter for a video plate behind a title or inside a frame, drawn frame-accurately from a library clip (the host decodes the frame for the template's time, with a trim and a loop option), with the same grant rule, picker and cache-key handling as images (3-5 h, post-1.0)
+
 ## 20. Social-ready export (8-13 h)
 
 After milestone 19, which it depends on: a platform preset is mostly an aspect, a resolution and a frame rate, and none of those are choices until templates stop declaring a pixel size.
@@ -281,8 +294,7 @@ Takes over "audio in templates" from the Later list. Manifest additions are opti
 - [ ] Paired sound effects with variations on transitions: declared by the template or the pack, chosen in the stage's variant picker, shown as badges on cards, embedded on render (2-4 h)
 - [ ] Stems: layered music as several files or a stem manifest; one lane per layer with waveform and mute and solo in the stage; render the selected mix or one file per stem (4-6 h)
 
-## 9. Later, after 1.0 (10-22 h)
+## 9. Later, after 1.0 (7-17 h)
 
-- [ ] `image` and `media` parameter types (logos, background plates) (3-5 h)
 - [ ] Command-line interface as a separate entry point for scripted batch renders (2-4 h)
 - [ ] Optional local semantic search over the library (on-device embeddings, off by default, no network) (5-13 h)

@@ -51,7 +51,7 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Sample media on demand: a "Sample media" folder of original CC0 sounds, music, stills and clips, made with ffmpeg and the renderer when you ask for it, so the browse tree has something under every media type.
 - A headless command-line render mode (below).
 
-Not yet: social-ready export (gather items, render all), installers and signed builds, verification on Windows. These are on the [roadmap](ROADMAP.md).
+Not yet: image slots in templates (logos that ride a graphic's animation), social-ready export, installers and signed builds, verification on Windows. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
@@ -63,6 +63,7 @@ Milestones 1-6, 10-13, 18, 19 and 21 (renderer, alpha export, parameter editor, 
 |---|---|---|
 | 17. Unsigned builds and releases | electron-builder, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 7-12 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
+| 22. Image slots in templates | An `image` parameter that rides a template's own animation: a logo drawn inside the graphic's layers so it follows every move, with a picker in the Parameters tab, a managed Imported folder, a by-id grant so templates see only the images chosen for them, slots in the sample sets and a new logo-reveal type | 17-26 h |
 | 20. Social-ready export | Platform presets (aspect, resolution, frame rate, H.264/AAC, bitrate) with warnings when a render runs past a platform's length or file-size limit, a cover image, and handing the file to the system share sheet or the platform's upload page — no accounts, no posting through APIs | 8-13 h |
 | 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 
