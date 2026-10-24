@@ -8,20 +8,18 @@
  * skipping when something is missing (used in CI).
  */
 
-import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
-import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { detectFfmpeg } from '../../src/core/ffmpeg';
 import { itemId } from '../../src/core/library-scan';
 import { mediaUrlFor } from '../../src/core/media-url';
 import { scanLibrary } from '../../src/core/library';
 import { SAMPLE_MEDIA, sampleMediaPath } from '../../src/core/sample-media';
+import { ffmpegArgs, runBounded, runBoundedBuffer } from './process';
 
-const run = promisify(execFile);
 const ROOT = join(__dirname, '..', '..');
 const FIXTURES = join(__dirname, 'templates');
 
@@ -41,7 +39,8 @@ async function findTools(): Promise<{ electron: string; ffmpeg: string; ffprobe:
   const sibling = join(dirname(ffmpeg.path), process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe');
   const ffprobe = ffmpeg.path.includes('/') || ffmpeg.path.includes('\\') ? sibling : 'ffprobe';
   try {
-    await run(ffprobe, ['-version']);
+    const probeOk = await runBounded(ffprobe, ['-version'], { timeoutMs: 20_000 });
+    if (probeOk.code !== 0) throw new Error('ffprobe did not run');
   } catch {
     return 'ffprobe not found next to ffmpeg';
   }
@@ -76,7 +75,8 @@ describe.skipIf(!available)('end-to-end render', () => {
 
   beforeAll(async () => {
     // Render the current sources, not a stale build.
-    await run(process.execPath, [join(ROOT, 'node_modules', 'electron-vite', 'bin', 'electron-vite.js'), 'build'], { cwd: ROOT });
+    const built = await runBounded(process.execPath, [join(ROOT, 'node_modules', 'electron-vite', 'bin', 'electron-vite.js'), 'build'], { cwd: ROOT, timeoutMs: 100_000 });
+    if (built.code !== 0) throw new Error(`build failed: ${built.stderr}`);
     out = await mkdtemp(join(tmpdir(), 'pulp-e2e-'));
   }, 120_000);
 
@@ -92,45 +92,40 @@ describe.skipIf(!available)('end-to-end render', () => {
     opts: { timeoutMs?: number; extra?: string[]; env?: Record<string, string> } = {},
   ) {
     const args = ['.', '--render', templateId, '--preset', preset, '--out', join(out, file), ...(opts.extra ?? [])];
-    try {
-      const { stdout, stderr } = await run(electron, args, {
-        cwd: ROOT,
-        timeout: opts.timeoutMs ?? 90_000,
-        env: { ...process.env, ...opts.env },
-      });
-      return { code: 0, stdout, stderr };
-    } catch (err) {
-      const e = err as { code?: number; stdout?: string; stderr?: string };
-      return { code: e.code ?? -1, stdout: e.stdout ?? '', stderr: e.stderr ?? '' };
-    }
+    const r = await runBounded(electron, args, { cwd: ROOT, timeoutMs: opts.timeoutMs ?? 90_000, env: { ...process.env, ...opts.env } });
+    return { code: r.code ?? -1, stdout: r.stdout, stderr: r.stderr };
   }
 
+  /** ffprobe and ffmpeg reads of a finished file: quick, so a short limit; a stall here is a bug, not slowness. */
+  const TOOL_TIMEOUT_MS = 60_000;
+
   async function probe(file: string): Promise<StreamInfo> {
-    const { stdout } = await run(ffprobe, [
+    const { stdout, stderr } = await runBounded(ffprobe, [
       '-v', 'error',
       '-count_frames',
       '-select_streams', 'v:0',
       '-show_entries', 'stream=codec_name,codec_tag_string,width,height,pix_fmt,nb_read_frames,r_frame_rate,color_range,color_space,color_transfer,color_primaries:stream_tags',
       '-of', 'json',
       file,
-    ]);
+    ], { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(stdout, stderr).not.toBe('');
     return (JSON.parse(stdout) as { streams: StreamInfo[] }).streams[0]!;
   }
 
   /** Lowest and highest alpha value in one decoded frame. */
   async function alphaRange(file: string, frame: number, decoder?: string): Promise<[number, number]> {
-    const { stdout } = await run(
+    const { stdout } = await runBoundedBuffer(
       ffmpeg,
-      [
+      ffmpegArgs([
         '-v', 'error',
         ...(decoder ? ['-c:v', decoder] : []),
         '-i', file,
         '-vf', `select=eq(n\\,${frame})`,
         '-frames:v', '1',
         '-f', 'rawvideo', '-pix_fmt', 'rgba', '-',
-      ],
+      ]),
       // One raw RGBA frame; 8K needs 7680 * 4320 * 4 = ~127 MiB.
-      { encoding: 'buffer', maxBuffer: 192 * 1024 * 1024 },
+      { timeoutMs: 180_000, maxBuffer: 192 * 1024 * 1024 },
     );
     let min = 255;
     let max = 0;
@@ -148,12 +143,12 @@ describe.skipIf(!available)('end-to-end render', () => {
    * Converts to RGBA before cropping: on chroma-subsampled video a 1px crop would round to nothing.
    */
   async function pixels(file: string, x: number, y: number, count = 1): Promise<number[]> {
-    const { stdout } = await run(
+    const { stdout, stderr } = await runBoundedBuffer(
       ffmpeg,
-      ['-v', 'error', '-i', file, '-vf', `format=rgba,crop=${count}:1:${x}:${y}`, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-'],
-      { encoding: 'buffer' },
+      ffmpegArgs(['-v', 'error', '-i', file, '-vf', `format=rgba,crop=${count}:1:${x}:${y}`, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']),
+      { timeoutMs: TOOL_TIMEOUT_MS },
     );
-    expect(stdout.length).toBe(count * 4);
+    expect(stdout.length, stderr).toBe(count * 4);
     return [...stdout];
   }
 
@@ -235,13 +230,8 @@ describe.skipIf(!available)('end-to-end render', () => {
   it('makes the whole sample-media folder, and every file lands with the type its folder means', async () => {
     const folder = join(out, 'Sample media');
     const makeAll = async () => {
-      try {
-        const { stdout, stderr } = await run(electron, ['.', '--sample-media', folder], { cwd: ROOT, timeout: 540_000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env } });
-        return { code: 0, stdout, stderr };
-      } catch (err) {
-        const e = err as { code?: number; stdout?: string; stderr?: string };
-        return { code: e.code ?? -1, stdout: e.stdout ?? '', stderr: e.stderr ?? '' };
-      }
+      const r = await runBounded(electron, ['.', '--sample-media', folder], { cwd: ROOT, timeoutMs: 540_000 });
+      return { code: r.code ?? -1, stdout: r.stdout, stderr: r.stderr };
     };
     const result = await makeAll();
     expect(result.code, result.stderr).toBe(0);
@@ -259,7 +249,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     // One of each kind through ffprobe: a clip at the catalogue size, a stereo mix, a still with alpha.
     const clip = await probe(join(folder, 'Video clips', 'Stock footage', 'boardroom-loop.mp4'));
     expect(clip).toMatchObject({ codec_name: 'h264', width: 1280, height: 720 });
-    const { stdout: mix } = await run(available!.ffprobe, ['-v', 'error', '-show_entries', 'stream=channels,sample_rate:format=duration', '-of', 'json', join(folder, 'Music', 'Full mix', 'night-drive.wav')]);
+    const { stdout: mix } = await runBounded(available!.ffprobe, ['-v', 'error', '-show_entries', 'stream=channels,sample_rate:format=duration', '-of', 'json', join(folder, 'Music', 'Full mix', 'night-drive.wav')], { timeoutMs: TOOL_TIMEOUT_MS });
     const mixInfo = JSON.parse(mix) as { streams: { channels: number; sample_rate: string }[]; format: { duration: string } };
     expect(mixInfo.streams[0]).toMatchObject({ channels: 2, sample_rate: '48000' });
     expect(Number(mixInfo.format.duration)).toBeCloseTo(16, 0);
@@ -271,7 +261,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     for (const item of SAMPLE_MEDIA) {
       if (item.recipe.kind !== 'audio') continue;
       const wav = join(folder, ...sampleMediaPath(item));
-      const { stderr } = await run(ffmpeg, ['-hide_banner', '-i', wav, '-af', 'volumedetect', '-f', 'null', '-']);
+      const { stderr } = await runBounded(ffmpeg, ffmpegArgs(['-hide_banner', '-i', wav, '-af', 'volumedetect', '-f', 'null', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
       const max = Number(/max_volume: (-?[\d.]+) dB/.exec(stderr)?.[1]);
       const mean = Number(/mean_volume: (-?[\d.]+) dB/.exec(stderr)?.[1]);
       expect(max, `${item.file} peaks at ${max} dB`).toBeLessThan(-0.2);
@@ -477,11 +467,7 @@ describe.skipIf(!available)('end-to-end render', () => {
       }),
     );
     const folder = join(out, 'collection-out');
-    const result = await run(electron, ['.', '--collection', file, '--out', folder], { cwd: ROOT, timeout: 180_000 }).catch((err: { code?: number; stdout?: string; stderr?: string }) => ({
-      stdout: err.stdout ?? '',
-      stderr: err.stderr ?? '',
-      code: err.code ?? -1,
-    }));
+    const result = await runBounded(electron, ['.', '--collection', file, '--out', folder], { cwd: ROOT, timeoutMs: 180_000 });
     expect(result.stdout).toContain('collection: 4 items from show into');
     expect(result.stdout).toContain('collection: 2 rendered, 0 failed');
     // Named and skipped, not silently dropped.
@@ -623,8 +609,8 @@ describe.skipIf(!available)('end-to-end render', () => {
     // Two stills in a scratch library: the logo the user picks, and its neighbour the template must not see.
     const logos = join(out, 'logos');
     await mkdir(logos, { recursive: true });
-    await run(ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x00ff00:s=64x64', '-frames:v', '1', join(logos, 'logo.png')]);
-    await run(ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0xff0000:s=64x64', '-frames:v', '1', join(logos, 'secret.png')]);
+    await runBounded(ffmpeg, ffmpegArgs(['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x00ff00:s=64x64', '-frames:v', '1', join(logos, 'logo.png')]), { timeoutMs: TOOL_TIMEOUT_MS });
+    await runBounded(ffmpeg, ffmpegArgs(['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0xff0000:s=64x64', '-frames:v', '1', join(logos, 'secret.png')]), { timeoutMs: TOOL_TIMEOUT_MS });
     const logoId = itemId(`media:${join(logos, 'logo.png')}`);
     const secretId = itemId(`media:${join(logos, 'secret.png')}`);
     const libs = ['--library', FIXTURES, '--library', logos];

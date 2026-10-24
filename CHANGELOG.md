@@ -129,6 +129,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- The test suite can no longer stall on a child process. Every ffmpeg, ffprobe, Electron and build run the end-to-end tests start goes through one runner with no stdin, a time limit and a whole-tree kill (which Windows needs: killing Electron's main process leaves its helpers holding the pipes), ffmpeg is always started with `-nostdin`, the CI jobs have time limits, and on CI the reporter names each test as it starts, so a stall says where it is.
 - The Info tab's Location row read `boardroom\lower-third` on Windows. It is a breadcrumb inside the library folder, not a path, so it now uses forward slashes on every platform; the tooltip keeps the native path.
 - `settings.json` (library folders, recent colors) is written atomically: a temporary file is renamed over the old one, so a crash or a reader during a save sees the old or the new file and never a half-written one that would lose the library folder list. Changes that arrive close together are queued so none is lost.
 - The end-to-end tests' cleanup no longer fails on Windows with EBUSY: they wait for the app to exit and delete scratch folders with retries, since Windows refuses to delete files a just-killed process still holds.

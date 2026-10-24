@@ -8,20 +8,19 @@
  * PULP_E2E=1 fails instead of skipping.
  */
 
-import { spawn, execFile, type ChildProcess } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 import { deflateSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { detectFfmpeg } from '../../src/core/ffmpeg';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
+import { ffmpegArgs, killTree, runBounded } from './process';
 
-const run = promisify(execFile);
 const ROOT = join(__dirname, '..', '..');
 
 async function findElectron(): Promise<string> {
@@ -258,7 +257,8 @@ describe.skipIf(!electron)('inspector UI', () => {
   };
 
   beforeAll(async () => {
-    await run(process.execPath, [join(ROOT, 'node_modules', 'electron-vite', 'bin', 'electron-vite.js'), 'build'], { cwd: ROOT });
+    const built = await runBounded(process.execPath, [join(ROOT, 'node_modules', 'electron-vite', 'bin', 'electron-vite.js'), 'build'], { cwd: ROOT, timeoutMs: 100_000 });
+    if (built.code !== 0) throw new Error(`build failed: ${built.stderr}`);
     userData = await mkdtemp(join(tmpdir(), 'pulp-ui-'));
     mediaDir = join(userData, 'media-library');
     await mkdir(mediaDir, { recursive: true });
@@ -277,14 +277,10 @@ describe.skipIf(!electron)('inspector UI', () => {
     await writeFile(join(mediaDir, 'silence.wav'), await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'silence.wav')));
     const ffmpeg = await detectFfmpeg();
     if (ffmpeg.ok) {
-      try {
-        await run(ffmpeg.path, ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'clip.mp4')]);
-        // A tall clip too, for the orientation filter and the portrait cards.
-        await run(ffmpeg.path, ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=36x64:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'tall.mp4')]);
-        haveVideo = true;
-      } catch {
-        haveVideo = false;
-      }
+      const wide = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'clip.mp4')]), { timeoutMs: 60_000 });
+      // A tall clip too, for the orientation filter and the portrait cards.
+      const tall = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=36x64:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'tall.mp4')]), { timeoutMs: 60_000 });
+      haveVideo = wide.code === 0 && tall.code === 0;
     }
     await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir] }));
     app = spawn(electron!, ['.', `--remote-debugging-port=${port}`], {
@@ -311,7 +307,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       // process holds a file in it open (EBUSY), and Chromium's helper processes can outlive the
       // main process by a moment, so wait for the exit and then delete with retries.
       const exited = once(app, 'exit');
-      app.kill('SIGKILL');
+      // The whole tree: on Windows kill() reaches the main process only, and the GPU and renderer
+      // helpers would keep the profile folder busy.
+      killTree(app.pid);
       await Promise.race([exited, new Promise((r) => setTimeout(r, 10_000))]);
     }
     if (userData) await rm(userData, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
@@ -642,7 +640,8 @@ describe.skipIf(!electron)('inspector UI', () => {
       const ffmpeg = await detectFfmpeg();
       expect(ffmpeg.ok).toBe(true);
       if (!ffmpeg.ok) return;
-      const { stderr } = await run(ffmpeg.path, ['-hide_banner', '-i', file, '-f', 'null', '-']).catch((e: { stderr: string }) => e);
+      // -nostdin and a time limit: a probe of a finished file must never be what stalls the suite (docs/platform-notes.md).
+      const { stderr } = await runBounded(ffmpeg.path, ffmpegArgs(['-hide_banner', '-i', file, '-f', 'null', '-']), { timeoutMs: 60_000 });
       expect(stderr).toMatch(/ 720x720[, ]/);
 
       // Leave the tray and the Output tab as the tests that follow expect them: no cards, the default preset, no trim.
