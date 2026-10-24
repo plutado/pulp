@@ -27,7 +27,7 @@ import {
   type BadgeId,
   type ResultBadge,
 } from '../core/results-view';
-import { HOVER_DWELL_MS, stripWidthPercent, tileAt, tilePercent, wantsStrip } from '../core/hover-scrub';
+import { canHaveStrip, HOVER_DWELL_MS, STRIP_RETRY_MS, stripWidthPercent, tileAt, tilePercent } from '../core/hover-scrub';
 import { entryType, typeInfo } from '../core/taxonomy';
 import { wantsWaveform, waveformPath } from '../core/waveform';
 import { peaksFor } from './waveforms';
@@ -66,25 +66,45 @@ function Badges({ badges }: { badges: ResultBadge[] }) {
 
 // Hover-scrub. Strips are asked for when the pointer rests on a card and kept for
 // the session; until one arrives the card shows its poster, so a hover never blinks.
+//
+// Only a settled answer is kept. "Not ready" — a busy machine, a clip still to be
+// probed — is asked again while the pointer stays on the card, because a card that
+// remembered it would never scrub again however long the item sat there.
 const strips = signal<ReadonlyMap<string, string | null>>(new Map());
 /** The card being scrubbed and which of its frames is showing. */
 const scrub = signal<{ id: string; tile: number } | null>(null);
 const asking = new Set<string>();
-let dwell: ReturnType<typeof setTimeout> | undefined;
+/** A dwell timer per card: entering or leaving one card must not cancel another's request. */
+const dwells = new Map<string, ReturnType<typeof setTimeout>>();
 
-function requestStrip(entry: LibraryEntry): void {
-  clearTimeout(dwell);
-  if (!wantsStrip(entry) || strips.value.has(entry.id) || asking.has(entry.id)) return;
-  dwell = setTimeout(() => {
-    asking.add(entry.id);
-    void window.pulp.hoverStrip(entry.id).then((result) => {
-      asking.delete(entry.id);
-      if (result.reason) console.warn(`No hover-scrub strip for ${entry.id}: ${result.reason}`);
-      // A busy machine is worth asking about again next time; anything else is remembered as "none".
-      if (result.url === null && result.transient) return;
-      strips.value = new Map(strips.value).set(entry.id, result.url);
-    });
-  }, HOVER_DWELL_MS);
+function cancelDwell(id: string): void {
+  const timer = dwells.get(id);
+  if (timer === undefined) return;
+  clearTimeout(timer);
+  dwells.delete(id);
+}
+
+function requestStrip(entry: LibraryEntry, delay = HOVER_DWELL_MS): void {
+  // canHaveStrip, not wantsStrip: an unprobed clip could still scrub in a moment,
+  // and the main process is the one that knows whether it can yet.
+  if (!canHaveStrip(entry) || strips.value.has(entry.id) || asking.has(entry.id) || dwells.has(entry.id)) return;
+  dwells.set(
+    entry.id,
+    setTimeout(() => {
+      dwells.delete(entry.id);
+      asking.add(entry.id);
+      void window.pulp.hoverStrip(entry.id).then((result) => {
+        asking.delete(entry.id);
+        if (result.reason) console.warn(`No hover-scrub strip for ${entry.id}: ${result.reason}`);
+        if (result.url === null && result.transient) {
+          // Not possible yet, rather than not possible: try again if the pointer is still here.
+          if (scrub.value?.id === entry.id) requestStrip(entry, STRIP_RETRY_MS);
+          return;
+        }
+        strips.value = new Map(strips.value).set(entry.id, result.url);
+      });
+    }, delay),
+  );
 }
 
 /** Pointer position across the picture picks the frame; the signal only moves when the frame does. */
@@ -97,7 +117,7 @@ function onScrub(entry: LibraryEntry, event: PointerEvent): void {
 }
 
 function endScrub(entry: LibraryEntry): void {
-  clearTimeout(dwell);
+  cancelDwell(entry.id);
   if (scrub.value?.id === entry.id) scrub.value = null;
 }
 

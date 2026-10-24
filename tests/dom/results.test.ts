@@ -12,6 +12,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { initialAppState, setIndex, setQuery } from '../../src/core/app-state';
 import type { LibraryIndex, MediaEntry } from '../../src/core/library-types';
+import { HOVER_DWELL_MS, STRIP_RETRY_MS } from '../../src/core/hover-scrub';
+import type { HoverStripResult } from '../../src/shared/api';
 import { cardHeight, LIST_ROW_HEIGHT, type ResultsViewState } from '../../src/core/results-view';
 import { mountResults } from '../../src/renderer/results';
 import { appState, resultsView } from '../../src/renderer/store';
@@ -30,8 +32,13 @@ const GRID: ResultsViewState = { mode: { visual: 'grid', audio: 'list' }, thumbS
 
 function clip(i: number): MediaEntry {
   const name = `Clip ${String(i).padStart(3, '0')}`;
-  return { kind: 'media', key: `clip-${i}`, id: `id-${i}`, path: `/lib/${name}.mov`, root: '/lib', name, mediaKind: 'video', ext: '.mov', size: 1024, mtimeMs: 0, tags: [] };
+  // Probed: hover-scrub spreads its frames over a duration (src/core/hover-scrub.ts).
+  return { kind: 'media', key: `clip-${i}`, id: `id-${i}`, path: `/lib/${name}.mov`, root: '/lib', name, mediaKind: 'video', ext: '.mov', size: 1024, mtimeMs: 0, tags: [], meta: { duration: 4 } as MediaEntry['meta'] };
 }
+
+/** What the window asks the main process for. Each test sets what comes back. */
+let hoverStrip: (id: string) => Promise<HoverStripResult> = () => Promise.resolve({ url: null });
+const stripCalls: string[] = [];
 
 const index: LibraryIndex = { roots: ['/lib'], templates: [], media: Array.from({ length: COUNT }, (_, i) => clip(i)), problems: [], builtAt: '2026-10-23T00:00:00Z' };
 
@@ -45,6 +52,7 @@ function fixSize(el: HTMLElement, width: number, height: number): void {
 
 /** Preact renders on a microtask after a signal changes; let it. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function scrollTo(top: number): Promise<void> {
   container.scrollTop = top;
@@ -57,6 +65,13 @@ const names = () => rendered().map((li) => li.querySelector('.name')?.textConten
 const spacers = () => [...container.querySelectorAll<HTMLElement>('li.spacer')].map((li) => Number.parseFloat(li.style.height));
 
 beforeAll(async () => {
+  (globalThis as { window?: unknown }).window ??= globalThis;
+  (window as unknown as { pulp: { hoverStrip: (id: string) => Promise<HoverStripResult> } }).pulp = {
+    hoverStrip: (id: string) => {
+      stripCalls.push(id);
+      return hoverStrip(id);
+    },
+  };
   container = document.createElement('ul');
   container.id = 'results';
   fixSize(container, WIDTH, HEIGHT);
@@ -128,6 +143,61 @@ describe('the windowed results region', () => {
     expect(rendered()).toHaveLength(visibleRows + OVERSCAN);
     expect(spacers()).toEqual([(COUNT - visibleRows - OVERSCAN) * LIST_ROW_HEIGHT]);
     expect(rendered()[0]?.classList.contains('row')).toBe(true);
+  });
+
+  /**
+   * The Windows CI failure this was written for: the strip was made and served,
+   * but the card had already been told "not ready" once and never asked again.
+   */
+  it('asks again after a "not ready" answer, and keeps a settled one', async () => {
+    const card = () => container.querySelector('[data-id="id-3"]')!;
+    const thumb = () => card().querySelector('.thumb')!;
+    const point = (kind: string) => thumb().dispatchEvent(new Event(kind, { bubbles: true }));
+    const strip = () => card().querySelector('.strip');
+    stripCalls.length = 0;
+
+    // The machine is busy: the first answer says so, and is not kept.
+    let answer: HoverStripResult = { url: null, reason: 'still going', transient: true };
+    hoverStrip = () => Promise.resolve(answer);
+    point('pointerenter');
+    point('pointermove'); // a move marks which card the pointer is on
+    await sleep(HOVER_DWELL_MS + 60);
+    expect(stripCalls).toEqual(['id-3']);
+    expect(strip()).toBeNull();
+
+    // It asks again by itself while the pointer stays, and shows the strip when it lands.
+    answer = { url: 'pulp-strip://id-3/' };
+    await sleep(STRIP_RETRY_MS + 120);
+    expect(stripCalls).toEqual(['id-3', 'id-3']);
+    expect(strip()).not.toBeNull();
+    expect((strip() as HTMLElement).style.backgroundImage).toContain('pulp-strip://id-3/');
+
+    // Settled now: hovering again reuses it rather than asking a third time.
+    point('pointerleave');
+    await settle();
+    point('pointerenter');
+    point('pointermove');
+    await sleep(HOVER_DWELL_MS + 60);
+    expect(stripCalls).toEqual(['id-3', 'id-3']);
+  });
+
+  it('keeps a "nothing to scrub" answer, and leaves other cards alone while one waits', async () => {
+    stripCalls.length = 0;
+    hoverStrip = () => Promise.resolve({ url: null });
+    const thumbOf = (id: string) => container.querySelector(`[data-id="${id}"]`)!.querySelector('.thumb')!;
+    const point = (id: string, kind: string) => thumbOf(id).dispatchEvent(new Event(kind, { bubbles: true }));
+
+    // Moving across cards: each keeps its own dwell, so the first is not cancelled by the second.
+    point('id-4', 'pointerenter');
+    point('id-5', 'pointerenter');
+    await sleep(HOVER_DWELL_MS + 60);
+    expect([...stripCalls].sort()).toEqual(['id-4', 'id-5']);
+
+    // A settled "no" is remembered: no second ask, and nothing to retry.
+    point('id-4', 'pointerenter');
+    point('id-4', 'pointermove');
+    await sleep(HOVER_DWELL_MS + STRIP_RETRY_MS + 120);
+    expect([...stripCalls].sort()).toEqual(['id-4', 'id-5']);
   });
 
   it('returns to the top when the search changes, and shows the empty message when nothing matches', async () => {

@@ -18,7 +18,7 @@ import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput } from '../core/ff
 import { LibraryStore, type ScanStats } from '../core/library-store';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { mediaThumbArgs, posterThumbArgs, thumbFileName } from '../core/thumbnails';
-import { framesStripArgs, mediaStripArgs, stripFileName, stripFrameIndices, stripUrlFor, wantsStrip } from '../core/hover-scrub';
+import { canHaveStrip, framesStripArgs, mediaStripArgs, stripFileName, stripFrameIndices, stripUrlFor, wantsStrip } from '../core/hover-scrub';
 import { encodePeaks, peaksFromPcm, wantsWaveform, waveformArgs } from '../core/waveform';
 import { captureTemplateFrames, renderTemplate } from './render';
 import type { LibraryEntry, LibraryIndex, TemplateEntry } from '../core/library-types';
@@ -327,7 +327,13 @@ async function makeStrip(id: string): Promise<HoverStripResult> {
   if (cached) return cached.file ? { url: stripUrlFor(id) } : { url: null, reason: 'a strip for this item failed before and is not retried until it changes' };
   const entry = st.findEntryById(id);
   if (!entry) return { url: null, reason: `no library item with id ${id}` };
-  if (!wantsStrip(entry)) return { url: null };
+  // "Nothing to scrub" is only final for a still or a sound. A clip waiting to be
+  // probed, or a folder that has gone offline, is "not yet": the card must ask again.
+  if (!wantsStrip(entry)) {
+    return canHaveStrip(entry)
+      ? { url: null, reason: entry.offline ? 'its folder is offline' : 'the clip has not been probed for a duration yet', transient: true }
+      : { url: null };
+  }
   if (ffmpegPath === undefined) {
     const status = await detectFfmpeg();
     ffmpegPath = status.ok ? status.path : null;

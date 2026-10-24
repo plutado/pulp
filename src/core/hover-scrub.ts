@@ -22,6 +22,12 @@ export const STRIP_FRAMES = 8;
 /** How long the pointer must rest on a card before its strip is asked for. */
 export const HOVER_DWELL_MS = 250;
 
+/**
+ * How long before asking again when a strip was not ready — the machine was
+ * busy, or a clip has yet to be probed. Only while the pointer stays on the card.
+ */
+export const STRIP_RETRY_MS = 1_000;
+
 export function stripUrlFor(id: string): string {
   return `${STRIP_SCHEME}://${id}/`;
 }
@@ -31,11 +37,24 @@ export function stripFileName(id: string): string {
   return `${id}-strip.png`;
 }
 
-/** Things that move: templates, and video that has been probed for a duration. Stills and audio have nothing to step through. */
+/**
+ * Could this item ever scrub? A template or a video; a still or a sound has
+ * nothing to step through and never will. Separate from `wantsStrip` because
+ * "never" and "not yet" are different answers: the first is worth remembering,
+ * the second must not be.
+ */
+export function canHaveStrip(entry: LibraryEntry): boolean {
+  return entry.kind === 'template' ? entry.manifest.duration > 0 : entry.mediaKind === 'video';
+}
+
+/**
+ * Can a strip be made for it right now? It must be reachable, and a video must
+ * have been probed for the duration the frames are spread over. Both of those
+ * can change, so a false here is "ask again later", not "no".
+ */
 export function wantsStrip(entry: LibraryEntry): boolean {
-  if (entry.offline) return false;
-  if (entry.kind === 'template') return entry.manifest.duration > 0;
-  return entry.mediaKind === 'video' && (entry.meta?.duration ?? 0) > 0;
+  if (!canHaveStrip(entry) || entry.offline) return false;
+  return entry.kind === 'template' || (entry.meta?.duration ?? 0) > 0;
 }
 
 /**
