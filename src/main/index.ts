@@ -31,6 +31,7 @@ import { readFile } from 'node:fs/promises';
 import { addRecentColor } from '../core/recent-colors';
 import { addRecentSearch } from '../core/recent-searches';
 import { sanitizeLayout } from '../core/layout';
+import { sanitizeResultsView } from '../core/results-view';
 import { loadSettings, updateSettings } from './settings';
 
 registerTemplateScheme();
@@ -150,6 +151,11 @@ function registerIpc(): void {
   ipcMain.handle('layout:get', async () => (await loadSettings()).layout);
   ipcMain.handle('layout:save', async (_event, layout: unknown) => {
     await updateSettings((s) => ({ ...s, layout: sanitizeLayout(layout) }));
+  });
+
+  ipcMain.handle('results-view:get', async () => (await loadSettings()).resultsView);
+  ipcMain.handle('results-view:save', async (_event, view: unknown) => {
+    await updateSettings((s) => ({ ...s, resultsView: sanitizeResultsView(view) }));
   });
 }
 

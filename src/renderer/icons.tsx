@@ -30,6 +30,9 @@ import musicNotes from '@phosphor-icons/core/assets/regular/music-notes.svg?raw'
 import packageIcon from '@phosphor-icons/core/assets/regular/package.svg?raw';
 import palette from '@phosphor-icons/core/assets/regular/palette.svg?raw';
 import question from '@phosphor-icons/core/assets/regular/question.svg?raw';
+import repeat from '@phosphor-icons/core/assets/regular/repeat.svg?raw';
+import rows from '@phosphor-icons/core/assets/regular/rows.svg?raw';
+import squaresFour from '@phosphor-icons/core/assets/regular/squares-four.svg?raw';
 import tag from '@phosphor-icons/core/assets/regular/tag.svg?raw';
 import pause from '@phosphor-icons/core/assets/regular/pause.svg?raw';
 import play from '@phosphor-icons/core/assets/regular/play.svg?raw';
@@ -74,11 +77,14 @@ const ICONS = {
   pause,
   question,
   play,
+  repeat,
+  rows,
   shapes,
   'sliders-horizontal': slidersHorizontal,
   'sort-ascending': sortAscending,
   'speaker-high': speakerHigh,
   spinner,
+  'squares-four': squaresFour,
   stack,
   star,
   'star-fill': starFill,

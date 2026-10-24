@@ -7,6 +7,7 @@ import type { LayoutState } from '../core/layout';
 import type { LibraryIndex } from '../core/library-types';
 import type { PresetId, RenderOptions } from '../core/render-plan';
 import type { RenderQueueSnapshot } from '../core/render-queue';
+import type { ResultsViewState } from '../core/results-view';
 import type { CollisionChoice, PackManifest, PackPreview } from '../core/pack';
 
 export type { RenderJobStatus, RenderQueueJob, RenderQueueSnapshot } from '../core/render-queue';
@@ -137,6 +138,9 @@ export interface PulpApi {
   getLayout(): Promise<LayoutState>;
   /** Persist the shell layout; sanitized and written through the settings queue. */
   saveLayout(layout: LayoutState): Promise<void>;
+  /** Grid or list per kind and the thumbnail size, from settings.json. */
+  getResultsView(): Promise<ResultsViewState>;
+  saveResultsView(view: ResultsViewState): Promise<void>;
   /** Recently used parameter colors, shared across templates, most recent first. */
   getRecentColors(): Promise<string[]>;
   /** Record a color as recently used; resolves to the updated list. */

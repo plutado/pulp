@@ -129,6 +129,12 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .scope-chip .icon-slot { display: inline-flex; color: var(--muted); }
 .scope-chip button { padding: 0 2px; border: 0; background: none; color: var(--muted); line-height: 1; }
 .scope-chip button:hover { color: var(--danger); }
+.view-controls { display: inline-flex; align-items: center; gap: 2px; }
+.view-controls .icon-button { color: var(--muted); background: none; border-color: transparent; }
+.view-controls .icon-button:hover { color: var(--text); }
+.view-controls .icon-button[aria-pressed="true"] { color: var(--text); background: var(--panel-2); border-color: var(--accent); }
+.view-controls #thumb-size { width: 72px; padding: 0; margin-left: var(--space-1); background: none; border: 0; accent-color: var(--accent); }
+.view-controls #thumb-size:disabled { opacity: 0.4; }
 .filter-chips { display: flex; gap: 4px; flex-wrap: wrap; }
 .filter-chips .chip { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-caption); padding: 2px 9px 2px 7px; border-radius: 10px; color: var(--muted); }
 .filter-chips .chip > .icon + .label { margin-left: 0; }
@@ -183,26 +189,48 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .pack-templates select { font-size: var(--font-caption); padding: 1px 4px; }
 .pack-export { display: grid; gap: 8px; margin: 8px 0; }
 .note.warn { color: var(--accent); }
-.results { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
-.results li {
-  padding: 6px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 2px 10px;
-  align-items: center;
-}
-.results .text { display: grid; gap: 2px; min-width: 0; }
-.results .thumb { width: 56px; height: 36px; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: var(--font-secondary); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
+/* Results: a grid of cards or a list of rows (docs/ui-layout.md). The column count
+   and the card height arrive as custom properties from the renderer, so the layout
+   and the windowing math share one geometry (src/core/results-view.ts). Cards carry
+   their own padding instead of a grid gap, which keeps the row pitch exact. */
+.results { list-style: none; margin: 0; padding: var(--space-1); overflow-y: auto; flex: 1; }
+.results.grid { display: grid; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr)); align-content: start; }
+.results .card, .results .row { border-radius: var(--radius-control); cursor: pointer; }
+.results .card:hover, .results .row:hover { background: var(--panel-2); }
+.results li[aria-selected="true"] { background: var(--panel-2); outline: 1px solid var(--accent); }
+.results li.offline { opacity: 0.55; }
+.results .spacer { grid-column: 1 / -1; }
+.results .meta.empty { grid-column: 1 / -1; padding: var(--space-2) var(--space-3); color: var(--muted); font-size: var(--font-caption); }
+
+.results .thumb { border: 1px solid var(--border); border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--muted); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
 .results .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .results .thumb .icon-wrap { color: var(--muted); }
 .results .thumb.empty { background-image: none; background-color: var(--panel-2); }
-.results li:hover { background: var(--panel-2); }
-.results li[aria-selected="true"] { background: var(--panel-2); outline: 1px solid var(--accent); }
-.results .name { font-weight: 600; }
-.results li.offline { opacity: 0.55; }
-.results .meta { color: var(--muted); font-size: var(--font-caption); }
+.results .name-row { display: flex; gap: var(--space-1); align-items: center; min-width: 0; }
+.results .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.results .fav { color: var(--accent); display: inline-flex; }
+.results .fav[hidden] { display: none; }
+
+.results.grid .card { height: var(--card-h, 130px); padding: 4px; display: flex; flex-direction: column; gap: 4px; }
+.results.grid .thumb { flex: 1; min-height: 0; }
+.results.grid .card-text { height: 40px; display: grid; gap: 1px; align-content: center; min-width: 0; }
+
+/* Badges are small icons with tooltips (docs/ui-style.md); what they stand for stays
+   in the markup for assistive tech. Duration and resolution are the text ones. */
+.results .badges { display: flex; gap: var(--space-1); align-items: center; overflow: hidden; color: var(--muted); font-size: var(--font-caption); }
+.results .badge { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+.results .badge.alpha, .results .badge.loop, .results .badge.pack { color: var(--text-secondary); }
+.results .badge.alpha .label, .results .badge.loop .label, .results .badge.pack .label {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.results .badge.duration { font-variant-numeric: tabular-nums; }
+
+.results.list .row { height: var(--row-h, 44px); display: grid; grid-template-columns: minmax(0, 3fr) 64px minmax(0, 1.4fr) minmax(0, 1.6fr) minmax(0, 1.6fr); align-items: center; gap: var(--space-2); padding: 0 var(--space-2); }
+.results.list .thumb { width: 48px; height: 28px; flex: 0 0 auto; }
+.results.list .col { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: var(--font-secondary); }
+.results.list .col.name-row { color: var(--text); font-size: var(--font-body); }
+.results.list .col.duration { font-variant-numeric: tabular-nums; }
+.results.list .col.file { color: var(--muted); font-size: var(--font-caption); }
 
 .summary { padding: 8px 12px; color: var(--muted); font-size: var(--font-caption); border-top: 1px solid var(--border); }
 .summary .problem { color: var(--danger); }
@@ -256,9 +284,6 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .tag-chip button .icon-wrap .icon { width: 12px; height: 12px; }
 .tag-chip button:hover { color: var(--danger); }
 .tag-input { width: 140px; padding: 3px 6px; font-size: var(--font-secondary); }
-.results .name-row { display: flex; gap: 4px; align-items: baseline; min-width: 0; }
-.results .fav { color: var(--accent); }
-.results .fav[hidden] { display: none; }
 
 .tabs { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
 .tabs .tab { display: inline-flex; align-items: center; font-size: var(--font-secondary); padding: 3px 10px; color: var(--muted); background: none; border-color: transparent; }

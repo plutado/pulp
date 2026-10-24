@@ -11,7 +11,7 @@
 import type { Scope } from './app-state';
 import { rootLabel, styleLabel, themeLabel, typeLabel } from './display';
 import type { LibraryEntry } from './library-types';
-import { isBuiltInTheme, STYLES, templateType, THEME_GROUPS, TYPE_GROUPS, TYPES, typeInfo } from './taxonomy';
+import { entryType, isBuiltInTheme, STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES, typeInfo } from './taxonomy';
 
 export interface TreeNode {
   /** Unique within the tree: "type:wipe", "group:transitions", "theme:news", "root:/path", "untyped"… */
@@ -22,10 +22,6 @@ export interface TreeNode {
   /** Null for a heading that only groups children. */
   scope: Scope | null;
   children: TreeNode[];
-}
-
-function entryType(entry: LibraryEntry): string | undefined {
-  return entry.kind === 'template' ? templateType(entry.manifest) : entry.type;
 }
 
 function bump(map: Map<string, number>, key: string): void {

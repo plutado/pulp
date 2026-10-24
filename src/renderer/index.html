@@ -52,6 +52,11 @@
               <option value="duration">Duration</option>
             </select>
           </span>
+          <span class="view-controls" role="group" aria-label="Result view">
+            <button id="view-grid" type="button" class="icon-button" data-icon="squares-four" data-icon-size="20" aria-pressed="false" aria-label="Grid of cards"></button>
+            <button id="view-list" type="button" class="icon-button" data-icon="rows" data-icon-size="20" aria-pressed="false" aria-label="List of rows"></button>
+            <input id="thumb-size" type="range" min="0" max="3" step="1" value="1" aria-label="Thumbnail size" data-tip="Thumbnail size">
+          </span>
           <button id="stage-toggle" type="button" class="region-toggle icon-button" data-icon="caret-up" aria-label="Hide the preview" aria-expanded="true"></button>
         </div>
         <div class="filter-chips" role="group" aria-label="Filters">
@@ -83,7 +88,7 @@
       </section>
       <div id="split-stage" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the stage"></div>
       <section id="region-results" class="results-region" aria-label="Results">
-        <ul id="results" class="results" aria-label="Library"></ul>
+        <ul id="results" class="results grid" role="listbox" aria-label="Library"></ul>
       </section>
     </main>
 

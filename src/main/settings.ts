@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
 import { DEFAULT_LAYOUT, sanitizeLayout, type LayoutState } from '../core/layout';
+import { DEFAULT_RESULTS_VIEW, sanitizeResultsView, type ResultsViewState } from '../core/results-view';
 import { sanitizeRecentColors } from '../core/recent-colors';
 import { sanitizeRecentSearches } from '../core/recent-searches';
 import { DEFAULT_CACHE_MAX_MB, sanitizeCacheMaxMB } from '../core/render-cache';
@@ -20,9 +21,18 @@ export interface Settings {
   renderCacheMaxMB: number;
   /** Shell pane sizes and collapsed state (src/core/layout.ts). */
   layout: LayoutState;
+  /** Grid or list per kind and the thumbnail size (src/core/results-view.ts). */
+  resultsView: ResultsViewState;
 }
 
-const DEFAULTS: Settings = { libraryFolders: [], recentColors: [], recentSearches: [], renderCacheMaxMB: DEFAULT_CACHE_MAX_MB, layout: DEFAULT_LAYOUT };
+const DEFAULTS: Settings = {
+  libraryFolders: [],
+  recentColors: [],
+  recentSearches: [],
+  renderCacheMaxMB: DEFAULT_CACHE_MAX_MB,
+  layout: DEFAULT_LAYOUT,
+  resultsView: DEFAULT_RESULTS_VIEW,
+};
 
 function settingsPath(): string {
   return join(app.getPath('userData'), 'settings.json');
@@ -35,6 +45,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     recentSearches: sanitizeRecentSearches(raw.recentSearches),
     renderCacheMaxMB: sanitizeCacheMaxMB(raw.renderCacheMaxMB),
     layout: sanitizeLayout(raw.layout),
+    resultsView: sanitizeResultsView(raw.resultsView),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
   };
 }

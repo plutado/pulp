@@ -4,7 +4,7 @@ Status: a plan, written 2026-10-23. It describes the window Pulp is heading for 
 
 ## Today's window
 
-The shell from this plan is built (milestone 11): the regions below exist as resizable, collapsible panes with their sizes and collapsed state in `settings.json` (`src/core/layout.ts`, `src/renderer/shell.ts`), and today's features live in their target regions — the browse panel holds folders, rescan and packs (the tree comes with milestone 10), the inspector has its Parameters, Output and Info tabs, and the tray holds the queue, drag handle and render cache behind a one-line summary. What the window still lacks arrives with the milestones named below: the browse tree and scope chip (10), the card grid, richer player and virtualized results (12), collections (13), per-item output settings and the guided setup (14).
+The shell from this plan is built (milestone 11): the regions below exist as resizable, collapsible panes with their sizes and collapsed state in `settings.json` (`src/core/layout.ts`, `src/renderer/shell.ts`), and today's features live in their target regions — the browse panel holds the tree (milestone 10), the inspector has its Parameters, Output and Info tabs, and the tray holds the queue, drag handle and render cache behind a one-line summary. The results are the card grid and the list view from milestone 12, with the grid/list toggle and thumbnail size in the search bar (`src/core/results-view.ts`). What the window still lacks arrives with the milestones named below: hover-scrub, the richer player, waveforms and audition mode (12), collections (13), per-item output settings and the guided setup (14).
 
 ## Target: seven regions
 

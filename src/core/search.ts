@@ -27,7 +27,7 @@
 import type { LibraryEntry, LibraryIndex } from './library-types';
 import { RESOLUTION_ALIASES, resolutionLabel } from './media-meta';
 import { normalizeTag } from './tags';
-import { normalizeTheme, templateType, typeInfo } from './taxonomy';
+import { entryType, normalizeTheme, typeInfo } from './taxonomy';
 
 export type NumericField = 'duration' | 'width' | 'height' | 'fps';
 
@@ -134,11 +134,6 @@ function facts(entry: LibraryEntry): { duration?: number; width?: number; height
 
 function entryName(entry: LibraryEntry): string {
   return entry.kind === 'template' ? entry.manifest.name : entry.name;
-}
-
-/** The taxonomy type of an entry: a template's declared or category-mapped type, a media file's folder-inferred one. */
-function entryType(entry: LibraryEntry): string | undefined {
-  return entry.kind === 'template' ? templateType(entry.manifest) : entry.type;
 }
 
 function entryHaystack(entry: LibraryEntry): { name: string; words: string[]; tags: string[]; text: string } {

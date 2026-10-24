@@ -89,6 +89,20 @@ export function durationLabel(seconds: number): string {
   return `${seconds} s`;
 }
 
+/**
+ * A running time where space is tight (cards, list rows): seconds up to a
+ * minute ("6 s", "1.5 s"), minutes and seconds beyond it ("3:24"). Timecode is
+ * for the player, which counts frames; this only has to be read at a glance.
+ */
+export function clockLabel(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '';
+  if (seconds < 60) return durationLabel(Math.round(seconds * 10) / 10);
+  const whole = Math.round(seconds);
+  const minutes = Math.floor(whole / 60);
+  if (minutes < 60) return `${minutes}:${String(whole % 60).padStart(2, '0')}`;
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}`;
+}
+
 export function sizeLabel(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} KB`;

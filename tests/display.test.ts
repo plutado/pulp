@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   audioLabel,
   categoryLabel,
+  clockLabel,
   codecLabel,
   dimensionsLabel,
   durationLabel,
@@ -55,6 +56,13 @@ describe('media facts', () => {
     expect(frameRateLabel(29.97)).toBe('29.97 fps');
     expect(durationLabel(6)).toBe('6 s');
     expect(durationLabel(1.5)).toBe('1.5 s');
+    expect(clockLabel(6)).toBe('6 s');
+    expect(clockLabel(1.25)).toBe('1.3 s');
+    expect(clockLabel(59.9)).toBe('59.9 s');
+    expect(clockLabel(60)).toBe('1:00');
+    expect(clockLabel(95.4)).toBe('1:35');
+    expect(clockLabel(3725)).toBe('1:02:05');
+    expect(clockLabel(-1)).toBe('');
     expect(sizeLabel(512)).toBe('512 B');
     expect(sizeLabel(2048)).toBe('2 KB');
     expect(sizeLabel(12.4 * 1024 ** 2)).toBe('12.4 MB');

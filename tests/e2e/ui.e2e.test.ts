@@ -721,16 +721,23 @@ describe.skipIf(!electron)('inspector UI', () => {
         console.info('ffmpeg not available; metadata check skipped.');
         return;
       }
+      // Probing runs in the background; the card badges what it found as soon as it lands.
       await until(
-        () => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-kind=media]')].some((li) => li.querySelector('.name')?.textContent === 'clip' && li.querySelector('.meta').textContent.includes('64 × 36'))`),
-        'probed metadata to reach the list',
+        () => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-kind=media]')].some((li) => li.querySelector('.name')?.textContent === 'clip' && li.querySelector('.badge.resolution'))`),
+        'probed metadata to reach the results',
         120,
       );
-      const meta = await page.eval<string>(`[...document.querySelectorAll('#results li[data-kind=media]')].find((li) => li.querySelector('.name')?.textContent === 'clip').querySelector('.meta').textContent`);
-      expect(meta).toContain('64 × 36');
-      expect(meta).toContain('00:00:02:00');
-      expect(meta).toContain('10 fps');
-      expect(meta).toContain('H.264');
+      const badges = await page.eval<string[]>(
+        `[...[...document.querySelectorAll('#results li[data-kind=media]')].find((li) => li.querySelector('.name')?.textContent === 'clip').querySelectorAll('.badge')].map((b) => b.textContent)`,
+      );
+      expect(badges).toEqual(['2 s', '36p']);
+      // The whole of what ffprobe read is in the Info tab.
+      await selectMedia('clip');
+      await until(() => page.eval<boolean>(`document.getElementById('details')?.textContent.includes('64 × 36') === true`), 'the probed details in the Info tab');
+      const details = await page.eval<string>(`document.getElementById('details').textContent`);
+      expect(details).toContain('00:00:02:00');
+      expect(details).toContain('10 fps');
+      expect(details).toContain('H.264');
       const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       try {
         await setSearch('codec:h264 duration:>1');
@@ -825,6 +832,44 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.getElementById('scope-chip-clear').click()`);
       await until(async () => (await names()).includes('Lower Third Bar'), 'the full library after clearing the scope');
       expect(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)).toBe(true);
+    }, 60_000);
+
+    it('switches the results between cards and rows, and remembers the choice', async () => {
+      await clearSearch();
+      // Cards by default for anything visual: a thumbnail with badges under the name.
+      expect(await page.eval<boolean>(`document.getElementById('results').classList.contains('grid')`)).toBe(true);
+      expect(await page.eval<string>(`document.getElementById('view-grid').getAttribute('aria-pressed')`)).toBe('true');
+      const cardBadges = await page.eval<string[]>(
+        `[...[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Lower Third Bar').querySelectorAll('.badge')].map((b) => b.dataset.badge)`,
+      );
+      expect(cardBadges).toEqual(['alpha', 'duration', 'resolution']);
+
+      await page.eval(`document.getElementById('view-list').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('results').classList.contains('list')`), 'the list view');
+      const row = await page.eval<string[]>(
+        `[...[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Boardroom title').querySelectorAll('.col')].map((c) => c.textContent)`,
+      );
+      expect(row).toEqual(['Boardroom title', '5 s', 'Title', 'Corporate', 'title']);
+      // The thumbnail size only means anything for cards.
+      expect(await page.eval<boolean>(`document.getElementById('thumb-size').disabled`)).toBe(true);
+
+      await until(async () => {
+        try {
+          const s = JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { resultsView?: { mode?: { visual?: string } } };
+          return s.resultsView?.mode?.visual === 'list';
+        } catch {
+          return false;
+        }
+      }, 'the view mode in settings.json');
+
+      await page.eval(`document.getElementById('view-grid').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('results').classList.contains('grid')`), 'the grid view again');
+      // A bigger thumbnail makes the cards taller and fewer fit across.
+      const columns = () => page.eval<string>(`document.getElementById('results').style.getPropertyValue('--cols')`);
+      const before = Number(await columns());
+      await fire('#thumb-size', '3', 'input');
+      await until(async () => Number(await columns()) < before, 'fewer, bigger cards across');
+      await fire('#thumb-size', '1', 'input'); // back to the default size for the tests that follow
     }, 60_000);
 
     it('a filter chip narrows the results while pressed', async () => {

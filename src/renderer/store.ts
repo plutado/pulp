@@ -9,6 +9,7 @@
 import { computed, signal } from '@preact/signals';
 import { createResultsSelector, createTreeSelector, initialAppState, type AppState } from '../core/app-state';
 import type { TemplateEntry } from '../core/library-types';
+import { DEFAULT_RESULTS_VIEW, type ResultsViewState } from '../core/results-view';
 
 export const appState = signal<AppState>(initialAppState);
 
@@ -27,6 +28,13 @@ const selectTree = createTreeSelector();
 /** The browse tree with counts: rebuilt only when the index, query or chips change. */
 export const browseTree = computed(() => selectTree(appState.value));
 export const selectedKey = computed(() => appState.value.selectedKey);
+
+/**
+ * Grid or list per kind and the thumbnail size (src/core/results-view.ts). Kept
+ * apart from the app state: it is a preference the search bar owns and
+ * settings.json stores, not something a library change can alter.
+ */
+export const resultsView = signal<ResultsViewState>(DEFAULT_RESULTS_VIEW);
 
 /** True while the Render button is blocked (no template, no ffmpeg, bad options); the tray's Prepare button follows it. */
 export const renderBlocked = signal(true);

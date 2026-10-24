@@ -361,3 +361,12 @@ export const CATEGORY_TO_TYPE: Readonly<Record<string, string | undefined>> = {
 export function templateType(manifest: { type?: string; category: string }): string | undefined {
   return manifest.type ?? CATEGORY_TO_TYPE[manifest.category];
 }
+
+/**
+ * A library entry's type: a template's declared or category-mapped one, a media
+ * file's folder-inferred one. Structural, so this module still knows nothing
+ * about the index.
+ */
+export function entryType(entry: { kind: 'template'; manifest: { type?: string; category: string } } | { kind: 'media'; type?: string }): string | undefined {
+  return entry.kind === 'template' ? templateType(entry.manifest) : entry.type;
+}
