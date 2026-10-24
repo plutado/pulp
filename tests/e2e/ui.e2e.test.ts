@@ -748,11 +748,17 @@ describe.skipIf(!electron)('inspector UI', () => {
         console.info('ffmpeg not available; thumbnail check skipped.');
         return;
       }
-      // Posters for the three bundled templates and frames for tiny.png and clip.mp4 arrive in the background.
+      // Posters and media frames arrive in the background, one at a time, in library order. Wait for
+      // the five items this test asserts on - not for any five: with the matched sample sets, more than
+      // a dozen posters are queued and a slow machine finishes five others first (Windows CI, October 2026).
+      const needed = ['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'clip', 'tiny'];
       await until(
-        () => page.eval<boolean>(`(() => { const imgs = [...document.querySelectorAll('#results li .thumb img')]; return imgs.length >= 5 && imgs.every((i) => i.complete && i.naturalWidth > 0); })()`),
-        'thumbnails for every template and visual media item',
-        240,
+        () =>
+          page.eval<boolean>(
+            `(() => { const need = ${JSON.stringify(needed)}; const rows = [...document.querySelectorAll('#results li')]; return need.every((n) => { const li = rows.find((r) => r.querySelector('.name')?.textContent === n); const i = li && li.querySelector('.thumb img'); return !!i && i.complete && i.naturalWidth > 0; }); })()`,
+          ),
+        'thumbnails for the three original samples and the two visual media items',
+        480,
       );
       const info = await page.eval<{ name: string; src: string; w: number; h: number }[]>(
         `[...document.querySelectorAll('#results li')].filter((li) => li.querySelector('.thumb img')).map((li) => { const i = li.querySelector('.thumb img'); return { name: li.querySelector('.name').textContent, src: i.src, w: i.naturalWidth, h: i.naturalHeight }; })`,
