@@ -11,16 +11,17 @@
 
 import { app, BrowserWindow } from 'electron';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { detectFfmpeg, nodeRunner } from '../core/ffmpeg';
+import { detectFfmpeg, nodeRunner, runWithInput } from '../core/ffmpeg';
 import { LibraryStore, type ScanStats } from '../core/library-store';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { mediaThumbArgs, posterThumbArgs, thumbFileName } from '../core/thumbnails';
 import { framesStripArgs, mediaStripArgs, stripFileName, stripFrameIndices, stripUrlFor, wantsStrip } from '../core/hover-scrub';
 import { captureTemplateFrames, renderTemplate } from './render';
 import type { LibraryIndex, TemplateEntry } from '../core/library-types';
+import type { HoverStripResult } from '../shared/api';
 import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
 import { normalizeTag } from '../core/tags';
@@ -55,6 +56,21 @@ let probing = false;
 let ffprobe: string | null | undefined;
 let thumbnailing = false;
 let ffmpegPath: string | null | undefined;
+
+/**
+ * Offscreen renders and ffmpeg runs take turns. A poster queue working through
+ * a whole library and a hover-scrub strip rendering at the same time share one
+ * machine badly: on a two-core runner each made the other slow enough to outlast
+ * any sensible wait (docs/platform-notes.md). The queue takes a turn per item,
+ * so a hover waits for the poster in progress, not for the whole queue.
+ */
+let heavyChain: Promise<unknown> = Promise.resolve();
+
+function heavyWork<T>(work: () => Promise<T>): Promise<T> {
+  const next = heavyChain.then(work);
+  heavyChain = next.catch(() => undefined);
+  return next;
+}
 
 /** Folder of cached thumbnails inside user data. */
 export function thumbnailDir(): string {
@@ -175,12 +191,14 @@ async function generatePendingThumbnails(): Promise<void> {
         const out = join(dir, thumbFileName(entry.id));
         let ok = false;
         try {
-          if (entry.kind === 'media') {
-            const result = await nodeRunner(ffmpegPath, mediaThumbArgs(entry.path, out, entry.meta?.duration, entry.mediaKind === 'video'));
-            ok = result.code === 0 && existsSync(out);
-          } else {
-            ok = await renderPoster(entry, out);
-          }
+          // A turn per item, not for the whole queue, so a hover-scrub strip can get in between.
+          ok = await heavyWork(async () => {
+            if (entry.kind === 'media') {
+              const result = await nodeRunner(ffmpegPath!, mediaThumbArgs(entry.path, out, entry.meta?.duration, entry.mediaKind === 'video'));
+              return result.code === 0 && existsSync(out);
+            }
+            return renderPoster(entry, out);
+          });
         } catch {
           ok = false;
         }
@@ -266,18 +284,17 @@ export function lookupStrip(id: string): string | undefined {
 }
 
 /** Strips in flight, so two cards hovered in a row do not render the same template twice. */
-const stripsInFlight = new Map<string, Promise<string | null>>();
+const stripsInFlight = new Map<string, Promise<HoverStripResult>>();
 
 /**
- * The hover-scrub strip of an item, made now if it does not exist. Returns the
- * URL to load it from, or null when the item has nothing to scrub or the strip
- * could not be made — a failure is recorded, so it is not retried until the
- * item changes.
+ * The hover-scrub strip of an item, made now if it does not exist. Says either
+ * where to load it from or why there is none, so a caller — and the end-to-end
+ * test — can tell "nothing to scrub" from "it did not work" from "still going".
  *
  * On demand rather than in the background: a template strip costs a render, and
  * most of a library is never pointed at.
  */
-export function hoverStrip(id: string): Promise<string | null> {
+export function hoverStrip(id: string): Promise<HoverStripResult> {
   const existing = stripsInFlight.get(id);
   if (existing) return existing;
   const work = makeStrip(id).finally(() => stripsInFlight.delete(id));
@@ -285,51 +302,79 @@ export function hoverStrip(id: string): Promise<string | null> {
   return work;
 }
 
-async function makeStrip(id: string): Promise<string | null> {
-  if (!persistent) return null;
+/** A failure worth remembering: this item cannot produce a strip until it changes. */
+function recordFailure(key: string, reason: string): HoverStripResult {
+  getStore().setStrip(key, null);
+  console.warn(`Hover-scrub strip failed: ${reason}`);
+  return { url: null, reason };
+}
+
+/**
+ * A failure that says nothing about the item: the machine was busy, a timeout
+ * ran out. Not recorded, so the next hover tries again — recording it would
+ * leave a card that can never scrub, and would look exactly like slowness.
+ */
+function transientFailure(reason: string): HoverStripResult {
+  console.warn(`Hover-scrub strip did not finish: ${reason}`);
+  return { url: null, reason, transient: true };
+}
+
+async function makeStrip(id: string): Promise<HoverStripResult> {
+  if (!persistent) return { url: null, reason: 'headless mode keeps no cache' };
   const st = getStore();
   const cached = st.findStripById(id);
-  if (cached) return cached.file ? stripUrlFor(id) : null;
+  if (cached) return cached.file ? { url: stripUrlFor(id) } : { url: null, reason: 'a strip for this item failed before and is not retried until it changes' };
   const entry = st.findEntryById(id);
-  if (!entry || !wantsStrip(entry)) return null;
+  if (!entry) return { url: null, reason: `no library item with id ${id}` };
+  if (!wantsStrip(entry)) return { url: null };
   if (ffmpegPath === undefined) {
     const status = await detectFfmpeg();
     ffmpegPath = status.ok ? status.path : null;
   }
-  if (!ffmpegPath) return null;
+  if (!ffmpegPath) return transientFailure('ffmpeg was not found');
 
   const dir = thumbnailDir();
   await mkdir(dir, { recursive: true });
   const out = join(dir, stripFileName(id));
-  let ok: boolean;
+  let result: HoverStripResult;
   try {
-    ok = entry.kind === 'media' ? await mediaStrip(entry.path, entry.meta?.duration ?? 0, out) : await templateStrip(entry, out);
-  } catch {
-    ok = false;
+    // One piece of heavy work at a time: a strip that fought the poster queue for a
+    // two-core machine could outlast any sensible wait (docs/platform-notes.md).
+    result = await heavyWork(() =>
+      entry.kind === 'media' ? mediaStrip(entry.path, entry.meta?.duration ?? 0, out) : templateStrip(entry, out),
+    );
+  } catch (err) {
+    return recordFailure(entry.key, `${entry.key}: ${(err as Error).message}`);
   }
-  st.setStrip(entry.key, ok ? out : null);
-  return ok ? stripUrlFor(id) : null;
+  if (result.url === null && !result.transient) return recordFailure(entry.key, `${entry.key}: ${result.reason ?? 'unknown'}`);
+  if (result.url === null) return result;
+  st.setStrip(entry.key, out);
+  return { url: stripUrlFor(id) };
 }
 
-async function mediaStrip(input: string, duration: number, out: string): Promise<boolean> {
+async function mediaStrip(input: string, duration: number, out: string): Promise<HoverStripResult> {
   const result = await nodeRunner(ffmpegPath!, mediaStripArgs(input, out, duration));
-  return result.code === 0 && existsSync(out);
+  if (result.code !== 0) return { url: null, reason: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
+  if (!existsSync(out)) return { url: null, reason: 'ffmpeg wrote no strip' };
+  return { url: out };
 }
 
-/** Frames spread over the template's timeline, captured through one offscreen window, then tiled. */
-async function templateStrip(entry: TemplateEntry, out: string): Promise<boolean> {
+/**
+ * Frames spread over the template's timeline, captured through one offscreen
+ * window, then piped to ffmpeg as one PNG stream and tiled. No scratch folder:
+ * nothing to name, nothing to clean up, nothing to get wrong on Windows.
+ */
+async function templateStrip(entry: TemplateEntry, out: string): Promise<HoverStripResult> {
   const total = Math.max(1, Math.round(entry.manifest.duration * entry.manifest.fps));
-  const wanted = stripFrameIndices(total);
-  const shot = await captureTemplateFrames(entry, wanted, { frameTimeoutMs: 10_000 });
-  if (!shot.ok) return false;
-  const tmp = await mkdtemp(join(tmpdir(), 'pulp-strip-'));
-  try {
-    await Promise.all(shot.frames.map((png, i) => writeFile(join(tmp, `f-${String(i + 1).padStart(3, '0')}.png`), png)));
-    const tiled = await nodeRunner(ffmpegPath!, framesStripArgs(join(tmp, 'f-%03d.png'), out, shot.frames.length));
-    return tiled.code === 0 && existsSync(out);
-  } finally {
-    await rm(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  const shot = await captureTemplateFrames(entry, stripFrameIndices(total), { frameTimeoutMs: 10_000 });
+  if (!shot.ok) {
+    // A timeout means the machine was busy, not that the template cannot be drawn.
+    return shot.timedOut ? { url: null, reason: shot.message, transient: true } : { url: null, reason: shot.message };
   }
+  const tiled = await runWithInput(ffmpegPath!, framesStripArgs(out, shot.frames.length), Buffer.concat(shot.frames));
+  if (tiled.code !== 0) return { url: null, reason: `ffmpeg exited with ${tiled.code}: ${tiled.stderr.trim() || 'no error output'}` };
+  if (!existsSync(out)) return { url: null, reason: 'ffmpeg wrote no strip' };
+  return { url: out };
 }
 
 /** Rescan every configured root (plus `extraFolders` for this run) incrementally and tell the UI. */

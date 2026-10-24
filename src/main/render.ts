@@ -340,6 +340,13 @@ async function captureFrame(
 }
 
 /**
+ * What came of capturing frames. `timedOut` marks a run that ran out of time
+ * rather than one that failed on the template itself: the caller can try again
+ * on a quieter machine instead of writing the item off.
+ */
+export type CaptureFramesResult = { ok: true; frames: Buffer[] } | { ok: false; message: string; timedOut?: boolean };
+
+/**
  * Capture named frames of a template as PNGs through **one** offscreen window.
  * For the hover-scrub strip, which wants a handful of frames spread over the
  * timeline rather than a contiguous range: a render per frame would pay the
@@ -353,7 +360,7 @@ export async function captureTemplateFrames(
   template: TemplateEntry,
   frames: readonly number[],
   options: { params?: Record<string, unknown>; frameTimeoutMs?: number; loadTimeoutMs?: number; signal?: AbortSignal } = {},
-): Promise<{ ok: true; frames: Buffer[] } | { ok: false; message: string }> {
+): Promise<CaptureFramesResult> {
   const { manifest } = template;
   const { values } = resolveParams(manifest, options.params ?? {});
   const win = new BrowserWindow({
@@ -383,7 +390,9 @@ export async function captureTemplateFrames(
         loadTimeoutMessage(manifest.name, loadTimeoutMs),
       );
     } catch (err) {
-      return { ok: false, message: err instanceof RenderTimeoutError ? err.message : `Could not load template "${manifest.name}": ${(err as Error).message}` };
+      // A load that ran out of time says the machine was busy, not that the template is broken.
+      if (err instanceof RenderTimeoutError) return { ok: false, message: err.message, timedOut: true };
+      return { ok: false, message: `Could not load template "${manifest.name}": ${(err as Error).message}` };
     }
     const frameTimeoutMs = options.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS;
     const captured: Buffer[] = [];
@@ -392,7 +401,10 @@ export async function captureTemplateFrames(
       try {
         captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values), manifest, 'png'), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
       } catch (err) {
-        if (err instanceof RenderTimeoutError) win.webContents.forcefullyCrashRenderer();
+        if (err instanceof RenderTimeoutError) {
+          win.webContents.forcefullyCrashRenderer();
+          return { ok: false, message: err.message, timedOut: true };
+        }
         return { ok: false, message: err instanceof TemplateError ? templateThrewMessage(manifest.name, frame, err.detail) : (err as Error).message };
       }
     }

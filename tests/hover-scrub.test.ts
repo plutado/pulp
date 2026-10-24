@@ -46,11 +46,12 @@ describe('frames sampled from a template', () => {
     expect(stripFrameIndices(8)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   });
 
-  it('never asks for more frames than the template has', () => {
-    expect(stripFrameIndices(3)).toEqual([0, 1, 2]);
-    expect(stripFrameIndices(1)).toEqual([0]);
-    // A one-frame strip takes the middle, which is what a poster shows.
-    expect(stripFrameIndices(0)).toEqual([0]);
+  it('always fills the strip, repeating frames when the template is shorter than it', () => {
+    // Eight tiles whatever the template: the card places a tile without knowing how many there are.
+    expect(stripFrameIndices(3)).toEqual([0, 0, 1, 1, 1, 1, 2, 2]);
+    expect(stripFrameIndices(1)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(stripFrameIndices(0)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(stripFrameIndices(180, 1)).toEqual([89]);
   });
 });
 
@@ -67,10 +68,12 @@ describe('ffmpeg arguments', () => {
     expect(mediaStripArgs('/in.mov', '/out.png', 0).join(' ')).toContain('fps=86.400000');
   });
 
-  it('tiles frames that were already rendered', () => {
-    const args = framesStripArgs('/tmp/f-%03d.png', '/out.png', 5);
-    expect(args[args.indexOf('-i') + 1]).toBe('/tmp/f-%03d.png');
+  it('tiles frames that arrive on stdin, with no scratch folder to name', () => {
+    const args = framesStripArgs('/out.png', 5);
+    expect(args[args.indexOf('-i') + 1]).toBe('pipe:0');
+    expect(args.join(' ')).toContain('-f image2pipe -c:v png');
     expect(args[args.indexOf('-vf') + 1]).toContain('tile=5x1');
+    expect(args.at(-1)).toBe('/out.png');
   });
 });
 

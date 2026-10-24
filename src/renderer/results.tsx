@@ -75,9 +75,12 @@ function requestStrip(entry: LibraryEntry): void {
   if (!wantsStrip(entry) || strips.value.has(entry.id) || asking.has(entry.id)) return;
   dwell = setTimeout(() => {
     asking.add(entry.id);
-    void window.pulp.hoverStrip(entry.id).then((url) => {
+    void window.pulp.hoverStrip(entry.id).then((result) => {
       asking.delete(entry.id);
-      strips.value = new Map(strips.value).set(entry.id, url);
+      if (result.reason) console.warn(`No hover-scrub strip for ${entry.id}: ${result.reason}`);
+      // A busy machine is worth asking about again next time; anything else is remembered as "none".
+      if (result.url === null && result.transient) return;
+      strips.value = new Map(strips.value).set(entry.id, result.url);
     });
   }, HOVER_DWELL_MS);
 }

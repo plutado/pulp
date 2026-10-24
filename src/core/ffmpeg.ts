@@ -3,7 +3,7 @@
  * tested without ffmpeg installed; `nodeRunner` is the real implementation.
  */
 
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import type { OutputPreset } from './render-plan';
 
 export { presetUnavailableReason } from './ffmpeg-presets';
@@ -43,6 +43,30 @@ export const nodeRunner: ProcessRunner = (command, args) =>
       resolve({ code, stdout: String(stdout), stderr: String(stderr) });
     });
   });
+
+/**
+ * Run ffmpeg with the images to work on written to its stdin. Avoids a scratch
+ * folder and a numbered input pattern — one less set of paths to get wrong on
+ * Windows, and nothing to clean up afterwards (docs/platform-notes.md).
+ */
+export function runWithInput(command: string, args: string[], input: Buffer): Promise<RunResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (chunk: Buffer) => {
+      stdout = (stdout + chunk.toString('utf8')).slice(-8000);
+    });
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderr = (stderr + chunk.toString('utf8')).slice(-8000);
+    });
+    child.on('error', reject);
+    child.on('close', (code) => resolve({ code: code ?? 1, stdout, stderr }));
+    // ffmpeg may stop reading once it has the frames it was asked for; that EPIPE is not a failure.
+    child.stdin?.on('error', () => undefined);
+    child.stdin?.end(input);
+  });
+}
 
 /** Extract "8.0" from the first line of `ffmpeg -version`. */
 export function parseFfmpegVersion(output: string): string | null {

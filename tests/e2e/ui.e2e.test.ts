@@ -942,9 +942,37 @@ describe.skipIf(!electron)('inspector UI', () => {
         );
       const frame = (name: string) => onResult<string | null>(name, `(li) => li.querySelector('.strip')?.style.backgroundPositionX ?? null`);
 
+      /**
+       * Ask for the strip over the real IPC and wait for it, reporting what the
+       * main process says went wrong rather than timing out with an empty log:
+       * a slow machine and a failed strip look identical from the DOM alone.
+       */
+      const strippedFor = async (name: string, tries = 240) => {
+        const id = await onResult<string>(name, '(li) => li.dataset.id');
+        for (let i = 0; i < tries; i++) {
+          const result = await page.eval<{ url: string | null; reason?: string; transient?: boolean }>(`window.pulp.hoverStrip(${JSON.stringify(id)})`);
+          if (result.url) return result.url;
+          // Transient means "ask again"; anything else is settled and worth failing on now.
+          if (!result.transient) throw new Error(`no hover-scrub strip for ${name}: ${result.reason ?? 'the item has nothing to scrub'}`);
+          await sleep(250);
+        }
+        throw new Error(`timed out waiting for the strip of ${name}; the last word from the main process was "still going"`);
+      };
+
+      /** The strip as the window sees it, to check it really holds its tiles. */
+      const sizeOf = (url: string) =>
+        page.eval<number[]>(
+          `new Promise((resolve) => { const i = new Image(); i.onload = () => resolve([i.naturalWidth, i.naturalHeight]); i.onerror = () => resolve([0, 0]); i.src = ${JSON.stringify(url)}; setTimeout(() => resolve([0, 0]), 5000); })`,
+        );
+
       // A template strip is eight frames rendered through one offscreen window, then tiled.
+      const wipeUrl = await strippedFor('Diagonal Wipe');
+      // Eight tiles of a 1920x1080 template, each fitted to the thumbnail width.
+      const [wipeW, wipeH] = await sizeOf(wipeUrl);
+      expect(wipeW).toBe(8 * 240);
+      expect(wipeH).toBeGreaterThan(100);
       await hover('Diagonal Wipe', 0.05);
-      await until(async () => (await frame('Diagonal Wipe')) !== null, 'the template strip to be made', 240);
+      await until(async () => (await frame('Diagonal Wipe')) !== null, 'the strip to reach the card', 60);
       expect(await frame('Diagonal Wipe')).toBe('0%');
       const strip = await onResult<string>('Diagonal Wipe', `(li) => li.querySelector('.strip').style.backgroundImage`);
       expect(strip).toMatch(/^url\("pulp-strip:\/\/[0-9a-f]{24}\/"\)$/);
@@ -960,8 +988,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await frame('Diagonal Wipe')).toBeNull();
 
       // Video gets one too, from ffmpeg rather than from a render.
+      await strippedFor('clip');
       await hover('clip', 0.99);
-      await until(async () => (await frame('clip')) !== null, 'the video strip to be made', 240);
+      await until(async () => (await frame('clip')) !== null, 'the video strip to reach the card', 60);
       expect(await frame('clip')).toBe('100%');
 
       // Both are cached beside the posters, so the next hover costs nothing.

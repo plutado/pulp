@@ -46,6 +46,18 @@ export type RenderResult =
     }
   | { ok: false; cancelled?: boolean; message: string };
 
+/**
+ * What came of asking for a hover-scrub strip. `url` null with no reason means
+ * the item simply has nothing to scrub (a still, an unprobed clip); a reason
+ * says what went wrong, and `transient` marks the kind worth asking about
+ * again — a busy machine rather than an item that cannot produce one.
+ */
+export interface HoverStripResult {
+  url: string | null;
+  reason?: string;
+  transient?: boolean;
+}
+
 export interface RenderProgress {
   frame: number;
   totalFrames: number;
@@ -104,10 +116,10 @@ export interface PulpApi {
   /** Replace an item's user themes (built-in ids or custom words, normalized like tags). */
   setItemThemes(id: string, themes: string[]): Promise<LibraryIndex>;
   /**
-   * The hover-scrub strip of an item, made on first ask and cached; the URL to
-   * load it from, or null when the item has nothing to scrub or it could not be made.
+   * The hover-scrub strip of an item, made on first ask and cached. Either the
+   * URL to load it from, or why there is none.
    */
-  hoverStrip(id: string): Promise<string | null>;
+  hoverStrip(id: string): Promise<HoverStripResult>;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */

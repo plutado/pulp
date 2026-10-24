@@ -41,10 +41,15 @@ export function wantsStrip(entry: LibraryEntry): boolean {
 /**
  * The frames of a template's timeline a strip samples: evenly spaced from the
  * first to the last, so the strip covers the whole animation including its end.
+ *
+ * Always as many as the strip holds, even for a template with fewer frames than
+ * that — then some repeat. A strip with a different number of tiles would need
+ * the card to know how many before it could place one, and a four-frame
+ * template is not worth that.
  */
 export function stripFrameIndices(totalFrames: number, frames = STRIP_FRAMES): number[] {
   const last = Math.max(0, Math.floor(totalFrames) - 1);
-  const want = Math.max(1, Math.min(frames, last + 1));
+  const want = Math.max(1, frames);
   if (want === 1) return [Math.floor(last / 2)];
   return Array.from({ length: want }, (_, i) => Math.round((i * last) / (want - 1)));
 }
@@ -64,9 +69,13 @@ export function mediaStripArgs(input: string, output: string, durationSeconds: n
   return ['-v', 'error', '-y', '-i', input, '-an', '-vf', `fps=${rate},${TILE_SCALE},tile=${frames}x1`, '-frames:v', '1', '-f', 'image2', output];
 }
 
-/** ffmpeg: frames already rendered as a numbered PNG sequence, tiled into one image. */
-export function framesStripArgs(pattern: string, output: string, frames = STRIP_FRAMES): string[] {
-  return ['-v', 'error', '-y', '-i', pattern, '-vf', `${TILE_SCALE},tile=${frames}x1`, '-frames:v', '1', '-f', 'image2', output];
+/**
+ * ffmpeg: frames already captured, arriving as one PNG stream on stdin, tiled
+ * into one image. A pipe rather than a numbered pattern in a scratch folder:
+ * nothing to name, nothing to clean up, and no Windows path to get wrong.
+ */
+export function framesStripArgs(output: string, frames = STRIP_FRAMES): string[] {
+  return ['-v', 'error', '-y', '-f', 'image2pipe', '-c:v', 'png', '-i', 'pipe:0', '-vf', `${TILE_SCALE},tile=${frames}x1`, '-frames:v', '1', '-f', 'image2', output];
 }
 
 /** Which tile a pointer fraction across the thumbnail lands on; outside the box clamps to an end. */
