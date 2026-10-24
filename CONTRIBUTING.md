@@ -24,6 +24,7 @@ The results region is windowed: only the cards and rows in view are in the DOM. 
 ## Guidelines
 
 - Keep `src/core` free of Electron and DOM dependencies, and cover it with tests. Logic that can live in the core should.
+- Regions are covered by the end-to-end test. A DOM-level component test (`tests/dom`, happy-dom) is for a region whose correctness is what the DOM holds and no pure test can see — the windowed results region is the first and so far only one (ADR 0009). `tests/dom` is typechecked by `tsconfig.web.json`, not the node project.
 - Template format changes need a matching update to `docs/template-format.md` and to the validator, plus an entry in `CHANGELOG.md`.
 - Larger design choices get a short record in `docs/decisions/`.
 - Before investigating a capture, color or platform symptom, read `docs/platform-notes.md`: it records what was already found on Electron, ffmpeg, Windows and macOS, with causes and fixes. Add new findings there.

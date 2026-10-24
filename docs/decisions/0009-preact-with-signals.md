@@ -14,7 +14,7 @@ ADR 0006 kept the UI as plain DOM through milestone 3 and named the library mile
 - **Ported region by region**, one commit each, the UI end-to-end test green at every commit. No big-bang rewrite.
 - **Today's parameter controls stay as they are** (color field, sliders, undo wiring), mounted inside host components, for as long as they pull their weight.
 - **Shared state, actions and derived values** (scope, query, results, selection, jobs) live in a pure module under `src/core` with unit tests; the renderer wraps it in signals. Components stay thin; the framework only turns state into elements.
-- **No DOM-level unit tests** (jsdom and the like) until a region needs one; the end-to-end test remains the proof that a port lost nothing.
+- **No DOM-level unit tests** (jsdom and the like) until a region needs one; the end-to-end test remains the proof that a port lost nothing. *(Milestone 12: the windowed results region is that region. `tests/dom/results.test.ts` runs under happy-dom and checks what the DOM holds at a scroll position and that keyed elements survive the window moving — neither is visible to a pure test, and the end-to-end test can only sample it. Every other region still has the end-to-end test and nothing more.)*
 
 ## Alternatives considered
 
@@ -52,6 +52,6 @@ Consequence of criterion 4: `preact` stays pinned to `^10` and `@preact/signals`
 ## Costs and risks
 
 - The first two runtime dependencies (`preact`, `@preact/signals`) enter `package.json`; milestone 7's packaging must carry them, and upgrades become our problem.
-- A 5,100-item library still wants virtualization; that is an explicit milestone 12 item, and the 500-result cap stays until it lands.
+- A 5,100-item library still wants virtualization; that is an explicit milestone 12 item, and the 500-result cap stays until it lands. *(Done: the results window through `src/core/virtual-list.ts` and the cap is gone.)*
 - Components get only the end-to-end test as coverage until a region earns a DOM-level test; logic must keep draining into `src/core` for that to stay acceptable.
 - Two rendering styles coexist during the port (signals-driven components and imperative controls inside hosts); the host-component boundary is the discipline that keeps that readable.

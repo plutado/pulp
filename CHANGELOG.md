@@ -20,6 +20,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Changed
 
+- Internal: the first DOM-level component test. The windowed results region is mounted under happy-dom (`tests/dom/results.test.ts`) and checked against scroll positions — what is built, what the spacers measure, and that an item staying in view keeps its element. Decision record 0009 deferred these until a region earned one; every other region is still covered by the end-to-end test alone.
 - Library folders in the browse panel and the scope chip show humanized names ("media-library" → "Media library"; a folder already named readably stays as it is), with the full path in the tooltip.
 - The last ALL CAPS headings ("LIBRARY", "PARAMETERS") are sentence-case region titles; the status bar says "FFmpeg 8.0" and the cache limit reads "2 GB" instead of "2048 MB"; the remaining three-dot ellipses became the real character. Type sizes, spacing, radii and one visible focus ring now come from design tokens, and a style test keeps it that way (no caps, no stray font sizes, no icon-only button without a name, no raw ids in label tables).
 - Labels are human-readable everywhere a stored value used to show: "Lower third · 6 s · 1920 × 1080 · Alpha" instead of "lower-third · 6s · 1920x1080 · alpha", "Video · MOV · 12 MB · H.264" for media, tags and themes shown as words ("Lower third", "My show") while search keeps the stored ids, and the bundled samples' folder is "Built-in templates" in the browse panel. Render… uses a real ellipsis.

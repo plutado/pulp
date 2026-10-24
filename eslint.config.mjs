@@ -15,6 +15,11 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser },
   },
   {
+    // The DOM-level component tests run in happy-dom, not in Node.
+    files: ['tests/dom/**/*.ts'],
+    languageOptions: { globals: globals.browser },
+  },
+  {
     // Sample templates are plain browser scripts embedded in HTML; nothing to lint here.
     files: ['templates/**/*.js'],
     languageOptions: { globals: globals.browser, sourceType: 'script' },
