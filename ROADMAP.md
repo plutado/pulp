@@ -2,7 +2,7 @@
 
 Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done. The "still open" row is the sum of the unticked items' own estimates, not the previous figure minus what was finished — recompute it from the items, or it drifts.
 
-Milestones keep the number they were given when they were added, so GitHub issues #1 to #23 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
+Milestones keep the number they were given when they were added, so GitHub issues #1 to #23 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
 | Milestone | Estimate |
 |---|---|
@@ -23,16 +23,16 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 22. Image slots in templates | 17-26 h |
 | 23. Layers in templates | 33-50 h |
 | 20. Social-ready export | 8-13 h |
-| 17. Unsigned builds and releases | 7-12 h |
-| 7. Signing and auto-update (blocked on accounts) | 4-7 h |
 | 8. 1.0 hardening and docs | 8-13 h |
+| 17. Unsigned builds and releases | 8-14 h |
+| 7. Signing and auto-update (blocked on accounts) | 4-7 h |
 | 14. Defaults per type and guided setup (post-1.0) | 6-10 h |
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-23)** | **231-376 h** |
-| **Still open through 1.0 (unticked items only)** | **38-62 h** |
-| **Total including post-1.0 items** | **263-434 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-23)** | **232-378 h** |
+| **Still open through 1.0 (unticked items only)** | **39-64 h** |
+| **Total including post-1.0 items** | **264-436 h** |
 
 ## 0. Foundation (done)
 
@@ -266,11 +266,20 @@ After milestone 19, which it depends on: a platform preset is mostly an aspect, 
 - [ ] Cover image: a still from a frame picked on the scrub bar, written beside the video at the same aspect and resolution, for the thumbnail or cover a platform asks for separately (2-3 h)
 - [ ] Hand-off: "Share…" opens the system share sheet with the rendered file, and "Open upload page" opens the platform's own upload page in the browser with the file revealed in the file manager. An ADR records the choice of hand-off over integration, so the reasoning survives the first request for one-click posting (2-3 h)
 
-## 17. Unsigned builds and releases (7-12 h)
+## 8. 1.0 hardening and docs (8-13 h)
 
-The buildable half of the old "Packaging and signing" milestone; signing is milestone 7, blocked on account decisions. Unsigned artifacts also make the hardware-blocked verification sessions in milestones 2 and 5 easier to run when a machine is available.
+- [ ] A JSON Schema for the template manifest and `pack.json`, generated from or checked against the validator, and the compatibility rule stated where authors read it: fields are added rather than repurposed, and an incompatible change takes a new `formatVersion`. **No version freeze is planned.** This item used to be "freeze template format v1 here"; milestone 19 changes the format and later milestones may too, so the format stays versioned and documented rather than declared final (2-3 h)
+- [ ] Template authoring guide with a step-by-step walkthrough and a `pulp-template` starter folder (2-3 h)
+- [ ] Accessibility pass across every region: keyboard navigation for the browse tree and nodes, the grid, the player, the tray, the inspector tabs (arrow keys, roving tabindex), the filter chips and the scope chip; splitter keyboard resizing kept; focus states and screen reader labels throughout (2-3 h)
+- [ ] Crash and error reporting that stays local (log file, "copy diagnostics" in the status bar) (1-2 h)
+- [ ] User guide for the window: regions, keyboard shortcuts, search syntax; README and screenshots updated for the new layout (1-2 h)
 
-- [ ] electron-builder config; bundled templates in `resources/templates`, labeled "Built-in templates" in the library (2-3 h)
+## 17. Unsigned builds and releases (8-14 h)
+
+**Packaging is the last step of the project**, which is why this milestone and signing come after hardening: what is packaged should be the finished thing, and every change before this one would otherwise be packaged twice. The buildable half of the old "Packaging and signing" milestone; signing is milestone 7, blocked on account decisions. Unsigned artifacts also make the hardware-blocked verification sessions in milestones 2 and 5 easier to run when a machine is available.
+
+- [ ] electron-builder config; bundled templates in `resources/templates` and bundled fonts in `resources/fonts`, labeled "Built-in templates" in the library (2-3 h)
+- [ ] An app icon of its own: an original mark for Pulp, owing nothing to any other product's, drawn at the sizes each platform wants and exported as `.icns` (macOS), `.ico` (Windows) and the PNG sizes Linux asks for (16 to 512). The app is "Pulp" wherever the system names it — the macOS Dock and About panel, the Windows Start menu and task bar — and the Windows installer offers desktop and Start menu shortcuts. A Linux `.desktop` entry puts it in the application menu with its icon and categories (2-3 h)
 - [ ] macOS: universal build with hardened runtime, unsigned (1-2 h)
 - [ ] Windows: NSIS installer, unsigned (1-2 h)
 - [ ] Linux: AppImage (1-2 h)
@@ -284,14 +293,6 @@ The buildable half of the old "Packaging and signing" milestone; signing is mile
 - [ ] macOS: signing and notarization (2-3 h)
 - [ ] Windows: code signing (1-2 h)
 - [ ] Auto-update (electron-updater; needs signed builds on macOS) (1-2 h)
-
-## 8. 1.0 hardening and docs (8-13 h)
-
-- [ ] A JSON Schema for the template manifest and `pack.json`, generated from or checked against the validator, and the compatibility rule stated where authors read it: fields are added rather than repurposed, and an incompatible change takes a new `formatVersion`. **No version freeze is planned.** This item used to be "freeze template format v1 here"; milestone 19 changes the format and later milestones may too, so the format stays versioned and documented rather than declared final (2-3 h)
-- [ ] Template authoring guide with a step-by-step walkthrough and a `pulp-template` starter folder (2-3 h)
-- [ ] Accessibility pass across every region: keyboard navigation for the browse tree and nodes, the grid, the player, the tray, the inspector tabs (arrow keys, roving tabindex), the filter chips and the scope chip; splitter keyboard resizing kept; focus states and screen reader labels throughout (2-3 h)
-- [ ] Crash and error reporting that stays local (log file, "copy diagnostics" in the status bar) (1-2 h)
-- [ ] User guide for the window: regions, keyboard shortcuts, search syntax; README and screenshots updated for the new layout (1-2 h)
 
 ## 14. Defaults per type and guided setup (6-10 h, after 1.0)
 

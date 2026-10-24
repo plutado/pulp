@@ -62,13 +62,13 @@ Milestones 1-6, 10-13, 18, 19 and 21 (renderer, alpha export, parameter editor, 
 | Milestone | What it delivers | Estimate |
 |---|---|---|
 | 22. Image slots in templates | An `image` parameter that rides a template's own animation: a logo drawn inside the graphic's layers so it follows every move, with a picker in the Parameters tab, a managed Imported folder, a by-id grant so templates see only the images chosen for them, slots in the sample sets and a new logo-reveal type | 17-26 h |
-| 23. Layers in templates | Blocks a template declares, a box per aspect, where the person using it adds text or image layers that stack and ride the template's animation by their position; typography per layer, a bundled set of open-licence fonts plus imported ones, layers carried by presets, collections and CSV, and a per-layer motion override behind Advanced | 29-44 h |
+| 23. Layers in templates | Blocks a template declares, a box per aspect, where the person using it adds text or image layers that stack and ride the template's animation by their position; typography per layer, ten bundled open-licence fonts plus imported ones, layers carried by presets, collections, the cache and CSV, the Parameters tab organised by element, and a per-layer motion override behind Advanced | 33-50 h |
 | 20. Social-ready export | Platform presets (aspect, resolution, frame rate, H.264/AAC, bitrate) with warnings when a render runs past a platform's length or file-size limit, a cover image, and handing the file to the system share sheet or the platform's upload page — no accounts, no posting through APIs | 8-13 h |
-| 17. Unsigned builds and releases | electron-builder, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 7-12 h |
-| 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 | 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
+| 17. Unsigned builds and releases | electron-builder, an app icon of Pulp's own and the names and shortcuts each system shows, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 8-14 h |
+| 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 
-The milestones through 1.0 total **227-370 hours**, of which **58-93 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **232-378 hours**, of which **39-64 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
