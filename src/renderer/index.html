@@ -169,6 +169,24 @@
       <p id="preset-note" class="note"></p>
       <p id="preset-unavailable" class="note" hidden></p>
       <div class="render-options">
+        <label class="field" id="opt-aspect-field" hidden>
+          <span>Aspect</span>
+          <select id="opt-aspect"></select>
+        </label>
+        <label class="field">
+          <span>Resolution</span>
+          <select id="opt-resolution"></select>
+        </label>
+        <div class="size-custom" id="opt-size-custom" hidden>
+          <label class="field">
+            <span>Width</span>
+            <input id="opt-width" type="number" inputmode="numeric" min="16" max="8192" step="2" placeholder="1920">
+          </label>
+          <label class="field">
+            <span>Height</span>
+            <input id="opt-height" type="number" inputmode="numeric" min="16" max="8192" step="2" placeholder="1080">
+          </label>
+        </div>
         <label class="field">
           <span>Frame rate</span>
           <select id="opt-fps"></select>

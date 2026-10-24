@@ -8,6 +8,7 @@
 
 import { computed, signal } from '@preact/signals';
 import { createResultsSelector, createTreeSelector, initialAppState, type AppState } from '../core/app-state';
+import type { Size } from '../core/aspect';
 import type { TemplateEntry } from '../core/library-types';
 import { DEFAULT_RESULTS_VIEW, type ResultsViewState } from '../core/results-view';
 
@@ -49,3 +50,10 @@ export const renderBlocked = signal(true);
 
 /** The selected template (media items are shown, not selected); regions read this instead of each other. */
 export const selectedTemplate = signal<TemplateEntry | null>(null);
+
+/**
+ * The frame size the Output tab has chosen for the selected template (aspect and
+ * resolution), which the stage previews at. Null until a template is shown; the
+ * template's default size then (milestone 19).
+ */
+export const frameSize = signal<Size | null>(null);

@@ -19,7 +19,7 @@ import { frameState } from '../core/runtime';
 import { formatTimecode } from '../core/timecode';
 import { mediaUrlFor, templateUrlFor } from '../shared/api';
 import { setIcon } from './icons';
-import { trim } from './store';
+import { frameSize, trim } from './store';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
 
@@ -164,7 +164,7 @@ function postFrame(frame: number): void {
   const win = els.preview.contentWindow;
   if (!win || !s.manifest) return;
   s.inFlight = true;
-  win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, templateDefaultSize(s.manifest)) }, '*');
+  win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, previewSize()) }, '*');
   updateTimecode(frame);
 }
 
@@ -262,9 +262,7 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams):
   s.previewReady = false;
   s.inFlight = false;
   s.pendingFrame = null;
-  // The preview shows the template's default shape; the Output tab's aspect choice follows in milestone 19's next item.
-  const size = templateDefaultSize(m);
-  els.previewFrame.style.aspectRatio = `${size.width} / ${size.height}`;
+  applyPreviewShape();
   if (entry.offline) {
     // The folder is not reachable; keep the item (and its edits) but do not try to load it.
     els.preview.removeAttribute('src');
@@ -326,6 +324,18 @@ export function stageClear(): void {
   updateTransport();
 }
 
+/** The size the template is drawn at: the Output tab's choice, else the template's default. */
+function previewSize(): { width: number; height: number } {
+  return frameSize.value ?? (s.manifest ? templateDefaultSize(s.manifest) : { width: 1920, height: 1080 });
+}
+
+/** The preview box takes the chosen shape, so a tall render is previewed tall. */
+function applyPreviewShape(): void {
+  const size = previewSize();
+  els.previewFrame.style.aspectRatio = `${size.width} / ${size.height}`;
+  els.previewFrame.dataset.orientation = size.width === size.height ? 'square' : size.width > size.height ? 'landscape' : 'portrait';
+}
+
 /** New parameter values (edit, undo, preset): redraw the current frame with them. */
 export function stageSetParams(params: ResolvedParams): void {
   s.params = params;
@@ -340,6 +350,13 @@ function step(delta: number): void {
 }
 
 export function initStage(): void {
+  // The Output tab's aspect or resolution changed: reshape the box and draw the frame for the new canvas.
+  effect(() => {
+    void frameSize.value;
+    if (!s.manifest) return;
+    applyPreviewShape();
+    requestFrame(s.frame);
+  });
   els.play.addEventListener('click', () => (s.playing ? stageStop() : play()));
   els.stepBack.addEventListener('click', () => step(-1));
   els.stepForward.addEventListener('click', () => step(1));

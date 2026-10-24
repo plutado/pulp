@@ -152,7 +152,7 @@ export function resolveRenderSize(template: ShapeDeclaration, choice: SizeChoice
   if (hasW) {
     for (const [name, v] of [['width', choice.width], ['height', choice.height]] as const) {
       if (!Number.isInteger(v) || (v as number) < MIN_DIMENSION || (v as number) > MAX_DIMENSION) {
-        throw new AspectError(`${name} must be a whole number of pixels between ${MIN_DIMENSION} and ${MAX_DIMENSION}, got ${String(v)}`);
+        throw new AspectError(`${name} must be a whole number of pixels between ${MIN_DIMENSION} and ${MAX_DIMENSION}${Number.isNaN(v) ? '' : `, got ${String(v)}`}`);
       }
     }
   }

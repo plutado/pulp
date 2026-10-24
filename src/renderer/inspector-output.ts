@@ -6,7 +6,9 @@
  */
 
 import { effect } from '@preact/signals';
+import { AspectError, aspectById, defaultAspect, orientationOf, resolutionsFor, resolveRenderSize, templateDefaultSize, type Size } from '../core/aspect';
 import { planBatch, type BatchPlan } from '../core/batch-csv';
+import { dimensionsLabel } from '../core/display';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { frameCount } from '../core/manifest';
 import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
@@ -14,7 +16,7 @@ import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, tim
 import type { TemplateEntry } from '../core/library-types';
 import { currentRawParams } from './inspector-params';
 import { stageStop } from './stage';
-import { appState, dispatch, renderBlocked, selectedTemplate, trim } from './store';
+import { appState, dispatch, frameSize, renderBlocked, selectedTemplate, trim } from './store';
 import { setCollection, setEditing } from '../core/app-state';
 import { updateItem } from '../core/collection';
 import { editing } from './collection';
@@ -30,6 +32,12 @@ const els = {
   preset: $<HTMLSelectElement>('preset'),
   presetNote: $<HTMLParagraphElement>('preset-note'),
   presetUnavailable: $<HTMLParagraphElement>('preset-unavailable'),
+  optAspectField: $<HTMLLabelElement>('opt-aspect-field'),
+  optAspect: $<HTMLSelectElement>('opt-aspect'),
+  optResolution: $<HTMLSelectElement>('opt-resolution'),
+  optSizeCustom: $<HTMLDivElement>('opt-size-custom'),
+  optWidth: $<HTMLInputElement>('opt-width'),
+  optHeight: $<HTMLInputElement>('opt-height'),
   optFps: $<HTMLSelectElement>('opt-fps'),
   optBackgroundField: $<HTMLLabelElement>('opt-background-field'),
   optBackground: $<HTMLInputElement>('opt-background'),
@@ -101,6 +109,122 @@ function populateFrameRates(): void {
   }
 }
 
+// ---------------------------------------------------------------- shape and size (milestone 19)
+
+const CUSTOM_SIZE = 'custom';
+
+function orientationWord(aspectId: string): string {
+  const a = aspectById(aspectId);
+  if (!a) return '';
+  return { landscape: 'Landscape', portrait: 'Portrait', square: 'Square' }[orientationOf(a.w, a.h)];
+}
+
+/** The aspect select lists what the template draws for; it is shown only when there is a choice to make. */
+function populateAspects(m: { aspects: readonly string[]; size?: Size }): void {
+  els.optAspect.replaceChildren();
+  for (const id of m.aspects) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    const word = orientationWord(id);
+    opt.textContent = word ? `${id} · ${word}` : id;
+    els.optAspect.append(opt);
+  }
+  els.optAspect.value = defaultAspect(m);
+  els.optAspectField.hidden = m.aspects.length < 2;
+}
+
+/** The resolutions for the chosen aspect: the template's own size first where it has one, then the standard list, then a custom size. */
+function populateResolutions(m: { aspects: readonly string[]; size?: Size }): void {
+  const aspect = els.optAspect.value || defaultAspect(m);
+  const fallback = resolveRenderSize(m, { aspect });
+  els.optResolution.replaceChildren();
+  const def = document.createElement('option');
+  def.value = '';
+  def.textContent = `${m.size && defaultAspect(m) === aspect ? 'Template size' : 'Default'} · ${dimensionsLabel(fallback.width, fallback.height)}`;
+  els.optResolution.append(def);
+  for (const r of resolutionsFor(m, aspect)) {
+    if (r.width === fallback.width && r.height === fallback.height) continue;
+    const opt = document.createElement('option');
+    opt.value = `${r.width}x${r.height}`;
+    opt.textContent = `${r.label} · ${dimensionsLabel(r.width, r.height)}`;
+    els.optResolution.append(opt);
+  }
+  const custom = document.createElement('option');
+  custom.value = CUSTOM_SIZE;
+  custom.textContent = 'Custom size…';
+  els.optResolution.append(custom);
+  els.optResolution.value = '';
+  els.optSizeCustom.hidden = true;
+  els.optWidth.placeholder = String(fallback.width);
+  els.optHeight.placeholder = String(fallback.height);
+}
+
+/** The shape and size fields as render options: nothing for the defaults, so a plain render stays a plain request. */
+function readSizeChoice(): Pick<RenderOptions, 'aspect' | 'width' | 'height'> {
+  const m = selectedTemplate.value?.manifest;
+  const out: Pick<RenderOptions, 'aspect' | 'width' | 'height'> = {};
+  if (!m) return out;
+  if (!els.optAspectField.hidden && els.optAspect.value && els.optAspect.value !== defaultAspect(m)) out.aspect = els.optAspect.value;
+  const chosen = els.optResolution.value;
+  if (chosen === CUSTOM_SIZE) {
+    // Whatever was typed goes through as typed; the planner says what is wrong with it.
+    out.width = els.optWidth.value.trim() === '' ? Number.NaN : Number(els.optWidth.value);
+    out.height = els.optHeight.value.trim() === '' ? Number.NaN : Number(els.optHeight.value);
+    if (out.aspect === undefined && !els.optAspectField.hidden) out.aspect = els.optAspect.value;
+  } else if (chosen) {
+    const [w, h] = chosen.split('x').map(Number);
+    out.width = w;
+    out.height = h;
+  }
+  return out;
+}
+
+/** Tell the stage what shape to preview; the template's default when the fields do not resolve. */
+function publishFrameSize(): void {
+  const m = selectedTemplate.value?.manifest;
+  if (!m) {
+    frameSize.value = null;
+    return;
+  }
+  let next: Size;
+  try {
+    const r = resolveRenderSize(m, readSizeChoice());
+    next = { width: r.width, height: r.height };
+  } catch {
+    next = templateDefaultSize(m);
+  }
+  if (frameSize.value?.width !== next.width || frameSize.value?.height !== next.height) frameSize.value = next;
+}
+
+/** Put a card's or a request's size choice back into the fields. */
+function showSizeChoice(m: { aspects: readonly string[]; size?: Size }, options: RenderOptions): void {
+  populateAspects(m);
+  if (options.aspect && m.aspects.includes(options.aspect)) els.optAspect.value = options.aspect;
+  else if (options.width && options.height) {
+    const inferred = m.aspects.find((a) => {
+      try {
+        return resolveRenderSize(m, { aspect: a, width: options.width!, height: options.height! }).aspect === a;
+      } catch {
+        return false;
+      }
+    });
+    if (inferred) els.optAspect.value = inferred;
+  }
+  populateResolutions(m);
+  if (options.width && options.height) {
+    const value = `${options.width}x${options.height}`;
+    const fallback = resolveRenderSize(m, { aspect: els.optAspect.value || defaultAspect(m) });
+    if (options.width === fallback.width && options.height === fallback.height) els.optResolution.value = '';
+    else if (Array.from(els.optResolution.options).some((o) => o.value === value)) els.optResolution.value = value;
+    else {
+      els.optResolution.value = CUSTOM_SIZE;
+      els.optWidth.value = String(options.width);
+      els.optHeight.value = String(options.height);
+    }
+  }
+  els.optSizeCustom.hidden = els.optResolution.value !== CUSTOM_SIZE;
+}
+
 /** The output frame rate as currently chosen: the override, or the template's. */
 function chosenFps(): number | undefined {
   if (els.optFps.value !== '') return Number(els.optFps.value);
@@ -128,6 +252,7 @@ export function readRenderOptions(): RenderOptions {
   if (inFrame !== undefined) options.inFrame = inFrame;
   if (outFrame !== undefined) options.outFrame = outFrame;
   if (!OUTPUT_PRESETS[els.preset.value as PresetId].alpha) options.background = els.optBackground.value;
+  Object.assign(options, readSizeChoice());
   return options;
 }
 
@@ -180,20 +305,26 @@ function updateOptionsNote(): void {
   els.optOut.placeholder = formatTimecode(lastFrame, fps);
   els.optIn.title = els.optOut.title = `Timecode ${timecodePattern(fps)}, a frame number, or seconds such as 2.5s`;
   try {
-    const t = resolveTiming(m, readRenderOptions());
+    const options = readRenderOptions();
+    const t = resolveTiming(m, options);
+    const size = resolveRenderSize(m, options);
+    const own = templateDefaultSize(m);
     const seconds = t.totalFrames / t.fps;
-    const changed = t.fps !== m.fps || t.totalFrames !== frameCount(m) || t.firstFrame !== 0;
-    const last = t.firstFrame + t.totalFrames - 1;
+    const parts: string[] = [];
+    if (size.width !== own.width || size.height !== own.height) parts.push(`${dimensionsLabel(size.width, size.height)} (${size.aspect})`);
+    if (t.fps !== m.fps || t.totalFrames !== frameCount(m) || t.firstFrame !== 0) {
+      const last = t.firstFrame + t.totalFrames - 1;
+      parts.push(`${t.totalFrames} frames at ${t.fps} fps (${seconds.toFixed(2)} s), ${formatTimecode(t.firstFrame, t.fps)} to ${formatTimecode(last, t.fps)}`);
+    }
     els.optionsNote.classList.remove('error');
-    els.optionsNote.textContent = changed
-      ? `${t.totalFrames} frames at ${t.fps} fps (${seconds.toFixed(2)} s), ${formatTimecode(t.firstFrame, t.fps)} to ${formatTimecode(last, t.fps)}`
-      : '';
+    els.optionsNote.textContent = parts.join(' · ');
     o.optionsValid = true;
   } catch (err) {
     els.optionsNote.classList.add('error');
-    els.optionsNote.textContent = err instanceof RenderPlanError || err instanceof TimecodeError ? err.message : String(err);
+    els.optionsNote.textContent = err instanceof RenderPlanError || err instanceof TimecodeError || err instanceof AspectError ? err.message : String(err);
     o.optionsValid = false;
   }
+  publishFrameSize();
   updateRenderControls();
 }
 
@@ -346,6 +477,10 @@ async function queueBatch(): Promise<void> {
 
 /** A template was selected: its own rate labels the list, trims from the last template are cleared. */
 export function outputShow(entry: TemplateEntry): void {
+  populateAspects(entry.manifest);
+  populateResolutions(entry.manifest);
+  els.optWidth.value = '';
+  els.optHeight.value = '';
   els.optFps.options[0]!.textContent = `Template rate (${entry.manifest.fps} fps)`;
   els.optFps.value = '';
   els.optIn.value = '';
@@ -397,6 +532,7 @@ function initCollectionEditing(): void {
       els.optIn.value = item.options.inFrame === undefined ? '' : formatTimecode(item.options.inFrame, fps);
       els.optOut.value = item.options.outFrame === undefined ? '' : formatTimecode(item.options.outFrame, fps);
       if (item.options.background !== undefined) els.optBackground.value = item.options.background;
+      if (selectedTemplate.value && item.templateId === selectedTemplate.value.manifest.id) showSizeChoice(selectedTemplate.value.manifest, item.options);
       updateOptionsNote();
       // Only when the form really is this template's, or the values would land on the wrong one.
       if (item.templateId && selectedTemplate.value?.manifest.id === item.templateId) paramsApply(item.params);
@@ -445,6 +581,25 @@ export function initInspectorOutput(): void {
     updateOptionsNote();
     saveToEditedCard();
   });
+  els.optAspect.addEventListener('change', () => {
+    // A new shape has its own list of sizes; the choice goes back to that shape's default.
+    const m = selectedTemplate.value?.manifest;
+    if (m) populateResolutions(m);
+    updateOptionsNote();
+    saveToEditedCard();
+  });
+  els.optResolution.addEventListener('change', () => {
+    els.optSizeCustom.hidden = els.optResolution.value !== CUSTOM_SIZE;
+    if (!els.optSizeCustom.hidden) els.optWidth.focus();
+    updateOptionsNote();
+    saveToEditedCard();
+  });
+  for (const el of [els.optWidth, els.optHeight]) {
+    el.addEventListener('input', () => {
+      updateOptionsNote();
+      saveToEditedCard();
+    });
+  }
   els.render.addEventListener('click', () => void queueRender());
   els.dragPrepare.addEventListener('click', () => void prepareForDrag());
   els.batchCsv.addEventListener('input', () => {

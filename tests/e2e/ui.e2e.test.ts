@@ -554,6 +554,79 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 60_000);
   });
 
+  describe('aspect and resolution (milestone 19)', () => {
+    const note = () => page.eval<string>(`document.getElementById('options-note').textContent`);
+    const previewShape = () => page.eval<{ ratio: string; orientation: string }>(`(() => { const f = document.getElementById('preview-frame'); return { ratio: f.style.aspectRatio, orientation: f.dataset.orientation }; })()`);
+
+    it('offers the aspects a template draws for and the sizes of each, and previews the chosen shape', async () => {
+      // A shape-only template: four aspects, no declared size.
+      await clickResult('Boardroom opener');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the opener preview');
+      expect(await page.eval<boolean>(`document.getElementById('opt-aspect-field').hidden`)).toBe(false);
+      expect(await page.eval<string[]>(`[...document.getElementById('opt-aspect').options].map((o) => o.value)`)).toEqual(['16:9', '9:16', '1:1', '4:5']);
+      expect(await page.eval<string>(`document.getElementById('opt-resolution').selectedOptions[0].textContent`)).toBe('Default · 1920 × 1080');
+      expect(await previewShape()).toEqual({ ratio: '1920 / 1080', orientation: 'landscape' });
+      expect(await note()).toBe('');
+
+      // Tall: the preview box turns, the note says the size, and the list is the tall list.
+      await fire('#opt-aspect', '9:16', 'change');
+      await until(async () => (await previewShape()).orientation === 'portrait', 'the preview to turn portrait');
+      expect(await previewShape()).toEqual({ ratio: '1080 / 1920', orientation: 'portrait' });
+      expect(await note()).toBe('1080 × 1920 (9:16)');
+      expect(await page.eval<string[]>(`[...document.getElementById('opt-resolution').options].map((o) => o.value)`)).toEqual(['', '720x1280', '1440x2560', '2160x3840', 'custom']);
+      await fire('#opt-resolution', '720x1280', 'change');
+      expect(await note()).toBe('720 × 1280 (9:16)');
+      expect((await previewShape()).ratio).toBe('720 / 1280');
+
+      // A custom size must be of the chosen aspect; until it is, nothing renders.
+      await fire('#opt-resolution', 'custom', 'change');
+      expect(await page.eval<boolean>(`document.getElementById('opt-size-custom').hidden`)).toBe(false);
+      await fire('#opt-width', '700', 'input');
+      await fire('#opt-height', '1000', 'input');
+      expect(await note()).toBe('700 × 1000 is 7:10, not 9:16');
+      expect(await page.eval<boolean>(`document.getElementById('render').disabled`)).toBe(true);
+      await fire('#opt-height', '1244', 'input');
+      expect(await note()).toBe('700 × 1244 (9:16)');
+      expect(await page.eval<boolean>(`document.getElementById('options-note').classList.contains('error')`)).toBe(false);
+
+      // A template with one declared size: no aspect to choose, and the default is its own size.
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`document.getElementById('opt-aspect-field').hidden`), 'the aspect field to hide');
+      expect(await page.eval<string>(`document.getElementById('opt-resolution').selectedOptions[0].textContent`)).toBe('Template size · 1920 × 1080');
+      expect(await note()).toBe('');
+      expect(await previewShape()).toEqual({ ratio: '1920 / 1080', orientation: 'landscape' });
+    }, 90_000);
+
+    it('renders at the chosen shape and size through Prepare for drag', async () => {
+      if (!haveVideo) {
+        console.info('ffmpeg not available; aspect render check skipped.');
+        return;
+      }
+      await clickResult('Boardroom opener');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the opener preview');
+      await fire('#opt-aspect', '1:1', 'change');
+      await fire('#opt-resolution', '720x720', 'change');
+      await page.eval(`(() => { const i = document.getElementById('opt-in'); i.value = '10'; i.dispatchEvent(new Event('input', { bubbles: true })); const o = document.getElementById('opt-out'); o.value = '10'; o.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await fire('#preset', 'png-sequence', 'change');
+      await page.eval(`document.getElementById('drag-prepare').click()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#queue .job-card[draggable="true"][data-file*="boardroom-opener"]')`), 'the square render to finish', 240);
+      const file = await page.eval<string>(`document.querySelector('#queue .job-card[draggable="true"][data-file*="boardroom-opener"]').dataset.file`);
+      const ffmpeg = await detectFfmpeg();
+      expect(ffmpeg.ok).toBe(true);
+      if (!ffmpeg.ok) return;
+      const { stderr } = await run(ffmpeg.path, ['-hide_banner', '-i', file, '-f', 'null', '-']).catch((e: { stderr: string }) => e);
+      expect(stderr).toMatch(/ 720x720[, ]/);
+
+      // Leave the tray and the Output tab as the tests that follow expect them: no cards, the default preset, no trim.
+      await page.eval(`document.getElementById('clear-finished').click()`);
+      await until(() => page.eval<boolean>(`document.querySelectorAll('#queue li:not(.empty)').length === 0`), 'the tray to be cleared');
+      await page.eval(`document.getElementById('cache-clear').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('cache-summary').textContent.includes('0 files')`), 'the cache to be cleared');
+      await fire('#preset', 'prores-4444', 'change');
+      await page.eval(`(() => { for (const id of ['opt-in', 'opt-out']) { const el = document.getElementById(id); el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); } })()`);
+    }, 300_000);
+  });
+
   describe('saved presets and batch', () => {
     const nameValue = () => page.eval<string>(`document.querySelector('[data-param=name] input').value`);
     const options = () => page.eval<string[]>(`[...document.getElementById('param-preset-list').options].map((o) => o.value).filter(Boolean)`);
