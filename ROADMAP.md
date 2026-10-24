@@ -2,7 +2,7 @@
 
 Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done. The "still open" row is the sum of the unticked items' own estimates, not the previous figure minus what was finished — recompute it from the items, or it drifts.
 
-Milestones keep the number they were given when they were added, so GitHub issues #1 to #22 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
+Milestones keep the number they were given when they were added, so GitHub issues #1 to #23 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
 | Milestone | Estimate |
 |---|---|
@@ -21,6 +21,7 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 21. Sample library coverage | 26-40 h |
 | 19. Vertical and square formats | 13-21 h |
 | 22. Image slots in templates | 17-26 h |
+| 23. Layers in templates | 29-44 h |
 | 20. Social-ready export | 8-13 h |
 | 17. Unsigned builds and releases | 7-12 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
@@ -29,9 +30,9 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-22)** | **198-326 h** |
-| **Still open through 1.0 (unticked items only)** | **31-51 h** |
-| **Total including post-1.0 items** | **230-384 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-23)** | **227-370 h** |
+| **Still open through 1.0 (unticked items only)** | **58-93 h** |
+| **Total including post-1.0 items** | **259-428 h** |
 
 ## 0. Foundation (done)
 
@@ -235,6 +236,23 @@ Right after milestone 19, because both touch the template format and milestone 8
 - [x] Slots in the samples, where a logo belongs: a badge on each set's lower third, a mark above each set's title, a logo in each corner bug, a logo at the centre of each set's transition stinger, a lockup with handles on each end card, and a watermark on each background; the standalone Lower Third Bar and Title Card gain one each. All default to the fallback text, so the templates render as they do today with no image chosen; the samples test checks that every slot declares a box, a fit and a fallback (3-5 h)
 - [x] A "logo reveal" type in the Titles and text group (the type list is closed and versioned, so the taxonomy version moves to 2, with ADR 0010's extension rule followed: added, never renamed; the coverage test picks it up). Three to five standalone reveals across families canvas does well — minimal, elegant line, glitch, particles, light sweep, ink — each around a slot, and a short ident for each matched set (one to three seconds, dark ground, one move) in its look. All original CC0, inspired by common patterns, never copied; each rendered and checked at 16:9 and 9:16 (4-6 h)
 - [ ] Media slots, after the image slots and possibly after 1.0: a `media` parameter for a video plate behind a title or inside a frame, drawn frame-accurately from a library clip (the host decodes the frame for the template's time, with a trim and a loop option), with the same grant rule, picker and cache-key handling as images (3-5 h, post-1.0)
+
+## 23. Layers in templates (29-44 h)
+
+After milestone 22, which it grows out of, and before milestone 8's schema and authoring guide, for the same reason every format milestone comes first: the guide should describe the format as it ends up.
+
+Milestone 22 gave a template fixed image slots: the author decides where a logo goes and it rides the animation. This milestone lets the **person using the template add a layer the author did not put there** — another line of text, a second logo — and have it ride the animation just the same. A template declares **blocks**, a box per aspect where layers may live; layers stack inside a block and take their part of the template's movement from their position in the stack, so an added line enters, moves and leaves with the design rather than sitting on top of it. The author stays in charge of the look: a layer is drawn with the block's typography and the template's motion unless it is deliberately overridden.
+
+Milestone 22's fixed image slots stay exactly as they are. A slot is the author's; a layer is the user's.
+
+- [ ] Template format: `blocks` and `layers`. A block is a box per aspect (fractions of the frame, like an image slot), a stacking direction and spacing, the typography its text layers start from, and whether it is full or may take more. A template's own layers are its defaults, each with a type (`text` or `image`), its properties, and optional `required` so it cannot be removed. The stack position is what the template animates by, so a layer added in the middle takes the movement of the position it is in. Validator with tests, `docs/template-format.md`, an entry in `CHANGELOG.md` (4-6 h)
+- [ ] "Add layer" in the Parameters tab, offering Text or Image, with the block to add it to when a template declares more than one. Reorder within a block, remove (unless the template marks it required), and hide — kept but not drawn, with the stack closing up, so a layer can be taken out of a shot without losing its settings. "Reset layers" restores the template's defaults. The layer list and its edits are a pure core module with unit tests, and every change is undoable with the rest of the parameters (5-8 h)
+- [ ] Text layer properties: family, size (as a fraction of the frame, so it holds at every resolution), weight, italic, case, letter spacing, kerning, line height, space before, colour, alignment, and overflow — wrap, shrink to fit, or truncate — resolved by the host so every template behaves the same way when a name is too long (4-6 h)
+- [ ] Image layers, SVG or PNG: milestone 22's picker, its by-id grant and its treatments (original, tinted, white, black, shadow or glow), plus size and alignment. No font properties; a layer is one kind of thing or the other (3-4 h)
+- [ ] Fonts: a bundled set of open-licence families — Inter, Montserrat, Oswald, Bebas Neue, Source Serif 4, Playfair Display, JetBrains Mono, Caveat, Dancing Script, Noto Sans — each one's licence confirmed from the upstream licence file rather than from a package listing, with `docs/font-credits.md` naming the family, the version, the licence and where it came from, and an ADR on the choice of set and on how a template asks for a family it has not bundled. The style guide gains the rule that a font is a credited dependency (4-6 h)
+- [ ] Importing your own fonts: a managed fonts folder in user data, files copied in and read from there, with a licence note recorded per family and shown where the family is chosen. Exported packs never include imported fonts — a template that uses one names it and falls back — so sharing a pack can never redistribute someone else's licence (3-4 h)
+- [ ] Layers travel: saved presets, collection items, `.pulpcollection` files, `--param` headlessly, and a CSV batch with a column per layer. The render cache key covers the layers, so an added line renders afresh, and undo covers adding, removing, hiding, reordering and every property (3-5 h)
+- [ ] Motion, last, behind an "Advanced" disclosure: the template owns a layer's movement by default, and a per-layer override offers Template, Fade, Slide, Scale or None with a delay. An overridden layer still finishes inside the template's own in and out, so no layer can be left on screen after the graphic has gone. The timing is pure and unit tested; the end-to-end test overrides one layer and reads pixels at the ends (3-5 h)
 
 ## 20. Social-ready export (8-13 h)
 

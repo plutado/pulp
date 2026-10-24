@@ -51,7 +51,7 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Sample media on demand: a "Sample media" folder of original CC0 sounds, music, stills and clips, made with ffmpeg and the renderer when you ask for it, so the browse tree has something under every media type.
 - A headless command-line render mode (below).
 
-Not yet: image slots in templates (logos that ride a graphic's animation), social-ready export, installers and signed builds, verification on Windows. These are on the [roadmap](ROADMAP.md).
+Not yet: layers in templates (lines of text and logos added to a template that ride its animation), social-ready export, installers and signed builds, verification on Windows. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
@@ -62,12 +62,13 @@ Milestones 1-6, 10-13, 18, 19 and 21 (renderer, alpha export, parameter editor, 
 | Milestone | What it delivers | Estimate |
 |---|---|---|
 | 22. Image slots in templates | An `image` parameter that rides a template's own animation: a logo drawn inside the graphic's layers so it follows every move, with a picker in the Parameters tab, a managed Imported folder, a by-id grant so templates see only the images chosen for them, slots in the sample sets and a new logo-reveal type | 17-26 h |
+| 23. Layers in templates | Blocks a template declares, a box per aspect, where the person using it adds text or image layers that stack and ride the template's animation by their position; typography per layer, a bundled set of open-licence fonts plus imported ones, layers carried by presets, collections and CSV, and a per-layer motion override behind Advanced | 29-44 h |
 | 20. Social-ready export | Platform presets (aspect, resolution, frame rate, H.264/AAC, bitrate) with warnings when a render runs past a platform's length or file-size limit, a cover image, and handing the file to the system share sheet or the platform's upload page — no accounts, no posting through APIs | 8-13 h |
 | 17. Unsigned builds and releases | electron-builder, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 7-12 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 | 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 
-The milestones through 1.0 total **156-263 hours**, of which **45-75 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **227-370 hours**, of which **58-93 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
