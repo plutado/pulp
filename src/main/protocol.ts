@@ -4,9 +4,10 @@ import { extname, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { MEDIA_SCHEME, serveMedia } from '../core/media-serve';
 import { THUMB_SCHEME } from '../core/thumbnails';
+import { STRIP_SCHEME } from '../core/hover-scrub';
 import { injectBridge, TEMPLATE_CSP } from '../core/runtime';
 import { TEMPLATE_SCHEME } from '../shared/api';
-import { findTemplate, lookupMedia, lookupThumbnail, thumbnailDir } from './library-service';
+import { findTemplate, lookupMedia, lookupStrip, lookupThumbnail, thumbnailDir } from './library-service';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -36,19 +37,21 @@ export function registerTemplateScheme(): void {
     // `stream` lets <video> and <audio> play from it. No fetch: only media elements need it, and the
     // scheme enforces CORS, so even the app window cannot read responses as data.
     { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: false, stream: true } },
-    // Thumbnails: small PNGs for <img> only, same rules as media (by id, bare 404s, no fetch).
+    // Thumbnails and hover-scrub strips: small PNGs for <img> and CSS only, same rules as media
+    // (by id, bare 404s, no fetch).
     { scheme: THUMB_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: false } },
+    { scheme: STRIP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: false } },
   ]);
 }
 
 /**
- * Serve cached thumbnails to the app window at pulp-thumb://<item-id>/. The
- * file must be the store's current thumbnail for that id and must really lie
- * in the thumbnail cache folder; anything else, including template referrers,
- * is a bare 404.
+ * Serve a cached PNG to the app window at <scheme>://<item-id>/. The file must
+ * be the store's current one for that id and must really lie in the thumbnail
+ * cache folder; anything else — a path or query on the URL, an unknown id, a
+ * template referrer, a file outside the cache — is a bare 404.
  */
-export function handleThumbProtocol(): void {
-  protocol.handle(THUMB_SCHEME, async (request) => {
+function handleCachedImage(scheme: string, lookup: (id: string) => string | undefined): void {
+  protocol.handle(scheme, async (request) => {
     const refuse = () => new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
     if (request.method !== 'GET' && request.method !== 'HEAD') return refuse();
     const referrer = request.referrer || request.headers.get('referer') || '';
@@ -60,7 +63,7 @@ export function handleThumbProtocol(): void {
       return refuse();
     }
     if ((url.pathname !== '' && url.pathname !== '/') || url.search) return refuse();
-    const file = lookupThumbnail(url.hostname);
+    const file = lookup(url.hostname);
     if (!file) return refuse();
     let real: string;
     let dir: string;
@@ -79,6 +82,12 @@ export function handleThumbProtocol(): void {
     const headers = { 'Content-Type': 'image/png', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
     return new Response(request.method === 'HEAD' ? null : new Uint8Array(body), { status: 200, headers });
   });
+}
+
+/** Poster thumbnails at pulp-thumb://<item-id>/ and hover-scrub strips at pulp-strip://<item-id>/. */
+export function handleThumbProtocol(): void {
+  handleCachedImage(THUMB_SCHEME, lookupThumbnail);
+  handleCachedImage(STRIP_SCHEME, lookupStrip);
 }
 
 /**

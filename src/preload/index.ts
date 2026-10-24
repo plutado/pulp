@@ -40,6 +40,7 @@ const api: PulpApi = {
   addRecentSearch: (query) => ipcRenderer.invoke('searches:recent-add', query),
   getLayout: () => ipcRenderer.invoke('layout:get'),
   saveLayout: (layout) => ipcRenderer.invoke('layout:save', layout),
+  hoverStrip: (id) => ipcRenderer.invoke('library:hover-strip', id),
   getResultsView: () => ipcRenderer.invoke('results-view:get'),
   saveResultsView: (view) => ipcRenderer.invoke('results-view:save', view),
   onRenderQueue: (listener) => {

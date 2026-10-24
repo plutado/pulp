@@ -339,6 +339,69 @@ async function captureFrame(
   return pixels;
 }
 
+/**
+ * Capture named frames of a template as PNGs through **one** offscreen window.
+ * For the hover-scrub strip, which wants a handful of frames spread over the
+ * timeline rather than a contiguous range: a render per frame would pay the
+ * window's load cost every time, and the frame-rate override cannot express
+ * "eight frames across this duration" because it only takes standard rates.
+ *
+ * PNG, not raw pixels: there is no ffmpeg pipe to feed here, and eight image
+ * encodes cost less than the capture-format probe they would replace.
+ */
+export async function captureTemplateFrames(
+  template: TemplateEntry,
+  frames: readonly number[],
+  options: { params?: Record<string, unknown>; frameTimeoutMs?: number; loadTimeoutMs?: number; signal?: AbortSignal } = {},
+): Promise<{ ok: true; frames: Buffer[] } | { ok: false; message: string }> {
+  const { manifest } = template;
+  const { values } = resolveParams(manifest, options.params ?? {});
+  const win = new BrowserWindow({
+    show: false,
+    width: manifest.width,
+    height: manifest.height,
+    useContentSize: true,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() },
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false,
+    },
+  });
+  try {
+    win.setContentSize(manifest.width, manifest.height);
+    win.webContents.setFrameRate(240);
+    const loadTimeoutMs = options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
+    try {
+      await withTimeout(
+        win.loadURL(templateUrlFor(manifest.id, manifest.entry)).then(() => win.webContents.executeJavaScript('window.__pulp.ready')),
+        loadTimeoutMs,
+        loadTimeoutMessage(manifest.name, loadTimeoutMs),
+      );
+    } catch (err) {
+      return { ok: false, message: err instanceof RenderTimeoutError ? err.message : `Could not load template "${manifest.name}": ${(err as Error).message}` };
+    }
+    const frameTimeoutMs = options.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS;
+    const captured: Buffer[] = [];
+    for (const frame of frames) {
+      if (options.signal?.aborted) return { ok: false, message: 'Cancelled.' };
+      try {
+        captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values), manifest, 'png'), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
+      } catch (err) {
+        if (err instanceof RenderTimeoutError) win.webContents.forcefullyCrashRenderer();
+        return { ok: false, message: err instanceof TemplateError ? templateThrewMessage(manifest.name, frame, err.detail) : (err as Error).message };
+      }
+    }
+    return { ok: true, frames: captured };
+  } finally {
+    win.destroy();
+  }
+}
+
 async function existingFiles(paths: string[]): Promise<Set<string>> {
   const found = await Promise.all(paths.map((p) => access(p).then(() => p, () => null)));
   return new Set(found.filter((p): p is string => p !== null));

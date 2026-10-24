@@ -27,6 +27,7 @@ import {
   type BadgeId,
   type ResultBadge,
 } from '../core/results-view';
+import { HOVER_DWELL_MS, stripWidthPercent, tileAt, tilePercent, wantsStrip } from '../core/hover-scrub';
 import { entryType, typeInfo } from '../core/taxonomy';
 import { virtualWindow } from '../core/virtual-list';
 import { Icon, MEDIA_KIND_ICONS, TYPE_GROUP_ICONS, type IconName } from './icons';
@@ -61,10 +62,60 @@ function Badges({ badges }: { badges: ResultBadge[] }) {
   );
 }
 
-function Thumb({ entry }: { entry: LibraryEntry }) {
+// Hover-scrub. Strips are asked for when the pointer rests on a card and kept for
+// the session; until one arrives the card shows its poster, so a hover never blinks.
+const strips = signal<ReadonlyMap<string, string | null>>(new Map());
+/** The card being scrubbed and which of its frames is showing. */
+const scrub = signal<{ id: string; tile: number } | null>(null);
+const asking = new Set<string>();
+let dwell: ReturnType<typeof setTimeout> | undefined;
+
+function requestStrip(entry: LibraryEntry): void {
+  clearTimeout(dwell);
+  if (!wantsStrip(entry) || strips.value.has(entry.id) || asking.has(entry.id)) return;
+  dwell = setTimeout(() => {
+    asking.add(entry.id);
+    void window.pulp.hoverStrip(entry.id).then((url) => {
+      asking.delete(entry.id);
+      strips.value = new Map(strips.value).set(entry.id, url);
+    });
+  }, HOVER_DWELL_MS);
+}
+
+/** Pointer position across the picture picks the frame; the signal only moves when the frame does. */
+function onScrub(entry: LibraryEntry, event: PointerEvent): void {
+  const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  const tile = tileAt((event.clientX - box.left) / Math.max(1, box.width));
+  const current = scrub.value;
+  if (current?.id === entry.id && current.tile === tile) return;
+  scrub.value = { id: entry.id, tile };
+}
+
+function endScrub(entry: LibraryEntry): void {
+  clearTimeout(dwell);
+  if (scrub.value?.id === entry.id) scrub.value = null;
+}
+
+function Thumb({ entry, scrubbable }: { entry: LibraryEntry; scrubbable?: boolean }) {
+  const at = scrubbable ? scrub.value : null;
+  const strip = at?.id === entry.id ? strips.value.get(entry.id) : undefined;
+  const handlers = scrubbable
+    ? {
+        onPointerEnter: () => requestStrip(entry),
+        onPointerMove: (e: PointerEvent) => onScrub(entry, e),
+        onPointerLeave: () => endScrub(entry),
+      }
+    : {};
   return (
-    <span class={`thumb checker${entry.thumbnail ? '' : ' empty'}`}>
+    <span class={`thumb checker${entry.thumbnail ? '' : ' empty'}`} {...handlers}>
       {entry.thumbnail ? <img src={entry.thumbnail} alt="" /> : <Icon name={placeholderIcon(entry)} size={20} />}
+      {/* Over the poster, not instead of it: the checkerboard behind stays visible through alpha. */}
+      {strip && (
+        <span
+          class="strip"
+          style={{ backgroundImage: `url("${strip}")`, backgroundSize: `${stripWidthPercent()}% 100%`, backgroundPositionX: `${tilePercent(at!.tile)}%` }}
+        />
+      )}
     </span>
   );
 }
@@ -100,7 +151,7 @@ function Card({ entry, selected, onSelect }: ItemProps) {
       aria-selected={selected ? 'true' : 'false'}
       onClick={() => onSelect(entry)}
     >
-      <Thumb entry={entry} />
+      <Thumb entry={entry} scrubbable />
       <span class="card-text">
         <span class="name-row">
           <Favorite entry={entry} />

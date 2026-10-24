@@ -102,6 +102,11 @@ export interface PulpApi {
   setItemFavorite(id: string, favorite: boolean): Promise<LibraryIndex>;
   /** Replace an item's user themes (built-in ids or custom words, normalized like tags). */
   setItemThemes(id: string, themes: string[]): Promise<LibraryIndex>;
+  /**
+   * The hover-scrub strip of an item, made on first ask and cached; the URL to
+   * load it from, or null when the item has nothing to scrub or it could not be made.
+   */
+  hoverStrip(id: string): Promise<string | null>;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */

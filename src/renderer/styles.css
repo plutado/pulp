@@ -263,7 +263,9 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results .spacer { grid-column: 1 / -1; }
 .results .meta.empty { grid-column: 1 / -1; padding: var(--space-2) var(--space-3); color: var(--muted); font-size: var(--font-caption); }
 
-.results .thumb { border: 1px solid var(--border); border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--muted); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
+.results .thumb { position: relative; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--muted); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
+/* Hover-scrub: one frame of the cached strip, over the poster so the checkerboard shows through alpha. */
+.results .thumb .strip { position: absolute; inset: 0; background-repeat: no-repeat; }
 .results .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .results .thumb .icon-wrap { color: var(--muted); }
 .results .thumb.empty { background-image: none; background-color: var(--panel-2); }

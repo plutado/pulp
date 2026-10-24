@@ -11,7 +11,7 @@
 import { spawn, execFile, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -828,6 +828,53 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await outcome('pulp-thumb://deadbeefdeadbeefdeadbeef/')).toBe('refused');
       expect(await outcome(`${byName['tiny']!.src}tiny.png`)).toBe('refused');
       expect(await outcome(byName['tiny']!.src)).toBe('loaded');
+    }, 180_000);
+
+    it('makes a hover-scrub strip on demand and steps it with the pointer', async () => {
+      if (!haveVideo) {
+        console.info('ffmpeg not available; hover-scrub check skipped.');
+        return;
+      }
+      /** Point at a fraction across a card's picture, as a pointer resting there would. */
+      const hover = (name: string, fraction: number) =>
+        onResult<void>(
+          name,
+          `(li) => { const t = li.querySelector('.thumb'); const r = t.getBoundingClientRect();
+            t.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }));
+            t.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + r.width * ${fraction}, clientY: r.top + r.height / 2 })); }`,
+        );
+      const frame = (name: string) => onResult<string | null>(name, `(li) => li.querySelector('.strip')?.style.backgroundPositionX ?? null`);
+
+      // A template strip is eight frames rendered through one offscreen window, then tiled.
+      await hover('Diagonal Wipe', 0.05);
+      await until(async () => (await frame('Diagonal Wipe')) !== null, 'the template strip to be made', 240);
+      expect(await frame('Diagonal Wipe')).toBe('0%');
+      const strip = await onResult<string>('Diagonal Wipe', `(li) => li.querySelector('.strip').style.backgroundImage`);
+      expect(strip).toMatch(/^url\("pulp-strip:\/\/[0-9a-f]{24}\/"\)$/);
+      expect(await onResult<string>('Diagonal Wipe', `(li) => li.querySelector('.strip').style.backgroundSize`)).toBe('800% 100%');
+
+      // Moving across the picture steps through the frames; the right edge is the last one.
+      await hover('Diagonal Wipe', 0.5);
+      expect(await frame('Diagonal Wipe')).toMatch(/^57\.14/);
+      await hover('Diagonal Wipe', 0.99);
+      expect(await frame('Diagonal Wipe')).toBe('100%');
+      // Leaving puts the poster back.
+      await onResult('Diagonal Wipe', `(li) => li.querySelector('.thumb').dispatchEvent(new PointerEvent('pointerleave', { bubbles: true }))`);
+      expect(await frame('Diagonal Wipe')).toBeNull();
+
+      // Video gets one too, from ffmpeg rather than from a render.
+      await hover('clip', 0.99);
+      await until(async () => (await frame('clip')) !== null, 'the video strip to be made', 240);
+      expect(await frame('clip')).toBe('100%');
+
+      // Both are cached beside the posters, so the next hover costs nothing.
+      const files = await readdir(join(userData, 'thumbnails'));
+      expect(files.filter((f) => f.endsWith('-strip.png')).length).toBeGreaterThanOrEqual(2);
+
+      // A still has nothing to step through, so no strip is ever asked for.
+      await hover('tiny', 0.5);
+      await sleep(1000);
+      expect(await frame('tiny')).toBeNull();
     }, 180_000);
 
     it('refuses an unknown id and a path on the URL, and serves a known id, as seen by an <img>', async () => {

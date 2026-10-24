@@ -11,14 +11,15 @@
 
 import { app, BrowserWindow } from 'electron';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { detectFfmpeg, nodeRunner } from '../core/ffmpeg';
 import { LibraryStore, type ScanStats } from '../core/library-store';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { mediaThumbArgs, posterThumbArgs, thumbFileName } from '../core/thumbnails';
-import { renderTemplate } from './render';
+import { framesStripArgs, mediaStripArgs, stripFileName, stripFrameIndices, stripUrlFor, wantsStrip } from '../core/hover-scrub';
+import { captureTemplateFrames, renderTemplate } from './render';
 import type { LibraryIndex, TemplateEntry } from '../core/library-types';
 import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
@@ -257,6 +258,78 @@ export function markItemUsed(id: string): void {
 /** For the pulp-thumb:// handler: the cache file behind an id, if any. */
 export function lookupThumbnail(id: string): string | undefined {
   return getStore().findThumbnailById(id);
+}
+
+/** For the pulp-strip:// handler: the cached hover-scrub strip behind an id, if one was made. */
+export function lookupStrip(id: string): string | undefined {
+  return getStore().findStripById(id)?.file ?? undefined;
+}
+
+/** Strips in flight, so two cards hovered in a row do not render the same template twice. */
+const stripsInFlight = new Map<string, Promise<string | null>>();
+
+/**
+ * The hover-scrub strip of an item, made now if it does not exist. Returns the
+ * URL to load it from, or null when the item has nothing to scrub or the strip
+ * could not be made — a failure is recorded, so it is not retried until the
+ * item changes.
+ *
+ * On demand rather than in the background: a template strip costs a render, and
+ * most of a library is never pointed at.
+ */
+export function hoverStrip(id: string): Promise<string | null> {
+  const existing = stripsInFlight.get(id);
+  if (existing) return existing;
+  const work = makeStrip(id).finally(() => stripsInFlight.delete(id));
+  stripsInFlight.set(id, work);
+  return work;
+}
+
+async function makeStrip(id: string): Promise<string | null> {
+  if (!persistent) return null;
+  const st = getStore();
+  const cached = st.findStripById(id);
+  if (cached) return cached.file ? stripUrlFor(id) : null;
+  const entry = st.findEntryById(id);
+  if (!entry || !wantsStrip(entry)) return null;
+  if (ffmpegPath === undefined) {
+    const status = await detectFfmpeg();
+    ffmpegPath = status.ok ? status.path : null;
+  }
+  if (!ffmpegPath) return null;
+
+  const dir = thumbnailDir();
+  await mkdir(dir, { recursive: true });
+  const out = join(dir, stripFileName(id));
+  let ok: boolean;
+  try {
+    ok = entry.kind === 'media' ? await mediaStrip(entry.path, entry.meta?.duration ?? 0, out) : await templateStrip(entry, out);
+  } catch {
+    ok = false;
+  }
+  st.setStrip(entry.key, ok ? out : null);
+  return ok ? stripUrlFor(id) : null;
+}
+
+async function mediaStrip(input: string, duration: number, out: string): Promise<boolean> {
+  const result = await nodeRunner(ffmpegPath!, mediaStripArgs(input, out, duration));
+  return result.code === 0 && existsSync(out);
+}
+
+/** Frames spread over the template's timeline, captured through one offscreen window, then tiled. */
+async function templateStrip(entry: TemplateEntry, out: string): Promise<boolean> {
+  const total = Math.max(1, Math.round(entry.manifest.duration * entry.manifest.fps));
+  const wanted = stripFrameIndices(total);
+  const shot = await captureTemplateFrames(entry, wanted, { frameTimeoutMs: 10_000 });
+  if (!shot.ok) return false;
+  const tmp = await mkdtemp(join(tmpdir(), 'pulp-strip-'));
+  try {
+    await Promise.all(shot.frames.map((png, i) => writeFile(join(tmp, `f-${String(i + 1).padStart(3, '0')}.png`), png)));
+    const tiled = await nodeRunner(ffmpegPath!, framesStripArgs(join(tmp, 'f-%03d.png'), out, shot.frames.length));
+    return tiled.code === 0 && existsSync(out);
+  } finally {
+    await rm(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
 }
 
 /** Rescan every configured root (plus `extraFolders` for this run) incrementally and tell the UI. */

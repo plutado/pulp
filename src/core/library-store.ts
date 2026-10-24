@@ -112,6 +112,12 @@ CREATE TABLE IF NOT EXISTS thumbs (
   mtime_ms REAL NOT NULL,
   file TEXT
 );
+CREATE TABLE IF NOT EXISTS strips (
+  key TEXT PRIMARY KEY,
+  size INTEGER NOT NULL,
+  mtime_ms REAL NOT NULL,
+  file TEXT
+);
 CREATE TABLE IF NOT EXISTS user_items (
   key TEXT PRIMARY KEY,
   tags TEXT NOT NULL DEFAULT '[]',
@@ -504,6 +510,46 @@ export class LibraryStore {
       .prepare('SELECT thumbs.file AS file FROM items JOIN thumbs ON thumbs.key = items.key AND thumbs.size = items.size AND thumbs.mtime_ms = items.mtime_ms WHERE items.id = ? AND thumbs.file IS NOT NULL')
       .get(id) as { file: string } | undefined;
     return row?.file;
+  }
+
+  /**
+   * The hover-scrub strip of an item by id. Strips are made on demand, so there
+   * are three answers: a file, "tried and failed" (a row with no file, which is
+   * not retried until the item changes), and "not made yet".
+   */
+  findStripById(id: string): { file: string | null } | undefined {
+    return this.db
+      .prepare('SELECT strips.file AS file FROM items JOIN strips ON strips.key = items.key AND strips.size = items.size AND strips.mtime_ms = items.mtime_ms WHERE items.id = ?')
+      .get(id) as { file: string | null } | undefined;
+  }
+
+  /** Record a strip for the item as it is now; null records a failure, so it is not attempted again until the item changes. */
+  setStrip(key: string, file: string | null): void {
+    const row = this.db.prepare('SELECT size, mtime_ms FROM items WHERE key = ?').get(key) as { size: number; mtime_ms: number } | undefined;
+    if (!row) return;
+    this.db
+      .prepare('INSERT INTO strips (key, size, mtime_ms, file) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET size = excluded.size, mtime_ms = excluded.mtime_ms, file = excluded.file')
+      .run(key, row.size, row.mtime_ms, file);
+  }
+
+  /**
+   * The entry behind a library id, for work that needs the item itself rather
+   * than the whole index. Probed metadata is merged in, as the index does and
+   * for the same reason: only while its stat signature still matches.
+   */
+  findEntryById(id: string): LibraryEntry | undefined {
+    const row = this.db.prepare('SELECT key, size, mtime_ms, entry FROM items WHERE id = ?').get(id) as
+      | { key: string; size: number; mtime_ms: number; entry: string }
+      | undefined;
+    if (!row) return undefined;
+    const entry = JSON.parse(row.entry) as LibraryEntry;
+    if (entry.kind === 'media') {
+      const m = this.db.prepare('SELECT size, mtime_ms, meta FROM media_meta WHERE key = ? AND meta IS NOT NULL').get(row.key) as
+        | { size: number; mtime_ms: number; meta: string }
+        | undefined;
+      if (m && m.size === row.size && m.mtime_ms === row.mtime_ms) entry.meta = JSON.parse(m.meta) as MediaMetadata;
+    }
+    return entry;
   }
 
   itemCount(): number {

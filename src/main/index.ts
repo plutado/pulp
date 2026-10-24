@@ -4,20 +4,7 @@ import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
 import { parseTimecode, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest } from '../shared/api';
-import {
-  addLibraryFolder,
-  closeLibrary,
-  findTemplate,
-  getLibrary,
-  markItemUsed,
-  rescan,
-  rescanIfStale,
-  setItemFavorite,
-  setItemTags,
-  setItemThemes,
-  startLibraryMonitor,
-  useInMemoryLibrary,
-} from './library-service';
+import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary } from './library-service';
 import { handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag } from './render-queue-service';
@@ -152,6 +139,8 @@ function registerIpc(): void {
   ipcMain.handle('layout:save', async (_event, layout: unknown) => {
     await updateSettings((s) => ({ ...s, layout: sanitizeLayout(layout) }));
   });
+
+  ipcMain.handle('library:hover-strip', (_event, id: string) => hoverStrip(String(id)));
 
   ipcMain.handle('results-view:get', async () => (await loadSettings()).resultsView);
   ipcMain.handle('results-view:save', async (_event, view: unknown) => {
