@@ -908,6 +908,37 @@ describe.skipIf(!electron)('inspector UI', () => {
       await fire('#thumb-size', '1', 'input'); // back to the default size for the tests that follow
     }, 60_000);
 
+    it('moves through the browse tree with the arrow keys, folding and stepping out with Left', async () => {
+      await clearSearch();
+      const focused = () => page.eval<string>(`document.activeElement?.dataset.node ?? ''`);
+      const key = (k: string) =>
+        page.eval(`document.getElementById('browse-tree').dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(k)}, bubbles: true }))`);
+      const has = (node: string) => page.eval<boolean>(`!!document.querySelector('#browse-tree [data-node=${JSON.stringify(node)}]')`);
+
+      // Down and Up walk the visible rows, headings included; Home jumps to the first.
+      await page.eval(`document.querySelector('#browse-tree .section-heading').focus()`);
+      expect(await focused()).toBe('quick');
+      await key('ArrowDown');
+      expect(await focused()).toBe('favorites');
+      await key('ArrowDown');
+      expect(await focused()).toBe('recent');
+      await key('ArrowUp');
+      expect(await focused()).toBe('favorites');
+      await key('Home');
+      expect(await focused()).toBe('quick');
+
+      // Right steps into an open group, Left steps back out to it, Left again folds it.
+      await page.eval(`document.querySelector('#browse-tree [data-node="group:titles"]').focus()`);
+      await key('ArrowRight');
+      expect(await focused()).toBe('type:lower-third');
+      await key('ArrowLeft');
+      expect(await focused()).toBe('group:titles');
+      await key('ArrowLeft');
+      await until(async () => !(await has('type:lower-third')), 'the group to fold');
+      await key('ArrowRight');
+      await until(() => has('type:lower-third'), 'the group to unfold again');
+    }, 60_000);
+
     it('a filter chip narrows the results while pressed', async () => {
       await clearSearch();
       await page.eval(`document.getElementById('chip-templates').click()`);

@@ -109,9 +109,17 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .app.browse-collapsed #split-browse, .app.browse-collapsed .region-head, .app.browse-collapsed .sidebar .label { display: none; }
 .app.browse-collapsed .sidebar-head { padding: 8px 4px; }
 .app.browse-collapsed .sidebar-actions { flex-direction: column; align-items: center; }
+/* The rail keeps the entries of each section as icons; headings, counts, twisties and
+   the nested children (which have no icon of their own) have nowhere to go at 44 px. */
 .app.browse-collapsed .browse-tree { padding: 8px 4px; }
-.app.browse-collapsed .browse-tree .tree-heading, .app.browse-collapsed .browse-tree .count { display: none; }
-.app.browse-collapsed .browse-tree .browse-node { justify-content: center; padding: 6px !important; }
+.app.browse-collapsed .browse-tree .section-heading,
+.app.browse-collapsed .browse-tree .count,
+.app.browse-collapsed .browse-tree .twisty,
+.app.browse-collapsed .browse-tree .twisty-slot,
+.app.browse-collapsed .browse-tree .tree-rows.nested { display: none; }
+.app.browse-collapsed .browse-tree .tree-section + .tree-section { margin-top: var(--space-1); }
+.app.browse-collapsed .browse-tree .node-row { padding-left: 0; }
+.app.browse-collapsed .browse-tree .browse-node { justify-content: center; padding: 6px; }
 .app.browse-collapsed .region-expand { margin: 4px auto 0; order: -1; }
 .app.stage-collapsed #region-stage, .app.stage-collapsed #split-stage { display: none; }
 .app.tray-collapsed .tray-body, .app.tray-collapsed #split-tray { display: none; }
@@ -141,16 +149,69 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .filter-chips .chip:hover { color: var(--text); }
 .filter-chips .chip[aria-pressed="true"] { color: var(--text); border-color: var(--accent); background: var(--panel-2); }
 
-/* The browse tree: headings fold, leaves scope; counts sit at the right; empty fixed nodes are dimmed. */
-.browse-tree { padding: var(--space-2); }
-.browse-tree .tree-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.browse-tree .tree-heading, .browse-tree .browse-node { width: 100%; display: flex; align-items: center; gap: 6px; text-align: left; background: none; border-color: transparent; color: var(--muted); padding: 4px 8px; }
-.browse-tree .tree-heading { font-size: var(--font-caption); font-weight: 600; margin-top: var(--space-1); }
-.browse-tree .tree-heading > .icon-wrap + .label, .browse-tree .browse-node > .icon-wrap + .label { margin-left: 0; }
-.browse-tree .tree-heading:hover, .browse-tree .browse-node:hover { color: var(--text); background: var(--panel-2); }
-.browse-tree .browse-node.active { color: var(--text); background: var(--panel-2); border-color: var(--accent); }
-.browse-tree .browse-node.empty { opacity: 0.55; }
-.browse-tree .count { margin-left: auto; font-size: var(--font-caption); color: var(--muted); font-variant-numeric: tabular-nums; }
+/* The browse tree (docs/ui-style.md): three levels told apart by structure, not by
+   type size — every row is body size. A section is a muted heading over a divider and
+   never highlights; its entries are rows with an icon in a fixed gutter, a twisty where
+   they hold children; children indent one step behind a guide line and drop the icon.
+   Selectable rows highlight across the panel's full width, so the row, not the button,
+   carries the background. */
+.browse-tree { padding: var(--space-1) 0 var(--space-2); }
+.browse-tree .tree-rows { list-style: none; margin: 0; padding: 0; display: grid; }
+
+/* Section headings: supporting text, with air above and a rule between sections. */
+.browse-tree .section-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-2) var(--space-1);
+}
+.browse-tree .section-heading:hover { color: var(--text-secondary); }
+.browse-tree .section-heading > .icon-wrap + .label { margin-left: 0; }
+.browse-tree .section-heading .icon { width: 12px; height: 12px; }
+.browse-tree .tree-section + .tree-section { border-top: 1px solid var(--border); margin-top: var(--space-1); }
+
+/* Rows. The gutter holds the twisty (or nothing), so icons line up whether or not a
+   row folds; a child's gutter is wider by one step, which is its indent. */
+.browse-tree .node-row { display: flex; align-items: center; padding-left: var(--space-2); border-radius: var(--radius-control); }
+.browse-tree .node-row:hover { background: var(--panel-2); }
+.browse-tree .node-row.active { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
+.browse-tree .twisty, .browse-tree .twisty-slot { flex: 0 0 14px; width: 14px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0; background: none; border: 0; color: var(--muted); }
+.browse-tree .twisty:hover { color: var(--text); }
+.browse-tree .twisty .icon { width: 12px; height: 12px; }
+.browse-tree .node-row.lvl-2 .twisty-slot { flex-basis: 36px; width: 36px; }
+
+.browse-tree .browse-node {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--text-secondary);
+  padding: 4px 8px 4px 6px;
+}
+.browse-tree .browse-node > .icon-wrap + .label { margin-left: 0; }
+.browse-tree .browse-node .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Children sit a shade quieter until they are pointed at or chosen. */
+.browse-tree .node-row.lvl-2 .browse-node { color: var(--muted); }
+.browse-tree .node-row:hover .browse-node, .browse-tree .node-row.active .browse-node { color: var(--text); }
+.browse-tree .node-row.active .browse-node { font-weight: 600; }
+.browse-tree .browse-node.empty .label, .browse-tree .browse-node.empty .count { opacity: 0.55; }
+.browse-tree .count { margin-left: auto; padding-left: var(--space-1); font-size: var(--font-caption); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* The guide line runs down the middle of the parent row's icon:
+   8 px row padding + 14 px gutter + 6 px button padding + half of a 16 px icon. */
+.browse-tree .tree-rows.nested { position: relative; }
+.browse-tree .tree-rows.nested::before { content: ""; position: absolute; left: 36px; top: 0; bottom: 0; width: 1px; background: var(--border); }
 
 .results-region { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 

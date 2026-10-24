@@ -69,6 +69,8 @@ export function initTooltips(): void {
     if (el) show(el);
   });
   document.addEventListener('focusout', hide);
+  // A field that explains its syntax on focus (the search box) must get out of the way once typing starts.
+  document.addEventListener('input', hide);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') hide();
   });

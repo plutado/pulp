@@ -21,6 +21,8 @@ export interface TreeNode {
   count: number;
   /** Null for a heading that only groups children. */
   scope: Scope | null;
+  /** For a group with no scope of its own: what its children are, so the UI need not guess its icon. */
+  iconKind?: Scope['kind'];
   children: TreeNode[];
 }
 
@@ -93,6 +95,7 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     label: g.label,
     count: g.themes.reduce((n, t) => n + (byTheme.get(t.id) ?? 0), 0),
     scope: null,
+    iconKind: 'theme',
     children: g.themes
       .filter((t) => (byTheme.get(t.id) ?? 0) > 0)
       .map((t) => ({ id: `theme:${t.id}`, label: themeLabel(t.id), count: byTheme.get(t.id) ?? 0, scope: { label: themeLabel(t.id), filter: `theme:${t.id}`, kind: 'theme' }, children: [] })),
@@ -104,6 +107,7 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
       label: 'Custom',
       count: customThemes.reduce((n, t) => n + (byTheme.get(t) ?? 0), 0),
       scope: null,
+      iconKind: 'theme',
       children: customThemes.map((t) => ({ id: `theme:${t}`, label: themeLabel(t), count: byTheme.get(t) ?? 0, scope: { label: themeLabel(t), filter: `theme:${t}`, kind: 'theme' }, children: [] })),
     });
   }

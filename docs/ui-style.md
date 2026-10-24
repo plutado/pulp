@@ -97,6 +97,20 @@ All in `:root`; literal values outside the token block are a defect the enforcem
 
 **Three levels per region:** region title (15 px, 600), content (13 px), supporting text (11–12 px, muted). If a region needs a fourth level, the region is doing too much.
 
+## Hierarchy in a list or tree
+
+Depth is shown by **structure, not by type size**. Every row that can be selected is body size (13 px); shrinking the text to mean "deeper" burns the type scale on something indentation already says, and leaves the deepest rows the hardest to read.
+
+The browse panel is the worked example; anything with the same shape follows it.
+
+- **Section headings are not rows.** Quick access, Types, Themes, Styles, Packs, Folders are supporting text (12 px, 600, muted) with space above and a thin rule between sections, and a chevron that folds the section. They never highlight on hover and are never selected — there is nothing to select.
+- **A row that holds children** gets a disclosure twisty (caret right folded, caret down open) in a fixed gutter before its icon, then its icon, label and count.
+- **A row with nothing under it** keeps the icon and label and leaves the gutter empty, so every icon at that level lines up whether or not the row folds.
+- **Children indent one step** behind a thin vertical guide line running down the middle of the parent's icon, and **do not repeat the parent's icon** — the group already said what they are. Their labels align with the parent's label, and they sit one text role quieter (`--muted` against `--text-secondary`) until hovered or selected.
+- **Selection and hover highlight the full width of the row**, gutter included, so the target matches what the eye reads as a row. The current row also carries the accent as an inset left edge and a semibold label — `--accent` still marks exactly one thing.
+- **Counts** are right-aligned supporting text, tabular figures. A fixed row with nothing in it (Favorites at zero, an empty folder) dims its label and count rather than disappearing; a taxonomy row with nothing in it is left out of the tree entirely.
+- **Collapsed to an icon rail**, only the levels that have an icon survive: headings, counts, twisties and the children fold away, and the rows that remain show their icon with the label as a tooltip.
+
 ## Enforcement
 
 A unit test, not a hope: it reads `index.html` and the display-name tables and fails on ALL CAPS display text, three-dot ellipses, raw ids in display strings, icon-only buttons without an `aria-label`, and `font-size` literals outside the token block in `styles.css`. Milestone 8's accessibility pass audits icon buttons and focus rings against this guide.
