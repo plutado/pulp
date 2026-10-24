@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { buildBrowseTree, type TreeNode } from '../src/core/browse-tree';
 import type { MediaEntry, TemplateEntry } from '../src/core/library-types';
-import type { TemplateManifest } from '../src/core/manifest';
-import { rawManifest } from './fixtures';
+import { validManifest } from './fixtures';
 
 function template(key: string, over: Record<string, unknown> = {}, entry: Partial<TemplateEntry> = {}): TemplateEntry {
-  const manifest = rawManifest({ id: `test.${key}`, name: key, ...over }) as unknown as TemplateManifest;
+  const manifest = validManifest({ id: `test.${key}`, name: key, ...over });
   return { kind: 'template', key, id: `id-${key}`, dir: `/lib/${key}`, root: '/lib', manifest, tags: [...manifest.tags], warnings: [], ...entry };
 }
 function media(key: string, over: Partial<MediaEntry> = {}): MediaEntry {

@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS user_items (
 );
 `;
 
-export const SCHEMA_VERSION = 4; // 4: templates re-read so pack defaults apply
+export const SCHEMA_VERSION = 5; // 4: templates re-read so pack defaults apply; 5: re-read so manifests carry aspects
 
 export class LibraryStore {
   private readonly db: DatabaseSync;

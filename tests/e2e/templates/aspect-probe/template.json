@@ -1,0 +1,15 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.aspect-probe",
+  "name": "Test Aspect Probe",
+  "description": "Declares shapes, not a size: the canvas it is handed decides the pixels.",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "title",
+  "tags": ["test"],
+  "duration": 0.1,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "parameters": []
+}

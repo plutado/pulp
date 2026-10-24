@@ -10,8 +10,7 @@ import {
   waveformPath,
 } from '../src/core/waveform';
 import type { MediaEntry, TemplateEntry } from '../src/core/library-types';
-import type { TemplateManifest } from '../src/core/manifest';
-import { rawManifest } from './fixtures';
+import { validManifest } from './fixtures';
 
 function media(over: Partial<MediaEntry> = {}): MediaEntry {
   return { kind: 'media', key: 'k', id: 'id', path: '/lib/song.wav', root: '/lib', name: 'song', mediaKind: 'audio', ext: '.wav', size: 1, mtimeMs: 0, tags: [], ...over };
@@ -30,7 +29,7 @@ describe('what gets a waveform', () => {
     expect(wantsWaveform(media())).toBe(true);
     expect(wantsWaveform(media({ mediaKind: 'video' }))).toBe(false);
     expect(wantsWaveform(media({ offline: true }))).toBe(false);
-    const template: TemplateEntry = { kind: 'template', key: 't', id: 'idt', dir: '/lib/t', root: '/lib', manifest: rawManifest() as unknown as TemplateManifest, tags: [], warnings: [] };
+    const template: TemplateEntry = { kind: 'template', key: 't', id: 'idt', dir: '/lib/t', root: '/lib', manifest: validManifest(), tags: [], warnings: [] };
     expect(wantsWaveform(template)).toBe(false);
   });
 

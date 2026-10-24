@@ -204,6 +204,7 @@ function registerIpc(): void {
  * Headless mode for scripting and smoke tests:
  *   electron . --render <template-id> --preset <preset-id> --out <path> [--param key=value ...]
  *     [--fps <rate>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
+ *     [--aspect 16:9|9:16|1:1|4:5] [--size <width>x<height>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
  *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
  * `--collection` renders every template in a saved collection into the --out folder with the settings
@@ -213,6 +214,8 @@ function registerIpc(): void {
  * `--fps` samples the template at another standard frame rate; `--background` is the color alpha
  * templates are flattened over in non-alpha presets; `--in-point`/`--out-point` are the first and
  * last frame to render (inclusive), as timecode HH:MM:SS:FF, a frame number, or seconds like "2.5s".
+ * `--aspect` picks one of the shapes the template draws for and `--size` the output size in pixels
+ * (ADR 0012); without them a template renders at the size it declared, else its first aspect at 1080p.
  * `--library` adds template folders for this run only; they are not saved to settings.
  * `--frame-format png` uses the slower PNG pipe to ffmpeg, for comparison with the raw default.
  * The final line reports the elapsed time and frames per second.
@@ -265,6 +268,17 @@ function parseCliRender(argv: string[]): CliRender | null {
   }
   const background = get('--background');
   if (background !== undefined) options.background = background;
+  const aspect = get('--aspect');
+  if (aspect !== undefined) options.aspect = aspect;
+  const sizeRaw = get('--size');
+  if (sizeRaw !== undefined) {
+    const m = /^(\d+)x(\d+)$/i.exec(sizeRaw.trim());
+    if (!m) badNumbers.push(`--size ${sizeRaw} (expected <width>x<height>)`);
+    else {
+      options.width = Number(m[1]);
+      options.height = Number(m[2]);
+    }
+  }
   const inPoint = get('--in-point');
   const outPoint = get('--out-point');
   const batch = get('--batch');

@@ -12,11 +12,10 @@ import {
   wantsStrip,
 } from '../src/core/hover-scrub';
 import type { MediaEntry, TemplateEntry } from '../src/core/library-types';
-import type { TemplateManifest } from '../src/core/manifest';
-import { rawManifest } from './fixtures';
+import { validManifest } from './fixtures';
 
 function template(over: Record<string, unknown> = {}, entry: Partial<TemplateEntry> = {}): TemplateEntry {
-  const manifest = rawManifest(over) as unknown as TemplateManifest;
+  const manifest = validManifest(over);
   return { kind: 'template', key: 'k', id: 'id-t', dir: '/lib/t', root: '/lib', manifest, tags: [], warnings: [], ...entry };
 }
 function media(over: Partial<MediaEntry> = {}): MediaEntry {

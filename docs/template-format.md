@@ -2,7 +2,7 @@
 
 Status: draft. Version 1 may still change in incompatible ways before Pulp 1.0. After 1.0, incompatible changes require a new `formatVersion`. There is no plan to freeze the format at 1.0; it stays versioned and documented instead.
 
-**Coming change (milestone 19 in `ROADMAP.md`):** a template will declare the aspect ratios it supports rather than a pixel size, and the output resolution will be chosen at render time. Manifests with `width` and `height` will keep working. If you are writing a template now, draw from the `width` and `height` in the state you are handed rather than hard-coding a size, and it will carry over unchanged.
+**A template is a shape, not a pixel size** (ADR 0012). The manifest declares the aspect ratios the template draws for (`aspects`), and the output resolution is chosen when it is rendered. Draw from the `width` and `height` in the state you are handed, never from a hard-coded size. Manifests that declare `width` and `height` keep working: the aspect is inferred from them and the size becomes that template's default resolution.
 
 This document is the specification. The validator in `src/core/manifest.ts` implements it, and the two must agree; when they disagree, that is a bug in one of them.
 
@@ -42,7 +42,8 @@ A UTF-8 JSON object.
 | `tags` | string[] | no | Search tags. Normalized to lowercase and de-duplicated. |
 | `duration` | number | yes | Length in seconds, greater than 0 and at most 600. |
 | `fps` | number | yes | Frames per second, greater than 0 and at most 240. Use `23.976`, `29.97` or `59.94` for NTSC rates; the renderer converts them to exact rationals. |
-| `width`, `height` | integer | yes | Frame size in pixels, 16 to 8192. Use even numbers: H.264, ProRes 422 and VP9 cannot encode odd sizes. |
+| `aspects` | string[] | yes, unless `width` and `height` are given | The shapes the template draws for, from `16:9`, `9:16`, `1:1` and `4:5`; at least one, the first is the default. The pixel size is chosen at render time from a standard list per aspect (720p, 1080p, 1440p, 4K, and 8K for 16:9) or as an exact size; without a choice a template renders at its first aspect's 1080-class size (1920 × 1080, 1080 × 1920, 1080 × 1080, 1080 × 1350). |
+| `width`, `height` | integer | no | A default size in pixels, 16 to 8192, both or neither. Alone, it also declares the aspect: the built-in one it is within 1% of, or else its reduced ratio (`4:3`), at which the template renders at this one size. With `aspects`, it must be of one of them. Use even numbers: H.264, ProRes 422 and VP9 cannot encode odd sizes. |
 | `alpha` | boolean | no | `true` if the template draws on a transparent background and is meant to be composited. Default `false`. |
 | `entry` | string | no | Path to the HTML entry page, relative to the folder. Default `index.html`. Must not be absolute or contain `..`. |
 | `thumbnail` | string | no | Relative path to a poster image. |
@@ -124,7 +125,7 @@ It may return a Promise; the host waits for it to settle before capturing.
 | `time` | number | Seconds from the start: `frame / fps`. |
 | `progress` | number | `time / duration`, clamped to 0..1. |
 | `fps`, `duration`, `totalFrames` | number | From the manifest. |
-| `width`, `height` | integer | Frame size from the manifest. |
+| `width`, `height` | integer | The canvas for this render in pixels: the chosen aspect and resolution, not anything from the manifest. Size the canvas from these on every call, since the same template is drawn tall, square and wide. |
 | `params` | object | Resolved parameter values keyed by parameter id. |
 
 ### Rules for templates
@@ -132,7 +133,7 @@ It may return a Promise; the host waits for it to settle before capturing.
 1. **Deterministic.** The pixels for a frame must depend only on `state` and the template's own files. Do not use `Date.now()`, `performance.now()`, `requestAnimationFrame` timing, `setTimeout`/`setInterval`, or unseeded `Math.random()` to drive animation. Frames may be requested in any order and more than once.
 2. **Complete per call.** Each call draws the whole frame. Clear or repaint the canvas first.
 3. **Transparent background when `alpha` is true.** Leave `html` and `body` with a transparent background and clear the canvas with `clearRect`. Semi-transparent colors are preserved in alpha outputs.
-4. **Fill the viewport.** The host sizes the page to `width` x `height` when rendering and scales it in the preview. A canvas with `width`/`height` attributes equal to the manifest size and CSS `width: 100%; height: 100%` handles both.
+4. **Fill the viewport.** The host sizes the page to the render's `width` x `height` and scales it in the preview. Set the canvas's `width` and `height` attributes from the state (only when they change, so the bitmap is not cleared needlessly) and give it CSS `width: 100%; height: 100%`; lay the frame out from those numbers, not from constants, so a lower third sits in the right place at 1920 × 1080 and at 1080 × 1920.
 5. **Offline.** Only files inside the template folder can be loaded. Network requests are blocked.
 6. **Ready means loaded.** The host waits for the window `load` event and `document.fonts.ready` before the first call. Load fonts and images before that point (for example with `@font-face` in CSS or `<img>` tags in the page).
 7. **Fast and finite.** When rendering, the page has 30 seconds to load and each frame has 10 seconds by default. A template that runs over, or that throws (or rejects, if `pulpRender` returns a Promise), stops the render with an error naming the frame and, where available, the file and line.
@@ -172,8 +173,7 @@ connect-src 'none'; frame-src 'none'; form-action 'none'
   "category": "title",
   "duration": 2,
   "fps": 30,
-  "width": 1920,
-  "height": 1080,
+  "aspects": ["16:9", "9:16"],
   "alpha": true,
   "parameters": [
     { "id": "text", "type": "text", "label": "Text", "default": "Hello" },
@@ -194,14 +194,20 @@ connect-src 'none'; frame-src 'none'; form-action 'none'
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
-  var ctx = document.getElementById('c').getContext('2d');
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
   window.pulpRender = function (s) {
+    if (canvas.width !== s.width || canvas.height !== s.height) {
+      canvas.width = s.width;
+      canvas.height = s.height;
+    }
     ctx.clearRect(0, 0, s.width, s.height);
     ctx.globalAlpha = Math.min(1, s.time / 0.5);
     ctx.fillStyle = s.params.color;
-    ctx.font = '120px sans-serif';
+    // Scale type with the short side, so it reads the same tall or wide.
+    ctx.font = Math.round(Math.min(s.width, s.height) / 9) + 'px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(s.params.text, s.width / 2, s.height / 2);
   };

@@ -193,6 +193,43 @@ describe.skipIf(!available)('end-to-end render', () => {
     }, timeoutMs + 60_000);
   }
 
+  // A template that declares shapes and no size (ADR 0012): the renderer sizes its window from the
+  // chosen aspect and resolution, and the capture check follows, so these prove the whole path.
+  it('renders a shape-only template at its first aspect\'s default size when nothing is chosen', async () => {
+    const result = await render('pulp.test.aspect-probe', 'png-sequence', 'aspect-default', { extra: ['--library', FIXTURES] });
+    expect(result.code, result.stderr).toBe(0);
+    const frames = (await readdir(out)).filter((f) => f.startsWith('aspect-default_')).sort();
+    expect(frames).toHaveLength(3);
+    const frame = join(out, frames[1]!);
+    expect(await probe(frame)).toMatchObject({ width: 1920, height: 1080, pix_fmt: 'rgba' });
+    await expectProbeMarkers(frame, 1920, 1080);
+  }, 180_000);
+
+  it('renders the same template tall with --aspect, and at an exact square with --size', async () => {
+    const tall = await render('pulp.test.aspect-probe', 'png-sequence', 'aspect-tall', { extra: ['--aspect', '9:16', '--library', FIXTURES] });
+    expect(tall.code, tall.stderr).toBe(0);
+    const tallFrame = join(out, (await readdir(out)).filter((f) => f.startsWith('aspect-tall_')).sort()[1]!);
+    expect(await probe(tallFrame)).toMatchObject({ width: 1080, height: 1920, pix_fmt: 'rgba' });
+    await expectProbeMarkers(tallFrame, 1080, 1920);
+
+    const square = await render('pulp.test.aspect-probe', 'png-sequence', 'aspect-square', { extra: ['--size', '720x720', '--library', FIXTURES] });
+    expect(square.code, square.stderr).toBe(0);
+    const squareFrame = join(out, (await readdir(out)).filter((f) => f.startsWith('aspect-square_')).sort()[1]!);
+    expect(await probe(squareFrame)).toMatchObject({ width: 720, height: 720, pix_fmt: 'rgba' });
+    await expectProbeMarkers(squareFrame, 720, 720);
+  }, 240_000);
+
+  it('refuses an aspect a template does not draw for, and a malformed --size, before rendering', async () => {
+    // The portrait size probe declared 1080x1920, so it is 9:16 and nothing else.
+    const wrong = await render('pulp.test.size-portrait', 'png-sequence', 'aspect-wrong', { extra: ['--aspect', '16:9', '--library', FIXTURES] });
+    expect(wrong.code).toBe(1);
+    expect(wrong.stderr).toContain('aspect 16:9 is not one the template draws for (9:16)');
+    const malformed = await render('pulp.test.aspect-probe', 'png-sequence', 'aspect-bad', { extra: ['--size', '1080', '--library', FIXTURES] });
+    expect(malformed.code).toBe(2);
+    expect(malformed.stderr).toContain('--size 1080');
+    expect((await readdir(out)).filter((f) => f.startsWith('aspect-wrong_') || f.startsWith('aspect-bad_'))).toEqual([]);
+  }, 120_000);
+
   it('keeps frames pixel-exact when the display is scaled to 150%', async () => {
     // Chromium's switch makes the primary display report scale 1.5, as Windows does at 150% scaling.
     // The offscreen window is pinned to scale 1, so the output must be identical to the unscaled render.

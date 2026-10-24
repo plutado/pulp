@@ -16,11 +16,10 @@ import {
   type Collection,
 } from '../src/core/collection';
 import type { LibraryIndex, MediaEntry, TemplateEntry } from '../src/core/library-types';
-import type { TemplateManifest } from '../src/core/manifest';
-import { rawManifest } from './fixtures';
+import { validManifest } from './fixtures';
 
 function template(name: string, id = `test.${name}`): TemplateEntry {
-  const manifest = rawManifest({ id, name }) as unknown as TemplateManifest;
+  const manifest = validManifest({ id, name });
   return { kind: 'template', key: name, id: `lib-${name}`, dir: `/lib/${name}`, root: '/lib', manifest, tags: [], warnings: [] };
 }
 function media(name: string): MediaEntry {

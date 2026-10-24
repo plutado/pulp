@@ -8,6 +8,7 @@
  * executeJavaScript) and answers `postMessage` requests (the preview iframe).
  */
 
+import type { Size } from './aspect';
 import { frameCount, type TemplateManifest } from './manifest';
 import type { ResolvedParams } from './params';
 
@@ -26,10 +27,17 @@ export interface FrameState {
   params: ResolvedParams;
 }
 
+/**
+ * The state for one frame. `size` is the canvas the template is handed this
+ * time — the render's chosen resolution, the preview's, the thumbnail's — not
+ * anything the manifest says: a template draws for a shape, and learns the
+ * pixel size from here (docs/template-format.md, ADR 0012).
+ */
 export function frameState(
-  manifest: Pick<TemplateManifest, 'duration' | 'fps' | 'width' | 'height'>,
+  manifest: Pick<TemplateManifest, 'duration' | 'fps'>,
   frame: number,
   params: ResolvedParams,
+  size: Size,
 ): FrameState {
   const totalFrames = frameCount(manifest);
   const f = Math.min(Math.max(0, Math.floor(frame)), totalFrames - 1);
@@ -41,8 +49,8 @@ export function frameState(
     fps: manifest.fps,
     duration: manifest.duration,
     totalFrames,
-    width: manifest.width,
-    height: manifest.height,
+    width: size.width,
+    height: size.height,
     params,
   };
 }

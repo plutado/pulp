@@ -20,6 +20,7 @@ import {
   sizeLabel,
   typeLabel,
 } from './display';
+import { templateDefaultSize } from './aspect';
 import type { LibraryEntry } from './library-types';
 import { licenseWarning } from './pack';
 import { entryType } from './taxonomy';
@@ -65,8 +66,10 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
   const rows: InfoRow[] = [];
   if (entry.kind === 'template') {
     const m = entry.manifest;
-    rows.push({ label: 'Aspect', value: aspectLabel(m.width, m.height) });
-    rows.push({ label: 'Size', value: dimensionsLabel(m.width, m.height) });
+    // A template is a shape, or several; a pixel size only where the manifest declared one (ADR 0012).
+    rows.push({ label: m.aspects.length > 1 ? 'Aspects' : 'Aspect', value: m.aspects.join(', ') });
+    if (m.size) rows.push({ label: 'Size', value: dimensionsLabel(m.size.width, m.size.height) });
+    else rows.push({ label: 'Size', value: `Chosen at render time · ${dimensionsLabel(templateDefaultSize(m).width, templateDefaultSize(m).height)} by default` });
     // The length as timecode, not the last frame's: "6 s · 00:00:06:00" reads as a duration.
     rows.push({ label: 'Duration', value: `${durationLabel(m.duration)} · ${formatTimecode(Math.round(m.duration * m.fps), m.fps)}`, icon: 'duration' });
     rows.push({ label: 'Frame rate', value: frameRateLabel(m.fps) });

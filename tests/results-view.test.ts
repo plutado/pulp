@@ -16,11 +16,10 @@ import {
   CARD_PADDING,
 } from '../src/core/results-view';
 import type { MediaEntry, TemplateEntry } from '../src/core/library-types';
-import type { TemplateManifest } from '../src/core/manifest';
-import { rawManifest } from './fixtures';
+import { validManifest } from './fixtures';
 
 function template(name: string, manifestOverrides: Record<string, unknown> = {}, overrides: Partial<TemplateEntry> = {}): TemplateEntry {
-  const manifest = rawManifest({ id: `test.${name.toLowerCase()}`, name, ...manifestOverrides }) as unknown as TemplateManifest;
+  const manifest = validManifest({ id: `test.${name.toLowerCase()}`, name, ...manifestOverrides });
   return { kind: 'template', key: name, id: `id-${name}`, dir: `/lib/packs/boardroom/${name}`, root: '/lib', manifest, tags: [...manifest.tags], warnings: [], ...overrides };
 }
 

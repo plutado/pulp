@@ -129,7 +129,7 @@ describe('buildRenderPlan', () => {
 
   it('non-alpha presets flatten alpha templates over the background color', () => {
     const plan = buildRenderPlan({
-      manifest: timing({ width: 1280, height: 720, fps: 29.97 }),
+      manifest: timing({ size: { width: 1280, height: 720 }, fps: 29.97 }),
       presetId: 'h264-mp4',
       outputPath: '/out/lt.mp4',
       options: { background: '#102030' },
@@ -201,8 +201,42 @@ describe('buildRenderPlan', () => {
     expect(OUTPUT_PRESETS['hevc-alpha'].platformNote).toContain('macOS');
   });
 
+  describe('frame size', () => {
+    const shapes = timing({ aspects: ['16:9', '9:16', '1:1'], size: undefined });
+
+    it('comes from the chosen aspect and resolution, not the manifest, and is reported in the plan', () => {
+      const wide = buildRenderPlan({ manifest: shapes, presetId: 'prores-4444', outputPath: '/o/t.mov', frameFormat: 'raw' });
+      expect(wide).toMatchObject({ aspect: '16:9', width: 1920, height: 1080 });
+      expect(flag(wide.args, '-video_size')).toBe('1920x1080');
+      const tall = buildRenderPlan({ manifest: shapes, presetId: 'prores-4444', outputPath: '/o/t.mov', frameFormat: 'raw', options: { aspect: '9:16' } });
+      expect(tall).toMatchObject({ aspect: '9:16', width: 1080, height: 1920 });
+      expect(flag(tall.args, '-video_size')).toBe('1080x1920');
+      const small = buildRenderPlan({ manifest: shapes, presetId: 'h264-mp4', outputPath: '/o/t.mp4', frameFormat: 'raw', options: { width: 720, height: 720 } });
+      expect(small).toMatchObject({ aspect: '1:1', width: 720, height: 720 });
+      // The flattening background is the output size too.
+      expect(flag(small.args, '-filter_complex')).toContain('s=720x720');
+    });
+
+    it('keeps a declared size as that template\'s default', () => {
+      expect(buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t.mov' })).toMatchObject({ aspect: '16:9', width: 1920, height: 1080 });
+      expect(buildRenderPlan({ manifest: timing({ size: { width: 1280, height: 720 } }), presetId: 'prores-4444', outputPath: '/o/t.mov' })).toMatchObject({ width: 1280, height: 720 });
+    });
+
+    it('refuses an aspect the template does not draw for, or a size that is not of the aspect, as a plan error', () => {
+      expect(() => buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t.mov', options: { aspect: '9:16' } })).toThrow(RenderPlanError);
+      expect(() => buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t.mov', options: { aspect: '9:16' } })).toThrow(/not one the template draws for/);
+      expect(() => buildRenderPlan({ manifest: shapes, presetId: 'prores-4444', outputPath: '/o/t.mov', options: { aspect: '16:9', width: 1080, height: 1920 } })).toThrow(/is 9:16, not 16:9/);
+      expect(() => buildRenderPlan({ manifest: shapes, presetId: 'prores-4444', outputPath: '/o/t.mov', options: { width: 1920 } })).toThrow(/together/);
+    });
+
+    it('applies the even-dimension rule to the chosen size', () => {
+      expect(() => buildRenderPlan({ manifest: shapes, presetId: 'h264-mp4', outputPath: '/o/t.mp4', options: { width: 1365, height: 768 } })).toThrow(/even width and height; the output size is 1365x768/);
+      expect(() => buildRenderPlan({ manifest: shapes, presetId: 'png-sequence', outputPath: '/o/t.png', options: { width: 1365, height: 768 } })).not.toThrow();
+    });
+  });
+
   it('rejects odd dimensions for chroma-subsampled presets only', () => {
-    const odd = timing({ width: 1919 });
+    const odd = timing({ size: { width: 1919, height: 1080 } });
     expect(() => buildRenderPlan({ manifest: odd, presetId: 'h264-mp4', outputPath: '/o/t.mp4' })).toThrow(RenderPlanError);
     expect(() => buildRenderPlan({ manifest: odd, presetId: 'webm-vp9-alpha', outputPath: '/o/t.webm' })).toThrow(/even/);
     expect(() => buildRenderPlan({ manifest: odd, presetId: 'prores-4444', outputPath: '/o/t.mov' })).not.toThrow();

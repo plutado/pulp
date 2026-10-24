@@ -9,6 +9,7 @@
  * set are kept in settings.json.
  */
 
+import { templateDefaultSize } from '../core/aspect';
 import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { frameCount, type TemplateManifest } from '../core/manifest';
@@ -163,7 +164,7 @@ function postFrame(frame: number): void {
   const win = els.preview.contentWindow;
   if (!win || !s.manifest) return;
   s.inFlight = true;
-  win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params) }, '*');
+  win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, templateDefaultSize(s.manifest)) }, '*');
   updateTimecode(frame);
 }
 
@@ -261,7 +262,9 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams):
   s.previewReady = false;
   s.inFlight = false;
   s.pendingFrame = null;
-  els.previewFrame.style.aspectRatio = `${m.width} / ${m.height}`;
+  // The preview shows the template's default shape; the Output tab's aspect choice follows in milestone 19's next item.
+  const size = templateDefaultSize(m);
+  els.previewFrame.style.aspectRatio = `${size.width} / ${size.height}`;
   if (entry.offline) {
     // The folder is not reachable; keep the item (and its edits) but do not try to load it.
     els.preview.removeAttribute('src');

@@ -13,7 +13,7 @@ import {
   withTimeout,
 } from '../src/core/render-guard';
 import { frameState } from '../src/core/runtime';
-import { timing } from './fixtures';
+import { FIXTURE_SIZE, timing } from './fixtures';
 
 describe('withTimeout', () => {
   afterEach(() => vi.useRealTimers());
@@ -42,7 +42,7 @@ describe('withTimeout', () => {
 });
 
 describe('frameCallScript', () => {
-  const state = frameState(timing(), 4, { title: 'a "quoted" </script>' });
+  const state = frameState(timing(), 4, { title: 'a "quoted" </script>' }, FIXTURE_SIZE);
 
   /** Run the script against a fake bridge whose render behaves as given. */
   function run(render: () => Promise<unknown>): Promise<unknown> {

@@ -24,6 +24,7 @@
  * and to media through probed metadata; media not yet probed does not match.
  */
 
+import { templateDefaultSize } from './aspect';
 import type { LibraryEntry, LibraryIndex } from './library-types';
 import { RESOLUTION_ALIASES, resolutionLabel } from './media-meta';
 import { normalizeTag } from './tags';
@@ -125,7 +126,8 @@ export function parseQuery(query: string): ParsedQuery {
 function facts(entry: LibraryEntry): { duration?: number; width?: number; height?: number; fps?: number; alpha?: boolean; codec?: string } {
   if (entry.kind === 'template') {
     const m = entry.manifest;
-    return { duration: m.duration, width: m.width, height: m.height, fps: m.fps, alpha: m.alpha };
+    const size = templateDefaultSize(m);
+    return { duration: m.duration, width: size.width, height: size.height, fps: m.fps, alpha: m.alpha };
   }
   const meta = entry.meta;
   if (!meta) return {};

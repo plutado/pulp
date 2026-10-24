@@ -20,6 +20,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { access, mkdir, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import { templateDefaultSize, type Size } from '../core/aspect';
 import { checkPresetSupport, detectFfmpeg } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, type FrameFormat, type RenderOptions } from '../core/render-plan';
@@ -156,10 +157,13 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   const { values, issues } = resolveParams(manifest, job.params);
   warnings.push(...plan.warnings, ...issues.map((i) => `parameter ${i.id}: ${i.message}`));
 
+  // The frame size is the plan's, not the manifest's: a template draws for a shape and the
+  // size is chosen per render (ADR 0012). The window, the capture check and ffmpeg agree on it.
+  const frameSize = { name: manifest.name, width: plan.width, height: plan.height };
   const win = new BrowserWindow({
     show: false,
-    width: manifest.width,
-    height: manifest.height,
+    width: plan.width,
+    height: plan.height,
     useContentSize: true,
     frame: false,
     transparent: true,
@@ -202,7 +206,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
 
   try {
     // Offscreen windows are not clamped to the screen size, so 4K templates still get a full-size surface.
-    win.setContentSize(manifest.width, manifest.height);
+    win.setContentSize(plan.width, plan.height);
     // Begin-frame cadence, not the output rate. Each frame waits two animation frames and one paint
     // (see captureFrame), which at the default 60 Hz caps the render near 30 frames/s; at Electron's
     // maximum of 240 the waits cost ~4 ms. The offscreen.frameRate web preference has no effect here;
@@ -249,11 +253,11 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       if (child.exitCode !== null) break;
 
       const frame = plan.firstFrame + i;
-      const state = frameState(timeline, frame, values);
+      const state = frameState(timeline, frame, values, frameSize);
       let pixels: Buffer;
       try {
         pixels = await withTimeout(
-          captureFrame(win, state, manifest, plan.frameFormat),
+          captureFrame(win, state, frameSize, plan.frameFormat),
           frameTimeoutMs,
           frameTimeoutMessage(manifest.name, frame, frameTimeoutMs),
         );
@@ -359,14 +363,16 @@ export type CaptureFramesResult = { ok: true; frames: Buffer[] } | { ok: false; 
 export async function captureTemplateFrames(
   template: TemplateEntry,
   frames: readonly number[],
-  options: { params?: Record<string, unknown>; frameTimeoutMs?: number; loadTimeoutMs?: number; signal?: AbortSignal } = {},
+  options: { params?: Record<string, unknown>; size?: Size; frameTimeoutMs?: number; loadTimeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<CaptureFramesResult> {
   const { manifest } = template;
   const { values } = resolveParams(manifest, options.params ?? {});
+  // The template's default size unless told otherwise: the hover strip wants the same frame the poster shows.
+  const frameSize = { name: manifest.name, ...(options.size ?? templateDefaultSize(manifest)) };
   const win = new BrowserWindow({
     show: false,
-    width: manifest.width,
-    height: manifest.height,
+    width: frameSize.width,
+    height: frameSize.height,
     useContentSize: true,
     frame: false,
     transparent: true,
@@ -380,7 +386,7 @@ export async function captureTemplateFrames(
     },
   });
   try {
-    win.setContentSize(manifest.width, manifest.height);
+    win.setContentSize(frameSize.width, frameSize.height);
     win.webContents.setFrameRate(240);
     const loadTimeoutMs = options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
     try {
@@ -399,7 +405,7 @@ export async function captureTemplateFrames(
     for (const frame of frames) {
       if (options.signal?.aborted) return { ok: false, message: 'Cancelled.' };
       try {
-        captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values), manifest, 'png'), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
+        captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values, frameSize), frameSize, 'png'), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
       } catch (err) {
         if (err instanceof RenderTimeoutError) {
           win.webContents.forcefullyCrashRenderer();

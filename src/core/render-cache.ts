@@ -14,7 +14,7 @@ export const DEFAULT_CACHE_MAX_MB = 2048;
 export interface CacheKeyInput {
   templateId: string;
   /** The whole manifest, so a manifest change (defaults, duration, size) gives a new key. */
-  manifest: Pick<TemplateManifest, 'version' | 'duration' | 'fps' | 'width' | 'height' | 'parameters' | 'entry'>;
+  manifest: Pick<TemplateManifest, 'version' | 'duration' | 'fps' | 'aspects' | 'size' | 'parameters' | 'entry'>;
   params: Record<string, unknown>;
   presetId: string;
   options?: RenderOptions;

@@ -6,6 +6,7 @@
 
 import { collectionSummary, emptyCollection, resolveCollection, type Collection, type CollectionItem } from './collection';
 import type { LibraryEntry, LibraryIndex } from './library-types';
+import { templateDefaultSize } from './aspect';
 import { audioLabel, categoryLabel, codecLabel, dimensionsLabel, durationLabel, extensionLabel, frameRateLabel, mediaKindLabel, rootLabel, sizeLabel, typeLabel } from './display';
 import { buildBrowseTree, type TreeNode } from './browse-tree';
 
@@ -291,7 +292,8 @@ export function entryLabel(entry: LibraryEntry): { name: string; meta: string } 
     const m = entry.manifest;
     // The declared type when there is one; the category it was written with otherwise.
     const kind = m.type ? typeLabel(m.type) : categoryLabel(m.category);
-    return { name: m.name, meta: `${kind} · ${durationLabel(m.duration)} · ${dimensionsLabel(m.width, m.height)}${m.alpha ? ' · Alpha' : ''}` };
+    const size = templateDefaultSize(m);
+    return { name: m.name, meta: `${kind} · ${durationLabel(m.duration)} · ${dimensionsLabel(size.width, size.height)}${m.alpha ? ' · Alpha' : ''}` };
   }
   return { name: entry.name, meta: [`${mediaKindLabel(entry.mediaKind)} · ${extensionLabel(entry.ext)} · ${sizeLabel(entry.size)}`, describeMeta(entry)].filter(Boolean).join(' · ') };
 }

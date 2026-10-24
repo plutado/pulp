@@ -23,12 +23,11 @@ import {
   traySummary,
 } from '../src/core/app-state';
 import type { LibraryIndex, MediaEntry, TemplateEntry } from '../src/core/library-types';
-import type { TemplateManifest } from '../src/core/manifest';
 import type { RenderJobStatus, RenderQueueJob } from '../src/core/render-queue';
-import { rawManifest } from './fixtures';
+import { validManifest } from './fixtures';
 
 function template(key: string, overrides: Partial<TemplateEntry> = {}): TemplateEntry {
-  const manifest = rawManifest({ id: `test.${key}`, name: key }) as unknown as TemplateManifest;
+  const manifest = validManifest({ id: `test.${key}`, name: key });
   return { kind: 'template', key, id: `id-${key}`, dir: `/lib/${key}`, root: '/lib', manifest, tags: [...manifest.tags], warnings: [], ...overrides };
 }
 

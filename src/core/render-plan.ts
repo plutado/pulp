@@ -27,6 +27,7 @@
  * stay full-range RGB.
  */
 
+import { AspectError, resolveRenderSize } from './aspect';
 import { isValidColor, type TemplateManifest } from './manifest';
 import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
 
@@ -204,6 +205,11 @@ export interface RenderOptions {
   inFrame?: number;
   /** Out point: last rendered frame, inclusive as in editing apps, counted at the output frame rate. Default: the last frame. */
   outFrame?: number;
+  /** Which of the template's aspects to render. Default: the one its declared size has, else its first. */
+  aspect?: string;
+  /** Output size in pixels, of the chosen aspect. Default: the template's declared size for that aspect, else the aspect's standard 1080-class size. */
+  width?: number;
+  height?: number;
 }
 
 export interface RenderTiming {
@@ -240,7 +246,7 @@ export function resolveTiming(manifest: Pick<TemplateManifest, 'fps' | 'duration
 }
 
 export interface RenderPlanInput {
-  manifest: Pick<TemplateManifest, 'fps' | 'width' | 'height' | 'duration' | 'alpha'>;
+  manifest: Pick<TemplateManifest, 'fps' | 'duration' | 'alpha' | 'aspects' | 'size'>;
   presetId: string;
   /** Output file path. For PNG sequences, a `%05d` frame pattern is added if missing. */
   outputPath: string;
@@ -268,6 +274,10 @@ export interface RenderPlan {
   /** First frame index on that timeline; 0 unless trimmed. */
   firstFrame: number;
   totalFrames: number;
+  /** The aspect rendered and the frame size in pixels: the offscreen window, the capture check and ffmpeg's input all use this. */
+  aspect: string;
+  width: number;
+  height: number;
   warnings: string[];
 }
 
@@ -304,10 +314,16 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   const { manifest } = input;
   const warnings: string[] = [];
 
-  if (preset.requiresEvenDimensions && (manifest.width % 2 !== 0 || manifest.height % 2 !== 0)) {
-    throw new RenderPlanError(
-      `${preset.label} needs even width and height; template is ${manifest.width}x${manifest.height}`,
-    );
+  let frameSize: ReturnType<typeof resolveRenderSize>;
+  try {
+    frameSize = resolveRenderSize(manifest, input.options ?? {});
+  } catch (err) {
+    if (err instanceof AspectError) throw new RenderPlanError(err.message);
+    throw err;
+  }
+  const { width, height } = frameSize;
+  if (preset.requiresEvenDimensions && (width % 2 !== 0 || height % 2 !== 0)) {
+    throw new RenderPlanError(`${preset.label} needs even width and height; the output size is ${width}x${height}`);
   }
   if (preset.alpha && !manifest.alpha) {
     warnings.push('template does not declare alpha; output will carry an alpha channel but is likely fully opaque');
@@ -322,7 +338,7 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   const output = normalizeOutputPath(input.outputPath, preset);
   const frameFormat = input.frameFormat ?? DEFAULT_FRAME_FORMAT;
   const rawInput = input.rawInput ?? DEFAULT_RAW_INPUT;
-  const size = `${manifest.width}x${manifest.height}`;
+  const size = `${width}x${height}`;
 
   const args: string[] = ['-hide_banner', '-loglevel', 'error', input.overwrite ? '-y' : '-n'];
   if (frameFormat === 'raw') {
@@ -358,5 +374,5 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   // Sequence files are numbered with the frame indices they hold, so a render from frame 60 starts at _00060.
   if (preset.sequence) args.push('-start_number', String(timing.firstFrame));
   args.push('-frames:v', String(totalFrames), '-r', fps, output);
-  return { preset, frameFormat, args, output, fps: timing.fps, firstFrame: timing.firstFrame, totalFrames, warnings };
+  return { preset, frameFormat, args, output, fps: timing.fps, firstFrame: timing.firstFrame, totalFrames, aspect: frameSize.aspect, width, height, warnings };
 }

@@ -7,6 +7,7 @@
  * sync.
  */
 
+import { ASPECT_IDS, aspectOf, isBuiltInAspect, MAX_DIMENSION, MIN_DIMENSION, type Size } from './aspect';
 import { isBuiltInStyle, isBuiltInType, normalizeTheme, STYLES } from './taxonomy';
 
 export const MANIFEST_FILENAME = 'template.json';
@@ -104,8 +105,14 @@ export interface TemplateManifest {
   /** Duration in seconds. */
   duration: number;
   fps: number;
-  width: number;
-  height: number;
+  /**
+   * The shapes the template draws for, as "16:9" ids (src/core/aspect.ts); at least one.
+   * A manifest that declared `width` and `height` instead gets the aspect of that size,
+   * which may be a reduced ratio such as "4:3" when it is none of the built-in ones.
+   */
+  aspects: string[];
+  /** The pixel size the manifest declared, if it did: kept as this template's default resolution. */
+  size?: Size;
   /** True when the template draws on a transparent background and is meant for alpha output. */
   alpha: boolean;
   /** HTML entry point relative to the template folder. */
@@ -130,7 +137,6 @@ const PARAM_ID_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const COLOR_PATTERN = /^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const MAX_DURATION_SECONDS = 600;
-const MAX_DIMENSION = 8192;
 
 export function isValidColor(value: unknown): value is string {
   return typeof value === 'string' && COLOR_PATTERN.test(value);
@@ -319,13 +325,49 @@ export function validateManifest(raw: unknown): ValidationResult {
   } else if (!Number.isInteger(raw.fps) && ![23.976, 29.97, 59.94].includes(raw.fps)) {
     warnings.push({ path: 'fps', message: 'non-integer frame rates other than 23.976, 29.97 and 59.94 are unusual' });
   }
-  for (const key of ['width', 'height'] as const) {
-    const v = raw[key];
-    if (!Number.isInteger(v) || (v as number) < 16 || (v as number) > MAX_DIMENSION) {
-      errors.push({ path: key, message: `must be an integer between 16 and ${MAX_DIMENSION}` });
-    } else if ((v as number) % 2 !== 0) {
-      warnings.push({ path: key, message: 'odd dimensions are not supported by some encoders (yuv420p output will fail)' });
+  // Shape: `aspects`, or the older `width` and `height`, or both (the size is then the default resolution).
+  let aspects: string[] | undefined;
+  let aspectsOk = true;
+  if (raw.aspects !== undefined) {
+    if (!Array.isArray(raw.aspects) || !raw.aspects.every(isNonEmptyString)) {
+      errors.push({ path: 'aspects', message: `must be an array of aspect ratios (${ASPECT_IDS.join(', ')})` });
+      aspectsOk = false;
+    } else {
+      aspects = [...new Set(raw.aspects.map((a) => a.trim()))];
+      if (aspects.length === 0) {
+        errors.push({ path: 'aspects', message: 'must name at least one aspect ratio' });
+        aspectsOk = false;
+      }
+      for (const a of aspects) {
+        if (!isBuiltInAspect(a)) {
+          errors.push({ path: 'aspects', message: `"${a}" is not a supported aspect ratio (${ASPECT_IDS.join(', ')})` });
+          aspectsOk = false;
+        }
+      }
     }
+  }
+  let size: Size | undefined;
+  if (raw.width !== undefined || raw.height !== undefined) {
+    let sizeOk = true;
+    for (const key of ['width', 'height'] as const) {
+      const v = raw[key];
+      if (!Number.isInteger(v) || (v as number) < MIN_DIMENSION || (v as number) > MAX_DIMENSION) {
+        errors.push({ path: key, message: `must be an integer between ${MIN_DIMENSION} and ${MAX_DIMENSION} (width and height go together)` });
+        sizeOk = false;
+      } else if ((v as number) % 2 !== 0) {
+        warnings.push({ path: key, message: 'odd dimensions are not supported by some encoders (yuv420p output will fail)' });
+      }
+    }
+    if (sizeOk) {
+      size = { width: raw.width as number, height: raw.height as number };
+      const own = aspectOf(size.width, size.height);
+      if (aspects === undefined) aspects = [own];
+      else if (aspectsOk && !aspects.includes(own)) {
+        errors.push({ path: 'width', message: `${size.width}x${size.height} is ${own}, which is not among the declared aspects (${aspects.join(', ')})` });
+      }
+    }
+  } else if (aspects === undefined) {
+    errors.push({ path: 'aspects', message: `declare the aspect ratios the template draws for (${ASPECT_IDS.join(', ')}), or a width and height` });
   }
   if (raw.alpha !== undefined && typeof raw.alpha !== 'boolean') errors.push({ path: 'alpha', message: 'must be a boolean' });
 
@@ -356,7 +398,7 @@ export function validateManifest(raw: unknown): ValidationResult {
 
   const known = new Set([
     'formatVersion', 'id', 'name', 'description', 'version', 'author', 'license', 'category', 'type', 'themes', 'styles', 'tags',
-    'duration', 'fps', 'width', 'height', 'alpha', 'entry', 'thumbnail', 'parameters',
+    'duration', 'fps', 'aspects', 'width', 'height', 'alpha', 'entry', 'thumbnail', 'parameters',
   ]);
   for (const key of Object.keys(raw)) {
     if (!known.has(key) && !key.startsWith('x-')) {
@@ -376,12 +418,12 @@ export function validateManifest(raw: unknown): ValidationResult {
     tags,
     duration: raw.duration as number,
     fps: raw.fps as number,
-    width: raw.width as number,
-    height: raw.height as number,
+    aspects: aspects ?? [],
     alpha: (raw.alpha as boolean | undefined) ?? false,
     entry: entry as string,
     parameters,
   };
+  if (size) manifest.size = size;
   if (typeof raw.type === 'string') manifest.type = raw.type;
   if (themes !== undefined) manifest.themes = themes;
   if (styles !== undefined) manifest.styles = styles;

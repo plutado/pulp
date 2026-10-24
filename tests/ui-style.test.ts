@@ -13,8 +13,7 @@ import { STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES } from '../src/core/taxonomy';
 import { queueCard } from '../src/core/queue-card';
 import { aboutRows, creditsRows, fileRows, formatRows, INFO_SECTIONS, usageRows } from '../src/core/item-info';
 import type { TemplateEntry } from '../src/core/library-types';
-import type { TemplateManifest } from '../src/core/manifest';
-import { rawManifest } from './fixtures';
+import { validManifest } from './fixtures';
 import type { RenderQueueJob } from '../src/core/render-queue';
 
 const ROOT = join(__dirname, '..');
@@ -111,7 +110,7 @@ describe('what the window says', () => {
 });
 
 describe('the Info tab', () => {
-  const manifest = rawManifest({ name: 'Boardroom lower third', author: 'Ada', license: 'Acme-EULA' }) as unknown as TemplateManifest;
+  const manifest = validManifest({ name: 'Boardroom lower third', author: 'Ada', license: 'Acme-EULA' });
   const entry: TemplateEntry = { kind: 'template', key: 'k', id: 'id', dir: '/Users/dana/Templates/boardroom/lower-third', root: '/Users/dana/Templates', manifest, tags: [], warnings: [], size: 4096, mtimeMs: 1_700_000_000_000 };
 
   it('says everything in sentence case, with no raw id and no first person', async () => {

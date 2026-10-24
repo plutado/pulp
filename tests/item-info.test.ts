@@ -12,11 +12,10 @@ import {
   usageRows,
 } from '../src/core/item-info';
 import type { MediaEntry, TemplateEntry } from '../src/core/library-types';
-import type { TemplateManifest } from '../src/core/manifest';
-import { rawManifest } from './fixtures';
+import { validManifest } from './fixtures';
 
 function template(over: Record<string, unknown> = {}, entry: Partial<TemplateEntry> = {}): TemplateEntry {
-  const manifest = rawManifest({ name: 'Boardroom lower third', ...over }) as unknown as TemplateManifest;
+  const manifest = validManifest({ name: 'Boardroom lower third', ...over });
   return { kind: 'template', key: 'k', id: 'id', dir: '/lib/boardroom/lower-third', root: '/lib', manifest, tags: [], warnings: [], ...entry };
 }
 function media(over: Partial<MediaEntry> = {}): MediaEntry {
@@ -37,6 +36,16 @@ describe('Format', () => {
     // A lower third does not loop; a background does.
     expect(value(rows, 'Loop')).toBeUndefined();
     expect(value(formatRows(template({ category: 'background' })), 'Loop')).toBe('Made to loop seamlessly');
+  });
+
+  it('shows a shape-only template as its aspects, with the size it defaults to rather than one it declared', () => {
+    const rows = formatRows(template({ aspects: ['16:9', '9:16'], width: undefined, height: undefined }));
+    expect(value(rows, 'Aspects')).toBe('16:9, 9:16');
+    expect(value(rows, 'Aspect')).toBeUndefined();
+    expect(value(rows, 'Size')).toBe('Chosen at render time · 1920 × 1080 by default');
+    const one = formatRows(template({ aspects: ['9:16'], width: undefined, height: undefined }));
+    expect(value(one, 'Aspect')).toBe('9:16');
+    expect(value(one, 'Size')).toBe('Chosen at render time · 1080 × 1920 by default');
   });
 
   it('reads media off what ffprobe found, and says nothing it has not been told', () => {

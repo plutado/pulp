@@ -1,18 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { BRIDGE_SCRIPT, BRIDGE_SCRIPT_INLINE, frameState, injectBridge } from '../src/core/runtime';
-import { timing } from './fixtures';
+import { FIXTURE_SIZE, timing } from './fixtures';
 
 describe('frameState', () => {
   it('computes time and progress from the frame index', () => {
-    const s = frameState(timing(), 30, { a: 1 });
+    const s = frameState(timing(), 30, { a: 1 }, FIXTURE_SIZE);
     expect(s).toMatchObject({ frame: 30, time: 1, progress: 0.5, fps: 30, totalFrames: 60, width: 1920, height: 1080 });
     expect(s.params).toEqual({ a: 1 });
   });
 
   it('clamps the frame index to the valid range', () => {
-    expect(frameState(timing(), -5, {}).frame).toBe(0);
-    expect(frameState(timing(), 999, {}).frame).toBe(59);
-    expect(frameState(timing(), 2.7, {}).frame).toBe(2);
+    expect(frameState(timing(), -5, {}, FIXTURE_SIZE).frame).toBe(0);
+    expect(frameState(timing(), 999, {}, FIXTURE_SIZE).frame).toBe(59);
+    expect(frameState(timing(), 2.7, {}, FIXTURE_SIZE).frame).toBe(2);
+  });
+
+  it('takes the canvas size from the caller, not the manifest: the shape is the template\'s, the pixels are the render\'s', () => {
+    const tall = frameState(timing({ aspects: ['16:9', '9:16'] }), 0, {}, { width: 1080, height: 1920 });
+    expect(tall).toMatchObject({ width: 1080, height: 1920 });
   });
 });
 

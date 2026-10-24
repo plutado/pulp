@@ -81,6 +81,54 @@ describe('validateManifest', () => {
     expect(result.warnings.map((w) => w.path).sort()).toEqual(['colour', 'fps', 'width']);
   });
 
+  describe('shape', () => {
+    it('infers the aspect from a declared size and keeps the size as the default resolution', () => {
+      const result = validateManifest(rawManifest());
+      expect(result.ok && result.manifest.aspects).toEqual(['16:9']);
+      expect(result.ok && result.manifest.size).toEqual({ width: 1920, height: 1080 });
+      const tall = validateManifest(rawManifest({ width: 1080, height: 1920 }));
+      expect(tall.ok && tall.manifest.aspects).toEqual(['9:16']);
+      // An unusual size is still a shape: the reduced ratio, so the template renders at that one size.
+      const odd = validateManifest(rawManifest({ width: 640, height: 480 }));
+      expect(odd.ok && odd.manifest.aspects).toEqual(['4:3']);
+    });
+
+    it('accepts declared aspects without a size, de-duplicated and trimmed', () => {
+      const raw = rawManifest({ aspects: ['16:9', ' 9:16', '16:9'] });
+      delete raw.width;
+      delete raw.height;
+      const result = validateManifest(raw);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.manifest.aspects).toEqual(['16:9', '9:16']);
+      expect(result.manifest.size).toBeUndefined();
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('accepts aspects together with a size when the size is one of them', () => {
+      const ok = validateManifest(rawManifest({ aspects: ['9:16', '16:9'], width: 1920, height: 1080 }));
+      expect(ok.ok && ok.manifest.aspects).toEqual(['9:16', '16:9']);
+      expect(ok.ok && ok.manifest.size).toEqual({ width: 1920, height: 1080 });
+      expect(errorPaths(rawManifest({ aspects: ['9:16'], width: 1920, height: 1080 }))).toEqual(['width']);
+    });
+
+    it('requires a shape one way or the other, and only the built-in aspects', () => {
+      const none = rawManifest();
+      delete none.width;
+      delete none.height;
+      expect(errorPaths(none)).toEqual(['aspects']);
+      const result = validateManifest(none);
+      expect(!result.ok && result.errors[0]!.message).toMatch(/16:9, 9:16, 1:1, 4:5/);
+      expect(errorPaths(rawManifest({ aspects: [] }))).toEqual(['aspects']);
+      expect(errorPaths(rawManifest({ aspects: ['4:3'] }))).toEqual(['aspects']);
+      expect(errorPaths(rawManifest({ aspects: 'wide' }))).toEqual(['aspects']);
+      // Half a size is an error on the missing side, not a silent fallback.
+      const half = rawManifest();
+      delete half.height;
+      expect(errorPaths(half)).toEqual(['height']);
+    });
+  });
+
   it('accepts NTSC frame rates without warnings', () => {
     const result = validateManifest(rawManifest({ fps: 29.97 }));
     expect(result.ok && result.warnings).toEqual([]);

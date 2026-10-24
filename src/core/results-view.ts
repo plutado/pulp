@@ -7,6 +7,7 @@
  */
 
 import { entryLabel } from './app-state';
+import { templateDefaultSize } from './aspect';
 import { clockLabel, dimensionsLabel, mediaKindLabel, themeLabel, typeLabel } from './display';
 import type { LibraryEntry } from './library-types';
 import { resolutionLabel } from './media-meta';
@@ -116,7 +117,7 @@ export function entryDuration(entry: LibraryEntry): number | undefined {
 }
 
 function entrySize(entry: LibraryEntry): { width?: number; height?: number } {
-  return entry.kind === 'template' ? { width: entry.manifest.width, height: entry.manifest.height } : { width: entry.meta?.width, height: entry.meta?.height };
+  return entry.kind === 'template' ? templateDefaultSize(entry.manifest) : { width: entry.meta?.width, height: entry.meta?.height };
 }
 
 function hasAlpha(entry: LibraryEntry): boolean {

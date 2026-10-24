@@ -2,13 +2,12 @@ import { effect } from '@preact/signals';
 import { describe, expect, it } from 'vitest';
 import { setIndex, setJobs, setQuery, setSelection } from '../src/core/app-state';
 import type { LibraryIndex } from '../src/core/library-types';
-import type { TemplateManifest } from '../src/core/manifest';
 import { appState, dispatch, results, selectedKey } from '../src/renderer/store';
-import { rawManifest } from './fixtures';
+import { validManifest } from './fixtures';
 
 /** The signal wiring (no DOM): a queue or selection update must not wake the results. */
 describe('store', () => {
-  const manifest = rawManifest() as unknown as TemplateManifest;
+  const manifest = validManifest();
   const index: LibraryIndex = {
     roots: ['/lib'],
     templates: [{ kind: 'template', key: 'basic', id: 'id-basic', dir: '/lib/basic', root: '/lib', manifest, tags: [...manifest.tags], warnings: [] }],
