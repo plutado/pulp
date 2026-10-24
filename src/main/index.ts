@@ -1,13 +1,13 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron';
 import { SAMPLE_MEDIA_FOLDER_NAME } from '../core/sample-media';
 import { generateSampleMedia } from './sample-media-service';
-import { readSlotImages } from './image-grant';
+import { readSlotImages, resolveRowImages } from './image-grant';
 import { join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
 import { parseTimecode, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest } from '../shared/api';
-import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
+import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
 import { handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag, removeRender } from './render-queue-service';
@@ -75,6 +75,7 @@ function registerIpc(): void {
   ipcMain.handle('library:set-favorite', (_event, id: string, favorite: boolean) => setItemFavorite(id, favorite === true));
   ipcMain.handle('library:mark-used', (_event, id: string) => markItemUsed(id));
   ipcMain.handle('images:load', (_event, ids: unknown) => readSlotImages(Array.isArray(ids) ? ids.map(String) : []));
+  ipcMain.handle('library:diagnostics', () => libraryDiagnostics());
   ipcMain.handle('images:import', (_event, path: unknown) => (typeof path === 'string' && path ? importImageFile(path) : { error: 'No file was chosen.' }));
   ipcMain.handle('library:add-sample-media', async () => {
     const result = await dialog.showOpenDialog({
@@ -475,9 +476,16 @@ async function runCliBatch(cli: CliRender, template: NonNullable<Awaited<ReturnT
   console.log(`batch: ${plan.rows.length} renders of ${template.manifest.name} into ${folder}`);
   let failed = 0;
   for (const row of plan.rows) {
+    // A logo column may name a file in the Imported folder (milestone 22); a row whose logo is not found is named and skipped.
+    const images = resolveRowImages(template.manifest, row.params);
+    if (images.problems.length > 0) {
+      failed += 1;
+      console.error(`${row.label}: skipped: ${images.problems.join('; ')}`);
+      continue;
+    }
     const result = await renderTemplate({
       template,
-      params: row.params,
+      params: images.params,
       presetId: cli.presetId,
       outputPath: join(folder, `${row.fileName}${preset.extension}`),
       overwrite: true,

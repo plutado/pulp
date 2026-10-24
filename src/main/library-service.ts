@@ -15,7 +15,7 @@ import { copyFile, mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, extname, join } from 'node:path';
 import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput } from '../core/ffmpeg';
-import { MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
+import { MAX_IMAGE_FILE_BYTES, type ImportedImage } from '../core/image-slot';
 import { itemId, mediaKindForPath } from '../core/library-scan';
 import { LibraryStore, type ScanStats } from '../core/library-store';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
@@ -68,11 +68,47 @@ let ffmpegPath: string | null | undefined;
  * so a hover waits for the poster in progress, not for the whole queue.
  */
 let heavyChain: Promise<unknown> = Promise.resolve();
+/** What the heavy chain is doing, for diagnostics: how many are waiting, and what runs now since when. */
+let heavyWaiting = 0;
+let heavyCurrent: { label: string; since: number } | null = null;
 
-function heavyWork<T>(work: () => Promise<T>): Promise<T> {
-  const next = heavyChain.then(work);
+function heavyWork<T>(work: () => Promise<T>, label = 'work'): Promise<T> {
+  heavyWaiting++;
+  const next = heavyChain.then(async () => {
+    heavyWaiting--;
+    heavyCurrent = { label, since: Date.now() };
+    try {
+      return await work();
+    } finally {
+      heavyCurrent = null;
+    }
+  });
   heavyChain = next.catch(() => undefined);
   return next;
+}
+
+/** A snapshot of the background work, for the status bar's diagnostics and for a stuck test to print. */
+export interface LibraryDiagnostics {
+  thumbnailing: boolean;
+  probing: boolean;
+  pendingThumbnails: number;
+  pendingMetadata: number;
+  heavyWaiting: number;
+  heavyCurrent: { label: string; forMs: number } | null;
+  roots: { path: string; online: boolean }[];
+}
+
+export function libraryDiagnostics(): LibraryDiagnostics {
+  const st = getStore();
+  return {
+    thumbnailing,
+    probing,
+    pendingThumbnails: st.pendingThumbnails(1000).length,
+    pendingMetadata: st.pendingMetadata(1000).length,
+    heavyWaiting,
+    heavyCurrent: heavyCurrent ? { label: heavyCurrent.label, forMs: Date.now() - heavyCurrent.since } : null,
+    roots: st.roots().map((r) => ({ path: r.path, online: r.online })),
+  };
 }
 
 /** Folder of cached thumbnails inside user data. */
@@ -103,6 +139,15 @@ export function importedRoot(): string {
   return join(app.getPath('userData'), 'imported');
 }
 
+/** The stills in the Imported folder, by file name, for CSV cells that name a logo by file (milestone 22). */
+export function importedImages(): ImportedImage[] {
+  const root = importedRoot();
+  return getStore()
+    .toIndex()
+    .media.filter((m) => m.mediaKind === 'image' && m.root === root && !m.offline)
+    .map((m) => ({ name: basename(m.path), id: m.id }));
+}
+
 /**
  * Copy a file into the Imported folder and index it; resolves to the item's id,
  * or null when the file is not an image. A name clash keeps both files.
@@ -131,7 +176,8 @@ async function configuredRoots(): Promise<string[]> {
   const settings = await loadSettings();
   const roots = [bundledTemplatesDir(), ...settings.libraryFolders, ...extraRoots];
   if (persistent && existsSync(packsRoot())) roots.splice(1, 0, packsRoot());
-  if (persistent && existsSync(importedRoot())) roots.splice(1, 0, importedRoot());
+  // The Imported folder joins headless runs too: a CSV batch names its logos from it.
+  if (existsSync(importedRoot())) roots.splice(1, 0, importedRoot());
   return [...new Set(roots)];
 }
 
@@ -231,7 +277,7 @@ async function generatePendingThumbnails(): Promise<void> {
               return result.code === 0 && existsSync(out);
             }
             return renderPoster(entry, out);
-          });
+          }, `thumbnail ${entry.kind === 'media' ? entry.name : entry.manifest.id}`);
         } catch {
           ok = false;
         }

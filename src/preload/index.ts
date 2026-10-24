@@ -18,6 +18,7 @@ const api: PulpApi = {
   loadSlotImages: (ids) => ipcRenderer.invoke('images:load', ids),
   // The path never crosses from the page: the preload reads it off the File the picker handed over.
   importImage: (file) => ipcRenderer.invoke('images:import', webUtils.getPathForFile(file)),
+  libraryDiagnostics: () => ipcRenderer.invoke('library:diagnostics'),
   ffmpegStatus: () => ipcRenderer.invoke('ffmpeg:status'),
   render: (request) => ipcRenderer.invoke('queue:add', request),
   renderBatch: (request) => ipcRenderer.invoke('queue:add-batch', request),

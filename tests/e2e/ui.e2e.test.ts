@@ -10,12 +10,12 @@
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync } from 'node:fs';
+import { closeSync, existsSync, openSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { detectFfmpeg } from '../../src/core/ffmpeg';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
@@ -77,22 +77,35 @@ class Session {
     });
   }
 
-  send(method: string, params: Record<string, unknown> = {}): Promise<{ result?: unknown }> {
-    return new Promise((resolve) => {
+  /**
+   * Every call has a time limit (docs/platform-notes.md, "Windows CI"): a page that does not answer
+   * — a paused window, a promise that never settles — fails the test with the call named, rather than
+   * holding it until the test's own timeout with nothing said.
+   */
+  send(method: string, params: Record<string, unknown> = {}, timeoutMs = EVAL_TIMEOUT_MS): Promise<{ result?: unknown }> {
+    return new Promise((resolve, reject) => {
       const id = ++this.id;
-      this.pending.set(id, resolve);
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        const what = typeof params.expression === 'string' ? ` for ${String(params.expression).replace(/\s+/g, ' ').slice(0, 160)}` : '';
+        reject(new Error(`the window did not answer ${method} within ${timeoutMs / 1000} s${what}`));
+      }, timeoutMs);
+      this.pending.set(id, (message) => {
+        clearTimeout(timer);
+        resolve(message);
+      });
       this.ws.send(JSON.stringify({ id, method, params }));
     });
   }
 
   /** Evaluate in the page (or a given context) and return the JSON value. */
-  async eval<T>(expression: string, contextId?: number): Promise<T> {
+  async eval<T>(expression: string, contextId?: number, timeoutMs = EVAL_TIMEOUT_MS): Promise<T> {
     const r = (await this.send('Runtime.evaluate', {
       expression,
       awaitPromise: true,
       returnByValue: true,
       ...(contextId !== undefined ? { contextId } : {}),
-    })) as { result?: { result?: { value?: T }; exceptionDetails?: { text?: string; exception?: { description?: string } } } };
+    }, timeoutMs)) as { result?: { result?: { value?: T }; exceptionDetails?: { text?: string; exception?: { description?: string } } } };
     const ex = r.result?.exceptionDetails;
     if (ex) throw new Error(ex.exception?.description ?? ex.text ?? 'evaluation failed');
     return r.result?.result?.value as T;
@@ -102,6 +115,9 @@ class Session {
     this.ws.close();
   }
 }
+
+/** How long one page call may take. Sweeps across the whole list stay well inside it at any sane frame rate. */
+const EVAL_TIMEOUT_MS = 20_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -148,6 +164,7 @@ describe.skipIf(!electron)('inspector UI', () => {
   /** A library folder with a tiny PNG and, when ffmpeg is available, a 2 s MP4. */
   let mediaDir = '';
   let haveVideo = false;
+  let appLog = '';
 
   // 2x2 opaque PNG (red, green / blue, white), built here so it is a valid file: a hand-written base64
   // PNG with a damaged zlib stream was accepted by Chromium's lenient decoder but refused by ffmpeg.
@@ -283,11 +300,15 @@ describe.skipIf(!electron)('inspector UI', () => {
       haveVideo = wide.code === 0 && tall.code === 0;
     }
     await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir] }));
+    // The app's own output goes to a file, so a failing test can print what the main process said.
+    appLog = join(userData, 'app.log');
+    const logFd = openSync(appLog, 'a');
     app = spawn(electron!, ['.', `--remote-debugging-port=${port}`], {
       cwd: ROOT,
-      stdio: 'ignore',
+      stdio: ['ignore', logFd, logFd],
       env: { ...process.env, PULP_USER_DATA: userData },
     });
+    closeSync(logFd);
     let target: Target | undefined;
     await until(async () => {
       target = (await targets()).find((t) => t.type === 'page' && /renderer\/index\.html/.test(t.url));
@@ -299,6 +320,32 @@ describe.skipIf(!electron)('inspector UI', () => {
     await clickResult('Lower Third Bar');
     await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview to be ready');
   }, 120_000);
+
+  /**
+   * When a test fails, say what the app was doing: the window's visibility and whether its frame
+   * callbacks run, the background queue, the render queue, and the main process's last lines.
+   * Each probe is short and guarded, so the dump itself cannot hang (docs/platform-notes.md, "Windows CI").
+   */
+  afterEach(async (ctx) => {
+    if (ctx.task.result?.state !== 'fail' || !page) return;
+    const probe = async <T,>(what: string, fn: () => Promise<T>): Promise<T | string> => {
+      try {
+        return await fn();
+      } catch (err) {
+        return `${what}: ${(err as Error).message}`;
+      }
+    };
+    const lines: string[] = [`--- state after "${ctx.task.name}" failed at ${new Date().toISOString()} ---`];
+    lines.push(`window: ${JSON.stringify(await probe('window', () => page.eval(`({ visibility: document.visibilityState, hidden: document.hidden, focus: document.hasFocus(), results: document.querySelectorAll('#results li[data-id]').length, search: document.getElementById('search').value })`, undefined, 5_000)))}`);
+    lines.push(`frame callback: ${JSON.stringify(await probe('rAF', () => page.eval(`new Promise((r) => { const t = performance.now(); const timer = setTimeout(() => r('no frame callback within 3 s'), 3000); requestAnimationFrame(() => { clearTimeout(timer); r(Math.round(performance.now() - t) + ' ms'); }); })`, undefined, 5_000)))}`);
+    lines.push(`library: ${JSON.stringify(await probe('diagnostics', () => page.eval(`window.pulp.libraryDiagnostics()`, undefined, 5_000)))}`);
+    lines.push(`render queue: ${JSON.stringify(await probe('queue', () => page.eval(`window.pulp.getRenderQueue().then((q) => q.jobs.map((j) => j.status + ' ' + j.templateId))`, undefined, 5_000)))}`);
+    if (appLog && existsSync(appLog)) {
+      const tail = (await readFile(appLog, 'utf8')).split('\n').filter(Boolean).slice(-40);
+      lines.push('app log (last 40 lines):', ...tail.map((l) => `  ${l}`));
+    }
+    console.error(lines.join('\n'));
+  });
 
   afterAll(async () => {
     page?.close();

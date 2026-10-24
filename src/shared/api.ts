@@ -97,7 +97,18 @@ export interface BatchRequest {
   rows: BatchRequestRow[];
 }
 
-export type EnqueueBatchResult = { ok: true; jobIds: number[]; folder: string } | { ok: false; cancelled?: boolean; message: string };
+export type EnqueueBatchResult = { ok: true; jobIds: number[]; folder: string; skipped?: string[] } | { ok: false; cancelled?: boolean; message: string };
+
+/** What the background queue is doing (src/main/library-service.ts). */
+export interface LibraryDiagnostics {
+  thumbnailing: boolean;
+  probing: boolean;
+  pendingThumbnails: number;
+  pendingMetadata: number;
+  heavyWaiting: number;
+  heavyCurrent: { label: string; forMs: number } | null;
+  roots: { path: string; online: boolean }[];
+}
 
 export interface PackInstallResult {
   installed: string[];
@@ -163,6 +174,8 @@ export interface PulpApi {
   loadSlotImages(ids: string[]): Promise<{ images: { id: string; src: string }[]; missing: string[] }>;
   /** Copy a file from outside the library into the managed Imported folder and index it; resolves to its library id. */
   importImage(file: File): Promise<{ id: string } | { error: string }>;
+  /** What the background queue is doing: thumbnails, probes, the heavy-work chain. For diagnostics. */
+  libraryDiagnostics(): Promise<LibraryDiagnostics>;
   ffmpegStatus(): Promise<FfmpegInfo>;
   /** Opens a save dialog, then adds the render to the queue. Jobs run one after another. */
   render(request: RenderRequest): Promise<EnqueueResult>;
