@@ -725,6 +725,10 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(d.h, label).toBeLessThanOrEqual(d.roomH + 0.5);
       };
       const viewport = (width: number, height: number) => page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+      // The size the window really has, to go back to. Clearing the override restores the *window*, and
+      // on a small display (the runner's is about 1024 px wide) that is smaller than anything emulated
+      // here: a wait for "bigger than 1024" could never come true there (docs/platform-notes.md).
+      const own = await page.eval<{ w: number; h: number }>(`({ w: window.innerWidth, h: window.innerHeight })`);
       const squeeze = (key: 'ArrowUp' | 'ArrowDown', times: number) =>
         page.eval(`(() => { const s = document.getElementById('split-stage'); for (let i = 0; i < ${times}; i++) s.dispatchEvent(new KeyboardEvent('keydown', { key: '${key}', bubbles: true })); })()`);
 
@@ -763,10 +767,19 @@ describe.skipIf(!electron)('inspector UI', () => {
           }
         }
       } finally {
+        // Whatever happened, leave the window, the stage and the Output tab as the tests after this expect:
+        // its own size, the stage share it started with, and the opener back at 16:9.
         if (squeezed > 0) await squeeze('ArrowDown', squeezed);
         await page.send('Emulation.clearDeviceMetricsOverride', {});
+        await until(async () => {
+          const now = await page.eval<{ w: number; h: number }>(`({ w: window.innerWidth, h: window.innerHeight })`);
+          return now.w === own.w && now.h === own.h;
+        }, `the window back at its own ${own.w} × ${own.h}`);
+        await clickResult('Boardroom opener');
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the opener back');
+        await fire('#opt-aspect', '16:9', 'change');
+        await until(async () => (await previewShape()).orientation === 'landscape', 'the opener back at 16:9');
       }
-      await until(() => page.eval<boolean>(`window.innerWidth > 1024`), 'the window at its own size again');
     }, 120_000);
 
     it('renders at the chosen shape and size through Prepare for drag', async () => {
@@ -917,6 +930,16 @@ describe.skipIf(!electron)('inspector UI', () => {
       await sleep(300);
     };
 
+    /** Wait until what the card has drawn satisfies `want`, and return it; the last reading names the failure. */
+    async function untilDrawn(want: (d: Awaited<ReturnType<typeof drawn>>) => boolean, what: string): Promise<Awaited<ReturnType<typeof drawn>>> {
+      let last = await drawn();
+      await until(async () => {
+        last = await drawn();
+        return want(last);
+      }, `${what} (last seen: ${JSON.stringify(last)})`);
+      return last;
+    }
+
     it('shows the template\'s layers, draws them, and keeps a required one', async () => {
       await clickResult('Title Card');
       await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
@@ -931,8 +954,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`${section}.querySelector('.layers-reset').hidden`)).toBe(true);
 
       await scrubAndWait(110);
-      const shown = await drawn();
-      expect(shown.canvas, JSON.stringify(shown)).toEqual([1920, 1080]);
+      const shown = await untilDrawn((d) => d.canvas[0] === 1920 && d.canvas[1] === 1080 && d.bands.length === 2, 'the wide card with its two lines');
       expect(shown.bands, JSON.stringify(shown)).toHaveLength(2);
       expect(shown.bands[0]!.height).toBeGreaterThan(shown.bands[1]!.height); // the title is set larger than its subtitle
     }, 90_000);
@@ -1130,14 +1152,13 @@ describe.skipIf(!electron)('inspector UI', () => {
       await clickResult('Title Card');
       await until(() => page.eval<boolean>(`!!${section}`), 'the title card');
       await scrubAndWait(110);
-      const wide = await drawn();
-      expect(wide.canvas).toEqual([1920, 1080]);
+      const wide = await untilDrawn((d) => d.canvas[0] === 1920 && d.canvas[1] === 1080, 'the wide card');
       expect(wide.bands, JSON.stringify(wide)).toHaveLength(2);
       await fire('#opt-aspect', '9:16', 'change');
       await until(async () => (await shape()) === 'portrait', 'the tall preview');
       await scrubAndWait(110);
-      const tall = await drawn();
-      expect(tall.canvas, JSON.stringify(tall)).toEqual([1080, 1920]);
+      // The box turns at once; the picture inside it follows when the page has drawn the new shape.
+      const tall = await untilDrawn((d) => d.canvas[0] === 1080 && d.canvas[1] === 1920, 'the card drawn tall');
       expect(tall.bands, JSON.stringify(tall)).toHaveLength(2);
       // The tall card keeps its bottom clear for captions, so the stack sits higher up the frame.
       expect(tall.bands[0]!.top / 1920).toBeLessThan(wide.bands[0]!.top / 1080);
@@ -1377,6 +1398,7 @@ describe.skipIf(!electron)('inspector UI', () => {
           `({ inner: window.innerHeight, results: document.getElementById('results').clientHeight, stage: document.getElementById('region-stage').clientHeight, tray: document.getElementById('region-tray').clientHeight, search: document.getElementById('region-search').clientHeight })`,
         );
       expect(await page.eval<boolean>(`document.getElementById('app').classList.contains('tray-collapsed')`)).toBe(false);
+      const own = await metrics();
       try {
         for (const height of [697, 600]) {
           await page.send('Emulation.setDeviceMetricsOverride', { width: 1024, height, deviceScaleFactor: 1, mobile: false });
@@ -1393,7 +1415,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       } finally {
         await page.send('Emulation.clearDeviceMetricsOverride', {});
       }
-      await until(async () => (await metrics()).inner > 600, 'the window at its own size again');
+      await until(async () => (await metrics()).inner === own.inner, `the window back at its own ${own.inner} px`);
     }, 60_000);
   });
 

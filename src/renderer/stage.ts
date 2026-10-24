@@ -173,10 +173,39 @@ function updateTimecode(frame: number): void {
   els.timecode.textContent = `${formatTimecode(frame, s.manifest.fps)} · ${frame + 1}/${frameCount(s.manifest)}`;
 }
 
+/**
+ * How long a frame may be in flight before the preview assumes the answer is
+ * not coming and asks again. The page replies after two animation frames
+ * (BRIDGE_SCRIPT), and **a frame with no room on screen runs no animation
+ * frames at all** — collapse the stage, or squeeze it to nothing, and the
+ * reply never arrives. Without this the one unanswered request would wedge
+ * `inFlight` and the preview would never draw again, even once it had room
+ * (docs/platform-notes.md, "Windows CI").
+ */
+const FRAME_REPLY_TIMEOUT_MS = 4000;
+let replyWatchdog: ReturnType<typeof setTimeout> | undefined;
+
+/** Stop waiting on the frame in flight: its reply has arrived, or there is nothing to wait for. */
+function clearReplyWatchdog(): void {
+  clearTimeout(replyWatchdog);
+  replyWatchdog = undefined;
+}
+
 function postFrame(frame: number): void {
   const win = els.preview.contentWindow;
   if (!win || !s.manifest) return;
   s.inFlight = true;
+  clearReplyWatchdog();
+  replyWatchdog = setTimeout(() => {
+    // No reply: let go of the request and ask for the frame that matters now, so the preview
+    // catches up by itself the moment it has room again.
+    replyWatchdog = undefined;
+    if (!s.inFlight) return;
+    s.inFlight = false;
+    const next = s.pendingFrame ?? s.frame;
+    s.pendingFrame = null;
+    requestFrame(next);
+  }, FRAME_REPLY_TIMEOUT_MS);
   win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, previewSize(), s.layers) }, '*');
   updateTimecode(frame);
 }
@@ -313,6 +342,7 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
   s.frame = Math.floor(frameCount(m) / 2);
   s.previewReady = false;
   s.inFlight = false;
+  clearReplyWatchdog();
   s.pendingFrame = null;
   s.imagesKey = '';
   s.imagesReady = true;
@@ -496,6 +526,7 @@ export function initStage(): void {
     if (data?.type === 'pulp:ready') {
       s.previewReady = true;
       s.inFlight = false;
+      clearReplyWatchdog();
       requestFrame(s.frame);
       updateTransport();
     } else if (data?.type === 'pulp:prepared') {
@@ -512,6 +543,7 @@ export function initStage(): void {
       }
     } else if (data?.type === 'pulp:rendered' || data?.type === 'pulp:error') {
       s.inFlight = false;
+      clearReplyWatchdog();
       if (data.type === 'pulp:error') {
         els.note.hidden = false;
         els.note.textContent = `Template error: ${data.message ?? 'unknown'}`;
