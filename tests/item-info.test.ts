@@ -73,6 +73,14 @@ describe('File', () => {
     expect(value(fileRows(template({}, { size: 4096, mtimeMs: 1_700_000_000_000 })), 'Size on disk')).toBe('4 KB');
     expect(value(fileRows(media()), 'Location')).toBe('clips/clip.mov');
   });
+
+  it('reads the same on Windows: forward slashes in the value, the native path in the tooltip', () => {
+    const rows = fileRows(template({}, { dir: 'C:\\Users\\dana\\Templates\\boardroom\\lower-third', root: 'C:\\Users\\dana\\Templates' }));
+    expect(value(rows, 'Location')).toBe('boardroom/lower-third');
+    expect(rows.find((r) => r.label === 'Location')?.tip).toBe('C:\\Users\\dana\\Templates\\boardroom\\lower-third');
+    const clip = media({ path: 'D:\\media\\clips\\clip.mov', root: 'D:\\media' });
+    expect(value(fileRows(clip), 'Location')).toBe('clips/clip.mov');
+  });
 });
 
 describe('Credits', () => {

@@ -1201,7 +1201,8 @@ describe.skipIf(!electron)('inspector UI', () => {
       // File: a location relative to the library folder, the whole path only in the tooltip.
       const file = await factsOf('file');
       expect(file[0]).toBe('Location: boardroom/lower-third');
-      expect(await page.eval<string>(`document.querySelector('#info-item [data-section=file] .fact dd').dataset.tip`)).toContain('boardroom/lower-third');
+      // The tooltip is the native path, so it reads boardroom\lower-third on Windows (docs/platform-notes.md).
+      expect(await page.eval<string>(`document.querySelector('#info-item [data-section=file] .fact dd').dataset.tip`)).toMatch(/boardroom[\\/]lower-third$/);
       expect(file.some((f) => f.startsWith('Size on disk: '))).toBe(true);
       // Reveal and Copy path take an item id, so the window never sends a path at all.
       expect(await page.eval<boolean>(`window.pulp.copyItemPath(${JSON.stringify('nope')})`)).toBe(false);

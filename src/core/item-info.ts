@@ -121,7 +121,10 @@ function gcd(a: number, b: number): number {
 export function fileRows(entry: LibraryEntry): InfoRow[] {
   const rows: InfoRow[] = [];
   const where = entry.kind === 'template' ? entry.dir : entry.path;
-  const inside = where.slice(entry.root.length).replace(/^[\\/]+/, '');
+  // The value is a breadcrumb inside the library folder, not a path: it reads
+  // "boardroom/lower-third" on every platform, while the tooltip keeps the
+  // native path (with backslashes on Windows) for anyone who wants the real thing.
+  const inside = where.slice(entry.root.length).split(/[\\/]+/).filter(Boolean).join('/');
   rows.push({ label: 'Location', value: inside || where, tip: where });
   if (entry.size !== undefined) rows.push({ label: 'Size on disk', value: sizeLabel(entry.size) });
   if (entry.mtimeMs !== undefined && entry.mtimeMs > 0) rows.push({ label: 'Modified', value: dateLabel(entry.mtimeMs) });

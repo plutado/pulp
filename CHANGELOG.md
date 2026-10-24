@@ -107,6 +107,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- The Info tab's Location row read `boardroom\lower-third` on Windows. It is a breadcrumb inside the library folder, not a path, so it now uses forward slashes on every platform; the tooltip keeps the native path.
 - `settings.json` (library folders, recent colors) is written atomically: a temporary file is renamed over the old one, so a crash or a reader during a save sees the old or the new file and never a half-written one that would lose the library folder list. Changes that arrive close together are queued so none is lost.
 - The end-to-end tests' cleanup no longer fails on Windows with EBUSY: they wait for the app to exit and delete scratch folders with retries, since Windows refuses to delete files a just-killed process still holds.
 - The first captured frame could be blank or one frame stale on slow machines (seen on Windows CI with trimmed and flattened renders). The template bridge now resolves two animation frames after drawing, and the renderer forces a repaint and waits for the paint event before each capture, so the capture always holds the frame that was just drawn. The offscreen window's begin-frame rate is raised to 240 so the extra waits cost about 4 ms, which makes renders faster than before the fix (lower third: 67 frames/s raw against 54).
