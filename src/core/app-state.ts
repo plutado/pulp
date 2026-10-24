@@ -161,14 +161,12 @@ export function effectiveQuery(s: Pick<AppState, 'query' | 'scope' | 'filters'>)
   return [s.scope?.filter ?? '', ...chipText, s.query].join(' ').trim();
 }
 
-/** Results beyond the cap are not rendered; milestone 12's virtualized list removes the cap. */
-export const RESULT_CAP = 500;
-
+/**
+ * Every match, however many: the results region renders only the rows and cards
+ * in view (src/core/virtual-list.ts), so there is nothing to cap.
+ */
 export interface ResultsView {
   entries: LibraryEntry[];
-  /** How many matched before the cap. */
-  total: number;
-  capped: boolean;
   /** True when at least one listed template is online, so a pack export has content. */
   canExportPack: boolean;
 }
@@ -201,14 +199,11 @@ function sortEntries(entries: LibraryEntry[], sort: SortKey): LibraryEntry[] {
 }
 
 export function deriveResults(s: ResultsInput): ResultsView {
-  if (!s.index) return { entries: [], total: 0, capped: false, canExportPack: false };
+  if (!s.index) return { entries: [], canExportPack: false };
   let hits = searchLibrary(s.index, effectiveQuery(s));
   if (s.scope?.root !== undefined) hits = hits.filter((h) => h.entry.root === s.scope?.root);
-  const entries = sortEntries(hits.map((h) => h.entry), s.sort);
   return {
-    entries: entries.slice(0, RESULT_CAP),
-    total: hits.length,
-    capped: hits.length > RESULT_CAP,
+    entries: sortEntries(hits.map((h) => h.entry), s.sort),
     canExportPack: hits.some((h) => h.entry.kind === 'template' && !h.entry.offline),
   };
 }

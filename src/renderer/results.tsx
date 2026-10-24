@@ -4,6 +4,12 @@
  * `src/core/results-view.ts`; this file only turns those facts into elements.
  * The container owns the scroll, so the geometry it needs goes on it as custom
  * properties rather than being measured back out of the rendered cards.
+ *
+ * Only the rows and cards the viewport covers are in the DOM
+ * (`src/core/virtual-list.ts`); two spacers stand in for the rest, so the
+ * scrollbar still measures the whole list however long it is. Keys are the
+ * entries', so an item that stays in the window keeps its element — and its
+ * loaded thumbnail — while the window moves around it.
  */
 
 import { render } from 'preact';
@@ -22,11 +28,13 @@ import {
   type ResultBadge,
 } from '../core/results-view';
 import { entryType, typeInfo } from '../core/taxonomy';
+import { virtualWindow } from '../core/virtual-list';
 import { Icon, MEDIA_KIND_ICONS, TYPE_GROUP_ICONS, type IconName } from './icons';
-import { hasIndex, results, resultsView, selectedKey } from './store';
+import { appState, hasIndex, results, resultsView, selectedKey } from './store';
 
-/** Width of the results region, so the column count and the layout agree on one number. */
-const regionWidth = signal(0);
+/** The scrolling viewport, measured: the column count, the window and the layout agree on one number. */
+const viewport = signal({ width: 0, height: 0 });
+const scrollTop = signal(0);
 
 /** The empty-thumbnail placeholder: the item's type-group icon, or the media kind's. */
 function placeholderIcon(entry: LibraryEntry): IconName {
@@ -128,18 +136,32 @@ function Row({ entry, selected, onSelect }: ItemProps) {
   );
 }
 
+/** Grid or list, how many items a row holds and how tall a row is: one answer for the layout and the window. */
+function geometry(entries: readonly LibraryEntry[]) {
+  const view = resultsView.value;
+  const grid = viewModeFor(view, entries) === 'grid';
+  return {
+    grid,
+    columns: grid ? columnsFor(viewport.value.width, view.thumbSize) : 1,
+    rowHeight: grid ? cardHeight(view.thumbSize) : LIST_ROW_HEIGHT,
+  };
+}
+
 function Results({ onSelect }: { onSelect: (entry: LibraryEntry) => void }) {
   if (!hasIndex.value) return null;
   const { entries } = results.value;
   if (entries.length === 0) return <li class="meta empty">No matches.</li>;
-  const grid = viewModeFor(resultsView.value, entries) === 'grid';
+  const { grid, columns, rowHeight } = geometry(entries);
+  const win = virtualWindow({ total: entries.length, columns, rowHeight, viewportHeight: viewport.value.height, scrollTop: scrollTop.value });
   const selected = selectedKey.value;
   const Item = grid ? Card : Row;
   return (
     <>
-      {entries.map((entry) => (
+      {win.topPad > 0 && <li class="spacer" role="presentation" aria-hidden="true" style={{ height: `${win.topPad}px` }} />}
+      {entries.slice(win.start, win.end).map((entry) => (
         <Item key={entry.key} entry={entry} selected={selected === entry.key} onSelect={onSelect} />
       ))}
+      {win.bottomPad > 0 && <li class="spacer" role="presentation" aria-hidden="true" style={{ height: `${win.bottomPad}px` }} />}
     </>
   );
 }
@@ -147,21 +169,45 @@ function Results({ onSelect }: { onSelect: (entry: LibraryEntry) => void }) {
 /** Mounts into the existing #results element, which from then on belongs to Preact. */
 export function mountResults(container: HTMLElement, onSelect: (entry: LibraryEntry) => void): void {
   const measure = () => {
-    regionWidth.value = container.clientWidth;
+    const { clientWidth: width, clientHeight: height } = container;
+    if (width !== viewport.value.width || height !== viewport.value.height) viewport.value = { width, height };
   };
   measure();
   new ResizeObserver(measure).observe(container);
+  container.addEventListener(
+    'scroll',
+    () => {
+      scrollTop.value = container.scrollTop;
+    },
+    { passive: true },
+  );
 
-  // The card size and the column count drive both the layout and, once the list is
-  // windowed, the row pitch; they live on the container so the two cannot disagree.
+  // The card size and the column count drive both the layout and the row pitch the
+  // window is computed from; they live on the container so the two cannot disagree.
+  // A narrower region or a bigger card can also leave the scroll past the end, where
+  // the window clamps it — the element follows, so the two stay in step.
   effect(() => {
-    const view = resultsView.value;
-    const grid = viewModeFor(view, results.value.entries) === 'grid';
+    const entries = results.value.entries;
+    const { grid, columns, rowHeight } = geometry(entries);
     container.classList.toggle('grid', grid);
     container.classList.toggle('list', !grid);
-    container.style.setProperty('--cols', String(grid ? columnsFor(regionWidth.value, view.thumbSize) : 1));
-    container.style.setProperty('--card-h', `${cardHeight(view.thumbSize)}px`);
+    container.style.setProperty('--cols', String(columns));
+    container.style.setProperty('--card-h', `${cardHeight(resultsView.value.thumbSize)}px`);
     container.style.setProperty('--row-h', `${LIST_ROW_HEIGHT}px`);
+    const max = Math.max(0, Math.ceil(entries.length / columns) * rowHeight - viewport.value.height);
+    if (container.scrollTop > max) container.scrollTop = max;
+  });
+
+  // A new search starts at the top. A rescan or a thumbnail arriving in the background
+  // changes the results too, and must not pull the list out from under the pointer.
+  let search = '';
+  effect(() => {
+    const s = appState.value;
+    const next = `${s.query}\u0000${s.sort}\u0000${s.filters.join()}\u0000${s.scope?.label ?? ''}\u0000${s.scope?.filter ?? ''}\u0000${s.scope?.root ?? ''}`;
+    if (next === search) return;
+    search = next;
+    container.scrollTop = 0;
+    scrollTop.value = 0;
   });
 
   render(<Results onSelect={onSelect} />, container);

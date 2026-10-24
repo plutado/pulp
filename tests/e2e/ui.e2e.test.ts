@@ -170,6 +170,68 @@ describe.skipIf(!electron)('inspector UI', () => {
     throw new Error(`timed out waiting for ${what}`);
   }
 
+  // The results are windowed: only the cards and rows the viewport covers are in the
+  // DOM, so a test has to scroll to an item the way a user would before touching it.
+
+  /** The expression for the rendered <li> of a named result, or undefined. */
+  const liFor = (name: string) => `[...document.querySelectorAll('#results li[data-id]')].find((li) => li.querySelector('.name')?.textContent === ${JSON.stringify(name)})`;
+
+  /** One pass down the results, a screen at a time, stopping where the named item is rendered. */
+  const sweepTo = (name: string) =>
+    page.eval<boolean>(
+      `(async () => {
+        const box = document.getElementById('results');
+        const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        box.scrollTop = 0;
+        await settle();
+        for (let i = 0; i < 200; i++) {
+          if (${liFor(name)}) return true;
+          const max = box.scrollHeight - box.clientHeight;
+          if (box.scrollTop >= max) return false;
+          box.scrollTop = Math.min(max, box.scrollTop + Math.max(1, box.clientHeight * 0.8));
+          await settle();
+        }
+        return false;
+      })()`,
+    );
+
+  /** Scrolls the results until the named item is rendered, waiting for one that has not arrived yet. */
+  const scrollToResult = (name: string, tries = 40) => until(() => sweepTo(name), `the result "${name}"`, tries);
+
+  /** Scrolls to a result, then evaluates `fn` — a function source taking its <li> — on it. */
+  async function onResult<T>(name: string, fn: string): Promise<T> {
+    await scrollToResult(name);
+    return page.eval<T>(`(${fn})(${liFor(name)})`);
+  }
+
+  const clickResult = (name: string) => onResult(name, '(li) => li.click()');
+
+  /**
+   * Every result name, in list order, collected by scrolling through the window.
+   * Items are kept apart by their library id, so two items of the same name both count.
+   */
+  function resultNames(): Promise<string[]> {
+    return page.eval<string[]>(
+      `(async () => {
+        const box = document.getElementById('results');
+        const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const seen = new Map();
+        const collect = () => { for (const li of box.querySelectorAll('li[data-id]')) seen.set(li.dataset.id, li.querySelector('.name').textContent); };
+        box.scrollTop = 0;
+        await settle();
+        collect();
+        for (let i = 0; i < 200 && box.scrollTop < box.scrollHeight - box.clientHeight; i++) {
+          box.scrollTop += Math.max(1, box.clientHeight * 0.8);
+          await settle();
+          collect();
+        }
+        box.scrollTop = 0;
+        await settle();
+        return [...seen.values()];
+      })()`,
+    );
+  }
+
   /** Read one preview pixel (straight RGBA, as the template's canvas holds it) in template coordinates. */
   async function previewPixel(x: number, y: number, templateId = 'pulp.samples.lower-third-bar'): Promise<number[]> {
     const expr = `(() => { const d = document.getElementById('c').getContext('2d').getImageData(${x}, ${y}, 1, 1).data; return [...d]; })()`;
@@ -224,11 +286,8 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 'the app window');
     page = await Session.connect(target!.webSocketDebuggerUrl);
     await page.send('Runtime.enable');
-    await until(
-      () => page.eval<boolean>(`[...document.querySelectorAll('#results li .name')].some((n) => n.textContent === 'Lower Third Bar')`),
-      'the library list',
-    );
-    await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Lower Third Bar').click()`);
+    await until(() => page.eval<boolean>(`document.querySelectorAll('#results li[data-id]').length > 0`), 'the library list');
+    await clickResult('Lower Third Bar');
     await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview to be ready');
   }, 120_000);
 
@@ -353,11 +412,11 @@ describe.skipIf(!electron)('inspector UI', () => {
   }, 60_000);
 
   it('keeps edits and history per template across a switch', async () => {
-    await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Title Card').click()`);
+    await clickResult('Title Card');
     await until(() => page.eval<boolean>(`document.querySelector('[data-param=title] input') !== null`), 'the title card form');
     expect(await page.eval<boolean>(`document.getElementById('undo').disabled`)).toBe(true);
     expect(await valueOf('[data-param=title] input')).toBe('Field Notes');
-    await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Lower Third Bar').click()`);
+    await clickResult('Lower Third Bar');
     await until(() => page.eval<boolean>(`document.querySelector('[data-param=name] input') !== null`), 'the lower third form');
     expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
     expect(await page.eval<boolean>(`document.getElementById('undo').disabled`)).toBe(false);
@@ -393,7 +452,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     expect(settings.recentColors).toEqual(rows[0]);
 
     // The same list shows on another template's color fields.
-    await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Title Card').click()`);
+    await clickResult('Title Card');
     await until(() => page.eval<boolean>(`document.querySelector('#params .color-field .recent-swatch') !== null`), 'recent colors on the title card');
     expect(await page.eval<string>(`document.querySelector('#params .color-field .recent-swatch').dataset.color`)).toBe('#00ff0040');
   }, 60_000);
@@ -403,7 +462,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     const options = () => page.eval<string[]>(`[...document.getElementById('param-preset-list').options].map((o) => o.value).filter(Boolean)`);
 
     it('saves the values that differ from the defaults, applies them undoably, asks before replacing, deletes', async () => {
-      await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Lower Third Bar').click()`);
+      await clickResult('Lower Third Bar');
       await until(() => page.eval<boolean>(`document.querySelector('[data-param=name] input') !== null`), 'the lower third form');
       // Start from defaults, change the name, save as "Show A".
       await page.eval(`document.getElementById('reset-all').disabled || document.getElementById('reset-all').click()`);
@@ -468,7 +527,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         console.info('ffmpeg not available; render-and-drag check skipped.');
         return;
       }
-      await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Diagonal Wipe').click()`);
+      await clickResult('Diagonal Wipe');
       await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the diagonal wipe preview');
       // A short range keeps the test quick: three frames of the wipe into the cache.
       await page.eval(`(() => { const i = document.getElementById('opt-in'); i.value = '10'; i.dispatchEvent(new Event('input', { bubbles: true })); const o = document.getElementById('opt-out'); o.value = '12'; o.dispatchEvent(new Event('input', { bubbles: true })); })()`);
@@ -567,12 +626,11 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(existsSync(join(userData, 'packs', 'news-pack', 'pack.json'))).toBe(true);
       expect(existsSync(join(userData, 'packs', 'news-pack', 'dupe'))).toBe(false);
       await page.eval(`document.getElementById('pack-close').click()`);
-      await until(
-        () => page.eval<boolean>(`[...document.querySelectorAll('#results li .name')].some((n) => n.textContent === 'News Strap') && [...document.querySelectorAll('#results li .name')].some((n) => n.textContent === 'Channel Bug')`),
-        'the installed templates in the library',
-      );
-      // The bundled title card is untouched.
-      expect(await page.eval<number>(`[...document.querySelectorAll('#results li .name')].filter((n) => n.textContent === 'Title Card').length`)).toBe(1);
+      await until(async () => (await resultNames()).includes('News Strap'), 'the installed templates in the library');
+      const listed = await resultNames();
+      expect(listed).toContain('Channel Bug');
+      // The bundled title card is untouched: the installed pack brought no second one.
+      expect(listed.filter((n) => n === 'Title Card')).toHaveLength(1);
       // The installed pack appears in the browse tree, counting its templates; the two bundled
       // matched sets are there as well, five templates each.
       await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="pack:news-pack"]')`), 'the installed pack in the browse tree');
@@ -601,7 +659,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`document.getElementById('pack-result').textContent.includes('Replaced')`), 'the replace to finish');
       expect(await dialogText('#pack-result')).toContain('Replaced: strap.');
       await page.eval(`document.getElementById('pack-close').click()`);
-      await until(() => page.eval<boolean>(`[...document.querySelectorAll('#results li .name')].some((n) => n.textContent === 'News Strap v2')`), 'the replaced template name');
+      await until(async () => (await resultNames()).includes('News Strap v2'), 'the replaced template name');
 
       await writeFile(join(userData, 'broken.zip'), Buffer.from('this is not a zip'));
       await page.eval(`window.pulpPreviewPack(${JSON.stringify(join(userData, 'broken.zip'))})`);
@@ -628,11 +686,10 @@ describe.skipIf(!electron)('inspector UI', () => {
   });
 
   describe('tags, favorites and recently used', () => {
-    const results = () => page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`);
     const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 
     it('adds and removes user tags on the shown item, searchable with tag:', async () => {
-      await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent.endsWith('Lower Third Bar')).click()`);
+      await clickResult('Lower Third Bar');
       await until(() => page.eval<boolean>(`!document.getElementById('item-tools').hidden`), 'the item tools');
       await page.eval(`(() => { const i = document.getElementById('tag-input'); i.value = 'Show A, keeper'; i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`);
       await until(() => page.eval<boolean>(`!!document.querySelector('#tag-chips .tag-chip.user[data-tag=show-a]')`), 'the new tag chips');
@@ -641,7 +698,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`!!document.querySelector('#tag-chips .tag-chip.folder[data-tag=interview]') && !document.querySelector('#tag-chips .tag-chip.folder[data-tag=interview] button')`)).toBe(true);
       try {
         await setSearch('tag:show-a');
-        expect(await results()).toEqual(['Lower Third Bar']);
+        expect(await resultNames()).toEqual(['Lower Third Bar']);
       } finally {
         await setSearch('');
       }
@@ -655,15 +712,15 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`document.getElementById('favorite').getAttribute('aria-pressed') === 'true'`), 'the favorite to be set');
       try {
         await setSearch('favorite:yes');
-        expect(await results()).toEqual(['Lower Third Bar']);
+        expect(await resultNames()).toEqual(['Lower Third Bar']);
         expect(await page.eval<boolean>(`!document.querySelector('#results li .fav').hidden`)).toBe(true);
         // Selecting marked the lower third used; select the title card too, so it is the most recent.
         await setSearch('');
-        await page.eval(`[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Title Card').click()`);
+        await clickResult('Title Card');
         await until(() => page.eval<boolean>(`document.querySelector('[data-param=title] input') !== null`), 'the title card form');
         await setSearch('recent:2 type:template');
-        await until(async () => (await results())[0] === 'Title Card', 'the recent list to update');
-        expect(await results()).toEqual(['Title Card', 'Lower Third Bar']);
+        await until(async () => (await resultNames())[0] === 'Title Card', 'the recent list to update');
+        expect(await resultNames()).toEqual(['Title Card', 'Lower Third Bar']);
       } finally {
         await setSearch(''); // never leave a filter behind for the next test
       }
@@ -686,11 +743,7 @@ describe.skipIf(!electron)('inspector UI', () => {
 
   describe('media preview through pulp-media://', () => {
     const selectMedia = async (name: string) => {
-      await until(
-        () => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-kind=media] .name')].some((n) => n.textContent === ${JSON.stringify(name)})`),
-        `media item ${name} in the library`,
-      );
-      await page.eval(`[...document.querySelectorAll('#results li[data-kind=media]')].find((li) => li.querySelector('.name')?.textContent === ${JSON.stringify(name)}).click()`);
+      await onResult(name, `(li) => { if (li.dataset.kind !== 'media') throw new Error('${name} is not a media item'); li.click(); }`);
     };
 
     it('shows an image from the library, addressed by id', async () => {
@@ -722,14 +775,8 @@ describe.skipIf(!electron)('inspector UI', () => {
         return;
       }
       // Probing runs in the background; the card badges what it found as soon as it lands.
-      await until(
-        () => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-kind=media]')].some((li) => li.querySelector('.name')?.textContent === 'clip' && li.querySelector('.badge.resolution'))`),
-        'probed metadata to reach the results',
-        120,
-      );
-      const badges = await page.eval<string[]>(
-        `[...[...document.querySelectorAll('#results li[data-kind=media]')].find((li) => li.querySelector('.name')?.textContent === 'clip').querySelectorAll('.badge')].map((b) => b.textContent)`,
-      );
+      await until(() => onResult<boolean>('clip', '(li) => !!li.querySelector(".badge.resolution")'), 'probed metadata to reach the results', 120);
+      const badges = await onResult<string[]>('clip', '(li) => [...li.querySelectorAll(".badge")].map((b) => b.textContent)');
       expect(badges).toEqual(['2 s', '36p']);
       // The whole of what ffprobe read is in the Info tab.
       await selectMedia('clip');
@@ -741,9 +788,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       try {
         await setSearch('codec:h264 duration:>1');
-        expect(await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`)).toEqual(['clip']);
+        expect(await resultNames()).toEqual(['clip']);
         await setSearch('res:1080p');
-        const at1080 = await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`);
+        const at1080 = await resultNames();
         expect(at1080).toEqual(expect.arrayContaining(['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'Boardroom title', 'Newsdesk title']));
         expect(at1080).not.toContain('clip');
       } finally {
@@ -760,26 +807,19 @@ describe.skipIf(!electron)('inspector UI', () => {
       // the five items this test asserts on - not for any five: with the matched sample sets, more than
       // a dozen posters are queued and a slow machine finishes five others first (Windows CI, October 2026).
       const needed = ['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'clip', 'tiny'];
-      await until(
-        () =>
-          page.eval<boolean>(
-            `(() => { const need = ${JSON.stringify(needed)}; const rows = [...document.querySelectorAll('#results li')]; return need.every((n) => { const li = rows.find((r) => r.querySelector('.name')?.textContent === n); const i = li && li.querySelector('.thumb img'); return !!i && i.complete && i.naturalWidth > 0; }); })()`,
-          ),
-        'thumbnails for the three original samples and the two visual media items',
-        480,
-      );
-      const info = await page.eval<{ name: string; src: string; w: number; h: number }[]>(
-        `[...document.querySelectorAll('#results li')].filter((li) => li.querySelector('.thumb img')).map((li) => { const i = li.querySelector('.thumb img'); return { name: li.querySelector('.name').textContent, src: i.src, w: i.naturalWidth, h: i.naturalHeight }; })`,
-      );
-      const byName = Object.fromEntries(info.map((i) => [i.name, i]));
-      // Templates installed from packs earlier in this run get posters too; the bundled ones and the media must be there.
-      expect(Object.keys(byName)).toEqual(expect.arrayContaining(['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'clip', 'tiny']));
-      for (const i of info) expect(i.src).toMatch(/^pulp-thumb:\/\/[0-9a-f]{24}\/$/);
+      const loaded = '(li) => { const i = li.querySelector(".thumb img"); return !!i && i.complete && i.naturalWidth > 0; }';
+      const read = '(li) => { const i = li.querySelector(".thumb img"); return { src: i.src, w: i.naturalWidth, h: i.naturalHeight }; }';
+      const byName: Record<string, { src: string; w: number; h: number }> = {};
+      for (const name of needed) {
+        await until(() => onResult<boolean>(name, loaded), `the thumbnail for ${name}`, 480);
+        byName[name] = await onResult<{ src: string; w: number; h: number }>(name, read);
+      }
+      for (const i of Object.values(byName)) expect(i.src).toMatch(/^pulp-thumb:\/\/[0-9a-f]{24}\/$/);
       expect(byName['Title Card']).toMatchObject({ w: 240, h: 135 }); // 1920x1080 poster, fit into 240
       expect(byName['clip']).toMatchObject({ w: 64, h: 36 }); // smaller than the thumbnail size: not enlarged
       expect(byName['tiny']).toMatchObject({ w: 2, h: 2 });
       // Audio has no thumbnail, by design.
-      expect(await page.eval<boolean>(`[...document.querySelectorAll('#results li[data-kind=media]')].some((li) => li.querySelector('.thumb.empty'))`)).toBe(true);
+      expect(await onResult<boolean>('silence', '(li) => !!li.querySelector(".thumb.empty")')).toBe(true);
       // Unknown id and a path on the URL are refused.
       const outcome = (src: string) =>
         page.eval<string>(
@@ -795,7 +835,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         page.eval<string>(
           `new Promise((resolve) => { const i = new Image(); i.onload = () => resolve('loaded'); i.onerror = () => resolve('refused'); i.src = ${JSON.stringify(src)}; setTimeout(() => resolve('timeout'), 5000); })`,
         );
-      const id = await page.eval<string>(`[...document.querySelectorAll('#results li[data-kind=media]')].find((li) => li.querySelector('.name')?.textContent === 'tiny').dataset.id`);
+      const id = await onResult<string>('tiny', '(li) => li.dataset.id');
       expect(await outcome('pulp-media://deadbeefdeadbeefdeadbeef/')).toBe('refused');
       expect(await outcome(`pulp-media://${id}/tiny.png`)).toBe('refused');
       expect(await outcome(`pulp-media://${id}/`)).toBe('loaded');
@@ -805,7 +845,7 @@ describe.skipIf(!electron)('inspector UI', () => {
   });
 
   describe('search bar scope and filter chips', () => {
-    const names = () => page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`);
+    const names = resultNames;
     const clearSearch = () => page.eval(`(() => { const s = document.getElementById('search'); s.value = ''; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 
     it('scopes the results to a browse node, shows the chip, and clears it with the ×', async () => {
@@ -839,16 +879,12 @@ describe.skipIf(!electron)('inspector UI', () => {
       // Cards by default for anything visual: a thumbnail with badges under the name.
       expect(await page.eval<boolean>(`document.getElementById('results').classList.contains('grid')`)).toBe(true);
       expect(await page.eval<string>(`document.getElementById('view-grid').getAttribute('aria-pressed')`)).toBe('true');
-      const cardBadges = await page.eval<string[]>(
-        `[...[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Lower Third Bar').querySelectorAll('.badge')].map((b) => b.dataset.badge)`,
-      );
+      const cardBadges = await onResult<string[]>('Lower Third Bar', '(li) => [...li.querySelectorAll(".badge")].map((b) => b.dataset.badge)');
       expect(cardBadges).toEqual(['alpha', 'duration', 'resolution']);
 
       await page.eval(`document.getElementById('view-list').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('results').classList.contains('list')`), 'the list view');
-      const row = await page.eval<string[]>(
-        `[...[...document.querySelectorAll('#results li')].find((li) => li.querySelector('.name')?.textContent === 'Boardroom title').querySelectorAll('.col')].map((c) => c.textContent)`,
-      );
+      const row = await onResult<string[]>('Boardroom title', '(li) => [...li.querySelectorAll(".col")].map((c) => c.textContent)');
       expect(row).toEqual(['Boardroom title', '5 s', 'Title', 'Corporate', 'title']);
       // The thumbnail size only means anything for cards.
       expect(await page.eval<boolean>(`document.getElementById('thumb-size').disabled`)).toBe(true);

@@ -17,7 +17,9 @@ npm test
 npm run build
 ```
 
-`npm test` includes an end-to-end render test (`tests/e2e`) that builds the app and renders the bundled samples. It runs when the Electron binary, ffmpeg and ffprobe are installed, takes about 30 seconds, and is skipped otherwise (or with `PULP_E2E=0`). `PULP_E2E=1` fails instead of skipping, which CI uses on Windows. `npm run test:e2e` runs it alone.
+`npm test` includes end-to-end tests (`tests/e2e`) that build the app, render the bundled samples and drive the window over the DevTools protocol. They run when the Electron binary, ffmpeg and ffprobe are installed, take about two minutes, and are skipped otherwise (or with `PULP_E2E=0`). `PULP_E2E=1` fails instead of skipping, which CI uses on Windows. `npm run test:e2e` runs them alone.
+
+The results region is windowed: only the cards and rows in view are in the DOM. A UI test must therefore scroll to an item before reading or clicking it — use the `scrollToResult`, `onResult`, `clickResult` and `resultNames` helpers in `tests/e2e/ui.e2e.test.ts` rather than querying `#results` directly.
 
 ## Guidelines
 

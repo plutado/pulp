@@ -17,7 +17,6 @@ import {
   toggleFilter,
   hasFinishedJobs,
   initialAppState,
-  RESULT_CAP,
   setIndex,
   setJobs,
   setQuery,
@@ -119,7 +118,7 @@ describe('scopes', () => {
 
 describe('deriveResults', () => {
   it('is empty without an index', () => {
-    expect(deriveResults(initialAppState)).toEqual({ entries: [], total: 0, capped: false, canExportPack: false });
+    expect(deriveResults(initialAppState)).toEqual({ entries: [], canExportPack: false });
   });
 
   it('searches with the scope applied', () => {
@@ -130,12 +129,10 @@ describe('deriveResults', () => {
     expect(deriveResults(s).entries.map((e) => e.key)).toEqual(['kept footage']);
   });
 
-  it('caps the entries and reports the full total', () => {
-    const many = Array.from({ length: RESULT_CAP + 20 }, (_, i) => media(`clip ${String(i).padStart(4, '0')}`));
+  it('returns every match: the results region renders only what is in view, so there is no cap', () => {
+    const many = Array.from({ length: 5_000 }, (_, i) => media(`clip ${String(i).padStart(4, '0')}`));
     const view = deriveResults(setIndex(initialAppState, index([], many)));
-    expect(view.entries).toHaveLength(RESULT_CAP);
-    expect(view.total).toBe(RESULT_CAP + 20);
-    expect(view.capped).toBe(true);
+    expect(view.entries).toHaveLength(5_000);
   });
 
   it('allows a pack export only when a listed template is online', () => {
