@@ -14,7 +14,7 @@ The shell from this plan is built (milestone 11): the regions below exist as res
 | **Search bar** | above the results | Search field; a **scope chip** naming the selected node ("in: Lower thirds › Sports", × to clear); recent searches; filter chips for alpha, loop, duration and resolution; sort; grid/list toggle; thumbnail size. |
 | **Results** | center | **Grid of cards**: thumbnail with hover-scrub, name, badges (alpha, loop, duration, resolution, audio variants, pack). **List view** for audio and long lists: name, duration, type, themes, file. **Audition mode**: autoplay with arrow keys. A card can be dragged to the collection tray, to the stage, or straight out to an editor once rendered. |
 | **Stage** | center, above the results in a resizable split; collapsible to a thin bar | The player: play/pause, loop toggle, frame step, in and out marks, timecode, volume and mute. A **background toggle** (checkerboard, black, white, custom) for checking alpha. Title-safe and action-safe overlay. A **waveform** under the scrub bar for audio and for templates with sound. **Stem lanes** for layered music, one waveform per layer with mute and solo. A **variant picker** for paired sound effects. |
-| **Inspector** | right | Tabs: **Parameters** (the form as today, with undo and presets), **Output** (preset, size, frame rate, duration and loop extension, speed, alpha type, matte pass, audio embedded or separate, save folder, file-name pattern), **Info** (metadata, license, pack, tags, favorite, themes and styles, editable where the item is the user's). |
+| **Inspector** | right | Tabs: **Parameters** (the form as today, with undo and presets), **Output** (preset, aspect and output resolution, frame rate, duration and loop extension, speed, alpha type, matte pass, audio embedded or separate, save folder, file-name pattern), **Info** (metadata, license, pack, tags, favorite, themes and styles, editable where the item is the user's). |
 | **Collection tray** | bottom drawer under the center and right columns; resizable, collapsible to a one-line summary, opens when the first item is added | Items gathered while browsing, as small cards, each with its own output settings. **Apply to all**, save and load as a file, **Render all** with per-item and total progress. It absorbs today's render queue. |
 | **Guided setup** | modal | Numbered steps: what it is for, size and frame rate, format and alpha, audio, where to save. A live preview over a checkerboard, a settings summary, "save as default for this type", Add to collection. |
 | **Status bar** | bottom | ffmpeg found or missing, library counts, cache size, scans and renders in progress, a "copy diagnostics" entry point. |
@@ -62,6 +62,7 @@ This contract holds whatever renders the regions. The plain DOM versus component
    - milestone 10 puts the type, theme and style tree into the browse panel and lights up the scope chip;
    - milestone 12 turns the list into a grid of cards, upgrades the player, adds waveforms and audition mode;
    - milestone 13 turns the queue in the tray into collections with save, load and Render all;
+   - milestone 19 makes templates a shape rather than a pixel size: the Output tab chooses the aspect and the resolution, the search bar gains an orientation chip, cards take a portrait item's own shape, and the stage's safe areas gain vertical zones;
    - after 1.0, milestone 14 adds the guided setup and per-type defaults in the Output tab, milestone 15 adds media conversion, loop tools, matte pass and recolor to the Output tab, and milestone 16 adds stem lanes and the variant picker to the stage.
 4. **Hardening (milestone 8)** runs its accessibility pass and documentation against the finished layout, so keyboard navigation covers the tree, the grid, the player and the tray.
 
@@ -83,6 +84,9 @@ Each of these is a checklist item in the milestone named.
 | Loop tools: extend a loopable background with a crossfade join, speed | 15 |
 | Matte pass: a separate alpha file for codecs and editors without alpha | 15 |
 | Recolor at render time for stock media | 15 |
+| Aspect and output resolution in the Output tab, for templates drawn to a shape rather than a size | 19 |
+| Orientation filter and chip, vertical badge on cards, cards in a portrait item's own shape | 19 |
+| Vertical safe zones in the player, described generically | 19 |
 | Stems with mute and solo; paired sound effects with variants | 16 |
 
 ## What stays true throughout

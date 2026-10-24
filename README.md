@@ -48,7 +48,7 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Results as a grid of cards — thumbnail, name and badges for alpha, loop, duration, resolution and pack — or as a list with name, duration, type, themes and file columns, with the grid/list toggle and the thumbnail size in the search bar. Only what is in view is built, so a library of thousands scrolls smoothly.
 - A headless command-line render mode (below).
 
-Not yet: collections (gather items, render all), installers and signed builds, verification on Windows and in Final Cut Pro. These are on the [roadmap](ROADMAP.md).
+Not yet: vertical and square formats (templates are still a fixed pixel size), collections (gather items, render all), installers and signed builds, verification on Windows and in Final Cut Pro. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
@@ -61,9 +61,10 @@ Milestones 1-6, 10-12 and 18 (renderer, alpha export, parameter editor, library,
 | 13. Collections | Gather items while browsing, save and load as a file, render all with per-item settings | 8-14 h |
 | 17. Unsigned builds and releases | electron-builder, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 7-12 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
-| 8. 1.0 hardening and docs | Frozen template and pack formats v1 with a JSON Schema, an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
+| 19. Vertical and square formats | Templates defined by aspect ratio rather than pixel size, with the output resolution chosen at render time; an orientation filter and portrait cards; vertical safe zones; vertical versions of the matched sample sets | 13-21 h |
+| 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 
-The milestones through 1.0 total **133-226 hours**, of which **31-53 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **146-247 hours**, of which **44-74 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 

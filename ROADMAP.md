@@ -2,7 +2,7 @@
 
 Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done.
 
-Milestones keep the number they were given when they were added, so GitHub issues #1 to #18 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
+Milestones keep the number they were given when they were added, so GitHub issues #1 to #19 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
 | Milestone | Estimate |
 |---|---|
@@ -20,14 +20,15 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 13. Collections | 8-14 h |
 | 17. Unsigned builds and releases | 7-12 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
+| 19. Vertical and square formats | 13-21 h |
 | 8. 1.0 hardening and docs | 9-16 h |
 | 14. Defaults per type and guided setup (post-1.0) | 6-10 h |
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
-| **Total through 1.0 (milestones 1-8, 10-13, 17 and 18)** | **133-226 h** |
-| **Still open through 1.0 (unticked items only)** | **31-53 h** |
-| **Total including post-1.0 items** | **165-284 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-19)** | **146-247 h** |
+| **Still open through 1.0 (unticked items only)** | **44-74 h** |
+| **Total including post-1.0 items** | **178-305 h** |
 
 ## 0. Foundation (done)
 
@@ -118,7 +119,7 @@ Before milestone 10, so the browse tree, cards and badges are born with icons an
 
 ## 10. Categorization by type and theme (14-23 h)
 
-After milestone 11 (the browse panel it fills) and before milestone 8: it changes the template manifest and `pack.json`, and must land before format v1 is frozen. Housekeeping for the first commit: fold `main.ts`'s remaining `state.index` into the shared state, so the index lives in one place before the tree builds on it.
+After milestone 11 (the browse panel it fills) and before milestone 8: it changes the template manifest and `pack.json`, additively, so templates written before it keep working. Housekeeping for the first commit: fold `main.ts`'s remaining `state.index` into the shared state, so the index lives in one place before the tree builds on it.
 
 - [x] Taxonomy: built-in, versioned lists of types (nine groups over 45 types), themes (eight groups over 50, user-extendable: any tag-normalized word is a custom theme, shown in a separate group) and styles (eleven, closed) in a pure core module (`src/core/taxonomy.ts`) with membership, normalization and category mapping helpers, unit tested; ADR 0010 records the three axes, what is open and closed, and the ids-are-permanent extension rule (2-4 h)
 - [x] Template format: optional `type` checked against the list, `themes` (normalized; unknown ids are custom, not errors) and `styles` (built-in only, errors otherwise); `category` stays valid and maps onto the type list, so existing templates keep working; validator with tests, `docs/template-format.md` and changelog updated (2-3 h)
@@ -168,9 +169,22 @@ The buildable half of the old "Packaging and signing" milestone; signing is mile
 - [ ] Windows: code signing (1-2 h)
 - [ ] Auto-update (electron-updater; needs signed builds on macOS) (1-2 h)
 
+## 19. Vertical and square formats (13-21 h)
+
+Before milestone 8, which writes the authoring guide and the JSON Schema: both should describe the format as it ends up, not one that is about to change underneath them.
+
+**A template is defined by its aspect ratio, not by a pixel size.** A lower third is a lower third at 1920 × 1080 and at 1080 × 1920; what differs is the shape of the canvas and where things sit in it. Today's manifest declares `width` and `height`, which pins every template to one resolution and makes a vertical version a second template to write and maintain. This milestone moves the pixel size to render time and leaves the template saying only which shapes it is drawn for.
+
+- [ ] Template format: a template declares the aspect ratios it supports (16:9, 9:16, 1:1, 4:5) instead of a pixel size, and draws relative to the canvas it is handed. The frame state already carries `width` and `height`, so a template that reads them instead of hard-coding 1920 × 1080 needs nothing else. The output resolution (720p, 1080p, 1440p, 4K and so on) is chosen at render time. Manifests with `width` and `height` keep working: the aspect is inferred from them and the size becomes that template's default resolution. The renderer sizes its offscreen window from the chosen resolution rather than the manifest, and the capture-size check, the thumbnails and the hover-scrub strips follow it. Validator, `docs/template-format.md` and an ADR (4-6 h)
+- [ ] Output tab: an aspect choice for templates that support more than one, and an output resolution for all of them — a list per aspect plus a custom size — with the same two as headless flags. The presets' even-dimension rule and the render plan's size checks work from the chosen size rather than the manifest's (2-3 h)
+- [ ] Orientation in search and on cards: an `orientation:` filter (`portrait`, `landscape`, `square`) over templates and media alike, a filter chip beside the media kinds, and a badge on portrait and square cards, so a vertical item is recognizable without reading its size (1-2 h)
+- [ ] Vertical safe zones: the stage's safe-area overlay gains the areas a tall frame has to keep clear, described generically rather than named after any one app — a header strip at the top, a controls column down one side, a caption band across the bottom — as fractions of the frame in `src/core/player.ts`, beside the broadcast insets already there. Offered only for portrait aspects, from the same toggle (1-2 h)
+- [ ] Cards take the item's own shape instead of letterboxing a portrait thumbnail into a 16:9 box. The windowing math wants one row pitch, so a grid of mixed shapes takes its row height from the tallest card the current thumbnail size allows and each picture fills its own aspect inside that (`src/core/results-view.ts`, `src/core/virtual-list.ts`) (2-3 h)
+- [ ] The bundled templates move to the aspect model, and each of the four matched sets gains vertical versions of at least its lower third and its title — the same look re-laid out for a tall frame, not scaled down. The samples test checks that every bundled template declares its aspects and draws from the size it is given; the render test covers one vertical template (3-5 h)
+
 ## 8. 1.0 hardening and docs (9-16 h)
 
-- [ ] Freeze template format v1 and pack format (`pack.json`) v1, after milestone 10's manifest and pack changes have landed; add a JSON Schema file generated from or checked against the validator (2-3 h)
+- [ ] A JSON Schema for the template manifest and `pack.json`, generated from or checked against the validator, and the compatibility rule stated where authors read it: fields are added rather than repurposed, and an incompatible change takes a new `formatVersion`. **No version freeze is planned.** This item used to be "freeze template format v1 here"; milestone 19 changes the format and later milestones may too, so the format stays versioned and documented rather than declared final (2-3 h)
 - [ ] Template authoring guide with a step-by-step walkthrough and a `pulp-template` starter folder (2-3 h)
 - [ ] Accessibility pass across every region: keyboard navigation for the browse tree and nodes, the grid, the player, the tray, the inspector tabs (arrow keys, roving tabindex), the filter chips and the scope chip; splitter keyboard resizing kept; focus states and screen reader labels throughout (2-3 h)
 - [ ] Crash and error reporting that stays local (log file, "copy diagnostics" in the status bar) (1-2 h)

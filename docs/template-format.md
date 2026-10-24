@@ -1,6 +1,8 @@
 # Pulp template format, version 1
 
-Status: draft. Version 1 may still change in incompatible ways before Pulp 1.0. After 1.0, incompatible changes require a new `formatVersion`.
+Status: draft. Version 1 may still change in incompatible ways before Pulp 1.0. After 1.0, incompatible changes require a new `formatVersion`. There is no plan to freeze the format at 1.0; it stays versioned and documented instead.
+
+**Coming change (milestone 19 in `ROADMAP.md`):** a template will declare the aspect ratios it supports rather than a pixel size, and the output resolution will be chosen at render time. Manifests with `width` and `height` will keep working. If you are writing a template now, draw from the `width` and `height` in the state you are handed rather than hard-coding a size, and it will carry over unchanged.
 
 This document is the specification. The validator in `src/core/manifest.ts` implements it, and the two must agree; when they disagree, that is a bug in one of them.
 
