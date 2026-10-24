@@ -11,11 +11,11 @@ Templates use an open, documented format: a folder with a `template.json` manife
 
 "Pulp" is a working name and may change.
 
-**Status: early development.** The renderer, the template format, search, template packs, drag-out to editing apps and the window shell are in place; categorization, a card grid, collections and installers are still to come. Expect breaking changes to the format and the app until 1.0. See [ROADMAP.md](ROADMAP.md).
+**Status: early development.** The renderer, the template format, search, categorization, template packs, drag-out to editing apps, the window shell and the card grid are in place; the richer player, collections and installers are still to come. Expect breaking changes to the format and the app until 1.0. See [ROADMAP.md](ROADMAP.md).
 
-![Pulp's window: the browse panel on the left, the search bar with filter chips above a live preview of the Lower Third Bar template and the result list in the center, the inspector with Parameters, Output and Info tabs on the right, the render tray collapsed to a one-line summary at the bottom, and a status bar](docs/images/app-window.png)
+![Pulp's window: the browse tree on the left, the search bar with filter chips above a live preview of the Lower Third Bar template and a grid of template cards in the center, the inspector with Parameters, Output and Info tabs on the right, the render tray collapsed to a one-line summary at the bottom, and a status bar](docs/images/app-window.png)
 
-*The browse panel (Favorites, Recently used, folders) on the left; the search bar with filter chips and sorting over the stage — a live preview with play and scrub — and the result list in the center; the inspector with its Parameters, Output and Info tabs on the right; the render tray and a status bar along the bottom. Panes resize and collapse, and the layout is remembered. All content shown is from the bundled sample templates.*
+*The browse tree (Quick access, Types, Themes, Styles, Packs, Folders, with counts) on the left; the search bar with filter chips, sorting and the grid/list toggle over the stage — a live preview with play and scrub — and the results as cards with badges in the center; the inspector with its Parameters, Output and Info tabs on the right; the render tray and a status bar along the bottom. Panes resize and collapse, and the layout is remembered. All content shown is from the bundled sample templates.*
 
 ### Sample output
 
@@ -45,27 +45,26 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Drag a finished render from the queue into your editor's bin or timeline, or "Prepare for drag" to render into a managed cache first; verified in Premiere Pro and Resolve on macOS.
 - Template packs: import a `.zip` or folder with a license-and-collision preview, export the listed templates as a pack.
 - A resizable window shell whose panes collapse and are remembered, a render queue in a bottom tray, and a status bar with ffmpeg, library counts, cache size and activity.
+- Results as a grid of cards — thumbnail, name and badges for alpha, loop, duration, resolution and pack — or as a list with name, duration, type, themes and file columns, with the grid/list toggle and the thumbnail size in the search bar. Only what is in view is built, so a library of thousands scrolls smoothly.
 - A headless command-line render mode (below).
 
-Not yet: browsing by type and theme, a thumbnail card grid, collections (gather items, render all), installers and signed builds, verification on Windows and in Final Cut Pro. These are on the [roadmap](ROADMAP.md).
+Not yet: hover-scrub thumbnails, a richer player (loop, background toggle, safe areas, waveforms), audition mode for audio, collections (gather items, render all), installers and signed builds, verification on Windows and in Final Cut Pro. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
 The [roadmap](ROADMAP.md) breaks the path to 1.0 into milestones with task-level estimates. Estimates are working hours for one developer, including tests and docs.
 
-Milestones 1-6 and 11 (renderer, alpha export, parameter editor, library, drag-out, template packs, the window shell) are done apart from verification items that need a Windows machine or Final Cut Pro. In planned order, what remains to 1.0:
+Milestones 1-6, 11, 18 and 10 (renderer, alpha export, parameter editor, library, drag-out, template packs, the window shell, visual polish and categorization) are done apart from verification items that need a Windows machine or Final Cut Pro. In planned order, what remains to 1.0:
 
 | Milestone | What it delivers | Estimate |
 |---|---|---|
-| 18. Visual polish: labels, icons and hierarchy | Sentence-case labels and humanized tags from one display-name module, Phosphor icons with an icon rail and icon toolbars, design tokens and a style guide with an enforcement test | 8-13 h |
-| 10. Categorization by type and theme | Built-in type, theme and style lists (user-extendable), a browse tree with counts and scoped search, `type:`/`theme:`/`style:` filters, matched sample sets for corporate, sports, holiday and news | 14-23 h |
-| 12. Browse and preview | A card grid with badges and hover-scrub, virtualized results, a richer player (loop, background toggle, safe areas, waveforms), audition mode for audio | 13-21 h |
+| 12. Browse and preview | The card grid with badges and the virtualized results are in; still to come are hover-scrub thumbnails, a richer player (loop, frame step, in/out marks, background toggle, safe areas), waveforms for audio and audition mode | 7-12 h left of 13-21 h |
 | 13. Collections | Gather items while browsing, save and load as a file, render all with per-item settings | 8-14 h |
 | 17. Unsigned builds and releases | electron-builder, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 7-12 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 | 8. 1.0 hardening and docs | Frozen template and pack formats v1 with a JSON Schema, an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 
-The milestones through 1.0 total **133-226 hours**, of which **45-76 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **133-226 hours**, of which **39-67 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
