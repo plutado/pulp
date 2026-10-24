@@ -4,7 +4,7 @@ Status: describes the code as of the Unreleased section of CHANGELOG.md. Planned
 
 ## Goals
 
-- Editors can find a graphic, change its text and colors, and get a file that drops into Premiere Pro, DaVinci Resolve or Final Cut Pro with correct alpha, in under a minute.
+- Editors can find a graphic, change its text and colors, and get a file that drops into Premiere Pro or DaVinci Resolve, on macOS or Windows, with correct alpha, in under a minute.
 - Templates are an open format that anyone can write and read without Pulp.
 - Everything works offline. No accounts, no telemetry, no bundled third-party media.
 - The logic that matters (format, parameters, indexing, encoding arguments) is testable without a GUI or ffmpeg.

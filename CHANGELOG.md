@@ -32,6 +32,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Changed
 
+- Pulp targets Premiere Pro and DaVinci Resolve on macOS and Windows. Final Cut Pro is not a target, like other editors Pulp does not verify against, and is no longer named in the preset descriptions, the verification checklist, the goals or the roadmap.
 - The Info tab is a property panel. A header card — the item's picture, which scrubs when you point at it and shows a waveform for a sound, its name, its type with that type's icon, and the favorite star beside the name — over collapsible sections that remember whether you left them open: About, Format, Categories, Tags, Set, File, Credits and license, Usage. Inside each, one fact per row in a key-value grid.
 - Things the Info tab never showed before: the aspect and exact duration, frame rate, codec and audio details, whether a media file's type came from its folder, the styles a template declares, the other pieces of the set it belongs to (as thumbnails you can click), where it lives, its size on disk and when it changed, its author, version and licence as a badge — in the warning colour when the licence is unknown or not an open one — and how it has been used: last used, how many times it has been rendered, and how many saved presets it has.
 - Reveal in Finder (Show in Explorer) and Copy path for the item itself, not just for a render. The window asks by item id and the main process looks the path up, so no path crosses from the window and there is nothing to allow-list.

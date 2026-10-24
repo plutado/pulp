@@ -94,7 +94,7 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   'prores-4444': {
     id: 'prores-4444',
     label: 'ProRes 4444 (alpha)',
-    description: 'QuickTime .mov with alpha. Edits well in Premiere Pro, DaVinci Resolve and Final Cut Pro. Large files.',
+    description: 'QuickTime .mov with alpha. Edits well in Premiere Pro and DaVinci Resolve. Large files.',
     extension: '.mov',
     alpha: true,
     sequence: false,
@@ -173,7 +173,7 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   'hevc-alpha': {
     id: 'hevc-alpha',
     label: 'HEVC (alpha, macOS only)',
-    description: '.mov with alpha encoded by Apple VideoToolbox. Small files for Final Cut Pro, Premiere Pro and recent macOS apps. Quality 80, alpha quality 0.9.',
+    description: '.mov with alpha encoded by Apple VideoToolbox. Small files for recent macOS apps; DaVinci Resolve reads it with Alpha Mode set to Straight, Premiere Pro does not read the alpha. Quality 80, alpha quality 0.9.',
     extension: '.mov',
     alpha: true,
     sequence: false,

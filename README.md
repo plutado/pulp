@@ -49,13 +49,13 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Collections: gather items while browsing (Add to collection, or drag a card into the tray), give each its own output settings, reorder them, apply one item's settings to all, save and reopen the collection as a file, and render the lot into one folder. A saved collection also records what a project used: items it can no longer find are flagged, not dropped.
 - A headless command-line render mode (below).
 
-Not yet: vertical and square formats (templates are still a fixed pixel size), social-ready export (gather items, render all), installers and signed builds, verification on Windows and in Final Cut Pro. These are on the [roadmap](ROADMAP.md).
+Not yet: vertical and square formats (templates are still a fixed pixel size), social-ready export (gather items, render all), installers and signed builds, verification on Windows. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
 The [roadmap](ROADMAP.md) breaks the path to 1.0 into milestones with task-level estimates. Estimates are working hours for one developer, including tests and docs.
 
-Milestones 1-6, 10-13 and 18 (renderer, alpha export, parameter editor, library, drag-out, template packs, the window shell, visual polish, categorization, browsing and preview, and collections) are done apart from verification items that need a Windows machine or Final Cut Pro. In planned order, what remains to 1.0:
+Milestones 1-6, 10-13 and 18 (renderer, alpha export, parameter editor, library, drag-out, template packs, the window shell, visual polish, categorization, browsing and preview, and collections) are done apart from verification items that need a Windows machine. In planned order, what remains to 1.0:
 
 | Milestone | What it delivers | Estimate |
 |---|---|---|

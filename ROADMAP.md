@@ -57,7 +57,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 ## 2. Alpha export presets and NLE verification (8-14 h)
 
 - [x] Verify each alpha preset imports with correct transparency in Premiere Pro and DaVinci Resolve on macOS; results in `docs/nle-verification.md`. ProRes 4444 and PNG pass with defaults; QuickTime Animation needs Data Levels: Full in Resolve (now tagged full-range RGB, re-check); HEVC: no alpha in Premiere, Alpha Mode: Straight in Resolve; WebM: not importable in Premiere, broken alpha in Resolve (3-5 h)
-- [ ] On the test Mac: re-check whether Resolve's Data Levels Auto honors the new full-range QuickTime Animation tag, and verify alpha import in Final Cut Pro once it is installed (1-2 h)
+- [ ] On the test Mac: re-check whether Resolve's Data Levels Auto honors the new full-range QuickTime Animation tag (1-2 h)
 - [ ] Hardware-blocked: verify alpha import in Premiere Pro and Resolve on Windows; needs a Windows machine with the apps — milestone 17's unsigned builds make the session easy when one is available (1 h)
 - [x] Straight versus premultiplied alpha: Chromium captures premultiplied (measured by a probe), every preset is written straight, Premiere and Resolve read ProRes, PNG and Animation as straight; no export option, HEVC's Resolve default documented as a caveat; ADR 0008 (2-3 h)
 - [x] Additional presets: QuickTime Animation (qtrle) for older workflows, HEVC with alpha on macOS via VideoToolbox where available; shown as unavailable elsewhere with the reason; ADR 0005 (2-3 h)
@@ -86,7 +86,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [x] Drag a rendered file from Pulp into an NLE bin or timeline using `webContents.startDrag`: finished queue jobs and the drag handle; only cache files and finished outputs may be dragged (2-3 h)
 - [x] "Render and drag": Prepare for drag renders into the cache through the queue (progress, cancel), reuses a cached render with the same key, then arms the drag handle (2-4 h)
 - [x] Verify drop behavior in Premiere Pro and DaVinci Resolve on macOS: bin and timeline drops from a queue job and from Prepare for drag all land with alpha intact; both apps link to the file, so cache clearing takes clips offline (warned in the app) (3-6 h)
-- [ ] On the test Mac: the PNG sequence preset and a second drag of a cached render in Premiere Pro and Resolve, and drop behavior in Final Cut Pro once it is installed (1-2 h)
+- [ ] On the test Mac: the PNG sequence preset and a second drag of a cached render in Premiere Pro and Resolve (1-2 h)
 - [ ] Hardware-blocked: drop behavior in Premiere Pro and Resolve on Windows, including whether the target window must be focused and whether Resolve accepts drops from other apps there (1 h)
 - [x] Render cache management: folder setting, size limit with oldest-first eviction, Clear cache (1-3 h)
 

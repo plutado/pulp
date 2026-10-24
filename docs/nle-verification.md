@@ -1,6 +1,6 @@
 # Alpha in editing apps: what is established, what to verify
 
-Status: the renderer side is settled and tested. The import side was checked on 2026-10-23 in Premiere Pro 2026 (26.5.2) and DaVinci Resolve Studio 20.2.3 on macOS 26.5.1, against frames the apps exported and an ffmpeg straight-alpha reference; results are below. Final Cut Pro and Windows (Premiere Pro, Resolve) are not tested yet. The decision that follows from the results is ADR 0008.
+Status: the renderer side is settled and tested. The import side was checked on 2026-10-23 in Premiere Pro 2026 (26.5.2) and DaVinci Resolve Studio 20.2.3 on macOS 26.5.1, against frames the apps exported and an ffmpeg straight-alpha reference; results are below. Windows (Premiere Pro, Resolve) is not tested yet. Premiere Pro and DaVinci Resolve on macOS and Windows are the apps Pulp targets; other editors are not verified. The decision that follows from the results is ADR 0008.
 
 ## What is established
 
@@ -36,9 +36,9 @@ The template (`tests/e2e/templates/alpha-check`) draws, on a transparent backgro
 
 ## Checklist, per app
 
-Do this in Premiere Pro, DaVinci Resolve and Final Cut Pro, for each file above. Put each clip on a track above a solid black background and, separately, above a solid white one. Then check:
+Do this in Premiere Pro and DaVinci Resolve, for each file above. Put each clip on a track above a solid black background and, separately, above a solid white one. Then check:
 
-1. **Import.** The file imports as video with alpha; the app does not ask for or force an alpha interpretation. Note the default interpretation it reports (Premiere Pro: Modify, Interpret Footage, Alpha Channel; Resolve: Clip Attributes, Alpha Mode; Final Cut Pro: shown in the inspector).
+1. **Import.** The file imports as video with alpha; the app does not ask for or force an alpha interpretation. Note the default interpretation it reports (Premiere Pro: Modify, Interpret Footage, Alpha Channel; Resolve: Clip Attributes, Alpha Mode).
 2. **Ramp over black.** A plain gray gradient from black to white. Sample at the tick: about 50% gray (128 of 255 or 0.5). Not darker toward the left, not clipped toward the right.
 3. **Ramp over white.** Stays white edge to edge.
 4. **50% patches over black.** Red reads about (128, 0, 0), white about (128, 128, 128), black stays black. Over white: red about (255, 128, 128).
@@ -53,14 +53,14 @@ If a step fails only after switching the app's alpha interpretation, record whic
 
 Method: each test file on V2 over a black solid for the first half and a white solid for the second; each app exported the timeline as PNG frames; values are 5x5 averages at the ramp (x 940, alpha 49%, 125 expected over black), the 50% red patch (290, 400), the 50% black patch (1650, 400) and the lower-third panel (124, 845), compared with the same frame composited in ffmpeg with straight alpha (red (128, 0, 0) over black, (255, 127, 127) over white; panel (14, 20, 32) and (52, 58, 70)). Both apps render the white solid as 253, so values over white run one or two steps low. Whole-frame comparisons showed under 0.1% of pixels more than 8 steps off, all on saturated chroma edges and identical in both apps, which points at chroma decoding, not alpha. "Default" is the alpha interpretation the app chose on import.
 
-| Preset | Premiere Pro 2026 (macOS) | DaVinci Resolve Studio 20.2.3 (macOS) | Final Cut Pro | Windows |
-|---|---|---|---|---|
-| ProRes 4444 | **Pass.** Default: Straight Alpha. Red (128, 0, 0), ramp 125 with linear compositing off; see the note below for the default. | **Pass.** Default: Straight. Red (127, 0, 0), ramp 124. | not tested | not tested |
-| PNG sequence | **Pass.** Default: Straight. Pixel-identical over black. Quirk: imports at 29.97 fps (Premiere's default for image sequences); set 30 in Interpret Footage. | **Pass.** Default: Straight. Pixel-identical over black. Must be imported as a grouped sequence (Media Storage, Frame Display Mode: Sequence). | not tested | not tested |
-| QuickTime Animation | **Pass.** Default: Straight. Pixel-identical over black. | **Fails by default, passes with Clip Attributes, Data Levels: Full.** Auto treats the file as video range and scales the alpha by about 255/235 (red 140, black patch 117). The file now carries a `colr` atom declaring full-range RGB; re-check whether Auto honors it. | not tested | not tested |
-| HEVC (alpha) | **Fails.** No alpha is read (the Alpha Channel section is greyed out) and the file is decoded with video levels (black 16, white 235). No setting fixes it. | **Fails by default, passes with Clip Attributes, Alpha Mode: Straight.** Default is Premultiplied: the ramp clips to 255 over black, red (255, 1, 0). | not tested (macOS only; the main consumer of HEVC alpha) | not applicable |
-| WebM VP9 (alpha) | **Not importable** ("File format not supported"). | **Fails.** Alpha appears binarized: patches opaque, the 50% black patch gone, jagged dark fringes on text over white. Only None and Premultiplied are offered; nothing fixes it. | not tested | not tested |
-| Lower third (ProRes 4444) | **Pass.** Panel (14, 20, 32) over black, (52, 58, 71) over white. | **Pass.** Same values; accent (244, 157, 11). | not tested | not tested |
+| Preset | Premiere Pro 2026 (macOS) | DaVinci Resolve Studio 20.2.3 (macOS) | Windows |
+|---|---|---|---|
+| ProRes 4444 | **Pass.** Default: Straight Alpha. Red (128, 0, 0), ramp 125 with linear compositing off; see the note below for the default. | **Pass.** Default: Straight. Red (127, 0, 0), ramp 124. | not tested |
+| PNG sequence | **Pass.** Default: Straight. Pixel-identical over black. Quirk: imports at 29.97 fps (Premiere's default for image sequences); set 30 in Interpret Footage. | **Pass.** Default: Straight. Pixel-identical over black. Must be imported as a grouped sequence (Media Storage, Frame Display Mode: Sequence). | not tested |
+| QuickTime Animation | **Pass.** Default: Straight. Pixel-identical over black. | **Fails by default, passes with Clip Attributes, Data Levels: Full.** Auto treats the file as video range and scales the alpha by about 255/235 (red 140, black patch 117). The file now carries a `colr` atom declaring full-range RGB; re-check whether Auto honors it. | not tested |
+| HEVC (alpha) | **Fails.** No alpha is read (the Alpha Channel section is greyed out) and the file is decoded with video levels (black 16, white 235). No setting fixes it. | **Fails by default, passes with Clip Attributes, Alpha Mode: Straight.** Default is Premultiplied: the ramp clips to 255 over black, red (255, 1, 0). | not applicable |
+| WebM VP9 (alpha) | **Not importable** ("File format not supported"). | **Fails.** Alpha appears binarized: patches opaque, the 50% black patch gone, jagged dark fringes on text over white. Only None and Premultiplied are offered; nothing fixes it. | not tested |
+| Lower third (ProRes 4444) | **Pass.** Panel (14, 20, 32) over black, (52, 58, 71) over white. | **Pass.** Same values; accent (244, 157, 11). | not tested |
 
 **Linear compositing in Premiere Pro.** New sequences have Composite in Linear Color on by default. With it on, semi-transparent pixels blend in linear light: 50% red over black reads 191 (0.5^(1/2.4) x 255), the 49% ramp 189, and the lower-third panel (15, 22, 36) over black and (116, 116, 118) over white. The alpha is read correctly; this is expected behavior, not a fault in the files. The expected values on this page assume gamma-space blending, which matches Premiere only with that option off. A file misread as premultiplied would clip to 255 over black instead, which did not happen.
 
@@ -68,7 +68,7 @@ Method: each test file on V2 over a black solid for the first half and a white s
 
 ## Drag-out checklist, per app
 
-Pulp renders into its cache and starts a native file drag from the "Drag to editor" handle, or from a finished job in the queue. In Premiere Pro, DaVinci Resolve and Final Cut Pro (macOS), and Premiere Pro and Resolve (Windows):
+Pulp renders into its cache and starts a native file drag from the "Drag to editor" handle, or from a finished job in the queue. In Premiere Pro and DaVinci Resolve, on macOS and on Windows:
 
 1. **Bin / media pool drop.** Drag the handle onto the project bin or media pool. The file imports as a clip with alpha where the preset has it.
 2. **Timeline drop.** Drag onto a track above a clip. The app places it at the drop point; note whether it asks about frame rate or scaling.
@@ -82,7 +82,6 @@ Results (2026-10-23), with the lower third as ProRes 4444 from a finished queue 
 |---|---|---|---|---|
 | Premiere Pro 2026 (macOS) | Pass, from both sources: clip at 30 fps, 6:00. | Pass: lands at the drop point, no dialogs, reuses the bin item. Export: panel RGBA (16, 23, 38, 216), 85% alpha. | not tested | Links to the file, does not copy it. |
 | DaVinci Resolve 20.2.3 (macOS) | Pass, from both sources: Alpha Mode Straight, 30 fps, 180 frames. | Pass: lands at the drop point, no frame-rate dialog, reuses the pool item. Render: panel (14, 20, 32) over black. | not tested | Links to the file, does not copy it. |
-| Final Cut Pro | not tested | not tested | not tested | not installed on the test Mac |
 | Premiere Pro (Windows) | not tested | not tested | not tested | no Windows machine |
 | DaVinci Resolve (Windows) | not tested | not tested | not tested | no Windows machine |
 
