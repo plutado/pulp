@@ -20,6 +20,8 @@ export interface TemplateEntry {
   favorite?: boolean;
   /** ISO time the item was last selected or rendered. */
   lastUsed?: string;
+  /** How many times a render of this item has finished. */
+  renderCount?: number;
   /** True when the item's library root is not reachable right now; the item is kept so user data survives. */
   offline?: boolean;
   /** Manifest themes plus the user's; themes the user added; both like tags. */
@@ -27,6 +29,9 @@ export interface TemplateEntry {
   userThemes?: string[];
   dir: string;
   root: string;
+  /** Bytes the template folder holds, and the newest file in it; for the Info tab's File section. */
+  size?: number;
+  mtimeMs?: number;
   /** The pack this template was found under (a folder with a pack.json), if any. */
   pack?: { name: string; slug: string };
   manifest: TemplateManifest;
@@ -43,6 +48,8 @@ export interface MediaEntry {
   userTags?: string[];
   favorite?: boolean;
   lastUsed?: string;
+  /** How many times a render of this item has finished. */
+  renderCount?: number;
   offline?: boolean;
   /** From the built-in taxonomy, named by a folder on the item's path; absent when no folder says. */
   type?: string;

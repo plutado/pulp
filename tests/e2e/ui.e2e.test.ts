@@ -975,11 +975,12 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(badges).toEqual(['2 s', '36p']);
       // The whole of what ffprobe read is in the Info tab.
       await selectMedia('clip');
-      await until(() => page.eval<boolean>(`document.getElementById('details')?.textContent.includes('64 × 36') === true`), 'the probed details in the Info tab');
-      const details = await page.eval<string>(`document.getElementById('details').textContent`);
-      expect(details).toContain('00:00:02:00');
-      expect(details).toContain('10 fps');
-      expect(details).toContain('H.264');
+      await page.eval(`document.getElementById('tab-info').click()`);
+      await until(() => page.eval<boolean>(`document.querySelector('#info-item [data-section=format]')?.textContent.includes('64 × 36') === true`), 'the probed facts in the Info tab');
+      const facts = await page.eval<string>(`document.querySelector('#info-item [data-section=format]').textContent`);
+      expect(facts).toContain('00:00:02:00');
+      expect(facts).toContain('10 fps');
+      expect(facts).toContain('H.264');
       const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       try {
         await setSearch('codec:h264 duration:>1');
@@ -1137,7 +1138,7 @@ describe.skipIf(!electron)('inspector UI', () => {
 
     it('auditions a list of sounds: arrow keys move, picking plays, Escape stops', async () => {
       const playing = () => page.eval<boolean>(`!document.getElementById('media-audio').paused`);
-      const shown = () => page.eval<string>(`document.getElementById('details')?.textContent ?? ''`);
+      const shown = () => page.eval<string>(`document.getElementById('info-name')?.textContent ?? ''`);
       const key = (k: string) =>
         page.eval(`document.getElementById('results').dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(k)}, bubbles: true }))`);
       const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
@@ -1166,6 +1167,65 @@ describe.skipIf(!electron)('inspector UI', () => {
       } finally {
         await setSearch('');
       }
+    }, 90_000);
+
+    it('shows the item as a property panel, with the path only in the tooltip and behind the actions', async () => {
+      await clickResult('Boardroom lower third');
+      await page.eval(`document.getElementById('tab-info').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('info-name')?.textContent === 'Boardroom lower third'`), 'the header card');
+
+      // The header names the item and its type; the star sits beside the name.
+      expect(await page.eval<string>(`document.querySelector('#info-item .info-type').textContent`)).toBe('Lower third');
+      expect(await page.eval<boolean>(`!!document.querySelector('#info-item .info-heading .favorite')`)).toBe(true);
+
+      // Sections, each a heading over a key-value grid, and their open state is remembered.
+      const sections = await page.eval<string[]>(`[...document.querySelectorAll('#info-item .info-section')].map((s) => s.dataset.section)`);
+      expect(sections).toEqual(['about', 'format', 'categories', 'tags', 'set', 'file', 'credits', 'usage']);
+      const factsOf = (id: string) =>
+        page.eval<string[]>(
+          `[...document.querySelectorAll('#info-item [data-section=${id}] .fact')].map((f) => f.querySelector('dt').textContent + ': ' + f.querySelector('dd').textContent)`,
+        );
+      expect(await factsOf('format')).toEqual([
+        'Aspect: 16:9',
+        'Size: 1920 × 1080',
+        'Duration: 6 s · 00:00:06:00',
+        'Frame rate: 30 fps',
+        'Alpha: Transparent background',
+      ]);
+
+      // File, Credits and Usage start folded: the facts people reach for first are open,
+      // the rest wait to be asked for. Open them.
+      await page.eval(`document.querySelectorAll('#info-item .section-heading[aria-expanded="false"]').forEach((b) => b.click())`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#info-item [data-section=file] .fact')`), 'the File section');
+
+      // File: a location relative to the library folder, the whole path only in the tooltip.
+      const file = await factsOf('file');
+      expect(file[0]).toBe('Location: boardroom/lower-third');
+      expect(await page.eval<string>(`document.querySelector('#info-item [data-section=file] .fact dd').dataset.tip`)).toContain('boardroom/lower-third');
+      expect(file.some((f) => f.startsWith('Size on disk: '))).toBe(true);
+      // Reveal and Copy path take an item id, so the window never sends a path at all.
+      expect(await page.eval<boolean>(`window.pulp.copyItemPath(${JSON.stringify('nope')})`)).toBe(false);
+      const id = await onResult<string>('Boardroom lower third', '(li) => li.dataset.id');
+      expect(await page.eval<boolean>(`window.pulp.copyItemPath(${JSON.stringify('')} || ${JSON.stringify(id)})`)).toBe(true);
+
+      // The set's other pieces are there, named without repeating the set.
+      const pieces = await page.eval<string[]>(`[...document.querySelectorAll('#info-item .set-piece .label')].map((l) => l.textContent)`);
+      expect(pieces.sort()).toEqual(['Background', 'Frame', 'Title', 'Wipe']);
+      // Clicking one shows it.
+      await page.eval(`[...document.querySelectorAll('#info-item .set-piece')].find((p) => p.querySelector('.label').textContent === 'Title').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('info-name')?.textContent === 'Boardroom title'`), 'the sibling piece');
+
+      // Folding a section is remembered in settings.
+      await page.eval(`document.querySelector('#info-item [data-section=format] .section-heading').click()`);
+      await until(async () => {
+        try {
+          const s = JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { infoSections?: Record<string, boolean> };
+          return s.infoSections?.format === false;
+        } catch {
+          return false;
+        }
+      }, 'the folded section in settings.json');
+      await page.eval(`document.querySelector('#info-item [data-section=format] .section-heading').click()`);
     }, 90_000);
 
     it('refuses an unknown id and a path on the URL, and serves a known id, as seen by an <img>', async () => {

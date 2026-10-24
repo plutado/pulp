@@ -326,7 +326,7 @@ effect(() => {
   addToCollection.disabled = shownEntry(appState.value) === null;
 });
 mountItemInfo($('item-tools'), { favorite: 'favorite', chips: 'tag-chips', input: 'tag-input' }, false);
-mountItemInfo($('info-item'), {}, true);
+mountItemInfo($('info-item'), {}, true, select);
 effect(() => {
   els.exportPack.disabled = !results.value.canExportPack;
 });

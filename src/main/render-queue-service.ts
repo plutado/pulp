@@ -16,7 +16,7 @@ import { slug } from '../core/pack';
 import { cacheKey } from '../core/render-cache';
 import { cacheFileForKey, dragFileFor, evictIfNeeded, isCachedFile } from './render-cache-service';
 import { existsSync } from 'node:fs';
-import { findTemplate, markItemUsed } from './library-service';
+import { findTemplate, markItemRendered, markItemUsed } from './library-service';
 import { renderTemplate } from './render';
 
 /** Per-job inputs the UI does not need to see. */
@@ -268,6 +268,7 @@ async function pump(): Promise<void> {
       active = null;
       queue.finish(id, result);
       if (result.ok) {
+        markItemRendered(input.template.id);
         // Finished outputs may be dragged into an editing app; sequences drag their first frame.
         const plan = { output: result.output, firstFrame: 0 };
         finishedOutputs.add(dragFileFor(plan.output, resolveTiming(input.template.manifest, input.options).firstFrame));

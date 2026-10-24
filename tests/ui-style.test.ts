@@ -11,6 +11,10 @@ import { FILTER_CHIPS } from '../src/core/app-state';
 import { audioLabel, codecLabel, durationLabel, frameRateLabel, sizeLabel } from '../src/core/display';
 import { STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES } from '../src/core/taxonomy';
 import { queueCard } from '../src/core/queue-card';
+import { aboutRows, creditsRows, fileRows, formatRows, INFO_SECTIONS, usageRows } from '../src/core/item-info';
+import type { TemplateEntry } from '../src/core/library-types';
+import type { TemplateManifest } from '../src/core/manifest';
+import { rawManifest } from './fixtures';
 import type { RenderQueueJob } from '../src/core/render-queue';
 
 const ROOT = join(__dirname, '..');
@@ -103,6 +107,40 @@ describe('what the window says', () => {
     }
     // The path is still reachable — in the tooltip, and behind Reveal and Copy path.
     expect(queueCard(job).tip).toContain('/Users/dana/Movies/lower-third-bar.mov');
+  });
+});
+
+describe('the Info tab', () => {
+  const manifest = rawManifest({ name: 'Boardroom lower third', author: 'Ada', license: 'Acme-EULA' }) as unknown as TemplateManifest;
+  const entry: TemplateEntry = { kind: 'template', key: 'k', id: 'id', dir: '/Users/dana/Templates/boardroom/lower-third', root: '/Users/dana/Templates', manifest, tags: [], warnings: [], size: 4096, mtimeMs: 1_700_000_000_000 };
+
+  it('says everything in sentence case, with no raw id and no first person', async () => {
+    const official = new Set((await officialStyling()).flatMap((e) => e.split(/\s+/)));
+    const rows = [...aboutRows(entry), ...formatRows(entry), ...fileRows(entry), ...creditsRows(entry), ...usageRows(entry, 0)];
+    expect(rows.length).toBeGreaterThan(8);
+    for (const row of rows) {
+      // A label is a short sentence-case phrase, never a stored id.
+      expect(row.label, row.label).toMatch(/^[A-Z]/);
+      expect(row.label, row.label).not.toMatch(/^[a-z0-9-]+$/);
+      expect(`${row.label} ${row.value}`, row.label).not.toMatch(/\b(me|my)\b/);
+    }
+    // The section headings read the same way.
+    for (const section of INFO_SECTIONS) {
+      expect(section.label).toMatch(/^[A-Z]/);
+      const shouting = [...section.label.matchAll(/\b[A-Z]{3,}\b/g)].map((m) => m[0]).filter((w) => !official.has(w));
+      expect(shouting, section.label).toEqual([]);
+    }
+  });
+
+  it('keeps the path out of the values and in the tooltip, where a card would put it', () => {
+    const location = fileRows(entry).find((r) => r.label === 'Location')!;
+    // Relative to the library folder, so the panel is readable; the whole path is the tooltip's.
+    expect(location.value).toBe('boardroom/lower-third');
+    expect(location.value.startsWith('/')).toBe(false);
+    expect(location.tip).toBe('/Users/dana/Templates/boardroom/lower-third');
+    for (const row of [...formatRows(entry), ...creditsRows(entry), ...usageRows(entry, 0)]) {
+      expect(row.value, row.label).not.toContain('/Users/');
+    }
   });
 });
 

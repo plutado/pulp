@@ -180,6 +180,10 @@ export interface PulpApi {
   revealFile(path: string): Promise<boolean>;
   /** Put a rendered file's path on the clipboard, under the same rule. */
   copyFilePath(path: string): Promise<boolean>;
+  /** Show a library item in the file manager. The main process looks its path up from the id. */
+  revealItem(id: string): Promise<boolean>;
+  /** Put a library item's path on the clipboard, looked up the same way. */
+  copyItemPath(id: string): Promise<boolean>;
   /** What this machine is, so the Reveal action can use the file manager's own name. */
   platform: string;
   getRenderQueue(): Promise<RenderQueueSnapshot>;
@@ -194,6 +198,9 @@ export interface PulpApi {
   /** Whether the "your editor links to this file" notice has already been shown. */
   getDragNoticeSeen(): Promise<boolean>;
   setDragNoticeSeen(): Promise<void>;
+  /** Which Info tab sections are open, remembered between sessions. */
+  getInfoSections(): Promise<Record<string, boolean>>;
+  saveInfoSections(sections: Record<string, boolean>): Promise<void>;
   /** Stage player preferences: loop, background, safe areas, volume. */
   getPlayer(): Promise<PlayerState>;
   savePlayer(player: PlayerState): Promise<void>;

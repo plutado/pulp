@@ -96,6 +96,18 @@ The render tray is the worked example; anything that hands a file to another app
 
 The style test enforces the two that can be checked: no first-person wording and no raw path or file name in visible text or in a card's fields.
 
+## Property panels
+
+The Info tab is the worked example; anything that shows what an item *is* follows it.
+
+- **A header card, not a heading.** A panel titled "Info" inside a tab called Info says nothing. The header is the item: its picture (poster, hover-scrub while pointed at, waveform for a sound), its name, its type with that type's icon, and the favorite star beside the name.
+- **Collapsible sections with small headings**, their open state remembered. The facts people reach for are open by default; the rest wait to be asked for. An empty section is left out, not shown empty.
+- **One fact per row, in a key–value grid**: a muted label column of fixed width so the values line up and can be scanned without reading the labels. The badge icons from the cards — alpha, loop, duration — are reused here, so the same idea looks the same everywhere.
+- **Say nothing rather than "Unknown".** A row whose value the app has not been told is left out. Where absence is itself the answer, say it in words a reader can act on: "No tags yet", "None yet", not an empty box.
+- **The path is not a value.** A location shows where the item sits *inside its library folder*; the whole path is the tooltip, and Reveal and Copy path are what hand it over — the same rule as a card (above).
+- **A long description is clamped** to a few lines with "More", so one wordy item cannot push everything else off the panel.
+- **A chip row ends with its own add control**, not a separate field further down: the place you add a tag is where the tags are.
+
 ## Tokens
 
 All in `:root`; literal values outside the token block are a defect the enforcement test catches.

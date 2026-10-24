@@ -4,7 +4,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { extname, join, relative, sep } from 'node:path';
 import { type TemplateManifest, MANIFEST_FILENAME, parseManifest } from './manifest';
 import type { LibraryProblem, MediaKind, TemplateEntry } from './library-types';
@@ -67,6 +67,42 @@ export function applyPackDefaults(manifest: TemplateManifest, pack: PackContext 
   return out;
 }
 
+/**
+ * What a template folder weighs and when it last changed. Walked only when a
+ * template is (re)loaded, not on every scan, and bounded by the same skip list
+ * as the library walk, so a stray node_modules inside a template cannot run away
+ * with it.
+ */
+async function folderBytes(dir: string, depth = 0): Promise<{ size: number; mtimeMs: number }> {
+  let size = 0;
+  let mtimeMs = 0;
+  if (depth > 4) return { size, mtimeMs };
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return { size, mtimeMs };
+  }
+  for (const e of entries) {
+    if (e.name.startsWith('.') || SKIP_DIRECTORIES.has(e.name)) continue;
+    const full = join(dir, e.name);
+    if (e.isDirectory()) {
+      const inner = await folderBytes(full, depth + 1);
+      size += inner.size;
+      mtimeMs = Math.max(mtimeMs, inner.mtimeMs);
+    } else if (e.isFile()) {
+      try {
+        const info = await stat(full);
+        size += info.size;
+        mtimeMs = Math.max(mtimeMs, info.mtimeMs);
+      } catch {
+        // A file that vanished mid-walk simply does not count.
+      }
+    }
+  }
+  return { size, mtimeMs };
+}
+
 export async function loadTemplate(dir: string, root: string, pack?: PackContext): Promise<TemplateEntry | LibraryProblem> {
   const manifestPath = join(dir, MANIFEST_FILENAME);
   let text: string;
@@ -85,6 +121,7 @@ export async function loadTemplate(dir: string, root: string, pack?: PackContext
     return { path: manifestPath, message: `entry file "${result.manifest.entry}" does not exist` };
   }
 
+  const onDisk = await folderBytes(dir);
   // A template folder's own name is not a useful tag; only its parents are.
   const tags = unique([...result.manifest.tags, ...folderTags(root, join(dir, '..'))]);
   const key = `template:${dir}`;
@@ -93,6 +130,8 @@ export async function loadTemplate(dir: string, root: string, pack?: PackContext
     key,
     id: itemId(key),
     dir,
+    size: onDisk.size,
+    mtimeMs: onDisk.mtimeMs,
     root,
     ...(pack ? { pack: { name: pack.name, slug: pack.slug } } : {}),
     manifest: applyPackDefaults(result.manifest, pack),

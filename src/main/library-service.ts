@@ -265,6 +265,26 @@ export function setItemFavorite(id: string, favorite: boolean): LibraryIndex {
   return index;
 }
 
+/** One more finished render of this item; the Info tab's Usage section counts them. */
+export function markItemRendered(id: string): void {
+  const st = getStore();
+  const key = st.keyForId(id);
+  if (!key) return;
+  st.countRender(key);
+  broadcast(st.toIndex());
+}
+
+/**
+ * Where a library item lives on disk, by id. The window never sends a path for
+ * Reveal or Copy path — it sends the id and the main process looks it up, so
+ * there is nothing to allow-list and nothing to get wrong.
+ */
+export function itemPath(id: string): string | undefined {
+  const entry = getStore().findEntryById(id);
+  if (!entry) return undefined;
+  return entry.kind === 'template' ? entry.dir : entry.path;
+}
+
 /** Record use now and push the index, so `recent:` sorts on current times. */
 export function markItemUsed(id: string): void {
   const st = getStore();

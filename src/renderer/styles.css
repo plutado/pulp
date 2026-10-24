@@ -391,6 +391,55 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .tag-chip button:hover { color: var(--danger); }
 .tag-input { width: 140px; padding: 3px 6px; font-size: var(--font-secondary); }
 
+/* The Info tab as a property panel (docs/ui-style.md): a header card, then
+   collapsible sections of key-value rows. The label column is muted and fixed so
+   the values line up down the panel and can be scanned without reading the labels. */
+.info-pane { display: grid; gap: 0; align-content: start; }
+.info-header { display: flex; gap: var(--space-3); align-items: flex-start; padding-bottom: var(--space-3); }
+.info-poster { width: 120px; flex: 0 0 120px; }
+.info-poster .thumb { width: 100%; aspect-ratio: 16 / 9; position: relative; border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; display: flex; align-items: center; justify-content: center; background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
+.info-poster .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.info-poster .thumb .strip { position: absolute; inset: 0; background-repeat: no-repeat; }
+.info-poster .waveform { width: 100%; height: 100%; }
+.info-poster .waveform path { stroke: var(--text-secondary); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.info-heading { min-width: 0; display: grid; gap: var(--space-1); }
+.info-heading .name-row { display: flex; align-items: center; gap: var(--space-1); }
+.info-heading h2 { margin: 0; font-size: var(--font-title); font-weight: 600; overflow-wrap: anywhere; }
+.info-heading .favorite { padding: 2px 6px; }
+.info-type { margin: 0; display: flex; align-items: center; gap: var(--space-1); color: var(--muted); font-size: var(--font-secondary); }
+
+.info-section { border-top: 1px solid var(--border); }
+.info-section .section-heading { width: 100%; display: flex; align-items: center; gap: var(--space-1); background: none; border: 0; text-align: left; color: var(--muted); font-size: var(--font-secondary); font-weight: 600; padding: var(--space-2) 0; }
+.info-section .section-heading:hover { color: var(--text-secondary); }
+.info-section .section-heading .icon { width: 12px; height: 12px; }
+.info-section .section-body { display: grid; gap: var(--space-2); padding: 0 0 var(--space-3); }
+
+.facts { margin: 0; display: grid; gap: var(--space-1); }
+.facts .fact { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-2); align-items: baseline; }
+.facts dt { color: var(--muted); font-size: var(--font-secondary); }
+.facts dd { margin: 0; min-width: 0; display: flex; align-items: center; gap: var(--space-1); overflow-wrap: anywhere; }
+.facts dd .icon { color: var(--muted); flex-shrink: 0; }
+.facts dd.warn { color: var(--accent); }
+.facts .tag-chip.license { font-size: var(--font-secondary); }
+.facts .tag-chip.license.warn { border-color: var(--accent); color: var(--accent); }
+
+.info-about { margin: 0; line-height: 1.5; }
+.info-about.clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.info-about .more { background: none; border: 0; color: var(--accent); padding: 0 0 0 var(--space-1); font-size: var(--font-secondary); }
+.empty-note { color: var(--muted); font-size: var(--font-secondary); }
+.chip-label { margin: 0; color: var(--muted); font-size: var(--font-caption); }
+.chip-row { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
+.chip-row .tag-chips { display: contents; }
+.chip-row .tag-input { width: 110px; }
+.file-actions { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.file-actions button { font-size: var(--font-secondary); padding: 3px 8px; }
+.set-pieces { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.set-piece { display: grid; gap: 2px; width: 78px; padding: 2px; background: none; border: 1px solid transparent; text-align: left; }
+.set-piece:hover { border-color: var(--accent); }
+.set-piece .thumb { width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--muted); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
+.set-piece .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.set-piece .label { font-size: var(--font-caption); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+
 .tabs { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
 .tabs .tab { display: inline-flex; align-items: center; font-size: var(--font-secondary); padding: 3px 10px; color: var(--muted); background: none; border-color: transparent; }
 .tabs .tab:hover { color: var(--text); }

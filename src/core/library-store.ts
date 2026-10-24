@@ -129,7 +129,8 @@ CREATE TABLE IF NOT EXISTS user_items (
   tags TEXT NOT NULL DEFAULT '[]',
   themes TEXT NOT NULL DEFAULT '[]',
   favorite INTEGER NOT NULL DEFAULT 0,
-  last_used TEXT
+  last_used TEXT,
+  render_count INTEGER NOT NULL DEFAULT 0
 );
 `;
 
@@ -157,6 +158,7 @@ export class LibraryStore {
     // user_items predates themes and is never dropped; add the column where it is missing.
     const userColumns = this.db.prepare('PRAGMA table_info(user_items)').all() as unknown as { name: string }[];
     if (!userColumns.some((c) => c.name === 'themes')) this.db.exec("ALTER TABLE user_items ADD COLUMN themes TEXT NOT NULL DEFAULT '[]'");
+    if (!userColumns.some((c) => c.name === 'render_count')) this.db.exec('ALTER TABLE user_items ADD COLUMN render_count INTEGER NOT NULL DEFAULT 0');
     this.db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run('schema', String(SCHEMA_VERSION));
   }
 
@@ -397,12 +399,13 @@ export class LibraryStore {
     const metaByKey = new Map(metaRows.map((m) => [m.key, m]));
     const thumbRows = this.db.prepare('SELECT key, size, mtime_ms FROM thumbs WHERE file IS NOT NULL').all() as unknown as { key: string; size: number; mtime_ms: number }[];
     const thumbByKey = new Map(thumbRows.map((t) => [t.key, t]));
-    const userRows = this.db.prepare('SELECT key, tags, themes, favorite, last_used FROM user_items').all() as unknown as {
+    const userRows = this.db.prepare('SELECT key, tags, themes, favorite, last_used, render_count FROM user_items').all() as unknown as {
       key: string;
       tags: string;
       themes: string;
       favorite: number;
       last_used: string | null;
+      render_count: number;
     }[];
     const userByKey = new Map(userRows.map((u) => [u.key, u]));
     const seenIds = new Map<string, string>();
@@ -428,6 +431,7 @@ export class LibraryStore {
         }
         if (u.favorite === 1) entry.favorite = true;
         if (u.last_used) entry.lastUsed = u.last_used;
+        if (u.render_count > 0) entry.renderCount = u.render_count;
       }
       if (entry.kind === 'template') {
         const previous = seenIds.get(entry.manifest.id);
@@ -589,6 +593,13 @@ export class LibraryStore {
       | undefined;
     if (!row) return { tags: [], themes: [], favorite: false };
     return { tags: JSON.parse(row.tags) as string[], themes: JSON.parse(row.themes ?? '[]') as string[], favorite: row.favorite === 1, ...(row.last_used ? { lastUsed: row.last_used } : {}) };
+  }
+
+  /** One more finished render of this item, for the Info tab's Usage section. */
+  countRender(key: string): void {
+    this.db
+      .prepare('INSERT INTO user_items (key, render_count) VALUES (?, 1) ON CONFLICT(key) DO UPDATE SET render_count = render_count + 1')
+      .run(key);
   }
 
   setUserData(key: string, patch: Partial<UserItemData>): UserItemData {

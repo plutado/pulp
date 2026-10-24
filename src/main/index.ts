@@ -4,7 +4,7 @@ import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
 import { parseTimecode, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest } from '../shared/api';
-import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
+import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, itemPath, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
 import { handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag, removeRender } from './render-queue-service';
@@ -111,6 +111,20 @@ function registerIpc(): void {
   ipcMain.handle('collection:save', (_event, collection: Collection, name: unknown) => saveCollectionTo(collection, String(name ?? '')));
   ipcMain.handle('collection:open', () => openCollectionFile());
   ipcMain.handle('collection:render', (_event, items: CollectionItem[], name: unknown) => renderCollection(items, String(name ?? '')));
+  // The window sends an item id, never a path: the main process looks the path up,
+  // so there is nothing to allow-list and nothing for the window to get wrong.
+  ipcMain.handle('item:reveal', (_event, id: unknown) => {
+    const path = itemPath(String(id));
+    if (!path) return false;
+    shell.showItemInFolder(path);
+    return true;
+  });
+  ipcMain.handle('item:copy-path', (_event, id: unknown) => {
+    const path = itemPath(String(id));
+    if (!path) return false;
+    clipboard.writeText(path);
+    return true;
+  });
   ipcMain.handle('queue:remove', (_event, id: unknown) => removeRender(Number(id)));
   ipcMain.handle('cache:stats', () => cacheStats());
   ipcMain.handle('cache:clear', () => clearRenderCache());
@@ -168,6 +182,11 @@ function registerIpc(): void {
   ipcMain.handle('drag-notice:get', async () => (await loadSettings()).dragNoticeSeen);
   ipcMain.handle('drag-notice:seen', async () => {
     await updateSettings((s) => ({ ...s, dragNoticeSeen: true }));
+  });
+
+  ipcMain.handle('info-sections:get', async () => (await loadSettings()).infoSections);
+  ipcMain.handle('info-sections:save', async (_event, sections: unknown) => {
+    await updateSettings((s) => ({ ...s, infoSections: { ...s.infoSections, ...(sections && typeof sections === 'object' ? (sections as Record<string, boolean>) : {}) } }));
   });
 
   ipcMain.handle('player:get', async () => (await loadSettings()).player);

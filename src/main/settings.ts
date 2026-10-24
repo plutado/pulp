@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
 import { DEFAULT_LAYOUT, sanitizeLayout, type LayoutState } from '../core/layout';
+import { INFO_SECTIONS } from '../core/item-info';
 import { DEFAULT_PLAYER, sanitizePlayer, type PlayerState } from '../core/player';
 import { DEFAULT_RESULTS_VIEW, sanitizeResultsView, type ResultsViewState } from '../core/results-view';
 import { sanitizeRecentColors } from '../core/recent-colors';
@@ -28,6 +29,8 @@ export interface Settings {
   player: PlayerState;
   /** True once the "your editor links to this file" notice has been shown and dismissed. */
   dragNoticeSeen: boolean;
+  /** Which Info tab sections are open, by section id (src/core/item-info.ts). */
+  infoSections: Record<string, boolean>;
 }
 
 const DEFAULTS: Settings = {
@@ -39,7 +42,19 @@ const DEFAULTS: Settings = {
   resultsView: DEFAULT_RESULTS_VIEW,
   player: DEFAULT_PLAYER,
   dragNoticeSeen: false,
+  infoSections: {},
 };
+
+/** Only the known section ids, only booleans; anything else in the file is ignored. */
+function sanitizeInfoSections(raw: unknown): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (!raw || typeof raw !== 'object') return out;
+  const known = new Set(INFO_SECTIONS.map((s) => s.id as string));
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (known.has(key) && typeof value === 'boolean') out[key] = value;
+  }
+  return out;
+}
 
 function settingsPath(): string {
   return join(app.getPath('userData'), 'settings.json');
@@ -55,6 +70,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     resultsView: sanitizeResultsView(raw.resultsView),
     player: sanitizePlayer(raw.player),
     dragNoticeSeen: raw.dragNoticeSeen === true,
+    infoSections: sanitizeInfoSections(raw.infoSections),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
   };
 }
