@@ -105,6 +105,13 @@
     ctx.fill();
     chevron(cx + kw / 2 + 22 * s, ky - ch / 2, cw, ch);
     ctx.fill();
+    // Image slot: a mark above the kicker, centred between the chevrons, fading in with the
+    // type. With no logo the kicker stands in, so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) {
+      var mark = 96 * s;
+      window.pulpDrawImage(ctx, state, 'logo', { x: cx - mark / 2, y: ky - 36 * s - mark, width: mark, height: mark });
+    }
     ctx.globalAlpha = 1;
   };
 </script>

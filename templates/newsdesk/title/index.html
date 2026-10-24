@@ -100,6 +100,13 @@
     var kickW = kickTextW + 56 * s;
     var tabY = y - 6 * s - tabH;
     ctx.globalAlpha = textA;
+    // A chosen logo is a mark above the kicker tab, on the same left edge, fading up with the text.
+    // With no logo the slot falls back to the kicker, already set, so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) {
+      var mark = 96 * s;
+      window.pulpDrawImage(ctx, state, 'logo', { x: margin, y: tabY - 16 * s - mark, width: mark, height: mark });
+    }
     ctx.beginPath();
     ctx.moveTo(margin + tabH * SLANT, tabY);
     ctx.lineTo(margin + kickW, tabY);

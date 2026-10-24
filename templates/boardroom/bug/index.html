@@ -80,9 +80,19 @@
     ctx.strokeRect(bx + hair / 2, y + hair / 2, box - hair, box - hair);
     // The accent square inside, growing to size a touch after the frame.
     var grow = easeOutCubic(clamp01(inT * 1.6 - 0.3));
-    var inner = box * 0.5 * grow;
-    ctx.fillStyle = p.accent;
-    ctx.fillRect(bx + box / 2 - inner / 2, y + box / 2 - inner / 2, inner, inner);
+    // A chosen logo takes the accent square's place inside the hairline frame, growing in the same
+    // way. With no logo the slot falls back to the label, already set, so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) {
+      var mark = (box - hair * 4) * grow;
+      if (mark > 0) {
+        window.pulpDrawImage(ctx, state, 'logo', { x: bx + box / 2 - mark / 2, y: y + box / 2 - mark / 2, width: mark, height: mark });
+      }
+    } else {
+      var inner = box * 0.5 * grow;
+      ctx.fillStyle = p.accent;
+      ctx.fillRect(bx + box / 2 - inner / 2, y + box / 2 - inner / 2, inner, inner);
+    }
     // Label in spaced capitals, aligned to the middle of the square.
     if (text) {
       ctx.fillStyle = p.line;

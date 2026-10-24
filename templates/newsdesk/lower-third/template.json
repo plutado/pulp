@@ -21,6 +21,18 @@
     { "id": "accent", "type": "color", "label": "Accent color", "default": "#e0263c", "group": "Colors" },
     { "id": "panel", "type": "color", "label": "Panel color", "default": "#0e1526f2", "group": "Colors" },
     { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.4, "min": 0.15, "max": 1.5, "step": 0.05 }
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.4, "min": 0.15, "max": 1.5, "step": 0.05 },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "A badge in the slashed panel's head, before the name; the panel grows to hold it. With none chosen the bar is as it always was.",
+      "box": { "x": 0.095, "y": 0.817, "width": 0.045, "height": 0.08 },
+      "fit": "contain",
+      "align": "center",
+      "margin": 0.1,
+      "fallbackText": "name",
+      "group": "Logo"
+    }
   ]
 }

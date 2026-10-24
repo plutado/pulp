@@ -65,6 +65,18 @@
     ctx.fillStyle = p.panel;
     ctx.fill();
 
+    // Image slot: a logo at the centre, clipped to the panel so the teeth uncover it on the way
+    // in and take it away on the way out. Nothing is drawn without a logo.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) {
+      var mark = Math.min(W, H) * 0.3;
+      ctx.save();
+      toothShape(tail, head);
+      ctx.clip();
+      window.pulpDrawImage(ctx, state, 'logo', { x: W / 2 - mark / 2, y: H / 2 - mark / 2, width: mark, height: mark });
+      ctx.restore();
+    }
+
     // The volt teeth ride the moving edge.
     var band = 42 * (Math.min(W, H) / 1080);
     if (pr < 0.5) toothShape(head - band, head);

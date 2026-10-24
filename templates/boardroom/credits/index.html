@@ -66,6 +66,18 @@
     var cx = W / 2;
     var maxW = W - margin * 2;
 
+    // A chosen logo is a lockup at the top of the roll, above the title, which moves down to make
+    // room with everything beneath it. With no logo the slot falls back to the title, already set,
+    // so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    var lockH = hasLogo ? 96 * s : 0;
+    var lockGap = hasLogo ? 28 * s : 0;
+    var titleTop = margin + lockH + lockGap;
+    if (hasLogo) {
+      ctx.globalAlpha = show;
+      window.pulpDrawImage(ctx, state, 'logo', { x: cx - 120 * s, y: margin, width: 240 * s, height: lockH });
+    }
+
     // Fixed title in spaced capitals with a hairline that draws out from the centre beneath it.
     var titleSize = 30 * s;
     var caps = (p.title || '').toUpperCase().split('').join(' ');
@@ -74,8 +86,8 @@
     ctx.textBaseline = 'alphabetic';
     ctx.globalAlpha = show;
     ctx.fillStyle = p.text;
-    ctx.fillText(caps, cx, margin + titleSize);
-    var ruleY = margin + titleSize + 28 * s;
+    ctx.fillText(caps, cx, titleTop + titleSize);
+    var ruleY = titleTop + titleSize + 28 * s;
     var ruleW = Math.min(maxW, 720 * s) * show;
     ctx.fillStyle = p.accent;
     ctx.fillRect(cx - ruleW / 2, ruleY, ruleW, 2 * s);

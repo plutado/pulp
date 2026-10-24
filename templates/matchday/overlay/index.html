@@ -41,14 +41,18 @@
     var homeText = (p.home || '').toUpperCase(), awayText = (p.away || '').toUpperCase();
     var sideW = Math.max(ctx.measureText(homeText).width, ctx.measureText(awayText).width) + 36 * s;
     var scoreW = 64 * s, gap = 4 * s;
-    var fit = (W - margin * 2) / ((sideW + scoreW) * 2 + gap);
+    // Image slot: a square crest cell at the leading edge of the bug, before the home side. With
+    // no logo the slot falls back to the home side's text, already on the bug.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    var fit = (W - margin * 2) / ((sideW + scoreW) * 2 + gap + (hasLogo ? boxH + gap : 0));
     if (fit < 1) {
       sideSize *= fit; scoreSize *= fit; scoreW *= fit; boxH *= fit;
       ctx.font = '0 800 ' + sideSize + 'px ' + FONT;
       sideW = Math.max(ctx.measureText(homeText).width, ctx.measureText(awayText).width) + 36 * s * fit;
     }
     var cellW = sideW + scoreW;
-    var boxW = cellW * 2 + gap;
+    var crestW = hasLogo ? boxH + gap : 0;
+    var boxW = cellW * 2 + gap + crestW;
 
     var left = p.corner !== 'top-right';
     var slide = (1 - show) * (boxW + margin);
@@ -70,8 +74,14 @@
       ctx.font = '800 ' + scoreSize + 'px ' + FONT;
       ctx.fillText(String(Math.round(score)), cx + sideW + scoreW / 2, y + boxH / 2 + 2 * s);
     }
-    cell(x, homeText, p.homeScore);
-    cell(x + cellW + gap, awayText, p.awayScore);
+    if (hasLogo) {
+      // The crest cell slides in with the rest of the bug.
+      ctx.fillStyle = p.panel;
+      ctx.fillRect(x, y, boxH, boxH);
+      window.pulpDrawImage(ctx, state, 'logo', { x: x, y: y, width: boxH, height: boxH });
+    }
+    cell(x + crestW, homeText, p.homeScore);
+    cell(x + crestW + cellW + gap, awayText, p.awayScore);
   };
 </script>
 </body>

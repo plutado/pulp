@@ -68,6 +68,10 @@
     }
     var lines = wrapped.lines, n = Math.max(1, lines.length), lineH = 116 * s;
     var ext = (n - 1) * lineH / 2; // how far the extra lines push the kicker and arcs outward
+    // Image slot: a mark above the kicker; the top arc lifts to make room. With no logo the
+    // kicker stands in, so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    var mark = hasLogo ? 110 * s : 0, lift = hasLogo ? 130 * s : 0;
 
     // Soft bokeh dots float up behind the words.
     var rand = lcg(451);
@@ -92,7 +96,7 @@
     ctx.lineWidth = 3 * s;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(cx, cy + r - 108 * s - ext, r, -Math.PI / 2 - sweep / 2, -Math.PI / 2 + sweep / 2);
+    ctx.arc(cx, cy + r - 108 * s - ext - lift, r, -Math.PI / 2 - sweep / 2, -Math.PI / 2 + sweep / 2);
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(cx, cy - r + 108 * s + ext, r, Math.PI / 2 - sweep / 2, Math.PI / 2 + sweep / 2);
@@ -105,6 +109,9 @@
     ctx.fillStyle = p.gold;
     ctx.font = '400 ' + 32 * s + 'px ' + SANS;
     ctx.fillText((p.kicker || '').toUpperCase().split('').join(' '), cx, cy - 64 * s - ext);
+    if (hasLogo) {
+      window.pulpDrawImage(ctx, state, 'logo', { x: cx - mark / 2, y: cy - 96 * s - ext - mark, width: mark, height: mark });
+    }
     ctx.fillStyle = p.text;
     ctx.font = 'italic 700 ' + headSize + 'px ' + SERIF;
     for (var li = 0; li < lines.length; li++) {

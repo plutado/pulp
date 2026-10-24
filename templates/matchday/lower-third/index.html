@@ -56,6 +56,11 @@
     var nameSize = 58 * s, roleSize = 28 * s;
     var y = tall ? 0.72 * H - barH : H - margin - barH;
     var chevW = 44 * s, padX = 40 * s;
+    // Image slot: a square badge at the head of the panel when a logo is chosen; the type moves
+    // over to make room. With no logo the slot falls back to the name, which the panel carries.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    var badge = hasLogo ? barH - 2 * 16 * s : 0;
+    var badgeGap = hasLogo ? 24 * s : 0;
 
     var nameText = (p.name || '').toUpperCase(), roleText = (p.role || '').toUpperCase();
     ctx.font = '800 ' + nameSize + 'px ' + FONT;
@@ -63,7 +68,7 @@
     ctx.font = '600 ' + roleSize + 'px ' + FONT;
     var roleW = ctx.measureText(roleText).width;
     // Shrink the type when it would run past the frame's safe width.
-    var maxTextW = (tall ? 0.82 : 0.9) * W - (margin + chevW + 10 * s + padX * 2);
+    var maxTextW = (tall ? 0.82 : 0.9) * W - (margin + chevW + 10 * s + padX * 2 + badge + badgeGap);
     var fit = maxTextW / Math.max(nameW, roleW);
     if (fit < 1) {
       nameSize *= fit; roleSize *= fit;
@@ -72,7 +77,7 @@
       ctx.font = '600 ' + roleSize + 'px ' + FONT;
       roleW = ctx.measureText(roleText).width;
     }
-    var barW = Math.max(nameW, roleW) + padX * 2;
+    var barW = Math.max(nameW, roleW) + padX * 2 + badge + badgeGap;
 
     // The unit pops up from below with a slight overshoot.
     var rise = (1 - Math.min(show, 1)) * (barH + margin);
@@ -91,7 +96,11 @@
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    var textX = margin + chevW + 10 * s + padX;
+    if (hasLogo) {
+      // The badge rides the panel: same rise, same overshoot.
+      window.pulpDrawImage(ctx, state, 'logo', { x: margin + chevW + 10 * s + padX, y: by + 16 * s, width: badge, height: badge });
+    }
+    var textX = margin + chevW + 10 * s + padX + badge + badgeGap;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = p.text;

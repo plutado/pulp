@@ -19,6 +19,7 @@
     { "id": "headline", "type": "text", "label": "Headline", "default": "Rovers vs United", "maxLength": 40 },
     { "id": "accent", "type": "color", "label": "Accent color", "default": "#d4f531", "group": "Colors" },
     { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.4, "min": 0.15, "max": 1.5, "step": 0.05 }
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.4, "min": 0.15, "max": 1.5, "step": 0.05 },
+    { "id": "logo", "type": "image", "label": "Logo", "description": "A mark above the kicker, between the chevrons; with none chosen the kicker stands alone as before.", "box": { "x": 0.475, "y": 0.268, "width": 0.05, "height": 0.089 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "kicker", "group": "Logo" }
   ]
 }

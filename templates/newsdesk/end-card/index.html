@@ -89,10 +89,19 @@
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
 
+    // A chosen logo is a lockup at the top left, above the programme name and the credits, which
+    // move down to make room; it rides the card and fades up with the text. With no logo the slot
+    // falls back to the programme name, already set, so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    var lockH = hasLogo ? 96 * s : 0;
+    if (hasLogo) {
+      window.pulpDrawImage(ctx, state, 'logo', { x: margin - shift, y: margin, width: 240 * s, height: lockH });
+    }
+
     // Programme name at the top left, then a thin accent rule.
     var programme = (p.programme || '').toUpperCase();
     var nameSize = fitFont(programme, '800 ', 64 * s, maxW);
-    var y = margin + nameSize;
+    var y = margin + lockH + (hasLogo ? 28 * s : 0) + nameSize;
     ctx.fillStyle = p.text;
     ctx.fillText(programme, margin - shift, y);
     y += 26 * s;

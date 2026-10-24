@@ -82,6 +82,16 @@
       }
     }
     ctx.globalAlpha = 1;
+
+    // Image slot: a small logo in the right-hand corner of the chosen row, fading in and out with
+    // the twinkles. Nothing is drawn without a logo.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) {
+      var mark = 120 * s, inset = 56 * s;
+      ctx.globalAlpha = clamp01(show * 1.3);
+      window.pulpDrawImage(ctx, state, 'logo', { x: W - inset - mark, y: p.corners === 'top' ? inset : H - inset - mark, width: mark, height: mark });
+      ctx.globalAlpha = 1;
+    }
   };
 </script>
 </body>

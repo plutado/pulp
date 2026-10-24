@@ -67,6 +67,31 @@ describe('bundled sample templates', async () => {
     expect(html).not.toMatch(/https?:\/\//);
   });
 
+  // Milestone 22: image slots in the sets. Every slot declares a box and a fit, and a slot on a
+  // piece that carries text falls back to that text, so a template with no logo renders as it did.
+  it('image slots declare a box and a fit, and fall back to text where there is text to fall back to', async () => {
+    const index = await scanLibrary([TEMPLATES_DIR]);
+    const slots: string[] = [];
+    for (const t of index.templates) {
+      for (const p of t.manifest.parameters) {
+        if (p.type !== 'image') continue;
+        slots.push(t.manifest.id);
+        expect(p.box, t.manifest.id).toBeDefined();
+        expect(['contain', 'cover'], t.manifest.id).toContain(p.fit);
+        const type = t.manifest.type ?? '';
+        if (['lower-third', 'title', 'end-card', 'logo-bug', 'opener'].includes(type)) {
+          expect(p.fallbackText, `${t.manifest.id} should fall back to its text`).toBeDefined();
+          expect(t.manifest.parameters.find((q) => q.id === p.fallbackText)?.type, t.manifest.id).toBe('text');
+        }
+      }
+    }
+    // The four sets and the two standalone originals: at least a lower third, a title, a bug, a transition, an end card and a background each.
+    expect(slots.length).toBeGreaterThanOrEqual(26);
+    for (const set of ['boardroom', 'newsdesk', 'matchday', 'festival']) {
+      expect(slots.filter((id) => id.startsWith(`pulp.samples.${set}.`)).length, set).toBeGreaterThanOrEqual(6);
+    }
+  });
+
   // Milestone 19: a template is a shape, not a pixel size. Every bundled template
   // declares the aspects it draws for and lays out from the canvas it is handed.
   it.each(dirs)('%s declares its aspects and draws from the size it is given', async (dir) => {

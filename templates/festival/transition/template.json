@@ -16,6 +16,7 @@
   "entry": "index.html",
   "parameters": [
     { "id": "panel", "type": "color", "label": "Panel color", "default": "#341f3e", "group": "Colors" },
-    { "id": "gold", "type": "color", "label": "Rim color", "default": "#e8b54d", "group": "Colors" }
+    { "id": "gold", "type": "color", "label": "Rim color", "default": "#e8b54d", "group": "Colors" },
+    { "id": "logo", "type": "image", "label": "Logo", "description": "A logo at the centre of the iris while it is closed; nothing is drawn without one.", "box": { "x": 0.416, "y": 0.35, "width": 0.169, "height": 0.3 }, "fit": "contain", "align": "center", "margin": 0.1, "group": "Logo" }
   ]
 }

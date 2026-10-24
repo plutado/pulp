@@ -77,6 +77,17 @@
     ctx.textBaseline = 'middle';
     var textA = clamp01((show - 0.3) / 0.7);
 
+    // A chosen logo is a mark centred above the kicker, riding the top hairline out and fading with
+    // the text. With no logo the slot falls back to the kicker, already set, so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) {
+      var mark = 110 * s;
+      ctx.globalAlpha = textA;
+      window.pulpDrawImage(ctx, state, 'logo', {
+        x: cx - mark / 2, y: cy - gap - 34 * s - kickSize / 2 - 24 * s - mark, width: mark, height: mark
+      });
+    }
+
     ctx.globalAlpha = textA * 0.9;
     ctx.fillStyle = p.accent;
     ctx.font = '600 ' + kickSize + 'px ' + FONT;

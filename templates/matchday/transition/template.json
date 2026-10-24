@@ -17,6 +17,7 @@
   "parameters": [
     { "id": "panel", "type": "color", "label": "Panel color", "default": "#101010", "group": "Colors" },
     { "id": "accent", "type": "color", "label": "Chevron color", "default": "#d4f531", "group": "Colors" },
-    { "id": "teeth", "type": "number", "label": "Chevron rows", "default": 6, "min": 2, "max": 12, "step": 1 }
+    { "id": "teeth", "type": "number", "label": "Chevron rows", "default": 6, "min": 2, "max": 12, "step": 1 },
+    { "id": "logo", "type": "image", "label": "Logo", "description": "A logo at the centre of the frame while the chevron wipe covers it; nothing is drawn without one.", "box": { "x": 0.416, "y": 0.35, "width": 0.169, "height": 0.3 }, "fit": "contain", "align": "center", "margin": 0.1, "group": "Logo" }
   ]
 }

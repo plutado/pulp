@@ -55,6 +55,17 @@
     v.addColorStop(1, 'rgba(0,0,0,0.4)');
     ctx.fillStyle = v;
     ctx.fillRect(0, 0, W, H);
+
+    // A chosen logo is a quiet watermark in the bottom-right corner, over the loop.
+    // With no logo nothing is drawn.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) {
+      var s = Math.min(W, H) / 1080;
+      var mark = 140 * s, inset = 56 * s;
+      ctx.globalAlpha = 0.18;
+      window.pulpDrawImage(ctx, state, 'logo', { x: W - inset - mark, y: H - inset - mark, width: mark, height: mark });
+      ctx.globalAlpha = 1;
+    }
   };
 </script>
 </body>

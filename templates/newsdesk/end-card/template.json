@@ -29,6 +29,18 @@
     { "id": "accent", "type": "color", "label": "Accent color", "default": "#e0263c", "group": "Colors" },
     { "id": "panel", "type": "color", "label": "Panel color", "default": "#0e1526f2", "group": "Colors" },
     { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.4, "min": 0.15, "max": 1.5, "step": 0.05 }
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.4, "min": 0.15, "max": 1.5, "step": 0.05 },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "A lockup at the top left, above the programme name and the credits, which move down to make room. With none chosen the card is as it always was.",
+      "box": { "x": 0.052, "y": 0.093, "width": 0.125, "height": 0.089 },
+      "fit": "contain",
+      "align": "left",
+      "margin": 0.1,
+      "fallbackText": "programme",
+      "group": "Logo"
+    }
   ]
 }

@@ -68,6 +68,15 @@
     v.addColorStop(1, 'rgba(0,0,0,0.45)');
     ctx.fillStyle = v;
     ctx.fillRect(0, 0, W, H);
+
+    // Image slot: a faint watermark in the bottom-right corner. Nothing is drawn without a logo.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) {
+      var mark = 140 * s, inset = 64 * s;
+      ctx.globalAlpha = 0.18;
+      window.pulpDrawImage(ctx, state, 'logo', { x: W - inset - mark, y: H - inset - mark, width: mark, height: mark });
+      ctx.globalAlpha = 1;
+    }
   };
 </script>
 </body>

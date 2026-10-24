@@ -44,6 +44,20 @@
     ctx.fillStyle = p.panel;
     ctx.fill();
 
+    // Image slot: a logo at the centre, clipped to the iris so the bloom uncovers it and the
+    // opening hole takes it away. Nothing is drawn without a logo.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) {
+      var mark = Math.min(W, H) * 0.3;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, outer, 0, TAU);
+      if (inner > 0) ctx.arc(cx, cy, inner, 0, TAU, true);
+      ctx.clip();
+      window.pulpDrawImage(ctx, state, 'logo', { x: cx - mark / 2, y: cy - mark / 2, width: mark, height: mark });
+      ctx.restore();
+    }
+
     // The gold rim rides whichever edge is moving.
     var rim = 10 * (Math.min(W, H) / 1080);
     ctx.lineWidth = rim;

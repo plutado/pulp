@@ -60,12 +60,18 @@
     var margin = tall ? 0.06 * W : 110 * s;
     var nameSize = 54 * s, subSize = 28 * s;
     var padX = 52 * s;
+    var pillH = 148 * s;
+    // Image slot: a round badge in the pill's head when a logo is chosen; the type moves over to
+    // make room. With no logo the slot falls back to the name, which the pill already carries.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    var badge = hasLogo ? pillH - 2 * 14 * s : 0;
+    var headX = hasLogo ? 14 * s + badge + 28 * s : padX;
     ctx.font = 'italic 700 ' + nameSize + 'px ' + SERIF;
     var nameW = ctx.measureText(p.name).width;
     ctx.font = '400 ' + subSize + 'px ' + SANS;
     var subW = ctx.measureText(p.subtitle).width;
     // Shrink the type when it would run past the frame's safe width.
-    var maxTextW = (tall ? 0.82 : 0.9) * W - margin - padX * 2;
+    var maxTextW = (tall ? 0.82 : 0.9) * W - margin - headX - padX;
     var fit = maxTextW / Math.max(nameW, subW);
     if (fit < 1) {
       nameSize *= fit; subSize *= fit;
@@ -74,8 +80,7 @@
       ctx.font = '400 ' + subSize + 'px ' + SANS;
       subW = ctx.measureText(p.subtitle).width;
     }
-    var pillW = Math.max(nameW, subW) + padX * 2;
-    var pillH = 148 * s;
+    var pillW = Math.max(nameW, subW) + headX + padX;
     var y = tall ? 0.72 * H - pillH : H - margin - pillH;
 
     // The pill scales up around its left-center with a gentle bounce.
@@ -93,15 +98,25 @@
     ctx.stroke();
 
     var textA = clamp01((show - 0.35) / 0.65);
+    if (hasLogo) {
+      // The badge rides the pill: same bounce, same fade as the type.
+      ctx.save();
+      ctx.globalAlpha = textA;
+      ctx.beginPath();
+      ctx.arc(margin + 14 * s + badge / 2, y + pillH / 2, badge / 2, 0, TAU);
+      ctx.clip();
+      window.pulpDrawImage(ctx, state, 'logo', { x: margin + 14 * s, y: y + 14 * s, width: badge, height: badge });
+      ctx.restore();
+    }
     ctx.globalAlpha = textA;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = p.text;
     ctx.font = 'italic 700 ' + nameSize + 'px ' + SERIF;
-    ctx.fillText(p.name, margin + padX, y + 66 * s);
+    ctx.fillText(p.name, margin + headX, y + 66 * s);
     ctx.fillStyle = p.gold;
     ctx.font = '400 ' + subSize + 'px ' + SANS;
-    ctx.fillText(p.subtitle, margin + padX, y + 112 * s);
+    ctx.fillText(p.subtitle, margin + headX, y + 112 * s);
     ctx.globalAlpha = 1;
     ctx.restore();
 

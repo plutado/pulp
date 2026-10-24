@@ -93,6 +93,16 @@
     for (var li = 0; li < lines.length; li++) {
       spacedText(lines[li], W / 2, mid - 24 * s - (lines.length - 1 - li) * lineH, tracking);
     }
+    // A chosen logo is a mark centred above the title, fading with it. With no logo the slot falls
+    // back to the title, already set, so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) {
+      var mark = 110 * s;
+      var firstBase = mid - 24 * s - (lines.length - 1) * lineH;
+      window.pulpDrawImage(ctx, state, 'logo', {
+        x: W / 2 - mark / 2, y: firstBase - titleSize * 0.95 - 28 * s - mark, width: mark, height: mark
+      });
+    }
 
     var ruleW = 360 * s * easeInOutSine(clamp01((t - 0.3) / 1.2)) * (1 - fadeOut);
     ctx.globalAlpha = 1;

@@ -30,6 +30,18 @@
         { "value": "right", "label": "Bottom right" }
       ]
     },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.7, "min": 0.2, "max": 2, "step": 0.1 }
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.7, "min": 0.2, "max": 2, "step": 0.1 },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "A badge at the head of the text block, left of the name; the hairline and backing tint grow to include it. With none chosen the piece is as it always was.",
+      "box": { "x": 0.057, "y": 0.794, "width": 0.056, "height": 0.099 },
+      "fit": "contain",
+      "align": "center",
+      "margin": 0.1,
+      "fallbackText": "name",
+      "group": "Logo"
+    }
   ]
 }

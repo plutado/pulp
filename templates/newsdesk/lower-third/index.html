@@ -58,6 +58,13 @@
     var padX = 40 * s;
     // The text must fit inside the bar's room: 0.76 W on a tall frame, 0.9 W elsewhere (a no-op at 16:9).
     var maxTextW = (tall ? 0.82 * W : 0.9 * W) - margin - capW - padX * 2 - barH * SLANT;
+    // A chosen logo is a square badge in the panel's head, before the name; the panel grows to hold
+    // it and the text moves over. With no logo the slot falls back to the name, which the bar already
+    // carries, so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    var badge = hasLogo ? barH - 32 * s : 0;
+    var badgeGap = hasLogo ? 24 * s : 0;
+    maxTextW -= badge + badgeGap;
 
     ctx.font = '800 ' + nameSize + 'px ' + FONT;
     var nameText = (p.name || '').toUpperCase();
@@ -75,7 +82,7 @@
       ctx.font = '500 ' + topicSize + 'px ' + FONT;
       topicW = ctx.measureText(topicText).width;
     }
-    var barW = Math.max(nameW, topicW) + padX * 2 + capW;
+    var barW = Math.max(nameW, topicW) + padX * 2 + capW + badge + badgeGap;
 
     // The whole unit slides in from the left on a hard ease; it leaves the same way.
     var slide = (1 - show) * (barW + margin + barH * SLANT);
@@ -91,7 +98,11 @@
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    var textX = x + capW + padX;
+    var textX = x + capW + padX + badge + badgeGap;
+    if (hasLogo) {
+      // The badge rides the bar: it slides in and out with the panel.
+      window.pulpDrawImage(ctx, state, 'logo', { x: x + capW + padX, y: y + 16 * s, width: badge, height: badge });
+    }
     ctx.fillStyle = p.text;
     ctx.font = '800 ' + nameSize + 'px ' + FONT;
     ctx.fillText(nameText, textX, y + 52 * s);

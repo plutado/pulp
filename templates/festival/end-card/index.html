@@ -99,7 +99,11 @@
     if (dateW > cardW - padX * 2) {
       dateSize = Math.floor(dateSize * (cardW - padX * 2) / dateW);
     }
-    var cardH = padY * 2 + lines.length * lineH + 36 * s + 4 * s + 36 * s + dateSize;
+    // Image slot: a lockup above the thank-you line, inside the card. With no logo the slot falls
+    // back to that line, which the card already carries, so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    var lockH = hasLogo ? 150 * s : 0, lockGap = hasLogo ? 36 * s : 0;
+    var cardH = padY * 2 + lockH + lockGap + lines.length * lineH + 36 * s + 4 * s + 36 * s + dateSize;
     var cardX = cx - cardW / 2, cardY = cy - cardH / 2;
 
     // Confetti falls across the whole frame, each piece on its own seeded lane and spin.
@@ -137,11 +141,15 @@
 
     var textA = clamp01((pop - 0.4) / 0.6) * fade;
     ctx.globalAlpha = textA;
+    if (hasLogo) {
+      // The lockup rides the card: same pop, same fade as the type.
+      window.pulpDrawImage(ctx, state, 'logo', { x: cardX + padX, y: cardY + padY, width: cardW - padX * 2, height: lockH });
+    }
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = p.text;
     ctx.font = 'italic 700 ' + thanksSize + 'px ' + SERIF;
-    var y = cardY + padY + thanksSize * 0.85;
+    var y = cardY + padY + lockH + lockGap + thanksSize * 0.85;
     for (var j = 0; j < lines.length; j++) {
       ctx.fillText(lines[j], cx, y + j * lineH);
     }

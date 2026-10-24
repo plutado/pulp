@@ -37,6 +37,10 @@
 
     var s = Math.min(W, H) / 1080;
     var margin = 64 * s, boxH = 56 * s, tabW = 22 * s;
+    // A chosen logo sits in the accent tab, before the label; the tab widens to hold it.
+    // With no logo the slot falls back to the label, already set, so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) tabW = 64 * s;
     var labelText = (p.label || '').toUpperCase();
     ctx.font = '800 ' + 28 * s + 'px ' + FONT;
     var textW = ctx.measureText(labelText).width;
@@ -67,6 +71,11 @@
     ctx.closePath();
     ctx.fillStyle = p.accent;
     ctx.fill();
+    if (hasLogo) {
+      // The mark rides the tab, inside its slanted edges, sliding with the bug.
+      var mark = boxH - 16 * s;
+      window.pulpDrawImage(ctx, state, 'logo', { x: x + k + (tabW - k - mark) / 2, y: y + 8 * s, width: mark, height: mark });
+    }
 
     ctx.fillStyle = p.text;
     ctx.textAlign = 'left';

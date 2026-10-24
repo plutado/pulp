@@ -45,6 +45,24 @@
     ctx.fillStyle = p.accent;
     if (pr < 0.5) ctx.fillRect(ltr ? x1 - edge : x0, 0, edge, H);
     else ctx.fillRect(ltr ? x0 : x1 - edge, 0, edge, H);
+
+    // A chosen logo sits at the centre of the panel, clipped to the covered span and fading in as
+    // the leading edge passes it and out as the trailing edge follows. With no logo nothing is drawn.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) {
+      var mark = 200 * (Math.min(W, H) / 1080);
+      var cx = W / 2;
+      var cover = clamp01((x1 - cx + mark / 2) / mark) * clamp01((cx + mark / 2 - x0) / mark);
+      if (cover > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x0, 0, x1 - x0, H);
+        ctx.clip();
+        ctx.globalAlpha = cover;
+        window.pulpDrawImage(ctx, state, 'logo', { x: cx - mark / 2, y: H / 2 - mark / 2, width: mark, height: mark });
+        ctx.restore();
+      }
+    }
   };
 </script>
 </body>

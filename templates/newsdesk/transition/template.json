@@ -27,6 +27,17 @@
         { "value": "right", "label": "Left to right" },
         { "value": "left", "label": "Right to left" }
       ]
+    },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "A mark at the centre of the frame, seen only while the slash covers it: it fades in behind the leading edge and out ahead of the trailing one. With none chosen nothing is drawn.",
+      "box": { "x": 0.448, "y": 0.407, "width": 0.104, "height": 0.185 },
+      "fit": "contain",
+      "align": "center",
+      "margin": 0.1,
+      "group": "Logo"
     }
   ]
 }

@@ -19,6 +19,7 @@
     { "id": "deep", "type": "color", "label": "Deep color", "default": "#1b0f22", "group": "Colors" },
     { "id": "gold", "type": "color", "label": "Bokeh color", "default": "#e8b54d", "group": "Colors" },
     { "id": "amount", "type": "number", "label": "Bokeh amount", "default": 22, "min": 6, "max": 48, "step": 1 },
-    { "id": "glow", "type": "number", "label": "Glow strength", "default": 0.35, "min": 0, "max": 1, "step": 0.05 }
+    { "id": "glow", "type": "number", "label": "Glow strength", "default": 0.35, "min": 0, "max": 1, "step": 0.05 },
+    { "id": "logo", "type": "image", "label": "Logo", "description": "A watermark in the bottom-right corner at 18% opacity; nothing is drawn without one.", "box": { "x": 0.894, "y": 0.811, "width": 0.073, "height": 0.13 }, "fit": "contain", "align": "center", "margin": 0.1, "group": "Logo" }
   ]
 }

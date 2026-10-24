@@ -46,6 +46,9 @@
     var right = !tall && p.side === 'right';
     // Text must fit the frame: 0.76 W on a tall frame, 0.9 W elsewhere (a no-op at 16:9).
     var maxTextW = (tall ? 0.82 * W : 0.9 * W) - margin - pad - 24 * s;
+    // A chosen logo takes a badge's width out of that budget (its size is settled below).
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    if (hasLogo) maxTextW -= nameSize + titleSize + 48 * s;
 
     ctx.font = '600 ' + nameSize + 'px ' + FONT;
     var nameW = ctx.measureText(p.name).width;
@@ -80,13 +83,19 @@
     var extra = (lines.length - 1) * lineH;
     // Landscape sizes the rule from the plain capitals, as it always has; tall from the spaced lines.
     var ruleTextW = tall ? titleW : ctx.measureText((p.title || '').toUpperCase()).width;
-    var ruleW = Math.max(nameW, ruleTextW) + 24 * s;
-
     // Landscape keeps the original position; the tall frame puts the last baseline at about 0.72 H.
     var baseY = tall ? H * 0.72 - 28 * s - titleSize - extra : H - margin - 60 * s;
 
+    // A chosen logo sits as a square badge at the head of the text block, left of the name, as tall
+    // as the block itself; the rule and the backing tint grow to include it. With no logo the slot
+    // falls back to the name, which the piece already carries, so nothing changes.
+    var badge = hasLogo ? nameSize + titleSize + extra + 28 * s : 0;
+    var badgeGap = hasLogo ? 20 * s : 0;
+    var ruleW = Math.max(nameW, ruleTextW) + 24 * s + badge + badgeGap;
+
     var x = right ? W - margin - ruleW : margin;
-    var textX = right ? W - margin : margin;
+    var edgeX = right ? W - margin : margin;
+    var textX = right ? edgeX - badge - badgeGap : edgeX + badge + badgeGap;
     ctx.textAlign = right ? 'right' : 'left';
     ctx.textBaseline = 'alphabetic';
 
@@ -100,13 +109,20 @@
     var drawn = ruleW * easeOutCubic(clamp01(show * 1.4));
     var ruleY = baseY + 14 * s;
     ctx.fillStyle = p.accent;
-    ctx.fillRect(right ? textX - drawn : x, ruleY, drawn, 2 * s);
+    ctx.fillRect(right ? edgeX - drawn : x, ruleY, drawn, 2 * s);
     var sq = 8 * s;
-    var headX = right ? textX - drawn : x + drawn - sq;
+    var headX = right ? edgeX - drawn : x + drawn - sq;
     ctx.fillRect(headX, ruleY - sq / 2 + 1 * s, sq, sq);
 
     // Name, then the title in spaced capitals, fading up as the rule completes.
     var textA = clamp01((show - 0.35) / 0.65);
+    if (hasLogo) {
+      // The badge fades up with the text and spans the block from the name's cap to the title's base.
+      ctx.globalAlpha = textA;
+      window.pulpDrawImage(ctx, state, 'logo', {
+        x: right ? edgeX - badge : edgeX, y: baseY - nameSize, width: badge, height: badge
+      });
+    }
     ctx.globalAlpha = textA;
     ctx.fillStyle = p.text;
     ctx.font = '600 ' + nameSize + 'px ' + FONT;

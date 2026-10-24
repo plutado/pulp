@@ -123,18 +123,32 @@
 
     var kickH = 56 * s;
     var kickGap = 30 * s;
+    // Image slot: a lockup above the fixture, first in and collapsing with the rest. With no logo
+    // the slot falls back to the kick-off line, which the opener already carries.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    var lockH = hasLogo ? 160 * s : 0, lockGap = hasLogo ? 30 * s : 0, lockW = Math.min(maxW, 480 * s);
+    var tLock = easeOutBack(clamp01((t - dur * 0.3) / dur));
+    function lockup(y) {
+      ctx.save();
+      ctx.translate(cx, y + lockH / 2);
+      ctx.scale(Math.max(0, tLock) * collapse, Math.max(0, tLock) * collapse);
+      window.pulpDrawImage(ctx, state, 'logo', { x: -lockW / 2, y: -lockH / 2, width: lockW, height: lockH });
+      ctx.restore();
+    }
     var totalH, top;
     if (stacked) {
       var vH = barH * 0.55;
-      totalH = barH * 2 + vH + gap * 2 + kickGap + kickH;
+      totalH = lockH + lockGap + barH * 2 + vH + gap * 2 + kickGap + kickH;
       top = cy - totalH / 2;
+      if (hasLogo) { lockup(top); top += lockH + lockGap; }
       bar(cx - homeW / 2, top, homeW, barH, home, tHome, -1);
       vChip(cx - vW / 2, top + barH + gap, vW, vH, tV);
       bar(cx - awayW / 2, top + barH + gap + vH + gap, awayW, barH, away, tAway, 1);
       top += barH * 2 + vH + gap * 2;
     } else {
-      totalH = barH + kickGap + kickH;
+      totalH = lockH + lockGap + barH + kickGap + kickH;
       top = cy - totalH / 2;
+      if (hasLogo) { lockup(top); top += lockH + lockGap; }
       var rowW = homeW + gap + vW + gap + awayW;
       var x0 = cx - rowW / 2;
       bar(x0, top, homeW, barH, home, tHome, -1);

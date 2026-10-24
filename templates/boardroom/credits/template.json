@@ -27,6 +27,18 @@
     { "id": "accent", "type": "color", "label": "Accent color", "default": "#4f7cac", "group": "Colors" },
     { "id": "text", "type": "color", "label": "Text color", "default": "#f4f6f9", "group": "Colors" },
     { "id": "speed", "type": "number", "label": "Roll speed", "default": 1, "min": 0.5, "max": 2, "step": 0.1 },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.8, "min": 0.2, "max": 2, "step": 0.1 }
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.8, "min": 0.2, "max": 2, "step": 0.1 },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "A lockup at the top of the roll, above the title, which moves down to make room. With none chosen the roll is as it always was.",
+      "box": { "x": 0.4375, "y": 0.093, "width": 0.125, "height": 0.089 },
+      "fit": "contain",
+      "align": "center",
+      "margin": 0.1,
+      "fallbackText": "title",
+      "group": "Logo"
+    }
   ]
 }
