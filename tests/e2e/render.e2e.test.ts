@@ -350,6 +350,41 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(alex[3]).toBe(217);
   }, 240_000);
 
+  it('renders a saved collection, each item with its own settings, skipping what the library cannot answer for', async () => {
+    const file = join(out, 'show.pulpcollection');
+    await writeFile(
+      file,
+      JSON.stringify({
+        formatVersion: 1,
+        items: [
+          // Two of the same template with different parameters and trims: each must come out its own way.
+          { uid: 'a', id: 'whatever', kind: 'template', name: 'Opening strap', templateId: 'pulp.samples.lower-third-bar', presetId: 'png-sequence', options: { inFrame: 90, outFrame: 90 }, params: { name: 'Alex Rivera' } },
+          { uid: 'b', id: 'whatever', kind: 'template', name: 'Closing strap', templateId: 'pulp.samples.lower-third-bar', presetId: 'png-sequence', options: { inFrame: 100, outFrame: 100 }, params: { name: 'Sam Lee' } },
+          // Nothing in the library answers for these two.
+          { uid: 'c', id: 'gone', kind: 'template', name: 'Missing one', templateId: 'nobody.has.this', presetId: 'png-sequence', options: {}, params: {} },
+          { uid: 'd', id: 'clip', kind: 'media', name: 'Some clip', presetId: 'png-sequence', options: {}, params: {} },
+        ],
+      }),
+    );
+    const folder = join(out, 'collection-out');
+    const result = await run(electron, ['.', '--collection', file, '--out', folder], { cwd: ROOT, timeout: 180_000 }).catch((err: { code?: number; stdout?: string; stderr?: string }) => ({
+      stdout: err.stdout ?? '',
+      stderr: err.stderr ?? '',
+      code: err.code ?? -1,
+    }));
+    expect(result.stdout).toContain('collection: 4 items from show into');
+    expect(result.stdout).toContain('collection: 2 rendered, 0 failed');
+    // Named and skipped, not silently dropped.
+    expect(result.stderr).toContain('skipped Missing one: its template is not in the library');
+    expect(result.stderr).toContain('skipped Some clip: only templates render today');
+
+    const files = (await readdir(folder)).sort();
+    expect(files).toEqual(['closing-strap_00100.png', 'opening-strap_00090.png']);
+    // Each item kept its own parameters: different names make different panel widths.
+    const openingPanel = await pixels(join(folder, 'opening-strap_00090.png'), 120, 840);
+    expect(openingPanel[3]).toBe(217);
+  }, 240_000);
+
   it('renders QuickTime Animation losslessly with alpha', async () => {
     const result = await render('pulp.test.size-portrait', 'qt-animation', 'anim.mov', { extra: ['--library', FIXTURES] });
     expect(result.code, result.stderr).toBe(0);

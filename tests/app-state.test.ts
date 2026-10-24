@@ -233,7 +233,7 @@ describe('shown item', () => {
 describe('traySummary', () => {
   it('counts jobs by status in a fixed order', () => {
     const job = (id: number, status: RenderJobStatus): RenderQueueJob => ({ id, templateId: 't', templateName: 'T', presetId: 'prores-4444', outputPath: `/x${id}.mov`, totalFrames: 60, status, frame: 0, warnings: [] });
-    expect(traySummary(initialAppState)).toBe('No renders yet.');
+    expect(traySummary(initialAppState)).toBe('Nothing collected yet.');
     expect(traySummary(setJobs(initialAppState, { jobs: [job(1, 'done')] }))).toBe('1 render · 1 done');
     expect(traySummary(setJobs(initialAppState, { jobs: [job(1, 'done'), job(2, 'running'), job(3, 'done'), job(4, 'queued')] })))
       .toBe('4 renders · 1 running · 1 queued · 2 done');

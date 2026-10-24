@@ -1,13 +1,14 @@
 import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
-import { formatBytes, setIndex, setJobs, setQuery, setSelection, setShown } from '../core/app-state';
+import { formatBytes, setCollection, setIndex, setJobs, setQuery, setSelection, setShown, shownEntry } from '../core/app-state';
+import { addItem, itemFor } from '../core/collection';
 import { appState, dispatch, results, selectedTemplate } from './store';
 import { mountResults } from './results';
 import { mountItemInfo } from './item-info';
 import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback } from './stage';
 import { initShell } from './shell';
 import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
-import { initInspectorParams, paramsClear, paramsShow } from './inspector-params';
-import { initInspectorOutput, outputSetFfmpeg, outputShow, updateRenderControls } from './inspector-output';
+import { currentRawParams, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
+import { currentOptions, currentPresetId, initInspectorOutput, outputSetFfmpeg, outputShow, setTemplateShower, updateRenderControls } from './inspector-output';
 import { mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
@@ -299,12 +300,31 @@ initShell();
 initStage();
 initInspectorTabs();
 initInspectorParams();
+setTemplateShower((templateId) => {
+  const entry = appState.value.index?.templates.find((t) => t.manifest.id === templateId);
+  if (entry && selectedTemplate.value?.manifest.id !== templateId) select(entry);
+});
 initInspectorOutput();
 initSearchBar();
 initStatusBar();
-initTray();
+initTray((id) => {
+  const index = appState.value.index;
+  const entry = [...(index?.templates ?? []), ...(index?.media ?? [])].find((e) => e.id === id);
+  if (entry) dispatch((s) => setCollection(s, addItem(s.collection, itemFor(entry, currentPresetId(), currentOptions(), entry.kind === 'template' ? currentRawParams() : {}))));
+});
 mountBrowse($('browse-tree'));
 mountResults(els.results, { onSelect: select, onStop: stopPlayback });
+
+// Add to collection: the item on the stage, with whatever the Output tab currently says.
+const addToCollection = $<HTMLButtonElement>('add-to-collection');
+addToCollection.addEventListener('click', () => {
+  const entry = shownEntry(appState.value);
+  if (!entry) return;
+  dispatch((s) => setCollection(s, addItem(s.collection, itemFor(entry, currentPresetId(), currentOptions(), entry.kind === 'template' ? currentRawParams() : {}))));
+});
+effect(() => {
+  addToCollection.disabled = shownEntry(appState.value) === null;
+});
 mountItemInfo($('item-tools'), { favorite: 'favorite', chips: 'tag-chips', input: 'tag-input' }, false);
 mountItemInfo($('info-item'), {}, true);
 effect(() => {

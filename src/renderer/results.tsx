@@ -27,6 +27,7 @@ import {
   type BadgeId,
   type ResultBadge,
 } from '../core/results-view';
+import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { canHaveStrip, HOVER_DWELL_MS, STRIP_RETRY_MS, stripWidthPercent, tileAt, tilePercent } from '../core/hover-scrub';
 import { entryType, typeInfo } from '../core/taxonomy';
 import { wantsWaveform, waveformPath } from '../core/waveform';
@@ -185,6 +186,12 @@ function Card({ entry, selected, onSelect }: ItemProps) {
       data-id={entry.id}
       data-kind={entry.kind}
       aria-selected={selected ? 'true' : 'false'}
+      draggable
+      onDragStart={(e: DragEvent) => {
+        // Into the collection tray. Not a file drag — that is a finished render's job.
+        e.dataTransfer?.setData(COLLECTION_DRAG_TYPE, entry.id);
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
+      }}
       onClick={() => onSelect(entry)}
     >
       <Thumb entry={entry} scrubbable />

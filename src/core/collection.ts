@@ -1,0 +1,190 @@
+/**
+ * Collections: the items gathered while browsing, each with its own output
+ * settings, saved and loaded as a file and rendered in one go (ROADMAP
+ * milestone 13). Pure — the tray renders this, the main process writes it.
+ *
+ * An item is recorded twice over: by **library id**, which is a hash of where
+ * the file sits and so survives a rescan but not another machine, and — for a
+ * template — by its **manifest id**, which is the author's own and travels.
+ * Loading tries the first, falls back to the second, and flags what it cannot
+ * find rather than dropping it, so a collection is also a record of what a
+ * project used.
+ */
+
+import type { LibraryEntry, LibraryIndex } from './library-types';
+import type { RenderOptions } from './render-plan';
+
+export const COLLECTION_FORMAT_VERSION = 1;
+
+/** Drag type for dropping a library item into the tray; a library id travels, not a file. */
+export const COLLECTION_DRAG_TYPE = 'application/x-pulp-item';
+
+export interface CollectionItem {
+  /** Unique within the collection, so the same item can be in it twice with different settings. */
+  uid: string;
+  /** Library id: a hash of the item's path, stable while it stays there. */
+  id: string;
+  kind: 'template' | 'media';
+  /** What it was called when it was added, so a missing item can still be named. */
+  name: string;
+  /** Templates only: the manifest id, which travels between libraries. */
+  templateId?: string;
+  presetId: string;
+  options: RenderOptions;
+  /** Templates only: the parameter values this item renders with. */
+  params: Record<string, unknown>;
+}
+
+export interface Collection {
+  items: CollectionItem[];
+}
+
+export const emptyCollection: Collection = { items: [] };
+
+let counter = 0;
+
+/** Unique for the session; a saved file keeps whatever it was given. */
+export function newUid(): string {
+  counter += 1;
+  return `c${Date.now().toString(36)}${counter.toString(36)}`;
+}
+
+/** What an entry becomes when it is added, before any settings are changed. */
+export function itemFor(entry: LibraryEntry, presetId: string, options: RenderOptions = {}, params: Record<string, unknown> = {}): CollectionItem {
+  return {
+    uid: newUid(),
+    id: entry.id,
+    kind: entry.kind,
+    name: entry.kind === 'template' ? entry.manifest.name : entry.name,
+    ...(entry.kind === 'template' ? { templateId: entry.manifest.id } : {}),
+    presetId,
+    options,
+    params,
+  };
+}
+
+// Changes. Each returns a new collection, or the same one when nothing moved,
+// so an unchanged collection never causes a re-render.
+
+export function addItem(c: Collection, item: CollectionItem): Collection {
+  return { items: [...c.items, item] };
+}
+
+export function removeItem(c: Collection, uid: string): Collection {
+  const items = c.items.filter((i) => i.uid !== uid);
+  return items.length === c.items.length ? c : { items };
+}
+
+export function clearCollection(c: Collection): Collection {
+  return c.items.length === 0 ? c : emptyCollection;
+}
+
+/** Move an item by one place; at either end it stays put. */
+export function moveItem(c: Collection, uid: string, delta: number): Collection {
+  const at = c.items.findIndex((i) => i.uid === uid);
+  const to = at + delta;
+  if (at === -1 || to < 0 || to >= c.items.length) return c;
+  const items = [...c.items];
+  const [moved] = items.splice(at, 1);
+  items.splice(to, 0, moved!);
+  return { items };
+}
+
+export function updateItem(c: Collection, uid: string, patch: Partial<Omit<CollectionItem, 'uid'>>): Collection {
+  let changed = false;
+  const items = c.items.map((i) => {
+    if (i.uid !== uid) return i;
+    changed = true;
+    return { ...i, ...patch };
+  });
+  return changed ? { items } : c;
+}
+
+/** Apply to all: one item's output settings become everyone's. Parameters stay each item's own. */
+export function applyToAll(c: Collection, settings: { presetId: string; options: RenderOptions }): Collection {
+  if (c.items.length === 0) return c;
+  return { items: c.items.map((i) => ({ ...i, presetId: settings.presetId, options: { ...settings.options } })) };
+}
+
+// Saving and loading.
+
+export function serializeCollection(c: Collection): string {
+  return `${JSON.stringify({ formatVersion: COLLECTION_FORMAT_VERSION, items: c.items }, null, 2)}\n`;
+}
+
+export type ParsedCollection = { ok: true; collection: Collection } | { ok: false; error: string };
+
+/** Reads a saved collection, refusing anything it cannot vouch for rather than half-loading it. */
+export function parseCollection(text: string): ParsedCollection {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { ok: false, error: 'That file is not a collection: it is not readable JSON.' };
+  }
+  if (!raw || typeof raw !== 'object') return { ok: false, error: 'That file is not a collection.' };
+  const r = raw as { formatVersion?: unknown; items?: unknown };
+  if (r.formatVersion !== COLLECTION_FORMAT_VERSION) {
+    return { ok: false, error: `This collection was written in format ${String(r.formatVersion)}; this version of Pulp reads ${COLLECTION_FORMAT_VERSION}.` };
+  }
+  if (!Array.isArray(r.items)) return { ok: false, error: 'That collection has no items.' };
+  const items: CollectionItem[] = [];
+  for (const entry of r.items) {
+    const i = entry as Partial<CollectionItem>;
+    if (typeof i.id !== 'string' || typeof i.presetId !== 'string') continue;
+    items.push({
+      uid: typeof i.uid === 'string' && i.uid ? i.uid : newUid(),
+      id: i.id,
+      kind: i.kind === 'media' ? 'media' : 'template',
+      name: typeof i.name === 'string' ? i.name : i.id,
+      ...(typeof i.templateId === 'string' ? { templateId: i.templateId } : {}),
+      presetId: i.presetId,
+      options: i.options && typeof i.options === 'object' ? (i.options as RenderOptions) : {},
+      params: i.params && typeof i.params === 'object' ? (i.params as Record<string, unknown>) : {},
+    });
+  }
+  return { ok: true, collection: { items } };
+}
+
+/** An item paired with what the library currently has for it. */
+export interface ResolvedItem {
+  item: CollectionItem;
+  entry: LibraryEntry | null;
+  /** Nothing in the library matches it any more. */
+  missing: boolean;
+  /** Found, but its folder is not reachable right now. */
+  offline: boolean;
+}
+
+/**
+ * Pair each item with its library entry: by library id, then — for a template —
+ * by the manifest id, which survives the library being rebuilt somewhere else.
+ */
+export function resolveCollection(c: Collection, index: LibraryIndex | null): ResolvedItem[] {
+  const all: LibraryEntry[] = index ? [...index.templates, ...index.media] : [];
+  const byId = new Map(all.map((e) => [e.id, e]));
+  const byTemplateId = new Map(all.filter((e) => e.kind === 'template').map((e) => [e.manifest.id, e]));
+  return c.items.map((item) => {
+    const entry = byId.get(item.id) ?? (item.templateId ? byTemplateId.get(item.templateId) : undefined) ?? null;
+    return { item, entry, missing: entry === null, offline: entry?.offline === true };
+  });
+}
+
+/** What a collection can render now: templates that are present and reachable. */
+export function renderableItems(resolved: readonly ResolvedItem[]): ResolvedItem[] {
+  return resolved.filter((r) => !r.missing && !r.offline && r.item.kind === 'template');
+}
+
+/** One line for the tray: "4 items · 1 missing", "3 items". */
+export function collectionSummary(resolved: readonly ResolvedItem[]): string {
+  if (resolved.length === 0) return 'Nothing collected yet.';
+  const parts = [`${resolved.length} ${resolved.length === 1 ? 'item' : 'items'}`];
+  const missing = resolved.filter((r) => r.missing).length;
+  const offline = resolved.filter((r) => r.offline).length;
+  const media = resolved.filter((r) => !r.missing && r.item.kind === 'media').length;
+  if (missing > 0) parts.push(`${missing} missing`);
+  if (offline > 0) parts.push(`${offline} offline`);
+  // Converting media arrives with milestone 15; until then a collection holds it but cannot render it.
+  if (media > 0) parts.push(`${media} not renderable yet`);
+  return parts.join(' · ');
+}

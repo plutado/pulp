@@ -701,6 +701,82 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 60_000);
   });
 
+  describe('collections', () => {
+    const card = (n = 0) => `document.querySelectorAll('#collection .collection-card')[${n}]`;
+    const names = () => page.eval<string[]>(`[...document.querySelectorAll('#collection .collection-card .job-name')].map((n) => n.textContent)`);
+
+    it('gathers items, reorders them, edits one through the Output tab and applies that to all', async () => {
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button');
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      await clickResult('Title Card');
+      await until(() => page.eval<boolean>(`document.querySelector('[data-param=title] input') !== null`), 'the title card form');
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      await until(async () => (await names()).length === 2, 'two collected items');
+      expect(await names()).toEqual(['Lower Third Bar', 'Title Card']);
+      // The tray says what it holds.
+      expect(await page.eval<string>(`document.getElementById('tray-summary').textContent`)).toContain('2 items');
+
+      // A library card can also be dragged into the tray.
+      await scrollToResult('Diagonal Wipe');
+      await page.eval(
+        `(() => { const li = [...document.querySelectorAll('#results li')].find((l) => l.querySelector('.name')?.textContent === 'Diagonal Wipe');
+          const data = new DataTransfer();
+          li.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: data }));
+          document.getElementById('region-tray').dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: data })); })()`,
+      );
+      await until(async () => (await names()).includes('Diagonal Wipe'), 'the dragged item in the collection');
+      await page.eval(`[...document.querySelectorAll('#collection .collection-card')].find((c) => c.querySelector('.job-name').textContent === 'Diagonal Wipe').querySelector('.job-actions button').click()`);
+      await until(async () => !(await names()).includes('Diagonal Wipe'), 'it removed again');
+
+      // Reorder.
+      await page.eval(`${card(1)}.querySelector('[aria-label="Move up"]').click()`);
+      await until(async () => (await names())[0] === 'Title Card', 'the reorder');
+
+      // Choosing a card hands it to the Output tab; a change there goes back to the card.
+      await page.eval(`${card(0)}.click()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('editing-note').hidden`), 'the editing note');
+      expect(await page.eval<string>(`document.getElementById('editing-note-text').textContent`)).toContain('Title Card');
+      await fire('#preset', 'png-sequence', 'change');
+      await until(() => page.eval<boolean>(`${card(0)}.querySelector('.job-status').textContent.startsWith('PNG sequence')`), 'the card to follow the Output tab');
+      // The other card keeps its own settings.
+      expect(await page.eval<string>(`${card(1)}.querySelector('.job-status').textContent`)).toContain('ProRes 4444');
+
+      // Apply to all hands them round.
+      await page.eval(`document.getElementById('collection-apply').click()`);
+      await until(() => page.eval<boolean>(`${card(1)}.querySelector('.job-status').textContent.startsWith('PNG sequence')`), 'apply to all');
+      await page.eval(`document.getElementById('editing-done').click()`);
+      expect(await page.eval<boolean>(`document.getElementById('editing-note').hidden`)).toBe(true);
+    }, 90_000);
+
+    it('offers Render all only for what it can render, saves and reopens the file', async () => {
+      // Render all itself opens a folder dialog, which cannot be driven here; the render
+      // path is covered headlessly in render.e2e.test.ts with --collection.
+      expect(await page.eval<boolean>(`document.getElementById('collection-render').disabled`)).toBe(false);
+      expect(await page.eval<boolean>(`document.getElementById('collection-save').disabled`)).toBe(false);
+
+      // A collection of nothing but media cannot be rendered yet (converting media is milestone 15).
+      await page.eval(`[...document.querySelectorAll('#collection .collection-card .job-actions button')].forEach((b) => b.click())`);
+      await until(async () => (await names()).length === 0, 'an empty collection');
+      expect(await page.eval<boolean>(`document.getElementById('collection-render').disabled`)).toBe(true);
+      expect(await page.eval<boolean>(`document.getElementById('collection-save').disabled`)).toBe(true);
+      expect(await page.eval<string>(`document.getElementById('tray-summary').textContent`)).toContain('Nothing collected yet.');
+
+      await clickResult('tiny');
+      await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button for a media item');
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      await until(async () => (await names()).length === 1, 'the media item');
+      expect(await page.eval<string>(`${card(0)}.querySelector('.job-status').textContent`)).toBe('Converting media comes later');
+      expect(await page.eval<boolean>(`document.getElementById('collection-render').disabled`)).toBe(true);
+      // It is still worth saving: a collection is also a record of what a project used.
+      expect(await page.eval<boolean>(`document.getElementById('collection-save').disabled`)).toBe(false);
+      expect(await page.eval<string>(`document.getElementById('tray-summary').textContent`)).toContain('1 not renderable yet');
+
+      await page.eval(`${card(0)}.querySelector('.job-actions button').click()`);
+      await until(async () => (await names()).length === 0, 'an empty collection again');
+    }, 90_000);
+  });
+
   describe('template packs', () => {
     const html = Buffer.from('<!doctype html><html><head><meta charset="utf-8"></head><body><canvas id="c" width="320" height="180"></canvas><script>window.pulpRender=function(){};</script></body></html>');
     const tpl = (over: Record<string, unknown>) => Buffer.from(JSON.stringify(rawManifest({ width: 320, height: 180, ...over })));

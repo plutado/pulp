@@ -11,9 +11,12 @@ import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enq
 import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
 import { sanitizeCacheMaxMB } from '../core/render-cache';
 import { deletePreset, listPresets, savePreset } from './preset-service';
+import { openCollectionFile, readCollectionFile, renderCollection, saveCollectionTo } from './collection-service';
+import type { Collection, CollectionItem } from '../core/collection';
 import { chooseExportFile, choosePackFile, exportPackTo, installPack, listInstalledPacks, previewPack } from './pack-service';
 import type { CollisionChoice } from '../core/pack';
 import { planBatch } from '../core/batch-csv';
+import { slug } from '../core/pack';
 import { readFile } from 'node:fs/promises';
 import { addRecentColor } from '../core/recent-colors';
 import { addRecentSearch } from '../core/recent-searches';
@@ -105,6 +108,9 @@ function registerIpc(): void {
     clipboard.writeText(file);
     return true;
   });
+  ipcMain.handle('collection:save', (_event, collection: Collection, name: unknown) => saveCollectionTo(collection, String(name ?? '')));
+  ipcMain.handle('collection:open', () => openCollectionFile());
+  ipcMain.handle('collection:render', (_event, items: CollectionItem[], name: unknown) => renderCollection(items, String(name ?? '')));
   ipcMain.handle('queue:remove', (_event, id: unknown) => removeRender(Number(id)));
   ipcMain.handle('cache:stats', () => cacheStats());
   ipcMain.handle('cache:clear', () => clearRenderCache());
@@ -180,6 +186,9 @@ function registerIpc(): void {
  *   electron . --render <template-id> --preset <preset-id> --out <path> [--param key=value ...]
  *     [--fps <rate>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
+ *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
+ * `--collection` renders every template in a saved collection into the --out folder with the settings
+ * each item carries; items the library cannot answer for are named and skipped.
  * `--batch` renders one output per CSV row into the folder given by --out, parameters from the row's
  * columns (headers match a parameter id or label, ignoring case) and the file name from its name column.
  * `--fps` samples the template at another standard frame rate; `--background` is the color alpha
@@ -198,6 +207,7 @@ interface CliRender {
   frameTimeoutMs?: number;
   frameFormat?: string;
   batch?: string;
+  collection?: string;
   options: RenderOptions;
   /** In and out points as typed; parsed once the frame rate is known. */
   inPoint?: string;
@@ -208,7 +218,8 @@ interface CliRender {
 
 function parseCliRender(argv: string[]): CliRender | null {
   const i = argv.indexOf('--render');
-  if (i === -1) return null;
+  // --collection renders a saved file and names no template of its own.
+  if (i === -1 && argv.indexOf('--collection') === -1) return null;
   const get = (flag: string): string | undefined => {
     const at = argv.indexOf(flag);
     return at === -1 ? undefined : argv[at + 1];
@@ -238,6 +249,7 @@ function parseCliRender(argv: string[]): CliRender | null {
   const inPoint = get('--in-point');
   const outPoint = get('--out-point');
   const batch = get('--batch');
+  const collection = get('--collection');
   return {
     templateId: argv[i + 1] ?? '',
     presetId: get('--preset') ?? 'prores-4444',
@@ -248,6 +260,7 @@ function parseCliRender(argv: string[]): CliRender | null {
     badNumbers,
     ...(inPoint !== undefined ? { inPoint } : {}),
     ...(batch !== undefined ? { batch: resolve(batch) } : {}),
+    ...(collection !== undefined ? { collection: resolve(collection) } : {}),
     ...(outPoint !== undefined ? { outPoint } : {}),
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
     ...(frameFormat !== undefined ? { frameFormat } : {}),
@@ -256,6 +269,7 @@ function parseCliRender(argv: string[]): CliRender | null {
 
 async function runCliRender(cli: CliRender): Promise<number> {
   if (cli.libraries.length > 0) await rescan(cli.libraries);
+  if (cli.collection !== undefined) return runCliCollection(cli);
   const template = await findTemplate(cli.templateId);
   if (!template) {
     console.error(`Template "${cli.templateId}" not found.`);
@@ -307,6 +321,60 @@ async function runCliRender(cli: CliRender): Promise<number> {
   const seconds = (Date.now() - started) / 1000;
   console.log(`wrote ${result.output} (${result.frames} frames in ${seconds.toFixed(1)} s, ${(result.frames / seconds).toFixed(1)} frames/s)`);
   return 0;
+}
+
+/**
+ * --collection: render a saved collection into the --out folder, each item with
+ * the settings it carries. Items the library cannot answer for are named and
+ * skipped rather than failing the run, so a collection that has outlived part of
+ * a library still renders the rest.
+ */
+async function runCliCollection(cli: CliRender): Promise<number> {
+  if (!cli.out) {
+    console.error('Missing --out <folder>.');
+    return 2;
+  }
+  const file = await readCollectionFile(cli.collection!);
+  if (!file.ok) {
+    console.error(file.message);
+    return 2;
+  }
+  const items = file.collection?.items ?? [];
+  const folder = resolve(cli.out);
+  console.log(`collection: ${items.length} ${items.length === 1 ? 'item' : 'items'} from ${file.name} into ${folder}`);
+  let rendered = 0;
+  let failed = 0;
+  for (const item of items) {
+    if (item.kind !== 'template' || !item.templateId) {
+      console.warn(`skipped ${item.name}: only templates render today (converting media is milestone 15)`);
+      continue;
+    }
+    const template = await findTemplate(item.templateId);
+    const preset = OUTPUT_PRESETS[item.presetId as PresetId];
+    if (!template || !preset) {
+      console.warn(`skipped ${item.name}: ${template ? `unknown preset "${item.presetId}"` : 'its template is not in the library'}`);
+      continue;
+    }
+    const result = await renderTemplate({
+      template,
+      params: item.params,
+      presetId: item.presetId,
+      outputPath: join(folder, `${slug(item.name, 'render')}${preset.extension}`),
+      overwrite: true,
+      options: item.options,
+      ...(cli.frameTimeoutMs ? { frameTimeoutMs: cli.frameTimeoutMs } : {}),
+      ...(cli.frameFormat !== undefined ? { frameFormat: cli.frameFormat as FrameFormat } : {}),
+    });
+    if (result.ok) {
+      rendered += 1;
+      console.log(`wrote ${result.output} (${item.name})`);
+    } else {
+      failed += 1;
+      console.error(`${item.name}: ${result.message}`);
+    }
+  }
+  console.log(`collection: ${rendered} rendered, ${failed} failed`);
+  return failed === 0 && rendered > 0 ? 0 : 1;
 }
 
 /** --batch: one render per CSV row into the --out folder. Warnings are printed before anything renders. */

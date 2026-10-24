@@ -122,7 +122,9 @@ function Job({ job }: { job: RenderQueueJob }) {
 
 function Queue() {
   const list = jobs.value;
-  if (list.length === 0) return <li class="empty">No renders yet.</li>;
+  // The tray's one-line summary already says when there is nothing; this message is
+  // only worth showing when the tray is otherwise bare.
+  if (list.length === 0) return appState.value.collection.items.length > 0 ? null : <li class="empty">Nothing rendered yet.</li>;
   return (
     <>
       {list.map((job) => (

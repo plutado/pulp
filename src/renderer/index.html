@@ -118,7 +118,10 @@
           <button id="audition" type="button" class="icon-button" data-icon="play-circle" data-icon-size="20" aria-pressed="false" aria-label="Audition mode" data-tip="Audition: choosing a sound plays it, and the arrow keys move through the results"></button>
           <button id="safe-toggle" type="button" class="icon-button" data-icon="frame-corners" data-icon-size="20" aria-pressed="false" aria-label="Title-safe and action-safe areas"></button>
         </div>
-        <div id="item-tools" class="item-tools" hidden></div>
+        <div class="item-row">
+          <button id="add-to-collection" type="button" disabled data-icon="stack" data-tip="Add this item to the collection in the tray"><span class="label">Add to collection</span></button>
+          <div id="item-tools" class="item-tools" hidden></div>
+        </div>
         <p id="stage-note" class="note error" hidden></p>
       </section>
       <div id="split-stage" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the stage"></div>
@@ -157,6 +160,7 @@
       </div>
       <div id="pane-output" class="tab-pane" role="tabpanel" aria-labelledby="tab-output" hidden>
       <h2>Render</h2>
+      <p id="editing-note" class="note editing" hidden><span id="editing-note-text"></span><button id="editing-done" type="button">Done</button></p>
       <label class="field">
         <span>Output preset</span>
         <select id="preset"></select>
@@ -212,8 +216,13 @@
     <div id="region-tray" class="tray" aria-label="Render tray">
       <div id="split-tray" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the tray"></div>
       <div class="tray-head">
-        <button id="tray-toggle" type="button" class="region-toggle" data-icon="caret-up" aria-label="Show or hide the render tray" aria-expanded="false"><span class="label">Queue</span></button>
-        <span id="tray-summary" class="tray-summary" aria-live="polite">No renders yet.</span>
+        <button id="tray-toggle" type="button" class="region-toggle" data-icon="caret-up" aria-label="Show or hide the collection" aria-expanded="false"><span class="label">Collection</span></button>
+        <span id="tray-summary" class="tray-summary" aria-live="polite">Nothing collected yet.</span>
+        <progress id="tray-progress" class="tray-progress" max="1" value="0" aria-label="Total render progress" hidden></progress>
+        <button id="collection-render" type="button" class="primary" disabled data-tip="Render every item into one folder">Render all</button>
+        <button id="collection-apply" type="button" disabled data-tip="Give every item the output settings of the one being edited">Apply to all</button>
+        <button id="collection-open" type="button" data-icon="download-simple" aria-label="Open collection" data-tip="Open a saved collection"></button>
+        <button id="collection-save" type="button" disabled data-icon="upload-simple" aria-label="Save collection" data-tip="Save this collection as a file"></button>
         <button id="clear-finished" type="button" disabled data-icon="trash" aria-label="Clear finished"><span class="label">Clear finished</span></button>
       </div>
       <div class="tray-body">
@@ -221,7 +230,11 @@
           <span id="drag-notice-text"></span>
           <button id="drag-notice-dismiss" type="button">Got it</button>
         </div>
-        <ul id="queue" class="queue" aria-label="Render queue" aria-live="polite" data-tip="A finished render: drag it into your editor, or press Enter to show it in the file manager and Cmd+C or Ctrl+C to copy its path"></ul>
+        <p id="collection-note" class="note" role="status"></p>
+        <div class="tray-lists">
+          <ul id="collection" class="queue collection" aria-label="Collection"></ul>
+          <ul id="queue" class="queue" aria-label="Renders" aria-live="polite" data-tip="A finished render: drag it into your editor, or press Enter to show it in the file manager and Cmd+C or Ctrl+C to copy its path"></ul>
+        </div>
         <div class="tray-foot">
           <span id="link-info" class="icon-slot" tabindex="0" role="img" data-icon="info" data-icon-size="16" aria-label="How editors use a dragged file" data-tip="An editor links to the file rather than copying it. Keep a render while a project uses it: clearing the cache, or the cache dropping its oldest files, takes those clips offline in the editor."></span>
           <details class="cache">

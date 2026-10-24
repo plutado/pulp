@@ -14,7 +14,11 @@ import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, tim
 import type { TemplateEntry } from '../core/library-types';
 import { currentRawParams } from './inspector-params';
 import { stageStop } from './stage';
-import { renderBlocked, selectedTemplate, trim } from './store';
+import { appState, dispatch, renderBlocked, selectedTemplate, trim } from './store';
+import { setCollection, setEditing } from '../core/app-state';
+import { updateItem } from '../core/collection';
+import { editing } from './collection';
+import { paramsApply } from './inspector-params';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -54,7 +58,17 @@ const o = {
   batch: null as BatchPlan | null,
   /** A prepare-for-drag is in flight. */
   preparing: false,
+  /** True while a collection card is being loaded into the fields, so the write-back stays quiet. */
+  loadingCard: false,
+  writeToCard: null as null | ((patch: { presetId?: string; options?: RenderOptions; params?: Record<string, unknown> }) => void),
+  /** Set by the orchestrator: show a template by its manifest id. */
+  showTemplate: null as null | ((templateId: string) => void),
 };
+
+/** The orchestrator owns selection, so it lends the Output tab a way to show a card's template. */
+export function setTemplateShower(fn: (templateId: string) => void): void {
+  o.showTemplate = fn;
+}
 
 function populatePresets(): void {
   for (const id of PRESET_IDS) {
@@ -237,6 +251,20 @@ async function prepareForDrag(): Promise<void> {
   }
 }
 
+/** The output preset as chosen now, for anything that wants to record it. */
+export function currentPresetId(): PresetId {
+  return els.preset.value as PresetId;
+}
+
+/** The render options as entered, or none when a field is unreadable. */
+export function currentOptions(): RenderOptions {
+  try {
+    return readRenderOptions();
+  } catch {
+    return {};
+  }
+}
+
 /** The request a render or a prepared drag would carry, or null when nothing is selected. */
 export function buildRenderRequest(): { templateId: string; params: Record<string, unknown>; presetId: PresetId; options: RenderOptions } | null {
   const selected = selectedTemplate.value;
@@ -337,25 +365,86 @@ export function outputSetFfmpeg(ok: boolean, encoders: readonly string[]): void 
   updateRenderControls();
 }
 
+/**
+ * Editing a collection card. Choosing one in the tray hands it to these tabs:
+ * its preset and options fill the fields, and every change goes back to the
+ * card, so an item is edited with the same controls as anything else.
+ */
+function initCollectionEditing(): void {
+  const note = $('editing-note');
+  const write = (patch: { presetId?: string; options?: RenderOptions; params?: Record<string, unknown> }) => {
+    const uid = appState.value.editing;
+    if (uid === null) return;
+    dispatch((s) => setCollection(s, updateItem(s.collection, uid, patch)));
+  };
+  o.writeToCard = write;
+
+  // Loading a card into the tabs; the flag stops the write-back from echoing it straight back.
+  // One effect, not two, so the template is selected before its parameters are applied.
+  effect(() => {
+    const item = editing.value;
+    note.hidden = item === null;
+    if (!item) return;
+    o.loadingCard = true;
+    try {
+      $('editing-note-text').textContent = `Editing ${item.name} in the collection.`;
+      // Show the item itself, so the Parameters tab is this card's template and not whatever was last clicked.
+      if (item.templateId) o.showTemplate?.(item.templateId);
+      els.preset.value = item.presetId;
+      els.preset.dispatchEvent(new Event('change'));
+      els.optFps.value = item.options.fps === undefined ? '' : String(item.options.fps);
+      const fps = item.options.fps ?? selectedTemplate.value?.manifest.fps ?? 25;
+      els.optIn.value = item.options.inFrame === undefined ? '' : formatTimecode(item.options.inFrame, fps);
+      els.optOut.value = item.options.outFrame === undefined ? '' : formatTimecode(item.options.outFrame, fps);
+      if (item.options.background !== undefined) els.optBackground.value = item.options.background;
+      updateOptionsNote();
+      // Only when the form really is this template's, or the values would land on the wrong one.
+      if (item.templateId && selectedTemplate.value?.manifest.id === item.templateId) paramsApply(item.params);
+    } finally {
+      o.loadingCard = false;
+    }
+  });
+
+  $('editing-done').addEventListener('click', () => dispatch((s) => setEditing(s, null)));
+}
+
+/** Push what the Output tab now says onto the card being edited, if there is one. */
+export function saveToEditedCard(): void {
+  if (o.loadingCard || appState.value.editing === null) return;
+  o.writeToCard?.({ presetId: els.preset.value, options: currentOptions() });
+}
+
+/** Push the parameters onto the card being edited; called when the form commits. */
+export function saveParamsToEditedCard(params: Record<string, unknown>): void {
+  if (o.loadingCard || appState.value.editing === null) return;
+  o.writeToCard?.({ params });
+}
+
 export function initInspectorOutput(): void {
+  initCollectionEditing();
   populatePresets();
   populateFrameRates();
   for (const el of [els.optIn, els.optOut]) {
     el.addEventListener('input', () => {
       updateOptionsNote();
       publishTrim();
+      saveToEditedCard();
     });
   }
   els.optFps.addEventListener('change', () => {
     updateOptionsNote();
     // The same text means a different frame at another rate.
     publishTrim();
+    saveToEditedCard();
   });
   effect(() => {
     void trim.value;
     showTrim();
   });
-  els.preset.addEventListener('change', updateOptionsNote);
+  els.preset.addEventListener('change', () => {
+    updateOptionsNote();
+    saveToEditedCard();
+  });
   els.render.addEventListener('click', () => void queueRender());
   els.dragPrepare.addEventListener('click', () => void prepareForDrag());
   els.batchCsv.addEventListener('input', () => {

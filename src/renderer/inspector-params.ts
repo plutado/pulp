@@ -11,6 +11,7 @@ import { History } from '../core/history';
 import type { TemplateEntry } from '../core/library-types';
 import type { TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
+import { saveParamsToEditedCard } from './inspector-output';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { addRecentColor } from '../core/recent-colors';
 import { stageSetParams } from './stage';
@@ -94,6 +95,8 @@ function commitParams(): void {
     editor.history.push(editor.committed);
     editor.committed = { ...p.raw };
   }
+  // A committed edit belongs to the collection card too, when one is being edited.
+  saveParamsToEditedCard(diffFromDefaults(selected.manifest, p.raw));
   updateHistoryButtons();
 }
 
@@ -534,6 +537,18 @@ export function paramsShow(entry: TemplateEntry): ResolvedParams {
     }
   });
   return p.values;
+}
+
+/**
+ * Put a collection card's stored parameters into the form, as one undoable step.
+ * The template must already be selected; values it no longer has are dropped.
+ */
+export function paramsApply(values: Record<string, unknown>): void {
+  const selected = selectedTemplate.value;
+  if (!selected) return;
+  commitParams();
+  applySnapshot(applyPreset(selected.manifest, values), true);
+  updateResetButtons();
 }
 
 export function paramsClear(): void {

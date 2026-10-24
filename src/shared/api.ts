@@ -9,12 +9,14 @@ import type { PresetId, RenderOptions } from '../core/render-plan';
 import type { RenderQueueSnapshot } from '../core/render-queue';
 import type { PlayerState } from '../core/player';
 import type { ResultsViewState } from '../core/results-view';
+import type { Collection, CollectionItem } from '../core/collection';
 import type { CollisionChoice, PackManifest, PackPreview } from '../core/pack';
 
 export type { RenderJobStatus, RenderQueueJob, RenderQueueSnapshot } from '../core/render-queue';
 export type { LibraryIndex } from '../core/library-types';
 export type { CollisionChoice, PackManifest, PackPreview, PackTemplatePreview } from '../core/pack';
 export type { RenderOptions } from '../core/render-plan';
+export type { Collection, CollectionItem } from '../core/collection';
 
 export interface FfmpegInfo {
   ok: boolean;
@@ -64,6 +66,16 @@ export interface WaveformResult {
   reason?: string;
   transient?: boolean;
 }
+
+/** Saving or opening a collection file. */
+export type CollectionFileResult =
+  | { ok: true; path: string; name: string; collection?: Collection }
+  | { ok: false; cancelled?: boolean; message: string };
+
+/** Render all: the jobs queued, and anything that could not be. */
+export type RenderCollectionResult =
+  | { ok: true; jobIds: number[]; folder: string; skipped: string[] }
+  | { ok: false; cancelled?: boolean; message: string };
 
 export interface RenderProgress {
   frame: number;
@@ -156,6 +168,12 @@ export interface PulpApi {
   deletePreset(templateId: string, name: string): Promise<Record<string, Record<string, unknown>>>;
   /** Remove done, failed and cancelled jobs from the queue. */
   clearFinishedRenders(): Promise<void>;
+  /** Save dialog, then write the collection to a file. */
+  saveCollection(collection: Collection, suggestedName: string): Promise<CollectionFileResult>;
+  /** Open dialog, then read a collection back. */
+  openCollection(): Promise<CollectionFileResult>;
+  /** Ask for one folder, then queue a render for every item. */
+  renderCollection(items: CollectionItem[], name: string): Promise<RenderCollectionResult>;
   /** Take one finished card off the tray. */
   removeRender(id: number): Promise<void>;
   /** Show a rendered file in the file manager. False when the path is not one this app made. */

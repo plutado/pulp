@@ -4,6 +4,7 @@
  * regions render from it and change it only through the actions here.
  */
 
+import { collectionSummary, emptyCollection, resolveCollection, type Collection, type CollectionItem } from './collection';
 import type { LibraryEntry, LibraryIndex } from './library-types';
 import { audioLabel, categoryLabel, codecLabel, dimensionsLabel, durationLabel, extensionLabel, frameRateLabel, mediaKindLabel, rootLabel, sizeLabel, typeLabel } from './display';
 import { buildBrowseTree, type TreeNode } from './browse-tree';
@@ -55,6 +56,12 @@ export interface AppState {
   /** Key of the entry the stage and Info tab show (a template or a media item), or null. */
   shownKey: string | null;
   jobs: RenderQueueSnapshot;
+  /** The gathered items and their settings (src/core/collection.ts). */
+  collection: Collection;
+  /** The collection card whose settings the inspector is editing, or null for the library selection. */
+  editing: string | null;
+  /** Name of the collection file this came from, for the window title and the next save. */
+  collectionName: string;
 }
 
 export const initialAppState: AppState = {
@@ -66,6 +73,9 @@ export const initialAppState: AppState = {
   selectedKey: null,
   shownKey: null,
   jobs: { jobs: [] },
+  collection: emptyCollection,
+  editing: null,
+  collectionName: '',
 };
 
 // Actions. Each returns the same object when nothing changes, so an unchanged
@@ -94,6 +104,21 @@ export function setSort(s: AppState, sort: SortKey): AppState {
 
 export function setSelection(s: AppState, selectedKey: string | null): AppState {
   return s.selectedKey === selectedKey ? s : { ...s, selectedKey };
+}
+
+export function setCollection(s: AppState, collection: Collection, name?: string): AppState {
+  if (s.collection === collection && (name === undefined || name === s.collectionName)) return s;
+  return { ...s, collection, ...(name === undefined ? {} : { collectionName: name }) };
+}
+
+/** Which collection card the inspector edits; null hands it back to the library selection. */
+export function setEditing(s: AppState, editing: string | null): AppState {
+  return s.editing === editing ? s : { ...s, editing };
+}
+
+/** The card being edited, looked up fresh so a change to the collection is seen. */
+export function editingItem(s: Pick<AppState, 'collection' | 'editing'>): CollectionItem | null {
+  return s.editing === null ? null : (s.collection.items.find((i) => i.uid === s.editing) ?? null);
 }
 
 export function setJobs(s: AppState, jobs: RenderQueueSnapshot): AppState {
@@ -241,14 +266,23 @@ export function hasFinishedJobs(s: AppState): boolean {
 }
 
 /** One line for the collapsed tray: "No renders yet." or "3 renders · 1 running · 2 done". */
+/**
+ * The one line the collapsed tray shows: what is collected and what is
+ * rendering, in that order. Both or either; "Nothing collected yet." when there
+ * is neither.
+ */
 export function traySummary(s: AppState): string {
+  const parts: string[] = [];
+  if (s.collection.items.length > 0) parts.push(collectionSummary(resolveCollection(s.collection, s.index)));
   const jobs = s.jobs.jobs;
-  if (jobs.length === 0) return 'No renders yet.';
-  const counts = new Map<RenderJobStatus, number>();
-  for (const j of jobs) counts.set(j.status, (counts.get(j.status) ?? 0) + 1);
-  const order: RenderJobStatus[] = ['running', 'queued', 'done', 'failed', 'cancelled'];
-  const parts = order.filter((st) => counts.has(st)).map((st) => `${counts.get(st)} ${st}`);
-  return `${jobs.length} ${jobs.length === 1 ? 'render' : 'renders'} · ${parts.join(' · ')}`;
+  if (jobs.length > 0) {
+    const counts = new Map<RenderJobStatus, number>();
+    for (const j of jobs) counts.set(j.status, (counts.get(j.status) ?? 0) + 1);
+    const order: RenderJobStatus[] = ['running', 'queued', 'done', 'failed', 'cancelled'];
+    const by = order.filter((st) => counts.has(st)).map((st) => `${counts.get(st)} ${st}`);
+    parts.push(`${jobs.length} ${jobs.length === 1 ? 'render' : 'renders'} · ${by.join(' · ')}`);
+  }
+  return parts.length === 0 ? 'Nothing collected yet.' : parts.join('  ·  ');
 }
 
 /** Name and meta line for a result row or the stage details. */

@@ -10,7 +10,9 @@ import { join } from 'node:path';
 import type { TemplateEntry } from '../core/library';
 import { OUTPUT_PRESETS, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { RenderQueue, type RenderQueueSnapshot } from '../core/render-queue';
-import type { BatchRequest, EnqueueBatchResult, EnqueueResult, PrepareDragResult, RenderRequest } from '../shared/api';
+import type { BatchRequest, EnqueueBatchResult, EnqueueResult, PrepareDragResult, RenderCollectionResult, RenderRequest } from '../shared/api';
+import type { CollectionItem } from '../core/collection';
+import { slug } from '../core/pack';
 import { cacheKey } from '../core/render-cache';
 import { cacheFileForKey, dragFileFor, evictIfNeeded, isCachedFile } from './render-cache-service';
 import { existsSync } from 'node:fs';
@@ -135,6 +137,52 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
   markItemUsed(template.id);
   void pump();
   return { ok: true, cached: false, jobId: job.id };
+}
+
+/**
+ * Queue a collection: one job per item into one folder, each with the settings
+ * the item carries. Items whose template has gone are reported rather than
+ * silently dropped, and whatever can render still does.
+ */
+export async function enqueueCollectionItems(items: readonly CollectionItem[], folder: string): Promise<RenderCollectionResult> {
+  const jobIds: number[] = [];
+  const skipped: string[] = [];
+  const used = new Map<string, number>();
+  for (const item of items) {
+    const template = item.templateId ? await findTemplate(item.templateId) : null;
+    const preset = OUTPUT_PRESETS[item.presetId as PresetId];
+    if (!template || !preset) {
+      skipped.push(`${item.name}: ${template ? `unknown preset "${item.presetId}"` : 'its template is not in the library'}`);
+      continue;
+    }
+    let timing;
+    try {
+      timing = resolveTiming(template.manifest, item.options);
+    } catch (err) {
+      skipped.push(`${item.name}: ${(err as Error).message}`);
+      continue;
+    }
+    // Two of the same item in one collection must not render over each other.
+    const base = slug(item.name, 'render');
+    const seen = (used.get(base) ?? 0) + 1;
+    used.set(base, seen);
+    const fileName = seen === 1 ? base : `${base}-${seen}`;
+    const job = queue.add({
+      templateId: template.manifest.id,
+      templateName: template.manifest.name,
+      label: item.name,
+      presetId: preset.id,
+      outputPath: join(folder, `${fileName}${preset.extension}`),
+      totalFrames: timing.totalFrames,
+      firstFrame: timing.firstFrame,
+    });
+    inputs.set(job.id, { template, params: item.params, ...(item.options ? { options: item.options } : {}) });
+    jobIds.push(job.id);
+    markItemUsed(template.id);
+  }
+  if (jobIds.length === 0) return { ok: false, message: skipped.join('; ') || 'Nothing could be queued.' };
+  void pump();
+  return { ok: true, jobIds, folder, skipped };
 }
 
 /** Ask for a folder once, then queue one job per row, named and filed by the row. */

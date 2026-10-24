@@ -46,26 +46,26 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Template packs: import a `.zip` or folder with a license-and-collision preview, export the listed templates as a pack.
 - A resizable window shell whose panes collapse and are remembered, a render queue in a bottom tray, and a status bar with ffmpeg, library counts, cache size and activity.
 - Results as a grid of cards — thumbnail, name and badges for alpha, loop, duration, resolution and pack — or as a list with name, duration, type, themes and file columns, with the grid/list toggle and the thumbnail size in the search bar. Only what is in view is built, so a library of thousands scrolls smoothly.
+- Collections: gather items while browsing (Add to collection, or drag a card into the tray), give each its own output settings, reorder them, apply one item's settings to all, save and reopen the collection as a file, and render the lot into one folder. A saved collection also records what a project used: items it can no longer find are flagged, not dropped.
 - A headless command-line render mode (below).
 
-Not yet: vertical and square formats (templates are still a fixed pixel size), social-ready export, collections (gather items, render all), installers and signed builds, verification on Windows and in Final Cut Pro. These are on the [roadmap](ROADMAP.md).
+Not yet: vertical and square formats (templates are still a fixed pixel size), social-ready export (gather items, render all), installers and signed builds, verification on Windows and in Final Cut Pro. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
 The [roadmap](ROADMAP.md) breaks the path to 1.0 into milestones with task-level estimates. Estimates are working hours for one developer, including tests and docs.
 
-Milestones 1-6, 10-12 and 18 (renderer, alpha export, parameter editor, library, drag-out, template packs, the window shell, visual polish, categorization, and browsing and preview) are done apart from verification items that need a Windows machine or Final Cut Pro. In planned order, what remains to 1.0:
+Milestones 1-6, 10-13 and 18 (renderer, alpha export, parameter editor, library, drag-out, template packs, the window shell, visual polish, categorization, browsing and preview, and collections) are done apart from verification items that need a Windows machine or Final Cut Pro. In planned order, what remains to 1.0:
 
 | Milestone | What it delivers | Estimate |
 |---|---|---|
-| 13. Collections | Render cards that are themselves the drag source (done), then gathering items while browsing, saving and loading as a file, and rendering all with per-item settings | 10-17 h |
 | 17. Unsigned builds and releases | electron-builder, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 7-12 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 | 19. Vertical and square formats | Templates defined by aspect ratio rather than pixel size, with the output resolution chosen at render time; an orientation filter and portrait cards; vertical safe zones; vertical versions of the matched sample sets | 13-21 h |
 | 20. Social-ready export | Platform presets (aspect, resolution, frame rate, H.264/AAC, bitrate) with warnings when a render runs past a platform's length or file-size limit, a cover image, and handing the file to the system share sheet or the platform's upload page — no accounts, no posting through APIs | 8-13 h |
 | 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 
-The milestones through 1.0 total **156-263 hours**, of which **53-89 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **156-263 hours**, of which **45-75 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 

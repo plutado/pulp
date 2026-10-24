@@ -108,7 +108,8 @@ export function initShell(): void {
   effect(() => {
     const s = appState.value;
     summary.textContent = traySummary(s);
-    const count = s.jobs.jobs.length;
+    // Opens itself for the first thing collected or queued, and stays as left after that.
+    const count = s.jobs.jobs.length + s.collection.items.length;
     if (count > 0 && lastCount === 0 && layout.trayCollapsed) set(app, withCollapsed(layout, 'tray', false), true);
     lastCount = count;
   });
