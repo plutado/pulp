@@ -1,8 +1,8 @@
 # Roadmap
 
-Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done.
+Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done. The "still open" row is the sum of the unticked items' own estimates, not the previous figure minus what was finished — recompute it from the items, or it drifts.
 
-Milestones keep the number they were given when they were added, so GitHub issues #1 to #19 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
+Milestones keep the number they were given when they were added, so GitHub issues #1 to #20 stay aligned with the milestones. The table and the sections below are in **planned order**, which is not numeric order. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
 | Milestone | Estimate |
 |---|---|
@@ -21,14 +21,15 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 17. Unsigned builds and releases | 7-12 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
 | 19. Vertical and square formats | 13-21 h |
+| 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 9-16 h |
 | 14. Defaults per type and guided setup (post-1.0) | 6-10 h |
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-19)** | **146-247 h** |
-| **Still open through 1.0 (unticked items only)** | **44-74 h** |
-| **Total including post-1.0 items** | **178-305 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-20)** | **154-260 h** |
+| **Still open through 1.0 (unticked items only)** | **53-89 h** |
+| **Total including post-1.0 items** | **186-318 h** |
 
 ## 0. Foundation (done)
 
@@ -181,6 +182,17 @@ Before milestone 8, which writes the authoring guide and the JSON Schema: both s
 - [ ] Vertical safe zones: the stage's safe-area overlay gains the areas a tall frame has to keep clear, described generically rather than named after any one app — a header strip at the top, a controls column down one side, a caption band across the bottom — as fractions of the frame in `src/core/player.ts`, beside the broadcast insets already there. Offered only for portrait aspects, from the same toggle (1-2 h)
 - [ ] Cards take the item's own shape instead of letterboxing a portrait thumbnail into a 16:9 box. The windowing math wants one row pitch, so a grid of mixed shapes takes its row height from the tallest card the current thumbnail size allows and each picture fills its own aspect inside that (`src/core/results-view.ts`, `src/core/virtual-list.ts`) (2-3 h)
 - [ ] The bundled templates move to the aspect model, and each of the four matched sets gains vertical versions of at least its lower third and its title — the same look re-laid out for a tall frame, not scaled down. The samples test checks that every bundled template declares its aspects and draws from the size it is given; the render test covers one vertical template (3-5 h)
+
+## 20. Social-ready export (8-13 h)
+
+After milestone 19, which it depends on: a platform preset is mostly an aspect, a resolution and a frame rate, and none of those are choices until templates stop declaring a pixel size.
+
+**The file, not the account.** Pulp makes something the right shape and size for where it is going and then hands it over. No accounts, no logins, no posting through anyone's API: nothing to store a token for, nothing to re-certify, and nothing that breaks when a platform changes its API or its terms.
+
+- [ ] Platform presets: a built-in, versioned list in a pure core module — for each, the aspect, resolution, frame rate, H.264 video with AAC audio, a bitrate target, and the platform's length and file-size limits. Choosing one in the Output tab sets the aspect, resolution, frame rate and encoder together. The list carries the date its limits were checked, and shows it, because this is data that ages; unit tests that every preset's resolution matches its aspect and that the list parses (3-5 h)
+- [ ] Length and file-size warnings: before a render, from the trim and the bitrate target; after it, from the file itself. Shown in the Output tab and on the finished job, and never blocking — a limit may have moved since the list was written, and the person rendering may know something it does not (1-2 h)
+- [ ] Cover image: a still from a frame picked on the scrub bar, written beside the video at the same aspect and resolution, for the thumbnail or cover a platform asks for separately (2-3 h)
+- [ ] Hand-off: "Share…" opens the system share sheet with the rendered file, and "Open upload page" opens the platform's own upload page in the browser with the file revealed in the file manager. An ADR records the choice of hand-off over integration, so the reasoning survives the first request for one-click posting (2-3 h)
 
 ## 8. 1.0 hardening and docs (9-16 h)
 

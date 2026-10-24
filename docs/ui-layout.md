@@ -63,6 +63,7 @@ This contract holds whatever renders the regions. The plain DOM versus component
    - milestone 12 turns the list into a grid of cards, upgrades the player, adds waveforms and audition mode;
    - milestone 13 turns the queue in the tray into collections with save, load and Render all;
    - milestone 19 makes templates a shape rather than a pixel size: the Output tab chooses the aspect and the resolution, the search bar gains an orientation chip, cards take a portrait item's own shape, and the stage's safe areas gain vertical zones;
+   - milestone 20 adds platform presets and their warnings to the Output tab, a cover image picked on the scrub bar, and a hand-off to the system share sheet from a finished render;
    - after 1.0, milestone 14 adds the guided setup and per-type defaults in the Output tab, milestone 15 adds media conversion, loop tools, matte pass and recolor to the Output tab, and milestone 16 adds stem lanes and the variant picker to the stage.
 4. **Hardening (milestone 8)** runs its accessibility pass and documentation against the finished layout, so keyboard navigation covers the tree, the grid, the player and the tray.
 
@@ -87,6 +88,7 @@ Each of these is a checklist item in the milestone named.
 | Aspect and output resolution in the Output tab, for templates drawn to a shape rather than a size | 19 |
 | Orientation filter and chip, vertical badge on cards, cards in a portrait item's own shape | 19 |
 | Vertical safe zones in the player, described generically | 19 |
+| Platform presets in the Output tab, with length and file-size warnings; a cover image from a chosen frame; Share and Open upload page on a finished render | 20 |
 | Stems with mute and solo; paired sound effects with variants | 16 |
 
 ## What stays true throughout
