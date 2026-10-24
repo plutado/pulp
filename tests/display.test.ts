@@ -16,6 +16,7 @@ import {
   tagLabel,
   themeLabel,
   typeLabel,
+  windowTitle,
 } from '../src/core/display';
 
 describe('humanize and tags', () => {
@@ -80,5 +81,25 @@ describe('rootLabel', () => {
     expect(rootLabel('/Users/x/Footage/News Pack/', '/app/templates')).toBe('News Pack');
     expect(rootLabel('/Users/x/media-library', undefined)).toBe('Media library');
     expect(rootLabel('C:\\Media\\b-roll', undefined)).toBe('B roll');
+  });
+});
+
+describe('the window title', () => {
+  it('names the checkout when run from source, so two copies are told apart', () => {
+    expect(windowTitle('/Users/dana/Web/pulp/oak', false)).toBe('Pulp — oak');
+    expect(windowTitle('/Users/dana/Web/pulp', false)).toBe('Pulp — pulp');
+    // Windows paths and a trailing separator name the same folder.
+    expect(windowTitle('D:\\a\\pulp\\elm', false)).toBe('Pulp — elm');
+    expect(windowTitle('/Users/dana/Web/pulp/oak/', false)).toBe('Pulp — oak');
+  });
+
+  it('is the plain name in a packaged build, whatever the path', () => {
+    expect(windowTitle('/Applications/Pulp.app/Contents/Resources/app.asar', true)).toBe('Pulp');
+  });
+
+  it('falls back to the plain name when there is no folder to name', () => {
+    expect(windowTitle('/', false)).toBe('Pulp');
+    expect(windowTitle('', false)).toBe('Pulp');
+    expect(windowTitle('   ', false)).toBe('Pulp');
   });
 });

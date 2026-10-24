@@ -19,6 +19,7 @@ import type { Collection, CollectionItem } from '../core/collection';
 import { chooseExportFile, choosePackFile, exportPackTo, installPack, listInstalledPacks, previewPack } from './pack-service';
 import type { CollisionChoice } from '../core/pack';
 import { planBatch } from '../core/batch-csv';
+import { windowTitle } from '../core/display';
 import { parseLayersArgument } from '../core/layers';
 import { LAYERS_KEY } from '../core/params';
 import { slug } from '../core/pack';
@@ -38,12 +39,15 @@ if (process.env.PULP_USER_DATA) app.setPath('userData', resolve(process.env.PULP
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
+  // Run from source, the window names the checkout it came from, so two copies side by side are
+  // told apart in the Dock and the task bar; a packaged build is just "Pulp" (src/core/display.ts).
+  const title = windowTitle(app.getAppPath(), app.isPackaged);
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
     minWidth: 960,
     minHeight: 600,
-    title: 'Pulp',
+    title,
     backgroundColor: '#16181d',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -51,6 +55,12 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  // The page's own <title> would replace it the moment the document loads.
+  mainWindow.on('page-title-updated', (event) => {
+    event.preventDefault();
+    mainWindow?.setTitle(title);
   });
 
   // Never navigate the app window away or open new windows inside the app.

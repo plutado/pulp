@@ -76,8 +76,23 @@ export function codecLabel(codec: string): string {
 }
 
 /** "1920 × 1080", with a real multiplication sign. */
+/** The product's name, as it is written everywhere it is shown. */
+export const APP_NAME = 'Pulp';
+
 export function dimensionsLabel(width: number, height: number): string {
   return `${width} × ${height}`;
+}
+
+/**
+ * What the window is called. A packaged build is just "Pulp"; run from source
+ * it names the checkout it is running from — "Pulp — oak" — so two copies side
+ * by side can be told apart in the Dock, the task bar and a window list. The
+ * folder is the app path's own name; anything unusable leaves the plain name.
+ */
+export function windowTitle(appPath: string, packaged: boolean): string {
+  if (packaged) return APP_NAME;
+  const folder = appPath.split(/[\\/]/).filter((part) => part.trim() !== '').pop();
+  return folder ? `${APP_NAME} — ${folder}` : APP_NAME;
 }
 
 export function frameRateLabel(fps: number): string {
