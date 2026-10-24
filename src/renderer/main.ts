@@ -27,6 +27,7 @@ const $ = <T extends HTMLElement>(id: string): T => {
 const els = {
   search: $<HTMLInputElement>('search'),
   addFolder: $<HTMLButtonElement>('add-folder'),
+  addSampleMedia: $<HTMLButtonElement>('add-sample-media'),
   importPack: $<HTMLButtonElement>('import-pack'),
   exportPack: $<HTMLButtonElement>('export-pack'),
   packDialog: $<HTMLDialogElement>('pack-dialog'),
@@ -291,6 +292,20 @@ els.packClose.addEventListener('click', () => els.packDialog.close());
 // For tests and scripting: preview a pack by path without the open dialog.
 (window as unknown as { pulpPreviewPack?: (path: string) => Promise<void> }).pulpPreviewPack = showPackPreview;
 els.addFolder.addEventListener('click', () => void loadLibrary(window.pulp.addLibraryFolder()));
+els.addSampleMedia.addEventListener('click', () => {
+  // Making the folder takes a little while (clips are rendered); the button says so and takes no second click.
+  els.addSampleMedia.disabled = true;
+  els.addSampleMedia.setAttribute('aria-busy', 'true');
+  void loadLibrary(
+    window.pulp.addSampleMedia().then((outcome) => {
+      if (outcome && outcome.failed.length > 0) console.warn(`Sample media: ${outcome.failed.length} file(s) could not be made: ${outcome.failed.join('; ')}`);
+      return outcome?.index ?? null;
+    }),
+  ).finally(() => {
+      els.addSampleMedia.disabled = false;
+      els.addSampleMedia.removeAttribute('aria-busy');
+    });
+});
 els.rescan.addEventListener('click', () => void loadLibrary(window.pulp.rescanLibrary()));
 window.pulp.onRenderQueue((snapshot) => dispatch((s) => setJobs(s, snapshot)));
 

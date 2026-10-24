@@ -120,6 +120,15 @@ export interface RenderCacheStats {
   summary: string;
 }
 
+/** What came of making the sample-media folder: the index with it added, and the counts. */
+export interface SampleMediaOutcome {
+  index: LibraryIndex | null;
+  written: number;
+  skipped: number;
+  /** Reasons for files that could not be made; empty when all went well. */
+  failed: string[];
+}
+
 /** Outcome of adding a render to the queue; the render itself reports through the queue snapshot. */
 export type EnqueueResult = { ok: true; jobId: number } | { ok: false; cancelled?: boolean; message: string };
 
@@ -145,6 +154,8 @@ export interface PulpApi {
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */
   addLibraryFolder(): Promise<LibraryIndex | null>;
+  /** Make the sample-media folder inside a chosen folder, add it to the library, and say what was written. Null when cancelled. */
+  addSampleMedia(): Promise<SampleMediaOutcome | null>;
   ffmpegStatus(): Promise<FfmpegInfo>;
   /** Opens a save dialog, then adds the render to the queue. Jobs run one after another. */
   render(request: RenderRequest): Promise<EnqueueResult>;

@@ -1,4 +1,6 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron';
+import { SAMPLE_MEDIA_FOLDER_NAME } from '../core/sample-media';
+import { generateSampleMedia } from './sample-media-service';
 import { join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
@@ -71,6 +73,20 @@ function registerIpc(): void {
   ipcMain.handle('library:set-themes', (_event, id: string, themes: string[]) => setItemThemes(id, Array.isArray(themes) ? themes.map(String) : []));
   ipcMain.handle('library:set-favorite', (_event, id: string, favorite: boolean) => setItemFavorite(id, favorite === true));
   ipcMain.handle('library:mark-used', (_event, id: string) => markItemUsed(id));
+  ipcMain.handle('library:add-sample-media', async () => {
+    const result = await dialog.showOpenDialog({
+      title: `Choose where to make the "${SAMPLE_MEDIA_FOLDER_NAME}" folder`,
+      buttonLabel: 'Make sample media here',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    const parent = result.filePaths[0];
+    if (result.canceled || !parent) return null;
+    const folder = join(parent, SAMPLE_MEDIA_FOLDER_NAME);
+    const report = await generateSampleMedia(folder);
+    for (const f of report.failed) console.warn(`sample media: ${f.file || folder}: ${f.reason}`);
+    const index = await addLibraryFolder(folder);
+    return { index, written: report.written.length, skipped: report.skipped.length, failed: report.failed.map((f) => f.reason) };
+  });
   ipcMain.handle('library:add-folder', async () => {
     const result = await dialog.showOpenDialog({
       title: 'Add library folder',
@@ -207,6 +223,10 @@ function registerIpc(): void {
  *     [--aspect 16:9|9:16|1:1|4:5] [--size <width>x<height>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
  *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
+ *   electron . --sample-media <folder>
+ * `--sample-media` writes the sample-media catalogue (src/core/sample-media.ts) into the folder:
+ * original CC0 sounds, music, stills and clips, three to five per media type, skipping files
+ * that exist. Add the folder to a library afterwards.
  * `--collection` renders every template in a saved collection into the --out folder with the settings
  * each item carries; items the library cannot answer for are named and skipped.
  * `--batch` renders one output per CSV row into the folder given by --out, parameters from the row's
@@ -230,6 +250,7 @@ interface CliRender {
   frameFormat?: string;
   batch?: string;
   collection?: string;
+  sampleMedia?: string;
   options: RenderOptions;
   /** In and out points as typed; parsed once the frame rate is known. */
   inPoint?: string;
@@ -240,8 +261,8 @@ interface CliRender {
 
 function parseCliRender(argv: string[]): CliRender | null {
   const i = argv.indexOf('--render');
-  // --collection renders a saved file and names no template of its own.
-  if (i === -1 && argv.indexOf('--collection') === -1) return null;
+  // --collection renders a saved file and --sample-media makes files; neither names a template of its own.
+  if (i === -1 && argv.indexOf('--collection') === -1 && argv.indexOf('--sample-media') === -1) return null;
   const get = (flag: string): string | undefined => {
     const at = argv.indexOf(flag);
     return at === -1 ? undefined : argv[at + 1];
@@ -283,6 +304,7 @@ function parseCliRender(argv: string[]): CliRender | null {
   const outPoint = get('--out-point');
   const batch = get('--batch');
   const collection = get('--collection');
+  const sampleMedia = get('--sample-media');
   return {
     templateId: argv[i + 1] ?? '',
     presetId: get('--preset') ?? 'prores-4444',
@@ -294,6 +316,7 @@ function parseCliRender(argv: string[]): CliRender | null {
     ...(inPoint !== undefined ? { inPoint } : {}),
     ...(batch !== undefined ? { batch: resolve(batch) } : {}),
     ...(collection !== undefined ? { collection: resolve(collection) } : {}),
+    ...(sampleMedia !== undefined ? { sampleMedia: resolve(sampleMedia) } : {}),
     ...(outPoint !== undefined ? { outPoint } : {}),
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
     ...(frameFormat !== undefined ? { frameFormat } : {}),
@@ -302,6 +325,7 @@ function parseCliRender(argv: string[]): CliRender | null {
 
 async function runCliRender(cli: CliRender): Promise<number> {
   if (cli.libraries.length > 0) await rescan(cli.libraries);
+  if (cli.sampleMedia !== undefined) return runCliSampleMedia(cli.sampleMedia);
   if (cli.collection !== undefined) return runCliCollection(cli);
   const template = await findTemplate(cli.templateId);
   if (!template) {
@@ -354,6 +378,20 @@ async function runCliRender(cli: CliRender): Promise<number> {
   const seconds = (Date.now() - started) / 1000;
   console.log(`wrote ${result.output} (${result.frames} frames in ${seconds.toFixed(1)} s, ${(result.frames / seconds).toFixed(1)} frames/s)`);
   return 0;
+}
+
+/** --sample-media: fill a folder with the sample-media catalogue and say what happened to each file. */
+async function runCliSampleMedia(folder: string): Promise<number> {
+  if (!folder) {
+    console.error('Missing --sample-media <folder>.');
+    return 2;
+  }
+  const started = Date.now();
+  const report = await generateSampleMedia(folder, ({ done, total, file, outcome }) => console.log(`${done}/${total} ${outcome} ${file}`));
+  for (const f of report.failed) console.error(`failed: ${f.file || folder}: ${f.reason}`);
+  const seconds = (Date.now() - started) / 1000;
+  console.log(`sample media in ${folder}: ${report.written.length} written, ${report.skipped.length} already there, ${report.failed.length} failed (${seconds.toFixed(1)} s)`);
+  return report.failed.length > 0 ? 1 : 0;
 }
 
 /**

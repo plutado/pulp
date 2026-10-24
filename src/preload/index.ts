@@ -14,6 +14,7 @@ const api: PulpApi = {
     return () => ipcRenderer.removeListener('library:changed', handler);
   },
   addLibraryFolder: () => ipcRenderer.invoke('library:add-folder'),
+  addSampleMedia: () => ipcRenderer.invoke('library:add-sample-media'),
   ffmpegStatus: () => ipcRenderer.invoke('ffmpeg:status'),
   render: (request) => ipcRenderer.invoke('queue:add', request),
   renderBatch: (request) => ipcRenderer.invoke('queue:add-batch', request),

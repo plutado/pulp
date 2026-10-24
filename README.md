@@ -47,6 +47,7 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - A resizable window shell whose panes collapse and are remembered, a render queue in a bottom tray, and a status bar with ffmpeg, library counts, cache size and activity.
 - Results as a grid of cards — thumbnail, name and badges for alpha, loop, duration, resolution and pack — or as a list with name, duration, type, themes and file columns, with the grid/list toggle and the thumbnail size in the search bar. Only what is in view is built, so a library of thousands scrolls smoothly.
 - Collections: gather items while browsing (Add to collection, or drag a card into the tray), give each its own output settings, reorder them, apply one item's settings to all, save and reopen the collection as a file, and render the lot into one folder. A saved collection also records what a project used: items it can no longer find are flagged, not dropped.
+- Sample media on demand: a "Sample media" folder of original CC0 sounds, music, stills and clips, made with ffmpeg and the renderer when you ask for it, so the browse tree has something under every media type.
 - A headless command-line render mode (below).
 
 Not yet: vertical and square formats (the template format now declares shapes and headless renders take an aspect and a size; the window's controls, the orientation filter and vertical samples are still to come), social-ready export (gather items, render all), installers and signed builds, verification on Windows. These are on the [roadmap](ROADMAP.md).

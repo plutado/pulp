@@ -23,6 +23,7 @@ import filmStrip from '@phosphor-icons/core/assets/regular/film-strip.svg?raw';
 import folder from '@phosphor-icons/core/assets/regular/folder.svg?raw';
 import frameCorners from '@phosphor-icons/core/assets/regular/frame-corners.svg?raw';
 import folderPlus from '@phosphor-icons/core/assets/regular/folder-plus.svg?raw';
+import sparkle from '@phosphor-icons/core/assets/regular/sparkle.svg?raw';
 import hardDrive from '@phosphor-icons/core/assets/regular/hard-drive.svg?raw';
 import image from '@phosphor-icons/core/assets/regular/image.svg?raw';
 import imageSquare from '@phosphor-icons/core/assets/regular/image-square.svg?raw';
@@ -89,6 +90,7 @@ const ICONS = {
   shapes,
   'sliders-horizontal': slidersHorizontal,
   'sort-ascending': sortAscending,
+  sparkle,
   'speaker-high': speakerHigh,
   'speaker-slash': speakerSlash,
   spinner,

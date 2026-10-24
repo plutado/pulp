@@ -18,6 +18,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { detectFfmpeg } from '../../src/core/ffmpeg';
 import { itemId } from '../../src/core/library-scan';
 import { mediaUrlFor } from '../../src/core/media-url';
+import { scanLibrary } from '../../src/core/library';
+import { SAMPLE_MEDIA, sampleMediaPath } from '../../src/core/sample-media';
 
 const run = promisify(execFile);
 const ROOT = join(__dirname, '..', '..');
@@ -229,6 +231,57 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(malformed.stderr).toContain('--size 1080');
     expect((await readdir(out)).filter((f) => f.startsWith('aspect-wrong_') || f.startsWith('aspect-bad_'))).toEqual([]);
   }, 120_000);
+
+  it('makes the whole sample-media folder, and every file lands with the type its folder means', async () => {
+    const folder = join(out, 'Sample media');
+    const makeAll = async () => {
+      try {
+        const { stdout, stderr } = await run(electron, ['.', '--sample-media', folder], { cwd: ROOT, timeout: 540_000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env } });
+        return { code: 0, stdout, stderr };
+      } catch (err) {
+        const e = err as { code?: number; stdout?: string; stderr?: string };
+        return { code: e.code ?? -1, stdout: e.stdout ?? '', stderr: e.stderr ?? '' };
+      }
+    };
+    const result = await makeAll();
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stdout).toMatch(/\d+ written, 0 already there, 0 failed/);
+    // Every catalogue file exists, and the library gives it the type the catalogue meant.
+    const index = await scanLibrary([folder]);
+    expect(index.problems).toEqual([]);
+    const byPath = new Map(index.media.map((m) => [m.path, m]));
+    for (const item of SAMPLE_MEDIA) {
+      const path = join(folder, ...sampleMediaPath(item));
+      expect(existsSync(path), path).toBe(true);
+      expect(byPath.get(path)?.type, path).toBe(item.type);
+    }
+    expect(existsSync(join(folder, 'LICENSE-CC0.txt'))).toBe(true);
+    // One of each kind through ffprobe: a clip at the catalogue size, a stereo mix, a still with alpha.
+    const clip = await probe(join(folder, 'Video clips', 'Stock footage', 'boardroom-loop.mp4'));
+    expect(clip).toMatchObject({ codec_name: 'h264', width: 1280, height: 720 });
+    const { stdout: mix } = await run(available!.ffprobe, ['-v', 'error', '-show_entries', 'stream=channels,sample_rate:format=duration', '-of', 'json', join(folder, 'Music', 'Full mix', 'night-drive.wav')]);
+    const mixInfo = JSON.parse(mix) as { streams: { channels: number; sample_rate: string }[]; format: { duration: string } };
+    expect(mixInfo.streams[0]).toMatchObject({ channels: 2, sample_rate: '48000' });
+    expect(Number(mixInfo.format.duration)).toBeCloseTo(16, 0);
+    expect(await probe(join(folder, 'Stills', 'Layered graphics', 'badge.png'))).toMatchObject({ width: 1080, height: 1080, pix_fmt: 'rgba' });
+    // The centre of the badge is opaque red, the corner transparent: the page drew, and alpha survived.
+    expect((await pixels(join(folder, 'Stills', 'Layered graphics', 'badge.png'), 540, 540))[3]).toBe(255);
+    expect((await pixels(join(folder, 'Stills', 'Layered graphics', 'badge.png'), 2, 2))[3]).toBe(0);
+    // No sound clips and none is near silence: a gain that stacks harmonics past full scale shows up here.
+    for (const item of SAMPLE_MEDIA) {
+      if (item.recipe.kind !== 'audio') continue;
+      const wav = join(folder, ...sampleMediaPath(item));
+      const { stderr } = await run(ffmpeg, ['-hide_banner', '-i', wav, '-af', 'volumedetect', '-f', 'null', '-']);
+      const max = Number(/max_volume: (-?[\d.]+) dB/.exec(stderr)?.[1]);
+      const mean = Number(/mean_volume: (-?[\d.]+) dB/.exec(stderr)?.[1]);
+      expect(max, `${item.file} peaks at ${max} dB`).toBeLessThan(-0.2);
+      expect(mean, `${item.file} averages ${mean} dB`).toBeGreaterThan(-50);
+    }
+    // Running it again writes nothing.
+    const again = await makeAll();
+    expect(again.code, again.stderr).toBe(0);
+    expect(again.stdout).toMatch(/0 written, \d+ already there, 0 failed/);
+  }, 600_000);
 
   it('keeps frames pixel-exact when the display is scaled to 150%', async () => {
     // Chromium's switch makes the primary display report scale 1.5, as Windows does at 150% scaling.

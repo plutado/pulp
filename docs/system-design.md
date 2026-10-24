@@ -53,6 +53,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 | `render-plan.ts` | yes | Output presets and `buildRenderPlan`, which returns the exact ffmpeg arguments. |
 | `render-guard.ts` | yes | Render loop guards: `withTimeout`, the frame call script, template error messages, which partial files to remove. |
 | `capture-format.ts` | yes | The probe page and `classifyCapture`: byte order and premultiplication of `toBitmap()` output, measured rather than assumed. |
+| `sample-media.ts`, `sample-stills.ts` | yes | The sample-media catalogue (milestone 21): every file's folder, intended type and recipe — an ffmpeg `lavfi` graph for sounds and music built from tone, noise and envelope helpers, a canvas page for stills, a bundled background template for clips — with the license and README text. |
 | `render-queue.ts` | yes | `RenderQueue`: job list with status and progress, one running at a time; snapshots go to the UI unchanged. |
 | `library-scan.ts` | Node | Media kinds, folder tags, loading one template folder. |
 | `library-store.ts` | Node | `LibraryStore` over `node:sqlite`: incremental scans, offline roots, per-item user data, `toIndex()`. |

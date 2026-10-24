@@ -420,6 +420,49 @@ export async function captureTemplateFrames(
   }
 }
 
+/**
+ * Draw one picture from a self-contained page (a data URL defining
+ * `window.pulpRender`, like the sample-media stills) at an exact size and
+ * return it as PNG. The page is not a library template, so there is no bridge:
+ * the call goes straight to the function, then two animation frames and a
+ * paint settle the capture the same way as a template frame.
+ */
+export async function captureStillPage(url: string, size: Size, params: Record<string, unknown>, timeoutMs = DEFAULT_LOAD_TIMEOUT_MS): Promise<{ ok: true; png: Buffer } | { ok: false; message: string }> {
+  const win = new BrowserWindow({
+    show: false,
+    width: size.width,
+    height: size.height,
+    useContentSize: true,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    webPreferences: { offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() }, sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
+  });
+  try {
+    win.setContentSize(size.width, size.height);
+    const state = { frame: 0, time: 0, progress: 0, fps: 1, duration: 1, totalFrames: 1, width: size.width, height: size.height, params };
+    await withTimeout(win.loadURL(url), timeoutMs, `the page did not load within ${Math.round(timeoutMs / 1000)} s`);
+    await withTimeout(
+      win.webContents.executeJavaScript(
+        `Promise.resolve(window.pulpRender(${JSON.stringify(state)})).then(function () { return new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); }); })`,
+      ),
+      timeoutMs,
+      `the page did not draw within ${Math.round(timeoutMs / 1000)} s`,
+    );
+    await paintComposited(win);
+    const image = await win.webContents.capturePage();
+    const got = image.getSize();
+    if (got.width !== size.width || got.height !== size.height) {
+      return { ok: false, message: `captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}` };
+    }
+    return { ok: true, png: image.toPNG() };
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
+  } finally {
+    win.destroy();
+  }
+}
+
 async function existingFiles(paths: string[]): Promise<Set<string>> {
   const found = await Promise.all(paths.map((p) => access(p).then(() => p, () => null)));
   return new Set(found.filter((p): p is string => p !== null));
