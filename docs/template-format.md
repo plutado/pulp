@@ -104,7 +104,7 @@ An image slot is a box in the layout that a chosen library still — a logo, a m
 | `fit` | `contain` or `cover` | no | `contain` (default) fits the whole image inside the box; `cover` fills the box and crops. |
 | `align` | string | no | Where a smaller image sits in the box: `center` (default), `left`, `right`, `top`, `bottom`, `top-left`, `top-right`, `bottom-left`, `bottom-right`. |
 | `margin` | number | no | Kept clear on every edge, as a fraction (0 to 0.45) of the box's shorter side. Default 0. |
-| `fallbackText` | string | no | The id of a `text` parameter of this template whose value stands in when no image is chosen: the company name set in type where the logo would be. |
+| `fallbackText` | string | no | The id of a `text` parameter — or of a text layer of one of this template's blocks — whose words stand in when no image is chosen: the company name set in type where the logo would be. |
 
 An image parameter has no `default`: with nothing chosen the slot is empty and the template draws its fallback, or nothing. **Treatments travel with the choice**, not with the template: the user picks original colours, tinted (with a colour), white or black for contrast, and an optional shadow or glow; the host applies the treatment before the template draws, so the template never handles pixels. PNG and SVG with alpha are the normal case; any library still is accepted.
 
@@ -176,6 +176,8 @@ An image layer has a `size` (the picture's height as a fraction of the frame's s
   }
 ]
 ```
+
+**Where the values live.** The stacks a person builds ride in the same bag of raw values as the parameters, under the key `@layers` — a parameter id cannot start with `@`, so the two can never collide. That is why layers go wherever parameters already go: the undo history, a saved preset, a collection card, a render request.
 
 **Use-time values.** What a person builds is a stack per block: the template's layers with the fields they changed, the layers they added (to open blocks only), in their order, with `hidden` for what is kept but not drawn. The host resolves it against the template (`resolveLayers` in `src/core/layers.ts`): a field that is wrong falls back to the template's and is reported, `type` and `required` are the template's and never change, a required layer that was dropped comes back where the template had it, and an addition to a full block is dropped. "Reset layers" is the template's own stacks again.
 

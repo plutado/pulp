@@ -50,7 +50,7 @@ interface Ws {
 }
 const WebSocketCtor = (globalThis as unknown as { WebSocket: new (url: string) => Ws }).WebSocket;
 
-interface Target { type: string; url: string; webSocketDebuggerUrl: string }
+interface Target { id: string; parentId?: string; type: string; url: string; webSocketDebuggerUrl: string }
 interface Context { id: number; origin?: string }
 
 class Session {
@@ -163,6 +163,8 @@ describe.skipIf(!electron)('inspector UI', () => {
   let page: Session;
   /** Scratch userData folder, so the app under test never reads or writes the real settings.json. */
   let userData = '';
+  /** The app window's own target, so the preview iframe can be told from a background render's window. */
+  let appTargetId = '';
   /** A library folder with a tiny PNG and, when ffmpeg is available, a 2 s MP4. */
   let mediaDir = '';
   let haveVideo = false;
@@ -270,23 +272,29 @@ describe.skipIf(!electron)('inspector UI', () => {
     );
   }
 
-  /** Read one preview pixel (straight RGBA, as the template's canvas holds it) in template coordinates. */
-  async function previewPixel(x: number, y: number, templateId = 'pulp.samples.lower-third-bar'): Promise<number[]> {
-    const expr = `(() => { const d = document.getElementById('c').getContext('2d').getImageData(${x}, ${y}, 1, 1).data; return [...d]; })()`;
-    // The preview iframe is its own target when Chromium puts it out of process, otherwise a context on the
-    // page. Background poster renders open offscreen windows on pulp-template:// too; those are 'page'
-    // targets and are not the preview.
-    const frame = (await targets()).find((t) => t.type !== 'page' && t.url.startsWith(`pulp-template://${templateId}/`));
+  /**
+   * Evaluate inside the template's own page. The preview iframe is its own target when Chromium puts
+   * it out of process, otherwise a context on the page. The background poster queue opens offscreen
+   * windows on `pulp-template://` as well, and one of those is not the preview: the iframe is the
+   * target whose parent is the app window, which is how it is told apart here.
+   */
+  async function inTemplate<T>(expr: string, templateId: string): Promise<T> {
+    const frame = (await targets()).find((t) => t.type !== 'page' && t.parentId === appTargetId && t.url.startsWith(`pulp-template://${templateId}/`));
     if (frame) {
       const s = await Session.connect(frame.webSocketDebuggerUrl);
       try {
-        return await s.eval<number[]>(expr);
+        return await s.eval<T>(expr);
       } finally {
         s.close();
       }
     }
     const ctx = [...page.contexts].reverse().find((c) => (c.origin ?? '').startsWith(`pulp-template://${templateId}`));
-    return page.eval<number[]>(expr, ctx?.id);
+    return page.eval<T>(expr, ctx?.id);
+  }
+
+  /** Read one preview pixel (straight RGBA, as the template's canvas holds it) in template coordinates. */
+  function previewPixel(x: number, y: number, templateId = 'pulp.samples.lower-third-bar'): Promise<number[]> {
+    return inTemplate<number[]>(`(() => { const d = document.getElementById('c').getContext('2d').getImageData(${x}, ${y}, 1, 1).data; return [...d]; })()`, templateId);
   }
 
   /** Move the scrubber and give the preview a moment to draw the frame. */
@@ -336,6 +344,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       target = (await targets()).find((t) => t.type === 'page' && /renderer\/index\.html/.test(t.url));
       return target !== undefined;
     }, 'the app window');
+    appTargetId = target!.id;
     page = await Session.connect(target!.webSocketDebuggerUrl);
     await page.send('Runtime.enable');
     await until(() => page.eval<boolean>(`document.querySelectorAll('#results li[data-id]').length > 0`), 'the library list');
@@ -495,9 +504,10 @@ describe.skipIf(!electron)('inspector UI', () => {
 
   it('keeps edits and history per template across a switch', async () => {
     await clickResult('Title Card');
-    await until(() => page.eval<boolean>(`document.querySelector('[data-param=title] input') !== null`), 'the title card form');
+    await until(() => page.eval<boolean>(`document.querySelector('#params .layers-block[data-block=card]') !== null`), 'the title card form');
     expect(await page.eval<boolean>(`document.getElementById('undo').disabled`)).toBe(true);
-    expect(await valueOf('[data-param=title] input')).toBe('Field Notes');
+    // The title card's words are layers now, so its title is a layer's text (milestone 23).
+    expect(await page.eval<string>(`document.querySelector('#params .layer-row[data-layer=title] .layer-text').value`)).toBe('Field Notes');
     await clickResult('Lower Third Bar');
     await until(() => page.eval<boolean>(`document.querySelector('[data-param=name] input') !== null`), 'the lower third form');
     expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
@@ -870,6 +880,135 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 90_000);
   });
 
+  describe('layers (milestone 23)', () => {
+    const CARD = 'pulp.samples.title-card';
+    const section = `document.querySelector('#params .layers-block[data-block=card]')`;
+    const rows = `[...document.querySelectorAll('#params .layer-row')]`;
+    const layerIds = () => page.eval<string[]>(`${rows}.map((r) => r.dataset.layer)`);
+    const shape = () => page.eval<string>(`document.getElementById('preview-frame').dataset.orientation`);
+
+    /**
+     * The bands of light text the card draws, top to bottom: one per line of type. Counted from the
+     * template's own canvas, so it is what was drawn and not what the form says. The rule is thin
+     * and coloured, so a band has to be a few rows tall to count.
+     */
+    const bands = async () => (await drawn()).bands;
+    /** The light bands and the canvas they were counted on, so a reading from the wrong page is obvious. */
+    const drawn = () =>
+      inTemplate<{ canvas: number[]; bands: { top: number; height: number; alpha: number }[] }>(
+        `(() => {
+          const c = document.getElementById('c'); const x = c.getContext('2d');
+          const d = x.getImageData(0, 0, c.width, c.height).data;
+          const out = []; let start = -1;
+          for (let y = 0; y < c.height; y++) {
+            let ink = 0, brightest = 0;
+            for (let px = 0; px < c.width; px += 3) {
+              const i = (y * c.width + px) * 4;
+              if (d[i] > 110 && d[i + 1] > 110 && d[i + 2] > 110) { ink++; brightest = Math.max(brightest, d[i]); }
+            }
+            if (ink > 1) { if (start < 0) { start = y; out.push({ top: y, height: 0, alpha: 0 }); } out[out.length - 1].height = y - start + 1; out[out.length - 1].alpha = Math.max(out[out.length - 1].alpha, brightest); }
+            else start = -1;
+          }
+          return { canvas: [c.width, c.height], bands: out.filter((b) => b.height > 3) };
+        })()`,
+        CARD,
+      );
+
+    const scrubAndWait = async (frame: number) => {
+      await scrubTo(frame);
+      await sleep(300);
+    };
+
+    it('shows the template\'s layers, draws them, and keeps a required one', async () => {
+      await clickResult('Title Card');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      expect(await layerIds()).toEqual(['title', 'subtitle']);
+      expect(await page.eval<string[]>(`${rows}.map((r) => r.querySelector('.layer-text').value)`)).toEqual(['Field Notes', 'Episode 1: Early Light']);
+      // The template marks the title required: it has no Remove, and the subtitle does.
+      expect(await page.eval<string[]>(`${rows}.map((r) => [...r.querySelectorAll('.layer-actions button')].map((b) => b.getAttribute('aria-label')).join()) `)).toEqual([
+        'Hide Title,Move Title up,Move Title down',
+        'Hide Subtitle,Move Subtitle up,Move Subtitle down,Remove Subtitle',
+      ]);
+      // Nothing has been changed yet, so there is nothing to reset.
+      expect(await page.eval<boolean>(`${section}.querySelector('.layers-reset').hidden`)).toBe(true);
+
+      await scrubAndWait(110);
+      const shown = await drawn();
+      expect(shown.canvas, JSON.stringify(shown)).toEqual([1920, 1080]);
+      expect(shown.bands, JSON.stringify(shown)).toHaveLength(2);
+      expect(shown.bands[0]!.height).toBeGreaterThan(shown.bands[1]!.height); // the title is set larger than its subtitle
+    }, 90_000);
+
+    it('adds a line that rides the same animation, hides it, reorders and removes it, all undoable', async () => {
+      await page.eval(`${section}.querySelector('[data-add=text]').click()`);
+      await until(async () => (await layerIds()).length === 3, 'the added layer');
+      const added = (await layerIds())[2]!;
+      await page.eval(`(() => { const i = ${rows}[2].querySelector('.layer-text'); i.value = 'Recorded on location'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await scrubAndWait(110);
+      await until(async () => (await bands()).length === 3, 'the third line in the preview');
+
+      // It rides the stack: each position starts 0.7 s after the one above it, and the card clears at the end.
+      await scrubAndWait(36); // 1.2 s: the subtitle is in, the third line starts at 1.4 s
+      const early = await bands();
+      expect(early.length, JSON.stringify(early)).toBe(2);
+      await scrubAndWait(60); // 2 s: all three
+      expect(await bands()).toHaveLength(3);
+      await scrubAndWait(149); // the last frame: everything has faded out
+      expect(await bands()).toHaveLength(0);
+      await scrubAndWait(110);
+
+      // Hidden: kept in the list, not drawn, and the stack closes up.
+      await page.eval(`${rows}[2].querySelector('[aria-label="Hide Line 3"]').click()`);
+      await until(async () => (await bands()).length === 2, 'the hidden line to go from the preview');
+      expect(await layerIds()).toEqual(['title', 'subtitle', added]);
+      expect(await page.eval<boolean>(`${rows}[2].classList.contains('hidden-layer')`)).toBe(true);
+      await page.eval(`${rows}[2].querySelector('[aria-label="Show Line 3"]').click()`);
+      await until(async () => (await bands()).length === 3, 'the line back');
+
+      // Reordered: the stack order is the list order, and the drawn order follows.
+      await page.eval(`${rows}[2].querySelector('[aria-label="Move Line 3 up"]').click()`);
+      await until(async () => (await layerIds())[1] === added, 'the reorder');
+      const reordered = await bands();
+      expect(reordered).toHaveLength(3);
+      // The middle band is now the added line, which is set at the block's own size: taller than the subtitle.
+      expect(reordered[1]!.height).toBeGreaterThan(reordered[2]!.height);
+
+      // Removed, then brought back by undo.
+      await page.eval(`${rows}[1].querySelector('[aria-label="Remove Line 3"]').click()`);
+      await until(async () => (await layerIds()).length === 2, 'the removed layer');
+      await page.eval(`document.getElementById('undo').click()`);
+      await until(async () => (await layerIds()).length === 3, 'undo bringing it back');
+      expect(await page.eval<string>(`${rows}[1].querySelector('.layer-text').value`)).toBe('Recorded on location');
+
+      // Reset layers puts the template's own back, and that is undoable too.
+      await page.eval(`${section}.querySelector('.layers-reset').click()`);
+      await until(async () => (await layerIds()).length === 2, 'the template\'s own layers');
+      expect(await page.eval<boolean>(`${section}.querySelector('.layers-reset').hidden`)).toBe(true);
+      expect(await page.eval<boolean>(`document.getElementById('reset-all').disabled`)).toBe(true);
+      await page.eval(`document.getElementById('undo').click()`);
+      await until(async () => (await layerIds()).length === 3, 'undo bringing the layers back');
+      await page.eval(`${section}.querySelector('.layers-reset').click()`);
+      await until(async () => (await layerIds()).length === 2, 'the template\'s own layers again');
+    }, 120_000);
+
+    it('lays the stack out for a tall frame as well, from the block\'s own box', async () => {
+      await scrubAndWait(110);
+      const wide = await drawn();
+      expect(wide.canvas).toEqual([1920, 1080]);
+      expect(wide.bands, JSON.stringify(wide)).toHaveLength(2);
+      await fire('#opt-aspect', '9:16', 'change');
+      await until(async () => (await shape()) === 'portrait', 'the tall preview');
+      await scrubAndWait(110);
+      const tall = await drawn();
+      expect(tall.canvas, JSON.stringify(tall)).toEqual([1080, 1920]);
+      expect(tall.bands, JSON.stringify(tall)).toHaveLength(2);
+      // The tall card keeps its bottom clear for captions, so the stack sits higher up the frame.
+      expect(tall.bands[0]!.top / 1920).toBeLessThan(wide.bands[0]!.top / 1080);
+      await fire('#opt-aspect', '16:9', 'change');
+      await until(async () => (await shape()) === 'landscape', 'the wide preview again');
+    }, 90_000);
+  });
+
   describe('saved presets and batch', () => {
     const nameValue = () => page.eval<string>(`document.querySelector('[data-param=name] input').value`);
     const options = () => page.eval<string[]>(`[...document.getElementById('param-preset-list').options].map((o) => o.value).filter(Boolean)`);
@@ -1026,7 +1165,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button');
       await page.eval(`document.getElementById('add-to-collection').click()`);
       await clickResult('Title Card');
-      await until(() => page.eval<boolean>(`document.querySelector('[data-param=title] input') !== null`), 'the title card form');
+      await until(() => page.eval<boolean>(`document.querySelector('#params .layers-block[data-block=card]') !== null`), 'the title card form');
       await page.eval(`document.getElementById('add-to-collection').click()`);
       await until(async () => (await names()).length === 2, 'two collected items');
       expect(await names()).toEqual(['Lower Third Bar', 'Title Card']);
@@ -1256,7 +1395,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         // Selecting marked the lower third used; select the title card too, so it is the most recent.
         await setSearch('');
         await clickResult('Title Card');
-        await until(() => page.eval<boolean>(`document.querySelector('[data-param=title] input') !== null`), 'the title card form');
+        await until(() => page.eval<boolean>(`document.querySelector('#params .layers-block[data-block=card]') !== null`), 'the title card form');
         await setSearch('recent:2 type:template');
         await until(async () => (await resultNames())[0] === 'Title Card', 'the recent list to update');
         expect(await resultNames()).toEqual(['Title Card', 'Lower Third Bar']);

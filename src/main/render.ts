@@ -22,12 +22,14 @@ import { access, mkdir, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { templateDefaultSize, type Size } from '../core/aspect';
 import { chosenImageIds, imageRequests, imageSlots, MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
+import { blockStates, layerImageChoices, layerImageIds, layerTexts } from '../core/layer-layout';
+import { resolveLayers } from '../core/layers';
 import { checkImages, readSlotImages } from './image-grant';
 import { lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, type FrameFormat, type RenderOptions } from '../core/render-plan';
-import { resolveParams } from '../core/params';
+import { resolveParams, splitLayers } from '../core/params';
 import {
   captureBytesMessage,
   captureSizeMessage,
@@ -157,13 +159,20 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   const unsupported = checkPresetSupport(ffmpeg, plan.preset);
   if (unsupported) return { ok: false, message: unsupported };
 
-  const { values, issues } = resolveParams(manifest, job.params);
+  // The layer stacks ride in the same bag as the parameters (src/core/params.ts), so a render gets
+  // the layers the person built wherever the parameters came from: the form, a card, a CSV row.
+  const { params: rawParams, layers: rawLayers } = splitLayers(job.params);
+  const { values, issues } = resolveParams(manifest, rawParams);
+  const { values: layers, issues: layerIssues } = resolveLayers(manifest, rawLayers);
+  warnings.push(...layerIssues.map((i) => `layer ${i.layer ? `${i.block}.${i.layer}` : i.block}: ${i.message}`));
   warnings.push(...plan.warnings, ...issues.map((i) => `parameter ${i.id}: ${i.message}`));
 
   // Image slots (ADR 0013): the chosen stills must be in the library, online and within the size
   // bound before anything is loaded; then the template is granted exactly those ids while it renders.
-  const slots = imageSlots(manifest.parameters, values, { width: plan.width, height: plan.height });
-  const imageIds = chosenImageIds(slots);
+  const renderSize = { width: plan.width, height: plan.height };
+  const blocks = blockStates(manifest, layers, renderSize);
+  const slots = imageSlots(manifest.parameters, values, renderSize, layerTexts(blocks));
+  const imageIds = [...new Set([...chosenImageIds(slots), ...layerImageIds(blocks)])];
   const refused = imageProblem(manifest, slots, imageIds);
   if (refused) return { ok: false, message: refused };
 
@@ -236,7 +245,8 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     }
     // Every chosen image is read by the main process, handed to the page as bytes, and decoded now,
     // before the first frame, under the load budget rather than a frame's (ADR 0013).
-    const requests = imageRequests(slots);
+    const requests = [...imageRequests(slots), ...layerImageChoices(blocks).map((c) => ({ id: c.id, treatment: c.treatment, tint: c.tint }))]
+      .filter((r, i, all) => all.findIndex((o) => o.id === r.id && o.treatment === r.treatment && o.tint === r.tint) === i);
     if (requests.length > 0) {
       try {
         const handed = await readSlotImages(imageIds);
@@ -281,7 +291,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       if (child.exitCode !== null) break;
 
       const frame = plan.firstFrame + i;
-      const state = frameState(timeline, frame, values, frameSize);
+      const state = frameState(timeline, frame, values, frameSize, layers);
       let pixels: Buffer;
       try {
         pixels = await withTimeout(
@@ -412,7 +422,9 @@ export async function captureTemplateFrames(
   options: { params?: Record<string, unknown>; size?: Size; frameTimeoutMs?: number; loadTimeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<CaptureFramesResult> {
   const { manifest } = template;
-  const { values } = resolveParams(manifest, options.params ?? {});
+  const { params: rawParams, layers: rawLayers } = splitLayers(options.params ?? {});
+  const { values } = resolveParams(manifest, rawParams);
+  const { values: layers } = resolveLayers(manifest, rawLayers);
   // The template's default size unless told otherwise: the hover strip wants the same frame the poster shows.
   const frameSize = { name: manifest.name, ...(options.size ?? templateDefaultSize(manifest)) };
   const win = new BrowserWindow({
@@ -451,7 +463,7 @@ export async function captureTemplateFrames(
     for (const frame of frames) {
       if (options.signal?.aborted) return { ok: false, message: 'Cancelled.' };
       try {
-        captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values, frameSize), frameSize, 'png'), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
+        captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values, frameSize, layers), frameSize, 'png'), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
       } catch (err) {
         if (err instanceof RenderTimeoutError) {
           win.webContents.forcefullyCrashRenderer();

@@ -11,6 +11,8 @@
 
 import { templateDefaultSize } from '../core/aspect';
 import { chosenImageIds, imageRequests, imageSlots } from '../core/image-slot';
+import { blockStates, layerImageChoices, layerImageIds } from '../core/layer-layout';
+import type { LayerValues } from '../core/layers';
 import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { frameCount, type TemplateManifest } from '../core/manifest';
@@ -73,6 +75,8 @@ const BACKGROUND_BUTTONS: Record<Exclude<StageBackground, 'custom'>, HTMLButtonE
 const s = {
   manifest: null as TemplateManifest | null,
   params: {} as ResolvedParams,
+  /** The layer stacks the person built, or none: the template's own then (src/core/layers.ts). */
+  layers: {} as LayerValues,
   frame: 0,
   playing: false,
   previewReady: false,
@@ -173,7 +177,7 @@ function postFrame(frame: number): void {
   const win = els.preview.contentWindow;
   if (!win || !s.manifest) return;
   s.inFlight = true;
-  win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, previewSize()) }, '*');
+  win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, previewSize(), s.layers) }, '*');
   updateTimecode(frame);
 }
 
@@ -186,15 +190,20 @@ function postFrame(frame: number): void {
 function syncImages(): void {
   const win = els.preview.contentWindow;
   if (!s.manifest || !win) return;
-  const slots = imageSlots(s.manifest.parameters, s.params, previewSize());
-  const requests = imageRequests(slots);
+  const size = previewSize();
+  const slots = imageSlots(s.manifest.parameters, s.params, size);
+  // The slots' images and the ones chosen for image layers are handed over together.
+  const blocks = blockStates(s.manifest, s.layers, size);
+  const layerIds = layerImageIds(blocks);
+  const requests = [...imageRequests(slots), ...layerImageChoices(blocks).map((c) => ({ id: c.id, treatment: c.treatment, tint: c.tint }))]
+    .filter((r, i, all) => all.findIndex((o) => o.id === r.id && o.treatment === r.treatment && o.tint === r.tint) === i);
   const key = requests.map((r) => `${r.id}|${r.treatment}|${r.tint}`).sort().join(',');
   if (key === s.imagesKey) return;
   s.imagesKey = key;
   s.imagesReady = false;
   const id = ++s.prepareId;
   // The main process reads exactly the chosen stills and the page gets their bytes (ADR 0013).
-  void window.pulp.loadSlotImages(chosenImageIds(slots)).then((handed) => {
+  void window.pulp.loadSlotImages([...new Set([...chosenImageIds(slots), ...layerIds])]).then((handed) => {
     if (id !== s.prepareId || !s.manifest || els.preview.contentWindow !== win) return;
     if (handed.missing.length > 0) {
       els.note.hidden = false;
@@ -293,13 +302,14 @@ function drawWaveform(entry: MediaEntry): void {
 }
 
 /** Load a template and show the frame at mid-progress, the frame the thumbnails use. */
-export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams): void {
+export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, layers: LayerValues = {}): void {
   stageStop();
   clearMediaPreview();
   clearNote();
   const m = entry.manifest;
   s.manifest = m;
   s.params = params;
+  s.layers = layers;
   s.frame = Math.floor(frameCount(m) / 2);
   s.previewReady = false;
   s.inFlight = false;
@@ -408,8 +418,9 @@ function applyZones(): void {
 }
 
 /** New parameter values (edit, undo, preset): redraw the current frame with them. */
-export function stageSetParams(params: ResolvedParams): void {
+export function stageSetParams(params: ResolvedParams, layers: LayerValues = {}): void {
   s.params = params;
+  s.layers = layers;
   requestFrame(s.frame);
 }
 

@@ -7,7 +7,7 @@ import { mountItemInfo } from './item-info';
 import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback } from './stage';
 import { initShell } from './shell';
 import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
-import { currentRawParams, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
+import { currentLayers, currentRawParams, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
 import { currentOptions, currentPresetId, initInspectorOutput, outputSetFfmpeg, outputShow, setTemplateShower, updateRenderControls } from './inspector-output';
 import { mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
@@ -122,7 +122,7 @@ function select(entry: LibraryEntry): void {
   showInspectorTab('parameters');
   void window.pulp.markItemUsed(entry.id);
   selectedTemplate.value = entry;
-  stageShowTemplate(entry, paramsShow(entry));
+  stageShowTemplate(entry, paramsShow(entry), currentLayers());
   outputShow(entry);
   renderResults();
 }

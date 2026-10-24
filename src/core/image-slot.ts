@@ -162,15 +162,24 @@ export interface ImageSlotParam {
   fallbackText?: string;
 }
 
-/** Every image slot a template has, laid out for this frame size with the chosen values. */
-export function imageSlots(parameters: readonly { id: string; type: string }[], values: Record<string, unknown>, size: Size): Record<string, ImageSlotState> {
+/**
+ * Every image slot a template has, laid out for this frame size with the chosen
+ * values. A slot's fallback text is a parameter's value or, where the piece's
+ * words are layers, the text of the layer it names (`fallbackLayers`).
+ */
+export function imageSlots(
+  parameters: readonly { id: string; type: string }[],
+  values: Record<string, unknown>,
+  size: Size,
+  fallbackLayers: Readonly<Record<string, string>> = {},
+): Record<string, ImageSlotState> {
   const slots: Record<string, ImageSlotState> = {};
   for (const param of parameters) {
     if (param.type !== 'image') continue;
     const p = param as ImageSlotParam;
     const value = sanitizeImageValue(values[p.id]) ?? null;
     const frac = boxFor(p.box, size);
-    const fallbackRaw = p.fallbackText ? values[p.fallbackText] : undefined;
+    const fallbackRaw = p.fallbackText ? values[p.fallbackText] ?? fallbackLayers[p.fallbackText] : undefined;
     slots[p.id] = {
       id: value?.id ?? null,
       treatment: value?.treatment ?? 'original',

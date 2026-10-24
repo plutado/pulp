@@ -439,14 +439,7 @@ export function validateManifest(raw: unknown): ValidationResult {
       seen.add(param.id);
       parameters.push(param);
     });
-    // A slot's fallback must name a text parameter of this template; checked once every parameter is known.
-    parameters.forEach((param, i) => {
-      if (param.type !== 'image' || param.fallbackText === undefined) return;
-      const target = parameters.find((other) => other.id === param.fallbackText);
-      if (!target || target.type !== 'text') {
-        errors.push({ path: `parameters[${i}].fallbackText`, message: `"${param.fallbackText}" is not a text parameter of this template` });
-      }
-    });
+
   }
 
   // Blocks and their layers (milestone 23); a template without any declares none.
@@ -465,6 +458,17 @@ export function validateManifest(raw: unknown): ValidationResult {
       seen.add(block.id);
       blocks.push(block);
     });
+  }
+
+  // A slot's fallback names the text that stands in for it: a text parameter, or a text layer of one
+  // of the template's blocks, so a piece whose words are layers still has something to fall back to.
+  for (const [i, param] of parameters.entries()) {
+    if (param.type !== 'image' || param.fallbackText === undefined) continue;
+    const parameter = parameters.find((other) => other.id === param.fallbackText);
+    const layer = blocks.flatMap((b) => b.layers).find((l) => l.id === param.fallbackText);
+    if ((!parameter || parameter.type !== 'text') && (!layer || layer.type !== 'text')) {
+      errors.push({ path: `parameters[${i}].fallbackText`, message: `"${param.fallbackText}" is not a text parameter or a text layer of this template` });
+    }
   }
 
   const known = new Set([

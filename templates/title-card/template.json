@@ -2,8 +2,8 @@
   "formatVersion": 1,
   "id": "pulp.samples.title-card",
   "name": "Title Card",
-  "description": "Centered title and subtitle that fade and track in over a solid background, with a thin rule between them.",
-  "version": "1.0.0",
+  "description": "Centered title and subtitle that fade and track in over a solid background, with a thin rule between them. The words are layers: add a line and it rides the same fade, in its turn.",
+  "version": "1.1.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
   "category": "title",
@@ -14,20 +14,8 @@
   "alpha": false,
   "entry": "index.html",
   "parameters": [
-    { "id": "title", "type": "text", "label": "Title", "default": "Field Notes", "maxLength": 48 },
-    { "id": "subtitle", "type": "text", "label": "Subtitle", "default": "Episode 1: Early Light", "maxLength": 80 },
     { "id": "background", "type": "color", "label": "Background", "default": "#0f172a", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#f8fafc", "group": "Colors" },
     { "id": "rule", "type": "color", "label": "Rule color", "default": "#38bdf8", "group": "Colors" },
-    {
-      "id": "font",
-      "type": "font",
-      "label": "Font",
-      "default": "Georgia, Times New Roman, serif",
-      "options": ["Helvetica Neue, Arial, sans-serif", "Georgia, Times New Roman, serif", "Menlo, Consolas, monospace"]
-    },
-    { "id": "uppercase", "type": "boolean", "label": "Uppercase title", "default": true },
-    { "id": "tracking", "type": "number", "label": "Letter spacing (px)", "default": 12, "min": 0, "max": 40, "step": 1 },
     {
       "id": "logo",
       "type": "image",
@@ -38,6 +26,53 @@
       "align": "center",
       "margin": 0.1,
       "fallbackText": "title"
+    }
+  ],
+  "blocks": [
+    {
+      "id": "card",
+      "label": "Card",
+      "box": {
+        "16:9": { "x": 0.07, "y": 0.2892592593, "width": 0.86, "height": 0.4 },
+        "9:16": { "x": 0.07, "y": 0.2339583333, "width": 0.86, "height": 0.4 },
+        "1:1": { "x": 0.07, "y": 0.2892592593, "width": 0.86, "height": 0.4 },
+        "4:5": { "x": 0.07, "y": 0.2914074074, "width": 0.86, "height": 0.4 },
+        "default": { "x": 0.07, "y": 0.2892592593, "width": 0.86, "height": 0.4 }
+      },
+      "gap": 0.0411111111,
+      "align": "center",
+      "verticalAlign": "middle",
+      "open": true,
+      "typography": {
+        "family": "Georgia, Times New Roman, serif",
+        "size": 0.0888888889,
+        "weight": 400,
+        "color": "#f8fafc",
+        "align": "center",
+        "lineHeight": 1.1458333333
+      },
+      "layers": [
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Title",
+          "text": "Field Notes",
+          "required": true,
+          "case": "upper",
+          "letterSpacing": 0.125,
+          "maxLines": 3
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "label": "Subtitle",
+          "text": "Episode 1: Early Light",
+          "size": 0.0351851852,
+          "italic": true,
+          "lineHeight": 1.2,
+          "overflow": "shrink"
+        }
+      ]
     }
   ]
 }

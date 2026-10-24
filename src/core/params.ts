@@ -8,10 +8,31 @@
  */
 
 import { sanitizeImageValue, type ImageValue } from './image-slot';
+import type { LayerValues } from './layers';
 import { isValidColor, type TemplateManifest, type TemplateParameter } from './manifest';
 
 export type ParamValue = string | number | boolean | ImageValue | null;
 export type ResolvedParams = Record<string, ParamValue>;
+
+/**
+ * Where the layer stacks a person built ride, inside the same bag of raw values
+ * as the parameters (milestone 23). A parameter id is letters, digits and
+ * underscore and cannot start with "@", so the key can never be one; keeping
+ * the two together means layers travel wherever parameters already do — the
+ * undo history, a collection card, a render request — without a second channel.
+ */
+export const LAYERS_KEY = '@layers';
+
+/** Raw values split into the parameters and the layer stacks that rode with them. */
+export function splitLayers(raw: Record<string, unknown>): { params: Record<string, unknown>; layers: LayerValues } {
+  const { [LAYERS_KEY]: layers, ...params } = raw;
+  return { params, layers: (layers ?? {}) as LayerValues };
+}
+
+/** The raw values with the layer stacks put back in, or untouched when there are none. */
+export function withLayers(params: Record<string, unknown>, layers: LayerValues | undefined): Record<string, unknown> {
+  return layers && Object.keys(layers).length > 0 ? { ...params, [LAYERS_KEY]: layers } : { ...params };
+}
 
 export interface ParamIssue {
   id: string;
@@ -106,6 +127,7 @@ export function resolveParams(
       : param.default;
   }
   for (const key of Object.keys(input)) {
+    if (key === LAYERS_KEY) continue; // the layer stacks ride in the same bag; they are not a parameter
     if (!known.has(key)) issues.push({ id: key, message: 'unknown parameter; ignored' });
   }
   return { values, issues };

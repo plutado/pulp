@@ -10,7 +10,7 @@
 
 import type { Size } from './aspect';
 import { imageSlots, type ImageSlotState } from './image-slot';
-import { blockStates, type BlockState } from './layer-layout';
+import { blockStates, layerTexts, type BlockState } from './layer-layout';
 import type { Block, LayerValues } from './layers';
 import { frameCount, type TemplateManifest, type TemplateParameter } from './manifest';
 import type { ResolvedParams } from './params';
@@ -53,6 +53,7 @@ export function frameState(
   layers: LayerValues = {},
 ): FrameState {
   const totalFrames = frameCount(manifest);
+  const blocks = manifest.blocks ? blockStates({ blocks: manifest.blocks as Block[] }, layers, size) : {};
   const f = Math.min(Math.max(0, Math.floor(frame)), totalFrames - 1);
   const time = f / manifest.fps;
   return {
@@ -65,8 +66,8 @@ export function frameState(
     width: size.width,
     height: size.height,
     params,
-    images: manifest.parameters ? imageSlots(manifest.parameters, params, size) : {},
-    blocks: manifest.blocks ? blockStates({ blocks: manifest.blocks as Block[] }, layers, size) : {},
+    images: manifest.parameters ? imageSlots(manifest.parameters, params, size, layerTexts(blocks)) : {},
+    blocks,
   };
 }
 

@@ -20,6 +20,8 @@ import dotsSixVertical from '@phosphor-icons/core/assets/regular/dots-six-vertic
 import deviceMobile from '@phosphor-icons/core/assets/regular/device-mobile.svg?raw';
 import downloadSimple from '@phosphor-icons/core/assets/regular/download-simple.svg?raw';
 import exportIcon from '@phosphor-icons/core/assets/regular/export.svg?raw';
+import eye from '@phosphor-icons/core/assets/regular/eye.svg?raw';
+import eyeSlash from '@phosphor-icons/core/assets/regular/eye-slash.svg?raw';
 import filmStrip from '@phosphor-icons/core/assets/regular/film-strip.svg?raw';
 import folder from '@phosphor-icons/core/assets/regular/folder.svg?raw';
 import frameCorners from '@phosphor-icons/core/assets/regular/frame-corners.svg?raw';
@@ -32,6 +34,7 @@ import info from '@phosphor-icons/core/assets/regular/info.svg?raw';
 import magnifyingGlass from '@phosphor-icons/core/assets/regular/magnifying-glass.svg?raw';
 import musicNotes from '@phosphor-icons/core/assets/regular/music-notes.svg?raw';
 import packageIcon from '@phosphor-icons/core/assets/regular/package.svg?raw';
+import plus from '@phosphor-icons/core/assets/regular/plus.svg?raw';
 import palette from '@phosphor-icons/core/assets/regular/palette.svg?raw';
 import question from '@phosphor-icons/core/assets/regular/question.svg?raw';
 import repeat from '@phosphor-icons/core/assets/regular/repeat.svg?raw';
@@ -73,6 +76,8 @@ const ICONS = {
   'device-mobile': deviceMobile,
   'download-simple': downloadSimple,
   export: exportIcon,
+  eye,
+  'eye-slash': eyeSlash,
   'film-strip': filmStrip,
   folder,
   'folder-plus': folderPlus,
@@ -85,6 +90,7 @@ const ICONS = {
   'music-notes': musicNotes,
   package: packageIcon,
   palette,
+  plus,
   pause,
   question,
   play,

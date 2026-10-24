@@ -12,47 +12,17 @@
 <canvas id="c"></canvas>
 <script>
   // Sample template for Pulp. CC0-1.0: no rights reserved.
+  //
+  // The words are a block of layers (docs/template-format.md, "Blocks and layers"): the host
+  // measures, wraps and stacks them, and this template says how they move. A line added to the
+  // block takes the movement of the position it lands in, so a third line fades in after the
+  // subtitle without this file knowing anything about it.
   'use strict';
   var canvas = document.getElementById('c');
   var ctx = canvas.getContext('2d');
 
   function clamp01(x) { return Math.max(0, Math.min(1, x)); }
   function easeInOutSine(x) { return -(Math.cos(Math.PI * x) - 1) / 2; }
-
-  function spacedWidth(text, spacing) {
-    var total = 0;
-    for (var i = 0; i < text.length; i++) total += ctx.measureText(text[i]).width + (i < text.length - 1 ? spacing : 0);
-    return total;
-  }
-
-  // Greedy word wrap with the current font and spacing; ok is false when one word is wider than maxW.
-  function wrapWords(text, maxW, spacing) {
-    var words = text.split(/\s+/).filter(Boolean), lines = [], line = '', ok = true;
-    for (var i = 0; i < words.length; i++) {
-      var test = line ? line + ' ' + words[i] : words[i];
-      if (!line || spacedWidth(test, spacing) <= maxW) line = test;
-      else { lines.push(line); line = words[i]; }
-      if (spacedWidth(line, spacing) > maxW) ok = false;
-    }
-    if (line) lines.push(line);
-    return { lines: lines, ok: ok };
-  }
-
-  // Draw text with manual letter spacing so it behaves the same in every Chromium version.
-  function spacedText(text, cx, y, spacing) {
-    var widths = [], total = 0;
-    for (var i = 0; i < text.length; i++) {
-      var w = ctx.measureText(text[i]).width;
-      widths.push(w);
-      total += w + (i < text.length - 1 ? spacing : 0);
-    }
-    var x = cx - total / 2;
-    ctx.textAlign = 'left';
-    for (var j = 0; j < text.length; j++) {
-      ctx.fillText(text[j], x, y);
-      x += widths[j] + spacing;
-    }
-  }
 
   window.pulpRender = function (state) {
     var p = state.params;
@@ -62,64 +32,49 @@
     }
     var W = state.width, H = state.height, t = state.time, d = state.duration;
     var s = Math.min(W, H) / 1080;
-    // A tall frame keeps its bottom 22% for captions, so the block sits a little above the middle
-    // and the title wraps onto up to three lines inside 86% of the width.
-    var tall = H > W * 1.3;
-    var mid = tall ? H * 0.44 : H / 2;
 
     ctx.globalAlpha = 1;
     ctx.fillStyle = p.background;
     ctx.fillRect(0, 0, W, H);
 
-    var fadeIn = easeInOutSine(clamp01(t / 1.2));
     var fadeOut = easeInOutSine(clamp01((t - (d - 0.8)) / 0.8));
-    var vis = fadeIn * (1 - fadeOut);
-
-    var title = p.uppercase ? p.title.toUpperCase() : p.title;
-    var tracking = (p.tracking + (1 - fadeIn) * 24) * s;
-    var titleSize = 96 * s, wrapped;
-    for (var k = 0; k < 12; k++) {
-      ctx.font = '400 ' + titleSize + 'px ' + p.font;
-      wrapped = wrapWords(title, 0.86 * W, tracking);
-      if (wrapped.ok && wrapped.lines.length <= 3) break;
-      titleSize *= 0.92;
+    // The first line leads; each one after it waits its turn and comes in a little quicker.
+    function fadeAt(position) {
+      var start = position === 0 ? 0 : 0.7 * position;
+      var over = position === 0 ? 1.2 : 1.0;
+      return easeInOutSine(clamp01((t - start) / over));
     }
-    var lines = wrapped.lines, lineH = 110 * s;
+    var titleFade = fadeAt(0);
 
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = p.text;
-    ctx.globalAlpha = vis;
-    ctx.font = '400 ' + titleSize + 'px ' + p.font;
-    for (var li = 0; li < lines.length; li++) {
-      spacedText(lines[li], W / 2, mid - 24 * s - (lines.length - 1 - li) * lineH, tracking);
-    }
-    // A chosen logo is a mark centred above the title, fading with it. With no logo the slot falls
-    // back to the title, already set, so nothing changes.
-    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
-    if (hasLogo) {
+    var card = window.pulpLayoutBlock(ctx, state, 'card', {
+      each: function (layer, position) {
+        var over = { alpha: fadeAt(position) * (1 - fadeOut) };
+        // The first line tracks out wide and settles as it arrives; the layer's own spacing is where it settles.
+        if (position === 0 && layer.type === 'text') {
+          over.letterSpacing = layer.letterSpacing + (1 - titleFade) * 24 * s / layer.fontSize;
+        }
+        return over;
+      }
+    });
+    window.pulpDrawBlock(ctx, card);
+
+    var first = card.layers[0];
+    // A chosen logo is a mark centred above the first line, fading with it. With no logo the slot
+    // falls back to that line's text, already set, so nothing changes.
+    if (state.images && state.images.logo && state.images.logo.bitmap && first.lines.length) {
       var mark = 110 * s;
-      var firstBase = mid - 24 * s - (lines.length - 1) * lineH;
+      ctx.globalAlpha = titleFade * (1 - fadeOut);
       window.pulpDrawImage(ctx, state, 'logo', {
-        x: W / 2 - mark / 2, y: firstBase - titleSize * 0.95 - 28 * s - mark, width: mark, height: mark
+        x: W / 2 - mark / 2, y: first.lines[0].baseline - first.size * 0.95 - 28 * s - mark, width: mark, height: mark
       });
+      ctx.globalAlpha = 1;
     }
 
+    // The rule sits under the first line and grows from the centre, so it follows the stack.
     var ruleW = 360 * s * easeInOutSine(clamp01((t - 0.3) / 1.2)) * (1 - fadeOut);
     ctx.globalAlpha = 1;
     ctx.fillStyle = p.rule;
-    ctx.fillRect(W / 2 - ruleW / 2, mid + 6 * s, ruleW, 3 * s);
-
-    ctx.globalAlpha = easeInOutSine(clamp01((t - 0.7) / 1.0)) * (1 - fadeOut);
-    ctx.fillStyle = p.text;
-    var subSize = 38 * s;
-    ctx.font = 'italic 400 ' + subSize + 'px ' + p.font;
-    var subW = ctx.measureText(p.subtitle).width;
-    if (subW > 0.86 * W) {
-      subSize *= 0.86 * W / subW;
-      ctx.font = 'italic 400 ' + subSize + 'px ' + p.font;
-    }
-    ctx.textAlign = 'center';
-    ctx.fillText(p.subtitle, W / 2, mid + 70 * s);
+    ctx.fillRect(W / 2 - ruleW / 2, first.box.y + first.box.height + 10.8 * s, ruleW, 3 * s);
     ctx.globalAlpha = 1;
   };
 </script>

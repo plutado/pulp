@@ -360,13 +360,29 @@ export function fitLayerImage(layer: LaidLayer, imageW: number, imageH: number):
   return fitImage(layer.box, imageW, imageH, 'contain', 'center', 0);
 }
 
-/** The library ids the blocks' image layers need, so the grant covers them like a slot's (ADR 0013). */
-export function layerImageIds(blocks: Record<string, BlockState>): string[] {
-  const ids = new Set<string>();
+/** The text of every text layer, by layer id: what an image slot's `fallbackText` reads when it names one. */
+export function layerTexts(blocks: Record<string, BlockState>): Record<string, string> {
+  const out: Record<string, string> = {};
   for (const block of Object.values(blocks)) {
     for (const layer of block.layers) {
-      if (layer.type === 'image' && layer.image) ids.add(layer.image.id);
+      if (layer.type === 'text' && out[layer.id] === undefined) out[layer.id] = layer.text;
     }
   }
-  return [...ids];
+  return out;
+}
+
+/** The images the blocks' layers have chosen, one entry per layer that has one. */
+export function layerImageChoices(blocks: Record<string, BlockState>): ImageValue[] {
+  const out: ImageValue[] = [];
+  for (const block of Object.values(blocks)) {
+    for (const layer of block.layers) {
+      if (layer.type === 'image' && layer.image) out.push(layer.image);
+    }
+  }
+  return out;
+}
+
+/** The library ids the blocks' image layers need, so the grant covers them like a slot's (ADR 0013). */
+export function layerImageIds(blocks: Record<string, BlockState>): string[] {
+  return [...new Set(layerImageChoices(blocks).map((image) => image.id))];
 }

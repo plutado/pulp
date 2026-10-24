@@ -9,10 +9,11 @@
 import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
 import { History } from '../core/history';
 import type { TemplateEntry } from '../core/library-types';
-import type { TemplateParameter } from '../core/manifest';
+import type { TemplateManifest, TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
-import { resolveParams, type ResolvedParams } from '../core/params';
+import { LAYERS_KEY, resolveParams, type ResolvedParams } from '../core/params';
+import { defaultLayers, newLayer, resolveLayers, type Layer, type LayerType, type LayerValues } from '../core/layers';
 import { addRecentColor } from '../core/recent-colors';
 import { dimensionsLabel } from '../core/display';
 import { IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } from '../core/image-slot';
@@ -117,7 +118,7 @@ function setParam(id: string, value: unknown): void {
   p.raw[id] = value;
   editorFor(selected.manifest.id).current = p.raw;
   p.values = resolveParams(selected.manifest, p.raw).values;
-  stageSetParams(p.values);
+  stageSetParams(p.values, currentLayers());
   scheduleCommit();
   updateResetButtons();
 }
@@ -136,8 +137,8 @@ function applySnapshot(snapshot: Snapshot, record: boolean): void {
   }
   editor.committed = { ...p.raw };
   p.values = resolveParams(selected.manifest, p.raw).values;
-  buildParamForm(selected.manifest.parameters);
-  stageSetParams(p.values);
+  buildParamForm(selected.manifest);
+  stageSetParams(p.values, currentLayers());
   updateHistoryButtons();
 }
 
@@ -181,7 +182,12 @@ function updateHistoryButtons(): void {
 /** Show the per-field reset only where the value differs from the default. */
 function updateResetButtons(): void {
   for (const button of els.params.querySelectorAll<HTMLButtonElement>('.field-reset')) {
-    button.hidden = !(button.dataset.param! in p.raw);
+    if (button.dataset.param === undefined) continue; // the layers reset has its own rule
+    button.hidden = !(button.dataset.param in p.raw);
+  }
+  const selected = selectedTemplate.value;
+  for (const button of els.params.querySelectorAll<HTMLButtonElement>('.layers-reset')) {
+    button.hidden = !selected || sameLayers(currentLayers(), defaultLayers(selected.manifest));
   }
   els.resetAll.disabled = !selectedTemplate.value || Object.keys(p.raw).length === 0;
 }
@@ -773,10 +779,196 @@ function colorField(initial: string, onChange: (hex: string) => void): HTMLEleme
   return field;
 }
 
-function buildParamForm(parameters: TemplateParameter[]): void {
+// ---------------------------------------------------------------- layers (milestone 23)
+
+/**
+ * The layer stacks as they are now: what the person built, resolved against the
+ * template, or the template's own when they have built nothing. They live in the
+ * same bag of raw values as the parameters (`LAYERS_KEY`), so undo, reset and a
+ * saved preset carry them without a second history.
+ */
+export function currentLayers(): LayerValues {
+  const selected = selectedTemplate.value;
+  if (!selected || selected.manifest.blocks.length === 0) return {};
+  return resolveLayers(selected.manifest, p.raw[LAYERS_KEY]).values;
+}
+
+const sameLayers = (a: LayerValues, b: LayerValues): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Put a changed stack back. A stack that matches the template's own is no edit
+ * at all, so it is removed rather than stored — "Reset layers" then leaves the
+ * template as it was found, and Reset all stays disabled.
+ */
+function setLayers(next: LayerValues, rebuild: boolean): void {
+  const selected = selectedTemplate.value;
+  if (!selected) return;
+  if (sameLayers(next, defaultLayers(selected.manifest))) delete p.raw[LAYERS_KEY];
+  else p.raw[LAYERS_KEY] = next;
+  editorFor(selected.manifest.id).current = p.raw;
+  stageSetParams(p.values, currentLayers());
+  if (rebuild) {
+    buildParamForm(selected.manifest);
+    commitParams();
+  } else scheduleCommit();
+  updateResetButtons();
+}
+
+/** Change one layer of one block, keeping the rest of the stack. */
+function editLayer(blockId: string, layerId: string, change: (layer: Layer) => Layer, rebuild: boolean): void {
+  const layers = currentLayers();
+  const stack = layers[blockId];
+  if (!stack) return;
+  setLayers({ ...layers, [blockId]: stack.map((l) => (l.id === layerId ? change(l) : l)) }, rebuild);
+}
+
+/** A layer id that is free in this block, for one being added. */
+function freeLayerId(stack: readonly Layer[], type: LayerType): string {
+  for (let n = stack.length + 1; ; n++) {
+    const id = `${type}_${n}`;
+    if (!stack.some((l) => l.id === id)) return id;
+  }
+}
+
+function addLayer(blockId: string, type: LayerType): void {
+  const selected = selectedTemplate.value;
+  const block = selected?.manifest.blocks.find((b) => b.id === blockId);
+  if (!block) return;
+  const layers = currentLayers();
+  const stack = layers[blockId] ?? [];
+  const layer = newLayer(type, block, freeLayerId(stack, type), type === 'text' ? `Line ${stack.length + 1}` : `Image ${stack.length + 1}`);
+  setLayers({ ...layers, [blockId]: [...stack, layer] }, true);
+}
+
+function removeLayer(blockId: string, layerId: string): void {
+  const layers = currentLayers();
+  const stack = layers[blockId];
+  if (!stack) return;
+  setLayers({ ...layers, [blockId]: stack.filter((l) => l.id !== layerId || l.required) }, true);
+}
+
+/** Move a layer one place along the stack; the ends do nothing. */
+function moveLayer(blockId: string, layerId: string, delta: -1 | 1): void {
+  const layers = currentLayers();
+  const stack = layers[blockId];
+  if (!stack) return;
+  const from = stack.findIndex((l) => l.id === layerId);
+  const to = from + delta;
+  if (from < 0 || to < 0 || to >= stack.length) return;
+  const next = [...stack];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved!);
+  setLayers({ ...layers, [blockId]: next }, true);
+}
+
+function resetLayers(blockId: string): void {
+  const selected = selectedTemplate.value;
+  if (!selected) return;
+  setLayers({ ...currentLayers(), [blockId]: defaultLayers(selected.manifest)[blockId] ?? [] }, true);
+}
+
+/** One block's layers: the stack, what can be done to each, and how to add one. */
+function layersSection(manifest: TemplateManifest, blockId: string, label: string, showLabel: boolean): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'layers-block';
+  section.dataset.block = blockId;
+  const head = document.createElement('div');
+  head.className = 'field-head';
+  const title = document.createElement('span');
+  title.textContent = showLabel ? `Layers · ${label}` : 'Layers';
+  const reset = document.createElement('button');
+  reset.type = 'button';
+  reset.className = 'field-reset layers-reset';
+  reset.textContent = 'Reset layers';
+  reset.title = 'Put this template\'s own layers back';
+  reset.hidden = sameLayers(currentLayers(), defaultLayers(manifest));
+  reset.addEventListener('click', (e) => {
+    e.preventDefault();
+    resetLayers(blockId);
+  });
+  head.append(title, reset);
+  section.append(head);
+
+  const stack = currentLayers()[blockId] ?? [];
+  const list = document.createElement('ul');
+  list.className = 'layer-list';
+  stack.forEach((layer, index) => list.append(layerRow(blockId, layer, index, stack.length)));
+  section.append(list);
+
+  const add = document.createElement('div');
+  add.className = 'layer-add';
+  const addLabel = document.createElement('span');
+  addLabel.textContent = 'Add layer';
+  add.append(addLabel);
+  for (const type of ['text', 'image'] as LayerType[]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.add = type;
+    button.textContent = type === 'text' ? 'Text' : 'Image';
+    setIcon(button, 'plus');
+    button.addEventListener('click', () => addLayer(blockId, type));
+    add.append(button);
+  }
+  section.append(add);
+  return section;
+}
+
+function layerRow(blockId: string, layer: Layer, index: number, count: number): HTMLElement {
+  const row = document.createElement('li');
+  row.className = `layer-row${layer.hidden ? ' hidden-layer' : ''}`;
+  row.dataset.layer = layer.id;
+  const head = document.createElement('div');
+  head.className = 'layer-head';
+  const name = document.createElement('span');
+  name.className = 'layer-label';
+  name.textContent = layer.label;
+  const actions = document.createElement('span');
+  actions.className = 'layer-actions';
+
+  const hide = iconButton(layer.hidden ? 'eye-slash' : 'eye', layer.hidden ? `Show ${layer.label}` : `Hide ${layer.label}`,
+    layer.hidden ? 'Kept, but not drawn: show it again' : 'Keep the layer but stop drawing it; the stack closes up');
+  hide.setAttribute('aria-pressed', String(layer.hidden));
+  hide.addEventListener('click', () => editLayer(blockId, layer.id, (l) => ({ ...l, hidden: !l.hidden }), true));
+
+  const up = iconButton('caret-up', `Move ${layer.label} up`);
+  up.disabled = index === 0;
+  up.addEventListener('click', () => moveLayer(blockId, layer.id, -1));
+  const down = iconButton('caret-down', `Move ${layer.label} down`);
+  down.disabled = index === count - 1;
+  down.addEventListener('click', () => moveLayer(blockId, layer.id, 1));
+  actions.append(hide, up, down);
+
+  // A layer the template marks required stays: there is no Remove for it.
+  if (!layer.required) {
+    const remove = iconButton('trash', `Remove ${layer.label}`);
+    remove.addEventListener('click', () => removeLayer(blockId, layer.id));
+    actions.append(remove);
+  }
+  head.append(name, actions);
+  row.append(head);
+
+  if (layer.type === 'text') {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'layer-text';
+    input.value = layer.text;
+    input.setAttribute('aria-label', `${layer.label} text`);
+    input.addEventListener('input', () => editLayer(blockId, layer.id, (l) => ({ ...l, text: input.value }), false));
+    input.addEventListener('change', () => commitParams());
+    row.append(input);
+  } else {
+    row.append(
+      imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }),
+    );
+  }
+  return row;
+}
+
+function buildParamForm(manifest: TemplateManifest): void {
+  const parameters = manifest.parameters;
   els.params.replaceChildren();
   recentRows.clear();
-  if (parameters.length === 0) {
+  if (parameters.length === 0 && manifest.blocks.length === 0) {
     const note = document.createElement('p');
     note.className = 'note';
     note.textContent = 'This template has no editable parameters.';
@@ -820,6 +1012,10 @@ function buildParamForm(parameters: TemplateParameter[]): void {
     }
     els.params.append(label);
   }
+  // The layers the template makes room for, after its own parameters.
+  for (const block of manifest.blocks) {
+    els.params.append(layersSection(manifest, block.id, block.label, manifest.blocks.length > 1));
+  }
   updateHistoryButtons();
 }
 
@@ -832,7 +1028,7 @@ export function paramsShow(entry: TemplateEntry): ResolvedParams {
   publishSlotNotes();
   p.raw = { ...editorFor(m.id).current };
   p.values = resolveParams(m, p.raw).values;
-  buildParamForm(m.parameters);
+  buildParamForm(m);
   p.presets = {};
   showPresets();
   void window.pulp.listPresets(m.id).then((presets) => {
