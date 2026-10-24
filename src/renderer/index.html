@@ -75,13 +75,46 @@
             <video id="media-video" class="media" controls preload="metadata" hidden></video>
             <img id="media-image" class="media" alt="" hidden>
             <audio id="media-audio" class="media" controls preload="metadata" hidden></audio>
+            <div id="safe-overlay" class="safe-overlay" aria-hidden="true" hidden>
+              <div id="safe-action" class="safe action"></div>
+              <div id="safe-title" class="safe title"></div>
+            </div>
             <div id="preview-empty" class="preview-empty">Select a template</div>
           </div>
         </div>
         <div class="transport">
+          <button id="step-back" type="button" class="icon-button" data-icon="caret-left" data-icon-size="20" aria-label="Previous frame" data-tip="Previous frame" disabled></button>
           <button id="play" type="button" class="icon-button transport-button" data-icon="play" data-icon-size="24" aria-label="Play" disabled></button>
-          <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
+          <button id="step-forward" type="button" class="icon-button" data-icon="caret-right" data-icon-size="20" aria-label="Next frame" data-tip="Next frame" disabled></button>
+          <button id="loop" type="button" class="icon-button" data-icon="repeat" data-icon-size="20" aria-pressed="true" aria-label="Loop playback"></button>
+          <span class="scrub-wrap">
+            <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
+            <span id="scrub-marks" class="scrub-marks" aria-hidden="true">
+              <span id="trim-before" class="trimmed"></span>
+              <span id="trim-after" class="trimmed"></span>
+              <span id="mark-in-flag" class="mark in" hidden></span>
+              <span id="mark-out-flag" class="mark out" hidden></span>
+            </span>
+          </span>
           <span id="timecode" class="timecode">--</span>
+        </div>
+        <div class="stage-tools" role="toolbar" aria-label="Preview tools">
+          <span class="tool-group">
+            <button id="mark-in" type="button" disabled data-tip="Set the in point of the render to this frame"><span class="label">Set in</span></button>
+            <button id="mark-out" type="button" disabled data-tip="Set the out point of the render to this frame"><span class="label">Set out</span></button>
+            <button id="mark-clear" type="button" disabled data-tip="Render the whole template again"><span class="label">Clear</span></button>
+          </span>
+          <span class="tool-group volume">
+            <button id="mute" type="button" class="icon-button" data-icon="speaker-high" data-icon-size="20" aria-pressed="false" aria-label="Mute"></button>
+            <input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">
+          </span>
+          <span class="tool-group backgrounds" role="group" aria-label="Preview background">
+            <button id="bg-checker" type="button" class="icon-button" data-icon="checkerboard" data-icon-size="20" aria-pressed="true" aria-label="Checkerboard background"></button>
+            <button id="bg-black" type="button" class="swatch black" aria-pressed="false" aria-label="Black background"></button>
+            <button id="bg-white" type="button" class="swatch white" aria-pressed="false" aria-label="White background"></button>
+            <input id="bg-custom" type="color" value="#808080" aria-label="Custom background color" data-tip="Custom background color">
+          </span>
+          <button id="safe-toggle" type="button" class="icon-button" data-icon="frame-corners" data-icon-size="20" aria-pressed="false" aria-label="Title-safe and action-safe areas"></button>
         </div>
         <div id="item-tools" class="item-tools" hidden></div>
         <p id="stage-note" class="note error" hidden></p>

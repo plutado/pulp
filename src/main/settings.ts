@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
 import { DEFAULT_LAYOUT, sanitizeLayout, type LayoutState } from '../core/layout';
+import { DEFAULT_PLAYER, sanitizePlayer, type PlayerState } from '../core/player';
 import { DEFAULT_RESULTS_VIEW, sanitizeResultsView, type ResultsViewState } from '../core/results-view';
 import { sanitizeRecentColors } from '../core/recent-colors';
 import { sanitizeRecentSearches } from '../core/recent-searches';
@@ -23,6 +24,8 @@ export interface Settings {
   layout: LayoutState;
   /** Grid or list per kind and the thumbnail size (src/core/results-view.ts). */
   resultsView: ResultsViewState;
+  /** Stage player preferences: loop, background, safe areas, volume (src/core/player.ts). */
+  player: PlayerState;
 }
 
 const DEFAULTS: Settings = {
@@ -32,6 +35,7 @@ const DEFAULTS: Settings = {
   renderCacheMaxMB: DEFAULT_CACHE_MAX_MB,
   layout: DEFAULT_LAYOUT,
   resultsView: DEFAULT_RESULTS_VIEW,
+  player: DEFAULT_PLAYER,
 };
 
 function settingsPath(): string {
@@ -46,6 +50,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     renderCacheMaxMB: sanitizeCacheMaxMB(raw.renderCacheMaxMB),
     layout: sanitizeLayout(raw.layout),
     resultsView: sanitizeResultsView(raw.resultsView),
+    player: sanitizePlayer(raw.player),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
   };
 }

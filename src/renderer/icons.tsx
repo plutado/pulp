@@ -20,6 +20,7 @@ import downloadSimple from '@phosphor-icons/core/assets/regular/download-simple.
 import exportIcon from '@phosphor-icons/core/assets/regular/export.svg?raw';
 import filmStrip from '@phosphor-icons/core/assets/regular/film-strip.svg?raw';
 import folder from '@phosphor-icons/core/assets/regular/folder.svg?raw';
+import frameCorners from '@phosphor-icons/core/assets/regular/frame-corners.svg?raw';
 import folderPlus from '@phosphor-icons/core/assets/regular/folder-plus.svg?raw';
 import hardDrive from '@phosphor-icons/core/assets/regular/hard-drive.svg?raw';
 import image from '@phosphor-icons/core/assets/regular/image.svg?raw';
@@ -40,6 +41,7 @@ import shapes from '@phosphor-icons/core/assets/regular/shapes.svg?raw';
 import slidersHorizontal from '@phosphor-icons/core/assets/regular/sliders-horizontal.svg?raw';
 import sortAscending from '@phosphor-icons/core/assets/regular/sort-ascending.svg?raw';
 import speakerHigh from '@phosphor-icons/core/assets/regular/speaker-high.svg?raw';
+import speakerSlash from '@phosphor-icons/core/assets/regular/speaker-slash.svg?raw';
 import spinner from '@phosphor-icons/core/assets/regular/spinner.svg?raw';
 import stack from '@phosphor-icons/core/assets/regular/stack.svg?raw';
 import star from '@phosphor-icons/core/assets/regular/star.svg?raw';
@@ -66,6 +68,7 @@ const ICONS = {
   'film-strip': filmStrip,
   folder,
   'folder-plus': folderPlus,
+  'frame-corners': frameCorners,
   'hard-drive': hardDrive,
   image,
   'image-square': imageSquare,
@@ -83,6 +86,7 @@ const ICONS = {
   'sliders-horizontal': slidersHorizontal,
   'sort-ascending': sortAscending,
   'speaker-high': speakerHigh,
+  'speaker-slash': speakerSlash,
   spinner,
   'squares-four': squaresFour,
   stack,

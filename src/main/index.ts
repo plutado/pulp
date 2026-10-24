@@ -19,6 +19,7 @@ import { addRecentColor } from '../core/recent-colors';
 import { addRecentSearch } from '../core/recent-searches';
 import { sanitizeLayout } from '../core/layout';
 import { sanitizeResultsView } from '../core/results-view';
+import { sanitizePlayer } from '../core/player';
 import { loadSettings, updateSettings } from './settings';
 
 registerTemplateScheme();
@@ -141,6 +142,11 @@ function registerIpc(): void {
   });
 
   ipcMain.handle('library:hover-strip', (_event, id: string) => hoverStrip(String(id)));
+
+  ipcMain.handle('player:get', async () => (await loadSettings()).player);
+  ipcMain.handle('player:save', async (_event, player: unknown) => {
+    await updateSettings((s) => ({ ...s, player: sanitizePlayer(player) }));
+  });
 
   ipcMain.handle('results-view:get', async () => (await loadSettings()).resultsView);
   ipcMain.handle('results-view:save', async (_event, view: unknown) => {

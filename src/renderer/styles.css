@@ -328,10 +328,44 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   background-position: 0 0, 0 10px, 10px -10px, -10px 0;
 }
 
-.transport { display: flex; align-items: center; gap: 10px; }
+.transport { display: flex; align-items: center; gap: var(--space-2); }
 .transport-button { padding: 4px 8px; }
-.transport input[type="range"] { flex: 1; padding: 0; }
+.transport .icon-button { color: var(--muted); background: none; border-color: transparent; }
+.transport .icon-button:hover:not(:disabled) { color: var(--text); }
+.transport .icon-button[aria-pressed="true"] { color: var(--accent); }
 .timecode { font-family: Menlo, Consolas, monospace; color: var(--muted); min-width: 190px; text-align: right; }
+
+/* The scrub bar with the render's in and out marks over it: what a render would
+   drop is dimmed, and each mark is a thin accent line where it sits. */
+.scrub-wrap { position: relative; flex: 1; display: flex; align-items: center; }
+.scrub-wrap input[type="range"] { flex: 1; padding: 0; margin: 0; }
+.scrub-marks { position: absolute; left: 0; right: 0; top: 50%; height: 12px; transform: translateY(-50%); pointer-events: none; }
+.scrub-marks .trimmed { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.45); }
+.scrub-marks #trim-before { left: 0; }
+.scrub-marks #trim-after { right: 0; }
+.scrub-marks .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--accent); }
+.scrub-marks .mark[hidden] { display: none; }
+
+/* Preview tools: marks, volume, background and safe areas, one quiet row. */
+.stage-tools { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; font-size: var(--font-secondary); }
+.stage-tools .tool-group { display: inline-flex; align-items: center; gap: var(--space-1); }
+.stage-tools button { font-size: var(--font-secondary); padding: 3px 8px; }
+.stage-tools .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
+.stage-tools .icon-button:hover { color: var(--text); }
+.stage-tools .icon-button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--panel-2); }
+.stage-tools #volume { width: 72px; padding: 0; background: none; border: 0; accent-color: var(--accent); }
+.stage-tools .swatch { width: 22px; height: 22px; padding: 0; border-radius: var(--radius-control); border: 1px solid var(--border); }
+.stage-tools .swatch.black { background: #000000; }
+.stage-tools .swatch.white { background: #ffffff; }
+.stage-tools .swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.stage-tools #bg-custom { width: 26px; height: 22px; padding: 1px; }
+.stage-tools #bg-custom.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+/* Safe areas: fractions of the frame (src/core/player.ts), over everything in the preview. */
+.safe-overlay { position: absolute; inset: 0; pointer-events: none; }
+.safe-overlay[hidden] { display: none; }
+.safe-overlay .safe { position: absolute; border: 1px solid rgba(255, 255, 255, 0.45); }
+.safe-overlay .safe.title { border-style: dashed; }
 .render-options .trim input { font-family: Menlo, Consolas, monospace; }
 
 .details { color: var(--text-secondary); font-size: var(--font-secondary); min-height: 2.5em; }

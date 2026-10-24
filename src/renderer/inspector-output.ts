@@ -5,6 +5,7 @@
  * possible through the renderBlocked signal, which the tray's Prepare button follows.
  */
 
+import { effect } from '@preact/signals';
 import { planBatch, type BatchPlan } from '../core/batch-csv';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { frameCount } from '../core/manifest';
@@ -13,7 +14,7 @@ import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, tim
 import type { TemplateEntry } from '../core/library-types';
 import { currentRawParams } from './inspector-params';
 import { stageStop } from './stage';
-import { renderBlocked, selectedTemplate } from './store';
+import { renderBlocked, selectedTemplate, trim } from './store';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -110,6 +111,39 @@ export function readRenderOptions(): RenderOptions {
   if (outFrame !== undefined) options.outFrame = outFrame;
   if (!OUTPUT_PRESETS[els.preset.value as PresetId].alpha) options.background = els.optBackground.value;
   return options;
+}
+
+/** The frame a trim field holds at the chosen rate, or null when it is blank or unreadable. */
+function trimField(el: HTMLInputElement): number | null {
+  const fps = chosenFps();
+  if (el.value.trim() === '' || fps === undefined) return null;
+  try {
+    return parseTimecode(el.value, fps);
+  } catch {
+    return null;
+  }
+}
+
+/** Hand the trim to the stage, which marks it on the scrub bar. */
+function publishTrim(): void {
+  const next = { inFrame: trimField(els.optIn), outFrame: trimField(els.optOut) };
+  if (next.inFrame !== trim.value.inFrame || next.outFrame !== trim.value.outFrame) trim.value = next;
+}
+
+/** Take a trim set from the stage into the fields, in the chosen rate's timecode form. */
+function showTrim(): void {
+  const fps = chosenFps();
+  if (fps === undefined) return;
+  let changed = false;
+  for (const [el, frame] of [
+    [els.optIn, trim.value.inFrame],
+    [els.optOut, trim.value.outFrame],
+  ] as const) {
+    if (trimField(el) === frame && (frame !== null || el.value.trim() === '')) continue;
+    el.value = frame === null ? '' : formatTimecode(frame, fps);
+    changed = true;
+  }
+  if (changed) updateOptionsNote();
 }
 
 /** Say what the options amount to (frames and rate), or why the planner would refuse them. */
@@ -257,6 +291,7 @@ export function outputShow(entry: TemplateEntry): void {
   els.optFps.value = '';
   els.optIn.value = '';
   els.optOut.value = '';
+  trim.value = { inFrame: null, outFrame: null };
   o.batch = null;
   els.batchSummary.textContent = '';
   els.batchQueue.disabled = true;
@@ -273,8 +308,21 @@ export function outputSetFfmpeg(ok: boolean, encoders: readonly string[]): void 
 export function initInspectorOutput(): void {
   populatePresets();
   populateFrameRates();
-  for (const el of [els.optIn, els.optOut]) el.addEventListener('input', updateOptionsNote);
-  els.optFps.addEventListener('change', updateOptionsNote);
+  for (const el of [els.optIn, els.optOut]) {
+    el.addEventListener('input', () => {
+      updateOptionsNote();
+      publishTrim();
+    });
+  }
+  els.optFps.addEventListener('change', () => {
+    updateOptionsNote();
+    // The same text means a different frame at another rate.
+    publishTrim();
+  });
+  effect(() => {
+    void trim.value;
+    showTrim();
+  });
   els.preset.addEventListener('change', updateOptionsNote);
   els.render.addEventListener('click', () => void queueRender());
   els.batchCsv.addEventListener('input', () => {

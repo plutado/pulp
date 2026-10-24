@@ -36,6 +36,14 @@ export const selectedKey = computed(() => appState.value.selectedKey);
  */
 export const resultsView = signal<ResultsViewState>(DEFAULT_RESULTS_VIEW);
 
+/**
+ * The render's in and out points, in frames of the selected template's timeline.
+ * Shared because two regions own the same fact: the Output tab's trim fields set
+ * it, and the stage marks it on the scrub bar and sets it from the playhead.
+ * Null is an open end — the template's own first or last frame.
+ */
+export const trim = signal<{ inFrame: number | null; outFrame: number | null }>({ inFrame: null, outFrame: null });
+
 /** True while the Render button is blocked (no template, no ffmpeg, bad options); the tray's Prepare button follows it. */
 export const renderBlocked = signal(true);
 

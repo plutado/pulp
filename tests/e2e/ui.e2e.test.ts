@@ -457,6 +457,103 @@ describe.skipIf(!electron)('inspector UI', () => {
     expect(await page.eval<string>(`document.querySelector('#params .color-field .recent-swatch').dataset.color`)).toBe('#00ff0040');
   }, 60_000);
 
+  describe('the player', () => {
+    const frameNow = () => page.eval<number>(`Number(document.getElementById('scrub').value)`);
+    /** The preview draws one frame at a time, so a step shows up when the frame in flight lands. */
+    const atFrame = (n: number) => until(async () => (await frameNow()) === n, `the preview to reach frame ${n}`);
+    const pressed = (id: string) => page.eval<string>(`document.getElementById(${JSON.stringify(id)}).getAttribute('aria-pressed')`);
+    const click = (id: string) => page.eval(`document.getElementById(${JSON.stringify(id)}).click()`);
+
+    it('steps a frame at a time, and the loop toggle decides what the ends do', async () => {
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
+      await scrubTo(90);
+      expect(await frameNow()).toBe(90);
+      await click('step-forward');
+      await atFrame(91);
+      await click('step-back');
+      await click('step-back');
+      await atFrame(89);
+
+      // Looping is on by default, so stepping past the last frame comes round to the first.
+      expect(await pressed('loop')).toBe('true');
+      await scrubTo(179);
+      await click('step-forward');
+      await atFrame(0);
+      // With it off, the ends hold.
+      await click('loop');
+      expect(await pressed('loop')).toBe('false');
+      await click('step-back');
+      await sleep(500);
+      expect(await frameNow()).toBe(0);
+      await scrubTo(179);
+      await click('step-forward');
+      await sleep(500);
+      expect(await frameNow()).toBe(179);
+      await click('loop');
+    }, 60_000);
+
+    it('sets the render trim from the playhead, shows it on the scrub bar, and follows the Output tab', async () => {
+      await scrubTo(30);
+      await click('mark-in');
+      await scrubTo(150);
+      await click('mark-out');
+      // The Output tab holds the same points, as timecode at the template's rate.
+      expect(await valueOf('#opt-in')).toBe('00:00:01:00');
+      expect(await valueOf('#opt-out')).toBe('00:00:05:00');
+      expect(await page.eval<string>(`document.getElementById('options-note').textContent`)).toContain('121 frames at 30 fps');
+      // And the bar dims what the render would drop.
+      const marks = await page.eval<{ before: string; after: string; inHidden: boolean }>(
+        `(() => ({ before: document.getElementById('trim-before').style.width, after: document.getElementById('trim-after').style.width, inHidden: document.getElementById('mark-in-flag').hidden }))()`,
+      );
+      expect(marks.inHidden).toBe(false);
+      expect(Number.parseFloat(marks.before)).toBeCloseTo((30 / 179) * 100, 1);
+      expect(Number.parseFloat(marks.after)).toBeCloseTo(100 - (150 / 179) * 100, 1);
+
+      // Editing the Output tab moves the marks back.
+      await fire('#opt-in', '00:00:02:00', 'input');
+      await until(async () => Number.parseFloat(await page.eval<string>(`document.getElementById('trim-before').style.width`)) > 30, 'the mark to follow the field');
+      // Clear puts both ends back to the template's own.
+      await click('mark-clear');
+      expect(await valueOf('#opt-in')).toBe('');
+      expect(await valueOf('#opt-out')).toBe('');
+      expect(await page.eval<boolean>(`document.getElementById('mark-out-flag').hidden`)).toBe(true);
+    }, 60_000);
+
+    it('keeps the background, safe areas and volume in settings', async () => {
+      await click('bg-black');
+      expect(await pressed('bg-black')).toBe('true');
+      expect(await pressed('bg-checker')).toBe('false');
+      expect(await page.eval<boolean>(`document.getElementById('preview-frame').classList.contains('checker')`)).toBe(false);
+      expect(await page.eval<string>(`document.getElementById('preview-frame').style.backgroundColor`)).toBe('rgb(0, 0, 0)');
+
+      expect(await page.eval<boolean>(`document.getElementById('safe-overlay').hidden`)).toBe(true);
+      await click('safe-toggle');
+      expect(await page.eval<boolean>(`document.getElementById('safe-overlay').hidden`)).toBe(false);
+      // Action safe 3.5% in, title safe 5%.
+      expect(await page.eval<string[]>(`[document.getElementById('safe-action').style.inset, document.getElementById('safe-title').style.inset]`)).toEqual(['3.5%', '5%']);
+
+      await fire('#volume', '40', 'input');
+      await click('mute');
+      expect(await pressed('mute')).toBe('true');
+
+      await until(async () => {
+        try {
+          const p = (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { player?: { background?: string; safeAreas?: boolean; volume?: number; muted?: boolean } }).player;
+          return p?.background === 'black' && p.safeAreas === true && p.volume === 0.4 && p.muted === true;
+        } catch {
+          return false;
+        }
+      }, 'the player preferences in settings.json');
+
+      // Put the stage back for the tests that follow.
+      await click('bg-checker');
+      await click('safe-toggle');
+      await click('mute');
+      await fire('#volume', '100', 'input');
+    }, 60_000);
+  });
+
   describe('saved presets and batch', () => {
     const nameValue = () => page.eval<string>(`document.querySelector('[data-param=name] input').value`);
     const options = () => page.eval<string[]>(`[...document.getElementById('param-preset-list').options].map((o) => o.value).filter(Boolean)`);
