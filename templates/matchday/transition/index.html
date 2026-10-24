@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -66,7 +66,7 @@
     ctx.fill();
 
     // The volt teeth ride the moving edge.
-    var band = 42 * (H / 1080);
+    var band = 42 * (Math.min(W, H) / 1080);
     if (pr < 0.5) toothShape(head - band, head);
     else toothShape(tail, tail + band);
     ctx.fillStyle = p.accent;

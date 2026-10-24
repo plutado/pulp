@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Festival sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -53,17 +53,30 @@
     var show = (t < dur ? easeOutBack(inT) : 1) * (1 - outT);
     if (show <= 0) return;
 
-    var s = H / 1080;
-    var margin = 110 * s;
+    var s = Math.min(W, H) / 1080;
+    // A tall frame keeps the bottom 22% for captions and the right 18% for controls, so the
+    // pill sits with its baseline near 72% of the height and stays inside 82% of the width.
+    var tall = H > W * 1.3;
+    var margin = tall ? 0.06 * W : 110 * s;
     var nameSize = 54 * s, subSize = 28 * s;
+    var padX = 52 * s;
     ctx.font = 'italic 700 ' + nameSize + 'px ' + SERIF;
     var nameW = ctx.measureText(p.name).width;
     ctx.font = '400 ' + subSize + 'px ' + SANS;
     var subW = ctx.measureText(p.subtitle).width;
-    var padX = 52 * s;
+    // Shrink the type when it would run past the frame's safe width.
+    var maxTextW = (tall ? 0.82 : 0.9) * W - margin - padX * 2;
+    var fit = maxTextW / Math.max(nameW, subW);
+    if (fit < 1) {
+      nameSize *= fit; subSize *= fit;
+      ctx.font = 'italic 700 ' + nameSize + 'px ' + SERIF;
+      nameW = ctx.measureText(p.name).width;
+      ctx.font = '400 ' + subSize + 'px ' + SANS;
+      subW = ctx.measureText(p.subtitle).width;
+    }
     var pillW = Math.max(nameW, subW) + padX * 2;
     var pillH = 148 * s;
-    var y = H - margin - pillH;
+    var y = tall ? 0.72 * H - pillH : H - margin - pillH;
 
     // The pill scales up around its left-center with a gentle bounce.
     var grow = Math.min(show, 1) + Math.max(0, show - 1);

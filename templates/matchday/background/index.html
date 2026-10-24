@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -29,7 +29,7 @@
       canvas.height = state.height;
     }
     var W = state.width, H = state.height;
-    var s = H / 1080;
+    var s = Math.min(W, H) / 1080;
 
     var g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, p.base);
@@ -62,7 +62,8 @@
       ctx.globalAlpha = 1;
     }
 
-    var v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H);
+    var short = Math.min(W, H);
+    var v = ctx.createRadialGradient(W / 2, H / 2, short * 0.35, W / 2, H / 2, short);
     v.addColorStop(0, 'rgba(0,0,0,0)');
     v.addColorStop(1, 'rgba(0,0,0,0.45)');
     ctx.fillStyle = v;

@@ -380,6 +380,26 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await pixels(join(out, 'set-fest_00021.png'), 10, 540))[3]).toBe(255); // edges covered too at the midpoint
   }, 240_000);
 
+  it('renders a matched set\'s lower third and title tall, re-laid out above the caption band', async () => {
+    // Milestone 19: the same template at 9:16. The graphic sits above the bottom 22% (the caption band)
+    // and left of the right 18% (the controls column), and the frame is transparent there.
+    const lt = await render('pulp.samples.boardroom.lower-third', 'png-sequence', 'tall-board', { extra: ['--aspect', '9:16', '--in-point', '90', '--out-point', '90'] });
+    expect(lt.code, lt.stderr).toBe(0);
+    const ltFrame = join(out, 'tall-board_00090.png');
+    expect(await probe(ltFrame)).toMatchObject({ width: 1080, height: 1920 });
+    expect((await pixels(ltFrame, 100, 1270))[3]).toBeGreaterThan(0); // the backing tint
+    expect((await pixels(ltFrame, 540, 1700))[3]).toBe(0); // the caption band
+    expect((await pixels(ltFrame, 1000, 1300))[3]).toBe(0); // the controls column
+    expect((await pixels(ltFrame, 40, 40))[3]).toBe(0);
+
+    const title = await render('pulp.samples.matchday.title', 'png-sequence', 'tall-match', { extra: ['--aspect', '9:16', '--in-point', '90', '--out-point', '90'] });
+    expect(title.code, title.stderr).toBe(0);
+    const titleFrame = join(out, 'tall-match_00090.png');
+    expect(await probe(titleFrame)).toMatchObject({ width: 1080, height: 1920 });
+    expect((await pixels(titleFrame, 200, 780))[3]).toBe(255); // a headline glyph, wrapped onto the tall frame
+    expect((await pixels(titleFrame, 540, 1600))[3]).toBe(0); // the caption band
+  }, 240_000);
+
   it('renders between in and out points, numbering the files with the template frame indices', async () => {
     // Lower third: 6 s at 30 fps. 00:00:02:00 to 00:00:02:29 is mid-hold, so the panel is fully visible
     // from the first rendered frame; at frame 0 that pixel is transparent. Inclusive out point: 30 frames.

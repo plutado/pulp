@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -36,17 +36,54 @@
     var show = inT * (1 - outT);
     if (show <= 0) return;
 
-    var s = H / 1080;
-    var margin = 110 * s;
+    var s = Math.min(W, H) / 1080;
+    // A tall frame (9:16) is a real re-layout: the piece sits above the caption band
+    // (bottom 22%) and clear of the controls column (right 18%), always on the left.
+    var tall = H > W * 1.4;
+    var margin = tall ? 0.06 * W : 110 * s;
     var nameSize = 52 * s, titleSize = 27 * s;
-    var right = p.side === 'right';
-    var baseY = H - margin - 60 * s;
+    var pad = 28 * s;
+    var right = !tall && p.side === 'right';
+    // Text must fit the frame: 0.76 W on a tall frame, 0.9 W elsewhere (a no-op at 16:9).
+    var maxTextW = (tall ? 0.82 * W : 0.9 * W) - margin - pad - 24 * s;
 
     ctx.font = '600 ' + nameSize + 'px ' + FONT;
     var nameW = ctx.measureText(p.name).width;
+    if (nameW > maxTextW) {
+      nameSize = Math.max(18 * s, nameSize * maxTextW / nameW);
+      ctx.font = '600 ' + nameSize + 'px ' + FONT;
+      nameW = ctx.measureText(p.name).width;
+    }
+
+    // The title is set in spaced capitals; on a tall frame it wraps by word instead of running off.
     ctx.font = '400 ' + titleSize + 'px ' + FONT;
-    var titleW = ctx.measureText((p.title || '').toUpperCase()).width;
-    var ruleW = Math.max(nameW, titleW) + 24 * s;
+    var words = (p.title || '').toUpperCase().split(' ').filter(function (w) { return w; })
+      .map(function (w) { return w.split('').join(' '); });
+    var lines = [];
+    var line = '';
+    for (var i = 0; i < words.length; i++) {
+      var trial = line ? line + '   ' + words[i] : words[i];
+      if (line && ctx.measureText(trial).width > maxTextW) { lines.push(line); line = words[i]; }
+      else line = trial;
+    }
+    if (line) lines.push(line);
+    if (!lines.length) lines.push('');
+    var titleW = 0;
+    for (var j = 0; j < lines.length; j++) titleW = Math.max(titleW, ctx.measureText(lines[j]).width);
+    if (titleW > maxTextW) {
+      titleSize = Math.max(14 * s, titleSize * maxTextW / titleW);
+      ctx.font = '400 ' + titleSize + 'px ' + FONT;
+      titleW = 0;
+      for (var j2 = 0; j2 < lines.length; j2++) titleW = Math.max(titleW, ctx.measureText(lines[j2]).width);
+    }
+    var lineH = titleSize * 1.35;
+    var extra = (lines.length - 1) * lineH;
+    // Landscape sizes the rule from the plain capitals, as it always has; tall from the spaced lines.
+    var ruleTextW = tall ? titleW : ctx.measureText((p.title || '').toUpperCase()).width;
+    var ruleW = Math.max(nameW, ruleTextW) + 24 * s;
+
+    // Landscape keeps the original position; the tall frame puts the last baseline at about 0.72 H.
+    var baseY = tall ? H * 0.72 - 28 * s - titleSize - extra : H - margin - 60 * s;
 
     var x = right ? W - margin - ruleW : margin;
     var textX = right ? W - margin : margin;
@@ -54,10 +91,9 @@
     ctx.textBaseline = 'alphabetic';
 
     // A soft backing tint keeps the text readable over busy footage without a visible panel.
-    var pad = 28 * s;
     ctx.fillStyle = p.shadow;
     ctx.globalAlpha = show;
-    ctx.fillRect(x - pad, baseY - nameSize - pad, ruleW + pad * 2, nameSize + titleSize + 44 * s + pad * 1.5);
+    ctx.fillRect(x - pad, baseY - nameSize - pad, ruleW + pad * 2, nameSize + titleSize + extra + 44 * s + pad * 1.5);
     ctx.globalAlpha = 1;
 
     // The hairline draws in first, from the text side, with a small accent square at its head.
@@ -77,8 +113,9 @@
     ctx.fillText(p.name, textX, baseY);
     ctx.globalAlpha = textA * 0.85;
     ctx.font = '400 ' + titleSize + 'px ' + FONT;
-    var caps = (p.title || '').toUpperCase().split('').join(' ');
-    ctx.fillText(caps, textX, ruleY + 14 * s + titleSize);
+    for (var k = 0; k < lines.length; k++) {
+      ctx.fillText(lines[k], textX, ruleY + 14 * s + titleSize + k * lineH);
+    }
     ctx.globalAlpha = 1;
   };
 </script>

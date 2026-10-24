@@ -8,6 +8,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- Every bundled template now draws for all four shapes. The originals that were written for 1920 × 1080 declare the aspects instead, and each set's lower third and title re-lay out for a tall frame: the lower third sits above the caption band and clear of the controls column, the title wraps and centres above the middle. The same template is its own vertical version; its 16:9 output is unchanged.
+
 - Cards take the item's own shape. A portrait clip or a square still is drawn tall or square on its card instead of being letterboxed into a 16:9 box; a grid holding one takes a taller row for all its cards so the pitch stays even, and an all-landscape grid looks exactly as before. The Info tab's poster follows.
 
 - Vertical safe zones. With the safe areas on and a tall frame in the preview, the stage also marks the areas a vertical video has to keep clear — a header strip at the top, a controls column down the right, a caption band across the bottom — described generically so they hold for any platform.

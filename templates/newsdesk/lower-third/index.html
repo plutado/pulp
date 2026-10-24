@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -47,18 +47,34 @@
     var show = inT * (1 - outT);
     if (show <= 0) return;
 
-    var s = H / 1080;
-    var margin = 96 * s;
+    var s = Math.min(W, H) / 1080;
+    // A tall frame (9:16) re-lays the unit: above the caption band (bottom 22%),
+    // clear of the controls column (right 18%), left margin 0.06 W.
+    var tall = H > W * 1.4;
+    var margin = tall ? 0.06 * W : 96 * s;
     var barH = 118 * s, capW = 46 * s;
     var nameSize = 54 * s, topicSize = 28 * s;
-    var y = H - margin - barH;
+    var y = tall ? H * 0.72 - barH : H - margin - barH;
+    var padX = 40 * s;
+    // The text must fit inside the bar's room: 0.76 W on a tall frame, 0.9 W elsewhere (a no-op at 16:9).
+    var maxTextW = (tall ? 0.82 * W : 0.9 * W) - margin - capW - padX * 2 - barH * SLANT;
 
     ctx.font = '800 ' + nameSize + 'px ' + FONT;
     var nameText = (p.name || '').toUpperCase();
     var nameW = ctx.measureText(nameText).width;
+    if (nameW > maxTextW) {
+      nameSize = Math.max(18 * s, nameSize * maxTextW / nameW);
+      ctx.font = '800 ' + nameSize + 'px ' + FONT;
+      nameW = ctx.measureText(nameText).width;
+    }
     ctx.font = '500 ' + topicSize + 'px ' + FONT;
-    var topicW = ctx.measureText((p.topic || '').toUpperCase()).width;
-    var padX = 40 * s;
+    var topicText = (p.topic || '').toUpperCase();
+    var topicW = ctx.measureText(topicText).width;
+    if (topicW > maxTextW) {
+      topicSize = Math.max(14 * s, topicSize * maxTextW / topicW);
+      ctx.font = '500 ' + topicSize + 'px ' + FONT;
+      topicW = ctx.measureText(topicText).width;
+    }
     var barW = Math.max(nameW, topicW) + padX * 2 + capW;
 
     // The whole unit slides in from the left on a hard ease; it leaves the same way.
@@ -81,7 +97,7 @@
     ctx.fillText(nameText, textX, y + 52 * s);
     ctx.globalAlpha = 0.85;
     ctx.font = '500 ' + topicSize + 'px ' + FONT;
-    ctx.fillText((p.topic || '').toUpperCase(), textX, y + 94 * s);
+    ctx.fillText(topicText, textX, y + 94 * s);
     ctx.globalAlpha = 1;
 
     // The live flag sits on the bar's top edge and breathes on a deterministic pulse.

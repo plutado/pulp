@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -54,7 +54,7 @@
     ctx.fillStyle = p.panel;
     ctx.fill();
 
-    var slashW = 60 * (H / 1080);
+    var slashW = 60 * (Math.min(W, H) / 1080);
     if (pr < 0.5) slashQuad(head - slashW, head);
     else slashQuad(tail, tail + slashW);
     ctx.fillStyle = p.accent;

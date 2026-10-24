@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -26,7 +26,7 @@
     var W = state.width, H = state.height;
     // One full cycle over the duration, so the last frame meets the first.
     var phase = state.progress * TAU;
-    var s = H / 1080;
+    var s = Math.min(W, H) / 1080;
 
     var g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, p.base);
@@ -59,7 +59,9 @@
     ctx.globalAlpha = 1;
 
     // A quiet vignette keeps edges calm for text overlays.
-    var v = ctx.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, H * 0.95);
+    // The vignette radius follows the frame: the height on a wide frame, a mean of both on a tall one.
+    var vr = W >= H ? H : Math.sqrt(W * H);
+    var v = ctx.createRadialGradient(W / 2, H / 2, vr * 0.4, W / 2, H / 2, vr * 0.95);
     v.addColorStop(0, 'rgba(0,0,0,0)');
     v.addColorStop(1, 'rgba(0,0,0,0.35)');
     ctx.fillStyle = v;

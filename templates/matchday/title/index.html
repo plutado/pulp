@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -32,6 +32,19 @@
     ctx.closePath();
   }
 
+  // Greedy word wrap with the current font; ok is false when a single word is wider than maxW.
+  function wrapWords(text, maxW) {
+    var words = text.split(/\s+/).filter(Boolean), lines = [], line = '', ok = true;
+    for (var i = 0; i < words.length; i++) {
+      var test = line ? line + ' ' + words[i] : words[i];
+      if (!line || ctx.measureText(test).width <= maxW) line = test;
+      else { lines.push(line); line = words[i]; }
+      if (ctx.measureText(line).width > maxW) ok = false;
+    }
+    if (line) lines.push(line);
+    return { lines: lines, ok: ok };
+  }
+
   window.pulpRender = function (state) {
     var p = state.params;
     if (canvas.width !== state.width || canvas.height !== state.height) {
@@ -45,13 +58,25 @@
     var show = easeOutQuart(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
     if (show <= 0) return;
 
-    var s = H / 1080;
-    var cx = W / 2, cy = H / 2;
+    var s = Math.min(W, H) / 1080;
+    // A tall frame keeps its bottom 22% for captions, so the block sits a little above the middle
+    // and the headline wraps onto up to three lines inside 86% of the width.
+    var tall = H > W * 1.3;
+    var cx = W / 2, cy = tall ? H * 0.44 : H / 2;
     var headSize = 132 * s, kickSize = 32 * s;
+    var headText = (p.headline || '').toUpperCase();
+    var wrapped;
+    for (var k = 0; k < 12; k++) {
+      ctx.font = '800 ' + headSize + 'px ' + FONT;
+      wrapped = wrapWords(headText, 0.86 * W);
+      if (wrapped.ok && wrapped.lines.length <= 3) break;
+      headSize *= 0.92;
+    }
+    var lines = wrapped.lines, n = Math.max(1, lines.length), lineH = 140 * s;
 
     // The volt bar slams in horizontally behind the headline.
-    var barH = 150 * s;
-    var barW = W * 0.72 * easeOutQuart(clamp01(show * 1.2));
+    var barH = 150 * s + (n - 1) * lineH;
+    var barW = W * (tall ? 0.92 : 0.72) * easeOutQuart(clamp01(show * 1.2));
     ctx.fillStyle = p.accent;
     ctx.fillRect(cx - barW / 2, cy - barH / 2, barW, barH);
 
@@ -63,7 +88,9 @@
     ctx.globalAlpha = textA;
     ctx.fillStyle = '#101010';
     ctx.font = '800 ' + headSize + 'px ' + FONT;
-    ctx.fillText((p.headline || '').toUpperCase(), cx, cy + 6 * s);
+    for (var li = 0; li < lines.length; li++) {
+      ctx.fillText(lines[li], cx, cy + 6 * s + (li - (n - 1) / 2) * lineH);
+    }
 
     // The kicker above, flanked by chevrons.
     ctx.fillStyle = p.text;

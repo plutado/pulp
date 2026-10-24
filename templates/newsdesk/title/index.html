@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -37,10 +37,35 @@
     var show = inT * (1 - outT);
     if (show <= 0) return;
 
-    var s = H / 1080;
-    var bandH = 170 * s;
-    var y = H * 0.62;
+    var s = Math.min(W, H) / 1080;
+    // On a tall frame the block is centred a little above the middle, clear of the caption band.
+    var tall = H > W * 1.4;
+    var margin = tall ? 0.07 * W : 110 * s;
     var headSize = 76 * s, kickSize = 30 * s;
+    var maxTextW = W - margin * 2;
+
+    // The headline wraps onto two or three lines when it does not fit (a no-op on a wide frame);
+    // the band grows by one line pitch per extra line.
+    ctx.font = '800 ' + headSize + 'px ' + FONT;
+    var words = (p.headline || '').toUpperCase().split(' ').filter(function (w) { return w; });
+    var lines = [];
+    var line = '';
+    for (var i = 0; i < words.length; i++) {
+      var trial = line ? line + ' ' + words[i] : words[i];
+      if (line && ctx.measureText(trial).width > maxTextW) { lines.push(line); line = words[i]; }
+      else line = trial;
+    }
+    if (line) lines.push(line);
+    if (!lines.length) lines.push('');
+    var headW = 0;
+    for (var j = 0; j < lines.length; j++) headW = Math.max(headW, ctx.measureText(lines[j]).width);
+    if (headW > maxTextW) headSize = Math.max(24 * s, headSize * maxTextW / headW);
+    var lineH = headSize * 1.13;
+    var extra = (lines.length - 1) * lineH;
+
+    var bandH = 170 * s + extra;
+    var tabH = 52 * s;
+    var y = tall ? H * 0.44 - (bandH - 6 * s - tabH) / 2 : H * 0.62;
     var k = bandH * SLANT;
 
     // The band enters from the left; its slashed nose leads.
@@ -61,14 +86,19 @@
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    var margin = 110 * s;
     var textA = clamp01((show - 0.35) / 0.65);
 
     // The kicker tab sits above the band on the left.
     var kickText = (p.kicker || '').toUpperCase();
     ctx.font = '800 ' + kickSize + 'px ' + FONT;
-    var kickW = ctx.measureText(kickText).width + 56 * s;
-    var tabH = 52 * s, tabY = y - 6 * s - tabH;
+    var kickTextW = ctx.measureText(kickText).width;
+    if (kickTextW > maxTextW - 56 * s) {
+      kickSize = Math.max(14 * s, kickSize * (maxTextW - 56 * s) / kickTextW);
+      ctx.font = '800 ' + kickSize + 'px ' + FONT;
+      kickTextW = ctx.measureText(kickText).width;
+    }
+    var kickW = kickTextW + 56 * s;
+    var tabY = y - 6 * s - tabH;
     ctx.globalAlpha = textA;
     ctx.beginPath();
     ctx.moveTo(margin + tabH * SLANT, tabY);
@@ -83,7 +113,9 @@
 
     ctx.fillStyle = p.text;
     ctx.font = '800 ' + headSize + 'px ' + FONT;
-    ctx.fillText((p.headline || '').toUpperCase(), margin, y + 112 * s);
+    for (var n = 0; n < lines.length; n++) {
+      ctx.fillText(lines[n], margin, y + 112 * s + n * lineH);
+    }
     ctx.globalAlpha = 1;
   };
 </script>

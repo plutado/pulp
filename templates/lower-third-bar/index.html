@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Sample template for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -35,19 +35,34 @@
     var show = inT * (1 - outT);
     if (show <= 0) return;
 
-    var s = H / 1080;
-    var margin = 96 * s;
+    var s = Math.min(W, H) / 1080;
+    // A tall frame (9:16) re-lays the panel: above the caption band (bottom 22%),
+    // clear of the controls column (right 18%), always on the left with a 0.06 W margin.
+    var tall = H > W * 1.4;
+    var margin = tall ? 0.06 * W : 96 * s;
     var nameSize = 54 * s, titleSize = 30 * s;
+    var padX = 36 * s, barW = 10 * s;
+    // The text must fit the panel's room: 0.76 W on a tall frame, 0.9 W elsewhere (a no-op at 16:9).
+    var maxTextW = (tall ? 0.82 * W : 0.9 * W) - margin - barW - padX * 2;
     ctx.font = '600 ' + nameSize + 'px ' + p.font;
     var nameW = ctx.measureText(p.name).width;
+    if (nameW > maxTextW) {
+      nameSize = Math.max(18 * s, nameSize * maxTextW / nameW);
+      ctx.font = '600 ' + nameSize + 'px ' + p.font;
+      nameW = ctx.measureText(p.name).width;
+    }
     ctx.font = '400 ' + titleSize + 'px ' + p.font;
     var titleW = ctx.measureText(p.title).width;
+    if (titleW > maxTextW) {
+      titleSize = Math.max(14 * s, titleSize * maxTextW / titleW);
+      ctx.font = '400 ' + titleSize + 'px ' + p.font;
+      titleW = ctx.measureText(p.title).width;
+    }
 
-    var padX = 36 * s, barW = 10 * s;
     var panelW = Math.max(nameW, titleW) + padX * 2;
     var panelH = 150 * s;
-    var y = H - margin - panelH;
-    var right = p.side === 'right';
+    var y = tall ? H * 0.72 - panelH : H - margin - panelH;
+    var right = !tall && p.side === 'right';
     var x = right ? W - margin - panelW - barW : margin;
 
     // Accent bar grows first, panel wipes out from it.

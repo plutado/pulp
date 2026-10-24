@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Sample template for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -43,7 +43,7 @@
 
     var shear = Math.tan(p.angle * Math.PI / 180) * H / 2;
     var span = W + shear * 2;       // distance needed to fully cover the frame
-    var leadW = 80 * (H / 1080);
+    var leadW = 80 * (Math.min(W, H) / 1080);
     var travel = span + leadW;
     var x0 = -shear - leadW;        // left edge of coverage at the start
 

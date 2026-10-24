@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -33,7 +33,7 @@
     var show = easeOutCubic(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
     if (show <= 0) return;
 
-    var s = H / 1080;
+    var s = Math.min(W, H) / 1080;
     var m = p.margin * s, w = p.weight * s;
     var left = m, top = m, right = W - m, bottom = H - m;
     var halfW = (right - left) / 2, halfH = (bottom - top) / 2;

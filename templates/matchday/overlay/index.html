@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -34,13 +34,19 @@
     var show = easeOutQuart(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
     if (show <= 0) return;
 
-    var s = H / 1080;
+    var s = Math.min(W, H) / 1080;
     var margin = 64 * s, boxH = 64 * s;
     var sideSize = 30 * s, scoreSize = 34 * s;
     ctx.font = '800 ' + sideSize + 'px ' + FONT;
     var homeText = (p.home || '').toUpperCase(), awayText = (p.away || '').toUpperCase();
     var sideW = Math.max(ctx.measureText(homeText).width, ctx.measureText(awayText).width) + 36 * s;
     var scoreW = 64 * s, gap = 4 * s;
+    var fit = (W - margin * 2) / ((sideW + scoreW) * 2 + gap);
+    if (fit < 1) {
+      sideSize *= fit; scoreSize *= fit; scoreW *= fit; boxH *= fit;
+      ctx.font = '0 800 ' + sideSize + 'px ' + FONT;
+      sideW = Math.max(ctx.measureText(homeText).width, ctx.measureText(awayText).width) + 36 * s * fit;
+    }
     var cellW = sideW + scoreW;
     var boxW = cellW * 2 + gap;
 

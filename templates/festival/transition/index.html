@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Festival sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -45,7 +45,7 @@
     ctx.fill();
 
     // The gold rim rides whichever edge is moving.
-    var rim = 10 * (H / 1080);
+    var rim = 10 * (Math.min(W, H) / 1080);
     ctx.lineWidth = rim;
     ctx.strokeStyle = p.gold;
     ctx.beginPath();

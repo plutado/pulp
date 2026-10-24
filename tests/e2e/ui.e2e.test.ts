@@ -263,6 +263,17 @@ describe.skipIf(!electron)('inspector UI', () => {
     mediaDir = join(userData, 'media-library');
     await mkdir(mediaDir, { recursive: true });
     await writeFile(join(mediaDir, 'tiny.png'), TINY_PNG);
+    // A template of one declared size, now that every bundled template draws for all four shapes:
+    // the Output tab's "no aspect to choose" case and the orientation filter's landscape-only case.
+    await mkdir(join(mediaDir, 'wide-only'), { recursive: true });
+    await writeFile(
+      join(mediaDir, 'wide-only', 'template.json'),
+      JSON.stringify({ formatVersion: 1, id: 'pulp.test.wide-only', name: 'Wide only', version: '1.0.0', license: 'CC0-1.0', category: 'title', duration: 1, fps: 30, width: 320, height: 180, alpha: true, parameters: [] }),
+    );
+    await writeFile(
+      join(mediaDir, 'wide-only', 'index.html'),
+      '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent}canvas{display:block;width:100%;height:100%}</style></head><body><canvas id="c"></canvas><script>var c=document.getElementById("c"),x=c.getContext("2d");window.pulpRender=function(s){if(c.width!==s.width||c.height!==s.height){c.width=s.width;c.height=s.height;}x.clearRect(0,0,s.width,s.height);x.fillStyle="#4f7cac";x.fillRect(s.width*0.1,s.height*0.6,s.width*0.5,s.height*0.2);};</script></body></html>',
+    );
     await writeFile(join(mediaDir, 'silence.wav'), await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'silence.wav')));
     const ffmpeg = await detectFfmpeg();
     if (ffmpeg.ok) {
@@ -607,11 +618,11 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.getElementById('safe-toggle').click()`);
 
       // A template with one declared size: no aspect to choose, and the default is its own size.
-      await clickResult('Lower Third Bar');
+      await clickResult('Wide only');
       await until(() => page.eval<boolean>(`document.getElementById('opt-aspect-field').hidden`), 'the aspect field to hide');
-      expect(await page.eval<string>(`document.getElementById('opt-resolution').selectedOptions[0].textContent`)).toBe('Template size · 1920 × 1080');
+      expect(await page.eval<string>(`document.getElementById('opt-resolution').selectedOptions[0].textContent`)).toBe('Template size · 320 × 180');
       expect(await note()).toBe('');
-      expect(await previewShape()).toEqual({ ratio: '1920 / 1080', orientation: 'landscape' });
+      expect(await previewShape()).toEqual({ ratio: '320 / 180', orientation: 'landscape' });
     }, 90_000);
 
     it('renders at the chosen shape and size through Prepare for drag', async () => {
@@ -1277,8 +1288,8 @@ describe.skipIf(!electron)('inspector UI', () => {
           `[...document.querySelectorAll('#info-item [data-section=${id}] .fact')].map((f) => f.querySelector('dt').textContent + ': ' + f.querySelector('dd').textContent)`,
         );
       expect(await factsOf('format')).toEqual([
-        'Aspect: 16:9',
-        'Size: 1920 × 1080',
+        'Aspects: 16:9, 9:16, 1:1, 4:5',
+        'Size: Chosen at render time · 1920 × 1080 by default',
         'Duration: 6 s · 00:00:06:00',
         'Frame rate: 30 fps',
         'Alpha: Transparent background',
@@ -1373,7 +1384,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`document.getElementById('results').classList.contains('grid')`)).toBe(true);
       expect(await page.eval<string>(`document.getElementById('view-grid').getAttribute('aria-pressed')`)).toBe('true');
       const cardBadges = await onResult<string[]>('Lower Third Bar', '(li) => [...li.querySelectorAll(".badge")].map((b) => b.dataset.badge)');
-      expect(cardBadges).toEqual(['alpha', 'duration', 'resolution']);
+      expect(cardBadges).toEqual(['alpha', 'duration', 'resolution', 'vertical']); // every bundled template now draws tall as well
 
       await page.eval(`document.getElementById('view-list').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('results').classList.contains('list')`), 'the list view');
@@ -1450,11 +1461,11 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`document.getElementById('chip-vertical').getAttribute('aria-pressed') === 'true'`), 'the chip to be pressed');
       const vertical = await names();
       expect(vertical).toContain('Boardroom opener'); // declares 9:16 among its shapes
-      expect(vertical).not.toContain('Lower Third Bar'); // a declared 1920 × 1080, landscape only
+      expect(vertical).not.toContain('Wide only'); // a declared 320 × 180, landscape only
       expect(await onResult<boolean>('Boardroom opener', '(li) => !!li.querySelector(".badge.vertical")')).toBe(true);
       await page.eval(`document.getElementById('chip-vertical').click()`);
-      await until(async () => (await names()).includes('Lower Third Bar'), 'the landscape items back after releasing the chip');
-      expect(await onResult<boolean>('Lower Third Bar', '(li) => !!li.querySelector(".badge.vertical")')).toBe(false);
+      await until(async () => (await names()).includes('Wide only'), 'the landscape items back after releasing the chip');
+      expect(await onResult<boolean>('Wide only', '(li) => !!li.querySelector(".badge.vertical")')).toBe(false);
     }, 60_000);
 
     it('cards take the item\'s own shape, and a grid holding a tall item takes a taller row', async () => {

@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -46,9 +46,9 @@
       ctx.fill();
       ctx.globalAlpha = 1;
     }
-    band(1, 0.1, 220 * (H / 1080), p.cool, p.intensity);
-    band(2, 0.55, 90 * (H / 1080), p.accent, p.intensity * 0.9);
-    band(1, 0.7, 420 * (H / 1080), p.cool, p.intensity * 0.5);
+    band(1, 0.1, 220 * (Math.min(W, H) / 1080), p.cool, p.intensity);
+    band(2, 0.55, 90 * (Math.min(W, H) / 1080), p.accent, p.intensity * 0.9);
+    band(1, 0.7, 420 * (Math.min(W, H) / 1080), p.cool, p.intensity * 0.5);
 
     var v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H);
     v.addColorStop(0, 'rgba(0,0,0,0)');

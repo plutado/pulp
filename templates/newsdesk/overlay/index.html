@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -35,7 +35,7 @@
     var show = easeOutQuart(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
     if (show <= 0) return;
 
-    var s = H / 1080;
+    var s = Math.min(W, H) / 1080;
     var margin = 64 * s, boxH = 56 * s, tabW = 22 * s;
     var labelText = (p.label || '').toUpperCase();
     ctx.font = '800 ' + 28 * s + 'px ' + FONT;

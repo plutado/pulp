@@ -9,7 +9,7 @@
 </style>
 </head>
 <body>
-<canvas id="c" width="1920" height="1080"></canvas>
+<canvas id="c"></canvas>
 <script>
   // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
   'use strict';
@@ -34,13 +34,40 @@
     var show = easeOutCubic(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
     if (show <= 0) return;
 
-    var s = H / 1080;
-    var cx = W / 2, cy = H / 2;
+    var s = Math.min(W, H) / 1080;
+    // On a tall frame the block sits a little above the middle, clear of the caption band.
+    var tall = H > W * 1.4;
+    var cx = W / 2, cy = tall ? H * 0.44 : H / 2;
     var headSize = 96 * s, kickSize = 30 * s;
-    var gap = 86 * s * easeOutCubic(clamp01(show * 1.2));
+    var maxTextW = 0.86 * W;
+
+    // The headline wraps onto two or three lines when it does not fit (a no-op on a wide frame).
+    ctx.font = '300 ' + headSize + 'px ' + FONT;
+    var words = (p.headline || '').split(' ').filter(function (w) { return w; });
+    var lines = [];
+    var line = '';
+    for (var i = 0; i < words.length; i++) {
+      var trial = line ? line + ' ' + words[i] : words[i];
+      if (line && ctx.measureText(trial).width > maxTextW) { lines.push(line); line = words[i]; }
+      else line = trial;
+    }
+    if (line) lines.push(line);
+    if (!lines.length) lines.push('');
+    var headW = 0;
+    for (var j = 0; j < lines.length; j++) headW = Math.max(headW, ctx.measureText(lines[j]).width);
+    if (headW > maxTextW) headSize = Math.max(24 * s, headSize * maxTextW / headW);
+    var lineH = headSize * 1.12;
+    var extra = (lines.length - 1) * lineH;
+
+    var kickText = (p.kicker || '').toUpperCase().split('').join(' ');
+    ctx.font = '600 ' + kickSize + 'px ' + FONT;
+    var kickW = ctx.measureText(kickText).width;
+    if (kickW > maxTextW) kickSize = Math.max(14 * s, kickSize * maxTextW / kickW);
+
+    var gap = (86 * s + extra / 2) * easeOutCubic(clamp01(show * 1.2));
 
     // Two hairlines slide apart from the center; their length settles as they go.
-    var lineW = (520 + 360 * easeOutCubic(clamp01(show * 1.2))) * s;
+    var lineW = Math.min(0.9 * W, (520 + 360 * easeOutCubic(clamp01(show * 1.2))) * s);
     ctx.fillStyle = p.accent;
     ctx.globalAlpha = clamp01(show * 2);
     ctx.fillRect(cx - lineW / 2, cy - gap, lineW, 2 * s);
@@ -53,12 +80,14 @@
     ctx.globalAlpha = textA * 0.9;
     ctx.fillStyle = p.accent;
     ctx.font = '600 ' + kickSize + 'px ' + FONT;
-    ctx.fillText((p.kicker || '').toUpperCase().split('').join(' '), cx, cy - gap - 34 * s);
+    ctx.fillText(kickText, cx, cy - gap - 34 * s);
 
     ctx.globalAlpha = textA;
     ctx.fillStyle = p.text;
     ctx.font = '300 ' + headSize + 'px ' + FONT;
-    ctx.fillText(p.headline, cx, cy + 6 * s);
+    for (var k = 0; k < lines.length; k++) {
+      ctx.fillText(lines[k], cx, cy + 6 * s + (k - (lines.length - 1) / 2) * lineH);
+    }
     ctx.globalAlpha = 1;
   };
 </script>

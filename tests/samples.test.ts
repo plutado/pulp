@@ -67,6 +67,22 @@ describe('bundled sample templates', async () => {
     expect(html).not.toMatch(/https?:\/\//);
   });
 
+  // Milestone 19: a template is a shape, not a pixel size. Every bundled template
+  // declares the aspects it draws for and lays out from the canvas it is handed.
+  it.each(dirs)('%s declares its aspects and draws from the size it is given', async (dir) => {
+    const result = parseManifest(await readFile(join(TEMPLATES_DIR, dir, 'template.json'), 'utf8'));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.manifest.aspects.length, 'declared aspects').toBeGreaterThanOrEqual(1);
+    expect(result.manifest.size, 'no pixel size: the resolution is chosen at render time').toBeUndefined();
+    const html = await readFile(join(TEMPLATES_DIR, dir, 'index.html'), 'utf8');
+    expect(html).toContain('state.width');
+    expect(html).toContain('state.height');
+    // No fixed canvas, and no scale taken from one side alone: a tall frame would blow the layout up.
+    expect(html).not.toMatch(/<canvas[^>]*\s(width|height)=/);
+    expect(html).not.toMatch(/\bH\s*\/\s*1080\b|\bW\s*\/\s*1920\b/);
+  });
+
   it('all samples index cleanly, get the pack defaults, and can be planned for every preset', async () => {
     const index = await scanLibrary([TEMPLATES_DIR]);
     expect(index.problems).toEqual([]);
