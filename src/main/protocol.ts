@@ -2,12 +2,13 @@ import { protocol } from 'electron';
 import { readFile, realpath } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
+import { bundledFontFile, FONT_SCHEME, fontMimeType, TEMPLATE_FONTS_PATH } from '../core/fonts';
 import { MEDIA_SCHEME, serveMedia } from '../core/media-serve';
 import { THUMB_SCHEME } from '../core/thumbnails';
 import { STRIP_SCHEME } from '../core/hover-scrub';
 import { injectBridge, TEMPLATE_CSP } from '../core/runtime';
 import { TEMPLATE_SCHEME } from '../shared/api';
-import { findTemplate, lookupMedia, lookupStrip, lookupThumbnail, thumbnailDir } from './library-service';
+import { bundledFontsDir, findTemplate, lookupMedia, lookupStrip, lookupThumbnail, thumbnailDir } from './library-service';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -41,7 +42,55 @@ export function registerTemplateScheme(): void {
     // (by id, bare 404s, no fetch).
     { scheme: THUMB_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: false } },
     { scheme: STRIP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: false } },
+    // The bundled fonts, for the app window's own type (ADR 0014). Template pages get the same files
+    // under their own origin instead, which is what their CSP allows.
+    // A font load is a CORS request even from the app window, so the scheme is CORS-enabled and
+    // its responses say who may read them (any page: the files are public under their licence).
+    { scheme: FONT_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: false, corsEnabled: true } },
   ]);
+}
+
+/**
+ * One of the bundled font files, or a 404. The path must be exactly `<slug>/<file>` from the
+ * bundled list (src/core/fonts.ts): nothing else under the fonts folder is reachable, and the
+ * list is what the credits and the hashes vouch for.
+ */
+async function serveBundledFont(path: string, method: string, extraHeaders: Record<string, string> = {}): Promise<Response> {
+  const refuse = () => new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
+  if (method !== 'GET' && method !== 'HEAD') return refuse();
+  const found = bundledFontFile(path);
+  if (!found) return refuse();
+  let body: Buffer;
+  try {
+    body = await readFile(resolve(bundledFontsDir(), found.font.slug, found.file.file));
+  } catch {
+    return refuse();
+  }
+  const headers = {
+    'Content-Type': fontMimeType(found.file.file),
+    // The files never change while the app runs; a template page is reloaded often and need not refetch them.
+    'Cache-Control': 'max-age=86400',
+    'X-Content-Type-Options': 'nosniff',
+    ...extraHeaders,
+  };
+  return new Response(method === 'HEAD' ? null : new Uint8Array(body), { status: 200, headers });
+}
+
+/** The bundled fonts for the app window, at pulp-font://<slug>/<file>. Template pages are refused, as everywhere. */
+export function handleFontProtocol(): void {
+  protocol.handle(FONT_SCHEME, async (request) => {
+    const referrer = request.referrer || request.headers.get('referer') || '';
+    if (referrer.startsWith('pulp-template://')) return new Response(null, { status: 404 });
+    let url: URL;
+    try {
+      url = new URL(request.url);
+    } catch {
+      return new Response(null, { status: 404 });
+    }
+    if (url.search) return new Response(null, { status: 404 });
+    // A standard scheme puts the first segment in the hostname: pulp-font://inter/InterVariable.ttf.
+    return serveBundledFont(`${url.hostname}/${decodeURIComponent(url.pathname.replace(/^\/+/, ''))}`, request.method, { 'Access-Control-Allow-Origin': '*' });
+  });
 }
 
 /**
@@ -121,12 +170,18 @@ export function handleMediaProtocol(): void {
 export function handleTemplateProtocol(): void {
   protocol.handle(TEMPLATE_SCHEME, async (request) => {
     const url = new URL(request.url);
+    const relPath = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+    // The bundled fonts live under every template's origin at a reserved path (ADR 0014), so a
+    // template's `font-src 'self'` reaches them. A template folder's own `__pulp` can never be served.
+    if (relPath.startsWith(`${TEMPLATE_FONTS_PATH}/`)) {
+      return serveBundledFont(relPath.slice(TEMPLATE_FONTS_PATH.length + 1), request.method, { 'Content-Security-Policy': TEMPLATE_CSP });
+    }
     const template = await findTemplate(url.hostname);
     if (!template) return new Response('template not found', { status: 404 });
 
-    const relPath = decodeURIComponent(url.pathname.replace(/^\/+/, '')) || template.manifest.entry;
+    const entryPath = relPath || template.manifest.entry;
     const root = resolve(template.dir);
-    const filePath = resolve(root, relPath);
+    const filePath = resolve(root, entryPath);
     if (filePath !== root && !filePath.startsWith(root + sep)) {
       return new Response('forbidden', { status: 403 });
     }

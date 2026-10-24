@@ -36,6 +36,11 @@ export function bundledTemplatesDir(): string {
   return app.isPackaged ? join(process.resourcesPath, 'templates') : join(app.getAppPath(), 'templates');
 }
 
+/** The bundled fonts (src/core/fonts.ts, ADR 0014), beside the bundled templates. */
+export function bundledFontsDir(): string {
+  return app.isPackaged ? join(process.resourcesPath, 'fonts') : join(app.getAppPath(), 'fonts');
+}
+
 /** How long a scan result counts as fresh when the window regains focus. */
 export const FOCUS_RESCAN_AGE_MS = 5_000;
 /** How often missing roots are checked for having come back. */

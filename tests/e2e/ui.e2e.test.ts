@@ -991,6 +991,73 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await layerIds()).length === 2, 'the template\'s own layers again');
     }, 120_000);
 
+    it('sets a layer\'s type: the family in its own face from the bundled set, and every other property, undoably', async () => {
+      const title = `document.querySelector('#params .layer-row[data-layer=title]')`;
+      const summary = () => page.eval<string>(`${title}.querySelector('.layer-type summary').textContent`);
+      // The type is folded under the words, summed up in one line.
+      expect(await page.eval<boolean>(`${title}.querySelector('.layer-type').open`)).toBe(false);
+      expect(await summary()).toBe('Georgia · 8.9% · Regular · Uppercase');
+      await page.eval(`${title}.querySelector('.layer-type').open = true`);
+
+      // The family list: the bundled ten, each set in itself, then the template's own stacks.
+      await page.eval(`${title}.querySelector('.family-current').click()`);
+      await until(() => page.eval<boolean>(`!${title}.querySelector('.family-list').hidden`), 'the family list');
+      const options = await page.eval<{ label: string; family: string; face: string }[]>(
+        `[...${title}.querySelectorAll('.family-list [role=option]')].map((l) => ({ label: l.textContent, family: l.dataset.family, face: l.style.fontFamily }))`,
+      );
+      expect(options.slice(0, 10).map((o) => o.label)).toEqual(['Inter', 'Montserrat', 'Oswald', 'Bebas Neue', 'Source Serif 4', 'Playfair', 'JetBrains Mono', 'Caveat', 'Dancing Script', 'Noto Sans']);
+      // Each set in itself, every name quoted ("Source Serif 4" is not valid unquoted).
+      for (const o of options) expect(o.face.replace(/"/g, ''), o.label).toBe(o.family.replace(/"/g, ''));
+      expect(options.find((o) => o.label === 'Source Serif 4')?.face).toBe('"Source Serif 4"');
+      expect(options.map((o) => o.label)).toContain('Georgia');
+      // The app window has the bundled faces, so the list is set in them.
+      await until(() => page.eval<boolean>(`document.fonts.check('16px Oswald') && [...document.fonts].some((f) => f.family.replace(/"/g, '') === 'Oswald' && f.status === 'loaded')`), 'Oswald loaded in the app window', 30_000);
+
+      // Picking Oswald: the control shows it in itself, the template page loads it, and the title is drawn in it.
+      await scrubAndWait(110);
+      const inkWidth = () => inTemplate<number>(
+        `(() => { const c = document.getElementById('c'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let min = c.width, max = 0;
+          for (let y = 0; y < c.height; y += 2) for (let x = 0; x < c.width; x += 2) { const i = (y * c.width + x) * 4; if (d[i] > 200 && d[i + 1] > 200 && d[i + 2] > 200) { if (x < min) min = x; if (x > max) max = x; } }
+          return max - min; })()`,
+        CARD,
+      );
+      const georgiaWidth = await inkWidth();
+      await page.eval(`[...${title}.querySelectorAll('.family-list [role=option]')].find((l) => l.dataset.family === 'Oswald').click()`);
+      await until(async () => (await summary()).startsWith('Oswald'), 'the summary to name Oswald');
+      expect(await page.eval<string>(`${title}.querySelector('.family-current').style.fontFamily`)).toBe('Oswald');
+      await until(() => inTemplate<boolean>(`document.fonts.check('400 16px Oswald') && [...document.fonts].some((f) => f.family === 'Oswald' && f.status === 'loaded')`, CARD), 'Oswald loaded in the template page', 30_000);
+      await scrubAndWait(110);
+      // Oswald is a condensed face: the same words come out much narrower than they did in Georgia.
+      await until(async () => (await inkWidth()) < 0.8 * georgiaWidth, 'the title drawn in Oswald, narrower than in Georgia');
+
+      // The rest: weight, italic, case, size, spacing, colour, alignment, overflow — each one undo step.
+      await fire('[data-layer=title] select[aria-label="Title weight"]', '700', 'change');
+      await page.eval(`${title}.querySelector('input[aria-label="Title italic"]').click()`);
+      await fire('[data-layer=title] select[aria-label="Title case"]', 'none', 'change');
+      await until(async () => (await summary()) === 'Oswald · 8.9% · Bold · Italic', 'the summary to follow');
+      await fire('[data-layer=title] input[aria-label="Title size"]', '5', 'change');
+      await fire('[data-layer=title] input[aria-label="Title letter spacing"]', '0.3', 'change');
+      await page.eval(`(() => { const f = ${title}.querySelector('.type-field .color-field .hex'); f.value = '#ff0000'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`${title}.querySelector('.segmented [data-align=left]').click()`);
+      await fire('[data-layer=title] select[aria-label="Title overflow"]', 'shrink', 'change');
+      await until(() => page.eval<boolean>(`${title}.querySelector('input[aria-label="Title lines at most"]').closest('.type-field').hidden`), 'the line limit to go with shrink');
+      await scrubAndWait(110);
+      // Red, left-aligned, smaller: the first band is red ink near the left edge of the block.
+      const red = await inTemplate<{ left: number; found: boolean }>(
+        `(() => { const c = document.getElementById('c'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let left = c.width, found = false;
+          for (let y = 0; y < c.height; y += 2) for (let x = 0; x < c.width; x += 2) { const i = (y * c.width + x) * 4; if (d[i] > 200 && d[i + 1] < 60 && d[i + 2] < 60) { found = true; if (x < left) left = x; } }
+          return { left, found }; })()`,
+        CARD,
+      );
+      expect(red.found).toBe(true);
+      expect(red.left).toBeLessThan(0.07 * 1920 + 60); // the block starts at 7% of the width
+
+      // Nine edits, nine steps back to Georgia; Reset layers then leaves nothing to undo about the type.
+      for (let i = 0; i < 9; i++) await page.eval(`document.getElementById('undo').click()`);
+      await until(async () => (await summary()) === 'Georgia · 8.9% · Regular · Uppercase', 'the type back to the template\'s');
+      expect(await page.eval<boolean>(`${section}.querySelector('.layers-reset').hidden`)).toBe(true);
+    }, 120_000);
+
     it('lays the stack out for a tall frame as well, from the block\'s own box', async () => {
       await scrubAndWait(110);
       const wide = await drawn();

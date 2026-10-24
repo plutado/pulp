@@ -131,4 +131,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Code: MIT, see [LICENSE](LICENSE). Sample templates: CC0 1.0, see [templates/LICENSE-CC0.txt](templates/LICENSE-CC0.txt). Pulp does not ship third-party media; templates and media you add stay under their own licenses.
+Code: MIT, see [LICENSE](LICENSE). Sample templates: CC0 1.0, see [templates/LICENSE-CC0.txt](templates/LICENSE-CC0.txt). Bundled fonts: SIL Open Font License 1.1, each with its own licence file in `fonts/`, credited in [docs/font-credits.md](docs/font-credits.md); they are not MIT. Pulp does not ship third-party media; templates and media you add stay under their own licenses.

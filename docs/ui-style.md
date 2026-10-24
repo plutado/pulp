@@ -108,6 +108,15 @@ The Info tab is the worked example; anything that shows what an item *is* follow
 - **A long description is clamped** to a few lines with "More", so one wordy item cannot push everything else off the panel.
 - **A chip row ends with its own add control**, not a separate field further down: the place you add a tag is where the tags are.
 
+## Fonts are credited dependencies
+
+A font is code someone else wrote, under a licence of its own. Pulp bundles ten families under the SIL Open Font License 1.1 (`docs/font-credits.md`, ADR 0014) and the rule for them, and for any added later, is the same as for a library:
+
+- **Taken from upstream, with its licence file**, which is read, not assumed. The credits file names the family, the version, the licence, any Reserved Font Name and the source, and a test holds the files, their hashes and the credits to one list.
+- **Shipped unmodified.** No subsetting, no renaming: a Reserved Font Name requires it, and every family keeps its full character set.
+- **Shown in its own face** wherever a family is chosen, so the choice is the look and not a name.
+- **Never redistributed on someone's behalf.** A pack exported from Pulp carries no font files but a template's own; a family a person imports stays in their managed folder and is named by the template, not shipped with it.
+
 ## Tokens
 
 All in `:root`; literal values outside the token block are a defect the enforcement test catches.

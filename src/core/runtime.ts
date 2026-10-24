@@ -9,6 +9,7 @@
  */
 
 import type { Size } from './aspect';
+import { fontFaceCss, TEMPLATE_FONTS_PATH } from './fonts';
 import { imageSlots, type ImageSlotState } from './image-slot';
 import { blockStates, layerTexts, type BlockState } from './layer-layout';
 import type { Block, LayerValues } from './layers';
@@ -171,7 +172,13 @@ export const BRIDGE_SCRIPT = `(function () {
     if (how === 'title') return text.replace(/\\S+/g, function (w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); });
     return text;
   }
-  function layerFont(layer, size) { return (layer.italic ? 'italic ' : '') + layer.weight + ' ' + size + 'px ' + layer.family; }
+  var GENERIC = { serif: 1, 'sans-serif': 1, monospace: 1, cursive: 1, fantasy: 1, 'system-ui': 1, 'ui-serif': 1, 'ui-sans-serif': 1, 'ui-monospace': 1, 'ui-rounded': 1, math: 1, emoji: 1, fangsong: 1, inherit: 1, initial: 1 };
+  /* Mirrors cssFontFamily in src/core/fonts.ts: every name quoted unless generic, since ctx.font ignores an invalid string. */
+  function cssFamily(stack) {
+    return String(stack).split(',').map(function (p) { return p.trim().replace(/^["']|["']$/g, ''); }).filter(Boolean)
+      .map(function (p) { return GENERIC[p.toLowerCase()] ? p : '"' + p.replace(/"/g, '\\"') + '"'; }).join(', ');
+  }
+  function layerFont(layer, size) { return (layer.italic ? 'italic ' : '') + layer.weight + ' ' + size + 'px ' + cssFamily(layer.family); }
   function textWidth(ctx, text, layer, size, spacingEm) {
     ctx.font = layerFont(layer, size);
     var spacing = spacingEm * size;
@@ -352,12 +359,30 @@ export const BRIDGE_SCRIPT = `(function () {
     ctx.restore();
     return true;
   }
+  /* Canvas text never triggers a font load, so every face a layer is set in is loaded before the
+     frame; a face that is not declared or installed resolves at once and falls back as it would anyway. */
+  var loadedFaces = {};
+  function loadLayerFonts(state) {
+    var blocks = state && state.blocks ? state.blocks : {};
+    var pending = [];
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    Object.keys(blocks).forEach(function (id) {
+      (blocks[id].layers || []).forEach(function (layer) {
+        if (layer.type !== 'text') return;
+        var face = (layer.italic ? 'italic ' : '') + layer.weight + ' 16px ' + cssFamily(layer.family);
+        if (loadedFaces[face]) return;
+        loadedFaces[face] = true;
+        pending.push(document.fonts.load(face).then(null, function () { return null; }));
+      });
+    });
+    return Promise.all(pending);
+  }
   function render(state) {
     return ready.then(function () {
       if (typeof window.pulpRender !== 'function') {
         throw new Error('Template does not define window.pulpRender(state)');
       }
-      return attachPictures(state).then(function () { return window.pulpRender(state); });
+      return Promise.all([attachPictures(state), loadLayerFonts(state)]).then(function () { return window.pulpRender(state); });
     }).then(function () {
       /* Two animation frames: the first callback runs before the frame holding the draw is
          committed to the compositor, so resolving there can let a capture see the previous frame
@@ -400,9 +425,15 @@ export const BRIDGE_SCRIPT = `(function () {
 /** The bridge on one line, so injecting it does not shift line numbers in template error locations. */
 export const BRIDGE_SCRIPT_INLINE = BRIDGE_SCRIPT.replace(/\s*\n\s*/g, ' ');
 
-/** Insert the bridge as the first script of the document so it runs before template code. */
+/** The bundled fonts, declared for a template page under its own origin (ADR 0014); one line, like the bridge. */
+export const TEMPLATE_FONT_CSS_INLINE = fontFaceCss(`/${TEMPLATE_FONTS_PATH}/`).replace(/\n/g, '');
+
+/**
+ * Insert the bridge as the first script of the document so it runs before template code, with the
+ * bundled fonts' `@font-face` rules beside it, so a layer set in Oswald finds Oswald in every template.
+ */
 export function injectBridge(html: string): string {
-  const tag = `<script data-pulp-bridge>${BRIDGE_SCRIPT_INLINE}</script>`;
+  const tag = `<script data-pulp-bridge>${BRIDGE_SCRIPT_INLINE}</script><style data-pulp-fonts>${TEMPLATE_FONT_CSS_INLINE}</style>`;
   const head = /<head(\s[^>]*)?>/i.exec(html);
   if (head) {
     const at = head.index + head[0].length;

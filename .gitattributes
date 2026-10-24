@@ -11,4 +11,8 @@
 *.mp4 binary
 *.mov binary
 *.zip binary
+*.ttf binary
+*.otf binary
+# The bundled fonts and their licence files are upstream's bytes, untouched (docs/font-credits.md).
+fonts/** -text
 *.sqlite binary

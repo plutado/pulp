@@ -13,6 +13,7 @@ import { mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
 import { initTray } from './tray';
+import { FONT_SCHEME, fontFaceCss } from '../core/fonts';
 import { mountIcons } from './icons';
 import { initTooltips } from './tooltip';
 import { effect } from '@preact/signals';
@@ -309,6 +310,11 @@ els.addSampleMedia.addEventListener('click', () => {
 els.rescan.addEventListener('click', () => void loadLibrary(window.pulp.rescanLibrary()));
 window.pulp.onRenderQueue((snapshot) => dispatch((s) => setJobs(s, snapshot)));
 
+// The bundled fonts (ADR 0014), so the family control can show each face in itself.
+const fontStyle = document.createElement('style');
+fontStyle.dataset.pulpFonts = '';
+fontStyle.textContent = fontFaceCss(`${FONT_SCHEME}://`);
+document.head.append(fontStyle);
 mountIcons();
 initTooltips();
 initShell();

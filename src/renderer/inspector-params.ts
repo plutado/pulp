@@ -13,7 +13,20 @@ import type { TemplateManifest, TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
 import { LAYERS_KEY, resolveParams, type ResolvedParams } from '../core/params';
-import { defaultLayers, newLayer, resolveLayers, type Layer, type LayerType, type LayerValues } from '../core/layers';
+import { BUNDLED_FAMILIES, cssFontFamily, familyLabel } from '../core/fonts';
+import {
+  defaultLayers,
+  LAYER_ALIGNS,
+  LAYER_LIMITS,
+  newLayer,
+  resolveLayers,
+  TEXT_CASES,
+  TEXT_OVERFLOWS,
+  type Layer,
+  type LayerType,
+  type LayerValues,
+  type TextLayer,
+} from '../core/layers';
 import { addRecentColor } from '../core/recent-colors';
 import { dimensionsLabel } from '../core/display';
 import { IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } from '../core/image-slot';
@@ -955,13 +968,250 @@ function layerRow(blockId: string, layer: Layer, index: number, count: number): 
     input.setAttribute('aria-label', `${layer.label} text`);
     input.addEventListener('input', () => editLayer(blockId, layer.id, (l) => ({ ...l, text: input.value }), false));
     input.addEventListener('change', () => commitParams());
-    row.append(input);
+    row.append(input, typographyControls(blockId, layer));
   } else {
     row.append(
       imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }),
     );
   }
   return row;
+}
+
+// ---------------------------------------------------------------- text layer properties (milestone 23)
+
+/** Which layers have their type controls open, across rebuilds of the form; keyed block.layer. */
+const openTypography = new Set<string>();
+
+const CASE_LABELS: Record<TextLayer['case'], string> = { none: 'As typed', upper: 'Uppercase', lower: 'Lowercase', title: 'Title case' };
+const OVERFLOW_LABELS: Record<TextLayer['overflow'], string> = { wrap: 'Wrap', shrink: 'Shrink to fit', truncate: 'Truncate' };
+const ALIGN_LABELS: Record<TextLayer['align'], string> = { left: 'Left', center: 'Centre', right: 'Right' };
+const WEIGHT_LABELS: Record<number, string> = { 100: 'Thin', 200: 'Extra light', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semibold', 700: 'Bold', 800: 'Extra bold', 900: 'Black' };
+
+/** The families on offer: the bundled set, then whatever the template itself sets type in, then the layer's own if it is neither. */
+function familyChoices(current: string): { stack: string; bundled: boolean }[] {
+  const out: { stack: string; bundled: boolean }[] = BUNDLED_FAMILIES.map((f) => ({ stack: f, bundled: true }));
+  const seen = new Set(out.map((o) => o.stack));
+  const own: string[] = [];
+  for (const block of selectedTemplate.value?.manifest.blocks ?? []) {
+    own.push(block.typography.family);
+    for (const layer of block.layers) if (layer.type === 'text') own.push(layer.family);
+  }
+  for (const param of selectedTemplate.value?.manifest.parameters ?? []) {
+    if (param.type === 'font') own.push(param.default, ...(param.options ?? []));
+  }
+  own.push(current);
+  for (const stack of own) {
+    if (seen.has(stack)) continue;
+    seen.add(stack);
+    out.push({ stack, bundled: false });
+  }
+  return out;
+}
+
+/**
+ * The family control: a button that shows the current family set in itself,
+ * opening a list where every family is set in its own face — the bundled ten,
+ * then the template's own stacks. A native select cannot style its options.
+ */
+function familyPicker(current: string, onPick: (stack: string) => void): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'family-picker';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'family-current';
+  button.setAttribute('aria-haspopup', 'listbox');
+  button.setAttribute('aria-expanded', 'false');
+  const show = (stack: string) => {
+    button.textContent = familyLabel(stack);
+    button.style.fontFamily = cssFontFamily(stack);
+    button.dataset.family = stack;
+  };
+  show(current);
+  const list = document.createElement('ul');
+  list.className = 'family-list';
+  list.setAttribute('role', 'listbox');
+  list.setAttribute('aria-label', 'Font family');
+  list.hidden = true;
+  const close = () => {
+    list.hidden = true;
+    button.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', onOutside, true);
+  };
+  const onOutside = (e: Event) => {
+    if (!wrap.contains(e.target as Node)) close();
+  };
+  const open = () => {
+    list.replaceChildren();
+    let divided = false;
+    for (const choice of familyChoices(button.dataset.family ?? current)) {
+      if (!choice.bundled && !divided) {
+        divided = true;
+        const rule = document.createElement('li');
+        rule.className = 'family-divider';
+        rule.setAttribute('role', 'presentation');
+        rule.textContent = 'This template\'s';
+        list.append(rule);
+      }
+      const li = document.createElement('li');
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-selected', String(choice.stack === (button.dataset.family ?? current)));
+      li.dataset.family = choice.stack;
+      li.style.fontFamily = cssFontFamily(choice.stack);
+      li.textContent = familyLabel(choice.stack);
+      li.addEventListener('click', () => {
+        show(choice.stack);
+        onPick(choice.stack);
+        close();
+      });
+      list.append(li);
+    }
+    list.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    document.addEventListener('pointerdown', onOutside, true);
+  };
+  button.addEventListener('click', () => (list.hidden ? open() : close()));
+  wrap.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !list.hidden) {
+      e.preventDefault();
+      close();
+      button.focus();
+    }
+  });
+  wrap.append(button, list);
+  return wrap;
+}
+
+/** A labelled control in the type grid. */
+function typeField(label: string, control: HTMLElement, wide = false): HTMLElement {
+  const field = document.createElement('label');
+  field.className = `type-field${wide ? ' wide' : ''}`;
+  const span = document.createElement('span');
+  span.textContent = label;
+  field.append(span, control);
+  return field;
+}
+
+function selectOf<T extends string>(values: readonly T[], labels: Record<T, string>, current: T, onChange: (v: T) => void, name: string): HTMLSelectElement {
+  const el = document.createElement('select');
+  el.setAttribute('aria-label', name);
+  for (const v of values) {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = labels[v];
+    el.append(opt);
+  }
+  el.value = current;
+  el.addEventListener('change', () => onChange(el.value as T));
+  return el;
+}
+
+/** A number entry over a range; `scale` shows a stored fraction as a percentage. */
+function numberOf(current: number, limit: { min: number; max: number }, step: number, onChange: (v: number) => void, name: string, scale = 1): HTMLInputElement {
+  const el = document.createElement('input');
+  el.type = 'number';
+  el.min = String(limit.min * scale);
+  el.max = String(limit.max * scale);
+  el.step = String(step);
+  el.value = String(Math.round(current * scale * 1000) / 1000);
+  el.setAttribute('aria-label', name);
+  el.addEventListener('change', () => {
+    const n = Number(el.value);
+    if (!Number.isFinite(n)) return;
+    const clamped = Math.min(limit.max * scale, Math.max(limit.min * scale, n));
+    el.value = String(clamped);
+    onChange(clamped / scale);
+  });
+  return el;
+}
+
+function checkOf(current: boolean, onChange: (v: boolean) => void, name: string): HTMLInputElement {
+  const el = document.createElement('input');
+  el.type = 'checkbox';
+  el.checked = current;
+  el.setAttribute('aria-label', name);
+  el.addEventListener('change', () => onChange(el.checked));
+  return el;
+}
+
+/** One line that says how the layer is set, for the closed disclosure: "Georgia · 8.9% · Regular · Italic". */
+function typographySummary(layer: TextLayer): string {
+  const parts = [familyLabel(layer.family), `${Math.round(layer.size * 1000) / 10}%`, WEIGHT_LABELS[layer.weight] ?? String(layer.weight)];
+  if (layer.italic) parts.push('Italic');
+  if (layer.case !== 'none') parts.push(CASE_LABELS[layer.case]);
+  return parts.join(' · ');
+}
+
+/**
+ * A text layer's type, collapsed under its words so the list stays readable:
+ * family, size, weight, italic, case, letter spacing, kerning, line height,
+ * space before, colour, alignment and overflow. Each control changes the one
+ * property and commits at once; the summary line follows.
+ */
+function typographyControls(blockId: string, layer: TextLayer): HTMLElement {
+  const key = `${blockId}.${layer.id}`;
+  const details = document.createElement('details');
+  details.className = 'layer-type';
+  details.open = openTypography.has(key);
+  details.addEventListener('toggle', () => {
+    if (details.open) openTypography.add(key);
+    else openTypography.delete(key);
+  });
+  const summary = document.createElement('summary');
+  summary.textContent = typographySummary(layer);
+  details.append(summary);
+
+  let current = layer;
+  /** Change one property, redraw, commit, and keep the summary honest without rebuilding the form. */
+  const set = <K extends keyof TextLayer>(prop: K, value: TextLayer[K]) => {
+    current = { ...current, [prop]: value };
+    editLayer(blockId, layer.id, (l) => ({ ...l, [prop]: value }) as Layer, false);
+    commitParams();
+    summary.textContent = typographySummary(current);
+    maxLines.hidden = current.overflow !== 'wrap';
+  };
+
+  const grid = document.createElement('div');
+  grid.className = 'type-grid';
+  grid.append(typeField('Family', familyPicker(layer.family, (stack) => set('family', stack)), true));
+  grid.append(typeField('Size, % of frame', numberOf(layer.size, LAYER_LIMITS.size, 0.1, (v) => set('size', v), `${layer.label} size`, 100)));
+  const weights = [100, 200, 300, 400, 500, 600, 700, 800, 900].map(String);
+  const weightLabels = Object.fromEntries(weights.map((w) => [w, `${w} ${WEIGHT_LABELS[Number(w)]}`])) as Record<string, string>;
+  grid.append(typeField('Weight', selectOf(weights, weightLabels, String(layer.weight), (v) => set('weight', Number(v)), `${layer.label} weight`)));
+  const italic = typeField('Italic', checkOf(layer.italic, (v) => set('italic', v), `${layer.label} italic`));
+  italic.classList.add('check');
+  grid.append(italic);
+  grid.append(typeField('Case', selectOf(TEXT_CASES, CASE_LABELS, layer.case, (v) => set('case', v), `${layer.label} case`)));
+  grid.append(typeField('Letter spacing, em', numberOf(layer.letterSpacing, LAYER_LIMITS.letterSpacing, 0.01, (v) => set('letterSpacing', v), `${layer.label} letter spacing`)));
+  const kerning = typeField('Kerning', checkOf(layer.kerning, (v) => set('kerning', v), `${layer.label} kerning`));
+  kerning.classList.add('check');
+  grid.append(kerning);
+  grid.append(typeField('Line height', numberOf(layer.lineHeight, LAYER_LIMITS.lineHeight, 0.05, (v) => set('lineHeight', v), `${layer.label} line height`)));
+  grid.append(typeField('Space before, % of frame', numberOf(layer.spaceBefore, LAYER_LIMITS.spaceBefore, 0.1, (v) => set('spaceBefore', v), `${layer.label} space before`, 100)));
+  grid.append(typeField('Colour', colorField(layer.color, (hex) => set('color', hex)), true));
+  const align = document.createElement('div');
+  align.className = 'segmented';
+  align.setAttribute('role', 'group');
+  align.setAttribute('aria-label', `${layer.label} alignment`);
+  const alignButtons = LAYER_ALIGNS.map((a) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.align = a;
+    b.textContent = ALIGN_LABELS[a];
+    b.setAttribute('aria-pressed', String(a === layer.align));
+    b.addEventListener('click', () => {
+      set('align', a);
+      for (const other of alignButtons) other.setAttribute('aria-pressed', String(other === b));
+    });
+    align.append(b);
+    return b;
+  });
+  grid.append(typeField('Alignment', align));
+  grid.append(typeField('Overflow', selectOf(TEXT_OVERFLOWS, OVERFLOW_LABELS, layer.overflow, (v) => set('overflow', v), `${layer.label} overflow`)));
+  const maxLines = typeField('Lines at most', numberOf(layer.maxLines, LAYER_LIMITS.maxLines, 1, (v) => set('maxLines', Math.round(v)), `${layer.label} lines at most`));
+  maxLines.hidden = layer.overflow !== 'wrap';
+  grid.append(maxLines);
+  details.append(grid);
+  return details;
 }
 
 function buildParamForm(manifest: TemplateManifest): void {
