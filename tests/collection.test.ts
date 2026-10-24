@@ -96,6 +96,16 @@ describe('saving and loading', () => {
     expect(parsed.collection).toEqual(c);
   });
 
+  it('carries a layer stack, which rides with the parameters', () => {
+    let c = gathered(strap);
+    const stack = { strap: [{ id: 'name', type: 'text', label: 'Name', text: 'Ada Lovelace', required: true, hidden: false, spaceBefore: 0, align: 'left' }] };
+    c = updateItem(c, c.items[0]!.uid, { params: { '@layers': stack } });
+    const parsed = parseCollection(serializeCollection(c));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.collection.items[0]!.params['@layers']).toEqual(stack);
+  });
+
   it('refuses what it cannot vouch for, and says why', () => {
     expect(parseCollection('not json')).toEqual({ ok: false, error: 'That file is not a collection: it is not readable JSON.' });
     expect(parseCollection('[]')).toMatchObject({ ok: false });

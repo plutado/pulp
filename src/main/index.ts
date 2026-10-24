@@ -19,6 +19,8 @@ import type { Collection, CollectionItem } from '../core/collection';
 import { chooseExportFile, choosePackFile, exportPackTo, installPack, listInstalledPacks, previewPack } from './pack-service';
 import type { CollisionChoice } from '../core/pack';
 import { planBatch } from '../core/batch-csv';
+import { parseLayersArgument } from '../core/layers';
+import { LAYERS_KEY } from '../core/params';
 import { slug } from '../core/pack';
 import { readFile } from 'node:fs/promises';
 import { addRecentColor } from '../core/recent-colors';
@@ -223,6 +225,8 @@ function registerIpc(): void {
 /**
  * Headless mode for scripting and smoke tests:
  *   electron . --render <template-id> --preset <preset-id> --out <path> [--param key=value ...]
+ *
+ * A parameter may be a layer stack: `--param '@layers={"strap":[{"id":"name","text":"Ada Lovelace"}]}'`.
  *     [--fps <rate>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
  *     [--aspect 16:9|9:16|1:1|4:5] [--size <width>x<height>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
@@ -248,7 +252,8 @@ interface CliRender {
   templateId: string;
   presetId: string;
   out: string;
-  params: Record<string, string>;
+  /** As typed; `@layers` becomes the parsed stacks once the template is known. */
+  params: Record<string, unknown>;
   libraries: string[];
   frameTimeoutMs?: number;
   frameFormat?: string;
@@ -357,6 +362,16 @@ async function runCliRender(cli: CliRender): Promise<number> {
     if (!(err instanceof TimecodeError)) throw err;
     console.error(`${cli.inPoint !== undefined && err.message.startsWith(`"${cli.inPoint}"`) ? '--in-point' : '--out-point'}: ${err.message}`);
     return 2;
+  }
+  // Layers given as JSON (milestone 23): parsed against this template, so a typo is named rather than ignored.
+  const layersArg = cli.params[LAYERS_KEY];
+  if (typeof layersArg === 'string') {
+    const parsed = parseLayersArgument(layersArg, template.manifest);
+    if (!parsed.ok) {
+      console.error(parsed.message);
+      return 2;
+    }
+    cli.params[LAYERS_KEY] = parsed.layers;
   }
   if (cli.batch !== undefined) return runCliBatch(cli, template);
   const started = Date.now();

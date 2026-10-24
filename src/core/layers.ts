@@ -430,6 +430,72 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
 }
 
 /**
+ * Read the layer stacks given as text — `--param @layers={...}` on the command
+ * line — as JSON, and say plainly what is wrong rather than falling back to
+ * the template's own. A stack that merely sets a property oddly is still
+ * resolved and reported by `resolveLayers`; what fails here is text that is
+ * not an object of stacks, a block the template does not have, or a layer that
+ * is neither one of the template's own nor a complete new one.
+ *
+ * What is given **patches** the template's layers: naming one layer changes
+ * that one and leaves the rest as the template has them, and an entry with a
+ * type is added to the end. (A stored stack — a preset, a collection card — is
+ * the whole stack and replaces it; see `resolveLayers`.) To take a line out of
+ * a render, hide it: `{"id":"title","hidden":true}`.
+ */
+export function parseLayersArgument(text: string, manifest: Pick<TemplateManifest, 'blocks'>): { ok: true; layers: LayerValues } | { ok: false; message: string } {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (err) {
+    return { ok: false, message: `layers: not valid JSON (${(err as Error).message}).` };
+  }
+  if (!isRecord(raw)) return { ok: false, message: 'layers: expected an object of layer stacks by block id, such as {"strap":[{"id":"name","text":"Ada"}]}.' };
+  const known = manifest.blocks.map((b) => b.id);
+  const problems: string[] = [];
+  for (const [blockId, stack] of Object.entries(raw)) {
+    const block = manifest.blocks.find((b) => b.id === blockId);
+    if (!block) {
+      problems.push(`"${blockId}" is not a block of this template${known.length > 0 ? ` (it has ${known.map((b) => `"${b}"`).join(', ')})` : ' (it declares none)'}`);
+      continue;
+    }
+    if (!Array.isArray(stack)) {
+      problems.push(`"${blockId}" must be an array of layers`);
+      continue;
+    }
+    stack.forEach((entry, i) => {
+      if (!isRecord(entry)) {
+        problems.push(`"${blockId}" layer ${i} must be an object`);
+        return;
+      }
+      const own = typeof entry.id === 'string' ? block.layers.find((l) => l.id === entry.id) : undefined;
+      if (own) return;
+      if (typeof entry.id === 'string' && !oneOf(LAYER_TYPES, entry.type)) {
+        const ids = block.layers.map((l) => `"${l.id}"`).join(', ');
+        problems.push(`"${blockId}" has no layer "${entry.id}"${ids ? ` (it has ${ids})` : ''}; to add one, give it a type of ${LAYER_TYPES.join(' or ')}`);
+        return;
+      }
+      if (!oneOf(LAYER_TYPES, entry.type)) problems.push(`"${blockId}" layer ${i} needs an id of one of its layers, or a type of ${LAYER_TYPES.join(' or ')} to add one`);
+      else if (!block.open) problems.push(`"${blockId}" takes no more layers`);
+    });
+  }
+  if (problems.length > 0) return { ok: false, message: `layers: ${problems.join('; ')}.` };
+  // Patch: every block starts as the template has it, and what was given lands on top of it.
+  const patched: Record<string, Record<string, unknown>[]> = {};
+  for (const block of manifest.blocks) {
+    const given = (raw[block.id] ?? []) as Record<string, unknown>[];
+    const byId = new Map(given.filter((e) => typeof e.id === 'string').map((e) => [e.id as string, e]));
+    const stack: Record<string, unknown>[] = block.layers.map((l) => ({ id: l.id, ...(byId.get(l.id) ?? {}) }));
+    for (const entry of given) {
+      if (typeof entry.id === 'string' && block.layers.some((l) => l.id === entry.id)) continue;
+      stack.push(entry);
+    }
+    patched[block.id] = stack;
+  }
+  return { ok: true, layers: resolveLayers(manifest, patched).values };
+}
+
+/**
  * Resolve use-time layer values — from the Parameters tab, a preset, a
  * collection file, a CSV row or the command line, so untrusted — against the
  * template's blocks. The result holds every block, in the input's order where

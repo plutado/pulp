@@ -621,6 +621,39 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(info).toMatchObject({ width: 1920, height: 1080, pix_fmt: 'yuv420p', nb_read_frames: '150' });
   }, 120_000);
 
+  it('layers travel to a headless render through --param @layers, and a typo is named rather than ignored', async () => {
+    // One line changed and one added, as JSON: the stack patches the template's rather than replacing it.
+    const stack = JSON.stringify({ strap: [{ id: 'name', text: 'Ada Lovelace' }, { type: 'text', text: 'Third line' }] });
+    const result = await render('pulp.samples.lower-third-bar', 'png-sequence', 'layers', {
+      extra: ['--param', `@layers=${stack}`, '--param', 'panel=#ffffffd9', '--in-point', '90', '--out-point', '90'],
+    });
+    expect(result.code, result.stderr).toBe(0);
+    const file = join(out, 'layers_00090.png');
+    const info = await probe(file);
+    expect(info).toMatchObject({ width: 1920, height: 1080 });
+    // Three lines make a taller panel than two: the graphic reaches a row that two lines leave clear.
+    expect((await pixels(file, 200, 820))[3], 'the taller panel covers that row').toBeGreaterThan(0);
+    const plain = await render('pulp.samples.lower-third-bar', 'png-sequence', 'plain', {
+      extra: ['--param', 'panel=#ffffffd9', '--in-point', '90', '--out-point', '90'],
+    });
+    expect(plain.code, plain.stderr).toBe(0);
+    expect((await pixels(join(out, 'plain_00090.png'), 200, 820))[3], 'the template\'s own two lines leave that row clear').toBe(0);
+
+    // A layer the template does not have is an error with the layers it does, and nothing is rendered.
+    const typo = await render('pulp.samples.lower-third-bar', 'png-sequence', 'typo', {
+      extra: ['--param', '@layers={"strap":[{"id":"nmae","text":"x"}]}'],
+    });
+    expect(typo.code).toBe(2);
+    expect(typo.stderr).toContain('"strap" has no layer "nmae"');
+    expect(typo.stderr).toContain('"name"');
+    expect(existsSync(join(out, 'typo_00000.png'))).toBe(false);
+
+    // Bad JSON says so, with the parser's own complaint.
+    const bad = await render('pulp.samples.lower-third-bar', 'png-sequence', 'bad', { extra: ['--param', '@layers={"strap":'] });
+    expect(bad.code).toBe(2);
+    expect(bad.stderr).toMatch(/layers: not valid JSON/);
+  }, 180_000);
+
   it('image slots: draws the granted still, refuses its neighbour, and grants nothing when nothing is chosen (ADR 0013)', async () => {
     // Two stills in a scratch library: the logo the user picks, and its neighbour the template must not see.
     const logos = join(out, 'logos');

@@ -1078,6 +1078,43 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`${section}.querySelector('.layers-reset').hidden`)).toBe(true);
     }, 120_000);
 
+    it('the render cache tells two stacks apart: changing a line renders afresh', async () => {
+      if (!haveVideo) {
+        console.info('ffmpeg not available; the cache check for layers is skipped.');
+        return;
+      }
+      await clickResult('Title Card');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the title card');
+      // One frame, so each render here is quick.
+      await page.eval(`(() => { const i = document.getElementById('opt-in'); i.value = '110'; i.dispatchEvent(new Event('input', { bubbles: true })); const o = document.getElementById('opt-out'); o.value = '110'; o.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await fire('#preset', 'png-sequence', 'change');
+      const cards = () => page.eval<string[]>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].map((c) => c.dataset.file)`);
+      const prepare = async (what: string) => {
+        const before = (await cards()).length;
+        await page.eval(`document.getElementById('drag-prepare').click()`);
+        await until(async () => (await cards()).length > before, `a draggable card for ${what}`, 60_000);
+        return (await cards()).at(-1)!;
+      };
+      const first = await prepare('the template\'s own words');
+      // The same stack is the same render: the cache answers without rendering again, with the same file.
+      const again = await prepare('the same words again');
+      expect(again).toBe(first);
+      expect(await page.eval<string>(`document.getElementById('drag-status').textContent`)).toBe('Ready to drag, in the tray.');
+
+      // A changed line is a different render: the key covers the layers, so the cache cannot hand back the old frame.
+      await page.eval(`(() => { const i = ${section}.querySelector('.layer-row[data-layer=title] .layer-text'); i.value = 'Notes from the field'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      const changed = await prepare('the changed line');
+      expect(changed).not.toBe(first);
+
+      // Put it all back: the template's own words, an empty tray and an empty cache.
+      await page.eval(`${section}.querySelector('.layers-reset').click()`);
+      await until(() => page.eval<boolean>(`${section}.querySelector('.layers-reset').hidden`), 'the template\'s own layers');
+      await page.eval(`document.getElementById('reset-all').disabled || document.getElementById('reset-all').click()`);
+      await page.eval(`document.getElementById('clear-finished').click()`);
+      await page.eval(`document.getElementById('cache-clear').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('cache-summary').textContent.includes('0 files')`), 'the cache to be cleared');
+    }, 120_000);
+
     it('the lower third: an added line grows the panel and rides its wipe and fade, wide and tall', async () => {
       const LT = 'pulp.samples.lower-third-bar';
       const strap = `document.querySelector('#params .layers-block[data-block=strap]')`;

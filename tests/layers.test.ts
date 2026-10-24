@@ -8,6 +8,7 @@ import {
   resolveLayers,
   validateBlock,
   validateLayer,
+  parseLayersArgument,
   type Block,
   type ImageLayer,
   type TextLayer,
@@ -163,6 +164,61 @@ describe('manifest blocks', () => {
     expect(paths({})).toEqual(['blocks']);
     expect(paths([rawBlock(), rawBlock()])).toEqual(['blocks[1].id']);
     expect(paths([rawBlock({ box: undefined })])).toEqual(['blocks[0].box']);
+  });
+});
+
+describe('parseLayersArgument', () => {
+  const m = () => {
+    const r = validateManifest(rawManifest({ blocks: [rawBlock(), rawBlock({ id: 'corner', open: false, layers: [{ id: 'bug', type: 'image', label: 'Bug' }] })] }));
+    if (!r.ok) throw new Error('fixture');
+    return r.manifest;
+  };
+
+  it('patches the template\'s layers: what it names changes, the rest stay as the template has them', () => {
+    const out = parseLayersArgument('{"strap":[{"id":"title","text":"Reporter at large"}]}', m());
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.layers.strap!.map((l) => l.id)).toEqual(['name', 'title', 'mark']);
+    expect((out.layers.strap![0] as TextLayer).text).toBe('Jane Doe'); // untouched
+    expect((out.layers.strap![1] as TextLayer).text).toBe('Reporter at large');
+    // A block not mentioned keeps its own layers too.
+    expect(out.layers.corner!.map((l) => l.id)).toEqual(['bug']);
+  });
+
+  it('hides a line rather than dropping it, which is how a render leaves one out', () => {
+    const out = parseLayersArgument('{"strap":[{"id":"title","hidden":true}]}', m());
+    // The mark starts hidden in this template, and stays so; the title is the one that changed.
+    expect(out.ok && out.layers.strap!.map((l) => `${l.id}${l.hidden ? ':hidden' : ''}`)).toEqual(['name', 'title:hidden', 'mark:hidden']);
+  });
+
+  it('says what is wrong with the JSON rather than falling back silently', () => {
+    expect(parseLayersArgument('{"strap":', m())).toMatchObject({ ok: false });
+    expect((parseLayersArgument('{"strap":', m()) as { message: string }).message).toMatch(/^layers: not valid JSON \(/);
+    expect(parseLayersArgument('"strap"', m())).toMatchObject({ ok: false, message: expect.stringContaining('expected an object of layer stacks') });
+  });
+
+  it('names an unknown block, an unknown layer and a block that takes no more', () => {
+    const message = (text: string) => (parseLayersArgument(text, m()) as { message: string }).message;
+    expect(message('{"nope":[]}')).toBe('layers: "nope" is not a block of this template (it has "strap", "corner").');
+    expect(message('{"strap":{}}')).toBe('layers: "strap" must be an array of layers.');
+    expect(message('{"strap":[{"id":"nmae","text":"x"}]}')).toContain('"strap" has no layer "nmae" (it has "name", "title", "mark"); to add one, give it a type of text or image');
+    expect(message('{"strap":[7]}')).toBe('layers: "strap" layer 0 must be an object.');
+    expect(message('{"strap":[{"text":"x"}]}')).toContain('needs an id of one of its layers, or a type of text or image to add one');
+    expect(message('{"corner":[{"type":"text","text":"x"}]}')).toBe('layers: "corner" takes no more layers.');
+  });
+
+  it('adds a layer that carries a type, at the end of the stack', () => {
+    const out = parseLayersArgument('{"strap":[{"type":"text","text":"A third line"}]}', m());
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.layers.strap!.map((l) => l.id)).toEqual(['name', 'title', 'mark', 'layer_1']);
+    expect((out.layers.strap![3] as TextLayer).text).toBe('A third line');
+  });
+
+  it('reports every problem at once', () => {
+    const message = (parseLayersArgument('{"nope":[],"strap":[{"id":"zzz"}]}', m()) as { message: string }).message;
+    expect(message).toContain('"nope" is not a block of this template');
+    expect(message).toContain('"strap" has no layer "zzz"');
   });
 });
 

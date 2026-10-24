@@ -10,6 +10,16 @@ const manifest = (() => {
 })();
 
 describe('render cache', () => {
+  it('tells two layer stacks apart: the stacks ride with the parameters, so the key covers them', () => {
+    const base = { templateId: 'x', manifest, presetId: 'png-sequence' as const };
+    const one = cacheKey({ ...base, params: { '@layers': { strap: [{ id: 'name', text: 'Ada' }] } } });
+    const two = cacheKey({ ...base, params: { '@layers': { strap: [{ id: 'name', text: 'Sam' }] } } });
+    const none = cacheKey({ ...base, params: {} });
+    expect(one).not.toBe(two);
+    expect(one).not.toBe(none);
+    expect(one).toBe(cacheKey({ ...base, params: { '@layers': { strap: [{ id: 'name', text: 'Ada' }] } } }));
+  });
+
   it('keys the same inputs the same and different inputs differently', () => {
     const base = { templateId: 't.a', manifest, params: { title: 'Hi', size: 50 }, presetId: 'prores-4444' as const };
     const k = cacheKey(base);
