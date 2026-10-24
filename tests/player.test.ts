@@ -75,6 +75,7 @@ describe('preferences', () => {
       safeAreas: true,
       volume: 0.4,
       muted: true,
+      audition: false,
     });
     expect(sanitizePlayer({ volume: 4 }).volume).toBe(1);
     expect(sanitizePlayer({ volume: -1 }).volume).toBe(0);

@@ -68,6 +68,25 @@ export function runWithInput(command: string, args: string[], input: Buffer): Pr
   });
 }
 
+/**
+ * Run ffmpeg and keep its stdout as bytes. `nodeRunner` decodes stdout as text,
+ * which destroys raw samples and pixels (docs/platform-notes.md: PowerShell
+ * pipes bit us the same way).
+ */
+export function runForBuffer(command: string, args: string[]): Promise<{ code: number; stdout: Buffer; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const chunks: Buffer[] = [];
+    let stderr = '';
+    child.stdout?.on('data', (chunk: Buffer) => chunks.push(chunk));
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderr = (stderr + chunk.toString('utf8')).slice(-8000);
+    });
+    child.on('error', reject);
+    child.on('close', (code) => resolve({ code: code ?? 1, stdout: Buffer.concat(chunks), stderr }));
+  });
+}
+
 /** Extract "8.0" from the first line of `ffmpeg -version`. */
 export function parseFfmpegVersion(output: string): string | null {
   const m = /ffmpeg version (\S+)/.exec(output);

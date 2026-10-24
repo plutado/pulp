@@ -22,6 +22,8 @@ export interface PlayerState {
   /** Media volume, 0 to 1. */
   volume: number;
   muted: boolean;
+  /** Audition mode: choosing an audio item plays it, so a list can be heard by arrowing through it. */
+  audition: boolean;
 }
 
 export const DEFAULT_PLAYER: PlayerState = {
@@ -31,6 +33,7 @@ export const DEFAULT_PLAYER: PlayerState = {
   safeAreas: false,
   volume: 1,
   muted: false,
+  audition: false,
 };
 
 const HEX6 = /^#[0-9a-fA-F]{6}$/;
@@ -46,6 +49,7 @@ export function sanitizePlayer(raw: unknown): PlayerState {
     safeAreas: r.safeAreas === true,
     volume,
     muted: r.muted === true,
+    audition: r.audition === true,
   };
 }
 

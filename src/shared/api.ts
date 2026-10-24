@@ -58,6 +58,13 @@ export interface HoverStripResult {
   transient?: boolean;
 }
 
+/** An audio file's waveform peaks, base64 (src/core/waveform.ts), or why there are none. */
+export interface WaveformResult {
+  peaks: string | null;
+  reason?: string;
+  transient?: boolean;
+}
+
 export interface RenderProgress {
   frame: number;
   totalFrames: number;
@@ -120,6 +127,8 @@ export interface PulpApi {
    * URL to load it from, or why there is none.
    */
   hoverStrip(id: string): Promise<HoverStripResult>;
+  /** An audio file's waveform peaks, computed on first ask and cached. */
+  waveform(id: string): Promise<WaveformResult>;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */

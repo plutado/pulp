@@ -14,14 +14,15 @@ import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { detectFfmpeg, nodeRunner, runWithInput } from '../core/ffmpeg';
+import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput } from '../core/ffmpeg';
 import { LibraryStore, type ScanStats } from '../core/library-store';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { mediaThumbArgs, posterThumbArgs, thumbFileName } from '../core/thumbnails';
 import { framesStripArgs, mediaStripArgs, stripFileName, stripFrameIndices, stripUrlFor, wantsStrip } from '../core/hover-scrub';
+import { encodePeaks, peaksFromPcm, wantsWaveform, waveformArgs } from '../core/waveform';
 import { captureTemplateFrames, renderTemplate } from './render';
-import type { LibraryIndex, TemplateEntry } from '../core/library-types';
-import type { HoverStripResult } from '../shared/api';
+import type { LibraryEntry, LibraryIndex, TemplateEntry } from '../core/library-types';
+import type { HoverStripResult, WaveformResult } from '../shared/api';
 import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
 import { normalizeTag } from '../core/tags';
@@ -375,6 +376,53 @@ async function templateStrip(entry: TemplateEntry, out: string): Promise<HoverSt
   if (tiled.code !== 0) return { url: null, reason: `ffmpeg exited with ${tiled.code}: ${tiled.stderr.trim() || 'no error output'}` };
   if (!existsSync(out)) return { url: null, reason: 'ffmpeg wrote no strip' };
   return { url: out };
+}
+
+/** Waveforms in flight, so a list of audio rows asks for each file once. */
+const waveformsInFlight = new Map<string, Promise<WaveformResult>>();
+
+/**
+ * An audio file's waveform peaks, taken now if they have not been. Like strips:
+ * on demand, cached against the file's size and mtime, and saying why when
+ * there are none rather than leaving the caller to guess.
+ */
+export function waveform(id: string): Promise<WaveformResult> {
+  const existing = waveformsInFlight.get(id);
+  if (existing) return existing;
+  const work = makeWaveform(id).finally(() => waveformsInFlight.delete(id));
+  waveformsInFlight.set(id, work);
+  return work;
+}
+
+async function makeWaveform(id: string): Promise<WaveformResult> {
+  if (!persistent) return { peaks: null, reason: 'headless mode keeps no cache' };
+  const st = getStore();
+  const cached = st.findWaveformById(id);
+  if (cached) return cached.peaks ? { peaks: cached.peaks } : { peaks: null, reason: 'ffmpeg could not read this file\'s audio' };
+  const entry = st.findEntryById(id);
+  if (!entry) return { peaks: null, reason: `no library item with id ${id}` };
+  if (!wantsWaveform(entry)) return { peaks: null };
+  if (ffmpegPath === undefined) {
+    const status = await detectFfmpeg();
+    ffmpegPath = status.ok ? status.path : null;
+  }
+  if (!ffmpegPath) return { peaks: null, reason: 'ffmpeg was not found', transient: true };
+
+  let result: WaveformResult;
+  try {
+    result = await heavyWork(async () => {
+      const decoded = await runForBuffer(ffmpegPath!, waveformArgs((entry as Extract<LibraryEntry, { kind: 'media' }>).path));
+      if (decoded.code !== 0) return { peaks: null, reason: `ffmpeg exited with ${decoded.code}: ${decoded.stderr.trim() || 'no error output'}` };
+      if (decoded.stdout.length === 0) return { peaks: null, reason: 'the file decoded to no audio' };
+      return { peaks: encodePeaks(peaksFromPcm(decoded.stdout)) };
+    });
+  } catch (err) {
+    result = { peaks: null, reason: (err as Error).message };
+  }
+  if (result.peaks === null && result.transient) return result;
+  if (result.peaks === null) console.warn(`Waveform failed: ${entry.key}: ${result.reason ?? 'unknown'}`);
+  st.setWaveform(entry.key, result.peaks);
+  return result;
 }
 
 /** Rescan every configured root (plus `extraFolders` for this run) incrementally and tell the UI. */

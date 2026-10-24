@@ -26,7 +26,7 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
 | **Total through 1.0 (milestones 1-8, 10-13, 17 and 18)** | **133-226 h** |
-| **Still open through 1.0 (unticked items only)** | **34-58 h** |
+| **Still open through 1.0 (unticked items only)** | **31-53 h** |
 | **Total including post-1.0 items** | **165-284 h** |
 
 ## 0. Foundation (done)
@@ -137,8 +137,8 @@ Fills the results region and the stage described in `docs/ui-layout.md`.
 - [x] First DOM-level component tests, which ADR 0009 defers until a region needs them — the virtualized grid is that region: `tests/dom/results.test.ts` mounts the real region under happy-dom and checks what the DOM holds at a scroll position, the spacers measuring the rest of the list, the window stopping at the last item, keyed elements surviving a scroll, the list view's own row height and the return to the top on a new search. `tests/dom` is typechecked by the web project (where the DOM types are) and excluded from the node one; the other regions stay covered by the end-to-end test (1-2 h)
 - [x] Hover-scrub: an eight-frame strip per video and template, tiled into one PNG beside the thumbnails and keyed by the item's size and mtime, stepped by pointer position over the card. Template strips capture all eight frames through one offscreen window (`captureTemplateFrames`), not one render per frame; the frame-rate override could not express "eight frames across this duration" because it only takes standard rates. Strips are made when a card is first rested on rather than for the whole library up front, and served at `pulp-strip://<id>/` under the same rules as thumbnails. The sprite arithmetic is a pure `src/core/hover-scrub.ts` with unit tests; the end-to-end test makes both kinds and steps them (2-3 h)
 - [x] Player: loop toggle (off stops on the last frame), frame step both ways, in and out marks set from the playhead and drawn on the scrub bar with the trimmed range dimmed, volume and mute (following the native media controls too); background toggle (checkerboard, black, white, custom colour) and a title-safe and action-safe overlay at the broadcast insets. The marks and the Output tab's trim are one fact in a shared `trim` signal, set from either side. What the controls mean — playhead, step, marks, safe insets and the preferences kept in `settings.json` — is a pure `src/core/player.ts` with unit tests; the end-to-end test drives all of it (2-4 h)
-- [ ] Waveforms: peak data per audio file computed once with ffmpeg, cached in user data, drawn under the scrub bar and in list rows (2-3 h)
-- [ ] Audition mode for audio lists: autoplay, arrow keys move to the next item, Escape stops (1-2 h)
+- [x] Waveforms: 400 peaks per audio file, decoded once by ffmpeg to mono samples and kept in the library database against the file's size and mtime, drawn as an SVG path in the stage behind the audio transport and in list rows where a thumbnail would be. Peaks, their storage and the path that draws them are a pure `src/core/waveform.ts` with unit tests; taken on first ask like hover-scrub strips, and through the same turn-taking as the poster queue (2-3 h)
+- [x] Audition mode: a toggle in the stage tools, kept in `settings.json`, that makes choosing an audio item play it; Up and Down walk the results and show each item as they go (useful with it off too), Escape stops whatever is playing. The step is a pure `neighbourEntry` in the shared state; the results region asks the app to stop rather than reaching into the stage (1-2 h)
 
 ## 13. Collections (8-14 h)
 

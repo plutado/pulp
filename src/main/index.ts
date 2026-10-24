@@ -4,7 +4,7 @@ import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
 import { parseTimecode, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest } from '../shared/api';
-import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary } from './library-service';
+import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
 import { handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag } from './render-queue-service';
@@ -142,6 +142,7 @@ function registerIpc(): void {
   });
 
   ipcMain.handle('library:hover-strip', (_event, id: string) => hoverStrip(String(id)));
+  ipcMain.handle('library:waveform', (_event, id: string) => waveform(String(id)));
 
   ipcMain.handle('player:get', async () => (await loadSettings()).player);
   ipcMain.handle('player:save', async (_event, player: unknown) => {

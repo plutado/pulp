@@ -118,6 +118,12 @@ CREATE TABLE IF NOT EXISTS strips (
   mtime_ms REAL NOT NULL,
   file TEXT
 );
+CREATE TABLE IF NOT EXISTS waveforms (
+  key TEXT PRIMARY KEY,
+  size INTEGER NOT NULL,
+  mtime_ms REAL NOT NULL,
+  peaks TEXT
+);
 CREATE TABLE IF NOT EXISTS user_items (
   key TEXT PRIMARY KEY,
   tags TEXT NOT NULL DEFAULT '[]',
@@ -521,6 +527,22 @@ export class LibraryStore {
     return this.db
       .prepare('SELECT strips.file AS file FROM items JOIN strips ON strips.key = items.key AND strips.size = items.size AND strips.mtime_ms = items.mtime_ms WHERE items.id = ?')
       .get(id) as { file: string | null } | undefined;
+  }
+
+  /** An item's waveform peaks, base64, or undefined when none has been taken for the file as it is now. */
+  findWaveformById(id: string): { peaks: string | null } | undefined {
+    return this.db
+      .prepare('SELECT waveforms.peaks AS peaks FROM items JOIN waveforms ON waveforms.key = items.key AND waveforms.size = items.size AND waveforms.mtime_ms = items.mtime_ms WHERE items.id = ?')
+      .get(id) as { peaks: string | null } | undefined;
+  }
+
+  /** Record peaks for the item as it is now; null records that ffmpeg could not read its audio. */
+  setWaveform(key: string, peaks: string | null): void {
+    const row = this.db.prepare('SELECT size, mtime_ms FROM items WHERE key = ?').get(key) as { size: number; mtime_ms: number } | undefined;
+    if (!row) return;
+    this.db
+      .prepare('INSERT INTO waveforms (key, size, mtime_ms, peaks) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET size = excluded.size, mtime_ms = excluded.mtime_ms, peaks = excluded.peaks')
+      .run(key, row.size, row.mtime_ms, peaks);
   }
 
   /** Record a strip for the item as it is now; null records a failure, so it is not attempted again until the item changes. */

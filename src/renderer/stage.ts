@@ -19,11 +19,14 @@ import { formatTimecode } from '../core/timecode';
 import { mediaUrlFor, templateUrlFor } from '../shared/api';
 import { setIcon } from './icons';
 import { trim } from './store';
+import { peaksFor, waveforms } from './waveforms';
+import { waveformPath } from '../core/waveform';
 
-const $ = <T extends HTMLElement>(id: string): T => {
+/** Element by id. Typed as Element, not HTMLElement: the stage's waveform is an SVG. */
+const $ = <T extends Element>(id: string): T => {
   const el = document.getElementById(id);
   if (!el) throw new Error(`missing #${id}`);
-  return el as T;
+  return el as unknown as T;
 };
 
 const els = {
@@ -33,6 +36,7 @@ const els = {
   mediaVideo: $<HTMLVideoElement>('media-video'),
   mediaImage: $<HTMLImageElement>('media-image'),
   mediaAudio: $<HTMLAudioElement>('media-audio'),
+  mediaWaveform: $<SVGSVGElement>('media-waveform'),
   play: $<HTMLButtonElement>('play'),
   stepBack: $<HTMLButtonElement>('step-back'),
   stepForward: $<HTMLButtonElement>('step-forward'),
@@ -50,6 +54,7 @@ const els = {
   mute: $<HTMLButtonElement>('mute'),
   volume: $<HTMLInputElement>('volume'),
   bgCustom: $<HTMLInputElement>('bg-custom'),
+  audition: $<HTMLButtonElement>('audition'),
   safeToggle: $<HTMLButtonElement>('safe-toggle'),
   safeOverlay: $<HTMLDivElement>('safe-overlay'),
   safeAction: $<HTMLDivElement>('safe-action'),
@@ -72,6 +77,8 @@ const s = {
   pendingFrame: null as number | null,
   /** Preferences from settings.json: loop, background, safe areas, volume. */
   player: DEFAULT_PLAYER as PlayerState,
+  /** The audio item on the stage, so its waveform can be drawn again when the peaks land. */
+  audio: null as MediaEntry | null,
 };
 
 /** Change a preference, apply it and store it. */
@@ -94,6 +101,7 @@ function applyPlayer(): void {
   els.previewFrame.classList.toggle('checker', p.background === 'checker');
   const solid = { checker: '', black: '#000000', white: '#ffffff', custom: p.customBackground }[p.background];
   els.previewFrame.style.backgroundColor = solid;
+  els.audition.setAttribute('aria-pressed', String(p.audition));
   els.safeToggle.setAttribute('aria-pressed', String(p.safeAreas));
   els.safeOverlay.hidden = !p.safeAreas;
   for (const area of SAFE_AREAS) {
@@ -200,6 +208,12 @@ function play(): void {
   rafId = requestAnimationFrame(tick);
 }
 
+/** Escape from the results: stop the preview, whichever kind it is. */
+export function stopPlayback(): void {
+  stageStop();
+  for (const el of [els.mediaVideo, els.mediaAudio]) if (!el.paused) el.pause();
+}
+
 export function stageStop(): void {
   s.playing = false;
   cancelAnimationFrame(rafId);
@@ -216,6 +230,23 @@ function clearMediaPreview(): void {
   }
   els.mediaImage.removeAttribute('src');
   els.mediaImage.hidden = true;
+  els.mediaWaveform.setAttribute('hidden', '');
+  s.audio = null;
+}
+
+/**
+ * The waveform behind an audio item's transport. Peaks arrive after the file is
+ * shown, so this runs again when they land; until then the box is simply empty.
+ */
+function drawWaveform(entry: MediaEntry): void {
+  const peaks = peaksFor(entry);
+  const path = els.mediaWaveform.querySelector('path');
+  if (!peaks || peaks.length === 0 || !path) {
+    els.mediaWaveform.setAttribute('hidden', '');
+    return;
+  }
+  path.setAttribute('d', waveformPath(peaks, 1000, 200));
+  els.mediaWaveform.removeAttribute('hidden');
 }
 
 /** Load a template and show the frame at mid-progress, the frame the thumbnails use. */
@@ -270,6 +301,10 @@ export function stageShowMedia(entry: MediaEntry): void {
     els.previewFrame.style.aspectRatio = '16 / 9';
     els.mediaAudio.hidden = false;
     els.mediaAudio.src = url;
+    s.audio = entry;
+    drawWaveform(entry);
+    // Audition mode: picking a sound plays it, so a list can be heard by arrowing through it.
+    if (s.player.audition) void els.mediaAudio.play().catch(() => undefined);
   }
 }
 
@@ -338,6 +373,14 @@ export function initStage(): void {
   }
   els.bgCustom.addEventListener('input', () => setPlayer({ background: 'custom', customBackground: els.bgCustom.value }));
   els.safeToggle.addEventListener('click', () => setPlayer({ safeAreas: !s.player.safeAreas }));
+  els.audition.addEventListener('click', () => setPlayer({ audition: !s.player.audition }));
+
+  // Peaks arrive after the file is shown; redraw the one on screen when they do.
+  effect(() => {
+    void waveforms.value;
+    const shown = s.audio;
+    if (shown) drawWaveform(shown);
+  });
 
   applyPlayer();
   void window.pulp.getPlayer().then((saved) => {

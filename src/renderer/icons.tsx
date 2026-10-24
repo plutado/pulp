@@ -37,6 +37,7 @@ import squaresFour from '@phosphor-icons/core/assets/regular/squares-four.svg?ra
 import tag from '@phosphor-icons/core/assets/regular/tag.svg?raw';
 import pause from '@phosphor-icons/core/assets/regular/pause.svg?raw';
 import play from '@phosphor-icons/core/assets/regular/play.svg?raw';
+import playCircle from '@phosphor-icons/core/assets/regular/play-circle.svg?raw';
 import shapes from '@phosphor-icons/core/assets/regular/shapes.svg?raw';
 import slidersHorizontal from '@phosphor-icons/core/assets/regular/sliders-horizontal.svg?raw';
 import sortAscending from '@phosphor-icons/core/assets/regular/sort-ascending.svg?raw';
@@ -80,6 +81,7 @@ const ICONS = {
   pause,
   question,
   play,
+  'play-circle': playCircle,
   repeat,
   rows,
   shapes,

@@ -14,7 +14,7 @@
 
 import { render } from 'preact';
 import { effect, signal } from '@preact/signals';
-import { entryLabel } from '../core/app-state';
+import { entryLabel, neighbourEntry } from '../core/app-state';
 import { tagLabel } from '../core/display';
 import type { LibraryEntry } from '../core/library-types';
 import {
@@ -29,6 +29,8 @@ import {
 } from '../core/results-view';
 import { HOVER_DWELL_MS, stripWidthPercent, tileAt, tilePercent, wantsStrip } from '../core/hover-scrub';
 import { entryType, typeInfo } from '../core/taxonomy';
+import { wantsWaveform, waveformPath } from '../core/waveform';
+import { peaksFor } from './waveforms';
 import { virtualWindow } from '../core/virtual-list';
 import { Icon, MEDIA_KIND_ICONS, TYPE_GROUP_ICONS, type IconName } from './icons';
 import { appState, hasIndex, results, resultsView, selectedKey } from './store';
@@ -99,6 +101,17 @@ function endScrub(entry: LibraryEntry): void {
   if (scrub.value?.id === entry.id) scrub.value = null;
 }
 
+/** Audio has no picture; its waveform goes where the thumbnail would be. */
+function Waveform({ entry }: { entry: LibraryEntry }) {
+  const peaks = peaksFor(entry);
+  if (!peaks || peaks.length === 0) return <Icon name={placeholderIcon(entry)} size={20} />;
+  return (
+    <svg class="waveform" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
+      <path d={waveformPath(peaks, 100, 32, 50)} />
+    </svg>
+  );
+}
+
 function Thumb({ entry, scrubbable }: { entry: LibraryEntry; scrubbable?: boolean }) {
   const at = scrubbable ? scrub.value : null;
   const strip = at?.id === entry.id ? strips.value.get(entry.id) : undefined;
@@ -111,7 +124,7 @@ function Thumb({ entry, scrubbable }: { entry: LibraryEntry; scrubbable?: boolea
     : {};
   return (
     <span class={`thumb checker${entry.thumbnail ? '' : ' empty'}`} {...handlers}>
-      {entry.thumbnail ? <img src={entry.thumbnail} alt="" /> : <Icon name={placeholderIcon(entry)} size={20} />}
+      {entry.thumbnail ? <img src={entry.thumbnail} alt="" /> : wantsWaveform(entry) ? <Waveform entry={entry} /> : <Icon name={placeholderIcon(entry)} size={20} />}
       {/* Over the poster, not instead of it: the checkerboard behind stays visible through alpha. */}
       {strip && (
         <span
@@ -220,8 +233,33 @@ function Results({ onSelect }: { onSelect: (entry: LibraryEntry) => void }) {
   );
 }
 
+/**
+ * Up and Down walk the results and show each item as they go — which is what
+ * audition mode listens through — and Escape stops whatever is playing.
+ */
+function onKeyDown(event: KeyboardEvent, actions: ResultsActions): void {
+  if (event.key === 'Escape') {
+    actions.onStop();
+    return;
+  }
+  const delta = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
+  if (delta === 0) return;
+  event.preventDefault();
+  const next = neighbourEntry(results.value.entries, appState.value.shownKey, delta);
+  if (next) actions.onSelect(next);
+}
+
+/** What the region asks of the rest of the app; it knows no other region. */
+export interface ResultsActions {
+  onSelect: (entry: LibraryEntry) => void;
+  /** Escape: stop whatever the stage is playing. */
+  onStop: () => void;
+}
+
 /** Mounts into the existing #results element, which from then on belongs to Preact. */
-export function mountResults(container: HTMLElement, onSelect: (entry: LibraryEntry) => void): void {
+export function mountResults(container: HTMLElement, actions: ResultsActions): void {
+  container.tabIndex = 0;
+  container.addEventListener('keydown', (e) => onKeyDown(e, actions));
   const measure = () => {
     const { clientWidth: width, clientHeight: height } = container;
     if (width !== viewport.value.width || height !== viewport.value.height) viewport.value = { width, height };
@@ -264,5 +302,5 @@ export function mountResults(container: HTMLElement, onSelect: (entry: LibraryEn
     scrollTop.value = 0;
   });
 
-  render(<Results onSelect={onSelect} />, container);
+  render(<Results onSelect={actions.onSelect} />, container);
 }

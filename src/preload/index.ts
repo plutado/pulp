@@ -41,6 +41,7 @@ const api: PulpApi = {
   getLayout: () => ipcRenderer.invoke('layout:get'),
   saveLayout: (layout) => ipcRenderer.invoke('layout:save', layout),
   hoverStrip: (id) => ipcRenderer.invoke('library:hover-strip', id),
+  waveform: (id) => ipcRenderer.invoke('library:waveform', id),
   getPlayer: () => ipcRenderer.invoke('player:get'),
   savePlayer: (player) => ipcRenderer.invoke('player:save', player),
   getResultsView: () => ipcRenderer.invoke('results-view:get'),

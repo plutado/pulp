@@ -40,7 +40,7 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 
 - Library scan of the bundled samples and any folders you add: templates are validated; media files (video, image, audio) are indexed with tags from folder names and metadata from ffprobe, with cached thumbnails and preview in the app (video, image and audio play in the stage).
 - Search with free text plus filters: `tag:`, `type:` (video, image, audio, or a taxonomy type or group such as `type:whoosh`, `type:transitions`), `theme:`, `style:`, `category:`, and from metadata `duration:>5`, `width:>=1920`, `height:`, `fps:`, `res:1080p` (also `4k`, `hd`), `codec:prores`, `alpha:yes`, `favorite:yes`, `recent:10`. Scope the search to Favorites, Recently used or one folder from the browse panel; narrow with filter chips (templates, video, images, audio, alpha, favorites); sort by relevance, name, recently used or duration. The last eight searches are remembered. Your tags and favorites are kept in the library database and survive folders going offline.
-- Live preview with play, scrub, frame step and a loop toggle (templates open on their mid-progress frame, so transitions don't show a blank first frame), Set in / Set out marks that are the render's trim, volume and mute, a background of your choosing behind transparency (checkerboard, black, white or any colour) and a title-safe and action-safe overlay; hover a card to scrub through eight frames of it without opening it. A parameter form generated from the manifest: color pickers with alpha and recent colors, sliders, character counters, per-template undo/redo, saved parameter presets, and batch rendering from CSV.
+- Live preview with play, scrub, frame step and a loop toggle (templates open on their mid-progress frame, so transitions don't show a blank first frame), Set in / Set out marks that are the render's trim, volume and mute, a background of your choosing behind transparency (checkerboard, black, white or any colour) and a title-safe and action-safe overlay; hover a card to scrub through eight frames of it without opening it. Audio files show a waveform in the stage and in every list row, and audition mode walks a folder of sounds with the arrow keys, playing each as it comes up. A parameter form generated from the manifest: color pickers with alpha and recent colors, sliders, character counters, per-template undo/redo, saved parameter presets, and batch rendering from CSV.
 - Rendering through ffmpeg to ProRes 4444 (alpha), ProRes 422 HQ, PNG sequence (alpha), QuickTime Animation (alpha), WebM VP9 (alpha), H.264 MP4 and, on macOS, HEVC with alpha — with frame-rate override, background flattening and in/out trim. Alpha import verified in Premiere Pro and DaVinci Resolve on macOS ([docs/nle-verification.md](docs/nle-verification.md)).
 - Drag a finished render from the queue into your editor's bin or timeline, or "Prepare for drag" to render into a managed cache first; verified in Premiere Pro and Resolve on macOS.
 - Template packs: import a `.zip` or folder with a license-and-collision preview, export the listed templates as a pack.
@@ -48,23 +48,22 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Results as a grid of cards — thumbnail, name and badges for alpha, loop, duration, resolution and pack — or as a list with name, duration, type, themes and file columns, with the grid/list toggle and the thumbnail size in the search bar. Only what is in view is built, so a library of thousands scrolls smoothly.
 - A headless command-line render mode (below).
 
-Not yet: waveforms for audio, audition mode for audio, collections (gather items, render all), installers and signed builds, verification on Windows and in Final Cut Pro. These are on the [roadmap](ROADMAP.md).
+Not yet: collections (gather items, render all), installers and signed builds, verification on Windows and in Final Cut Pro. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
 The [roadmap](ROADMAP.md) breaks the path to 1.0 into milestones with task-level estimates. Estimates are working hours for one developer, including tests and docs.
 
-Milestones 1-6, 11, 18 and 10 (renderer, alpha export, parameter editor, library, drag-out, template packs, the window shell, visual polish and categorization) are done apart from verification items that need a Windows machine or Final Cut Pro. In planned order, what remains to 1.0:
+Milestones 1-6, 10-12 and 18 (renderer, alpha export, parameter editor, library, drag-out, template packs, the window shell, visual polish, categorization, and browsing and preview) are done apart from verification items that need a Windows machine or Final Cut Pro. In planned order, what remains to 1.0:
 
 | Milestone | What it delivers | Estimate |
 |---|---|---|
-| 12. Browse and preview | The card grid with badges, the virtualized results, hover-scrub and the player upgrades are in; still to come are waveforms for audio and audition mode | 3-5 h left of 13-21 h |
 | 13. Collections | Gather items while browsing, save and load as a file, render all with per-item settings | 8-14 h |
 | 17. Unsigned builds and releases | electron-builder, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 7-12 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 | 8. 1.0 hardening and docs | Frozen template and pack formats v1 with a JSON Schema, an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 
-The milestones through 1.0 total **133-226 hours**, of which **34-58 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **133-226 hours**, of which **31-53 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 

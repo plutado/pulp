@@ -250,6 +250,18 @@ export function browseScopes(index: LibraryIndex | null): Scope[] {
   return [{ label: 'Favorites', filter: 'favorite:yes', kind: 'favorites' }, { label: 'Recently used', filter: 'recent:yes', kind: 'recent' }, ...folders];
 }
 
+/**
+ * The entry a step through the results lands on: the one after or before the
+ * shown item, clamped at the ends. With nothing shown, a step forward starts at
+ * the first and a step back at the last. Null when there is nothing to step to.
+ */
+export function neighbourEntry(entries: readonly LibraryEntry[], shownKey: string | null, delta: number): LibraryEntry | null {
+  if (entries.length === 0) return null;
+  const at = entries.findIndex((e) => e.key === shownKey);
+  if (at === -1) return entries[delta >= 0 ? 0 : entries.length - 1] ?? null;
+  return entries[Math.min(entries.length - 1, Math.max(0, at + delta))] ?? null;
+}
+
 /** Two scopes are the same browse node. */
 export function sameScope(a: Scope | null, b: Scope | null): boolean {
   return a?.label === b?.label && a?.filter === b?.filter && a?.root === b?.root;

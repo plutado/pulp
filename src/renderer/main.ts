@@ -3,7 +3,7 @@ import { formatBytes, setDrag, setIndex, setJobs, setQuery, setSelection, setSho
 import { appState, dispatch, results, selectedTemplate } from './store';
 import { mountResults } from './results';
 import { mountItemInfo } from './item-info';
-import { initStage, stageClear, stageShowMedia, stageShowTemplate } from './stage';
+import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback } from './stage';
 import { initShell } from './shell';
 import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
 import { initInspectorParams, paramsClear, paramsShow } from './inspector-params';
@@ -307,7 +307,7 @@ initSearchBar();
 initStatusBar();
 initTray(buildRenderRequest);
 mountBrowse($('browse-tree'));
-mountResults(els.results, select);
+mountResults(els.results, { onSelect: select, onStop: stopPlayback });
 mountItemInfo($('item-tools'), { favorite: 'favorite', chips: 'tag-chips', input: 'tag-input' }, false);
 mountItemInfo($('info-item'), {}, true);
 effect(() => {

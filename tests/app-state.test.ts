@@ -8,6 +8,7 @@ import {
   dragFileFor,
   effectiveQuery,
   itemDetails,
+  neighbourEntry,
   resolveDragJob,
   setDrag,
   setShown,
@@ -140,6 +141,25 @@ describe('deriveResults', () => {
     const s = setIndex(initialAppState, index([offline], [media('clip')]));
     expect(deriveResults(s).canExportPack).toBe(false);
     expect(deriveResults(setIndex(s, index([offline, template('here')]))).canExportPack).toBe(true);
+  });
+});
+
+describe('stepping through the results', () => {
+  const entries = [media('a'), media('b'), media('c')];
+
+  it('moves to the next or previous item and stops at the ends', () => {
+    expect(neighbourEntry(entries, 'b', 1)?.key).toBe('c');
+    expect(neighbourEntry(entries, 'b', -1)?.key).toBe('a');
+    expect(neighbourEntry(entries, 'c', 1)?.key).toBe('c');
+    expect(neighbourEntry(entries, 'a', -1)?.key).toBe('a');
+  });
+
+  it('starts at the near end when nothing is shown, and has nowhere to go when empty', () => {
+    expect(neighbourEntry(entries, null, 1)?.key).toBe('a');
+    expect(neighbourEntry(entries, null, -1)?.key).toBe('c');
+    // An item that has dropped out of the results starts over rather than sticking.
+    expect(neighbourEntry(entries, 'gone', 1)?.key).toBe('a');
+    expect(neighbourEntry([], null, 1)).toBeNull();
   });
 });
 

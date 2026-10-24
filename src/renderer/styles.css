@@ -269,6 +269,10 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .results .thumb .icon-wrap { color: var(--muted); }
 .results .thumb.empty { background-image: none; background-color: var(--panel-2); }
+/* Audio has no picture: its waveform fills the thumbnail slot instead. */
+.results .waveform { width: 100%; height: 100%; display: block; }
+.results .waveform path { stroke: var(--text-secondary); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.results li[aria-selected="true"] .waveform path { stroke: var(--accent); }
 .results .name-row { display: flex; gap: var(--space-1); align-items: center; min-width: 0; }
 .results .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .results .fav { color: var(--accent); display: inline-flex; }
@@ -315,6 +319,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .preview .media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; }
 .preview .media[hidden] { display: none; }
 .preview audio.media { top: auto; height: 40px; }
+/* The stage waveform sits behind the audio transport, filling the picture area. Its own
+   backdrop: a checkerboard behind a sound would promise a transparency it does not have. */
+.preview .waveform { position: absolute; inset: 0; width: 100%; height: 100%; background: var(--panel); }
+.preview .waveform[hidden] { display: none; }
+.preview .waveform path { stroke: var(--text-secondary); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .preview-empty[hidden] { display: none; }
 .preview-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
 .checker {

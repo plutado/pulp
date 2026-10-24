@@ -1003,6 +1003,73 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await frame('tiny')).toBeNull();
     }, 180_000);
 
+    it('draws a waveform for audio, in the row and on the stage, and keeps the peaks', async () => {
+      if (!haveVideo) {
+        console.info('ffmpeg not available; waveform check skipped.');
+        return;
+      }
+      // Peaks are taken on first ask; the reason comes back when there are none.
+      const id = await onResult<string>('silence', '(li) => li.dataset.id');
+      const asked = await page.eval<{ peaks: string | null; reason?: string }>(`window.pulp.waveform(${JSON.stringify(id)})`);
+      expect(asked.reason ?? '').toBe('');
+      expect(asked.peaks).toBeTruthy();
+
+      // The row draws it where a thumbnail would be: audio has no picture.
+      await until(() => onResult<boolean>('silence', '(li) => !!li.querySelector(".thumb .waveform path")'), 'the waveform in the row');
+      const d = await onResult<string>('silence', '(li) => li.querySelector(".thumb .waveform path").getAttribute("d")');
+      expect(d.startsWith('M')).toBe(true);
+      // A silent file still draws a hairline rather than looking like a failure.
+      expect(d.split('M').length - 1).toBe(50);
+
+      // And on the stage, behind the audio transport.
+      await selectMedia('silence');
+      await until(() => page.eval<boolean>(`!document.getElementById('media-waveform').hasAttribute('hidden')`), 'the waveform on the stage');
+      expect(await page.eval<number>(`document.getElementById('media-waveform').querySelector('path').getAttribute('d').split('M').length - 1`)).toBe(400);
+
+      // The peaks are in the library database, so the next run draws them without ffmpeg.
+      const { DatabaseSync } = await import('node:sqlite');
+      const db = new DatabaseSync(join(userData, 'library.sqlite'), { readOnly: true });
+      try {
+        const rows = db.prepare('SELECT peaks FROM waveforms WHERE peaks IS NOT NULL').all() as { peaks: string }[];
+        expect(rows.length).toBeGreaterThanOrEqual(1);
+      } finally {
+        db.close();
+      }
+    }, 90_000);
+
+    it('auditions a list of sounds: arrow keys move, picking plays, Escape stops', async () => {
+      const playing = () => page.eval<boolean>(`!document.getElementById('media-audio').paused`);
+      const shown = () => page.eval<string>(`document.getElementById('details')?.textContent ?? ''`);
+      const key = (k: string) =>
+        page.eval(`document.getElementById('results').dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(k)}, bubbles: true }))`);
+      const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+
+      try {
+        // Narrow to audio, which also puts the results in list view.
+        await setSearch('type:audio');
+        await until(async () => (await resultNames()).includes('silence'), 'the audio results');
+        expect(await page.eval<boolean>(`document.getElementById('results').classList.contains('list')`)).toBe(true);
+
+        // Off by default: moving through the list shows an item but plays nothing.
+        expect(await page.eval<string>(`document.getElementById('audition').getAttribute('aria-pressed')`)).toBe('false');
+        await key('ArrowDown');
+        await until(async () => (await shown()).includes('silence'), 'the first sound to be shown');
+        expect(await playing()).toBe(false);
+
+        // On, and the arrow keys audition.
+        await page.eval(`document.getElementById('audition').click()`);
+        expect(await page.eval<string>(`document.getElementById('audition').getAttribute('aria-pressed')`)).toBe('true');
+        await key('ArrowUp'); // back to the top of a one-item list: the same sound, played this time
+        await until(playing, 'the sound to play');
+        // Escape stops it.
+        await key('Escape');
+        await until(async () => !(await playing()), 'the sound to stop');
+        await page.eval(`document.getElementById('audition').click()`);
+      } finally {
+        await setSearch('');
+      }
+    }, 90_000);
+
     it('refuses an unknown id and a path on the URL, and serves a known id, as seen by an <img>', async () => {
       const outcome = (src: string) =>
         page.eval<string>(

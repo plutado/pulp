@@ -63,7 +63,7 @@ beforeAll(async () => {
   document.body.append(container);
   appState.value = setIndex(initialAppState, index);
   resultsView.value = GRID;
-  mountResults(container, () => undefined);
+  mountResults(container, { onSelect: () => undefined, onStop: () => undefined });
   await settle();
 });
 
