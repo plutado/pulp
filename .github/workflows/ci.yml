@@ -33,9 +33,9 @@ jobs:
     # Full render path on Windows: Electron offscreen window, ffmpeg, and the
     # end-to-end suite including the 150% display scaling check.
     runs-on: windows-latest
-    # The end-to-end suite renders 4K and 8K on a two-core runner; a healthy run takes about 20 minutes,
-    # so this limit is three times that. Anything past it is stuck, not slow, and the reporter's last
-    # "▶" line says which test it is inside (docs/platform-notes.md, "Windows CI").
+    # The end-to-end suite renders 4K and 8K on a two-core runner; a healthy run takes about 6.5 minutes
+    # (run 40123690231), so this limit is nine times that: a run that reaches it is stuck, not slow, and
+    # the reporter's last "▶" line says which test it is inside (docs/platform-notes.md, "Windows CI").
     timeout-minutes: 60
     env:
       # Fail instead of skipping if Electron, ffmpeg or ffprobe is missing.

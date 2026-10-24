@@ -101,7 +101,7 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 - `choco install ffmpeg -y --no-progress` installs the current version; `--version=8.1.2` pins when a comparison is needed.
 - The job has an always-run step that prints the ffmpeg version and the `frames:` line, so a log says which ffmpeg produced the bytes and what the capture bitmap looked like even when tests fail.
 - PowerShell pipes are text streams and corrupt binary output. Write ffmpeg's raw pixels to a file and `Format-Hex` the file.
-- Both jobs have `timeout-minutes` (20 for the checks, 60 for the Windows render job against a healthy run of about 20 minutes), so a job that is genuinely stuck fails within the hour instead of running to GitHub's six-hour limit.
+- Both jobs have `timeout-minutes` (20 for the checks, 60 for the Windows render job). A healthy Windows run takes about 6.5 minutes (run 40123690231; the 20-minute figure that stood here briefly came from failing runs waiting out their own timeouts), so the limit is nine times a healthy run: a job that reaches it is stuck, not slow, and fails within the hour instead of running to GitHub's six-hour limit.
 
 ### Paths and line endings
 
