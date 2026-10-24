@@ -10,6 +10,7 @@
  */
 
 import { templateDefaultSize } from '../core/aspect';
+import { chosenImageIds, imageRequests, imageSlots } from '../core/image-slot';
 import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { frameCount, type TemplateManifest } from '../core/manifest';
@@ -79,6 +80,10 @@ const s = {
   shape: { width: 16, height: 9 } as { width: number; height: number },
   inFlight: false,
   pendingFrame: null as number | null,
+  /** Image slots (ADR 0013): the key of the images the page was last handed; frames wait while it changes. */
+  imagesKey: '',
+  imagesReady: true,
+  prepareId: 0,
   /** Preferences from settings.json: loop, background, safe areas, volume. */
   player: DEFAULT_PLAYER as PlayerState,
   /** The audio item on the stage, so its waveform can be drawn again when the peaks land. */
@@ -172,10 +177,43 @@ function postFrame(frame: number): void {
   updateTimecode(frame);
 }
 
+/**
+ * Before a frame can use an image slot, the page must have been handed the
+ * chosen stills and have decoded them. Both happen here, once per change of
+ * the choice, and frames hold until the page says it is prepared — so a frame
+ * is never drawn with a half-loaded logo.
+ */
+function syncImages(): void {
+  const win = els.preview.contentWindow;
+  if (!s.manifest || !win) return;
+  const slots = imageSlots(s.manifest.parameters, s.params, previewSize());
+  const requests = imageRequests(slots);
+  const key = requests.map((r) => `${r.id}|${r.treatment}|${r.tint}`).sort().join(',');
+  if (key === s.imagesKey) return;
+  s.imagesKey = key;
+  s.imagesReady = false;
+  const id = ++s.prepareId;
+  // The main process reads exactly the chosen stills and the page gets their bytes (ADR 0013).
+  void window.pulp.loadSlotImages(chosenImageIds(slots)).then((handed) => {
+    if (id !== s.prepareId || !s.manifest || els.preview.contentWindow !== win) return;
+    if (handed.missing.length > 0) {
+      els.note.hidden = false;
+      els.note.textContent = 'An image chosen for this template is not in the library; its slot shows the fallback.';
+    }
+    const srcById = new Map(handed.images.map((i) => [i.id, i.src]));
+    win.postMessage({ type: 'pulp:prepare', id, requests: requests.filter((r) => srcById.has(r.id)).map((r) => ({ ...r, src: srcById.get(r.id) })) }, '*');
+  });
+}
+
 /** Only one frame is in flight at a time; newer requests replace queued ones. */
 function requestFrame(frame: number): void {
   s.frame = frame;
   if (!s.previewReady) return;
+  syncImages();
+  if (!s.imagesReady) {
+    s.pendingFrame = frame;
+    return;
+  }
   if (s.inFlight) {
     s.pendingFrame = frame;
     return;
@@ -266,6 +304,8 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams):
   s.previewReady = false;
   s.inFlight = false;
   s.pendingFrame = null;
+  s.imagesKey = '';
+  s.imagesReady = true;
   applyPreviewShape();
   if (entry.offline) {
     // The folder is not reachable; keep the item (and its edits) but do not try to load it.
@@ -445,6 +485,18 @@ export function initStage(): void {
       s.inFlight = false;
       requestFrame(s.frame);
       updateTransport();
+    } else if (data?.type === 'pulp:prepared') {
+      if ((data as { id?: number }).id !== s.prepareId) return;
+      s.imagesReady = true;
+      if (data.message) {
+        els.note.hidden = false;
+        els.note.textContent = `Image slot: ${data.message}`;
+      }
+      if (s.pendingFrame !== null) {
+        const next = s.pendingFrame;
+        s.pendingFrame = null;
+        requestFrame(next);
+      }
     } else if (data?.type === 'pulp:rendered' || data?.type === 'pulp:error') {
       s.inFlight = false;
       if (data.type === 'pulp:error') {

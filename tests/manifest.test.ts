@@ -180,6 +180,30 @@ describe('validateManifest', () => {
       ).toContain('parameters[0].options[1].value');
     });
 
+    it('validates image slots: a box inside the frame, fit, align, margin and a text fallback; no default', () => {
+      const slot = (over: Record<string, unknown> = {}) => ({ id: 'logo', type: 'image', label: 'Logo', box: { x: 0.1, y: 0.7, width: 0.2, height: 0.2 }, ...over });
+      const name = { id: 'name', type: 'text', label: 'Name', default: 'Acme' };
+      const ok = validateManifest(rawManifest({ parameters: [name, slot({ fallbackText: 'name' })] }));
+      expect(ok.ok).toBe(true);
+      if (!ok.ok) return;
+      const logo = ok.manifest.parameters[1]!;
+      // Defaults filled, so every reader sees a complete slot.
+      expect(logo).toMatchObject({ type: 'image', default: null, fit: 'contain', align: 'center', margin: 0, fallbackText: 'name' });
+      // Per-aspect boxes, with a "default".
+      expect(errorPaths(rawManifest({ parameters: [slot({ box: { '16:9': { x: 0, y: 0, width: 0.5, height: 0.5 }, '9:16': { x: 0, y: 0, width: 1, height: 0.3 }, default: { x: 0, y: 0, width: 1, height: 1 } } })] }))).toEqual([]);
+      // What is refused.
+      expect(withParam(slot({ default: 'abcdefabcdefabcdefabcdef' }))).toContain('parameters[0].default');
+      expect(withParam(slot({ box: { x: 0.9, y: 0, width: 0.2, height: 0.2 } }))).toContain('parameters[0].box');
+      expect(withParam(slot({ box: { wide: { x: 0, y: 0, width: 1, height: 1 } } }))).toContain('parameters[0].box.wide');
+      expect(withParam(slot({ box: undefined }))).toContain('parameters[0].box');
+      expect(withParam(slot({ fit: 'stretch' }))).toContain('parameters[0].fit');
+      expect(withParam(slot({ align: 'middle' }))).toContain('parameters[0].align');
+      expect(withParam(slot({ margin: 0.6 }))).toContain('parameters[0].margin');
+      // The fallback must name a text parameter of this template.
+      expect(errorPaths(rawManifest({ parameters: [slot({ fallbackText: 'nope' })] }))).toContain('parameters[0].fallbackText');
+      expect(errorPaths(rawManifest({ parameters: [{ id: 'n', type: 'number', label: 'N', default: 1 }, slot({ fallbackText: 'n' })] }))).toContain('parameters[1].fallbackText');
+    });
+
     it('rejects duplicate parameter ids', () => {
       const p = { id: 'a', label: 'A', type: 'boolean', default: true };
       expect(errorPaths(rawManifest({ parameters: [p, p] }))).toContain('parameters[1].id');

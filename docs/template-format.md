@@ -91,6 +91,36 @@ Type-specific rules:
 | `boolean` | boolean | | |
 | `select` | string | `options`: `[{ "value": string, "label": string }]` | Values must be unique; `default` must be one of them. |
 | `font` | CSS font-family string | `options`: string[] | If `options` is given the value must be one of them. Bundle font files in the template folder and load them with `@font-face`, or use families that exist on every target system. |
+| `image` | none (`null`); the user picks a library still | `box` (required), `fit`, `align`, `margin`, `fallbackText` | An **image slot**: see below. The value the template receives is `null` or `{ id, treatment, tint, effect }`, where `id` is a library item id, never a path. |
+
+### Image slots
+
+An image slot is a box in the layout that a chosen library still — a logo, a mark, a portrait — is drawn into **inside the template's own animation**, so it follows every move, fade, mask and wipe the template makes. The user picks the image in the Parameters tab; the template only says where it goes and how.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `box` | object | yes | `{ "x", "y", "width", "height" }` as fractions of the frame, inside it. Either one box for every shape, or one per aspect id (`"16:9"`, `"9:16"`, …) with an optional `"default"`; the host picks the box for the frame being drawn. |
+| `fit` | `contain` or `cover` | no | `contain` (default) fits the whole image inside the box; `cover` fills the box and crops. |
+| `align` | string | no | Where a smaller image sits in the box: `center` (default), `left`, `right`, `top`, `bottom`, `top-left`, `top-right`, `bottom-left`, `bottom-right`. |
+| `margin` | number | no | Kept clear on every edge, as a fraction (0 to 0.45) of the box's shorter side. Default 0. |
+| `fallbackText` | string | no | The id of a `text` parameter of this template whose value stands in when no image is chosen: the company name set in type where the logo would be. |
+
+An image parameter has no `default`: with nothing chosen the slot is empty and the template draws its fallback, or nothing. **Treatments travel with the choice**, not with the template: the user picks original colours, tinted (with a colour), white or black for contrast, and an optional shadow or glow; the host applies the treatment before the template draws, so the template never handles pixels. PNG and SVG with alpha are the normal case; any library still is accepted.
+
+In `pulpRender`, `state.images[id]` describes every slot for the current frame — its pixel `box`, `fit`, `align`, `margin`, the chosen `id` or `null`, and the resolved `fallback` text — and the host adds `bitmap` to the chosen ones, decoded **before the first frame** so no frame is drawn with a half-loaded logo. The bridge provides one helper:
+
+```js
+// Draws the slot's image into its box (or into `box`, if the slot should ride something the
+// template is animating), with the fit, alignment, margin, treatment and effect the slot carries.
+// Returns false when no image is chosen, so the template can draw the fallback instead.
+if (!window.pulpDrawImage(ctx, state, 'logo', { x: panelX + 20, y: panelY + 20, width: 110, height: 110 })) {
+  ctx.fillText(state.images.logo.fallback || '', textX, textY);
+}
+```
+
+`window.pulpFitBox(box, imageWidth, imageHeight, fit, align, margin)` returns the placement without drawing, for templates that want to animate the image themselves; `state.images[id].bitmap` is a canvas they may draw directly.
+
+**What a template may load.** Templates are blocked from the library, and image slots do not change that: the host reads exactly the stills chosen for a template's slots, by id, and hands the page their bytes for the length of a preview or a render (ADR 0013). The template never gets a URL into the library — `pulp-media://` refuses every request from a template page, and the template CSP lists no library scheme — so it cannot read a chosen image's neighbour, or any image when none is chosen.
 
 ### Parameter resolution
 
@@ -126,7 +156,8 @@ It may return a Promise; the host waits for it to settle before capturing.
 | `progress` | number | `time / duration`, clamped to 0..1. |
 | `fps`, `duration`, `totalFrames` | number | From the manifest. |
 | `width`, `height` | integer | The canvas for this render in pixels: the chosen aspect and resolution, not anything from the manifest. Size the canvas from these on every call, since the same template is drawn tall, square and wide. |
-| `params` | object | Resolved parameter values keyed by parameter id. |
+| `params` | object | Resolved parameter values keyed by parameter id. An image parameter's value is `null` or `{ id, treatment, tint, effect }`. |
+| `images` | object | One entry per image slot (see Image slots): `{ id, box, fit, align, margin, treatment, tint, effect, fallback, bitmap? }`, the box in pixels of this frame. Draw them with `window.pulpDrawImage`. |
 
 ### Rules for templates
 
@@ -149,7 +180,7 @@ The host serves the template folder at `pulp-template://<id>/` and injects a sma
 - answers `postMessage` requests of the form `{ type: "pulp:render", id, state }` with `{ type: "pulp:rendered", id }` or `{ type: "pulp:error", id, message }`, used by the preview;
 - posts `{ type: "pulp:ready" }` to the parent frame once ready.
 
-Templates do not need to call or include the bridge. Its source is `BRIDGE_SCRIPT` in `src/core/runtime.ts`.
+Templates do not need to call or include the bridge. Its source is `BRIDGE_SCRIPT` in `src/core/runtime.ts`. The bridge also decodes the images handed over for a template's image slots (`window.__pulp.prepare`) and exposes `window.pulpDrawImage` and `window.pulpFitBox`.
 
 Every response carries this Content Security Policy:
 

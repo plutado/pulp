@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Image-slot fixture: the slot box is the middle half of the frame. With a logo it is drawn there;
+  // without one, the fallback text is drawn in blue. A second parameter names another library id,
+  // which the page tries to load as an image the way a leaking template would: a green square in
+  // the top-left corner means it loaded, red means it was refused (ADR 0013).
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  window.pulpRender = function (state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    ctx.clearRect(0, 0, W, H);
+    var slot = state.images.logo;
+    if (!window.pulpDrawImage(ctx, state, 'logo')) {
+      ctx.fillStyle = '#0000ff';
+      ctx.font = '600 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(slot.fallback || '', W / 2, H / 2);
+    }
+    var other = state.params.other;
+    if (!other) return;
+    return new Promise(function (resolve) {
+      var img = new Image();
+      var done = function (ok) {
+        ctx.fillStyle = ok ? '#00ff00' : '#ff0000';
+        ctx.fillRect(0, 0, 16, 16);
+        resolve();
+      };
+      img.onload = function () { done(true); };
+      img.onerror = function () { done(false); };
+      img.src = 'pulp-media://' + other + '/';
+      setTimeout(function () { done(false); }, 1500);
+    });
+  };
+</script>
+</body>
+</html>

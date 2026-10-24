@@ -655,6 +655,61 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 300_000);
   });
 
+  describe('image slots (milestone 22)', () => {
+    const field = `document.querySelector('#params [data-param="logo"] .image-field')`;
+
+    it('picks a still from the library, treats it, keeps it in a preset by id, and clears', async () => {
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!!${field}`), 'the logo slot field');
+      // Empty slot: a placeholder thumbnail, no Clear, no treatment.
+      expect(await page.eval<boolean>(`${field}.querySelector('.thumb').classList.contains('empty')`)).toBe(true);
+      expect(await page.eval<boolean>(`${field}.querySelector('.image-actions button:nth-child(3)').hidden`)).toBe(true);
+      // The picker lists the library's stills; the fixture PNG is one.
+      await page.eval(`${field}.querySelector('.image-actions button').click()`);
+      await until(() => page.eval<boolean>(`!!${field}.querySelector('.image-choice')`), 'stills in the picker');
+      await page.eval(`(() => { const s = ${field}.querySelector('.image-picker input'); s.value = 'tin'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      const listed = await page.eval<string[]>(`[...${field}.querySelectorAll('.image-choice .name')].map((n) => n.textContent)`);
+      expect(listed).toEqual(['tiny']);
+      await page.eval(`${field}.querySelector('.image-choice').click()`);
+      await until(() => page.eval<boolean>(`!${field}.querySelector('.thumb').classList.contains('empty')`), 'the chosen thumbnail');
+      expect(await page.eval<string>(`${field}.querySelector('.thumb img').getAttribute('src')`)).toMatch(/^pulp-thumb:\/\/[0-9a-f]{24}\/$/);
+      expect(await page.eval<boolean>(`${field}.querySelector('.image-picker').hidden`)).toBe(true);
+      // Treatment and effect ride along with the choice.
+      await page.eval(`(() => { const s = ${field}.querySelector('.image-treatment select'); s.value = 'white'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`(() => { const s = ${field}.querySelectorAll('.image-treatment select')[1]; s.value = 'shadow'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      // The stage was granted the image and drew the frame with it: no note about a missing image.
+      await sleep(600);
+      expect(await page.eval<string>(`document.getElementById('stage-note').textContent`)).not.toContain('not in the library');
+
+      // Saved as a preset by library id, with the treatment.
+      await page.eval(`(() => { const n = document.getElementById('param-preset-name'); n.value = 'With logo'; n.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await page.eval(`document.getElementById('param-preset-save').click()`);
+      let stored: { id: string; treatment: string; effect: string } | undefined;
+      await until(async () => {
+        try {
+          const f = JSON.parse(await readFile(join(userData, 'presets', 'pulp.samples.lower-third-bar.json'), 'utf8')) as { presets: Record<string, { logo?: { id: string; treatment: string; effect: string } }> };
+          stored = f.presets['With logo']?.logo;
+          return stored !== undefined;
+        } catch {
+          return false;
+        }
+      }, 'the preset with the logo');
+      expect(stored).toMatchObject({ treatment: 'white', effect: 'shadow' });
+      expect(stored!.id).toMatch(/^[0-9a-f]{24}$/);
+
+      // Clear empties the slot; applying the preset brings the image back.
+      await page.eval(`${field}.querySelector('.image-actions button:nth-child(3)').click()`);
+      await until(() => page.eval<boolean>(`${field}.querySelector('.thumb').classList.contains('empty')`), 'the cleared slot');
+      await page.eval(`(() => { const s = document.getElementById('param-preset-list'); s.value = 'With logo'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(() => page.eval<boolean>(`!${field}.querySelector('.thumb').classList.contains('empty')`), 'the preset\'s logo back');
+      expect(await page.eval<string>(`${field}.querySelector('.image-treatment select').value`)).toBe('white');
+      // Leave the template without a logo for the tests that follow.
+      await page.eval(`${field}.querySelector('.image-actions button:nth-child(3)').click()`);
+      await page.eval(`(() => { const s = document.getElementById('param-preset-list'); s.value = 'With logo'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`document.getElementById('param-preset-delete').click()`);
+    }, 90_000);
+  });
+
   describe('saved presets and batch', () => {
     const nameValue = () => page.eval<string>(`document.querySelector('[data-param=name] input').value`);
     const options = () => page.eval<string[]>(`[...document.getElementById('param-preset-list').options].map((o) => o.value).filter(Boolean)`);

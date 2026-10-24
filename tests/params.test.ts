@@ -9,6 +9,32 @@ function manifest(): TemplateManifest {
   return result.manifest;
 }
 
+describe('image parameters', () => {
+  const withSlot = () => {
+    const raw = rawManifest({ parameters: [{ id: 'name', type: 'text', label: 'Name', default: 'Acme' }, { id: 'logo', type: 'image', label: 'Logo', box: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 }, fallbackText: 'name' }] });
+    const result = validateManifest(raw);
+    if (!result.ok) throw new Error(result.errors.map((e) => `${e.path}: ${e.message}`).join('; '));
+    return result.manifest;
+  };
+  const id = 'abcdefabcdefabcdefabcdef';
+
+  it('default to no image, take a library id or a value object, and refuse anything else', () => {
+    const m = withSlot();
+    expect(defaultParams(m).logo).toBeNull();
+    expect(resolveParams(m, { logo: id }).values.logo).toEqual({ id, treatment: 'original', tint: '#ffffff', effect: 'none' });
+    expect(resolveParams(m, { logo: { id, treatment: 'tinted', tint: '#FF8800', effect: 'glow' } }).values.logo).toEqual({ id, treatment: 'tinted', tint: '#ff8800', effect: 'glow' });
+    // Unknown treatments and effects fall back on their own; a bad tint falls back to white.
+    expect(resolveParams(m, { logo: { id, treatment: 'sepia', tint: 'red', effect: 'blur' } }).values.logo).toEqual({ id, treatment: 'original', tint: '#ffffff', effect: 'none' });
+    for (const bad of ['/Users/dana/logo.png', 'nope', 42, { id: '../x' }, { treatment: 'white' }]) {
+      const r = resolveParams(m, { logo: bad });
+      expect(r.values.logo, String(bad)).toBeNull();
+      expect(r.issues.map((i) => i.id)).toContain('logo');
+    }
+    expect(resolveParams(m, { logo: '' }).values.logo).toBeNull();
+    expect(resolveParams(m, { logo: null }).values.logo).toBeNull();
+  });
+});
+
 describe('resolveParams', () => {
   it('returns defaults when no input is given', () => {
     expect(defaultParams(manifest())).toEqual({

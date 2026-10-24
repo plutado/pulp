@@ -7,9 +7,10 @@
  * default and is reported as an issue rather than throwing.
  */
 
+import { sanitizeImageValue, type ImageValue } from './image-slot';
 import { isValidColor, type TemplateManifest, type TemplateParameter } from './manifest';
 
-export type ParamValue = string | number | boolean;
+export type ParamValue = string | number | boolean | ImageValue | null;
 export type ResolvedParams = Record<string, ParamValue>;
 
 export interface ParamIssue {
@@ -73,6 +74,12 @@ function resolveOne(param: TemplateParameter, input: unknown, issues: ParamIssue
       if (typeof input !== 'string' || input.trim() === '') return fallback('expected a font family');
       if (param.options && !param.options.includes(input)) return fallback('not one of the allowed fonts');
       return input;
+    }
+    case 'image': {
+      // A library id (with its treatment), or nothing; never a path.
+      const value = sanitizeImageValue(input);
+      if (value === undefined) return fallback('expected a library image id');
+      return value;
     }
   }
 }

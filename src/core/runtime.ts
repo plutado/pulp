@@ -9,7 +9,8 @@
  */
 
 import type { Size } from './aspect';
-import { frameCount, type TemplateManifest } from './manifest';
+import { imageSlots, type ImageSlotState } from './image-slot';
+import { frameCount, type TemplateManifest, type TemplateParameter } from './manifest';
 import type { ResolvedParams } from './params';
 
 export interface FrameState {
@@ -25,6 +26,8 @@ export interface FrameState {
   width: number;
   height: number;
   params: ResolvedParams;
+  /** The template's image slots laid out for this frame; the bridge attaches the decoded picture to each chosen one. */
+  images: Record<string, ImageSlotState>;
 }
 
 /**
@@ -34,7 +37,7 @@ export interface FrameState {
  * pixel size from here (docs/template-format.md, ADR 0012).
  */
 export function frameState(
-  manifest: Pick<TemplateManifest, 'duration' | 'fps'>,
+  manifest: Pick<TemplateManifest, 'duration' | 'fps'> & { parameters?: readonly TemplateParameter[] },
   frame: number,
   params: ResolvedParams,
   size: Size,
@@ -52,6 +55,7 @@ export function frameState(
     width: size.width,
     height: size.height,
     params,
+    images: manifest.parameters ? imageSlots(manifest.parameters, params, size) : {},
   };
 }
 
@@ -86,12 +90,82 @@ export const BRIDGE_SCRIPT = `(function () {
     if (document.readyState === 'complete') done();
     else window.addEventListener('load', done, { once: true });
   });
+  var MAX_SIDE = 4096;
+  var pictures = {};
+  function requestKey(r) { return r.id + '|' + r.treatment + '|' + (r.treatment === 'tinted' ? r.tint : ''); }
+  function loadPicture(r) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.decoding = 'async';
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { reject(new Error('Image ' + r.id + ' could not be decoded')); };
+      if (!r.src) { reject(new Error('Image ' + r.id + ' was not handed to the template')); return; }
+      img.src = r.src;
+    }).then(function (img) {
+      var w = img.naturalWidth || 1, h = img.naturalHeight || 1;
+      var scale = Math.min(1, MAX_SIDE / Math.max(w, h));
+      var c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(w * scale));
+      c.height = Math.max(1, Math.round(h * scale));
+      var x = c.getContext('2d');
+      x.drawImage(img, 0, 0, c.width, c.height);
+      if (r.treatment !== 'original') {
+        x.globalCompositeOperation = 'source-in';
+        x.fillStyle = r.treatment === 'white' ? '#ffffff' : r.treatment === 'black' ? '#000000' : r.tint;
+        x.fillRect(0, 0, c.width, c.height);
+      }
+      return c;
+    });
+  }
+  function prepare(requests) {
+    return ready.then(function () {
+      return Promise.all((requests || []).map(function (r) {
+        var key = requestKey(r);
+        if (!pictures[key]) pictures[key] = loadPicture(r);
+        return pictures[key];
+      }));
+    }).then(function () { return true; });
+  }
+  function attachPictures(state) {
+    var images = state && state.images ? state.images : {};
+    var pending = [];
+    Object.keys(images).forEach(function (slotId) {
+      var slot = images[slotId];
+      if (!slot.id) return;
+      var p = pictures[requestKey(slot)];
+      if (!p) return;
+      pending.push(p.then(function (c) { slot.bitmap = c; }, function () { slot.bitmap = null; }));
+    });
+    return Promise.all(pending);
+  }
+  function fitBox(box, iw, ih, fit, align, margin) {
+    var inset = Math.max(0, Math.min(0.45, margin || 0)) * Math.min(box.width, box.height);
+    var innerW = Math.max(1, box.width - inset * 2), innerH = Math.max(1, box.height - inset * 2);
+    var scale = fit === 'cover' ? Math.max(innerW / iw, innerH / ih) : Math.min(innerW / iw, innerH / ih);
+    var w = iw * scale, h = ih * scale;
+    var a = align || 'center';
+    var ax = a === 'left' || /-left$/.test(a) ? 0 : a === 'right' || /-right$/.test(a) ? 1 : 0.5;
+    var ay = /^top/.test(a) ? 0 : /^bottom/.test(a) ? 1 : 0.5;
+    return { x: box.x + inset + (innerW - w) * ax, y: box.y + inset + (innerH - h) * ay, width: w, height: h };
+  }
+  function drawImage(ctx, state, slotId, box) {
+    var slot = state && state.images ? state.images[slotId] : null;
+    if (!slot || !slot.bitmap) return false;
+    var target = box || slot.box;
+    var at = fitBox(target, slot.bitmap.width, slot.bitmap.height, slot.fit, slot.align, slot.margin);
+    ctx.save();
+    if (slot.effect === 'shadow') { ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = Math.max(2, at.height * 0.12); ctx.shadowOffsetY = Math.max(1, at.height * 0.04); }
+    else if (slot.effect === 'glow') { ctx.shadowColor = slot.treatment === 'tinted' ? slot.tint : 'rgba(255,255,255,0.85)'; ctx.shadowBlur = Math.max(4, at.height * 0.25); }
+    ctx.drawImage(slot.bitmap, at.x, at.y, at.width, at.height);
+    ctx.restore();
+    return true;
+  }
   function render(state) {
     return ready.then(function () {
       if (typeof window.pulpRender !== 'function') {
         throw new Error('Template does not define window.pulpRender(state)');
       }
-      return window.pulpRender(state);
+      return attachPictures(state).then(function () { return window.pulpRender(state); });
     }).then(function () {
       /* Two animation frames: the first callback runs before the frame holding the draw is
          committed to the compositor, so resolving there can let a capture see the previous frame
@@ -102,11 +176,22 @@ export const BRIDGE_SCRIPT = `(function () {
       });
     });
   }
-  window.__pulp = { ready: ready, render: render };
+  window.__pulp = { ready: ready, render: render, prepare: prepare, drawImage: drawImage, fitBox: fitBox };
+  window.pulpDrawImage = drawImage;
+  window.pulpFitBox = fitBox;
   window.addEventListener('message', function (event) {
     var data = event.data;
-    if (!data || data.type !== 'pulp:render' || !event.source) return;
+    if (!data || !event.source) return;
     var reply = event.source;
+    if (data.type === 'pulp:prepare') {
+      prepare(data.requests).then(function () {
+        reply.postMessage({ type: 'pulp:prepared', id: data.id }, '*');
+      }, function (err) {
+        reply.postMessage({ type: 'pulp:prepared', id: data.id, message: String(err && err.message || err) }, '*');
+      });
+      return;
+    }
+    if (data.type !== 'pulp:render') return;
     render(data.state).then(function () {
       reply.postMessage({ type: 'pulp:rendered', id: data.id }, '*');
     }, function (err) {

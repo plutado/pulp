@@ -59,8 +59,14 @@
       titleW = ctx.measureText(p.title).width;
     }
 
-    var panelW = Math.max(nameW, titleW) + padX * 2;
     var panelH = 150 * s;
+    // Image slot (milestone 22): a square badge at the head of the panel when a logo is chosen; the
+    // text moves over to make room. With no logo the slot falls back to the name, which the panel
+    // already carries, so nothing changes.
+    var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
+    var badge = hasLogo ? panelH - 2 * 18 * s : 0;
+    var badgeGap = hasLogo ? padX : 0;
+    var panelW = Math.max(nameW, titleW) + padX * 2 + badge + badgeGap;
     var y = tall ? H * 0.72 - panelH : H - margin - panelH;
     var right = !tall && p.side === 'right';
     var x = right ? W - margin - panelW - barW : margin;
@@ -83,7 +89,13 @@
     ctx.fillStyle = p.panel;
     ctx.fillRect(panelX, y, visibleW, panelH);
 
-    var textX = right ? x + panelW - padX : x + barW + padX;
+    var textX = right ? x + panelW - padX - badge - badgeGap : x + barW + padX + badge + badgeGap;
+    if (hasLogo) {
+      // The badge rides the panel: it is clipped by the same wipe and fades with the text.
+      var badgeX = right ? x + panelW - padX - badge : x + barW + padX;
+      ctx.globalAlpha = clamp01((show - 0.5) / 0.5);
+      window.pulpDrawImage(ctx, state, 'logo', { x: badgeX, y: y + 18 * s, width: badge, height: badge });
+    }
     ctx.textAlign = right ? 'right' : 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.globalAlpha = clamp01((show - 0.5) / 0.5);

@@ -11,10 +11,12 @@
 
 import { app, BrowserWindow } from 'electron';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, extname, join } from 'node:path';
 import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput } from '../core/ffmpeg';
+import { MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
+import { itemId, mediaKindForPath } from '../core/library-scan';
 import { LibraryStore, type ScanStats } from '../core/library-store';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { mediaThumbArgs, posterThumbArgs, thumbFileName } from '../core/thumbnails';
@@ -96,10 +98,40 @@ export function packsRoot(): string {
   return join(app.getPath('userData'), 'packs');
 }
 
+/** Files chosen from outside the library for an image slot are copied here, so the library stays the only thing a template may see. */
+export function importedRoot(): string {
+  return join(app.getPath('userData'), 'imported');
+}
+
+/**
+ * Copy a file into the Imported folder and index it; resolves to the item's id,
+ * or null when the file is not an image. A name clash keeps both files.
+ */
+export async function importImageFile(source: string): Promise<{ id: string } | { error: string }> {
+  if (mediaKindForPath(source) !== 'image') return { error: 'Only image files can be used in an image slot.' };
+  let info;
+  try {
+    info = await stat(source);
+  } catch {
+    return { error: 'That file could not be read.' };
+  }
+  if (!info.isFile()) return { error: 'That is not a file.' };
+  if (info.size > MAX_IMAGE_FILE_BYTES) return { error: `Images over ${MAX_IMAGE_FILE_BYTES / 1048576} MB are not loaded.` };
+  await mkdir(importedRoot(), { recursive: true });
+  const ext = extname(source);
+  const stem = basename(source, ext).replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'image';
+  let target = join(importedRoot(), `${stem}${ext}`);
+  for (let n = 2; existsSync(target); n++) target = join(importedRoot(), `${stem}-${n}${ext}`);
+  await copyFile(source, target);
+  await rescan();
+  return { id: itemId(`media:${target}`) };
+}
+
 async function configuredRoots(): Promise<string[]> {
   const settings = await loadSettings();
   const roots = [bundledTemplatesDir(), ...settings.libraryFolders, ...extraRoots];
   if (persistent && existsSync(packsRoot())) roots.splice(1, 0, packsRoot());
+  if (persistent && existsSync(importedRoot())) roots.splice(1, 0, importedRoot());
   return [...new Set(roots)];
 }
 

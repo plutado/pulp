@@ -10,7 +10,7 @@
 
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -618,6 +618,48 @@ describe.skipIf(!available)('end-to-end render', () => {
     const info = await probe(join(out, 'title.mp4'));
     expect(info).toMatchObject({ width: 1920, height: 1080, pix_fmt: 'yuv420p', nb_read_frames: '150' });
   }, 120_000);
+
+  it('image slots: draws the granted still, refuses its neighbour, and grants nothing when nothing is chosen (ADR 0013)', async () => {
+    // Two stills in a scratch library: the logo the user picks, and its neighbour the template must not see.
+    const logos = join(out, 'logos');
+    await mkdir(logos, { recursive: true });
+    await run(ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x00ff00:s=64x64', '-frames:v', '1', join(logos, 'logo.png')]);
+    await run(ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0xff0000:s=64x64', '-frames:v', '1', join(logos, 'secret.png')]);
+    const logoId = itemId(`media:${join(logos, 'logo.png')}`);
+    const secretId = itemId(`media:${join(logos, 'secret.png')}`);
+    const libs = ['--library', FIXTURES, '--library', logos];
+
+    // Chosen: the logo fills the slot's box (the middle half of a 320x180 frame), while the neighbour is refused.
+    const a = await render('pulp.test.logo-slot', 'png-sequence', 'slot-granted', { extra: [...libs, '--param', `logo=${logoId}`, '--param', `other=${secretId}`] });
+    expect(a.code, a.stderr).toBe(0);
+    const granted = join(out, 'slot-granted_00000.png');
+    // Within a step: the fixture's pure green comes through the image decode a shade under 255.
+    const near = (px: number[], want: number[]) => px.every((v, i) => Math.abs(v - want[i]!) <= 2);
+    expect(near(await pixels(granted, 160, 90), [0, 255, 0, 255]), 'the logo in its box').toBe(true);
+    expect((await pixels(granted, 60, 90))[3]).toBe(0); // outside the box
+    expect(await pixels(granted, 8, 8)).toEqual([255, 0, 0, 255]); // the probe for the neighbour: refused
+
+    // Nothing chosen: the slot shows its fallback text, and no image is granted — not even the one above.
+    const b = await render('pulp.test.logo-slot', 'png-sequence', 'slot-empty', { extra: [...libs, '--param', `other=${logoId}`] });
+    expect(b.code, b.stderr).toBe(0);
+    const empty = join(out, 'slot-empty_00000.png');
+    expect(await pixels(empty, 8, 8)).toEqual([255, 0, 0, 255]);
+    const row = await pixels(empty, 100, 90, 120);
+    const blue = Array.from({ length: 120 }, (_, i) => row.slice(i * 4, i * 4 + 4)).filter((px) => px[2] === 255 && px[0] === 0 && px[3]! > 0);
+    expect(blue.length).toBeGreaterThan(0);
+
+    // A treatment travels with the choice: flattened to white, the same box is white.
+    const c = await render('pulp.test.logo-slot', 'png-sequence', 'slot-white', { extra: [...libs, '--param', `logo={"id":"${logoId}","treatment":"white"}`] });
+    expect(c.code, c.stderr).toBe(0);
+    expect(near(await pixels(join(out, 'slot-white_00000.png'), 160, 90), [255, 255, 255, 255]), 'the treated logo').toBe(true);
+
+    // Something that is not a still in the library is refused before anything renders.
+    const wav = itemId(`media:${join(FIXTURES, 'media', 'silence.wav')}`);
+    const d = await render('pulp.test.logo-slot', 'png-sequence', 'slot-bad', { extra: [...libs, '--param', `logo=${wav}`] });
+    expect(d.code).toBe(1);
+    expect(d.stderr).toContain('The image for "Logo" is not in the library');
+    expect((await readdir(out)).filter((f) => f.startsWith('slot-bad_'))).toEqual([]);
+  }, 240_000);
 
   it('refuses pulp-media:// to template pages, even for a valid library id', async () => {
     // The fixtures folder is a library root for this run, so its media/silence.wav has an id the

@@ -500,6 +500,24 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .color-field .recent-swatch { position: relative; width: 20px; height: 20px; padding: 0; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
 .color-field .recent-swatch:hover { border-color: var(--accent); }
 .color-field .hex.error { border-color: var(--danger); }
+/* Image slots (milestone 22): the picked still, its picker and its treatment. */
+.image-field { display: grid; gap: var(--space-2); }
+.image-field > .thumb { width: 96px; height: 54px; border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; display: flex; align-items: center; justify-content: center; background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
+.image-field > .thumb.empty { background-image: none; background-color: var(--panel-2); }
+.image-field .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.image-field .image-actions { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.image-field .image-actions button[hidden] { display: none; }
+.image-field .image-picker { display: grid; gap: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-control); padding: var(--space-1); }
+.image-field .image-picker[hidden] { display: none; }
+.image-field .image-choices { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; display: grid; gap: 2px; }
+.image-field .image-choice { display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left; padding: 2px 4px; background: none; border-color: transparent; }
+.image-field .image-choice:hover, .image-field .image-choice[aria-pressed="true"] { background: var(--panel-2); }
+.image-field .image-choice .thumb { width: 40px; height: 24px; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
+.image-field .image-choice .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.image-field .image-treatment { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--space-1); align-items: center; }
+.image-field .image-treatment[hidden] { display: none; }
+.image-field .image-treatment input[type="color"][hidden] { display: none; }
+.image-field .image-note[hidden] { display: none; }
 .group-label { font-size: var(--font-caption); color: var(--muted); margin-top: 6px; border-top: 1px solid var(--border); padding-top: 8px; }
 
 .note { color: var(--muted); font-size: var(--font-secondary); margin: 6px 0; line-height: 1.4; }

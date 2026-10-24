@@ -8,6 +8,7 @@
  */
 
 import { ASPECT_IDS, aspectOf, isBuiltInAspect, MAX_DIMENSION, MIN_DIMENSION, type Size } from './aspect';
+import { IMAGE_ALIGNS, IMAGE_FITS, isSlotBox, type ImageAlign, type ImageFit, type SlotBoxes } from './image-slot';
 import { isBuiltInStyle, isBuiltInType, normalizeTheme, STYLES } from './taxonomy';
 
 export const MANIFEST_FILENAME = 'template.json';
@@ -23,7 +24,7 @@ export const TEMPLATE_CATEGORIES = [
 ] as const;
 export type TemplateCategory = (typeof TEMPLATE_CATEGORIES)[number];
 
-export const PARAMETER_TYPES = ['text', 'color', 'number', 'boolean', 'select', 'font'] as const;
+export const PARAMETER_TYPES = ['text', 'color', 'number', 'boolean', 'select', 'font', 'image'] as const;
 export type ParameterType = (typeof PARAMETER_TYPES)[number];
 
 interface ParameterBase {
@@ -76,13 +77,33 @@ export interface FontParameter extends ParameterBase {
   options?: string[];
 }
 
+/**
+ * An image slot (milestone 22, ADR 0013): a box in the layout that a chosen
+ * library still is drawn into, inside the template's own animation. The value
+ * is a library id with a treatment, never a path; the default is always "no
+ * image", since a template cannot ship a library id.
+ */
+export interface ImageParameter extends ParameterBase {
+  type: 'image';
+  default: null;
+  /** Fractions of the frame; one box, or one per aspect id with an optional "default". */
+  box: SlotBoxes;
+  fit: ImageFit;
+  align: ImageAlign;
+  /** Kept clear on every edge, as a fraction of the box's shorter side; 0 to 0.45. */
+  margin: number;
+  /** A text parameter whose value stands in when no image is chosen. */
+  fallbackText?: string;
+}
+
 export type TemplateParameter =
   | TextParameter
   | ColorParameter
   | NumberParameter
   | BooleanParameter
   | SelectParameter
-  | FontParameter;
+  | FontParameter
+  | ImageParameter;
 
 export interface TemplateManifest {
   formatVersion: number;
@@ -245,6 +266,37 @@ function validateParameter(raw: unknown, path: string, errors: ValidationIssue[]
       }
       break;
     }
+    case 'image': {
+      if (def !== undefined && def !== null) errors.push({ path: at, message: 'an image slot has no default: leave it out or set it to null' });
+      const box = raw.box;
+      if (isSlotBox(box)) {
+        // One box for every shape.
+      } else if (isRecord(box) && Object.keys(box).length > 0 && Object.values(box).every(isRecord)) {
+        for (const [key, value] of Object.entries(box)) {
+          if (key !== 'default' && !/^\d+:\d+$/.test(key)) errors.push({ path: `${path}.box.${key}`, message: 'must be an aspect id such as "16:9", or "default"' });
+          if (!isSlotBox(value)) errors.push({ path: `${path}.box.${key}`, message: 'must be { x, y, width, height } as fractions of the frame, inside it' });
+        }
+      } else {
+        errors.push({ path: `${path}.box`, message: 'must be { x, y, width, height } as fractions of the frame, or one such box per aspect' });
+      }
+      if (raw.fit !== undefined && !(IMAGE_FITS as readonly string[]).includes(raw.fit as string)) {
+        errors.push({ path: `${path}.fit`, message: `must be one of: ${IMAGE_FITS.join(', ')}` });
+      }
+      if (raw.align !== undefined && !(IMAGE_ALIGNS as readonly string[]).includes(raw.align as string)) {
+        errors.push({ path: `${path}.align`, message: `must be one of: ${IMAGE_ALIGNS.join(', ')}` });
+      }
+      if (raw.margin !== undefined && (!isFiniteNumber(raw.margin) || raw.margin < 0 || raw.margin > 0.45)) {
+        errors.push({ path: `${path}.margin`, message: 'must be a number from 0 to 0.45 (a fraction of the box)' });
+      }
+      if (raw.fallbackText !== undefined && !isNonEmptyString(raw.fallbackText)) {
+        errors.push({ path: `${path}.fallbackText`, message: 'must be the id of a text parameter' });
+      }
+      if (errors.length === start) {
+        // Filled defaults, so every reader sees a complete slot.
+        return { ...raw, default: null, fit: raw.fit ?? 'contain', align: raw.align ?? 'center', margin: raw.margin ?? 0 } as unknown as TemplateParameter;
+      }
+      break;
+    }
   }
 
   return errors.length === start ? (raw as unknown as TemplateParameter) : null;
@@ -393,6 +445,14 @@ export function validateManifest(raw: unknown): ValidationResult {
       }
       seen.add(param.id);
       parameters.push(param);
+    });
+    // A slot's fallback must name a text parameter of this template; checked once every parameter is known.
+    parameters.forEach((param, i) => {
+      if (param.type !== 'image' || param.fallbackText === undefined) return;
+      const target = parameters.find((other) => other.id === param.fallbackText);
+      if (!target || target.type !== 'text') {
+        errors.push({ path: `parameters[${i}].fallbackText`, message: `"${param.fallbackText}" is not a text parameter of this template` });
+      }
     });
   }
 

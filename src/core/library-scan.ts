@@ -12,7 +12,7 @@ import { normalizeTag } from './tags';
 
 export const MEDIA_EXTENSIONS: Record<MediaKind, readonly string[]> = {
   video: ['.mov', '.mp4', '.m4v', '.mkv', '.webm', '.mxf', '.avi'],
-  image: ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.exr', '.webp', '.gif', '.bmp', '.dpx'],
+  image: ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.exr', '.webp', '.gif', '.bmp', '.dpx', '.svg'],
   audio: ['.wav', '.aif', '.aiff', '.mp3', '.m4a', '.aac', '.flac', '.ogg'],
 };
 

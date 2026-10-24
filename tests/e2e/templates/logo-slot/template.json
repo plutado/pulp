@@ -1,0 +1,20 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.logo-slot",
+  "name": "Test Logo Slot",
+  "description": "An image slot drawn into a fixed box, plus a probe that tries to load another library id the way a leaking template would.",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "title",
+  "tags": ["test"],
+  "duration": 0.1,
+  "fps": 10,
+  "width": 320,
+  "height": 180,
+  "alpha": true,
+  "parameters": [
+    { "id": "name", "type": "text", "label": "Name", "default": "Fallback" },
+    { "id": "logo", "type": "image", "label": "Logo", "box": { "x": 0.25, "y": 0.25, "width": 0.5, "height": 0.5 }, "fit": "contain", "align": "center", "margin": 0, "fallbackText": "name" },
+    { "id": "other", "type": "text", "label": "Another library id to try", "default": "", "maxLength": 64 }
+  ]
+}

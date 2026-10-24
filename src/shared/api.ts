@@ -156,6 +156,13 @@ export interface PulpApi {
   addLibraryFolder(): Promise<LibraryIndex | null>;
   /** Make the sample-media folder inside a chosen folder, add it to the library, and say what was written. Null when cancelled. */
   addSampleMedia(): Promise<SampleMediaOutcome | null>;
+  /**
+   * Image slots (ADR 0013): the bytes of exactly these library stills, as data URLs for the preview
+   * to hand to the template page; ids that are not online stills come back as missing.
+   */
+  loadSlotImages(ids: string[]): Promise<{ images: { id: string; src: string }[]; missing: string[] }>;
+  /** Copy a file from outside the library into the managed Imported folder and index it; resolves to its library id. */
+  importImage(file: File): Promise<{ id: string } | { error: string }>;
   ffmpegStatus(): Promise<FfmpegInfo>;
   /** Opens a save dialog, then adds the render to the queue. Jobs run one after another. */
   render(request: RenderRequest): Promise<EnqueueResult>;

@@ -94,7 +94,8 @@ export function handleThumbProtocol(): void {
  * Serve library media to the app window at pulp-media://<item-id>/ (see
  * core/media-serve.ts for the rules). The template CSP never lists this
  * scheme, so template pages are stopped before a request is made; the
- * referrer check in serveMedia refuses any that gets through.
+ * referrer check in serveMedia refuses any that gets through. Image slots do
+ * not go through here: their stills are handed to the page as bytes (ADR 0013).
  */
 export function handleMediaProtocol(): void {
   protocol.handle(MEDIA_SCHEME, async (request) => {

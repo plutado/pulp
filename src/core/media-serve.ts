@@ -7,7 +7,9 @@
  * extension of the item's kind. Only GET and HEAD, no folder listings, byte
  * ranges honored so video can seek. Anything unknown, offline, missing or
  * out of bounds is a bare 404 with no file system detail. Pages served from
- * pulp-template:// are refused, so a template pack cannot read the library.
+ * pulp-template:// are refused, so a template pack cannot read the library;
+ * the stills a template's image slots use are handed to the page as bytes by
+ * the main process instead, never as a URL into the library (ADR 0013).
  *
  * Pure apart from node:fs; the Electron protocol handler is a thin adapter.
  */
@@ -62,6 +64,7 @@ export const MEDIA_MIME: Record<string, string> = {
   '.gif': 'image/gif',
   '.bmp': 'image/bmp',
   '.dpx': 'image/x-dpx',
+  '.svg': 'image/svg+xml',
   '.wav': 'audio/wav',
   '.aif': 'audio/aiff',
   '.aiff': 'audio/aiff',

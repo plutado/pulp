@@ -21,6 +21,9 @@ import { once } from 'node:events';
 import { access, mkdir, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { templateDefaultSize, type Size } from '../core/aspect';
+import { chosenImageIds, imageRequests, imageSlots, MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
+import { checkImages, readSlotImages } from './image-grant';
+import { lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, type FrameFormat, type RenderOptions } from '../core/render-plan';
@@ -157,6 +160,13 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   const { values, issues } = resolveParams(manifest, job.params);
   warnings.push(...plan.warnings, ...issues.map((i) => `parameter ${i.id}: ${i.message}`));
 
+  // Image slots (ADR 0013): the chosen stills must be in the library, online and within the size
+  // bound before anything is loaded; then the template is granted exactly those ids while it renders.
+  const slots = imageSlots(manifest.parameters, values, { width: plan.width, height: plan.height });
+  const imageIds = chosenImageIds(slots);
+  const refused = imageProblem(manifest, slots, imageIds);
+  if (refused) return { ok: false, message: refused };
+
   // The frame size is the plan's, not the manifest's: a template draws for a shape and the
   // size is chosen per render (ADR 0012). The window, the capture check and ffmpeg agree on it.
   const frameSize = { name: manifest.name, width: plan.width, height: plan.height };
@@ -224,6 +234,24 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       if (err instanceof RenderTimeoutError) return { ok: false, message: err.message };
       return { ok: false, message: `Could not load template "${manifest.name}": ${(err as Error).message}` };
     }
+    // Every chosen image is read by the main process, handed to the page as bytes, and decoded now,
+    // before the first frame, under the load budget rather than a frame's (ADR 0013).
+    const requests = imageRequests(slots);
+    if (requests.length > 0) {
+      try {
+        const handed = await readSlotImages(imageIds);
+        if (handed.missing.length > 0) return { ok: false, message: `The image for "${slotLabel(manifest, slots, handed.missing[0]!)}" could not be read.` };
+        const srcById = new Map(handed.images.map((i) => [i.id, i.src]));
+        const withBytes = requests.map((r) => ({ ...r, src: srcById.get(r.id) }));
+        await withTimeout(
+          win.webContents.executeJavaScript(`window.__pulp.prepare(${JSON.stringify(withBytes)})`),
+          loadTimeoutMs,
+          `Template "${manifest.name}": its images did not load within ${Math.round(loadTimeoutMs / 1000)} s`,
+        );
+      } catch (err) {
+        return { ok: false, message: err instanceof RenderTimeoutError ? err.message : `Template "${manifest.name}": ${(err as Error).message}` };
+      }
+    }
 
     await mkdir(dirname(plan.output), { recursive: true });
     existedBefore = await existingFiles(
@@ -282,6 +310,24 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   } finally {
     win.destroy();
   }
+}
+
+/** The label of the slot an image id fills, for messages. */
+function slotLabel(manifest: TemplateEntry['manifest'], slots: ReturnType<typeof imageSlots>, id: string): string {
+  const slot = Object.entries(slots).find(([, s]) => s.id === id)?.[0];
+  return manifest.parameters.find((p) => p.id === slot)?.label ?? slot ?? id;
+}
+
+/** Why a render cannot start with these images, or null when all is well. */
+function imageProblem(manifest: TemplateEntry['manifest'], slots: ReturnType<typeof imageSlots>, ids: string[]): string | null {
+  if (ids.length === 0) return null;
+  const { missing } = checkImages(ids);
+  if (missing.length > 0) return `The image for "${slotLabel(manifest, slots, missing[0]!)}" is not in the library, or its folder is offline.`;
+  for (const id of ids) {
+    const size = lookupMedia(id)?.entry.size ?? 0;
+    if (size > MAX_IMAGE_FILE_BYTES) return `The image for "${slotLabel(manifest, slots, id)}" is ${Math.round(size / 1048576)} MB; images over ${MAX_IMAGE_FILE_BYTES / 1048576} MB are not loaded.`;
+  }
+  return null;
 }
 
 class TemplateError extends Error {

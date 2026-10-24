@@ -14,8 +14,11 @@ import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { addRecentColor } from '../core/recent-colors';
+import { IMAGE_EFFECTS, IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } from '../core/image-slot';
+import type { MediaEntry } from '../core/library-types';
+import { thumbUrlFor } from '../core/thumbnails';
 import { stageSetParams } from './stage';
-import { selectedTemplate } from './store';
+import { appState, selectedTemplate } from './store';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -349,7 +352,201 @@ function inputFor(param: TemplateParameter): HTMLElement {
       });
       return el;
     }
+    case 'image':
+      return imageField(sanitizeImageValue(value) ?? null, onChange);
   }
+}
+
+// ---------------------------------------------------------------- image slots (milestone 22)
+
+/** The library's stills that can fill a slot, newest name order; what the picker lists. */
+function libraryStills(query: string): MediaEntry[] {
+  const q = query.trim().toLowerCase();
+  const stills = (appState.value.index?.media ?? []).filter((m) => m.mediaKind === 'image' && !m.offline);
+  return stills.filter((m) => !q || m.name.toLowerCase().includes(q) || m.tags.some((t) => t.includes(q))).slice(0, 60);
+}
+
+const TREATMENT_LABELS: Record<ImageValue['treatment'], string> = { original: 'Original colours', tinted: 'Tinted', white: 'White', black: 'Black' };
+const EFFECT_LABELS: Record<ImageValue['effect'], string> = { none: 'No effect', shadow: 'Shadow', glow: 'Glow' };
+
+/**
+ * An image slot's control: a thumbnail of the choice, a picker over the
+ * library's stills (with search) or a file from outside — copied into the
+ * managed Imported folder and indexed, so the library stays the one thing a
+ * template may see (ADR 0013) — Clear, the treatment and effect, and a note
+ * when the chosen image has gone or its folder is offline.
+ */
+function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null) => void): HTMLElement {
+  let value = initial;
+  const wrap = document.createElement('div');
+  wrap.className = 'image-field';
+  const thumb = document.createElement('span');
+  thumb.className = 'thumb checker';
+  const img = document.createElement('img');
+  img.alt = '';
+  const actions = document.createElement('div');
+  actions.className = 'image-actions';
+  const choose = document.createElement('button');
+  choose.type = 'button';
+  choose.textContent = 'Choose…';
+  choose.dataset.tip = 'Pick a still from the library';
+  const fromFile = document.createElement('button');
+  fromFile.type = 'button';
+  fromFile.textContent = 'File…';
+  fromFile.dataset.tip = 'Copy an image file into the library\'s Imported folder and use it';
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*,.svg';
+  fileInput.hidden = true;
+  const clear = document.createElement('button');
+  clear.type = 'button';
+  clear.textContent = 'Clear';
+  actions.append(choose, fromFile, clear, fileInput);
+  const picker = document.createElement('div');
+  picker.className = 'image-picker';
+  picker.hidden = true;
+  const search = document.createElement('input');
+  search.type = 'search';
+  search.placeholder = 'Search stills';
+  search.setAttribute('aria-label', 'Search stills');
+  const choices = document.createElement('ul');
+  choices.className = 'image-choices';
+  picker.append(search, choices);
+  const treat = document.createElement('div');
+  treat.className = 'image-treatment';
+  const treatment = document.createElement('select');
+  treatment.setAttribute('aria-label', 'Colour treatment');
+  for (const t of IMAGE_TREATMENTS) {
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = TREATMENT_LABELS[t];
+    treatment.append(opt);
+  }
+  const tint = document.createElement('input');
+  tint.type = 'color';
+  tint.setAttribute('aria-label', 'Tint colour');
+  const effect = document.createElement('select');
+  effect.setAttribute('aria-label', 'Effect');
+  for (const e of IMAGE_EFFECTS) {
+    const opt = document.createElement('option');
+    opt.value = e;
+    opt.textContent = EFFECT_LABELS[e];
+    effect.append(opt);
+  }
+  treat.append(treatment, tint, effect);
+  const note = document.createElement('p');
+  note.className = 'note image-note';
+  wrap.append(thumb, actions, picker, treat, note);
+
+  const entryFor = (id: string) => appState.value.index?.media.find((m) => m.id === id);
+  const show = () => {
+    const entry = value ? entryFor(value.id) : undefined;
+    thumb.replaceChildren();
+    thumb.classList.toggle('empty', !value || !entry);
+    if (value && entry) {
+      img.src = thumbUrlFor(value.id);
+      thumb.append(img);
+      thumb.title = entry.name;
+    } else {
+      thumb.title = value ? 'The chosen image is not in the library' : 'No image: the slot shows its fallback';
+    }
+    clear.hidden = value === null;
+    treat.hidden = value === null;
+    treatment.value = value?.treatment ?? 'original';
+    tint.value = value?.tint ?? '#ffffff';
+    tint.hidden = treatment.value !== 'tinted';
+    effect.value = value?.effect ?? 'none';
+    note.hidden = true;
+    if (value && !entry) {
+      note.hidden = false;
+      note.textContent = 'The chosen image is no longer in the library. The slot shows its fallback until another is picked.';
+    } else if (entry?.offline) {
+      note.hidden = false;
+      note.textContent = 'The chosen image\'s folder is offline.';
+    }
+  };
+  const set = (next: ImageValue | null) => {
+    value = next;
+    show();
+    onChange(next);
+    commitParams();
+  };
+  const pick = (id: string) => set({ id, treatment: value?.treatment ?? 'original', tint: value?.tint ?? '#ffffff', effect: value?.effect ?? 'none' });
+  const listChoices = () => {
+    choices.replaceChildren();
+    const stills = libraryStills(search.value);
+    if (stills.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'note';
+      li.textContent = search.value.trim() ? 'No stills match.' : 'No stills in the library yet. Add a folder with images, or use File….';
+      choices.append(li);
+      return;
+    }
+    for (const m of stills) {
+      const li = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'image-choice';
+      button.dataset.id = m.id;
+      button.setAttribute('aria-pressed', String(value?.id === m.id));
+      const t = document.createElement('span');
+      t.className = 'thumb checker';
+      const i = document.createElement('img');
+      i.alt = '';
+      i.src = thumbUrlFor(m.id);
+      t.append(i);
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = m.name;
+      button.append(t, name);
+      button.addEventListener('click', () => {
+        pick(m.id);
+        picker.hidden = true;
+      });
+      li.append(button);
+      choices.append(li);
+    }
+  };
+  choose.addEventListener('click', () => {
+    picker.hidden = !picker.hidden;
+    if (!picker.hidden) {
+      listChoices();
+      search.focus();
+    }
+  });
+  search.addEventListener('input', listChoices);
+  fromFile.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = '';
+    if (!file) return;
+    fromFile.disabled = true;
+    void window.pulp
+      .importImage(file)
+      .then((result) => {
+        if ('error' in result) {
+          note.hidden = false;
+          note.textContent = result.error;
+          return;
+        }
+        pick(result.id);
+      })
+      .finally(() => {
+        fromFile.disabled = false;
+      });
+  });
+  clear.addEventListener('click', () => set(null));
+  treatment.addEventListener('change', () => {
+    if (value) set({ ...value, treatment: treatment.value as ImageValue['treatment'] });
+  });
+  tint.addEventListener('change', () => {
+    if (value) set({ ...value, tint: tint.value });
+  });
+  effect.addEventListener('change', () => {
+    if (value) set({ ...value, effect: effect.value as ImageValue['effect'] });
+  });
+  show();
+  return wrap;
 }
 
 /** Every color field's recent-colors row, refreshed when the list changes. */
