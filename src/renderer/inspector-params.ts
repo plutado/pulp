@@ -14,9 +14,10 @@ import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { addRecentColor } from '../core/recent-colors';
-import { IMAGE_EFFECTS, IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } from '../core/image-slot';
+import { templateDefaultSize } from '../core/aspect';
+import { boxFor, IMAGE_EFFECTS, IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue, type SlotBoxes } from '../core/image-slot';
 import type { MediaEntry } from '../core/library-types';
-import { thumbUrlFor } from '../core/thumbnails';
+import { mediaUrlFor } from '../core/media-url';
 import { stageSetParams } from './stage';
 import { appState, selectedTemplate, slotNotes } from './store';
 
@@ -353,7 +354,7 @@ function inputFor(param: TemplateParameter): HTMLElement {
       return el;
     }
     case 'image':
-      return imageField(sanitizeImageValue(value) ?? null, onChange, { id: param.id, label: param.label });
+      return imageField(sanitizeImageValue(value) ?? null, onChange, { id: param.id, label: param.label, box: param.box });
   }
 }
 
@@ -382,14 +383,27 @@ function publishSlotNotes(): void {
   slotNotes.value = [...slotProblems.values()];
 }
 
-function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null) => void, slot: { id: string; label: string }): HTMLElement {
+function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null) => void, slot: { id: string; label: string; box: SlotBoxes }): HTMLElement {
   let value = initial;
   const wrap = document.createElement('div');
   wrap.className = 'image-field';
-  const thumb = document.createElement('span');
+  // The picture fills the field at the slot's own shape, so a wide badge and a square mark read as what they are.
+  const size = selectedTemplate.value ? templateDefaultSize(selectedTemplate.value.manifest) : { width: 1920, height: 1080 };
+  const box = boxFor(slot.box, size);
+  const ratio = Math.max(0.5, Math.min(4, (box.width * size.width) / Math.max(1, box.height * size.height)));
+  const thumb = document.createElement('button');
+  thumb.type = 'button';
   thumb.className = 'thumb checker';
+  thumb.style.aspectRatio = `${ratio.toFixed(3)} / 1`;
+  thumb.style.setProperty('--ar', ratio.toFixed(3));
+  thumb.setAttribute('aria-label', `${slot.label}: choose an image`);
+  const emptyLabel = document.createElement('span');
+  emptyLabel.className = 'empty-label';
+  emptyLabel.textContent = 'Choose an image…';
   const img = document.createElement('img');
   img.alt = '';
+  const caption = document.createElement('span');
+  caption.className = 'image-name';
   const actions = document.createElement('div');
   actions.className = 'image-actions';
   const choose = document.createElement('button');
@@ -442,7 +456,7 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
   treat.append(treatment, tint, effect);
   const note = document.createElement('p');
   note.className = 'note image-note';
-  wrap.append(thumb, actions, picker, treat, note);
+  wrap.append(thumb, caption, actions, picker, treat, note);
 
   const entryFor = (id: string) => appState.value.index?.media.find((m) => m.id === id);
   const show = () => {
@@ -450,11 +464,16 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
     thumb.replaceChildren();
     thumb.classList.toggle('empty', !value || !entry);
     if (value && entry) {
-      img.src = thumbUrlFor(value.id);
+      // The poster when the library has made one; the still itself otherwise, so the box is never a broken image.
+      img.src = entry.thumbnail ?? mediaUrlFor(value.id);
       thumb.append(img);
-      thumb.title = entry.name;
+      thumb.title = 'Choose another image';
+      caption.textContent = entry.name;
     } else {
+      emptyLabel.textContent = value ? 'Image not found — choose another…' : 'Choose an image…';
+      thumb.append(emptyLabel);
       thumb.title = value ? 'The chosen image is not in the library' : 'No image: the slot shows its fallback';
+      caption.textContent = value ? '' : 'No image; the slot shows its fallback';
     }
     clear.hidden = value === null;
     treat.hidden = value === null;
@@ -503,7 +522,7 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
       t.className = 'thumb checker';
       const i = document.createElement('img');
       i.alt = '';
-      i.src = thumbUrlFor(m.id);
+      i.src = m.thumbnail ?? mediaUrlFor(m.id);
       t.append(i);
       const name = document.createElement('span');
       name.className = 'name';
@@ -517,13 +536,15 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
       choices.append(li);
     }
   };
-  choose.addEventListener('click', () => {
+  const togglePicker = () => {
     picker.hidden = !picker.hidden;
     if (!picker.hidden) {
       listChoices();
       search.focus();
     }
-  });
+  };
+  choose.addEventListener('click', togglePicker);
+  thumb.addEventListener('click', togglePicker);
   search.addEventListener('input', listChoices);
   fromFile.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => {
