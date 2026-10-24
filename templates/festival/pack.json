@@ -5,7 +5,7 @@
   "author": "David Fugate",
   "license": "CC0-1.0",
   "description": "A festive set for any celebration: warm gold on deep plum, rounded shapes, bokeh and confetti, gentle bouncy motion.",
-  "templates": ["lower-third", "title", "transition", "overlay", "background", "callout", "confetti-burst", "countdown", "end-card", "frame", "iris-matte", "ribbon", "sparkle-flash", "subscribe"],
+  "templates": ["lower-third", "title", "transition", "overlay", "background", "callout", "confetti-burst", "countdown", "end-card", "frame", "iris-matte", "ribbon", "sparkle-flash", "subscribe", "ident"],
   "themes": ["holiday", "new-year", "christmas", "valentines", "birthday", "graduation", "wedding"],
   "styles": ["playful"]
 }

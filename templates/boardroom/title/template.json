@@ -29,8 +29,7 @@
       "fit": "contain",
       "align": "center",
       "margin": 0.1,
-      "fallbackText": "kicker",
-      "group": "Logo"
+      "fallbackText": "kicker"
     }
   ]
 }

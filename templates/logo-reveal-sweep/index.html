@@ -1,0 +1,175 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Light sweep logo reveal</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Light sweep logo reveal sample for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  // The logo is drawn on its own layer so the light can be painted onto its pixels only.
+  var layer = document.createElement('canvas');
+  var lctx = layer.getContext('2d');
+  var FONT = 'Helvetica Neue, Helvetica, Arial, sans-serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function alphaOf(hex) { return hex.length === 9 ? parseInt(hex.slice(7, 9), 16) / 255 : 1; }
+  function rgba(hex, a) {
+    var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+
+  function scaledBox(box, k) {
+    return { x: box.x + box.width * (1 - k) / 2, y: box.y + box.height * (1 - k) / 2, width: box.width * k, height: box.height * k };
+  }
+
+  // The fallback: the name in heavy caps, fitted to the box, on the same layer the light hits.
+  function drawWordmark(c, text, box, color, margin) {
+    if (!text) return;
+    var inset = margin * Math.min(box.width, box.height);
+    var maxW = box.width - inset * 2, maxH = box.height - inset * 2;
+    var size = Math.min(maxH * 0.55, maxW);
+    var upper = text.toUpperCase();
+    c.font = '700 ' + size + 'px ' + FONT;
+    c.letterSpacing = '0.1em';
+    var w = c.measureText(upper).width;
+    if (w > maxW) { size = size * maxW / w; c.font = '700 ' + size + 'px ' + FONT; }
+    c.fillStyle = color;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText(upper, box.x + box.width / 2 + size * 0.05, box.y + box.height / 2);
+    c.letterSpacing = '0px';
+  }
+
+  // A band of light across the layer's pixels (source-atop): `pos` is where the band's centre
+  // sits along the diagonal, 0 at the leading corner and 1 at the far one; `ahead` darkens what
+  // the light has not reached yet; `strength` scales the light.
+  function sweep(c, box, pos, halfWidth, strength, ahead, lightHex, groundHex) {
+    var cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+    // Direction of travel: left to right, tilted so the band leans like a diagonal flare.
+    var ang = -0.42, ux = Math.cos(ang), uy = Math.sin(ang);
+    var half = (Math.abs(ux) * box.width + Math.abs(uy) * box.height) / 2 * 1.2;
+    var g = c.createLinearGradient(cx - ux * half, cy - uy * half, cx + ux * half, cy + uy * half);
+    var stops = [];
+    function stop(at, color) { stops.push([Math.max(0, Math.min(1, at)), color]); }
+    var dark = rgba(groundHex, ahead);
+    var lit = rgba(lightHex, 0.95 * strength);
+    var edge = rgba(lightHex, 0);
+    stop(0, edge);
+    stop(pos - halfWidth * 2, edge);
+    stop(pos - halfWidth * 0.4, lit);
+    stop(pos, rgba(lightHex, 0.75 * strength));
+    stop(pos + halfWidth * 0.3, rgba(lightHex, 0.15 * strength));
+    stop(pos + halfWidth * 0.6, dark);
+    stop(1, dark);
+    var last = -1;
+    for (var i = 0; i < stops.length; i++) {
+      var at = Math.max(last, stops[i][0]);
+      g.addColorStop(at, stops[i][1]);
+      last = at;
+    }
+    c.save();
+    c.globalCompositeOperation = 'source-atop';
+    c.fillStyle = g;
+    c.fillRect(box.x - half, box.y - half, box.width + half * 2, box.height + half * 2);
+    c.restore();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+      layer.width = state.width;
+      layer.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+    if (alphaOf(p.ground) > 0) {
+      ctx.fillStyle = p.ground;
+      ctx.fillRect(0, 0, W, H);
+    }
+    var groundHex = alphaOf(p.ground) > 0 ? p.ground.slice(0, 7) : '#000000';
+
+    var s = Math.min(W, H) / 1080;
+    var slot = state.images && state.images.logo;
+    var box = slot ? slot.box : { x: W * 0.36, y: H * 0.32, width: W * 0.28, height: H * 0.3 };
+    var margin = slot ? slot.margin : 0.1;
+    var cx = box.x + box.width / 2;
+
+    // Timeline: darkness, the first sweep lights the logo as it eases up from 92%, the tagline rises,
+    // a second quicker sweep crosses on the hold, and everything fades over the last inOut seconds.
+    var inDur = Math.min(p.inOut, d / 3);
+    var outDur = Math.min(p.inOut * 0.7, d / 4);
+    var fadeOut = 1 - easeInOut(clamp01((t - (d - outDur)) / outDur));
+    if (fadeOut <= 0) return;
+    var start = 0.3;
+    var sweep1 = clamp01((t - start) / inDur);
+    var rise = easeOutCubic(clamp01((t - start) / (inDur * 1.2)));
+    var hold = start + inDur;
+    var second = clamp01((t - (hold + 1.4)) / 0.55);
+    var tagT = easeOutCubic(clamp01((t - (hold - inDur * 0.25)) / (inDur * 0.6)));
+
+    // Pass 1: the logo (or the wordmark) on its own layer.
+    lctx.clearRect(0, 0, W, H);
+    var animated = scaledBox(box, 0.92 + 0.08 * rise);
+    var drew = typeof window.pulpDrawImage === 'function' && window.pulpDrawImage(lctx, state, 'logo', animated);
+    if (!drew) drawWordmark(lctx, (slot && slot.fallback) || p.name, animated, p.ink, margin);
+
+    // Pass 2: the light, clipped to the logo's pixels. The first sweep carries the darkness ahead
+    // of it; the second is light only.
+    var bandPos = -0.25 + 1.5 * easeInOut(sweep1);
+    var ahead = sweep1 < 1 ? 0.88 : 0;
+    if (sweep1 < 1 || ahead > 0) sweep(lctx, animated, bandPos, 0.16, 1, ahead, p.light, groundHex);
+    if (second > 0 && second < 1) sweep(lctx, animated, -0.2 + 1.4 * second, 0.1, 0.7 * Math.sin(second * Math.PI) + 0.3, 0, p.light, groundHex);
+
+    // The layer onto the frame: first the bloom (the layer's shadow alone, drawn from off-canvas),
+    // then the sharp image.
+    var lift = easeOutCubic(clamp01((t - start) / (inDur * 0.5)));
+    var bloom = (0.22 + 0.5 * Math.sin(Math.PI * clamp01(sweep1)) + 0.35 * Math.sin(Math.PI * second)) * lift;
+    ctx.save();
+    ctx.globalAlpha = fadeOut;
+    if (bloom > 0) {
+      ctx.save();
+      ctx.globalAlpha = fadeOut * Math.min(1, bloom);
+      ctx.shadowColor = p.glow;
+      ctx.shadowBlur = 46 * s;
+      ctx.shadowOffsetX = W * 2;
+      ctx.drawImage(layer, -W * 2, 0);
+      ctx.restore();
+    }
+    ctx.drawImage(layer, 0, 0);
+    ctx.restore();
+
+    // The tagline rises beneath, thin caps, letterspaced.
+    if (tagT > 0 && p.tagline) {
+      var size = 28 * s;
+      var upper = p.tagline.toUpperCase();
+      ctx.font = '300 ' + size + 'px ' + FONT;
+      ctx.letterSpacing = '0.3em';
+      var maxW = W * 0.86;
+      var tw = ctx.measureText(upper).width;
+      if (tw > maxW) { size = size * maxW / tw; ctx.font = '300 ' + size + 'px ' + FONT; }
+      ctx.save();
+      ctx.globalAlpha = tagT * fadeOut * 0.9;
+      ctx.fillStyle = p.ink;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(upper, cx + size * 0.15, box.y + box.height + 80 * s + (1 - tagT) * 26 * s);
+      ctx.restore();
+      ctx.letterSpacing = '0px';
+    }
+  };
+</script>
+</body>
+</html>

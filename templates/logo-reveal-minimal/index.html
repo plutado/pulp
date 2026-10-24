@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Minimal logo reveal</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Minimal logo reveal sample for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Helvetica, Arial, sans-serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutQuint(x) { return 1 - Math.pow(1 - x, 5); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function alphaOf(hex) { return hex.length === 9 ? parseInt(hex.slice(7, 9), 16) / 255 : 1; }
+
+  // The slot's box scaled about its centre: the logo grows into place without moving.
+  function scaledBox(box, k) {
+    return { x: box.x + box.width * (1 - k) / 2, y: box.y + box.height * (1 - k) / 2, width: box.width * k, height: box.height * k };
+  }
+
+  // The fallback: the name set in type, fitted to the box the logo would have filled.
+  function drawWordmark(text, box, color, margin) {
+    if (!text) return;
+    var inset = margin * Math.min(box.width, box.height);
+    var maxW = box.width - inset * 2, maxH = box.height - inset * 2;
+    var size = Math.min(maxH * 0.55, maxW);
+    ctx.font = '600 ' + size + 'px ' + FONT;
+    ctx.letterSpacing = '0.04em';
+    var w = ctx.measureText(text).width;
+    if (w > maxW) { size = size * maxW / w; ctx.font = '600 ' + size + 'px ' + FONT; }
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, box.x + box.width / 2, box.y + box.height / 2);
+    ctx.letterSpacing = '0px';
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+    if (alphaOf(p.ground) > 0) {
+      ctx.fillStyle = p.ground;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    var s = Math.min(W, H) / 1080;
+    var slot = state.images && state.images.logo;
+    var box = slot ? slot.box : { x: W * 0.36, y: H * 0.32, width: W * 0.28, height: H * 0.3 };
+    var margin = slot ? slot.margin : 0.1;
+    var cx = box.x + box.width / 2;
+
+    // Timeline: build (logo, then the hairline, then the tagline), hold, and a shared fade out.
+    var inDur = Math.min(p.inOut, d / 3);
+    var outDur = Math.min(p.inOut, d / 3);
+    var out = 1 - easeInOut(clamp01((t - (d - outDur)) / outDur));
+    if (out <= 0) return;
+
+    var logoT = easeOutQuint(clamp01((t - 0.15) / inDur));
+    var lineT = easeInOut(clamp01((t - 0.15 - inDur * 0.6) / (inDur * 0.9)));
+    var tagT = easeOutCubic(clamp01((t - 0.15 - inDur * 1.1) / (inDur * 0.9)));
+
+    // The logo: 90% to 100% scale with its alpha, no blur, just the ease.
+    if (logoT > 0) {
+      var k = 0.9 + 0.1 * logoT;
+      var animated = scaledBox(box, k);
+      ctx.save();
+      ctx.globalAlpha = logoT * out;
+      var drew = typeof window.pulpDrawImage === 'function' && window.pulpDrawImage(ctx, state, 'logo', animated);
+      if (!drew) drawWordmark((slot && slot.fallback) || p.name, animated, p.ink, margin);
+      ctx.restore();
+    }
+
+    // A single hairline drawn from the centre outwards, a little wider than the box.
+    var lineY = box.y + box.height + 34 * s;
+    var lineW = Math.min(box.width * 1.15, W * 0.86);
+    if (lineT > 0) {
+      ctx.save();
+      ctx.globalAlpha = out;
+      ctx.fillStyle = p.accent;
+      var half = lineW / 2 * lineT;
+      ctx.fillRect(cx - half, lineY, half * 2, Math.max(1, 2 * s));
+      ctx.restore();
+    }
+
+    // The tagline fades in under the line and rises a few pixels into place.
+    if (tagT > 0 && p.tagline) {
+      var size = 30 * s;
+      ctx.font = '400 ' + size + 'px ' + FONT;
+      ctx.letterSpacing = '0.14em';
+      var maxW = W * 0.86;
+      var tw = ctx.measureText(p.tagline).width;
+      if (tw > maxW) { size = size * maxW / tw; ctx.font = '400 ' + size + 'px ' + FONT; }
+      ctx.save();
+      ctx.globalAlpha = tagT * out * 0.9;
+      ctx.fillStyle = p.ink;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(p.tagline, cx, lineY + 58 * s + (1 - tagT) * 10 * s);
+      ctx.restore();
+      ctx.letterSpacing = '0px';
+    }
+  };
+</script>
+</body>
+</html>

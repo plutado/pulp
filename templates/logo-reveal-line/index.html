@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Line-drawn logo reveal</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Line-drawn logo reveal sample for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Georgia, Times New Roman, serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function alphaOf(hex) { return hex.length === 9 ? parseInt(hex.slice(7, 9), 16) / 255 : 1; }
+
+  function scaledBox(box, k) {
+    return { x: box.x + box.width * (1 - k) / 2, y: box.y + box.height * (1 - k) / 2, width: box.width * k, height: box.height * k };
+  }
+
+  // The fallback: the name in a serif, letterspaced small caps, fitted to the box.
+  function drawWordmark(text, box, color, margin) {
+    if (!text) return;
+    var inset = margin * Math.min(box.width, box.height);
+    var maxW = box.width - inset * 2, maxH = box.height - inset * 2;
+    var size = Math.min(maxH * 0.5, maxW);
+    var upper = text.toUpperCase();
+    ctx.font = '400 ' + size + 'px ' + FONT;
+    ctx.letterSpacing = '0.18em';
+    var w = ctx.measureText(upper).width;
+    if (w > maxW) { size = size * maxW / w; ctx.font = '400 ' + size + 'px ' + FONT; }
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Letter spacing trails the last glyph; shift by half of it so the word sits centred.
+    ctx.fillText(upper, box.x + box.width / 2 + size * 0.09, box.y + box.height / 2);
+    ctx.letterSpacing = '0px';
+  }
+
+  // The frame path, starting at the top centre and running clockwise, with its total length.
+  function framePath(shape, box, pad) {
+    var cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+    ctx.beginPath();
+    if (shape === 'circle') {
+      var r = Math.max(box.width, box.height) / 2 + pad;
+      ctx.arc(cx, cy, r, -Math.PI / 2, Math.PI * 1.5, false);
+      return 2 * Math.PI * r;
+    }
+    var x0 = box.x - pad, y0 = box.y - pad, w = box.width + pad * 2, h = box.height + pad * 2;
+    ctx.moveTo(cx, y0);
+    ctx.lineTo(x0 + w, y0);
+    ctx.lineTo(x0 + w, y0 + h);
+    ctx.lineTo(x0, y0 + h);
+    ctx.lineTo(x0, y0);
+    ctx.closePath();
+    return 2 * (w + h);
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+    if (alphaOf(p.ground) > 0) {
+      ctx.fillStyle = p.ground;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    var s = Math.min(W, H) / 1080;
+    var slot = state.images && state.images.logo;
+    var box = slot ? slot.box : { x: W * 0.36, y: H * 0.31, width: W * 0.28, height: H * 0.3 };
+    var margin = slot ? slot.margin : 0.1;
+    var cx = box.x + box.width / 2;
+    var pad = p.shape === 'circle' ? 18 * s : 36 * s;
+
+    // Timeline: the line draws over inOut, the logo fades in as it closes, the tagline settles,
+    // then everything holds and the line un-draws over inOut while the rest fades.
+    var inDur = Math.min(p.inOut, d / 3);
+    var outDur = Math.min(p.inOut * 0.75, d / 4);
+    var drawT = easeInOut(clamp01((t - 0.2) / inDur));
+    var undrawT = easeInOut(clamp01((t - (d - outDur)) / outDur));
+    var fadeOut = 1 - easeInOut(clamp01((t - (d - outDur)) / (outDur * 0.7)));
+    var logoT = easeOutCubic(clamp01((t - 0.2 - inDur * 0.45) / (inDur * 0.6)));
+    var tagT = easeOutCubic(clamp01((t - 0.2 - inDur * 0.9) / (inDur * 0.5)));
+
+    // The line: one dash as long as the path, offset so the visible part grows from the top
+    // centre clockwise on the way in and shrinks back towards it on the way out.
+    var visible = drawT * (1 - undrawT);
+    if (visible > 0) {
+      ctx.save();
+      var len = framePath(p.shape, box, pad);
+      ctx.strokeStyle = p.accent;
+      ctx.lineWidth = Math.max(1, 2 * s);
+      ctx.lineCap = 'butt';
+      ctx.setLineDash([len * visible, len]);
+      // On the way in the head runs from the start; on the way out the tail follows it round until nothing is left.
+      ctx.lineDashOffset = undrawT > 0 ? -(len * (1 - visible)) : 0;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // The logo inside: alpha with a soft 94% to 100% settle.
+    if (logoT > 0 && fadeOut > 0) {
+      var animated = scaledBox(box, 0.94 + 0.06 * logoT);
+      ctx.save();
+      ctx.globalAlpha = logoT * fadeOut;
+      var drew = typeof window.pulpDrawImage === 'function' && window.pulpDrawImage(ctx, state, 'logo', animated);
+      if (!drew) drawWordmark((slot && slot.fallback) || p.name, animated, p.ink, margin);
+      ctx.restore();
+    }
+
+    // The tagline beneath the frame, serif italic, settling up a few pixels.
+    if (tagT > 0 && fadeOut > 0 && p.tagline) {
+      var frameBottom = p.shape === 'circle' ? box.y + box.height / 2 + Math.max(box.width, box.height) / 2 + pad : box.y + box.height + pad;
+      var size = 32 * s;
+      ctx.font = 'italic 400 ' + size + 'px ' + FONT;
+      ctx.letterSpacing = '0.06em';
+      var maxW = W * 0.86;
+      var tw = ctx.measureText(p.tagline).width;
+      if (tw > maxW) { size = size * maxW / tw; ctx.font = 'italic 400 ' + size + 'px ' + FONT; }
+      ctx.save();
+      ctx.globalAlpha = tagT * fadeOut * 0.92;
+      ctx.fillStyle = p.ink;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(p.tagline, cx, frameBottom + 64 * s + (1 - tagT) * 12 * s);
+      ctx.restore();
+      ctx.letterSpacing = '0px';
+    }
+  };
+</script>
+</body>
+</html>

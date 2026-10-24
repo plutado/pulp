@@ -28,8 +28,7 @@
       "box": { "x": 0.898, "y": 0.819, "width": 0.073, "height": 0.13 },
       "fit": "contain",
       "align": "center",
-      "margin": 0.1,
-      "group": "Logo"
+      "margin": 0.1
     }
   ]
 }

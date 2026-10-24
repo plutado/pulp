@@ -31,8 +31,7 @@
       "fit": "contain",
       "align": "center",
       "margin": 0.1,
-      "fallbackText": "name",
-      "group": "Logo"
+      "fallbackText": "name"
     }
   ]
 }

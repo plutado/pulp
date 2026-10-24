@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Newsdesk ident</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+  var SLANT = 0.22; // the slash motif: horizontal run per vertical unit
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInOutQuart(x) { return x < 0.5 ? 8 * x * x * x * x : 1 - Math.pow(-2 * x + 2, 4) / 2; }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+
+  function slashPath(x, y, w, h) {
+    var k = h * SLANT;
+    ctx.beginPath();
+    ctx.moveTo(x + k, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w - k, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.closePath();
+  }
+
+  // Splits words into two balanced lines, measured in the current font.
+  function twoLines(text) {
+    var words = text.split(/\s+/).filter(Boolean);
+    if (words.length < 2) return [text];
+    var best = 1, bestDiff = Infinity;
+    for (var i = 1; i < words.length; i++) {
+      var a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
+      var diff = Math.abs(ctx.measureText(a).width - ctx.measureText(b).width);
+      if (diff < bestDiff) { bestDiff = diff; best = i; }
+    }
+    return [words.slice(0, best).join(' '), words.slice(best).join(' ')];
+  }
+
+  // The fallback: the name in bold capitals, centred in the logo's box and fitted to it by
+  // measurement; two balanced lines when one line would shrink the type past half its size.
+  function wordmark(text, box, color) {
+    text = (text || '').trim().toUpperCase();
+    if (!text) return;
+    var prefix = '800 ';
+    var maxW = box.width * 0.92;
+    var size = box.height * 0.42;
+    ctx.font = prefix + size + 'px ' + FONT;
+    var w = ctx.measureText(text).width;
+    var lines = [text];
+    var fit = w > maxW ? size * maxW / w : size;
+    if (fit < size * 0.5 && text.indexOf(' ') > 0) {
+      lines = twoLines(text);
+      size = box.height * 0.3;
+      fit = size;
+      ctx.font = prefix + size + 'px ' + FONT;
+      for (var i = 0; i < lines.length; i++) {
+        var lw = ctx.measureText(lines[i]).width;
+        if (lw > maxW) fit = Math.min(fit, size * maxW / lw);
+      }
+    }
+    size = Math.max(8, Math.floor(fit));
+    ctx.font = prefix + size + 'px ' + FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = color;
+    var lineH = size * 1.05;
+    var y0 = box.y + box.height / 2 - (lines.length - 1) * lineH / 2;
+    for (var j = 0; j < lines.length; j++) ctx.fillText(lines[j], box.x + box.width / 2, y0 + j * lineH + size * 0.06);
+  }
+
+  // Image slot: the chosen logo in the box, or the name as a wordmark in the same box.
+  function drawLogo(state, box, color) {
+    var drawn = window.pulpDrawImage ? window.pulpDrawImage(ctx, state, 'logo', box) : false;
+    if (drawn) return;
+    var slot = state.images && state.images.logo;
+    wordmark((slot && slot.fallback) || state.params.name, box, color);
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time;
+    var s = Math.min(W, H) / 1080;
+    var cx = W / 2, cy = H / 2;
+
+    // The ground is part of the ident: deep navy with the set's vignette.
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = p.ground;
+    ctx.fillRect(0, 0, W, H);
+    var v = ctx.createRadialGradient(cx, cy, Math.min(W, H) * 0.35, cx, cy, Math.max(W, H) * 0.75);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(0,0,0,0.4)');
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, W, H);
+
+    // Where the logo rests: a box about the centre that reads the same tall, square and wide.
+    var box = { width: Math.min(500 * s, W * 0.8), height: 324 * s };
+    box.x = cx - box.width / 2;
+    box.y = cy - box.height / 2;
+
+    // Beats: the slash sweeps left to right over 0 to 0.45 s, the logo holds hard, then the slash
+    // sweeps back from 1.4 to 1.85 s and the ground is bare by 2 s.
+    var k = H * SLANT, bandW = W * 0.28;
+    var start = -bandW - k, end = W + k;
+    var fwd = easeInOutQuart(clamp01(t / 0.45));
+    var back = easeInOutQuart(clamp01((t - 1.4) / 0.45));
+    var sx = start + (end - start) * (fwd - back);
+
+    // The wake: everything left of the slash's leading edge. The forward sweep uncovers it and the
+    // sweep back covers it again, so one slanted clip serves both.
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(-W, 0);
+    ctx.lineTo(sx + k, 0);
+    ctx.lineTo(sx, H);
+    ctx.lineTo(-W, H);
+    ctx.closePath();
+    ctx.clip();
+
+    // A standing slash at the logo's right shoulder, revealed with it; it snaps up to height once
+    // the sweep has passed the centre.
+    var stand = easeOutQuart(clamp01((t - 0.2) / 0.3));
+    var standH = box.height * 0.9 * stand, standW = 12 * s;
+    var standX = box.x + box.width + 36 * s;
+    if (standH > 0 && standX + standW + standH * SLANT < W) {
+      slashPath(standX, cy - standH / 2, standW, standH);
+      ctx.fillStyle = p.accent;
+      ctx.fill();
+    }
+
+    drawLogo(state, box, p.text);
+    ctx.restore();
+
+    // The slash itself: a wide red band with a bright trailing edge.
+    if (sx > start && sx < end) {
+      slashPath(sx, 0, bandW, H);
+      ctx.fillStyle = p.accent;
+      ctx.fill();
+      var edge = 6 * s;
+      ctx.beginPath();
+      ctx.moveTo(sx + k, 0);
+      ctx.lineTo(sx + k + edge, 0);
+      ctx.lineTo(sx + edge, H);
+      ctx.lineTo(sx, H);
+      ctx.closePath();
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = p.text;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  };
+</script>
+</body>
+</html>

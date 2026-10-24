@@ -22,6 +22,6 @@
     { "id": "text", "type": "color", "label": "Text color", "default": "#fff6e8", "group": "Colors" },
     { "id": "confetti", "type": "boolean", "label": "Confetti", "default": true },
     { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.7, "min": 0.2, "max": 2, "step": 0.1 },
-    { "id": "logo", "type": "image", "label": "Logo", "description": "A lockup above the thank-you line; with none chosen the card is as it always was.", "box": { "x": 0.25, "y": 0.285, "width": 0.5, "height": 0.139 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "thanks", "group": "Logo" }
+    { "id": "logo", "type": "image", "label": "Logo", "description": "A lockup above the thank-you line; with none chosen the card is as it always was.", "box": { "x": 0.25, "y": 0.285, "width": 0.5, "height": 0.139 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "thanks" }
   ]
 }

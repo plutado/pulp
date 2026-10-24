@@ -33,6 +33,6 @@
       ]
     },
     { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.35, "min": 0.15, "max": 1.5, "step": 0.05 },
-    { "id": "logo", "type": "image", "label": "Logo", "description": "A club crest at the leading edge of the score bug, before the home side; with none chosen the bug is as it always was.", "box": { "x": 0.033, "y": 0.059, "width": 0.033, "height": 0.059 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "home", "group": "Logo" }
+    { "id": "logo", "type": "image", "label": "Logo", "description": "A club crest at the leading edge of the score bug, before the home side; with none chosen the bug is as it always was.", "box": { "x": 0.033, "y": 0.059, "width": 0.033, "height": 0.059 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "home" }
   ]
 }

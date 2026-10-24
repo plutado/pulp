@@ -35,8 +35,7 @@
       "box": { "x": 0.448, "y": 0.407, "width": 0.104, "height": 0.185 },
       "fit": "contain",
       "align": "center",
-      "margin": 0.1,
-      "group": "Logo"
+      "margin": 0.1
     }
   ]
 }

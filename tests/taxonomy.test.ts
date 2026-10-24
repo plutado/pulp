@@ -21,7 +21,7 @@ import { TEMPLATE_CATEGORIES } from '../src/core/manifest';
 
 describe('taxonomy lists', () => {
   it('is versioned', () => {
-    expect(TAXONOMY_VERSION).toBe(1);
+    expect(TAXONOMY_VERSION).toBe(2);
   });
 
   it('type ids are unique and every type belongs to a declared group', () => {

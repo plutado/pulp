@@ -39,8 +39,7 @@
       "fit": "contain",
       "align": "left",
       "margin": 0.1,
-      "fallbackText": "programme",
-      "group": "Logo"
+      "fallbackText": "programme"
     }
   ]
 }

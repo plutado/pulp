@@ -55,9 +55,9 @@ Frame count is `round(duration * fps)`, minimum 1.
 
 ### Types
 
-The built-in types, grouped (the canonical list with labels is `src/core/taxonomy.ts`, version 1; ids are permanent):
+The built-in types, grouped (the canonical list with labels is `src/core/taxonomy.ts`, version 2; ids are permanent):
 
-- **Titles and text:** `lower-third`, `title`, `opener`, `end-card`, `callout`, `social`
+- **Titles and text:** `lower-third`, `title`, `opener`, `end-card`, `callout`, `social`, `logo-reveal`
 - **Backgrounds:** `animated-loop`, `still-background`, `texture`
 - **Transitions:** `wipe`, `reveal`, `flash`, `glitch`
 - **Overlays:** `overlay`, `frame`, `light-particles`, `film-grunge`, `logo-bug`, `vignette`

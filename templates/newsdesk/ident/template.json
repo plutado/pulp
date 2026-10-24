@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.newsdesk.ident",
+  "name": "Newsdesk ident",
+  "description": "A red slash sweeps the frame and the logo is revealed in its wake, holds hard, then the slash sweeps back and takes it.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "logo-reveal",
+  "tags": ["ident", "logo", "slash"],
+  "duration": 2,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "name", "type": "text", "label": "Name", "default": "The Evening Report", "maxLength": 50, "description": "Set in bold capitals where the logo would be when no logo is chosen." },
+    { "id": "ground", "type": "color", "label": "Ground color", "default": "#0e1526", "group": "Colors" },
+    { "id": "accent", "type": "color", "label": "Accent color", "default": "#e0263c", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
+    { "id": "logo", "type": "image", "label": "Logo", "description": "Revealed in the slash's wake at the centre; with none chosen the name stands in as a wordmark.", "box": { "x": 0.37, "y": 0.35, "width": 0.26, "height": 0.3 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "name" }
+  ]
+}

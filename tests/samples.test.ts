@@ -34,7 +34,7 @@ describe('bundled sample templates', async () => {
   const { templates: dirs, packs } = await collect();
 
   it('ships the originals, the standalone pieces and four matched sets', () => {
-    expect(dirs.length).toBeGreaterThanOrEqual(83);
+    expect(dirs.length).toBeGreaterThanOrEqual(90);
     expect(packs).toEqual(['boardroom', 'festival', 'matchday', 'newsdesk']);
   });
 
@@ -79,7 +79,7 @@ describe('bundled sample templates', async () => {
         expect(p.box, t.manifest.id).toBeDefined();
         expect(['contain', 'cover'], t.manifest.id).toContain(p.fit);
         const type = t.manifest.type ?? '';
-        if (['lower-third', 'title', 'end-card', 'logo-bug', 'opener'].includes(type)) {
+        if (['lower-third', 'title', 'end-card', 'logo-bug', 'opener', 'logo-reveal'].includes(type)) {
           expect(p.fallbackText, `${t.manifest.id} should fall back to its text`).toBeDefined();
           expect(t.manifest.parameters.find((q) => q.id === p.fallbackText)?.type, t.manifest.id).toBe('text');
         }
@@ -120,10 +120,10 @@ describe('bundled sample templates', async () => {
     // Pack defaults reach the templates: the set's themes and its one style, inherited by every member;
     // the five core roles are always there, and every member declares a type.
     const expected: Record<string, { themes: string[]; styles: string[]; types: string[]; size: number }> = {
-      boardroom: { themes: ['corporate', 'finance', 'technology', 'real-estate'], styles: ['clean'], types: ['animated-loop', 'frame', 'lower-third', 'title', 'wipe'], size: 15 },
-      newsdesk: { themes: ['news', 'documentary', 'podcast'], styles: ['high-energy'], types: ['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe'], size: 14 },
-      matchday: { themes: ['sports', 'football', 'basketball', 'soccer'], styles: ['high-energy'], types: ['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe'], size: 13 },
-      festival: { themes: ['holiday', 'new-year', 'christmas', 'valentines', 'birthday', 'graduation', 'wedding'], styles: ['playful'], types: ['animated-loop', 'light-particles', 'lower-third', 'title', 'wipe'], size: 14 },
+      boardroom: { themes: ['corporate', 'finance', 'technology', 'real-estate'], styles: ['clean'], types: ['animated-loop', 'frame', 'lower-third', 'title', 'wipe'], size: 16 },
+      newsdesk: { themes: ['news', 'documentary', 'podcast'], styles: ['high-energy'], types: ['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe'], size: 15 },
+      matchday: { themes: ['sports', 'football', 'basketball', 'soccer'], styles: ['high-energy'], types: ['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe'], size: 14 },
+      festival: { themes: ['holiday', 'new-year', 'christmas', 'valentines', 'birthday', 'graduation', 'wedding'], styles: ['playful'], types: ['animated-loop', 'light-particles', 'lower-third', 'title', 'wipe'], size: 15 },
     };
     for (const [slug, want] of Object.entries(expected)) {
       const set = index.templates.filter((t) => t.pack?.slug === slug);

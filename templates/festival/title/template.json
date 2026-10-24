@@ -20,6 +20,6 @@
     { "id": "gold", "type": "color", "label": "Gold color", "default": "#e8b54d", "group": "Colors" },
     { "id": "text", "type": "color", "label": "Text color", "default": "#fff6e8", "group": "Colors" },
     { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.8, "min": 0.2, "max": 2, "step": 0.1 },
-    { "id": "logo", "type": "image", "label": "Logo", "description": "A mark above the kicker; with none chosen the kicker stands alone as before.", "box": { "x": 0.471, "y": 0.309, "width": 0.057, "height": 0.102 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "kicker", "group": "Logo" }
+    { "id": "logo", "type": "image", "label": "Logo", "description": "A mark above the kicker; with none chosen the kicker stands alone as before.", "box": { "x": 0.471, "y": 0.309, "width": 0.057, "height": 0.102 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "kicker" }
   ]
 }

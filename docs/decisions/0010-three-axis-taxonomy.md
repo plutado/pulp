@@ -11,7 +11,7 @@ Milestone 10 adds browsing by what an item is and what it is for. Today a templa
 
 Three separate axes, in a pure core module (`src/core/taxonomy.ts`) with a version number:
 
-- **Type** — what the item *is*. Exactly one per item (templates: declared `type` or mapped from the old `category`; media: inferred from kind and folders). Two levels: nine groups (titles and text, backgrounds, transitions, overlays, design elements, video clips, stills, music, sound effects) over 45 types. The list is **closed**: a type outside it is a validation error, because the browse tree, sample coverage and pack defaults all key on it.
+- **Type** — what the item *is*. Exactly one per item (templates: declared `type` or mapped from the old `category`; media: inferred from kind and folders). Two levels: nine groups (titles and text, backgrounds, transitions, overlays, design elements, video clips, stills, music, sound effects) over 45 types (46 from version 2). The list is **closed**: a type outside it is a validation error, because the browse tree, sample coverage and pack defaults all key on it.
 - **Theme** — what it is *about or for*. Zero or more per item. Eight built-in groups (business, media, sports, life events, holidays and seasons, community, world and nature, entertainment) over 50 themes, and **open**: any user word, normalized exactly like a tag ("My Show" → `my-show`), is a valid custom theme. Custom themes are stored like tags (no release needed to add one) and the browse tree shows them in a separate custom group.
 - **Style** — how it *looks or sounds*. Zero or more per item, from a **closed** list of eleven (clean, corporate, elegant, high-energy, grunge, retro, tech, cinematic, playful, hand-drawn, organic). Closed because styles are a curated vocabulary for matched sets; a free-for-all here would just duplicate tags.
 
@@ -36,6 +36,10 @@ This is a change of **labels and tree shape only**. `sports` and `holiday` keep 
 ## Extension rule
 
 Within taxonomy version 1, the type and style lists only grow, never rename or remove, and ids are permanent; renames change labels only. `TAXONOMY_VERSION` is bumped when the lists change so stored data can say what it was written against. Themes need no version bump to extend: unknown ids are custom by definition.
+
+### Version 2 (October 2026)
+
+Milestone 22 added `logo-reveal` to the Titles and text group: a piece built around an image slot whose whole job is to bring a logo on. Added under the rule above — nothing renamed, nothing removed — and `TAXONOMY_VERSION` moved to 2.
 
 ## Alternatives considered
 

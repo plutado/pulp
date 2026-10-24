@@ -5,7 +5,7 @@
   "author": "David Fugate",
   "license": "CC0-1.0",
   "description": "A sports set: volt yellow on black, forward-leaning chevrons, chunky capitals, snappy moves, and a score bug.",
-  "templates": ["lower-third", "title", "transition", "overlay", "background", "chevron-band", "clock", "countdown", "follow", "frame", "head-to-head", "opener", "split"],
+  "templates": ["lower-third", "title", "transition", "overlay", "background", "chevron-band", "clock", "countdown", "follow", "frame", "head-to-head", "opener", "split", "ident"],
   "themes": ["sports", "football", "basketball", "soccer"],
   "styles": ["high-energy"]
 }

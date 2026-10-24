@@ -10,7 +10,8 @@
 import { normalizeTag } from './tags';
 
 /** Bumped when the built-in lists change, so stored data can say what it was written against. */
-export const TAXONOMY_VERSION = 1;
+/** 2: logo-reveal added to Titles and text (milestone 22). Ids are permanent; the list only grows (ADR 0010). */
+export const TAXONOMY_VERSION = 2;
 
 export interface TypeGroup {
   id: string;
@@ -42,6 +43,7 @@ export const TYPES: readonly TaxonomyType[] = [
   { id: 'end-card', label: 'End card / credits', group: 'titles' },
   { id: 'callout', label: 'Callout / caption', group: 'titles' },
   { id: 'social', label: 'Social / subscribe', group: 'titles' },
+  { id: 'logo-reveal', label: 'Logo reveal', group: 'titles' },
   { id: 'animated-loop', label: 'Animated loop', group: 'backgrounds' },
   { id: 'still-background', label: 'Still background', group: 'backgrounds' },
   { id: 'texture', label: 'Texture / pattern', group: 'backgrounds' },
