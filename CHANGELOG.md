@@ -6,6 +6,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Changed
+
+- The image slot field in the Parameters tab is one pattern end to end: a well the width of the field at a fixed height, the image contained and centred on the checkerboard so a wide badge, a square mark and a tall crest all sit in the same box; under it one row with the image's name, its pixel size once the library has measured it, and Replace and Clear as icon buttons; then the treatment as a segmented control with the tint swatch beside it only for Tinted, and Shadow and Glow as toggles. The empty state is the same well, dashed, reading "Choose or drop an image" — and an image file dropped on it is imported into the Imported folder exactly as the File… button does. Checked at the default inspector width and at its narrowest, where the field holds to the panel and the treatment row wraps. Screenshot retaken.
+
 ### Added
 
 - Blocks and layers in the template format (milestone 23, the first item). A template can declare `blocks`: a box per aspect (as an image slot's), a stacking direction and gap, an alignment, whether the block is open to more layers, the typography its text layers start from, and its own layers — text layers with a default text and any of family, size (a fraction of the frame's short side), weight, italic, case, letter spacing, kerning, line height, colour, alignment and overflow; image layers with a size and an alignment and no image of their own; either kind optionally required or hidden. The validator checks all of it with paths and fills every default, and a pure module resolves what a person builds at use time against the template's own stacks: wrong fields fall back and are reported, type and required never change, a dropped required layer comes back in its place, and additions to a full block are dropped. Nothing is drawn from blocks yet; the state and the bridge helper are the next items.

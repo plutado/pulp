@@ -798,27 +798,39 @@ describe.skipIf(!electron)('inspector UI', () => {
     it('picks a still from the library, treats it, keeps it in a preset by id, and clears', async () => {
       await clickResult('Lower Third Bar');
       await until(() => page.eval<boolean>(`!!${field}`), 'the logo slot field');
-      // Empty slot: the picture box is the place to choose, at the slot's own shape; no Clear, no treatment.
-      expect(await page.eval<boolean>(`${field}.querySelector('.thumb').classList.contains('empty')`)).toBe(true);
-      expect(await page.eval<string>(`${field}.querySelector('.thumb .empty-label').textContent`)).toBe('Choose an image…');
+      // Empty slot: a dashed well the width of the field, inviting a choice or a drop; no Clear, no treatment.
+      expect(await page.eval<boolean>(`${field}.querySelector('.image-well').classList.contains('empty')`)).toBe(true);
+      expect(await page.eval<string>(`${field}.querySelector('.image-well .empty-label').textContent`)).toBe('Choose or drop an image');
       expect(await page.eval<string>(`${field}.querySelector('.image-name').textContent`)).toBe('No image; the slot shows its fallback');
-      expect(await page.eval<string>(`${field}.querySelector('.thumb').style.aspectRatio`)).toMatch(/^\d+(\.\d+)? \/ 1$/);
-      expect(await page.eval<boolean>(`${field}.querySelector('.image-actions button:nth-child(3)').hidden`)).toBe(true);
-      // Clicking the box opens the picker, which lists the library's stills; the fixture PNG is one.
-      await page.eval(`${field}.querySelector('.thumb').click()`);
+      expect(await page.eval<boolean>(`${field}.querySelector('[aria-label="Clear image"]').hidden`)).toBe(true);
+      expect(await page.eval<boolean>(`${field}.querySelector('.image-treatment').hidden`)).toBe(true);
+      // Clicking the well opens the picker, which lists the library's stills; the fixture PNG is one.
+      await page.eval(`${field}.querySelector('.image-well').click()`);
       await until(() => page.eval<boolean>(`!!${field}.querySelector('.image-choice')`), 'stills in the picker');
-      await page.eval(`(() => { const s = ${field}.querySelector('.image-picker input'); s.value = 'tin'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await page.eval(`(() => { const s = ${field}.querySelector('.image-picker input[type=search]'); s.value = 'tin'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       const listed = await page.eval<string[]>(`[...${field}.querySelectorAll('.image-choice .name')].map((n) => n.textContent)`);
       expect(listed).toEqual(['tiny']);
       await page.eval(`${field}.querySelector('.image-choice').click()`);
-      await until(() => page.eval<boolean>(`!${field}.querySelector('.thumb').classList.contains('empty')`), 'the chosen thumbnail');
+      await until(() => page.eval<boolean>(`!${field}.querySelector('.image-well').classList.contains('empty')`), 'the chosen image in the well');
       // The library's poster when it has one, the still itself until then: never a broken image.
-      expect(await page.eval<string>(`${field}.querySelector('.thumb img').getAttribute('src')`)).toMatch(/^pulp-(thumb|media):\/\/[0-9a-f]{24}\/$/);
+      expect(await page.eval<string>(`${field}.querySelector('.image-well img').getAttribute('src')`)).toMatch(/^pulp-(thumb|media):\/\/[0-9a-f]{24}\/$/);
       expect(await page.eval<string>(`${field}.querySelector('.image-name').textContent`)).toBe('tiny');
+      // The pixel size appears once the background probe has measured the file; without ffprobe there is none to show.
+      if (haveVideo) await until(async () => (await page.eval<string>(`${field}.querySelector('.image-dims').textContent`)) === '2 × 2', 'the image size beside the name');
       expect(await page.eval<boolean>(`${field}.querySelector('.image-picker').hidden`)).toBe(true);
-      // Treatment and effect ride along with the choice.
-      await page.eval(`(() => { const s = ${field}.querySelector('.image-treatment select'); s.value = 'white'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
-      await page.eval(`(() => { const s = ${field}.querySelectorAll('.image-treatment select')[1]; s.value = 'shadow'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      // The image is contained and centred at its own shape, inside a well that keeps its height.
+      const drawn = await page.eval<{ well: number[]; img: number[] }>(
+        `(() => { const w = ${field}.querySelector('.image-well').getBoundingClientRect(); const i = ${field}.querySelector('.image-well img').getBoundingClientRect();
+          return { well: [w.width, w.height, w.left, w.right], img: [i.width, i.height, i.left, i.right] }; })()`,
+      );
+      expect(drawn.well[1]).toBe(132);
+      expect(drawn.img[0]).toBeCloseTo(drawn.img[1]!, 0); // the 2 x 2 fixture is square
+      expect(drawn.img[2]! - drawn.well[2]!).toBeCloseTo(drawn.well[3]! - drawn.img[3]!, 0); // centred
+      // Treatment is a segmented control and the effects are toggles; both ride along with the choice.
+      await page.eval(`${field}.querySelector('.segmented [data-treatment=white]').click()`);
+      await page.eval(`${field}.querySelector('.image-effects [data-effect=shadow]').click()`);
+      expect(await page.eval<string[]>(`[...${field}.querySelectorAll('.segmented button')].map((b) => b.getAttribute('aria-pressed'))`)).toEqual(['false', 'false', 'true', 'false']);
+      expect(await page.eval<boolean>(`${field}.querySelector('.image-treatment .tint').hidden`)).toBe(true);
       // The stage was granted the image and drew the frame with it: no note about a missing image.
       await sleep(600);
       expect(await page.eval<string>(`document.getElementById('stage-note').textContent`)).not.toContain('not in the library');
@@ -839,14 +851,20 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(stored).toMatchObject({ treatment: 'white', effect: 'shadow' });
       expect(stored!.id).toMatch(/^[0-9a-f]{24}$/);
 
+      // Tinted is the one treatment with a colour, so the swatch appears only for it.
+      await page.eval(`${field}.querySelector('.segmented [data-treatment=tinted]').click()`);
+      await until(() => page.eval<boolean>(`!${field}.querySelector('.image-treatment .tint').hidden`), 'the tint swatch');
+      await page.eval(`${field}.querySelector('.segmented [data-treatment=white]').click()`);
+      await until(() => page.eval<boolean>(`${field}.querySelector('.image-treatment .tint').hidden`), 'the tint swatch gone again');
+
       // Clear empties the slot; applying the preset brings the image back.
-      await page.eval(`${field}.querySelector('.image-actions button:nth-child(3)').click()`);
-      await until(() => page.eval<boolean>(`${field}.querySelector('.thumb').classList.contains('empty')`), 'the cleared slot');
+      await page.eval(`${field}.querySelector('[aria-label="Clear image"]').click()`);
+      await until(() => page.eval<boolean>(`${field}.querySelector('.image-well').classList.contains('empty')`), 'the cleared slot');
       await page.eval(`(() => { const s = document.getElementById('param-preset-list'); s.value = 'With logo'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
-      await until(() => page.eval<boolean>(`!${field}.querySelector('.thumb').classList.contains('empty')`), 'the preset\'s logo back');
-      expect(await page.eval<string>(`${field}.querySelector('.image-treatment select').value`)).toBe('white');
+      await until(() => page.eval<boolean>(`!${field}.querySelector('.image-well').classList.contains('empty')`), 'the preset\'s logo back');
+      expect(await page.eval<string>(`${field}.querySelector('.segmented [aria-pressed=true]').dataset.treatment`)).toBe('white');
       // Leave the template without a logo for the tests that follow.
-      await page.eval(`${field}.querySelector('.image-actions button:nth-child(3)').click()`);
+      await page.eval(`${field}.querySelector('[aria-label="Clear image"]').click()`);
       await page.eval(`(() => { const s = document.getElementById('param-preset-list'); s.value = 'With logo'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
       await page.eval(`document.getElementById('param-preset-delete').click()`);
     }, 90_000);

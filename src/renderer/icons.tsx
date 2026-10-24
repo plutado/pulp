@@ -49,6 +49,7 @@ import speakerSlash from '@phosphor-icons/core/assets/regular/speaker-slash.svg?
 import spinner from '@phosphor-icons/core/assets/regular/spinner.svg?raw';
 import square from '@phosphor-icons/core/assets/regular/square.svg?raw';
 import stack from '@phosphor-icons/core/assets/regular/stack.svg?raw';
+import swap from '@phosphor-icons/core/assets/regular/swap.svg?raw';
 import star from '@phosphor-icons/core/assets/regular/star.svg?raw';
 import starFill from '@phosphor-icons/core/assets/fill/star-fill.svg?raw';
 import textAa from '@phosphor-icons/core/assets/regular/text-aa.svg?raw';
@@ -102,6 +103,7 @@ const ICONS = {
   stack,
   star,
   'star-fill': starFill,
+  swap,
   tag,
   'text-aa': textAa,
   trash,

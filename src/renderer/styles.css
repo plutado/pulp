@@ -521,27 +521,59 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .color-field .recent-swatch:hover { border-color: var(--accent); }
 .color-field .hex.error { border-color: var(--danger); }
 /* Image slots (milestone 22): the picked still, its picker and its treatment. */
-.image-field { display: grid; gap: var(--space-1); }
-/* The picture fills the field at the slot's own shape (inline aspect-ratio), capped so a tall slot does not take the tab. */
-.image-field > .thumb { width: min(100%, calc(140px * var(--ar, 1.78))); height: auto; padding: 0; justify-self: start; border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; display: flex; align-items: center; justify-content: center; background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; cursor: pointer; }
-.image-field > .thumb:hover { border-color: var(--accent); }
-/* Empty: the same box is the place to choose, not a small grey tile. */
-.image-field > .thumb.empty { background-image: none; background-color: var(--panel-2); border-style: dashed; color: var(--muted); font-size: var(--font-secondary); }
-.image-field > .thumb.empty:hover { color: var(--text); }
-.image-field .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.image-field .image-name { color: var(--text-secondary); font-size: var(--font-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 1.2em; }
-.image-field .image-actions { display: flex; gap: var(--space-1); flex-wrap: wrap; }
-.image-field .image-actions button[hidden] { display: none; }
+/* minmax(0, 1fr): the parts are held to the inspector's width rather than to their own text,
+   so nothing in the field overflows a narrow inspector. */
+.image-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); min-width: 0; }
+/* The well is one fixed height whatever the slot's shape: the image is contained and centred
+   in it, so a square mark, a wide badge and a tall crest all read as themselves. */
+.image-field .image-well {
+  width: 100%; height: 132px; padding: var(--space-1); display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; cursor: pointer;
+  background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+}
+.image-field .image-well:hover { border-color: var(--accent); }
+.image-field .image-well.empty { background-image: none; background-color: var(--panel-2); border-style: dashed; color: var(--muted); font-size: var(--font-secondary); }
+.image-field .image-well .empty-label { padding: 0 var(--space-2); text-align: center; }
+.image-field .image-well.empty:hover { color: var(--text); }
+/* A file is over the well and may be dropped. */
+.image-field .image-well.dropping { border-style: solid; border-color: var(--accent); background-color: var(--panel-2); color: var(--text); }
+.image-field .image-well img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
+/* One row: what the image is on the left, what to do with it on the right. */
+.image-field .image-meta { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; }
+/* min-width 0, or the name's own length sets the row's width and the field overflows a narrow inspector. */
+.image-field .image-name { min-width: 0; color: var(--text-secondary); font-size: var(--font-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.image-field .image-dims { color: var(--muted); font-size: var(--font-caption); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.image-field .image-buttons { margin-left: auto; display: flex; gap: var(--space-1); flex: 0 0 auto; }
+.image-field .image-buttons .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
+.image-field .image-buttons .icon-button:hover { color: var(--text); border-color: var(--border); }
+.image-field .image-buttons .icon-button[hidden] { display: none; }
 .image-field .image-picker { display: grid; gap: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-control); padding: var(--space-1); }
 .image-field .image-picker[hidden] { display: none; }
+.image-field .picker-head { display: flex; gap: var(--space-1); align-items: center; }
+.image-field .picker-head input[type="search"] { flex: 1; min-width: 0; }
+.image-field .picker-head .from-file { flex: 0 0 auto; font-size: var(--font-secondary); padding: 3px 8px; }
 .image-field .image-choices { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; display: grid; gap: 2px; }
 .image-field .image-choice { display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left; padding: 2px 4px; background: none; border-color: transparent; }
 .image-field .image-choice:hover, .image-field .image-choice[aria-pressed="true"] { background: var(--panel-2); }
 .image-field .image-choice .thumb { width: 40px; height: 24px; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
 .image-field .image-choice .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.image-field .image-treatment { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--space-1); align-items: center; }
+/* Treatment, its tint and the effects on one line, wrapping to a second in a narrow inspector. */
+.image-field .image-treatment { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .image-field .image-treatment[hidden] { display: none; }
-.image-field .image-treatment input[type="color"][hidden] { display: none; }
+.image-field .segmented { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; }
+.image-field .segmented button {
+  font-size: var(--font-caption); padding: 3px 8px; color: var(--muted); background: none;
+  border: 0; border-left: 1px solid var(--border); border-radius: 0;
+}
+.image-field .segmented button:first-child { border-left: 0; }
+.image-field .segmented button:hover { color: var(--text); background: var(--panel-2); }
+.image-field .segmented button[aria-pressed="true"] { color: var(--text); background: var(--panel-2); box-shadow: inset 0 -2px 0 var(--accent); }
+.image-field .image-treatment .tint { width: 26px; height: 22px; padding: 1px; flex: 0 0 auto; }
+.image-field .image-treatment .tint[hidden] { display: none; }
+.image-field .image-effects { display: inline-flex; gap: var(--space-1); }
+.image-field .image-effects .chip { font-size: var(--font-caption); padding: 2px 9px; border-radius: 10px; color: var(--muted); }
+.image-field .image-effects .chip:hover { color: var(--text); }
+.image-field .image-effects .chip[aria-pressed="true"] { color: var(--text); border-color: var(--accent); background: var(--panel-2); }
 .image-field .image-note[hidden] { display: none; }
 .group-label { font-size: var(--font-caption); color: var(--muted); margin-top: 6px; border-top: 1px solid var(--border); padding-top: 8px; }
 

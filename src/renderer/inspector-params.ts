@@ -14,8 +14,9 @@ import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
 import { resolveParams, type ResolvedParams } from '../core/params';
 import { addRecentColor } from '../core/recent-colors';
-import { templateDefaultSize } from '../core/aspect';
-import { boxFor, IMAGE_EFFECTS, IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue, type SlotBoxes } from '../core/image-slot';
+import { dimensionsLabel } from '../core/display';
+import { IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } from '../core/image-slot';
+import { setIcon, type IconName } from './icons';
 import type { MediaEntry } from '../core/library-types';
 import { mediaUrlFor } from '../core/media-url';
 import { stageSetParams } from './stage';
@@ -354,7 +355,7 @@ function inputFor(param: TemplateParameter): HTMLElement {
       return el;
     }
     case 'image':
-      return imageField(sanitizeImageValue(value) ?? null, onChange, { id: param.id, label: param.label, box: param.box });
+      return imageField(sanitizeImageValue(value) ?? null, onChange, { id: param.id, label: param.label });
   }
 }
 
@@ -367,15 +368,30 @@ function libraryStills(query: string): MediaEntry[] {
   return stills.filter((m) => !q || m.name.toLowerCase().includes(q) || m.tags.some((t) => t.includes(q))).slice(0, 60);
 }
 
-const TREATMENT_LABELS: Record<ImageValue['treatment'], string> = { original: 'Original colours', tinted: 'Tinted', white: 'White', black: 'Black' };
-const EFFECT_LABELS: Record<ImageValue['effect'], string> = { none: 'No effect', shadow: 'Shadow', glow: 'Glow' };
+/** Short enough for a segmented control; the long form is the button's tooltip. */
+const TREATMENT_LABELS: Record<ImageValue['treatment'], string> = { original: 'Original', tinted: 'Tinted', white: 'White', black: 'Black' };
+const TREATMENT_TIPS: Record<ImageValue['treatment'], string> = {
+  original: 'Draw the image as it is',
+  tinted: 'Flatten the image to one colour',
+  white: 'Flatten the image to white, for a dark background',
+  black: 'Flatten the image to black, for a light background',
+};
+/** The two effects are toggles; neither pressed is "none". */
+const EFFECT_TOGGLES: { id: Exclude<ImageValue['effect'], 'none'>; label: string; tip: string }[] = [
+  { id: 'shadow', label: 'Shadow', tip: 'Drop a soft shadow behind the image' },
+  { id: 'glow', label: 'Glow', tip: 'Spread a soft glow behind the image' },
+];
 
 /**
- * An image slot's control: a thumbnail of the choice, a picker over the
- * library's stills (with search) or a file from outside — copied into the
- * managed Imported folder and indexed, so the library stays the one thing a
- * template may see (ADR 0013) — Clear, the treatment and effect, and a note
- * when the chosen image has gone or its folder is offline.
+ * An image slot's control: a picture well the whole width of the field, the
+ * image contained and centred inside it over a checkerboard; under it one row
+ * with the name, the pixel size and Replace and Clear as icon buttons; then the
+ * treatment as a segmented control with its tint beside it, the effects as
+ * toggles, and a note when the chosen image has gone or its folder is offline.
+ * The well is also where an image is chosen: clicking it opens a picker over
+ * the library's stills (with search) or a file from outside, and a file dropped
+ * on it is imported the same way — copied into the managed Imported folder and
+ * indexed, so the library stays the one thing a template may see (ADR 0013).
  */
 /** What each slot has to say about its image, so the Info tab can show it too. */
 const slotProblems = new Map<string, { label: string; note: string }>();
@@ -383,104 +399,139 @@ function publishSlotNotes(): void {
   slotNotes.value = [...slotProblems.values()];
 }
 
-function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null) => void, slot: { id: string; label: string; box: SlotBoxes }): HTMLElement {
+/** An icon-only button with the accessible name and tooltip docs/ui-style.md asks for. */
+function iconButton(icon: IconName, label: string, tip = label): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'icon-button';
+  button.setAttribute('aria-label', label);
+  button.dataset.tip = tip;
+  setIcon(button, icon);
+  return button;
+}
+
+function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null) => void, slot: { id: string; label: string }): HTMLElement {
   let value = initial;
   const wrap = document.createElement('div');
   wrap.className = 'image-field';
-  // The picture fills the field at the slot's own shape, so a wide badge and a square mark read as what they are.
-  const size = selectedTemplate.value ? templateDefaultSize(selectedTemplate.value.manifest) : { width: 1920, height: 1080 };
-  const box = boxFor(slot.box, size);
-  const ratio = Math.max(0.5, Math.min(4, (box.width * size.width) / Math.max(1, box.height * size.height)));
-  const thumb = document.createElement('button');
-  thumb.type = 'button';
-  thumb.className = 'thumb checker';
-  thumb.style.aspectRatio = `${ratio.toFixed(3)} / 1`;
-  thumb.style.setProperty('--ar', ratio.toFixed(3));
-  thumb.setAttribute('aria-label', `${slot.label}: choose an image`);
+
+  // The well: one fixed height whatever the slot's shape, with the image contained and
+  // centred, so a square mark, a wide badge and a tall crest all sit in the same box.
+  const well = document.createElement('button');
+  well.type = 'button';
+  well.className = 'image-well checker';
+  well.setAttribute('aria-label', `${slot.label}: choose an image`);
   const emptyLabel = document.createElement('span');
   emptyLabel.className = 'empty-label';
-  emptyLabel.textContent = 'Choose an image…';
+  emptyLabel.textContent = 'Choose or drop an image';
   const img = document.createElement('img');
   img.alt = '';
+
+  // One row under the well: what the image is on the left, what to do with it on the right.
+  const meta = document.createElement('div');
+  meta.className = 'image-meta';
   const caption = document.createElement('span');
   caption.className = 'image-name';
-  const actions = document.createElement('div');
-  actions.className = 'image-actions';
-  const choose = document.createElement('button');
-  choose.type = 'button';
-  choose.textContent = 'Choose…';
-  choose.dataset.tip = 'Pick a still from the library';
+  const dims = document.createElement('span');
+  dims.className = 'image-dims';
+  const buttons = document.createElement('span');
+  buttons.className = 'image-buttons';
+  const replace = iconButton('swap', 'Replace image', 'Choose another image');
+  const clear = iconButton('x', 'Clear image', 'Use no image: the slot shows its fallback');
+  buttons.append(replace, clear);
+  meta.append(caption, dims, buttons);
+
+  const picker = document.createElement('div');
+  picker.className = 'image-picker';
+  picker.hidden = true;
+  const pickerHead = document.createElement('div');
+  pickerHead.className = 'picker-head';
+  const search = document.createElement('input');
+  search.type = 'search';
+  search.placeholder = 'Search stills';
+  search.setAttribute('aria-label', 'Search stills');
   const fromFile = document.createElement('button');
   fromFile.type = 'button';
+  fromFile.className = 'from-file';
   fromFile.textContent = 'File…';
   fromFile.dataset.tip = 'Copy an image file into the library\'s Imported folder and use it';
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.accept = 'image/*,.svg';
   fileInput.hidden = true;
-  const clear = document.createElement('button');
-  clear.type = 'button';
-  clear.textContent = 'Clear';
-  actions.append(choose, fromFile, clear, fileInput);
-  const picker = document.createElement('div');
-  picker.className = 'image-picker';
-  picker.hidden = true;
-  const search = document.createElement('input');
-  search.type = 'search';
-  search.placeholder = 'Search stills';
-  search.setAttribute('aria-label', 'Search stills');
+  pickerHead.append(search, fromFile, fileInput);
   const choices = document.createElement('ul');
   choices.className = 'image-choices';
-  picker.append(search, choices);
+  picker.append(pickerHead, choices);
+
   const treat = document.createElement('div');
   treat.className = 'image-treatment';
-  const treatment = document.createElement('select');
-  treatment.setAttribute('aria-label', 'Colour treatment');
-  for (const t of IMAGE_TREATMENTS) {
-    const opt = document.createElement('option');
-    opt.value = t;
-    opt.textContent = TREATMENT_LABELS[t];
-    treatment.append(opt);
-  }
+  const segmented = document.createElement('div');
+  segmented.className = 'segmented';
+  segmented.setAttribute('role', 'group');
+  segmented.setAttribute('aria-label', 'Colour treatment');
+  const treatmentButtons = IMAGE_TREATMENTS.map((t) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.treatment = t;
+    button.textContent = TREATMENT_LABELS[t];
+    button.dataset.tip = TREATMENT_TIPS[t];
+    button.setAttribute('aria-pressed', 'false');
+    segmented.append(button);
+    return button;
+  });
   const tint = document.createElement('input');
   tint.type = 'color';
+  tint.className = 'tint';
   tint.setAttribute('aria-label', 'Tint colour');
-  const effect = document.createElement('select');
-  effect.setAttribute('aria-label', 'Effect');
-  for (const e of IMAGE_EFFECTS) {
-    const opt = document.createElement('option');
-    opt.value = e;
-    opt.textContent = EFFECT_LABELS[e];
-    effect.append(opt);
-  }
-  treat.append(treatment, tint, effect);
+  const effects = document.createElement('div');
+  effects.className = 'image-effects';
+  effects.setAttribute('role', 'group');
+  effects.setAttribute('aria-label', 'Effect');
+  const effectButtons = EFFECT_TOGGLES.map((e) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'chip';
+    button.dataset.effect = e.id;
+    button.textContent = e.label;
+    button.dataset.tip = e.tip;
+    button.setAttribute('aria-pressed', 'false');
+    effects.append(button);
+    return button;
+  });
+  treat.append(segmented, tint, effects);
   const note = document.createElement('p');
   note.className = 'note image-note';
-  wrap.append(thumb, caption, actions, picker, treat, note);
+  wrap.append(well, meta, picker, treat, note);
 
   const entryFor = (id: string) => appState.value.index?.media.find((m) => m.id === id);
   const show = () => {
     const entry = value ? entryFor(value.id) : undefined;
-    thumb.replaceChildren();
-    thumb.classList.toggle('empty', !value || !entry);
+    well.replaceChildren();
+    well.classList.toggle('empty', !value || !entry);
     if (value && entry) {
       // The poster when the library has made one; the still itself otherwise, so the box is never a broken image.
       img.src = entry.thumbnail ?? mediaUrlFor(value.id);
-      thumb.append(img);
-      thumb.title = 'Choose another image';
+      well.append(img);
+      well.title = '';
       caption.textContent = entry.name;
+      const { width, height } = entry.meta ?? {};
+      // Said only once it is known: a size the library has not probed yet is left out, not guessed.
+      dims.textContent = width && height ? dimensionsLabel(width, height) : '';
     } else {
-      emptyLabel.textContent = value ? 'Image not found — choose another…' : 'Choose an image…';
-      thumb.append(emptyLabel);
-      thumb.title = value ? 'The chosen image is not in the library' : 'No image: the slot shows its fallback';
+      emptyLabel.textContent = value ? 'Image not found — choose another' : 'Choose or drop an image';
+      well.append(emptyLabel);
+      well.title = '';
       caption.textContent = value ? '' : 'No image; the slot shows its fallback';
+      dims.textContent = '';
     }
     clear.hidden = value === null;
     treat.hidden = value === null;
-    treatment.value = value?.treatment ?? 'original';
+    const treatment = value?.treatment ?? 'original';
+    for (const button of treatmentButtons) button.setAttribute('aria-pressed', String(button.dataset.treatment === treatment));
     tint.value = value?.tint ?? '#ffffff';
-    tint.hidden = treatment.value !== 'tinted';
-    effect.value = value?.effect ?? 'none';
+    tint.hidden = treatment !== 'tinted';
+    for (const button of effectButtons) button.setAttribute('aria-pressed', String(button.dataset.effect === (value?.effect ?? 'none')));
     note.hidden = true;
     slotProblems.delete(slot.id);
     if (value && !entry) {
@@ -543,14 +594,8 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
       search.focus();
     }
   };
-  choose.addEventListener('click', togglePicker);
-  thumb.addEventListener('click', togglePicker);
-  search.addEventListener('input', listChoices);
-  fromFile.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files?.[0];
-    fileInput.value = '';
-    if (!file) return;
+  /** A file from the picker's File… button or dropped on the well: the same import either way. */
+  const importFile = (file: File) => {
     fromFile.disabled = true;
     void window.pulp
       .importImage(file)
@@ -561,21 +606,51 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
           return;
         }
         pick(result.id);
+        picker.hidden = true;
       })
       .finally(() => {
         fromFile.disabled = false;
       });
+  };
+  well.addEventListener('click', togglePicker);
+  replace.addEventListener('click', togglePicker);
+  // Dropping an image on the well is the shortest way in; the cursor says so while one is over it.
+  well.addEventListener('dragover', (e) => {
+    if (!e.dataTransfer?.types.includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    well.classList.add('dropping');
+  });
+  for (const type of ['dragleave', 'dragend', 'drop'] as const) well.addEventListener(type, () => well.classList.remove('dropping'));
+  well.addEventListener('drop', (e) => {
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    e.preventDefault();
+    importFile(file);
+  });
+  search.addEventListener('input', listChoices);
+  fromFile.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = '';
+    if (file) importFile(file);
   });
   clear.addEventListener('click', () => set(null));
-  treatment.addEventListener('change', () => {
-    if (value) set({ ...value, treatment: treatment.value as ImageValue['treatment'] });
-  });
+  for (const button of treatmentButtons) {
+    button.addEventListener('click', () => {
+      if (value) set({ ...value, treatment: button.dataset.treatment as ImageValue['treatment'] });
+    });
+  }
   tint.addEventListener('change', () => {
     if (value) set({ ...value, tint: tint.value });
   });
-  effect.addEventListener('change', () => {
-    if (value) set({ ...value, effect: effect.value as ImageValue['effect'] });
-  });
+  for (const button of effectButtons) {
+    button.addEventListener('click', () => {
+      // Pressing the effect that is on turns it off; the two are never on together.
+      const next = button.dataset.effect as Exclude<ImageValue['effect'], 'none'>;
+      if (value) set({ ...value, effect: value.effect === next ? 'none' : next });
+    });
+  }
   show();
   return wrap;
 }
