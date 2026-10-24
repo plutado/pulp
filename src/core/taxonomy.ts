@@ -86,6 +86,13 @@ export const TYPES: readonly TaxonomyType[] = [
 export interface ThemeGroup {
   id: string;
   label: string;
+  /**
+   * The theme that means the group itself, where the vocabulary has one
+   * ("sports", "holiday"). It is a theme like any other — items carry it, search
+   * matches it — but it belongs to the group's own node, not under it: a child
+   * must never repeat its parent (ADR 0010, docs/ui-style.md).
+   */
+  general?: string;
   themes: readonly { id: string; label: string }[];
 }
 
@@ -117,8 +124,9 @@ export const THEME_GROUPS: readonly ThemeGroup[] = [
   {
     id: 'sports',
     label: 'Sports',
+    general: 'sports',
     themes: [
-      { id: 'sports', label: 'Sports (general)' },
+      { id: 'sports', label: 'Sports' },
       { id: 'football', label: 'Football' },
       { id: 'basketball', label: 'Basketball' },
       { id: 'baseball', label: 'Baseball' },
@@ -144,8 +152,9 @@ export const THEME_GROUPS: readonly ThemeGroup[] = [
   {
     id: 'holidays',
     label: 'Holidays and seasons',
+    general: 'holiday',
     themes: [
-      { id: 'holiday', label: 'Holiday (general)' },
+      { id: 'holiday', label: 'Holiday' },
       { id: 'christmas', label: 'Christmas / winter holidays' },
       { id: 'new-year', label: 'New Year' },
       { id: 'valentines', label: "Valentine's Day" },
@@ -215,6 +224,32 @@ export function isBuiltInType(id: string): boolean {
 
 export function typeInfo(id: string): TaxonomyType | undefined {
   return typeById.get(id);
+}
+
+const themeGroupById = new Map(THEME_GROUPS.map((g) => [g.id, g]));
+const groupByTheme = new Map(THEME_GROUPS.flatMap((g) => g.themes.map((t) => [t.id, g.id] as const)));
+
+/** The themes shown under a group: all of them but the one that means the group itself. */
+export function groupChildThemes(group: ThemeGroup): readonly { id: string; label: string }[] {
+  return group.general === undefined ? group.themes : group.themes.filter((t) => t.id !== group.general);
+}
+
+/** Which theme group a theme belongs to, or undefined for a custom one. */
+export function themeGroupOf(themeId: string): string | undefined {
+  return groupByTheme.get(themeId);
+}
+
+export function isThemeGroup(id: string): boolean {
+  return themeGroupById.has(id);
+}
+
+/**
+ * Every theme a group's node covers: the one that means the group itself and all
+ * its children. Selecting Sports finds generally-sporting items and the football
+ * ones alike.
+ */
+export function themesInGroup(groupId: string): string[] {
+  return themeGroupById.get(groupId)?.themes.map((t) => t.id) ?? [];
 }
 
 export function isBuiltInTheme(id: string): boolean {

@@ -6,6 +6,6 @@
   "license": "CC0-1.0",
   "description": "A broadcast news set: signal red on deep navy, bold capitals, a diagonal slash motif, fast motion.",
   "templates": ["lower-third", "title", "transition", "overlay", "background"],
-  "themes": ["news"],
+  "themes": ["news", "documentary", "podcast"],
   "styles": ["high-energy"]
 }

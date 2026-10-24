@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CATEGORY_TO_TYPE,
+  groupChildThemes,
   inferMediaType,
   inferThemes,
   isBuiltInStyle,
@@ -130,5 +131,23 @@ describe('membership and custom themes', () => {
       builtIn: ['news', 'corporate'],
       custom: ['my-show', 'club-23'],
     });
+  });
+});
+
+describe('theme groups', () => {
+  it('never give a group a child that repeats it', () => {
+    for (const group of THEME_GROUPS) {
+      for (const child of groupChildThemes(group)) {
+        expect(child.label, `${group.label} › ${child.label}`).not.toBe(group.label);
+        // "Sports (general)" and the like: a child saying it is the group in other words.
+        expect(child.label.toLowerCase(), `${group.label} › ${child.label}`).not.toContain(`${group.label.toLowerCase()} (`);
+        expect(child.id, `${group.label} › ${child.id}`).not.toBe(group.id);
+      }
+      // Where the vocabulary has a word for the group itself, it is the group's own.
+      if (group.general !== undefined) {
+        expect(group.themes.map((t) => t.id)).toContain(group.general);
+        expect(groupChildThemes(group).map((t) => t.id)).not.toContain(group.general);
+      }
+    }
   });
 });

@@ -51,6 +51,29 @@ describe('buildBrowseTree', () => {
     expect(find(tree, 'untyped')).toMatchObject({ label: 'Untyped', count: 2, scope: { filter: 'type:untyped', kind: 'untyped' } }); // "other" template and the loose clip
   });
 
+  it('puts a group\'s general theme on the group itself, never under it', () => {
+    // The only sporting item carries the general theme, so Sports is there with nothing beneath it.
+    const sports = find(tree, 'themes:sports')!;
+    expect(sports.count).toBe(1);
+    expect(sports.children).toEqual([]);
+    expect(sports.scope).toMatchObject({ filter: 'theme:sports', kind: 'theme' });
+    expect(find(tree, 'theme:sports'), 'no child repeating the group').toBeUndefined();
+
+    // A specific theme is a child, and the group counts it too.
+    const withChild = buildBrowseTree([...entries, media('derby', { themes: ['soccer'] })], ['/lib', '/media'], undefined);
+    expect(find(withChild, 'themes:sports')?.count).toBe(2);
+    expect(find(withChild, 'themes:sports')?.children.map((n) => n.id)).toEqual(['theme:soccer']);
+  });
+
+  it('counts an item in two themes of one group once', () => {
+    const both = buildBrowseTree([media('clip', { themes: ['football', 'basketball'] })], ['/media'], undefined);
+    expect(find(both, 'themes:sports')?.count).toBe(1);
+    expect(find(both, 'themes:sports')?.children.map((n) => [n.label, n.count])).toEqual([
+      ['Football', 1],
+      ['Basketball', 1],
+    ]);
+  });
+
   it('groups built-in themes and puts custom ones under Custom; styles are templates only', () => {
     const themes = find(tree, 'themes')!;
     expect(themes.children.map((n) => n.id)).toEqual(['themes:media', 'themes:sports', 'themes:custom']);

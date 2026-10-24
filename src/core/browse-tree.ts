@@ -11,7 +11,7 @@
 import type { Scope } from './app-state';
 import { rootLabel, styleLabel, themeLabel, typeLabel } from './display';
 import type { LibraryEntry } from './library-types';
-import { entryType, isBuiltInTheme, STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES, typeInfo } from './taxonomy';
+import { entryType, groupChildThemes, isBuiltInTheme, STYLES, THEME_GROUPS, themeGroupOf, TYPE_GROUPS, TYPES, typeInfo } from './taxonomy';
 
 export interface TreeNode {
   /** Unique within the tree: "type:wipe", "group:transitions", "theme:news", "root:/path", "untyped"… */
@@ -34,6 +34,7 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
   const byType = new Map<string, number>();
   const byGroup = new Map<string, number>();
   const byTheme = new Map<string, number>();
+  const byThemeGroup = new Map<string, number>();
   const byStyle = new Map<string, number>();
   const byRoot = new Map<string, number>();
   const byPack = new Map<string, { name: string; count: number }>();
@@ -50,7 +51,15 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     } else {
       untyped += 1;
     }
-    for (const theme of entry.themes ?? []) bump(byTheme, theme);
+    const groupsSeen = new Set<string>();
+    for (const theme of entry.themes ?? []) {
+      bump(byTheme, theme);
+      const group = themeGroupOf(theme);
+      if (group !== undefined && !groupsSeen.has(group)) {
+        groupsSeen.add(group);
+        bump(byThemeGroup, group);
+      }
+    }
     if (entry.kind === 'template') for (const style of entry.manifest.styles ?? []) bump(byStyle, style);
     bump(byRoot, entry.root);
     if (entry.kind === 'template' && entry.pack) {
@@ -90,16 +99,19 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
   typeGroups.push({ id: 'untyped', label: 'Untyped', count: untyped, scope: { label: 'Untyped', filter: 'type:untyped', kind: 'untyped' }, children: [] });
   const types: TreeNode = { id: 'types', label: 'Types', count: entries.length - untyped, scope: null, children: typeGroups };
 
+  // A theme group is a node of its own, not just a heading: it holds the items carrying
+  // the theme that means the group ("sports") as well as everything under its children,
+  // and its count is of entries, not of themes, so an item in two of them counts once.
   const themeGroups: TreeNode[] = THEME_GROUPS.map((g): TreeNode => ({
     id: `themes:${g.id}`,
     label: g.label,
-    count: g.themes.reduce((n, t) => n + (byTheme.get(t.id) ?? 0), 0),
-    scope: null,
+    count: byThemeGroup.get(g.id) ?? 0,
+    scope: { label: g.label, filter: `theme:${g.id}`, kind: 'theme' },
     iconKind: 'theme',
-    children: g.themes
+    children: groupChildThemes(g)
       .filter((t) => (byTheme.get(t.id) ?? 0) > 0)
       .map((t) => ({ id: `theme:${t.id}`, label: themeLabel(t.id), count: byTheme.get(t.id) ?? 0, scope: { label: themeLabel(t.id), filter: `theme:${t.id}`, kind: 'theme' }, children: [] })),
-  })).filter((g) => g.children.length > 0);
+  })).filter((g) => g.count > 0);
   const customThemes = [...byTheme.keys()].filter((t) => !isBuiltInTheme(t)).sort((a, b) => a.localeCompare(b));
   if (customThemes.length > 0) {
     themeGroups.push({

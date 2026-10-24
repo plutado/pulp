@@ -1125,7 +1125,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.getElementById('view-list').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('results').classList.contains('list')`), 'the list view');
       const row = await onResult<string[]>('Boardroom title', '(li) => [...li.querySelectorAll(".col")].map((c) => c.textContent)');
-      expect(row).toEqual(['Boardroom title', '5 s', 'Title', 'Corporate', 'title']);
+      expect(row).toEqual(['Boardroom title', '5 s', 'Title', 'Corporate, Finance, Technology, Real estate', 'title']);
       // The thumbnail size only means anything for cards.
       expect(await page.eval<boolean>(`document.getElementById('thumb-size').disabled`)).toBe(true);
 

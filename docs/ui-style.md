@@ -110,6 +110,7 @@ The browse panel is the worked example; anything with the same shape follows it.
 - **Selection and hover highlight the full width of the row**, gutter included, so the target matches what the eye reads as a row. The current row also carries the accent as an inset left edge and a semibold label — `--accent` still marks exactly one thing.
 - **Counts** are right-aligned supporting text, tabular figures. A fixed row with nothing in it (Favorites at zero, an empty folder) dims its label and count rather than disappearing; a taxonomy row with nothing in it is left out of the tree entirely.
 - **Collapsed to an icon rail**, only the levels that have an icon survive: headings, counts, twisties and the children fold away, and the rows that remain show their icon with the label as a tooltip.
+- **A child never repeats its parent.** "Sports › Sports (general)" is a tree admitting it has nowhere to put something. Where a vocabulary has a word for the whole of a group, that word belongs to the group's own row — items carrying it sit there, and the children are the specific ones. A parent row is therefore selectable and covers everything beneath it, so its count is never smaller than a child's (ADR 0010).
 
 ## Enforcement
 

@@ -19,6 +19,20 @@ The old `category` stays valid and maps onto the type list (`lower-third`→lowe
 
 Music moods (upbeat, dramatic, calm…) are deliberately left out until milestone 16 brings audio features; they would be a fourth axis with no consumer today.
 
+## A child never repeats its parent
+
+Added October 2026, after the tree showed "Sports › Sports (general)" and "Holidays and seasons › Holiday (general)".
+
+Where a group has a word for the whole subject — `sports`, `holiday` — that theme belongs to **the group's own node**, not to a child of it. A group declares it as `general` and it is left out of the group's children. So:
+
+- an item themed `sports` sits on the **Sports** node itself, and the children are specific (Football, Basketball, Soccer);
+- **selecting a group scopes to everything in it**: its own items and all its children alike, which is what `theme:sports` now means in search, the same way `type:transitions` already meant a whole type group;
+- a group's count is a count of **items**, not of themes, so something themed both `football` and `soccer` counts once.
+
+A group with no word for itself (Media, Life events) simply has no general theme and no items of its own; its node still scopes to all its children.
+
+This is a change of **labels and tree shape only**. `sports` and `holiday` keep their ids, keep validating, and keep matching anything already tagged with them — the extension rule below holds.
+
 ## Extension rule
 
 Within taxonomy version 1, the type and style lists only grow, never rename or remove, and ids are permanent; renames change labels only. `TAXONOMY_VERSION` is bumped when the lists change so stored data can say what it was written against. Themes need no version bump to extend: unknown ids are custom by definition.

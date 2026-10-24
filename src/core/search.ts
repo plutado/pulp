@@ -27,7 +27,7 @@
 import type { LibraryEntry, LibraryIndex } from './library-types';
 import { RESOLUTION_ALIASES, resolutionLabel } from './media-meta';
 import { normalizeTag } from './tags';
-import { entryType, normalizeTheme, typeInfo } from './taxonomy';
+import { entryType, isThemeGroup, normalizeTheme, themesInGroup, typeInfo } from './taxonomy';
 
 export type NumericField = 'duration' | 'width' | 'height' | 'fps';
 
@@ -147,6 +147,20 @@ function entryHaystack(entry: LibraryEntry): { name: string; words: string[]; ta
   return { name, words: name.split(/[^a-z0-9]+/).filter(Boolean), tags: entry.tags, text };
 }
 
+/**
+ * A `theme:` term matches the theme itself, or — when it names a theme group —
+ * anything in that group: its general theme and every child. Selecting Sports in
+ * the browse tree finds the generally-sporting items and the football ones alike.
+ */
+function matchesTheme(entry: LibraryEntry, theme: string): boolean {
+  const mine = entry.themes;
+  if (!mine || mine.length === 0) return false;
+  if (mine.includes(theme)) return true;
+  if (!isThemeGroup(theme)) return false;
+  const inGroup = themesInGroup(theme);
+  return mine.some((t) => inGroup.includes(t));
+}
+
 function matchesType(entry: LibraryEntry, type: string): boolean {
   if (type === 'template' || type === 'templates') return entry.kind === 'template';
   if (type === 'media') return entry.kind === 'media';
@@ -180,7 +194,7 @@ export function searchLibrary(index: LibraryIndex, query: string): SearchHit[] {
     if (q.types.length > 0 && !q.types.some((t) => matchesType(entry, t))) continue;
     if (q.categories.length > 0 && (entry.kind !== 'template' || !q.categories.includes(entry.manifest.category))) continue;
     if (!q.tags.every((t) => entry.tags.includes(t))) continue;
-    if (q.themes.length > 0 && !q.themes.every((t) => entry.themes?.includes(t))) continue;
+    if (q.themes.length > 0 && !q.themes.every((t) => matchesTheme(entry, t))) continue;
     if (q.styles.length > 0 && (entry.kind !== 'template' || !q.styles.every((s) => entry.manifest.styles?.includes(s)))) continue;
     if (q.packs.length > 0 && (entry.kind !== 'template' || !q.packs.includes(entry.pack?.slug ?? ''))) continue;
     if (q.favorite !== undefined && (entry.favorite === true) !== q.favorite) continue;
