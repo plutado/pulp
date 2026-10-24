@@ -1,0 +1,35 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.festival.sparkle-flash",
+  "name": "Festival sparkle flash",
+  "description": "A gold-white bloom swells from a chosen point to cover the frame at the midpoint with a burst of twinkles, then fades away.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "flash",
+  "tags": ["flash", "sparkle", "festive"],
+  "duration": 1.4,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "gold", "type": "color", "label": "Bloom color", "default": "#e8b54d", "group": "Colors" },
+    { "id": "core", "type": "color", "label": "Core color", "default": "#fff6e0", "group": "Colors" },
+    {
+      "id": "origin",
+      "type": "select",
+      "label": "Origin",
+      "default": "center",
+      "options": [
+        { "value": "center", "label": "Center" },
+        { "value": "top-left", "label": "Top left" },
+        { "value": "top-right", "label": "Top right" },
+        { "value": "bottom-left", "label": "Bottom left" },
+        { "value": "bottom-right", "label": "Bottom right" }
+      ]
+    },
+    { "id": "twinkles", "type": "number", "label": "Twinkles", "default": 48, "min": 0, "max": 160, "step": 4 }
+  ]
+}

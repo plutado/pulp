@@ -29,7 +29,7 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
 | **Total through 1.0 (milestones 1-8, 10-13 and 17-21)** | **181-300 h** |
-| **Still open through 1.0 (unticked items only)** | **50-81 h** |
+| **Still open through 1.0 (unticked items only)** | **40-66 h** |
 | **Total including post-1.0 items** | **213-358 h** |
 
 ## 0. Foundation (done)
@@ -155,7 +155,7 @@ Turns the queue in the collection tray into collections; the separate queue pane
 
 ## 21. Sample library coverage: every type three to five deep (26-40 h)
 
-The browse tree is only as convincing as what fills it. The bundled samples cover 7 of the taxonomy's 45 types (lower third, title, wipe, animated loop, frame, logo bug, light and particles), and five whole groups — design elements, video clips, stills, music, sound effects — have nothing. The rule the themes already follow applies to types: **every type in the tree has between three and five examples**, so a node never opens onto one item. Visual types are filled by original CC0 templates, spread across the four matched sets where the role fits (each set keeps one look) and by standalone templates in other styles so the styles list fills out too. Media types cannot be templates and binary files would bloat the repository, so they come from a **sample-media generator**: original CC0 files made with ffmpeg and the renderer on demand into a "Sample media" library folder, in folders whose names give each file its type. A test fails when any type has fewer than three examples across the templates and the generator's catalogue; while the milestone is open it names the types still to be filled, and that list only shrinks. Takes over "five to ten more sample templates" from milestone 8. Counts in parentheses are what exists today.
+The browse tree is only as convincing as what fills it. The bundled samples cover 7 of the taxonomy's 45 types (lower third, title, wipe, animated loop, frame, logo bug, light and particles), and five whole groups — design elements, video clips, stills, music, sound effects — have nothing. The rule the themes already follow applies to types: **every type in the tree has between three and five examples**, so a node never opens onto one item. Visual types are filled by original CC0 templates, spread across the four matched sets where the role fits (each set keeps one look) and by standalone templates in other styles so the styles list fills out too. Media types cannot be templates and binary files would bloat the repository, so they come from a **sample-media generator**: original CC0 files made with ffmpeg and the renderer on demand into a "Sample media" library folder, in folders whose names give each file its type. A test fails when any type has fewer than three examples across the templates and the generator's catalogue; while the milestone was open it named the types still to be filled, and that list only shrank. Takes over "five to ten more sample templates" from milestone 8. Counts in parentheses are what exists today.
 
 - [x] Plan and coverage test: this list; `tests/sample-coverage.test.ts` counts templates by declared type and the generator catalogue by folder-inferred type, and fails below three or above five for any type not named as still open (1-2 h)
 - [x] Sample media generator: a pure catalogue in `src/core/sample-media.ts` (folder layout, one recipe per file: an ffmpeg `lavfi` graph for sound and music, a canvas page for stills, a bundled background template for clips) and a main-process service that writes what is missing into a folder, with `LICENSE-CC0.txt` and a README; headless `--sample-media <folder>`, and "Add sample media…" in the browse panel, which makes the folder and adds it to the library. Unit tests check every catalogue folder resolves to its intended type through the same inference the scan uses, that every expression balances, and the 3-5 rule per media type; the render test generates the whole folder and probes it (5-8 h)
@@ -193,16 +193,16 @@ The browse tree is only as convincing as what fills it. The bundled samples cove
   - infographic and charts (0): Boardroom bar chart (up to five bars from parameters), Newsdesk poll (two to four options with percentages), Matchday head-to-head (two stats compared)
   - counter / timer (0): Boardroom counter (a number counting to its target with prefix and suffix), Matchday clock (a match clock running from a start time), Elegant counter (elegant; serif figures)
   - countdown leader (0): Matchday kick-off countdown (ten to zero in chevrons), Festival midnight countdown (ten to zero with confetti), Cinematic leader (cinematic; a film-leader ring and sweep)
-- [ ] Backgrounds, six templates (2-3 h)
+- [x] Backgrounds, six templates (2-3 h)
   - animated loop (4): done — the four sets
   - still background (0): Boardroom paper (a still gradient with the dot grid), Cinematic gradient (cinematic), Soft gradient (organic)
   - texture / pattern (0): Film grain field (grunge), Halftone dots (retro), Scanlines (tech)
-- [ ] Transitions, nine templates (3-5 h)
+- [x] Transitions, nine templates (3-5 h)
   - wipe (5): done — the four sets and Diagonal Wipe
   - reveal / matte (0): Boardroom blinds, Festival iris matte, Matchday split
   - flash / light (0): Festival sparkle flash, Newsdesk flash cut, Cinematic light flash (cinematic)
   - glitch (0): Newsdesk glitch, Tech glitch (tech), VHS glitch (retro)
-- [ ] Overlays, fourteen templates (5-7 h)
+- [x] Overlays, fourteen templates (5-7 h)
   - overlay (0): Boardroom dot grid, Newsdesk ticker, Matchday chevron band, Festival ribbon
   - frame / border (1): Boardroom frame exists; Festival frame, Matchday frame
   - light and particles (1): Festival sparkle corners exists; Festival confetti burst, Dust motes (cinematic)

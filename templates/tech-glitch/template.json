@@ -1,0 +1,26 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.tech-glitch",
+  "name": "Tech glitch",
+  "description": "A blocky cyan-on-black digital glitch of pixel blocks and thin data lines that fills the frame at the midpoint and breaks up again.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "glitch",
+  "themes": ["technology", "gaming", "science"],
+  "styles": ["tech"],
+  "tags": ["glitch", "digital", "blocks"],
+  "duration": 1,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "base", "type": "color", "label": "Block color", "default": "#06090e", "group": "Colors" },
+    { "id": "accent", "type": "color", "label": "Accent color", "default": "#2ee6ff", "group": "Colors" },
+    { "id": "second", "type": "color", "label": "Second accent", "default": "#ff2e8a", "group": "Colors" },
+    { "id": "block", "type": "number", "label": "Block size (px at 1080p)", "default": 72, "min": 24, "max": 180, "step": 4 },
+    { "id": "intensity", "type": "number", "label": "Intensity", "default": 0.6, "min": 0.1, "max": 1, "step": 0.05 }
+  ]
+}

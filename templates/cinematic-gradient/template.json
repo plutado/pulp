@@ -1,0 +1,27 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.cinematic-gradient",
+  "name": "Cinematic gradient",
+  "description": "A deep two-tone gradient with a soft off-centre light and a heavy vignette, teal and amber by default.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "themes": ["cinema", "documentary"],
+  "styles": ["cinematic"],
+  "tags": ["still", "gradient", "vignette"],
+  "duration": 10,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "shadow", "type": "color", "label": "Shadow color", "default": "#0a1e24", "group": "Colors" },
+    { "id": "mid", "type": "color", "label": "Midtone color", "default": "#1d5560", "group": "Colors" },
+    { "id": "light", "type": "color", "label": "Light color", "default": "#e3a04a", "group": "Colors" },
+    { "id": "lightX", "type": "number", "label": "Light position X (%)", "default": 68, "min": 0, "max": 100, "step": 1, "group": "Light" },
+    { "id": "lightY", "type": "number", "label": "Light position Y (%)", "default": 36, "min": 0, "max": 100, "step": 1, "group": "Light" },
+    { "id": "vignette", "type": "number", "label": "Vignette strength", "default": 0.75, "min": 0, "max": 1, "step": 0.05 }
+  ]
+}

@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Newsdesk glitch</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var SLANT = 0.22;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function hash(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    ctx.clearRect(0, 0, W, H);
+
+    var s = Math.min(W, H) / 1080;
+    var pr = state.progress;
+    // Coverage rises to 1 at the midpoint and falls back; it saturates a little early so the
+    // middle frames are solid. Slices re-roll their offsets every two frames.
+    var g = 1 - Math.abs(pr * 2 - 1);
+    var cv = clamp01(g * 1.15);
+    if (cv <= 0) return;
+    var seed = Math.floor(state.frame / 2) * 97;
+    var n = Math.round(p.slices);
+    var sh = H / n;
+    var shift = W * 0.28 * p.intensity * (1 - 0.5 * clamp01((cv - 0.8) / 0.2));
+
+    for (var i = 0; i < n; i++) {
+      var y = Math.floor(i * sh), h = Math.ceil(sh) + 1;
+      var r1 = hash(seed + i * 5 + 1), r2 = hash(seed + i * 5 + 2), r3 = hash(seed + i * 5 + 3);
+      var dx = (r1 - 0.5) * 2 * shift * g;
+      var full = W + 2 * Math.abs(dx);
+      var sw = full * Math.min(1, Math.pow(cv, 1.6) * (1 + r2 * 0.8));
+      var x = W / 2 + dx - sw / 2;
+
+      // A red/cyan split on some bands: the same slice drawn twice, nudged apart.
+      if (r3 < 0.3 * (0.5 + p.intensity)) {
+        var sp = (10 + 40 * r2) * s * p.intensity;
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = p.accent;
+        ctx.fillRect(x - sp, y, sw, h);
+        ctx.fillStyle = p.split;
+        ctx.fillRect(x + sp, y, sw, h);
+        ctx.globalAlpha = 1;
+      }
+      ctx.fillStyle = r3 > 0.86 ? p.accent : p.panel;
+      ctx.fillRect(x, y, sw, h);
+    }
+
+    // The set's slash: a red diagonal stripe cutting through the slices once they have gathered.
+    var slashA = clamp01((cv - 0.5) / 0.5);
+    if (slashA > 0) {
+      var k = H * SLANT, sx = W * (0.3 + 0.4 * hash(seed + 991)), sw2 = 36 * s;
+      ctx.globalAlpha = slashA;
+      ctx.fillStyle = p.accent;
+      ctx.beginPath();
+      ctx.moveTo(sx + k, 0);
+      ctx.lineTo(sx + k + sw2, 0);
+      ctx.lineTo(sx + sw2, H);
+      ctx.lineTo(sx, H);
+      ctx.closePath();
+      ctx.fill();
+      // Thin cyan hairlines, a few per frame.
+      ctx.fillStyle = p.split;
+      for (var j = 0; j < 5; j++) {
+        var ly = hash(seed + j * 13 + 400) * H;
+        var lx = hash(seed + j * 13 + 401) * W * 0.6;
+        ctx.globalAlpha = slashA * 0.7;
+        ctx.fillRect(lx, ly, W * (0.2 + 0.5 * hash(seed + j * 13 + 402)), 2 * s);
+      }
+      ctx.globalAlpha = 1;
+    }
+  };
+</script>
+</body>
+</html>

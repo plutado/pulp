@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>VHS tracking</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // VHS tracking, a sample overlay for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var off = document.createElement('canvas');
+  var octx = off.getContext('2d');
+  var image = null;
+  var NW = 256;   // noise columns across the band, scaled up to the frame width
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function hash(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration, f = state.frame;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var fade = clamp01(t / dur) * (1 - clamp01((t - (d - dur)) / dur));
+    if (fade <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var bandH = p.band * s;
+    // The band sits in the lower part of the frame and rolls slowly upward, with a nervous wobble.
+    var roll = (t * p.speed * 0.05) % 1;
+    var bandY = H * 0.88 - roll * H * 0.12 + Math.sin(t * 9.1) * 3 * s + (hash(f + 10) - 0.5) * 4 * s * p.noise;
+
+    // Noise rows: a few rows per band, each row a streaky run of bright and dark cells.
+    var rows = Math.max(3, Math.round(bandH / (6 * s)));
+    if (off.width !== NW || off.height !== rows) {
+      off.width = NW; off.height = rows;
+      image = octx.createImageData(NW, rows);
+    }
+    var data = image.data;
+    var x = (Math.floor(hash(f + 1) * 4294967295) >>> 0) || 1;
+    for (var r = 0; r < rows; r++) {
+      var rowBias = hash(f * 7 + r * 3 + 50);            // some rows are mostly white, some mostly black
+      var run = 0, v = 0;
+      for (var c = 0; c < NW; c++) {
+        if (run <= 0) {
+          x = (x * 1664525 + 1013904223) >>> 0;
+          run = 1 + Math.floor((x / 4294967296) * 12);   // streak length
+          x = (x * 1664525 + 1013904223) >>> 0;
+          v = x / 4294967296;
+        }
+        run--;
+        var i = (r * NW + c) * 4;
+        var bright = v > 0.5 - (rowBias - 0.5) * 0.6;
+        var g = bright ? 235 : 8;
+        data[i] = g; data[i + 1] = g; data[i + 2] = g;
+        data[i + 3] = Math.round(p.noise * (bright ? 190 : 150) * (0.5 + 0.5 * Math.abs(v - 0.5) * 2));
+      }
+    }
+    octx.putImageData(image, 0, 0);
+
+    ctx.globalAlpha = fade;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(off, 0, 0, NW, rows, 0, bandY, W, bandH);
+
+    // The tape drops out in a few places along the band: dark gaps with a bright leading edge.
+    var gaps = 3;
+    for (var gI = 0; gI < gaps; gI++) {
+      var gs = Math.floor(f / 4) * 11 + gI * 5;
+      if (hash(gs + 300) < 0.4) continue;
+      var gx = hash(gs + 301) * W, gwid = (40 + hash(gs + 302) * 220) * s;
+      ctx.globalAlpha = fade * 0.75 * p.noise;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(gx, bandY, gwid, bandH);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(gx + gwid, bandY, 3 * s, bandH);
+    }
+
+    // Colour fringing: thin cyan and magenta lines at the band edges, and a couple drifting elsewhere.
+    if (p.fringe > 0) {
+      var fr = Math.max(1, 2 * s);
+      ctx.globalAlpha = fade * 0.7 * p.fringe;
+      ctx.fillStyle = '#39e6f0';
+      ctx.fillRect(0, bandY - fr * 1.5, W, fr);
+      ctx.fillStyle = '#f03ac8';
+      ctx.fillRect(0, bandY + bandH + fr * 0.5, W, fr);
+      for (var l = 0; l < 3; l++) {
+        var ls = Math.floor(f / 3) * 13 + l * 7;
+        if (hash(ls + 400) < 0.5) continue;
+        var ly = hash(ls + 401) * H, lx = hash(ls + 402) * W * 0.6, lw = W * (0.2 + hash(ls + 403) * 0.6);
+        ctx.globalAlpha = fade * 0.3 * p.fringe;
+        ctx.fillStyle = hash(ls + 404) > 0.5 ? '#39e6f0' : '#f03ac8';
+        ctx.fillRect(lx, ly, lw, fr * 0.8);
+      }
+    }
+
+    // A soft horizontal jitter band: a pale smear that wanders across the frame with a per-frame twitch.
+    var jitterY = (H * 0.2 + ((t * 0.09 * (0.5 + p.speed)) % 1) * H * 0.6);
+    var jitterH = 70 * s;
+    var twitch = (hash(f + 700) - 0.5) * 24 * s * p.noise;
+    var jg = ctx.createLinearGradient(0, jitterY - jitterH / 2, 0, jitterY + jitterH / 2);
+    jg.addColorStop(0, 'rgba(255, 255, 255, 0)');
+    jg.addColorStop(0.5, 'rgba(255, 255, 255, 0.16)');
+    jg.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.globalAlpha = fade * (0.5 + 0.5 * p.noise);
+    ctx.fillStyle = jg;
+    ctx.fillRect(twitch, jitterY - jitterH / 2, W, jitterH);
+    // Faint scanlines over the jitter band only, so it reads as tape rather than a glow.
+    ctx.globalAlpha = fade * 0.18;
+    ctx.fillStyle = '#000000';
+    var step = Math.max(2, 4 * s);
+    for (var y = jitterY - jitterH / 2; y < jitterY + jitterH / 2; y += step) ctx.fillRect(0, y, W, step / 2);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

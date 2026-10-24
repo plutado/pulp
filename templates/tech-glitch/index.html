@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tech glitch</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Pulp sample template. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function hash(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    ctx.clearRect(0, 0, W, H);
+
+    var s = Math.min(W, H) / 1080;
+    var pr = state.progress;
+    var g = 1 - Math.abs(pr * 2 - 1);
+    var cv = clamp01(g * 1.15);
+    if (cv <= 0) return;
+    var seed = Math.floor(state.frame / 2) * 131;
+
+    // Blocks appear on a grid as their own threshold is passed; at full coverage every cell is filled.
+    var b = Math.max(8, p.block * s);
+    var cols = Math.ceil(W / b), rows = Math.ceil(H / b);
+    // Blocks shift sideways in rows, more at the edges of the move than in the solid middle.
+    var shift = b * 3 * p.intensity * g * (1 - clamp01((cv - 0.85) / 0.15));
+    for (var j = 0; j < rows; j++) {
+      var rowShift = (hash(seed + j * 7 + 3) - 0.5) * 2 * shift;
+      for (var i = 0; i < cols; i++) {
+        var cell = i * 31 + j * 17;
+        var th = hash(cell + 500);
+        if (th > cv) continue;
+        var r = hash(seed + cell);
+        ctx.fillStyle = r < 0.08 * (0.5 + p.intensity) ? p.accent : r > 0.97 ? p.second : p.base;
+        var x = i * b + rowShift;
+        ctx.fillRect(x, j * b, b + 1, b + 1);
+        // Row shift leaves a sliver at one end; wrap it so the row still spans the frame.
+        if (rowShift > 0 && i === 0) ctx.fillRect(x - b - 1, j * b, b + 1, b + 1);
+        if (rowShift < 0 && i === cols - 1) ctx.fillRect(x + b, j * b, b + 1, b + 1);
+      }
+    }
+
+    // Thin data lines: short horizontal runs of accent, one or two pixels high.
+    var lines = Math.round(10 + 30 * p.intensity);
+    for (var k = 0; k < lines; k++) {
+      var on = hash(seed + k * 11 + 900) < cv * 1.1;
+      if (!on) continue;
+      var ly = Math.floor(hash(k * 11 + 901) * H);
+      var lx = hash(seed + k * 11 + 902) * W;
+      var lw = (0.08 + 0.3 * hash(seed + k * 11 + 903)) * W;
+      ctx.fillStyle = hash(k * 11 + 904) < 0.8 ? p.accent : p.second;
+      ctx.globalAlpha = 0.5 + 0.5 * hash(seed + k * 11 + 905);
+      ctx.fillRect(lx, ly, lw, Math.max(1, 2 * s));
+    }
+
+    // Small accent squares, like dead pixels, scattered over the filled area.
+    var dots = Math.round(40 * p.intensity);
+    for (var m = 0; m < dots; m++) {
+      if (hash(seed + m * 5 + 2000) > cv) continue;
+      var dx = hash(seed + m * 5 + 2001) * W, dy = hash(seed + m * 5 + 2002) * H;
+      var ds = b * (0.15 + 0.25 * hash(seed + m * 5 + 2003));
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = p.accent;
+      ctx.fillRect(dx, dy, ds, ds);
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

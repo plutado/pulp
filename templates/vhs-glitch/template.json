@@ -1,0 +1,26 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.vhs-glitch",
+  "name": "VHS glitch",
+  "description": "A tape-style glitch of rolling bands, colour fringing and a tracking tear that covers the frame at the midpoint with a noisy grey field.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "glitch",
+  "themes": ["summer", "travel", "concert"],
+  "styles": ["retro"],
+  "tags": ["glitch", "tape", "tracking"],
+  "duration": 1.2,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "field", "type": "color", "label": "Field color", "default": "#8c8c8c", "group": "Colors" },
+    { "id": "fringeA", "type": "color", "label": "Fringe color A", "default": "#ff3c78", "group": "Colors" },
+    { "id": "fringeB", "type": "color", "label": "Fringe color B", "default": "#3cd2ff", "group": "Colors" },
+    { "id": "tear", "type": "number", "label": "Tear height", "default": 0.16, "min": 0.04, "max": 0.4, "step": 0.02 },
+    { "id": "noise", "type": "number", "label": "Noise amount", "default": 0.6, "min": 0, "max": 1, "step": 0.05 }
+  ]
+}

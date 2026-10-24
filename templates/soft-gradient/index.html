@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Soft gradient</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Sample template for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  // The same colour at zero alpha, so gradients fade without passing through dark grey.
+  function clear(hex) {
+    return 'rgba(' + parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16) + ',0)';
+  }
+
+  function bloom(x, y, r, color) {
+    var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, color);
+    g.addColorStop(0.15, color);
+    g.addColorStop(1, clear(color));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // A still: every frame draws the same picture.
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    var far = Math.max(W, H);
+
+    ctx.fillStyle = p.base;
+    ctx.fillRect(0, 0, W, H);
+
+    // Three blooms in a loose triangle; softness widens them so their edges dissolve into each other.
+    var r = far * (0.3 + 0.3 * p.softness);
+    ctx.globalAlpha = 1;
+    bloom(W * 0.2, H * 0.25, r, p.color1);
+    bloom(W * 0.82, H * 0.3, r * 0.95, p.color2);
+    bloom(W * 0.5, H * 0.95, r * 1.05, p.color3);
+
+    // A light haze lifts the whole frame so no bloom reads as a hard shape.
+    var haze = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, far * 0.8);
+    haze.addColorStop(0, p.base);
+    haze.addColorStop(1, clear(p.base));
+    ctx.globalAlpha = 0.1 + 0.2 * p.softness;
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

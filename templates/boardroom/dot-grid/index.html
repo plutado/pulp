@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boardroom dot grid</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInOutCubic(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var show = easeInOutCubic(clamp01(t / dur)) * (1 - easeInOutCubic(clamp01((t - (d - dur)) / dur)));
+    if (show <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 64 * s;
+    var pitch = Math.max(8, p.pitch * s);
+    var left = margin, top = margin, right = W - margin, bottom = H - margin;
+
+    // The hairline margin rule, drawn first so the grid reads as sitting inside it.
+    ctx.globalAlpha = show * 0.55;
+    ctx.fillStyle = p.rule;
+    var hair = Math.max(1, Math.round(1 * s));
+    ctx.fillRect(left, top, right - left, hair);
+    ctx.fillRect(left, bottom - hair, right - left, hair);
+    ctx.fillRect(left, top, hair, bottom - top);
+    ctx.fillRect(right - hair, top, hair, bottom - top);
+
+    // The grid is centred so it is symmetric at any aspect; dots near the centre arrive first.
+    var cols = Math.floor((right - left - pitch) / pitch), rows = Math.floor((bottom - top - pitch) / pitch);
+    var x0 = W / 2 - (cols - 1) * pitch / 2, y0 = H / 2 - (rows - 1) * pitch / 2;
+    var baseR = Math.max(1.5, 3 * s);
+    var maxDist = Math.sqrt(W * W + H * H) / 2;
+    ctx.fillStyle = p.dot;
+    ctx.globalAlpha = show * p.opacity;
+    ctx.beginPath();
+    for (var j = 0; j < rows; j++) {
+      for (var i = 0; i < cols; i++) {
+        var x = x0 + i * pitch, y = y0 + j * pitch;
+        var dx = x - W / 2, dy = y - H / 2;
+        var dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
+        // Breathing: a slow pulse that travels outward from the centre.
+        var breathe = 1 + 0.18 * Math.sin(t * TAU / 4 - dist * 3);
+        var reach = clamp01(show * 1.3 - dist * 0.3);
+        var r = baseR * breathe * reach;
+        if (r <= 0) continue;
+        ctx.moveTo(x + r, y);
+        ctx.arc(x, y, r, 0, TAU);
+      }
+    }
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

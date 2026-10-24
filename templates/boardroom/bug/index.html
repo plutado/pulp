@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boardroom bug</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+
+  // Draws text with a fixed gap between letters, starting at x; returns the width drawn.
+  function spaced(text, x, y, gap) {
+    var total = 0, i;
+    for (i = 0; i < text.length; i++) total += ctx.measureText(text[i]).width + (i < text.length - 1 ? gap : 0);
+    var cx = x;
+    for (i = 0; i < text.length; i++) {
+      ctx.fillText(text[i], cx, y);
+      cx += ctx.measureText(text[i]).width + gap;
+    }
+    return total;
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = easeOutCubic(clamp01(t / dur));
+    var fade = inT * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
+    if (fade <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 56 * s, box = 44 * s, hair = Math.max(1, 1.5 * s), gap = 18 * s;
+    var text = (p.label || '').toUpperCase();
+    var size = 20 * s, tracking = 5 * s;
+    ctx.font = '500 ' + size + 'px ' + FONT;
+    var textW = 0;
+    for (var i = 0; i < text.length; i++) textW += ctx.measureText(text[i]).width + (i < text.length - 1 ? tracking : 0);
+    var maxText = W - margin * 2 - box - gap;
+    if (textW > maxText && textW > 0) {
+      size = Math.max(8, Math.floor(size * maxText / textW));
+      tracking = size / 4;
+      ctx.font = '500 ' + size + 'px ' + FONT;
+      textW = 0;
+      for (i = 0; i < text.length; i++) textW += ctx.measureText(text[i]).width + (i < text.length - 1 ? tracking : 0);
+    }
+
+    var top = p.corner === 'top-left' || p.corner === 'top-right';
+    var left = p.corner === 'top-left' || p.corner === 'bottom-left';
+    var y = top ? margin : H - margin - box;
+    var totalW = box + (text ? gap + textW : 0);
+    // The whole mark eases a few pixels in from its edge as it fades.
+    var nudge = (1 - inT) * 24 * s;
+    var x = left ? margin - nudge : W - margin - totalW + nudge;
+    var bx = left ? x : x + totalW - box;      // the square sits nearest the edge, text toward the centre
+    var tx = left ? bx + box + gap : x;
+
+    ctx.globalAlpha = fade;
+    // Hairline square.
+    ctx.strokeStyle = p.line;
+    ctx.lineWidth = hair;
+    ctx.strokeRect(bx + hair / 2, y + hair / 2, box - hair, box - hair);
+    // The accent square inside, growing to size a touch after the frame.
+    var grow = easeOutCubic(clamp01(inT * 1.6 - 0.3));
+    var inner = box * 0.5 * grow;
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(bx + box / 2 - inner / 2, y + box / 2 - inner / 2, inner, inner);
+    // Label in spaced capitals, aligned to the middle of the square.
+    if (text) {
+      ctx.fillStyle = p.line;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      spaced(text, tx, y + box / 2 + 1 * s, tracking);
+      // A hairline under the label, drawn from the square outward.
+      var ruleY = y + box - hair / 2;
+      ctx.fillStyle = p.line;
+      ctx.globalAlpha = fade * 0.5;
+      var rw = textW * easeOutCubic(clamp01(inT * 1.4 - 0.2));
+      ctx.fillRect(left ? tx : tx + textW - rw, ruleY, rw, hair);
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

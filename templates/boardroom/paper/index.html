@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boardroom paper</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  // A still: every frame draws the same picture, so it can sit under anything for any length.
+  // The same colour at zero alpha, so gradients fade without passing through dark grey.
+  function clear(hex) {
+    return 'rgba(' + parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16) + ',0)';
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    var s = Math.min(W, H) / 1080;
+
+    // Diagonal gradient: base at the top left, deep at the bottom right.
+    var g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, p.base);
+    g.addColorStop(1, p.deep);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    if (p.grid) {
+      ctx.fillStyle = p.accent;
+      ctx.globalAlpha = 0.12;
+      var step = 72 * s, r = 1.6 * s;
+      var ox = (W % step) / 2, oy = (H % step) / 2;
+      for (var y = oy; y <= H; y += step) {
+        for (var x = ox; x <= W; x += step) {
+          ctx.fillRect(x - r / 2, y - r / 2, r, r);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // A soft steel sheen in the top-right corner.
+    var rad = Math.max(W, H) * 0.75;
+    var sh = ctx.createRadialGradient(W, 0, 0, W, 0, rad);
+    sh.addColorStop(0, p.accent);
+    sh.addColorStop(0.45, p.accent);
+    sh.addColorStop(1, clear(p.accent));
+    ctx.globalAlpha = p.sheen;
+    ctx.fillStyle = sh;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+
+    // One hairline rule, the set's signature, low on the frame.
+    ctx.fillStyle = p.accent;
+    ctx.globalAlpha = 0.35;
+    ctx.fillRect(W * 0.08, H * 0.86, W * 0.84, 1.5 * s);
+    ctx.globalAlpha = 1;
+
+    // A quiet vignette keeps edges calm for text overlays.
+    var v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.4, W / 2, H / 2, Math.max(W, H) * 0.8);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(0,0,0,0.3)');
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, W, H);
+  };
+</script>
+</body>
+</html>

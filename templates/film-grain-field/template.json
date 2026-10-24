@@ -1,0 +1,25 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.film-grain-field",
+  "name": "Film grain field",
+  "description": "An opaque dark field of fine moving grain with a few soft dust specks, re-seeded every frame.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "texture",
+  "themes": ["cinema", "concert"],
+  "styles": ["grunge"],
+  "tags": ["grain", "film", "dust"],
+  "duration": 8,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "base", "type": "color", "label": "Base color", "default": "#141210" },
+    { "id": "grain", "type": "number", "label": "Grain amount", "default": 0.35, "min": 0, "max": 1, "step": 0.05 },
+    { "id": "grainSize", "type": "number", "label": "Grain size", "default": 2, "min": 1, "max": 6, "step": 1 },
+    { "id": "specks", "type": "number", "label": "Dust specks", "default": 6, "min": 0, "max": 30, "step": 1 }
+  ]
+}

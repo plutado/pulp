@@ -1,0 +1,26 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.scanlines",
+  "name": "Scanlines",
+  "description": "A dark field with horizontal scanlines, a slow rolling band and a faint grid; loops seamlessly.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "texture",
+  "themes": ["technology", "gaming", "science"],
+  "styles": ["tech"],
+  "tags": ["scanlines", "crt", "grid"],
+  "duration": 8,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "background", "type": "color", "label": "Background", "default": "#071018", "group": "Colors" },
+    { "id": "line", "type": "color", "label": "Line color", "default": "#2ee6c5", "group": "Colors" },
+    { "id": "pitch", "type": "number", "label": "Line pitch (px)", "default": 6, "min": 3, "max": 16, "step": 1 },
+    { "id": "bandSpeed", "type": "number", "label": "Band passes per loop", "default": 1, "min": 0, "max": 4, "step": 1 },
+    { "id": "grid", "type": "boolean", "label": "Faint grid", "default": true }
+  ]
+}

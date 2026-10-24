@@ -1,0 +1,26 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.vhs-tracking",
+  "name": "VHS tracking",
+  "description": "A tape-style overlay: a noisy tracking band near the bottom that rolls slowly, slight colour fringing lines, and a soft horizontal jitter band.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "film-grunge",
+  "themes": ["summer", "travel", "concert"],
+  "styles": ["retro"],
+  "tags": ["vhs", "tape", "tracking"],
+  "duration": 8,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "band", "type": "number", "label": "Band height (px at 1080p)", "default": 40, "min": 10, "max": 160, "step": 2 },
+    { "id": "noise", "type": "number", "label": "Noise", "default": 0.7, "min": 0, "max": 1, "step": 0.05 },
+    { "id": "speed", "type": "number", "label": "Roll speed", "default": 1, "min": 0, "max": 3, "step": 0.1 },
+    { "id": "fringe", "type": "number", "label": "Colour fringe", "default": 0.5, "min": 0, "max": 1, "step": 0.05 },
+    { "id": "inOut", "type": "number", "label": "Fade in/out (seconds)", "default": 0.5, "min": 0.2, "max": 2, "step": 0.1 }
+  ]
+}

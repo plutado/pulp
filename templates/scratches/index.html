@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Scratches</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Scratches, a sample overlay for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function hash(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration, f = state.frame;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var fade = clamp01(t / dur) * (1 - clamp01((t - (d - dur)) / dur));
+    if (fade <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    ctx.strokeStyle = p.color;
+    ctx.fillStyle = p.color;
+    ctx.lineCap = 'round';
+
+    // Scratch slots: each fires once per period, lives a few frames at a position chosen for that firing,
+    // and wobbles sideways a little from frame to frame.
+    for (var k = 0; k < p.amount; k++) {
+      var period = 24 + Math.floor(hash(k) * 50);
+      var phase = Math.floor(hash(k + 100) * period);
+      var cycle = Math.floor((f + phase) / period);
+      var age = (f + phase) % period;
+      var life = 2 + Math.floor(hash(k * 31 + cycle * 7 + 200) * 5);
+      if (age >= life) continue;
+      var seed = k * 1000 + cycle * 17;
+      var x = hash(seed + 1) * W;
+      var len = H * p.length * (0.35 + hash(seed + 2) * 0.65);
+      var y0 = hash(seed + 3) * (H - len);
+      var width = (0.6 + hash(seed + 4) * 1.4) * s;
+      var wobble = (hash(seed + age * 3 + 5) - 0.5) * 3 * s;
+      var alpha = (0.35 + hash(seed + 6) * 0.5) * Math.sin((age + 0.5) / life * Math.PI);
+      ctx.globalAlpha = fade * alpha;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(x + wobble, y0);
+      // A faint lean and a kink part way, so no two scratches are the same straight line.
+      var kink = (hash(seed + 7) - 0.5) * 6 * s;
+      ctx.lineTo(x + wobble + kink, y0 + len * hash(seed + 8));
+      ctx.lineTo(x + wobble + (hash(seed + 9) - 0.5) * 4 * s, y0 + len);
+      ctx.stroke();
+      // Full-height scratches sometimes carry a thin dark shadow beside them.
+      if (hash(seed + 10) > 0.7) {
+        ctx.globalAlpha = fade * alpha * 0.4;
+        ctx.strokeStyle = '#000000';
+        ctx.beginPath();
+        ctx.moveTo(x + wobble + width, y0);
+        ctx.lineTo(x + wobble + width, y0 + len);
+        ctx.stroke();
+        ctx.strokeStyle = p.color;
+      }
+    }
+
+    // Now and then a hair: a thin curling line that sits in the gate for a handful of frames.
+    var hairPeriod = 90;
+    var hairCycle = Math.floor(f / hairPeriod), hairAge = f % hairPeriod;
+    var hairLife = 4 + Math.floor(hash(hairCycle + 300) * 6);
+    if (hash(hairCycle + 301) * p.amount > 1.5 && hairAge < hairLife) {
+      var hx = hash(hairCycle + 302) * W, hy = hash(hairCycle + 303) * H;
+      var hr = (40 + hash(hairCycle + 304) * 90) * s;
+      ctx.globalAlpha = fade * 0.55;
+      ctx.lineWidth = 1.2 * s;
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.bezierCurveTo(hx + hr * (hash(hairCycle + 305) - 0.5) * 2, hy + hr, hx + hr * (hash(hairCycle + 306) - 0.5) * 3, hy + hr * 0.5, hx + hr * (hash(hairCycle + 307) - 0.5), hy + hr * 1.6);
+      ctx.stroke();
+    }
+
+    // Dust flecks: fresh every frame, a few tiny specks, light and dark.
+    var dustN = Math.round(p.dust * 14);
+    for (var i = 0; i < dustN; i++) {
+      var ds = f * 97 + i * 13;
+      var dx = hash(ds + 1) * W, dy = hash(ds + 2) * H;
+      var dr = (0.8 + hash(ds + 3) * 2.2) * s;
+      ctx.globalAlpha = fade * (0.3 + hash(ds + 4) * 0.5);
+      ctx.fillStyle = hash(ds + 5) > 0.35 ? p.color : '#000000';
+      ctx.beginPath();
+      ctx.ellipse(dx, dy, dr, dr * (0.5 + hash(ds + 6) * 0.5), hash(ds + 7) * TAU, 0, TAU);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.newsdesk.glitch",
+  "name": "Newsdesk glitch",
+  "description": "Navy and red horizontal slices jump sideways with a red and cyan split on some bands, covering the frame at the midpoint and clearing again.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "glitch",
+  "tags": ["glitch", "slices", "broadcast"],
+  "duration": 1,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "panel", "type": "color", "label": "Slice color", "default": "#0e1526", "group": "Colors" },
+    { "id": "accent", "type": "color", "label": "Accent color", "default": "#e0263c", "group": "Colors" },
+    { "id": "split", "type": "color", "label": "Split color", "default": "#2ad8f0", "group": "Colors" },
+    { "id": "slices", "type": "number", "label": "Slice count", "default": 18, "min": 6, "max": 48, "step": 1 },
+    { "id": "intensity", "type": "number", "label": "Intensity", "default": 0.6, "min": 0.1, "max": 1, "step": 0.05 }
+  ]
+}

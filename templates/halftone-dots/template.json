@@ -1,0 +1,26 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.halftone-dots",
+  "name": "Halftone dots",
+  "description": "A slowly drifting halftone dot pattern whose dot size follows a diagonal gradient, cream on burnt orange by default.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "texture",
+  "themes": ["summer", "travel", "concert"],
+  "styles": ["retro"],
+  "tags": ["halftone", "dots", "print"],
+  "duration": 10,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "background", "type": "color", "label": "Background", "default": "#c2501b", "group": "Colors" },
+    { "id": "dot", "type": "color", "label": "Dot color", "default": "#f6e7c1", "group": "Colors" },
+    { "id": "pitch", "type": "number", "label": "Dot pitch (px)", "default": 28, "min": 12, "max": 80, "step": 2 },
+    { "id": "angle", "type": "number", "label": "Angle (degrees)", "default": 15, "min": 0, "max": 90, "step": 1 },
+    { "id": "speed", "type": "number", "label": "Drift (cells per loop)", "default": 2, "min": 0, "max": 8, "step": 1 }
+  ]
+}

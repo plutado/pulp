@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Matchday frame</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutBack(x) { var c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+  function easeInCubic(x) { return x * x * x; }
+
+  // A horizontal arm from x0 to x1 (x0 may be greater than x1) of thickness h, split by a forward-pointing
+  // chevron notch of gap g and lean k at a fraction `at` of its length.
+  function arm(x0, x1, y, h, at, g, k) {
+    var dir = x1 > x0 ? 1 : -1;
+    var n = x0 + (x1 - x0) * at;
+    ctx.beginPath();
+    ctx.moveTo(x0, y); ctx.lineTo(n, y); ctx.lineTo(n + k, y + h / 2); ctx.lineTo(n, y + h); ctx.lineTo(x0, y + h);
+    ctx.closePath();
+    ctx.fill();
+    var m = n + g * dir;
+    ctx.beginPath();
+    ctx.moveTo(m, y); ctx.lineTo(x1, y); ctx.lineTo(x1, y + h); ctx.lineTo(m, y + h); ctx.lineTo(m + k, y + h / 2);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = clamp01(t / dur);
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    if (outT >= 1) return;
+
+    var s = Math.min(W, H) / 1080;
+    var m = p.margin * s, w = p.weight * s;
+    var armLen = Math.min(W, H) * 0.22;
+    var k = w * 0.55, gap = w * 0.5;
+
+    // Backing bars slide in from the top and bottom edges, slightly ahead of the brackets.
+    if (p.bars) {
+      var barH = Math.max(w * 1.6, 28 * s);
+      var barT = easeOutQuart(clamp01(inT * 1.3)) * (1 - outT);
+      ctx.fillStyle = p.bar;
+      ctx.fillRect(0, -barH + barH * barT, W, barH);
+      ctx.fillRect(0, H - barH * barT, W, barH);
+    }
+
+    // Brackets punch in from outside their corner with an overshoot, and leave the way they came.
+    var pop = t < dur ? easeOutBack(inT) : 1;
+    var slide = (1 - pop) * (m + armLen) + outT * (m + armLen);
+    ctx.fillStyle = p.accent;
+    var corners = [[m, m, 1, 1], [W - m, m, -1, 1], [m, H - m, 1, -1], [W - m, H - m, -1, -1]];
+    for (var c = 0; c < 4; c++) {
+      var cx = corners[c][0] - corners[c][2] * slide, cy = corners[c][1] - corners[c][3] * slide;
+      var dx = corners[c][2], dy = corners[c][3];
+      var top = dy > 0 ? cy : cy - w;
+      // Horizontal arm, with the chevron notch; the chevrons all lean forward, to the right.
+      arm(cx, cx + dx * armLen, top, w, dx > 0 ? 0.6 : 0.4, gap, k);
+      // Vertical arm, plain and a little shorter.
+      var left = dx > 0 ? cx : cx - w;
+      var vy = dy > 0 ? cy : cy - armLen * 0.75;
+      ctx.fillRect(left, vy, w, armLen * 0.75);
+    }
+  };
+</script>
+</body>
+</html>

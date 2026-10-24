@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>VHS glitch</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Pulp sample template. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function hash(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time;
+    ctx.clearRect(0, 0, W, H);
+
+    var s = Math.min(W, H) / 1080;
+    var pr = state.progress;
+    var g = 1 - Math.abs(pr * 2 - 1);
+    var cv = clamp01(g * 1.15);
+    if (cv <= 0) return;
+    var seed = state.frame * 211;
+
+    // Rolling bands: horizontal strips of the grey field, drifting upward, growing until they merge.
+    var bands = 14;
+    var roll = (t * 0.35 * H) % H;
+    for (var i = 0; i < bands; i++) {
+      var by = ((hash(i * 3 + 1) * H - roll) % H + H) % H;
+      var bh = (0.02 + 0.1 * hash(i * 3 + 2)) * H * (0.4 + cv);
+      var bw = W * Math.min(1, Math.pow(cv, 1.4) * (1.1 + hash(seed + i * 3 + 3) * 0.8));
+      var bx = (hash(seed + i * 3) - 0.5) * (W - bw) + (W - bw) / 2;
+      ctx.globalAlpha = Math.min(1, 0.5 + cv);
+      // Colour fringing on either side of each band.
+      var fr = (6 + 24 * hash(seed + i * 3 + 4)) * s * (1 - cv * 0.5);
+      ctx.fillStyle = p.fringeA;
+      ctx.fillRect(bx - fr, by, bw, bh);
+      ctx.fillStyle = p.fringeB;
+      ctx.fillRect(bx + fr, by, bw, bh);
+      ctx.fillStyle = p.field;
+      ctx.fillRect(bx, by, bw, bh);
+    }
+
+    // The field itself: at the midpoint it is solid and everything else sits on top of it.
+    var fieldA = clamp01((cv - 0.6) / 0.4);
+    if (fieldA > 0) {
+      ctx.globalAlpha = fieldA;
+      ctx.fillStyle = p.field;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // The tracking tear: a band that rolls down the frame, torn sideways with heavy fringing.
+    var tearH = H * p.tear;
+    var ty = ((pr * 1.4 * (H + tearH)) % (H + tearH)) - tearH;
+    var tdx = (hash(seed + 77) - 0.5) * W * 0.2 * (0.5 + g);
+    var tearA = Math.min(1, 0.5 + cv);
+    ctx.globalAlpha = tearA;
+    ctx.fillStyle = p.fringeB;
+    ctx.fillRect(tdx - 24 * s, ty, W, tearH);
+    ctx.fillStyle = p.fringeA;
+    ctx.fillRect(tdx + 24 * s, ty, W, tearH);
+    ctx.fillStyle = p.field;
+    ctx.fillRect(tdx, ty, W, tearH);
+    // Brighter and darker streaks inside the tear, like dropped lines.
+    var streaks = 8;
+    for (var k = 0; k < streaks; k++) {
+      var sy = ty + hash(seed + k * 7 + 300) * tearH;
+      var sw = (0.2 + 0.8 * hash(seed + k * 7 + 301)) * W;
+      var sx = hash(seed + k * 7 + 302) * (W - sw);
+      ctx.fillStyle = hash(seed + k * 7 + 303) > 0.5 ? '#e6e6e6' : '#2a2a2a';
+      ctx.globalAlpha = tearA * 0.7;
+      ctx.fillRect(sx, sy, sw, Math.max(1, 3 * s));
+    }
+
+    // Noise: a fixed budget of grey specks over whatever is covered, more at the midpoint.
+    var count = Math.round(2400 * p.noise * cv);
+    var size = Math.max(1, 3 * s);
+    for (var n = 0; n < count; n++) {
+      var nx = hash(seed + n * 3) * W, ny = hash(seed + n * 3 + 1) * H;
+      var lum = hash(seed + n * 3 + 2) > 0.5;
+      ctx.fillStyle = lum ? '#f2f2f2' : '#1e1e1e';
+      ctx.globalAlpha = (lum ? 0.5 : 0.45) * cv;
+      ctx.fillRect(nx, ny, size * (1 + 3 * hash(seed + n + 5000)), size);
+    }
+
+    // Scanlines over everything, faint.
+    var pitch = Math.max(3, Math.round(4 * s));
+    ctx.fillStyle = '#000000';
+    ctx.globalAlpha = 0.14 * cv;
+    for (var y = 0; y < H; y += pitch) ctx.fillRect(0, y, W, 1);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

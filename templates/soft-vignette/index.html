@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Soft vignette</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Soft vignette, a sample overlay for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInOut(x) { return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var fade = easeInOut(clamp01(t / dur)) * (1 - easeInOut(clamp01((t - (d - dur)) / dur)));
+    if (fade <= 0 || p.strength <= 0) return;
+
+    var r = hex(p.color, 1), g = hex(p.color, 3), b = hex(p.color, 5);
+    function rgba(a) { return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + a + ')'; }
+
+    // An elliptical gradient: draw a circle in a space scaled to the frame, so the shape follows the aspect.
+    var cx = W / 2, cy = H / 2;
+    var radius = Math.sqrt(cx * cx + cy * cy);        // to the corner, in the scaled space below
+    var inner = clamp01(p.size * 0.75 - p.softness * 0.35);
+    var outer = Math.min(1.4, p.size * 0.75 + p.softness * 0.6);
+    var grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    grad.addColorStop(0, rgba(0));
+    grad.addColorStop(inner, rgba(0));
+    // Many small stops along a smooth S-curve, so the edge is a soft falloff rather than a visible ring.
+    var end = Math.min(1, outer);
+    for (var i = 1; i <= 24; i++) {
+      var k = i / 24;
+      grad.addColorStop(inner + (end - inner) * k, rgba(p.strength * easeInOut(k)));
+    }
+    if (end < 1) grad.addColorStop(1, rgba(p.strength));
+
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.translate(cx, cy);
+    // Stretch the unit circle to an ellipse that reaches the corners, slightly wider than tall.
+    ctx.scale(radius * 1.05 * (W / H > 1 ? 1.08 : 1), radius * 1.05 * (W / H < 1 ? 1.08 : 1));
+    ctx.fillStyle = grad;
+    ctx.fillRect(-2, -2, 4, 4);
+    ctx.restore();
+
+    // A faint warm veil toward the very edges, lifting the tint rather than just darkening.
+    var veil = ctx.createRadialGradient(cx, cy, Math.min(W, H) * 0.3, cx, cy, Math.max(W, H) * 0.75);
+    veil.addColorStop(0, 'rgba(255, 196, 140, 0)');
+    veil.addColorStop(1, 'rgba(255, 196, 140, ' + (0.12 * p.strength) + ')');
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = veil;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

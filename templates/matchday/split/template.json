@@ -1,0 +1,33 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.matchday.split",
+  "name": "Matchday split",
+  "description": "Two black panels with volt chevron edges slam in from opposite sides, meet at the middle, hold a few frames and part again.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "reveal",
+  "tags": ["reveal", "split", "chevron"],
+  "duration": 1.2,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#101010", "group": "Colors" },
+    { "id": "accent", "type": "color", "label": "Chevron color", "default": "#d4f531", "group": "Colors" },
+    { "id": "teeth", "type": "number", "label": "Chevron rows", "default": 5, "min": 2, "max": 12, "step": 1 },
+    { "id": "hold", "type": "number", "label": "Hold (frames)", "default": 4, "min": 0, "max": 12, "step": 1 },
+    {
+      "id": "direction",
+      "type": "select",
+      "label": "Direction",
+      "default": "horizontal",
+      "options": [
+        { "value": "horizontal", "label": "From left and right" },
+        { "value": "vertical", "label": "From top and bottom" }
+      ]
+    }
+  ]
+}

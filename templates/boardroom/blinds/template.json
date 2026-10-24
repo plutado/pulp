@@ -1,0 +1,33 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.boardroom.blinds",
+  "name": "Boardroom blinds",
+  "description": "Paper-white blind slats with a steel hairline edge close to cover the frame at the midpoint, then open again.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "reveal",
+  "tags": ["reveal", "blinds", "cut-point"],
+  "duration": 1.5,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "panel", "type": "color", "label": "Slat color", "default": "#f4f6f9", "group": "Colors" },
+    { "id": "accent", "type": "color", "label": "Edge color", "default": "#4f7cac", "group": "Colors" },
+    { "id": "slats", "type": "number", "label": "Slat count", "default": 8, "min": 3, "max": 20, "step": 1 },
+    { "id": "stagger", "type": "number", "label": "Stagger", "default": 0.3, "min": 0, "max": 0.6, "step": 0.05 },
+    {
+      "id": "direction",
+      "type": "select",
+      "label": "Direction",
+      "default": "horizontal",
+      "options": [
+        { "value": "horizontal", "label": "Horizontal slats" },
+        { "value": "vertical", "label": "Vertical slats" }
+      ]
+    }
+  ]
+}

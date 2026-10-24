@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Newsdesk flash cut</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    ctx.clearRect(0, 0, W, H);
+
+    var s = Math.min(W, H) / 1080;
+    var k = H * p.slant;
+    var total = Math.max(4, state.totalFrames);
+    var mid = Math.floor(total / 2);
+    var f = state.frame;
+
+    // Hard frames: two of red, then two of white, no fades. The midpoint frame is white.
+    if (f >= mid - 2 && f < mid) {
+      ctx.fillStyle = p.accent;
+      ctx.fillRect(0, 0, W, H);
+      return;
+    }
+    if (f >= mid && f < mid + 2) {
+      ctx.fillStyle = p.flash;
+      ctx.fillRect(0, 0, W, H);
+      return;
+    }
+
+    // Before and after, a slashed stripe sweeps left to right in one hard, linear move.
+    var pr = state.progress;
+    var span = W + 2 * k;
+    var stripeW = W * 0.14;
+    var lead, color, accentOn;
+    if (f < mid - 2) {
+      var tIn = clamp01((pr - 0.12) / ((mid - 2) / total - 0.12));
+      if (tIn <= 0) return;
+      lead = tIn * (span * 0.6);
+      color = p.stripe;
+      accentOn = p.accent;
+    } else {
+      var tOut = clamp01((pr - (mid + 2) / total) / (0.9 - (mid + 2) / total));
+      if (tOut >= 1) return;
+      lead = span * 0.6 + tOut * (span * 0.6);
+      color = p.flash;
+      accentOn = p.stripe;
+    }
+
+    function slashQuad(q0, q1) {
+      ctx.beginPath();
+      ctx.moveTo(q0 - k, 0);
+      ctx.lineTo(q1 - k, 0);
+      ctx.lineTo(q1, H);
+      ctx.lineTo(q0, H);
+      ctx.closePath();
+    }
+
+    slashQuad(lead - stripeW, lead);
+    ctx.fillStyle = color;
+    ctx.fill();
+    // A thin edge in the other colour rides the leading slash.
+    slashQuad(lead, lead + 14 * s);
+    ctx.fillStyle = accentOn;
+    ctx.fill();
+  };
+</script>
+</body>
+</html>

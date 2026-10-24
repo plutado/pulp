@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Film grain</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Film grain, a sample overlay for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var off = document.createElement('canvas');
+  var octx = off.getContext('2d');
+  var image = null;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function hash(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var fade = clamp01(t / dur) * (1 - clamp01((t - (d - dur)) / dur));
+    if (fade <= 0 || p.amount <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    // Grain is built at a reduced resolution, one cell per grain, then scaled up.
+    var cell = Math.max(1, p.size * s);
+    var gw = Math.max(1, Math.ceil(W / cell)), gh = Math.max(1, Math.ceil(H / cell));
+    if (off.width !== gw || off.height !== gh) {
+      off.width = gw; off.height = gh;
+      image = octx.createImageData(gw, gh);
+    }
+
+    // A fresh seed each frame, and a cheap integer generator per pixel.
+    var seed = (Math.floor(hash(state.frame + 1) * 4294967295) >>> 0) || 1;
+    var x = seed;
+    var data = image.data;
+    var tr = hex(p.tint, 1), tg = hex(p.tint, 3), tb = hex(p.tint, 5);
+    var strength = p.amount * 0.9;
+    for (var i = 0; i < data.length; i += 4) {
+      x = (x * 1664525 + 1013904223) >>> 0;
+      var v = x / 4294967296;                       // 0..1 uniform
+      x = (x * 1664525 + 1013904223) >>> 0;
+      var v2 = x / 4294967296;
+      var n = (v + v2) * 0.5 - 0.5;                 // -0.5..0.5, roughly bell shaped
+      if (n > 0) {
+        data[i] = tr; data[i + 1] = tg; data[i + 2] = tb;
+      } else {
+        data[i] = 0; data[i + 1] = 0; data[i + 2] = 0;
+      }
+      var a = Math.abs(n) * 2;
+      a = a * a * strength * 255;                   // most grains are faint, a few are strong
+      data[i + 3] = a > 255 ? 255 : a;
+    }
+    octx.putImageData(image, 0, 0);
+
+    // Exposure flicker: a slow wander plus a per-frame jitter.
+    var flick = 1 + p.flicker * (0.12 * Math.sin(t * 7.3) + 0.1 * (hash(state.frame + 500) - 0.5));
+    ctx.globalAlpha = clamp01(fade * flick);
+    ctx.imageSmoothingEnabled = cell > 1.5;
+    ctx.drawImage(off, 0, 0, gw, gh, 0, 0, W, H);
+
+    // The flicker also shows as a faint whole-frame lift or dip.
+    if (p.flicker > 0) {
+      var lift = p.flicker * 0.05 * (hash(state.frame + 900) - 0.5);
+      ctx.globalAlpha = Math.abs(lift) * fade;
+      ctx.fillStyle = lift > 0 ? p.tint : '#000000';
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

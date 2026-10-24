@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Matchday split</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInOutQuart(x) { return x < 0.5 ? 8 * x * x * x * x : 1 - Math.pow(-2 * x + 2, 4) / 2; }
+
+  // One panel in a local frame where it comes from the left: its body runs from off-frame to
+  // `head`, and its forward edge is a zig-zag of chevrons pointing +x. `shift` slides the teeth
+  // by half a step so the two panels interlock when they meet.
+  function panelPath(head, rows, L, depth, shift) {
+    var step = L / rows;
+    var off = shift ? step / 2 : 0;
+    ctx.beginPath();
+    ctx.moveTo(-depth * 2, -step);
+    ctx.lineTo(head - depth, -step + off);
+    for (var i = -1; i <= rows; i++) {
+      ctx.lineTo(head, i * step + step / 2 + off);
+      ctx.lineTo(head - depth, (i + 1) * step + off);
+    }
+    ctx.lineTo(-depth * 2, L + step);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    ctx.clearRect(0, 0, W, H);
+
+    var horizontal = p.direction !== 'vertical';
+    var travel = horizontal ? W : H;   // the axis the panels move along
+    var L = horizontal ? H : W;        // the axis the chevron teeth run along
+    var rows = Math.max(2, Math.round(p.teeth));
+    var depth = L / rows * 0.5;
+    var band = 36 * (Math.min(W, H) / 1080);
+
+    // Timeline: slam in, hold closed across the midpoint, part. The panels meet at the centre
+    // with the chevrons interlocked, so the frame is fully covered for the whole hold.
+    var holdF = Math.round(p.hold);
+    var total = Math.max(1, state.totalFrames - 1);
+    var holdHalf = holdF / 2 / total;
+    var pr = state.progress;
+    var tIn = clamp01(pr / (0.5 - holdHalf));
+    var tOut = clamp01((pr - 0.5 - holdHalf) / (0.5 - holdHalf));
+    // Closed: each head sits half a tooth past the centre, so the two zig-zags interlock exactly
+    // (one is shifted by half a step); a hair of overlap hides any seam.
+    var closed = travel / 2 + depth / 2 + 1;
+    var head;
+    if (pr < 0.5 - holdHalf) head = easeInOutQuart(tIn) * closed;
+    else if (pr <= 0.5 + holdHalf) head = closed;
+    else head = (1 - easeInOutQuart(tOut)) * closed;
+    if (head <= 0) return;
+
+    // Each panel is drawn in a local frame where it comes from the left and moves along +x,
+    // with the teeth running along y from 0 to L; the transform puts it on its own side.
+    function drawPanel(mirror) {
+      ctx.save();
+      if (horizontal) {
+        if (mirror) ctx.setTransform(-1, 0, 0, 1, W, 0);
+      } else {
+        if (mirror) ctx.setTransform(0, -1, 1, 0, 0, H);
+        else ctx.setTransform(0, 1, 1, 0, 0, 0);
+      }
+      // The volt band is the full shape in accent, with the body painted over it one band back.
+      panelPath(head, rows, L, depth, mirror);
+      ctx.fillStyle = p.accent;
+      ctx.fill();
+      panelPath(head - band, rows, L, depth, mirror);
+      ctx.fillStyle = p.panel;
+      ctx.fill();
+      ctx.restore();
+    }
+    drawPanel(false);
+    drawPanel(true);
+  };
+</script>
+</body>
+</html>

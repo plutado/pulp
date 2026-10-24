@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dust motes</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Dust motes, a sample overlay for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+  function hash(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var fade = easeOutCubic(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
+    if (fade <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var cycle = state.progress * TAU;   // one full loop over the duration, so the drift returns to its start
+
+    // A faint warm haze band, lying diagonally across the upper part of the frame like a shaft of light.
+    if (p.haze > 0) {
+      var hz = ctx.createLinearGradient(0, H * 0.1, W * 0.3, H * 0.75);
+      hz.addColorStop(0, 'rgba(255, 228, 180, 0)');
+      hz.addColorStop(0.4, 'rgba(255, 228, 180, ' + (0.16 * p.haze) + ')');
+      hz.addColorStop(0.6, 'rgba(255, 236, 200, ' + (0.1 * p.haze) + ')');
+      hz.addColorStop(1, 'rgba(255, 228, 180, 0)');
+      ctx.globalAlpha = fade * (0.85 + 0.15 * Math.sin(cycle * 2));
+      ctx.fillStyle = hz;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Motes: each on its own slow orbit around a home point, sized and softened by depth.
+    for (var i = 0; i < p.amount; i++) {
+      var h0 = hash(i), h1 = hash(i + 1000), h2 = hash(i + 2000), h3 = hash(i + 3000), h4 = hash(i + 4000), h5 = hash(i + 5000);
+      var depth = h2;                                     // 0 far, 1 near
+      var homeX = h0 * W, homeY = h1 * H;
+      var n = 1 + Math.floor(h3 * 3);                     // whole number of orbits so the loop closes
+      var ax = (30 + depth * 90) * s * p.drift, ay = (20 + depth * 60) * s * p.drift;
+      var x = homeX + Math.sin(cycle * n + h4 * TAU) * ax + Math.sin(cycle * 2 + h5 * TAU) * 10 * s * p.drift;
+      var y = homeY + Math.cos(cycle * n * 0.5 + h5 * TAU) * ay - Math.sin(cycle + h4 * TAU) * 16 * s * p.drift;
+      x = ((x % W) + W) % W; y = ((y % H) + H) % H;
+      var r = (1.5 + depth * depth * 9) * s * p.size;
+      var glow = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(cycle * (2 + Math.floor(h3 * 4)) + h0 * TAU));
+      var alpha = fade * glow * (0.25 + 0.5 * (1 - depth) + 0.2 * depth);
+      var grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+      grad.addColorStop(0, p.color);
+      grad.addColorStop(0.35 + 0.3 * (1 - depth), p.color);
+      grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, TAU);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

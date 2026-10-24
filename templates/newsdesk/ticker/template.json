@@ -1,0 +1,26 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.newsdesk.ticker",
+  "name": "Newsdesk ticker",
+  "description": "A bottom ticker bar with a slash-cut red label and a looping headline that scrolls across, sliding up to enter and down to leave.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "overlay",
+  "tags": ["ticker", "crawl", "broadcast"],
+  "duration": 10,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "label", "type": "text", "label": "Label", "default": "LATEST", "maxLength": 14 },
+    { "id": "text", "type": "text", "label": "Headline", "default": "Council approves new transit plan after late-night vote", "maxLength": 200 },
+    { "id": "accent", "type": "color", "label": "Label color", "default": "#e0263c", "group": "Colors" },
+    { "id": "panel", "type": "color", "label": "Bar color", "default": "#0e1526", "group": "Colors" },
+    { "id": "ink", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
+    { "id": "speed", "type": "number", "label": "Scroll speed (px/s at 1080p)", "default": 180, "min": 40, "max": 500, "step": 10 },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.35, "min": 0.15, "max": 1.5, "step": 0.05 }
+  ]
+}

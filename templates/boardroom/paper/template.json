@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.boardroom.paper",
+  "name": "Boardroom paper",
+  "description": "A still ink-blue gradient with the set's faint dot grid and a soft steel sheen in one corner; the same picture every frame.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "tags": ["still", "gradient", "grid"],
+  "duration": 8,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "base", "type": "color", "label": "Base color", "default": "#16233a", "group": "Colors" },
+    { "id": "deep", "type": "color", "label": "Deep color", "default": "#0b1322", "group": "Colors" },
+    { "id": "accent", "type": "color", "label": "Sheen color", "default": "#4f7cac", "group": "Colors" },
+    { "id": "grid", "type": "boolean", "label": "Dot grid", "default": true },
+    { "id": "sheen", "type": "number", "label": "Sheen strength", "default": 0.22, "min": 0, "max": 0.6, "step": 0.02 }
+  ]
+}

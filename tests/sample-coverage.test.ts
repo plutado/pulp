@@ -14,12 +14,8 @@ import { entryType, TYPE_GROUPS, TYPES, typeInfo } from '../src/core/taxonomy';
 
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
 
-/** Types the milestone has not reached yet (ROADMAP.md, milestone 21). Remove a type here when its examples land. */
-const STILL_OPEN = new Set([
-  'still-background', 'texture',
-  'reveal', 'flash', 'glitch',
-  'overlay', 'frame', 'light-particles', 'film-grunge', 'logo-bug', 'vignette',
-]);
+/** Types the milestone has not reached yet (ROADMAP.md, milestone 21). Empty since the milestone landed; a new type goes here until its examples do. */
+const STILL_OPEN = new Set<string>([]);
 
 describe('sample coverage per type', async () => {
   const index = await scanLibrary([TEMPLATES_DIR]);
