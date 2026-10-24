@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Matchday title</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+  function easeInCubic(x) { return x * x * x; }
+
+  function chevron(x, y, w, h) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w * 0.55, y);
+    ctx.lineTo(x + w, y + h / 2);
+    ctx.lineTo(x + w * 0.55, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.lineTo(x + w * 0.45, y + h / 2);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var show = easeOutQuart(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
+    if (show <= 0) return;
+
+    var s = H / 1080;
+    var cx = W / 2, cy = H / 2;
+    var headSize = 132 * s, kickSize = 32 * s;
+
+    // The volt bar slams in horizontally behind the headline.
+    var barH = 150 * s;
+    var barW = W * 0.72 * easeOutQuart(clamp01(show * 1.2));
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(cx - barW / 2, cy - barH / 2, barW, barH);
+
+    var textA = clamp01((show - 0.3) / 0.7);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Headline knocked out dark on the volt bar.
+    ctx.globalAlpha = textA;
+    ctx.fillStyle = '#101010';
+    ctx.font = '800 ' + headSize + 'px ' + FONT;
+    ctx.fillText((p.headline || '').toUpperCase(), cx, cy + 6 * s);
+
+    // The kicker above, flanked by chevrons.
+    ctx.fillStyle = p.text;
+    ctx.font = '700 ' + kickSize + 'px ' + FONT;
+    var kick = (p.kicker || '').toUpperCase();
+    var ky = cy - barH / 2 - 44 * s;
+    ctx.fillText(kick, cx, ky);
+    var kw = ctx.measureText(kick).width;
+    ctx.fillStyle = p.accent;
+    var ch = 22 * s, cw = 20 * s;
+    chevron(cx - kw / 2 - cw - 22 * s, ky - ch / 2, cw, ch);
+    ctx.fill();
+    chevron(cx + kw / 2 + 22 * s, ky - ch / 2, cw, ch);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.matchday.title",
+  "name": "Matchday title",
+  "description": "Stacked chunky capitals over a volt bar that slams in, with chevrons flanking the kicker.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": ["headline", "chevron", "bold"],
+  "duration": 5,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "kicker", "type": "text", "label": "Kicker", "default": "Match of the week", "maxLength": 40 },
+    { "id": "headline", "type": "text", "label": "Headline", "default": "Rovers vs United", "maxLength": 40 },
+    { "id": "accent", "type": "color", "label": "Accent color", "default": "#d4f531", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.4, "min": 0.15, "max": 1.5, "step": 0.05 }
+  ]
+}

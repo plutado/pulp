@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Festival iris wipe</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Festival sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInOutCubic(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // The circle blooms out to cover everything by the midpoint, then the hole opens from the
+    // center for the reveal, so the cut goes at progress 0.5.
+    var cx = W / 2, cy = H / 2;
+    var cover = Math.hypot(W, H) / 2 + 8;
+    var pr = state.progress;
+    var outer = easeInOutCubic(clamp01(pr * 2)) * cover;
+    var inner = easeInOutCubic(clamp01(pr * 2 - 1)) * cover;
+    if (outer <= inner) return;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, outer, 0, TAU);
+    if (inner > 0) ctx.arc(cx, cy, inner, 0, TAU, true);
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+
+    // The gold rim rides whichever edge is moving.
+    var rim = 10 * (H / 1080);
+    ctx.lineWidth = rim;
+    ctx.strokeStyle = p.gold;
+    ctx.beginPath();
+    if (pr < 0.5) ctx.arc(cx, cy, Math.max(outer - rim / 2, rim), 0, TAU);
+    else ctx.arc(cx, cy, inner + rim / 2, 0, TAU);
+    ctx.stroke();
+  };
+</script>
+</body>
+</html>

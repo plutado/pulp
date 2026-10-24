@@ -577,8 +577,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       // matched sets are there as well, five templates each.
       await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="pack:news-pack"]')`), 'the installed pack in the browse tree');
       expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:news-pack"]').dataset.count`))).toBe(2);
-      expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:boardroom"]').dataset.count`))).toBe(5);
-      expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:newsdesk"]').dataset.count`))).toBe(5);
+      for (const slug of ['boardroom', 'newsdesk', 'matchday', 'festival']) {
+        expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:${slug}"]').dataset.count`)), slug).toBe(5);
+      }
     }, 90_000);
 
     it('offers Replace only for templates installed from a pack, and refuses a broken zip with a plain message', async () => {

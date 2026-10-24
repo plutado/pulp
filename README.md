@@ -65,11 +65,11 @@ Milestones 1-6 and 11 (renderer, alpha export, parameter editor, library, drag-o
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 | 8. 1.0 hardening and docs | Frozen template and pack formats v1 with a JSON Schema, an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 
-The milestones through 1.0 total **133-226 hours**, of which **55-92 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **133-226 hours**, of which **45-76 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
-The format is specified in [docs/template-format.md](docs/template-format.md). Thirteen original sample templates live in [`templates/`](templates/) and are released under CC0 1.0: three standalone samples and two matched sets — **Boardroom** (corporate: ink blue and paper white, hairline rules, measured motion) and **Newsdesk** (broadcast: signal red on navy, bold capitals, a diagonal slash motif) — each a pack with a lower third, title, transition, overlay and background sharing one look.
+The format is specified in [docs/template-format.md](docs/template-format.md). Twenty-three original sample templates live in [`templates/`](templates/) and are released under CC0 1.0: three standalone samples and four matched sets, each a pack with a lower third, title, transition, overlay and background sharing one look — **Boardroom** (corporate: ink blue and paper white, hairline rules, measured motion), **Newsdesk** (broadcast: signal red on navy, bold capitals, a diagonal slash motif), **Matchday** (sports: volt yellow on black, chevrons, a score bug, snappy moves) and **Festival** (celebration, any season: warm gold on deep plum, bokeh and confetti, gentle bouncy motion).
 
 ## Built with
 

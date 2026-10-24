@@ -272,7 +272,23 @@ describe.skipIf(!available)('end-to-end render', () => {
     const newsFrames = (await readdir(out)).filter((f) => /^set-news_\d{5}\.png$/.test(f)).sort();
     expect(newsFrames).toHaveLength(3);
     expect(await pixels(join(out, 'set-news_00018.png'), 960, 540)).toEqual([14, 21, 38, 255]); // #0e1526, opaque
-  }, 180_000);
+
+    // Matchday chevron wipe at its midpoint: covered by the opaque near-black panel.
+    const c = await render('pulp.samples.matchday.transition', 'png-sequence', 'set-match', {
+      extra: ['--in-point', '18', '--out-point', '18'],
+    });
+    expect(c.code, c.stderr).toBe(0);
+    expect(await pixels(join(out, 'set-match_00018.png'), 960, 540)).toEqual([16, 16, 16, 255]); // #101010, opaque
+
+    // Festival iris wipe at its midpoint: the plum circle covers the center.
+    const f = await render('pulp.samples.festival.transition', 'png-sequence', 'set-fest', {
+      extra: ['--in-point', '21', '--out-point', '21'],
+    });
+    expect(f.code, f.stderr).toBe(0);
+    // Off center: at the exact midpoint the gold rim sits collapsed at the center point itself.
+    expect(await pixels(join(out, 'set-fest_00021.png'), 700, 540)).toEqual([52, 31, 62, 255]); // #341f3e, opaque
+    expect((await pixels(join(out, 'set-fest_00021.png'), 10, 540))[3]).toBe(255); // edges covered too at the midpoint
+  }, 240_000);
 
   it('renders between in and out points, numbering the files with the template frame indices', async () => {
     // Lower third: 6 s at 30 fps. 00:00:02:00 to 00:00:02:29 is mid-hold, so the panel is fully visible

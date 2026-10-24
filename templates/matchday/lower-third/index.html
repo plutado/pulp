@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Matchday lower third</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutBack(x) { var c = 1.4; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function easeInCubic(x) { return x * x * x; }
+
+  function chevron(x, y, w, h) {
+    // A forward-leaning ">" built from two strokes of a parallelogram.
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w * 0.55, y);
+    ctx.lineTo(x + w, y + h / 2);
+    ctx.lineTo(x + w * 0.55, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.lineTo(x + w * 0.45, y + h / 2);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = clamp01(t / dur);
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var show = (t < dur ? easeOutBack(inT) : 1) * (1 - outT);
+    if (show <= 0) return;
+
+    var s = H / 1080;
+    var margin = 96 * s, barH = 120 * s;
+    var nameSize = 58 * s, roleSize = 28 * s;
+    var y = H - margin - barH;
+
+    var nameText = (p.name || '').toUpperCase();
+    ctx.font = '800 ' + nameSize + 'px ' + FONT;
+    var nameW = ctx.measureText(nameText).width;
+    ctx.font = '600 ' + roleSize + 'px ' + FONT;
+    var roleW = ctx.measureText((p.role || '').toUpperCase()).width;
+    var chevW = 44 * s, padX = 40 * s;
+    var barW = Math.max(nameW, roleW) + padX * 2;
+
+    // The unit pops up from below with a slight overshoot.
+    var rise = (1 - Math.min(show, 1)) * (barH + margin);
+    var over = Math.max(0, show - 1) * 18 * s; // the back-ease overshoot lifts it a touch
+    var by = y + rise - over;
+
+    ctx.fillStyle = p.panel;
+    ctx.fillRect(margin + chevW + 10 * s, by, barW, barH);
+
+    // The volt chevron cap, doubled.
+    ctx.fillStyle = p.accent;
+    chevron(margin, by, chevW, barH);
+    ctx.fill();
+    ctx.globalAlpha = 0.5;
+    chevron(margin + 18 * s, by, chevW, barH);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    var textX = margin + chevW + 10 * s + padX;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = p.text;
+    ctx.font = '800 ' + nameSize + 'px ' + FONT;
+    ctx.fillText(nameText, textX, by + 54 * s);
+    ctx.fillStyle = p.accent;
+    ctx.font = '600 ' + roleSize + 'px ' + FONT;
+    ctx.fillText((p.role || '').toUpperCase(), textX, by + 96 * s);
+  };
+</script>
+</body>
+</html>

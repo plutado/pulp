@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Matchday background</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  // Deterministic line layout from a tiny seeded generator, per the template rules.
+  function lcg(seed) {
+    var x = seed >>> 0;
+    return function () { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; };
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    var s = H / 1080;
+
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, p.base);
+    g.addColorStop(1, p.deep);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // Twelve slightly tilted speed lines at seeded heights; each crosses on whole cycles per loop.
+    var rand = lcg(77);
+    for (var i = 0; i < 12; i++) {
+      var y = rand() * H;
+      var lineW = (260 + rand() * 520) * s;
+      var lineH = (3 + rand() * 7) * s;
+      var cycles = 1 + Math.floor(rand() * 3);
+      var offset = rand();
+      var q = ((state.progress * cycles + offset) % 1) * (W + lineW) - lineW;
+      var alpha = p.intensity * (0.25 + rand() * 0.75);
+      var tilt = (rand() - 0.5) * 0.06;
+      ctx.save();
+      ctx.translate(q + lineW / 2, y);
+      ctx.rotate(tilt);
+      var lg = ctx.createLinearGradient(-lineW / 2, 0, lineW / 2, 0);
+      lg.addColorStop(0, 'rgba(0,0,0,0)');
+      lg.addColorStop(0.8, p.accent);
+      lg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = lg;
+      ctx.fillRect(-lineW / 2, -lineH / 2, lineW, lineH);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    var v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, W, H);
+  };
+</script>
+</body>
+</html>

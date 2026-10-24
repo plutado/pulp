@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Festival title</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Festival sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var SERIF = 'Georgia, Times New Roman, serif';
+  var SANS = 'Helvetica Neue, Arial, sans-serif';
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+  function lcg(seed) {
+    var x = seed >>> 0;
+    return function () { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; };
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var show = easeOutCubic(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
+    if (show <= 0) return;
+
+    var s = H / 1080;
+    var cx = W / 2, cy = H / 2;
+
+    // Soft bokeh dots float up behind the words.
+    var rand = lcg(451);
+    for (var i = 0; i < 14; i++) {
+      var bx = (0.2 + rand() * 0.6) * W;
+      var size = (10 + rand() * 26) * s;
+      var speed = 18 + rand() * 30;
+      var phase = rand() * TAU;
+      var by = cy + 180 * s - ((t * speed * s + rand() * 400 * s) % (420 * s));
+      ctx.globalAlpha = show * 0.18 * (0.4 + rand() * 0.6);
+      ctx.fillStyle = p.gold;
+      ctx.beginPath();
+      ctx.arc(bx + Math.sin(t + phase) * 12 * s, by, size, 0, TAU);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Two gold arcs bow away from the headline as they draw in.
+    var sweep = easeOutCubic(clamp01(show * 1.2)) * 0.42 * Math.PI;
+    var r = 420 * s;
+    ctx.strokeStyle = p.gold;
+    ctx.lineWidth = 3 * s;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(cx, cy + r - 108 * s, r, -Math.PI / 2 - sweep / 2, -Math.PI / 2 + sweep / 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy - r + 108 * s, r, Math.PI / 2 - sweep / 2, Math.PI / 2 + sweep / 2);
+    ctx.stroke();
+
+    var textA = clamp01((show - 0.3) / 0.7);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = textA;
+    ctx.fillStyle = p.gold;
+    ctx.font = '400 ' + 32 * s + 'px ' + SANS;
+    ctx.fillText((p.kicker || '').toUpperCase().split('').join(' '), cx, cy - 64 * s);
+    ctx.fillStyle = p.text;
+    ctx.font = 'italic 700 ' + 104 * s + 'px ' + SERIF;
+    ctx.fillText(p.headline, cx, cy + 22 * s);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

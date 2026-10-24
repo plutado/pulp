@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Matchday score bug</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+  function easeInCubic(x) { return x * x * x; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var show = easeOutQuart(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
+    if (show <= 0) return;
+
+    var s = H / 1080;
+    var margin = 64 * s, boxH = 64 * s;
+    var sideSize = 30 * s, scoreSize = 34 * s;
+    ctx.font = '800 ' + sideSize + 'px ' + FONT;
+    var homeText = (p.home || '').toUpperCase(), awayText = (p.away || '').toUpperCase();
+    var sideW = Math.max(ctx.measureText(homeText).width, ctx.measureText(awayText).width) + 36 * s;
+    var scoreW = 64 * s, gap = 4 * s;
+    var cellW = sideW + scoreW;
+    var boxW = cellW * 2 + gap;
+
+    var left = p.corner !== 'top-right';
+    var slide = (1 - show) * (boxW + margin);
+    var x = left ? margin - slide : W - margin - boxW + slide;
+    var y = margin;
+
+    function cell(cx, side, score) {
+      ctx.fillStyle = p.panel;
+      ctx.fillRect(cx, y, sideW, boxH);
+      ctx.fillStyle = p.accent;
+      ctx.fillRect(cx + sideW, y, scoreW, boxH);
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = p.text;
+      ctx.font = '800 ' + sideSize + 'px ' + FONT;
+      ctx.fillText(side, cx + 18 * s, y + boxH / 2 + 2 * s);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#101010';
+      ctx.font = '800 ' + scoreSize + 'px ' + FONT;
+      ctx.fillText(String(Math.round(score)), cx + sideW + scoreW / 2, y + boxH / 2 + 2 * s);
+    }
+    cell(x, homeText, p.homeScore);
+    cell(x + cellW + gap, awayText, p.awayScore);
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.matchday.transition",
+  "name": "Matchday chevron wipe",
+  "description": "A wall of forward chevrons charges across the frame; fully covered at the midpoint.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "wipe",
+  "tags": ["wipe", "chevron", "fast"],
+  "duration": 1.2,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#101010", "group": "Colors" },
+    { "id": "accent", "type": "color", "label": "Chevron color", "default": "#d4f531", "group": "Colors" },
+    { "id": "teeth", "type": "number", "label": "Chevron rows", "default": 6, "min": 2, "max": 12, "step": 1 }
+  ]
+}

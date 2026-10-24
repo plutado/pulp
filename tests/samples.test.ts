@@ -31,9 +31,9 @@ async function collect(): Promise<{ templates: string[]; packs: string[] }> {
 describe('bundled sample templates', async () => {
   const { templates: dirs, packs } = await collect();
 
-  it('ships the three originals and two matched sets', () => {
-    expect(dirs.length).toBeGreaterThanOrEqual(13);
-    expect(packs).toEqual(['boardroom', 'newsdesk']);
+  it('ships the three originals and four matched sets', () => {
+    expect(dirs.length).toBeGreaterThanOrEqual(23);
+    expect(packs).toEqual(['boardroom', 'festival', 'matchday', 'newsdesk']);
   });
 
   it.each(packs)('%s has a valid CC0 pack.json whose listed folders exist', async (pack) => {
@@ -74,16 +74,18 @@ describe('bundled sample templates', async () => {
         expect(() => buildRenderPlan({ manifest: t.manifest, presetId, outputPath: `/tmp/${t.manifest.id}` })).not.toThrow();
       }
     }
-    // Pack defaults reach the templates: every Boardroom template is corporate and clean, every Newsdesk one news and high-energy.
-    const boardroom = index.templates.filter((t) => t.pack?.slug === 'boardroom');
-    const newsdesk = index.templates.filter((t) => t.pack?.slug === 'newsdesk');
-    expect(boardroom).toHaveLength(5);
-    expect(newsdesk).toHaveLength(5);
-    for (const t of boardroom) expect({ themes: t.manifest.themes, styles: t.manifest.styles }).toEqual({ themes: ['corporate'], styles: ['clean'] });
-    for (const t of newsdesk) expect({ themes: t.manifest.themes, styles: t.manifest.styles }).toEqual({ themes: ['news'], styles: ['high-energy'] });
-    // Each set covers its five types.
-    const types = (list: typeof boardroom) => list.map((t) => t.manifest.type).sort();
-    expect(types(boardroom)).toEqual(['animated-loop', 'frame', 'lower-third', 'title', 'wipe']);
-    expect(types(newsdesk)).toEqual(['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe']);
+    // Pack defaults reach the templates: one theme and one style per set, inherited by all five.
+    const expected: Record<string, { themes: string[]; styles: string[]; types: string[] }> = {
+      boardroom: { themes: ['corporate'], styles: ['clean'], types: ['animated-loop', 'frame', 'lower-third', 'title', 'wipe'] },
+      newsdesk: { themes: ['news'], styles: ['high-energy'], types: ['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe'] },
+      matchday: { themes: ['sports'], styles: ['high-energy'], types: ['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe'] },
+      festival: { themes: ['holiday'], styles: ['playful'], types: ['animated-loop', 'light-particles', 'lower-third', 'title', 'wipe'] },
+    };
+    for (const [slug, want] of Object.entries(expected)) {
+      const set = index.templates.filter((t) => t.pack?.slug === slug);
+      expect(set, slug).toHaveLength(5);
+      for (const t of set) expect({ themes: t.manifest.themes, styles: t.manifest.styles }, t.manifest.id).toEqual({ themes: want.themes, styles: want.styles });
+      expect(set.map((t) => t.manifest.type).sort(), slug).toEqual(want.types);
+    }
   });
 });

@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Festival sparkle corners</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Festival sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+  function lcg(seed) {
+    var x = seed >>> 0;
+    return function () { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; };
+  }
+
+  function sparkle(x, y, r) {
+    // A four-point star: two thin crossing diamonds.
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.quadraticCurveTo(x, y, x, y + r);
+    ctx.quadraticCurveTo(x, y, x - r, y);
+    ctx.quadraticCurveTo(x, y, x, y - r);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var show = easeOutCubic(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
+    if (show <= 0) return;
+
+    var s = H / 1080;
+    var corners = [];
+    if (p.corners === 'bottom' || p.corners === 'all') corners.push([0, H], [W, H]);
+    if (p.corners === 'top' || p.corners === 'all') corners.push([0, 0], [W, 0]);
+
+    var rand = lcg(1225);
+    var per = Math.max(3, Math.round(p.amount / corners.length));
+    for (var c = 0; c < corners.length; c++) {
+      var ox = corners[c][0], oy = corners[c][1];
+      var toRight = ox === 0 ? 1 : -1, toDown = oy === 0 ? 1 : -1;
+      for (var i = 0; i < per; i++) {
+        var dist = (90 + rand() * 420) * s;
+        var angle = rand() * Math.PI / 2;
+        var x = ox + toRight * Math.cos(angle) * dist;
+        var y = oy + toDown * Math.sin(angle) * dist;
+        var size = (6 + rand() * 22) * s;
+        var isStar = rand() > 0.6;
+        var phase = rand() * TAU;
+        var twinkle = 0.55 + 0.45 * Math.sin(t * (1 + rand() * 2) * TAU / 4 + phase);
+        var reach = clamp01(show * 1.3 - (dist / (520 * s)) * 0.3); // outer ones arrive a touch later
+        ctx.globalAlpha = reach * twinkle * (isStar ? 0.9 : 0.3);
+        ctx.fillStyle = rand() > 0.5 ? p.gold : p.second;
+        if (isStar) {
+          sparkle(x, y, size);
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.arc(x, y, size, 0, TAU);
+          ctx.fill();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

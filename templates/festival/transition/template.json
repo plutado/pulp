@@ -1,0 +1,22 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.festival.transition",
+  "name": "Festival iris wipe",
+  "description": "A plum circle with a gold rim blooms from the center; fully covered at the midpoint.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "wipe",
+  "tags": ["wipe", "iris", "festive"],
+  "duration": 1.4,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#341f3e", "group": "Colors" },
+    { "id": "gold", "type": "color", "label": "Rim color", "default": "#e8b54d", "group": "Colors" }
+  ]
+}

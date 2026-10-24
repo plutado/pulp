@@ -145,6 +145,7 @@ export const THEME_GROUPS: readonly ThemeGroup[] = [
     id: 'holidays',
     label: 'Holidays and seasons',
     themes: [
+      { id: 'holiday', label: 'Holiday (general)' },
       { id: 'christmas', label: 'Christmas / winter holidays' },
       { id: 'new-year', label: 'New Year' },
       { id: 'valentines', label: "Valentine's Day" },

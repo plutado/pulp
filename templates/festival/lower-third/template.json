@@ -1,0 +1,27 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.festival.lower-third",
+  "name": "Festival lower third",
+  "description": "A rounded plum pill with a gold rim, name in warm serif, and a few confetti dots drifting up.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": ["name", "festive", "warm"],
+  "duration": 6,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "name", "type": "text", "label": "Name", "default": "Sam Arceneaux", "maxLength": 60 },
+    { "id": "subtitle", "type": "text", "label": "Subtitle", "default": "Host of the evening", "maxLength": 80 },
+    { "id": "gold", "type": "color", "label": "Gold color", "default": "#e8b54d", "group": "Colors" },
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#341f3ee6", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#fff6e8", "group": "Colors" },
+    { "id": "confetti", "type": "boolean", "label": "Confetti", "default": true },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.6, "min": 0.2, "max": 2, "step": 0.1 }
+  ]
+}
