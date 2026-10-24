@@ -21,7 +21,7 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 21. Sample library coverage | 26-40 h |
 | 19. Vertical and square formats | 13-21 h |
 | 22. Image slots in templates | 17-26 h |
-| 23. Layers in templates | 33-50 h |
+| 23. Layers in templates | 37-56 h |
 | 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 8-13 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -30,9 +30,9 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-23)** | **232-378 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-23)** | **236-384 h** |
 | **Still open through 1.0 (unticked items only)** | **39-64 h** |
-| **Total including post-1.0 items** | **264-436 h** |
+| **Total including post-1.0 items** | **268-442 h** |
 
 ## 0. Foundation (done)
 
@@ -253,6 +253,7 @@ Milestone 22's fixed image slots stay exactly as they are. A slot is the author'
 - [x] Fonts: a bundled set of open-licence families — Inter, Montserrat, Oswald, Bebas Neue, Source Serif 4, Playfair (where Playfair Display now lives: its upstream became the Playfair superfamily, whose display cut is the large end of its optical-size axis), JetBrains Mono, Caveat, Dancing Script, Noto Sans — each one's licence confirmed from the upstream licence file rather than from a package listing, the two with a Reserved Font Name shipped unmodified and hash-checked, with `docs/font-credits.md` naming the family, the version, the licence and where it came from, and ADR 0014 on the set, the licences and the delivery under each page's own origin. The family control shows every family in its own face. The style guide gains the rule that a font is a credited dependency (4-6 h)
 - [ ] Importing your own fonts: a managed fonts folder in user data, files copied in and read from there, with a licence note recorded per family and shown where the family is chosen. Exported packs never include imported fonts — a template that uses one names it and falls back — so sharing a pack can never redistribute someone else's licence (3-4 h)
 - [x] Layers travel: saved presets, collection items, `.pulpcollection` files, `--param` headlessly, and a CSV batch with a column per layer. The render cache key covers the layers, so an added line renders afresh, and undo covers adding, removing, hiding, reordering and every property. They ride in the same bag of raw values as the parameters, so every route that carried parameters carries them; `--param '@layers={…}'` takes JSON, patching the template's stack and naming a bad block, a bad layer or bad JSON rather than falling back; each route has its own check (3-5 h)
+- [x] The Parameters tab by element, not by kind of setting. With layers a flat "Colors" group stopped saying what each colour affects, so a template names the part each setting belongs to (an `element` field beside `group`, validated and documented) and the tab becomes one collapsible card per part: a card per layer with its words, its type and what can be done to it; a card per element the parameters name, which a slot can join; and "Layout and timing" last for what belongs to the whole graphic. Layers a person adds are cards like the template's own. A template that names no element keeps the plain form it had. Title Card and Lower Third Bar are regrouped and their text colour lives on their text layers; the rest of the bundled templates name no element yet and are unchanged (4-6 h)
 - [ ] Motion, last, behind an "Advanced" disclosure: the template owns a layer's movement by default, and a per-layer override offers Template, Fade, Slide, Scale or None with a delay. An overridden layer still finishes inside the template's own in and out, so no layer can be left on screen after the graphic has gone. The timing is pure and unit tested; the end-to-end test overrides one layer and reads pixels at the ends (3-5 h)
 
 ## 20. Social-ready export (8-13 h)

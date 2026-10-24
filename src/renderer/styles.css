@@ -523,22 +523,32 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* Image slots (milestone 22): the picked still, its picker and its treatment. */
 /* minmax(0, 1fr): the parts are held to the inspector's width rather than to their own text,
    so nothing in the field overflows a narrow inspector. */
-/* Layers (milestone 23): the stack a template makes room for, in the order it is drawn.
-   A row says what the layer is and what can be done to it, then holds its own editor. */
-.layers-block { display: grid; gap: var(--space-1); margin-top: var(--space-3); }
-.layers-block .field-head { color: var(--muted); font-size: var(--font-secondary); }
-.layer-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
-.layer-row { display: grid; gap: var(--space-1); padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--panel-2); }
+/* The Parameters tab by element (milestone 23, src/core/param-cards.ts): one card per part of
+   the graphic — a line of type, the panel, the logo — holding everything about that part, and
+   a last card for what belongs to the whole graphic. A card folds away by its heading; a
+   layer's card carries what can be done to the layer beside it. */
+.param-card { display: grid; gap: var(--space-1); padding: var(--space-1) var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-surface); background: var(--panel-2); }
+.layers-block { display: grid; gap: var(--space-2); }
+.card-head { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+/* The heading is the control that folds the card: a row, not a button to press. */
+.card-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); text-align: left; background: none; border: 0; border-radius: var(--radius-control); padding: 2px 4px; }
+.card-toggle:hover .layer-label { color: var(--text); }
+.card-toggle::before {
+  content: ''; flex: 0 0 auto; width: 0; height: 0;
+  border: 4px solid transparent; border-left: 6px solid var(--muted); margin-left: 2px;
+}
+.card-toggle[aria-expanded="true"]::before { transform: rotate(90deg) translateX(1px); }
+.card-body { display: grid; gap: var(--space-2); padding: 0 var(--space-1); }
+.card-body[hidden] { display: none; }
 /* A hidden layer is kept, not drawn: it reads as set aside rather than gone. */
-.layer-row.hidden-layer { opacity: 0.6; }
-.layer-head { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
-.layer-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: var(--font-secondary); }
+.param-card.hidden-layer { opacity: 0.6; }
+.layer-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: var(--font-body); font-weight: 600; }
 .layer-actions { display: flex; gap: 2px; flex: 0 0 auto; }
 .layer-actions .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 2px 4px; }
 .layer-actions .icon-button:hover:not(:disabled) { color: var(--text); border-color: var(--border); }
 .layer-actions .icon-button[aria-pressed="true"] { color: var(--accent); }
 .layer-actions .icon-button:disabled { opacity: 0.4; }
-.layer-row .layer-text { width: 100%; }
+.param-card .layer-text { width: 100%; }
 /* A text layer's type, folded under its words. The summary says how it is set; open, a two-column
    grid of small labelled controls, the family and the colour taking the whole width. */
 .layer-type summary { cursor: pointer; color: var(--muted); font-size: var(--font-caption); padding: 2px 0; list-style: none; display: flex; align-items: center; gap: var(--space-1); }
@@ -567,9 +577,10 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .family-list [role="option"][aria-selected="true"] { color: var(--accent); }
 .family-list .family-divider { color: var(--muted); font-size: var(--font-caption); padding: var(--space-1) 8px 2px; border-top: 1px solid var(--border); margin-top: var(--space-1); }
 
-.layer-add { display: flex; align-items: center; gap: var(--space-1); }
-.layer-add > span { flex: 1; color: var(--muted); font-size: var(--font-caption); }
+.layer-add { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; padding: 0 var(--space-1); }
+.layer-add > span { flex: 1; min-width: 0; color: var(--muted); font-size: var(--font-caption); }
 .layer-add button { display: inline-flex; align-items: center; gap: 2px; font-size: var(--font-caption); padding: 2px 8px; }
+.layer-add .layers-reset { padding: 2px 6px; }
 
 .image-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); min-width: 0; }
 /* The well is one fixed height whatever the slot's shape: the image is contained and centred

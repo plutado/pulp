@@ -34,8 +34,14 @@ interface ParameterBase {
   /** Human-readable label for the parameter form. */
   label: string;
   description?: string;
-  /** Optional grouping hint for the editor UI. */
+  /** Optional grouping hint for the editor UI, used only by a template that names no elements. */
   group?: string;
+  /**
+   * The part of the graphic this setting belongs to — "Panel", "Logo" — so the
+   * Parameters tab can put everything about one part in one card
+   * (src/core/param-cards.ts). Matching a layer's label joins that layer's card.
+   */
+  element?: string;
 }
 
 export interface TextParameter extends ParameterBase {
@@ -198,6 +204,9 @@ function validateParameter(raw: unknown, path: string, errors: ValidationIssue[]
   }
   if (!isNonEmptyString(label)) {
     errors.push({ path: `${path}.label`, message: 'must be a non-empty string' });
+  }
+  if (raw.element !== undefined && !isNonEmptyString(raw.element)) {
+    errors.push({ path: `${path}.element`, message: 'must be a non-empty string: the part of the graphic this setting belongs to' });
   }
   if (typeof type !== 'string' || !(PARAMETER_TYPES as readonly string[]).includes(type)) {
     errors.push({ path: `${path}.type`, message: `must be one of: ${PARAMETER_TYPES.join(', ')}` });

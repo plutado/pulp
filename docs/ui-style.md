@@ -96,6 +96,16 @@ The render tray is the worked example; anything that hands a file to another app
 
 The style test enforces the two that can be checked: no first-person wording and no raw path or file name in visible text or in a card's fields.
 
+## Settings by element, not by kind
+
+The Parameters tab is the worked example; anything that edits a thing with parts follows it.
+
+- **One card per part, holding everything about that part.** The panel's fill and its accent bar together; a line of type with its words, its face and its own colour; the logo's well with its treatment. A reader looking for "the colour of the subtitle" looks at the subtitle.
+- **A group named after a kind of setting is a group that says nothing.** "Colors" tells you what the controls are, which you can already see, and not what they affect. The only grouping that survives is by element.
+- **What belongs to no part goes last**, under a heading that says so: "Layout and timing" for position, timing and duration.
+- **A part is one card whether the template declared it or the person added it.** An added line of type looks and behaves like the template's own.
+- **Cards fold, and remember.** The heading is the control: a caret and the part's name, not a button to press.
+
 ## Property panels
 
 The Info tab is the worked example; anything that shows what an item *is* follows it.

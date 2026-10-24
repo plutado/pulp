@@ -27,16 +27,16 @@
     {
       "id": "accent",
       "type": "color",
-      "label": "Accent color",
+      "label": "Accent bar",
       "default": "#f59e0b",
-      "group": "Colors"
+      "element": "Panel"
     },
     {
       "id": "panel",
       "type": "color",
-      "label": "Panel color",
+      "label": "Fill",
       "default": "#111827d9",
-      "group": "Colors"
+      "element": "Panel"
     },
     {
       "id": "side",
@@ -77,14 +77,20 @@
       "fit": "contain",
       "align": "center",
       "margin": 0.12,
-      "fallbackText": "name"
+      "fallbackText": "name",
+      "element": "Logo"
     }
   ],
   "blocks": [
     {
       "id": "strap",
       "label": "Strap",
-      "box": { "x": 0.05, "y": 0.75, "width": 0.9, "height": 0.15 },
+      "box": {
+        "x": 0.05,
+        "y": 0.75,
+        "width": 0.9,
+        "height": 0.15
+      },
       "direction": "column",
       "gap": 0.0103703704,
       "align": "left",
@@ -98,8 +104,21 @@
         "overflow": "shrink"
       },
       "layers": [
-        { "id": "name", "type": "text", "label": "Name", "text": "Alex Rivera", "required": true },
-        { "id": "title", "type": "text", "label": "Title", "text": "Director of Photography", "size": 0.0277777778, "weight": 400 }
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "text": "Alex Rivera",
+          "required": true
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Title",
+          "text": "Director of Photography",
+          "size": 0.0277777778,
+          "weight": 400
+        }
       ]
     }
   ]

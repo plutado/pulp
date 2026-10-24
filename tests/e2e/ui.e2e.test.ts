@@ -403,39 +403,39 @@ describe.skipIf(!electron)('inspector UI', () => {
     expect(px[3]).toBe(217);
     // The color control reflects the value: RGB in the picker, 85% on the slider, the whole value in the text field.
     const control = await page.eval<{ picker: string; alpha: string; percent: string; hex: string }>(
-      `(() => { const f = document.querySelectorAll('#params .color-field')[1]; return { picker: f.querySelector('input[type=color]').value, alpha: f.querySelector('.alpha').value, percent: f.querySelector('.alpha-value').textContent, hex: f.querySelector('.hex').value }; })()`,
+      `(() => { const f = document.querySelector('#params [data-param=panel] .color-field'); return { picker: f.querySelector('input[type=color]').value, alpha: f.querySelector('.alpha').value, percent: f.querySelector('.alpha-value').textContent, hex: f.querySelector('.hex').value }; })()`,
     );
     expect(control).toEqual({ picker: '#111827', alpha: '85', percent: '85%', hex: '#111827d9' });
   }, 60_000);
 
   it('keeps the alpha when the color is changed with the native picker', async () => {
-    await page.eval(`(() => { const el = document.querySelectorAll('#params .color-field')[1].querySelector('input[type=color]'); el.value = '#ff0000'; el.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    await page.eval(`(() => { const el = document.querySelector('#params [data-param=panel] .color-field').querySelector('input[type=color]'); el.value = '#ff0000'; el.dispatchEvent(new Event('input', { bubbles: true })); })()`);
     await scrubTo(90);
     expect(await previewPixel(120, 840)).toEqual([255, 0, 0, 217]);
   }, 60_000);
 
   it('changes the alpha with the slider and shows it in the text field', async () => {
-    await page.eval(`(() => { const el = document.querySelectorAll('#params .color-field')[1].querySelector('.alpha'); el.value = '50'; el.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    await page.eval(`(() => { const el = document.querySelector('#params [data-param=panel] .color-field').querySelector('.alpha'); el.value = '50'; el.dispatchEvent(new Event('input', { bubbles: true })); })()`);
     await scrubTo(90);
     const px = await previewPixel(120, 840);
     expect(px.slice(0, 3)).toEqual([255, 0, 0]);
     expect(px[3]).toBe(128);
-    expect(await page.eval<string>(`document.querySelectorAll('#params .color-field')[1].querySelector('.hex').value`)).toBe('#ff000080');
+    expect(await page.eval<string>(`document.querySelector('#params [data-param=panel] .color-field').querySelector('.hex').value`)).toBe('#ff000080');
   }, 60_000);
 
   it('accepts a full #RRGGBBAA value in the text field and rejects garbage without changing the color', async () => {
-    await page.eval(`(() => { const el = document.querySelectorAll('#params .color-field')[1].querySelector('.hex'); el.value = '#00FF0040'; el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await page.eval(`(() => { const el = document.querySelector('#params [data-param=panel] .color-field').querySelector('.hex'); el.value = '#00FF0040'; el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
     await scrubTo(90);
     expect(await previewPixel(120, 840)).toEqual([0, 255, 0, 64]);
     const synced = await page.eval<{ picker: string; alpha: string }>(
-      `(() => { const f = document.querySelectorAll('#params .color-field')[1]; return { picker: f.querySelector('input[type=color]').value, alpha: f.querySelector('.alpha').value }; })()`,
+      `(() => { const f = document.querySelector('#params [data-param=panel] .color-field'); return { picker: f.querySelector('input[type=color]').value, alpha: f.querySelector('.alpha').value }; })()`,
     );
     expect(synced).toEqual({ picker: '#00ff00', alpha: '25' });
 
-    await page.eval(`(() => { const el = document.querySelectorAll('#params .color-field')[1].querySelector('.hex'); el.value = 'teal'; el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await page.eval(`(() => { const el = document.querySelector('#params [data-param=panel] .color-field').querySelector('.hex'); el.value = 'teal'; el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
     await scrubTo(90);
     expect(await previewPixel(120, 840)).toEqual([0, 255, 0, 64]);
-    expect(await page.eval<boolean>(`document.querySelectorAll('#params .color-field')[1].querySelector('.hex').classList.contains('error')`)).toBe(true);
+    expect(await page.eval<boolean>(`document.querySelector('#params [data-param=panel] .color-field').querySelector('.hex').classList.contains('error')`)).toBe(true);
   }, 60_000);
 
   /** Value of the first element matching the selector. */
@@ -488,7 +488,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     expect(await page.eval<boolean>(`document.getElementById('reset-all').disabled`)).toBe(false);
     await page.eval(`document.getElementById('reset-all').click()`);
     expect(await valueOf('.layer-row[data-layer=name] .layer-text')).toBe('Alex Rivera');
-    expect(await page.eval<string>(`document.querySelectorAll('#params .color-field')[1].querySelector('.hex').value`)).toBe('#111827d9');
+    expect(await page.eval<string>(`document.querySelector('#params [data-param=panel] .color-field').querySelector('.hex').value`)).toBe('#111827d9');
     expect(await page.eval<boolean>(`[...document.querySelectorAll('#params .field-reset')].every((b) => b.hidden)`)).toBe(true);
     expect(await page.eval<boolean>(`document.getElementById('reset-all').disabled`)).toBe(true);
     await scrubTo(90);
@@ -497,7 +497,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     // Reset all is one history step: undo brings the edits back.
     await page.eval(`document.getElementById('undo').click()`);
     expect(await valueOf('.layer-row[data-layer=name] .layer-text')).toBe('Ada Lovelace');
-    expect(await page.eval<string>(`document.querySelectorAll('#params .color-field')[1].querySelector('.hex').value`)).toBe('#00ff0040');
+    expect(await page.eval<string>(`document.querySelector('#params [data-param=panel] .color-field').querySelector('.hex').value`)).toBe('#00ff0040');
   }, 60_000);
 
   it('keeps edits and history per template across a switch', async () => {
@@ -524,8 +524,8 @@ describe.skipIf(!electron)('inspector UI', () => {
     expect(rows[0]!.length).toBeLessThanOrEqual(8);
 
     // Using a recent color on another field (the accent) applies and commits it.
-    await page.eval(`document.querySelectorAll('#params .color-field')[0].querySelector('.recent-swatch').click()`);
-    expect(await page.eval<string>(`document.querySelectorAll('#params .color-field')[0].querySelector('.hex').value`)).toBe('#00ff0040');
+    await page.eval(`document.querySelector('#params [data-param=accent] .color-field').querySelector('.recent-swatch').click()`);
+    expect(await page.eval<string>(`document.querySelector('#params [data-param=accent] .color-field').querySelector('.hex').value`)).toBe('#00ff0040');
 
     // The list is shared in settings.json of the (scratch) user data folder. The save is atomic
     // (temp file renamed over the old one), but it is asynchronous: retry until the file parses
@@ -1077,6 +1077,50 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await summary()) === 'Georgia · 8.9% · Regular · Uppercase', 'the type back to the template\'s');
       expect(await page.eval<boolean>(`${section}.querySelector('.layers-reset').hidden`)).toBe(true);
     }, 120_000);
+
+    it('organises the tab by element: a card per part, the layers among them, and timing last', async () => {
+      const cards = () =>
+        page.eval<{ card: string; label: string; params: string[]; open: boolean }[]>(
+          `[...document.querySelectorAll('#params .param-card')].map((c) => ({ card: c.dataset.card, label: c.querySelector('.layer-label').textContent,
+             params: [...c.querySelectorAll('.card-body > .field')].map((f) => f.dataset.param), open: c.querySelector('.card-toggle').getAttribute('aria-expanded') === 'true' }))`,
+        );
+      await clickResult('Title Card');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card')`), 'the title card\'s cards');
+      // Its two lines, then the card's own colours, then the logo. No "Colors" group, and nothing left over.
+      expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`)).toEqual(['Title: ', 'Subtitle: ', 'Card: background,rule', 'Logo: logo']);
+      expect(await page.eval<number>(`document.querySelectorAll('#params .group-label').length`)).toBe(0);
+      // A line's card holds its words and its type, with what can be done to the layer beside the heading.
+      expect(await page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="layer:card.title"] .layer-text')`)).toBe(true);
+      expect(await page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="layer:card.title"] .layer-type')`)).toBe(true);
+      expect(await page.eval<string[]>(`[...document.querySelectorAll('#params .param-card[data-card="layer:card.title"] .card-head .layer-actions button')].map((b) => b.getAttribute('aria-label'))`))
+        .toEqual(['Hide Title', 'Move Title up', 'Move Title down']);
+
+      // A card folds by its heading and stays folded while the form is rebuilt.
+      await page.eval(`document.querySelector('#params .param-card[data-card="element:Card"] .card-toggle').click()`);
+      expect((await cards()).find((c) => c.card === 'element:Card')!.open).toBe(false);
+      expect(await page.eval<boolean>(`document.querySelector('#params .param-card[data-card="element:Card"] .card-body').hidden`)).toBe(true);
+      await page.eval(`document.querySelector('#params .layers-block [data-add=text]').click()`);
+      await until(async () => (await cards()).length === 5, 'the added line\'s card');
+      expect((await cards()).find((c) => c.card === 'element:Card')!.open, 'still folded after the rebuild').toBe(false);
+      // The added line is a card like the template's own, and can be taken out again.
+      const added = (await cards())[2]!;
+      expect(added.label).toBe('Line 3');
+      expect(await page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="${added.card}"] .layer-type')`)).toBe(true);
+      await page.eval(`document.querySelector('#params .param-card[data-card="${added.card}"] [aria-label="Remove Line 3"]').click()`);
+      await until(async () => (await cards()).length === 4, 'the card gone with the layer');
+      await page.eval(`document.querySelector('#params .param-card[data-card="element:Card"] .card-toggle').click()`);
+
+      // The lower third: the panel's two colours together, and what belongs to the whole graphic last.
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="element:Panel"]')`), 'the lower third\'s cards');
+      expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`)).toEqual(['Name: ', 'Title: ', 'Panel: accent,panel', 'Logo: logo', 'Layout and timing: side,inOut']);
+
+      // A template that names no element keeps the plain form it always had.
+      await clickResult('Boardroom opener');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params .field')`), 'the opener\'s form');
+      expect(await page.eval<number>(`document.querySelectorAll('#params .param-card').length`)).toBe(0);
+      expect(await page.eval<string[]>(`[...document.querySelectorAll('#params .group-label')].map((g) => g.textContent)`)).toEqual(['Colors']);
+    }, 90_000);
 
     it('the render cache tells two stacks apart: changing a line renders afresh', async () => {
       if (!haveVideo) {

@@ -14,6 +14,7 @@ import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
 import { LAYERS_KEY, resolveParams, type ResolvedParams } from '../core/params';
 import { BUNDLED_FAMILIES, cssFontFamily, familyLabel } from '../core/fonts';
+import { hasCards, paramCards, type ParamCard } from '../core/param-cards';
 import {
   defaultLayers,
   LAYER_ALIGNS,
@@ -881,14 +882,22 @@ function resetLayers(blockId: string): void {
 }
 
 /** One block's layers: the stack, what can be done to each, and how to add one. */
-function layersSection(manifest: TemplateManifest, blockId: string, label: string, showLabel: boolean): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'layers-block';
-  section.dataset.block = blockId;
-  const head = document.createElement('div');
-  head.className = 'field-head';
-  const title = document.createElement('span');
-  title.textContent = showLabel ? `Layers · ${label}` : 'Layers';
+/** What belongs to the block rather than to one of its layers: adding a layer, and putting the template's own back. */
+function blockFooter(manifest: TemplateManifest, blockId: string, label: string, showLabel: boolean): HTMLElement {
+  const foot = document.createElement('div');
+  foot.className = 'layer-add';
+  const addLabel = document.createElement('span');
+  addLabel.textContent = showLabel ? `Add layer to ${label}` : 'Add layer';
+  foot.append(addLabel);
+  for (const type of ['text', 'image'] as LayerType[]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.add = type;
+    button.textContent = type === 'text' ? 'Text' : 'Image';
+    setIcon(button, 'plus');
+    button.addEventListener('click', () => addLayer(blockId, type));
+    foot.append(button);
+  }
   const reset = document.createElement('button');
   reset.type = 'button';
   reset.className = 'field-reset layers-reset';
@@ -899,42 +908,12 @@ function layersSection(manifest: TemplateManifest, blockId: string, label: strin
     e.preventDefault();
     resetLayers(blockId);
   });
-  head.append(title, reset);
-  section.append(head);
-
-  const stack = currentLayers()[blockId] ?? [];
-  const list = document.createElement('ul');
-  list.className = 'layer-list';
-  stack.forEach((layer, index) => list.append(layerRow(blockId, layer, index, stack.length)));
-  section.append(list);
-
-  const add = document.createElement('div');
-  add.className = 'layer-add';
-  const addLabel = document.createElement('span');
-  addLabel.textContent = 'Add layer';
-  add.append(addLabel);
-  for (const type of ['text', 'image'] as LayerType[]) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.dataset.add = type;
-    button.textContent = type === 'text' ? 'Text' : 'Image';
-    setIcon(button, 'plus');
-    button.addEventListener('click', () => addLayer(blockId, type));
-    add.append(button);
-  }
-  section.append(add);
-  return section;
+  foot.append(reset);
+  return foot;
 }
 
-function layerRow(blockId: string, layer: Layer, index: number, count: number): HTMLElement {
-  const row = document.createElement('li');
-  row.className = `layer-row${layer.hidden ? ' hidden-layer' : ''}`;
-  row.dataset.layer = layer.id;
-  const head = document.createElement('div');
-  head.className = 'layer-head';
-  const name = document.createElement('span');
-  name.className = 'layer-label';
-  name.textContent = layer.label;
+/** What can be done to a layer, for its card's head: hide it, move it along the stack, take it out. */
+function layerActions(blockId: string, layer: Layer, index: number, count: number): HTMLElement {
   const actions = document.createElement('span');
   actions.className = 'layer-actions';
 
@@ -957,9 +936,11 @@ function layerRow(blockId: string, layer: Layer, index: number, count: number): 
     remove.addEventListener('click', () => removeLayer(blockId, layer.id));
     actions.append(remove);
   }
-  head.append(name, actions);
-  row.append(head);
+  return actions;
+}
 
+/** Everything about one layer: its words and type, or its picture. */
+function layerBody(blockId: string, layer: Layer): HTMLElement[] {
   if (layer.type === 'text') {
     const input = document.createElement('input');
     input.type = 'text';
@@ -968,13 +949,9 @@ function layerRow(blockId: string, layer: Layer, index: number, count: number): 
     input.setAttribute('aria-label', `${layer.label} text`);
     input.addEventListener('input', () => editLayer(blockId, layer.id, (l) => ({ ...l, text: input.value }), false));
     input.addEventListener('change', () => commitParams());
-    row.append(input, typographyControls(blockId, layer));
-  } else {
-    row.append(
-      imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }),
-    );
+    return [input, typographyControls(blockId, layer)];
   }
-  return row;
+  return [imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label })];
 }
 
 // ---------------------------------------------------------------- text layer properties (milestone 23)
@@ -1214,6 +1191,88 @@ function typographyControls(blockId: string, layer: TextLayer): HTMLElement {
   return details;
 }
 
+/** Cards the person has folded away, by card id; they are open until then, and stay as left across rebuilds. */
+const closedCards = new Set<string>();
+
+/** One parameter's field, as the form has always drawn it. */
+function paramField(param: TemplateParameter): HTMLElement {
+  const label = document.createElement('label');
+  label.className = param.type === 'boolean' ? 'field inline' : 'field';
+  label.dataset.param = param.id;
+  const span = document.createElement('span');
+  span.textContent = param.label;
+  if (param.description) label.title = param.description;
+  const reset = document.createElement('button');
+  reset.type = 'button';
+  reset.className = 'field-reset';
+  reset.dataset.param = param.id;
+  reset.textContent = 'Reset';
+  reset.title = `Reset ${param.label} to its default`;
+  reset.hidden = !(param.id in p.raw);
+  reset.addEventListener('click', (e) => {
+    e.preventDefault();
+    resetParam(param.id);
+  });
+  const input = inputFor(param);
+  if (param.type === 'boolean') {
+    label.append(input, span, reset);
+  } else {
+    const head = document.createElement('div');
+    head.className = 'field-head';
+    head.append(span, reset);
+    label.append(head, input);
+  }
+  return label;
+}
+
+/**
+ * One part of the graphic, folded or open: its name, what can be done to it
+ * when it is a layer, and every setting that belongs to it.
+ */
+function paramCardEl(card: ParamCard): HTMLElement {
+  const section = document.createElement('section');
+  section.className = `param-card${card.layer?.layer.hidden ? ' hidden-layer' : ''}${card.kind === 'layer' ? ' layer-row' : ''}`;
+  section.dataset.card = card.id;
+  if (card.layer) {
+    section.dataset.layer = card.layer.layer.id;
+    section.dataset.block = card.layer.block;
+  }
+  const head = document.createElement('div');
+  head.className = 'card-head';
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'card-toggle';
+  const open = !closedCards.has(card.id);
+  toggle.setAttribute('aria-expanded', String(open));
+  const name = document.createElement('span');
+  name.className = 'layer-label';
+  name.textContent = card.label;
+  toggle.append(name);
+  head.append(toggle);
+  if (card.layer) head.append(layerActions(card.layer.block, card.layer.layer, card.layer.index, card.layer.count));
+  section.append(head);
+
+  const body = document.createElement('div');
+  body.className = 'card-body';
+  body.hidden = !open;
+  if (card.layer) body.append(...layerBody(card.layer.block, card.layer.layer));
+  for (const param of card.params) body.append(paramField(param));
+  section.append(body);
+  toggle.addEventListener('click', () => {
+    const nowOpen = body.hidden;
+    body.hidden = !nowOpen;
+    toggle.setAttribute('aria-expanded', String(nowOpen));
+    if (nowOpen) closedCards.delete(card.id);
+    else closedCards.add(card.id);
+  });
+  return section;
+}
+
+/**
+ * The tab, by element: a card per part of the graphic (src/core/param-cards.ts).
+ * A template that names no elements and has no layers gets the plain form it
+ * always had, with its own `group` headings.
+ */
 function buildParamForm(manifest: TemplateManifest): void {
   const parameters = manifest.parameters;
   els.params.replaceChildren();
@@ -1225,47 +1284,50 @@ function buildParamForm(manifest: TemplateManifest): void {
     els.params.append(note);
     return;
   }
-  let group: string | undefined;
-  for (const param of parameters) {
-    if (param.group && param.group !== group) {
-      const g = document.createElement('div');
-      g.className = 'group-label';
-      g.textContent = param.group;
-      els.params.append(g);
+  const cards = paramCards(manifest, currentLayers());
+  if (!hasCards(cards)) {
+    let group: string | undefined;
+    for (const param of parameters) {
+      if (param.group && param.group !== group) {
+        const g = document.createElement('div');
+        g.className = 'group-label';
+        g.textContent = param.group;
+        els.params.append(g);
+      }
+      group = param.group;
+      els.params.append(paramField(param));
     }
-    group = param.group;
-    const label = document.createElement('label');
-    label.className = param.type === 'boolean' ? 'field inline' : 'field';
-    label.dataset.param = param.id;
-    const span = document.createElement('span');
-    span.textContent = param.label;
-    if (param.description) label.title = param.description;
-    const reset = document.createElement('button');
-    reset.type = 'button';
-    reset.className = 'field-reset';
-    reset.dataset.param = param.id;
-    reset.textContent = 'Reset';
-    reset.title = `Reset ${param.label} to its default`;
-    reset.hidden = !(param.id in p.raw);
-    reset.addEventListener('click', (e) => {
-      e.preventDefault();
-      resetParam(param.id);
-    });
-    const input = inputFor(param);
-    if (param.type === 'boolean') {
-      label.append(input, span, reset);
-    } else {
-      const head = document.createElement('div');
-      head.className = 'field-head';
-      head.append(span, reset);
-      label.append(head, input);
+    updateHistoryButtons();
+    return;
+  }
+  // A block's layer cards sit together, with what belongs to the block itself under them.
+  let blockWrap: HTMLElement | null = null;
+  let blockId: string | null = null;
+  const closeBlock = () => {
+    if (blockWrap && blockId) {
+      const block = manifest.blocks.find((b) => b.id === blockId)!;
+      blockWrap.append(blockFooter(manifest, block.id, block.label, manifest.blocks.length > 1));
+      els.params.append(blockWrap);
     }
-    els.params.append(label);
+    blockWrap = null;
+    blockId = null;
+  };
+  for (const card of cards) {
+    if (card.layer) {
+      if (card.layer.block !== blockId) {
+        closeBlock();
+        blockId = card.layer.block;
+        blockWrap = document.createElement('section');
+        blockWrap.className = 'layers-block';
+        blockWrap.dataset.block = blockId;
+      }
+      blockWrap!.append(paramCardEl(card));
+      continue;
+    }
+    closeBlock();
+    els.params.append(paramCardEl(card));
   }
-  // The layers the template makes room for, after its own parameters.
-  for (const block of manifest.blocks) {
-    els.params.append(layersSection(manifest, block.id, block.label, manifest.blocks.length > 1));
-  }
+  closeBlock();
   updateHistoryButtons();
 }
 

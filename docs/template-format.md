@@ -80,7 +80,8 @@ Each parameter has:
 | `label` | string | yes | Label shown in the parameter form. |
 | `default` | depends on type | yes | Value used when the user has not changed it. Must itself be valid. |
 | `description` | string | no | Help text. |
-| `group` | string | no | Consecutive parameters with the same group are shown under one heading. |
+| `group` | string | no | Consecutive parameters with the same group are shown under one heading. Used only by a template that names no `element`. |
+| `element` | string | no | The part of the graphic this setting belongs to — `"Panel"`, `"Logo"` — so the Parameters tab can put everything about one part in one card. See **Settings by element** below. |
 
 Type-specific rules:
 
@@ -93,6 +94,23 @@ Type-specific rules:
 | `select` | string | `options`: `[{ "value": string, "label": string }]` | Values must be unique; `default` must be one of them. |
 | `font` | CSS font-family string | `options`: string[] | If `options` is given the value must be one of them. Bundle font files in the template folder and load them with `@font-face`, or use families that exist on every target system. |
 | `image` | none (`null`); the user picks a library still | `box` (required), `fit`, `align`, `margin`, `fallbackText` | An **image slot**: see below. The value the template receives is `null` or `{ id, treatment, tint, effect }`, where `id` is a library item id, never a path. |
+
+### Settings by element
+
+The Parameters tab is organised by **part of the graphic**, not by kind of setting: one collapsible card per part, holding everything about it. A flat "Colors" group says little once a template has layers — *which* text is "Text color" about? — so a parameter names the part it belongs to:
+
+```json
+{ "id": "panel", "type": "color", "label": "Fill", "element": "Panel" },
+{ "id": "accent", "type": "color", "label": "Accent bar", "element": "Panel" }
+```
+
+The cards, in order:
+
+1. **A card per layer**, in block and stack order, headed by the layer's label: its words and type, or its picture, with what can be done to it (hide, reorder, remove) beside the heading. Layers a person adds appear here in the same pattern as the template's own.
+2. **A card per element** the parameters name, in the order they are declared. A parameter whose `element` matches a layer's label joins **that layer's card**, which is how a slot's picker can sit beside the words it goes with.
+3. **"Layout and timing"**, holding every parameter that named no element: what belongs to the whole graphic — position, animate in and out, duration.
+
+A template that names no element and declares no blocks gets the plain form it always had, with its `group` headings. `group` is ignored inside a card: the card is the group.
 
 ### Image slots
 
