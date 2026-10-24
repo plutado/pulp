@@ -33,6 +33,8 @@ const els = {
   optOut: $<HTMLInputElement>('opt-out'),
   optionsNote: $<HTMLParagraphElement>('options-note'),
   render: $<HTMLButtonElement>('render'),
+  dragPrepare: $<HTMLButtonElement>('drag-prepare'),
+  dragStatus: $<HTMLParagraphElement>('drag-status'),
   renderStatus: $<HTMLParagraphElement>('render-status'),
   batchCsv: $<HTMLTextAreaElement>('batch-csv'),
   batchFile: $<HTMLButtonElement>('batch-file'),
@@ -50,6 +52,8 @@ const o = {
   optionsValid: true,
   /** The last previewed batch, ready to queue. */
   batch: null as BatchPlan | null,
+  /** A prepare-for-drag is in flight. */
+  preparing: false,
 };
 
 function populatePresets(): void {
@@ -203,7 +207,34 @@ function markPresetAvailability(encoders: readonly string[]): void {
 export function updateRenderControls(): void {
   const selected = selectedTemplate.value;
   els.render.disabled = !selected || !o.ffmpegOk || o.choosingOutput || !o.optionsValid || selected.offline === true;
+  els.dragPrepare.disabled = els.render.disabled || o.preparing;
   renderBlocked.value = els.render.disabled;
+}
+
+/**
+ * Render into the cache and leave a card in the tray to drag from. An action on
+ * the item being looked at, next to Render, rather than a panel of its own.
+ */
+async function prepareForDrag(): Promise<void> {
+  const request = buildRenderRequest();
+  if (!request) return;
+  o.preparing = true;
+  els.dragStatus.classList.remove('error');
+  els.dragStatus.textContent = '';
+  updateRenderControls();
+  try {
+    const result = await window.pulp.prepareDrag(request);
+    if (!result.ok) {
+      els.dragStatus.classList.add('error');
+      els.dragStatus.textContent = result.message;
+      return;
+    }
+    // Either way a card is waiting in the tray; the card says the rest.
+    els.dragStatus.textContent = result.cached ? 'Ready to drag, in the tray.' : 'Rendering for drag; the tray shows it.';
+  } finally {
+    o.preparing = false;
+    updateRenderControls();
+  }
 }
 
 /** The request a render or a prepared drag would carry, or null when nothing is selected. */
@@ -291,6 +322,7 @@ export function outputShow(entry: TemplateEntry): void {
   els.optFps.value = '';
   els.optIn.value = '';
   els.optOut.value = '';
+  els.dragStatus.textContent = '';
   trim.value = { inFrame: null, outFrame: null };
   o.batch = null;
   els.batchSummary.textContent = '';
@@ -325,6 +357,7 @@ export function initInspectorOutput(): void {
   });
   els.preset.addEventListener('change', updateOptionsNote);
   els.render.addEventListener('click', () => void queueRender());
+  els.dragPrepare.addEventListener('click', () => void prepareForDrag());
   els.batchCsv.addEventListener('input', () => {
     els.batchPreview.disabled = !selectedTemplate.value || els.batchCsv.value.trim() === '';
     els.batchQueue.disabled = true;

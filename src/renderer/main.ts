@@ -1,5 +1,5 @@
 import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
-import { formatBytes, setDrag, setIndex, setJobs, setQuery, setSelection, setShown } from '../core/app-state';
+import { formatBytes, setIndex, setJobs, setQuery, setSelection, setShown } from '../core/app-state';
 import { appState, dispatch, results, selectedTemplate } from './store';
 import { mountResults } from './results';
 import { mountItemInfo } from './item-info';
@@ -7,7 +7,7 @@ import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback 
 import { initShell } from './shell';
 import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
 import { initInspectorParams, paramsClear, paramsShow } from './inspector-params';
-import { buildRenderRequest, initInspectorOutput, outputSetFfmpeg, outputShow, updateRenderControls } from './inspector-output';
+import { initInspectorOutput, outputSetFfmpeg, outputShow, updateRenderControls } from './inspector-output';
 import { mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
@@ -122,9 +122,6 @@ function select(entry: LibraryEntry): void {
   selectedTemplate.value = entry;
   stageShowTemplate(entry, paramsShow(entry));
   outputShow(entry);
-  // A file prepared for another template must not be dragged under this one's name.
-  const drag = appState.value.drag;
-  if (drag && 'file' in drag && drag.templateId !== entry.manifest.id) dispatch((s) => setDrag(s, null));
   renderResults();
 }
 
@@ -305,7 +302,7 @@ initInspectorParams();
 initInspectorOutput();
 initSearchBar();
 initStatusBar();
-initTray(buildRenderRequest);
+initTray();
 mountBrowse($('browse-tree'));
 mountResults(els.results, { onSelect: select, onStop: stopPlayback });
 mountItemInfo($('item-tools'), { favorite: 'favorite', chips: 'tag-chips', input: 'tag-input' }, false);

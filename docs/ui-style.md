@@ -84,6 +84,18 @@ Search syntax is the exception by design: what you type in the search field (`ta
 | Tray | State icons on jobs (queued, running, done, failed); drag dots on the handle; trash on Clear finished |
 | Status bar | Check or warning for ffmpeg, hard drive for the cache, spinner while scanning or rendering |
 
+## Cards that carry a file
+
+The render tray is the worked example; anything that hands a file to another application follows it.
+
+- **One drag affordance, not two.** The card *is* the drag source: a grip icon on it, the whole card draggable, and a short hint — "Drag to your editor" — that appears on hover and on keyboard focus. A separate handle beside the thing it drags leaves the reader to work out which one is real.
+- **No raw path, no file name, in a card's text.** A card says what the item is: its display name, the preset as a badge, and one line of status. The path lives in the card's tooltip and behind **Reveal in Finder / Show in Explorer** and **Copy path**. Someone scanning the tray is looking for *which render*, not for where it landed. A failure's own reason is the exception — an error that hides where it happened cannot be acted on.
+- **Say what it is, not what to do to it.** "Drag to your editor", not "drag me into your editor": the interface is not a character. No first person anywhere.
+- **Dragging needs a pointer, so the file needs a keyboard route too.** A focused card reveals with Enter and copies its path with the copy shortcut; the actions it offers are buttons, reachable by tab, not hover-only affordances.
+- **A warning that is always on screen stops being read.** A standing caveat becomes an info icon with a tooltip, plus a one-time notice the first time the thing it warns about actually happens, dismissed and remembered.
+
+The style test enforces the two that can be checked: no first-person wording and no raw path or file name in visible text or in a card's fields.
+
 ## Tokens
 
 All in `:root`; literal values outside the token block are a defect the enforcement test catches.

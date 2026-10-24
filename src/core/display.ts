@@ -116,6 +116,16 @@ export function audioLabel(codec: string, channels?: number, sampleRate?: number
 }
 
 /**
+ * What the file manager is called here, for the Reveal action. The platform's
+ * own word, because the user is about to see that application.
+ */
+export function revealLabel(platform: string): string {
+  if (platform === 'darwin') return 'Reveal in Finder';
+  if (platform === 'win32') return 'Show in Explorer';
+  return 'Show in file manager';
+}
+
+/**
  * A library root as a browse node: the bundled samples are "Built-in templates"; a user
  * folder's name is humanized like a tag ("media-library" → "Media library"), which leaves
  * names already in readable form alone ("News Pack"). The full path belongs in the tooltip.

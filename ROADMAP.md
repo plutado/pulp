@@ -17,7 +17,7 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 18. Visual polish: labels, icons and hierarchy | 8-13 h |
 | 10. Categorization by type and theme | 14-23 h |
 | 12. Browse and preview | 13-21 h |
-| 13. Collections | 8-14 h |
+| 13. Collections | 10-17 h |
 | 17. Unsigned builds and releases | 7-12 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
 | 19. Vertical and square formats | 13-21 h |
@@ -27,9 +27,9 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-20)** | **154-260 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-20)** | **156-263 h** |
 | **Still open through 1.0 (unticked items only)** | **53-89 h** |
-| **Total including post-1.0 items** | **186-318 h** |
+| **Total including post-1.0 items** | **188-321 h** |
 
 ## 0. Foundation (done)
 
@@ -142,10 +142,11 @@ Fills the results region and the stage described in `docs/ui-layout.md`.
 - [x] Waveforms: 400 peaks per audio file, decoded once by ffmpeg to mono samples and kept in the library database against the file's size and mtime, drawn as an SVG path in the stage behind the audio transport and in list rows where a thumbnail would be. Peaks, their storage and the path that draws them are a pure `src/core/waveform.ts` with unit tests; taken on first ask like hover-scrub strips, and through the same turn-taking as the poster queue (2-3 h)
 - [x] Audition mode: a toggle in the stage tools, kept in `settings.json`, that makes choosing an audio item play it; Up and Down walk the results and show each item as they go (useful with it off too), Escape stops whatever is playing. The step is a pure `neighbourEntry` in the shared state; the results region asks the app to stop rather than reaching into the stage (1-2 h)
 
-## 13. Collections (8-14 h)
+## 13. Collections (10-17 h)
 
-Turns the queue in the collection tray into collections; the separate queue panel goes away.
+Turns the queue in the collection tray into collections; the separate queue panel goes away. The drag-out experience is rebuilt here first, because collections inherit its cards.
 
+- [x] Render cards, replacing the drag-out corner that predated the layout and style work: each job is a card with a thumbnail, the item's display name, the preset as a badge and one line of status (queued, a progress bar, done, or the reason it failed). A finished card **is** the drag source — a grip, the whole card draggable, a "Drag to your editor" hint on hover and focus — so there is one drag affordance instead of a card plus a separate handle. No path or file name in a card's text: the path is in the tooltip and behind Reveal in Finder / Show in Explorer, Copy path and Remove, which also give a keyboard a way to the file since dragging needs a pointer. "Prepare for drag" became an action on the item next to Render, and lands a card whether it rendered or reused the cache. The standing cache-link paragraph became an info icon with a tooltip plus a one-time notice the first time something is dragged out. Card text comes from a pure `src/core/queue-card.ts` with unit tests, and the style test now forbids first-person wording and raw paths in visible text (2-3 h)
 - [ ] Collection tray: add items from the results, the stage or by drag; small cards with their own output settings (preset, size, frame rate, trim, and parameters for templates); remove, reorder, Apply to all (2-4 h)
 - [ ] Save and load a collection as a file: items by library id with their settings; missing or offline items flagged on load, so a collection also serves as a project archive (2-3 h)
 - [ ] Render all: every item through the render queue with per-item and total progress, one save folder for all or per item; finished items keep their drag handle (3-5 h)

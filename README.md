@@ -58,14 +58,14 @@ Milestones 1-6, 10-12 and 18 (renderer, alpha export, parameter editor, library,
 
 | Milestone | What it delivers | Estimate |
 |---|---|---|
-| 13. Collections | Gather items while browsing, save and load as a file, render all with per-item settings | 8-14 h |
+| 13. Collections | Render cards that are themselves the drag source (done), then gathering items while browsing, saving and loading as a file, and rendering all with per-item settings | 10-17 h |
 | 17. Unsigned builds and releases | electron-builder, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 7-12 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 | 19. Vertical and square formats | Templates defined by aspect ratio rather than pixel size, with the output resolution chosen at render time; an orientation filter and portrait cards; vertical safe zones; vertical versions of the matched sample sets | 13-21 h |
 | 20. Social-ready export | Platform presets (aspect, resolution, frame rate, H.264/AAC, bitrate) with warnings when a render runs past a platform's length or file-size limit, a cover image, and handing the file to the system share sheet or the platform's upload page — no accounts, no posting through APIs | 8-13 h |
 | 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 
-The milestones through 1.0 total **154-260 hours**, of which **53-89 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **156-263 hours**, of which **53-89 hours** are still open (the rest is done). Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 

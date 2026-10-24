@@ -96,7 +96,7 @@ export interface PackInstallResult {
 
 /** Preparing a render for drag: an existing cached file, or a queued job to wait for. */
 export type PrepareDragResult =
-  | { ok: true; cached: true; file: string }
+  | { ok: true; cached: true; file: string; jobId: number }
   | { ok: true; cached: false; jobId: number }
   | { ok: false; message: string };
 
@@ -156,6 +156,14 @@ export interface PulpApi {
   deletePreset(templateId: string, name: string): Promise<Record<string, Record<string, unknown>>>;
   /** Remove done, failed and cancelled jobs from the queue. */
   clearFinishedRenders(): Promise<void>;
+  /** Take one finished card off the tray. */
+  removeRender(id: number): Promise<void>;
+  /** Show a rendered file in the file manager. False when the path is not one this app made. */
+  revealFile(path: string): Promise<boolean>;
+  /** Put a rendered file's path on the clipboard, under the same rule. */
+  copyFilePath(path: string): Promise<boolean>;
+  /** What this machine is, so the Reveal action can use the file manager's own name. */
+  platform: string;
   getRenderQueue(): Promise<RenderQueueSnapshot>;
   /** The last committed searches, most recent first. */
   getRecentSearches(): Promise<string[]>;
@@ -165,6 +173,9 @@ export interface PulpApi {
   getLayout(): Promise<LayoutState>;
   /** Persist the shell layout; sanitized and written through the settings queue. */
   saveLayout(layout: LayoutState): Promise<void>;
+  /** Whether the "your editor links to this file" notice has already been shown. */
+  getDragNoticeSeen(): Promise<boolean>;
+  setDragNoticeSeen(): Promise<void>;
   /** Stage player preferences: loop, background, safe areas, volume. */
   getPlayer(): Promise<PlayerState>;
   savePlayer(player: PlayerState): Promise<void>;

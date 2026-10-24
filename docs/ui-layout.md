@@ -15,7 +15,7 @@ The shell from this plan is built (milestone 11): the regions below exist as res
 | **Results** | center | **Grid of cards**: thumbnail with hover-scrub, name, badges (alpha, loop, duration, resolution, audio variants, pack). **List view** for audio and long lists: name, duration, type, themes, file. **Audition mode**: autoplay with arrow keys. A card can be dragged to the collection tray, to the stage, or straight out to an editor once rendered. |
 | **Stage** | center, above the results in a resizable split; collapsible to a thin bar | The player: play/pause, loop toggle, frame step, in and out marks, timecode, volume and mute. A **background toggle** (checkerboard, black, white, custom) for checking alpha. Title-safe and action-safe overlay. A **waveform** under the scrub bar for audio and for templates with sound. **Stem lanes** for layered music, one waveform per layer with mute and solo. A **variant picker** for paired sound effects. |
 | **Inspector** | right | Tabs: **Parameters** (the form as today, with undo and presets), **Output** (preset, aspect and output resolution, frame rate, duration and loop extension, speed, alpha type, matte pass, audio embedded or separate, save folder, file-name pattern), **Info** (metadata, license, pack, tags, favorite, themes and styles, editable where the item is the user's). |
-| **Collection tray** | bottom drawer under the center and right columns; resizable, collapsible to a one-line summary, opens when the first item is added | Items gathered while browsing, as small cards, each with its own output settings. **Apply to all**, save and load as a file, **Render all** with per-item and total progress. It absorbs today's render queue. |
+| **Collection tray** | bottom drawer under the center and right columns; resizable, collapsible to a one-line summary, opens when the first item is added | Items gathered while browsing, as small cards, each with its own output settings. **Apply to all**, save and load as a file, **Render all** with per-item and total progress. It absorbs today's render queue. A finished card **is** the drag source — grip, whole card draggable, hint on hover and focus — and offers Reveal, Copy path and Remove; the file's path is in its tooltip, never in its text (`docs/ui-style.md`). |
 | **Guided setup** | modal | Numbered steps: what it is for, size and frame rate, format and alpha, audio, where to save. A live preview over a checkerboard, a settings summary, "save as default for this type", Add to collection. |
 | **Status bar** | bottom | ffmpeg found or missing, library counts, cache size, scans and renders in progress, a "copy diagnostics" entry point. |
 
@@ -36,7 +36,7 @@ Nothing is dropped; everything moves into a region.
 | Favorite, tag chips | A compact strip under the stage (star, chips, quick-add) and the Info tab; same state in both |
 | Parameter form, undo, saved presets | Inspector, Parameters tab |
 | Render options, trim, CSV batch, Render | Inspector, Output tab |
-| Drag handle, Prepare for drag, render cache | Collection tray (finished items keep a drag handle) |
+| Drag handle, Prepare for drag, render cache | The finished card itself is the drag source; **Prepare for drag** is an action on the item in the Output tab, next to Render; the cache lives in the tray's footer |
 | Render queue | Collection tray (stays the queue until collections replace it) |
 | ffmpeg status, counts | Status bar |
 
@@ -79,6 +79,7 @@ Each of these is a checklist item in the milestone named.
 | Player: loop, frame step, in and out marks, background toggle, safe-area overlay | 12 |
 | Waveforms: peak data computed once per audio file, cached like thumbnails | 12 |
 | Audition mode for audio lists | 12 |
+| Render cards that are themselves the drag source, with Reveal, Copy path and Remove | 13 |
 | Collection tray, save and load, Apply to all, Render all | 13 |
 | Defaults per type, guided setup | 14 |
 | Converting library media with the same presets; audio-only options | 15 |

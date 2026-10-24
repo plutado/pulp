@@ -112,6 +112,27 @@ export class RenderQueue {
   }
 
   /** Drop done, failed and cancelled jobs from the list. */
+  /**
+   * Add a job that is already done — a prepare-for-drag that found its render in
+   * the cache. The tray shows one kind of card whether the render happened just
+   * now or an hour ago.
+   */
+  addFinished(input: NewRenderJob, output: string, frames: number): RenderQueueJob {
+    // Not add() then mutate: add returns a copy, so the stored job has to be built here.
+    const job: RenderQueueJob = { ...input, id: this.nextId++, status: 'done', frame: frames, output, warnings: [] };
+    this.jobs.push(job);
+    this.changed();
+    return { ...job };
+  }
+
+  /** Take one finished job off the list; a job still queued or running stays. */
+  remove(id: number): void {
+    const job = this.jobs.find((j) => j.id === id);
+    if (!job || !isFinished(job)) return;
+    this.jobs = this.jobs.filter((j) => j.id !== id);
+    this.changed();
+  }
+
   clearFinished(): void {
     const before = this.jobs.length;
     this.jobs = this.jobs.filter((j) => !isFinished(j));

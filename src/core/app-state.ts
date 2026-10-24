@@ -9,7 +9,7 @@ import { audioLabel, categoryLabel, codecLabel, dimensionsLabel, durationLabel, 
 import { buildBrowseTree, type TreeNode } from './browse-tree';
 
 import { formatTimecode } from './timecode';
-import { isFinished, type RenderJobStatus, type RenderQueueJob, type RenderQueueSnapshot } from './render-queue';
+import { isFinished, type RenderJobStatus, type RenderQueueSnapshot } from './render-queue';
 import { searchLibrary } from './search';
 
 /**
@@ -40,8 +40,6 @@ export const FILTER_CHIPS = [
 ] as const;
 export type FilterChipId = (typeof FILTER_CHIPS)[number]['id'];
 
-/** What the drag handle carries: a cached file ready to drag, or the job rendering one. */
-export type DragTarget = { file: string; templateId: string } | { jobId: number } | null;
 
 export interface AppState {
   index: LibraryIndex | null;
@@ -57,7 +55,6 @@ export interface AppState {
   /** Key of the entry the stage and Info tab show (a template or a media item), or null. */
   shownKey: string | null;
   jobs: RenderQueueSnapshot;
-  drag: DragTarget;
 }
 
 export const initialAppState: AppState = {
@@ -69,7 +66,6 @@ export const initialAppState: AppState = {
   selectedKey: null,
   shownKey: null,
   jobs: { jobs: [] },
-  drag: null,
 };
 
 // Actions. Each returns the same object when nothing changes, so an unchanged
@@ -104,10 +100,6 @@ export function setJobs(s: AppState, jobs: RenderQueueSnapshot): AppState {
   return s.jobs === jobs ? s : { ...s, jobs };
 }
 
-export function setDrag(s: AppState, drag: DragTarget): AppState {
-  return s.drag === drag ? s : { ...s, drag };
-}
-
 export function setShown(s: AppState, shownKey: string | null): AppState {
   return s.shownKey === shownKey ? s : { ...s, shownKey };
 }
@@ -128,30 +120,7 @@ export function itemDetails(entry: LibraryEntry): string {
   return [`${kind} · ${extensionLabel(entry.ext)} · ${sizeLabel(entry.size)}`, describeMeta(entry), entry.path].filter(Boolean).join(' · ');
 }
 
-/** A sequence output pattern drags as its first frame file. */
-export function dragFileFor(job: RenderQueueJob): string {
-  const output = job.output ?? job.outputPath;
-  const m = /%(0?)(\d*)d/.exec(output);
-  if (!m) return output;
-  const width = m[2] ? Number(m[2]) : 0;
-  return output.slice(0, m.index) + String(job.firstFrame ?? 0).padStart(width, m[1] === '0' ? '0' : ' ') + output.slice(m.index + m[0].length);
-}
 
-/**
- * What a queue change means for a drag in progress: the handle arms when the job it
- * waits for finishes, and reports the failure otherwise. Null when nothing changes.
- */
-export function resolveDragJob(
-  s: Pick<AppState, 'drag' | 'jobs'>,
-): { drag: DragTarget; status: string; error: boolean; cacheChanged: boolean } | null {
-  if (!s.drag || !('jobId' in s.drag)) return null;
-  const job = s.jobs.jobs.find((j) => j.id === (s.drag as { jobId: number }).jobId);
-  if (!job || job.status === 'queued' || job.status === 'running') return null;
-  if (job.status === 'done' && job.output) {
-    return { drag: { file: dragFileFor(job), templateId: job.templateId }, status: 'Ready to drag.', error: false, cacheChanged: true };
-  }
-  return { drag: null, status: job.message ?? 'The render did not finish.', error: true, cacheChanged: false };
-}
 
 // Derived values.
 

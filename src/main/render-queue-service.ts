@@ -104,12 +104,28 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
   const { path: outputPath } = await cacheFileForKey(key, template.manifest.name, preset.extension, preset.sequence);
   const existing = dragFileFor(outputPath, timing.firstFrame);
   if (existsSync(existing) && (await isCachedFile(existing))) {
-    return { ok: true, cached: true, file: existing };
+    // Already rendered, but the tray still gets a card: one place to drag from,
+    // whether the render happened now or an hour ago.
+    const cached = queue.addFinished(
+      {
+        templateId: template.manifest.id,
+        templateName: template.manifest.name,
+        presetId: preset.id,
+        outputPath,
+        totalFrames: timing.totalFrames,
+        firstFrame: timing.firstFrame,
+      },
+      outputPath,
+      timing.totalFrames,
+    );
+    // The card can be dragged, revealed and copied, like any other finished render.
+    finishedOutputs.add(existing);
+    markItemUsed(template.id);
+    return { ok: true, cached: true, file: existing, jobId: cached.id };
   }
   const job = queue.add({
     templateId: template.manifest.id,
     templateName: template.manifest.name,
-    label: `${template.manifest.name} · for drag`,
     presetId: preset.id,
     outputPath,
     totalFrames: timing.totalFrames,
@@ -169,6 +185,11 @@ export function cancelRender(jobId: number): void {
 
 export function clearFinishedRenders(): void {
   queue.clearFinished();
+}
+
+/** Take one finished card off the tray. A job still running is cancelled instead. */
+export function removeRender(id: number): void {
+  queue.remove(id);
 }
 
 /** Render queued jobs until none are left. Only one pump runs at a time. */

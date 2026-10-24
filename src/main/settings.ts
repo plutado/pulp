@@ -26,6 +26,8 @@ export interface Settings {
   resultsView: ResultsViewState;
   /** Stage player preferences: loop, background, safe areas, volume (src/core/player.ts). */
   player: PlayerState;
+  /** True once the "your editor links to this file" notice has been shown and dismissed. */
+  dragNoticeSeen: boolean;
 }
 
 const DEFAULTS: Settings = {
@@ -36,6 +38,7 @@ const DEFAULTS: Settings = {
   layout: DEFAULT_LAYOUT,
   resultsView: DEFAULT_RESULTS_VIEW,
   player: DEFAULT_PLAYER,
+  dragNoticeSeen: false,
 };
 
 function settingsPath(): string {
@@ -51,6 +54,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     layout: sanitizeLayout(raw.layout),
     resultsView: sanitizeResultsView(raw.resultsView),
     player: sanitizePlayer(raw.player),
+    dragNoticeSeen: raw.dragNoticeSeen === true,
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
   };
 }

@@ -186,7 +186,9 @@
       </div>
       <div class="render-actions">
         <button id="render" type="button" class="primary" disabled>Render…</button>
+        <button id="drag-prepare" type="button" disabled data-tip="Render into the cache and add a card to the tray you can drag into your editor">Prepare for drag</button>
       </div>
+      <p id="drag-status" class="note" role="status"></p>
       <details id="batch" class="batch">
         <summary>Batch from CSV</summary>
         <p class="note">One render per row. Column headers match a parameter id or label (any case); a <code>file</code> (or <code>name</code>, when that is not a parameter) column names the jobs and files.</p>
@@ -215,23 +217,16 @@
         <button id="clear-finished" type="button" disabled data-icon="trash" aria-label="Clear finished"><span class="label">Clear finished</span></button>
       </div>
       <div class="tray-body">
-        <div class="tray-queue">
-          <ul id="queue" class="queue" aria-label="Render queue" aria-live="polite"></ul>
+        <div id="drag-notice" class="note notice" role="status" hidden>
+          <span id="drag-notice-text"></span>
+          <button id="drag-notice-dismiss" type="button">Got it</button>
         </div>
-        <div class="tray-side">
-          <div class="drag-out">
-            <div id="drag-handle" class="drag-handle" draggable="false" title="Prepare a render, then drag this into your editor's bin or timeline">
-              <span data-icon="dots-six-vertical" data-icon-size="20" aria-hidden="true"></span>
-              <span id="drag-handle-text">Drag to editor</span>
-            </div>
-            <button id="drag-prepare" type="button" disabled title="Render with the current parameters and preset into the cache, so it can be dragged">Prepare for drag</button>
-            <p id="drag-status" class="note"></p>
-            <p class="note">Editors link to the dragged file rather than copying it. Keep prepared renders in the cache while a project uses them: clearing the cache, or the cache evicting old files, takes those clips offline in the editor.</p>
-          </div>
+        <ul id="queue" class="queue" aria-label="Render queue" aria-live="polite" data-tip="A finished render: drag it into your editor, or press Enter to show it in the file manager and Cmd+C or Ctrl+C to copy its path"></ul>
+        <div class="tray-foot">
+          <span id="link-info" class="icon-slot" tabindex="0" role="img" data-icon="info" data-icon-size="16" aria-label="How editors use a dragged file" data-tip="An editor links to the file rather than copying it. Keep a render while a project uses it: clearing the cache, or the cache dropping its oldest files, takes those clips offline in the editor."></span>
           <details class="cache">
             <summary>Render cache</summary>
             <p id="cache-summary" class="note"></p>
-            <p class="note warn">Clearing or shrinking the cache removes files that editor projects may link to; those clips go offline there.</p>
             <div class="render-actions">
               <button id="cache-clear" type="button">Clear cache</button>
               <button id="cache-dir" type="button">Change folder…</button>

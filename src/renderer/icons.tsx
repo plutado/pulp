@@ -14,6 +14,7 @@ import caretRight from '@phosphor-icons/core/assets/regular/caret-right.svg?raw'
 import caretUp from '@phosphor-icons/core/assets/regular/caret-up.svg?raw';
 import checkCircle from '@phosphor-icons/core/assets/regular/check-circle.svg?raw';
 import checkerboard from '@phosphor-icons/core/assets/regular/checkerboard.svg?raw';
+import copy from '@phosphor-icons/core/assets/regular/copy.svg?raw';
 import clock from '@phosphor-icons/core/assets/regular/clock.svg?raw';
 import dotsSixVertical from '@phosphor-icons/core/assets/regular/dots-six-vertical.svg?raw';
 import downloadSimple from '@phosphor-icons/core/assets/regular/download-simple.svg?raw';
@@ -63,6 +64,7 @@ const ICONS = {
   'check-circle': checkCircle,
   checkerboard,
   clock,
+  copy,
   'dots-six-vertical': dotsSixVertical,
   'download-simple': downloadSimple,
   export: exportIcon,

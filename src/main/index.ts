@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron';
 import { join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
@@ -7,7 +7,7 @@ import type { BatchRequest, FfmpegInfo, RenderRequest } from '../shared/api';
 import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
 import { handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
-import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag } from './render-queue-service';
+import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag, removeRender } from './render-queue-service';
 import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
 import { sanitizeCacheMaxMB } from '../core/render-cache';
 import { deletePreset, listPresets, savePreset } from './preset-service';
@@ -91,6 +91,21 @@ function registerIpc(): void {
   ipcMain.handle('drag:start', (event, path: string, templateId?: string) =>
     startDragOut(event.sender, String(path), allowedDragFiles(), typeof templateId === 'string' ? templateId : undefined),
   );
+  // Reveal and Copy path take the same allow-list as the drag: a render this app
+  // made, never an arbitrary path the window asks for.
+  ipcMain.handle('file:reveal', (_event, path: unknown) => {
+    const file = String(path);
+    if (!allowedDragFiles().has(file)) return false;
+    shell.showItemInFolder(file);
+    return true;
+  });
+  ipcMain.handle('file:copy-path', (_event, path: unknown) => {
+    const file = String(path);
+    if (!allowedDragFiles().has(file)) return false;
+    clipboard.writeText(file);
+    return true;
+  });
+  ipcMain.handle('queue:remove', (_event, id: unknown) => removeRender(Number(id)));
   ipcMain.handle('cache:stats', () => cacheStats());
   ipcMain.handle('cache:clear', () => clearRenderCache());
   ipcMain.handle('cache:choose-dir', () => chooseRenderCacheDir());
@@ -143,6 +158,11 @@ function registerIpc(): void {
 
   ipcMain.handle('library:hover-strip', (_event, id: string) => hoverStrip(String(id)));
   ipcMain.handle('library:waveform', (_event, id: string) => waveform(String(id)));
+
+  ipcMain.handle('drag-notice:get', async () => (await loadSettings()).dragNoticeSeen);
+  ipcMain.handle('drag-notice:seen', async () => {
+    await updateSettings((s) => ({ ...s, dragNoticeSeen: true }));
+  });
 
   ipcMain.handle('player:get', async () => (await loadSettings()).player);
   ipcMain.handle('player:save', async (_event, player: unknown) => {

@@ -619,7 +619,7 @@ describe.skipIf(!electron)('inspector UI', () => {
   });
 
   describe('render and drag', () => {
-    it('prepares a render into the cache, arms the drag handle, reuses the cache, and clears it', async () => {
+    it('prepares a render into a draggable card, reuses the cache, and clears it', async () => {
       if (!haveVideo) {
         console.info('ffmpeg not available; render-and-drag check skipped.');
         return;
@@ -629,38 +629,60 @@ describe.skipIf(!electron)('inspector UI', () => {
       // A short range keeps the test quick: three frames of the wipe into the cache.
       await page.eval(`(() => { const i = document.getElementById('opt-in'); i.value = '10'; i.dispatchEvent(new Event('input', { bubbles: true })); const o = document.getElementById('opt-out'); o.value = '12'; o.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'png-sequence'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
-      expect(await page.eval<string>(`document.getElementById('drag-handle').getAttribute('draggable')`)).toBe('false');
+
+      // Prepare for drag is an action on the item, in the Output tab, not a panel of its own.
       await page.eval(`document.getElementById('drag-prepare').click()`);
-      await until(() => page.eval<boolean>(`document.getElementById('drag-status').textContent.includes('Rendering into the cache')`), 'the drag render to be queued');
-      await until(() => page.eval<boolean>(`document.getElementById('drag-handle').getAttribute('draggable') === 'true'`), 'the drag handle to be armed', 240);
-      const file = await page.eval<string>(`document.getElementById('drag-handle').dataset.file`);
+      await until(() => page.eval<boolean>(`document.getElementById('drag-status').textContent.includes('Rendering for drag')`), 'the drag render to be queued');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#queue .job-card[draggable="true"]')`), 'a draggable card', 240);
+
+      const card = `document.querySelector('#queue .job-card[draggable="true"]')`;
+      const file = await page.eval<string>(`${card}.dataset.file`);
       expect(file.startsWith(join(userData, 'render-cache'))).toBe(true);
       expect(file.split(/[\\/]/).pop()).toBe('diagonal-wipe_00010.png'); // clean name, no hash; a sequence drags as its first frame, numbered with the in point
       expect(existsSync(file)).toBe(true);
-      expect(await page.eval<string>(`document.getElementById('drag-handle-text').textContent`)).toMatch(/^Drag .*\.png into your editor$/);
-      // The finished job in the queue is draggable too.
-      expect(await page.eval<boolean>(`!!document.querySelector('#queue li[draggable="true"]')`)).toBe(true);
+
+      // The card names the item and badges the preset; the path is in the tooltip, not the text.
+      const shown = await page.eval<{ name: string; preset: string; status: string; tip: string; grip: boolean; hint: string }>(
+        `(() => { const c = ${card}; return { name: c.querySelector('.job-name').textContent, preset: c.querySelector('.badge.preset').textContent, status: c.querySelector('.job-status').textContent, tip: c.dataset.tip, grip: !!c.querySelector('.grip'), hint: c.querySelector('.drag-hint').textContent }; })()`,
+      );
+      expect(shown.name).toBe('Diagonal Wipe');
+      expect(shown.preset).toBe('PNG sequence (alpha)');
+      expect(shown.status).toBe('Done · 3 frames');
+      expect(`${shown.name} ${shown.status}`).not.toContain('/');
+      expect(shown.tip).toContain(file);
+      expect(shown.grip, 'the card carries the grip').toBe(true);
+      expect(shown.hint).toBe('Drag to your editor');
+      // One drag affordance: the old separate handle is gone.
+      expect(await page.eval<boolean>(`!!document.getElementById('drag-handle')`)).toBe(false);
+
+      // Reveal and Copy path reach the file without it being on the card, and work by keyboard.
+      expect(await page.eval<boolean>(`window.pulp.copyFilePath(${JSON.stringify(file)})`)).toBe(true);
+      expect(await page.eval<boolean>(`window.pulp.copyFilePath('/etc/hosts')`)).toBe(false);
+      await page.eval(`${card}.focus()`);
+      expect(await page.eval<boolean>(`document.activeElement === ${card}`)).toBe(true);
+
       await until(() => page.eval<boolean>(`document.getElementById('cache-summary').textContent.includes('3 files')`), 'the cache summary');
 
-      // Preparing again with the same inputs finds the cached render without a new job.
-      const jobsBefore = await page.eval<number>(`document.querySelectorAll('#queue li:not(.empty)').length`);
+      // Preparing again with the same inputs reuses the cache, and still leaves a card to drag.
       await page.eval(`document.getElementById('drag-prepare').click()`);
-      await until(() => page.eval<boolean>(`document.getElementById('drag-status').textContent === 'Already rendered; ready to drag.'`), 'the cache hit');
-      expect(await page.eval<number>(`document.querySelectorAll('#queue li:not(.empty)').length`)).toBe(jobsBefore);
+      await until(() => page.eval<boolean>(`document.getElementById('drag-status').textContent === 'Ready to drag, in the tray.'`), 'the cache hit');
+      // The card arrives with the next queue broadcast, a tick after the call returns.
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#queue .job-card[draggable="true"]').length`)) >= 2, 'a second draggable card');
 
-      // A drag of something outside the cache and not a finished output is refused; the cached file is allowed.
+      // A drag of something outside the cache and not a finished output is refused.
       expect(await page.eval<boolean>(`window.pulp.startDrag('/etc/hosts')`)).toBe(false);
-      // (A real native drag cannot be observed here; startDrag with the cached file is exercised by the handle's dragstart.)
+
+      // Remove takes one card off the tray.
+      const before = await page.eval<number>(`document.querySelectorAll('#queue .job-card').length`);
+      await page.eval(`${card}.querySelector('.job-actions button:last-child').click()`);
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#queue .job-card').length`)) === before - 1, 'the card to go');
 
       await page.eval(`document.getElementById('cache-clear').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('cache-summary').textContent.includes('0 files')`), 'the cache to be cleared');
       expect(existsSync(file)).toBe(false);
-      expect(await page.eval<string>(`document.getElementById('drag-handle').getAttribute('draggable')`)).toBe('false');
-      expect(await page.eval<string>(`document.getElementById('drag-status').textContent`)).toBe(
-        'Cache cleared; prepare again to drag. Clips linked to the old files are now offline in your editor.',
-      );
       // Reset the options for later tests.
       await page.eval(`(() => { for (const id of ['opt-in', 'opt-out']) { const i = document.getElementById(id); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); } const s = document.getElementById('preset'); s.value = 'prores-4444'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`document.getElementById('clear-finished').click()`);
     }, 120_000);
 
     it('keeps the cache limit in settings and shows it', async () => {
