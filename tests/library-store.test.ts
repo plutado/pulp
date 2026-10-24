@@ -289,7 +289,7 @@ describe('LibraryStore incremental scans', () => {
     await writeTemplate(join(pack, 'strap'), { id: 'test.strap', name: 'Strap', category: 'other' });
     await writeTemplate(join(pack, 'opener'), { id: 'test.opener', name: 'Opener', category: 'title', type: 'opener', themes: ['sports'], styles: ['grunge'] });
     await writeTemplate(join(root, 'loose'), { id: 'test.loose', name: 'Loose' });
-    await writeFile(join(root, 'broken', 'pack.json').replace('broken/pack.json', 'broken-pack.json'), 'not json'); // a stray file, not a pack folder
+    await writeFile(join(root, 'broken-pack.json'), 'not json'); // a stray file, not a pack folder: only pack.json makes a pack
     store.setRoots([root]);
     await store.scanRoots([root]);
     const byName = Object.fromEntries(store.toIndex().templates.map((t) => [t.manifest.name, t]));
