@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boardroom bar chart</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+  var INK = '#16233a', PAPER = '#f4f6f9', STEEL = '#4f7cac';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+
+  // Shrinks a font size until the text fits the width given.
+  function fitFont(text, maxW, size, prefix) {
+    for (var i = 0; i < 20; i++) {
+      ctx.font = prefix + size + 'px ' + FONT;
+      if (ctx.measureText(text).width <= maxW || size < 8) return size;
+      size *= 0.92;
+    }
+    return size;
+  }
+
+  function fmt(n, dec) {
+    var f = Math.abs(n).toFixed(dec).split('.');
+    f[0] = f[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (n < 0 && Number(f.join('.')) !== 0 ? '-' : '') + f.join('.');
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = easeOutCubic(clamp01(t / dur));
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var show = inT * (1 - outT);
+    if (show <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 90 * s;
+    var innerW = W - margin * 2;
+
+    var bars = [];
+    for (var i = 1; i <= 5; i++) {
+      var label = String(p['label' + i] || '').trim();
+      if (!label) continue;
+      var v = Number(p['value' + i]) || 0;
+      bars.push({ label: label, value: v });
+    }
+    var maxV = 0, anyDec = false;
+    for (var b = 0; b < bars.length; b++) {
+      maxV = Math.max(maxV, bars[b].value);
+      if (Math.abs(bars[b].value - Math.round(bars[b].value)) > 1e-6) anyDec = true;
+    }
+    if (maxV <= 0) maxV = 1;
+    var dec = anyDec ? 1 : 0;
+
+    ctx.globalAlpha = show;
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+
+    // Title: light weight, paper white, with a steel hairline drawing in beneath it.
+    var titleSize = fitFont(p.title, innerW, 56 * s, '300 ');
+    // The block (title, rule, rows) sits at the top in wide frames and centres itself in tall ones.
+    var rowHMax = 150 * s;
+    var blockH = titleSize + 78 * s + rowHMax * bars.length;
+    var top0 = Math.max(margin, Math.min((H - blockH) / 2, H * 0.3));
+    var titleY = top0 + titleSize;
+    ctx.fillStyle = PAPER;
+    ctx.fillText(p.title, margin, titleY);
+    var ruleY = titleY + 28 * s;
+    ctx.fillStyle = STEEL;
+    ctx.fillRect(margin, ruleY, innerW * easeOutCubic(clamp01(t / (dur * 1.4))), 2 * s);
+
+    if (!bars.length) { ctx.globalAlpha = 1; return; }
+
+    var top = ruleY + 50 * s;
+    var avail = H - margin - top;
+    var rowH = Math.min(150 * s, avail / bars.length);
+    var labelSize = Math.min(30 * s, rowH * 0.22);
+    var valueSize = Math.min(44 * s, rowH * 0.32);
+    var barH = Math.max(2 * s, Math.min(10 * s, rowH * 0.08));
+
+    for (var k = 0; k < bars.length; k++) {
+      var bar = bars[k];
+      var y = top + rowH * k;
+      // Each bar begins a beat after the last and grows with a measured ease.
+      var start = dur * 0.5 + k * 0.35;
+      var g = easeOutCubic(clamp01((t - start) / 1.1));
+      var textA = clamp01((t - start) / 0.4);
+      var baseY = y + rowH * 0.55;
+
+      // Value, right aligned and counting up alongside the bar.
+      ctx.globalAlpha = show * textA;
+      ctx.textAlign = 'right';
+      ctx.fillStyle = STEEL;
+      ctx.font = '300 ' + valueSize + 'px ' + FONT;
+      var valText = fmt(bar.value * g, dec);
+      ctx.fillText(valText, W - margin, baseY);
+      var valW = ctx.measureText(fmt(bar.value, dec)).width;
+
+      // Label on the left, sized to leave the value room.
+      ctx.textAlign = 'left';
+      ctx.fillStyle = PAPER;
+      var ls = fitFont(bar.label, innerW - valW - 30 * s, labelSize, '400 ');
+      ctx.font = '400 ' + ls + 'px ' + FONT;
+      ctx.fillText(bar.label, margin, baseY);
+
+      // A faint full-width track, then the bar itself growing from the left.
+      ctx.globalAlpha = show * 0.3 * textA;
+      ctx.fillStyle = STEEL;
+      ctx.fillRect(margin, baseY + 18 * s, innerW, Math.max(1, 1.5 * s));
+      ctx.globalAlpha = show;
+      ctx.fillStyle = k === 0 ? STEEL : PAPER;
+      ctx.fillRect(margin, baseY + 18 * s - barH / 2 + 0.75 * s, innerW * (bar.value / maxV) * g, barH);
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

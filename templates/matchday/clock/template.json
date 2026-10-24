@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.matchday.clock",
+  "name": "Matchday clock",
+  "description": "A match clock running forward at real speed from a start time, in a volt chip with a period label and chevrons.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "counter",
+  "tags": ["clock", "timer", "scoreboard"],
+  "duration": 8,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "minutes", "type": "number", "label": "Start minutes", "default": 43, "min": 0, "max": 120, "step": 1 },
+    { "id": "seconds", "type": "number", "label": "Start seconds", "default": 52, "min": 0, "max": 59, "step": 1 },
+    {
+      "id": "period",
+      "type": "select",
+      "label": "Period",
+      "default": "1ST",
+      "options": [
+        { "value": "1ST", "label": "1st half" },
+        { "value": "2ND", "label": "2nd half" },
+        { "value": "ET", "label": "Extra time" }
+      ]
+    },
+    {
+      "id": "position",
+      "type": "select",
+      "label": "Position",
+      "default": "top-center",
+      "options": [
+        { "value": "top-left", "label": "Top left" },
+        { "value": "top-center", "label": "Top centre" },
+        { "value": "top-right", "label": "Top right" }
+      ]
+    },
+    { "id": "accent", "type": "color", "label": "Chip color", "default": "#d4f531", "group": "Colors" },
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#101010f2", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.35, "min": 0.15, "max": 1.5, "step": 0.05 }
+  ]
+}

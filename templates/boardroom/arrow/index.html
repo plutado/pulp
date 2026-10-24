@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boardroom arrow</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = clamp01(t / dur);
+    var outT = clamp01((t - (d - dur)) / dur);
+    if (outT >= 1) return;
+
+    var s = Math.min(W, H) / 1080;
+    // Points come in as percentages of the frame; keep them a hair inside so the head never clips.
+    var pad = 12 * s;
+    var x1 = pad + (W - 2 * pad) * p.x1 / 100, y1 = pad + (H - 2 * pad) * p.y1 / 100;
+    var x2 = pad + (W - 2 * pad) * p.x2 / 100, y2 = pad + (H - 2 * pad) * p.y2 / 100;
+    var dx = x2 - x1, dy = y2 - y1;
+    var len = Math.hypot(dx, dy);
+    if (len < 1) { dx = 1; dy = 0; len = 1; }
+    var ux = dx / len, uy = dy / len;
+    var ang = Math.atan2(dy, dx);
+
+    // The line draws out from the start on a measured ease and retracts into the head on the way out.
+    var drawn = easeInOut(clamp01((inT - 0.1) / 0.9));
+    var gone = easeInCubic(outT);
+    var a = len * gone, b = len * drawn;
+    var lw = Math.max(1, 2 * s);
+    var sq = 10 * s;
+
+    ctx.fillStyle = p.line;
+    ctx.strokeStyle = p.line;
+    ctx.lineWidth = lw;
+
+    // A small open square marks the start point; it fades in first.
+    ctx.globalAlpha = clamp01(inT * 3) * (1 - clamp01(outT * 2));
+    ctx.strokeRect(x1 - sq / 2, y1 - sq / 2, sq, sq);
+    ctx.globalAlpha = 1 - gone;
+
+    if (b > a) {
+      ctx.beginPath();
+      ctx.moveTo(x1 + ux * a, y1 + uy * a);
+      ctx.lineTo(x1 + ux * b, y1 + uy * b);
+      ctx.stroke();
+    }
+
+    // The square head rides the tip of the line, turned to its direction, and fills solid once home.
+    var hx = x1 + ux * Math.max(a, b), hy = y1 + uy * Math.max(a, b);
+    var headScale = 0.6 + 0.4 * drawn;
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.rotate(ang + Math.PI / 4);
+    var hs = sq * 1.2 * headScale;
+    ctx.fillRect(-hs / 2, -hs / 2, hs, hs);
+    ctx.restore();
+
+    // The label sits beside the start point, off the line's side, in spaced capitals.
+    if (p.label) {
+      var size = 24 * s;
+      var caps = p.label.toUpperCase().split('').join(' ');
+      ctx.font = '500 ' + size + 'px ' + FONT;
+      ctx.textBaseline = 'middle';
+      var tw = ctx.measureText(caps).width;
+      // Place the label away from the arrow: to the left of the start if the arrow heads right, else to the right.
+      var leftSide = ux >= 0;
+      var gap = 22 * s;
+      var tx = leftSide ? x1 - gap : x1 + gap;
+      ctx.textAlign = leftSide ? 'right' : 'left';
+      // Clamp inside the frame.
+      if (leftSide && tx - tw < pad) { ctx.textAlign = 'left'; tx = x1 + gap; }
+      else if (!leftSide && tx + tw > W - pad) { ctx.textAlign = 'right'; tx = x1 - gap; }
+      var ty = Math.max(pad + size, Math.min(H - pad - size, y1));
+      var textA = clamp01((inT - 0.3) / 0.5) * (1 - clamp01(outT * 1.5));
+      // A soft ink backing keeps the paper-white label readable over footage.
+      var bx = ctx.textAlign === 'left' ? tx - 10 * s : tx - tw - 10 * s;
+      ctx.globalAlpha = textA * 0.75;
+      ctx.fillStyle = '#16233a';
+      ctx.fillRect(bx, ty - size * 0.75, tw + 20 * s, size * 1.5);
+      ctx.globalAlpha = textA;
+      ctx.fillStyle = p.text;
+      ctx.fillText(caps, tx, ty);
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

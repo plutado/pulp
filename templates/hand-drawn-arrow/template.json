@@ -1,0 +1,36 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.hand-drawn-arrow",
+  "name": "Hand-drawn arrow",
+  "description": "A wobbly marker arrow scribbled in progressively, straight or curved, pointing whichever way you choose.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "arrows",
+  "themes": ["education", "kids", "podcast"],
+  "styles": ["hand-drawn"],
+  "tags": ["arrow", "marker", "doodle"],
+  "duration": 4,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "direction", "type": "select", "label": "Points", "default": "right",
+      "options": [
+        { "value": "right", "label": "Right" },
+        { "value": "left", "label": "Left" },
+        { "value": "up", "label": "Up" },
+        { "value": "down", "label": "Down" }
+      ]
+    },
+    { "id": "curved", "type": "boolean", "label": "Curved", "default": true },
+    { "id": "color", "type": "color", "label": "Marker color", "default": "#e53e3e" },
+    { "id": "weight", "type": "number", "label": "Marker weight", "default": 16, "min": 4, "max": 36, "step": 1 },
+    { "id": "length", "type": "number", "label": "Length (% of frame)", "default": 50, "min": 15, "max": 90, "step": 5 },
+    { "id": "wobble", "type": "number", "label": "Wobble", "default": 50, "min": 0, "max": 100, "step": 5 },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.8, "min": 0.2, "max": 2, "step": 0.1 }
+  ]
+}

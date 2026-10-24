@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Newsdesk opener</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+  var SLANT = 0.22; // the slash motif: horizontal run per vertical unit
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+  function easeInOutQuart(x) { return x < 0.5 ? 8 * x * x * x * x : 1 - Math.pow(-2 * x + 2, 4) / 2; }
+  function easeInCubic(x) { return x * x * x; }
+
+  function slashPath(x, y, w, h) {
+    var k = h * SLANT;
+    ctx.beginPath();
+    ctx.moveTo(x + k, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w - k, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.closePath();
+  }
+
+  // Sets ctx.font, shrinking the size until the text fits maxW; returns the size used.
+  function fitFont(text, prefix, size, maxW) {
+    ctx.font = prefix + size + 'px ' + FONT;
+    var w = ctx.measureText(text).width;
+    if (w > maxW && w > 0) {
+      size = Math.max(8, Math.floor(size * maxW / w));
+      ctx.font = prefix + size + 'px ' + FONT;
+    }
+    return size;
+  }
+
+  // Splits words into two balanced lines when one line would need the type to shrink too far.
+  function twoLines(text) {
+    var words = text.split(/\s+/);
+    if (words.length < 2) return [text];
+    var best = 1, bestDiff = Infinity;
+    for (var i = 1; i < words.length; i++) {
+      var a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
+      var diff = Math.abs(ctx.measureText(a).width - ctx.measureText(b).width);
+      if (diff < bestDiff) { bestDiff = diff; best = i; }
+    }
+    return [words.slice(0, best).join(' '), words.slice(best).join(' ')];
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 4);
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    if (outT >= 1) return;
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 100 * s;
+    var cx = W / 2, cy = H / 2;
+    var maxW = W - margin * 2;
+
+    // The sweep: a wide red slash crosses the whole frame left to right over the first beats.
+    var sweep = easeInOutQuart(clamp01(t / (dur * 2)));
+    var bandW = W * 0.3, kH = H * SLANT;
+    var sx = -bandW - kH + (W + bandW + 2 * kH) * sweep;
+    if (sweep < 1) {
+      slashPath(sx, 0, bandW, H);
+      ctx.fillStyle = p.accent;
+      ctx.fill();
+    }
+
+    // Everything that stays slides out to the right on the out.
+    ctx.save();
+    ctx.translate(outT * (W + kH), 0);
+
+    // The navy band lands behind the title from the left once the sweep has passed the centre.
+    var bandT = easeOutQuart(clamp01((t - dur * 0.9) / dur));
+    var programme = (p.programme || '').toUpperCase();
+    var nameSize = fitFont(programme, '800 ', 110 * s, maxW);
+    var lines = [programme];
+    if (nameSize < 70 * s) {
+      ctx.font = '800 ' + 110 * s + 'px ' + FONT;
+      lines = twoLines(programme);
+      nameSize = 110 * s;
+      for (var i = 0; i < lines.length; i++) nameSize = Math.min(nameSize, fitFont(lines[i], '800 ', 110 * s, maxW));
+    }
+    var lineH = nameSize * 1.05;
+    var panelH = lines.length * lineH + 120 * s;
+    var panelY = cy - panelH / 2;
+    var panelHead = (W + kH) * bandT;
+    ctx.beginPath();
+    ctx.moveTo(0, panelY);
+    ctx.lineTo(Math.max(0, panelHead - kH * (panelH / H)), panelY);
+    ctx.lineTo(Math.max(0, panelHead - 2 * kH * (panelH / H)), panelY + panelH);
+    ctx.lineTo(0, panelY + panelH);
+    ctx.closePath();
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+
+    // The standing slash: a thin red stroke through the band, growing from the centre.
+    var slashT = easeOutQuart(clamp01((t - dur * 1.2) / dur));
+    var slashH = (panelH + 120 * s) * slashT, slashW = 12 * s;
+    var sk = slashH * SLANT;
+    var slashX = cx + Math.min(maxW / 2 - 60 * s, 300 * s) - slashW / 2 - sk / 2;
+    slashPath(slashX, cy - slashH / 2, slashW, slashH);
+    ctx.fillStyle = p.accent;
+    ctx.fill();
+
+    // Programme name in bold capitals, hard-landing from the right.
+    var textT = easeOutQuart(clamp01((t - dur * 1.4) / dur));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = textT;
+    ctx.fillStyle = p.text;
+    ctx.font = '800 ' + nameSize + 'px ' + FONT;
+    var textY = cy - (lines.length - 1) * lineH / 2;
+    for (var j = 0; j < lines.length; j++) {
+      ctx.fillText(lines[j], cx + (1 - textT) * 60 * s, textY + j * lineH + 4 * s);
+    }
+
+    // Date line in a slashed red tab under the band.
+    var dateT = easeOutQuart(clamp01((t - dur * 1.9) / dur));
+    var dateText = (p.date || '').toUpperCase().split('').join(' ');
+    var dateSize = fitFont(dateText, '700 ', 26 * s, maxW - 60 * s);
+    var tabW = ctx.measureText(dateText).width + 60 * s;
+    var tabH = 52 * s, tabY = panelY + panelH + 10 * s;
+    ctx.globalAlpha = dateT;
+    slashPath(cx - tabW / 2 - (1 - dateT) * 40 * s, tabY, tabW, tabH);
+    ctx.fillStyle = p.accent;
+    ctx.fill();
+    ctx.fillStyle = p.text;
+    ctx.font = '700 ' + dateSize + 'px ' + FONT;
+    ctx.fillText(dateText, cx + tabH * SLANT / 2 - (1 - dateT) * 40 * s, tabY + tabH / 2 + 2 * s);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

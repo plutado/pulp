@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Cinematic leader</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Sample template for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var CONDENSED = 'Arial Narrow, Helvetica Neue, sans-serif';
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function hash(i) { var x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    // The leader fills the last (from + 1) seconds: the numbers from..2 one per second, then dark.
+    var from = Math.max(3, Math.round(p.from));
+    var tc = t - (d - (from + 1));
+    if (tc < 0) return;
+    var idx = Math.floor(tc);
+    var n = from - idx;
+    var frac = tc - idx;
+    var dark = n < 2;
+
+    var s = Math.min(W, H) / 1080;
+    var cx = W / 2, cy = H / 2;
+    var R = Math.min(W, H) * 0.42;
+
+    // Flicker: a slow seeded wobble of the field's brightness, like a projector gate.
+    var flick = p.flicker ? 0.92 + 0.08 * hash(state.frame * 3 + 1) : 1;
+
+    ctx.fillStyle = p.field;
+    ctx.fillRect(0, 0, W, H);
+
+    if (!dark) {
+      // The wedge sweeps clockwise from twelve once per second.
+      ctx.globalAlpha = flick;
+      ctx.fillStyle = p.wedge;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, Math.max(W, H), -Math.PI / 2, -Math.PI / 2 + TAU * frac, false);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // Crosshairs through the centre, full frame.
+    ctx.strokeStyle = p.line;
+    ctx.lineWidth = Math.max(1, 2 * s);
+    ctx.globalAlpha = dark ? 0.25 : 0.8;
+    ctx.beginPath();
+    ctx.moveTo(0, cy); ctx.lineTo(W, cy);
+    ctx.moveTo(cx, 0); ctx.lineTo(cx, H);
+    ctx.stroke();
+
+    // Two concentric circles.
+    ctx.lineWidth = Math.max(1, 3 * s);
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.86, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    if (!dark) {
+      // The figure in a condensed sans, on a dark disc so it reads over the wedge.
+      ctx.fillStyle = p.field;
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath(); ctx.arc(cx, cy, R * 0.42, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = p.line;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '700 ' + Math.round(R * 1.15) + 'px ' + CONDENSED;
+      ctx.fillText(String(n), cx, cy + R * 0.06);
+      // Corner marks: short ticks at the four cardinal points of the outer circle.
+      ctx.fillRect(cx - R - 28 * s, cy - 1.5 * s, 28 * s, 3 * s);
+      ctx.fillRect(cx + R, cy - 1.5 * s, 28 * s, 3 * s);
+      ctx.fillRect(cx - 1.5 * s, cy - R - 28 * s, 3 * s, 28 * s);
+      ctx.fillRect(cx - 1.5 * s, cy + R, 3 * s, 28 * s);
+    } else if (frac < 0.08 && n === 1) {
+      // The sync pop: a single bright flash frame as the count passes two.
+      ctx.fillStyle = p.line;
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+
+    // Grain: hashed specks whose positions are seeded by the frame, never random.
+    var grain = Math.max(0, Math.min(1, p.grain));
+    if (grain > 0) {
+      var count = Math.round(1400 * grain * (W * H) / (1920 * 1080));
+      var seed = state.frame * 7919;
+      var gs = Math.max(1, 2 * s);
+      for (var i = 0; i < count; i++) {
+        var k = seed + i * 3;
+        var gx = hash(k) * W, gy = hash(k + 1) * H;
+        var bright = hash(k + 2);
+        ctx.fillStyle = bright > 0.5 ? '#ffffff' : '#000000';
+        ctx.globalAlpha = 0.12 + 0.2 * Math.abs(bright - 0.5) * 2 * grain;
+        ctx.fillRect(gx, gy, gs, gs);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // A hair and a scratch now and then, seeded by the beat so each second has its own.
+    if (hash(idx * 17 + 3) > 0.5) {
+      var sx = (0.1 + 0.8 * hash(idx * 17 + 5)) * W + Math.sin(frac * 40) * 2 * s;
+      ctx.globalAlpha = 0.25 * (1 - frac);
+      ctx.fillStyle = p.line;
+      ctx.fillRect(sx, 0, Math.max(1, s), H);
+      ctx.globalAlpha = 1;
+    }
+  };
+</script>
+</body>
+</html>

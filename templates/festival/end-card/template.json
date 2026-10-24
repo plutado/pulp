@@ -1,0 +1,26 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.festival.end-card",
+  "name": "Festival end card",
+  "description": "A thank-you line in warm serif italics on a rounded plum card, a date line beneath, confetti and twinkles all around.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": ["end-card", "thank-you", "confetti"],
+  "duration": 7,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "thanks", "type": "text", "label": "Thank-you line", "default": "Thank you for celebrating with us", "maxLength": 100 },
+    { "id": "date", "type": "text", "label": "Date line", "default": "See you again on 31 December", "maxLength": 80 },
+    { "id": "gold", "type": "color", "label": "Gold color", "default": "#e8b54d", "group": "Colors" },
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#341f3ee6", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#fff6e8", "group": "Colors" },
+    { "id": "confetti", "type": "boolean", "label": "Confetti", "default": true },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.7, "min": 0.2, "max": 2, "step": 0.1 }
+  ]
+}

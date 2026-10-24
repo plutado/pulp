@@ -5,7 +5,7 @@
   "author": "David Fugate",
   "license": "CC0-1.0",
   "description": "A corporate set: ink blue and paper white, hairline rules, a steel accent, measured motion.",
-  "templates": ["lower-third", "title", "transition", "overlay", "background"],
+  "templates": ["lower-third", "title", "transition", "overlay", "background", "opener", "credits", "callout", "arrow", "bar-chart", "counter"],
   "themes": ["corporate", "finance", "technology", "real-estate"],
   "styles": ["clean"]
 }

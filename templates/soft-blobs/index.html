@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Soft blobs</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Soft blobs sample for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+  function hash(i) { var x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+
+  // A closed curve of eight control points around a centre, each radius wobbling on its own phase.
+  function blobPath(cx, cy, r, t, seed, wobble) {
+    var k = 8, pts = [];
+    for (var i = 0; i < k; i++) {
+      var a = i / k * Math.PI * 2;
+      var w = 1 + wobble * (0.5 * Math.sin(t * 0.7 + seed * 6.3 + i * 1.7) + 0.5 * Math.sin(t * 1.1 + seed * 2.1 + i * 2.9));
+      pts.push({ x: cx + Math.cos(a) * r * w, y: cy + Math.sin(a) * r * w });
+    }
+    ctx.beginPath();
+    for (var j = 0; j < k; j++) {
+      var p0 = pts[j], p1 = pts[(j + 1) % k];
+      var mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2;
+      if (j === 0) ctx.moveTo((pts[k - 1].x + p0.x) / 2, (pts[k - 1].y + p0.y) / 2);
+      ctx.quadraticCurveTo(p0.x, p0.y, mx, my);
+    }
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = clamp01(t / dur);
+    var outT = clamp01((t - (d - dur)) / dur);
+    if (outT >= 1) return;
+
+    var s = Math.min(W, H) / 1080;
+    var n = Math.round(p.amount);
+    var palette = [p.color1, p.color2, p.color3];
+    var soft = p.softness / 100;
+    var short = Math.min(W, H);
+
+    // Seeded positions and sizes: the same every render, different for each blob.
+    for (var i = 0; i < n; i++) {
+      var seed = i + 1;
+      var baseR = short * (0.16 + 0.1 * hash(seed * 3 + 1));
+      // Keep centres inside the frame with room for the radius and the drift.
+      var mx = baseR * 1.1, my = baseR * 1.1;
+      var bx = mx + (W - 2 * mx) * hash(seed * 5 + 2);
+      var by = my + (H - 2 * my) * hash(seed * 7 + 3);
+      var drift = short * 0.03;
+      var x = bx + Math.sin(t * 0.35 + seed * 2.3) * drift;
+      var y = by + Math.cos(t * 0.28 + seed * 1.7) * drift;
+
+      var stagger = clamp01((inT - i * 0.12) / (1 - i * 0.12 * 0.5));
+      var grow = easeOutCubic(stagger) * (1 - easeInCubic(clamp01((outT - (n - 1 - i) * 0.1) / 0.9)));
+      if (grow <= 0) continue;
+      var breathe = 1 + 0.05 * Math.sin(t * 0.9 + seed * 4.1);
+      var r = baseR * grow * breathe;
+
+      ctx.save();
+      ctx.fillStyle = palette[i % 3];
+      // Softness feathers the edge with a shadow blur in the same colour.
+      if (soft > 0) {
+        ctx.shadowColor = palette[i % 3];
+        ctx.shadowBlur = soft * 90 * s;
+      }
+      blobPath(x, y, r, t, hash(seed * 11), 0.12 + 0.06 * (1 - soft));
+      ctx.fill();
+      ctx.restore();
+    }
+  };
+</script>
+</body>
+</html>

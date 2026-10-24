@@ -29,7 +29,7 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 10-22 h |
 | **Total through 1.0 (milestones 1-8, 10-13 and 17-21)** | **181-300 h** |
-| **Still open through 1.0 (unticked items only)** | **66-106 h** |
+| **Still open through 1.0 (unticked items only)** | **56-91 h** |
 | **Total including post-1.0 items** | **213-358 h** |
 
 ## 0. Foundation (done)
@@ -179,14 +179,14 @@ The browse tree is only as convincing as what fills it. The bundled samples cove
   - Sound effects › explosion (0): `Sound effects/Explosions/` blast, distant-boom, debris
   - Sound effects › sci-fi (0): `Sound effects/Sci-fi/` laser, drone, computer
   - Sound effects › musical phrase (0): `Sound effects/Musical phrases/` rising-arpeggio, falling-minor, three-note-ident
-- [ ] Titles and text, twelve templates (4-6 h)
+- [x] Titles and text, twelve templates (4-6 h)
   - lower third (5): done — the four sets and Lower Third Bar
   - title (5): done — the four sets and Title Card
   - opener (0): Boardroom opener (a mark that draws itself, company name, tagline), Newsdesk opener (slash sweep, programme name, date line), Matchday opener (chevron burst, fixture, kick-off)
   - end card / credits (0): Boardroom credits (a rolling list of roles and names), Festival end card (thank-you with confetti and a date), Newsdesk end card (programme credits and handles behind the slash)
   - callout / caption (0): Boardroom callout (a pointer line to a numbered label), Newsdesk caption (a quote bar with attribution), Festival callout (a speech-bubble label)
   - social / subscribe (0): Festival subscribe (bell and handle), Matchday follow (handle chip with chevrons), Newsdesk social strip (handle and hashtag bar)
-- [ ] Design elements, eighteen templates, mostly standalone so the styles list gains tech, retro, organic, hand-drawn, elegant and cinematic (6-9 h)
+- [x] Design elements, eighteen templates, mostly standalone so the styles list gains tech, retro, organic, hand-drawn, elegant and cinematic (6-9 h)
   - shapes and accents (0): Tech hex burst (tech), Retro sun stripes (retro), Soft blobs (organic)
   - icons (0): Line icons (clean; check, play, star, heart, bell chosen by parameter), Hand-drawn icons (hand-drawn), Playful icons (playful)
   - arrows and pointers (0): Boardroom arrow (a hairline arrow that draws in), Newsdesk pointer (a slash-cut pointer), Hand-drawn arrow (hand-drawn)

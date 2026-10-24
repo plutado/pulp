@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Matchday kick-off countdown</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutBack(x) { var c = 2.2; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+
+  function fitFont(text, maxW, size, prefix) {
+    for (var i = 0; i < 24; i++) {
+      ctx.font = prefix + size + 'px ' + FONT;
+      if (ctx.measureText(text).width <= maxW || size < 8) return size;
+      size *= 0.92;
+    }
+    return size;
+  }
+
+  // A chevron pointing right with its left edge at x and the notch cut into that edge.
+  function chevron(x, y, w, h) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w * 0.62, y);
+    ctx.lineTo(x + w, y + h / 2);
+    ctx.lineTo(x + w * 0.62, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.lineTo(x + w * 0.38, y + h / 2);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    // The count occupies the last (from + 1) seconds so it always lands on the end.
+    var from = Math.max(1, Math.round(p.from));
+    var tc = t - (d - (from + 1));
+    if (tc < 0) return;
+    var idx = Math.min(from, Math.floor(tc));
+    var n = from - idx;
+    var frac = tc - Math.floor(tc);
+    var isWord = n <= 0;
+
+    var s = Math.min(W, H) / 1080;
+    var cx = W / 2, cy = H / 2;
+
+    // Each beat punches in with a hard overshoot, then holds; it is cut by the next one.
+    var pop = 0.55 + 0.45 * easeOutBack(clamp01(frac / 0.28));
+    var chevW = Math.min(W * 0.8, 700 * s), chevH = Math.min(H * 0.6, 420 * s);
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(pop, pop);
+    ctx.translate(-cx, -cy);
+
+    // A dark chevron behind, a volt one in front, offset so the dark reads as a cast shadow.
+    ctx.fillStyle = p.panel;
+    chevron(cx - chevW / 2 + 26 * s, cy - chevH / 2 + 22 * s, chevW, chevH);
+    ctx.fill();
+    ctx.fillStyle = p.accent;
+    chevron(cx - chevW / 2, cy - chevH / 2, chevW, chevH);
+    ctx.fill();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#101010';
+    var label = isWord ? (p.word || '').toUpperCase() : String(n);
+    var size = fitFont(label, chevW * 0.52, isWord ? 120 * s : 300 * s, '800 ');
+    ctx.font = '800 ' + size + 'px ' + FONT;
+    ctx.fillText(label, cx + chevW * 0.08, cy + size * 0.06);
+    ctx.restore();
+
+    // A row of small chevrons beneath, one per beat, lighting as the count runs.
+    var row = from + 1, cw = 26 * s, chh = 30 * s, gap = 14 * s;
+    var rowW = row * cw + (row - 1) * gap;
+    var rx = cx - rowW / 2, ry = cy + chevH / 2 + 50 * s;
+    for (var i = 0; i < row; i++) {
+      var lit = i <= idx;
+      ctx.globalAlpha = lit ? 1 : 0.3;
+      ctx.fillStyle = lit ? p.accent : p.text;
+      chevron(rx + i * (cw + gap), ry, cw, chh);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // The word beat flashes volt across the frame briefly.
+    if (isWord) {
+      ctx.globalAlpha = 0.5 * (1 - easeOutQuart(clamp01(frac / 0.3)));
+      ctx.fillStyle = p.text;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+  };
+</script>
+</body>
+</html>

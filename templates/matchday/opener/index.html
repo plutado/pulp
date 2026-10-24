@@ -1,0 +1,185 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Matchday opener</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+  function easeOutBack(x) { var c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function easeInCubic(x) { return x * x * x; }
+
+  function chevron(x, y, w, h) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w * 0.55, y);
+    ctx.lineTo(x + w, y + h / 2);
+    ctx.lineTo(x + w * 0.55, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.lineTo(x + w * 0.45, y + h / 2);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 4);
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    if (outT >= 1) return;
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 90 * s;
+    var cx = W / 2, cy = H / 2;
+    var maxW = W - margin * 2;
+
+    // Chevron burst: twelve chevrons fly outward from the centre and fade as they go.
+    var burst = clamp01(t / (dur * 2.5));
+    if (burst < 1) {
+      var e = easeOutQuart(burst);
+      var reach = 80 * s + Math.min(W, H) * 0.55 * e;
+      ctx.fillStyle = p.accent;
+      ctx.globalAlpha = Math.pow(1 - burst, 1.5);
+      for (var i = 0; i < 12; i++) {
+        var ang = i * TAU / 12 + 0.13;
+        ctx.save();
+        ctx.translate(cx + Math.cos(ang) * reach, cy + Math.sin(ang) * reach);
+        ctx.rotate(ang);
+        var cw = 70 * s * (1 - 0.5 * e), ch = 46 * s * (1 - 0.5 * e);
+        chevron(-cw / 2, -ch / 2, cw, ch);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Fixture layout: a row when wide enough, a stack when tall or square.
+    var home = (p.home || '').toUpperCase(), away = (p.away || '').toUpperCase();
+    var stacked = W / H < 1.3;
+    var size = 120 * s, pad = 40 * s, barH = 150 * s, vW = 90 * s, gap = 16 * s;
+    ctx.font = '800 ' + size + 'px ' + FONT;
+    var hw = ctx.measureText(home).width, aw = ctx.measureText(away).width;
+    var need = stacked ? Math.max(hw, aw) + pad * 2 : hw + aw + pad * 4 + vW + gap * 2;
+    if (need > maxW) {
+      var f = maxW / need;
+      size *= f; pad *= f; barH *= f; vW *= f;
+      ctx.font = '800 ' + size + 'px ' + FONT;
+      hw = ctx.measureText(home).width; aw = ctx.measureText(away).width;
+    }
+    var homeW = hw + pad * 2, awayW = aw + pad * 2;
+
+    // Each piece slams in with overshoot, staggered; the whole thing collapses on the out.
+    var tHome = easeOutBack(clamp01((t - dur * 0.5) / dur));
+    var tV = easeOutBack(clamp01((t - dur * 0.9) / dur));
+    var tAway = easeOutBack(clamp01((t - dur * 1.1) / dur));
+    var tKick = easeOutQuart(clamp01((t - dur * 1.7) / dur));
+    var collapse = 1 - outT;
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    function bar(x, y, w, h, text, grow, from) {
+      // Scales about its centre with overshoot; `from` nudges it in from a side.
+      ctx.save();
+      ctx.translate(x + w / 2 + from * (1 - clamp01(grow)) * 120 * s, y + h / 2);
+      ctx.scale(Math.max(0, grow) * collapse, Math.max(0, grow) * collapse);
+      ctx.fillStyle = p.accent;
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.fillStyle = p.panel;
+      ctx.font = '800 ' + size + 'px ' + FONT;
+      ctx.fillText(text, 0, 6 * s);
+      ctx.restore();
+    }
+    function vChip(x, y, w, h, grow) {
+      ctx.save();
+      ctx.translate(x + w / 2, y + h / 2);
+      ctx.scale(Math.max(0, grow) * collapse, Math.max(0, grow) * collapse);
+      ctx.fillStyle = p.panel;
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.fillStyle = p.accent;
+      ctx.font = '800 ' + size * 0.5 + 'px ' + FONT;
+      ctx.fillText('V', 0, 3 * s);
+      ctx.restore();
+    }
+
+    var kickH = 56 * s;
+    var kickGap = 30 * s;
+    var totalH, top;
+    if (stacked) {
+      var vH = barH * 0.55;
+      totalH = barH * 2 + vH + gap * 2 + kickGap + kickH;
+      top = cy - totalH / 2;
+      bar(cx - homeW / 2, top, homeW, barH, home, tHome, -1);
+      vChip(cx - vW / 2, top + barH + gap, vW, vH, tV);
+      bar(cx - awayW / 2, top + barH + gap + vH + gap, awayW, barH, away, tAway, 1);
+      top += barH * 2 + vH + gap * 2;
+    } else {
+      totalH = barH + kickGap + kickH;
+      top = cy - totalH / 2;
+      var rowW = homeW + gap + vW + gap + awayW;
+      var x0 = cx - rowW / 2;
+      bar(x0, top, homeW, barH, home, tHome, -1);
+      vChip(x0 + homeW + gap, top + barH * 0.2, vW, barH * 0.6, tV);
+      bar(x0 + homeW + gap + vW + gap, top, awayW, barH, away, tAway, 1);
+      top += barH;
+    }
+
+    // Kick-off line on a dark chip under the fixture, two chevrons leading it.
+    var kick = (p.kickoff || '').toUpperCase();
+    var kickSize = 28 * s;
+    ctx.font = '700 ' + kickSize + 'px ' + FONT;
+    var kw = ctx.measureText(kick).width;
+    var chevW = 18 * s, chevH = 22 * s;
+    var chipW = kw + chevW * 2 + 12 * s + 70 * s;
+    if (chipW > maxW) {
+      kickSize *= maxW / chipW;
+      ctx.font = '700 ' + kickSize + 'px ' + FONT;
+      kw = ctx.measureText(kick).width;
+      chipW = kw + chevW * 2 + 12 * s + 70 * s;
+    }
+    var ky = top + kickGap;
+    ctx.save();
+    ctx.translate(cx, ky + kickH / 2);
+    ctx.scale(collapse, collapse);
+    ctx.globalAlpha = tKick;
+    ctx.fillStyle = p.panel;
+    var chipShown = chipW * tKick;
+    ctx.fillRect(-chipShown / 2, -kickH / 2, chipShown, kickH);
+    ctx.fillStyle = p.accent;
+    var cxStart = -chipW / 2 + 24 * s;
+    var run = Math.floor(t * 6) % 2;
+    chevron(cxStart, -chevH / 2, chevW, chevH);
+    ctx.globalAlpha = tKick * (run === 0 ? 1 : 0.45);
+    ctx.fill();
+    chevron(cxStart + chevW + 6 * s, -chevH / 2, chevW, chevH);
+    ctx.globalAlpha = tKick * (run === 1 ? 1 : 0.45);
+    ctx.fill();
+    ctx.globalAlpha = tKick;
+    ctx.fillStyle = p.text;
+    ctx.textAlign = 'left';
+    ctx.fillText(kick, cxStart + chevW * 2 + 24 * s, 2 * s);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

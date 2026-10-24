@@ -1,0 +1,167 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Festival subscribe</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Festival sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var SERIF = 'Georgia, Times New Roman, serif';
+  var SANS = 'Helvetica Neue, Arial, sans-serif';
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutBack(x) { var c = 1.4; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function easeInCubic(x) { return x * x * x; }
+  function hash(i) { var x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+
+  function pill(x, y, w, h) {
+    var r = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(x + r, y + h);
+    ctx.arc(x + r, y + r, r, Math.PI / 2, Math.PI * 1.5);
+    ctx.closePath();
+  }
+
+  // A four-point star: two thin crossing diamonds.
+  function star(x, y, r) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - r); ctx.lineTo(x + r * 0.18, y - r * 0.18); ctx.lineTo(x + r, y);
+    ctx.lineTo(x + r * 0.18, y + r * 0.18); ctx.lineTo(x, y + r); ctx.lineTo(x - r * 0.18, y + r * 0.18);
+    ctx.lineTo(x - r, y); ctx.lineTo(x - r * 0.18, y - r * 0.18);
+    ctx.closePath();
+  }
+
+  // A bell centred on (0, 0) with radius r: dome, flared skirt, a knob on top and a clapper below.
+  function bell(r) {
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.95, r * 0.55);
+    ctx.quadraticCurveTo(-r * 0.7, r * 0.45, -r * 0.66, -r * 0.05);
+    ctx.quadraticCurveTo(-r * 0.66, -r * 0.9, 0, -r * 0.9);
+    ctx.quadraticCurveTo(r * 0.66, -r * 0.9, r * 0.66, -r * 0.05);
+    ctx.quadraticCurveTo(r * 0.7, r * 0.45, r * 0.95, r * 0.55);
+    ctx.lineTo(r * 0.95, r * 0.68);
+    ctx.lineTo(-r * 0.95, r * 0.68);
+    ctx.closePath();
+    ctx.moveTo(r * 0.13, -r * 0.95);
+    ctx.arc(0, -r * 0.95, r * 0.13, 0, TAU);
+    ctx.moveTo(r * 0.2, r * 0.85);
+    ctx.arc(0, r * 0.85, r * 0.2, 0, TAU);
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = clamp01(t / dur);
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var fade = 1 - outT;
+    if (fade <= 0) return;
+    var pop = (t < dur ? easeOutBack(inT) : 1) * (1 - outT * 0.5);
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 100 * s;
+    var circleR = 70 * s, gap = 24 * s;
+    var pillH = 110 * s, padX = 48 * s;
+    var maxW = W - margin * 2;
+
+    // Row: bell circle, then the gold pill with the handle; shrink the handle if the row is too wide.
+    var size = 46 * s;
+    ctx.font = 'italic 700 ' + size + 'px ' + SERIF;
+    var hw = ctx.measureText(p.handle).width;
+    var rowW = circleR * 2 + gap + hw + padX * 2;
+    if (rowW > maxW) {
+      var room = maxW - circleR * 2 - gap - padX * 2;
+      size = Math.max(10, Math.floor(size * room / hw));
+      ctx.font = 'italic 700 ' + size + 'px ' + SERIF;
+      hw = ctx.measureText(p.handle).width;
+      rowW = circleR * 2 + gap + hw + padX * 2;
+    }
+    var cx = W / 2, rowY = H - margin - pillH / 2 - 60 * s;
+    var x0 = cx - rowW / 2;
+    var bellX = x0 + circleR, bellY = rowY;
+
+    ctx.save();
+    ctx.translate(cx, rowY);
+    ctx.scale(pop, pop);
+    ctx.translate(-cx, -rowY);
+    ctx.globalAlpha = fade;
+
+    // Label in small gold sans above the row.
+    var label = p.label || '';
+    ctx.font = '400 ' + 26 * s + 'px ' + SANS;
+    var lw = ctx.measureText(label).width;
+    if (lw > maxW) ctx.font = '400 ' + Math.floor(26 * s * maxW / lw) + 'px ' + SANS;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = p.gold;
+    ctx.fillText(label, cx, rowY - pillH / 2 - 26 * s);
+
+    // The gold pill with the handle knocked out in plum.
+    var pillX = x0 + circleR * 2 + gap;
+    pill(pillX, rowY - pillH / 2, hw + padX * 2, pillH);
+    ctx.fillStyle = p.gold;
+    ctx.fill();
+    ctx.fillStyle = p.panel;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'italic 700 ' + size + 'px ' + SERIF;
+    ctx.fillText(p.handle, pillX + padX, rowY + 4 * s);
+
+    // The plum circle with a gold rim, and the bell inside it.
+    ctx.beginPath();
+    ctx.arc(bellX, bellY, circleR, 0, TAU);
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+    ctx.lineWidth = 3 * s;
+    ctx.strokeStyle = p.gold;
+    ctx.stroke();
+
+    // The bell rings once it has landed: a decaying swing about its top knob.
+    var ringT = Math.max(0, t - dur * 0.8);
+    var swing = Math.sin(ringT * 14) * 0.4 * Math.exp(-ringT * 1.6);
+    var bellR = 34 * s;
+    ctx.save();
+    ctx.translate(bellX, bellY - bellR * 0.95);
+    ctx.rotate(swing);
+    ctx.translate(0, bellR * 0.95);
+    bell(bellR);
+    ctx.fillStyle = p.gold;
+    ctx.fill('evenodd');
+    ctx.restore();
+
+    // Twinkles fly off the circle while the swing is lively.
+    var lively = clamp01(Math.abs(swing) * 6);
+    for (var i = 0; i < 6; i++) {
+      var ang = -Math.PI * 0.9 + i * 0.36 + hash(i) * 0.2;
+      var phase = (ringT * (1.2 + hash(i + 20)) + hash(i + 40)) % 1;
+      var dist = circleR + 14 * s + phase * 50 * s;
+      ctx.globalAlpha = fade * lively * Math.sin(phase * Math.PI) * 0.9;
+      ctx.fillStyle = p.gold;
+      star(bellX + Math.cos(ang) * dist, bellY + Math.sin(ang) * dist, (8 + hash(i + 60) * 8) * s);
+      ctx.fill();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

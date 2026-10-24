@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boardroom callout</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOutCubic(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function easeInCubic(x) { return x * x * x; }
+
+  // Sets ctx.font, shrinking the size until the text fits maxW; returns the size used.
+  function fitFont(text, prefix, size, maxW) {
+    ctx.font = prefix + size + 'px ' + FONT;
+    var w = ctx.measureText(text).width;
+    if (w > maxW && w > 0) {
+      size = Math.max(8, Math.floor(size * maxW / w));
+      ctx.font = prefix + size + 'px ' + FONT;
+    }
+    return size;
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 3);
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var fade = 1 - outT;
+    if (fade <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 80 * s;
+
+    // The anchor is given as percentages; the label box sits toward the frame's centre from it.
+    var ax = W * clamp01(p.x / 100), ay = H * clamp01(p.y / 100);
+    var dx = ax < W / 2 ? 1 : -1;
+    var dy = ay < H / 2 ? 1 : -1;
+    var diag = 90 * s, run = 110 * s;
+    var ex = ax + dx * diag, ey = ay + dy * diag;
+    var boxH = 72 * s;
+    ey = Math.max(margin + boxH / 2, Math.min(H - margin - boxH / 2, ey));
+    var bx = ex + dx * run;
+
+    // Build order over about twice the in time: dot, line, box, number, label. The out retracts it all.
+    var build = clamp01(t / (dur * 2.2));
+    var dot = easeOutCubic(clamp01(build / 0.18));
+    var line = easeInOutCubic(clamp01((build - 0.12) / 0.4)) * fade;
+    var box = easeOutCubic(clamp01((build - 0.45) / 0.35));
+    var label = easeOutCubic(clamp01((build - 0.7) / 0.3));
+
+    // Label box geometry.
+    var pad = 22 * s, numW = 56 * s;
+    var labelSize = fitFont(p.label, '400 ', 32 * s, Math.max(60 * s, (dx > 0 ? W - margin - bx : bx - margin) - numW - pad * 2));
+    var labelW = ctx.measureText(p.label).width;
+    var boxW = numW + labelW + pad * 2;
+    var x0 = dx > 0 ? bx : bx - boxW;
+    var y0 = ey - boxH / 2;
+
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = p.accent;
+    ctx.strokeStyle = p.accent;
+    ctx.lineWidth = 2 * s;
+
+    // Anchor dot with a hairline ring that settles around it.
+    var r = 7 * s * dot;
+    ctx.beginPath();
+    ctx.arc(ax, ay, r, 0, TAU);
+    ctx.fill();
+    ctx.globalAlpha = fade * dot * 0.6;
+    ctx.beginPath();
+    ctx.arc(ax, ay, 16 * s * dot + 10 * s * (1 - dot), 0, TAU);
+    ctx.stroke();
+    ctx.globalAlpha = fade;
+
+    // The pointer draws along its two segments: a diagonal, then a horizontal run to the box.
+    var len1 = Math.sqrt(diag * diag + (ey - ay) * (ey - ay)), len2 = run;
+    var drawn = (len1 + len2) * line;
+    if (drawn > 0) {
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      var f1 = clamp01(drawn / len1);
+      ctx.lineTo(ax + (ex - ax) * f1, ay + (ey - ay) * f1);
+      if (drawn > len1) ctx.lineTo(ex + (bx - ex) * clamp01((drawn - len1) / len2), ey);
+      ctx.stroke();
+    }
+
+    // The box: a backing tint, then its hairline frame drawn around the perimeter.
+    var per = (boxW + boxH) * 2;
+    ctx.globalAlpha = fade * box;
+    ctx.fillStyle = p.shadow;
+    ctx.fillRect(x0, y0, boxW, boxH);
+    ctx.globalAlpha = fade;
+    ctx.setLineDash([per * box * fade, per]);
+    ctx.strokeRect(x0, y0, boxW, boxH);
+    ctx.setLineDash([]);
+
+    // Number square at the pointer end, then the label beside it.
+    var numX = dx > 0 ? x0 : x0 + boxW - numW;
+    var sqA = clamp01((box - 0.6) / 0.4);
+    ctx.globalAlpha = fade * sqA;
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(numX, y0, numW, boxH);
+    ctx.fillStyle = p.text;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '600 ' + 30 * s + 'px ' + FONT;
+    ctx.fillText(String(Math.round(p.number)), numX + numW / 2, ey + 1 * s);
+
+    ctx.globalAlpha = fade * label;
+    ctx.textAlign = 'left';
+    ctx.font = '400 ' + labelSize + 'px ' + FONT;
+    var textX = (dx > 0 ? x0 + numW : x0) + pad + (1 - label) * 10 * s * dx;
+    ctx.fillText(p.label, textX, ey + 1 * s);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

@@ -826,12 +826,13 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(listed).toContain('Channel Bug');
       // The bundled title card is untouched: the installed pack brought no second one.
       expect(listed.filter((n) => n === 'Title Card')).toHaveLength(1);
-      // The installed pack appears in the browse tree, counting its templates; the two bundled
-      // matched sets are there as well, five templates each.
+      // The installed pack appears in the browse tree, counting its templates; the bundled
+      // matched sets are there as well, each counting what its pack.json lists.
       await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="pack:news-pack"]')`), 'the installed pack in the browse tree');
       expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:news-pack"]').dataset.count`))).toBe(2);
       for (const slug of ['boardroom', 'newsdesk', 'matchday', 'festival']) {
-        expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:${slug}"]').dataset.count`)), slug).toBe(5);
+        const pack = JSON.parse(await readFile(join(__dirname, '..', '..', 'templates', slug, 'pack.json'), 'utf8')) as { templates: string[] };
+        expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:${slug}"]').dataset.count`)), slug).toBe(pack.templates.length);
       }
     }, 90_000);
 
@@ -1211,7 +1212,10 @@ describe.skipIf(!electron)('inspector UI', () => {
 
       // The set's other pieces are there, named without repeating the set.
       const pieces = await page.eval<string[]>(`[...document.querySelectorAll('#info-item .set-piece .label')].map((l) => l.textContent)`);
-      expect(pieces.sort()).toEqual(['Background', 'Frame', 'Title', 'Wipe']);
+      const boardroom = JSON.parse(await readFile(join(__dirname, '..', '..', 'templates', 'boardroom', 'pack.json'), 'utf8')) as { templates: string[] };
+      expect(pieces).toHaveLength(boardroom.templates.length - 1);
+      expect(pieces).toEqual(expect.arrayContaining(['Background', 'Frame', 'Title', 'Wipe']));
+      expect(pieces).not.toContain('Lower third');
       // Clicking one shows it.
       await page.eval(`[...document.querySelectorAll('#info-item .set-piece')].find((p) => p.querySelector('.label').textContent === 'Title').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('info-name')?.textContent === 'Boardroom title'`), 'the sibling piece');

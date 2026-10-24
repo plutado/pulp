@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Retro sun stripes</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Retro sun stripes sample for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = clamp01(t / dur);
+    var outT = clamp01((t - (d - dur)) / dur);
+    var show = easeOutCubic(inT) * (1 - easeInCubic(outT));
+    if (show <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var n = Math.round(p.stripes);
+    var palette = [p.color1, p.color2, p.color3];
+
+    // The sun sits on the bottom edge; its radius is a share of the short side so it fits every shape.
+    var sunR = Math.min(W, H) * 0.42;
+    var cx = W / 2;
+    // It rises from below the frame on the way in and sinks back on the way out.
+    var rise = easeOutCubic(inT) * (1 - easeInCubic(outT));
+    var cy = H + sunR * (1 - rise) + 10 * s;
+    var gap = sunR / n * 0.22;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.clip();
+
+    // Concentric half-discs from the outside in; the gaps between them stay transparent.
+    for (var i = 0; i < n; i++) {
+      var outer = sunR * (1 - i / n);
+      var inner = outer - sunR / n + gap;
+      if (inner < 0) inner = 0;
+      // Each band breathes very slightly so the hold is not dead still.
+      var wob = 1 + 0.012 * Math.sin(t * 1.6 + i * 0.9);
+      ctx.fillStyle = palette[i % 3];
+      ctx.beginPath();
+      ctx.arc(cx, cy, outer * wob, Math.PI, 0, false);
+      if (inner > 0) ctx.arc(cx, cy, inner * wob, 0, Math.PI, true);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Diagonal stripes sweep in from the left across the upper part of the frame.
+    if (p.diagonals) {
+      var sweep = easeInOut(clamp01((inT - 0.25) / 0.75)) * (1 - easeInCubic(outT));
+      var bandH = 54 * s, bandGap = 22 * s;
+      var angle = -Math.PI / 9;
+      var len = Math.hypot(W, H) * 1.2;
+      ctx.save();
+      ctx.translate(0, H * 0.3);
+      ctx.rotate(angle);
+      for (var k = 0; k < 3; k++) {
+        var y = k * (bandH + bandGap);
+        var from = -len * 0.6;
+        var to = from + len * sweep * (1 - k * 0.12);
+        var x0 = from - k * 90 * s;
+        ctx.fillStyle = palette[(k + 1) % 3];
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(x0, y, Math.max(0, to - x0), bandH);
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

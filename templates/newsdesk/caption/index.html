@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Newsdesk caption</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+  var SLANT = 0.22; // the slash motif: horizontal run per vertical unit
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+  function easeInCubic(x) { return x * x * x; }
+
+  function slashPath(x, y, w, h) {
+    var k = h * SLANT;
+    ctx.beginPath();
+    ctx.moveTo(x + k, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w - k, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.closePath();
+  }
+
+  // Greedy word wrap with the current ctx.font.
+  function wrap(text, maxW) {
+    var words = String(text || '').split(/\s+/), lines = [], cur = '';
+    for (var i = 0; i < words.length; i++) {
+      var next = cur ? cur + ' ' + words[i] : words[i];
+      if (cur && ctx.measureText(next).width > maxW) { lines.push(cur); cur = words[i]; }
+      else cur = next;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = easeOutQuart(clamp01(t / dur));
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var show = inT * (1 - outT);
+    if (show <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 96 * s;
+    var barW = W - margin * 2;
+    var capW = 54 * s, padX = 44 * s, padY = 40 * s;
+    var quoteSize = 42 * s, attrSize = 24 * s;
+    var textW = barW - capW - padX * 2 - 40 * s;
+
+    // Wrap the quote; if it runs past four lines, shrink the type until it fits.
+    ctx.font = '700 ' + quoteSize + 'px ' + FONT;
+    var lines = wrap(p.quote, textW);
+    while (lines.length > 4 && quoteSize > 20 * s) {
+      quoteSize *= 0.9;
+      ctx.font = '700 ' + quoteSize + 'px ' + FONT;
+      lines = wrap(p.quote, textW);
+    }
+    var lineH = quoteSize * 1.2;
+    var barH = padY * 2 + lines.length * lineH + 22 * s + attrSize;
+    var y = H - margin - barH;
+
+    // The bar slides in from the left on a hard ease and leaves the same way.
+    var slide = (1 - show) * (barW + margin + barH * SLANT);
+    var x = margin - slide;
+
+    // Dark panel with a slash-cut leading edge in the accent that carries a quotation mark.
+    slashPath(x + capW, y, barW - capW, barH);
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+    slashPath(x, y, capW + barH * SLANT, barH);
+    ctx.fillStyle = p.accent;
+    ctx.fill();
+    ctx.fillStyle = p.text;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = '800 ' + 72 * s + 'px ' + FONT;
+    ctx.fillText('“', x + capW / 2 + barH * SLANT, y + 78 * s);
+
+    // The quote lines, then the attribution in spaced capitals.
+    ctx.textAlign = 'left';
+    var textX = x + capW + barH * SLANT + padX;
+    var textA = clamp01((show - 0.5) / 0.5);
+    ctx.globalAlpha = textA;
+    ctx.fillStyle = p.text;
+    ctx.font = '700 ' + quoteSize + 'px ' + FONT;
+    for (var i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], textX, y + padY + quoteSize * 0.85 + i * lineH);
+    }
+    var attr = (p.attribution || '').toUpperCase().split('').join(' ');
+    ctx.font = '700 ' + attrSize + 'px ' + FONT;
+    var attrW = ctx.measureText(attr).width;
+    if (attrW > textW) {
+      ctx.font = '700 ' + Math.floor(attrSize * textW / attrW) + 'px ' + FONT;
+    }
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(textX, y + barH - padY - attrSize - 2 * s, 28 * s, 4 * s);
+    ctx.fillStyle = p.text;
+    ctx.globalAlpha = textA * 0.85;
+    ctx.fillText(attr, textX + 40 * s, y + barH - padY);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

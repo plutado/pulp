@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.matchday.countdown",
+  "name": "Matchday kick-off countdown",
+  "description": "A count from ten to zero, each number punching into a volt chevron with overshoot, ending on a kick-off word.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "countdown",
+  "tags": ["countdown", "kick-off", "numbers"],
+  "duration": 11,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "from", "type": "number", "label": "Count from", "default": 10, "min": 3, "max": 10, "step": 1, "description": "The count fills the last (from + 1) seconds; trim the clip to that length." },
+    { "id": "word", "type": "text", "label": "Final word", "default": "KICK-OFF", "maxLength": 16 },
+    { "id": "accent", "type": "color", "label": "Chevron color", "default": "#d4f531", "group": "Colors" },
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#101010", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" }
+  ]
+}

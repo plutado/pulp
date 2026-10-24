@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Festival callout</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Festival sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var SERIF = 'Georgia, Times New Roman, serif';
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutBack(x) { var c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function easeInCubic(x) { return x * x * x; }
+  function hash(i) { var x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+
+  // A four-point star: two thin crossing diamonds.
+  function star(x, y, r) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - r); ctx.lineTo(x + r * 0.18, y - r * 0.18); ctx.lineTo(x + r, y);
+    ctx.lineTo(x + r * 0.18, y + r * 0.18); ctx.lineTo(x, y + r); ctx.lineTo(x - r * 0.18, y + r * 0.18);
+    ctx.lineTo(x - r, y); ctx.lineTo(x - r * 0.18, y - r * 0.18);
+    ctx.closePath();
+  }
+
+  // A rounded bubble centred on (0, 0) with a tail on one side, as one closed path.
+  function bubble(w, h, r, tail, tailLen) {
+    var hw = w / 2, hh = h / 2, tw = 22;
+    ctx.beginPath();
+    ctx.moveTo(-hw + r, -hh);
+    if (tail === 'top') { ctx.lineTo(-tw, -hh); ctx.lineTo(0, -hh - tailLen); ctx.lineTo(tw, -hh); }
+    ctx.lineTo(hw - r, -hh);
+    ctx.arc(hw - r, -hh + r, r, -Math.PI / 2, 0);
+    if (tail === 'right') { ctx.lineTo(hw, -tw); ctx.lineTo(hw + tailLen, 0); ctx.lineTo(hw, tw); }
+    ctx.lineTo(hw, hh - r);
+    ctx.arc(hw - r, hh - r, r, 0, Math.PI / 2);
+    if (tail === 'bottom') { ctx.lineTo(tw, hh); ctx.lineTo(0, hh + tailLen); ctx.lineTo(-tw, hh); }
+    ctx.lineTo(-hw + r, hh);
+    ctx.arc(-hw + r, hh - r, r, Math.PI / 2, Math.PI);
+    if (tail === 'left') { ctx.lineTo(-hw, tw); ctx.lineTo(-hw - tailLen, 0); ctx.lineTo(-hw, -tw); }
+    ctx.lineTo(-hw, -hh + r);
+    ctx.arc(-hw + r, -hh + r, r, Math.PI, Math.PI * 1.5);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = clamp01(t / dur);
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var fade = 1 - outT;
+    if (fade <= 0) return;
+    var pop = (t < dur ? easeOutBack(inT) : 1) * (1 - outT * 0.6);
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 80 * s;
+    var padX = 54 * s, bubbleH = 116 * s, radius = 40 * s, tailLen = 44 * s;
+
+    // Size the bubble to its text, keeping it inside the frame.
+    var size = 48 * s;
+    ctx.font = 'italic 700 ' + size + 'px ' + SERIF;
+    var tw = ctx.measureText(p.label).width;
+    var maxText = W - margin * 2 - padX * 2 - tailLen * 2;
+    if (tw > maxText && tw > 0) { size = Math.floor(size * maxText / tw); ctx.font = 'italic 700 ' + size + 'px ' + SERIF; tw = ctx.measureText(p.label).width; }
+    var bw = tw + padX * 2;
+
+    // Position from percentages, clamped so bubble and tail stay in frame.
+    var halfW = bw / 2 + (p.tail === 'left' || p.tail === 'right' ? tailLen : 0);
+    var halfH = bubbleH / 2 + (p.tail === 'top' || p.tail === 'bottom' ? tailLen : 0);
+    var cx = Math.max(margin / 2 + halfW, Math.min(W - margin / 2 - halfW, W * clamp01(p.x / 100)));
+    var cy = Math.max(margin / 2 + halfH, Math.min(H - margin / 2 - halfH, H * clamp01(p.y / 100)));
+
+    // Pop with a wobble: a decaying rotation around the tail's side after the pop lands.
+    var wobble = Math.sin(t * 16) * 0.09 * Math.exp(-t * 2.2) * clamp01(t / (dur * 0.5));
+    // Scale about the tail tip, so it grows out of what it points at.
+    var ax = 0, ay = 0;
+    if (p.tail === 'left') ax = -bw / 2 - tailLen;
+    if (p.tail === 'right') ax = bw / 2 + tailLen;
+    if (p.tail === 'top') ay = -bubbleH / 2 - tailLen;
+    if (p.tail === 'bottom') ay = bubbleH / 2 + tailLen;
+
+    ctx.save();
+    ctx.translate(cx + ax, cy + ay);
+    ctx.rotate(wobble);
+    ctx.scale(pop, pop);
+    ctx.translate(-ax, -ay);
+    ctx.globalAlpha = fade;
+
+    ctx.lineJoin = 'round';
+    bubble(bw, bubbleH, radius, p.tail, tailLen);
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+    ctx.lineWidth = 3 * s;
+    ctx.strokeStyle = p.gold;
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = p.text;
+    ctx.font = 'italic 700 ' + size + 'px ' + SERIF;
+    ctx.fillText(p.label, 0, 4 * s);
+
+    // Three twinkles pop off the corners as it lands.
+    var sparkT = clamp01((t - dur * 0.6) / (dur * 1.2));
+    for (var i = 0; i < 3; i++) {
+      var ang = -0.6 + i * 1.1 + hash(i) * 0.4;
+      var dist = (0.4 + 0.6 * sparkT) * (bw / 2 + 30 * s);
+      var sx = Math.cos(ang) * dist * (i === 1 ? -1 : 1) * (bw > bubbleH ? 1 : 0.6);
+      var sy = -bubbleH / 2 - 20 * s - Math.sin(ang + 0.5) * 30 * s * sparkT;
+      ctx.globalAlpha = fade * Math.sin(sparkT * Math.PI) * 0.95;
+      ctx.fillStyle = p.gold;
+      star(sx, sy, (10 + hash(i + 10) * 8) * s);
+      ctx.fill();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

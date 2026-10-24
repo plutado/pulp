@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Matchday head-to-head</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Matchday sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+  var VOLT = '#d4f531', BLACK = '#101010', WHITE = '#ffffff';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+  function easeOutBack(x) { var c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function easeInCubic(x) { return x * x * x; }
+
+  function fitFont(text, maxW, size, prefix) {
+    for (var i = 0; i < 24; i++) {
+      ctx.font = prefix + size + 'px ' + FONT;
+      if (ctx.measureText(text).width <= maxW || size < 8) return size;
+      size *= 0.92;
+    }
+    return size;
+  }
+
+  // A chevron pointing right (dir 1) or left (dir -1), with its left/right edge at x.
+  function chevron(x, y, w, h, dir) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + dir * w * 0.55, y);
+    ctx.lineTo(x + dir * w, y + h / 2);
+    ctx.lineTo(x + dir * w * 0.55, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.lineTo(x + dir * w * 0.45, y + h / 2);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = easeOutQuart(clamp01(t / dur));
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var show = inT * (1 - outT);
+    if (show <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var cx = W / 2;
+    var panelW = Math.min(W - 80 * s, 1300 * s);
+    var rowH = 150 * s;
+    var headH = 130 * s;
+    var padY = 40 * s;
+    var panelH = padY * 2 + headH + rowH * 3;
+    var px = cx - panelW / 2;
+    var py = (H - panelH) / 2;
+
+    // The black panel snaps open from a centre line.
+    var openH = panelH * inT;
+    ctx.globalAlpha = 1 - outT;
+    ctx.fillStyle = BLACK;
+    ctx.fillRect(px, py + (panelH - openH) / 2, panelW, openH);
+    // Volt edge rules top and bottom.
+    ctx.fillStyle = VOLT;
+    ctx.fillRect(px, py + (panelH - openH) / 2, panelW, 6 * s);
+    ctx.fillRect(px, py + (panelH + openH) / 2 - 6 * s, panelW, 6 * s);
+
+    var textA = clamp01((show - 0.5) / 0.5);
+    ctx.globalAlpha = textA * (1 - outT);
+    ctx.textBaseline = 'middle';
+
+    // The two names, chevrons pointing at the centre.
+    var nameSize = 64 * s;
+    var halfW = panelW / 2 - 60 * s;
+    var home = (p.home || '').toUpperCase(), away = (p.away || '').toUpperCase();
+    var ns = Math.min(fitFont(home, halfW - 70 * s, nameSize, '800 '), fitFont(away, halfW - 70 * s, nameSize, '800 '));
+    ctx.font = '800 ' + ns + 'px ' + FONT;
+    var ny = py + padY + headH / 2;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = VOLT;
+    ctx.fillText(home, px + 50 * s, ny);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = WHITE;
+    ctx.fillText(away, px + panelW - 50 * s, ny);
+    var ch = 30 * s, cw = 26 * s;
+    ctx.fillStyle = VOLT;
+    chevron(cx - 34 * s, ny - ch / 2, cw, ch, 1);
+    ctx.fill();
+    ctx.fillStyle = WHITE;
+    chevron(cx + 34 * s, ny - ch / 2, cw, ch, -1);
+    ctx.fill();
+
+    var statSize = 26 * s, valSize = 48 * s, barH = 22 * s;
+    var maxBar = panelW / 2 - 60 * s;
+    for (var r = 0; r < 3; r++) {
+      var label = String(p['stat' + (r + 1)] || '').toUpperCase();
+      var hv = Math.max(0, Number(p['home' + (r + 1)]) || 0);
+      var av = Math.max(0, Number(p['away' + (r + 1)]) || 0);
+      var total = hv + av || 1;
+      var ry = py + padY + headH + rowH * r;
+      var start = dur + 0.15 + r * 0.2;
+      var g = t < start + 0.6 ? easeOutBack(clamp01((t - start) / 0.6)) : 1;
+      var rowA = clamp01((t - start) / 0.15) * (1 - outT);
+      ctx.globalAlpha = rowA;
+
+      // The stat label, spaced capitals, centred over the bars.
+      ctx.textAlign = 'center';
+      ctx.fillStyle = WHITE;
+      var sl = label.split('').join(' ');
+      var ss = fitFont(sl, panelW * 0.5, statSize, '700 ');
+      ctx.font = '700 ' + ss + 'px ' + FONT;
+      ctx.fillText(sl, cx, ry + 30 * s);
+
+      // Bars grow outward from the centre, home to the left in volt, away to the right in white.
+      var by = ry + 70 * s;
+      var hw = maxBar * (hv / total) * g, aw = maxBar * (av / total) * g;
+      ctx.fillStyle = VOLT;
+      ctx.fillRect(cx - 6 * s - hw, by, hw, barH);
+      ctx.fillStyle = WHITE;
+      ctx.fillRect(cx + 6 * s, by, aw, barH);
+
+      // Values at the outer ends, counting with the bars.
+      ctx.font = '800 ' + valSize + 'px ' + FONT;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = VOLT;
+      ctx.fillText(String(Math.round(hv * Math.min(1, g))), px + 50 * s, by + barH / 2 + 44 * s);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = WHITE;
+      ctx.fillText(String(Math.round(av * Math.min(1, g))), px + panelW - 50 * s, by + barH / 2 + 44 * s);
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

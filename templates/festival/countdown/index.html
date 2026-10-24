@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Festival midnight countdown</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Festival sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var SERIF = 'Georgia, Times New Roman, serif';
+  var SANS = 'Helvetica Neue, Arial, sans-serif';
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutBack(x) { var c = 1.4; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function hash(i) { var x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+
+  function fitFont(text, maxW, size, prefix, family) {
+    for (var i = 0; i < 24; i++) {
+      ctx.font = prefix + size + 'px ' + family;
+      if (ctx.measureText(text).width <= maxW || size < 8) return size;
+      size *= 0.92;
+    }
+    return size;
+  }
+
+  function pill(x, y, w, h) {
+    var r = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(x + r, y + h);
+    ctx.arc(x + r, y + r, r, Math.PI / 2, Math.PI * 1.5);
+    ctx.closePath();
+  }
+
+  function star(x, y, r) {
+    ctx.beginPath();
+    for (var k = 0; k < 8; k++) {
+      var a = k * Math.PI / 4 - Math.PI / 2, rr = k % 2 ? r * 0.3 : r;
+      ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    }
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var from = Math.max(1, Math.round(p.from));
+    var tc = t - (d - (from + 1));
+    if (tc < 0) return;
+    var idx = Math.min(from, Math.floor(tc));
+    var n = from - idx;
+    var frac = tc - Math.floor(tc);
+    var isWord = n <= 0;
+
+    var s = Math.min(W, H) / 1080;
+    var cx = W / 2, cy = H / 2;
+    var colors = [p.gold, p.text, p.gold, '#f08fb4', '#8fd3f0'];
+
+    // Confetti: a burst per beat, each piece on its own hashed direction, speed and spin.
+    if (p.confetti) {
+      var count = isWord ? 160 : 70;
+      var spread = Math.min(W, H) * (isWord ? 0.75 : 0.5);
+      var pt = easeOutCubic(clamp01(frac / 1.1));
+      for (var i = 0; i < count; i++) {
+        var seed = idx * 1000 + i;
+        var ang = hash(seed) * TAU;
+        var dist = (0.25 + 0.75 * hash(seed + 1)) * spread * pt;
+        var px = cx + Math.cos(ang) * dist;
+        var py = cy + Math.sin(ang) * dist + frac * frac * 320 * s * hash(seed + 2);
+        var size = (5 + 8 * hash(seed + 3)) * s;
+        var spin = frac * (3 + 5 * hash(seed + 4)) + hash(seed + 5) * TAU;
+        ctx.globalAlpha = (1 - clamp01((frac - 0.5) / 0.5)) * 0.95;
+        ctx.fillStyle = colors[Math.floor(hash(seed + 6) * colors.length)];
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(spin);
+        ctx.fillRect(-size / 2, -size / 4, size, size / 2 * (0.3 + 0.7 * Math.abs(Math.cos(spin * 1.3))));
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Twinkles: a handful of gold stars pulsing in fixed, hashed places around the frame.
+    for (var k = 0; k < 14; k++) {
+      var tx = (0.08 + 0.84 * hash(k * 7 + 3)) * W;
+      var ty = (0.08 + 0.84 * hash(k * 7 + 5)) * H;
+      var tw = 0.5 + 0.5 * Math.sin(t * (2 + 2 * hash(k * 7 + 9)) + hash(k) * TAU);
+      ctx.globalAlpha = tw * 0.9;
+      ctx.fillStyle = p.gold;
+      star(tx, ty, (6 + 10 * hash(k * 7 + 11)) * s * (0.6 + 0.4 * tw));
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // The number pops into a plum pill with a gold rim; the word at zero gets a wider pill.
+    var pop = 0.6 + 0.4 * easeOutBack(clamp01(frac / 0.35));
+    var label = isWord ? (p.word || '') : String(n);
+    var pillH = isWord ? Math.min(H * 0.3, 260 * s) : Math.min(H * 0.5, 440 * s);
+    var maxW = W - 100 * s;
+    var size = fitFont(label, maxW - pillH * 0.9, isWord ? 120 * s : 300 * s, 'italic 700 ', SERIF);
+    ctx.font = 'italic 700 ' + size + 'px ' + SERIF;
+    var pillW = Math.max(pillH, ctx.measureText(label).width + pillH * 0.9);
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(pop, pop);
+    ctx.translate(-cx, -cy);
+    pill(cx - pillW / 2, cy - pillH / 2, pillW, pillH);
+    ctx.fillStyle = p.plum;
+    ctx.fill();
+    ctx.lineWidth = 4 * s;
+    ctx.strokeStyle = p.gold;
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = p.gold;
+    ctx.fillText(label, cx, cy + size * 0.06);
+    ctx.restore();
+
+    // A small spaced caption above the pill.
+    var cap = isWord ? '' : (n === 1 ? 'ONE SECOND TO GO' : 'SECONDS TO GO');
+    if (cap) {
+      ctx.fillStyle = p.text;
+      ctx.font = '400 ' + 26 * s + 'px ' + SANS;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(cap.split('').join(' '), cx, cy - pillH / 2 - 30 * s);
+    }
+  };
+</script>
+</body>
+</html>

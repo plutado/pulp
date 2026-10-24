@@ -1,0 +1,152 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Newsdesk end card</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+  var SLANT = 0.22; // the slash motif: horizontal run per vertical unit
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+  function easeInCubic(x) { return x * x * x; }
+
+  function slashPath(x, y, w, h) {
+    var k = h * SLANT;
+    ctx.beginPath();
+    ctx.moveTo(x + k, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w - k, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.closePath();
+  }
+
+  // Sets ctx.font, shrinking the size until the text fits maxW; returns the size used.
+  function fitFont(text, prefix, size, maxW) {
+    ctx.font = prefix + size + 'px ' + FONT;
+    var w = ctx.measureText(text).width;
+    if (w > maxW && w > 0) {
+      size = Math.max(8, Math.floor(size * maxW / w));
+      ctx.font = prefix + size + 'px ' + FONT;
+    }
+    return size;
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 3);
+    var inT = easeOutQuart(clamp01(t / dur));
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    if (outT >= 1) return;
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 100 * s;
+    var maxW = W - margin * 2;
+    var kH = H * SLANT;
+
+    // The card slides in from the left with a slashed leading edge, and leaves to the right.
+    var head = (W + 2 * kH) * inT;
+    ctx.save();
+    ctx.translate(outT * (W + 2 * kH), 0);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.max(0, head - kH), 0);
+    ctx.lineTo(Math.max(0, head - 2 * kH), H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+
+    // The slash runs the full height of the card, right of centre, thickening in.
+    var slashT = easeOutQuart(clamp01((t - dur * 0.6) / dur));
+    var slashW = 70 * s * slashT;
+    var slashX = W * 0.72 - slashW / 2 - kH / 2;
+    slashPath(slashX, 0, slashW, H);
+    ctx.fillStyle = p.accent;
+    ctx.fill();
+
+    var textT = easeOutQuart(clamp01((t - dur * 0.9) / dur));
+    var shift = (1 - textT) * 40 * s;
+    ctx.globalAlpha = textT;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    // Programme name at the top left, then a thin accent rule.
+    var programme = (p.programme || '').toUpperCase();
+    var nameSize = fitFont(programme, '800 ', 64 * s, maxW);
+    var y = margin + nameSize;
+    ctx.fillStyle = p.text;
+    ctx.fillText(programme, margin - shift, y);
+    y += 26 * s;
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(margin, y, Math.min(maxW, 220 * s) * textT, 6 * s);
+    y += 60 * s;
+
+    // Credit lines, one per line, in medium weight; the first word or two read as the role.
+    var lines = String(p.credits || '').split('\n');
+    var creditSize = 32 * s;
+    ctx.fillStyle = p.text;
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;
+      var lineT = easeOutQuart(clamp01((t - dur * (1.0 + i * 0.15)) / dur));
+      ctx.globalAlpha = lineT * 0.9;
+      fitFont(line, '500 ', creditSize, maxW);
+      ctx.fillText(line, margin - (1 - lineT) * 30 * s, y + creditSize);
+      y += creditSize * 1.6;
+    }
+
+    // Two social handles in slashed tabs along the bottom; side by side when they fit, else stacked.
+    var tabT = easeOutQuart(clamp01((t - dur * 1.6) / dur));
+    ctx.globalAlpha = tabT;
+    var tabH = 56 * s, tabPad = 30 * s, tabGap = 20 * s;
+    var h1 = (p.handle1 || '').toUpperCase(), h2 = (p.handle2 || '').toUpperCase();
+    var tabSize = 26 * s;
+    fitFont(h1, '800 ', tabSize, maxW / 2 - tabPad * 2 - tabGap);
+    var w1 = ctx.measureText(h1).width + tabPad * 2 + tabH * SLANT;
+    fitFont(h2, '800 ', tabSize, maxW / 2 - tabPad * 2 - tabGap);
+    var w2 = ctx.measureText(h2).width + tabPad * 2 + tabH * SLANT;
+    var sideBySide = w1 + tabGap + w2 <= maxW;
+    var ty = H - margin - tabH;
+    var tx = margin - (1 - tabT) * 60 * s;
+    function tab(text, x, yy, w, filled) {
+      slashPath(x, yy, w, tabH);
+      // The second tab is outlined; it keeps a panel fill so the slash behind it never muddies the text.
+      ctx.fillStyle = filled ? p.accent : p.panel;
+      ctx.fill();
+      if (!filled) { ctx.lineWidth = 3 * s; ctx.strokeStyle = p.text; ctx.stroke(); }
+      ctx.fillStyle = p.text;
+      ctx.font = '800 ' + tabSize + 'px ' + FONT;
+      ctx.fillText(text, x + tabPad + tabH * SLANT / 2, yy + tabH / 2 + tabSize * 0.36);
+    }
+    if (sideBySide) {
+      tab(h1, tx, ty, w1, true);
+      tab(h2, tx + w1 + tabGap, ty, w2, false);
+    } else {
+      tab(h1, tx, ty - tabH - tabGap, w1, true);
+      tab(h2, tx, ty, w2, false);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

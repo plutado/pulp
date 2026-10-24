@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boardroom opener</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOutCubic(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function easeInCubic(x) { return x * x * x; }
+
+  // Sets ctx.font, shrinking the size until the text fits maxW; returns the size used.
+  function fitFont(text, prefix, size, maxW) {
+    ctx.font = prefix + size + 'px ' + FONT;
+    var w = ctx.measureText(text).width;
+    if (w > maxW && w > 0) {
+      size = Math.max(8, Math.floor(size * maxW / w));
+      ctx.font = prefix + size + 'px ' + FONT;
+    }
+    return size;
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 3);
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var fade = 1 - outT;
+    if (fade <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 100 * s;
+    var cx = W / 2, cy = H / 2;
+    var maxW = W - margin * 2;
+
+    // Staged build: the square draws its perimeter, the rule follows, then the words.
+    var sq = easeInOutCubic(clamp01(t / dur));
+    var rule = easeOutCubic(clamp01((t - dur * 0.7) / dur));
+    var words = easeOutCubic(clamp01((t - dur * 1.3) / dur));
+    var tag = easeOutCubic(clamp01((t - dur * 1.8) / dur));
+
+    // The hairline square, drawn as a dash whose visible length grows along the perimeter.
+    var side = 150 * s;
+    var sqX = cx - side / 2, sqY = cy - side - 70 * s;
+    var per = side * 4;
+    ctx.globalAlpha = fade;
+    ctx.strokeStyle = p.accent;
+    ctx.lineWidth = 2 * s;
+    ctx.setLineDash([per * sq, per]);
+    ctx.strokeRect(sqX, sqY, side, side);
+    ctx.setLineDash([]);
+
+    // A small filled square settles in the middle once the perimeter closes.
+    var inner = 28 * s * easeOutCubic(clamp01((sq - 0.85) / 0.15));
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(cx - inner / 2, sqY + side / 2 - inner / 2, inner, inner);
+
+    // The rule grows from the centre outward and retracts the same way on the out.
+    var ruleY = sqY + side + 50 * s;
+    var ruleW = Math.min(maxW, 760 * s) * rule * fade;
+    ctx.fillRect(cx - ruleW / 2, ruleY, ruleW, 2 * s);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+
+    // Company name rises into place under the rule.
+    var nameSize = fitFont(p.company, '300 ', 84 * s, maxW);
+    var nameY = ruleY + 46 * s + nameSize;
+    ctx.globalAlpha = words * fade;
+    ctx.fillStyle = p.text;
+    ctx.fillText(p.company, cx, nameY + (1 - words) * 24 * s);
+
+    // Tagline in spaced capitals, a beat later.
+    var caps = (p.tagline || '').toUpperCase().split('').join(' ');
+    fitFont(caps, '400 ', 26 * s, maxW);
+    ctx.globalAlpha = tag * fade * 0.85;
+    ctx.fillText(caps, cx, nameY + 60 * s + (1 - tag) * 16 * s);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

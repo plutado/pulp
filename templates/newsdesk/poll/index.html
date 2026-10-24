@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Newsdesk poll</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+  var SLANT = 0.22;
+  var TEXT = '#ffffff';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+  function easeInCubic(x) { return x * x * x; }
+
+  function fitFont(text, maxW, size, prefix) {
+    for (var i = 0; i < 24; i++) {
+      ctx.font = prefix + size + 'px ' + FONT;
+      if (ctx.measureText(text).width <= maxW || size < 8) return size;
+      size *= 0.92;
+    }
+    return size;
+  }
+
+  // A parallelogram with both ends cut on the house diagonal.
+  function slab(x, y, w, h) {
+    var k = h * SLANT;
+    ctx.beginPath();
+    ctx.moveTo(x + k, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w - k, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = easeOutQuart(clamp01(t / dur));
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var show = inT * (1 - outT);
+    if (show <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var options = [];
+    for (var i = 1; i <= 4; i++) {
+      var label = String(p['option' + i] || '').trim();
+      if (!label) continue;
+      options.push({ label: label.toUpperCase(), pct: Math.max(0, Math.min(100, Number(p['pct' + i]) || 0)) });
+    }
+    var n = options.length;
+
+    // The panel: a slashed navy slab filling most of the width, centred.
+    var panelW = Math.min(W - 80 * s, 1400 * s);
+    var rowH = 112 * s;
+    var qSize = 44 * s;
+    var padX = 70 * s, padY = 56 * s;
+    var panelH = padY * 2 + qSize * 1.4 + 40 * s + rowH * n;
+    panelH = Math.min(panelH, H - 80 * s);
+    var px = (W - panelW) / 2;
+    var py = (H - panelH) / 2;
+    var k = panelH * SLANT;
+
+    // Hard entrance: the panel slams in from the left along its slash.
+    var slide = (1 - show) * (W + k);
+    ctx.save();
+    ctx.translate(-slide, 0);
+    ctx.beginPath();
+    ctx.moveTo(px + k, py);
+    ctx.lineTo(px + panelW, py);
+    ctx.lineTo(px + panelW - k, py + panelH);
+    ctx.lineTo(px, py + panelH);
+    ctx.closePath();
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+    // A red slash rides the leading edge.
+    ctx.fillStyle = p.accent;
+    ctx.beginPath();
+    ctx.moveTo(px + k, py);
+    ctx.lineTo(px + k + 10 * s, py);
+    ctx.lineTo(px + 10 * s, py + panelH);
+    ctx.lineTo(px, py + panelH);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    var textA = clamp01((show - 0.4) / 0.6);
+    var innerX = px + k + padX;
+    // The right edge slants with the slash, so each row's usable width depends on its height in the panel.
+    function rightAt(yy) { return px + panelW - (yy - py) * SLANT - padX; }
+    var innerW = rightAt(py + padY + qSize * 2.4) - innerX;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    // The question in bold spaced capitals; two lines if it needs them.
+    var q = (p.question || '').toUpperCase();
+    var qs = fitFont(q, innerW * 1.9, qSize, '800 ');
+    ctx.font = '800 ' + qs + 'px ' + FONT;
+    var lines = [q];
+    if (ctx.measureText(q).width > innerW) {
+      var words = q.split(' '), a = '', b = '';
+      for (var w = 0; w < words.length; w++) {
+        var tryA = a ? a + ' ' + words[w] : words[w];
+        if (ctx.measureText(tryA).width <= innerW && !b) a = tryA; else b = b ? b + ' ' + words[w] : words[w];
+      }
+      lines = [a, b];
+      qs = fitFont(b, innerW, qs, '800 ');
+      qs = fitFont(a, innerW, qs, '800 ');
+    }
+    ctx.globalAlpha = textA;
+    ctx.fillStyle = TEXT;
+    ctx.font = '800 ' + qs + 'px ' + FONT;
+    var y = py + padY + qs;
+    for (var l = 0; l < lines.length; l++) { ctx.fillText(lines[l], innerX, y); y += qs * 1.15; }
+    y += 24 * s;
+
+    // The red rule under the question draws in hard and fast.
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(innerX, y, (rightAt(y) - innerX) * easeOutQuart(clamp01((t - dur * 0.6) / 0.4)), 4 * s);
+    y += 30 * s;
+
+    var availRows = py + panelH - padY - y;
+    rowH = Math.min(rowH, availRows / Math.max(1, n));
+    var optSize = Math.min(28 * s, rowH * 0.26);
+    var pctSize = Math.min(40 * s, rowH * 0.36);
+    var barH = Math.min(26 * s, rowH * 0.24);
+
+    for (var r = 0; r < n; r++) {
+      var o = options[r];
+      var ry = y + rowH * r;
+      var start = dur * 0.8 + r * 0.18;
+      var g = easeOutQuart(clamp01((t - start) / 0.6));
+      var rowA = clamp01((t - start) / 0.2) * (1 - outT);
+      ctx.globalAlpha = rowA;
+      var innerW = rightAt(ry + rowH) - innerX;
+
+      // Percentage, right aligned, counting with the bar.
+      ctx.textAlign = 'right';
+      ctx.fillStyle = TEXT;
+      ctx.font = '800 ' + pctSize + 'px ' + FONT;
+      var pctText = Math.round(o.pct * g) + '%';
+      ctx.fillText(pctText, innerX + innerW, ry + pctSize);
+      var pctW = ctx.measureText('100%').width;
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = TEXT;
+      var os = fitFont(o.label.split('').join(' '), innerW - pctW - 24 * s, optSize, '700 ');
+      ctx.font = '700 ' + os + 'px ' + FONT;
+      ctx.fillText(o.label.split('').join(' '), innerX, ry + pctSize - 4 * s);
+
+      // Track, then the slash-cut red bar filling in.
+      var by = ry + pctSize + 14 * s;
+      ctx.globalAlpha = rowA * 0.18;
+      ctx.fillStyle = TEXT;
+      slab(innerX, by, innerW, barH);
+      ctx.fill();
+      ctx.globalAlpha = rowA;
+      ctx.fillStyle = p.accent;
+      var bw = Math.max(barH * SLANT + 2 * s, innerW * (o.pct / 100) * g);
+      slab(innerX, by, bw, barH);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

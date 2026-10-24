@@ -1,0 +1,152 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Line icons</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Line icons sample for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+
+  // Icons are lists of polylines in a unit box (-1..1). Curves are sampled so every icon
+  // can be drawn progressively by length.
+  function arcPts(cx, cy, r, a0, a1, n) {
+    var out = [];
+    for (var i = 0; i <= n; i++) { var a = a0 + (a1 - a0) * i / n; out.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+    return out;
+  }
+  function starPts() {
+    var out = [];
+    for (var i = 0; i <= 10; i++) {
+      var a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 === 0 ? 0.95 : 0.42;
+      out.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    return out;
+  }
+  function heartPts() {
+    var out = [];
+    for (var i = 0; i <= 64; i++) {
+      var t = Math.PI + i / 64 * Math.PI * 2; // start at the bottom point and go round
+      var x = 16 * Math.pow(Math.sin(t), 3);
+      var y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+      out.push([x / 17, y / 17 + 0.1]);
+    }
+    return out;
+  }
+  function gearPts() {
+    var out = [], teeth = 8;
+    for (var i = 0; i <= teeth * 4; i++) {
+      var k = i % 4, a = (i - (k === 1 || k === 2 ? (k === 1 ? -0.5 : 0.5) : 0) * 0) / (teeth * 4) * Math.PI * 2;
+      var step = Math.PI * 2 / teeth, base = Math.floor(i / 4) * step;
+      var r = (k === 1 || k === 2) ? 0.95 : 0.7;
+      a = base + (k === 0 ? 0 : k === 1 ? step * 0.2 : k === 2 ? step * 0.55 : step * 0.75);
+      out.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    return out;
+  }
+  var ICONS = {
+    check: [[[-0.62, 0.02], [-0.18, 0.46], [0.66, -0.42]]],
+    play: [[[-0.42, -0.62], [0.62, 0], [-0.42, 0.62], [-0.42, -0.62]]],
+    star: [starPts()],
+    heart: [heartPts()],
+    bell: [
+      arcPts(0, -0.12, 0.52, Math.PI, Math.PI * 2, 24).concat([[0.52, 0.3], [0.7, 0.52], [-0.7, 0.52], [-0.52, 0.3], [-0.52, -0.12]]),
+      arcPts(0, 0.56, 0.16, Math.PI * 0.1, Math.PI * 0.9, 8),
+      [[0, -0.64], [0, -0.82]]
+    ],
+    gear: [gearPts(), arcPts(0, 0, 0.28, 0, Math.PI * 2, 32)]
+  };
+
+  function polyLength(pl) {
+    var L = 0;
+    for (var i = 1; i < pl.length; i++) L += Math.hypot(pl[i][0] - pl[i - 1][0], pl[i][1] - pl[i - 1][1]);
+    return L;
+  }
+
+  // Draw the icon's strokes in order up to a share of their total length.
+  function drawIcon(strokes, cx, cy, r, share) {
+    var total = 0, i;
+    for (i = 0; i < strokes.length; i++) total += polyLength(strokes[i]);
+    var budget = total * share;
+    for (i = 0; i < strokes.length && budget > 0; i++) {
+      var pl = strokes[i];
+      ctx.beginPath();
+      ctx.moveTo(cx + pl[0][0] * r, cy + pl[0][1] * r);
+      for (var j = 1; j < pl.length; j++) {
+        var dx = pl[j][0] - pl[j - 1][0], dy = pl[j][1] - pl[j - 1][1];
+        var seg = Math.hypot(dx, dy);
+        if (seg <= budget) {
+          ctx.lineTo(cx + pl[j][0] * r, cy + pl[j][1] * r);
+          budget -= seg;
+        } else {
+          var f = budget / seg;
+          ctx.lineTo(cx + (pl[j - 1][0] + dx * f) * r, cy + (pl[j - 1][1] + dy * f) * r);
+          budget = 0;
+          break;
+        }
+      }
+      ctx.stroke();
+    }
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = clamp01(t / dur);
+    var outT = clamp01((t - (d - dur)) / dur);
+    if (outT >= 1) return;
+
+    var s = Math.min(W, H) / 1080;
+    var cx = W / 2, cy = H / 2;
+    var ringR = Math.min(W, H) * 0.5 * (p.size / 100);
+    var iconR = ringR * 0.52;
+    var lw = p.weight * s;
+
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // The ring sweeps round first on the way in and unwinds on the way out.
+    var ringIn = easeOutCubic(clamp01(inT * 1.25));
+    var ringOut = easeInCubic(clamp01((outT - 0.2) / 0.8));
+    var a0 = -Math.PI / 2 + Math.PI * 2 * ringOut, a1 = -Math.PI / 2 + Math.PI * 2 * ringIn;
+    if (a1 > a0) {
+      ctx.strokeStyle = p.ring;
+      ctx.lineWidth = Math.max(1, lw * 0.35);
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringR, a0, a1);
+      ctx.stroke();
+    }
+
+    // The icon draws in by length just behind the ring and erases itself on the way out.
+    var drawIn = easeInOut(clamp01((inT - 0.15) / 0.85));
+    var drawOut = easeInCubic(clamp01(outT / 0.8));
+    var share = drawIn * (1 - drawOut);
+    if (share > 0) {
+      ctx.strokeStyle = p.stroke;
+      ctx.lineWidth = lw;
+      drawIcon(ICONS[p.icon] || ICONS.check, cx, cy, iconR, share);
+    }
+  };
+</script>
+</body>
+</html>

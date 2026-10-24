@@ -1,0 +1,25 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.festival.subscribe",
+  "name": "Festival subscribe",
+  "description": "A bell in a plum circle rings beside a handle in a gold pill, with a few twinkles as it swings.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "social",
+  "tags": ["social", "subscribe", "bell"],
+  "duration": 6,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "handle", "type": "text", "label": "Handle", "default": "@festivalnights", "maxLength": 40 },
+    { "id": "label", "type": "text", "label": "Label", "default": "Subscribe for more", "maxLength": 40 },
+    { "id": "gold", "type": "color", "label": "Gold color", "default": "#e8b54d", "group": "Colors" },
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#341f3ee6", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#fff6e8", "group": "Colors" },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.6, "min": 0.2, "max": 2, "step": 0.1 }
+  ]
+}

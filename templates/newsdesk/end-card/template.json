@@ -1,0 +1,34 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.newsdesk.end-card",
+  "name": "Newsdesk end card",
+  "description": "A navy card with the programme name, a stack of credit lines and two social handles, a red slash cutting through it all.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": ["end-card", "credits", "slash"],
+  "duration": 7,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "programme", "type": "text", "label": "Programme", "default": "The Evening Report", "maxLength": 50 },
+    {
+      "id": "credits",
+      "type": "text",
+      "label": "Credits (one per line)",
+      "default": "Presented by Dana Okafor\nProduced by Theo Lindqvist\nEdited by Ama Mensah",
+      "multiline": true,
+      "maxLength": 400
+    },
+    { "id": "handle1", "type": "text", "label": "Social handle", "default": "@eveningreport", "maxLength": 40 },
+    { "id": "handle2", "type": "text", "label": "Second handle", "default": "#EveningReport", "maxLength": 40 },
+    { "id": "accent", "type": "color", "label": "Accent color", "default": "#e0263c", "group": "Colors" },
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#0e1526f2", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.4, "min": 0.15, "max": 1.5, "step": 0.05 }
+  ]
+}

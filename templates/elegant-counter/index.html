@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Elegant counter</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Sample template for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var SERIF = 'Georgia, Times New Roman, serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+  function easeInOutSine(x) { return -(Math.cos(Math.PI * x) - 1) / 2; }
+
+  function fitFont(text, maxW, size, prefix) {
+    for (var i = 0; i < 24; i++) {
+      ctx.font = prefix + size + 'px ' + SERIF;
+      if (ctx.measureText(text).width <= maxW || size < 8) return size;
+      size *= 0.92;
+    }
+    return size;
+  }
+
+  function fmt(n, dec, sep) {
+    var f = Math.abs(n).toFixed(dec).split('.');
+    if (sep) f[0] = f[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (n < 0 && Number(f.join('.')) !== 0 ? '−' : '') + f.join('.');
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = easeOutCubic(clamp01(t / dur));
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var show = inT * (1 - outT);
+    if (show <= 0) return;
+
+    var s = Math.min(W, H) / 1080;
+    var cx = W / 2, cy = H / 2;
+    var innerW = W - 160 * s;
+    var dec = Math.max(0, Math.min(3, Math.round(p.decimals)));
+
+    // The figure counts on a gentle sine between the in and the out.
+    var countT = easeInOutSine(clamp01((t - dur * 0.4) / Math.max(0.1, d - dur * 1.4)));
+    var value = p.start + (p.target - p.start) * countT;
+    var text = p.prefix + fmt(value, dec, p.separators) + p.suffix;
+    var widest = p.prefix + fmt(Math.abs(p.target) > Math.abs(p.start) ? p.target : p.start, dec, p.separators) + p.suffix;
+
+    var numSize = fitFont(widest, innerW, 240 * s, '400 ');
+    ctx.font = '400 ' + numSize + 'px ' + SERIF;
+    var baseY = cy + numSize * 0.32;
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+
+    // The thin gold rule above draws out from the centre; a second, shorter one sits beneath the label.
+    var ruleW = Math.min(innerW, 520 * s) * easeOutCubic(clamp01(t / (dur * 1.2)));
+    ctx.globalAlpha = show;
+    ctx.fillStyle = p.gold;
+    ctx.fillRect(cx - ruleW / 2, baseY - numSize * 0.72 - 50 * s, ruleW, Math.max(1, 1.5 * s));
+
+    // The figures rise a little as they fade in.
+    var textA = clamp01((show - 0.2) / 0.8);
+    var rise = (1 - easeOutCubic(textA)) * 24 * s;
+    ctx.globalAlpha = textA * (1 - outT);
+    ctx.fillStyle = p.ivory;
+    ctx.fillText(text, cx, baseY + rise);
+
+    // Small caps: capitals with the first letter of each word taller, spaced out in gold.
+    var label = String(p.label || '');
+    var capSize = 30 * s, smallSize = 23 * s;
+    var words = label.split(' ');
+    var pieces = [], total = 0, gap = 6 * s;
+    for (var w = 0; w < words.length; w++) {
+      var word = words[w];
+      for (var c = 0; c < word.length; c++) {
+        var chr = word.charAt(c);
+        var isCap = chr !== chr.toLowerCase();
+        var size = isCap ? capSize : smallSize;
+        ctx.font = '400 ' + size + 'px ' + SERIF;
+        var width = ctx.measureText(chr.toUpperCase()).width;
+        pieces.push({ chr: chr.toUpperCase(), size: size, w: width });
+        total += width + gap;
+      }
+      if (w < words.length - 1) { pieces.push({ chr: ' ', size: smallSize, w: 14 * s }); total += 14 * s + gap; }
+    }
+    total -= gap;
+    var scaleDown = Math.min(1, innerW / Math.max(1, total));
+    var x = cx - (total * scaleDown) / 2;
+    var ly = baseY + 70 * s + rise;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = p.gold;
+    for (var i = 0; i < pieces.length; i++) {
+      ctx.font = '400 ' + (pieces[i].size * scaleDown) + 'px ' + SERIF;
+      if (pieces[i].chr !== ' ') ctx.fillText(pieces[i].chr, x, ly);
+      x += (pieces[i].w + gap) * scaleDown;
+    }
+    var rule2 = Math.min(innerW, 200 * s) * easeOutCubic(clamp01((t - dur * 0.3) / (dur * 1.2)));
+    ctx.fillRect(cx - rule2 / 2, ly + 34 * s, rule2, Math.max(1, 1.5 * s));
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

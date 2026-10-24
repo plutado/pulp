@@ -1,0 +1,175 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Festival end card</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Festival sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var SERIF = 'Georgia, Times New Roman, serif';
+  var SANS = 'Helvetica Neue, Arial, sans-serif';
+  var TAU = Math.PI * 2;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutBack(x) { var c = 1.2; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+  // A tiny seeded hash: the same index always gives the same value in 0..1.
+  function hash(i) { var x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arc(x + w - r, y + r, r, -Math.PI / 2, 0);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arc(x + w - r, y + h - r, r, 0, Math.PI / 2);
+    ctx.lineTo(x + r, y + h);
+    ctx.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI);
+    ctx.lineTo(x, y + r);
+    ctx.arc(x + r, y + r, r, Math.PI, Math.PI * 1.5);
+    ctx.closePath();
+  }
+
+  // A four-point star: two thin crossing diamonds.
+  function star(x, y, r) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - r); ctx.lineTo(x + r * 0.18, y - r * 0.18); ctx.lineTo(x + r, y);
+    ctx.lineTo(x + r * 0.18, y + r * 0.18); ctx.lineTo(x, y + r); ctx.lineTo(x - r * 0.18, y + r * 0.18);
+    ctx.lineTo(x - r, y); ctx.lineTo(x - r * 0.18, y - r * 0.18);
+    ctx.closePath();
+  }
+
+  // Greedy word wrap with the current ctx.font.
+  function wrap(text, maxW) {
+    var words = String(text || '').split(/\s+/), lines = [], cur = '';
+    for (var i = 0; i < words.length; i++) {
+      var next = cur ? cur + ' ' + words[i] : words[i];
+      if (cur && ctx.measureText(next).width > maxW) { lines.push(cur); cur = words[i]; }
+      else cur = next;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = clamp01(t / dur);
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var fade = 1 - outT;
+    if (fade <= 0) return;
+    var pop = (t < dur ? easeOutBack(inT) : 1) * fade;
+
+    var s = Math.min(W, H) / 1080;
+    var margin = 90 * s;
+    var cx = W / 2, cy = H / 2;
+    var cardW = Math.min(W - margin * 2, 1100 * s);
+    var padX = 70 * s, padY = 64 * s;
+
+    // The thank-you line wraps inside the card; past three lines the type shrinks.
+    var thanksSize = 76 * s;
+    ctx.font = 'italic 700 ' + thanksSize + 'px ' + SERIF;
+    var lines = wrap(p.thanks, cardW - padX * 2);
+    while (lines.length > 3 && thanksSize > 24 * s) {
+      thanksSize *= 0.9;
+      ctx.font = 'italic 700 ' + thanksSize + 'px ' + SERIF;
+      lines = wrap(p.thanks, cardW - padX * 2);
+    }
+    var lineH = thanksSize * 1.15;
+    var dateSize = 28 * s;
+    ctx.font = '400 ' + dateSize + 'px ' + SANS;
+    var dateW = ctx.measureText(p.date).width;
+    if (dateW > cardW - padX * 2) {
+      dateSize = Math.floor(dateSize * (cardW - padX * 2) / dateW);
+    }
+    var cardH = padY * 2 + lines.length * lineH + 36 * s + 4 * s + 36 * s + dateSize;
+    var cardX = cx - cardW / 2, cardY = cy - cardH / 2;
+
+    // Confetti falls across the whole frame, each piece on its own seeded lane and spin.
+    if (p.confetti) {
+      for (var i = 0; i < 48; i++) {
+        var lane = hash(i) * W;
+        var speed = (90 + hash(i + 100) * 120) * s;
+        var py = ((hash(i + 200) * (H + 60 * s)) + t * speed) % (H + 60 * s) - 30 * s;
+        var px = lane + Math.sin(t * (0.8 + hash(i + 300)) + hash(i + 400) * TAU) * 30 * s;
+        var size = (8 + hash(i + 500) * 10) * s;
+        var spin = t * (2 + hash(i + 600) * 3) + hash(i + 700) * TAU;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(spin);
+        ctx.scale(1, 0.4 + 0.6 * Math.abs(Math.sin(spin * 1.3)));
+        ctx.globalAlpha = fade * clamp01(t / dur) * 0.9;
+        ctx.fillStyle = hash(i + 800) > 0.5 ? p.gold : p.text;
+        ctx.fillRect(-size / 2, -size / 3, size, size * 0.66);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // The card pops in around its centre with a gentle bounce.
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(pop, pop);
+    ctx.translate(-cx, -cy);
+    roundRect(cardX, cardY, cardW, cardH, 44 * s);
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+    ctx.lineWidth = 3 * s;
+    ctx.strokeStyle = p.gold;
+    ctx.stroke();
+
+    var textA = clamp01((pop - 0.4) / 0.6) * fade;
+    ctx.globalAlpha = textA;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = p.text;
+    ctx.font = 'italic 700 ' + thanksSize + 'px ' + SERIF;
+    var y = cardY + padY + thanksSize * 0.85;
+    for (var j = 0; j < lines.length; j++) {
+      ctx.fillText(lines[j], cx, y + j * lineH);
+    }
+    y += (lines.length - 1) * lineH + 36 * s;
+
+    // A short gold pill divider that grows from the centre, then the date in gold sans.
+    var divW = 120 * s * easeOutCubic(textA);
+    roundRect(cx - divW / 2, y, divW, 4 * s, 2 * s);
+    ctx.fillStyle = p.gold;
+    ctx.fill();
+    ctx.font = '400 ' + dateSize + 'px ' + SANS;
+    ctx.fillText(p.date, cx, y + 40 * s + dateSize * 0.8);
+    ctx.restore();
+
+    // Twinkles around the card, each pulsing on its own phase.
+    for (var k = 0; k < 10; k++) {
+      var side = hash(k + 900) > 0.5 ? 1 : -1;
+      var tx = cx + side * (cardW / 2 + (30 + hash(k + 1000) * 120) * s);
+      var ty = cardY + hash(k + 1100) * cardH;
+      if (tx < 20 * s || tx > W - 20 * s) { tx = cx + (hash(k + 1200) - 0.5) * cardW; ty = cardY - (30 + hash(k + 1300) * 80) * s * side; }
+      var tw = 0.5 + 0.5 * Math.sin(t * (2 + hash(k + 1400) * 3) + hash(k + 1500) * TAU);
+      ctx.globalAlpha = textA * tw * 0.9;
+      ctx.fillStyle = p.gold;
+      star(tx, ty, (10 + hash(k + 1600) * 14) * s * (0.6 + 0.4 * tw));
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>
