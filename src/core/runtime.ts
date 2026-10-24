@@ -283,14 +283,15 @@ export const BRIDGE_SCRIPT = `(function () {
         ? { x: box.x, y: cursor, width: box.width, height: m.extent }
         : { x: cursor, y: crossStart(block.verticalAlign, box.y, box.height, m.cross), width: m.extent, height: m.cross };
       out = { draw: m.draw, size: m.size, lines: [] };
+      var align = options.align || layer.align;
       if (layer.type === 'text') {
         var step = m.size * layer.lineHeight;
         out.box = laidBox;
         out.lines = m.lines.map(function (text, li) {
-          return { text: text, width: m.widths[li], x: alignedX(layer.align, laidBox.x, laidBox.width, m.widths[li]), baseline: laidBox.y + li * step + ASCENT * m.size };
+          return { text: text, width: m.widths[li], x: alignedX(align, laidBox.x, laidBox.width, m.widths[li]), baseline: laidBox.y + li * step + ASCENT * m.size };
         });
       } else {
-        out.box = { x: alignedX(layer.align, laidBox.x, laidBox.width, m.width), y: laidBox.y, width: m.width, height: m.height };
+        out.box = { x: alignedX(align, laidBox.x, laidBox.width, m.width), y: laidBox.y, width: m.width, height: m.height };
         out.picture = m.picture;
       }
       for (var key in layer) if (out[key] === undefined) out[key] = layer[key];

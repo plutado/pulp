@@ -439,7 +439,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     const userData = join(out, 'batch-user-data');
     await mkdir(join(userData, 'imported'), { recursive: true });
     await runBounded(ffmpeg, ffmpegArgs(['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x00ff00:s=256x256', '-frames:v', '1', join(userData, 'imported', 'Acme.png')]), { timeoutMs: TOOL_TIMEOUT_MS });
-    // "name" is a parameter of this template, so it maps to the parameter; "file" names the outputs.
+    // "name" and "title" are text layers of this template (milestone 23), so they map to the layers' words; "file" names the outputs.
     await writeFile(csv, 'file,Name,title,Mood,Logo\nAlex,Alex Rivera,Director of Photography,calm,\nSam,Sam Lee,Editor,bright,acme.png\nKim,Kim Osei,Producer,,nowhere.png\n');
     const result = await render('pulp.samples.lower-third-bar', 'png-sequence', 'batch-out', {
       extra: ['--batch', csv, '--in-point', '90', '--out-point', '90'],
@@ -473,8 +473,9 @@ describe.skipIf(!available)('end-to-end render', () => {
         formatVersion: 1,
         items: [
           // Two of the same template with different parameters and trims: each must come out its own way.
-          { uid: 'a', id: 'whatever', kind: 'template', name: 'Opening strap', templateId: 'pulp.samples.lower-third-bar', presetId: 'png-sequence', options: { inFrame: 90, outFrame: 90 }, params: { name: 'Alex Rivera' } },
-          { uid: 'b', id: 'whatever', kind: 'template', name: 'Closing strap', templateId: 'pulp.samples.lower-third-bar', presetId: 'png-sequence', options: { inFrame: 100, outFrame: 100 }, params: { name: 'Sam Lee' } },
+          // The words are layers (milestone 23): a collection carries them in the same bag as the parameters.
+          { uid: 'a', id: 'whatever', kind: 'template', name: 'Opening strap', templateId: 'pulp.samples.lower-third-bar', presetId: 'png-sequence', options: { inFrame: 90, outFrame: 90 }, params: { '@layers': { strap: [{ id: 'name', text: 'Alex Rivera' }, { id: 'title' }] } } },
+          { uid: 'b', id: 'whatever', kind: 'template', name: 'Closing strap', templateId: 'pulp.samples.lower-third-bar', presetId: 'png-sequence', options: { inFrame: 100, outFrame: 100 }, params: { '@layers': { strap: [{ id: 'name', text: 'Sam Lee' }, { id: 'title' }] } } },
           // Nothing in the library answers for these two.
           { uid: 'c', id: 'gone', kind: 'template', name: 'Missing one', templateId: 'nobody.has.this', presetId: 'png-sequence', options: {}, params: {} },
           { uid: 'd', id: 'clip', kind: 'media', name: 'Some clip', presetId: 'png-sequence', options: {}, params: {} },

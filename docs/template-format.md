@@ -205,7 +205,7 @@ var card = window.pulpLayoutBlock(ctx, state, 'card', {
 window.pulpDrawBlock(ctx, card);
 ```
 
-`each` may return `alpha`, `dx`, `dy`, `scale` — applied when the layer is drawn — and `letterSpacing` in em, which **replaces** the layer's own for this frame and is therefore what the text is measured and wrapped with. A template animating its tracking passes it here. An optional `box` on the options lays the block out somewhere else, for a template animating the block itself.
+`each` may return `alpha`, `dx`, `dy`, `scale` — applied when the layer is drawn — and `letterSpacing` in em, which **replaces** the layer's own for this frame and is therefore what the text is measured and wrapped with. A template animating its tracking passes it here. An optional `box` on the options lays the block out somewhere else, for a template animating the block itself, and an optional `align` aligns every layer that way this time, for a design the template mirrors (a strap that sits on the right). A template that needs the stack's size before it knows where to put it — a panel sized to its words — lays the block out once to measure and once more in place; widths do not depend on the box's position.
 
 Text is drawn at its baselines with the layer's family, size, weight, italic and colour. With no letter spacing and kerning on, each line is one `fillText`; otherwise the characters are drawn one at a time with the spacing between them, which is also how they are measured, so the two always agree. A picture is contained and centred in the room the stack gave it.
 

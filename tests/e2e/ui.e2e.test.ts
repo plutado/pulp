@@ -455,41 +455,39 @@ describe.skipIf(!electron)('inspector UI', () => {
   }, 60_000);
 
   it('counts characters for a text parameter with a maximum length', async () => {
-    expect(await page.eval<string>(`document.querySelector('[data-param=name] .counter').textContent`)).toBe('11/60');
-    await fire('[data-param=name] input', 'Ada Lovelace', 'input');
-    expect(await page.eval<string>(`document.querySelector('[data-param=name] .counter').textContent`)).toBe('12/60');
-    await fire('[data-param=name] input', null, 'change'); // commits the edit as one history step
+    // The name is a layer's words now (milestone 23); its row's text input edits it like a parameter.
+    await fire('.layer-row[data-layer=name] .layer-text', 'Ada Lovelace', 'input');
+    await fire('.layer-row[data-layer=name] .layer-text', null, 'change'); // commits the edit as one history step
   }, 60_000);
 
   it('undoes and redoes committed edits by button and by keyboard, but leaves text fields their own undo', async () => {
     expect(await page.eval<boolean>(`document.getElementById('undo').disabled`)).toBe(false);
     await page.eval(`document.getElementById('undo').click()`);
-    expect(await valueOf('[data-param=name] input')).toBe('Alex Rivera');
-    expect(await page.eval<string>(`document.querySelector('[data-param=name] .counter').textContent`)).toBe('11/60');
+    expect(await valueOf('.layer-row[data-layer=name] .layer-text')).toBe('Alex Rivera');
     await page.eval(`document.getElementById('redo').click()`);
-    expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
+    expect(await valueOf('.layer-row[data-layer=name] .layer-text')).toBe('Ada Lovelace');
     // Ctrl+Z with focus outside a text field undoes through the app history.
     await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }))`);
-    expect(await valueOf('[data-param=name] input')).toBe('Alex Rivera');
+    expect(await valueOf('.layer-row[data-layer=name] .layer-text')).toBe('Alex Rivera');
     // Shift+Ctrl+Z redoes.
     await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true, bubbles: true }))`);
-    expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
+    expect(await valueOf('.layer-row[data-layer=name] .layer-text')).toBe('Ada Lovelace');
     // The same shortcut dispatched on the text field is left to the field; the app history does not move.
-    await page.eval(`document.querySelector('[data-param=name] input').dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }))`);
-    expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
+    await page.eval(`document.querySelector('.layer-row[data-layer=name] .layer-text').dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }))`);
+    expect(await valueOf('.layer-row[data-layer=name] .layer-text')).toBe('Ada Lovelace');
   }, 60_000);
 
   it('resets one field, then everything, and both are undoable', async () => {
-    // inOut was changed earlier, so its reset is visible; the untouched title has none.
+    // inOut was changed earlier, so its reset is visible; the untouched position has none.
     expect(await page.eval<boolean>(`document.querySelector('[data-param=inOut] .field-reset').hidden`)).toBe(false);
-    expect(await page.eval<boolean>(`document.querySelector('[data-param=title] .field-reset').hidden`)).toBe(true);
+    expect(await page.eval<boolean>(`document.querySelector('[data-param=side] .field-reset').hidden`)).toBe(true);
     await page.eval(`document.querySelector('[data-param=inOut] .field-reset').click()`);
     expect(await valueOf('[data-param=inOut] input[type=number]')).toBe('0.6');
     expect(await page.eval<boolean>(`document.querySelector('[data-param=inOut] .field-reset').hidden`)).toBe(true);
 
     expect(await page.eval<boolean>(`document.getElementById('reset-all').disabled`)).toBe(false);
     await page.eval(`document.getElementById('reset-all').click()`);
-    expect(await valueOf('[data-param=name] input')).toBe('Alex Rivera');
+    expect(await valueOf('.layer-row[data-layer=name] .layer-text')).toBe('Alex Rivera');
     expect(await page.eval<string>(`document.querySelectorAll('#params .color-field')[1].querySelector('.hex').value`)).toBe('#111827d9');
     expect(await page.eval<boolean>(`[...document.querySelectorAll('#params .field-reset')].every((b) => b.hidden)`)).toBe(true);
     expect(await page.eval<boolean>(`document.getElementById('reset-all').disabled`)).toBe(true);
@@ -498,7 +496,7 @@ describe.skipIf(!electron)('inspector UI', () => {
 
     // Reset all is one history step: undo brings the edits back.
     await page.eval(`document.getElementById('undo').click()`);
-    expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
+    expect(await valueOf('.layer-row[data-layer=name] .layer-text')).toBe('Ada Lovelace');
     expect(await page.eval<string>(`document.querySelectorAll('#params .color-field')[1].querySelector('.hex').value`)).toBe('#00ff0040');
   }, 60_000);
 
@@ -509,8 +507,8 @@ describe.skipIf(!electron)('inspector UI', () => {
     // The title card's words are layers now, so its title is a layer's text (milestone 23).
     expect(await page.eval<string>(`document.querySelector('#params .layer-row[data-layer=title] .layer-text').value`)).toBe('Field Notes');
     await clickResult('Lower Third Bar');
-    await until(() => page.eval<boolean>(`document.querySelector('[data-param=name] input') !== null`), 'the lower third form');
-    expect(await valueOf('[data-param=name] input')).toBe('Ada Lovelace');
+    await until(() => page.eval<boolean>(`document.querySelector('.layer-row[data-layer=name] .layer-text') !== null`), 'the lower third form');
+    expect(await valueOf('.layer-row[data-layer=name] .layer-text')).toBe('Ada Lovelace');
     expect(await page.eval<boolean>(`document.getElementById('undo').disabled`)).toBe(false);
   }, 60_000);
 
@@ -519,9 +517,9 @@ describe.skipIf(!electron)('inspector UI', () => {
     const rows = await page.eval<string[][]>(
       `[...document.querySelectorAll('#params .color-field')].map((f) => [...f.querySelectorAll('.recent-swatch')].map((b) => b.dataset.color))`,
     );
-    expect(rows).toHaveLength(3);
-    expect(rows[0]).toEqual(rows[1]);
-    expect(rows[1]).toEqual(rows[2]);
+    // The lower third's two colour parameters and the colour of each of its two text layers.
+    expect(rows).toHaveLength(4);
+    for (const row of rows) expect(row).toEqual(rows[0]);
     expect(rows[0]![0]).toBe('#00ff0040'); // most recent first
     expect(rows[0]!.length).toBeLessThanOrEqual(8);
 
@@ -1058,7 +1056,79 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`${section}.querySelector('.layers-reset').hidden`)).toBe(true);
     }, 120_000);
 
+    it('the lower third: an added line grows the panel and rides its wipe and fade, wide and tall', async () => {
+      const LT = 'pulp.samples.lower-third-bar';
+      const strap = `document.querySelector('#params .layers-block[data-block=strap]')`;
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!!${strap}`), 'the strap\'s layers');
+      // Earlier tests leave their edits on this template on purpose (the panel at 25% green, a changed name); start from its own values.
+      await page.eval(`document.getElementById('reset-all').disabled || document.getElementById('reset-all').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('reset-all').disabled`), 'the lower third at its defaults');
+      expect(await page.eval<string[]>(`[...${strap}.querySelectorAll('.layer-row')].map((r) => r.dataset.layer)`)).toEqual(['name', 'title']);
+      /** What the panel holds: its box (the dark panel's extent) and the bands of white text inside it. */
+      const panel = () =>
+        inTemplate<{ canvas: number[]; panelTop: number; panelBottom: number; panelLeft: number; panelRight: number; bands: number[] }>(
+          `(() => {
+            const c = document.getElementById('c'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+            let top = c.height, bottom = 0, left = c.width, right = 0; const rows = [];
+            for (let y = 0; y < c.height; y++) { let ink = 0, dark = false;
+              for (let x = 0; x < c.width; x += 2) { const i = (y * c.width + x) * 4; const a = d[i + 3];
+                if (a > 150 && d[i] < 40 && d[i + 1] < 50 && d[i + 2] < 70) { dark = true; if (x < left) left = x; if (x > right) right = x; }
+                if (a > 150 && d[i] > 200 && d[i + 1] > 200 && d[i + 2] > 200) ink++; }
+              if (dark) { if (y < top) top = y; if (y > bottom) bottom = y; }
+              rows.push(ink > 1); }
+            const bands = []; let run = 0;
+            for (let y = 0; y <= rows.length; y++) { if (y < rows.length && rows[y]) run++; else { if (run > 3) bands.push(run); run = 0; } }
+            return { canvas: [c.width, c.height], panelTop: top, panelBottom: bottom, panelLeft: left, panelRight: right, bands };
+          })()`,
+          LT,
+        );
+      await scrubAndWait(90); // mid-hold
+      const before = await panel();
+      expect(before.canvas).toEqual([1920, 1080]);
+      expect(before.bands, JSON.stringify(before)).toHaveLength(2);
+      const panelHeight = before.panelBottom - before.panelTop;
+      expect(panelHeight).toBeGreaterThan(140); // 150 at 1080p, within the antialiasing
+
+      // Add a line: the panel grows to hold it and the stack has three bands, all inside the panel.
+      await page.eval(`${strap}.querySelector('[data-add=text]').click()`);
+      await until(() => page.eval<boolean>(`${strap}.querySelectorAll('.layer-row').length === 3`), 'the added line');
+      await page.eval(`(() => { const i = ${strap}.querySelectorAll('.layer-row')[2].querySelector('.layer-text'); i.value = 'Live from the field'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await scrubAndWait(90);
+      await until(async () => (await panel()).bands.length === 3, 'the third line in the panel');
+      const grown = await panel();
+      expect(grown.panelBottom - grown.panelTop).toBeGreaterThan(panelHeight + 40);
+      expect(grown.panelBottom).toBeLessThanOrEqual(before.panelBottom + 2); // the panel sits on the same baseline and grows upward
+
+      // It rides the wipe and the fade: while the panel is still wiping out, no words at all; by the end, nothing.
+      await scrubAndWait(6); // 0.2 s: the bar has grown, the panel is barely out, the words have not faded in
+      const early = await panel();
+      expect(early.bands, JSON.stringify(early)).toHaveLength(0);
+      await scrubAndWait(179);
+      expect((await panel()).bands).toHaveLength(0);
+
+      // Tall: the same three lines, the panel above the caption band, and clear of the controls column.
+      await fire('#opt-aspect', '9:16', 'change');
+      await until(async () => (await shape()) === 'portrait', 'the tall preview');
+      await scrubAndWait(90);
+      const tall = await panel();
+      expect(tall.canvas).toEqual([1080, 1920]);
+      expect(tall.bands, JSON.stringify(tall)).toHaveLength(3);
+      expect(tall.panelBottom).toBeLessThanOrEqual(1920 * 0.72 + 2);
+      expect(tall.panelRight).toBeLessThanOrEqual(1080 * 0.82 + 2);
+      await fire('#opt-aspect', '16:9', 'change');
+      await until(async () => (await shape()) === 'landscape', 'the wide preview again');
+
+      // Back to the template's own two lines, so the tests after this find the lower third as it ships.
+      await page.eval(`${strap}.querySelector('.layers-reset').click()`);
+      await until(() => page.eval<boolean>(`${strap}.querySelectorAll('.layer-row').length === 2`), 'the strap\'s own layers');
+      await clickResult('Title Card');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the title card again');
+    }, 120_000);
+
     it('lays the stack out for a tall frame as well, from the block\'s own box', async () => {
+      await clickResult('Title Card');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the title card');
       await scrubAndWait(110);
       const wide = await drawn();
       expect(wide.canvas).toEqual([1920, 1080]);
@@ -1077,24 +1147,25 @@ describe.skipIf(!electron)('inspector UI', () => {
   });
 
   describe('saved presets and batch', () => {
-    const nameValue = () => page.eval<string>(`document.querySelector('[data-param=name] input').value`);
+    const nameValue = () => page.eval<string>(`document.querySelector('.layer-row[data-layer=name] .layer-text').value`);
     const options = () => page.eval<string[]>(`[...document.getElementById('param-preset-list').options].map((o) => o.value).filter(Boolean)`);
 
     it('saves the values that differ from the defaults, applies them undoably, asks before replacing, deletes', async () => {
       await clickResult('Lower Third Bar');
-      await until(() => page.eval<boolean>(`document.querySelector('[data-param=name] input') !== null`), 'the lower third form');
+      await until(() => page.eval<boolean>(`document.querySelector('.layer-row[data-layer=name] .layer-text') !== null`), 'the lower third form');
       // Start from defaults, change the name, save as "Show A".
       await page.eval(`document.getElementById('reset-all').disabled || document.getElementById('reset-all').click()`);
-      await page.eval(`(() => { const i = document.querySelector('[data-param=name] input'); i.value = 'Show A Name'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`(() => { const i = document.querySelector('.layer-row[data-layer=name] .layer-text'); i.value = 'Show A Name'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
       await page.eval(`(() => { const n = document.getElementById('param-preset-name'); n.value = 'Show A'; n.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       await page.eval(`document.getElementById('param-preset-save').click()`);
       await until(async () => (await options()).includes('Show A'), 'the preset to appear');
-      // The file holds only the changed value.
-      const file = JSON.parse(await readFile(join(userData, 'presets', 'pulp.samples.lower-third-bar.json'), 'utf8')) as { presets: Record<string, Record<string, unknown>> };
-      expect(file.presets['Show A']).toEqual({ name: 'Show A Name' });
+      // The file holds only what changed: the layer stack, since the name is a layer, and no parameter.
+      const file = JSON.parse(await readFile(join(userData, 'presets', 'pulp.samples.lower-third-bar.json'), 'utf8')) as { presets: Record<string, Record<string, { strap: { id: string; text: string }[] }>> };
+      expect(Object.keys(file.presets['Show A']!)).toEqual(['@layers']);
+      expect(file.presets['Show A']!['@layers']!.strap.map((l) => [l.id, l.text])).toEqual([['name', 'Show A Name'], ['title', 'Director of Photography']]);
 
       // Change the name again, then apply the preset: it comes back, and undo takes it away.
-      await page.eval(`(() => { const i = document.querySelector('[data-param=name] input'); i.value = 'Other'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`(() => { const i = document.querySelector('.layer-row[data-layer=name] .layer-text'); i.value = 'Other'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
       await page.eval(`(() => { const s = document.getElementById('param-preset-list'); s.value = 'Show A'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
       expect(await nameValue()).toBe('Show A Name');
       await page.eval(`document.getElementById('undo').click()`);
@@ -1109,7 +1180,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => {
         try {
           const f = JSON.parse(await readFile(join(userData, 'presets', 'pulp.samples.lower-third-bar.json'), 'utf8')) as { presets: Record<string, Record<string, unknown>> };
-          return f.presets['Show A']?.name === 'Other';
+          return (f.presets['Show A']?.['@layers'] as { strap?: { text: string }[] } | undefined)?.strap?.[0]?.text === 'Other';
         } catch {
           return false;
         }

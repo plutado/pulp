@@ -2,8 +2,8 @@
   "formatVersion": 1,
   "id": "pulp.samples.lower-third-bar",
   "name": "Lower Third Bar",
-  "description": "Name and title on a panel with an accent bar that slides in, holds, and slides out.",
-  "version": "1.0.0",
+  "description": "Name and title on a panel with an accent bar that slides in, holds, and slides out. The words are layers: add a line and the panel grows to hold it, and it rides the same wipe and fade.",
+  "version": "1.1.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
   "category": "lower-third",
@@ -25,20 +25,6 @@
   "entry": "index.html",
   "parameters": [
     {
-      "id": "name",
-      "type": "text",
-      "label": "Name",
-      "default": "Alex Rivera",
-      "maxLength": 60
-    },
-    {
-      "id": "title",
-      "type": "text",
-      "label": "Title",
-      "default": "Director of Photography",
-      "maxLength": 80
-    },
-    {
       "id": "accent",
       "type": "color",
       "label": "Accent color",
@@ -51,24 +37,6 @@
       "label": "Panel color",
       "default": "#111827d9",
       "group": "Colors"
-    },
-    {
-      "id": "text",
-      "type": "color",
-      "label": "Text color",
-      "default": "#ffffff",
-      "group": "Colors"
-    },
-    {
-      "id": "font",
-      "type": "font",
-      "label": "Font",
-      "default": "Helvetica Neue, Arial, sans-serif",
-      "options": [
-        "Helvetica Neue, Arial, sans-serif",
-        "Georgia, Times New Roman, serif",
-        "Menlo, Consolas, monospace"
-      ]
     },
     {
       "id": "side",
@@ -110,6 +78,29 @@
       "align": "center",
       "margin": 0.12,
       "fallbackText": "name"
+    }
+  ],
+  "blocks": [
+    {
+      "id": "strap",
+      "label": "Strap",
+      "box": { "x": 0.05, "y": 0.75, "width": 0.9, "height": 0.15 },
+      "direction": "column",
+      "gap": 0.0103703704,
+      "align": "left",
+      "verticalAlign": "top",
+      "open": true,
+      "typography": {
+        "family": "Helvetica Neue, Arial, sans-serif",
+        "size": 0.05,
+        "weight": 600,
+        "color": "#ffffff",
+        "overflow": "shrink"
+      },
+      "layers": [
+        { "id": "name", "type": "text", "label": "Name", "text": "Alex Rivera", "required": true },
+        { "id": "title", "type": "text", "label": "Title", "text": "Director of Photography", "size": 0.0277777778, "weight": 400 }
+      ]
     }
   ]
 }

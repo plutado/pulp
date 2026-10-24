@@ -12,6 +12,10 @@
 <canvas id="c"></canvas>
 <script>
   // Sample template for Pulp. CC0-1.0: no rights reserved.
+  //
+  // The name and title are a block of layers (docs/template-format.md, "Blocks and layers"): the
+  // host measures and stacks them, and this template sizes its panel to the stack and says how the
+  // words move, so a line added to the block grows the panel and rides the same wipe and fade.
   'use strict';
   var canvas = document.getElementById('c');
   var ctx = canvas.getContext('2d');
@@ -40,35 +44,35 @@
     // clear of the controls column (right 18%), always on the left with a 0.06 W margin.
     var tall = H > W * 1.4;
     var margin = tall ? 0.06 * W : 96 * s;
-    var nameSize = 54 * s, titleSize = 30 * s;
     var padX = 36 * s, barW = 10 * s;
     // The text must fit the panel's room: 0.76 W on a tall frame, 0.9 W elsewhere (a no-op at 16:9).
     var maxTextW = (tall ? 0.82 * W : 0.9 * W) - margin - barW - padX * 2;
-    ctx.font = '600 ' + nameSize + 'px ' + p.font;
-    var nameW = ctx.measureText(p.name).width;
-    if (nameW > maxTextW) {
-      nameSize = Math.max(18 * s, nameSize * maxTextW / nameW);
-      ctx.font = '600 ' + nameSize + 'px ' + p.font;
-      nameW = ctx.measureText(p.name).width;
-    }
-    ctx.font = '400 ' + titleSize + 'px ' + p.font;
-    var titleW = ctx.measureText(p.title).width;
-    if (titleW > maxTextW) {
-      titleSize = Math.max(14 * s, titleSize * maxTextW / titleW);
-      ctx.font = '400 ' + titleSize + 'px ' + p.font;
-      titleW = ctx.measureText(p.title).width;
-    }
+    var right = !tall && p.side === 'right';
+    // The words fade in once the panel has wiped out; the first line leads, the rest sit back a little.
+    var fade = clamp01((show - 0.5) / 0.5);
+    var each = function (layer, position) { return { alpha: fade * (position === 0 ? 1 : 0.8) }; };
 
-    var panelH = 150 * s;
+    // Measure the stack first: its widest line sets the panel's width, its height the panel's height.
+    var probe = window.pulpLayoutBlock(ctx, state, 'strap', { box: { x: 0, y: 0, width: maxTextW, height: H }, each: each });
+    var textW = 0, top = null, bottom = 0;
+    probe.layers.forEach(function (l) {
+      if (l.box.width <= 0 && l.box.height <= 0) return;
+      if (l.lines) l.lines.forEach(function (ln) { textW = Math.max(textW, ln.width); });
+      else textW = Math.max(textW, l.box.width);
+      if (top === null) top = l.box.y;
+      bottom = Math.max(bottom, l.box.y + l.box.height);
+    });
+    var stackH = top === null ? 0 : bottom - top;
+    // 28.8 above the first line and 26 below the last: with the template's own two lines, a 150 panel.
+    var panelH = 28.8 * s + stackH + 26 * s;
     // Image slot (milestone 22): a square badge at the head of the panel when a logo is chosen; the
     // text moves over to make room. With no logo the slot falls back to the name, which the panel
     // already carries, so nothing changes.
     var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
     var badge = hasLogo ? panelH - 2 * 18 * s : 0;
     var badgeGap = hasLogo ? padX : 0;
-    var panelW = Math.max(nameW, titleW) + padX * 2 + badge + badgeGap;
+    var panelW = textW + padX * 2 + badge + badgeGap;
     var y = tall ? H * 0.72 - panelH : H - margin - panelH;
-    var right = !tall && p.side === 'right';
     var x = right ? W - margin - panelW - barW : margin;
 
     // Accent bar grows first, panel wipes out from it.
@@ -93,18 +97,17 @@
     if (hasLogo) {
       // The badge rides the panel: it is clipped by the same wipe and fades with the text.
       var badgeX = right ? x + panelW - padX - badge : x + barW + padX;
-      ctx.globalAlpha = clamp01((show - 0.5) / 0.5);
+      ctx.globalAlpha = fade;
       window.pulpDrawImage(ctx, state, 'logo', { x: badgeX, y: y + 18 * s, width: badge, height: badge });
     }
-    ctx.textAlign = right ? 'right' : 'left';
-    ctx.textBaseline = 'alphabetic';
-    ctx.globalAlpha = clamp01((show - 0.5) / 0.5);
-    ctx.fillStyle = p.text;
-    ctx.font = '600 ' + nameSize + 'px ' + p.font;
-    ctx.fillText(p.name, textX, y + 72 * s);
-    ctx.globalAlpha *= 0.8;
-    ctx.font = '400 ' + titleSize + 'px ' + p.font;
-    ctx.fillText(p.title, textX, y + 118 * s);
+    // The words, in place: the same stack laid out where the panel is, aligned to the side it sits on.
+    ctx.globalAlpha = 1;
+    var strap = window.pulpLayoutBlock(ctx, state, 'strap', {
+      box: { x: right ? textX - maxTextW : textX, y: y + 28.8 * s, width: maxTextW, height: panelH },
+      align: right ? 'right' : 'left',
+      each: each
+    });
+    window.pulpDrawBlock(ctx, strap);
     ctx.restore();
   };
 </script>

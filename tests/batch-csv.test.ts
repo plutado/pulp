@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseCsv, planBatch, safeFileName } from '../src/core/batch-csv';
-import { parseManifest } from '../src/core/manifest';
+import { parseManifest, validateManifest } from '../src/core/manifest';
 import { rawManifest } from './fixtures';
 
 const manifest = (() => {
@@ -50,9 +50,33 @@ describe('planBatch', () => {
     expect(numbered.rows.map((r) => r.fileName)).toEqual(['Row 1', 'Row 2']);
   });
 
+  it('a column may name a text layer: the row carries the template\'s stack with that layer\'s words changed', () => {
+    const withBlock = validateManifest(
+      rawManifest({
+        parameters: [{ id: 'size', type: 'number', label: 'Size', default: 50 }],
+        blocks: [{ id: 'strap', label: 'Strap', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [
+          { id: 'name', type: 'text', label: 'Name', text: 'Alex', required: true },
+          { id: 'title', type: 'text', label: 'Title', text: 'Editor' },
+        ] }],
+      }),
+    );
+    if (!withBlock.ok) throw new Error('fixture');
+    const plan = planBatch(withBlock.manifest, 'Name,TITLE,size\nSam Lee,Producer,40\nKim,,\n');
+    expect(plan.columns).toEqual([
+      { header: 'Name', paramId: 'name', layer: { block: 'strap', id: 'name' } },
+      { header: 'TITLE', paramId: 'title', layer: { block: 'strap', id: 'title' } },
+      { header: 'size', paramId: 'size' },
+    ]);
+    expect(plan.warnings).toEqual([]);
+    // The stack travels whole, so the unchanged title keeps the template's words; the row is named by the first layer column.
+    const stacks = plan.rows.map((r) => (r.params['@layers'] as { strap: { id: string; text: string }[] }).strap.map((l) => `${l.id}=${l.text}`));
+    expect(stacks).toEqual([['name=Sam Lee', 'title=Producer'], ['name=Kim', 'title=Editor']]);
+    expect(plan.rows.map((r) => [r.label, r.params.size])).toEqual([['Sam Lee', '40'], ['Kim', undefined]]);
+  });
+
   it('warns about empty input, no matching columns and no rows', () => {
     expect(planBatch(manifest, '').warnings).toEqual(['The CSV is empty.']);
-    expect(planBatch(manifest, 'foo,bar\n1,2').warnings).toEqual(['No column matches a parameter id or label of this template.', 'Unknown columns ignored: foo, bar.']);
+    expect(planBatch(manifest, 'foo,bar\n1,2').warnings).toEqual(['No column matches a parameter or a text layer of this template.', 'Unknown columns ignored: foo, bar.']);
     expect(planBatch(manifest, 'title\n').warnings).toEqual(['The CSV has a header but no rows.']);
   });
 

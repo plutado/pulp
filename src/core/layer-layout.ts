@@ -131,6 +131,8 @@ export interface LayerDraw {
 export interface LayoutOptions {
   /** A box to lay the block out in instead of its own, for a template animating the block itself. */
   box?: PxBox;
+  /** An alignment for every layer this time, for a template that mirrors its design (a strap on the right). */
+  align?: 'left' | 'center' | 'right';
   /** Per layer, by stack position: what it is drawn with. Anything left out keeps its own value. */
   each?: (layer: LayerState, position: number) => Partial<LayerDraw> | undefined;
 }
@@ -278,19 +280,20 @@ export function layoutBlock(block: BlockState, measure: Measure, imageAspect: Im
     const laidBox: PxBox = column
       ? { x: box.x, y: cursor, width: box.width, height: m.extent }
       : { x: cursor, y: crossStart(block.verticalAlign, box.y, box.height, m.cross), width: m.extent, height: m.cross };
+    const align = options.align ?? layer.align;
     if (layer.type === 'text') {
       const step = m.size * layer.lineHeight;
       const lines: LaidLine[] = m.lines.map((text, i) => ({
         text,
         width: m.widths[i] ?? 0,
-        x: alignedX(layer.align, laidBox.x, laidBox.width, m.widths[i] ?? 0),
+        x: alignedX(align, laidBox.x, laidBox.width, m.widths[i] ?? 0),
         baseline: laidBox.y + i * step + ASCENT * m.size,
       }));
       layers.push({ ...layer, box: laidBox, size: m.size, lines, draw });
     } else {
       // The picture keeps its own shape inside the room the stack gave it.
       const width = m.width;
-      layers.push({ ...layer, box: { x: alignedX(layer.align, laidBox.x, laidBox.width, width), y: laidBox.y, width, height: m.height }, draw });
+      layers.push({ ...layer, box: { x: alignedX(align, laidBox.x, laidBox.width, width), y: laidBox.y, width, height: m.height }, draw });
     }
     cursor += m.extent;
     placed++;

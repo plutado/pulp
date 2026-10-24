@@ -207,6 +207,12 @@ describe('layoutBlock', () => {
     expect(laid.layers[0]!.box.y).toBe(0);
   });
 
+  it('a template may align every layer its own way this time, for a design it mirrors', () => {
+    const laid = layoutBlock(block([text({ text: 'ab' }), text({ id: 'r', text: 'abcd', align: 'center' })]), measure, noImages, { align: 'right' });
+    expect(laid.layers[0]!.lines![0]!.x).toBe(100 + 1000 - 100);
+    expect(laid.layers[1]!.lines![0]!.x).toBe(100 + 1000 - 200);
+  });
+
   it('each layer carries what the template asked for it, by stack position', () => {
     const laid = layoutBlock(
       block([text({ id: 'one', text: 'ab' }), text({ id: 'two', text: 'cd' })]),
