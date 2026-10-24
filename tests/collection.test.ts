@@ -127,6 +127,29 @@ describe('resolving against the library', () => {
     expect(resolved[1]!.item.name).toBe('wipe');
   });
 
+  it('flags a slot whose chosen image is not in the library or is offline, and keeps such an item out of Render all', () => {
+    const slotted = validManifest({ id: 'test.slotted', name: 'Slotted', parameters: [{ id: 'name', type: 'text', label: 'Name', default: 'Acme' }, { id: 'logo', type: 'image', label: 'Logo', box: { x: 0, y: 0, width: 0.2, height: 0.2 }, fallbackText: 'name' }] });
+    const template: TemplateEntry = { kind: 'template', key: 'k-slotted', id: 'id-slotted', dir: '/lib/slotted', root: '/lib', manifest: slotted, tags: [], warnings: [] };
+    const logo: MediaEntry = { kind: 'media', key: 'k-logo', id: 'abcdefabcdefabcdefabcdef', path: '/lib/logo.png', root: '/lib', name: 'logo', mediaKind: 'image', ext: '.png', size: 10, mtimeMs: 0, tags: [] };
+    const index: LibraryIndex = { roots: ['/lib'], templates: [template], media: [logo], problems: [], builtAt: '' };
+    const withLogo = { items: [itemFor(template, 'prores-4444', {}, { logo: logo.id })] };
+    expect(resolveCollection(withLogo, index)[0]!.missingImages).toEqual([]);
+    expect(renderableItems(resolveCollection(withLogo, index))).toHaveLength(1);
+    // The image gone from the library.
+    const gone = resolveCollection(withLogo, { ...index, media: [] })[0]!;
+    expect(gone.missingImages).toEqual(['Logo']);
+    expect(gone.missing).toBe(false);
+    expect(renderableItems([gone])).toEqual([]);
+    // Or offline.
+    expect(resolveCollection(withLogo, { ...index, media: [{ ...logo, offline: true }] })[0]!.missingImages).toEqual(['Logo']);
+    // No image chosen: nothing to flag.
+    expect(resolveCollection({ items: [itemFor(template, 'prores-4444')] }, { ...index, media: [] })[0]!.missingImages).toEqual([]);
+    // The choice, treatment and all, survives the file.
+    const value = { id: logo.id, treatment: 'white', tint: '#ffffff', effect: 'glow' };
+    const round = parseCollection(serializeCollection({ items: [itemFor(template, 'prores-4444', {}, { logo: value })] }));
+    expect(round.ok && round.collection.items[0]!.params.logo).toEqual(value);
+  });
+
   it('flags an offline item instead of losing it', () => {
     const resolved = resolveCollection(gathered(strap), index([{ ...strap, offline: true }]));
     expect(resolved[0]).toMatchObject({ missing: false, offline: true });

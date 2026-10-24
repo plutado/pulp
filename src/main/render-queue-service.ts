@@ -14,6 +14,8 @@ import type { BatchRequest, EnqueueBatchResult, EnqueueResult, PrepareDragResult
 import type { CollectionItem } from '../core/collection';
 import { slug } from '../core/pack';
 import { cacheKey } from '../core/render-cache';
+import { imageIdsIn } from '../core/image-slot';
+import { imageStamps, resolveRowImages } from './image-grant';
 import { cacheFileForKey, dragFileFor, evictIfNeeded, isCachedFile } from './render-cache-service';
 import { existsSync } from 'node:fs';
 import { findTemplate, markItemRendered, markItemUsed } from './library-service';
@@ -101,7 +103,8 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }
-  const key = cacheKey({ templateId: template.manifest.id, manifest: template.manifest, params: request.params, presetId: preset.id, options: request.options });
+  // The chosen images' size and mtime are part of the key, so a replaced logo renders afresh (milestone 22).
+  const key = cacheKey({ templateId: template.manifest.id, manifest: template.manifest, params: request.params, presetId: preset.id, options: request.options, images: imageStamps(imageIdsIn(template.manifest.parameters, request.params)) });
   // Clean names (the editor shows them as clip names): lower-third-bar.mov, lower-third-bar-2.mov, keyed in the cache index.
   const { path: outputPath } = await cacheFileForKey(key, template.manifest.name, preset.extension, preset.sequence);
   const existing = dragFileFor(outputPath, timing.firstFrame);
@@ -207,7 +210,14 @@ export async function enqueueBatch(request: BatchRequest): Promise<EnqueueBatchR
   if (pick.canceled || !folder) return { ok: false, cancelled: true, message: 'Batch cancelled.' };
 
   const jobIds: number[] = [];
+  const skipped: string[] = [];
   for (const row of request.rows) {
+    // A logo column may name a file in the Imported folder; a row whose logo cannot be found is named, not rendered blank.
+    const images = resolveRowImages(template.manifest, row.params);
+    if (images.problems.length > 0) {
+      skipped.push(`${row.label}: ${images.problems.join('; ')}`);
+      continue;
+    }
     const job = queue.add({
       templateId: template.manifest.id,
       templateName: template.manifest.name,
@@ -217,12 +227,13 @@ export async function enqueueBatch(request: BatchRequest): Promise<EnqueueBatchR
       totalFrames: timing.totalFrames,
       firstFrame: timing.firstFrame,
     });
-    inputs.set(job.id, { template, params: row.params, ...(request.options ? { options: request.options } : {}) });
+    inputs.set(job.id, { template, params: images.params, ...(request.options ? { options: request.options } : {}) });
     jobIds.push(job.id);
   }
+  if (jobIds.length === 0) return { ok: false, message: skipped.join('; ') || 'Nothing could be queued.' };
   markItemUsed(template.id);
   void pump();
-  return { ok: true, jobIds, folder };
+  return { ok: true, jobIds, folder, ...(skipped.length > 0 ? { skipped } : {}) };
 }
 
 export function cancelRender(jobId: number): void {

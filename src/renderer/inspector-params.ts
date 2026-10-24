@@ -18,7 +18,7 @@ import { IMAGE_EFFECTS, IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } 
 import type { MediaEntry } from '../core/library-types';
 import { thumbUrlFor } from '../core/thumbnails';
 import { stageSetParams } from './stage';
-import { appState, selectedTemplate } from './store';
+import { appState, selectedTemplate, slotNotes } from './store';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -353,7 +353,7 @@ function inputFor(param: TemplateParameter): HTMLElement {
       return el;
     }
     case 'image':
-      return imageField(sanitizeImageValue(value) ?? null, onChange);
+      return imageField(sanitizeImageValue(value) ?? null, onChange, { id: param.id, label: param.label });
   }
 }
 
@@ -376,7 +376,13 @@ const EFFECT_LABELS: Record<ImageValue['effect'], string> = { none: 'No effect',
  * template may see (ADR 0013) — Clear, the treatment and effect, and a note
  * when the chosen image has gone or its folder is offline.
  */
-function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null) => void): HTMLElement {
+/** What each slot has to say about its image, so the Info tab can show it too. */
+const slotProblems = new Map<string, { label: string; note: string }>();
+function publishSlotNotes(): void {
+  slotNotes.value = [...slotProblems.values()];
+}
+
+function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null) => void, slot: { id: string; label: string }): HTMLElement {
   let value = initial;
   const wrap = document.createElement('div');
   wrap.className = 'image-field';
@@ -457,13 +463,17 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
     tint.hidden = treatment.value !== 'tinted';
     effect.value = value?.effect ?? 'none';
     note.hidden = true;
+    slotProblems.delete(slot.id);
     if (value && !entry) {
       note.hidden = false;
       note.textContent = 'The chosen image is no longer in the library. The slot shows its fallback until another is picked.';
+      slotProblems.set(slot.id, { label: slot.label, note: 'Not in the library; the slot shows its fallback' });
     } else if (entry?.offline) {
       note.hidden = false;
       note.textContent = 'The chosen image\'s folder is offline.';
+      slotProblems.set(slot.id, { label: slot.label, note: 'Its folder is offline' });
     }
+    publishSlotNotes();
   };
   const set = (next: ImageValue | null) => {
     value = next;
@@ -722,6 +732,8 @@ function buildParamForm(parameters: TemplateParameter[]): void {
 /** Show a template's parameters, restoring the session's edits; returns the resolved values for the stage. */
 export function paramsShow(entry: TemplateEntry): ResolvedParams {
   const m = entry.manifest;
+  slotProblems.clear();
+  publishSlotNotes();
   p.raw = { ...editorFor(m.id).current };
   p.values = resolveParams(m, p.raw).values;
   buildParamForm(m.parameters);

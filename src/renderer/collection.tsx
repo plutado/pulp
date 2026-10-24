@@ -43,6 +43,7 @@ function settingsLine(r: ResolvedItem): string {
 function problem(r: ResolvedItem): string {
   if (r.missing) return 'Not in the library any more';
   if (r.offline) return 'Its folder is offline';
+  if (r.missingImages.length > 0) return `${r.missingImages.join(', ')}: the chosen image is not in the library`;
   if (r.item.kind === 'media') return 'Converting media comes later';
   return '';
 }

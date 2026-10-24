@@ -6,6 +6,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import type { ImageStamp } from './image-slot';
 import type { TemplateManifest } from './manifest';
 import type { RenderOptions } from './render-plan';
 
@@ -18,12 +19,15 @@ export interface CacheKeyInput {
   params: Record<string, unknown>;
   presetId: string;
   options?: RenderOptions;
+  /** The chosen images' id, size and modification time (milestone 22), so a replaced logo is a new render. */
+  images?: readonly ImageStamp[];
 }
 
 /** Stable key for a render: same inputs, same key. 24 hex characters. */
 export function cacheKey(input: CacheKeyInput): string {
   const params = Object.fromEntries(Object.entries(input.params).sort(([a], [b]) => a.localeCompare(b)));
-  const payload = JSON.stringify({ t: input.templateId, m: input.manifest, p: params, preset: input.presetId, o: input.options ?? {} });
+  const images = [...(input.images ?? [])].sort((a, b) => a.id.localeCompare(b.id));
+  const payload = JSON.stringify({ t: input.templateId, m: input.manifest, p: params, preset: input.presetId, o: input.options ?? {}, i: images });
   return createHash('sha256').update(payload).digest('hex').slice(0, 24);
 }
 

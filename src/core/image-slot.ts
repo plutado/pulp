@@ -193,6 +193,49 @@ export function chosenImageIds(slots: Record<string, ImageSlotState>): string[] 
   return [...new Set(Object.values(slots).map((s) => s.id).filter((id): id is string => id !== null))];
 }
 
+/** What a chosen image is, for the render cache: a replaced file under the same id renders afresh. */
+export interface ImageStamp {
+  id: string;
+  size: number;
+  mtimeMs: number;
+}
+
+/** The ids an image-slot value set names, in a stable order, for cache keys and grants. */
+export function imageIdsIn(parameters: readonly { id: string; type: string }[], values: Record<string, unknown>): string[] {
+  const ids: string[] = [];
+  for (const p of parameters) {
+    if (p.type !== 'image') continue;
+    const v = sanitizeImageValue(values[p.id]);
+    if (v && !ids.includes(v.id)) ids.push(v.id);
+  }
+  return ids.sort();
+}
+
+/** A library still that a CSV cell may name by file: its name as the user sees it, and its id. */
+export interface ImportedImage {
+  name: string;
+  id: string;
+}
+
+/**
+ * A CSV cell for an image column: a library id or a JSON value is taken as is;
+ * anything else is a file name, looked up among the Imported folder's stills
+ * (case-insensitive, with or without the extension). Undefined when nothing
+ * matches, so the caller can name the row.
+ */
+export function resolveImageCell(cell: unknown, imported: readonly ImportedImage[]): ImageValue | null | undefined {
+  const direct = sanitizeImageValue(cell);
+  if (direct !== undefined) return direct;
+  if (typeof cell !== 'string') return undefined;
+  const want = cell.trim().toLowerCase();
+  const stem = want.replace(/\.[a-z0-9]+$/, '');
+  const hit = imported.find((i) => {
+    const name = i.name.toLowerCase();
+    return name === want || name.replace(/\.[a-z0-9]+$/, '') === stem;
+  });
+  return hit ? { id: hit.id, treatment: 'original', tint: DEFAULT_TINT, effect: 'none' } : undefined;
+}
+
 /**
  * Bounds on what a logo may be, so a user file cannot stall the first frame:
  * the file is refused above this size before anything is loaded, and the bridge

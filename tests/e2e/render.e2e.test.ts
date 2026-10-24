@@ -434,20 +434,35 @@ describe.skipIf(!available)('end-to-end render', () => {
 
   it('renders a batch from CSV, one file per row named from the name column, warning about unknown columns', async () => {
     const csv = join(out, 'batch.csv');
+    // A Logo column picks an image per row (milestone 22): by file name from the Imported folder under user
+    // data, or by library id; a row whose logo cannot be found is named and skipped, not rendered blank.
+    const userData = join(out, 'batch-user-data');
+    await mkdir(join(userData, 'imported'), { recursive: true });
+    await runBounded(ffmpeg, ffmpegArgs(['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x00ff00:s=256x256', '-frames:v', '1', join(userData, 'imported', 'Acme.png')]), { timeoutMs: TOOL_TIMEOUT_MS });
     // "name" is a parameter of this template, so it maps to the parameter; "file" names the outputs.
-    await writeFile(csv, 'file,Name,title,Mood\nAlex,Alex Rivera,Director of Photography,calm\nSam,Sam Lee,Editor,bright\n');
+    await writeFile(csv, 'file,Name,title,Mood,Logo\nAlex,Alex Rivera,Director of Photography,calm,\nSam,Sam Lee,Editor,bright,acme.png\nKim,Kim Osei,Producer,,nowhere.png\n');
     const result = await render('pulp.samples.lower-third-bar', 'png-sequence', 'batch-out', {
       extra: ['--batch', csv, '--in-point', '90', '--out-point', '90'],
       timeoutMs: 180_000,
+      env: { PULP_USER_DATA: userData },
     });
-    expect(result.code, result.stderr).toBe(0);
+    expect(result.code).toBe(1); // one row skipped
     expect(result.stderr).toContain('warning: Unknown column ignored: Mood.');
-    expect(result.stdout).toContain('batch: 2 renders of Lower Third Bar into');
+    expect(result.stderr).toContain('Kim: skipped: Logo: "nowhere.png" is not a library id or a file in the Imported folder');
+    expect(result.stdout).toContain('batch: 3 renders of Lower Third Bar into');
     const files = (await readdir(join(out, 'batch-out'))).sort();
     expect(files).toEqual(['Alex_00090.png', 'Sam_00090.png']);
     // Different names give different panel widths: the pixel past a short name's panel is transparent only for one of them.
     const alex = await pixels(join(out, 'batch-out', 'Alex_00090.png'), 120, 840);
     expect(alex[3]).toBe(217);
+    // Sam's row named the imported logo by file: the badge at the head of the panel is the green square.
+    const badge = await pixels(join(out, 'batch-out', 'Sam_00090.png'), 199, 891);
+    expect(badge[1]).toBeGreaterThan(200);
+    expect(badge[0]).toBeLessThan(40);
+    // In the panel's padding before the text, where no badge sits: the panel's dark blue for Alex.
+    const noBadge = await pixels(join(out, 'batch-out', 'Alex_00090.png'), 120, 900);
+    expect(noBadge[1]).toBeLessThan(60);
+    expect(noBadge[3]).toBe(217);
   }, 240_000);
 
   it('renders a saved collection, each item with its own settings, skipping what the library cannot answer for', async () => {

@@ -12,6 +12,7 @@
  */
 
 import type { LibraryEntry, LibraryIndex } from './library-types';
+import { sanitizeImageValue } from './image-slot';
 import type { RenderOptions } from './render-plan';
 
 export const COLLECTION_FORMAT_VERSION = 1;
@@ -154,6 +155,8 @@ export interface ResolvedItem {
   missing: boolean;
   /** Found, but its folder is not reachable right now. */
   offline: boolean;
+  /** Image slots whose chosen image is not in the library, or is offline: the slot labels (milestone 22). */
+  missingImages: string[];
 }
 
 /**
@@ -166,13 +169,23 @@ export function resolveCollection(c: Collection, index: LibraryIndex | null): Re
   const byTemplateId = new Map(all.filter((e) => e.kind === 'template').map((e) => [e.manifest.id, e]));
   return c.items.map((item) => {
     const entry = byId.get(item.id) ?? (item.templateId ? byTemplateId.get(item.templateId) : undefined) ?? null;
-    return { item, entry, missing: entry === null, offline: entry?.offline === true };
+    const missingImages: string[] = [];
+    if (entry?.kind === 'template') {
+      for (const p of entry.manifest.parameters) {
+        if (p.type !== 'image') continue;
+        const v = sanitizeImageValue(item.params[p.id]);
+        if (!v) continue;
+        const image = byId.get(v.id);
+        if (!image || image.kind !== 'media' || image.mediaKind !== 'image' || image.offline) missingImages.push(p.label);
+      }
+    }
+    return { item, entry, missing: entry === null, offline: entry?.offline === true, missingImages };
   });
 }
 
 /** What a collection can render now: templates that are present and reachable. */
 export function renderableItems(resolved: readonly ResolvedItem[]): ResolvedItem[] {
-  return resolved.filter((r) => !r.missing && !r.offline && r.item.kind === 'template');
+  return resolved.filter((r) => !r.missing && !r.offline && r.missingImages.length === 0 && r.item.kind === 'template');
 }
 
 /** One line for the tray: "4 items · 1 missing", "3 items". */

@@ -34,6 +34,7 @@ export const INFO_SECTIONS = [
   { id: 'tags', label: 'Tags' },
   { id: 'set', label: 'Set' },
   { id: 'file', label: 'File' },
+  { id: 'images', label: 'Images' },
   { id: 'credits', label: 'Credits and license' },
   { id: 'usage', label: 'Usage' },
 ] as const;

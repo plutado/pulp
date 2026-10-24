@@ -10,14 +10,43 @@
 
 import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
-import { MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
+import { MAX_IMAGE_FILE_BYTES, type ImageStamp } from '../core/image-slot';
 import { MEDIA_MIME } from '../core/media-serve';
-import { lookupMedia } from './library-service';
+import { resolveImageCell, sanitizeImageValue } from '../core/image-slot';
+import type { TemplateManifest } from '../core/manifest';
+import { importedImages, lookupMedia } from './library-service';
 
 /** One still, ready to be handed to a template page: a data URL the bridge decodes through an <img>. */
 export interface SlotImageData {
   id: string;
   src: string;
+}
+
+/**
+ * A batch row's image cells: a library id or a value object passes; a file name is looked up in the
+ * Imported folder (milestone 22). Cells that name nothing are reported so the row can be skipped by name.
+ */
+export function resolveRowImages(manifest: Pick<TemplateManifest, 'parameters'>, params: Record<string, unknown>): { params: Record<string, unknown>; problems: string[] } {
+  const out = { ...params };
+  const problems: string[] = [];
+  let imported: ReturnType<typeof importedImages> | undefined;
+  for (const p of manifest.parameters) {
+    if (p.type !== 'image' || out[p.id] === undefined || out[p.id] === '') continue;
+    if (sanitizeImageValue(out[p.id]) !== undefined) continue;
+    imported ??= importedImages();
+    const value = resolveImageCell(out[p.id], imported);
+    if (value === undefined) problems.push(`${p.label}: "${String(out[p.id])}" is not a library id or a file in the Imported folder`);
+    else out[p.id] = value;
+  }
+  return { params: out, problems };
+}
+
+/** The size and modification time of each chosen image, for the render cache key; unknown ids stamp as zero. */
+export function imageStamps(ids: readonly string[]): ImageStamp[] {
+  return ids.map((id) => {
+    const found = lookupMedia(id);
+    return { id, size: found?.entry.size ?? 0, mtimeMs: found?.entry.mtimeMs ?? 0 };
+  });
 }
 
 /** Only ids that are online stills in the library right now; anything else is named back as missing. */

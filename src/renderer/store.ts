@@ -57,3 +57,6 @@ export const selectedTemplate = signal<TemplateEntry | null>(null);
  * template's default size then (milestone 19).
  */
 export const frameSize = signal<Size | null>(null);
+
+/** Image slots of the selected template whose chosen image is not in the library or is offline: slot label and what is wrong (milestone 22). */
+export const slotNotes = signal<{ label: string; note: string }[]>([]);

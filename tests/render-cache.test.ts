@@ -21,6 +21,20 @@ describe('render cache', () => {
     expect(cacheKey({ ...base, manifest: { ...manifest, duration: 3 } })).not.toBe(k);
   });
 
+  it('keys a chosen image by its id, size and modification time, so a replaced logo is a new render', () => {
+    const manifest = (() => { const r = parseManifest(JSON.stringify(rawManifest())); if (!r.ok) throw new Error('fixture'); return r.manifest; })();
+    const base = { templateId: 't', manifest, params: { logo: 'abcdefabcdefabcdefabcdef' }, presetId: 'prores-4444' as const };
+    const stamp = { id: 'abcdefabcdefabcdefabcdef', size: 1024, mtimeMs: 1_700_000_000_000 };
+    const k = cacheKey({ ...base, images: [stamp] });
+    expect(cacheKey({ ...base, images: [stamp] })).toBe(k);
+    expect(cacheKey({ ...base, images: [{ ...stamp, size: 2048 }] })).not.toBe(k);
+    expect(cacheKey({ ...base, images: [{ ...stamp, mtimeMs: stamp.mtimeMs + 1 }] })).not.toBe(k);
+    expect(cacheKey({ ...base })).not.toBe(k);
+    // Order of the stamps does not matter.
+    const two = [stamp, { id: '0123456789abcdef01234567', size: 9, mtimeMs: 9 }];
+    expect(cacheKey({ ...base, images: two })).toBe(cacheKey({ ...base, images: [...two].reverse() }));
+  });
+
   it('names cached files after the template, without a hash, and avoids names already in use', () => {
     expect(cacheFileName('Lower Third Bar', '.mov')).toBe('lower-third-bar.mov');
     expect(cacheFileName('Lower Third Bar', '.mov', new Set(['lower-third-bar.mov']))).toBe('lower-third-bar-2.mov');

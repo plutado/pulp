@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  resolveImageCell,
   boxFor,
   chosenImageIds,
   fitImage,
@@ -77,6 +78,18 @@ describe('image values and slot state', () => {
     const chosen = imageSlots(params, { name: 'Acme', logo: { id, treatment: 'tinted', tint: '#ff8800', effect: 'glow' } }, { width: 1080, height: 1920 });
     expect(chosen.logo).toMatchObject({ id, treatment: 'tinted', tint: '#ff8800', effect: 'glow', box: { x: 540, y: 960, width: 270, height: 480 } });
     expect(Object.keys(chosen)).toEqual(['logo']);
+  });
+
+  it('resolve a CSV cell: an id or a value as is, a file name against the Imported folder, else nothing', () => {
+    const imported = [{ name: 'Acme Logo.png', id }, { name: 'mark.svg', id: other }];
+    expect(resolveImageCell(id, imported)).toMatchObject({ id });
+    expect(resolveImageCell(`{"id":"${other}","treatment":"white"}`, imported)).toMatchObject({ id: other, treatment: 'white' });
+    expect(resolveImageCell('acme logo.png', imported)).toMatchObject({ id, treatment: 'original' });
+    expect(resolveImageCell('Acme Logo', imported)).toMatchObject({ id });
+    expect(resolveImageCell('MARK', imported)).toMatchObject({ id: other });
+    expect(resolveImageCell('', imported)).toBeNull();
+    expect(resolveImageCell('nothing.png', imported)).toBeUndefined();
+    expect(resolveImageCell('/Users/dana/logo.png', imported)).toBeUndefined();
   });
 
   it('name the images to decode once per id and treatment, and the ids to grant', () => {

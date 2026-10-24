@@ -27,7 +27,7 @@ import {
 } from '../core/item-info';
 import type { LibraryEntry, TemplateEntry } from '../core/library-types';
 import { entryType, typeInfo } from '../core/taxonomy';
-import { appState } from './store';
+import { appState, selectedTemplate, slotNotes } from './store';
 import { Icon, scopeIcon, TYPE_GROUP_ICONS, type IconName } from './icons';
 import { Thumb } from './item-preview';
 
@@ -335,6 +335,10 @@ function Panel({ onSelect }: { onSelect: (e: LibraryEntry) => void }) {
     ),
     ...(entry.kind === 'template' && entry.pack ? { set: <Set_ entry={entry} onSelect={onSelect} /> } : {}),
     file: <FileSection entry={entry} />,
+    // Image slots whose chosen image has gone or is offline, as the Parameters tab found them.
+    ...(entry.kind === 'template' && slotNotes.value.length > 0 && selectedTemplate.value?.manifest.id === entry.manifest.id
+      ? { images: <Rows rows={slotNotes.value.map((n) => ({ label: n.label, value: n.note, tone: 'warn' as const }))} /> }
+      : {}),
     ...(entry.kind === 'template' ? { credits: <Rows rows={creditsRows(entry)} /> } : {}),
     usage: <Rows rows={usageRows(entry, presetCountFor(entry))} />,
   };

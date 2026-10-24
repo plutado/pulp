@@ -462,7 +462,7 @@ async function queueBatch(): Promise<void> {
       rows: o.batch.rows.map((r) => ({ label: r.label, fileName: r.fileName, params: r.params })),
     });
     const div = document.createElement('div');
-    if (result.ok) div.textContent = `Queued ${result.jobIds.length} renders into ${result.folder}.`;
+    if (result.ok) div.textContent = `Queued ${result.jobIds.length} renders into ${result.folder}.${result.skipped?.length ? ` Skipped ${result.skipped.length}: ${result.skipped.join('; ')}` : ''}`;
     else {
       div.className = result.cancelled ? '' : 'warning';
       div.textContent = result.cancelled ? '' : result.message;
