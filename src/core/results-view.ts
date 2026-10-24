@@ -7,7 +7,7 @@
  */
 
 import { entryLabel } from './app-state';
-import { templateDefaultSize } from './aspect';
+import { orientationOf, templateDefaultSize, templateOrientations } from './aspect';
 import { clockLabel, dimensionsLabel, mediaKindLabel, themeLabel, typeLabel } from './display';
 import type { LibraryEntry } from './library-types';
 import { resolutionLabel } from './media-meta';
@@ -102,7 +102,7 @@ export function columnsFor(width: number, cardWidth: number): number {
 
 // What a card and a row show.
 
-export type BadgeId = 'alpha' | 'loop' | 'duration' | 'resolution' | 'pack';
+export type BadgeId = 'alpha' | 'loop' | 'duration' | 'resolution' | 'vertical' | 'square' | 'pack';
 
 export interface ResultBadge {
   id: BadgeId;
@@ -138,8 +138,29 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   const { width, height } = entrySize(entry);
   const short = resolutionLabel(width, height);
   if (short && width && height) badges.push({ id: 'resolution', label: short, tip: dimensionsLabel(width, height) });
+  const orientation = entryOrientationBadge(entry);
+  if (orientation) badges.push(orientation);
   if (entry.kind === 'template' && entry.pack) badges.push({ id: 'pack', label: entry.pack.name, tip: `From the pack ${entry.pack.name}` });
   return badges;
+}
+
+/**
+ * A vertical or square item is recognizable without reading its size: a badge for
+ * portrait and square shapes. A template that draws for several shapes badges
+ * the tallest it offers, since that is what the landscape poster does not show.
+ */
+function entryOrientationBadge(entry: LibraryEntry): ResultBadge | null {
+  if (entry.kind === 'template') {
+    const shapes = templateOrientations(entry.manifest);
+    const tall = entry.manifest.aspects.filter((a) => { const [w, h] = a.split(':').map(Number); return w !== undefined && h !== undefined && w < h; });
+    if (shapes.includes('portrait')) return { id: 'vertical', label: 'Vertical', tip: shapes.length > 1 ? `Draws tall as well (${tall.join(', ')})` : 'Vertical' };
+    if (shapes.includes('square')) return { id: 'square', label: 'Square', tip: shapes.length > 1 ? 'Draws square as well (1:1)' : 'Square' };
+    return null;
+  }
+  const { width, height } = entrySize(entry);
+  if (!width || !height) return null;
+  const o = orientationOf(width, height);
+  return o === 'portrait' ? { id: 'vertical', label: 'Vertical', tip: 'Vertical' } : o === 'square' ? { id: 'square', label: 'Square', tip: 'Square' } : null;
 }
 
 /** The list view's columns (docs/ui-layout.md): name, duration, type, themes, file. */

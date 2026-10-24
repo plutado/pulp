@@ -64,6 +64,7 @@ describe('effectiveQuery', () => {
     s = toggleFilter(toggleFilter(s, 'templates'), 'alpha');
     expect(effectiveQuery(s)).toBe('favorite:yes type:template alpha:yes lower');
     expect(effectiveQuery(toggleFilter(s, 'templates'))).toBe('favorite:yes alpha:yes lower');
+    expect(effectiveQuery(toggleFilter(s, 'vertical'))).toBe('favorite:yes type:template orientation:portrait alpha:yes lower');
   });
 
   it('a root scope adds no query text; it is matched structurally', () => {

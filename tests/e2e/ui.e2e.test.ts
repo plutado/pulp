@@ -1426,5 +1426,18 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await names()).includes('tiny'), 'media back in the results after releasing the chip');
       expect(await page.eval<string>(`document.getElementById('chip-templates').getAttribute('aria-pressed')`)).toBe('false');
     }, 60_000);
+
+    it('the Vertical chip keeps what draws tall, and such cards carry a badge', async () => {
+      await clearSearch();
+      await page.eval(`document.getElementById('chip-vertical').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('chip-vertical').getAttribute('aria-pressed') === 'true'`), 'the chip to be pressed');
+      const vertical = await names();
+      expect(vertical).toContain('Boardroom opener'); // declares 9:16 among its shapes
+      expect(vertical).not.toContain('Lower Third Bar'); // a declared 1920 × 1080, landscape only
+      expect(await onResult<boolean>('Boardroom opener', '(li) => !!li.querySelector(".badge.vertical")')).toBe(true);
+      await page.eval(`document.getElementById('chip-vertical').click()`);
+      await until(async () => (await names()).includes('Lower Third Bar'), 'the landscape items back after releasing the chip');
+      expect(await onResult<boolean>('Lower Third Bar', '(li) => !!li.querySelector(".badge.vertical")')).toBe(false);
+    }, 60_000);
   });
 });

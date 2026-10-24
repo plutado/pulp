@@ -37,6 +37,7 @@ export const FILTER_CHIPS = [
   { id: 'video', label: 'Video', filter: 'type:video' },
   { id: 'image', label: 'Images', filter: 'type:image' },
   { id: 'audio', label: 'Audio', filter: 'type:audio' },
+  { id: 'vertical', label: 'Vertical', filter: 'orientation:portrait' },
   { id: 'alpha', label: 'Alpha', filter: 'alpha:yes' },
   { id: 'favorites', label: 'Favorites', filter: 'favorite:yes' },
 ] as const;

@@ -17,6 +17,7 @@ import checkerboard from '@phosphor-icons/core/assets/regular/checkerboard.svg?r
 import copy from '@phosphor-icons/core/assets/regular/copy.svg?raw';
 import clock from '@phosphor-icons/core/assets/regular/clock.svg?raw';
 import dotsSixVertical from '@phosphor-icons/core/assets/regular/dots-six-vertical.svg?raw';
+import deviceMobile from '@phosphor-icons/core/assets/regular/device-mobile.svg?raw';
 import downloadSimple from '@phosphor-icons/core/assets/regular/download-simple.svg?raw';
 import exportIcon from '@phosphor-icons/core/assets/regular/export.svg?raw';
 import filmStrip from '@phosphor-icons/core/assets/regular/film-strip.svg?raw';
@@ -46,6 +47,7 @@ import sortAscending from '@phosphor-icons/core/assets/regular/sort-ascending.sv
 import speakerHigh from '@phosphor-icons/core/assets/regular/speaker-high.svg?raw';
 import speakerSlash from '@phosphor-icons/core/assets/regular/speaker-slash.svg?raw';
 import spinner from '@phosphor-icons/core/assets/regular/spinner.svg?raw';
+import square from '@phosphor-icons/core/assets/regular/square.svg?raw';
 import stack from '@phosphor-icons/core/assets/regular/stack.svg?raw';
 import star from '@phosphor-icons/core/assets/regular/star.svg?raw';
 import starFill from '@phosphor-icons/core/assets/fill/star-fill.svg?raw';
@@ -67,6 +69,7 @@ const ICONS = {
   clock,
   copy,
   'dots-six-vertical': dotsSixVertical,
+  'device-mobile': deviceMobile,
   'download-simple': downloadSimple,
   export: exportIcon,
   'film-strip': filmStrip,
@@ -95,6 +98,7 @@ const ICONS = {
   'speaker-slash': speakerSlash,
   spinner,
   'squares-four': squaresFour,
+  square,
   stack,
   star,
   'star-fill': starFill,

@@ -48,7 +48,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 | `aspect.ts` | yes | The aspect list with standard resolutions, `aspectOf` a size, `templateDefaultSize`, and `resolveRenderSize`: the frame size for one render from the template's shapes and the chosen aspect or size (ADR 0012). |
 | `params.ts` | yes | `resolveParams`: merge user input with defaults, coerce, clamp, report issues. |
 | `runtime.ts` | yes | `frameState` for a frame index, the bridge script, `injectBridge`, template CSP. |
-| `tags.ts`, `search.ts` | yes | Tag normalization, query parsing and scoring over an index; metadata filters (`duration:`, `width:`, `height:`, `fps:`, `res:`, `codec:`, `alpha:`) that read manifests for templates and probed metadata for media; `favorite:` and `recent:`. |
+| `tags.ts`, `search.ts` | yes | Tag normalization, query parsing and scoring over an index; metadata filters (`duration:`, `width:`, `height:`, `fps:`, `res:`, `codec:`, `alpha:`, `orientation:`) that read manifests for templates and probed metadata for media; `favorite:` and `recent:`. |
 | `library-types.ts` | yes | Index data types (shared over IPC). |
 | `render-plan.ts` | yes | Output presets and `buildRenderPlan`, which returns the exact ffmpeg arguments. |
 | `render-guard.ts` | yes | Render loop guards: `withTimeout`, the frame call script, template error messages, which partial files to remove. |

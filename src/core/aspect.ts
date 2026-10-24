@@ -91,10 +91,32 @@ export function aspectOf(width: number, height: number): string {
   return `${width / d}:${height / d}`;
 }
 
-/** The orientation of a shape, from an aspect id or a size. */
-export function orientationOf(width: number, height: number): 'landscape' | 'portrait' | 'square' {
+export type Orientation = 'landscape' | 'portrait' | 'square';
+export const ORIENTATIONS: readonly Orientation[] = ['landscape', 'portrait', 'square'];
+
+/** The orientation of a shape, from a size. */
+export function orientationOf(width: number, height: number): Orientation {
   if (width === height) return 'square';
   return width > height ? 'landscape' : 'portrait';
+}
+
+/** The orientation of an aspect id ("9:16" is portrait), or undefined for a malformed one. */
+export function aspectOrientation(id: string): Orientation | undefined {
+  const m = /^(\d+):(\d+)$/.exec(id);
+  if (!m) return undefined;
+  const w = Number(m[1]);
+  const h = Number(m[2]);
+  return w > 0 && h > 0 ? orientationOf(w, h) : undefined;
+}
+
+/** Every orientation a template draws for, in the order it declares them, without repeats. */
+export function templateOrientations(template: { aspects: readonly string[] }): Orientation[] {
+  const out: Orientation[] = [];
+  for (const a of template.aspects) {
+    const o = aspectOrientation(a);
+    if (o && !out.includes(o)) out.push(o);
+  }
+  return out;
 }
 
 /** What a template says about its shapes and its size: the slice of a manifest this module reads. */

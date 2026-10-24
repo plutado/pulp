@@ -95,6 +95,21 @@ describe('badges', () => {
     expect(entryBadges(alpha).find((b) => b.id === 'resolution')?.tip).toBe('1920 × 1080');
   });
 
+  it('badges vertical and square shapes, so a tall item is recognizable without reading its size', () => {
+    const shapes = (over: Record<string, unknown>) => entryBadges(template('Shape', { alpha: false, duration: 1, ...over })).filter((b) => b.id === 'vertical' || b.id === 'square');
+    // A declared landscape size: nothing to say.
+    expect(shapes({ width: 1920, height: 1080 })).toEqual([]);
+    const tall = { aspects: ['9:16'], width: undefined, height: undefined };
+    expect(shapes(tall)).toEqual([{ id: 'vertical', label: 'Vertical', tip: 'Vertical' }]);
+    // Several shapes: the poster is landscape, so the badge says what else it draws.
+    expect(shapes({ aspects: ['16:9', '9:16', '4:5'], width: undefined, height: undefined })).toEqual([{ id: 'vertical', label: 'Vertical', tip: 'Draws tall as well (9:16, 4:5)' }]);
+    expect(shapes({ aspects: ['16:9', '1:1'], width: undefined, height: undefined })).toEqual([{ id: 'square', label: 'Square', tip: 'Draws square as well (1:1)' }]);
+    // Media: from the probed size.
+    expect(entryBadges(media('tall', { meta: { width: 1080, height: 1920 } as MediaEntry['meta'] })).map((b) => b.id)).toEqual(['resolution', 'vertical']);
+    expect(entryBadges(media('sq', { meta: { width: 720, height: 720 } as MediaEntry['meta'] })).map((b) => b.id)).toEqual(['resolution', 'square']);
+    expect(entryBadges(media('wide', { meta: { width: 1920, height: 1080 } as MediaEntry['meta'] })).map((b) => b.id)).toEqual(['resolution']);
+  });
+
   it('shows what a media file has been probed for, and nothing it has not', () => {
     const bare = media('clip');
     expect(entryBadges(bare)).toEqual([]);

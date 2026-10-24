@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  aspectOrientation,
+  templateOrientations,
   ASPECTS,
   AspectError,
   aspectOf,
@@ -41,10 +43,17 @@ describe('aspectOf', () => {
     expect(inferAspect(0, 480)).toBeNull();
   });
 
-  it('tells orientation apart', () => {
+  it('tells orientation apart, for sizes and for aspect ids', () => {
     expect(orientationOf(1920, 1080)).toBe('landscape');
     expect(orientationOf(1080, 1920)).toBe('portrait');
     expect(orientationOf(720, 720)).toBe('square');
+    expect(aspectOrientation('9:16')).toBe('portrait');
+    expect(aspectOrientation('4:5')).toBe('portrait');
+    expect(aspectOrientation('1:1')).toBe('square');
+    expect(aspectOrientation('4:3')).toBe('landscape');
+    expect(aspectOrientation('wide')).toBeUndefined();
+    expect(templateOrientations({ aspects: ['16:9', '9:16', '4:5', '1:1'] })).toEqual(['landscape', 'portrait', 'square']);
+    expect(templateOrientations({ aspects: ['16:9'] })).toEqual(['landscape']);
   });
 });
 

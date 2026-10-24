@@ -8,6 +8,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- Orientation in search and on cards: `orientation:portrait` (or `vertical`), `landscape` and `square` filter templates by the shapes they draw for and media by its size; a Vertical chip sits beside the media kinds; and portrait and square items carry a badge, so a tall item is recognizable without reading its size.
+
 - The Output tab chooses the shape and size of a render. Templates that draw for more than one aspect get an Aspect field; every template gets a Resolution field with its own size or the aspect's default, the standard sizes for that aspect, and a custom width and height that must be of the aspect. The preview turns to match, so a tall render is previewed tall, and a collection card remembers the choice like its other settings.
 
 - Thirty more original CC0 sample templates complete the sample library: every one of the 45 types now has three to five examples across the templates and the sample media. Backgrounds: Boardroom paper, Cinematic gradient and Soft gradient (still backgrounds), Film grain field, Halftone dots and Scanlines (textures). Transitions: Boardroom blinds, Festival iris matte and Matchday split (reveals), Festival sparkle flash, Newsdesk flash cut and Cinematic light flash, Newsdesk glitch, Tech glitch and VHS glitch. Overlays: Boardroom dot grid, Newsdesk ticker, Matchday chevron band and Festival ribbon, Festival and Matchday frames, Festival confetti burst and Dust motes, Film grain, Scratches and VHS tracking, a Boardroom bug, and Soft, Letterbox and Retro vignettes. The sets are now thirteen to fifteen pieces each in one look, and the styles list covers all eleven styles but corporate.

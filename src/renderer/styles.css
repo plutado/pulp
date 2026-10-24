@@ -286,8 +286,8 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
    in the markup for assistive tech. Duration and resolution are the text ones. */
 .results .badges { display: flex; gap: var(--space-1); align-items: center; overflow: hidden; color: var(--muted); font-size: var(--font-caption); }
 .results .badge { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
-.results .badge.alpha, .results .badge.loop, .results .badge.pack { color: var(--text-secondary); }
-.results .badge.alpha .label, .results .badge.loop .label, .results .badge.pack .label {
+.results .badge.alpha, .results .badge.loop, .results .badge.vertical, .results .badge.square, .results .badge.pack { color: var(--text-secondary); }
+.results .badge.alpha .label, .results .badge.loop .label, .results .badge.vertical .label, .results .badge.square .label, .results .badge.pack .label {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
 .results .badge.duration { font-variant-numeric: tabular-nums; }

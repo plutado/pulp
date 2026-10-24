@@ -276,6 +276,19 @@ describe('searchLibrary', () => {
     expect(names('codec:PRORES type:video')).toEqual(['anchor desk']);
     expect(names('alpha:yes')).toEqual(['Basic Title', 'News Lower Third', 'anchor desk']);
     expect(names('alpha:no')).toEqual([]); // the audio file has no picture, so it neither has nor lacks alpha
+    // Orientation: a size's shape for media, any declared aspect for a template; vertical and tall are portrait.
+    expect(names('orientation:landscape')).toEqual(['Basic Title', 'News Lower Third', 'anchor desk']);
+    expect(names('orientation:portrait')).toEqual([]);
+    anchor.meta = { ...anchor.meta, width: 1080, height: 1920 };
+    expect(names('orientation:portrait')).toEqual(['anchor desk']);
+    expect(names('orientation:vertical')).toEqual(['anchor desk']);
+    expect(names('orientation:tall type:video')).toEqual(['anchor desk']);
+    index.templates[0]!.manifest.aspects = ['16:9', '9:16'];
+    expect(names('orientation:portrait')).toEqual(['Basic Title', 'anchor desk']);
+    expect(names('orientation:square')).toEqual([]);
+    expect(names('orientation:sideways')).toEqual(['Basic Title', 'News Lower Third', 'anchor desk', 'news theme']); // an unknown value filters nothing
+    anchor.meta = { duration: 12.5, width: 3840, height: 2160, fps: 29.97, codec: 'prores', alpha: true };
+    index.templates[0]!.manifest.aspects = ['16:9'];
     expect(names('news duration:>60')).toEqual(['news theme']);
     // Media without metadata does not match a metadata filter, and the codec is searchable as text.
     anchor.meta = undefined;

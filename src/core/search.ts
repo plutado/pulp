@@ -18,13 +18,14 @@
  *   res:1080p            shorter side with "p" (also 4k, uhd, 8k, hd, fhd)
  *   codec:prores         video codec as ffprobe names it (media only)
  *   alpha:yes            alpha channel; yes | no
+ *   orientation:portrait portrait | landscape | square; a template matches when any of its aspects does
  *   favorite:yes         favorites only (favorite:no for the rest)
  *   recent:yes           items used before, most recent first (recent:10 for the ten most recent)
  * The numeric and alpha filters apply to templates through their manifest
  * and to media through probed metadata; media not yet probed does not match.
  */
 
-import { templateDefaultSize } from './aspect';
+import { ORIENTATIONS, orientationOf, templateDefaultSize, templateOrientations, type Orientation } from './aspect';
 import type { LibraryEntry, LibraryIndex } from './library-types';
 import { RESOLUTION_ALIASES, resolutionLabel } from './media-meta';
 import { normalizeTag } from './tags';
@@ -51,6 +52,7 @@ export interface ParsedQuery {
   resolutions: string[];
   codecs: string[];
   alpha?: boolean;
+  orientation?: Orientation;
   favorite?: boolean;
   /** Items used before, newest first; a number limits how many. */
   recent?: number | true;
@@ -115,6 +117,11 @@ export function parseQuery(query: string): ParsedQuery {
       parsed.resolutions.push(RESOLUTION_ALIASES[v] ?? (/^\d+$/.test(v) ? `${v}p` : v));
     } else if (key === 'codec' && value) parsed.codecs.push(value.toLowerCase());
     else if (key === 'alpha' && value) parsed.alpha = ['yes', 'true', '1', 'on'].includes(value.toLowerCase());
+    else if (key === 'orientation' && value) {
+      const v = value.toLowerCase();
+      const o = v === 'vertical' || v === 'tall' ? 'portrait' : v === 'horizontal' || v === 'wide' ? 'landscape' : v;
+      if ((ORIENTATIONS as readonly string[]).includes(o)) parsed.orientation = o as Orientation;
+    }
     else if (key === 'favorite' && value) parsed.favorite = ['yes', 'true', '1', 'on'].includes(value.toLowerCase());
     else if (key === 'recent' && value) parsed.recent = /^\d+$/.test(value) ? Number(value) : true;
     else parsed.terms.push(token.toLowerCase());
@@ -123,15 +130,18 @@ export function parseQuery(query: string): ParsedQuery {
 }
 
 /** The comparable facts about an entry: manifest values for templates, probed metadata for media. */
-function facts(entry: LibraryEntry): { duration?: number; width?: number; height?: number; fps?: number; alpha?: boolean; codec?: string } {
+function facts(entry: LibraryEntry): { duration?: number; width?: number; height?: number; fps?: number; alpha?: boolean; codec?: string; orientations: Orientation[] } {
   if (entry.kind === 'template') {
     const m = entry.manifest;
     const size = templateDefaultSize(m);
-    return { duration: m.duration, width: size.width, height: size.height, fps: m.fps, alpha: m.alpha };
+    return { duration: m.duration, width: size.width, height: size.height, fps: m.fps, alpha: m.alpha, orientations: templateOrientations(m) };
   }
   const meta = entry.meta;
-  if (!meta) return {};
-  return { duration: meta.duration, width: meta.width, height: meta.height, fps: meta.fps, alpha: meta.alpha, codec: meta.codec };
+  if (!meta) return { orientations: [] };
+  return {
+    duration: meta.duration, width: meta.width, height: meta.height, fps: meta.fps, alpha: meta.alpha, codec: meta.codec,
+    orientations: meta.width && meta.height ? [orientationOf(meta.width, meta.height)] : [],
+  };
 }
 
 function entryName(entry: LibraryEntry): string {
@@ -201,12 +211,13 @@ export function searchLibrary(index: LibraryIndex, query: string): SearchHit[] {
     if (q.packs.length > 0 && (entry.kind !== 'template' || !q.packs.includes(entry.pack?.slug ?? ''))) continue;
     if (q.favorite !== undefined && (entry.favorite === true) !== q.favorite) continue;
     if (q.recent !== undefined && !entry.lastUsed) continue;
-    if (q.numeric.length > 0 || q.resolutions.length > 0 || q.codecs.length > 0 || q.alpha !== undefined) {
+    if (q.numeric.length > 0 || q.resolutions.length > 0 || q.codecs.length > 0 || q.alpha !== undefined || q.orientation !== undefined) {
       const f = facts(entry);
       if (!q.numeric.every((n) => compare(f[n.field], n.cmp))) continue;
       if (q.resolutions.length > 0 && !q.resolutions.includes(resolutionLabel(f.width, f.height) ?? '')) continue;
       if (q.codecs.length > 0 && (f.codec === undefined || !q.codecs.includes(f.codec.toLowerCase()))) continue;
       if (q.alpha !== undefined && f.alpha !== q.alpha) continue;
+      if (q.orientation !== undefined && !f.orientations.includes(q.orientation)) continue;
     }
 
     const h = entryHaystack(entry);
