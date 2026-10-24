@@ -694,6 +694,73 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await previewShape()).toEqual({ ratio: '320 / 180', orientation: 'landscape' });
     }, 90_000);
 
+    it('never distorts the preview: the drawn box keeps its ratio squeezed narrow, short and mid-resize, for templates and media', async () => {
+      // What is drawn, as the browser lays it out: the box and the room it had.
+      const drawn = () =>
+        page.eval<{ w: number; h: number; roomW: number; roomH: number; visible: boolean }>(
+          `new Promise((r) => requestAnimationFrame(() => { const el = document.getElementById('preview-frame'); const f = el.getBoundingClientRect(); const wrap = document.querySelector('.preview-wrap').getBoundingClientRect(); r({ w: f.width, h: f.height, roomW: wrap.width, roomH: wrap.height, visible: getComputedStyle(el).visibility !== 'hidden' }); }))`,
+        );
+      /** The box is the declared shape, within a pixel, and inside the room; or it is not drawn at all. */
+      const expectShape = async (ratio: number, where: string) => {
+        const d = await drawn();
+        const label = `${where}: ${JSON.stringify(d)} for ${ratio.toFixed(3)}`;
+        expect(d.roomW, label).toBeGreaterThan(0);
+        if (d.roomH <= 4) {
+          // No room: nothing is drawn, not even the border.
+          expect(d.visible, label).toBe(false);
+          return;
+        }
+        expect(d.visible, label).toBe(true);
+        expect(d.w, label).toBeGreaterThan(0);
+        expect(Math.abs(d.w / d.h - ratio), label).toBeLessThan(ratio / 100 + 2 / d.h);
+        expect(d.w, label).toBeLessThanOrEqual(d.roomW + 0.5);
+        expect(d.h, label).toBeLessThanOrEqual(d.roomH + 0.5);
+      };
+      const viewport = (width: number, height: number) => page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+      const squeeze = (key: 'ArrowUp' | 'ArrowDown', times: number) =>
+        page.eval(`(() => { const s = document.getElementById('split-stage'); for (let i = 0; i < ${times}; i++) s.dispatchEvent(new KeyboardEvent('keydown', { key: '${key}', bubbles: true })); })()`);
+
+      await clickResult('Boardroom opener');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the opener preview');
+      const aspects: [string, number][] = [['16:9', 16 / 9], ['9:16', 9 / 16], ['1:1', 1], ['4:5', 4 / 5]];
+      // Steps the stage has been squeezed by and not yet given back, so a failure still restores the layout.
+      let squeezed = 0;
+      try {
+        for (const [aspect, ratio] of aspects) {
+          await fire('#opt-aspect', aspect, 'change');
+          await until(async () => (await previewShape()).ratio.split(' / ').map(Number).reduce((w, h) => w / h) === ratio, `the ${aspect} box`);
+          // Wide and tall rooms, a short one, then a narrow one; checked straight after each change.
+          for (const [w, h] of [[1400, 900], [1024, 697], [1024, 600], [960, 600]] as [number, number][]) {
+            await viewport(w, h);
+            await expectShape(ratio, `${aspect} at ${w}x${h}`);
+          }
+          // Mid-resize: the stage shrinks a step at a time toward its minimum share, and grows back.
+          for (let i = 0; i < 8; i++) {
+            await squeeze('ArrowUp', 1);
+            squeezed++;
+            await expectShape(ratio, `${aspect} squeezed ${i + 1}`);
+          }
+          await squeeze('ArrowDown', squeezed);
+          squeezed = 0;
+          await expectShape(ratio, `${aspect} restored`);
+        }
+        // Media take their own shape from the file: a 2 x 2 still, and when ffmpeg made them a 64 x 36 and a 36 x 64 clip.
+        const media: [string, number][] = [['tiny', 1], ...(haveVideo ? ([['clip', 64 / 36], ['tall', 36 / 64]] as [string, number][]) : [])];
+        for (const [name, ratio] of media) {
+          await clickResult(name);
+          await until(async () => Math.abs((await previewShape()).ratio.split(' / ').map(Number).reduce((w, h) => w / h) - ratio) < 0.001, `the box for ${name}`);
+          for (const [w, h] of [[1024, 600], [960, 600], [1400, 900]] as [number, number][]) {
+            await viewport(w, h);
+            await expectShape(ratio, `${name} at ${w}x${h}`);
+          }
+        }
+      } finally {
+        if (squeezed > 0) await squeeze('ArrowDown', squeezed);
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
+      }
+      await until(() => page.eval<boolean>(`window.innerWidth > 1024`), 'the window at its own size again');
+    }, 120_000);
+
     it('renders at the chosen shape and size through Prepare for drag', async () => {
       if (!haveVideo) {
         console.info('ffmpeg not available; aspect render check skipped.');

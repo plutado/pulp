@@ -376,6 +376,8 @@ function previewSize(): { width: number; height: number } {
 /** The box takes a shape; the vertical zones follow, since they belong to tall frames only. */
 function setPreviewShape(width: number, height: number): void {
   els.previewFrame.style.aspectRatio = `${width} / ${height}`;
+  // The stylesheet sizes the box from its container with this ratio, so it is never stretched (styles.css, .preview).
+  els.previewFrame.style.setProperty('--preview-ar', String(width / height));
   els.previewFrame.dataset.orientation = width === height ? 'square' : width > height ? 'landscape' : 'portrait';
   s.shape = { width, height };
   applyZones();

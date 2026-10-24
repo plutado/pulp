@@ -317,13 +317,23 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 
 /* flex-shrink 1 and overflow hidden: on a short window the stage gives way to the results (.results-region) and clips rather than paints over them. */
 .stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; padding: 12px 16px; gap: 12px; flex: 0 1 var(--stage-share, 60%); }
-.preview-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+/* The wrap is a size container so the box below can be sized from it: the largest box of the
+   picture's own ratio that fits, pillarboxed or letterboxed by whatever room is left around it.
+   A clamped width or height alone would change the shape and stretch the iframe or media inside;
+   this box can only be the right shape, and when the wrap has no room it is simply not drawn. */
+.preview-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; container-type: size; }
 .preview {
   position: relative;
-  width: 100%;
-  max-height: 100%;
-  aspect-ratio: 16 / 9;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  /* --preview-ar is width over height, set by the stage with the picture's size; 16:9 until something is shown. */
+  width: min(100cqw, calc(100cqh * var(--preview-ar, 1.7778)));
+  aspect-ratio: var(--preview-ar, 1.7778);
   border: 1px solid var(--border);
+}
+/* No room at all: not even the border is drawn. */
+@container (max-height: 4px) {
+  .preview { visibility: hidden; }
 }
 .preview iframe {
   position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent;
