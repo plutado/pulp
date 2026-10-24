@@ -157,6 +157,7 @@ A layer has an `id` (unique within its block, same form as a block id), a `label
 | `color` | `#RRGGBB` or `#RRGGBBAA` | |
 | `align` | `left`, `center`, `right` | |
 | `overflow` | `wrap`, `shrink`, `truncate` | What happens when the text does not fit the block: wrap onto more lines, shrink to fit, or cut with an ellipsis. |
+| `maxLines` | integer | Lines a `wrap` layer may take before it is set smaller instead; 1 to 20, default 3. |
 
 An image layer has a `size` (the picture's height as a fraction of the frame's short side; the width follows the picture's shape and is capped by the block) and an `align`, and no font properties. It carries no `image` of its own, for the reason an image slot has no default: a template cannot ship a library id. The picture is chosen at use time, with milestone 22's picker, grant and treatments; with none chosen the layer draws nothing and takes no room.
 
@@ -178,7 +179,29 @@ An image layer has a `size` (the picture's height as a fraction of the frame's s
 
 **Use-time values.** What a person builds is a stack per block: the template's layers with the fields they changed, the layers they added (to open blocks only), in their order, with `hidden` for what is kept but not drawn. The host resolves it against the template (`resolveLayers` in `src/core/layers.ts`): a field that is wrong falls back to the template's and is reported, `type` and `required` are the template's and never change, a required layer that was dropped comes back where the template had it, and an addition to a full block is dropped. "Reset layers" is the template's own stacks again.
 
-**Drawing.** The per-frame state and the bridge helper that lays a block out and draws it — measuring text, wrapping, shrinking or truncating, placing pictures, and giving each layer the movement of its stack position — arrive with the next items of milestone 23; until then `blocks` is validated, resolved and carried, and nothing is drawn from it yet.
+**Drawing.** `state.blocks[id]` describes a block for the current frame: its `box` in pixels, `direction`, `gap`, `align`, `verticalAlign`, and `layers` — the layers that are drawn, in stack order, each with its `position`, its sizes in pixels and its properties. Hidden layers are left out, so a layer's `position` is where it sits in the stack as drawn.
+
+The host finishes the layout and the drawing, so every template treats a long name the same way:
+
+```js
+// Measure, wrap or shrink, stack and place. `each` is called per layer with its stack position,
+// and what it returns rides that position: a layer added in the middle takes the middle's movement.
+var card = window.pulpLayoutBlock(ctx, state, 'card', {
+  each: function (layer, position) {
+    var start = 0.7 * position;                       // the template's own stagger
+    return { alpha: fade(state.time - start), dy: (1 - fade(state.time - start)) * 20 };
+  }
+});
+// The laid-out block is readable before it is drawn, so the design can follow the stack:
+// card.layers[0].box, .lines[i].baseline, .size (the size it ended up at, after any shrinking).
+window.pulpDrawBlock(ctx, card);
+```
+
+`each` may return `alpha`, `dx`, `dy`, `scale` — applied when the layer is drawn — and `letterSpacing` in em, which **replaces** the layer's own for this frame and is therefore what the text is measured and wrapped with. A template animating its tracking passes it here. An optional `box` on the options lays the block out somewhere else, for a template animating the block itself.
+
+Text is drawn at its baselines with the layer's family, size, weight, italic and colour. With no letter spacing and kerning on, each line is one `fillText`; otherwise the characters are drawn one at a time with the spacing between them, which is also how they are measured, so the two always agree. A picture is contained and centred in the room the stack gave it.
+
+The arithmetic is `src/core/layer-layout.ts`, unit tested, and the bridge carries the same algorithm; the two are mirrors and change together.
 
 ### Parameter resolution
 
@@ -216,6 +239,7 @@ It may return a Promise; the host waits for it to settle before capturing.
 | `width`, `height` | integer | The canvas for this render in pixels: the chosen aspect and resolution, not anything from the manifest. Size the canvas from these on every call, since the same template is drawn tall, square and wide. |
 | `params` | object | Resolved parameter values keyed by parameter id. An image parameter's value is `null` or `{ id, treatment, tint, effect }`. |
 | `images` | object | One entry per image slot (see Image slots): `{ id, box, fit, align, margin, treatment, tint, effect, fallback, bitmap? }`, the box in pixels of this frame. Draw them with `window.pulpDrawImage`. |
+| `blocks` | object | One entry per block (see Blocks and layers): the box in pixels and the layers that are drawn, in stack order. Lay one out with `window.pulpLayoutBlock` and draw it with `window.pulpDrawBlock`. |
 
 ### Rules for templates
 
@@ -238,7 +262,7 @@ The host serves the template folder at `pulp-template://<id>/` and injects a sma
 - answers `postMessage` requests of the form `{ type: "pulp:render", id, state }` with `{ type: "pulp:rendered", id }` or `{ type: "pulp:error", id, message }`, used by the preview;
 - posts `{ type: "pulp:ready" }` to the parent frame once ready.
 
-Templates do not need to call or include the bridge. Its source is `BRIDGE_SCRIPT` in `src/core/runtime.ts`. The bridge also decodes the images handed over for a template's image slots (`window.__pulp.prepare`) and exposes `window.pulpDrawImage` and `window.pulpFitBox`.
+Templates do not need to call or include the bridge. Its source is `BRIDGE_SCRIPT` in `src/core/runtime.ts`. The bridge also decodes the images handed over for a template's image slots (`window.__pulp.prepare`) and exposes `window.pulpDrawImage`, `window.pulpFitBox`, `window.pulpLayoutBlock` and `window.pulpDrawBlock`.
 
 Every response carries this Content Security Policy:
 

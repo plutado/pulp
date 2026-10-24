@@ -59,6 +59,9 @@ export interface Typography {
   overflow: TextOverflow;
 }
 
+/** Lines a wrapped text layer may take when it does not say (src/core/layer-layout.ts). */
+export const DEFAULT_MAX_LINES = 3;
+
 export const DEFAULT_TYPOGRAPHY: Typography = {
   family: 'Inter',
   size: 0.06,
@@ -84,6 +87,7 @@ export const LAYER_LIMITS = {
   lineHeight: { min: 0.5, max: 4 },
   spaceBefore: { min: 0, max: 1 },
   gap: { min: 0, max: 1 },
+  maxLines: { min: 1, max: 20 },
 } as const;
 
 interface LayerBase {
@@ -101,6 +105,8 @@ interface LayerBase {
 export interface TextLayer extends LayerBase, Typography {
   type: 'text';
   text: string;
+  /** Lines a `wrap` layer may take before it is set smaller instead; 3 when it does not say. */
+  maxLines: number;
 }
 
 export interface ImageLayer extends LayerBase {
@@ -249,7 +255,7 @@ function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'labe
 /** A fresh layer of a type, as a block hands it out: the block's typography, the default image size, nothing required. */
 export function newLayer(type: LayerType, block: Pick<Block, 'typography' | 'align'>, id: string, label?: string): Layer {
   const base: LayerBase = { id, label: label ?? (type === 'text' ? 'Text' : 'Image'), required: false, hidden: false, spaceBefore: 0 };
-  if (type === 'text') return { ...base, ...block.typography, type: 'text', text: '' };
+  if (type === 'text') return { ...base, ...block.typography, type: 'text', text: '', maxLines: DEFAULT_MAX_LINES };
   return { ...base, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
 }
 
@@ -280,7 +286,12 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
   let layer: Layer;
   if (raw.type === 'text') {
     if (typeof raw.text !== 'string') issue('text', 'must be a string (the layer\'s default text)');
-    layer = { ...common, ...readTypography(raw, block.typography, path, issue), type: 'text', text: typeof raw.text === 'string' ? raw.text : '' };
+    let maxLines = DEFAULT_MAX_LINES;
+    if (raw.maxLines !== undefined) {
+      if (Number.isInteger(raw.maxLines) && inRange(raw.maxLines, LAYER_LIMITS.maxLines)) maxLines = raw.maxLines as number;
+      else issue('maxLines', `must be an integer from ${LAYER_LIMITS.maxLines.min} to ${LAYER_LIMITS.maxLines.max}`);
+    }
+    layer = { ...common, ...readTypography(raw, block.typography, path, issue), type: 'text', text: typeof raw.text === 'string' ? raw.text : '', maxLines };
   } else {
     if (raw.image !== undefined && raw.image !== null) issue('image', 'an image layer has no image of its own: leave it out or set it to null');
     let size = DEFAULT_IMAGE_LAYER_SIZE;
@@ -391,7 +402,12 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
       if (typeof raw.text === 'string') text = raw.text;
       else issue('text', 'must be a string');
     }
-    return { ...base, ...common, ...typography, text };
+    let maxLines = base.maxLines;
+    if (raw.maxLines !== undefined) {
+      if (Number.isInteger(raw.maxLines) && inRange(raw.maxLines, LAYER_LIMITS.maxLines)) maxLines = raw.maxLines as number;
+      else issue('maxLines', `must be an integer from ${LAYER_LIMITS.maxLines.min} to ${LAYER_LIMITS.maxLines.max}`);
+    }
+    return { ...base, ...common, ...typography, text, maxLines };
   }
   let image = base.image;
   if (raw.image !== undefined) {

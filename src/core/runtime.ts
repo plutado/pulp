@@ -10,6 +10,8 @@
 
 import type { Size } from './aspect';
 import { imageSlots, type ImageSlotState } from './image-slot';
+import { blockStates, type BlockState } from './layer-layout';
+import type { Block, LayerValues } from './layers';
 import { frameCount, type TemplateManifest, type TemplateParameter } from './manifest';
 import type { ResolvedParams } from './params';
 
@@ -28,6 +30,12 @@ export interface FrameState {
   params: ResolvedParams;
   /** The template's image slots laid out for this frame; the bridge attaches the decoded picture to each chosen one. */
   images: Record<string, ImageSlotState>;
+  /**
+   * The template's blocks for this frame, by block id: the box in pixels and the layers that are
+   * drawn, in stack order, with their sizes in pixels (src/core/layer-layout.ts). `window.pulpLayoutBlock`
+   * finishes the job — measuring, wrapping and stacking — and `window.pulpDrawBlock` draws the result.
+   */
+  blocks: Record<string, BlockState>;
 }
 
 /**
@@ -37,10 +45,12 @@ export interface FrameState {
  * pixel size from here (docs/template-format.md, ADR 0012).
  */
 export function frameState(
-  manifest: Pick<TemplateManifest, 'duration' | 'fps'> & { parameters?: readonly TemplateParameter[] },
+  manifest: Pick<TemplateManifest, 'duration' | 'fps'> & { parameters?: readonly TemplateParameter[]; blocks?: readonly Block[] },
   frame: number,
   params: ResolvedParams,
   size: Size,
+  /** The layers the person using the template built; the template's own defaults when not given. */
+  layers: LayerValues = {},
 ): FrameState {
   const totalFrames = frameCount(manifest);
   const f = Math.min(Math.max(0, Math.floor(frame)), totalFrames - 1);
@@ -56,6 +66,7 @@ export function frameState(
     height: size.height,
     params,
     images: manifest.parameters ? imageSlots(manifest.parameters, params, size) : {},
+    blocks: manifest.blocks ? blockStates({ blocks: manifest.blocks as Block[] }, layers, size) : {},
   };
 }
 
@@ -121,7 +132,11 @@ export const BRIDGE_SCRIPT = `(function () {
     return ready.then(function () {
       return Promise.all((requests || []).map(function (r) {
         var key = requestKey(r);
-        if (!pictures[key]) pictures[key] = loadPicture(r);
+        if (!pictures[key]) {
+          var entry = loadPicture(r);
+          entry.then(function (c) { entry.value = c; }, function () { entry.value = null; });
+          pictures[key] = entry;
+        }
         return pictures[key];
       }));
     }).then(function () { return true; });
@@ -147,6 +162,182 @@ export const BRIDGE_SCRIPT = `(function () {
     var ax = a === 'left' || /-left$/.test(a) ? 0 : a === 'right' || /-right$/.test(a) ? 1 : 0.5;
     var ay = /^top/.test(a) ? 0 : /^bottom/.test(a) ? 1 : 0.5;
     return { x: box.x + inset + (innerW - w) * ax, y: box.y + inset + (innerH - h) * ay, width: w, height: h };
+  }
+  var ASCENT = 0.8, SHRINK_STEP = 0.92, SHRINK_TRIES = 12;
+  function applyCase(text, how) {
+    if (how === 'upper') return text.toUpperCase();
+    if (how === 'lower') return text.toLowerCase();
+    if (how === 'title') return text.replace(/\\S+/g, function (w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); });
+    return text;
+  }
+  function layerFont(layer, size) { return (layer.italic ? 'italic ' : '') + layer.weight + ' ' + size + 'px ' + layer.family; }
+  function textWidth(ctx, text, layer, size, spacingEm) {
+    ctx.font = layerFont(layer, size);
+    var spacing = spacingEm * size;
+    if (spacing === 0 && layer.kerning) return ctx.measureText(text).width;
+    var total = 0;
+    for (var i = 0; i < text.length; i++) total += ctx.measureText(text[i]).width + (i < text.length - 1 ? spacing : 0);
+    return total;
+  }
+  function wrapWords(ctx, text, maxWidth, layer, size, spacingEm) {
+    var words = text.split(/\\s+/).filter(Boolean), lines = [], line = '', ok = true;
+    for (var i = 0; i < words.length; i++) {
+      var candidate = line ? line + ' ' + words[i] : words[i];
+      if (!line || textWidth(ctx, candidate, layer, size, spacingEm) <= maxWidth) line = candidate;
+      else { lines.push(line); line = words[i]; }
+      if (textWidth(ctx, line, layer, size, spacingEm) > maxWidth) ok = false;
+    }
+    if (line) lines.push(line);
+    return { lines: lines, ok: ok };
+  }
+  function layoutText(ctx, layer, maxWidth, spacingEm) {
+    var text = applyCase(layer.text, layer['case']);
+    if (text.replace(/\\s+/g, '') === '') return { size: layer.fontSize, lines: [] };
+    if (layer.overflow === 'shrink') {
+      var w = textWidth(ctx, text, layer, layer.fontSize, spacingEm);
+      return { size: w > maxWidth && w > 0 ? layer.fontSize * maxWidth / w : layer.fontSize, lines: [text] };
+    }
+    if (layer.overflow === 'truncate') {
+      if (textWidth(ctx, text, layer, layer.fontSize, spacingEm) <= maxWidth) return { size: layer.fontSize, lines: [text] };
+      var cut = text;
+      while (cut.length > 0 && textWidth(ctx, cut + '…', layer, layer.fontSize, spacingEm) > maxWidth) cut = cut.slice(0, -1);
+      return { size: layer.fontSize, lines: [cut.replace(/\\s+$/, '') + '…'] };
+    }
+    var size = layer.fontSize, wrapped = wrapWords(ctx, text, maxWidth, layer, size, spacingEm);
+    for (var tries = 1; tries < SHRINK_TRIES && !(wrapped.ok && wrapped.lines.length <= layer.maxLines); tries++) {
+      size *= SHRINK_STEP;
+      wrapped = wrapWords(ctx, text, maxWidth, layer, size, spacingEm);
+    }
+    return { size: size, lines: wrapped.lines };
+  }
+  function alignedX(align, boxX, boxWidth, width) {
+    if (align === 'left') return boxX;
+    if (align === 'right') return boxX + boxWidth - width;
+    return boxX + (boxWidth - width) / 2;
+  }
+  function crossStart(v, boxY, boxHeight, extent) {
+    if (v === 'top') return boxY;
+    if (v === 'bottom') return boxY + boxHeight - extent;
+    return boxY + (boxHeight - extent) / 2;
+  }
+  function pictureFor(layer) {
+    if (!layer.image) return null;
+    var p = pictures[requestKey(layer.image)];
+    return p && p.value ? p.value : null;
+  }
+  /* Mirrors layoutBlock in src/core/layer-layout.ts, which is the copy with unit tests: change both or neither. */
+  function layoutBlock(ctx, state, blockId, options) {
+    var block = state && state.blocks ? state.blocks[blockId] : null;
+    if (!block) return null;
+    options = options || {};
+    var box = options.box || block.box;
+    var column = block.direction !== 'row';
+    var measured = block.layers.map(function (layer, position) {
+      var draw = { alpha: 1, dx: 0, dy: 0, scale: 1 };
+      var over = options.each ? options.each(layer, position) : null;
+      if (over) for (var k in over) if (over[k] !== undefined) draw[k] = over[k];
+      if (layer.type === 'text') {
+        var spacing = draw.letterSpacing === undefined ? layer.letterSpacing : draw.letterSpacing;
+        var laid = layoutText(ctx, layer, box.width, spacing);
+        var widths = laid.lines.map(function (line) { return textWidth(ctx, line, layer, laid.size, spacing); });
+        var height = laid.lines.length === 0 ? 0 : (laid.lines.length - 1) * laid.size * layer.lineHeight + laid.size;
+        var width = widths.reduce(function (a, b) { return Math.max(a, b); }, 0);
+        return { layer: layer, draw: draw, size: laid.size, lines: laid.lines, widths: widths, width: width, height: height, extent: column ? height : width, cross: column ? width : height };
+      }
+      var picture = pictureFor(layer);
+      if (!picture) return { layer: layer, draw: draw, size: 0, lines: [], widths: [], width: 0, height: 0, extent: 0, cross: 0 };
+      var aspect = Math.max(0.01, picture.width / picture.height);
+      var w = Math.min(box.width, layer.size * aspect), h = w / aspect;
+      return { layer: layer, draw: draw, size: 0, lines: [], widths: [], width: w, height: h, picture: picture, extent: column ? h : w, cross: column ? w : h };
+    });
+    var total = 0, drawn = 0, i;
+    for (i = 0; i < measured.length; i++) {
+      if (measured[i].extent <= 0) continue;
+      if (drawn > 0) total += block.gap;
+      total += measured[i].layer.spaceBefore + measured[i].extent;
+      drawn++;
+    }
+    var along = column ? box.height : box.width;
+    var place = column ? block.verticalAlign : block.align;
+    var offset = place === 'top' || place === 'left' ? 0 : place === 'bottom' || place === 'right' ? along - total : (along - total) / 2;
+    var cursor = (column ? box.y : box.x) + offset, placed = 0, layers = [];
+    for (i = 0; i < measured.length; i++) {
+      var m = measured[i], layer = m.layer, out;
+      if (m.extent <= 0) {
+        out = { box: { x: box.x, y: box.y, width: 0, height: 0 }, size: m.size, lines: [], draw: m.draw };
+        for (var key0 in layer) out[key0] = out[key0] === undefined ? layer[key0] : out[key0];
+        layers.push(out);
+        continue;
+      }
+      if (placed > 0) cursor += block.gap;
+      cursor += layer.spaceBefore;
+      var laidBox = column
+        ? { x: box.x, y: cursor, width: box.width, height: m.extent }
+        : { x: cursor, y: crossStart(block.verticalAlign, box.y, box.height, m.cross), width: m.extent, height: m.cross };
+      out = { draw: m.draw, size: m.size, lines: [] };
+      if (layer.type === 'text') {
+        var step = m.size * layer.lineHeight;
+        out.box = laidBox;
+        out.lines = m.lines.map(function (text, li) {
+          return { text: text, width: m.widths[li], x: alignedX(layer.align, laidBox.x, laidBox.width, m.widths[li]), baseline: laidBox.y + li * step + ASCENT * m.size };
+        });
+      } else {
+        out.box = { x: alignedX(layer.align, laidBox.x, laidBox.width, m.width), y: laidBox.y, width: m.width, height: m.height };
+        out.picture = m.picture;
+      }
+      for (var key in layer) if (out[key] === undefined) out[key] = layer[key];
+      layers.push(out);
+      cursor += m.extent;
+      placed++;
+    }
+    return { id: block.id, box: box, layers: layers };
+  }
+  /* Draws a block laid out by layoutBlock: each layer with the alpha, offset and scale the template gave it. */
+  function drawBlock(ctx, laid) {
+    if (!laid) return false;
+    for (var i = 0; i < laid.layers.length; i++) {
+      var layer = laid.layers[i], d = layer.draw || {};
+      if (!layer.box || layer.box.width <= 0 && layer.box.height <= 0) continue;
+      var alpha = d.alpha === undefined ? 1 : d.alpha;
+      if (alpha <= 0) continue;
+      ctx.save();
+      ctx.globalAlpha = ctx.globalAlpha * alpha;
+      var cx = layer.box.x + layer.box.width / 2, cy = layer.box.y + layer.box.height / 2;
+      ctx.translate((d.dx || 0), (d.dy || 0));
+      if (d.scale !== undefined && d.scale !== 1) { ctx.translate(cx, cy); ctx.scale(d.scale, d.scale); ctx.translate(-cx, -cy); }
+      if (layer.type === 'text') drawTextLayer(ctx, layer);
+      else if (layer.picture) {
+        var at = fitBox(layer.box, layer.picture.width, layer.picture.height, 'contain', 'center', 0);
+        var effect = layer.image ? layer.image.effect : 'none';
+        if (effect === 'shadow') { ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = Math.max(2, at.height * 0.12); ctx.shadowOffsetY = Math.max(1, at.height * 0.04); }
+        else if (effect === 'glow') { ctx.shadowColor = layer.image && layer.image.treatment === 'tinted' ? layer.image.tint : 'rgba(255,255,255,0.85)'; ctx.shadowBlur = Math.max(4, at.height * 0.25); }
+        ctx.drawImage(layer.picture, at.x, at.y, at.width, at.height);
+      }
+      ctx.restore();
+    }
+    return true;
+  }
+  function drawTextLayer(ctx, layer) {
+    var spacingEm = layer.draw && layer.draw.letterSpacing !== undefined ? layer.draw.letterSpacing : layer.letterSpacing;
+    var spacing = spacingEm * layer.size;
+    ctx.font = layerFont(layer, layer.size);
+    ctx.fillStyle = layer.color;
+    ctx.textBaseline = 'alphabetic';
+    for (var i = 0; i < layer.lines.length; i++) {
+      var line = layer.lines[i];
+      if (spacing === 0 && layer.kerning) {
+        ctx.textAlign = 'left';
+        ctx.fillText(line.text, line.x, line.baseline);
+        continue;
+      }
+      /* Manual letter spacing, so it behaves the same in every Chromium version. */
+      ctx.textAlign = 'left';
+      var x = line.x;
+      for (var c = 0; c < line.text.length; c++) {
+        ctx.fillText(line.text[c], x, line.baseline);
+        x += ctx.measureText(line.text[c]).width + spacing;
+      }
+    }
   }
   function drawImage(ctx, state, slotId, box) {
     var slot = state && state.images ? state.images[slotId] : null;
@@ -176,9 +367,11 @@ export const BRIDGE_SCRIPT = `(function () {
       });
     });
   }
-  window.__pulp = { ready: ready, render: render, prepare: prepare, drawImage: drawImage, fitBox: fitBox };
+  window.__pulp = { ready: ready, render: render, prepare: prepare, drawImage: drawImage, fitBox: fitBox, layoutBlock: layoutBlock, drawBlock: drawBlock };
   window.pulpDrawImage = drawImage;
   window.pulpFitBox = fitBox;
+  window.pulpLayoutBlock = layoutBlock;
+  window.pulpDrawBlock = drawBlock;
   window.addEventListener('message', function (event) {
     var data = event.data;
     if (!data || !event.source) return;

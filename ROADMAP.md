@@ -21,7 +21,7 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 21. Sample library coverage | 26-40 h |
 | 19. Vertical and square formats | 13-21 h |
 | 22. Image slots in templates | 17-26 h |
-| 23. Layers in templates | 29-44 h |
+| 23. Layers in templates | 33-50 h |
 | 20. Social-ready export | 8-13 h |
 | 17. Unsigned builds and releases | 7-12 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
@@ -30,9 +30,9 @@ Milestones keep the number they were given when they were added, so GitHub issue
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-23)** | **227-370 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-23)** | **231-376 h** |
 | **Still open through 1.0 (unticked items only)** | **54-87 h** |
-| **Total including post-1.0 items** | **259-428 h** |
+| **Total including post-1.0 items** | **263-434 h** |
 
 ## 0. Foundation (done)
 
@@ -246,6 +246,7 @@ Milestone 22 gave a template fixed image slots: the author decides where a logo 
 Milestone 22's fixed image slots stay exactly as they are. A slot is the author's; a layer is the user's.
 
 - [x] Template format: `blocks` and `layers`. A block is a box per aspect (fractions of the frame, like an image slot), a stacking direction and spacing, the typography its text layers start from, and whether it is full or may take more. A template's own layers are its defaults, each with a type (`text` or `image`), its properties, and optional `required` so it cannot be removed. The stack position is what the template animates by, so a layer added in the middle takes the movement of the position it is in. Validator with tests, `docs/template-format.md`, an entry in `CHANGELOG.md` (4-6 h)
+- [x] Blocks draw. `state.blocks` carries each block for the frame — its box in pixels and the layers that are drawn, in stack order — and the bridge finishes the job: `pulpLayoutBlock` measures, wraps, shrinks or truncates, stacks and places, and `pulpDrawBlock` draws the result, with a per-layer hook called by stack position so an added line takes the movement of the position it is in. The arithmetic is a pure module with unit tests and the bridge mirrors it (4-6 h)
 - [ ] "Add layer" in the Parameters tab, offering Text or Image, with the block to add it to when a template declares more than one. Reorder within a block, remove (unless the template marks it required), and hide — kept but not drawn, with the stack closing up, so a layer can be taken out of a shot without losing its settings. "Reset layers" restores the template's defaults. The layer list and its edits are a pure core module with unit tests, and every change is undoable with the rest of the parameters (5-8 h)
 - [ ] Text layer properties: family, size (as a fraction of the frame, so it holds at every resolution), weight, italic, case, letter spacing, kerning, line height, space before, colour, alignment, and overflow — wrap, shrink to fit, or truncate — resolved by the host so every template behaves the same way when a name is too long (4-6 h)
 - [ ] Image layers, SVG or PNG: milestone 22's picker, its by-id grant and its treatments (original, tinted, white, black, shadow or glow), plus size and alignment. No font properties; a layer is one kind of thing or the other (3-4 h)

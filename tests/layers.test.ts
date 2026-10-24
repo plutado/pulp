@@ -260,7 +260,7 @@ describe('resolveLayers', () => {
 
   it('newLayer hands out a layer of either type from a block', () => {
     const b = block({ align: 'center' });
-    expect(newLayer('text', b, 'x')).toEqual({ id: 'x', label: 'Text', required: false, hidden: false, spaceBefore: 0, ...b.typography, type: 'text', text: '' });
+    expect(newLayer('text', b, 'x')).toEqual({ id: 'x', label: 'Text', required: false, hidden: false, spaceBefore: 0, ...b.typography, type: 'text', text: '', maxLines: 3 });
     expect(newLayer('image', b, 'y', 'Logo')).toEqual({ id: 'y', label: 'Logo', required: false, hidden: false, spaceBefore: 0, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: 'center' });
   });
 });
