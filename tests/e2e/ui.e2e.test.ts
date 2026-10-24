@@ -117,7 +117,9 @@ class Session {
 }
 
 /** How long one page call may take. Sweeps across the whole list stay well inside it at any sane frame rate. */
-const EVAL_TIMEOUT_MS = 20_000;
+const EVAL_TIMEOUT_MS = 10_000;
+/** The default wall-clock budget of one wait. */
+const DEFAULT_WAIT_MS = 15_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -178,12 +180,22 @@ describe.skipIf(!electron)('inspector UI', () => {
     }
   }
 
-  async function until(check: () => Promise<boolean>, what: string, tries = 80): Promise<void> {
-    for (let i = 0; i < tries; i++) {
+  /**
+   * Poll until a condition holds, for at most `budgetMs` of wall-clock time (not a count of tries:
+   * a slow check must not stretch the wait past the test's own timeout, or the test dies without
+   * naming what it was waiting for — docs/platform-notes.md, "Windows CI"). The default leaves room
+   * for three waits inside a 60 s test.
+   */
+  async function until(check: () => Promise<boolean>, what: string, budgetMs = DEFAULT_WAIT_MS): Promise<void> {
+    const started = Date.now();
+    let checks = 0;
+    for (;;) {
+      checks++;
       if (await check()) return;
+      const elapsed = Date.now() - started;
+      if (elapsed >= budgetMs) throw new Error(`timed out waiting for ${what} (${(elapsed / 1000).toFixed(1)} s, ${checks} checks)`);
       await sleep(250);
     }
-    throw new Error(`timed out waiting for ${what}`);
   }
 
   // The results are windowed: only the cards and rows the viewport covers are in the
@@ -212,7 +224,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     );
 
   /** Scrolls the results until the named item is rendered, waiting for one that has not arrived yet. */
-  const scrollToResult = (name: string, tries = 40) => until(() => sweepTo(name), `the result "${name}"`, tries);
+  const scrollToResult = (name: string, budgetMs = DEFAULT_WAIT_MS) => until(() => sweepTo(name), `the result "${name}"`, budgetMs);
 
   /** Scrolls to a result, then evaluates `fn` — a function source taking its <li> — on it. */
   async function onResult<T>(name: string, fn: string): Promise<T> {
@@ -682,7 +694,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`(() => { const i = document.getElementById('opt-in'); i.value = '10'; i.dispatchEvent(new Event('input', { bubbles: true })); const o = document.getElementById('opt-out'); o.value = '10'; o.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       await fire('#preset', 'png-sequence', 'change');
       await page.eval(`document.getElementById('drag-prepare').click()`);
-      await until(() => page.eval<boolean>(`!!document.querySelector('#queue .job-card[draggable="true"][data-file*="boardroom-opener"]')`), 'the square render to finish', 240);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#queue .job-card[draggable="true"][data-file*="boardroom-opener"]')`), 'the square render to finish', 60_000);
       const file = await page.eval<string>(`document.querySelector('#queue .job-card[draggable="true"][data-file*="boardroom-opener"]').dataset.file`);
       const ffmpeg = await detectFfmpeg();
       expect(ffmpeg.ok).toBe(true);
@@ -707,18 +719,23 @@ describe.skipIf(!electron)('inspector UI', () => {
     it('picks a still from the library, treats it, keeps it in a preset by id, and clears', async () => {
       await clickResult('Lower Third Bar');
       await until(() => page.eval<boolean>(`!!${field}`), 'the logo slot field');
-      // Empty slot: a placeholder thumbnail, no Clear, no treatment.
+      // Empty slot: the picture box is the place to choose, at the slot's own shape; no Clear, no treatment.
       expect(await page.eval<boolean>(`${field}.querySelector('.thumb').classList.contains('empty')`)).toBe(true);
+      expect(await page.eval<string>(`${field}.querySelector('.thumb .empty-label').textContent`)).toBe('Choose an image…');
+      expect(await page.eval<string>(`${field}.querySelector('.image-name').textContent`)).toBe('No image; the slot shows its fallback');
+      expect(await page.eval<string>(`${field}.querySelector('.thumb').style.aspectRatio`)).toMatch(/^\d+(\.\d+)? \/ 1$/);
       expect(await page.eval<boolean>(`${field}.querySelector('.image-actions button:nth-child(3)').hidden`)).toBe(true);
-      // The picker lists the library's stills; the fixture PNG is one.
-      await page.eval(`${field}.querySelector('.image-actions button').click()`);
+      // Clicking the box opens the picker, which lists the library's stills; the fixture PNG is one.
+      await page.eval(`${field}.querySelector('.thumb').click()`);
       await until(() => page.eval<boolean>(`!!${field}.querySelector('.image-choice')`), 'stills in the picker');
       await page.eval(`(() => { const s = ${field}.querySelector('.image-picker input'); s.value = 'tin'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       const listed = await page.eval<string[]>(`[...${field}.querySelectorAll('.image-choice .name')].map((n) => n.textContent)`);
       expect(listed).toEqual(['tiny']);
       await page.eval(`${field}.querySelector('.image-choice').click()`);
       await until(() => page.eval<boolean>(`!${field}.querySelector('.thumb').classList.contains('empty')`), 'the chosen thumbnail');
-      expect(await page.eval<string>(`${field}.querySelector('.thumb img').getAttribute('src')`)).toMatch(/^pulp-thumb:\/\/[0-9a-f]{24}\/$/);
+      // The library's poster when it has one, the still itself until then: never a broken image.
+      expect(await page.eval<string>(`${field}.querySelector('.thumb img').getAttribute('src')`)).toMatch(/^pulp-(thumb|media):\/\/[0-9a-f]{24}\/$/);
+      expect(await page.eval<string>(`${field}.querySelector('.image-name').textContent`)).toBe('tiny');
       expect(await page.eval<boolean>(`${field}.querySelector('.image-picker').hidden`)).toBe(true);
       // Treatment and effect ride along with the choice.
       await page.eval(`(() => { const s = ${field}.querySelector('.image-treatment select'); s.value = 'white'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
@@ -835,7 +852,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       // Prepare for drag is an action on the item, in the Output tab, not a panel of its own.
       await page.eval(`document.getElementById('drag-prepare').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('drag-status').textContent.includes('Rendering for drag')`), 'the drag render to be queued');
-      await until(() => page.eval<boolean>(`!!document.querySelector('#queue .job-card[draggable="true"]')`), 'a draggable card', 240);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#queue .job-card[draggable="true"]')`), 'a draggable card', 60_000);
 
       const card = `document.querySelector('#queue .job-card[draggable="true"]')`;
       const file = await page.eval<string>(`${card}.dataset.file`);
@@ -859,7 +876,7 @@ describe.skipIf(!electron)('inspector UI', () => {
 
       // Reveal and Copy path reach the file without it being on the card, and work by keyboard.
       expect(await page.eval<boolean>(`window.pulp.copyFilePath(${JSON.stringify(file)})`)).toBe(true);
-      expect(await page.eval<boolean>(`window.pulp.copyFilePath('/etc/hosts')`)).toBe(false);
+      expect(await page.eval<boolean>(`window.pulp.copyFilePath(${JSON.stringify(join(userData, 'not-ours', 'outside.txt'))})`)).toBe(false);
       await page.eval(`${card}.focus()`);
       expect(await page.eval<boolean>(`document.activeElement === ${card}`)).toBe(true);
 
@@ -872,7 +889,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await page.eval<number>(`document.querySelectorAll('#queue .job-card[draggable="true"]').length`)) >= 2, 'a second draggable card');
 
       // A drag of something outside the cache and not a finished output is refused.
-      expect(await page.eval<boolean>(`window.pulp.startDrag('/etc/hosts')`)).toBe(false);
+      expect(await page.eval<boolean>(`window.pulp.startDrag(${JSON.stringify(join(userData, 'not-ours', 'outside.txt'))})`)).toBe(false);
 
       // Remove takes one card off the tray.
       const before = await page.eval<number>(`document.querySelectorAll('#queue .job-card').length`);
@@ -1173,7 +1190,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         return;
       }
       // Probing runs in the background; the card badges what it found as soon as it lands.
-      await until(() => onResult<boolean>('clip', '(li) => !!li.querySelector(".badge.resolution")'), 'probed metadata to reach the results', 120);
+      await until(() => onResult<boolean>('clip', '(li) => !!li.querySelector(".badge.resolution")'), 'probed metadata to reach the results', 30_000);
       const badges = await onResult<string[]>('clip', '(li) => [...li.querySelectorAll(".badge")].map((b) => b.textContent)');
       expect(badges).toEqual(['2 s', '36p']);
       // The whole of what ffprobe read is in the Info tab.
@@ -1210,7 +1227,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       const read = '(li) => { const i = li.querySelector(".thumb img"); return { src: i.src, w: i.naturalWidth, h: i.naturalHeight }; }';
       const byName: Record<string, { src: string; w: number; h: number }> = {};
       for (const name of needed) {
-        await until(() => onResult<boolean>(name, loaded), `the thumbnail for ${name}`, 480);
+        await until(() => onResult<boolean>(name, loaded), `the thumbnail for ${name}`, 120_000);
         byName[name] = await onResult<{ src: string; w: number; h: number }>(name, read);
       }
       for (const i of Object.values(byName)) expect(i.src).toMatch(/^pulp-thumb:\/\/[0-9a-f]{24}\/$/);
@@ -1249,16 +1266,17 @@ describe.skipIf(!electron)('inspector UI', () => {
        * main process says went wrong rather than timing out with an empty log:
        * a slow machine and a failed strip look identical from the DOM alone.
        */
-      const strippedFor = async (name: string, tries = 240) => {
+      const strippedFor = async (name: string, budgetMs = 60_000) => {
         const id = await onResult<string>(name, '(li) => li.dataset.id');
-        for (let i = 0; i < tries; i++) {
+        const started = Date.now();
+        for (;;) {
           const result = await page.eval<{ url: string | null; reason?: string; transient?: boolean }>(`window.pulp.hoverStrip(${JSON.stringify(id)})`);
           if (result.url) return result.url;
           // Transient means "ask again"; anything else is settled and worth failing on now.
           if (!result.transient) throw new Error(`no hover-scrub strip for ${name}: ${result.reason ?? 'the item has nothing to scrub'}`);
+          if (Date.now() - started >= budgetMs) throw new Error(`timed out waiting for the strip of ${name} (${budgetMs / 1000} s); the last word from the main process was "still going"`);
           await sleep(250);
         }
-        throw new Error(`timed out waiting for the strip of ${name}; the last word from the main process was "still going"`);
       };
 
       /** The strip as the window sees it, to check it really holds its tiles. */
@@ -1274,7 +1292,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(wipeW).toBe(8 * 240);
       expect(wipeH).toBeGreaterThan(100);
       await hover('Diagonal Wipe', 0.05);
-      await until(async () => (await frame('Diagonal Wipe')) !== null, 'the strip to reach the card', 60);
+      await until(async () => (await frame('Diagonal Wipe')) !== null, 'the strip to reach the card', 15_000);
       expect(await frame('Diagonal Wipe')).toBe('0%');
       const strip = await onResult<string>('Diagonal Wipe', `(li) => li.querySelector('.strip').style.backgroundImage`);
       expect(strip).toMatch(/^url\("pulp-strip:\/\/[0-9a-f]{24}\/"\)$/);
@@ -1292,7 +1310,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       // Video gets one too, from ffmpeg rather than from a render.
       await strippedFor('clip');
       await hover('clip', 0.99);
-      await until(async () => (await frame('clip')) !== null, 'the video strip to reach the card', 60);
+      await until(async () => (await frame('clip')) !== null, 'the video strip to reach the card', 15_000);
       expect(await frame('clip')).toBe('100%');
 
       // Both are cached beside the posters, so the next hover costs nothing.
@@ -1582,7 +1600,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await onResult<string>('Lower Third Bar', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('1920 / 1080');
       // The tall fixture clip (36 × 64, once probed) is a portrait item: a grid holding it takes a taller row, and its own picture is tall.
       await fire('#search', 'orientation:portrait type:video', 'input');
-      await until(async () => (await names()).join() === 'tall', 'the tall clip alone', 120);
+      await until(async () => (await names()).join() === 'tall', 'the tall clip alone', 30_000);
       await until(async () => (await cardH()) > wide, 'the taller row pitch');
       expect(await onResult<string>('tall', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('36 / 64');
       // With everything showing, the one tall item sets the pitch for the whole grid; a wide card keeps its own shape inside it.

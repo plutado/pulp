@@ -141,7 +141,11 @@ export async function setRenderCacheLimit(maxMB: number): Promise<CacheStats> {
 /** True if the path is a file inside the cache folder (by real path). */
 export async function isCachedFile(path: string): Promise<boolean> {
   try {
-    const [real, dir] = await Promise.all([realpath(path), realpath(await cacheDir())]);
+    // The folder first, then both realpaths together. Starting realpath(path) before an await left its
+    // rejection with nothing attached for a whole task, which Node reported as an unhandled rejection
+    // whenever a window asked about a path that does not exist (docs/platform-notes.md).
+    const folder = await cacheDir();
+    const [real, dir] = await Promise.all([realpath(path), realpath(folder)]);
     return real.startsWith(dir + sep) && (await stat(real)).isFile();
   } catch {
     return false;
