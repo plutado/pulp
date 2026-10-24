@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway } from '../src/core/player';
+import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor } from '../src/core/player';
 
 describe('playback', () => {
   // 180 frames at 30 fps: a six-second template.
@@ -88,5 +88,22 @@ describe('safe areas', () => {
       ['action', 0.035],
       ['title', 0.05],
     ]);
+  });
+
+  it('add the zones a tall frame keeps clear, for portrait shapes only', () => {
+    expect(VERTICAL_ZONES.map((z) => z.id)).toEqual(['header', 'controls', 'caption']);
+    for (const z of VERTICAL_ZONES) {
+      // Inside the frame, and named for what sits there rather than for any one app.
+      expect(z.left + z.width, z.id).toBeLessThanOrEqual(1);
+      expect(z.top + z.height, z.id).toBeLessThanOrEqual(1);
+      expect(z.label).not.toMatch(/tiktok|instagram|youtube|reels|shorts/i);
+    }
+    const [header, controls, caption] = VERTICAL_ZONES;
+    expect(header.top + header.height).toBeLessThan(controls.top); // the strip ends before the column starts
+    expect(caption.left + caption.width).toBeLessThanOrEqual(controls.left); // the band stops short of the column
+    expect(verticalZonesFor(1080, 1920)).toBe(VERTICAL_ZONES);
+    expect(verticalZonesFor(1080, 1350)).toBe(VERTICAL_ZONES);
+    expect(verticalZonesFor(1920, 1080)).toEqual([]);
+    expect(verticalZonesFor(1080, 1080)).toEqual([]);
   });
 });

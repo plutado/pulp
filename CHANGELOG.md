@@ -8,6 +8,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- Vertical safe zones. With the safe areas on and a tall frame in the preview, the stage also marks the areas a vertical video has to keep clear — a header strip at the top, a controls column down the right, a caption band across the bottom — described generically so they hold for any platform.
+
 - Orientation in search and on cards: `orientation:portrait` (or `vertical`), `landscape` and `square` filter templates by the shapes they draw for and media by its size; a Vertical chip sits beside the media kinds; and portrait and square items carry a badge, so a tall item is recognizable without reading its size.
 
 - The Output tab chooses the shape and size of a render. Templates that draw for more than one aspect get an Aspect field; every template gets a Resolution field with its own size or the aspect's default, the standard sizes for that aspect, and a custom width and height that must be of the aspect. The preview turns to match, so a tall render is previewed tall, and a collection card remembers the choice like its other settings.

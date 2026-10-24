@@ -14,7 +14,7 @@ import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { frameCount, type TemplateManifest } from '../core/manifest';
 import type { ResolvedParams } from '../core/params';
-import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway, type PlayerState, type StageBackground } from '../core/player';
+import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor, type PlayerState, type StageBackground } from '../core/player';
 import { frameState } from '../core/runtime';
 import { formatTimecode } from '../core/timecode';
 import { mediaUrlFor, templateUrlFor } from '../shared/api';
@@ -60,6 +60,7 @@ const els = {
   safeOverlay: $<HTMLDivElement>('safe-overlay'),
   safeAction: $<HTMLDivElement>('safe-action'),
   safeTitle: $<HTMLDivElement>('safe-title'),
+  safeZones: $<HTMLDivElement>('safe-zones'),
 };
 
 const BACKGROUND_BUTTONS: Record<Exclude<StageBackground, 'custom'>, HTMLButtonElement> = {
@@ -74,6 +75,8 @@ const s = {
   frame: 0,
   playing: false,
   previewReady: false,
+  /** The shape the box shows now, in any units; the vertical zones read it. */
+  shape: { width: 16, height: 9 } as { width: number; height: number },
   inFlight: false,
   pendingFrame: null as number | null,
   /** Preferences from settings.json: loop, background, safe areas, volume. */
@@ -110,6 +113,7 @@ function applyPlayer(): void {
     el.style.inset = `${area.inset * 100}%`;
     el.title = area.label;
   }
+  applyZones();
   els.volume.value = String(Math.round(p.volume * 100));
   els.mute.setAttribute('aria-pressed', String(p.muted));
   els.mute.setAttribute('aria-label', p.muted ? 'Unmute' : 'Mute');
@@ -288,7 +292,7 @@ export function stageShowMedia(entry: MediaEntry): void {
   els.previewEmpty.hidden = true;
   const url = mediaUrlFor(entry.id);
   const fit = (w: number, h: number) => {
-    if (w > 0 && h > 0) els.previewFrame.style.aspectRatio = `${w} / ${h}`;
+    if (w > 0 && h > 0) setPreviewShape(w, h);
   };
   if (entry.mediaKind === 'video') {
     els.mediaVideo.hidden = false;
@@ -299,7 +303,7 @@ export function stageShowMedia(entry: MediaEntry): void {
     els.mediaImage.onload = () => fit(els.mediaImage.naturalWidth, els.mediaImage.naturalHeight);
     els.mediaImage.src = url;
   } else {
-    els.previewFrame.style.aspectRatio = '16 / 9';
+    setPreviewShape(16, 9);
     els.mediaAudio.hidden = false;
     els.mediaAudio.src = url;
     s.audio = entry;
@@ -329,11 +333,36 @@ function previewSize(): { width: number; height: number } {
   return frameSize.value ?? (s.manifest ? templateDefaultSize(s.manifest) : { width: 1920, height: 1080 });
 }
 
+/** The box takes a shape; the vertical zones follow, since they belong to tall frames only. */
+function setPreviewShape(width: number, height: number): void {
+  els.previewFrame.style.aspectRatio = `${width} / ${height}`;
+  els.previewFrame.dataset.orientation = width === height ? 'square' : width > height ? 'landscape' : 'portrait';
+  s.shape = { width, height };
+  applyZones();
+}
+
 /** The preview box takes the chosen shape, so a tall render is previewed tall. */
 function applyPreviewShape(): void {
   const size = previewSize();
-  els.previewFrame.style.aspectRatio = `${size.width} / ${size.height}`;
-  els.previewFrame.dataset.orientation = size.width === size.height ? 'square' : size.width > size.height ? 'landscape' : 'portrait';
+  setPreviewShape(size.width, size.height);
+}
+
+/**
+ * The vertical zones: shown with the safe areas, and only while the shown shape
+ * is tall. Each zone is a fraction of the frame, so it holds at any size.
+ */
+function applyZones(): void {
+  const zones = verticalZonesFor(s.shape.width, s.shape.height);
+  els.safeZones.hidden = zones.length === 0;
+  for (const zone of VERTICAL_ZONES) {
+    const el = els.safeZones.querySelector<HTMLElement>(`[data-zone="${zone.id}"]`);
+    if (!el) continue;
+    el.style.left = `${zone.left * 100}%`;
+    el.style.top = `${zone.top * 100}%`;
+    el.style.width = `${zone.width * 100}%`;
+    el.style.height = `${zone.height * 100}%`;
+    el.title = zone.label;
+  }
 }
 
 /** New parameter values (edit, undo, preset): redraw the current frame with them. */

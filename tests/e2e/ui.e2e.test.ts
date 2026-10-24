@@ -589,6 +589,21 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await note()).toBe('700 × 1244 (9:16)');
       expect(await page.eval<boolean>(`document.getElementById('options-note').classList.contains('error')`)).toBe(false);
 
+      // Safe areas on a tall frame add the zones it keeps clear; a wide frame shows the insets alone.
+      await page.eval(`document.getElementById('safe-toggle').click()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('safe-zones').hidden`), 'the vertical zones');
+      const zones = await page.eval<{ zone: string; left: string; top: string; width: string; height: string; title: string }[]>(
+        `[...document.querySelectorAll('#safe-zones .zone')].map((z) => ({ zone: z.dataset.zone, left: z.style.left, top: z.style.top, width: z.style.width, height: z.style.height, title: z.title }))`,
+      );
+      expect(zones.map((z) => z.zone)).toEqual(['header', 'controls', 'caption']);
+      expect(zones[0]).toMatchObject({ top: '0%', height: '12%', width: '100%', title: 'Header strip' });
+      expect(zones[1]).toMatchObject({ left: '82%', title: 'Controls column' });
+      expect(zones[2]).toMatchObject({ top: '78%', width: '82%', title: 'Caption band' });
+      await fire('#opt-aspect', '16:9', 'change');
+      await until(() => page.eval<boolean>(`document.getElementById('safe-zones').hidden`), 'the zones to go with the wide shape');
+      expect(await page.eval<boolean>(`document.getElementById('safe-overlay').hidden`)).toBe(false);
+      await page.eval(`document.getElementById('safe-toggle').click()`);
+
       // A template with one declared size: no aspect to choose, and the default is its own size.
       await clickResult('Lower Third Bar');
       await until(() => page.eval<boolean>(`document.getElementById('opt-aspect-field').hidden`), 'the aspect field to hide');

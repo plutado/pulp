@@ -375,6 +375,9 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .safe-overlay[hidden] { display: none; }
 .safe-overlay .safe { position: absolute; border: 1px solid rgba(255, 255, 255, 0.45); }
 .safe-overlay .safe.title { border-style: dashed; }
+/* Vertical zones: what a tall frame keeps clear, as a tint rather than a line, so they read as areas. */
+.safe-overlay .zones[hidden] { display: none; }
+.safe-overlay .zone { position: absolute; background: rgba(255, 96, 96, 0.14); border: 1px dashed rgba(255, 140, 140, 0.6); }
 .render-options .trim input { font-family: Menlo, Consolas, monospace; }
 .render-options .size-custom { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
 .render-options .size-custom[hidden] { display: none; }

@@ -64,6 +64,25 @@ export const SAFE_AREAS = [
 ] as const;
 
 /**
+ * The areas a tall frame has to keep clear, described generically rather than
+ * named after any one app (milestone 19): a header strip across the top where a
+ * title and account sit, a controls column down the right where the reactions
+ * and share buttons stack, and a caption band across the bottom where the
+ * caption, sound and progress bar go. Fractions of the frame, as the insets
+ * are; offered only for portrait shapes, from the same toggle.
+ */
+export const VERTICAL_ZONES = [
+  { id: 'header', label: 'Header strip', left: 0, top: 0, width: 1, height: 0.12 },
+  { id: 'controls', label: 'Controls column', left: 0.82, top: 0.42, width: 0.18, height: 0.44 },
+  { id: 'caption', label: 'Caption band', left: 0, top: 0.78, width: 0.82, height: 0.22 },
+] as const;
+
+/** The vertical zones apply to a tall frame and to nothing else. */
+export function verticalZonesFor(width: number, height: number): typeof VERTICAL_ZONES | readonly [] {
+  return height > width ? VERTICAL_ZONES : [];
+}
+
+/**
  * Where playback is after some time: frames advance at the output rate from
  * where play started. Null means the end was reached with looping off, so the
  * player stops on the last frame.
