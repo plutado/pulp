@@ -22,6 +22,8 @@ import {
   columnsFor,
   entryBadges,
   listRow,
+  tallestRatio,
+  thumbHeight,
   viewModeFor,
   LIST_ROW_HEIGHT,
   type BadgeId,
@@ -132,10 +134,13 @@ function Row({ entry, selected, onSelect }: ItemProps) {
 function geometry(entries: readonly LibraryEntry[]) {
   const view = resultsView.value;
   const grid = viewModeFor(view, entries) === 'grid';
+  // One row pitch for the whole grid: the tallest picture in it decides, and each card draws its own shape inside that.
+  const ratio = grid ? tallestRatio(entries) : 0;
   return {
     grid,
     columns: grid ? columnsFor(viewport.value.width, view.thumbSize) : 1,
-    rowHeight: grid ? cardHeight(view.thumbSize) : LIST_ROW_HEIGHT,
+    rowHeight: grid ? cardHeight(view.thumbSize, ratio) : LIST_ROW_HEIGHT,
+    thumbHeight: grid ? thumbHeight(view.thumbSize, ratio) : 0,
   };
 }
 
@@ -205,11 +210,12 @@ export function mountResults(container: HTMLElement, actions: ResultsActions): v
   // the window clamps it — the element follows, so the two stay in step.
   effect(() => {
     const entries = results.value.entries;
-    const { grid, columns, rowHeight } = geometry(entries);
+    const { grid, columns, rowHeight, thumbHeight: thumbH } = geometry(entries);
     container.classList.toggle('grid', grid);
     container.classList.toggle('list', !grid);
     container.style.setProperty('--cols', String(columns));
-    container.style.setProperty('--card-h', `${cardHeight(resultsView.value.thumbSize)}px`);
+    container.style.setProperty('--card-h', `${rowHeight}px`);
+    container.style.setProperty('--thumb-h', `${thumbH}px`);
     container.style.setProperty('--row-h', `${LIST_ROW_HEIGHT}px`);
     const max = Math.max(0, Math.ceil(entries.length / columns) * rowHeight - viewport.value.height);
     if (container.scrollTop > max) container.scrollTop = max;

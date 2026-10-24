@@ -268,6 +268,8 @@ describe.skipIf(!electron)('inspector UI', () => {
     if (ffmpeg.ok) {
       try {
         await run(ffmpeg.path, ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'clip.mp4')]);
+        // A tall clip too, for the orientation filter and the portrait cards.
+        await run(ffmpeg.path, ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=36x64:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'tall.mp4')]);
         haveVideo = true;
       } catch {
         haveVideo = false;
@@ -1073,7 +1075,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       try {
         await setSearch('codec:h264 duration:>1');
-        expect(await resultNames()).toEqual(['clip']);
+        expect(await resultNames()).toEqual(['clip', 'tall']);
         await setSearch('res:1080p');
         const at1080 = await resultNames();
         expect(at1080).toEqual(expect.arrayContaining(['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'Boardroom title', 'Newsdesk title']));
@@ -1453,6 +1455,28 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.getElementById('chip-vertical').click()`);
       await until(async () => (await names()).includes('Lower Third Bar'), 'the landscape items back after releasing the chip');
       expect(await onResult<boolean>('Lower Third Bar', '(li) => !!li.querySelector(".badge.vertical")')).toBe(false);
+    }, 60_000);
+
+    it('cards take the item\'s own shape, and a grid holding a tall item takes a taller row', async () => {
+      if (!haveVideo) {
+        console.info('ffmpeg not available; portrait card check skipped.');
+        return;
+      }
+      const cardH = () => page.eval<number>(`Number.parseFloat(document.getElementById('results').style.getPropertyValue('--card-h'))`);
+      // Every bundled template's poster is landscape, so a grid of templates sits at the 16:9 pitch.
+      await fire('#search', 'type:template', 'input');
+      await until(async () => (await names()).includes('Lower Third Bar') && !(await names()).includes('tall'), 'templates only');
+      const wide = await cardH();
+      expect(await onResult<string>('Lower Third Bar', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('1920 / 1080');
+      // The tall fixture clip (36 × 64, once probed) is a portrait item: a grid holding it takes a taller row, and its own picture is tall.
+      await fire('#search', 'orientation:portrait type:video', 'input');
+      await until(async () => (await names()).join() === 'tall', 'the tall clip alone', 120);
+      await until(async () => (await cardH()) > wide, 'the taller row pitch');
+      expect(await onResult<string>('tall', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('36 / 64');
+      // With everything showing, the one tall item sets the pitch for the whole grid; a wide card keeps its own shape inside it.
+      await clearSearch();
+      await until(async () => (await cardH()) > wide, 'the tall pitch for the mixed grid');
+      expect(await onResult<string>('Lower Third Bar', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('1920 / 1080');
     }, 60_000);
   });
 });

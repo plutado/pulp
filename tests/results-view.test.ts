@@ -1,19 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CARD_PADDING,
   cardHeight,
   columnsFor,
   DEFAULT_RESULTS_VIEW,
   entryBadges,
   entryDuration,
+  LANDSCAPE_RATIO,
   listRow,
+  PORTRAIT_RATIO,
   resultsKind,
   sanitizeResultsView,
   snapThumbSize,
+  tallestRatio,
   THUMB_SIZES,
+  thumbAspect,
+  thumbHeight,
   viewModeFor,
   withThumbSize,
   withViewMode,
-  CARD_PADDING,
 } from '../src/core/results-view';
 import type { MediaEntry, TemplateEntry } from '../src/core/library-types';
 import { validManifest } from './fixtures';
@@ -77,6 +82,30 @@ describe('card geometry', () => {
     const thumb = Math.round(((width - CARD_PADDING * 2) * 9) / 16);
     expect(cardHeight(width)).toBe(CARD_PADDING * 2 + thumb + 4 + 40);
     expect(cardHeight(260)).toBeGreaterThan(cardHeight(160));
+  });
+
+  it('takes a grid\'s row height from the tallest picture in it, and gives each picture its own shape', () => {
+    const wide = template('Wide', { width: 1920, height: 1080 });
+    const tall = template('Tall', { aspects: ['9:16'], width: undefined, height: undefined });
+    const square = media('square', { meta: { width: 720, height: 720 } as MediaEntry['meta'] });
+    const banner = media('banner', { meta: { width: 300, height: 1500 } as MediaEntry['meta'] });
+    const unknown = media('unprobed');
+    // An all-wide grid is exactly what it was.
+    expect(tallestRatio([wide, unknown])).toBe(LANDSCAPE_RATIO);
+    expect(cardHeight(160, tallestRatio([wide]))).toBe(cardHeight(160));
+    // A square among them makes every row square-tall; a portrait makes them a full 9:16; nothing taller than that.
+    expect(tallestRatio([wide, square])).toBe(1);
+    expect(tallestRatio([wide, tall])).toBe(PORTRAIT_RATIO);
+    expect(tallestRatio([banner])).toBe(PORTRAIT_RATIO);
+    expect(cardHeight(160, PORTRAIT_RATIO)).toBe(CARD_PADDING * 2 + Math.round((160 - CARD_PADDING * 2) * (16 / 9)) + 4 + 40);
+    expect(thumbHeight(160, 1)).toBe(160 - CARD_PADDING * 2);
+    // Each picture draws its own shape inside that; an unknown one stays 16:9, a banner is capped at 9:16.
+    expect(thumbAspect(wide)).toBe('1920 / 1080');
+    expect(thumbAspect(tall)).toBe('1080 / 1920');
+    expect(thumbAspect(square)).toBe('720 / 720');
+    expect(thumbAspect(banner)).toBe('9 / 16');
+    expect(thumbAspect(unknown)).toBe('16 / 9');
+    expect(thumbAspect(media('ultrawide', { meta: { width: 4000, height: 1000 } as MediaEntry['meta'] }))).toBe('16 / 9');
   });
 });
 

@@ -88,10 +88,50 @@ export const CARD_TEXT_HEIGHT = 40;
 /** One list row, thumbnail included. */
 export const LIST_ROW_HEIGHT = 44;
 
-/** A card's full cell height for a card width, thumbnails being 16:9. */
-export function cardHeight(cardWidth: number): number {
-  const thumb = Math.round(((cardWidth - CARD_PADDING * 2) * 9) / 16);
-  return CARD_PADDING * 2 + thumb + CARD_GAP + CARD_TEXT_HEIGHT;
+/** The shape thumbnails take when nothing says otherwise: 16:9, as height over width. */
+export const LANDSCAPE_RATIO = 9 / 16;
+/** The tallest a card's picture is allowed to be: a full 9:16. Anything taller is letterboxed inside that. */
+export const PORTRAIT_RATIO = 16 / 9;
+
+/** The picture's own shape: a template's default size, a media file's probed one; null until known. */
+export function entryShape(entry: LibraryEntry): { width: number; height: number } | null {
+  const { width, height } = entrySize(entry);
+  return width && height ? { width, height } : null;
+}
+
+/** The CSS `aspect-ratio` a thumbnail takes, so a tall item is drawn tall rather than letterboxed into 16:9. */
+export function thumbAspect(entry: LibraryEntry): string {
+  const shape = entryShape(entry);
+  if (!shape) return '16 / 9';
+  const ratio = Math.min(PORTRAIT_RATIO, Math.max(LANDSCAPE_RATIO, shape.height / shape.width));
+  return ratio === shape.height / shape.width ? `${shape.width} / ${shape.height}` : ratio === PORTRAIT_RATIO ? '9 / 16' : '16 / 9';
+}
+
+/**
+ * The windowing math wants one row pitch, so a grid of mixed shapes takes its
+ * height from the tallest picture in it (docs/ui-layout.md, milestone 19), as
+ * height over width between a landscape 16:9 and a portrait 9:16. An all-wide
+ * grid is exactly what it was.
+ */
+export function tallestRatio(entries: readonly LibraryEntry[]): number {
+  let tallest = LANDSCAPE_RATIO;
+  for (const entry of entries) {
+    const shape = entryShape(entry);
+    if (!shape) continue;
+    tallest = Math.max(tallest, Math.min(PORTRAIT_RATIO, shape.height / shape.width));
+    if (tallest >= PORTRAIT_RATIO) break;
+  }
+  return tallest;
+}
+
+/** The picture's height inside a card of this width, for the tallest ratio the grid holds. */
+export function thumbHeight(cardWidth: number, ratio = LANDSCAPE_RATIO): number {
+  return Math.round((cardWidth - CARD_PADDING * 2) * ratio);
+}
+
+/** A card's full cell height for a card width; 16:9 pictures unless the grid holds something taller. */
+export function cardHeight(cardWidth: number, ratio = LANDSCAPE_RATIO): number {
+  return CARD_PADDING * 2 + thumbHeight(cardWidth, ratio) + CARD_GAP + CARD_TEXT_HEIGHT;
 }
 
 /** How many cards of this width fit across; at least one, however narrow the region. */

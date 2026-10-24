@@ -10,6 +10,7 @@
 import { signal } from '@preact/signals';
 import { canHaveStrip, HOVER_DWELL_MS, STRIP_RETRY_MS, stripWidthPercent, tileAt, tilePercent } from '../core/hover-scrub';
 import type { LibraryEntry } from '../core/library-types';
+import { thumbAspect } from '../core/results-view';
 import { entryType, typeInfo } from '../core/taxonomy';
 import { wantsWaveform, waveformPath } from '../core/waveform';
 import { Icon, MEDIA_KIND_ICONS, TYPE_GROUP_ICONS, type IconName } from './icons';
@@ -101,7 +102,7 @@ export function Thumb({ entry, scrubbable }: { entry: LibraryEntry; scrubbable?:
       }
     : {};
   return (
-    <span class={`thumb checker${entry.thumbnail ? '' : ' empty'}`} {...handlers}>
+    <span class={`thumb checker${entry.thumbnail ? '' : ' empty'}`} style={{ aspectRatio: thumbAspect(entry) }} {...handlers}>
       {entry.thumbnail ? <img src={entry.thumbnail} alt="" /> : wantsWaveform(entry) ? <Waveform entry={entry} /> : <Icon name={placeholderIcon(entry)} size={20} />}
       {/* Over the poster, not instead of it: the checkerboard behind stays visible through alpha. */}
       {strip && (

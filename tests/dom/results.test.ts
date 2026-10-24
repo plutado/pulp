@@ -14,7 +14,7 @@ import { initialAppState, setIndex, setQuery } from '../../src/core/app-state';
 import type { LibraryIndex, MediaEntry } from '../../src/core/library-types';
 import { HOVER_DWELL_MS, STRIP_RETRY_MS } from '../../src/core/hover-scrub';
 import type { HoverStripResult } from '../../src/shared/api';
-import { cardHeight, LIST_ROW_HEIGHT, type ResultsViewState } from '../../src/core/results-view';
+import { cardHeight, LIST_ROW_HEIGHT, PORTRAIT_RATIO, thumbHeight, type ResultsViewState } from '../../src/core/results-view';
 import { mountResults } from '../../src/renderer/results';
 import { appState, resultsView } from '../../src/renderer/store';
 
@@ -198,6 +198,28 @@ describe('the windowed results region', () => {
     point('id-4', 'pointermove');
     await sleep(HOVER_DWELL_MS + STRIP_RETRY_MS + 120);
     expect([...stripCalls].sort()).toEqual(['id-4', 'id-5']);
+  });
+
+  it('gives a grid with a tall item a taller row, and that card its own shape', async () => {
+    // One clip probed as portrait: every row grows to fit it, and only its picture is drawn tall.
+    const tall = { ...clip(3), meta: { duration: 4, width: 1080, height: 1920 } as MediaEntry['meta'] };
+    const mixed: LibraryIndex = { ...index, media: index.media.map((m) => (m.key === tall.key ? tall : m)) };
+    appState.value = setIndex(appState.value, mixed);
+    await settle();
+    const tallRow = cardHeight(CARD_WIDTH, PORTRAIT_RATIO);
+    expect(container.style.getPropertyValue('--card-h')).toBe(`${tallRow}px`);
+    expect(container.style.getPropertyValue('--thumb-h')).toBe(`${thumbHeight(CARD_WIDTH, PORTRAIT_RATIO)}px`);
+    // Three rows of the taller pitch no longer fit the same viewport, so the window holds fewer cards.
+    const visibleRows = Math.ceil(HEIGHT / tallRow);
+    expect(rendered()).toHaveLength((visibleRows + OVERSCAN) * COLUMNS);
+    expect(container.querySelector<HTMLElement>('[data-id="id-3"] .thumb')?.style.aspectRatio).toBe('1080 / 1920');
+    expect(container.querySelector<HTMLElement>('[data-id="id-4"] .thumb')?.style.aspectRatio).toBe('16 / 9');
+    // The spacers still measure the whole list at the new pitch.
+    expect(spacers().reduce((a, b) => a + b, 0) + (visibleRows + OVERSCAN) * tallRow).toBe((COUNT / COLUMNS) * tallRow);
+
+    appState.value = setIndex(appState.value, index);
+    await settle();
+    expect(container.style.getPropertyValue('--card-h')).toBe(`${CARD_H}px`);
   });
 
   it('returns to the top when the search changes, and shows the empty message when nothing matches', async () => {
