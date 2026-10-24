@@ -48,6 +48,7 @@ A UTF-8 JSON object.
 | `entry` | string | no | Path to the HTML entry page, relative to the folder. Default `index.html`. Must not be absolute or contain `..`. |
 | `thumbnail` | string | no | Relative path to a poster image. |
 | `parameters` | object[] | no | Editable parameters, see below. Default `[]`. |
+| `blocks` | object[] | no | Blocks where layers live, see **Blocks and layers** below. Default `[]`. |
 
 Unknown top-level fields produce a warning. Put custom data in fields whose names start with `x-` (for example `x-studio-notes`); these are ignored without warnings.
 
@@ -121,6 +122,63 @@ if (!window.pulpDrawImage(ctx, state, 'logo', { x: panelX + 20, y: panelY + 20, 
 `window.pulpFitBox(box, imageWidth, imageHeight, fit, align, margin)` returns the placement without drawing, for templates that want to animate the image themselves; `state.images[id].bitmap` is a canvas they may draw directly.
 
 **What a template may load.** Templates are blocked from the library, and image slots do not change that: the host reads exactly the stills chosen for a template's slots, by id, and hands the page their bytes for the length of a preview or a render (ADR 0013). The template never gets a URL into the library — `pulp-media://` refuses every request from a template page, and the template CSP lists no library scheme — so it cannot read a chosen image's neighbour, or any image when none is chosen.
+
+### Blocks and layers
+
+An image slot is the author's: a logo goes where the template says. A **layer** is the user's: another line of text or a second mark that the person using the template adds, and that still rides the animation. A template makes room for them by declaring **blocks**, and layers stack inside a block — the template's own layers as the defaults, then whatever is added — taking their part of the template's movement from their **position in the stack**, so a line added in the middle moves as the middle line of the design does.
+
+A block:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | yes | Letters, digits and `_`, not starting with a digit. Unique among the blocks. |
+| `label` | string | yes | Shown where layers are added. |
+| `box` | object | yes | Where the block is, as an image slot's `box`: `{ "x", "y", "width", "height" }` as fractions of the frame, one for every shape or one per aspect id with an optional `"default"`. |
+| `direction` | `column` or `row` | no | Layers stack top to bottom (`column`, the default) or left to right. |
+| `gap` | number | no | Room between layers, as a fraction of the frame's short side. Default 0. |
+| `align` | `left`, `center`, `right` | no | Where layers sit across the box, and the alignment its text layers start from. Default `left`. |
+| `verticalAlign` | `top`, `middle`, `bottom` | no | Where the stack sits in the box's height; in a row, where each layer sits in the row. Default `top`. |
+| `open` | boolean | no | Whether layers may be added beyond the template's own. Default `true`; `false` marks a block that is full. |
+| `typography` | object | no | What the block's text layers start from; any of the text properties below. Unnamed properties take the built-in defaults (Inter, 0.06, 400, white, wrap). |
+| `layers` | object[] | no | The template's own layers, in stack order. Default `[]`: a block the user fills. |
+
+A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text` or `image`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`) and `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
+
+| Property | Type | Description |
+|---|---|---|
+| `family` | string | A font family name. The bundled set and imported families arrive with later items of milestone 23. |
+| `size` | number | The type size as a fraction of the frame's short side, so it holds at every resolution and shape. |
+| `weight` | integer | 100 to 900. |
+| `italic` | boolean | |
+| `case` | `none`, `upper`, `lower`, `title` | |
+| `letterSpacing` | number | In em of the size; may be negative. |
+| `kerning` | boolean | |
+| `lineHeight` | number | A multiple of the size. |
+| `color` | `#RRGGBB` or `#RRGGBBAA` | |
+| `align` | `left`, `center`, `right` | |
+| `overflow` | `wrap`, `shrink`, `truncate` | What happens when the text does not fit the block: wrap onto more lines, shrink to fit, or cut with an ellipsis. |
+
+An image layer has a `size` (the picture's height as a fraction of the frame's short side; the width follows the picture's shape and is capped by the block) and an `align`, and no font properties. It carries no `image` of its own, for the reason an image slot has no default: a template cannot ship a library id. The picture is chosen at use time, with milestone 22's picker, grant and treatments; with none chosen the layer draws nothing and takes no room.
+
+```json
+"blocks": [
+  {
+    "id": "strap",
+    "label": "Strap",
+    "box": { "16:9": { "x": 0.08, "y": 0.72, "width": 0.6, "height": 0.2 }, "default": { "x": 0.08, "y": 0.6, "width": 0.84, "height": 0.2 } },
+    "gap": 0.01,
+    "typography": { "family": "Oswald", "size": 0.07, "weight": 600 },
+    "layers": [
+      { "id": "name", "type": "text", "label": "Name", "text": "Jane Doe", "required": true, "case": "upper" },
+      { "id": "title", "type": "text", "label": "Title", "text": "Reporter", "size": 0.045, "weight": 400, "color": "#cfd8e3" }
+    ]
+  }
+]
+```
+
+**Use-time values.** What a person builds is a stack per block: the template's layers with the fields they changed, the layers they added (to open blocks only), in their order, with `hidden` for what is kept but not drawn. The host resolves it against the template (`resolveLayers` in `src/core/layers.ts`): a field that is wrong falls back to the template's and is reported, `type` and `required` are the template's and never change, a required layer that was dropped comes back where the template had it, and an addition to a full block is dropped. "Reset layers" is the template's own stacks again.
+
+**Drawing.** The per-frame state and the bridge helper that lays a block out and draws it — measuring text, wrapping, shrinking or truncating, placing pictures, and giving each layer the movement of its stack position — arrive with the next items of milestone 23; until then `blocks` is validated, resolved and carried, and nothing is drawn from it yet.
 
 ### Parameter resolution
 
@@ -288,4 +346,4 @@ Importing shows a preview first: pack name, author and license, and for each tem
 
 ## Planned additions (not part of version 1)
 
-Tracked in ROADMAP.md: `image` and `media` parameter types (user-supplied logos or clips), audio tracks, localized labels, and an optional seeded random number generator provided by the bridge.
+Tracked in ROADMAP.md: the drawing side of blocks and layers (`state.blocks` and a bridge helper, milestone 23), a `media` parameter type (a video plate from a library clip), audio tracks, localized labels, and an optional seeded random number generator provided by the bridge.

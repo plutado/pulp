@@ -9,7 +9,7 @@
  */
 
 import { aspectOf, type Size } from './aspect';
-import { isValidColor } from './manifest';
+import { isValidColor, type ValidationIssue } from './manifest';
 
 export const IMAGE_FITS = ['contain', 'cover'] as const;
 export type ImageFit = (typeof IMAGE_FITS)[number];
@@ -54,6 +54,25 @@ export function isSlotBox(value: unknown): value is SlotBox {
   const frac = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
   if (!frac(b.x) || !frac(b.y) || !frac(b.width) || !frac(b.height) || b.width <= 0 || b.height <= 0) return false;
   return b.x + b.width <= 1.0001 && b.y + b.height <= 1.0001;
+}
+
+/**
+ * Validate a declared box, or one per aspect, reporting what is wrong at `path`.
+ * Shared by image slots and by blocks (src/core/layers.ts), which place things the same way.
+ */
+export function validateSlotBoxes(box: unknown, path: string, errors: ValidationIssue[]): SlotBoxes | null {
+  if (isSlotBox(box)) return box;
+  const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+  if (isObject(box) && Object.keys(box).length > 0 && Object.values(box).every(isObject)) {
+    const start = errors.length;
+    for (const [key, value] of Object.entries(box)) {
+      if (key !== 'default' && !/^\d+:\d+$/.test(key)) errors.push({ path: `${path}.${key}`, message: 'must be an aspect id such as "16:9", or "default"' });
+      if (!isSlotBox(value)) errors.push({ path: `${path}.${key}`, message: 'must be { x, y, width, height } as fractions of the frame, inside it' });
+    }
+    return errors.length === start ? (box as Record<string, SlotBox>) : null;
+  }
+  errors.push({ path, message: 'must be { x, y, width, height } as fractions of the frame, or one such box per aspect' });
+  return null;
 }
 
 /**

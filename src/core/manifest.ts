@@ -8,7 +8,8 @@
  */
 
 import { ASPECT_IDS, aspectOf, isBuiltInAspect, MAX_DIMENSION, MIN_DIMENSION, type Size } from './aspect';
-import { IMAGE_ALIGNS, IMAGE_FITS, isSlotBox, type ImageAlign, type ImageFit, type SlotBoxes } from './image-slot';
+import { IMAGE_ALIGNS, IMAGE_FITS, validateSlotBoxes, type ImageAlign, type ImageFit, type SlotBoxes } from './image-slot';
+import { validateBlock, type Block } from './layers';
 import { isBuiltInStyle, isBuiltInType, normalizeTheme, STYLES } from './taxonomy';
 
 export const MANIFEST_FILENAME = 'template.json';
@@ -141,6 +142,8 @@ export interface TemplateManifest {
   /** Optional poster image relative to the template folder. */
   thumbnail?: string;
   parameters: TemplateParameter[];
+  /** Blocks where layers live (milestone 23, src/core/layers.ts); `[]` when the template declares none. */
+  blocks: Block[];
 }
 
 export interface ValidationIssue {
@@ -268,17 +271,7 @@ function validateParameter(raw: unknown, path: string, errors: ValidationIssue[]
     }
     case 'image': {
       if (def !== undefined && def !== null) errors.push({ path: at, message: 'an image slot has no default: leave it out or set it to null' });
-      const box = raw.box;
-      if (isSlotBox(box)) {
-        // One box for every shape.
-      } else if (isRecord(box) && Object.keys(box).length > 0 && Object.values(box).every(isRecord)) {
-        for (const [key, value] of Object.entries(box)) {
-          if (key !== 'default' && !/^\d+:\d+$/.test(key)) errors.push({ path: `${path}.box.${key}`, message: 'must be an aspect id such as "16:9", or "default"' });
-          if (!isSlotBox(value)) errors.push({ path: `${path}.box.${key}`, message: 'must be { x, y, width, height } as fractions of the frame, inside it' });
-        }
-      } else {
-        errors.push({ path: `${path}.box`, message: 'must be { x, y, width, height } as fractions of the frame, or one such box per aspect' });
-      }
+      validateSlotBoxes(raw.box, `${path}.box`, errors);
       if (raw.fit !== undefined && !(IMAGE_FITS as readonly string[]).includes(raw.fit as string)) {
         errors.push({ path: `${path}.fit`, message: `must be one of: ${IMAGE_FITS.join(', ')}` });
       }
@@ -456,9 +449,27 @@ export function validateManifest(raw: unknown): ValidationResult {
     });
   }
 
+  // Blocks and their layers (milestone 23); a template without any declares none.
+  const blocks: Block[] = [];
+  if (raw.blocks !== undefined && !Array.isArray(raw.blocks)) {
+    errors.push({ path: 'blocks', message: 'must be an array' });
+  } else if (Array.isArray(raw.blocks)) {
+    const seen = new Set<string>();
+    raw.blocks.forEach((b, i) => {
+      const block = validateBlock(b, `blocks[${i}]`, errors);
+      if (!block) return;
+      if (seen.has(block.id)) {
+        errors.push({ path: `blocks[${i}].id`, message: `duplicate block id "${block.id}"` });
+        return;
+      }
+      seen.add(block.id);
+      blocks.push(block);
+    });
+  }
+
   const known = new Set([
     'formatVersion', 'id', 'name', 'description', 'version', 'author', 'license', 'category', 'type', 'themes', 'styles', 'tags',
-    'duration', 'fps', 'aspects', 'width', 'height', 'alpha', 'entry', 'thumbnail', 'parameters',
+    'duration', 'fps', 'aspects', 'width', 'height', 'alpha', 'entry', 'thumbnail', 'parameters', 'blocks',
   ]);
   for (const key of Object.keys(raw)) {
     if (!known.has(key) && !key.startsWith('x-')) {
@@ -482,6 +493,7 @@ export function validateManifest(raw: unknown): ValidationResult {
     alpha: (raw.alpha as boolean | undefined) ?? false,
     entry: entry as string,
     parameters,
+    blocks,
   };
   if (size) manifest.size = size;
   if (typeof raw.type === 'string') manifest.type = raw.type;
