@@ -174,7 +174,14 @@ export function handleTemplateProtocol(): void {
     // The bundled fonts live under every template's origin at a reserved path (ADR 0014), so a
     // template's `font-src 'self'` reaches them. A template folder's own `__pulp` can never be served.
     if (relPath.startsWith(`${TEMPLATE_FONTS_PATH}/`)) {
-      return serveBundledFont(relPath.slice(TEMPLATE_FONTS_PATH.length + 1), request.method, { 'Content-Security-Policy': TEMPLATE_CSP });
+      // A font load is a CORS request even to its own origin — the request carries an `Origin`
+      // header — and a privileged scheme enforces CORS. Same-origin passes on macOS without the
+      // header; it did not on Windows, so the answer says who may read it rather than relying on
+      // two custom-scheme origins comparing equal (docs/platform-notes.md, "Windows CI").
+      return serveBundledFont(relPath.slice(TEMPLATE_FONTS_PATH.length + 1), request.method, {
+        'Content-Security-Policy': TEMPLATE_CSP,
+        'Access-Control-Allow-Origin': '*',
+      });
     }
     const template = await findTemplate(url.hostname);
     if (!template) return new Response('template not found', { status: 404 });

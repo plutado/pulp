@@ -82,7 +82,10 @@ export const TEMPLATE_CSP = [
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
-  "font-src 'self' data:",
+  // The bundled fonts are served under each template's own origin at a reserved path (ADR 0014).
+  // `pulp-template:` is named as well as 'self' so they are reachable however a custom scheme's
+  // origin is computed; it widens nothing, since a template page can already read its own folder.
+  "font-src 'self' pulp-template: data:",
   "media-src 'self' blob:",
   "connect-src 'none'",
   "frame-src 'none'",
@@ -361,7 +364,10 @@ export const BRIDGE_SCRIPT = `(function () {
     return true;
   }
   /* Canvas text never triggers a font load, so every face a layer is set in is loaded before the
-     frame; a face that is not declared or installed resolves at once and falls back as it would anyway. */
+     frame; a face that is not declared or installed resolves at once and falls back as it would anyway.
+     The wait is bounded: a face that never settles must not stop the frame being drawn, or one font
+     that cannot be fetched would stop the template drawing at all (docs/platform-notes.md). */
+  var FONT_WAIT_MS = 3000;
   var loadedFaces = {};
   function loadLayerFonts(state) {
     var blocks = state && state.blocks ? state.blocks : {};
@@ -376,7 +382,11 @@ export const BRIDGE_SCRIPT = `(function () {
         pending.push(document.fonts.load(face).then(null, function () { return null; }));
       });
     });
-    return Promise.all(pending);
+    if (pending.length === 0) return Promise.resolve();
+    return Promise.race([
+      Promise.all(pending),
+      new Promise(function (resolve) { setTimeout(resolve, FONT_WAIT_MS); }),
+    ]);
   }
   function render(state) {
     return ready.then(function () {

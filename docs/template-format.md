@@ -199,7 +199,7 @@ An image layer has a `size` (the picture's height as a fraction of the frame's s
 
 Pulp bundles ten families under the SIL Open Font License 1.1 — **Inter, Montserrat, Oswald, Bebas Neue, Source Serif 4, Playfair, JetBrains Mono, Caveat, Dancing Script, Noto Sans** — so a layer can be set in a face that exists on every machine (`docs/font-credits.md`, decision record 0014). Every template page has them: the bridge declares an `@font-face` for each file beside itself, and the template protocol serves the files under the template's own origin at the reserved path `/__pulp/fonts/`, which is what `font-src 'self'` allows. A template folder therefore cannot have files under `__pulp/`.
 
-A text layer set in a bundled family is drawn in it with no work from the template: the bridge loads the face (family, weight and style) before the frame that uses it, because canvas text never triggers a font load on its own. A template's **own** drawing code that sets `ctx.font` to a bundled family must load it first — `document.fonts.load('600 16px Oswald')` once, before drawing — or the first frames fall back. Fonts a template bundles in its folder keep working as before.
+A text layer set in a bundled family is drawn in it with no work from the template: the bridge loads the face (family, weight and style) before the frame that uses it, because canvas text never triggers a font load on its own. That wait is bounded at three seconds, so a face that cannot be fetched costs a frame in the fallback rather than no frame at all. A template's **own** drawing code that sets `ctx.font` to a bundled family must load it first — `document.fonts.load('600 16px Oswald')` once, before drawing — or the first frames fall back. Fonts a template bundles in its folder keep working as before.
 
 **Where the values live.** The stacks a person builds ride in the same bag of raw values as the parameters, under the key `@layers` — a parameter id cannot start with `@`, so the two can never collide. That is why layers go wherever parameters already go: the undo history, a saved preset, a collection card and file, the render cache key, and a render request.
 
@@ -299,9 +299,11 @@ Every response carries this Content Security Policy:
 
 ```
 default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';
-img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:;
+img-src 'self' data: blob:; font-src 'self' pulp-template: data:; media-src 'self' blob:;
 connect-src 'none'; frame-src 'none'; form-action 'none'
 ```
+
+(`font-src` names `pulp-template:` as well as `'self'` so the bundled fonts at `/__pulp/fonts/` are reachable however a custom scheme's origin is computed; a template page can already read its own folder, so this allows nothing new.)
 
 ## Minimal example
 

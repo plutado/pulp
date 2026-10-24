@@ -930,6 +930,16 @@ describe.skipIf(!electron)('inspector UI', () => {
       await sleep(300);
     };
 
+    /**
+     * Put the template's own layers back and drop any edit, whatever happened. A test that fails
+     * part way must not leave a layer behind for the next one (docs/platform-notes.md, "Windows CI").
+     */
+    async function restoreLayers(block = 'card'): Promise<void> {
+      const reset = `document.querySelector('#params .layers-block[data-block=${block}] .layers-reset')`;
+      await page.eval(`(() => { const b = ${reset}; if (b && !b.hidden) b.click(); })()`);
+      await page.eval(`(() => { const b = document.getElementById('reset-all'); if (!b.disabled) b.click(); })()`);
+    }
+
     /** Wait until what the card has drawn satisfies `want`, and return it; the last reading names the failure. */
     async function untilDrawn(want: (d: Awaited<ReturnType<typeof drawn>>) => boolean, what: string): Promise<Awaited<ReturnType<typeof drawn>>> {
       let last = await drawn();
@@ -960,6 +970,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 90_000);
 
     it('adds a line that rides the same animation, hides it, reorders and removes it, all undoable', async () => {
+      try {
       await page.eval(`${section}.querySelector('[data-add=text]').click()`);
       await until(async () => (await layerIds()).length === 3, 'the added layer');
       const added = (await layerIds())[2]!;
@@ -1009,11 +1020,15 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await layerIds()).length === 3, 'undo bringing the layers back');
       await page.eval(`${section}.querySelector('.layers-reset').click()`);
       await until(async () => (await layerIds()).length === 2, 'the template\'s own layers again');
+      } finally {
+        await restoreLayers();
+      }
     }, 120_000);
 
     it('sets a layer\'s type: the family in its own face from the bundled set, and every other property, undoably', async () => {
       const title = `document.querySelector('#params .layer-row[data-layer=title]')`;
       const summary = () => page.eval<string>(`${title}.querySelector('.layer-type summary').textContent`);
+      try {
       // The type is folded under the words, summed up in one line.
       expect(await page.eval<boolean>(`${title}.querySelector('.layer-type').open`)).toBe(false);
       expect(await summary()).toBe('Georgia · 8.9% · Regular · Uppercase');
@@ -1076,6 +1091,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       for (let i = 0; i < 9; i++) await page.eval(`document.getElementById('undo').click()`);
       await until(async () => (await summary()) === 'Georgia · 8.9% · Regular · Uppercase', 'the type back to the template\'s');
       expect(await page.eval<boolean>(`${section}.querySelector('.layers-reset').hidden`)).toBe(true);
+      } finally {
+        await restoreLayers();
+      }
     }, 120_000);
 
     it('organises the tab by element: a card per part, the layers among them, and timing last', async () => {
@@ -1164,6 +1182,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       const strap = `document.querySelector('#params .layers-block[data-block=strap]')`;
       await clickResult('Lower Third Bar');
       await until(() => page.eval<boolean>(`!!${strap}`), 'the strap\'s layers');
+      try {
       // Earlier tests leave their edits on this template on purpose (the panel at 25% green, a changed name); start from its own values.
       await page.eval(`document.getElementById('reset-all').disabled || document.getElementById('reset-all').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('reset-all').disabled`), 'the lower third at its defaults');
@@ -1222,11 +1241,13 @@ describe.skipIf(!electron)('inspector UI', () => {
       await fire('#opt-aspect', '16:9', 'change');
       await until(async () => (await shape()) === 'landscape', 'the wide preview again');
 
-      // Back to the template's own two lines, so the tests after this find the lower third as it ships.
-      await page.eval(`${strap}.querySelector('.layers-reset').click()`);
-      await until(() => page.eval<boolean>(`${strap}.querySelectorAll('.layer-row').length === 2`), 'the strap\'s own layers');
-      await clickResult('Title Card');
-      await until(() => page.eval<boolean>(`!!${section}`), 'the title card again');
+      } finally {
+        // Back to the template's own two lines, so the tests after this find the lower third as it ships.
+        await restoreLayers('strap');
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
+        await clickResult('Title Card');
+        await until(() => page.eval<boolean>(`!!${section}`), 'the title card again');
+      }
     }, 120_000);
 
     it('lays the stack out for a tall frame as well, from the block\'s own box', async () => {
