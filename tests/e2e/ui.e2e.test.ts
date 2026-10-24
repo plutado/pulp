@@ -204,19 +204,32 @@ describe.skipIf(!electron)('inspector UI', () => {
   /** The expression for the rendered <li> of a named result, or undefined. */
   const liFor = (name: string) => `[...document.querySelectorAll('#results li[data-id]')].find((li) => li.querySelector('.name')?.textContent === ${JSON.stringify(name)})`;
 
+  /**
+   * Scrolling through the windowed list, in page code. The step is most of a screen but never
+   * under SWEEP_MIN_STEP px, and the pass is bounded by how many such steps the list holds, not by
+   * a fixed count: a results box squeezed to a few pixels once made 200 steps fall short of the
+   * last rows on Windows CI (docs/platform-notes.md). The end is reached within a pixel, since a
+   * fractional layout can leave scrollTop just under scrollHeight - clientHeight for ever.
+   */
+  const SWEEP_MIN_STEP = 40;
+  const sweep = `
+    const box = document.getElementById('results');
+    const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const step = Math.max(${SWEEP_MIN_STEP}, box.clientHeight * 0.8);
+    const atEnd = () => box.scrollTop >= box.scrollHeight - box.clientHeight - 1;
+    const steps = Math.ceil(box.scrollHeight / step) + 2;
+    box.scrollTop = 0;
+    await settle();`;
+
   /** One pass down the results, a screen at a time, stopping where the named item is rendered. */
   const sweepTo = (name: string) =>
     page.eval<boolean>(
       `(async () => {
-        const box = document.getElementById('results');
-        const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        box.scrollTop = 0;
-        await settle();
-        for (let i = 0; i < 200; i++) {
+        ${sweep}
+        for (let i = 0; i < steps; i++) {
           if (${liFor(name)}) return true;
-          const max = box.scrollHeight - box.clientHeight;
-          if (box.scrollTop >= max) return false;
-          box.scrollTop = Math.min(max, box.scrollTop + Math.max(1, box.clientHeight * 0.8));
+          if (atEnd()) return false;
+          box.scrollTop = Math.min(box.scrollHeight - box.clientHeight, box.scrollTop + step);
           await settle();
         }
         return false;
@@ -241,15 +254,12 @@ describe.skipIf(!electron)('inspector UI', () => {
   function resultNames(): Promise<string[]> {
     return page.eval<string[]>(
       `(async () => {
-        const box = document.getElementById('results');
-        const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        ${sweep}
         const seen = new Map();
         const collect = () => { for (const li of box.querySelectorAll('li[data-id]')) seen.set(li.dataset.id, li.querySelector('.name').textContent); };
-        box.scrollTop = 0;
-        await settle();
         collect();
-        for (let i = 0; i < 200 && box.scrollTop < box.scrollHeight - box.clientHeight; i++) {
-          box.scrollTop += Math.max(1, box.clientHeight * 0.8);
+        for (let i = 0; i < steps && !atEnd(); i++) {
+          box.scrollTop += step;
           await settle();
           collect();
         }
@@ -348,7 +358,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     };
     const lines: string[] = [`--- state after "${ctx.task.name}" failed at ${new Date().toISOString()} ---`];
-    lines.push(`window: ${JSON.stringify(await probe('window', () => page.eval(`({ visibility: document.visibilityState, hidden: document.hidden, focus: document.hasFocus(), results: document.querySelectorAll('#results li[data-id]').length, search: document.getElementById('search').value })`, undefined, 5_000)))}`);
+    lines.push(`window: ${JSON.stringify(await probe('window', () => page.eval(`({ visibility: document.visibilityState, hidden: document.hidden, focus: document.hasFocus(), inner: [window.innerWidth, window.innerHeight], screen: [screen.width, screen.height], results: document.querySelectorAll('#results li[data-id]').length, search: document.getElementById('search').value })`, undefined, 5_000)))}`);
+    // The results box: a list squeezed to a few pixels is what made the sweeps fall short on Windows CI.
+    lines.push(`results box: ${JSON.stringify(await probe('results box', () => page.eval(`(() => { const b = document.getElementById('results'); return { clientHeight: b.clientHeight, scrollHeight: b.scrollHeight, scrollTop: b.scrollTop, cols: b.style.getPropertyValue('--cols'), rowHeight: b.style.getPropertyValue('--card-h'), stage: document.getElementById('region-stage').clientHeight, tray: document.getElementById('region-tray').clientHeight }; })()`, undefined, 5_000)))}`);
     lines.push(`frame callback: ${JSON.stringify(await probe('rAF', () => page.eval(`new Promise((r) => { const t = performance.now(); const timer = setTimeout(() => r('no frame callback within 3 s'), 3000); requestAnimationFrame(() => { clearTimeout(timer); r(Math.round(performance.now() - t) + ' ms'); }); })`, undefined, 5_000)))}`);
     lines.push(`library: ${JSON.stringify(await probe('diagnostics', () => page.eval(`window.pulp.libraryDiagnostics()`, undefined, 5_000)))}`);
     lines.push(`render queue: ${JSON.stringify(await probe('queue', () => page.eval(`window.pulp.getRenderQueue().then((q) => q.jobs.map((j) => j.status + ' ' + j.templateId))`, undefined, 5_000)))}`);
@@ -994,6 +1006,33 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`${card(0)}.querySelector('.job-actions button').click()`);
       await until(async () => (await names()).length === 0, 'an empty collection again');
     }, 90_000);
+
+    it('keeps the results readable on a short window: the stage yields and the tray is capped', async () => {
+      // The tray is open from the tests above. Windows CI runs on a small display, where the tray
+      // and the stage's share once left the results list a few pixels tall (docs/platform-notes.md).
+      const metrics = () =>
+        page.eval<{ inner: number; results: number; stage: number; tray: number; search: number }>(
+          `({ inner: window.innerHeight, results: document.getElementById('results').clientHeight, stage: document.getElementById('region-stage').clientHeight, tray: document.getElementById('region-tray').clientHeight, search: document.getElementById('region-search').clientHeight })`,
+        );
+      expect(await page.eval<boolean>(`document.getElementById('app').classList.contains('tray-collapsed')`)).toBe(false);
+      try {
+        for (const height of [697, 600]) {
+          await page.send('Emulation.setDeviceMetricsOverride', { width: 1024, height, deviceScaleFactor: 1, mobile: false });
+          await until(async () => (await metrics()).inner === height, `the window at ${height} px`);
+          const m = await metrics();
+          expect(m.results, `results at ${height}: ${JSON.stringify(m)}`).toBeGreaterThanOrEqual(160);
+          expect(m.stage, `stage at ${height}: ${JSON.stringify(m)}`).toBeGreaterThanOrEqual(150);
+          // Nothing overflows the window: what the column holds adds up to what it has.
+          expect(m.search + m.stage + m.results, `fit at ${height}: ${JSON.stringify(m)}`).toBeLessThanOrEqual(height);
+          // And the sweep still reaches the last item at this size.
+          const last = (await resultNames()).at(-1)!;
+          expect(await sweepTo(last)).toBe(true);
+        }
+      } finally {
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
+      }
+      await until(async () => (await metrics()).inner > 600, 'the window at its own size again');
+    }, 60_000);
   });
 
   describe('template packs', () => {
