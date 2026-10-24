@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boardroom background</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var TAU = Math.PI * 2;
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    // One full cycle over the duration, so the last frame meets the first.
+    var phase = state.progress * TAU;
+    var s = H / 1080;
+
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, p.base);
+    g.addColorStop(1, p.deep);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    if (p.grid) {
+      ctx.fillStyle = p.accent;
+      ctx.globalAlpha = 0.10;
+      var step = 72 * s, r = 1.6 * s;
+      for (var y = step; y < H; y += step) {
+        for (var x = step; x < W; x += step) {
+          ctx.fillRect(x - r / 2, y - r / 2, r, r);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // A wide diagonal sheen drifts across and wraps, driven by the loop phase.
+    var drift = (Math.sin(phase) * 0.5 + 0.5);
+    var cx = -W * 0.4 + drift * W * 1.8;
+    var band = ctx.createLinearGradient(cx - W * 0.5, 0, cx + W * 0.5, H);
+    band.addColorStop(0, 'rgba(0,0,0,0)');
+    band.addColorStop(0.5, p.accent);
+    band.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = p.sheen;
+    ctx.fillStyle = band;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+
+    // A quiet vignette keeps edges calm for text overlays.
+    var v = ctx.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, H * 0.95);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(0,0,0,0.35)');
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, W, H);
+  };
+</script>
+</body>
+</html>

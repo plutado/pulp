@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boardroom title</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var show = easeOutCubic(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
+    if (show <= 0) return;
+
+    var s = H / 1080;
+    var cx = W / 2, cy = H / 2;
+    var headSize = 96 * s, kickSize = 30 * s;
+    var gap = 86 * s * easeOutCubic(clamp01(show * 1.2));
+
+    // Two hairlines slide apart from the center; their length settles as they go.
+    var lineW = (520 + 360 * easeOutCubic(clamp01(show * 1.2))) * s;
+    ctx.fillStyle = p.accent;
+    ctx.globalAlpha = clamp01(show * 2);
+    ctx.fillRect(cx - lineW / 2, cy - gap, lineW, 2 * s);
+    ctx.fillRect(cx - lineW / 2, cy + gap, lineW, 2 * s);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    var textA = clamp01((show - 0.3) / 0.7);
+
+    ctx.globalAlpha = textA * 0.9;
+    ctx.fillStyle = p.accent;
+    ctx.font = '600 ' + kickSize + 'px ' + FONT;
+    ctx.fillText((p.kicker || '').toUpperCase().split('').join(' '), cx, cy - gap - 34 * s);
+
+    ctx.globalAlpha = textA;
+    ctx.fillStyle = p.text;
+    ctx.font = '300 ' + headSize + 'px ' + FONT;
+    ctx.fillText(p.headline, cx, cy + 6 * s);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

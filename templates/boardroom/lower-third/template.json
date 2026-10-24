@@ -1,0 +1,36 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.boardroom.lower-third",
+  "name": "Boardroom lower third",
+  "description": "Name over a hairline rule that draws in, with a small accent square; quiet and corporate.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": ["name", "interview", "hairline"],
+  "duration": 6,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "name", "type": "text", "label": "Name", "default": "Morgan Hale", "maxLength": 60 },
+    { "id": "title", "type": "text", "label": "Title", "default": "Chief Operating Officer", "maxLength": 80 },
+    { "id": "accent", "type": "color", "label": "Accent color", "default": "#4f7cac", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#f4f6f9", "group": "Colors" },
+    { "id": "shadow", "type": "color", "label": "Backing tint", "default": "#10182833", "group": "Colors" },
+    {
+      "id": "side",
+      "type": "select",
+      "label": "Position",
+      "default": "left",
+      "options": [
+        { "value": "left", "label": "Bottom left" },
+        { "value": "right", "label": "Bottom right" }
+      ]
+    },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.7, "min": 0.2, "max": 2, "step": 0.1 }
+  ]
+}

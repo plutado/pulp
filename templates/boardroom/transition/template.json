@@ -1,0 +1,32 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.boardroom.transition",
+  "name": "Boardroom wipe",
+  "description": "A paper panel with a thin steel leading edge sweeps across; the frame is fully covered at the midpoint.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "wipe",
+  "tags": ["wipe", "panel", "cut-point"],
+  "duration": 1.5,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#f4f6f9", "group": "Colors" },
+    { "id": "accent", "type": "color", "label": "Edge color", "default": "#4f7cac", "group": "Colors" },
+    {
+      "id": "direction",
+      "type": "select",
+      "label": "Direction",
+      "default": "right",
+      "options": [
+        { "value": "right", "label": "Left to right" },
+        { "value": "left", "label": "Right to left" }
+      ]
+    }
+  ]
+}

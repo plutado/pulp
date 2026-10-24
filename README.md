@@ -69,7 +69,7 @@ The milestones through 1.0 total **133-226 hours**, of which **55-92 hours** are
 
 ## Template format
 
-The format is specified in [docs/template-format.md](docs/template-format.md). Three original sample templates live in [`templates/`](templates/) and are released under CC0 1.0.
+The format is specified in [docs/template-format.md](docs/template-format.md). Thirteen original sample templates live in [`templates/`](templates/) and are released under CC0 1.0: three standalone samples and two matched sets — **Boardroom** (corporate: ink blue and paper white, hairline rules, measured motion) and **Newsdesk** (broadcast: signal red on navy, bold capitals, a diagonal slash motif) — each a pack with a lower third, title, transition, overlay and background sharing one look.
 
 ## Built with
 

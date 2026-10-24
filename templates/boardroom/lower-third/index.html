@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boardroom lower third</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = easeOutCubic(clamp01(t / dur));
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var show = inT * (1 - outT);
+    if (show <= 0) return;
+
+    var s = H / 1080;
+    var margin = 110 * s;
+    var nameSize = 52 * s, titleSize = 27 * s;
+    var right = p.side === 'right';
+    var baseY = H - margin - 60 * s;
+
+    ctx.font = '600 ' + nameSize + 'px ' + FONT;
+    var nameW = ctx.measureText(p.name).width;
+    ctx.font = '400 ' + titleSize + 'px ' + FONT;
+    var titleW = ctx.measureText((p.title || '').toUpperCase()).width;
+    var ruleW = Math.max(nameW, titleW) + 24 * s;
+
+    var x = right ? W - margin - ruleW : margin;
+    var textX = right ? W - margin : margin;
+    ctx.textAlign = right ? 'right' : 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    // A soft backing tint keeps the text readable over busy footage without a visible panel.
+    var pad = 28 * s;
+    ctx.fillStyle = p.shadow;
+    ctx.globalAlpha = show;
+    ctx.fillRect(x - pad, baseY - nameSize - pad, ruleW + pad * 2, nameSize + titleSize + 44 * s + pad * 1.5);
+    ctx.globalAlpha = 1;
+
+    // The hairline draws in first, from the text side, with a small accent square at its head.
+    var drawn = ruleW * easeOutCubic(clamp01(show * 1.4));
+    var ruleY = baseY + 14 * s;
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(right ? textX - drawn : x, ruleY, drawn, 2 * s);
+    var sq = 8 * s;
+    var headX = right ? textX - drawn : x + drawn - sq;
+    ctx.fillRect(headX, ruleY - sq / 2 + 1 * s, sq, sq);
+
+    // Name, then the title in spaced capitals, fading up as the rule completes.
+    var textA = clamp01((show - 0.35) / 0.65);
+    ctx.globalAlpha = textA;
+    ctx.fillStyle = p.text;
+    ctx.font = '600 ' + nameSize + 'px ' + FONT;
+    ctx.fillText(p.name, textX, baseY);
+    ctx.globalAlpha = textA * 0.85;
+    ctx.font = '400 ' + titleSize + 'px ' + FONT;
+    var caps = (p.title || '').toUpperCase().split('').join(' ');
+    ctx.fillText(caps, textX, ruleY + 14 * s + titleSize);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

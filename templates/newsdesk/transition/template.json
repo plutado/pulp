@@ -1,0 +1,33 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.newsdesk.transition",
+  "name": "Newsdesk slash wipe",
+  "description": "A red slash leads a navy panel diagonally across the frame; fully covered at the midpoint.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "wipe",
+  "tags": ["wipe", "slash", "broadcast"],
+  "duration": 1.2,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "accent", "type": "color", "label": "Slash color", "default": "#e0263c", "group": "Colors" },
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#0e1526", "group": "Colors" },
+    { "id": "slant", "type": "number", "label": "Slant", "default": 0.22, "min": 0.05, "max": 0.5, "step": 0.01 },
+    {
+      "id": "direction",
+      "type": "select",
+      "label": "Direction",
+      "default": "right",
+      "options": [
+        { "value": "right", "label": "Left to right" },
+        { "value": "left", "label": "Right to left" }
+      ]
+    }
+  ]
+}

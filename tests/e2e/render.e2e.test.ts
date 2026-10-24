@@ -253,6 +253,27 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(result.stdout).toContain('(6 frames in');
   }, 180_000);
 
+  it('renders one template from each matched sample set with alpha', async () => {
+    // Boardroom lower third at mid-hold: content where the graphic sits, clear air in the top corner.
+    const a = await render('pulp.samples.boardroom.lower-third', 'png-sequence', 'set-board', {
+      extra: ['--in-point', '00:00:03:00', '--out-point', '00:00:03:02'],
+    });
+    expect(a.code, a.stderr).toBe(0);
+    const boardFrames = (await readdir(out)).filter((f) => /^set-board_\d{5}\.png$/.test(f)).sort();
+    expect(boardFrames).toHaveLength(3);
+    expect((await pixels(join(out, 'set-board_00090.png'), 40, 40))[3]).toBe(0); // transparent away from the graphic
+    expect((await pixels(join(out, 'set-board_00090.png'), 130, 900))[3]).toBeGreaterThan(0); // the backing tint
+
+    // Newsdesk slash wipe at its midpoint: the frame is fully covered by the opaque navy panel.
+    const b = await render('pulp.samples.newsdesk.transition', 'png-sequence', 'set-news', {
+      extra: ['--in-point', '17', '--out-point', '19'],
+    });
+    expect(b.code, b.stderr).toBe(0);
+    const newsFrames = (await readdir(out)).filter((f) => /^set-news_\d{5}\.png$/.test(f)).sort();
+    expect(newsFrames).toHaveLength(3);
+    expect(await pixels(join(out, 'set-news_00018.png'), 960, 540)).toEqual([14, 21, 38, 255]); // #0e1526, opaque
+  }, 180_000);
+
   it('renders between in and out points, numbering the files with the template frame indices', async () => {
     // Lower third: 6 s at 30 fps. 00:00:02:00 to 00:00:02:29 is mid-hold, so the panel is fully visible
     // from the first rendered frame; at frame 0 that pixel is transparent. Inclusive out point: 30 frames.

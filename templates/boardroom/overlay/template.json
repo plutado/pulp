@@ -1,0 +1,25 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.boardroom.overlay",
+  "name": "Boardroom frame",
+  "description": "A thin margin frame with corner ticks that draws itself in from the corners and holds.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "frame",
+  "tags": ["frame", "border", "corners"],
+  "duration": 6,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "line", "type": "color", "label": "Line color", "default": "#f4f6f9cc", "group": "Colors" },
+    { "id": "accent", "type": "color", "label": "Corner color", "default": "#4f7cac", "group": "Colors" },
+    { "id": "margin", "type": "number", "label": "Margin (px at 1080p)", "default": 64, "min": 24, "max": 160, "step": 4 },
+    { "id": "weight", "type": "number", "label": "Line weight", "default": 2, "min": 1, "max": 8, "step": 1 },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.8, "min": 0.2, "max": 2, "step": 0.1 }
+  ]
+}

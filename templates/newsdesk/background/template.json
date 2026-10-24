@@ -1,0 +1,26 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.newsdesk.background",
+  "name": "Newsdesk background",
+  "description": "Deep navy with slow diagonal signal bands sweeping through; loops seamlessly.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "animated-loop",
+  "tags": ["loop", "diagonal", "broadcast"],
+  "duration": 8,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "base", "type": "color", "label": "Base color", "default": "#0e1526", "group": "Colors" },
+    { "id": "deep", "type": "color", "label": "Deep color", "default": "#070b14", "group": "Colors" },
+    { "id": "accent", "type": "color", "label": "Band color", "default": "#e0263c", "group": "Colors" },
+    { "id": "cool", "type": "color", "label": "Second band", "default": "#27406b", "group": "Colors" },
+    { "id": "intensity", "type": "number", "label": "Band intensity", "default": 0.2, "min": 0, "max": 0.6, "step": 0.02 },
+    { "id": "slant", "type": "number", "label": "Slant", "default": 0.22, "min": 0.05, "max": 0.5, "step": 0.01 }
+  ]
+}

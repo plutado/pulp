@@ -1,0 +1,25 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.boardroom.background",
+  "name": "Boardroom background",
+  "description": "An ink-blue gradient with a faint dot grid and a slow diagonal sheen; loops seamlessly.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "animated-loop",
+  "tags": ["loop", "gradient", "grid"],
+  "duration": 8,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "base", "type": "color", "label": "Base color", "default": "#16233a", "group": "Colors" },
+    { "id": "deep", "type": "color", "label": "Deep color", "default": "#0b1322", "group": "Colors" },
+    { "id": "accent", "type": "color", "label": "Sheen color", "default": "#4f7cac", "group": "Colors" },
+    { "id": "grid", "type": "boolean", "label": "Dot grid", "default": true },
+    { "id": "sheen", "type": "number", "label": "Sheen strength", "default": 0.14, "min": 0, "max": 0.5, "step": 0.02 }
+  ]
+}

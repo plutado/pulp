@@ -3,16 +3,50 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { scanLibrary } from '../src/core/library';
 import { parseManifest } from '../src/core/manifest';
+import { parsePackManifest, PACK_FILENAME } from '../src/core/pack';
 import { defaultParams } from '../src/core/params';
 import { buildRenderPlan, PRESET_IDS } from '../src/core/render-plan';
 
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
 
-describe('bundled sample templates', async () => {
-  const dirs = (await readdir(TEMPLATES_DIR, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => d.name);
+/** Top-level template folders, plus the templates inside bundled packs (folders with a pack.json). */
+async function collect(): Promise<{ templates: string[]; packs: string[] }> {
+  const templates: string[] = [];
+  const packs: string[] = [];
+  for (const d of await readdir(TEMPLATES_DIR, { withFileTypes: true })) {
+    if (!d.isDirectory()) continue;
+    const names = await readdir(join(TEMPLATES_DIR, d.name));
+    if (names.includes(PACK_FILENAME)) {
+      packs.push(d.name);
+      for (const sub of await readdir(join(TEMPLATES_DIR, d.name), { withFileTypes: true })) {
+        if (sub.isDirectory()) templates.push(join(d.name, sub.name));
+      }
+    } else {
+      templates.push(d.name);
+    }
+  }
+  return { templates, packs };
+}
 
-  it('ships at least two samples', () => {
-    expect(dirs.length).toBeGreaterThanOrEqual(2);
+describe('bundled sample templates', async () => {
+  const { templates: dirs, packs } = await collect();
+
+  it('ships the three originals and two matched sets', () => {
+    expect(dirs.length).toBeGreaterThanOrEqual(13);
+    expect(packs).toEqual(['boardroom', 'newsdesk']);
+  });
+
+  it.each(packs)('%s has a valid CC0 pack.json whose listed folders exist', async (pack) => {
+    const parsed = parsePackManifest(await readFile(join(TEMPLATES_DIR, pack, PACK_FILENAME), 'utf8'));
+    expect(parsed.ok ? [] : parsed.problems).toEqual([]);
+    if (!parsed.ok) return;
+    expect(parsed.manifest.license).toBe('CC0-1.0');
+    expect(parsed.manifest.themes?.length).toBeGreaterThan(0);
+    expect(parsed.manifest.styles?.length).toBeGreaterThan(0);
+    const folders = (await readdir(join(TEMPLATES_DIR, pack), { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+    expect([...parsed.manifest.templates].sort()).toEqual(folders);
+    // A matched set: one of each role.
+    expect(folders).toEqual(['background', 'lower-third', 'overlay', 'title', 'transition']);
   });
 
   it.each(dirs)('%s has a valid manifest with no warnings and an open license', async (dir) => {
@@ -31,7 +65,7 @@ describe('bundled sample templates', async () => {
     expect(html).not.toMatch(/https?:\/\//);
   });
 
-  it('all samples index cleanly and can be planned for every preset', async () => {
+  it('all samples index cleanly, get the pack defaults, and can be planned for every preset', async () => {
     const index = await scanLibrary([TEMPLATES_DIR]);
     expect(index.problems).toEqual([]);
     expect(index.templates).toHaveLength(dirs.length);
@@ -40,5 +74,16 @@ describe('bundled sample templates', async () => {
         expect(() => buildRenderPlan({ manifest: t.manifest, presetId, outputPath: `/tmp/${t.manifest.id}` })).not.toThrow();
       }
     }
+    // Pack defaults reach the templates: every Boardroom template is corporate and clean, every Newsdesk one news and high-energy.
+    const boardroom = index.templates.filter((t) => t.pack?.slug === 'boardroom');
+    const newsdesk = index.templates.filter((t) => t.pack?.slug === 'newsdesk');
+    expect(boardroom).toHaveLength(5);
+    expect(newsdesk).toHaveLength(5);
+    for (const t of boardroom) expect({ themes: t.manifest.themes, styles: t.manifest.styles }).toEqual({ themes: ['corporate'], styles: ['clean'] });
+    for (const t of newsdesk) expect({ themes: t.manifest.themes, styles: t.manifest.styles }).toEqual({ themes: ['news'], styles: ['high-energy'] });
+    // Each set covers its five types.
+    const types = (list: typeof boardroom) => list.map((t) => t.manifest.type).sort();
+    expect(types(boardroom)).toEqual(['animated-loop', 'frame', 'lower-third', 'title', 'wipe']);
+    expect(types(newsdesk)).toEqual(['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe']);
   });
 });

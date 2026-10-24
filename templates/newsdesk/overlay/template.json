@@ -1,0 +1,37 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.newsdesk.overlay",
+  "name": "Newsdesk bug",
+  "description": "A corner bug: a slashed red tab and a short label, sliding in and holding in a chosen corner.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "logo-bug",
+  "tags": ["bug", "corner", "broadcast"],
+  "duration": 6,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "label", "type": "text", "label": "Label", "default": "Newsdesk", "maxLength": 20 },
+    { "id": "accent", "type": "color", "label": "Tab color", "default": "#e0263c", "group": "Colors" },
+    { "id": "panel", "type": "color", "label": "Panel color", "default": "#0e1526e6", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
+    {
+      "id": "corner",
+      "type": "select",
+      "label": "Corner",
+      "default": "top-right",
+      "options": [
+        { "value": "top-left", "label": "Top left" },
+        { "value": "top-right", "label": "Top right" },
+        { "value": "bottom-left", "label": "Bottom left" },
+        { "value": "bottom-right", "label": "Bottom right" }
+      ]
+    },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.35, "min": 0.15, "max": 1.5, "step": 0.05 }
+  ]
+}

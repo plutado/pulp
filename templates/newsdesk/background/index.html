@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Newsdesk background</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height;
+    var k = H * p.slant;
+    var span = W + 2 * k;
+
+    var g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, p.base);
+    g.addColorStop(1, p.deep);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // Three slanted bands drift across at different speeds; whole cycles per loop keep the seam clean.
+    function band(cycles, offset, width, color, alpha) {
+      var q = ((state.progress * cycles + offset) % 1) * (span + width) - width + k;
+      ctx.beginPath();
+      ctx.moveTo(q - k, 0);
+      ctx.lineTo(q - k + width, 0);
+      ctx.lineTo(q + width, H);
+      ctx.lineTo(q, H);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.globalAlpha = alpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    band(1, 0.1, 220 * (H / 1080), p.cool, p.intensity);
+    band(2, 0.55, 90 * (H / 1080), p.accent, p.intensity * 0.9);
+    band(1, 0.7, 420 * (H / 1080), p.cool, p.intensity * 0.5);
+
+    var v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(0,0,0,0.4)');
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, W, H);
+  };
+</script>
+</body>
+</html>

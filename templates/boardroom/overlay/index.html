@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boardroom frame</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Boardroom sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInCubic(x) { return x * x * x; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var show = easeOutCubic(clamp01(t / dur)) * (1 - easeInCubic(clamp01((t - (d - dur)) / dur)));
+    if (show <= 0) return;
+
+    var s = H / 1080;
+    var m = p.margin * s, w = p.weight * s;
+    var left = m, top = m, right = W - m, bottom = H - m;
+    var halfW = (right - left) / 2, halfH = (bottom - top) / 2;
+    var grow = easeOutCubic(show);
+
+    // Each side grows out of its two corners toward the middle of the edge.
+    ctx.fillStyle = p.line;
+    var gx = halfW * grow, gy = halfH * grow;
+    ctx.fillRect(left, top, gx, w); ctx.fillRect(right - gx, top, gx, w);
+    ctx.fillRect(left, bottom - w, gx, w); ctx.fillRect(right - gx, bottom - w, gx, w);
+    ctx.fillRect(left, top, w, gy); ctx.fillRect(left, bottom - gy, w, gy);
+    ctx.fillRect(right - w, top, w, gy); ctx.fillRect(right - w, bottom - gy, w, gy);
+
+    // Corner ticks in the accent, slightly heavier, fading in with the frame.
+    var tick = 26 * s, tw = Math.max(w * 2, 4 * s);
+    ctx.fillStyle = p.accent;
+    ctx.globalAlpha = clamp01(show * 1.5);
+    ctx.fillRect(left, top, tick, tw); ctx.fillRect(left, top, tw, tick);
+    ctx.fillRect(right - tick, top, tick, tw); ctx.fillRect(right - tw, top, tw, tick);
+    ctx.fillRect(left, bottom - tw, tick, tw); ctx.fillRect(left, bottom - tick, tw, tick);
+    ctx.fillRect(right - tick, bottom - tw, tick, tw); ctx.fillRect(right - tw, bottom - tick, tw, tick);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

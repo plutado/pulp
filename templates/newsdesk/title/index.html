@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Newsdesk title</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // Newsdesk sample set for Pulp. CC0-1.0: no rights reserved.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var FONT = 'Helvetica Neue, Arial, sans-serif';
+  var SLANT = 0.22;
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+  function easeInCubic(x) { return x * x * x; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var dur = Math.min(p.inOut, d / 2);
+    var inT = easeOutQuart(clamp01(t / dur));
+    var outT = easeInCubic(clamp01((t - (d - dur)) / dur));
+    var show = inT * (1 - outT);
+    if (show <= 0) return;
+
+    var s = H / 1080;
+    var bandH = 170 * s;
+    var y = H * 0.62;
+    var headSize = 76 * s, kickSize = 30 * s;
+    var k = bandH * SLANT;
+
+    // The band enters from the left; its slashed nose leads.
+    var slide = (1 - show) * (W + k);
+    var head = W + k - slide;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(Math.max(0, head - k), y);
+    ctx.lineTo(Math.max(0, head - 2 * k), y + bandH);
+    ctx.lineTo(0, y + bandH);
+    ctx.closePath();
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+
+    // A thin accent rule rides the band's top edge.
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(0, y - 6 * s, Math.max(0, head - k), 6 * s);
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    var margin = 110 * s;
+    var textA = clamp01((show - 0.35) / 0.65);
+
+    // The kicker tab sits above the band on the left.
+    var kickText = (p.kicker || '').toUpperCase();
+    ctx.font = '800 ' + kickSize + 'px ' + FONT;
+    var kickW = ctx.measureText(kickText).width + 56 * s;
+    var tabH = 52 * s, tabY = y - 6 * s - tabH;
+    ctx.globalAlpha = textA;
+    ctx.beginPath();
+    ctx.moveTo(margin + tabH * SLANT, tabY);
+    ctx.lineTo(margin + kickW, tabY);
+    ctx.lineTo(margin + kickW - tabH * SLANT, tabY + tabH);
+    ctx.lineTo(margin, tabY + tabH);
+    ctx.closePath();
+    ctx.fillStyle = p.accent;
+    ctx.fill();
+    ctx.fillStyle = p.text;
+    ctx.fillText(kickText, margin + 30 * s, tabY + 37 * s);
+
+    ctx.fillStyle = p.text;
+    ctx.font = '800 ' + headSize + 'px ' + FONT;
+    ctx.fillText((p.headline || '').toUpperCase(), margin, y + 112 * s);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

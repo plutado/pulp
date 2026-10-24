@@ -1,0 +1,25 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.boardroom.title",
+  "name": "Boardroom title",
+  "description": "A centered headline between two hairlines that slide apart, with a small kicker above.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": ["headline", "centered", "hairline"],
+  "duration": 5,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "kicker", "type": "text", "label": "Kicker", "default": "Quarterly review", "maxLength": 40 },
+    { "id": "headline", "type": "text", "label": "Headline", "default": "Results and outlook", "maxLength": 60 },
+    { "id": "accent", "type": "color", "label": "Accent color", "default": "#4f7cac", "group": "Colors" },
+    { "id": "text", "type": "color", "label": "Text color", "default": "#f4f6f9", "group": "Colors" },
+    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.8, "min": 0.2, "max": 2, "step": 0.1 }
+  ]
+}

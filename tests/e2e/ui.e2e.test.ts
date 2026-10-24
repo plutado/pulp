@@ -573,9 +573,12 @@ describe.skipIf(!electron)('inspector UI', () => {
       );
       // The bundled title card is untouched.
       expect(await page.eval<number>(`[...document.querySelectorAll('#results li .name')].filter((n) => n.textContent === 'Title Card').length`)).toBe(1);
-      // The installed pack appears in the browse tree, counting its templates.
-      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter^="pack:"]')`), 'the pack in the browse tree');
-      expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter^="pack:"]').dataset.count`))).toBe(2);
+      // The installed pack appears in the browse tree, counting its templates; the two bundled
+      // matched sets are there as well, five templates each.
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="pack:news-pack"]')`), 'the installed pack in the browse tree');
+      expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:news-pack"]').dataset.count`))).toBe(2);
+      expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:boardroom"]').dataset.count`))).toBe(5);
+      expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:newsdesk"]').dataset.count`))).toBe(5);
     }, 90_000);
 
     it('offers Replace only for templates installed from a pack, and refuses a broken zip with a plain message', async () => {
@@ -607,7 +610,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 90_000);
 
     it('export is offered for the listed templates with a pack name and license', async () => {
-      await page.eval(`(() => { const s = document.getElementById('search'); s.value = 'type:template news'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await page.eval(`(() => { const s = document.getElementById('search'); s.value = 'pack:news-pack'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       try {
         expect(await page.eval<boolean>(`document.getElementById('export-pack').disabled`)).toBe(false);
         await page.eval(`document.getElementById('export-pack').click()`);
@@ -732,7 +735,9 @@ describe.skipIf(!electron)('inspector UI', () => {
         await setSearch('codec:h264 duration:>1');
         expect(await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`)).toEqual(['clip']);
         await setSearch('res:1080p');
-        expect(await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`)).toEqual(['Diagonal Wipe', 'Lower Third Bar', 'Title Card']);
+        const at1080 = await page.eval<string[]>(`[...document.querySelectorAll('#results li .name')].map((n) => n.textContent)`);
+        expect(at1080).toEqual(expect.arrayContaining(['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'Boardroom title', 'Newsdesk title']));
+        expect(at1080).not.toContain('clip');
       } finally {
         await setSearch('');
       }
