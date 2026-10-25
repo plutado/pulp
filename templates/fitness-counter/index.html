@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fitness Counter</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Fitness Counter, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // The number drives everything: the ring's sweep is the count over the goal, and both
+  // ease together, snapping the last rep in with a small overshoot.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var inF = 0.4, countFor = 2, outF = 0.5;
+    var hold = Math.min(p.inOut, Math.max(0.2, d - inF - countFor - outF));
+    var gone = easeInOut(clamp01((t - (inF + countFor + hold)) / outF));
+    var come = easeOut(clamp01(t / inF));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+
+    var f = easeInOut(clamp01((t - inF * 0.5) / countFor));
+    var value = Math.round(p.target * f);
+    var frac = Math.min(1, p.goal > 0 ? value / p.goal : 0);
+    // A beat of overshoot as the count lands.
+    var landed = clamp01((t - (inF * 0.5 + countFor)) / 0.25);
+    var pop = 1 + 0.08 * Math.sin(landed * Math.PI);
+
+    var cx = W * 0.5, cy = H * 0.5, r = Math.min(W, H) * 0.23;
+    ctx.globalAlpha = show;
+    ctx.lineWidth = 16 * u;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = p.ring;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(pop, pop);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 ' + Math.round(120 * u) + 'px Montserrat';
+    ctx.fillText(String(value), 0, -10 * u);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.font = '600 ' + Math.round(26 * u) + 'px Inter';
+    ctx.fillText(p.label.toUpperCase(), 0, 64 * u);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

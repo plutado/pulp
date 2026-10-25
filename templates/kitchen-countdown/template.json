@@ -1,0 +1,61 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.kitchen-countdown",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Kitchen Countdown",
+  "category": "other",
+  "type": "countdown",
+  "description": "An egg-timer dial ticking down the last seconds, wobbling more as time runs out, ending on a cheerful DING. For cook-alongs and kids' challenges.",
+  "tags": [
+    "countdown",
+    "timer",
+    "kitchen"
+  ],
+  "themes": [
+    "food",
+    "kids"
+  ],
+  "styles": [
+    "playful",
+    "hand-drawn"
+  ],
+  "duration": 11,
+  "parameters": [
+    {
+      "id": "from",
+      "type": "number",
+      "label": "Count from",
+      "default": 10,
+      "min": 3,
+      "max": 10,
+      "step": 1,
+      "element": "Dial"
+    },
+    {
+      "id": "word",
+      "type": "text",
+      "label": "Final word",
+      "default": "DING!",
+      "maxLength": 10,
+      "element": "Dial"
+    },
+    {
+      "id": "shell",
+      "type": "color",
+      "label": "Timer",
+      "default": "#f43f5e",
+      "element": "Dial"
+    }
+  ]
+}

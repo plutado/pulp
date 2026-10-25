@@ -1,0 +1,52 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.soft-bloom-flash",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Soft Bloom Flash",
+  "category": "transition",
+  "type": "flash",
+  "description": "One gentle bloom of light that swells, holds the frame for a breath and lets go. A tender turn between moments.",
+  "tags": [
+    "transition",
+    "flash",
+    "bloom"
+  ],
+  "themes": [
+    "memorial",
+    "wedding"
+  ],
+  "styles": [
+    "elegant"
+  ],
+  "duration": 1.6,
+  "parameters": [
+    {
+      "id": "tint",
+      "type": "color",
+      "label": "Light",
+      "default": "#fdf3e3",
+      "element": "Light"
+    },
+    {
+      "id": "offset",
+      "type": "number",
+      "label": "Centre, % across",
+      "default": 50,
+      "min": 20,
+      "max": 80,
+      "step": 1,
+      "element": "Light"
+    }
+  ]
+}

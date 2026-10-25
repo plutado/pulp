@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Curtain Reveal</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Curtain Reveal, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // Two halves meet exactly at the midpoint, where the cut goes. The folds are vertical
+  // shading bands; a hem of light leads each edge.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var half = d / 2;
+    var f = t <= half ? easeInOut(clamp01(t / half)) : easeInOut(clamp01((d - t) / half));
+    if (f <= 0.001) return;
+    var folds = Math.round(p.folds);
+    var cw = (W / 2) * f;
+
+    for (var side = 0; side < 2; side++) {
+      var x0 = side === 0 ? 0 : W - cw;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x0, 0, cw, H);
+      ctx.clip();
+      ctx.fillStyle = p.velvet;
+      ctx.fillRect(x0, 0, cw, H);
+      // Folds: alternating light and shade, compressing as the curtain bunches.
+      for (var i = 0; i < folds; i++) {
+        var fx = x0 + (cw / folds) * i;
+        var g = ctx.createLinearGradient(fx, 0, fx + cw / folds, 0);
+        g.addColorStop(0, 'rgba(0,0,0,0.35)');
+        g.addColorStop(0.5, 'rgba(255,255,255,0.09)');
+        g.addColorStop(1, 'rgba(0,0,0,0.35)');
+        ctx.fillStyle = g;
+        ctx.fillRect(fx, 0, cw / folds + 1, H);
+      }
+      // The hem of light on the meeting edge.
+      var hemX = side === 0 ? x0 + cw - 6 * u : x0;
+      ctx.fillStyle = 'rgba(255, 226, 180, 0.55)';
+      ctx.fillRect(hemX, 0, 6 * u, H);
+      ctx.restore();
+    }
+  };
+</script>
+</body>
+</html>

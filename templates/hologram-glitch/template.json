@@ -1,0 +1,42 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.hologram-glitch",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Hologram Glitch",
+  "category": "transition",
+  "type": "glitch",
+  "description": "A projection stutters: scanline slices, a cyan-magenta split and a collapse to one bright line at the midpoint.",
+  "tags": [
+    "transition",
+    "glitch",
+    "hologram"
+  ],
+  "themes": [
+    "space",
+    "science"
+  ],
+  "styles": [
+    "tech"
+  ],
+  "duration": 1.2,
+  "parameters": [
+    {
+      "id": "beam",
+      "type": "color",
+      "label": "Beam",
+      "default": "#7dd3fc",
+      "element": "Projection"
+    }
+  ]
+}

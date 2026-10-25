@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Kitchen Countdown</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Kitchen Countdown, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // One real second per count; the dial's hand sweeps a second per tick and the shell
+  // wobbles harder as the count gets low. The word pops and it is all gone by the end.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var from = Math.round(p.from);
+    var total = from + 1;
+    var per = d / total;
+    var step = Math.min(total - 1, Math.floor(t / per));
+    var within = (t - step * per) / per;
+    var current = from - step;
+    var isWord = current <= 0;
+    var gone = easeInOut(clamp01((t - (d - 0.5)) / 0.5));
+    if (gone >= 1) return;
+
+    var cx = W / 2, cy = H / 2, r = Math.min(W, H) * 0.24;
+    // The wobble grows as the count shrinks; the timer rocks about its base.
+    var urgency = isWord ? 0 : (from - current + within) / from;
+    var wobble = Math.sin(t * 10) * 0.06 * urgency;
+    ctx.save();
+    ctx.translate(cx, cy + r);
+    ctx.rotate(wobble);
+    ctx.translate(-cx, -(cy + r));
+    ctx.globalAlpha = 1 - gone;
+
+    ctx.fillStyle = p.shell;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff7ed';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.78, 0, Math.PI * 2);
+    ctx.fill();
+    // Bell caps, drawn slightly uneven on purpose.
+    ctx.fillStyle = p.shell;
+    ctx.beginPath();
+    ctx.arc(cx - r * 0.55, cy - r * 0.92, r * 0.16, 0, Math.PI * 2);
+    ctx.arc(cx + r * 0.58, cy - r * 0.9, r * 0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (isWord) {
+      var popIn = easeOut(clamp01(within / 0.2));
+      ctx.fillStyle = '#9a3412';
+      ctx.font = '700 ' + Math.round(r * 0.5 * (0.6 + 0.4 * popIn)) + 'px Caveat';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(p.word, cx, cy + 4 * u);
+      // Burst dashes around the shell when the word lands.
+      ctx.strokeStyle = p.shell;
+      ctx.lineWidth = 7 * u;
+      ctx.lineCap = 'round';
+      for (var b = 0; b < 8; b++) {
+        var a = (b / 8) * Math.PI * 2;
+        var r0 = r * (1.1 + 0.18 * popIn), r1 = r * (1.22 + 0.3 * popIn);
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+        ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+        ctx.stroke();
+      }
+    } else {
+      // The hand sweeps one full turn per second, like a timer being watched.
+      var hand = -Math.PI / 2 + within * Math.PI * 2;
+      ctx.strokeStyle = '#9a3412';
+      ctx.lineWidth = 8 * u;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(hand) * r * 0.55, cy + Math.sin(hand) * r * 0.55);
+      ctx.stroke();
+      ctx.fillStyle = '#9a3412';
+      ctx.font = '700 ' + Math.round(r * 0.56) + 'px Caveat';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(current), cx, cy + r * 0.45);
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

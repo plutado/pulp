@@ -1,0 +1,75 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.civic-opener",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Civic Opener",
+  "category": "title",
+  "type": "opener",
+  "description": "A banner unfolds across a municipal seal of rings while the programme's name settles in. For council sessions, town halls and public meetings.",
+  "tags": [
+    "opener",
+    "civic",
+    "banner"
+  ],
+  "themes": [
+    "civic",
+    "nonprofit"
+  ],
+  "styles": [
+    "corporate"
+  ],
+  "duration": 6,
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "default": "CITY COUNCIL SESSION",
+      "maxLength": 32,
+      "element": "Banner"
+    },
+    {
+      "id": "subtitle",
+      "type": "text",
+      "label": "Subtitle",
+      "default": "Public meeting \u00b7 Live",
+      "maxLength": 40,
+      "element": "Banner"
+    },
+    {
+      "id": "band",
+      "type": "color",
+      "label": "Band",
+      "default": "#1e3a5f",
+      "element": "Banner"
+    },
+    {
+      "id": "seal",
+      "type": "color",
+      "label": "Seal",
+      "default": "#c9a227",
+      "element": "Banner"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Hold, seconds",
+      "default": 3,
+      "min": 1,
+      "max": 10,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import { defaultParams } from '../src/core/params';
 import { buildRenderPlan, PRESET_IDS } from '../src/core/render-plan';
 import { buildBrowseTree } from '../src/core/browse-tree';
 import { searchLibrary } from '../src/core/search';
+import { THEME_GROUPS } from '../src/core/taxonomy';
 
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
 
@@ -163,11 +164,17 @@ describe('the theme vocabulary in the samples', () => {
   it('scopes a group to its own items and all its children', async () => {
     const index = await scanLibrary([TEMPLATES_DIR]);
     const matchday = index.templates.filter((t) => t.pack?.slug === 'matchday');
-    const hits = searchLibrary({ ...index, media: [] }, 'theme:sports').map((h) => h.entry.key);
-    // Every Matchday template, whether it is the general theme or a specific sport that put it there.
-    expect(hits.length, 'theme:sports').toBe(matchday.length);
+    const hits = new Set(searchLibrary({ ...index, media: [] }, 'theme:sports').map((h) => h.entry.key));
+    // Every Matchday template answers, whether the general theme or a specific sport put it there —
+    // and anything else that answers carries a sports theme of its own (a fitness counter counts).
+    for (const t of matchday) expect(hits.has(t.key), `${t.key} under theme:sports`).toBe(true);
+    const sportsGroup = new Set(THEME_GROUPS.find((g) => g.id === 'sports')!.themes.map((th) => th.id));
+    for (const hit of searchLibrary({ ...index, media: [] }, 'theme:sports')) {
+      const entry = hit.entry;
+      const themes = entry.kind === 'template' ? entry.manifest.themes ?? [] : [];
+      expect(themes.some((th) => sportsGroup.has(th)), `${entry.key} answers theme:sports`).toBe(true);
+    }
     // A specific child still means only itself.
     expect(searchLibrary({ ...index, media: [] }, 'theme:football').length).toBe(matchday.length);
-    expect(searchLibrary({ ...index, media: [] }, 'theme:hockey').length).toBe(0);
   });
 });

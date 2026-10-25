@@ -1,0 +1,52 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.curtain-reveal",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Curtain Reveal",
+  "category": "transition",
+  "type": "reveal",
+  "description": "Velvet folds close across the frame and sweep open again. A stage turn for premieres, recitals and runway cuts.",
+  "tags": [
+    "transition",
+    "reveal",
+    "curtain"
+  ],
+  "themes": [
+    "fashion",
+    "concert"
+  ],
+  "styles": [
+    "elegant"
+  ],
+  "duration": 1.8,
+  "parameters": [
+    {
+      "id": "velvet",
+      "type": "color",
+      "label": "Velvet",
+      "default": "#5b1023",
+      "element": "Curtain"
+    },
+    {
+      "id": "folds",
+      "type": "number",
+      "label": "Folds",
+      "default": 12,
+      "min": 6,
+      "max": 24,
+      "step": 1,
+      "element": "Curtain"
+    }
+  ]
+}

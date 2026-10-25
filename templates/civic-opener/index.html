@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Civic Opener</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Civic Opener, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // The seal's rings draw themselves, the band wipes across, the words settle; it all
+  // leaves the way it came, inside the clip.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var inF = 1.1, outF = 0.8;
+    var hold = Math.min(p.inOut, Math.max(0.2, d - inF - outF));
+    var gone = easeInOut(clamp01((t - inF - hold) / outF));
+    var come = easeOut(clamp01(t / inF));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+    ctx.globalAlpha = show;
+
+    // The seal: three rings and radial ticks, drawn on as arcs.
+    var cx = W / 2, cy = H * 0.38, draw = easeInOut(clamp01(t / 1.3)) * (1 - gone);
+    ctx.strokeStyle = p.seal;
+    for (var ring = 0; ring < 3; ring++) {
+      var rr = (120 + ring * 44) * u;
+      ctx.lineWidth = (ring === 1 ? 3 : 6) * u;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rr, -Math.PI / 2, -Math.PI / 2 + draw * Math.PI * 2);
+      ctx.stroke();
+    }
+    for (var k = 0; k < 24; k++) {
+      if (k / 24 > draw) break;
+      var a = (k / 24) * Math.PI * 2 - Math.PI / 2;
+      ctx.lineWidth = 3 * u;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * 138 * u, cy + Math.sin(a) * 138 * u);
+      ctx.lineTo(cx + Math.cos(a) * 150 * u, cy + Math.sin(a) * 150 * u);
+      ctx.stroke();
+    }
+
+    // The band wipes out from the centre under the title.
+    var bandW = W * 0.72 * easeInOut(clamp01((t - 0.4) / 0.9)) * (1 - gone);
+    var by = H * 0.62;
+    ctx.fillStyle = p.band;
+    ctx.fillRect(W / 2 - bandW / 2, by - 64 * u, bandW, 128 * u);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#f5f8fc';
+    ctx.font = '600 ' + Math.round(52 * u) + 'px Inter';
+    var wordsIn = easeOut(clamp01((t - 0.9) / 0.6));
+    ctx.globalAlpha = show * wordsIn;
+    ctx.fillText(p.title, W / 2, by - 8 * u);
+    ctx.font = '400 ' + Math.round(26 * u) + 'px Inter';
+    ctx.fillStyle = 'rgba(220, 230, 240, 0.85)';
+    ctx.fillText(p.subtitle, W / 2, by + 40 * u);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

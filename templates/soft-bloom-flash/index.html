@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Soft Bloom Flash</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Soft Bloom Flash, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // A single radial bloom; no sparkle, no streaks. Full cover at the midpoint, so the
+  // cut beneath never shows.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var mid = d / 2;
+    var f = easeInOut(1 - clamp01(Math.abs(t - mid) / mid));
+    if (f <= 0.003) return;
+    var cx = W * (p.offset / 100), cy = H * 0.42;
+    var r = Math.max(W, H) * (0.2 + f * 1.1);
+    var g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, p.tint);
+    g.addColorStop(0.65, p.tint + 'cc');
+    g.addColorStop(1, p.tint + '00');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    var wash = 1 - Math.abs(t - mid) / (d * 0.16);
+    if (wash > 0) {
+      ctx.globalAlpha = easeInOut(clamp01(wash));
+      ctx.fillStyle = p.tint;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+  };
+</script>
+</body>
+</html>

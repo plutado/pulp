@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hologram Glitch</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Hologram Glitch, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // The slices and the split worsen towards the midpoint, where the picture collapses
+  // to a line -- the cut hides in that frame -- and rebuilds mirrored.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var mid = d / 2;
+    var strength = easeInOut(1 - clamp01(Math.abs(t - mid) / mid));
+    if (strength <= 0.01) return;
+    var frame = Math.floor(t * 30);
+
+    // Scanline slices: thin bands tinted cyan and magenta, offset against each other.
+    var n = 14;
+    for (var i = 0; i < n; i++) {
+      var y = (i / n) * H + (at(i + frame) - 0.5) * 20 * u;
+      var bh = (H / n) * (0.25 + at(i * 3 + frame) * 0.4) * strength;
+      var dx = (at(i * 7 + frame * 2) - 0.5) * W * 0.22 * strength;
+      ctx.fillStyle = 'rgba(125, 211, 252, 0.28)';
+      ctx.fillRect(dx, y, W, bh);
+      ctx.fillStyle = 'rgba(244, 114, 182, 0.2)';
+      ctx.fillRect(-dx, y + bh, W, bh * 0.6);
+    }
+
+    // The collapse: a bright horizontal line the picture squeezes into at the midpoint.
+    var squeeze = easeInOut(clamp01(1 - Math.abs(t - mid) / (d * 0.22)));
+    if (squeeze > 0) {
+      var lineH = Math.max(3 * u, H * (1 - squeeze));
+      ctx.fillStyle = '#0a0f1c';
+      ctx.globalAlpha = squeeze;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+      var g = ctx.createLinearGradient(0, H / 2 - lineH, 0, H / 2 + lineH);
+      g.addColorStop(0, p.beam + '00');
+      g.addColorStop(0.5, p.beam);
+      g.addColorStop(1, p.beam + '00');
+      ctx.fillStyle = g;
+      ctx.globalAlpha = squeeze;
+      ctx.fillRect(0, H / 2 - lineH, W, lineH * 2);
+      ctx.globalAlpha = 1;
+    }
+  };
+</script>
+</body>
+</html>

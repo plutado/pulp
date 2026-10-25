@@ -1,0 +1,79 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.fitness-counter",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Fitness Counter",
+  "category": "other",
+  "type": "counter",
+  "description": "Reps or calories counting up beside a ring that fills to the session goal. For workout recaps and training segments.",
+  "tags": [
+    "counter",
+    "fitness",
+    "reps"
+  ],
+  "themes": [
+    "fitness"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 6,
+  "parameters": [
+    {
+      "id": "target",
+      "type": "number",
+      "label": "Count to",
+      "default": 42,
+      "min": 1,
+      "max": 100000,
+      "step": 1,
+      "element": "Figures"
+    },
+    {
+      "id": "goal",
+      "type": "number",
+      "label": "Goal",
+      "default": 50,
+      "min": 1,
+      "max": 100000,
+      "step": 1,
+      "element": "Figures"
+    },
+    {
+      "id": "label",
+      "type": "text",
+      "label": "Label",
+      "default": "Push-ups",
+      "maxLength": 24,
+      "element": "Figures"
+    },
+    {
+      "id": "ring",
+      "type": "color",
+      "label": "Ring",
+      "default": "#f97316",
+      "element": "Panel"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Hold, seconds",
+      "default": 2.4,
+      "min": 0.5,
+      "max": 10,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
+  ]
+}

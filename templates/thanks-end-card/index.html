@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Thanks End Card</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Thanks End Card, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // Each leaf drifts on a fixed path from the seeded hash -- a slow fall with a sway --
+  // and the words fade up between them. Clear by the last frame.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var come = easeInOut(clamp01(t / 1.2));
+    var gone = easeInOut(clamp01((t - (d - 1)) / 1));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+    ctx.globalAlpha = show;
+
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, p.ground);
+    g.addColorStop(1, '#1c0e08');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    for (var i = 0; i < 14; i++) {
+      var speed = 0.05 + at(i) * 0.06;
+      var fy = ((at(i + 30) + t * speed) % 1.2) * H * 1.2 - H * 0.1;
+      var fx = at(i + 60) * W + Math.sin(t * (0.6 + at(i + 90)) + i) * 60 * u;
+      var r = (16 + at(i + 120) * 22) * u;
+      ctx.save();
+      ctx.translate(fx, fy);
+      ctx.rotate(t * (0.4 + at(i + 150) * 0.5) + i);
+      ctx.fillStyle = p.leaf;
+      ctx.globalAlpha = show * (0.35 + at(i + 180) * 0.45);
+      ctx.beginPath();
+      ctx.moveTo(0, -r);
+      ctx.quadraticCurveTo(r * 0.8, 0, 0, r);
+      ctx.quadraticCurveTo(-r * 0.8, 0, 0, -r);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.globalAlpha = show;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#f7ead2';
+    ctx.font = 'italic 500 ' + Math.round(58 * u) + 'px Playfair';
+    ctx.fillText(p.line, W / 2, H * 0.48);
+    ctx.fillStyle = 'rgba(233, 201, 150, 0.9)';
+    ctx.font = '400 ' + Math.round(28 * u) + 'px Inter';
+    ctx.fillText(p.name, W / 2, H * 0.58);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

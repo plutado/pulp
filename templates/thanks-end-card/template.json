@@ -1,0 +1,65 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.thanks-end-card",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Thanks End Card",
+  "category": "title",
+  "type": "end-card",
+  "description": "A harvest-table close: a warm ground, falling leaf shapes, and a thank-you line over the host's name. Ends a seasonal special.",
+  "tags": [
+    "end card",
+    "thanksgiving",
+    "harvest"
+  ],
+  "themes": [
+    "thanksgiving",
+    "food"
+  ],
+  "styles": [
+    "organic"
+  ],
+  "duration": 6,
+  "parameters": [
+    {
+      "id": "line",
+      "type": "text",
+      "label": "Line",
+      "default": "Thanks for joining our table",
+      "maxLength": 40,
+      "element": "Words"
+    },
+    {
+      "id": "name",
+      "type": "text",
+      "label": "Name",
+      "default": "The Harvest Kitchen",
+      "maxLength": 32,
+      "element": "Words"
+    },
+    {
+      "id": "ground",
+      "type": "color",
+      "label": "Ground",
+      "default": "#3a1f12",
+      "element": "Scene"
+    },
+    {
+      "id": "leaf",
+      "type": "color",
+      "label": "Leaves",
+      "default": "#d98e3a",
+      "element": "Scene"
+    }
+  ]
+}

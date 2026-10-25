@@ -1,0 +1,93 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.poll-strip",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Poll Strip",
+  "category": "title",
+  "type": "social",
+  "description": "A two-option poll bar whose halves grow to their shares, with the winning side brightening. For audience questions on screen.",
+  "tags": [
+    "social",
+    "poll",
+    "votes"
+  ],
+  "themes": [
+    "social-media",
+    "civic"
+  ],
+  "styles": [
+    "corporate"
+  ],
+  "duration": 6,
+  "parameters": [
+    {
+      "id": "question",
+      "type": "text",
+      "label": "Question",
+      "default": "Extend the park hours?",
+      "maxLength": 48,
+      "element": "Strip"
+    },
+    {
+      "id": "left",
+      "type": "text",
+      "label": "Left option",
+      "default": "Yes",
+      "maxLength": 16,
+      "element": "Strip"
+    },
+    {
+      "id": "right",
+      "type": "text",
+      "label": "Right option",
+      "default": "No",
+      "maxLength": 16,
+      "element": "Strip"
+    },
+    {
+      "id": "share",
+      "type": "number",
+      "label": "Left share, %",
+      "default": 64,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "element": "Strip"
+    },
+    {
+      "id": "a",
+      "type": "color",
+      "label": "Left",
+      "default": "#2563eb",
+      "element": "Strip"
+    },
+    {
+      "id": "b",
+      "type": "color",
+      "label": "Right",
+      "default": "#64748b",
+      "element": "Strip"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Hold, seconds",
+      "default": 3,
+      "min": 1,
+      "max": 10,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
+  ]
+}
