@@ -266,7 +266,324 @@ export const LAYERED_PAGE = page(
 `,
 );
 
-export const STILL_PAGES = { photo: PHOTO_PAGE, illustration: ILLUSTRATION_PAGE, layered: LAYERED_PAGE } as const;
+
+/** Backdrops: still backgrounds and flat textures, drawn edge to edge (milestone 24). */
+export const BACKDROP_PAGE = page(
+  'Sample backdrop',
+  `
+  function meshGradient(W, H) {
+    var g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#13223f'); g.addColorStop(0.5, '#2b4a74'); g.addColorStop(1, '#6a86a8');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    for (var i = 0; i < 5; i++) {
+      var x = hash(i) * W, y = hash(i + 9) * H, r = Math.min(W, H) * (0.3 + hash(i + 17) * 0.4);
+      var blob = ctx.createRadialGradient(x, y, 0, x, y, r);
+      blob.addColorStop(0, 'rgba(120,170,220,0.22)'); blob.addColorStop(1, 'rgba(120,170,220,0)');
+      ctx.fillStyle = blob; ctx.fillRect(0, 0, W, H);
+    }
+  }
+  function paperGrain(W, H) {
+    ctx.fillStyle = '#efe7d7'; ctx.fillRect(0, 0, W, H);
+    var warm = ctx.createRadialGradient(W * 0.4, H * 0.35, 0, W * 0.4, H * 0.35, Math.max(W, H) * 0.8);
+    warm.addColorStop(0, 'rgba(255,250,238,0.9)'); warm.addColorStop(1, 'rgba(190,175,150,0.35)');
+    ctx.fillStyle = warm; ctx.fillRect(0, 0, W, H);
+    grain(W, H, 26, 3);
+  }
+  function duskBands(W, H) {
+    var stops = ['#1a1033', '#43246b', '#8d3f6e', '#d9705a', '#f3b562'];
+    for (var i = 0; i < stops.length; i++) {
+      var y0 = H * (i / stops.length), y1 = H * ((i + 1) / stops.length);
+      var g = ctx.createLinearGradient(0, y0, 0, y1);
+      g.addColorStop(0, stops[i]); g.addColorStop(1, stops[Math.min(i + 1, stops.length - 1)]);
+      ctx.fillStyle = g; ctx.fillRect(0, y0 - 1, W, y1 - y0 + 2);
+    }
+    grain(W, H, 10, 11);
+  }
+  function canvasWeave(W, H) {
+    ctx.fillStyle = '#d9cfbb'; ctx.fillRect(0, 0, W, H);
+    var step = Math.max(4, Math.min(W, H) / 150);
+    ctx.strokeStyle = 'rgba(120,105,80,0.25)'; ctx.lineWidth = Math.max(1, step * 0.35);
+    for (var x = 0; x < W; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (var y = 0; y < H; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    grain(W, H, 18, 23);
+  }
+  function concrete(W, H) {
+    ctx.fillStyle = '#9aa0a3'; ctx.fillRect(0, 0, W, H);
+    for (var i = 0; i < 90; i++) {
+      var x = hash(i * 3) * W, y = hash(i * 3 + 1) * H, r = Math.min(W, H) * (0.02 + hash(i * 3 + 2) * 0.09);
+      var p = ctx.createRadialGradient(x, y, 0, x, y, r);
+      var tint = hash(i + 200) > 0.5 ? '255,255,255' : '60,60,65';
+      p.addColorStop(0, 'rgba(' + tint + ',0.1)'); p.addColorStop(1, 'rgba(' + tint + ',0)');
+      ctx.fillStyle = p; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    grain(W, H, 34, 29);
+  }
+  function noiseGrid(W, H) {
+    ctx.fillStyle = '#10151c'; ctx.fillRect(0, 0, W, H);
+    var cell = Math.max(10, Math.min(W, H) / 48);
+    for (var y = 0, r = 0; y < H; y += cell, r++) {
+      for (var x = 0, c = 0; x < W; x += cell, c++) {
+        var v = hash(r * 97 + c * 31);
+        if (v > 0.72) { ctx.fillStyle = 'rgba(80,200,180,' + (0.1 + v * 0.3).toFixed(3) + ')'; ctx.fillRect(x, y, cell - 1, cell - 1); }
+      }
+    }
+  }
+  var DRAW = {
+    'mesh-gradient': meshGradient, 'paper-grain': paperGrain, 'dusk-bands': duskBands,
+    'canvas-weave': canvasWeave, 'concrete': concrete, 'noise-grid': noiseGrid
+  };
+  window.pulpRender = function (state) {
+    var d = size(state);
+    ctx.clearRect(0, 0, d.W, d.H);
+    (DRAW[state.params.variant] || meshGradient)(d.W, d.H);
+  };
+`,
+);
+
+/** Overlay plates: frames, vignettes, grunge, light leaks and logo bugs, on transparency (milestone 24). */
+export const OVERLAY_PAGE = page(
+  'Sample overlay plate',
+  `
+  function frameThin(W, H) {
+    var i = Math.min(W, H) * 0.045;
+    ctx.strokeStyle = 'rgba(245,245,240,0.92)'; ctx.lineWidth = Math.max(2, Math.min(W, H) * 0.004);
+    ctx.strokeRect(i, i, W - i * 2, H - i * 2);
+    ctx.lineWidth = Math.max(1, Math.min(W, H) * 0.0015);
+    ctx.strokeRect(i * 1.5, i * 1.5, W - i * 3, H - i * 3);
+  }
+  function frameCorners(W, H) {
+    var i = Math.min(W, H) * 0.05, len = Math.min(W, H) * 0.12;
+    ctx.strokeStyle = 'rgba(255,214,120,0.95)'; ctx.lineWidth = Math.max(3, Math.min(W, H) * 0.007); ctx.lineCap = 'square';
+    var pts = [[i, i, 1, 1], [W - i, i, -1, 1], [i, H - i, 1, -1], [W - i, H - i, -1, -1]];
+    for (var k = 0; k < 4; k++) {
+      var P = pts[k];
+      ctx.beginPath(); ctx.moveTo(P[0] + len * P[2], P[1]); ctx.lineTo(P[0], P[1]); ctx.lineTo(P[0], P[1] + len * P[3]); ctx.stroke();
+    }
+  }
+  function frameDeco(W, H) {
+    var i = Math.min(W, H) * 0.06;
+    ctx.strokeStyle = 'rgba(210,180,140,0.9)'; ctx.lineWidth = Math.max(2, Math.min(W, H) * 0.005);
+    ctx.strokeRect(i, i, W - i * 2, H - i * 2);
+    ctx.fillStyle = 'rgba(210,180,140,0.9)';
+    var r = Math.min(W, H) * 0.012;
+    var corners = [[i, i], [W - i, i], [i, H - i], [W - i, H - i]];
+    for (var k = 0; k < 4; k++) { ctx.beginPath(); ctx.arc(corners[k][0], corners[k][1], r, 0, Math.PI * 2); ctx.fill(); }
+  }
+  function vignetteSoft(W, H) { plateVignette(W, H, 0.45, 0.72); }
+  function vignetteHeavy(W, H) { plateVignette(W, H, 0.3, 0.92); }
+  function plateVignette(W, H, inner, alpha) {
+    var g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * inner, W / 2, H / 2, Math.max(W, H) * 0.78);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,' + alpha + ')');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  function vignetteOval(W, H) {
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1, H / W);
+    var g = ctx.createRadialGradient(0, 0, W * 0.3, 0, 0, W * 0.62);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(10,6,2,0.88)');
+    ctx.fillStyle = g; ctx.fillRect(-W, -W, W * 2, W * 2); ctx.restore();
+  }
+  function grungeDust(W, H) {
+    for (var i = 0; i < 900; i++) {
+      var x = hash(i * 2) * W, y = hash(i * 2 + 1) * H, r = Math.min(W, H) * (0.0004 + hash(i + 400) * 0.0022);
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.05 + hash(i + 700) * 0.25).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  function grungeScratch(W, H) {
+    ctx.lineWidth = Math.max(1, Math.min(W, H) * 0.0014);
+    for (var i = 0; i < 26; i++) {
+      var x = hash(i * 5) * W;
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.06 + hash(i + 60) * 0.22).toFixed(3) + ')';
+      ctx.beginPath(); ctx.moveTo(x, 0);
+      for (var y = 0; y < H; y += H / 10) ctx.lineTo(x + (hash(i * 13 + y) - 0.5) * W * 0.012, y);
+      ctx.stroke();
+    }
+  }
+  function grungeStain(W, H) {
+    for (var i = 0; i < 14; i++) {
+      var x = hash(i * 7) * W, y = hash(i * 7 + 3) * H, r = Math.min(W, H) * (0.06 + hash(i + 90) * 0.22);
+      var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, 'rgba(120,86,40,0.16)'); g.addColorStop(1, 'rgba(120,86,40,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  function leakWarm(W, H) { leak(W, H, '255,160,80', 0.8); }
+  function leakCool(W, H) { leak(W, H, '120,180,255', 0.55); }
+  function leak(W, H, rgb, strength) {
+    var g = ctx.createLinearGradient(W, 0, W * 0.25, H);
+    g.addColorStop(0, 'rgba(' + rgb + ',' + (0.55 * strength) + ')');
+    g.addColorStop(0.5, 'rgba(' + rgb + ',' + (0.18 * strength) + ')');
+    g.addColorStop(1, 'rgba(' + rgb + ',0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  function sparkMotes(W, H) {
+    for (var i = 0; i < 90; i++) {
+      var x = hash(i * 3) * W, y = hash(i * 3 + 1) * H, r = Math.min(W, H) * (0.002 + hash(i + 300) * 0.009);
+      var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, 'rgba(255,240,200,' + (0.3 + hash(i + 11) * 0.5).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(255,240,200,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  function bugRound(W, H) { bug(W, H, 'round'); }
+  function bugSquare(W, H) { bug(W, H, 'square'); }
+  function bugStrip(W, H) { bug(W, H, 'strip'); }
+  function bug(W, H, shape) {
+    var u = Math.min(W, H), m = u * 0.05;
+    ctx.fillStyle = 'rgba(14,20,30,0.78)';
+    if (shape === 'round') { ctx.beginPath(); ctx.arc(W - m - u * 0.09, m + u * 0.09, u * 0.09, 0, Math.PI * 2); ctx.fill(); }
+    else if (shape === 'square') { ctx.fillRect(W - m - u * 0.18, m, u * 0.18, u * 0.18); }
+    else { ctx.fillRect(W - m - u * 0.3, m, u * 0.3, u * 0.075); }
+    ctx.fillStyle = 'rgba(245,250,255,0.95)';
+    var cx = shape === 'strip' ? W - m - u * 0.15 : W - m - u * 0.09;
+    var cy = shape === 'strip' ? m + u * 0.037 : m + u * 0.09;
+    ctx.beginPath(); ctx.moveTo(cx - u * 0.03, cy + u * 0.025); ctx.lineTo(cx, cy - u * 0.03); ctx.lineTo(cx + u * 0.03, cy + u * 0.025); ctx.closePath(); ctx.fill();
+  }
+  var DRAW = {
+    'frame-thin': frameThin, 'frame-corners': frameCorners, 'frame-deco': frameDeco,
+    'vignette-soft': vignetteSoft, 'vignette-heavy': vignetteHeavy, 'vignette-oval': vignetteOval,
+    'grunge-dust': grungeDust, 'grunge-scratch': grungeScratch, 'grunge-stain': grungeStain,
+    'leak-warm': leakWarm, 'leak-cool': leakCool, 'spark-motes': sparkMotes,
+    'bug-round': bugRound, 'bug-square': bugSquare, 'bug-strip': bugStrip
+  };
+  window.pulpRender = function (state) {
+    var d = size(state);
+    ctx.clearRect(0, 0, d.W, d.H);
+    (DRAW[state.params.variant] || frameThin)(d.W, d.H);
+  };
+`,
+);
+
+/** Design elements: shapes, icons, arrows and charts, on transparency (milestone 24). */
+export const ELEMENT_PAGE = page(
+  'Sample design element',
+  `
+  function shapeStack(W, H) {
+    var u = Math.min(W, H);
+    var cols = ['#ef476f', '#ffd166', '#06d6a0', '#118ab2'];
+    for (var i = 0; i < 4; i++) {
+      ctx.fillStyle = cols[i];
+      ctx.beginPath(); ctx.arc(W / 2 + (i - 1.5) * u * 0.17, H / 2, u * 0.14, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  function shapeChevrons(W, H) {
+    var u = Math.min(W, H);
+    ctx.strokeStyle = '#f4a261'; ctx.lineWidth = u * 0.035; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (var i = 0; i < 3; i++) {
+      var x = W / 2 + (i - 1) * u * 0.18;
+      ctx.beginPath(); ctx.moveTo(x - u * 0.07, H / 2 - u * 0.1); ctx.lineTo(x + u * 0.05, H / 2); ctx.lineTo(x - u * 0.07, H / 2 + u * 0.1); ctx.stroke();
+    }
+  }
+  function shapeRings(W, H) {
+    var u = Math.min(W, H);
+    for (var i = 0; i < 4; i++) {
+      ctx.strokeStyle = 'rgba(99,102,241,' + (1 - i * 0.2).toFixed(2) + ')';
+      ctx.lineWidth = u * 0.016;
+      ctx.beginPath(); ctx.arc(W / 2, H / 2, u * (0.09 + i * 0.06), 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  function iconPlay(W, H) {
+    var u = Math.min(W, H);
+    ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(W / 2, H / 2, u * 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.moveTo(W / 2 - u * 0.1, H / 2 - u * 0.14); ctx.lineTo(W / 2 + u * 0.16, H / 2); ctx.lineTo(W / 2 - u * 0.1, H / 2 + u * 0.14); ctx.closePath(); ctx.fill();
+  }
+  function iconPin(W, H) {
+    var u = Math.min(W, H);
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.arc(W / 2, H / 2 - u * 0.08, u * 0.2, Math.PI, 0); 
+    ctx.lineTo(W / 2, H / 2 + u * 0.28); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(W / 2, H / 2 - u * 0.08, u * 0.075, 0, Math.PI * 2); ctx.fill();
+  }
+  function iconStar(W, H) {
+    var u = Math.min(W, H);
+    ctx.fillStyle = '#facc15'; ctx.beginPath();
+    for (var i = 0; i < 10; i++) {
+      var a = (i / 10) * Math.PI * 2 - Math.PI / 2, r = i % 2 ? u * 0.12 : u * 0.28;
+      if (i === 0) ctx.moveTo(W / 2 + Math.cos(a) * r, H / 2 + Math.sin(a) * r); else ctx.lineTo(W / 2 + Math.cos(a) * r, H / 2 + Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+  }
+  function arrowCurved(W, H) {
+    var u = Math.min(W, H);
+    ctx.strokeStyle = '#0ea5e9'; ctx.lineWidth = u * 0.03; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(W * 0.2, H * 0.68); ctx.quadraticCurveTo(W * 0.5, H * 0.2, W * 0.78, H * 0.5); ctx.stroke();
+    ctx.fillStyle = '#0ea5e9';
+    ctx.save(); ctx.translate(W * 0.78, H * 0.5); ctx.rotate(0.9);
+    ctx.beginPath(); ctx.moveTo(0, -u * 0.07); ctx.lineTo(u * 0.1, 0); ctx.lineTo(0, u * 0.07); ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  function arrowBlock(W, H) {
+    var u = Math.min(W, H);
+    ctx.fillStyle = '#334155';
+    ctx.beginPath(); ctx.moveTo(W * 0.22, H / 2 - u * 0.07); ctx.lineTo(W * 0.6, H / 2 - u * 0.07); ctx.lineTo(W * 0.6, H / 2 - u * 0.17);
+    ctx.lineTo(W * 0.8, H / 2); ctx.lineTo(W * 0.6, H / 2 + u * 0.17); ctx.lineTo(W * 0.6, H / 2 + u * 0.07); ctx.lineTo(W * 0.22, H / 2 + u * 0.07);
+    ctx.closePath(); ctx.fill();
+  }
+  function arrowSketch(W, H) {
+    var u = Math.min(W, H);
+    ctx.strokeStyle = '#1f2937'; ctx.lineWidth = u * 0.018; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (var i = 0; i <= 20; i++) {
+      var f = i / 20, x = W * (0.2 + 0.58 * f), y = H * 0.5 + Math.sin(f * 3) * u * 0.05 + (hash(i) - 0.5) * u * 0.012;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W * 0.72, H * 0.5 - u * 0.08); ctx.lineTo(W * 0.79, H * 0.5); ctx.lineTo(W * 0.72, H * 0.5 + u * 0.08); ctx.stroke();
+  }
+  function chartBars(W, H) {
+    var u = Math.min(W, H), vals = [0.35, 0.62, 0.48, 0.8, 0.55];
+    var bw = W * 0.1, base = H * 0.78;
+    for (var i = 0; i < vals.length; i++) {
+      ctx.fillStyle = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'][i];
+      var h = (base - H * 0.2) * vals[i];
+      ctx.fillRect(W * 0.16 + i * bw * 1.4, base - h, bw, h);
+    }
+    ctx.strokeStyle = 'rgba(15,23,42,0.6)'; ctx.lineWidth = Math.max(2, u * 0.004);
+    ctx.beginPath(); ctx.moveTo(W * 0.1, base); ctx.lineTo(W * 0.9, base); ctx.stroke();
+  }
+  function chartDonut(W, H) {
+    var u = Math.min(W, H), parts = [0.42, 0.28, 0.18, 0.12], cols = ['#f97316', '#fbbf24', '#34d399', '#60a5fa'];
+    var a0 = -Math.PI / 2;
+    for (var i = 0; i < parts.length; i++) {
+      var a1 = a0 + parts[i] * Math.PI * 2;
+      ctx.fillStyle = cols[i]; ctx.beginPath(); ctx.moveTo(W / 2, H / 2);
+      ctx.arc(W / 2, H / 2, u * 0.3, a0, a1); ctx.closePath(); ctx.fill();
+      a0 = a1;
+    }
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath(); ctx.arc(W / 2, H / 2, u * 0.16, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  function chartLine(W, H) {
+    var u = Math.min(W, H), pts = [0.3, 0.45, 0.38, 0.6, 0.52, 0.75, 0.68];
+    ctx.strokeStyle = '#10b981'; ctx.lineWidth = u * 0.016; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (var i = 0; i < pts.length; i++) {
+      var x = W * (0.14 + (0.72 * i) / (pts.length - 1)), y = H * (0.82 - pts[i] * 0.6);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#065f46';
+    for (var k = 0; k < pts.length; k++) {
+      var px = W * (0.14 + (0.72 * k) / (pts.length - 1)), py = H * (0.82 - pts[k] * 0.6);
+      ctx.beginPath(); ctx.arc(px, py, u * 0.015, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  var DRAW = {
+    'shape-stack': shapeStack, 'shape-chevrons': shapeChevrons, 'shape-rings': shapeRings,
+    'icon-play': iconPlay, 'icon-pin': iconPin, 'icon-star': iconStar,
+    'arrow-curved': arrowCurved, 'arrow-block': arrowBlock, 'arrow-sketch': arrowSketch,
+    'chart-bars': chartBars, 'chart-donut': chartDonut, 'chart-line': chartLine
+  };
+  window.pulpRender = function (state) {
+    var d = size(state);
+    ctx.clearRect(0, 0, d.W, d.H);
+    (DRAW[state.params.variant] || shapeStack)(d.W, d.H);
+  };
+`,
+);
+
+export const STILL_PAGES = { photo: PHOTO_PAGE, illustration: ILLUSTRATION_PAGE, layered: LAYERED_PAGE, backdrop: BACKDROP_PAGE, overlay: OVERLAY_PAGE, element: ELEMENT_PAGE } as const;
 
 /** The data URL an offscreen window loads for a page. */
 export function stillPageUrl(page: keyof typeof STILL_PAGES): string {

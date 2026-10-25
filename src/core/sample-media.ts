@@ -19,6 +19,7 @@
  * check the catalogue against the type inference and the 3-5 rule.
  */
 
+import { STILL_PAGES } from './sample-stills';
 import { normalizeTag } from './tags';
 import { inferMediaType } from './taxonomy';
 import type { MediaKind } from './library-types';
@@ -27,7 +28,7 @@ export const SAMPLE_MEDIA_FOLDER_NAME = 'Sample media';
 
 export type SampleRecipe =
   | { kind: 'audio'; graph: string; filters?: string; seconds: number; channels?: 1 | 2 }
-  | { kind: 'still'; page: 'photo' | 'illustration' | 'layered'; variant: string; format: 'png' | 'jpg'; width: number; height: number }
+  | { kind: 'still'; page: keyof typeof STILL_PAGES; variant: string; format: 'png' | 'jpg'; width: number; height: number }
   | { kind: 'clip'; templateId: string; seconds: number; width: number; height: number };
 
 export interface SampleMediaItem {
@@ -506,6 +507,42 @@ const STILLS: SampleMediaItem[] = [
   { folder: ['Stills', 'Layered graphics'], file: 'arrow-mark.png', type: 'layered-graphic', note: 'A bold arrow on a transparent background.', recipe: { kind: 'still', page: 'layered', variant: 'arrow', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Stills', 'Layered graphics'], file: 'starburst.png', type: 'layered-graphic', note: 'A starburst badge on a transparent background.', recipe: { kind: 'still', page: 'layered', variant: 'starburst', format: 'png', width: 1080, height: 1080 } },
   { folder: ['Stills', 'Layered graphics'], file: 'tag-label.png', type: 'layered-graphic', note: 'A tag-shaped label on a transparent background.', recipe: { kind: 'still', page: 'layered', variant: 'tag', format: 'png', width: 1920, height: 1080 } },
+
+
+  // ---- Milestone 24: overlay plates, backdrops and design elements, as stills.
+  { folder: ['Backgrounds'], file: 'mesh-gradient.png', type: 'still-background', note: 'A deep blue mesh gradient with soft blooms.', recipe: { kind: 'still', page: 'backdrop', variant: 'mesh-gradient', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Backgrounds'], file: 'paper-grain.png', type: 'still-background', note: 'A warm paper ground with fine grain.', recipe: { kind: 'still', page: 'backdrop', variant: 'paper-grain', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Backgrounds'], file: 'dusk-bands.png', type: 'still-background', note: 'Banded dusk colours from violet to amber.', recipe: { kind: 'still', page: 'backdrop', variant: 'dusk-bands', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Textures'], file: 'canvas-weave.png', type: 'texture', note: 'A woven canvas texture.', recipe: { kind: 'still', page: 'backdrop', variant: 'canvas-weave', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Textures'], file: 'concrete.png', type: 'texture', note: 'A mottled concrete texture.', recipe: { kind: 'still', page: 'backdrop', variant: 'concrete', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Textures'], file: 'noise-grid.png', type: 'texture', note: 'A sparse lit grid on near-black.', recipe: { kind: 'still', page: 'backdrop', variant: 'noise-grid', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Frames'], file: 'frame-thin.png', type: 'frame', note: 'A thin double rule framing the frame.', recipe: { kind: 'still', page: 'overlay', variant: 'frame-thin', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Frames'], file: 'frame-corners.png', type: 'frame', note: 'Gold corner marks, as a viewfinder.', recipe: { kind: 'still', page: 'overlay', variant: 'frame-corners', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Frames'], file: 'frame-deco.png', type: 'frame', note: 'A bordered frame with corner dots.', recipe: { kind: 'still', page: 'overlay', variant: 'frame-deco', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Vignettes'], file: 'vignette-soft.png', type: 'vignette', note: 'A soft vignette that darkens the corners.', recipe: { kind: 'still', page: 'overlay', variant: 'vignette-soft', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Vignettes'], file: 'vignette-heavy.png', type: 'vignette', note: 'A heavy vignette for a close, dark look.', recipe: { kind: 'still', page: 'overlay', variant: 'vignette-heavy', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Vignettes'], file: 'vignette-oval.png', type: 'vignette', note: 'An oval vignette, warm at the edge.', recipe: { kind: 'still', page: 'overlay', variant: 'vignette-oval', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Film grunge'], file: 'grunge-dust.png', type: 'film-grunge', note: 'Scattered dust specks for a film look.', recipe: { kind: 'still', page: 'overlay', variant: 'grunge-dust', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Film grunge'], file: 'grunge-scratch.png', type: 'film-grunge', note: 'Vertical scratches down the frame.', recipe: { kind: 'still', page: 'overlay', variant: 'grunge-scratch', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Film grunge'], file: 'grunge-stain.png', type: 'film-grunge', note: 'Soft brown stains, as aged stock.', recipe: { kind: 'still', page: 'overlay', variant: 'grunge-stain', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Light leaks'], file: 'leak-warm.png', type: 'light-particles', note: 'A warm light leak across one corner.', recipe: { kind: 'still', page: 'overlay', variant: 'leak-warm', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Light leaks'], file: 'leak-cool.png', type: 'light-particles', note: 'A cool light leak across one corner.', recipe: { kind: 'still', page: 'overlay', variant: 'leak-cool', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Light leaks'], file: 'spark-motes.png', type: 'light-particles', note: 'Scattered warm motes of light.', recipe: { kind: 'still', page: 'overlay', variant: 'spark-motes', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Logo bugs'], file: 'bug-round.png', type: 'logo-bug', note: 'A round corner bug with a mark.', recipe: { kind: 'still', page: 'overlay', variant: 'bug-round', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Logo bugs'], file: 'bug-square.png', type: 'logo-bug', note: 'A square corner bug with a mark.', recipe: { kind: 'still', page: 'overlay', variant: 'bug-square', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Overlays', 'Logo bugs'], file: 'bug-strip.png', type: 'logo-bug', note: 'A wide corner strip with a mark.', recipe: { kind: 'still', page: 'overlay', variant: 'bug-strip', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Design elements', 'Shapes'], file: 'shape-stack.png', type: 'shapes', note: 'Four flat discs in a row.', recipe: { kind: 'still', page: 'element', variant: 'shape-stack', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Shapes'], file: 'shape-chevrons.png', type: 'shapes', note: 'Three forward chevrons.', recipe: { kind: 'still', page: 'element', variant: 'shape-chevrons', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Shapes'], file: 'shape-rings.png', type: 'shapes', note: 'Concentric rings fading outward.', recipe: { kind: 'still', page: 'element', variant: 'shape-rings', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons'], file: 'icon-play.png', type: 'icons', note: 'A play mark in a filled circle.', recipe: { kind: 'still', page: 'element', variant: 'icon-play', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons'], file: 'icon-pin.png', type: 'icons', note: 'A map pin.', recipe: { kind: 'still', page: 'element', variant: 'icon-pin', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons'], file: 'icon-star.png', type: 'icons', note: 'A five-pointed star.', recipe: { kind: 'still', page: 'element', variant: 'icon-star', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Arrows'], file: 'arrow-curved.png', type: 'arrows', note: 'A curved arrow sweeping right.', recipe: { kind: 'still', page: 'element', variant: 'arrow-curved', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Design elements', 'Arrows'], file: 'arrow-block.png', type: 'arrows', note: 'A solid block arrow.', recipe: { kind: 'still', page: 'element', variant: 'arrow-block', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Design elements', 'Arrows'], file: 'arrow-sketch.png', type: 'arrows', note: 'A hand-drawn arrow with a wobble.', recipe: { kind: 'still', page: 'element', variant: 'arrow-sketch', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Design elements', 'Infographics'], file: 'chart-bars.png', type: 'infographic', note: 'A five-bar chart on a baseline.', recipe: { kind: 'still', page: 'element', variant: 'chart-bars', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Design elements', 'Infographics'], file: 'chart-donut.png', type: 'infographic', note: 'A four-part donut chart.', recipe: { kind: 'still', page: 'element', variant: 'chart-donut', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Design elements', 'Infographics'], file: 'chart-line.png', type: 'infographic', note: 'A line chart with plotted points.', recipe: { kind: 'still', page: 'element', variant: 'chart-line', format: 'png', width: 1920, height: 1080 } },
 ];
 
 const CLIPS: SampleMediaItem[] = [

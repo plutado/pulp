@@ -15,7 +15,11 @@ import { scanLibrary } from '../src/core/library';
 import { entryType, typeInfo, TYPE_GROUPS, TYPES } from '../src/core/taxonomy';
 import { join } from 'node:path';
 
+// The groups the catalogue fills. The four media groups are its own; milestone 24 added the
+// overlay plates, backdrops and design elements that ship as pictures rather than as templates
+// (a frame, a vignette, a texture, an icon), which the folder inference types the same way.
 const MEDIA_GROUPS = new Set(['video', 'stills', 'music', 'sfx']);
+const ASSET_GROUPS = new Set(['backgrounds', 'overlays', 'elements']);
 const bundled = await scanLibrary([join(__dirname, '..', 'templates')]);
 const mediaTypes = TYPES.filter((t) => MEDIA_GROUPS.has(t.group));
 
@@ -34,8 +38,9 @@ describe('the sample-media catalogue', () => {
     for (const t of mediaTypes) {
       expect(counts.get(t.id) ?? 0, `${t.label} (${t.id})`).toBeGreaterThanOrEqual(6);
     }
-    for (const type of counts.keys()) expect(mediaTypes.map((t) => t.id), type).toContain(type);
-    // The four media groups are exactly the ones the catalogue fills.
+    // Every type the catalogue fills is a media type or one of the asset groups above; nothing else.
+    const allowed = new Set(TYPES.filter((t) => MEDIA_GROUPS.has(t.group) || ASSET_GROUPS.has(t.group)).map((t) => t.id));
+    for (const type of counts.keys()) expect([...allowed], type).toContain(type);
     expect(TYPE_GROUPS.filter((g) => MEDIA_GROUPS.has(g.id)).map((g) => g.id).sort()).toEqual([...MEDIA_GROUPS].sort());
   });
 

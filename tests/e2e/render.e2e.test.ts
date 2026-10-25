@@ -257,6 +257,17 @@ describe.skipIf(!available)('end-to-end render', () => {
     // The centre of the badge is opaque red, the corner transparent: the page drew, and alpha survived.
     expect((await pixels(join(folder, 'Stills', 'Layered graphics', 'badge.png'), 540, 540))[3]).toBe(255);
     expect((await pixels(join(folder, 'Stills', 'Layered graphics', 'badge.png'), 2, 2))[3]).toBe(0);
+    // Milestone 24's plates draw too, each in the way its kind should: a backdrop covers the frame,
+    // a vignette leaves the middle clear and darkens the corner, an icon has its mark in the middle.
+    const backdrop = join(folder, 'Backgrounds', 'mesh-gradient.png');
+    expect((await pixels(backdrop, 960, 540))[3], 'a backdrop is opaque').toBe(255);
+    expect((await pixels(backdrop, 20, 20))[3], 'a backdrop reaches its corners').toBe(255);
+    const vignette = join(folder, 'Overlays', 'Vignettes', 'vignette-heavy.png');
+    expect((await pixels(vignette, 960, 540))[3], 'a vignette leaves the middle clear').toBeLessThan(20);
+    expect((await pixels(vignette, 8, 8))[3], 'a vignette darkens the corner').toBeGreaterThan(150);
+    const icon = join(folder, 'Design elements', 'Icons', 'icon-star.png');
+    expect((await pixels(icon, 540, 540))[3], 'an icon has its mark in the middle').toBe(255);
+    expect((await pixels(icon, 6, 6))[3], 'an icon leaves its corner clear').toBe(0);
     // No sound clips and none is near silence: a gain that stacks harmonics past full scale shows up here.
     for (const item of SAMPLE_MEDIA) {
       if (item.recipe.kind !== 'audio') continue;

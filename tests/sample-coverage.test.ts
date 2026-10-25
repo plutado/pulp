@@ -23,13 +23,13 @@ export const MINIMUM = 6;
 
 /** Types not yet six deep (ROADMAP.md, milestone 24). Only shrinks. */
 const TYPES_STILL_OPEN = new Set<string>([
-  // The media types are filled: the catalogue (src/core/sample-media.ts) carries six of each.
-  // What is left is the template types, one original animation at a time.
+  // Filled: every media type, and every type whose samples can honestly be pictures -- backdrops,
+  // textures, frames, vignettes, grunge, light leaks, logo bugs, shapes, icons, arrows and charts
+  // all ship as assets as readily as as templates. What is left is the nine types where the motion
+  // is the point, and each of those wants an original animation.
   'opener', 'end-card', 'callout', 'social',
-  'still-background', 'texture',
   'reveal', 'flash', 'glitch',
-  'frame', 'light-particles', 'film-grunge', 'logo-bug', 'vignette',
-  'shapes', 'icons', 'arrows', 'infographic', 'counter', 'countdown',
+  'counter', 'countdown',
 ]);
 
 /** Themes not yet six deep. Only shrinks. */
