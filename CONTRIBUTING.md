@@ -31,9 +31,16 @@ The results region is windowed: only the cards and rows in view are in the DOM. 
 - Only contribute media, fonts or templates you created yourself or that carry a license compatible with redistribution (CC0, CC BY, MIT, SIL OFL for fonts). Say which license in the pull request.
 - Plain, direct writing in docs and UI text.
 
+## Working in the maintainer's checkout
+
+The steps above for sending a pull request are for contributors working from their own fork. Work done in the maintainer's own checkout, or in a worktree of it, stops at local commits:
+
+- **Commit locally, and leave GitHub to the maintainer.** Don't push branches, open or merge pull requests, or create, edit, comment on or close issues, including to get a CI run. Reading CI results is fine; ask the maintainer when you need a run on new commits.
+- **What to work on** is in `ROADMAP.md`; ideas, decisions not yet scheduled and known issues are in `docs/ideas.md`, with how an idea moves from one to the other.
+
 ## Commits
 
-- **Issue references by milestone.** GitHub issues #1 to #23 are the milestones in `ROADMAP.md`, numbered the same; the roadmap lists them in planned order, which is not numeric order. A commit that advances a milestone ends its message with `Part of #N`. Use `Fixes #N` only in the commit that completes the whole milestone. Work outside the roadmap carries no issue reference.
+- **Issue references by milestone.** GitHub issues #1 to #23 are the milestones in `ROADMAP.md`, numbered the same (#24 was a pull request, so the next new milestone is 25, and each new one takes the next free number); the roadmap lists them in planned order, which is not numeric order. A commit that advances a milestone ends its message with `Part of #N`. Use `Fixes #N` only in the commit that completes the whole milestone. Work outside the roadmap carries no issue reference.
 - **Roadmap ticks and changelog entries.** When a checklist item is finished, tick it in `ROADMAP.md` and add an entry under "Unreleased" in `CHANGELOG.md`, in the same commit as the change itself.
 - **Test, lint and build before committing.** `npm test`, `npm run lint` and `npm run build` must pass for every commit, not only before the pull request.
 - **Only intended files.** Check `git status` before committing. No render output, scratch files or editor leftovers.
