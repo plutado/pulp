@@ -49,13 +49,14 @@ The results region is windowed: only the cards and rows in view are in the DOM. 
 The steps above for sending a pull request are for contributors working from their own fork. Work done in the maintainer's own checkout, or in a worktree of it, stops at local commits:
 
 - **Commit locally, and leave GitHub to the maintainer.** Don't push branches, open or merge pull requests, or create, edit, comment on or close issues, including to get a CI run. Reading CI results is fine; ask the maintainer when you need a run on new commits.
+- **Run the quick checks, not the whole suite.** Before committing, run `npm run lint`, `npm run build` and the unit tests for what you changed (for example `npx vitest run tests/<area>.test.ts`). Don't run the full `npm test`, the end-to-end suite or the sample-media generation: they take many minutes and the maintainer runs them on every commit, as CI does on every platform after a push. If a change needs an end-to-end check, run only that test, by name (`-t "<test name>"`). Read CI results if you need them; failures the maintainer finds locally are written up in `docs/ideas.md` under Known issues.
 - **What to work on** is in `ROADMAP.md`; ideas, decisions not yet scheduled and known issues are in `docs/ideas.md`, with how an idea moves from one to the other.
 
 ## Commits
 
 - **Issue references by milestone.** Milestones 1 to 23 have GitHub issues of the same number. Pull requests share GitHub's numbering, so from 24 on a milestone's issue may have a different number: each new milestone gets its own issue, and `ROADMAP.md` gives that issue's number beside the milestone. The roadmap lists milestones in planned order, which is not numeric order. A commit that advances a milestone ends its message with `Part of #N`, N being that milestone's issue number. Use `Fixes #N` only in the commit that completes the whole milestone. Work outside the roadmap carries no issue reference.
 - **Roadmap ticks and changelog entries.** When a checklist item is finished, tick it in `ROADMAP.md` and add an entry under "Unreleased" in `CHANGELOG.md`, in the same commit as the change itself.
-- **Test, lint and build before committing.** `npm test`, `npm run lint` and `npm run build` must pass for every commit, not only before the pull request.
+- **Test, lint and build before committing.** `npm test`, `npm run lint` and `npm run build` must pass for every commit, not only before the pull request. In the maintainer's checkout the full `npm test` is the maintainer's to run (see above); run the quick checks there.
 - **Only intended files.** Check `git status` before committing. No render output, scratch files or editor leftovers.
 - **Small commits.** One change per commit, with a message that says what changed and why.
 - **No rewriting history.** Do not amend, squash or force-push commits that have been shared. Add a new commit instead.

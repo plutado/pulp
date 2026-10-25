@@ -281,7 +281,7 @@ Right after milestone 24. A layer sits where its template's block stacks it, and
 - [x] Placement travels: one undo step per gesture, saved presets, collections, `.pulpcollection` files, CSV and the render cache key carry it like every layer value, and "Reset position" returns a layer to its place in the stack (3-4 h)
 - [x] End to end: drag, nudge and resize a line and a logo at 16:9 and 9:16, undo each, and prove a moved layer still enters and exits with the template's own animation (3-4 h)
 
-## 26. Assets on the stage (30-46 h; GitHub issue pending)
+## 26. Assets on the stage (30-46 h; GitHub issue #28)
 
 Right after milestone 25, whose drag and placement it builds on. Templates are designed graphics with parameters; **assets** are standalone visual media placed on a frame — stills and clips with transparency, often realistic, possibly thousands of them from a person's own licensed libraries. A logo becomes one use of an asset. This milestone brings in the asset libraries, a Video layer, dropping an asset onto the stage, and a generated CC0 asset library to browse and test against. Licensed libraries are supported by the app but never exercised here, never copied into packs or exports, and never committed.
 

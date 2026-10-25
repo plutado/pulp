@@ -17,12 +17,13 @@ Each move is a commit, so the history shows when an idea was decided and where i
 The maintainer's intended sequence for what is decided here and what is already on the roadmap (milestones 23, 24 and 25 are done). Scheduling follows it unless a request says otherwise.
 
 1. **Quick wins from Decided:** ghost slots throughout the results grid; element cards for every bundled template; the Festival themes; browse tree counts for screen readers. (The category search filtering the tree, and the tree showing only where you are, are done — milestone 24.)
-2. **Protection before the larger work:** CI on every platform (macOS, Linux end to end, dependency audit) and visual regression tests for the bundled templates.
+2. **Protection before the larger work:** visual regression tests for the bundled templates. (CI on every platform is the maintainer's to add between turns; it is not a request.)
 3. **Milestone 26:** assets on the stage, with the generated asset library (scheduled; the categories and the first generated examples are in).
-4. **Milestone 27:** projects and the application menu.
-5. **Milestone 20:** social-ready export.
-6. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
-7. **Last:** milestone 17 (unsigned builds and the app icon), then milestone 7 (signing and auto-update).
+4. **Timing: any length, set while editing** (Decided item 11).
+5. **Milestone 27:** projects and the application menu.
+6. **Milestone 20:** social-ready export.
+7. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
+8. **Last:** milestone 17 (unsigned builds and the app icon), then milestone 7 (signing and auto-update).
 
 ## Decided
 
@@ -50,13 +51,22 @@ The maintainer's intended sequence for what is decided here and what is already 
      - Every item has its keyboard shortcut, the same as the buttons that do the same thing, and is enabled only when it can act.
    - Opening a `.pulp` file by double-clicking it needs the packaged app, so the file association lands with milestone 17.
 
-8. **CI on every platform.** CI runs Ubuntu (unit tests only; the end-to-end suite skips there for want of a display) and Windows, and has no macOS job, though macOS is the main development platform and the only one with the VideoToolbox HEVC path. Add a macOS job running the full suite including HEVC with alpha; run the Linux end-to-end suite under a virtual display (Xvfb); add a dependency audit that fails on known high-severity issues. Each job keeps the bounded processes, per-test reporter and timeouts the Windows job has.
+8. **CI on every platform** (the maintainer's work, done between turns rather than requested). CI runs Ubuntu (unit tests only; the end-to-end suite skips there for want of a display) and Windows, and has no macOS job, though macOS is the main development platform and the only one with the VideoToolbox HEVC path. Add a macOS job running the full suite including HEVC with alpha; run the Linux end-to-end suite under a virtual display (Xvfb); add a dependency audit that fails on known high-severity issues. Each job keeps the bounded processes, per-test reporter and timeouts the Windows job has.
 
 9. **Visual regression tests for the bundled templates.** Every bundled template rendered at each aspect it declares, at a few fixed frames, and compared in CI against approved reference images (small PNGs or perceptual hashes) with a stated tolerance, so a change that alters how a template looks fails with the template, aspect and frame named. Updating references is a deliberate, reviewed step with its own command. Covers default parameters first; layers, motion overrides and image slots after.
 
 10. **Third-party notices, release process and project basics.** A third-party notices file covering Electron and Chromium, the npm dependencies, the bundled fonts and ffmpeg if it is ever bundled, shown in an "Acknowledgements" screen reached from About, and checked in CI so a new dependency cannot ship unlisted; required before any build is distributed (milestone 17). A release process: version numbers, release notes drawn from the changelog's Unreleased section, a tag per release. Issue and pull request templates, a code of conduct, and a `SECURITY.md` saying how to report a vulnerability.
 
+11. **Timing: any length, set while editing.** A new milestone placed right after milestone 26 and before 27 (a saved project has to keep it). Today a template's length is fixed in its manifest (mostly 5-8 seconds); Set in and Set out only shorten it, the frame rate changes how many frames are drawn but not how long, and only a few templates expose pacing parameters ("Animate in/out", "Hold, seconds", speeds). A lower third that should stay up for twenty seconds can't. Instead:
+   - **Templates declare their structure:** an animate-in part, a hold, and an animate-out part (documented and validated in the format). The host remaps time so the entrance and exit keep their designed speed and only the hold stretches or shrinks; a template that declares no structure keeps its fixed length, as now.
+   - **Length is set while editing, not only on output:** a Length control in the Parameters tab's "Layout and timing" card (seconds or timecode, with a minimum of entrance plus exit), and a scrub bar that shows the in, hold and out parts as shaded segments, whose end and hold edges can be dragged. The preview plays at the new length at once.
+   - **Everything downstream picks it up:** the Output tab shows it (and trims within it), and presets, collections, CSV batch, the render cache key and the command line (`--length`) carry it.
+   - **Backgrounds and loops repeat seamlessly** to any length (bringing forward milestone 15's loop item); **transitions** keep their designed length, with an optional speed control.
+   - The bundled templates declare their parts; titles, lower thirds, callouts and overlays first. Undo covers every length change.
+
 ## Known issues
+
+- **The collection tray keeps stale messages.** Its status line (`collection-note`, written by `say` in `src/renderer/tray.ts`) is set by an action and never cleared, so "Every item now has those output settings." (after Apply to all), "Saved as …" or "Rendering N items." stays on screen after the collection is emptied, replaced or changed, and reads as if something were collected when nothing is. Confirmations should be brief: fade after a few seconds and clear the moment the collection changes (an item added or removed, the collection cleared, another file opened). Errors stay until the next action so they aren't missed. An empty collection shows only "Nothing collected yet." Apply to all is disabled with fewer than two items. A DOM test for each.
 
 - **The sample-media end-to-end test is close to its time limit.** `tests/e2e/render.e2e.test.ts` ("makes the whole sample-media folder…") generates the whole catalogue, now about 250 files, inside a 9-minute bound. Run alone it passes; inside a full `npm test` on a busy machine it ran out of time once (2026-10-25). Make it fit comfortably: generate in parallel where the generator allows, or check a representative subset end to end and the full catalogue in a separate, longer job.
 
