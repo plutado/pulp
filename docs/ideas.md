@@ -28,16 +28,6 @@ Each move is a commit, so the history shows when an idea was decided and where i
 
 7. **The category search filters the tree itself** (a change to milestone 24's find field, now done; schedule it as an item in milestone 25 or on its own). Today typing in the browse panel's find field lists matches in a dropdown, and choosing one only unfolds the path to it, so a category near the end of the tree can still be thousands of pixels down. Instead, as each letter is typed, every node that no longer matches disappears from the tree; matching categories stay under their section heading (Types, Themes, Styles, Packs, Folders) and group so it is clear where each lives, and because everything else is hidden they sit at the top of the panel with no scrolling. The matched letters are highlighted. While a search is active, every section holding a match stays open (overriding one-section-at-a-time); clearing the field restores the tree exactly as it was, folds included. Clicking a remaining category, or Enter for the first, selects it and scopes the results as now; "No category matches" when nothing does. Keyboard first, as before.
 
-8. **Move and resize layers on the stage with the mouse.** A new milestone, **25**, placed right after milestone 24 and before 20. Today a layer sits where its template's block stacks it, and the Parameters tab sets only its order, size, alignment and space before; nothing on the frame can be clicked or dragged. Instead:
-   - **Select on the stage:** clicking a line or a logo in the preview selects that layer, and its card in the Parameters tab with it (and the other way round); the selected layer shows a thin outline with corner handles.
-   - **Move:** dragging moves the layer anywhere on the frame; the arrow keys nudge it (a larger step with Shift). It snaps to the frame's centre lines, the safe-area edges and the block's own edges, with a guide drawn while it snaps.
-   - **Resize:** dragging a corner handle scales the layer, a text layer by its size and an image layer by its scale, keeping proportions.
-   - **Stored as fractions of the frame, per aspect,** so a position holds at every resolution, and a layout set for 16:9 doesn't move what was set for 9:16.
-   - **Motion still applies:** the template's animation, or the layer's own override, plays from wherever the layer was put.
-   - **Undo, saved presets, collections, CSV and the cache key** carry positions like every other setting; **"Reset position"** returns a layer to its place in the stack.
-   - **Format:** a layer gains an optional placement (offset and scale per aspect) that the host applies around the template's own draw of that layer, so templates need no changes; documented and validated.
-   - Checked in the end-to-end suite by dragging, nudging and resizing a line and a logo at 16:9 and 9:16, with undo, and that a moved layer still enters and exits with the template.
-
 ## Known issues
 
 None open.

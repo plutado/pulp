@@ -23,6 +23,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 22. Image slots in templates | 19-29 h |
 | 23. Layers in templates | 37-56 h |
 | 24. Browse panel: find as you type, one section open, deeper samples | 24-39 h |
+| 25. Move and resize layers on the stage | 16-22 h |
 | 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 8-13 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -31,9 +32,9 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-24)** | **262-426 h** |
-| **Still open through 1.0 (unticked items only)** | **33-54 h** |
-| **Total including post-1.0 items** | **294-484 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-25)** | **278-448 h** |
+| **Still open through 1.0 (unticked items only)** | **49-76 h** |
+| **Total including post-1.0 items** | **310-506 h** |
 
 ## 0. Foundation (done)
 
@@ -265,6 +266,16 @@ Right after milestone 23. The taxonomy has filled out — 46 types, 51 themes an
 - [x] Find a category as you type: a field at the top of the browse panel, with Quick access, listing matching nodes across every taxonomy — types, themes, styles, packs, folders, and the Quick access entries — each labelled with where it lives ("Lower third · Types", "Holiday · Themes"). Choosing one selects that node and scopes the results exactly as clicking it in the tree does, scope chip and all. Keyboard first: arrows and Enter, Escape to clear; it finds categories, and the search bar above keeps finding items. The matching is a pure core module with unit tests, and the end-to-end test types, chooses and sees the scope land (4-6 h)
 - [x] One section open at a time: opening a section or a group folds the others at its level, so the tree stays short. A setting, on by default; choosing a node in the find field unfolds the path to it (2-3 h)
 - [x] Six or more original samples per category: every type, theme and style reaches at least six CC0 samples across the bundled templates and the sample-media catalogue, with no upper limit. The coverage test becomes a minimum only — today it fails a type above five unless exempted (18-30 h)
+
+## 25. Move and resize layers on the stage (16-22 h; GitHub issue #27)
+
+Right after milestone 24. A layer sits where its template's block stacks it, and the Parameters tab sets only its order, size, alignment and the space before it; nothing on the frame can be clicked or dragged. This milestone makes the stage the editing surface: click a line or a logo in the preview and move or scale it where it is, with the template's motion still carrying it. A position is the person's choice, so it is stored like one — as fractions of the frame, per aspect, riding the same bag of values as every other edit.
+
+- [ ] Placement in the format: a layer may carry an optional per-aspect offset and scale, as fractions of the frame, which the host applies around the template's own draw of that layer — so a placed layer still enters, moves and leaves with the design and templates need no changes. Validated and sanitized like every layer field, resolved per aspect so a 16:9 layout never moves a 9:16 one, documented in `docs/template-format.md`; the arithmetic is pure, mirrored in the bridge, and a headless render proves the pixels moved (3-4 h)
+- [ ] Select on the stage: clicking a drawn layer in the preview selects it and its card in the Parameters tab, and choosing a card selects it on the stage; the selected layer wears a thin outline with corner handles (2-3 h)
+- [ ] Move and resize: dragging moves the layer anywhere on the frame, a corner handle scales it — a text layer by its type size, an image layer by its scale, proportions kept — and the arrow keys nudge it, a larger step with Shift. It snaps to the frame's centre lines, the safe-area edges and its block's own edges, drawing a guide while it snaps (5-7 h)
+- [ ] Placement travels: one undo step per gesture, saved presets, collections, `.pulpcollection` files, CSV and the render cache key carry it like every layer value, and "Reset position" returns a layer to its place in the stack (3-4 h)
+- [ ] End to end: drag, nudge and resize a line and a logo at 16:9 and 9:16, undo each, and prove a moved layer still enters and exits with the template's own animation (3-4 h)
 
 ## 20. Social-ready export (8-13 h)
 

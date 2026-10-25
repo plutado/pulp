@@ -54,7 +54,7 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Find a category as you type: a field at the top of the browse panel lists matching nodes across every taxonomy — types, themes, styles, packs, folders — each named with the section it lives in, and choosing one scopes the results exactly as the tree does. The tree keeps one section open at a time so it stays short, and every type, theme and style in it is at least six samples deep, with no upper limit.
 - A headless command-line render mode (below).
 
-Not yet: social-ready export, 1.0 hardening and docs, installers and signed builds, verification on Windows. These are on the [roadmap](ROADMAP.md).
+Not yet: moving and resizing layers on the stage with the mouse, social-ready export, 1.0 hardening and docs, installers and signed builds, verification on Windows. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
@@ -64,12 +64,13 @@ Milestones 1-6, 10-13, 18, 19, 21-24 (renderer, alpha export, parameter editor, 
 
 | Milestone | What it delivers | Estimate |
 |---|---|---|
+| 25. Move and resize layers on the stage | Click a line or a logo in the preview to select it, drag it anywhere, scale it by its corner handles, nudge it with the arrows — snapping to the frame's centre lines, the safe areas and its block — with the position stored as fractions per aspect, carried by undo, presets, collections and CSV, and the template's motion still playing from wherever the layer was put | 16-22 h |
 | 20. Social-ready export | Platform presets (aspect, resolution, frame rate, H.264/AAC, bitrate) with warnings when a render runs past a platform's length or file-size limit, a cover image, and handing the file to the system share sheet or the platform's upload page — no accounts, no posting through APIs | 8-13 h |
 | 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
 | 17. Unsigned builds and releases | electron-builder, an app icon of Pulp's own and the names and shortcuts each system shows, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 8-14 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 
-The milestones through 1.0 total **262-426 hours**, of which **33-54 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **278-448 hours**, of which **49-76 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
