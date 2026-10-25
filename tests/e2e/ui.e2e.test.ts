@@ -1185,6 +1185,47 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+    it('a layer\'s own motion, behind Advanced: there at the start when the template would still be arriving, gone by the last frame', async () => {
+      const subtitle = `document.querySelector('#params .layer-row[data-layer=subtitle]')`;
+      try {
+        await clickResult('Title Card');
+        await until(() => page.eval<boolean>(`!!${subtitle}`), 'the subtitle\'s card');
+        // Folded last under the layer; the delay only appears once the motion is the layer's own.
+        expect(await page.eval<string>(`${subtitle}.querySelector('.layer-advanced summary').textContent`)).toBe('Advanced');
+        await page.eval(`${subtitle}.querySelector('.layer-advanced').open = true`);
+        expect(await page.eval<boolean>(`${subtitle}.querySelector('select[aria-label="Subtitle motion"]').closest('.type-field').hidden`)).toBe(false);
+        expect(await page.eval<boolean>(`${subtitle}.querySelector('input[aria-label="Subtitle motion delay"]').closest('.type-field').hidden`)).toBe(true);
+
+        // None: a hard cut in. At the first frame the template's own lines are still arriving —
+        // nothing is drawn — so the one band is the overridden subtitle, already there.
+        await fire('[data-layer=subtitle] select[aria-label="Subtitle motion"]', 'none', 'change');
+        await until(() => page.eval<boolean>(`!${subtitle}.querySelector('input[aria-label="Subtitle motion delay"]').closest('.type-field').hidden`), 'the delay field shown');
+        await scrubAndWait(0);
+        await untilDrawn((d) => d.bands.length === 1, 'the subtitle alone at the first frame');
+        // Mid-graphic both lines stand; on the last frame the override has finished inside the
+        // template's out, so nothing is left on screen after the graphic has gone.
+        await scrubAndWait(60);
+        await untilDrawn((d) => d.bands.length === 2, 'both lines mid-graphic');
+        await scrubAndWait(149);
+        await untilDrawn((d) => d.bands.length === 0, 'an empty last frame');
+
+        // A delay holds the layer back: at 0.8 s the title is in but the subtitle's two seconds are not up.
+        await fire('[data-layer=subtitle] input[aria-label="Subtitle motion delay"]', '2', 'change');
+        await scrubAndWait(24);
+        await untilDrawn((d) => d.bands.length === 1, 'the title alone before the delay is up');
+        await scrubAndWait(90);
+        await untilDrawn((d) => d.bands.length === 2, 'both lines after the delay');
+
+        // Each change was one undo step; two put the template back in charge of the subtitle.
+        await page.eval(`document.getElementById('undo').click()`);
+        await page.eval(`document.getElementById('undo').click()`);
+        await scrubAndWait(0);
+        await untilDrawn((d) => d.bands.length === 0, 'the template\'s own first frame again');
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
     it('organises the tab by element: a card per part, the layers among them, and timing last', async () => {
       const cards = () =>
         page.eval<{ card: string; label: string; params: string[]; open: boolean }[]>(

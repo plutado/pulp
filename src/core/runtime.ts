@@ -54,9 +54,10 @@ export function frameState(
   layers: LayerValues = {},
 ): FrameState {
   const totalFrames = frameCount(manifest);
-  const blocks = manifest.blocks ? blockStates({ blocks: manifest.blocks as Block[] }, layers, size) : {};
   const f = Math.min(Math.max(0, Math.floor(frame)), totalFrames - 1);
   const time = f / manifest.fps;
+  // The frame's moment rides along, so a layer whose motion overrides the template's gets its draw here.
+  const blocks = manifest.blocks ? blockStates({ blocks: manifest.blocks as Block[] }, layers, size, { time, duration: manifest.duration, fps: manifest.fps }) : {};
   return {
     frame: f,
     time,
@@ -245,7 +246,8 @@ export const BRIDGE_SCRIPT = `(function () {
     var column = block.direction !== 'row';
     var measured = block.layers.map(function (layer, position) {
       var draw = { alpha: 1, dx: 0, dy: 0, scale: 1 };
-      var over = options.each ? options.each(layer, position) : null;
+      /* A layer whose motion is its own carries the host's draw (layer.draw); the template's hook keeps the rest. */
+      var over = layer.draw || (options.each ? options.each(layer, position) : null);
       if (over) for (var k in over) if (over[k] !== undefined) draw[k] = over[k];
       if (layer.type === 'text') {
         var spacing = draw.letterSpacing === undefined ? layer.letterSpacing : draw.letterSpacing;

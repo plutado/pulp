@@ -284,6 +284,31 @@ describe('blockStates', () => {
     expect((card.layers[0] as TextLayerState).text).toBe('Changed');
   });
 
+  it('computes an overridden layer\'s motion when it knows the moment, and leaves template-owned layers bare', () => {
+    const m = manifest();
+    const title = m.blocks[0]!.layers[0] as TextLayer;
+    const overridden = { ...title, motion: 'fade' as const, motionDelay: 1 };
+    // No timing — a grant or a font sweep — judges nothing.
+    expect(blockStates(m, { card: [overridden] }, { width: 1920, height: 1080 }).card!.layers[0]!.draw).toBeUndefined();
+    const mid = blockStates(m, { card: [overridden] }, { width: 1920, height: 1080 }, { time: 2.5, duration: 5, fps: 25 }).card!;
+    expect(mid.layers[0]!.draw).toEqual({ alpha: 1 });
+    const start = blockStates(m, { card: [overridden] }, { width: 1920, height: 1080 }, { time: 0, duration: 5, fps: 25 }).card!;
+    expect(start.layers[0]!.draw).toEqual({ alpha: 0 });
+    // The template's own layer carries no draw, so the template's hook keeps it.
+    expect(blockStates(m, {}, { width: 1920, height: 1080 }, { time: 2.5, duration: 5, fps: 25 }).card!.layers[0]!.draw).toBeUndefined();
+  });
+
+  it('an overridden layer\'s draw wins over the template\'s hook; the rest keep the hook\'s answer', () => {
+    const laid = layoutBlock(
+      block([text({ draw: { alpha: 0.25 } }), text({ id: 'b', position: 1 })]),
+      measure,
+      noImages,
+      { each: () => ({ alpha: 0.75, dy: 10 }) },
+    );
+    expect(laid.layers[0]!.draw).toEqual({ alpha: 0.25, dx: 0, dy: 0, scale: 1 });
+    expect(laid.layers[1]!.draw).toEqual({ alpha: 0.75, dx: 0, dy: 10, scale: 1 });
+  });
+
   it('names the library ids the image layers need, for the grant', () => {
     const m = manifest();
     const mark = m.blocks[0]!.layers[2] as ImageLayer;

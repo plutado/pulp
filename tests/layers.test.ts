@@ -69,7 +69,7 @@ describe('validateBlock', () => {
 
   it('an image layer carries no image, a size and an alignment, and may start hidden', () => {
     const mark = block().layers[2] as ImageLayer;
-    expect(mark).toEqual({ id: 'mark', type: 'image', label: 'Mark', required: false, hidden: true, spaceBefore: 0, image: null, size: 0.08, align: 'right' });
+    expect(mark).toEqual({ id: 'mark', type: 'image', label: 'Mark', required: false, hidden: true, spaceBefore: 0, motion: 'template', motionDelay: 0, image: null, size: 0.08, align: 'right' });
     expect((block({ layers: [{ id: 'logo', type: 'image', label: 'Logo' }] }).layers[0] as ImageLayer)).toMatchObject({ size: DEFAULT_IMAGE_LAYER_SIZE, align: 'left' });
     expect(errorPaths(rawBlock({ layers: [{ id: 'logo', type: 'image', label: 'Logo', image: 'abc' }] }))).toEqual(['blocks[0].layers[0].image']);
   });
@@ -286,6 +286,21 @@ describe('resolveLayers', () => {
     expect(values.strap!.map((l) => l.id)).toEqual(['name', 'mark']);
   });
 
+  it('reads a motion override with its delay, and keeps the template\'s on anything unusable', () => {
+    const { values, issues } = resolveLayers(manifest(), {
+      strap: [
+        { id: 'name', motion: 'fade', motionDelay: 1.5 },
+        { id: 'mark', motion: 'spin', motionDelay: -2 },
+      ],
+    });
+    expect(values.strap![0]).toMatchObject({ motion: 'fade', motionDelay: 1.5 });
+    expect(values.strap![1]).toMatchObject({ motion: 'template', motionDelay: 0 });
+    expect(issues.map((i) => `${i.layer}: ${i.message}`)).toEqual([
+      'mark: motion must be one of: template, fade, slide, scale, none; kept',
+      'mark: motionDelay must be seconds from 0 to 60; kept',
+    ]);
+  });
+
   it('puts a required layer back where the template had it, and drops additions to a full block', () => {
     const { values, issues } = resolveLayers(manifest(), {
       strap: [{ id: 'title' }, { id: 'mark' }],
@@ -316,7 +331,7 @@ describe('resolveLayers', () => {
 
   it('newLayer hands out a layer of either type from a block', () => {
     const b = block({ align: 'center' });
-    expect(newLayer('text', b, 'x')).toEqual({ id: 'x', label: 'Text', required: false, hidden: false, spaceBefore: 0, ...b.typography, type: 'text', text: '', maxLines: 3 });
-    expect(newLayer('image', b, 'y', 'Logo')).toEqual({ id: 'y', label: 'Logo', required: false, hidden: false, spaceBefore: 0, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: 'center' });
+    expect(newLayer('text', b, 'x')).toEqual({ id: 'x', label: 'Text', required: false, hidden: false, spaceBefore: 0, motion: 'template', motionDelay: 0, ...b.typography, type: 'text', text: '', maxLines: 3 });
+    expect(newLayer('image', b, 'y', 'Logo')).toEqual({ id: 'y', label: 'Logo', required: false, hidden: false, spaceBefore: 0, motion: 'template', motionDelay: 0, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: 'center' });
   });
 });

@@ -24,6 +24,7 @@
 
 import type { Size } from './aspect';
 import { boxFor, fitImage, type ImageValue, type PxBox } from './image-slot';
+import { motionDraw } from './layer-motion';
 import { DEFAULT_MAX_LINES, type Block, type ImageLayer, type Layer, type LayerValues, type TextCase, type TextLayer } from './layers';
 import type { TemplateManifest } from './manifest';
 
@@ -47,6 +48,12 @@ interface LayerStateBase {
   /** Room before this layer along the stack, in pixels of this frame. */
   spaceBefore: number;
   align: 'left' | 'center' | 'right';
+  /**
+   * The layer's own movement for this frame, when it overrides the template's
+   * (src/core/layer-motion.ts). Computed by the host, so the bridge applies it
+   * as given; it replaces the template's per-layer hook for this layer.
+   */
+  draw?: Partial<LayerDraw>;
 }
 
 export interface TextLayerState extends LayerStateBase {
@@ -234,7 +241,8 @@ export function layoutBlock(block: BlockState, measure: Measure, imageAspect: Im
   // What each layer is: its text broken into lines at the size it ends up at, or its picture's
   // size. Measured once, then placed; `extent` is along the stack, `cross` across it.
   const measured = block.layers.map((layer, position) => {
-    const draw: LayerDraw = { ...DEFAULT_DRAW, ...(options.each?.(layer, position) ?? {}) };
+    // A layer whose motion is its own takes the host's draw whole; the template's hook keeps the rest.
+    const draw: LayerDraw = { ...DEFAULT_DRAW, ...(layer.draw ?? options.each?.(layer, position) ?? {}) };
     if (layer.type === 'text') {
       const spacing = draw.letterSpacing ?? layer.letterSpacing;
       const { size, lines } = layoutTextLayer(layer, box.width, spacing, measure);
@@ -309,7 +317,7 @@ function crossStart(verticalAlign: 'top' | 'middle' | 'bottom', boxY: number, bo
 }
 
 /** The per-frame state for one block: its box and layers in pixels, hidden ones left out. */
-export function blockState(block: Block, layers: readonly Layer[], size: Size): BlockState {
+export function blockState(block: Block, layers: readonly Layer[], size: Size, timing?: FrameTiming): BlockState {
   const frac = boxFor(block.box, size);
   const short = Math.min(size.width, size.height);
   const drawn = layers.filter((l) => !l.hidden);
@@ -321,12 +329,20 @@ export function blockState(block: Block, layers: readonly Layer[], size: Size): 
     gap: block.gap * short,
     align: block.align,
     verticalAlign: block.verticalAlign,
-    layers: drawn.map((layer, position) => layerState(layer, position, short)),
+    layers: drawn.map((layer, position) => layerState(layer, position, short, timing)),
   };
 }
 
-function layerState(layer: Layer, position: number, short: number): LayerState {
-  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left' };
+/** The frame's moment, when the caller knows it: what a layer's own motion is computed from. */
+export interface FrameTiming {
+  time: number;
+  duration: number;
+  fps: number;
+}
+
+function layerState(layer: Layer, position: number, short: number, timing?: FrameTiming): LayerState {
+  const draw = timing ? motionDraw(layer, { ...timing, short }) : undefined;
+  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', ...(draw ? { draw } : {}) };
   if (layer.type === 'text') {
     const text = layer as TextLayer;
     return {
@@ -352,9 +368,9 @@ function layerState(layer: Layer, position: number, short: number): LayerState {
 }
 
 /** Every block of a template, laid out as far as the host can take it. */
-export function blockStates(manifest: Pick<TemplateManifest, 'blocks'>, layers: LayerValues, size: Size): Record<string, BlockState> {
+export function blockStates(manifest: Pick<TemplateManifest, 'blocks'>, layers: LayerValues, size: Size, timing?: FrameTiming): Record<string, BlockState> {
   const out: Record<string, BlockState> = {};
-  for (const block of manifest.blocks) out[block.id] = blockState(block, layers[block.id] ?? block.layers, size);
+  for (const block of manifest.blocks) out[block.id] = blockState(block, layers[block.id] ?? block.layers, size, timing);
   return out;
 }
 

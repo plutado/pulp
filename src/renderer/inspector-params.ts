@@ -19,11 +19,13 @@ import {
   defaultLayers,
   LAYER_ALIGNS,
   LAYER_LIMITS,
+  LAYER_MOTIONS,
   newLayer,
   resolveLayers,
   TEXT_CASES,
   TEXT_OVERFLOWS,
   type Layer,
+  type LayerMotion,
   type LayerType,
   type ImageLayer,
   type LayerValues,
@@ -981,11 +983,13 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
       gone.textContent = `"${familyLabel(layer.family)}" is not on this computer, so the line is drawn in a fallback face. Import it, or choose another family.`;
       parts.push(gone);
     }
+    parts.push(advancedControls(blockId, layer));
     return parts;
   }
   return [
     imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }, { layer: true }),
     imageLayerControls(blockId, layer),
+    advancedControls(blockId, layer),
   ];
 }
 
@@ -1368,6 +1372,53 @@ function typographyControls(blockId: string, layer: TextLayer): HTMLElement {
   grid.append(maxLines);
   details.append(grid);
   return details;
+}
+
+/** Advanced disclosures left open, like the typography's. */
+const openAdvanced = new Set<string>();
+
+const MOTION_LABELS: Record<LayerMotion, string> = { template: 'Template', fade: 'Fade', slide: 'Slide', scale: 'Scale', none: 'None' };
+
+/**
+ * What few need, folded last under every layer: its motion. The template owns
+ * a layer's movement by default; Fade, Slide, Scale or None replace it for
+ * this layer alone, starting after the delay and always gone by the graphic's
+ * last frame, so an overridden layer cannot outlast the design
+ * (src/core/layer-motion.ts).
+ */
+function advancedControls(blockId: string, layer: Layer): HTMLElement {
+  const key = `${blockId}.${layer.id}`;
+  const details = document.createElement('details');
+  details.className = 'layer-advanced';
+  details.open = openAdvanced.has(key);
+  details.addEventListener('toggle', () => {
+    if (details.open) openAdvanced.add(key);
+    else openAdvanced.delete(key);
+  });
+  const summary = document.createElement('summary');
+  summary.textContent = 'Advanced';
+  details.append(summary);
+  const set = <K extends keyof LayerBaseEdit>(prop: K, value: LayerBaseEdit[K]) => {
+    editLayer(blockId, layer.id, (l) => ({ ...l, [prop]: value }) as Layer, false);
+    commitParams();
+    delay.hidden = (prop === 'motion' ? value : currentMotion) === 'template';
+    if (prop === 'motion') currentMotion = value as LayerMotion;
+  };
+  let currentMotion = layer.motion;
+  const grid = document.createElement('div');
+  grid.className = 'type-grid';
+  grid.append(typeField('Motion', selectOf(LAYER_MOTIONS, MOTION_LABELS, layer.motion, (v) => set('motion', v), `${layer.label} motion`)));
+  const delay = typeField('Delay, s', numberOf(layer.motionDelay, LAYER_LIMITS.motionDelay, 0.1, (v) => set('motionDelay', v), `${layer.label} motion delay`));
+  delay.hidden = layer.motion === 'template';
+  grid.append(delay);
+  details.append(grid);
+  return details;
+}
+
+/** The two fields the Advanced disclosure edits, present on either kind of layer. */
+interface LayerBaseEdit {
+  motion: LayerMotion;
+  motionDelay: number;
 }
 
 /** Cards the person has folded away, by card id; they are open until then, and stay as left across rebuilds. */

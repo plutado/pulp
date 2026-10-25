@@ -37,6 +37,17 @@ export type TextCase = (typeof TEXT_CASES)[number];
 export const TEXT_OVERFLOWS = ['wrap', 'shrink', 'truncate'] as const;
 export type TextOverflow = (typeof TEXT_OVERFLOWS)[number];
 
+/**
+ * How a layer moves (milestone 23). The template owns a layer's movement by
+ * default (`template`); the rest replace it for that one layer: a fade, a rise,
+ * a growth, or no movement at all — there from its delay, gone at the end. An
+ * overridden layer still finishes inside the template's own in and out: its
+ * envelope ends on the graphic's last frame, so no layer can be left on screen
+ * after the graphic has gone (src/core/layer-motion.ts).
+ */
+export const LAYER_MOTIONS = ['template', 'fade', 'slide', 'scale', 'none'] as const;
+export type LayerMotion = (typeof LAYER_MOTIONS)[number];
+
 /** How text is set: what a block's text layers start from, and what one layer can override. */
 export interface Typography {
   /** A font family name; the bundled set and imported families arrive with later items. */
@@ -88,6 +99,7 @@ export const LAYER_LIMITS = {
   spaceBefore: { min: 0, max: 1 },
   gap: { min: 0, max: 1 },
   maxLines: { min: 1, max: 20 },
+  motionDelay: { min: 0, max: 60 },
 } as const;
 
 interface LayerBase {
@@ -100,6 +112,10 @@ interface LayerBase {
   hidden: boolean;
   /** Room before this layer along the stack, as a fraction of the frame's short side. */
   spaceBefore: number;
+  /** The template's movement, or one of its own (behind Advanced in the Parameters tab). */
+  motion: LayerMotion;
+  /** Seconds before an overridden layer's own movement begins; nothing while `motion` is the template's. */
+  motionDelay: number;
 }
 
 export interface TextLayer extends LayerBase, Typography {
@@ -235,7 +251,7 @@ function readTypography(raw: Record<string, unknown>, base: Typography, path: st
 }
 
 /** The fields a layer of either type has, read against a base the same way as typography. */
-function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore'>, issue: (field: string, message: string) => void): Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore'> {
+function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion' | 'motionDelay'>, issue: (field: string, message: string) => void): Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion' | 'motionDelay'> {
   const out = { ...base };
   if (raw.label !== undefined) {
     if (isNonEmptyString(raw.label)) out.label = raw.label.trim();
@@ -249,12 +265,20 @@ function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'labe
     if (inRange(raw.spaceBefore, LAYER_LIMITS.spaceBefore)) out.spaceBefore = raw.spaceBefore;
     else issue('spaceBefore', `must be a fraction of the frame's short side, from 0 to ${LAYER_LIMITS.spaceBefore.max}`);
   }
+  if (raw.motion !== undefined) {
+    if (oneOf(LAYER_MOTIONS, raw.motion)) out.motion = raw.motion;
+    else issue('motion', `must be one of: ${LAYER_MOTIONS.join(', ')}`);
+  }
+  if (raw.motionDelay !== undefined) {
+    if (inRange(raw.motionDelay, LAYER_LIMITS.motionDelay)) out.motionDelay = raw.motionDelay;
+    else issue('motionDelay', `must be seconds from 0 to ${LAYER_LIMITS.motionDelay.max}`);
+  }
   return out;
 }
 
 /** A fresh layer of a type, as a block hands it out: the block's typography, the default image size, nothing required. */
 export function newLayer(type: LayerType, block: Pick<Block, 'typography' | 'align'>, id: string, label?: string): Layer {
-  const base: LayerBase = { id, label: label ?? (type === 'text' ? 'Text' : 'Image'), required: false, hidden: false, spaceBefore: 0 };
+  const base: LayerBase = { id, label: label ?? (type === 'text' ? 'Text' : 'Image'), required: false, hidden: false, spaceBefore: 0, motion: 'template', motionDelay: 0 };
   if (type === 'text') return { ...base, ...block.typography, type: 'text', text: '', maxLines: DEFAULT_MAX_LINES };
   return { ...base, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
 }
@@ -282,7 +306,7 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
   const id = typeof raw.id === 'string' ? raw.id : '';
   const fresh = newLayer(raw.type, block, id, typeof raw.label === 'string' ? raw.label.trim() : undefined);
   const base = readLayerBase(raw, fresh, issue);
-  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore };
+  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, motion: base.motion, motionDelay: base.motionDelay };
   let layer: Layer;
   if (raw.type === 'text') {
     if (typeof raw.text !== 'string') issue('text', 'must be a string (the layer\'s default text)');
