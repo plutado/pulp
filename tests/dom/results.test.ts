@@ -9,8 +9,8 @@
  * is fixed here with the numbers the real stylesheet would produce.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { initialAppState, setIndex, setQuery } from '../../src/core/app-state';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { initialAppState, setIndex, setQuery, type Scope } from '../../src/core/app-state';
 import type { LibraryIndex, MediaEntry } from '../../src/core/library-types';
 import { HOVER_DWELL_MS, STRIP_RETRY_MS } from '../../src/core/hover-scrub';
 import type { HoverStripResult } from '../../src/shared/api';
@@ -74,6 +74,10 @@ beforeAll(async () => {
   };
   container = document.createElement('ul');
   container.id = 'results';
+  // The region's label lives outside the list, as it does in the window.
+  const label = document.createElement('span');
+  label.id = 'results-label';
+  document.body.append(label);
   fixSize(container, WIDTH, HEIGHT);
   document.body.append(container);
   appState.value = setIndex(initialAppState, index);
@@ -236,9 +240,78 @@ describe('the windowed results region', () => {
     appState.value = setQuery(appState.value, 'nothing matches this');
     await settle();
     expect(rendered()).toHaveLength(0);
-    expect(container.textContent).toContain('No matches.');
+    expect(container.textContent).toContain('No matches for “nothing matches this”');
 
     appState.value = setQuery(appState.value, '');
     await settle();
+  });
+});
+
+describe('the empty region', () => {
+  const title = () => container.querySelector('.empty-title')?.textContent;
+  const detail = () => container.querySelector('.empty-detail')?.textContent;
+  const actions = () => [...container.querySelectorAll<HTMLButtonElement>('.empty-actions button')].map((b) => b.dataset.emptyAction);
+  const ghosts = () => [...container.querySelectorAll<HTMLElement>('.ghost')];
+  const empty: LibraryIndex = { roots: ['/lib'], templates: [], media: [], problems: [], builtAt: '2026-10-25T00:00:00Z' };
+  const scope: Scope = { label: 'Lower third', filter: 'type:lower-third', kind: 'type' };
+
+  afterEach(async () => {
+    appState.value = { ...setIndex(initialAppState, index), query: '', scope: null, filters: [] };
+    await settle();
+  });
+
+  it('a search that matches nothing: the reason, and a way to undo what narrowed it', async () => {
+    appState.value = { ...setQuery(appState.value, 'nothing matches this'), filters: ['alpha'] };
+    await settle();
+    expect(title()).toBe('No matches for “nothing matches this”');
+    expect(actions()).toEqual(['clear-search', 'clear-filters']);
+    // Pressing it clears the search, and the results come back.
+    container.querySelector<HTMLButtonElement>('[data-empty-action=clear-search]')!.click();
+    await settle();
+    expect(appState.value.query).toBe('');
+  });
+
+  it('an empty corner of the library says which corner, and offers the whole library', async () => {
+    appState.value = { ...appState.value, scope };
+    await settle();
+    expect(title()).toBe('Nothing in Lower third yet');
+    expect(detail()).toContain('carries it');
+    expect(actions()).toEqual(['clear-scope']);
+    container.querySelector<HTMLButtonElement>('[data-empty-action=clear-scope]')!.click();
+    await settle();
+    expect(appState.value.scope).toBeNull();
+  });
+
+  it('an empty library asks for a folder or the sample media', async () => {
+    appState.value = setIndex(appState.value, empty);
+    await settle();
+    expect(title()).toBe('Nothing in the library yet');
+    expect(actions()).toEqual(['add-folder', 'add-sample-media']);
+  });
+
+  it('draws ghost slots in the current view, decoration only', async () => {
+    appState.value = setIndex(appState.value, empty);
+    await settle();
+    const grid = ghosts();
+    expect(grid.length).toBeGreaterThan(COLUMNS); // more than one row of them
+    expect(container.querySelector('.ghosts')!.getAttribute('aria-hidden')).toBe('true');
+    expect(container.querySelector('.ghosts')!.getAttribute('role')).toBe('presentation');
+    expect(grid.some((g) => g.tabIndex > 0)).toBe(false);
+    // Rows rather than cards: as many ghosts as rows fit, each a row tall.
+    resultsView.value = { ...GRID, mode: { visual: 'list', audio: 'list' } };
+    await settle();
+    const rows = ghosts();
+    expect(rows[0]!.style.height).toBe(`${LIST_ROW_HEIGHT - 4}px`);
+    expect(rows.length).toBeLessThan(grid.length);
+    resultsView.value = GRID;
+    await settle();
+  });
+
+  it('says what the region holds, whether or not it holds anything', async () => {
+    const label = document.getElementById('results-label')!;
+    expect(label.textContent).toBe(`Results · ${COUNT} items`);
+    appState.value = setIndex(appState.value, empty);
+    await settle();
+    expect(label.textContent).toBe('Results · 0 items');
   });
 });

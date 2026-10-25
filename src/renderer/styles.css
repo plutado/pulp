@@ -26,7 +26,7 @@
      the tray body is capped so the center keeps --center-min-h (the search bar with its chips wrapped,
      the results at their minimum, and about 180 px of stage). */
   --results-min-h: 160px;
-  --center-min-h: 440px;
+  --center-min-h: 464px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: var(--font-body);
   color: var(--text);
@@ -220,7 +220,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 
 /* The results keep a readable height however short the window: the stage above shrinks first
    (flex-shrink below), and the tray body is capped so the center column keeps room for both. */
-.results-region { flex: 1; min-height: var(--results-min-h); display: flex; flex-direction: column; }
+.results-region { flex: 1; min-height: calc(var(--results-min-h) + 24px); display: flex; flex-direction: column; }
+/* The region says what it holds, always: a count is a fact worth having when the list is long,
+   and the only thing naming the region when it is empty. */
+.results-head { flex: 0 0 auto; display: flex; align-items: baseline; padding: var(--space-1) var(--space-3) 0; }
+.region-count { color: var(--muted); font-size: var(--font-caption); font-variant-numeric: tabular-nums; }
 
 .tray { background: var(--panel); border-top: 1px solid var(--border); display: flex; flex-direction: column; }
 .tray-head { display: flex; align-items: center; gap: 10px; padding: 4px 12px; }
@@ -263,7 +267,8 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
    and the card height arrive as custom properties from the renderer, so the layout
    and the windowing math share one geometry (src/core/results-view.ts). Cards carry
    their own padding instead of a grid gap, which keeps the row pitch exact. */
-.results { list-style: none; margin: 0; padding: var(--space-1); overflow-y: auto; flex: 1; }
+/* Positioned, so the empty state can sit over the ghost slots that fill the region. */
+.results { position: relative; list-style: none; margin: 0; padding: var(--space-1); overflow-y: auto; flex: 1; }
 .results.grid { display: grid; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr)); align-content: start; }
 .results .card, .results .row { border-radius: var(--radius-control); cursor: pointer; }
 .results .card:hover, .results .row:hover { background: var(--panel-2); }
@@ -271,6 +276,25 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results li.offline { opacity: 0.55; }
 .results .spacer { grid-column: 1 / -1; }
 .results .meta.empty { grid-column: 1 / -1; padding: var(--space-2) var(--space-3); color: var(--muted); font-size: var(--font-caption); }
+/* Nothing here: outlines where cards would be, and the reason over them. The outlines are a hint
+   of a grid, not a thing to look at — a hairline, no fill, nothing that moves. */
+/* Pinned to the region and clipped: the outlines fill what is on screen without making an empty
+   region scroll, and the last row simply runs out at the edge. */
+.results .ghosts {
+  position: absolute; inset: 0; overflow: hidden;
+  display: grid; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr)); grid-auto-rows: min-content;
+  align-content: start; gap: var(--space-1); padding: var(--space-1);
+}
+.results.list .ghosts { grid-template-columns: minmax(0, 1fr); }
+.ghost { border: 1px solid var(--border); border-radius: var(--radius-control); opacity: 0.35; }
+.results .empty-state {
+  grid-column: 1 / -1; position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2);
+  padding: var(--space-4); text-align: center; pointer-events: none;
+}
+.empty-title { margin: 0; color: var(--text-secondary); font-size: var(--font-title); }
+.empty-detail { margin: 0; max-width: 42ch; color: var(--muted); font-size: var(--font-secondary); }
+.empty-actions { margin: 0; display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: center; pointer-events: auto; }
 
 .results .thumb { position: relative; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--muted); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
 /* Hover-scrub: one frame of the cached strip, over the poster so the checkerboard shows through alpha. */

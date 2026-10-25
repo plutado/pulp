@@ -30,10 +30,12 @@ import {
   type ResultBadge,
 } from '../core/results-view';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
+import { emptyResults, resultsLabel, type EmptyActionId } from '../core/results-empty';
+import { setQuery } from '../core/app-state';
 import { virtualWindow } from '../core/virtual-list';
 import { Icon, type IconName } from './icons';
 import { Thumb } from './item-preview';
-import { appState, hasIndex, results, resultsView, selectedKey } from './store';
+import { appState, dispatch, hasIndex, results, resultsView, selectedKey } from './store';
 
 /** The scrolling viewport, measured: the column count, the window and the layout agree on one number. */
 const viewport = signal({ width: 0, height: 0 });
@@ -144,10 +146,66 @@ function geometry(entries: readonly LibraryEntry[]) {
   };
 }
 
+/**
+ * What each way out does. Adding a folder and making the sample media are the
+ * browse toolbar's own buttons, dialogs and all, so the empty state presses
+ * them rather than keeping a second copy of that wiring.
+ */
+function takeAction(id: EmptyActionId): void {
+  if (id === 'clear-search') dispatch((s) => setQuery(s, ''));
+  else if (id === 'clear-filters') dispatch((s) => ({ ...s, filters: [] }));
+  else if (id === 'clear-scope') dispatch((s) => ({ ...s, scope: null }));
+  else document.getElementById(id === 'add-folder' ? 'add-folder' : 'add-sample-media')?.click();
+}
+
+/**
+ * Outlines of cards where cards would be: a hairline each, no fill and no
+ * movement, in the view and size the region is set to, filling the room there
+ * is. It says "a grid with nothing in it" without competing with the message,
+ * and it is decoration — out of the tab order and out of a screen reader's way.
+ */
+function GhostSlots({ entries }: { entries: readonly LibraryEntry[] }) {
+  const { grid, columns, rowHeight } = geometry(entries);
+  const rows = Math.max(1, Math.ceil((viewport.value.height || rowHeight * 3) / rowHeight));
+  const count = Math.min(60, rows * (grid ? columns : 1));
+  return (
+    <li class="ghosts" role="presentation" aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => (
+        <span key={i} class="ghost" style={{ height: `${rowHeight - (grid ? 8 : 4)}px` }} />
+      ))}
+    </li>
+  );
+}
+
+/** Why there is nothing here, and what to do about it, over the ghost slots. */
+function Empty({ entries }: { entries: readonly LibraryEntry[] }) {
+  const s = appState.value;
+  const empty = emptyResults({ index: s.index, query: s.query, scope: s.scope, filters: s.filters });
+  if (!empty) return null;
+  return (
+    <>
+      <GhostSlots entries={entries} />
+      <li class="empty-state" role="status">
+        <p class="empty-title">{empty.title}</p>
+        {empty.detail && <p class="empty-detail">{empty.detail}</p>}
+        {empty.actions.length > 0 && (
+          <p class="empty-actions">
+            {empty.actions.map((action) => (
+              <button key={action.id} type="button" data-empty-action={action.id} onClick={() => takeAction(action.id)}>
+                {action.label}
+              </button>
+            ))}
+          </p>
+        )}
+      </li>
+    </>
+  );
+}
+
 function Results({ onSelect }: { onSelect: (entry: LibraryEntry) => void }) {
   if (!hasIndex.value) return null;
   const { entries } = results.value;
-  if (entries.length === 0) return <li class="meta empty">No matches.</li>;
+  if (entries.length === 0) return <Empty entries={entries} />;
   const { grid, columns, rowHeight } = geometry(entries);
   const win = virtualWindow({ total: entries.length, columns, rowHeight, viewportHeight: viewport.value.height, scrollTop: scrollTop.value });
   const selected = selectedKey.value;
@@ -220,6 +278,10 @@ export function mountResults(container: HTMLElement, actions: ResultsActions): v
     const max = Math.max(0, Math.ceil(entries.length / columns) * rowHeight - viewport.value.height);
     if (container.scrollTop > max) container.scrollTop = max;
   });
+
+  // The region says what it holds, whether or not it holds anything.
+  const label = document.getElementById('results-label');
+  if (label) effect(() => { label.textContent = hasIndex.value ? resultsLabel(results.value.entries.length) : 'Results'; });
 
   // A new search starts at the top. A rescan or a thumbnail arriving in the background
   // changes the results too, and must not pull the list out from under the pointer.
