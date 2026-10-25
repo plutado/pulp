@@ -6,6 +6,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Security
+
+- Electron 44.9.1, which carries the mitigation for compromised eMudhra intermediate certificates (GHSA-jr5w-w6x2-84p9) that 44.9.0 lacked. CI now audits dependencies and fails on a known high or critical advisory.
+
 ### Fixed
 
 - Clicking a layer on the stage selects it reliably, including on a small window. The overlay could hit-test what the preview had laid a frame ago — the page says it has drawn before it reports what it drew — so a click could land on where a layer used to be; the report now names its frame and the overlay waits for the matching one. And a hit no longer has to be pixel-exact: on a preview a few hundred pixels wide a line of type is a few pixels tall, so a click within four screen pixels of a layer takes it. Found on Windows, where the CI window previews a 1920-pixel frame about 157 px wide (docs/platform-notes.md).

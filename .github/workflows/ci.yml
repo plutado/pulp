@@ -22,6 +22,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Dependency audit
+        # Fails on a known high or critical advisory in any dependency, Electron included:
+        # it is a development dependency but it is the runtime Pulp ships.
+        run: npm audit --audit-level=high
       - name: Lint and type check
         run: npm run lint
       - name: Unit tests
@@ -63,3 +67,47 @@ jobs:
           # Written to a file first: PowerShell pipes are text streams and corrupt binary output.
           ffmpeg -v error -i "$env:RUNNER_TEMP/probe/lt_00090.png" -vf "format=rgba,crop=1:1:120:840" -frames:v 1 -f rawvideo -pix_fmt rgba "$env:RUNNER_TEMP/probe/panel-pixel.rgba"
           Format-Hex "$env:RUNNER_TEMP/probe/panel-pixel.rgba"
+
+  render-macos:
+    # Full render path on macOS, the main development platform and the only one with
+    # VideoToolbox (HEVC with alpha; that test skips itself where the encoder is missing).
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      PULP_E2E: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install ffmpeg
+        run: brew install ffmpeg
+      - run: npm ci
+      - name: Unit and end-to-end tests
+        run: npm test
+
+  render-linux:
+    # Full render path on Linux under a virtual display, so the end-to-end suite runs here
+    # rather than skipping for want of one.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PULP_E2E: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install ffmpeg and a virtual display
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg xvfb
+      - run: npm ci
+      - name: Let Electron's sandbox run
+        # The runner's kernel blocks unprivileged user namespaces, which Chromium's sandbox needs;
+        # the setuid helper is the supported alternative.
+        run: |
+          sudo chown root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+      - name: Unit and end-to-end tests
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm test

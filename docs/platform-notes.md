@@ -92,6 +92,14 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 - **Windows and `rename` over an open file.** On Windows, renaming over a file another process has open fails with EPERM, EBUSY or EACCES, where macOS and Linux replace it. The atomic writer retries the rename for about two seconds. Keep the temporary file in the same folder as the target: a rename across volumes is a copy, not an atomic replace.
 - A `.tmp` file left behind in user data means the app died between writing and renaming; it is harmless and can be deleted.
 
+## CI on every platform
+
+Four jobs run on every push and pull request: `check` (Ubuntu: dependency audit, lint and type check, unit tests, build) and a full render job per platform, `render-windows`, `render-macos` and `render-linux`, each running the whole suite with `PULP_E2E=1` so a missing Electron, ffmpeg or ffprobe fails rather than skips.
+
+- **macOS** (`macos-latest`, Apple silicon) takes ffmpeg from Homebrew. The HEVC-with-alpha test skips itself when ffmpeg lists no `hevc_videotoolbox` encoder, so a runner without VideoToolbox passes without pretending to cover it.
+- **Linux** runs under a virtual display (`xvfb-run`, 1920 × 1080). The runner's kernel blocks unprivileged user namespaces, which Chromium's sandbox needs, so the job gives Electron's setuid `chrome-sandbox` helper root ownership and mode 4755, the supported alternative to turning the sandbox off.
+- **The dependency audit** counts development dependencies too: Electron is one, and it is the runtime Pulp ships.
+
 ## Windows CI
 
 ### The job
