@@ -103,6 +103,10 @@ jobs:
       - name: Install ffmpeg and a virtual display
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg xvfb
       - run: npm ci
+      - name: Fetch the Electron binary
+        # Electron 44 downloads its binary the first time it runs, not during npm ci, and the
+        # sandbox step below needs the files it brings.
+        run: npx electron --version
       - name: Let Electron's sandbox run
         # The runner's kernel blocks unprivileged user namespaces, which Chromium's sandbox needs;
         # the setuid helper is the supported alternative.

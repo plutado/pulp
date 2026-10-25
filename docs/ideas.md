@@ -19,7 +19,7 @@ The maintainer's intended sequence for what is decided here and what is already 
 1. **Quick wins from Decided:** all done — ghost slots, element cards for every bundled template, the Festival themes, and browse tree counts for screen readers. (The category search filtering the tree, and the tree showing only where you are, are done — milestone 24.)
 2. **Protection before the larger work:** visual regression tests for the bundled templates. (CI now runs on Windows, macOS and Linux with a dependency audit.)
 3. **Milestone 26:** assets on the stage, with the generated asset library (scheduled; the categories and the first generated examples are in).
-4. **Timing: any length, set while editing** (Decided item 10).
+4. **Timing: any length, set while editing** (Decided item 5).
 5. **Milestone 27:** projects and the application menu.
 6. **Milestone 20:** social-ready export.
 7. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
@@ -53,6 +53,8 @@ The maintainer's intended sequence for what is decided here and what is already 
    - The bundled templates declare their parts; titles, lower thirds, callouts and overlays first. Undo covers every length change.
 
 ## Known issues
+
+- **macOS CI: the CSV batch render reads an empty frame** (CI run 40232422746, `render-macos`). `tests/e2e/render.e2e.test.ts`, "renders a batch from CSV, one file per row named from the name column, warning about unknown columns", fails only on the macOS runner with `AssertionError: expected 0 to be greater than 200`, a pixel count read from a rendered row. It passes on a Mac locally and on Windows CI. Likely areas, unconfirmed: the runner is a virtual machine without a GPU, so the offscreen capture or a font may differ; read the run's log, find what the row actually rendered, and fix the app if a person could see it too.
 
 - **The sample-media end-to-end test is close to its time limit.** `tests/e2e/render.e2e.test.ts` ("makes the whole sample-media folder…") generates the whole catalogue, now about 250 files, inside a 9-minute bound. Run alone it passes; inside a full `npm test` on a busy machine it ran out of time once (2026-10-25). Make it fit comfortably: generate in parallel where the generator allows, or check a representative subset end to end and the full catalogue in a separate, longer job.
 
