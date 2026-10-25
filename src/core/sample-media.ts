@@ -1,8 +1,9 @@
 /**
  * The sample-media catalogue (milestone 21): original CC0 media files that a
  * library can be filled with on demand, so the browse tree's media types —
- * video clips, stills, music, sound effects — have three to five examples
- * each without a single binary file in the repository.
+ * video clips, stills, music, sound effects — and the picture-friendly types
+ * among the backgrounds, overlays and design elements are each at least six
+ * deep (milestone 24), without a single binary file in the repository.
  *
  * Every item says where it goes (folders whose names give the file its type
  * through the same inference the library scan uses), what it is called, which
@@ -16,7 +17,7 @@
  * - **clip**: one of the bundled background templates rendered to H.264.
  *
  * This module is pure. The main-process service runs the recipes; the tests
- * check the catalogue against the type inference and the 3-5 rule.
+ * check the catalogue against the type inference and the six-deep floor.
  */
 
 import { STILL_PAGES } from './sample-stills';

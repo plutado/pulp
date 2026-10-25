@@ -1,6 +1,6 @@
 /**
  * Makes the sample-media folder (milestone 21): runs every recipe in the
- * catalogue that has no file yet, so a library gets three to five original
+ * catalogue that has no file yet, so a library gets at least six original
  * CC0 files per media type without shipping binaries. Sounds and music come
  * from ffmpeg's lavfi sources, stills from canvas pages through the offscreen
  * renderer, clips from the bundled background templates through the normal

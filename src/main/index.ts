@@ -261,7 +261,7 @@ function registerIpc(): void {
  *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
  *   electron . --sample-media <folder>
  * `--sample-media` writes the sample-media catalogue (src/core/sample-media.ts) into the folder:
- * original CC0 sounds, music, stills and clips, three to five per media type, skipping files
+ * original CC0 sounds, music, stills and clips, at least six per media type, skipping files
  * that exist. Add the folder to a library afterwards.
  * `--collection` renders every template in a saved collection into the --out folder with the settings
  * each item carries; items the library cannot answer for are named and skipped.

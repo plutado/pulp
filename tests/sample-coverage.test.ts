@@ -14,7 +14,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { scanLibrary } from '../src/core/library';
 import { SAMPLE_MEDIA } from '../src/core/sample-media';
-import { entryType, STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES, typeInfo } from '../src/core/taxonomy';
+import { normalizeTag } from '../src/core/tags';
+import { entryType, inferThemes, STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES, typeInfo } from '../src/core/taxonomy';
 
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
 
@@ -60,7 +61,11 @@ function tally(): { types: Map<string, number>; themes: Map<string, number>; sty
     for (const theme of new Set(entry.kind === 'template' ? entry.manifest.themes ?? [] : entry.themes ?? [])) bump(themes, theme);
     if (entry.kind === 'template') for (const style of new Set(entry.manifest.styles ?? [])) bump(styles, style);
   }
-  for (const item of SAMPLE_MEDIA) bump(types, item.type);
+  for (const item of SAMPLE_MEDIA) {
+    bump(types, item.type);
+    // A generated file's themes come from its folders, exactly as the scan would read them.
+    for (const theme of new Set(inferThemes(item.folder.map(normalizeTag)))) bump(themes, theme);
+  }
   return { types, themes, styles };
 }
 
