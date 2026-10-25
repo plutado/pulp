@@ -158,6 +158,31 @@ export function gridRatio(entries: readonly LibraryEntry[]): number {
   return known > 0 ? tallest : LANDSCAPE_RATIO;
 }
 
+/**
+ * How many empty slots follow the last card: the cells left in its row, and
+ * then whole rows down to the bottom of the region. A grid that ends halfway
+ * across reads as unfinished; slots waiting to fill read as a grid.
+ *
+ * Only what is on screen is counted — the region must not grow a scrollbar for
+ * outlines that hold nothing.
+ */
+export function trailingSlots(options: {
+  count: number;
+  columns: number;
+  rowHeight: number;
+  viewportHeight: number;
+  scrollTop: number;
+}): number {
+  const { count, columns, rowHeight, viewportHeight, scrollTop } = options;
+  if (columns < 1 || rowHeight <= 0) return 0;
+  const rest = count % columns;
+  const fillRow = rest === 0 ? 0 : columns - rest;
+  const contentHeight = Math.ceil(count / columns) * rowHeight;
+  const below = scrollTop + viewportHeight - contentHeight;
+  const extraRows = below > 0 ? Math.ceil(below / rowHeight) : 0;
+  return fillRow + extraRows * columns;
+}
+
 /** The picture's height inside a card of this width, for the tallest ratio the grid holds. */
 export function thumbHeight(cardWidth: number, ratio = LANDSCAPE_RATIO): number {
   return Math.round((cardWidth - CARD_PADDING * 2) * ratio);

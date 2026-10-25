@@ -24,6 +24,7 @@ import {
   listRow,
   gridRatio,
   thumbHeight,
+  trailingSlots,
   viewModeFor,
   LIST_ROW_HEIGHT,
   type BadgeId,
@@ -222,6 +223,13 @@ function Results({ onSelect }: { onSelect: (entry: LibraryEntry) => void }) {
         ),
       )}
       {win.bottomPad > 0 && <li class="spacer" role="presentation" aria-hidden="true" style={{ height: `${win.bottomPad}px` }} />}
+      {/* Slots waiting to fill, after the last card and down to the bottom: a grid that ends
+          halfway across a row reads as unfinished. Decoration, so out of the way of everything. */}
+      {win.end >= entries.length &&
+        Array.from(
+          { length: trailingSlots({ count: entries.length, columns, rowHeight, viewportHeight: viewport.value.height, scrollTop: scrollTop.value }) },
+          (_, i) => <li key={`slot-${i}`} class="slot" role="presentation" aria-hidden="true" style={{ height: `${rowHeight - (grid ? 8 : 4)}px` }} />,
+        )}
     </>
   );
 }

@@ -237,6 +237,23 @@ describe('the windowed results region', () => {
     expect(container.style.getPropertyValue('--card-h')).toBe(`${CARD_H}px`);
   });
 
+  it('fills the row after the last card, and the rows below it, with waiting slots', async () => {
+    // A short library: two cards in a four-column grid, three rows of room.
+    const few: LibraryIndex = { ...index, templates: [], media: index.media.slice(0, 2) };
+    appState.value = setIndex(appState.value, few);
+    await settle();
+    const slots = () => container.querySelectorAll('.slot').length;
+    // Two cells finish the row, and the two rows below it are filled: 2 + 8.
+    expect(slots()).toBe(2 + 8);
+    // They are decoration: out of the tab order and out of a screen reader's way.
+    expect(container.querySelector('.slot')?.getAttribute('aria-hidden')).toBe('true');
+    expect(container.querySelectorAll('.slot button, .slot [tabindex]').length).toBe(0);
+    // A full region has no room for them.
+    appState.value = setIndex(appState.value, index);
+    await settle();
+    expect(slots()).toBe(0);
+  });
+
   it('returns to the top when the search changes, and shows the empty message when nothing matches', async () => {
     await scrollTo(CARD_H * 10);
     appState.value = setQuery(appState.value, 'Clip 09');

@@ -318,6 +318,13 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 }
 .results.list .ghosts { grid-template-columns: minmax(0, 1fr); }
 .ghost { border: 1px solid var(--border); border-radius: var(--radius-control); opacity: 0.35; }
+/* The same hint of a slot, inline after the last card: the cells left in its row and the rows
+   below it, so a part-filled grid reads as a grid with room rather than one that stopped. */
+.results .slot { border: 1px solid var(--border); border-radius: var(--radius-control); opacity: 0.35; margin: var(--space-1); pointer-events: none; }
+.results.list .slot { margin: 2px var(--space-1); }
+/* A picture that has not been drawn yet is the same hint, not a filled box, so a loading grid
+   reads as slots waiting to fill rather than as a wall of empty panels. */
+.results .thumb.empty { background-image: none; background-color: transparent; opacity: 0.55; }
 .results .empty-state {
   grid-column: 1 / -1; position: absolute; left: 0; right: 0; top: 0; bottom: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2);
@@ -332,7 +339,6 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results .thumb .strip { position: absolute; inset: 0; background-repeat: no-repeat; }
 .results .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .results .thumb .icon-wrap { color: var(--muted); }
-.results .thumb.empty { background-image: none; background-color: var(--panel-2); }
 /* Audio has no picture: its waveform fills the thumbnail slot instead. */
 .results .waveform { width: 100%; height: 100%; display: block; }
 .results .waveform path { stroke: var(--text-secondary); stroke-width: 1; vector-effect: non-scaling-stroke; }

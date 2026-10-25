@@ -13,6 +13,7 @@ import {
   sanitizeResultsView,
   snapThumbSize,
   gridRatio,
+  trailingSlots,
   tallestRatio,
   THUMB_SIZES,
   thumbAspect,
@@ -202,5 +203,33 @@ describe('list columns', () => {
     expect(listRow(media('clip'))).toEqual({ name: 'clip', duration: '', type: 'Video', themes: '', file: 'clip.mov' });
     const typed = media('swipe', { mediaKind: 'audio', ext: '.wav', path: '/lib/sfx/whoosh/swipe.wav', type: 'whoosh', meta: { duration: 1.25 } as MediaEntry['meta'] });
     expect(listRow(typed)).toMatchObject({ duration: '1.3 s', type: 'Whoosh / transition', file: 'swipe.wav' });
+  });
+});
+
+describe('trailingSlots', () => {
+  const at = (count: number, scrollTop = 0) => trailingSlots({ count, columns: 4, rowHeight: 100, viewportHeight: 300, scrollTop });
+
+  it('fills the rest of the last row, then the rows below it, down to the bottom', () => {
+    // 6 cards in 4 columns: 2 cells finish the row, and one more row fits in the 300 px left.
+    // 6 cards = 2 rows = 200 px of content; 100 px of the viewport is left, so 4 more cells.
+    expect(at(6)).toBe(2 + 4);
+    // A full last row needs no filling, only the rows below it.
+    expect(at(8)).toBe(4);
+  });
+
+  it('stops at the bottom of what is on screen, so the region never scrolls for empty slots', () => {
+    // 20 cards is 5 rows, 500 px: taller than the viewport, so nothing is added below.
+    expect(at(20)).toBe(0);
+    // Scrolled to the end, the room under the last row is filled again.
+    expect(at(20, 300)).toBe(4);
+  });
+
+  it('answers nothing for a shape that cannot hold slots', () => {
+    expect(trailingSlots({ count: 4, columns: 0, rowHeight: 100, viewportHeight: 300, scrollTop: 0 })).toBe(0);
+    expect(trailingSlots({ count: 4, columns: 4, rowHeight: 0, viewportHeight: 300, scrollTop: 0 })).toBe(0);
+  });
+
+  it('fills an empty region entirely', () => {
+    expect(at(0)).toBe(12); // three rows of four
   });
 });
