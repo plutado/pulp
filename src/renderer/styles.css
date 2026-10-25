@@ -519,6 +519,10 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .batch .warning { color: var(--accent); }
 .params { display: grid; gap: 10px; }
 .field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+/* A label that would only repeat the heading above it: kept for the screen reader, not shown. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.field-head.unlabelled { justify-content: flex-end; min-height: 0; }
+.field-head.unlabelled:not(:has(.field-reset:not([hidden]))) { display: none; }
 .field-reset { font-size: var(--font-caption); padding: 0 5px; line-height: 16px; color: var(--muted); background: none; border-color: transparent; }
 .field-reset:hover { color: var(--text); border-color: var(--border); }
 .field-reset[hidden] { display: none; }

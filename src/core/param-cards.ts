@@ -94,3 +94,14 @@ export function paramCards(manifest: Pick<TemplateManifest, 'parameters' | 'bloc
 export function hasCards(cards: readonly ParamCard[]): boolean {
   return cards.some((c) => c.kind !== 'rest');
 }
+
+/**
+ * Whether a field's label would only repeat the heading it sits under —
+ * "Logo" inside the Logo card, "Panel" inside Panel. A repeat is noise, so the
+ * tab leaves such a label unseen and keeps it as the field's accessible name
+ * (docs/ui-style.md). Case and surrounding space do not make two labels differ.
+ */
+export function labelRepeatsHeading(label: string, heading: string | undefined): boolean {
+  if (!heading) return false;
+  return label.trim().toLowerCase() === heading.trim().toLowerCase();
+}

@@ -14,7 +14,7 @@ import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
 import { LAYERS_KEY, resolveParams, type ResolvedParams } from '../core/params';
 import { BUNDLED_FAMILIES, cssFontFamily, familyLabel } from '../core/fonts';
-import { hasCards, paramCards, type ParamCard } from '../core/param-cards';
+import { hasCards, labelRepeatsHeading, paramCards, type ParamCard } from '../core/param-cards';
 import {
   defaultLayers,
   LAYER_ALIGNS,
@@ -1212,13 +1212,22 @@ function typographyControls(blockId: string, layer: TextLayer): HTMLElement {
 /** Cards the person has folded away, by card id; they are open until then, and stay as left across rebuilds. */
 const closedCards = new Set<string>();
 
-/** One parameter's field, as the form has always drawn it. */
-function paramField(param: TemplateParameter): HTMLElement {
+/**
+ * One parameter's field, as the form has always drawn it. `heading` is what the
+ * field sits under — its card's title, or its group's — and a label that would
+ * only repeat it is kept for the screen reader but not shown (docs/ui-style.md).
+ */
+function paramField(param: TemplateParameter, heading?: string): HTMLElement {
   const label = document.createElement('label');
   label.className = param.type === 'boolean' ? 'field inline' : 'field';
   label.dataset.param = param.id;
   const span = document.createElement('span');
   span.textContent = param.label;
+  const repeats = labelRepeatsHeading(param.label, heading);
+  if (repeats) {
+    span.className = 'visually-hidden';
+    label.dataset.labelUnseen = '';
+  }
   if (param.description) label.title = param.description;
   const reset = document.createElement('button');
   reset.type = 'button';
@@ -1236,7 +1245,7 @@ function paramField(param: TemplateParameter): HTMLElement {
     label.append(input, span, reset);
   } else {
     const head = document.createElement('div');
-    head.className = 'field-head';
+    head.className = `field-head${repeats ? ' unlabelled' : ''}`;
     head.append(span, reset);
     label.append(head, input);
   }
@@ -1274,7 +1283,7 @@ function paramCardEl(card: ParamCard): HTMLElement {
   body.className = 'card-body';
   body.hidden = !open;
   if (card.layer) body.append(...layerBody(card.layer.block, card.layer.layer));
-  for (const param of card.params) body.append(paramField(param));
+  for (const param of card.params) body.append(paramField(param, card.label));
   section.append(body);
   toggle.addEventListener('click', () => {
     const nowOpen = body.hidden;
@@ -1313,7 +1322,7 @@ function buildParamForm(manifest: TemplateManifest): void {
         els.params.append(g);
       }
       group = param.group;
-      els.params.append(paramField(param));
+      els.params.append(paramField(param, group));
     }
     updateHistoryButtons();
     return;

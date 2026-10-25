@@ -68,6 +68,41 @@ describe('markup', () => {
   });
 });
 
+describe('no label repeats its heading', () => {
+  it('leaves a field unlabelled where its label is its card\'s title, across every bundled template', async () => {
+    const { scanLibrary } = await import('../src/core/library');
+    const { paramCards, labelRepeatsHeading } = await import('../src/core/param-cards');
+    const { defaultLayers } = await import('../src/core/layers');
+    const index = await scanLibrary([join(__dirname, '..', 'templates')]);
+    const repeats: string[] = [];
+    for (const t of index.templates) {
+      const cards = paramCards(t.manifest, defaultLayers(t.manifest));
+      for (const card of cards) {
+        for (const param of card.params) {
+          // What the tab would show: nothing, where the label only repeats the heading.
+          const shown = labelRepeatsHeading(param.label, card.label) ? '' : param.label;
+          if (card.label && shown.trim().toLowerCase() === card.label.trim().toLowerCase()) repeats.push(`${t.manifest.id}: "${shown}" under "${card.label}"`);
+        }
+      }
+      // The plain form: a field under a group heading of the same name.
+      for (const param of t.manifest.parameters) {
+        const shown = labelRepeatsHeading(param.label, param.group) ? '' : param.label;
+        if (param.group && shown.trim().toLowerCase() === param.group.trim().toLowerCase()) repeats.push(`${t.manifest.id}: "${shown}" under group "${param.group}"`);
+      }
+    }
+    expect(repeats).toEqual([]);
+    // And the rule itself: a repeat is a repeat whatever its case and spacing; a difference is not.
+    expect(labelRepeatsHeading('Logo', 'Logo')).toBe(true);
+    expect(labelRepeatsHeading(' logo ', 'LOGO')).toBe(true);
+    expect(labelRepeatsHeading('Fill', 'Panel')).toBe(false);
+    expect(labelRepeatsHeading('Logo', undefined)).toBe(false);
+    // The two templates with cards really have the case the rule exists for.
+    const lowerThird = index.templates.find((t) => t.manifest.id === 'pulp.samples.lower-third-bar')!;
+    const logoCard = paramCards(lowerThird.manifest, defaultLayers(lowerThird.manifest)).find((c) => c.label === 'Logo')!;
+    expect(logoCard.params.map((p) => labelRepeatsHeading(p.label, logoCard.label))).toEqual([true]);
+  });
+});
+
 describe('what the window says', () => {
   /** Visible text: attributes go with their tags, so what is left is what a user reads. */
   const visible = (html: string) => html.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<[^>]*>/g, ' ');

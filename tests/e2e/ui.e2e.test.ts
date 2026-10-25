@@ -1170,6 +1170,11 @@ describe.skipIf(!electron)('inspector UI', () => {
       await clickResult('Lower Third Bar');
       await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="element:Panel"]')`), 'the lower third\'s cards');
       expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`)).toEqual(['Name: ', 'Title: ', 'Panel: accent,panel', 'Logo: logo', 'Layout and timing: side,inOut']);
+      // "Logo" under the Logo card is not shown twice: the field's label is kept for the screen reader only.
+      expect(await page.eval<string[]>(`[...document.querySelectorAll('#params .param-card[data-card="element:Logo"] .field > .field-head > span')].map((s) => s.className)`)).toEqual(['visually-hidden']);
+      // Nothing visible is left in the head but, when there is one, the field's Reset.
+      expect(await page.eval<number>(`document.querySelectorAll('#params .param-card[data-card="element:Logo"] .field > .field-head > span:not(.visually-hidden)').length`)).toBe(0);
+      expect(await page.eval<string>(`document.querySelector('#params .param-card[data-card="element:Panel"] [data-param=panel] .field-head > span').textContent`)).toBe('Fill');
 
       // A template that names no element keeps the plain form it always had.
       await clickResult('Boardroom opener');

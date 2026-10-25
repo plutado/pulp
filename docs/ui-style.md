@@ -96,6 +96,10 @@ The render tray is the worked example; anything that hands a file to another app
 
 The style test enforces the two that can be checked: no first-person wording and no raw path or file name in visible text or in a card's fields.
 
+## No label repeats the heading it sits under
+
+"Logo" as a card's title and "Logo" again as the one field inside it reads "Logo, Logo" over the image well. When a field's label matches its card's title — or, in a plain form, its group heading — case and surrounding space aside, the label is **not shown**: the heading already said it. The text stays as the field's accessible name, so a screen reader still hears "Logo". The same holds for any heading-and-label pair across the inspector. The rule is one function, `labelRepeatsHeading` in `src/core/param-cards.ts`, and the style test holds every bundled template's Parameters tab to it.
+
 ## Settings by element, not by kind
 
 The Parameters tab is the worked example; anything that edits a thing with parts follows it.

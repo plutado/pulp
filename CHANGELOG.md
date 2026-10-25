@@ -8,6 +8,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Changed
 
+- No label repeats the heading it sits under. "Logo" as a card's title and "Logo" again as its one field read "Logo, Logo" over the image well; a field whose label matches its card's title — or, in a plain form, its group heading — now keeps the text as its accessible name and shows nothing. One rule in the core, in the style guide, and held to by the style test across every bundled template's Parameters tab.
+
 - Packaging is the last step of the project: milestones 17 (unsigned builds) and 7 (signing and auto-update) move to the end of the planned order, after 1.0 hardening, in the roadmap and the README. Milestone 17 gains an app icon of Pulp's own — an original mark, exported as `.icns`, `.ico` and the PNG sizes Linux wants — with the app named "Pulp" wherever a system names it, desktop and Start menu shortcuts from the Windows installer, and a Linux desktop entry.
 
 - The Windows CI section of `docs/platform-notes.md` is findings rather than an investigation diary: the runner and the job, the three path and line-ending failures with their one shortcut, the squeezed results list that caused the eleven UI failures, the hover-scrub fixes, and what a failing run reports now. Three claims that turned out wrong are gone — the job that printed nothing was cancelled after about fifteen minutes rather than running to six hours and was most likely slow rather than stuck, a healthy Windows run takes about 6.5 minutes, not 20 (the comment on the job's timeout says so too), and a silent Windows run is not by itself evidence of a process a test is waiting on.
