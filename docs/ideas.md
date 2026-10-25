@@ -28,7 +28,9 @@ Each move is a commit, so the history shows when an idea was decided and where i
 
 ## Known issues
 
-None open. (The Windows-only layers failures were a throttled renderer that ran no animation frames on the CI runner; fixed in `73b7c17`, see `docs/platform-notes.md`.)
+- **Results rows are much taller than wide cards need.** The windowed results list needs one row height, and takes it from the tallest picture shape anywhere in the results (`tallestRatio` in `src/core/results-view.ts`). One square or portrait item in the library (a 512 × 512 logo is enough) makes every row the height of a square or tall card, so each wide card's picture and text sit in the top half of its cell with empty space beneath it, and the grid looks loose, with a gap before each row. Proposed fix: in a grid that mixes shapes, every card gets a 16:9 picture box and a square or tall picture is fitted inside it (contained, keeping its shape badge); the taller pitch is used only when everything shown is square or tall, for example with the Vertical chip pressed. Check with a wide-only library, a mixed one, and the Vertical chip, in grid and rows view.
+
+(Fixed earlier: the Windows-only layers failures were a throttled renderer that ran no animation frames on the CI runner; `73b7c17`, see `docs/platform-notes.md`.)
 
 ## Ideas
 
