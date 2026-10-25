@@ -34,6 +34,18 @@ npm run build
 
 The results region is windowed: only the cards and rows in view are in the DOM. A UI test must therefore scroll to an item before reading or clicking it — use the `scrollToResult`, `onResult`, `clickResult` and `resultNames` helpers in `tests/e2e/ui.e2e.test.ts` rather than querying `#results` directly.
 
+## Visual regression
+
+Every bundled template is rendered at each aspect it declares, at a few fixed frames, and compared with the approved perceptual hashes in `tests/visual/references.json` (`tests/e2e/visual.e2e.test.ts`). Hashes rather than images: this repository ships no binaries, and a hash is a short string a reviewer reads in a diff. A failure names the template, the aspect and the frame.
+
+When a change to how a template looks is intended, approve it deliberately and review the diff:
+
+```sh
+npm run build && npm run visual:approve
+```
+
+`npm run visual:check` runs the comparison on its own. What counts as the same picture is `src/core/visual-hash.ts`: antialiasing and a font hinted a shade differently pass; a moved, recoloured or missing element does not.
+
 ## Guidelines
 
 - Keep `src/core` free of Electron and DOM dependencies, and cover it with tests. Logic that can live in the core should.

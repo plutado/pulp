@@ -25,7 +25,7 @@ import { chooseFontFile, importFontFile, listImportedFonts } from './font-servic
 import { parseLayersArgument } from '../core/layers';
 import { LAYERS_KEY } from '../core/params';
 import { slug } from '../core/pack';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { addRecentColor } from '../core/recent-colors';
 import { addRecentSearch } from '../core/recent-searches';
 import { sanitizeLayout } from '../core/layout';
@@ -260,6 +260,7 @@ function registerIpc(): void {
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
  *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
  *   electron . --sample-media <folder>
+ *   electron . --visual-hashes <file> [--check]
  * `--sample-media` writes the sample-media catalogue (src/core/sample-media.ts) into the folder:
  * original CC0 sounds, music, stills and clips, at least six per media type, skipping files
  * that exist. Add the folder to a library afterwards.
@@ -288,6 +289,8 @@ interface CliRender {
   batch?: string;
   collection?: string;
   sampleMedia?: string;
+  /** `--visual-hashes <file>`: write or check the visual references. */
+  visualHashes?: { file: string; check: boolean };
   options: RenderOptions;
   /** In and out points as typed; parsed once the frame rate is known. */
   inPoint?: string;
@@ -296,10 +299,42 @@ interface CliRender {
   badNumbers: string[];
 }
 
+/**
+ * `--visual-hashes <file>`: hash every bundled template at every aspect it
+ * declares, at a few fixed frames, and either write the references or compare
+ * with them (`--check`). The visual regression safety net; see
+ * src/main/visual-service.ts.
+ */
+async function runVisualHashes(file: string, check: boolean): Promise<number> {
+  const { hashLibrary, toReferences, compare } = await import('./visual-service');
+  const templates = join(app.getAppPath(), 'templates');
+  const { results, failed } = await hashLibrary(templates, (done, total, what) => {
+    if (done % 25 === 0 || done === total) process.stdout.write(`${done}/${total} ${what}\n`);
+  });
+  for (const f of failed) process.stderr.write(`could not render ${f.what}: ${f.error}\n`);
+  if (!check) {
+    await writeFile(file, JSON.stringify(toReferences(results), null, 2) + '\n');
+    process.stdout.write(`wrote ${results.length} hashes for ${Object.keys(toReferences(results)).length} templates to ${file}\n`);
+    return failed.length > 0 ? 1 : 0;
+  }
+  let references;
+  try {
+    references = JSON.parse(await readFile(file, 'utf8'));
+  } catch (err) {
+    process.stderr.write(`no references at ${file}: ${(err as Error).message}\n`);
+    return 1;
+  }
+  const { changed, missing } = compare(results, references);
+  for (const c of changed) process.stdout.write(`CHANGED ${c.template} ${c.aspect} frame ${c.frame}: ${c.apart} bits from its reference\n`);
+  for (const m of missing) process.stdout.write(`NEW ${m.template} ${m.aspect} frame ${m.frame}: ${m.hash}\n`);
+  process.stdout.write(`${results.length} frames checked, ${changed.length} changed, ${missing.length} without a reference\n`);
+  return changed.length + missing.length + failed.length > 0 ? 1 : 0;
+}
+
 function parseCliRender(argv: string[]): CliRender | null {
   const i = argv.indexOf('--render');
   // --collection renders a saved file and --sample-media makes files; neither names a template of its own.
-  if (i === -1 && argv.indexOf('--collection') === -1 && argv.indexOf('--sample-media') === -1) return null;
+  if (i === -1 && argv.indexOf('--collection') === -1 && argv.indexOf('--sample-media') === -1 && argv.indexOf('--visual-hashes') === -1) return null;
   const get = (flag: string): string | undefined => {
     const at = argv.indexOf(flag);
     return at === -1 ? undefined : argv[at + 1];
@@ -342,6 +377,7 @@ function parseCliRender(argv: string[]): CliRender | null {
   const batch = get('--batch');
   const collection = get('--collection');
   const sampleMedia = get('--sample-media');
+  const visualHashes = get('--visual-hashes');
   return {
     templateId: argv[i + 1] ?? '',
     presetId: get('--preset') ?? 'prores-4444',
@@ -354,6 +390,7 @@ function parseCliRender(argv: string[]): CliRender | null {
     ...(batch !== undefined ? { batch: resolve(batch) } : {}),
     ...(collection !== undefined ? { collection: resolve(collection) } : {}),
     ...(sampleMedia !== undefined ? { sampleMedia: resolve(sampleMedia) } : {}),
+    ...(visualHashes !== undefined ? { visualHashes: { file: resolve(visualHashes), check: argv.includes('--check') } } : {}),
     ...(outPoint !== undefined ? { outPoint } : {}),
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
     ...(frameFormat !== undefined ? { frameFormat } : {}),
@@ -363,6 +400,7 @@ function parseCliRender(argv: string[]): CliRender | null {
 async function runCliRender(cli: CliRender): Promise<number> {
   if (cli.libraries.length > 0) await rescan(cli.libraries);
   if (cli.sampleMedia !== undefined) return runCliSampleMedia(cli.sampleMedia);
+  if (cli.visualHashes !== undefined) return runVisualHashes(cli.visualHashes.file, cli.visualHashes.check);
   if (cli.collection !== undefined) return runCliCollection(cli);
   const template = await findTemplate(cli.templateId);
   if (!template) {

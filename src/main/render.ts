@@ -72,7 +72,7 @@ export interface RenderJob {
  * exists only so tests can simulate a HiDPI surface and check that such a
  * render is refused rather than resized.
  */
-function offscreenDeviceScaleFactor(): number {
+export function offscreenDeviceScaleFactor(): number {
   const override = Number(process.env.PULP_OFFSCREEN_SCALE);
   return Number.isFinite(override) && override > 0 ? override : 1;
 }
@@ -355,7 +355,7 @@ class TemplateError extends Error {
  * timeout keeps an occluded or otherwise non-painting window from hanging the
  * frame; the capture then behaves as before the wait existed.
  */
-function paintComposited(win: BrowserWindow): Promise<void> {
+export function paintComposited(win: BrowserWindow): Promise<void> {
   return new Promise((resolve) => {
     const done = (): void => {
       clearTimeout(timer);
