@@ -17,6 +17,9 @@ import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { frameCount, type TemplateManifest } from '../core/manifest';
 import type { ResolvedParams } from '../core/params';
+import { mountStageLayers, stageLayersUpdate } from './stage-layers';
+import { selectedLayer } from './layer-edit';
+import type { LaidReport } from '../core/stage-place';
 import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor, type PlayerState, type StageBackground } from '../core/player';
 import { frameState } from '../core/runtime';
 import { formatTimecode } from '../core/timecode';
@@ -60,6 +63,7 @@ const els = {
   bgCustom: $<HTMLInputElement>('bg-custom'),
   audition: $<HTMLButtonElement>('audition'),
   safeToggle: $<HTMLButtonElement>('safe-toggle'),
+  layerOverlay: $<HTMLDivElement>('layer-overlay'),
   safeOverlay: $<HTMLDivElement>('safe-overlay'),
   safeAction: $<HTMLDivElement>('safe-action'),
   safeTitle: $<HTMLDivElement>('safe-title'),
@@ -348,6 +352,9 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
   stageStop();
   clearMediaPreview();
   clearNote();
+  // A different template is a different stack: nothing stays selected across the change.
+  selectedLayer.value = null;
+  stageLayersUpdate(null);
   const m = entry.manifest;
   s.manifest = m;
   s.params = params;
@@ -410,6 +417,8 @@ export function stageShowMedia(entry: MediaEntry): void {
 export function stageClear(): void {
   s.manifest = null;
   s.previewReady = false;
+  selectedLayer.value = null;
+  stageLayersUpdate(null);
   // Marks belong to a template's timeline; nothing selected means nothing marked.
   trim.value = { inFrame: null, outFrame: null };
   stageStop();
@@ -518,6 +527,7 @@ export function initStage(): void {
   }
   els.bgCustom.addEventListener('input', () => setPlayer({ background: 'custom', customBackground: els.bgCustom.value }));
   els.safeToggle.addEventListener('click', () => setPlayer({ safeAreas: !s.player.safeAreas }));
+  mountStageLayers(els.layerOverlay, { frameSize: () => previewSize() });
   els.audition.addEventListener('click', () => setPlayer({ audition: !s.player.audition }));
 
   // Peaks arrive after the file is shown; redraw the one on screen when they do.
@@ -558,6 +568,7 @@ export function initStage(): void {
       s.inFlight = false;
       clearReplyWatchdog();
       noteFrameState();
+      if (data.type === 'pulp:rendered') stageLayersUpdate(((data as { laid?: LaidReport }).laid ?? {}));
       if (data.type === 'pulp:error') {
         els.note.hidden = false;
         els.note.textContent = `Template error: ${data.message ?? 'unknown'}`;

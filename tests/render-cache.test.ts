@@ -18,6 +18,9 @@ describe('render cache', () => {
     expect(one).not.toBe(two);
     expect(one).not.toBe(none);
     expect(one).toBe(cacheKey({ ...base, params: { '@layers': { strap: [{ id: 'name', text: 'Ada' }] } } }));
+    // A placement is a layer value like any other, so a moved layer renders afresh (milestone 25).
+    const placed = cacheKey({ ...base, params: { '@layers': { strap: [{ id: 'name', text: 'Ada', placement: { '16:9': { dx: 0.1, dy: 0, scale: 1 } } }] } } });
+    expect(placed).not.toBe(one);
   });
 
   it('keys the same inputs the same and different inputs differently', () => {

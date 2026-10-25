@@ -347,6 +347,14 @@ export const BRIDGE_SCRIPT = `(function () {
       cursor += m.extent;
       placed++;
     }
+    /* What was laid, compactly, for the stage's handles (milestone 25): each layer's slot and
+       what it will be drawn with, which together are where it really lands on the frame. */
+    window.__pulp.laid[blockId] = {
+      box: { x: box.x, y: box.y, width: box.width, height: box.height },
+      layers: layers.map(function (l) {
+        return { id: l.id, type: l.type, box: { x: l.box.x, y: l.box.y, width: l.box.width, height: l.box.height }, draw: { alpha: l.draw.alpha, dx: l.draw.dx || 0, dy: l.draw.dy || 0, scale: l.draw.scale === undefined ? 1 : l.draw.scale } };
+      })
+    };
     return { id: block.id, box: box, layers: layers };
   }
   /* Draws a block laid out by layoutBlock: each layer with the alpha, offset and scale the template gave it. */
@@ -450,6 +458,7 @@ export const BRIDGE_SCRIPT = `(function () {
       if (typeof window.pulpRender !== 'function') {
         throw new Error('Template does not define window.pulpRender(state)');
       }
+      window.__pulp.laid = {};
       return Promise.all([attachPictures(state), loadLayerFonts(state)]).then(function () { return window.pulpRender(state); });
     }).then(function () {
       /* Two animation frames: the first callback runs before the frame holding the draw is
@@ -491,7 +500,7 @@ export const BRIDGE_SCRIPT = `(function () {
     Object.keys(blocks).forEach(function (id) { n += (blocks[id].layers || []).length; });
     return n;
   }
-  window.__pulp = { ready: ready, render: render, prepare: prepare, drawImage: drawImage, fitBox: fitBox, layoutBlock: layoutBlock, drawBlock: drawBlock, slotHidden: slotHidden, slotText: slotText, drawn: null };
+  window.__pulp = { ready: ready, render: render, prepare: prepare, drawImage: drawImage, fitBox: fitBox, layoutBlock: layoutBlock, drawBlock: drawBlock, slotHidden: slotHidden, slotText: slotText, drawn: null, laid: {} };
   window.pulpDrawImage = drawImage;
   window.pulpSlotHidden = slotHidden;
   window.pulpSlotText = slotText;
@@ -512,7 +521,7 @@ export const BRIDGE_SCRIPT = `(function () {
     }
     if (data.type !== 'pulp:render') return;
     render(data.state).then(function () {
-      reply.postMessage({ type: 'pulp:rendered', id: data.id }, '*');
+      reply.postMessage({ type: 'pulp:rendered', id: data.id, laid: window.__pulp.laid }, '*');
     }, function (err) {
       reply.postMessage({ type: 'pulp:error', id: data.id, message: String(err && err.message || err) }, '*');
     });

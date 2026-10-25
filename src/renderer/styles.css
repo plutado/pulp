@@ -115,6 +115,26 @@ input[type="checkbox"] { width: auto; }
 .splitter.h { cursor: row-resize; height: 6px; }
 .splitter:hover, .splitter:focus-visible { background: var(--accent); outline: none; }
 
+/* The card the stage selected: the same accent the tree's current row carries. */
+.param-card.stage-selected { outline: 1px solid var(--accent); outline-offset: -1px; }
+
+/* Layers on the stage (milestone 25): the overlay that selects, moves and resizes a layer.
+   It only takes the pointer while a template with layers is shown; the chrome is percent-
+   positioned over the frame, so it holds at any preview size. */
+.layer-overlay { position: absolute; inset: 0; z-index: 3; }
+.layer-overlay:not(.active) { pointer-events: none; }
+.layer-overlay:focus-visible { outline: none; }
+.layer-overlay.active { cursor: default; }
+.stage-select { position: absolute; border: 1px solid var(--accent); pointer-events: none; }
+.stage-handle { position: absolute; width: 10px; height: 10px; background: var(--accent); border: 1px solid #0d1117; pointer-events: auto; }
+.stage-handle.nw { left: -5px; top: -5px; cursor: nwse-resize; }
+.stage-handle.se { right: -5px; bottom: -5px; cursor: nwse-resize; }
+.stage-handle.ne { right: -5px; top: -5px; cursor: nesw-resize; }
+.stage-handle.sw { left: -5px; bottom: -5px; cursor: nesw-resize; }
+.stage-guide { position: absolute; background: var(--accent); opacity: 0.8; pointer-events: none; }
+.stage-guide.x { top: 0; bottom: 0; width: 1px; }
+.stage-guide.y { left: 0; right: 0; height: 1px; }
+
 /* Icons (ADR 0011): inline SVG inheriting currentColor; hosts carry the accessible name. */
 .icon { display: inline-block; vertical-align: -0.2em; flex-shrink: 0; }
 .icon-wrap { display: inline-flex; align-items: center; }

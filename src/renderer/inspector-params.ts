@@ -40,6 +40,8 @@ import type { MediaEntry } from '../core/library-types';
 import { mediaUrlFor } from '../core/media-url';
 import { stageSetParams } from './stage';
 import { appState, importedFonts, selectedTemplate, slotNotes } from './store';
+import { registerLayerEditor, selectedLayer } from './layer-edit';
+import { effect } from '@preact/signals';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -949,6 +951,20 @@ function layerActions(blockId: string, layer: Layer, index: number, count: numbe
   hide.setAttribute('aria-pressed', String(layer.hidden));
   hide.addEventListener('click', () => editLayer(blockId, layer.id, (l) => ({ ...l, hidden: !l.hidden }), true));
 
+  // A placed layer can be put back where its stack places it (milestone 25).
+  if (layer.placement) {
+    const resetPos = iconButton('frame-corners', `Reset ${layer.label} position`, 'Put the layer back where the stack places it');
+    resetPos.addEventListener('click', () => {
+      editLayer(blockId, layer.id, (l) => {
+        const rest = { ...l };
+        delete rest.placement;
+        return rest;
+      }, true);
+      commitParams();
+    });
+    actions.append(resetPos);
+  }
+
   const up = iconButton('caret-up', `Move ${layer.label} up`);
   up.disabled = index === 0;
   up.addEventListener('click', () => moveLayer(blockId, layer.id, -1));
@@ -1493,7 +1509,13 @@ function paramCardEl(card: ParamCard): HTMLElement {
   name.textContent = card.label;
   toggle.append(name);
   head.append(toggle);
-  if (card.layer) head.append(layerActions(card.layer.block, card.layer.layer, card.layer.index, card.layer.count));
+  if (card.layer) {
+    head.append(layerActions(card.layer.block, card.layer.layer, card.layer.index, card.layer.count));
+    // Touching a layer's card selects it on the stage, the same selection the stage sets (milestone 25).
+    const choice = { block: card.layer.block, id: card.layer.layer.id };
+    toggle.addEventListener('click', () => (selectedLayer.value = choice));
+    if (selectedLayer.value?.block === choice.block && selectedLayer.value?.id === choice.id) section.classList.add('stage-selected');
+  }
   section.append(head);
 
   const body = document.createElement('div');
@@ -1659,4 +1681,31 @@ export function initInspectorParams(): void {
     }
   });
   void window.pulp.getRecentColors().then(setRecentColors);
+
+  // The stage edits layers through the tab's own machinery (milestone 25): the same live-edit
+  // path, the same commit, so a drag is one undo step and every redraw goes one way.
+  registerLayerEditor({
+    edit: (block, id, change, commit) => {
+      editLayer(block, id, change, commit);
+      if (commit) commitParams();
+    },
+    get: (block, id) => currentLayers()[block]?.find((l) => l.id === id),
+    commit: () => {
+      commitParams();
+      const selected = selectedTemplate.value;
+      if (selected) buildParamForm(selected.manifest);
+    },
+  });
+
+  // The stage's selection lights the layer's card and brings it into view, both ways.
+  effect(() => {
+    const chosen = selectedLayer.value;
+    document.querySelectorAll('#params .param-card.stage-selected').forEach((el) => el.classList.remove('stage-selected'));
+    if (!chosen) return;
+    const card = document.querySelector(`#params .param-card[data-block="${chosen.block}"][data-layer="${chosen.id}"]`);
+    if (card) {
+      card.classList.add('stage-selected');
+      card.scrollIntoView({ block: 'nearest' });
+    }
+  });
 }

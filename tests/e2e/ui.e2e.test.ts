@@ -1240,6 +1240,124 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+    it('moves, scales and nudges a layer on the stage, one undo step a gesture, and motion still carries it', async () => {
+      const overlay = `document.getElementById('layer-overlay')`;
+      try {
+        await clickResult('Title Card');
+        await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+        await scrubAndWait(110);
+        await until(() => page.eval<boolean>(`${overlay}.classList.contains('active')`), 'the overlay active over a template with layers');
+
+        type Laid = Record<string, { box: { x: number; y: number; width: number; height: number }; layers: { id: string; type: string; box: { x: number; y: number; width: number; height: number }; draw: { alpha: number; dx: number; dy: number; scale: number } }[] }>;
+        const laid = () => inTemplate<Laid>(`window.__pulp.laid`, CARD);
+        const titleDraw = async () => (await laid()).card!.layers.find((l) => l.id === 'title')!.draw;
+        const box = () => page.eval<{ left: number; top: number; width: number }>(`(() => { const r = ${overlay}.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width }; })()`);
+        /** The client point of a frame-pixel point, through the overlay's box. */
+        const client = async (fx: number, fy: number) => {
+          const b = await box();
+          const scale = b.width / 1920;
+          return { x: b.left + fx * scale, y: b.top + fy * scale };
+        };
+        const pointer = (type: string, x: number, y: number, target = overlay) =>
+          page.eval(`${target}.dispatchEvent(new PointerEvent(${JSON.stringify(type)}, { clientX: ${x}, clientY: ${y}, pointerId: 7, button: 0, bubbles: true }))`);
+
+        // Click the title where it was really drawn: it is selected on the stage and in the tab.
+        const before = await laid();
+        const t0 = before.card!.layers.find((l) => l.id === 'title')!;
+        const centreF = { x: t0.box.x + t0.draw.dx + t0.box.width / 2, y: t0.box.y + t0.draw.dy + t0.box.height / 2 };
+        const at0 = await client(centreF.x, centreF.y);
+        await pointer('pointerdown', at0.x, at0.y);
+        await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected[data-layer=title]')`), 'the title card lit by the stage selection');
+        expect(await page.eval<boolean>(`!!${overlay}.querySelector('.stage-select')`)).toBe(true);
+
+        // The title starts centred, so a tiny move keeps it inside the snap threshold: the centre
+        // guide draws while it holds, which is the "say it while it snaps" of the item.
+        await pointer('pointermove', at0.x + 2, at0.y + 1);
+        await until(() => page.eval<boolean>(`!!${overlay}.querySelector('.stage-guide.x')`), 'the centre guide while snapped');
+
+        // Drag it right and down; the placement lands as frame fractions, snap tolerance allowed.
+        const b = await box();
+        const toFrame = 1920 / b.width;
+        await pointer('pointermove', at0.x + 80, at0.y + 40);
+        await pointer('pointerup', at0.x + 80, at0.y + 40);
+        // Snapping is honest to the eye, not the maths: within 6 screen pixels a line takes the
+        // layer, and at a small preview 6 screen pixels is many frame pixels. The tolerance is
+        // therefore the snap threshold in frame pixels, plus a little antialiasing room.
+        const snapRoom = 6 * toFrame + 12;
+        await until(async () => Math.abs((await titleDraw()).dx - 80 * toFrame) < snapRoom, 'the drag landed as an offset');
+        expect(Math.abs((await titleDraw()).dy - 40 * toFrame)).toBeLessThan(snapRoom);
+        // The card now offers its way back.
+        await until(() => page.eval<boolean>(`!!document.querySelector('#params [aria-label="Reset Title position"]')`), 'Reset position on the placed layer');
+
+        // A nudge is a fraction of the frame; Shift is bolder. Each press is one undo step.
+        const nudgedFrom = (await titleDraw()).dx;
+        await page.eval(`${overlay}.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }))`);
+        await until(async () => (await titleDraw()).dx > nudgedFrom + 2, 'the nudge landed');
+        expect((await titleDraw()).dx - nudgedFrom).toBeCloseTo(0.002 * 1920, 0);
+
+        // Resize by the corner: drag the south-east handle away from the centre.
+        const handleAt = await page.eval<{ x: number; y: number }>(`(() => { const r = ${overlay}.querySelector('.stage-handle.se').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+        await pointer('pointerdown', handleAt.x, handleAt.y, `${overlay}.querySelector('.stage-handle.se')`);
+        await pointer('pointermove', handleAt.x + 60, handleAt.y + 34);
+        await pointer('pointerup', handleAt.x + 60, handleAt.y + 34);
+        await until(async () => (await titleDraw()).scale > 1.05, 'the corner drag scaled the layer');
+
+        // Three gestures, three steps back: the title sits exactly where the stack put it again.
+        for (let i = 0; i < 3; i++) await page.eval(`document.getElementById('undo').click()`);
+        await until(async () => {
+          const d = await titleDraw();
+          return Math.abs(d.dx) < 0.5 && Math.abs(d.dy) < 0.5 && Math.abs(d.scale - 1) < 0.01;
+        }, 'undo returning the layer to its stack');
+
+        // Motion still owns the entrance: a placed layer is still absent before its turn.
+        await page.eval(`${overlay}.focus()`);
+        await page.eval(`${overlay}.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true, cancelable: true }))`);
+        await until(async () => (await titleDraw()).dx > 20, 'the bold nudge landed');
+        await scrubAndWait(2);
+        expect((await titleDraw()).alpha, 'placed, but not yet arrived').toBeLessThan(0.2);
+        await scrubAndWait(110);
+
+        // Per aspect: what was placed at 16:9 does not move the 9:16 layout.
+        await fire('#opt-aspect', '9:16', 'change');
+        await until(async () => (await laid()).card !== undefined && (await inTemplate<number>(`document.getElementById('c').width`, CARD)) < 1200, 'the tall preview');
+        await scrubAndWait(110);
+        expect((await titleDraw()).dx, 'a 16:9 placement never moves the 9:16 frame').toBe(0);
+        await fire('#opt-aspect', '16:9', 'change');
+        await scrubAndWait(110);
+        await page.eval(`document.getElementById('undo').click()`);
+        await until(async () => Math.abs((await titleDraw()).dx) < 0.5, 'the nudge undone');
+
+        // A logo rides the same handles: add an image layer, give it the seeded mark, drag it,
+        // and Reset position puts it back where the stack had it.
+        const wrap = `document.querySelector('#params .layers-block[data-block=card]')`;
+        await page.eval(`${wrap}.querySelector('[data-add=image]').click()`);
+        await until(() => page.eval<boolean>(`${wrap}.querySelectorAll('.param-card').length === 3`), 'the image layer');
+        const icard = `${wrap}.querySelectorAll('.param-card')[2]`;
+        await page.eval(`${icard}.querySelector('.image-well').click()`);
+        await until(() => page.eval<boolean>(`!!${icard}.querySelector('.image-choice')`), 'stills to choose from');
+        await page.eval(`[...${icard}.querySelectorAll('.image-choice')].find((c) => c.querySelector('.name').textContent === 'mark').click()`);
+        await until(() => page.eval<boolean>(`!${icard}.querySelector('.image-well').classList.contains('empty')`), 'the picture chosen');
+        const ilabel = await page.eval<string>(`${icard}.querySelector('.layer-label').textContent`);
+        await scrubAndWait(110);
+        const pictured = await until(async () => {
+          const l = await laid();
+          return (l.card?.layers.some((y) => y.type === 'image' && y.box.width > 0)) === true;
+        }, 'the picture drawn').then(() => laid());
+        const logo = pictured.card!.layers.find((y) => y.type === 'image')!;
+        const logoAt = await client(logo.box.x + logo.draw.dx + logo.box.width / 2, logo.box.y + logo.draw.dy + logo.box.height / 2);
+        await pointer('pointerdown', logoAt.x, logoAt.y);
+        await pointer('pointermove', logoAt.x - 70, logoAt.y + 30);
+        await pointer('pointerup', logoAt.x - 70, logoAt.y + 30);
+        const logoDraw = async () => (await laid()).card!.layers.find((y) => y.type === 'image')!.draw;
+        await until(async () => (await logoDraw()).dx < -40, 'the logo moved left');
+        await page.eval(`document.querySelector('#params [aria-label="Reset ${ilabel} position"]').click()`);
+        await until(async () => Math.abs((await logoDraw()).dx) < 0.5, 'Reset position putting the logo back');
+      } finally {
+        await restoreLayers();
+        await fire('#opt-aspect', '16:9', 'change');
+      }
+    }, 120_000);
+
     it('organises the tab by element: a card per part, the layers among them, and timing last', async () => {
       const cards = () =>
         page.eval<{ card: string; label: string; params: string[]; open: boolean }[]>(
