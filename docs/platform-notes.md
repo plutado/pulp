@@ -107,7 +107,7 @@ ffmpeg 7 and later take color properties from the frames leaving the filter grap
 Four jobs run on every push and pull request: `check` (Ubuntu: dependency audit, lint and type check, unit tests, build) and a full render job per platform, `render-windows`, `render-macos` and `render-linux`, each running the whole suite with `PULP_E2E=1` so a missing Electron, ffmpeg or ffprobe fails rather than skips.
 
 - **macOS** (`macos-latest`, Apple silicon) takes ffmpeg from Homebrew. The HEVC-with-alpha test skips itself when ffmpeg lists no `hevc_videotoolbox` encoder, so a runner without VideoToolbox passes without pretending to cover it.
-- **Linux** runs under a virtual display (`xvfb-run`, 1920 × 1080). The runner's kernel blocks unprivileged user namespaces, which Chromium's sandbox needs, so the job gives Electron's setuid `chrome-sandbox` helper root ownership and mode 4755, the supported alternative to turning the sandbox off.
+- **Linux** runs under a virtual display (`xvfb-run`, 8192 × 4608: larger than any render, since Linux keeps an offscreen window inside the screen) and a D-Bus session (`dbus-run-session`). It uses a pinned static ffmpeg 9.0 (BtbN/FFmpeg-Builds, checksum-verified) rather than Ubuntu's 6.1, which rounds the colour conversion a step differently and failed the exact colour checks. The runner's kernel blocks unprivileged user namespaces, which Chromium's sandbox needs, so the job gives Electron's setuid `chrome-sandbox` helper root ownership and mode 4755, the supported alternative to turning the sandbox off.
 - **The dependency audit** counts development dependencies too: Electron is one, and it is the runtime Pulp ships.
 
 ## Windows CI
