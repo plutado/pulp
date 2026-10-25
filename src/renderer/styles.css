@@ -376,7 +376,18 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
    picture's own ratio that fits, pillarboxed or letterboxed by whatever room is left around it.
    A clamped width or height alone would change the shape and stretch the iframe or media inside;
    this box can only be the right shape, and when the wrap has no room it is simply not drawn. */
-.preview-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; container-type: size; }
+/* The picture is why the stage is there, so it keeps a floor and the chrome around it gives way
+   first: with the tray open on a short window the tools and the item row were taking every pixel
+   and leaving the preview 2 px tall and hidden, which is a stage nobody can click on
+   (docs/platform-notes.md). They shrink and clip; the picture stays. */
+.preview-wrap { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 96px; container-type: size; }
+.stage > .stage-tools, .stage > .item-row { min-height: 0; overflow: hidden; }
+/* And when even that floor cannot be met, the stage says so rather than showing nothing. */
+.preview-no-room { display: none; color: var(--muted); font-size: var(--font-caption); text-align: center; padding: 0 var(--space-2); }
+@container (max-height: 48px) {
+  .preview { display: none; }
+  .preview-no-room { display: block; }
+}
 .preview {
   position: relative;
   flex: 0 0 auto;

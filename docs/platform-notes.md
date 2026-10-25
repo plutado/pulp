@@ -182,6 +182,16 @@ Once the tests waited for `window.__pulp.drawn` (above), five layers tests timed
 - **`backgroundThrottling: false` on the window.** The preview answers frame requests through animation frames; a window that stops running them cannot answer. Pulp is a tool whose window may well be occluded while it renders, so this is right beyond CI.
 - **The bridge's two-frame wait is bounded**, like every other wait in a frame's path: the draw itself has already happened synchronously when the wait starts, so after 250 ms the frame is declared drawn rather than held forever. A healthy page resolves on the second animation frame long before that; an in-page `getImageData` reads the canvas's backing store, which holds the draw whether or not a compositor frame ever carried it.
 
+### A squeezed stage left the picture 2 px tall (fixed, October 2026)
+
+The sequel to the entry below, and the real cause. With the collection tray open on the CI window — 1008 × 655 — the stage region is about 178 px tall, and its own chrome took all of it: the transport 34 px, the tools 68, the item row 58. The picture was left **0 px**, so `.preview` fell under its "no room" rule and went `visibility: hidden`, the layer overlay measured 0 × 0, and a click on the stage had nothing to hit. Everything upstream looked healthy — the frame drew, the overlay was active, the report matched — which is why the first fix aimed at hit-testing and missed.
+
+The picture is why the stage is there, so it now keeps a floor of 96 px and the chrome gives way first (`.stage > .stage-tools, .stage > .item-row` shrink and clip). Below even that the stage says so rather than showing nothing. The overlay also refuses to be active when its box has no width, so a click cannot silently do nothing.
+
+**Rule: when a region runs out of room, decide what it is for and let the rest yield.** A flex column whose main content has `min-height: 0` will give every pixel to its chrome without a word.
+
+The end-to-end test now runs this interaction at that exact geometry — small window, tray open — so the squeeze is a case the suite covers rather than a surprise CI finds.
+
 ### Clicking a layer on the stage missed it on Windows (fixed, October 2026)
 
 The stage's handles (milestone 25) worked on macOS and Ubuntu and failed on `windows-latest`: the end-to-end test clicked the drawn title and nothing was selected. Two things were wrong, and the runner's window — 1008 × 655, so a 1920-pixel frame previewed about 157 px wide — is what exposed both.

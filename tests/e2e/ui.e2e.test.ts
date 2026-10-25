@@ -403,6 +403,9 @@ describe.skipIf(!electron)('inspector UI', () => {
     lines.push(`results box: ${JSON.stringify(await probe('results box', () => page.eval(`(() => { const b = document.getElementById('results'); return { clientHeight: b.clientHeight, scrollHeight: b.scrollHeight, scrollTop: b.scrollTop, cols: b.style.getPropertyValue('--cols'), rowHeight: b.style.getPropertyValue('--card-h'), stage: document.getElementById('region-stage').clientHeight, tray: document.getElementById('region-tray').clientHeight }; })()`, undefined, 5_000)))}`);
     lines.push(`frame callback: ${JSON.stringify(await probe('rAF', () => page.eval(`new Promise((r) => { const t = performance.now(); const timer = setTimeout(() => r('no frame callback within 3 s'), 3000); requestAnimationFrame(() => { clearTimeout(timer); r(Math.round(performance.now() - t) + ' ms'); }); })`, undefined, 5_000)))}`);
     // The preview: what frame the stage asked for, whether it is still waiting, and what the page last drew.
+    // The preview's own box and the layer overlay over it: a stage squeezed by the tray can leave
+    // the picture a few dozen pixels tall, or no room at all, which is what a click then misses.
+    lines.push(`preview box: ${JSON.stringify(await probe('preview box', () => page.eval(`(() => { const f = document.getElementById('preview-frame'); const o = document.getElementById('layer-overlay'); const fr = f.getBoundingClientRect(); const or = o.getBoundingClientRect(); return { frame: [Math.round(fr.width), Math.round(fr.height)], overlay: [Math.round(or.width), Math.round(or.height)], visible: getComputedStyle(f).visibility, active: o.classList.contains('active'), laidFrame: o.dataset.laidFrame }; })()`, undefined, 5_000)))}`);
     lines.push(`preview: ${JSON.stringify(await probe('preview', () => page.eval(`(() => { const f = document.getElementById('preview-frame'); return { frame: f.dataset.frame, inFlight: f.dataset.inFlight, pending: f.dataset.pending, watchdogFired: f.dataset.watchdog, src: document.getElementById('preview').getAttribute('src') }; })()`, undefined, 5_000)))}`);
     const previewSrc = await probe('preview src', () => page.eval<string | null>(`document.getElementById('preview').getAttribute('src')`, undefined, 5_000));
     const templateId = typeof previewSrc === 'string' ? /^pulp-template:\/\/([^/]+)\//.exec(previewSrc)?.[1] : undefined;
@@ -1254,9 +1257,16 @@ describe.skipIf(!electron)('inspector UI', () => {
     it('moves, scales and nudges a layer on the stage, one undo step a gesture, and motion still carries it', async () => {
       const overlay = `document.getElementById('layer-overlay')`;
       try {
+        // The window CI runs at, with the tray open: the geometry that once left the preview 2 px
+        // tall and hidden, so a click had nothing to land on (docs/platform-notes.md). The picture
+        // keeps a floor now and the stage's own chrome gives way, so the handles still work here.
+        await page.send('Emulation.setDeviceMetricsOverride', { width: 1008, height: 655, deviceScaleFactor: 1, mobile: false });
         await clickResult('Title Card');
+        await page.eval(`document.getElementById('add-to-collection').click()`);
+        await until(() => page.eval<boolean>(`document.getElementById('region-tray').clientHeight > 100`), 'the tray open, squeezing the stage');
         await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
         await scrubAndWait(110);
+        expect(await page.eval<number>(`Math.round(document.querySelector('.preview-wrap').getBoundingClientRect().height)`), 'the picture keeps room even here').toBeGreaterThanOrEqual(96);
         await until(() => page.eval<boolean>(`${overlay}.classList.contains('active')`), 'the overlay active over a template with layers');
 
         type Laid = { frame: number | null; blocks: Record<string, { box: { x: number; y: number; width: number; height: number }; layers: { id: string; type: string; box: { x: number; y: number; width: number; height: number }; draw: { alpha: number; dx: number; dy: number; scale: number } }[] }> };
@@ -1377,6 +1387,9 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`document.querySelector('#params [aria-label="Reset ${ilabel} position"]').click()`);
         await until(async () => Math.abs((await logoDraw()).dx) < 0.5, 'Reset position putting the logo back');
       } finally {
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
+        // Leave the collection as it was found: the tests below count what is in it.
+        await page.eval(`(() => { const b = document.querySelector('#collection [aria-label="Remove from the collection"]'); if (b) b.click(); })()`);
         await restoreLayers();
         await fire('#opt-aspect', '16:9', 'change');
       }

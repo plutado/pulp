@@ -152,7 +152,10 @@ function paintSelection(): void {
 /** The stage reports what the frame laid; the overlay follows it. */
 export function stageLayersUpdate(report: LaidReport | null): void {
   laid = report ?? EMPTY_LAID;
-  const any = Object.values(laid.blocks).some((b) => b.layers.length > 0);
+  // A preview with no room on screen has nothing to click: the overlay stays out of the way
+  // rather than swallowing clicks that could never land on a layer.
+  const hasRoom = (overlay?.getBoundingClientRect().width ?? 0) > 8;
+  const any = hasRoom && Object.values(laid.blocks).some((b) => b.layers.length > 0);
   if (overlay) {
     overlay.classList.toggle('active', any);
     // The frame this report describes, so anyone waiting for the overlay to catch up with the
