@@ -22,10 +22,10 @@
  * size; line height is a multiple of it.
  */
 
-import type { Size } from './aspect';
+import { aspectOf, type Size } from './aspect';
 import { boxFor, fitImage, type ImageValue, type PxBox } from './image-slot';
 import { motionDraw, type MotionAt } from './layer-motion';
-import { DEFAULT_MAX_LINES, DEFAULT_MOTION, type Block, type ImageLayer, type Layer, type LayerMotion, type LayerValues, type TextCase, type TextLayer } from './layers';
+import { DEFAULT_MAX_LINES, DEFAULT_MOTION, IDENTITY_PLACEMENT, placementFor, type Block, type ImageLayer, type Layer, type LayerMotion, type LayerValues, type TextCase, type TextLayer } from './layers';
 import type { TemplateManifest } from './manifest';
 
 /**
@@ -50,6 +50,8 @@ interface LayerStateBase {
   align: 'left' | 'center' | 'right';
   /** How it arrives: the template's own movement for its position, or the person's override (src/core/layer-motion.ts). */
   motion: LayerMotion;
+  /** Where the person put it, for this frame's aspect, in pixels of this frame; identity when never moved. */
+  placement: { dx: number; dy: number; scale: number };
 }
 
 export interface TextLayerState extends LayerStateBase {
@@ -247,11 +249,15 @@ function alignedX(align: 'left' | 'center' | 'right', boxX: number, boxWidth: nu
 function layerDraws(block: BlockState, options: LayoutOptions): LayerDraw[] {
   const asked = block.layers.map((layer, position) => ({ ...DEFAULT_DRAW, ...(options.each?.(layer, position) ?? {}) }));
   const at = options.at;
-  if (!at) return asked;
   const envelope = asked.reduce((most, draw) => Math.max(most, draw.alpha), 0);
   return block.layers.map((layer, position) => {
-    const own = motionDraw(layer.motion, at, { distance: layerDistance(layer), direction: block.direction });
-    return own ? { ...own, alpha: own.alpha * envelope } : asked[position]!;
+    const own = at ? motionDraw(layer.motion, at, { distance: layerDistance(layer), direction: block.direction }) : null;
+    const draw = own ? { ...own, alpha: own.alpha * envelope } : asked[position]!;
+    // The person's placement is applied around whatever the template (or the override) asked:
+    // the offsets add and the scales multiply, so a placed layer still rides the design.
+    const placed = layer.placement;
+    if (!placed || (placed.dx === 0 && placed.dy === 0 && placed.scale === 1)) return draw;
+    return { ...draw, dx: draw.dx + placed.dx, dy: draw.dy + placed.dy, scale: draw.scale * placed.scale };
   });
 }
 
@@ -365,12 +371,15 @@ export function blockState(block: Block, layers: readonly Layer[], size: Size): 
     gap: block.gap * short,
     align: block.align,
     verticalAlign: block.verticalAlign,
-    layers: drawn.map((layer, position) => layerState(layer, position, short)),
+    layers: drawn.map((layer, position) => layerState(layer, position, short, size)),
   };
 }
 
-function layerState(layer: Layer, position: number, short: number): LayerState {
-  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', motion: layer.motion ?? { ...DEFAULT_MOTION } };
+function layerState(layer: Layer, position: number, short: number, size: Size): LayerState {
+  // The person's placement, resolved for this frame's shape and turned into pixels of it.
+  const placed = placementFor(layer.placement, aspectOf(size.width, size.height));
+  const placement = placed === IDENTITY_PLACEMENT ? { ...IDENTITY_PLACEMENT } : { dx: placed.dx * size.width, dy: placed.dy * size.height, scale: placed.scale };
+  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', motion: layer.motion ?? { ...DEFAULT_MOTION }, placement };
   if (layer.type === 'text') {
     const text = layer as TextLayer;
     return {

@@ -29,7 +29,7 @@ const noImages = () => null;
 
 function text(over: Partial<TextLayerState> = {}): TextLayerState {
   return {
-    id: 'a', label: 'A', type: 'text', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION },
+    id: 'a', label: 'A', type: 'text', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION }, placement: { dx: 0, dy: 0, scale: 1 },
     text: 'Hello', family: 'Test', fontSize: 100, weight: 400, italic: false, case: 'none',
     letterSpacing: 0, kerning: true, lineHeight: 1.2, color: '#ffffff', overflow: 'wrap', maxLines: 3,
     ...over,
@@ -37,7 +37,7 @@ function text(over: Partial<TextLayerState> = {}): TextLayerState {
 }
 
 function image(over: Partial<ImageLayerState> = {}): ImageLayerState {
-  return { id: 'i', label: 'I', type: 'image', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION }, image: { id: 'a'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false }, size: 80, ...over };
+  return { id: 'i', label: 'I', type: 'image', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION }, placement: { dx: 0, dy: 0, scale: 1 }, image: { id: 'a'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false }, size: 80, ...over };
 }
 
 function block(layers: LayerState[], over: Partial<BlockState> = {}): BlockState {
@@ -357,5 +357,47 @@ describe('a layer with a motion of its own (milestone 23)', () => {
     const moved = layoutBlock(b, measure, noImages, { each, at });
     expect(moved.layers[1]!.box).toEqual(plain.layers[1]!.box);
     expect(moved.layers[1]!.draw.dy).toBeGreaterThan(0);
+  });
+});
+
+describe("a layer placed on the stage (milestone 25)", () => {
+  const at = { time: 2, duration: 4 };
+  const each = () => ({ alpha: 0.8, dx: 5, dy: -3, scale: 2 });
+  const manifest = () => {
+    const r = validateManifest(rawManifest({
+      width: undefined, height: undefined, aspects: ['16:9', '9:16'],
+      blocks: [{ id: 'card', label: 'Card', box: { x: 0.1, y: 0.2, width: 0.8, height: 0.5 }, layers: [{ id: 'title', type: 'text', label: 'Title', text: 'Hello' }] }],
+    }));
+    if (!r.ok) throw new Error(r.errors.map((e) => e.path).join());
+    return r.manifest;
+  };
+
+  it('resolves the placement for the frame\'s aspect into pixels of it', () => {
+    const m = manifest();
+    const title = m.blocks[0]!.layers[0] as TextLayer;
+    const placed: TextLayer = { ...title, placement: { '16:9': { dx: 0.1, dy: -0.05, scale: 1.5 }, default: { dx: 0.5, dy: 0.5, scale: 2 } } };
+    const wide = blockStates(m, { card: [placed] }, { width: 1920, height: 1080 }).card!;
+    expect(wide.layers[0]!.placement).toEqual({ dx: 192, dy: -54, scale: 1.5 });
+    // A tall frame answers with "default", so the 16:9 layout never moves the 9:16 one.
+    const tall = blockStates(m, { card: [placed] }, { width: 1080, height: 1920 }).card!;
+    expect(tall.layers[0]!.placement).toEqual({ dx: 540, dy: 960, scale: 2 });
+    // No placement is identity.
+    const plain = blockStates(m, { card: [title] }, { width: 1920, height: 1080 }).card!;
+    expect(plain.layers[0]!.placement).toEqual({ dx: 0, dy: 0, scale: 1 });
+  });
+
+  it('wraps the template\'s own draw: offsets add, scales multiply, and the box never moves', () => {
+    const b = block([text({ placement: { dx: 100, dy: 40, scale: 1.5 } })]);
+    const laid = layoutBlock(b, measure, noImages, { each, at });
+    expect(laid.layers[0]!.draw).toMatchObject({ alpha: 0.8, dx: 105, dy: 37, scale: 3 });
+    // The layout slot is untouched: placement is drawn around the stack, not into it.
+    const plain = layoutBlock(block([text()]), measure, noImages, { each, at });
+    expect(laid.layers[0]!.box).toEqual(plain.layers[0]!.box);
+  });
+
+  it('wraps a motion override the same way', () => {
+    const b = block([text({ motion: { type: 'none', delay: 0 }, placement: { dx: 50, dy: 0, scale: 2 } })]);
+    const laid = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 1 }), at });
+    expect(laid.layers[0]!.draw).toMatchObject({ alpha: 1, dx: 50, dy: 0, scale: 2 });
   });
 });

@@ -266,14 +266,20 @@ export const BRIDGE_SCRIPT = `(function () {
       if (over) for (var k in over) if (over[k] !== undefined) draw[k] = over[k];
       return draw;
     });
-    if (!state || typeof state.time !== 'number' || typeof state.duration !== 'number') return asked;
     var envelope = 0, i;
     for (i = 0; i < asked.length; i++) envelope = Math.max(envelope, asked[i].alpha);
     return block.layers.map(function (layer, position) {
       var own = motionDraw(layer.motion, state.time, state.duration, layer.type === 'text' ? layer.fontSize : layer.size, column);
-      if (!own) return asked[position];
-      own.alpha = own.alpha * envelope;
-      return own;
+      var draw = asked[position];
+      if (own) { own.alpha = own.alpha * envelope; draw = own; }
+      /* The person's placement (milestone 25) wraps whatever the template or the override asked:
+         offsets add, scales multiply, so a placed layer still rides the design. Mirrors layerDraws
+         in src/core/layer-layout.ts: change both or neither. */
+      var placed = layer.placement;
+      if (placed && (placed.dx || placed.dy || placed.scale !== 1)) {
+        draw = { alpha: draw.alpha, dx: draw.dx + placed.dx, dy: draw.dy + placed.dy, scale: draw.scale * placed.scale, letterSpacing: draw.letterSpacing };
+      }
+      return draw;
     });
   }
   /* Mirrors layoutBlock in src/core/layer-layout.ts, which is the copy with unit tests: change both or neither. */

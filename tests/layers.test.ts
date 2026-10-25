@@ -258,6 +258,30 @@ describe('resolveLayers', () => {
     expect(bad.values.strap![0]!.motion).toEqual({ type: 'template', delay: 0 });
   });
 
+  it('carries a layer\'s placement by aspect, and drops what says nothing (milestone 25)', () => {
+    const { values, issues } = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { dx: 0.1, dy: -0.05 }, 'default': { scale: 1.4 } } }] });
+    expect(issues).toEqual([]);
+    expect(values.strap![0]!.placement).toEqual({ '16:9': { dx: 0.1, dy: -0.05, scale: 1 }, default: { dx: 0, dy: 0, scale: 1.4 } });
+    // An identity entry is no placement; a layer that ends with none serializes as it always did.
+    const clean = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { dx: 0, dy: 0, scale: 1 } } }] });
+    expect(clean.values.strap![0]!.placement).toBeUndefined();
+    expect('placement' in clean.values.strap![0]!).toBe(false);
+    // Null clears a placement a preset carried.
+    const cleared = resolveLayers(manifest(), { strap: [{ id: 'name', placement: null }] });
+    expect(cleared.values.strap![0]!.placement).toBeUndefined();
+  });
+
+  it('refuses a placement it cannot use, naming the field, and keeps what it can', () => {
+    const bad = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { sideways: { dx: 0.1 }, '16:9': { dx: 9, scale: 0.5 } } }] });
+    expect(bad.issues.map((i) => i.message).join(' | ')).toContain('"sideways" is not an aspect id');
+    expect(bad.issues.map((i) => i.message).join(' | ')).toContain('placement.dx must be a fraction');
+    // The good field survives the bad neighbour: the scale lands, the wild offset falls back.
+    expect(bad.values.strap![0]!.placement).toEqual({ '16:9': { dx: 0, dy: 0, scale: 0.5 } });
+    const notObject = resolveLayers(manifest(), { strap: [{ id: 'name', placement: 'everywhere' }] });
+    expect(notObject.issues.some((i) => i.message.includes('placements by aspect id'))).toBe(true);
+    expect(notObject.values.strap![0]!.placement).toBeUndefined();
+  });
+
   it('returns the template\'s own stacks, as copies, when nothing is given', () => {
     const m = manifest();
     const { values, issues } = resolveLayers(m, undefined);

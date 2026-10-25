@@ -54,6 +54,27 @@ export interface LayerMotion {
 
 export const DEFAULT_MOTION: LayerMotion = { type: 'template', delay: 0 };
 
+/**
+ * Where a person put a layer (milestone 25): an offset from where the block
+ * stacked it, as fractions of the frame's width and height, and a scale about
+ * the layer's own centre. The host applies it around the template's draw of
+ * that layer, so a placed layer still enters, moves and leaves with the
+ * design. Kept **per aspect** (plus "default"), so a layout placed at 16:9
+ * never moves what was placed at 9:16.
+ */
+export interface LayerPlacement {
+  /** Across, as a fraction of the frame's width; negative is left. */
+  dx: number;
+  /** Down, as a fraction of the frame's height; negative is up. */
+  dy: number;
+  /** About the layer's centre; 1 is the size the stack gave it. */
+  scale: number;
+}
+
+export type LayerPlacements = Record<string, LayerPlacement>;
+
+export const IDENTITY_PLACEMENT: LayerPlacement = { dx: 0, dy: 0, scale: 1 };
+
 /** How text is set: what a block's text layers start from, and what one layer can override. */
 export interface Typography {
   /** A font family name; the bundled set and imported families arrive with later items. */
@@ -106,6 +127,8 @@ export const LAYER_LIMITS = {
   gap: { min: 0, max: 1 },
   maxLines: { min: 1, max: 20 },
   motionDelay: { min: 0, max: 10 },
+  placementOffset: { min: -1, max: 1 },
+  placementScale: { min: 0.05, max: 10 },
 } as const;
 
 interface LayerBase {
@@ -120,6 +143,8 @@ interface LayerBase {
   spaceBefore: number;
   /** How it arrives: the template's own movement for its position, or the person's override. */
   motion: LayerMotion;
+  /** Where the person put it, by aspect; absent until a layer is moved or scaled on the stage. */
+  placement?: LayerPlacements;
 }
 
 export interface TextLayer extends LayerBase, Typography {
@@ -277,9 +302,66 @@ function readMotion(raw: unknown, base: LayerMotion, issue: (field: string, mess
   return out;
 }
 
+/**
+ * One aspect's placement, read against identity: a wrong field is reported and
+ * identity kept for it, as everywhere else here.
+ */
+function readOnePlacement(raw: unknown, issue: (field: string, message: string) => void): LayerPlacement | null {
+  if (!isRecord(raw)) {
+    issue('placement', 'each aspect must be an object of dx, dy and scale');
+    return null;
+  }
+  const out = { ...IDENTITY_PLACEMENT };
+  for (const key of ['dx', 'dy'] as const) {
+    if (raw[key] === undefined) continue;
+    if (inRange(raw[key], LAYER_LIMITS.placementOffset)) out[key] = raw[key] as number;
+    else issue(`placement.${key}`, `must be a fraction of the frame, from ${LAYER_LIMITS.placementOffset.min} to ${LAYER_LIMITS.placementOffset.max}`);
+  }
+  if (raw.scale !== undefined) {
+    if (inRange(raw.scale, LAYER_LIMITS.placementScale)) out.scale = raw.scale;
+    else issue('placement.scale', `must be a factor from ${LAYER_LIMITS.placementScale.min} to ${LAYER_LIMITS.placementScale.max}`);
+  }
+  return out;
+}
+
+/**
+ * A layer's placements, read against a base: an object keyed by aspect id (or
+ * "default"), each an offset and a scale. An identity entry is dropped, and a
+ * placement that ends up empty is no placement at all, so an unmoved layer
+ * serializes exactly as it always did.
+ */
+function readPlacement(raw: unknown, base: LayerPlacements | undefined, issue: (field: string, message: string) => void): LayerPlacements | undefined {
+  if (raw === undefined) return base ? { ...base } : undefined;
+  if (raw === null) return undefined;
+  if (!isRecord(raw)) {
+    issue('placement', 'must be an object of placements by aspect id, such as {"16:9":{"dx":0.1}}');
+    return base ? { ...base } : undefined;
+  }
+  const out: LayerPlacements = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (key !== 'default' && !/^\d+:\d+$/.test(key)) {
+      issue('placement', `"${key}" is not an aspect id such as "16:9", or "default"`);
+      continue;
+    }
+    const one = readOnePlacement(value, issue);
+    if (!one) continue;
+    if (one.dx === 0 && one.dy === 0 && one.scale === 1) continue;
+    out[key] = one;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** The placement an aspect key answers with: its own, else "default", else identity. */
+export function placementFor(placements: LayerPlacements | undefined, aspect: string): LayerPlacement {
+  return placements?.[aspect] ?? placements?.default ?? IDENTITY_PLACEMENT;
+}
+
 /** The fields a layer of either type has, read against a base the same way as typography. */
-function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion'>, issue: (field: string, message: string) => void): Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion'> {
+function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion' | 'placement'>, issue: (field: string, message: string) => void): Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion' | 'placement'> {
   const out = { ...base, motion: readMotion(raw.motion, base.motion, issue) };
+  const placement = readPlacement(raw.placement, base.placement, issue);
+  if (placement) out.placement = placement;
+  else delete out.placement;
   if (raw.label !== undefined) {
     if (isNonEmptyString(raw.label)) out.label = raw.label.trim();
     else issue('label', 'must be a non-empty string');
@@ -325,7 +407,7 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
   const id = typeof raw.id === 'string' ? raw.id : '';
   const fresh = newLayer(raw.type, block, id, typeof raw.label === 'string' ? raw.label.trim() : undefined);
   const base = readLayerBase(raw, fresh, issue);
-  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, motion: base.motion };
+  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, motion: base.motion, ...(base.placement ? { placement: base.placement } : {}) };
   let layer: Layer;
   if (raw.type === 'text') {
     if (typeof raw.text !== 'string') issue('text', 'must be a string (the layer\'s default text)');

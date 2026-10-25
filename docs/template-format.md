@@ -213,6 +213,19 @@ A slide travels the layer's own size — a line's type size, a picture's height 
 
 `window.pulpLayoutBlock` applies all of this from the frame state it is already given, so **a template that uses blocks supports overrides without changing a line**. A template that lays a block out by hand, without the helper, is simply not offering the feature.
 
+#### A layer's own placement
+
+A layer may carry a `placement`: where the person using the template put it, set by dragging it on the stage (milestone 25). It is an object keyed by aspect id (or `"default"`), each entry any of:
+
+| Field | Type | Description |
+|---|---|---|
+| `dx`, `dy` | number | The offset from where the block stacked the layer, as fractions of the frame's width and height; −1 to 1, default 0. |
+| `scale` | number | About the layer's own centre; 0.05 to 10, default 1. |
+
+The host applies a placement **around the template's own draw** of that layer — the offsets add to whatever the template (or the layer's own motion) asked for the frame, and the scales multiply — so a placed layer still enters, moves and leaves with the design, and **templates need no changes**. Keeping it per aspect means a layout placed at 16:9 never moves what was placed at 9:16: a frame answers with its own aspect's entry, then `"default"`, then nothing. The stack's layout is untouched — the layer's slot stays where the block put it, and "Reset position" simply drops the placement.
+
+Like every layer value it rides in the same bag as the parameters, so presets, collections, CSV batches, `--param '@layers={…}'` and the render cache key all carry it.
+
 ### Fonts
 
 Pulp bundles ten families under the SIL Open Font License 1.1 — **Inter, Montserrat, Oswald, Bebas Neue, Source Serif 4, Playfair, JetBrains Mono, Caveat, Dancing Script, Noto Sans** — so a layer can be set in a face that exists on every machine (`docs/font-credits.md`, decision record 0014). Every template page has them: the bridge declares an `@font-face` for each file beside itself, and the template protocol serves the files under the template's own origin at the reserved path `/__pulp/fonts/`, which is what `font-src 'self'` allows. A template folder therefore cannot have files under `__pulp/`.
