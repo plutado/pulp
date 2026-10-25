@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Slow Orbit</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Slow Orbit, a sample background for Pulp. CC0-1.0: no rights reserved.
+  //
+  // Each disc completes a whole number of turns over the clip, so the last frame meets the first.
+  // Positions come from the disc's index, never from a random source, so every render matches.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  /** A settled value in [0,1) from an index: the same disc lands in the same place every time. */
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, d = state.duration;
+    var loop = state.time / d;
+
+    var wash = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.75);
+    wash.addColorStop(0, p.back);
+    wash.addColorStop(1, '#000000');
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, 0, W, H);
+
+    var r = hex(p.disc, 1), g = hex(p.disc, 3), b = hex(p.disc, 5);
+    var u = Math.min(W, H);
+    var count = Math.round(p.count);
+
+    for (var i = 0; i < count; i++) {
+      // One or two whole turns per disc, so every disc is back where it started at the end.
+      var turns = 1 + (i % 2);
+      var angle = (at(i) + loop * turns) * Math.PI * 2;
+      var orbit = u * (0.16 + at(i + 50) * 0.3);
+      var x = W / 2 + Math.cos(angle) * orbit * 1.4;
+      var y = H / 2 + Math.sin(angle) * orbit;
+      var radius = u * (0.05 + at(i + 100) * 0.1);
+      var glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      var alpha = 0.3 + at(i + 150) * 0.35;
+      glow.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(4) + ')');
+      glow.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+</script>
+</body>
+</html>

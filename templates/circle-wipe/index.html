@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Circle Wipe</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Circle Wipe, a sample transition for Pulp. CC0-1.0: no rights reserved.
+  //
+  // The circle covers the whole frame exactly at the midpoint, which is where the cut goes, and
+  // clears by the last frame. Its radius reaches the furthest corner from wherever it grows.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var cx = W / 2, cy = H / 2;
+    if (p.from === 'top-left') { cx = 0; cy = 0; }
+    else if (p.from === 'bottom-right') { cx = W; cy = H; }
+    // The radius that reaches every corner from here.
+    var full = 0;
+    for (var i = 0; i < 4; i++) {
+      var dx = (i % 2 ? W : 0) - cx, dy = (i < 2 ? 0 : H) - cy;
+      full = Math.max(full, Math.sqrt(dx * dx + dy * dy));
+    }
+
+    var half = d / 2;
+    // Out to full by the midpoint, back to nothing by the end.
+    var grow = t <= half ? easeInOut(clamp01(t / half)) : 1 - easeInOut(clamp01((t - half) / half));
+    var radius = full * grow;
+    if (radius <= 0) return;
+
+    ctx.fillStyle = p.fill;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // A rim on the leading edge, fading out as the circle fills the frame.
+    var u = Math.min(W, H) / 1080;
+    var rimAlpha = 0.9 * (1 - clamp01(radius / full));
+    if (rimAlpha > 0.01) {
+      ctx.strokeStyle = p.rim;
+      ctx.globalAlpha = rimAlpha;
+      ctx.lineWidth = 10 * u;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  };
+</script>
+</body>
+</html>

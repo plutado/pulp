@@ -25,10 +25,10 @@ export const MINIMUM = 6;
 const TYPES_STILL_OPEN = new Set<string>([
   // The media types are filled: the catalogue (src/core/sample-media.ts) carries six of each.
   // What is left is the template types, one original animation at a time.
-  'opener', 'end-card', 'callout', 'social', 'lower-third', 'title',
-  'still-background', 'texture', 'animated-loop',
-  'reveal', 'flash', 'glitch', 'wipe',
-  'frame', 'light-particles', 'film-grunge', 'logo-bug', 'vignette', 'overlay',
+  'opener', 'end-card', 'callout', 'social',
+  'still-background', 'texture',
+  'reveal', 'flash', 'glitch',
+  'frame', 'light-particles', 'film-grunge', 'logo-bug', 'vignette',
   'shapes', 'icons', 'arrows', 'infographic', 'counter', 'countdown',
 ]);
 
@@ -38,12 +38,12 @@ const THEMES_STILL_OPEN = new Set<string>([
   'easter', 'halloween', 'thanksgiving', 'patriotic', 'faith', 'ocean', 'weather', 'city', 'food',
   'social-media', 'memorial', 'nonprofit', 'civic', 'space',
   'science', 'education', 'kids', 'fashion',
-  'gaming', 'family', 'nature',
-  'summer', 'travel',
+  'gaming', 'nature',
+  'summer',
 ]);
 
 /** Styles not yet six deep. Only shrinks. */
-const STYLES_STILL_OPEN = new Set<string>(['corporate', 'elegant', 'hand-drawn', 'grunge', 'tech', 'organic', 'retro']);
+const STYLES_STILL_OPEN = new Set<string>(['corporate', 'elegant', 'hand-drawn', 'grunge', 'organic', 'tech']);
 
 const index = await scanLibrary([TEMPLATES_DIR]);
 

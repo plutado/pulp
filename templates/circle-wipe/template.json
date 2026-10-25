@@ -1,0 +1,31 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.circle-wipe",
+  "name": "Circle Wipe",
+  "description": "A filled circle grows from a corner or the centre until it covers the frame, then clears the same way. Place it over a cut.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "wipe",
+  "tags": ["transition", "wipe", "circle"],
+  "themes": ["kids", "education"],
+  "styles": ["clean"],
+  "duration": 1.4,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "fill", "type": "color", "label": "Fill", "default": "#0ea5e9", "element": "Circle" },
+    { "id": "rim", "type": "color", "label": "Rim", "default": "#e0f2fe", "element": "Circle" },
+    {
+      "id": "from", "type": "select", "label": "Grows from", "default": "center", "element": "Layout and timing",
+      "options": [
+        { "value": "center", "label": "Centre" },
+        { "value": "top-left", "label": "Top left" },
+        { "value": "bottom-right", "label": "Bottom right" }
+      ]
+    }
+  ]
+}

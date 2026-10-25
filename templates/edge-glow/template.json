@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.edge-glow",
+  "name": "Edge Glow",
+  "description": "A soft coloured glow breathes around the inside of the frame. Lay it over footage to warm the edges or mark a live segment.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "overlay",
+  "tags": ["overlay", "glow", "edge"],
+  "themes": ["gaming", "concert"],
+  "styles": ["tech"],
+  "duration": 4,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "color", "type": "color", "label": "Glow", "default": "#38bdf8", "element": "Glow" },
+    { "id": "thickness", "type": "number", "label": "Thickness, % of frame", "default": 9, "min": 2, "max": 25, "step": 1, "element": "Glow" },
+    { "id": "breath", "type": "number", "label": "Breaths over the clip", "default": 2, "min": 0, "max": 6, "step": 1, "element": "Layout and timing" }
+  ]
+}

@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Edge Glow</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Edge Glow, a sample overlay for Pulp. CC0-1.0: no rights reserved.
+  //
+  // Four edge gradients, drawn inward from each side, breathing together. The glow is strongest
+  // at the frame's edge and falls to nothing by the thickness, so footage underneath stays clear.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var r = hex(p.color, 1), g = hex(p.color, 3), b = hex(p.color, 5);
+    // In over the first fifth, out over the last fifth, so it can sit on a cut at either end.
+    var fade = Math.min(1, clamp01(t / (d * 0.2)), clamp01((d - t) / (d * 0.2)));
+    // The breath: a full cycle per "breath", never dropping below half strength.
+    var breath = p.breath > 0 ? 0.72 + 0.28 * Math.cos(2 * Math.PI * p.breath * (t / d)) : 1;
+    var alpha = fade * breath;
+    if (alpha <= 0) return;
+
+    var thick = Math.min(W, H) * (p.thickness / 100);
+    var sides = [
+      [0, 0, 0, thick, W, thick],
+      [0, H, 0, H - thick, W, thick],
+      [0, 0, thick, 0, thick, H],
+      [W, 0, W - thick, 0, thick, H]
+    ];
+    for (var i = 0; i < sides.length; i++) {
+      var s = sides[i];
+      var grad = ctx.createLinearGradient(s[0], s[1], s[2], s[3]);
+      grad.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',' + (0.85 * alpha).toFixed(4) + ')');
+      grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+      ctx.fillStyle = grad;
+      if (i < 2) ctx.fillRect(0, i === 0 ? 0 : H - thick, W, thick);
+      else ctx.fillRect(i === 2 ? 0 : W - thick, 0, thick, H);
+    }
+  };
+</script>
+</body>
+</html>

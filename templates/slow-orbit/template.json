@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.slow-orbit",
+  "name": "Slow Orbit",
+  "description": "Soft discs circling a warm centre, looping seamlessly. An unhurried background for interviews, podcasts and quiet titles.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "animated-loop",
+  "tags": ["background", "loop", "orbit"],
+  "themes": ["nature", "family"],
+  "styles": ["organic"],
+  "duration": 5,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "back", "type": "color", "label": "Background", "default": "#1a120b", "element": "Background" },
+    { "id": "disc", "type": "color", "label": "Discs", "default": "#f59e0b", "element": "Discs" },
+    { "id": "count", "type": "number", "label": "Discs", "default": 7, "min": 3, "max": 16, "step": 1, "element": "Discs" }
+  ]
+}

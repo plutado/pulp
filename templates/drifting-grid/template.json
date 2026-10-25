@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.drifting-grid",
+  "name": "Drifting Grid",
+  "description": "A perspective grid drifting towards the viewer, looping seamlessly. A calm background for talks, explainers and tech segments.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "animated-loop",
+  "tags": ["background", "loop", "grid"],
+  "themes": ["technology", "science"],
+  "styles": ["tech"],
+  "duration": 4,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "back", "type": "color", "label": "Background", "default": "#060b16", "element": "Background" },
+    { "id": "line", "type": "color", "label": "Grid", "default": "#1d4ed8", "element": "Grid" },
+    { "id": "cells", "type": "number", "label": "Cells across", "default": 14, "min": 6, "max": 30, "step": 1, "element": "Grid" }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.film-border",
+  "name": "Film Border",
+  "description": "A hand-drawn border with sprocket marks down each side, settling into place with a small shake. Lay it over footage for a home-movie frame.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "overlay",
+  "tags": ["overlay", "border", "film"],
+  "themes": ["family", "travel"],
+  "styles": ["hand-drawn", "retro"],
+  "duration": 4,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    { "id": "ink", "type": "color", "label": "Ink", "default": "#f5efe0", "element": "Border" },
+    { "id": "inset", "type": "number", "label": "Inset, % of frame", "default": 4, "min": 1, "max": 12, "step": 1, "element": "Border" },
+    { "id": "shake", "type": "boolean", "label": "Gate shake", "default": true, "element": "Layout and timing" }
+  ]
+}

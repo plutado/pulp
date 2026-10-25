@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Kicker Title</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Kicker Title, a sample for Pulp. CC0-1.0: no rights reserved.
+  //
+  // The words are a block of layers: the kicker leads, the headline follows a beat later, and a
+  // rule grows from the centre between them. A line added in the tab takes its position's turn.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+
+    var inFor = 0.9, outFor = 0.7;
+    var hold = Math.min(p.hold, Math.max(0.2, d - inFor - outFor));
+    var outAt = inFor + hold;
+    var gone = easeInOut(clamp01((t - outAt) / outFor));
+    if (gone >= 1) return;
+
+    var laid = window.pulpLayoutBlock(ctx, state, 'words', {
+      each: function (layer, position) {
+        // The kicker leads; everything below it waits a third of a second per position.
+        var start = position * 0.33;
+        var arrive = easeOut(clamp01((t - start) / 0.7));
+        return { alpha: arrive * (1 - gone), dy: (1 - arrive) * 26 * u * (position === 0 ? -1 : 1) };
+      }
+    });
+    window.pulpDrawBlock(ctx, laid);
+
+    // The rule sits between the first two lines and grows from the centre with the headline.
+    if (laid.layers.length > 1) {
+      var first = laid.layers[0], second = laid.layers[1];
+      var y = (first.box.y + first.box.height + second.box.y) / 2;
+      var grow = easeOut(clamp01((t - 0.33) / 0.8)) * (1 - gone);
+      var ruleW = Math.min(W * 0.26, second.box.width * 0.5) * grow;
+      ctx.fillStyle = p.rule;
+      ctx.fillRect(W / 2 - ruleW / 2, y - 1 * u, ruleW, Math.max(1, 2 * u));
+    }
+  };
+</script>
+</body>
+</html>

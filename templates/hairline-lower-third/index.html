@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hairline Lower Third</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Hairline Lower Third, a sample for Pulp. CC0-1.0: no rights reserved.
+  //
+  // The words are a block of layers (docs/template-format.md): the host measures, wraps and stacks
+  // them, and this file says how they move. A line added in the Parameters tab rides the same
+  // stagger as the role does, because it takes the movement of the position it lands in.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+
+    // In, hold, out. The hold is the parameter; the in and out are fixed at 0.8 s each, and the
+    // whole thing is clamped inside the clip so nothing is left on screen at the last frame.
+    var inFor = 0.8, outFor = 0.8;
+    var hold = Math.min(p.hold, Math.max(0.2, d - inFor - outFor));
+    var outAt = inFor + hold;
+    var draw = easeOut(clamp01(t / inFor));
+    var gone = easeOut(clamp01((t - outAt) / outFor));
+    var show = draw * (1 - gone);
+    if (show <= 0.001) return;
+
+    var block = state.blocks.name;
+    var left = block.box.x;
+
+    // The rule draws out from the left, then retracts the same way.
+    var ruleY = block.box.y - 14 * u;
+    var ruleW = block.box.width * show;
+    ctx.fillStyle = p.rule;
+    ctx.fillRect(left, ruleY, ruleW, Math.max(1, 2 * u));
+
+    // The lines follow the rule: each starts a fifth of a second after the one above it, rising
+    // a little into place. The host draws them; this only says the alpha and the offset.
+    var laid = window.pulpLayoutBlock(ctx, state, 'name', {
+      each: function (layer, position) {
+        var start = position * 0.2;
+        var lineIn = easeOut(clamp01((t - start) / 0.5));
+        return { alpha: lineIn * (1 - gone), dy: (1 - lineIn) * 14 * u };
+      }
+    });
+    window.pulpDrawBlock(ctx, laid);
+  };
+</script>
+</body>
+</html>

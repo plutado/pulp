@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Drifting Grid</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Drifting Grid, a sample background for Pulp. CC0-1.0: no rights reserved.
+  //
+  // The horizontal lines move by exactly one cell over the clip, so the last frame meets the
+  // first and the loop is seamless. Lines fade towards the horizon rather than stopping dead.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, d = state.duration;
+    var loop = state.time / d; // 0 to 1 across the clip, which is one cell of travel
+
+    ctx.fillStyle = p.back;
+    ctx.fillRect(0, 0, W, H);
+
+    var r = hex(p.line, 1), g = hex(p.line, 3), b = hex(p.line, 5);
+    var u = Math.min(W, H) / 1080;
+    var horizon = H * 0.42;
+    var cells = Math.round(p.cells);
+
+    ctx.lineWidth = Math.max(1, 2 * u);
+
+    // Verticals: evenly spaced at the bottom edge, converging on a point above the horizon.
+    for (var i = 0; i <= cells; i++) {
+      var f = i / cells;
+      var xb = (f - 0.5) * W * 2.2 + W / 2;
+      ctx.strokeStyle = 'rgba(' + r + ',' + g + ',' + b + ',0.55)';
+      ctx.beginPath();
+      ctx.moveTo(xb, H);
+      ctx.lineTo(W / 2, horizon);
+      ctx.stroke();
+    }
+
+    // Horizontals: spaced so they bunch towards the horizon, shifted by one cell over the clip.
+    for (var k = 0; k <= cells + 2; k++) {
+      var depth = (k + loop) / (cells + 2);
+      if (depth <= 0 || depth >= 1) continue;
+      // A perspective curve: the far lines sit close together just under the horizon.
+      var y = horizon + (H - horizon) * (depth * depth);
+      var alpha = 0.6 * depth;
+      ctx.strokeStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(4) + ')';
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+
+    // A wash above the horizon so the verticals do not end in a hard point.
+    var sky = ctx.createLinearGradient(0, 0, 0, horizon);
+    sky.addColorStop(0, p.back);
+    sky.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0.25)');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, horizon);
+  };
+</script>
+</body>
+</html>

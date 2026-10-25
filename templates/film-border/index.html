@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Film Border</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Film Border, a sample overlay for Pulp. CC0-1.0: no rights reserved.
+  //
+  // A rectangle drawn with a wobbling pen, with sprocket holes down the sides. The wobble is a
+  // fixed function of position and time, with no random source, so every render is the same picture.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  /** A repeatable wobble: smooth, bounded, and the same for the same inputs. */
+  function wobble(seed, phase) {
+    return Math.sin(seed * 12.9898 + phase) * 0.6 + Math.sin(seed * 5.233 + phase * 1.7) * 0.4;
+  }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    ctx.clearRect(0, 0, W, H);
+
+    var u = Math.min(W, H) / 1080;
+    var fade = Math.min(1, clamp01(t / 0.4), clamp01((d - t) / 0.4));
+    if (fade <= 0) return;
+    // The gate shake: a couple of pixels, stepped four times a second so it reads as film, not jitter.
+    var step = Math.floor(t * 4);
+    var sx = p.shake ? wobble(step, 1.3) * 2.2 * u : 0;
+    var sy = p.shake ? wobble(step + 31, 0.7) * 2.2 * u : 0;
+
+    var inset = Math.min(W, H) * (p.inset / 100);
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.globalAlpha = fade;
+    ctx.strokeStyle = p.ink;
+    ctx.lineWidth = 6 * u;
+    ctx.lineJoin = 'round';
+
+    // The border, drawn as many short segments each nudged off the true line.
+    var x0 = inset, y0 = inset, x1 = W - inset, y1 = H - inset;
+    var perSide = 26;
+    ctx.beginPath();
+    for (var side = 0; side < 4; side++) {
+      for (var i = 0; i <= perSide; i++) {
+        var f = i / perSide;
+        var x, y, n = wobble(side * 100 + i, t * 2) * 3 * u;
+        if (side === 0) { x = x0 + (x1 - x0) * f; y = y0 + n; }
+        else if (side === 1) { x = x1 + n; y = y0 + (y1 - y0) * f; }
+        else if (side === 2) { x = x1 - (x1 - x0) * f; y = y1 + n; }
+        else { x = x0 + n; y = y1 - (y1 - y0) * f; }
+        if (side === 0 && i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+    }
+    ctx.closePath();
+    ctx.stroke();
+
+    // Sprocket holes down both sides, inside the border.
+    var holeW = 18 * u, holeH = 26 * u, gap = Math.max(holeH * 2.2, (y1 - y0) / 9);
+    ctx.fillStyle = p.ink;
+    for (var hy = y0 + gap * 0.6; hy < y1 - holeH; hy += gap) {
+      ctx.fillRect(x0 - holeW * 1.6, hy, holeW, holeH);
+      ctx.fillRect(x1 + holeW * 0.6, hy, holeW, holeH);
+    }
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.kicker-title",
+  "name": "Kicker Title",
+  "description": "A small kicker line slides in above a large title, with a rule between them that grows from the centre. For chapter heads and segment openers.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": ["title", "kicker", "chapter"],
+  "themes": ["education", "podcast"],
+  "styles": ["clean", "elegant"],
+  "duration": 5,
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": { "x": 0.12, "y": 0.3, "width": 0.76, "height": 0.42 },
+        "default": { "x": 0.08, "y": 0.3, "width": 0.84, "height": 0.46 }
+      },
+      "gap": 0.02,
+      "align": "center",
+      "verticalAlign": "middle",
+      "typography": { "family": "Montserrat", "size": 0.085, "weight": 700, "color": "#0f172a", "align": "center" },
+      "layers": [
+        { "id": "kicker", "type": "text", "label": "Kicker", "text": "PART TWO", "size": 0.026, "weight": 600, "case": "upper", "letterSpacing": 0.28, "color": "#2563eb", "family": "Inter" },
+        { "id": "headline", "type": "text", "label": "Headline", "text": "What the river carries", "required": true }
+      ]
+    }
+  ],
+  "parameters": [
+    { "id": "rule", "type": "color", "label": "Rule", "default": "#2563eb", "element": "Rule" },
+    { "id": "hold", "type": "number", "label": "Hold, seconds", "default": 2.6, "min": 0.5, "max": 10, "step": 0.1, "element": "Layout and timing" }
+  ]
+}
