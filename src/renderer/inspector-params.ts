@@ -25,6 +25,7 @@ import {
   TEXT_OVERFLOWS,
   type Layer,
   type LayerType,
+  type ImageLayer,
   type LayerValues,
   type TextLayer,
 } from '../core/layers';
@@ -430,7 +431,12 @@ function iconButton(icon: IconName, label: string, tip = label): HTMLButtonEleme
   return button;
 }
 
-function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null) => void, slot: { id: string; label: string }): HTMLElement {
+function imageField(
+  initial: ImageValue | null,
+  onChange: (v: ImageValue | null) => void,
+  slot: { id: string; label: string },
+  options: { /** A layer's picture: the layer hides as a whole, and an empty one takes no room rather than showing a fallback. */ layer?: boolean } = {},
+): HTMLElement {
   let value = initial;
   const wrap = document.createElement('div');
   wrap.className = 'image-field';
@@ -459,8 +465,8 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
   const replace = iconButton('swap', 'Replace image', 'Choose another image');
   // Hiding is not clearing: the choice is kept, and nothing is drawn there at all — not even the fallback.
   const hide = iconButton('eye', `Hide ${slot.label}`, 'Draw nothing here, keeping the image for later');
-  const clear = iconButton('x', 'Clear image', 'Use no image: the slot shows its fallback');
-  buttons.append(hide, replace, clear);
+  const clear = iconButton('x', 'Clear image', options.layer ? 'Use no image: the layer takes no room' : 'Use no image: the slot shows its fallback');
+  buttons.append(...(options.layer ? [replace, clear] : [hide, replace, clear]));
   meta.append(caption, dims, buttons);
 
   const picker = document.createElement('div');
@@ -550,7 +556,7 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
       emptyLabel.textContent = value?.id ? 'Image not found — choose another' : 'Choose or drop an image';
       well.append(emptyLabel);
       well.title = '';
-      caption.textContent = value?.id ? '' : 'No image; the slot shows its fallback';
+      caption.textContent = value?.id ? '' : options.layer ? 'No image; the layer takes no room' : 'No image; the slot shows its fallback';
       dims.textContent = '';
     }
     clear.hidden = value === null || (isHidden && !value.id);
@@ -969,7 +975,40 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
     input.addEventListener('change', () => commitParams());
     return [input, typographyControls(blockId, layer)];
   }
-  return [imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label })];
+  return [
+    imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }, { layer: true }),
+    imageLayerControls(blockId, layer),
+  ];
+}
+
+/** An image layer's own two settings: how tall the picture is, and where it sits across the block. No type here. */
+function imageLayerControls(blockId: string, layer: ImageLayer): HTMLElement {
+  const grid = document.createElement('div');
+  grid.className = 'type-grid image-layer-controls';
+  const set = <K extends keyof ImageLayer>(prop: K, value: ImageLayer[K]) => {
+    editLayer(blockId, layer.id, (l) => ({ ...l, [prop]: value }) as Layer, false);
+    commitParams();
+  };
+  grid.append(typeField('Size, % of frame', numberOf(layer.size, LAYER_LIMITS.size, 0.5, (v) => set('size', v), `${layer.label} size`, 100)));
+  const align = document.createElement('div');
+  align.className = 'segmented';
+  align.setAttribute('role', 'group');
+  align.setAttribute('aria-label', `${layer.label} alignment`);
+  const buttons = LAYER_ALIGNS.map((a) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.align = a;
+    b.textContent = ALIGN_LABELS[a];
+    b.setAttribute('aria-pressed', String(a === layer.align));
+    b.addEventListener('click', () => {
+      set('align', a);
+      for (const other of buttons) other.setAttribute('aria-pressed', String(other === b));
+    });
+    align.append(b);
+    return b;
+  });
+  grid.append(typeField('Alignment', align));
+  return grid;
 }
 
 // ---------------------------------------------------------------- text layer properties (milestone 23)

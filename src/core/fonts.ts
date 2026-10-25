@@ -208,7 +208,8 @@ export function bundledFontFile(path: string): { font: BundledFont; file: Bundle
 }
 
 export function fontMimeType(file: string): string {
-  return file.toLowerCase().endsWith('.otf') ? 'font/otf' : 'font/ttf';
+  const lower = file.toLowerCase();
+  return lower.endsWith('.otf') ? 'font/otf' : lower.endsWith('.woff2') ? 'font/woff2' : 'font/ttf';
 }
 
 /**
@@ -252,4 +253,153 @@ export function cssFontFamily(stack: string): string {
  */
 export function familyLabel(stack: string): string {
   return (stack.split(',')[0] ?? stack).trim().replace(/^["']|["']$/g, '') || stack;
+}
+
+// ---------------------------------------------------------------- imported fonts (milestone 23)
+
+/** The folder, under the bundled fonts' reserved path and scheme, that a person's own fonts answer at. */
+export const IMPORTED_FONTS_SLUG = 'imported';
+
+/** The file extensions a font may be imported from. WOFF (1) is left out: browsers read it, but it is a web-only wrapper of little use to a person's own files. */
+export const IMPORTED_FONT_EXTENSIONS = ['.ttf', '.otf', '.woff2'] as const;
+
+/**
+ * A font a person imported: copied into the managed folder, named by what the
+ * file calls itself, with the licence note they wrote. The licence is theirs
+ * to know; Pulp records what they said and shows it where the family is chosen.
+ */
+export interface ImportedFont {
+  /** The family name read from the file's own name table. */
+  family: string;
+  /** File name inside the managed folder. */
+  file: string;
+  style: 'normal' | 'italic';
+  /** A variable font's weight range, or a static font's one weight. */
+  weight: [number, number] | number;
+  /** What the person wrote about the licence; may be empty. */
+  note: string;
+  importedAt: string;
+}
+
+export function isImportedFontFile(name: string): boolean {
+  const lower = name.toLowerCase();
+  return IMPORTED_FONT_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+/**
+ * What a font file says about itself, from its `name` and `OS/2` tables:
+ * the typographic family (id 16) or the family (id 1), the subfamily, and the
+ * weight class. Reads TrueType and CFF OpenType; WOFF2 is compressed and its
+ * tables are not readable this way, so a WOFF2 import takes its family from the
+ * file name. Returns null when the bytes are not a font.
+ */
+export function fontFileNames(bytes: Uint8Array): { family: string; subfamily: string; italic: boolean; weight: number } | null {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (bytes.byteLength < 12) return null;
+  const tag = view.getUint32(0);
+  // 0x00010000 TrueType, 'OTTO' CFF, 'true' old Mac TrueType.
+  if (tag !== 0x00010000 && tag !== 0x4f54544f && tag !== 0x74727565) return null;
+  const tables = view.getUint16(4);
+  const find = (name: string): { offset: number; length: number } | null => {
+    for (let i = 0; i < tables; i++) {
+      const at = 12 + 16 * i;
+      if (at + 16 > bytes.byteLength) return null;
+      const t = String.fromCharCode(bytes[at]!, bytes[at + 1]!, bytes[at + 2]!, bytes[at + 3]!);
+      if (t === name) return { offset: view.getUint32(at + 8), length: view.getUint32(at + 12) };
+    }
+    return null;
+  };
+  const nameTable = find('name');
+  if (!nameTable || nameTable.offset + 6 > bytes.byteLength) return null;
+  const count = view.getUint16(nameTable.offset + 2);
+  const strings = nameTable.offset + view.getUint16(nameTable.offset + 4);
+  const names = new Map<number, string>();
+  for (let n = 0; n < count; n++) {
+    const rec = nameTable.offset + 6 + 12 * n;
+    if (rec + 12 > bytes.byteLength) break;
+    const platform = view.getUint16(rec);
+    const language = view.getUint16(rec + 4);
+    const id = view.getUint16(rec + 6);
+    const length = view.getUint16(rec + 8);
+    const start = strings + view.getUint16(rec + 10);
+    if (start + length > bytes.byteLength) continue;
+    // Windows platform, English: UTF-16 big-endian. The Mac platform's Roman strings as a fallback.
+    if (platform === 3 && language === 0x409 && !names.has(id)) {
+      let out = '';
+      for (let i = 0; i + 1 < length; i += 2) out += String.fromCharCode((bytes[start + i]! << 8) | bytes[start + i + 1]!);
+      names.set(id, out);
+    } else if (platform === 1 && language === 0 && !names.has(1000 + id)) {
+      names.set(1000 + id, String.fromCharCode(...bytes.subarray(start, start + length)));
+    }
+  }
+  const family = (names.get(16) ?? names.get(1) ?? names.get(1016) ?? names.get(1001) ?? '').trim();
+  const subfamily = (names.get(17) ?? names.get(2) ?? names.get(1017) ?? names.get(1002) ?? '').trim();
+  if (!family) return null;
+  let weight = 400;
+  const os2 = find('OS/2');
+  if (os2 && os2.offset + 6 <= bytes.byteLength) {
+    const w = view.getUint16(os2.offset + 4);
+    if (w >= 100 && w <= 900) weight = w;
+  }
+  return { family, subfamily, italic: /italic|oblique/i.test(subfamily), weight };
+}
+
+/** A family name a WOFF2 file is taken to have, from its file name: dashes and underscores to spaces, the style words dropped. */
+export function familyFromFileName(file: string): string {
+  return file
+    .replace(/\.[^.]+$/, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b(regular|italic|bold|light|medium|semibold|black|thin|variable|vf|wght|\[.*?\])\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim() || file;
+}
+
+/** Read the managed folder's index, keeping only what is well formed. */
+export function sanitizeImportedFonts(value: unknown): ImportedFont[] {
+  if (!Array.isArray(value)) return [];
+  const out: ImportedFont[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    if (typeof r.family !== 'string' || !r.family.trim() || typeof r.file !== 'string' || !isImportedFontFile(r.file) || r.file.includes('/') || r.file.includes('\\')) continue;
+    const weight = Array.isArray(r.weight) && r.weight.length === 2 && r.weight.every((n) => typeof n === 'number') ? ([r.weight[0], r.weight[1]] as [number, number]) : typeof r.weight === 'number' ? r.weight : 400;
+    out.push({
+      family: r.family.trim(),
+      file: r.file,
+      style: r.style === 'italic' ? 'italic' : 'normal',
+      weight,
+      note: typeof r.note === 'string' ? r.note : '',
+      importedAt: typeof r.importedAt === 'string' ? r.importedAt : '',
+    });
+  }
+  return out;
+}
+
+/** The `@font-face` rules for a person's imported fonts, under `base` as the bundled ones are. */
+export function importedFontFaceCss(fonts: readonly ImportedFont[], base: string): string {
+  return fonts
+    .map((font) => {
+      const weight = typeof font.weight === 'number' ? String(font.weight) : `${font.weight[0]} ${font.weight[1]}`;
+      return `@font-face{font-family:"${font.family.replace(/"/g, '\\"')}";font-style:${font.style};font-weight:${weight};font-display:block;src:url("${base}${IMPORTED_FONTS_SLUG}/${encodeURIComponent(font.file)}")}`;
+    })
+    .join('\n');
+}
+
+/** The imported families, each once, in the order first imported. */
+export function importedFamilies(fonts: readonly ImportedFont[]): string[] {
+  return [...new Set(fonts.map((f) => f.family))];
+}
+
+/**
+ * The families a template's blocks set type in — its typography and its
+ * layers' — so a pack export can warn about an imported one, and a layer can
+ * say when its family is neither bundled nor imported nor the template's own.
+ */
+export function familiesUsedBy(blocks: readonly { typography: { family: string }; layers: readonly { type: string; family?: string }[] }[]): string[] {
+  const out = new Set<string>();
+  for (const block of blocks) {
+    out.add(block.typography.family);
+    for (const layer of block.layers) if (layer.type === 'text' && layer.family) out.add(layer.family);
+  }
+  return [...out];
 }

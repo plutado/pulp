@@ -123,8 +123,18 @@ const DEFAULT_WAIT_MS = 15_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** A valid 2x2 RGBA PNG of one colour. */
+function solidPng([r, g, b]: [number, number, number]): Buffer {
+  return pngOf([r, g, b, 255, r, g, b, 255, r, g, b, 255, r, g, b, 255]);
+}
+
 /** A valid 2x2 RGBA PNG: red, green on the top row; blue, white below. */
 function tinyPng(): Buffer {
+  return pngOf([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]);
+}
+
+/** A 2x2 RGBA PNG from sixteen channel values, built so it is a valid file. */
+function pngOf(pixels: number[]): Buffer {
   const crcTable = Array.from({ length: 256 }, (_, n) => {
     let c = n;
     for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
@@ -148,7 +158,7 @@ function tinyPng(): Buffer {
   ihdr.writeUInt32BE(2, 4);
   ihdr[8] = 8; // bit depth
   ihdr[9] = 6; // RGBA
-  const rows = Buffer.from([0, 255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255, 255]); // filter byte + 2 px per row
+  const rows = Buffer.from([0, ...pixels.slice(0, 8), 0, ...pixels.slice(8, 16)]); // filter byte + 2 px per row
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', ihdr),
@@ -310,6 +320,8 @@ describe.skipIf(!electron)('inspector UI', () => {
     mediaDir = join(userData, 'media-library');
     await mkdir(mediaDir, { recursive: true });
     await writeFile(join(mediaDir, 'tiny.png'), TINY_PNG);
+    // A solid red 2 × 2 as well: a picture whose every pixel says where it is, with no white to read as text.
+    await writeFile(join(mediaDir, 'mark.png'), solidPng([255, 0, 0]));
     // A template of one declared size, now that every bundled template draws for all four shapes:
     // the Output tab's "no aspect to choose" case and the orientation filter's landscape-only case.
     await mkdir(join(mediaDir, 'wide-only'), { recursive: true });
@@ -1182,6 +1194,101 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<number>(`document.querySelectorAll('#params .param-card').length`)).toBe(0);
       expect(await page.eval<string[]>(`[...document.querySelectorAll('#params .group-label')].map((g) => g.textContent)`)).toEqual(['Colors']);
     }, 90_000);
+
+    it('an image layer stacks with the lines and rides the animation by its position, on both proofs, wide and tall', async () => {
+      /** The "mark" still is solid red, so every pixel of it says where the picture is, and none reads as a line of text. */
+      const picture = (tid: string) =>
+        inTemplate<{ canvas: number[]; red: number; redTop: number; redBottom: number; bandsTop: number | null; bands: number }>(
+          `(() => { const c = document.getElementById('c'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+            let red = 0, redTop = c.height, redBottom = -1;
+            for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x += 2) { const i = (y * c.width + x) * 4;
+              if (d[i + 3] > 60 && d[i] > 120 && d[i + 1] < 80 && d[i + 2] < 90) { red++; if (y < redTop) redTop = y; if (y > redBottom) redBottom = y; } }
+            let bandsTop = null, bands = 0, run = 0;
+            for (let y = 0; y < c.height; y++) { let ink = 0;
+              if (red && y >= redTop && y <= redBottom) { run = 0; continue; }
+              for (let x = 0; x < c.width; x += 2) { const i = (y * c.width + x) * 4; if (d[i + 3] > 60 && d[i] > 200 && d[i + 1] > 200 && d[i + 2] > 200) ink++; }
+              if (ink > 1) { run++; if (run === 4) { bands++; if (bandsTop === null) bandsTop = y - 3; } } else run = 0; }
+            return { canvas: [c.width, c.height], red, redTop, redBottom, bandsTop, bands }; })()`,
+          tid,
+        );
+      const drawnOn = (tid: string, frame: number, layers: number) =>
+        until(() => inTemplate<boolean>(`!!(window.__pulp && window.__pulp.drawn && window.__pulp.drawn.frame === ${frame} && window.__pulp.drawn.layers === ${layers})`, tid).catch(() => false), `frame ${frame} with ${layers} layers drawn`);
+      const addPicture = async (block: string) => {
+        const wrap = `document.querySelector('#params .layers-block[data-block=${block}]')`;
+        await page.eval(`${wrap}.querySelector('[data-add=image]').click()`);
+        await until(() => page.eval<boolean>(`${wrap}.querySelectorAll('.param-card').length === 3`), 'the image layer\'s card');
+        const card = `${wrap}.querySelectorAll('.param-card')[2]`;
+        // Its card: the picker, no type, and its own size and alignment.
+        expect(await page.eval<boolean>(`!!${card}.querySelector('.image-field') && !${card}.querySelector('.layer-type') && !!${card}.querySelector('.image-layer-controls')`)).toBe(true);
+        expect(await page.eval<string>(`${card}.querySelector('.image-field .image-name').textContent`)).toBe('No image; the layer takes no room');
+        await page.eval(`${card}.querySelector('.image-well').click()`);
+        await until(() => page.eval<boolean>(`!!${card}.querySelector('.image-choice')`), 'stills to choose from');
+        await page.eval(`[...${card}.querySelectorAll('.image-choice')].find((b) => b.querySelector('.name').textContent === 'mark').click()`);
+        await until(() => page.eval<boolean>(`!${card}.querySelector('.image-well').classList.contains('empty')`), 'the picture in the well');
+        // Above the title: two moves up puts it first in the stack.
+        const label = await page.eval<string>(`${card}.querySelector('.layer-label').textContent`);
+        await page.eval(`${card}.querySelector('[aria-label="Move ${label} up"]').click()`);
+        await until(() => page.eval<boolean>(`${wrap}.querySelectorAll('.param-card')[1].querySelector('.layer-label').textContent === ${JSON.stringify(label)}`), 'one step up');
+        await page.eval(`${wrap}.querySelectorAll('.param-card')[1].querySelector('[aria-label="Move ${label} up"]').click()`);
+        await until(() => page.eval<boolean>(`${wrap}.querySelectorAll('.param-card')[0].querySelector('.layer-label').textContent === ${JSON.stringify(label)}`), 'first in the stack');
+        return label;
+      };
+
+      // Title Card: the picture takes the first position's fade, which starts at once; the title now waits its turn.
+      await clickResult('Title Card');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the title card');
+      try {
+        await addPicture('card');
+        await scrubTo(24); // 0.8 s: the first position is three quarters in, the second has barely begun
+        await drawnOn(CARD, 24, 3);
+        const early = await picture(CARD);
+        expect(early.red, JSON.stringify(early)).toBeGreaterThan(100);
+        expect(early.bands, 'no words yet: the title moved down the stack and waits its turn').toBe(0);
+        await scrubTo(90); // 3 s: every position is in
+        await drawnOn(CARD, 90, 3);
+        const wide = await picture(CARD);
+        expect(wide.canvas).toEqual([1920, 1080]);
+        expect(wide.bands, JSON.stringify(wide)).toBe(2);
+        expect(wide.redBottom, 'the picture sits above the title').toBeLessThan(wide.bandsTop!);
+        await fire('#opt-aspect', '9:16', 'change');
+        await until(async () => (await shape()) === 'portrait', 'the tall preview');
+        await scrubTo(90);
+        await until(async () => { const d = await picture(CARD); return d.canvas[1] === 1920 && d.bands === 2 && d.red > 100; }, 'the tall card with its picture');
+        const tall = await picture(CARD);
+        expect(tall.redBottom).toBeLessThan(tall.bandsTop!);
+        await fire('#opt-aspect', '16:9', 'change');
+        await until(async () => (await shape()) === 'landscape', 'the wide preview again');
+      } finally {
+        await restoreLayers('card');
+        await fire('#opt-aspect', '16:9', 'change');
+      }
+
+      // Lower Third Bar: the picture joins the panel's stack above the name, and the panel grows to hold it.
+      const LT = 'pulp.samples.lower-third-bar';
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params .layers-block[data-block=strap]')`), 'the strap');
+      await page.eval(`document.getElementById('reset-all').disabled || document.getElementById('reset-all').click()`);
+      try {
+        await addPicture('strap');
+        await scrubTo(90);
+        await drawnOn(LT, 90, 3);
+        const wide = await picture(LT);
+        expect(wide.red, JSON.stringify(wide)).toBeGreaterThan(100);
+        expect(wide.bands).toBe(2);
+        expect(wide.redBottom).toBeLessThan(wide.bandsTop!);
+        await fire('#opt-aspect', '9:16', 'change');
+        await until(async () => (await shape()) === 'portrait', 'the tall lower third');
+        await scrubTo(90);
+        await until(async () => { const d = await picture(LT); return d.canvas[1] === 1920 && d.red > 100 && d.bands === 2; }, 'the tall strap with its picture');
+        const tall = await picture(LT);
+        expect(tall.redBottom).toBeLessThan(tall.bandsTop!);
+      } finally {
+        await restoreLayers('strap');
+        await fire('#opt-aspect', '16:9', 'change');
+        await clickResult('Title Card');
+        await until(() => page.eval<boolean>(`!!${section}`), 'the title card again');
+      }
+    }, 150_000);
 
     it('the render cache tells two stacks apart: changing a line renders afresh', async () => {
       if (!haveVideo) {

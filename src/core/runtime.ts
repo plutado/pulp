@@ -232,7 +232,7 @@ export const BRIDGE_SCRIPT = `(function () {
     return boxY + (boxHeight - extent) / 2;
   }
   function pictureFor(layer) {
-    if (!layer.image) return null;
+    if (!layer.image || !layer.image.id || layer.image.hidden) return null;
     var p = pictures[requestKey(layer.image)];
     return p && p.value ? p.value : null;
   }
@@ -416,11 +416,22 @@ export const BRIDGE_SCRIPT = `(function () {
           /* What is on the canvas now, for anyone asking whether a change has been drawn yet: a test
              reads the canvas after the frame it changed has landed, not after a guess at how long
              that takes (docs/platform-notes.md, "Windows CI"). */
-          window.__pulp.drawn = { frame: state && state.frame, at: Date.now(), layers: countLayers(state) };
+          window.__pulp.drawn = { frame: state && state.frame, at: Date.now(), layers: countLayers(state), pictures: picturesIn(state) };
           resolve(true);
         }); });
       });
     });
+  }
+  /* Which image layers had a picture to draw, by id, and which did not: what a failing test needs to know. */
+  function picturesIn(state) {
+    var out = {}, blocks = state && state.blocks ? state.blocks : {};
+    Object.keys(blocks).forEach(function (id) {
+      (blocks[id].layers || []).forEach(function (layer) {
+        if (layer.type === 'image') out[id + '.' + layer.id] = layer.image ? (pictureFor(layer) ? 'drawn' : 'no picture for ' + requestKey(layer.image)) : 'none chosen';
+      });
+    });
+    out.cached = Object.keys(pictures).join(',');
+    return out;
   }
   function countLayers(state) {
     var n = 0, blocks = state && state.blocks ? state.blocks : {};
@@ -468,8 +479,9 @@ export const TEMPLATE_FONT_CSS_INLINE = fontFaceCss(`/${TEMPLATE_FONTS_PATH}/`).
  * Insert the bridge as the first script of the document so it runs before template code, with the
  * bundled fonts' `@font-face` rules beside it, so a layer set in Oswald finds Oswald in every template.
  */
-export function injectBridge(html: string): string {
-  const tag = `<script data-pulp-bridge>${BRIDGE_SCRIPT_INLINE}</script><style data-pulp-fonts>${TEMPLATE_FONT_CSS_INLINE}</style>`;
+export function injectBridge(html: string, importedFontCss = ''): string {
+  const imported = importedFontCss ? `<style data-pulp-imported-fonts>${importedFontCss.replace(/\n/g, '')}</style>` : '';
+  const tag = `<script data-pulp-bridge>${BRIDGE_SCRIPT_INLINE}</script><style data-pulp-fonts>${TEMPLATE_FONT_CSS_INLINE}</style>${imported}`;
   const head = /<head(\s[^>]*)?>/i.exec(html);
   if (head) {
     const at = head.index + head[0].length;
