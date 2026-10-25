@@ -21,7 +21,9 @@ import { TEMPLATE_CATEGORIES } from '../src/core/manifest';
 
 describe('taxonomy lists', () => {
   it('is versioned', () => {
-    expect(TAXONOMY_VERSION).toBe(2);
+    // 3: the Assets group and its Effects categories (milestone 26). The number only goes up,
+    // and ids already written stay written (ADR 0010).
+    expect(TAXONOMY_VERSION).toBe(3);
   });
 
   it('type ids are unique and every type belongs to a declared group', () => {

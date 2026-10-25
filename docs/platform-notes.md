@@ -183,6 +183,17 @@ The stage's handles (milestone 25) worked on macOS and Ubuntu and failed on `win
 
 The test also assumed the frame was 1920 wide when mapping a click; it reads the preview's real size now, so a portrait aspect cannot throw the mapping off.
 
+### A VP9 alpha file reports `yuv420p`, and always will
+
+Checking a transparent WebM with `ffprobe -show_entries stream=pix_fmt` says `yuv420p`, on every build, for a file that carries a perfectly good alpha channel — including the ones Pulp's own verified `webm-vp9-alpha` preset writes. VP9 keeps alpha as a **separate layer in the container**, not in the coded frame's pixel format, so the frame's own format never says `yuva420p` however the encoder was asked.
+
+Two things do say it, and the tests use both:
+
+- the container's tag, `alpha_mode=1` (`ffprobe -show_entries stream_tags=alpha_mode`);
+- decoding with **libvpx-vp9** explicitly (`-c:v libvpx-vp9`) and reading the alpha out. The native VP9 decoder ignores the alpha layer and hands back opaque pixels, so a check that forgets the decoder quietly passes on a file with no transparency at all.
+
+Milestone 26's generated assets are checked that way. (`-pix_fmt yuva420p` on the command line is not the lever either; it is accepted and changes nothing.)
+
 ### Deleting a folder a process just used fails with EBUSY
 
 Windows refuses to delete a file or folder while any process holds a handle open; macOS and Linux unlink immediately and let the process keep its handle. The UI test's cleanup killed the app and deleted its scratch user data folder in the next statement, and the job failed on `EBUSY: resource busy or locked` with every test green. `child.kill()` returns before the process is gone, and Chromium's GPU and renderer helpers can outlive the main process by a moment, each holding profile files (LevelDB, caches, the lock file). Fix in both end-to-end files: wait for the child's `exit` event (with a timeout), then `fs.rm` with `maxRetries` and `retryDelay`, which Node retries on EBUSY, ENOTEMPTY and EPERM. Apply the same to any folder a just-finished ffmpeg or Electron process wrote into.

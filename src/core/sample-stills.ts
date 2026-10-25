@@ -882,7 +882,252 @@ export const MOTIF_PAGE = page(
 `,
 );
 
-export const STILL_PAGES = { photo: PHOTO_PAGE, illustration: ILLUSTRATION_PAGE, layered: LAYERED_PAGE, backdrop: BACKDROP_PAGE, overlay: OVERLAY_PAGE, element: ELEMENT_PAGE, motif: MOTIF_PAGE } as const;
+/**
+ * Assets (milestone 26): isolated elements on transparency, drawn for a moment
+ * in time so the same page serves a still and a clip. `state.time` and
+ * `state.duration` drive everything; a looping asset is written so the last
+ * frame meets the first, a one-shot plays once and clears. Deterministic from
+ * the seeded hash, never a random source.
+ */
+export const ASSET_PAGE = page(
+  'Sample asset',
+  `
+  var U, T, D, P;
+  function rgba(c, a) { return 'rgba(' + c + ',' + a.toFixed(3) + ')'; }
+  function blob(x, y, r, colour, alpha) {
+    var g = ctx.createRadialGradient(x, y, 0, x, y, Math.max(1, r));
+    g.addColorStop(0, rgba(colour, alpha));
+    g.addColorStop(1, rgba(colour, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, Math.max(1, r), 0, Math.PI * 2); ctx.fill();
+  }
+  /** A flame tongue: stacked blobs narrowing upward, licking on a fixed wobble. */
+  function flame(cx, baseY, h, w, seed, bright) {
+    for (var i = 0; i < 16; i++) {
+      var f = i / 15;
+      var lick = Math.sin(P * Math.PI * 2 * 2 + f * 5 + seed) * w * 0.18 * f;
+      var x = cx + lick, y = baseY - h * f;
+      var r = w * (1 - f * 0.78) * (0.9 + 0.1 * Math.sin(P * Math.PI * 2 + i));
+      var hot = f < 0.45;
+      blob(x, y, r, hot ? '255,220,130' : '255,120,30', (hot ? 0.5 : 0.35) * (1 - f * 0.55) * bright);
+    }
+    blob(cx, baseY - h * 0.1, w * 0.6, '255,250,220', 0.5 * bright);
+  }
+  function puff(cx, cy, r, alpha, tone) {
+    for (var i = 0; i < 7; i++) {
+      var a = (i / 7) * Math.PI * 2 + P * 0.7;
+      blob(cx + Math.cos(a) * r * 0.45, cy + Math.sin(a) * r * 0.3, r * 0.62, tone, alpha * 0.5);
+    }
+    blob(cx, cy, r * 0.8, tone, alpha * 0.6);
+  }
+  var DRAW = {
+    // --- Fire and flames
+    'candle-flame': function (W, H) { flame(W / 2, H * 0.78, H * 0.42, W * 0.08, 1.3, 1); },
+    'torch-flame': function (W, H) {
+      flame(W / 2, H * 0.72, H * 0.5, W * 0.17, 0.4, 1);
+      flame(W / 2 - W * 0.05, H * 0.74, H * 0.34, W * 0.1, 2.1, 0.8);
+    },
+    // --- Smoke and steam
+    'smoke-wisps': function (W, H) {
+      for (var i = 0; i < 9; i++) {
+        var f = ((i / 9) + P) % 1;
+        var x = W / 2 + Math.sin(f * 4 + i) * W * 0.12;
+        puff(x, H * (0.92 - f * 0.86), W * (0.07 + f * 0.17), (1 - f) * 0.5 * Math.min(1, f * 6), '200,200,205');
+      }
+    },
+    'steam-cup': function (W, H) {
+      for (var i = 0; i < 7; i++) {
+        var f = ((i / 7) + P) % 1;
+        puff(W / 2 + Math.sin(f * 6 + i * 2) * W * 0.1, H * (0.85 - f * 0.7), W * (0.05 + f * 0.1), (1 - f) * 0.42 * Math.min(1, f * 8), '235,235,240');
+      }
+    },
+    // --- Sparks and embers
+    'spark-shower': function (W, H) {
+      for (var i = 0; i < 90; i++) {
+        var life = 0.3 + hash(i) * 0.5, born = hash(i + 40);
+        var f = ((P - born) + 1) % 1;
+        if (f > life) continue;
+        var t2 = f / life;
+        var a = (hash(i + 80) - 0.5) * 2.2 - Math.PI / 2;
+        var speed = W * (0.25 + hash(i + 120) * 0.4);
+        var x = W / 2 + Math.cos(a) * speed * t2;
+        var y = H * 0.55 + Math.sin(a) * speed * t2 + H * 0.9 * t2 * t2;
+        blob(x, y, W * 0.008 * (1 - t2 * 0.6), '255,200,90', (1 - t2) * 0.95);
+      }
+      blob(W / 2, H * 0.55, W * 0.05, '255,230,160', 0.35);
+    },
+    'drifting-embers': function (W, H) {
+      for (var i = 0; i < 46; i++) {
+        var f = ((hash(i) + P * (0.3 + hash(i + 11) * 0.4)) % 1);
+        var x = W * hash(i + 22) + Math.sin(f * 5 + i) * W * 0.05;
+        blob(x, H * (1 - f), W * 0.006, '255,150,60', (1 - Math.abs(f - 0.5) * 2) * 0.9);
+      }
+    },
+    // --- Explosions and impacts
+    'shockwave-ring': function (W, H) {
+      var f = P;
+      var r = Math.min(W, H) * 0.08 + Math.min(W, H) * 0.42 * f;
+      ctx.lineWidth = Math.max(1, Math.min(W, H) * 0.035 * (1 - f));
+      ctx.strokeStyle = rgba('255,245,220', (1 - f) * 0.9);
+      ctx.beginPath(); ctx.arc(W / 2, H / 2, r, 0, Math.PI * 2); ctx.stroke();
+      blob(W / 2, H / 2, r * 0.6, '255,200,120', (1 - f) * 0.3);
+    },
+    'dust-burst': function (W, H) {
+      var f = P;
+      for (var i = 0; i < 26; i++) {
+        var a = (i / 26) * Math.PI * 2;
+        var d2 = Math.min(W, H) * 0.42 * f * (0.6 + hash(i) * 0.7);
+        puff(W / 2 + Math.cos(a) * d2, H / 2 + Math.sin(a) * d2 * 0.6, Math.min(W, H) * (0.05 + f * 0.09), (1 - f) * 0.4, '206,190,160');
+      }
+    },
+    // --- Energy and magic
+    'energy-orb': function (W, H) {
+      var pulse = 0.85 + 0.15 * Math.sin(P * Math.PI * 2);
+      var r = Math.min(W, H) * 0.22 * pulse;
+      blob(W / 2, H / 2, r * 2.1, '80,180,255', 0.3);
+      blob(W / 2, H / 2, r, '170,230,255', 0.75);
+      ctx.strokeStyle = rgba('210,245,255', 0.6);
+      ctx.lineWidth = Math.max(1, Math.min(W, H) * 0.006);
+      for (var i = 0; i < 3; i++) {
+        var a = P * Math.PI * 2 + (i / 3) * Math.PI * 2;
+        ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(a); ctx.scale(1, 0.35);
+        ctx.beginPath(); ctx.arc(0, 0, r * 1.7, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      }
+    },
+    'sparkle-trail': function (W, H) {
+      for (var i = 0; i < 40; i++) {
+        var f = ((i / 40) + P) % 1;
+        var x = W * 0.1 + W * 0.8 * f, y = H / 2 + Math.sin(f * Math.PI * 2) * H * 0.22;
+        var tw = 0.4 + 0.6 * Math.abs(Math.sin(P * Math.PI * 6 + i));
+        blob(x, y, W * 0.012 * tw, '235,210,255', (1 - f) * 0.9 * tw);
+      }
+    },
+    // --- Light and flares
+    'lens-flare': function (W, H) {
+      blob(W * 0.32, H / 2, Math.min(W, H) * 0.3, '255,245,220', 0.75);
+      var g = ctx.createLinearGradient(0, H / 2, W, H / 2);
+      g.addColorStop(0, rgba('255,240,210', 0)); g.addColorStop(0.32, rgba('255,240,210', 0.5)); g.addColorStop(1, rgba('255,240,210', 0));
+      ctx.fillStyle = g; ctx.fillRect(0, H / 2 - Math.max(2, H * 0.008), W, Math.max(4, H * 0.016));
+      for (var i = 1; i <= 4; i++) blob(W * (0.32 + i * 0.14), H / 2, Math.min(W, H) * (0.05 - i * 0.007), i % 2 ? '160,220,255' : '255,190,160', 0.4);
+    },
+    'glint': function (W, H) {
+      var f = Math.sin(P * Math.PI);
+      var r = Math.min(W, H) * 0.3 * f;
+      ctx.strokeStyle = rgba('255,255,245', f * 0.95);
+      ctx.lineWidth = Math.max(1, Math.min(W, H) * 0.012 * f);
+      for (var i = 0; i < 4; i++) {
+        var a = (i / 4) * Math.PI;
+        ctx.beginPath(); ctx.moveTo(W / 2 - Math.cos(a) * r, H / 2 - Math.sin(a) * r);
+        ctx.lineTo(W / 2 + Math.cos(a) * r, H / 2 + Math.sin(a) * r); ctx.stroke();
+      }
+      blob(W / 2, H / 2, r * 0.45, '255,255,240', f * 0.9);
+    },
+    // --- Weather effects
+    'rain-fall': function (W, H) {
+      ctx.strokeStyle = rgba('180,210,240', 0.55);
+      ctx.lineWidth = Math.max(1, W * 0.003);
+      for (var i = 0; i < 120; i++) {
+        var f = ((hash(i) + P * (1.4 + hash(i + 9) * 0.5)) % 1);
+        var x = W * hash(i + 31) + f * W * 0.06, y = H * f;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - W * 0.01, y + H * 0.06); ctx.stroke();
+      }
+    },
+    'snow-flurry': function (W, H) {
+      for (var i = 0; i < 80; i++) {
+        var f = ((hash(i) + P * (0.3 + hash(i + 7) * 0.3)) % 1);
+        var x = W * hash(i + 17) + Math.sin(f * 4 + i) * W * 0.05;
+        blob(x, H * f, W * (0.004 + hash(i + 51) * 0.005), '255,255,255', 0.85);
+      }
+    },
+    // --- Liquids and splashes
+    'water-splash': function (W, H) {
+      var f = P;
+      ctx.fillStyle = rgba('150,210,245', (1 - f) * 0.8);
+      for (var i = 0; i < 22; i++) {
+        var a = -Math.PI / 2 + (hash(i) - 0.5) * 2.4;
+        var d2 = Math.min(W, H) * 0.45 * f * (0.5 + hash(i + 13) * 0.8);
+        var x = W / 2 + Math.cos(a) * d2, y = H * 0.72 + Math.sin(a) * d2 + H * 0.6 * f * f;
+        ctx.beginPath(); ctx.arc(x, y, Math.min(W, H) * 0.02 * (1 - f * 0.5), 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.strokeStyle = rgba('190,230,250', (1 - f) * 0.7);
+      ctx.lineWidth = Math.max(1, Math.min(W, H) * 0.012);
+      ctx.save(); ctx.translate(W / 2, H * 0.74); ctx.scale(1, 0.3);
+      ctx.beginPath(); ctx.arc(0, 0, Math.min(W, H) * 0.12 + Math.min(W, H) * 0.3 * f, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    },
+    'ink-bloom': function (W, H) {
+      var f = P;
+      for (var i = 0; i < 14; i++) {
+        var a = (i / 14) * Math.PI * 2 + hash(i);
+        var d2 = Math.min(W, H) * 0.3 * f * (0.5 + hash(i + 21) * 0.9);
+        blob(W / 2 + Math.cos(a) * d2, H / 2 + Math.sin(a) * d2, Math.min(W, H) * (0.06 + f * 0.08), '30,40,70', 0.5);
+      }
+      blob(W / 2, H / 2, Math.min(W, H) * (0.1 + f * 0.14), '20,28,55', 0.65);
+    },
+    // --- Confetti and celebration
+    'confetti-burst': function (W, H) {
+      var cols = ['244,96,120', '250,200,70', '90,200,160', '120,160,250', '230,140,230'];
+      for (var i = 0; i < 90; i++) {
+        var f = P;
+        var a = (hash(i) - 0.5) * 3 - Math.PI / 2;
+        var speed = Math.min(W, H) * (0.4 + hash(i + 5) * 0.6);
+        var x = W / 2 + Math.cos(a) * speed * f;
+        var y = H * 0.6 + Math.sin(a) * speed * f + H * 1.1 * f * f;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(f * 9 + i);
+        ctx.fillStyle = rgba(cols[i % 5], 1 - f * 0.4);
+        ctx.fillRect(-W * 0.008, -W * 0.014, W * 0.016, W * 0.028);
+        ctx.restore();
+      }
+    },
+    'glitter-fall': function (W, H) {
+      for (var i = 0; i < 70; i++) {
+        var f = ((hash(i) + P * (0.4 + hash(i + 3) * 0.4)) % 1);
+        var tw = 0.35 + 0.65 * Math.abs(Math.sin(P * Math.PI * 8 + i));
+        blob(W * hash(i + 29) + Math.sin(f * 5 + i) * W * 0.03, H * f, W * 0.006 * tw, '255,228,150', tw * 0.9);
+      }
+    },
+    // --- Brush and ink strokes
+    'brush-swipe': function (W, H) {
+      var f = P;
+      ctx.strokeStyle = rgba('25,30,40', 0.92);
+      ctx.lineCap = 'round';
+      for (var pass = 0; pass < 7; pass++) {
+        ctx.lineWidth = Math.max(1, H * (0.16 - pass * 0.018));
+        ctx.globalAlpha = 0.5 - pass * 0.05;
+        ctx.beginPath();
+        for (var i = 0; i <= 24; i++) {
+          var g2 = i / 24;
+          if (g2 > f) break;
+          var x = W * (0.06 + g2 * 0.88);
+          var y = H / 2 + Math.sin(g2 * 2.6) * H * 0.1 + (hash(i + pass * 11) - 0.5) * H * 0.05;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    },
+    'marker-underline': function (W, H) {
+      var f = P;
+      ctx.strokeStyle = rgba('250,205,60', 0.85);
+      ctx.lineCap = 'round';
+      ctx.lineWidth = Math.max(2, H * 0.22);
+      ctx.beginPath();
+      ctx.moveTo(W * 0.08, H * 0.56);
+      ctx.lineTo(W * (0.08 + 0.84 * Math.min(1, f * 1.1)), H * 0.52);
+      ctx.stroke();
+    }
+  };
+  window.pulpRender = function (state) {
+    var d = size(state);
+    ctx.clearRect(0, 0, d.W, d.H);
+    U = Math.min(d.W, d.H);
+    T = state.time; D = state.duration || 1;
+    P = Math.min(1, Math.max(0, T / D));
+    (DRAW[state.params.variant] || DRAW['candle-flame'])(d.W, d.H);
+  };
+`,
+);
+
+export const STILL_PAGES = { photo: PHOTO_PAGE, illustration: ILLUSTRATION_PAGE, layered: LAYERED_PAGE, backdrop: BACKDROP_PAGE, overlay: OVERLAY_PAGE, element: ELEMENT_PAGE, motif: MOTIF_PAGE, asset: ASSET_PAGE } as const;
 
 /** The data URL an offscreen window loads for a page. */
 export function stillPageUrl(page: keyof typeof STILL_PAGES): string {

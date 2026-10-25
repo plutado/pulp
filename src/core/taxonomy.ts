@@ -10,8 +10,13 @@
 import { normalizeTag } from './tags';
 
 /** Bumped when the built-in lists change, so stored data can say what it was written against. */
-/** 2: logo-reveal added to Titles and text (milestone 22). Ids are permanent; the list only grows (ADR 0010). */
-export const TAXONOMY_VERSION = 2;
+/**
+ * 2: logo-reveal added to Titles and text (milestone 22).
+ * 3: the Assets group and its Effects categories (milestone 26) — isolated elements on
+ *    transparency, placed on a frame, as distinct from Overlays, which cover the whole frame.
+ * Ids are permanent; the list only grows (ADR 0010).
+ */
+export const TAXONOMY_VERSION = 3;
 
 export interface TypeGroup {
   id: string;
@@ -34,6 +39,7 @@ export const TYPE_GROUPS: readonly TypeGroup[] = [
   { id: 'stills', label: 'Stills' },
   { id: 'music', label: 'Music' },
   { id: 'sfx', label: 'Sound effects' },
+  { id: 'assets', label: 'Assets' },
 ] as const;
 
 export const TYPES: readonly TaxonomyType[] = [
@@ -83,6 +89,18 @@ export const TYPES: readonly TaxonomyType[] = [
   { id: 'explosion', label: 'Explosion / weapons', group: 'sfx' },
   { id: 'sci-fi', label: 'Sci-fi', group: 'sfx' },
   { id: 'musical-phrase', label: 'Musical phrase', group: 'sfx' },
+  // Assets (milestone 26): isolated elements on transparency, dropped onto a frame. Effects
+  // first -- generic, tagged with whatever themes fit; the themed Objects follow.
+  { id: 'fire', label: 'Fire and flames', group: 'assets' },
+  { id: 'smoke', label: 'Smoke and steam', group: 'assets' },
+  { id: 'sparks', label: 'Sparks and embers', group: 'assets' },
+  { id: 'explosion-asset', label: 'Explosions and impacts', group: 'assets' },
+  { id: 'energy', label: 'Energy and magic', group: 'assets' },
+  { id: 'light-asset', label: 'Light and flares', group: 'assets' },
+  { id: 'weather-asset', label: 'Weather effects', group: 'assets' },
+  { id: 'liquid', label: 'Liquids and splashes', group: 'assets' },
+  { id: 'confetti', label: 'Confetti and celebration', group: 'assets' },
+  { id: 'brush', label: 'Brush and ink strokes', group: 'assets' },
 ] as const;
 
 export interface ThemeGroup {
@@ -336,8 +354,8 @@ type MediaKind = 'video' | 'image' | 'audio';
  * textures, frames and icons as often as photos.
  */
 const KIND_GROUPS: Record<MediaKind, readonly string[]> = {
-  video: ['video', 'backgrounds', 'overlays', 'transitions', 'titles', 'elements'],
-  image: ['stills', 'backgrounds', 'overlays', 'elements'],
+  video: ['video', 'backgrounds', 'overlays', 'transitions', 'titles', 'elements', 'assets'],
+  image: ['stills', 'backgrounds', 'overlays', 'elements', 'assets'],
   audio: ['music', 'sfx'],
 };
 

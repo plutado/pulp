@@ -521,6 +521,61 @@ export async function captureStillPage(url: string, size: Size, params: Record<s
   }
 }
 
+/**
+ * Every frame of an animated asset page, as PNGs with alpha (milestone 26).
+ * The same offscreen, transparent window a still uses, stepped through the
+ * clip's own time: the page draws from `state.time` and `state.duration`, so a
+ * looping asset meets its first frame again and a one-shot clears. PNG keeps
+ * the alpha that makes an asset an asset.
+ */
+export async function captureAssetFrames(
+  url: string,
+  size: Size,
+  params: Record<string, unknown>,
+  clip: { seconds: number; fps: number },
+  timeoutMs = DEFAULT_LOAD_TIMEOUT_MS,
+): Promise<{ ok: true; frames: Buffer[] } | { ok: false; message: string }> {
+  const total = Math.max(1, Math.round(clip.seconds * clip.fps));
+  const win = new BrowserWindow({
+    show: false,
+    width: size.width,
+    height: size.height,
+    useContentSize: true,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    webPreferences: { offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() }, sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
+  });
+  try {
+    win.setContentSize(size.width, size.height);
+    await withTimeout(win.loadURL(url), timeoutMs, `the page did not load within ${Math.round(timeoutMs / 1000)} s`);
+    const frames: Buffer[] = [];
+    for (let frame = 0; frame < total; frame++) {
+      const time = frame / clip.fps;
+      const state = { frame, time, progress: time / clip.seconds, fps: clip.fps, duration: clip.seconds, totalFrames: total, width: size.width, height: size.height, params };
+      await withTimeout(
+        win.webContents.executeJavaScript(
+          `Promise.resolve(window.pulpRender(${JSON.stringify(state)})).then(function () { return new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); }); })`,
+        ),
+        timeoutMs,
+        `the page did not draw frame ${frame} within ${Math.round(timeoutMs / 1000)} s`,
+      );
+      await paintComposited(win);
+      const image = await win.webContents.capturePage();
+      const got = image.getSize();
+      if (got.width !== size.width || got.height !== size.height) {
+        return { ok: false, message: `captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}` };
+      }
+      frames.push(image.toPNG());
+    }
+    return { ok: true, frames };
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
+  } finally {
+    if (!win.isDestroyed()) win.destroy();
+  }
+}
+
 async function existingFiles(paths: string[]): Promise<Set<string>> {
   const found = await Promise.all(paths.map((p) => access(p).then(() => p, () => null)));
   return new Set(found.filter((p): p is string => p !== null));

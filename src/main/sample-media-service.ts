@@ -11,10 +11,10 @@ import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { detectFfmpeg, nodeRunner, runWithInput } from '../core/ffmpeg';
-import { SAMPLE_MEDIA, SAMPLE_MEDIA_LICENSE, sampleAudioArgs, sampleJpegArgs, sampleMediaPath, sampleMediaReadme, type SampleMediaItem } from '../core/sample-media';
+import { SAMPLE_MEDIA, SAMPLE_MEDIA_LICENSE, sampleAssetArgs, sampleAudioArgs, sampleJpegArgs, sampleMediaPath, sampleMediaReadme, type SampleMediaItem } from '../core/sample-media';
 import { stillPageUrl } from '../core/sample-stills';
 import { findTemplate } from './library-service';
-import { captureStillPage, renderTemplate } from './render';
+import { captureAssetFrames, captureStillPage, renderTemplate } from './render';
 
 export interface SampleMediaProgress {
   done: number;
@@ -46,6 +46,20 @@ async function makeOne(item: SampleMediaItem, out: string, ffmpegPath: string): 
       return null;
     }
     const encoded = await runWithInput(ffmpegPath, sampleJpegArgs(out), shot.png);
+    return encoded.code === 0 ? null : `ffmpeg exited with ${encoded.code}: ${encoded.stderr.trim() || 'no error output'}`;
+  }
+  if (recipe.kind === 'asset') {
+    // A still asset is one frame of the same page; a clip is every frame, piped to ffmpeg as PNGs
+    // so the alpha survives into the WebM.
+    if (recipe.format === 'png') {
+      const shot = await captureStillPage(stillPageUrl(recipe.page), { width: recipe.width, height: recipe.height }, { variant: recipe.variant });
+      if (!shot.ok) return shot.message;
+      await writeFile(out, shot.png);
+      return null;
+    }
+    const shot = await captureAssetFrames(stillPageUrl(recipe.page), { width: recipe.width, height: recipe.height }, { variant: recipe.variant }, { seconds: recipe.seconds, fps: recipe.fps });
+    if (!shot.ok) return shot.message;
+    const encoded = await runWithInput(ffmpegPath, sampleAssetArgs(recipe, out), Buffer.concat(shot.frames));
     return encoded.code === 0 ? null : `ffmpeg exited with ${encoded.code}: ${encoded.stderr.trim() || 'no error output'}`;
   }
   const template = await findTemplate(recipe.templateId);

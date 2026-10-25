@@ -268,6 +268,38 @@ describe.skipIf(!available)('end-to-end render', () => {
     const icon = join(folder, 'Design elements', 'Icons', 'icon-star.png');
     expect((await pixels(icon, 540, 540))[3], 'an icon has its mark in the middle').toBe(255);
     expect((await pixels(icon, 6, 6))[3], 'an icon leaves its corner clear').toBe(0);
+
+    // Milestone 26's assets are isolated elements on transparency, so the alpha is the point.
+    // A still asset is RGBA with its corner clear; a clip carries a real alpha layer, which in
+    // WebM is the container's alpha_mode and the libvpx decoder's business — ffprobe's pix_fmt
+    // says yuv420p for a VP9 alpha file and always will (docs/platform-notes.md).
+    const assetStill = join(folder, 'Assets', 'Fire and flames', 'torch-flame.png');
+    expect(await probe(assetStill)).toMatchObject({ width: 512, height: 512, pix_fmt: 'rgba' });
+    expect((await pixels(assetStill, 4, 4))[3], 'an asset still leaves its corner clear').toBe(0);
+    const assetClip = join(folder, 'Assets', 'Confetti and celebration', 'confetti-burst.webm');
+    const clipInfo = await probe(assetClip);
+    expect(clipInfo).toMatchObject({ width: 640, height: 360 });
+    expect(clipInfo.tags?.alpha_mode ?? clipInfo.tags?.ALPHA_MODE, 'an asset clip carries alpha').toBe('1');
+    const [aMin, aMax] = await alphaRange(assetClip, 20, 'libvpx-vp9');
+    expect(aMin, 'transparent where nothing is drawn').toBe(0);
+    expect(aMax, 'opaque where the confetti is').toBeGreaterThan(200);
+    // And it moves: how much of the frame the burst covers changes as it spreads. Peak alpha
+    // cannot show that — confetti is opaque from the first frame — so the covered area is what
+    // is measured.
+    const covered = async (frame: number): Promise<number> => {
+      const { stdout } = await runBoundedBuffer(
+        ffmpeg,
+        ffmpegArgs(['-v', 'error', '-c:v', 'libvpx-vp9', '-i', assetClip, '-vf', `select=eq(n\\,${frame})`, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']),
+        // One raw RGBA frame has to fit, as it does for alphaRange above.
+        { timeoutMs: 180_000, maxBuffer: 192 * 1024 * 1024 },
+      );
+      let n = 0;
+      for (let i = 3; i < stdout.length; i += 4) if (stdout[i]! > 8) n++;
+      return n;
+    };
+    const [atStart, atEnd] = [await covered(2), await covered(30)];
+    expect(atStart, 'the asset draws something early on').toBeGreaterThan(0);
+    expect(atEnd, 'and a different amount later: the asset moves').not.toBe(atStart);
     // No sound clips and none is near silence: a gain that stacks harmonics past full scale shows up here.
     for (const item of SAMPLE_MEDIA) {
       if (item.recipe.kind !== 'audio') continue;

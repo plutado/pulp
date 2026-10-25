@@ -24,6 +24,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 23. Layers in templates | 37-56 h |
 | 24. Browse panel: find as you type, one section open, deeper samples | 24-39 h |
 | 25. Move and resize layers on the stage | 16-22 h |
+| 26. Assets on the stage | 30-46 h |
 | 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 8-13 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -32,9 +33,9 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-25)** | **278-448 h** |
-| **Still open through 1.0 (unticked items only)** | **33-54 h** |
-| **Total including post-1.0 items** | **310-506 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-26)** | **308-494 h** |
+| **Still open through 1.0 (unticked items only)** | **58-91 h** |
+| **Total including post-1.0 items** | **340-552 h** |
 
 ## 0. Foundation (done)
 
@@ -276,6 +277,20 @@ Right after milestone 24. A layer sits where its template's block stacks it, and
 - [x] Move and resize: dragging moves the layer anywhere on the frame, a corner handle scales it — a text layer by its type size, an image layer by its scale, proportions kept — and the arrow keys nudge it, a larger step with Shift. It snaps to the frame's centre lines, the safe-area edges and its block's own edges, drawing a guide while it snaps (5-7 h)
 - [x] Placement travels: one undo step per gesture, saved presets, collections, `.pulpcollection` files, CSV and the render cache key carry it like every layer value, and "Reset position" returns a layer to its place in the stack (3-4 h)
 - [x] End to end: drag, nudge and resize a line and a logo at 16:9 and 9:16, undo each, and prove a moved layer still enters and exits with the template's own animation (3-4 h)
+
+## 26. Assets on the stage (30-46 h; GitHub issue pending)
+
+Right after milestone 25, whose drag and placement it builds on. Templates are designed graphics with parameters; **assets** are standalone visual media placed on a frame — stills and clips with transparency, often realistic, possibly thousands of them from a person's own licensed libraries. A logo becomes one use of an asset. This milestone brings in the asset libraries, a Video layer, dropping an asset onto the stage, and a generated CC0 asset library to browse and test against. Licensed libraries are supported by the app but never exercised here, never copied into packs or exports, and never committed.
+
+- [x] The Assets categories: a type group of its own (isolated elements on transparency, as distinct from Overlays, which cover the whole frame), beginning with the ten **Effects** categories — fire and flames, smoke and steam, sparks and embers, explosions and impacts, energy and magic, light and flares, weather effects, liquids and splashes, confetti and celebration, brush and ink strokes. The taxonomy version moves to 3; ids are permanent and the list only grows (ADR 0010) (1-2 h)
+- [x] Generated assets, the first examples: recipes in the sample generator that draw an isolated element on transparency over its own time, written as a transparent WebM (VP9 with alpha) for the moving one and a PNG for the still, seeded so every generation is identical, looping where that is natural and one-shot where it is not. Two in every Effects category to begin with; the end-to-end generator proves the alpha and the motion (3-4 h)
+- [ ] Six or more in every asset category, and the themed **Objects** kind beside Effects — sports equipment, celebrations and life events, holidays, business, science and health, media, nature and space, travel and city, food and home, community and learning — each object tagged with the themes it fits, so every theme in the taxonomy gains at least three assets. The coverage test holds both (10-16 h)
+- [ ] Asset libraries: folders of one's own assets, indexed like media today. Clips carrying transparency are detected (ProRes 4444, WebM VP9 with alpha, PNG sequences, HEVC with alpha on macOS) and wear the existing Alpha badge and filter; thumbnails and hover-scrub draw over the checkerboard (4-6 h)
+- [ ] Video layers: "Add layer" offers Video beside Text and Image. A clip plays inside the frame, decoded frame-accurately for the template's time by the host, with in and out points, loop or play once, speed and a start delay; renders composite it exactly, and a template page sees only the clips chosen for it, by the same by-id grant as images (6-9 h)
+- [ ] Drop onto the stage: dragging an asset from the results onto the preview makes it a layer where it was dropped, then moved and resized with milestone 25's handles; dropping it on a layer card replaces that layer's picture or clip. "Logo" becomes "Image" where it means any picture (3-5 h)
+- [ ] Rights and performance: assets stay where they are and are referenced in place, never copied into a pack or an export, and a pack export whose layers use one warns as it does for an imported font; decoded frames are cached and scrubbing uses lower-resolution proxies, so a long or 4K alpha clip stays responsive (3-4 h)
+
+This absorbs milestone 22's post-1.0 "media slots" item (a video plate in a template's slot).
 
 ## 20. Social-ready export (8-13 h)
 

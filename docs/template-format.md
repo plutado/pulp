@@ -226,6 +226,12 @@ The host applies a placement **around the template's own draw** of that layer �
 
 Like every layer value it rides in the same bag as the parameters, so presets, collections, CSV batches, `--param '@layers={…}'` and the render cache key all carry it.
 
+#### Assets
+
+**Assets** (milestone 26) are not templates: they are isolated elements on transparency — a flame, a puff of smoke, a burst of confetti — that a person places on a frame, as distinct from an overlay, which covers the whole frame. They live in the taxonomy's own **Assets** group, indexed from folders like any other media, and the browse tree types them from their folder names (`Assets/Fire and flames/…`).
+
+The bundled examples are generated, never committed: recipes in the sample generator draw each one on a transparent canvas over its own time and write it as a WebM with alpha (VP9) for the moving version and a PNG for the still, seeded so every generation is identical. A category's assets loop where that is natural — a flame, a wisp of steam, falling rain — and play once where it is not, like a splash or a shockwave.
+
 ### Fonts
 
 Pulp bundles ten families under the SIL Open Font License 1.1 — **Inter, Montserrat, Oswald, Bebas Neue, Source Serif 4, Playfair, JetBrains Mono, Caveat, Dancing Script, Noto Sans** — so a layer can be set in a face that exists on every machine (`docs/font-credits.md`, decision record 0014). Every template page has them: the bridge declares an `@font-face` for each file beside itself, and the template protocol serves the files under the template's own origin at the reserved path `/__pulp/fonts/`, which is what `font-src 'self'` allows. A template folder therefore cannot have files under `__pulp/`.

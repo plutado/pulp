@@ -19,7 +19,7 @@ import { join } from 'node:path';
 // overlay plates, backdrops and design elements that ship as pictures rather than as templates
 // (a frame, a vignette, a texture, an icon), which the folder inference types the same way.
 const MEDIA_GROUPS = new Set(['video', 'stills', 'music', 'sfx']);
-const ASSET_GROUPS = new Set(['backgrounds', 'overlays', 'elements']);
+const ASSET_GROUPS = new Set(['backgrounds', 'overlays', 'elements', 'assets']);
 const bundled = await scanLibrary([join(__dirname, '..', 'templates')]);
 const mediaTypes = TYPES.filter((t) => MEDIA_GROUPS.has(t.group));
 
@@ -53,7 +53,13 @@ describe('the sample-media catalogue', () => {
       if (item.recipe.kind === 'audio') expect(ext).toBe('.wav');
       if (item.recipe.kind === 'still') expect(ext).toBe(`.${item.recipe.format}`);
       if (item.recipe.kind === 'clip') expect(ext).toBe('.mp4');
-      expect(kind).toBe(item.recipe.kind === 'audio' ? 'audio' : item.recipe.kind === 'still' ? 'image' : 'video');
+      // An asset is a transparent WebM or a PNG, and its kind follows which (milestone 26).
+      if (item.recipe.kind === 'asset') expect(ext).toBe(`.${item.recipe.format}`);
+      const wantKind = item.recipe.kind === 'audio' ? 'audio'
+        : item.recipe.kind === 'still' ? 'image'
+        : item.recipe.kind === 'asset' ? (item.recipe.format === 'png' ? 'image' : 'video')
+        : 'video';
+      expect(kind).toBe(wantKind);
       // Lowercase, dashes, no spaces: the files are addressed from scripts and tests.
       expect(item.file).toMatch(/^[a-z0-9-]+\.[a-z0-9]+$/);
       expect(item.note.length).toBeGreaterThan(5);
@@ -95,11 +101,11 @@ describe('the sample-media catalogue', () => {
       expect(stillPageUrl(name as keyof typeof STILL_PAGES)).toMatch(/^data:text\/html;charset=utf-8,/);
     }
     for (const item of SAMPLE_MEDIA) {
-      if (item.recipe.kind === 'still') expect(Object.keys(STILL_PAGES)).toContain(item.recipe.page);
+      if (item.recipe.kind === 'still' || item.recipe.kind === 'asset') expect(Object.keys(STILL_PAGES)).toContain(item.recipe.page);
       // Every variant is one its page really draws. A page picks its variant by name and falls back
       // to a default, so a typo would quietly write the default picture under the new file's name
       // rather than fail — with six variants a page, that is easy to do and hard to see.
-      if (item.recipe.kind === 'still') {
+      if (item.recipe.kind === 'still' || item.recipe.kind === 'asset') {
         const page = STILL_PAGES[item.recipe.page];
         const variant = item.recipe.variant;
         const drawn = new RegExp(`['"]${variant}['"]|\\b${variant}\\s*[:(]`).test(page);

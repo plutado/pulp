@@ -30,7 +30,13 @@ export const SAMPLE_MEDIA_FOLDER_NAME = 'Sample media';
 export type SampleRecipe =
   | { kind: 'audio'; graph: string; filters?: string; seconds: number; channels?: 1 | 2 }
   | { kind: 'still'; page: keyof typeof STILL_PAGES; variant: string; format: 'png' | 'jpg'; width: number; height: number }
-  | { kind: 'clip'; templateId: string; seconds: number; width: number; height: number };
+  | { kind: 'clip'; templateId: string; seconds: number; width: number; height: number }
+  /**
+   * An asset (milestone 26): an isolated element drawn on transparency by a canvas page over
+   * the clip's own time, written as a transparent WebM or a PNG still. `loop` says the last
+   * frame meets the first, which is what makes a flame or a wisp of steam usable on a long shot.
+   */
+  | { kind: 'asset'; page: keyof typeof STILL_PAGES; variant: string; format: 'webm' | 'png'; width: number; height: number; seconds: number; fps: number; loop: boolean };
 
 export interface SampleMediaItem {
   /** Folder segments under the sample-media root, as shown ("Sound effects", "Whooshes"). */
@@ -51,6 +57,9 @@ export interface SampleMediaItem {
 // of it; `t` is the time in seconds within the source.
 
 const SR = 48000;
+
+/** Assets are generated at this rate: smooth enough to read, cheap enough to make on demand. */
+const ASSET_FPS = 24;
 const NOISE = '(random(0)-0.5)*2';
 const NOISE2 = '(random(1)-0.5)*2';
 
@@ -721,6 +730,31 @@ const SFX: SampleMediaItem[] = [
     folder: ['Sound effects', 'Foley', 'Food'], file: 'pan-sizzle.wav', type: 'foley', note: 'A pan sizzling as something lands in it.',
     recipe: audio(evalSrc(`${NOISE}*(0.08+0.3*min(1,max(0,(t-0.4)*3))*exp(-0.25*(t-0.4)))`, 5), 5, 'highpass=f=1800'),
   },
+
+
+  // ---- Milestone 26: the Assets group's Effects categories. Every asset is drawn on
+  // transparency by the asset page over its own time: a WebM with alpha for the moving one,
+  // a PNG for the still. Two apiece to start; the categories run to six as the milestone goes on.
+  { folder: ['Assets', 'Fire and flames'], file: 'candle-flame.webm', type: 'fire', note: 'A candle flame licking on the spot; loops.', recipe: { kind: 'asset', page: 'asset', variant: 'candle-flame', format: 'webm', width: 512, height: 512, seconds: 2, fps: ASSET_FPS, loop: true } },
+  { folder: ['Assets', 'Fire and flames'], file: 'torch-flame.png', type: 'fire', note: 'A torch flame, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'torch-flame', format: 'png', width: 512, height: 512, seconds: 1, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Smoke and steam'], file: 'smoke-wisps.webm', type: 'smoke', note: 'Wisps of smoke rising and thinning; loops.', recipe: { kind: 'asset', page: 'asset', variant: 'smoke-wisps', format: 'webm', width: 512, height: 512, seconds: 2, fps: ASSET_FPS, loop: true } },
+  { folder: ['Assets', 'Smoke and steam'], file: 'steam-cup.png', type: 'smoke', note: 'Steam off a cup, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'steam-cup', format: 'png', width: 512, height: 512, seconds: 1, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Sparks and embers'], file: 'spark-shower.webm', type: 'sparks', note: 'A shower of sparks thrown and falling; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'spark-shower', format: 'webm', width: 640, height: 360, seconds: 2, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Sparks and embers'], file: 'drifting-embers.png', type: 'sparks', note: 'Embers adrift, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'drifting-embers', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Explosions and impacts'], file: 'shockwave-ring.webm', type: 'explosion-asset', note: 'A shockwave ring opening out; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'shockwave-ring', format: 'webm', width: 640, height: 360, seconds: 2, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Explosions and impacts'], file: 'dust-burst.png', type: 'explosion-asset', note: 'A burst of dust, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'dust-burst', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Energy and magic'], file: 'energy-orb.webm', type: 'energy', note: 'An orb pulsing inside its rings; loops.', recipe: { kind: 'asset', page: 'asset', variant: 'energy-orb', format: 'webm', width: 512, height: 512, seconds: 2, fps: ASSET_FPS, loop: true } },
+  { folder: ['Assets', 'Energy and magic'], file: 'sparkle-trail.png', type: 'energy', note: 'A trail of sparkles, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'sparkle-trail', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Light and flares'], file: 'glint.webm', type: 'light-asset', note: 'A glint flaring and dying; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'glint', format: 'webm', width: 512, height: 512, seconds: 2, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Light and flares'], file: 'lens-flare.png', type: 'light-asset', note: 'An anamorphic lens flare, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'lens-flare', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Weather effects'], file: 'rain-fall.webm', type: 'weather-asset', note: 'Rain falling across the frame; loops.', recipe: { kind: 'asset', page: 'asset', variant: 'rain-fall', format: 'webm', width: 640, height: 360, seconds: 2, fps: ASSET_FPS, loop: true } },
+  { folder: ['Assets', 'Weather effects'], file: 'snow-flurry.png', type: 'weather-asset', note: 'A flurry of snow, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'snow-flurry', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Liquids and splashes'], file: 'water-splash.webm', type: 'liquid', note: 'A splash thrown up and out; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'water-splash', format: 'webm', width: 512, height: 512, seconds: 2, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Liquids and splashes'], file: 'ink-bloom.png', type: 'liquid', note: 'Ink blooming in water, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'ink-bloom', format: 'png', width: 512, height: 512, seconds: 1, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Confetti and celebration'], file: 'confetti-burst.webm', type: 'confetti', note: 'Confetti thrown up and falling; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'confetti-burst', format: 'webm', width: 640, height: 360, seconds: 2, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Confetti and celebration'], file: 'glitter-fall.png', type: 'confetti', note: 'Glitter falling, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'glitter-fall', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Brush and ink strokes'], file: 'brush-swipe.webm', type: 'brush', note: 'A brush swiping across; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'brush-swipe', format: 'webm', width: 640, height: 360, seconds: 2, fps: ASSET_FPS, loop: false } },
+  { folder: ['Assets', 'Brush and ink strokes'], file: 'marker-underline.png', type: 'brush', note: 'A marker underline, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'marker-underline', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
 ];
 
 const MUSIC: SampleMediaItem[] = [
@@ -893,7 +927,26 @@ export const SAMPLE_MEDIA: readonly SampleMediaItem[] = [...CLIPS, ...STILLS, ..
 
 /** The file's media kind, from its extension. */
 export function sampleMediaKind(item: SampleMediaItem): MediaKind {
-  return item.recipe.kind === 'audio' ? 'audio' : item.recipe.kind === 'still' ? 'image' : 'video';
+  const { recipe } = item;
+  if (recipe.kind === 'audio') return 'audio';
+  if (recipe.kind === 'still') return 'image';
+  if (recipe.kind === 'asset') return recipe.format === 'png' ? 'image' : 'video';
+  return 'video';
+}
+
+/**
+ * Encode an asset's PNG frames as WebM with alpha: VP9 in `yuva420p`, which is
+ * the transparent video every platform here can decode. Tuned for speed over
+ * size — these are generated on demand, not shipped.
+ */
+export function sampleAssetArgs(recipe: Extract<SampleRecipe, { kind: 'asset' }>, out: string): string[] {
+  return [
+    '-hide_banner', '-loglevel', 'error', '-y',
+    '-f', 'image2pipe', '-vcodec', 'png', '-framerate', String(recipe.fps), '-i', '-',
+    '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0', '-crf', '34',
+    '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1',
+    out,
+  ];
 }
 
 /** The type the library scan will give the file from its folders, so the test can compare it with the intent. */
