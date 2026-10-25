@@ -6,7 +6,7 @@ Where work waits before it is on the roadmap. `ROADMAP.md` is the plan; this fil
 
 1. **Idea.** Anyone may suggest one. It goes under [Ideas](#ideas) with a line on what it is and why.
 2. **Decided.** When the maintainer agrees to it, it moves to [Decided](#decided), with what was decided and what "done" looks like.
-3. **Scheduled.** When a request schedules it, it is written into `ROADMAP.md` (a new milestone, or items in an existing one) and removed from this file in the same commit. A new milestone takes the next free GitHub number, which is also its issue number (see CONTRIBUTING.md).
+3. **Scheduled.** When a request schedules it, it is written into `ROADMAP.md` (a new milestone, or items in an existing one) and removed from this file in the same commit. A new milestone takes the next milestone number and gets its own GitHub issue, whose number the roadmap gives beside it (see CONTRIBUTING.md).
 
 Known issues follow the same path: a bug found and understood goes under [Known issues](#known-issues), and leaves when it is fixed or scheduled.
 
@@ -14,7 +14,7 @@ Each move is a commit, so the history shows when an idea was decided and where i
 
 ## Decided
 
-1. **Browse panel: find a category as you type, one section open at a time, deeper samples.** A new milestone placed right after milestone 23. It takes number **25**: #24 was used by a pull request, and issue numbers stay matched to milestones.
+1. **Browse panel: find a category as you type, one section open at a time, deeper samples.** A new milestone, **24**, placed right after milestone 23. Its GitHub issue will have its own number (pull requests have used #24 and #25), given beside the milestone in `ROADMAP.md`.
    - **Autocomplete in the browse panel**, near the top by Quick access: typing shows matching nodes across every taxonomy (types, themes, styles, packs, folders, and Quick access entries such as Favorites), each labelled with where it lives ("Lower third · Types", "Holiday · Themes"). Choosing one selects that node, which scopes the results the way clicking it in the tree does (the scope chip). Keyboard first: arrows and Enter, Escape to clear. It finds categories; the search bar keeps finding items.
    - **One section open at a time**: opening a section or group in the tree folds the others, so the tree stays short. A setting, on by default; the autocomplete opens the chosen node's parent.
    - **Six or more original samples per category**: every type, theme and style gets at least six CC0 samples, from templates and the sample-media generator, with no upper limit. The coverage test becomes a minimum only (today it fails a type above five unless exempted).

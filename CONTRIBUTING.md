@@ -2,6 +2,19 @@
 
 Thanks for your interest. Pulp is in early development, so the format and internals still move. Opening an issue before a large change saves everyone time.
 
+## Start here
+
+Read this file first, then what the task needs:
+
+- `ROADMAP.md`: the plan, milestone by milestone, and what to work on next.
+- `docs/ideas.md`: decisions not yet scheduled into a milestone, known issues, and how an idea becomes roadmap work.
+- `docs/ui-layout.md` and `docs/ui-style.md`: before any UI work (regions, labels, icons, tokens).
+- `docs/template-format.md`: before changing a template or the format.
+- `docs/platform-notes.md`: before investigating any capture, color, platform or CI symptom.
+- `docs/decisions/`: before reversing or reworking a past choice.
+
+The rest (the changelog, font credits, the editor-verification notes) is reference: open it when a task touches it.
+
 ## Setup
 
 ```sh
@@ -40,7 +53,7 @@ The steps above for sending a pull request are for contributors working from the
 
 ## Commits
 
-- **Issue references by milestone.** GitHub issues #1 to #23 are the milestones in `ROADMAP.md`, numbered the same (#24 was a pull request, so the next new milestone is 25, and each new one takes the next free number); the roadmap lists them in planned order, which is not numeric order. A commit that advances a milestone ends its message with `Part of #N`. Use `Fixes #N` only in the commit that completes the whole milestone. Work outside the roadmap carries no issue reference.
+- **Issue references by milestone.** Milestones 1 to 23 have GitHub issues of the same number. Pull requests share GitHub's numbering, so from 24 on a milestone's issue may have a different number: each new milestone gets its own issue, and `ROADMAP.md` gives that issue's number beside the milestone. The roadmap lists milestones in planned order, which is not numeric order. A commit that advances a milestone ends its message with `Part of #N`, N being that milestone's issue number. Use `Fixes #N` only in the commit that completes the whole milestone. Work outside the roadmap carries no issue reference.
 - **Roadmap ticks and changelog entries.** When a checklist item is finished, tick it in `ROADMAP.md` and add an entry under "Unreleased" in `CHANGELOG.md`, in the same commit as the change itself.
 - **Test, lint and build before committing.** `npm test`, `npm run lint` and `npm run build` must pass for every commit, not only before the pull request.
 - **Only intended files.** Check `git status` before committing. No render output, scratch files or editor leftovers.

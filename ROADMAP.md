@@ -2,7 +2,7 @@
 
 Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done. The "still open" row is the sum of the unticked items' own estimates, not the previous figure minus what was finished — recompute it from the items, or it drifts.
 
-Milestones keep the number they were given when they were added, so GitHub issues #1 to #23 stay aligned with the milestones (#24 was a pull request; the next new milestone is 25). Ideas, decisions not yet scheduled and known issues wait in `docs/ideas.md` until a milestone takes them. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
+Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. Ideas, decisions not yet scheduled and known issues wait in `docs/ideas.md` until a milestone takes them. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
 | Milestone | Estimate |
 |---|---|
