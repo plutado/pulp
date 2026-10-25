@@ -7,6 +7,7 @@
 import { effect } from '@preact/signals';
 import { hasFinishedJobs, setCollection, setEditing } from '../core/app-state';
 import { applyToAll, COLLECTION_DRAG_TYPE, renderableItems, resolveCollection } from '../core/collection';
+import { noteAfterChange, noteFades, NOTE_MS, NO_NOTE, sayNote, type TrayNote } from '../core/tray-note';
 import { appState, dispatch } from './store';
 import { editing, mountCollection, resolved } from './collection';
 import { dragNotice, mountQueue } from './queue';
@@ -49,13 +50,32 @@ function initDragNotice(): void {
 }
 
 /** The collection's own actions: Render all, Apply to all, Open and Save. */
-function initCollection(): void {
+export function initCollection(): void {
   mountCollection($('collection'));
   const note = $('collection-note');
-  const say = (text: string, bad = false) => {
-    note.classList.toggle('error', bad);
-    note.textContent = text;
+  // The rules for this line are in src/core/tray-note.ts; the tray owns the element and the clock.
+  let shown: TrayNote = NO_NOTE;
+  let noteFor = appState.value.collection;
+  let noteTimer: ReturnType<typeof setTimeout> | undefined;
+  const paint = (next: TrayNote) => {
+    clearTimeout(noteTimer);
+    noteTimer = undefined;
+    shown = next;
+    note.classList.toggle('error', next.kind === 'error');
+    note.textContent = next.text;
+    if (noteFades(next)) noteTimer = setTimeout(() => paint(NO_NOTE), NOTE_MS);
   };
+  const say = (text: string, bad = false) => {
+    noteFor = appState.value.collection;
+    paint(sayNote(text, bad));
+  };
+
+  effect(() => {
+    const collection = appState.value.collection;
+    const next = noteAfterChange(shown, collection.items.length, collection !== noteFor);
+    noteFor = collection;
+    if (next !== shown) paint(next);
+  });
 
   // Total progress across whatever is queued, beside the per-item bars on the cards.
   const total = $<HTMLProgressElement>('tray-progress');

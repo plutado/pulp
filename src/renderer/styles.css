@@ -724,6 +724,9 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .group-label { font-size: var(--font-caption); color: var(--muted); margin-top: 6px; border-top: 1px solid var(--border); padding-top: 8px; }
 
 .note { color: var(--muted); font-size: var(--font-secondary); margin: 6px 0; line-height: 1.4; }
+/* The tray's confirmations fade rather than blink out; an error keeps its full weight. */
+#collection-note { transition: opacity 400ms ease; }
+#collection-note:empty { opacity: 0; }
 .note.error { color: var(--danger); }
 .render-options { display: grid; gap: 10px; margin-top: 10px; }
 .render-options .trim { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
