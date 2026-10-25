@@ -8,19 +8,74 @@
   "license": "CC0-1.0",
   "category": "other",
   "type": "shapes",
-  "themes": ["technology", "gaming", "science", "space"],
-  "styles": ["tech"],
-  "tags": ["hexagon", "hud", "burst"],
+  "themes": [
+    "technology",
+    "gaming",
+    "science",
+    "space"
+  ],
+  "styles": [
+    "tech"
+  ],
+  "tags": [
+    "hexagon",
+    "hud",
+    "burst"
+  ],
   "duration": 6,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "count", "type": "number", "label": "Hexagons", "default": 8, "min": 3, "max": 16, "step": 1 },
-    { "id": "color", "type": "color", "label": "Hexagon color", "default": "#22d3ee", "group": "Colors" },
-    { "id": "lineColor", "type": "color", "label": "Line color", "default": "#67e8f999", "group": "Colors" },
-    { "id": "size", "type": "number", "label": "Size (% of frame)", "default": 70, "min": 30, "max": 100, "step": 5 },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 1, "min": 0.2, "max": 2.5, "step": 0.1 }
+    {
+      "id": "count",
+      "type": "number",
+      "label": "Hexagons",
+      "default": 8,
+      "min": 3,
+      "max": 16,
+      "step": 1,
+      "element": "Hexagons"
+    },
+    {
+      "id": "color",
+      "type": "color",
+      "label": "Hexagon color",
+      "default": "#22d3ee",
+      "element": "Hexagon"
+    },
+    {
+      "id": "lineColor",
+      "type": "color",
+      "label": "Line color",
+      "default": "#67e8f999",
+      "element": "Line"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size (% of frame)",
+      "default": 70,
+      "min": 30,
+      "max": 100,
+      "step": 5,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

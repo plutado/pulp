@@ -8,18 +8,65 @@
   "license": "CC0-1.0",
   "category": "background",
   "type": "texture",
-  "themes": ["cinema", "concert"],
-  "styles": ["grunge"],
-  "tags": ["grain", "film", "dust"],
+  "themes": [
+    "cinema",
+    "concert"
+  ],
+  "styles": [
+    "grunge"
+  ],
+  "tags": [
+    "grain",
+    "film",
+    "dust"
+  ],
   "duration": 8,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": false,
   "entry": "index.html",
   "parameters": [
-    { "id": "base", "type": "color", "label": "Base color", "default": "#141210" },
-    { "id": "grain", "type": "number", "label": "Grain amount", "default": 0.35, "min": 0, "max": 1, "step": 0.05 },
-    { "id": "grainSize", "type": "number", "label": "Grain size", "default": 2, "min": 1, "max": 6, "step": 1 },
-    { "id": "specks", "type": "number", "label": "Dust specks", "default": 6, "min": 0, "max": 30, "step": 1 }
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Base color",
+      "default": "#141210",
+      "element": "Base"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain amount",
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Film grain field"
+    },
+    {
+      "id": "grainSize",
+      "type": "number",
+      "label": "Grain size",
+      "default": 2,
+      "min": 1,
+      "max": 6,
+      "step": 1,
+      "element": "Film grain field"
+    },
+    {
+      "id": "specks",
+      "type": "number",
+      "label": "Dust specks",
+      "default": 6,
+      "min": 0,
+      "max": 30,
+      "step": 1,
+      "element": "Dust specks"
+    }
   ]
 }

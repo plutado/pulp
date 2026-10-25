@@ -8,19 +8,67 @@
   "license": "CC0-1.0",
   "category": "background",
   "type": "still-background",
-  "themes": ["nature", "wedding", "family"],
-  "styles": ["organic"],
-  "tags": ["still", "pastel", "soft"],
+  "themes": [
+    "nature",
+    "wedding",
+    "family"
+  ],
+  "styles": [
+    "organic"
+  ],
+  "tags": [
+    "still",
+    "pastel",
+    "soft"
+  ],
   "duration": 10,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": false,
   "entry": "index.html",
   "parameters": [
-    { "id": "color1", "type": "color", "label": "Bloom 1", "default": "#f7c5d0", "group": "Colors" },
-    { "id": "color2", "type": "color", "label": "Bloom 2", "default": "#c9e4d6", "group": "Colors" },
-    { "id": "color3", "type": "color", "label": "Bloom 3", "default": "#d9d2f0", "group": "Colors" },
-    { "id": "base", "type": "color", "label": "Base color", "default": "#fbf7f2", "group": "Colors" },
-    { "id": "softness", "type": "number", "label": "Softness", "default": 0.6, "min": 0.2, "max": 1, "step": 0.05 }
+    {
+      "id": "color1",
+      "type": "color",
+      "label": "Bloom 1",
+      "default": "#f7c5d0",
+      "element": "Bloom 1"
+    },
+    {
+      "id": "color2",
+      "type": "color",
+      "label": "Bloom 2",
+      "default": "#c9e4d6",
+      "element": "Bloom 2"
+    },
+    {
+      "id": "color3",
+      "type": "color",
+      "label": "Bloom 3",
+      "default": "#d9d2f0",
+      "element": "Bloom 3"
+    },
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Base color",
+      "default": "#fbf7f2",
+      "element": "Base"
+    },
+    {
+      "id": "softness",
+      "type": "number",
+      "label": "Softness",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1,
+      "step": 0.05,
+      "element": "Soft gradient"
+    }
   ]
 }

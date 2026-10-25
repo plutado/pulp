@@ -8,39 +8,95 @@
   "license": "CC0-1.0",
   "category": "overlay",
   "type": "logo-bug",
-  "tags": ["bug", "corner", "mark"],
+  "tags": [
+    "bug",
+    "corner",
+    "mark"
+  ],
   "duration": 8,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "label", "type": "text", "label": "Label", "default": "Northwind", "maxLength": 24 },
-    { "id": "line", "type": "color", "label": "Line and text color", "default": "#f4f6f9", "group": "Colors" },
-    { "id": "accent", "type": "color", "label": "Accent color", "default": "#4f7cac", "group": "Colors" },
+    {
+      "id": "label",
+      "type": "text",
+      "label": "Label",
+      "default": "Northwind",
+      "maxLength": 24,
+      "element": "Label"
+    },
+    {
+      "id": "line",
+      "type": "color",
+      "label": "Line and text color",
+      "default": "#f4f6f9",
+      "element": "Line"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#4f7cac",
+      "element": "Accent"
+    },
     {
       "id": "corner",
       "type": "select",
       "label": "Corner",
       "default": "top-right",
       "options": [
-        { "value": "top-left", "label": "Top left" },
-        { "value": "top-right", "label": "Top right" },
-        { "value": "bottom-left", "label": "Bottom left" },
-        { "value": "bottom-right", "label": "Bottom right" }
-      ]
+        {
+          "value": "top-left",
+          "label": "Top left"
+        },
+        {
+          "value": "top-right",
+          "label": "Top right"
+        },
+        {
+          "value": "bottom-left",
+          "label": "Bottom left"
+        },
+        {
+          "value": "bottom-right",
+          "label": "Bottom right"
+        }
+      ],
+      "element": "Layout and timing"
     },
-    { "id": "inOut", "type": "number", "label": "Fade in/out (seconds)", "default": 0.8, "min": 0.2, "max": 2, "step": 0.1 },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Fade in/out (seconds)",
+      "default": 0.8,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    },
     {
       "id": "logo",
       "type": "image",
       "label": "Logo",
       "description": "The mark takes the accent square's place inside the hairline frame. With none chosen the bug is as it always was.",
-      "box": { "x": 0.948, "y": 0.052, "width": 0.023, "height": 0.041 },
+      "box": {
+        "x": 0.948,
+        "y": 0.052,
+        "width": 0.023,
+        "height": 0.041
+      },
       "fit": "contain",
       "align": "center",
       "margin": 0.1,
-      "fallbackText": "label"
+      "fallbackText": "label",
+      "element": "Logo"
     }
   ]
 }

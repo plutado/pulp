@@ -8,40 +8,132 @@
   "license": "CC0-1.0",
   "category": "title",
   "type": "logo-reveal",
-  "themes": ["wedding", "fashion", "cinema"],
-  "styles": ["elegant"],
-  "tags": ["logo", "reveal", "line"],
+  "themes": [
+    "wedding",
+    "fashion",
+    "cinema"
+  ],
+  "styles": [
+    "elegant"
+  ],
+  "tags": [
+    "logo",
+    "reveal",
+    "line"
+  ],
   "duration": 6,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "name", "type": "text", "label": "Name", "default": "Northwind", "maxLength": 40, "description": "Set in type where the logo would be when no logo is chosen." },
-    { "id": "tagline", "type": "text", "label": "Tagline", "default": "Est. MMXXVI", "maxLength": 80 },
-    { "id": "shape", "type": "select", "label": "Frame", "default": "rectangle", "options": [
-      { "value": "rectangle", "label": "Rectangle" },
-      { "value": "circle", "label": "Circle" }
-    ] },
-    { "id": "ground", "type": "color", "label": "Ground", "default": "#12100eff", "description": "Alpha 00 for a transparent ground.", "group": "Colors" },
-    { "id": "accent", "type": "color", "label": "Line color", "default": "#d9c39a", "group": "Colors" },
-    { "id": "ink", "type": "color", "label": "Text color", "default": "#f6f1e8", "group": "Colors" },
-    { "id": "inOut", "type": "number", "label": "Draw in/out (seconds)", "default": 1.6, "min": 0.6, "max": 2.5, "step": 0.1 },
+    {
+      "id": "name",
+      "type": "text",
+      "label": "Name",
+      "default": "Northwind",
+      "maxLength": 40,
+      "description": "Set in type where the logo would be when no logo is chosen.",
+      "element": "Name"
+    },
+    {
+      "id": "tagline",
+      "type": "text",
+      "label": "Tagline",
+      "default": "Est. MMXXVI",
+      "maxLength": 80,
+      "element": "Tagline"
+    },
+    {
+      "id": "shape",
+      "type": "select",
+      "label": "Frame",
+      "default": "rectangle",
+      "options": [
+        {
+          "value": "rectangle",
+          "label": "Rectangle"
+        },
+        {
+          "value": "circle",
+          "label": "Circle"
+        }
+      ],
+      "element": "Frame"
+    },
+    {
+      "id": "ground",
+      "type": "color",
+      "label": "Ground",
+      "default": "#12100eff",
+      "description": "Alpha 00 for a transparent ground.",
+      "element": "Ground"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Line color",
+      "default": "#d9c39a",
+      "element": "Line"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Text color",
+      "default": "#f6f1e8",
+      "element": "Text"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Draw in/out (seconds)",
+      "default": 1.6,
+      "min": 0.6,
+      "max": 2.5,
+      "step": 0.1,
+      "element": "Layout and timing"
+    },
     {
       "id": "logo",
       "type": "image",
       "label": "Logo",
       "description": "Inside the drawn frame; fades in as the line closes and falls back to the name.",
       "box": {
-        "16:9": { "x": 0.36, "y": 0.31, "width": 0.28, "height": 0.3 },
-        "9:16": { "x": 0.22, "y": 0.39, "width": 0.56, "height": 0.16 },
-        "1:1": { "x": 0.27, "y": 0.33, "width": 0.46, "height": 0.26 },
-        "4:5": { "x": 0.27, "y": 0.35, "width": 0.46, "height": 0.22 }
+        "16:9": {
+          "x": 0.36,
+          "y": 0.31,
+          "width": 0.28,
+          "height": 0.3
+        },
+        "9:16": {
+          "x": 0.22,
+          "y": 0.39,
+          "width": 0.56,
+          "height": 0.16
+        },
+        "1:1": {
+          "x": 0.27,
+          "y": 0.33,
+          "width": 0.46,
+          "height": 0.26
+        },
+        "4:5": {
+          "x": 0.27,
+          "y": 0.35,
+          "width": 0.46,
+          "height": 0.22
+        }
       },
       "fit": "contain",
       "align": "center",
       "margin": 0.1,
-      "fallbackText": "name"
+      "fallbackText": "name",
+      "element": "Logo"
     }
   ]
 }

@@ -8,24 +8,131 @@
   "license": "CC0-1.0",
   "category": "other",
   "type": "infographic",
-  "tags": ["stats", "comparison", "versus"],
+  "tags": [
+    "stats",
+    "comparison",
+    "versus"
+  ],
   "duration": 7,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "home", "type": "text", "label": "Home side", "default": "Rovers", "maxLength": 16 },
-    { "id": "away", "type": "text", "label": "Away side", "default": "United", "maxLength": 16 },
-    { "id": "stat1", "type": "text", "label": "Stat 1", "default": "Possession", "maxLength": 24, "group": "Stats" },
-    { "id": "home1", "type": "number", "label": "Stat 1 home", "default": 58, "min": 0, "max": 100000, "step": 1, "group": "Stats" },
-    { "id": "away1", "type": "number", "label": "Stat 1 away", "default": 42, "min": 0, "max": 100000, "step": 1, "group": "Stats" },
-    { "id": "stat2", "type": "text", "label": "Stat 2", "default": "Shots", "maxLength": 24, "group": "Stats" },
-    { "id": "home2", "type": "number", "label": "Stat 2 home", "default": 14, "min": 0, "max": 100000, "step": 1, "group": "Stats" },
-    { "id": "away2", "type": "number", "label": "Stat 2 away", "default": 9, "min": 0, "max": 100000, "step": 1, "group": "Stats" },
-    { "id": "stat3", "type": "text", "label": "Stat 3", "default": "Corners", "maxLength": 24, "group": "Stats" },
-    { "id": "home3", "type": "number", "label": "Stat 3 home", "default": 5, "min": 0, "max": 100000, "step": 1, "group": "Stats" },
-    { "id": "away3", "type": "number", "label": "Stat 3 away", "default": 7, "min": 0, "max": 100000, "step": 1, "group": "Stats" },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.4, "min": 0.15, "max": 1.5, "step": 0.05 }
+    {
+      "id": "home",
+      "type": "text",
+      "label": "Home side",
+      "default": "Rovers",
+      "maxLength": 16,
+      "element": "Home side"
+    },
+    {
+      "id": "away",
+      "type": "text",
+      "label": "Away side",
+      "default": "United",
+      "maxLength": 16,
+      "element": "Away side"
+    },
+    {
+      "id": "stat1",
+      "type": "text",
+      "label": "Stat 1",
+      "default": "Possession",
+      "maxLength": 24,
+      "element": "Stat 1"
+    },
+    {
+      "id": "home1",
+      "type": "number",
+      "label": "Stat 1 home",
+      "default": 58,
+      "min": 0,
+      "max": 100000,
+      "step": 1,
+      "element": "Stat 1 home"
+    },
+    {
+      "id": "away1",
+      "type": "number",
+      "label": "Stat 1 away",
+      "default": 42,
+      "min": 0,
+      "max": 100000,
+      "step": 1,
+      "element": "Stat 1 away"
+    },
+    {
+      "id": "stat2",
+      "type": "text",
+      "label": "Stat 2",
+      "default": "Shots",
+      "maxLength": 24,
+      "element": "Stat 2"
+    },
+    {
+      "id": "home2",
+      "type": "number",
+      "label": "Stat 2 home",
+      "default": 14,
+      "min": 0,
+      "max": 100000,
+      "step": 1,
+      "element": "Stat 2 home"
+    },
+    {
+      "id": "away2",
+      "type": "number",
+      "label": "Stat 2 away",
+      "default": 9,
+      "min": 0,
+      "max": 100000,
+      "step": 1,
+      "element": "Stat 2 away"
+    },
+    {
+      "id": "stat3",
+      "type": "text",
+      "label": "Stat 3",
+      "default": "Corners",
+      "maxLength": 24,
+      "element": "Stat 3"
+    },
+    {
+      "id": "home3",
+      "type": "number",
+      "label": "Stat 3 home",
+      "default": 5,
+      "min": 0,
+      "max": 100000,
+      "step": 1,
+      "element": "Stat 3 home"
+    },
+    {
+      "id": "away3",
+      "type": "number",
+      "label": "Stat 3 away",
+      "default": 7,
+      "min": 0,
+      "max": 100000,
+      "step": 1,
+      "element": "Stat 3 away"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.4,
+      "min": 0.15,
+      "max": 1.5,
+      "step": 0.05,
+      "element": "Layout and timing"
+    }
   ]
 }

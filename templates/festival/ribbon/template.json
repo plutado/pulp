@@ -8,26 +8,72 @@
   "license": "CC0-1.0",
   "category": "overlay",
   "type": "overlay",
-  "tags": ["ribbon", "wave", "festive"],
+  "tags": [
+    "ribbon",
+    "wave",
+    "festive"
+  ],
   "duration": 8,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "gold", "type": "color", "label": "Ribbon color", "default": "#e8b54d", "group": "Colors" },
-    { "id": "second", "type": "color", "label": "Highlight color", "default": "#fff1c9", "group": "Colors" },
+    {
+      "id": "gold",
+      "type": "color",
+      "label": "Ribbon color",
+      "default": "#e8b54d",
+      "element": "Ribbon"
+    },
+    {
+      "id": "second",
+      "type": "color",
+      "label": "Highlight color",
+      "default": "#fff1c9",
+      "element": "Highlight"
+    },
     {
       "id": "edge",
       "type": "select",
       "label": "Edge",
       "default": "bottom",
       "options": [
-        { "value": "bottom", "label": "Bottom" },
-        { "value": "top", "label": "Top" }
-      ]
+        {
+          "value": "bottom",
+          "label": "Bottom"
+        },
+        {
+          "value": "top",
+          "label": "Top"
+        }
+      ],
+      "element": "Edge"
     },
-    { "id": "wave", "type": "number", "label": "Wave amount", "default": 0.5, "min": 0, "max": 1, "step": 0.05 },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.8, "min": 0.2, "max": 2, "step": 0.1 }
+    {
+      "id": "wave",
+      "type": "number",
+      "label": "Wave amount",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Wave"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.8,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

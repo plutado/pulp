@@ -8,17 +8,68 @@
   "license": "CC0-1.0",
   "category": "title",
   "type": "logo-reveal",
-  "tags": ["ident", "logo", "chevron"],
+  "tags": [
+    "ident",
+    "logo",
+    "chevron"
+  ],
   "duration": 2,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": false,
   "entry": "index.html",
   "parameters": [
-    { "id": "name", "type": "text", "label": "Name", "default": "Rovers", "maxLength": 40, "description": "Set in chunky capitals where the logo would be when no logo is chosen." },
-    { "id": "ground", "type": "color", "label": "Ground color", "default": "#101010", "group": "Colors" },
-    { "id": "accent", "type": "color", "label": "Accent color", "default": "#d4f531", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
-    { "id": "logo", "type": "image", "label": "Logo", "description": "Lands at the centre with overshoot; with none chosen the name stands in as a wordmark.", "box": { "x": 0.37, "y": 0.35, "width": 0.26, "height": 0.3 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "name" }
+    {
+      "id": "name",
+      "type": "text",
+      "label": "Name",
+      "default": "Rovers",
+      "maxLength": 40,
+      "description": "Set in chunky capitals where the logo would be when no logo is chosen.",
+      "element": "Name"
+    },
+    {
+      "id": "ground",
+      "type": "color",
+      "label": "Ground color",
+      "default": "#101010",
+      "element": "Ground"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#d4f531",
+      "element": "Accent"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#ffffff",
+      "element": "Text"
+    },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "Lands at the centre with overshoot; with none chosen the name stands in as a wordmark.",
+      "box": {
+        "x": 0.37,
+        "y": 0.35,
+        "width": 0.26,
+        "height": 0.3
+      },
+      "fit": "contain",
+      "align": "center",
+      "margin": 0.1,
+      "fallbackText": "name",
+      "element": "Logo"
+    }
   ]
 }

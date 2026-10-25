@@ -8,20 +8,77 @@
   "license": "CC0-1.0",
   "category": "other",
   "type": "shapes",
-  "themes": ["summer", "travel", "concert"],
-  "styles": ["retro"],
-  "tags": ["sun", "stripes", "seventies"],
+  "themes": [
+    "summer",
+    "travel",
+    "concert"
+  ],
+  "styles": [
+    "retro"
+  ],
+  "tags": [
+    "sun",
+    "stripes",
+    "seventies"
+  ],
   "duration": 6,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "color1", "type": "color", "label": "Outer stripe", "default": "#f4a259", "group": "Colors" },
-    { "id": "color2", "type": "color", "label": "Middle stripe", "default": "#e4572e", "group": "Colors" },
-    { "id": "color3", "type": "color", "label": "Inner stripe", "default": "#f6e7c1", "group": "Colors" },
-    { "id": "stripes", "type": "number", "label": "Stripe count", "default": 6, "min": 3, "max": 12, "step": 1 },
-    { "id": "diagonals", "type": "boolean", "label": "Diagonal stripes", "default": true },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 1.2, "min": 0.3, "max": 2.5, "step": 0.1 }
+    {
+      "id": "color1",
+      "type": "color",
+      "label": "Outer stripe",
+      "default": "#f4a259",
+      "element": "Outer stripe"
+    },
+    {
+      "id": "color2",
+      "type": "color",
+      "label": "Middle stripe",
+      "default": "#e4572e",
+      "element": "Middle stripe"
+    },
+    {
+      "id": "color3",
+      "type": "color",
+      "label": "Inner stripe",
+      "default": "#f6e7c1",
+      "element": "Inner stripe"
+    },
+    {
+      "id": "stripes",
+      "type": "number",
+      "label": "Stripe count",
+      "default": 6,
+      "min": 3,
+      "max": 12,
+      "step": 1,
+      "element": "Stripe"
+    },
+    {
+      "id": "diagonals",
+      "type": "boolean",
+      "label": "Diagonal stripes",
+      "default": true,
+      "element": "Diagonal stripes"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 1.2,
+      "min": 0.3,
+      "max": 2.5,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

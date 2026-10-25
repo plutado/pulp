@@ -8,17 +8,65 @@
   "license": "CC0-1.0",
   "category": "overlay",
   "type": "overlay",
-  "tags": ["grid", "dots", "corporate"],
+  "tags": [
+    "grid",
+    "dots",
+    "corporate"
+  ],
   "duration": 8,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "dot", "type": "color", "label": "Dot color", "default": "#4f7cac", "group": "Colors" },
-    { "id": "rule", "type": "color", "label": "Rule color", "default": "#f4f6f9", "group": "Colors" },
-    { "id": "pitch", "type": "number", "label": "Pitch (px at 1080p)", "default": 48, "min": 24, "max": 120, "step": 4 },
-    { "id": "opacity", "type": "number", "label": "Opacity", "default": 0.6, "min": 0.1, "max": 1, "step": 0.05 },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 1, "min": 0.2, "max": 2.5, "step": 0.1 }
+    {
+      "id": "dot",
+      "type": "color",
+      "label": "Dot color",
+      "default": "#4f7cac",
+      "element": "Dot"
+    },
+    {
+      "id": "rule",
+      "type": "color",
+      "label": "Rule color",
+      "default": "#f4f6f9",
+      "element": "Rule"
+    },
+    {
+      "id": "pitch",
+      "type": "number",
+      "label": "Pitch (px at 1080p)",
+      "default": 48,
+      "min": 24,
+      "max": 120,
+      "step": 4,
+      "element": "Boardroom dot grid"
+    },
+    {
+      "id": "opacity",
+      "type": "number",
+      "label": "Opacity",
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1,
+      "step": 0.05,
+      "element": "Boardroom dot grid"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

@@ -8,18 +8,78 @@
   "license": "CC0-1.0",
   "category": "title",
   "type": "title",
-  "tags": ["headline", "chevron", "bold"],
+  "tags": [
+    "headline",
+    "chevron",
+    "bold"
+  ],
   "duration": 5,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "kicker", "type": "text", "label": "Kicker", "default": "Match of the week", "maxLength": 40 },
-    { "id": "headline", "type": "text", "label": "Headline", "default": "Rovers vs United", "maxLength": 40 },
-    { "id": "accent", "type": "color", "label": "Accent color", "default": "#d4f531", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.4, "min": 0.15, "max": 1.5, "step": 0.05 },
-    { "id": "logo", "type": "image", "label": "Logo", "description": "A mark above the kicker, between the chevrons; with none chosen the kicker stands alone as before.", "box": { "x": 0.475, "y": 0.268, "width": 0.05, "height": 0.089 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "kicker" }
+    {
+      "id": "kicker",
+      "type": "text",
+      "label": "Kicker",
+      "default": "Match of the week",
+      "maxLength": 40,
+      "element": "Kicker"
+    },
+    {
+      "id": "headline",
+      "type": "text",
+      "label": "Headline",
+      "default": "Rovers vs United",
+      "maxLength": 40,
+      "element": "Headline"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#d4f531",
+      "element": "Accent"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#ffffff",
+      "element": "Text"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.4,
+      "min": 0.15,
+      "max": 1.5,
+      "step": 0.05,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "A mark above the kicker, between the chevrons; with none chosen the kicker stands alone as before.",
+      "box": {
+        "x": 0.475,
+        "y": 0.268,
+        "width": 0.05,
+        "height": 0.089
+      },
+      "fit": "contain",
+      "align": "center",
+      "margin": 0.1,
+      "fallbackText": "kicker",
+      "element": "Logo"
+    }
   ]
 }

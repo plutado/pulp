@@ -8,20 +8,90 @@
   "license": "CC0-1.0",
   "category": "title",
   "type": "callout",
-  "tags": ["callout", "pointer", "label"],
+  "tags": [
+    "callout",
+    "pointer",
+    "label"
+  ],
   "duration": 6,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "label", "type": "text", "label": "Label", "default": "Revenue up 12%", "maxLength": 60 },
-    { "id": "number", "type": "number", "label": "Number", "default": 1, "min": 1, "max": 99, "step": 1 },
-    { "id": "x", "type": "number", "label": "Anchor X (%)", "default": 32, "min": 0, "max": 100, "step": 1 },
-    { "id": "y", "type": "number", "label": "Anchor Y (%)", "default": 58, "min": 0, "max": 100, "step": 1 },
-    { "id": "accent", "type": "color", "label": "Accent color", "default": "#4f7cac", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#f4f6f9", "group": "Colors" },
-    { "id": "shadow", "type": "color", "label": "Backing tint", "default": "#10182866", "group": "Colors" },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.7, "min": 0.2, "max": 2, "step": 0.1 }
+    {
+      "id": "label",
+      "type": "text",
+      "label": "Label",
+      "default": "Revenue up 12%",
+      "maxLength": 60,
+      "element": "Label"
+    },
+    {
+      "id": "number",
+      "type": "number",
+      "label": "Number",
+      "default": 1,
+      "min": 1,
+      "max": 99,
+      "step": 1,
+      "element": "Number"
+    },
+    {
+      "id": "x",
+      "type": "number",
+      "label": "Anchor X (%)",
+      "default": 32,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "y",
+      "type": "number",
+      "label": "Anchor Y (%)",
+      "default": 58,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#4f7cac",
+      "element": "Accent"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#f4f6f9",
+      "element": "Text"
+    },
+    {
+      "id": "shadow",
+      "type": "color",
+      "label": "Backing tint",
+      "default": "#10182866",
+      "element": "Backing"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.7,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

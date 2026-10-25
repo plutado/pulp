@@ -8,34 +8,68 @@
   "license": "CC0-1.0",
   "category": "transition",
   "type": "wipe",
-  "tags": ["wipe", "panel", "cut-point"],
+  "tags": [
+    "wipe",
+    "panel",
+    "cut-point"
+  ],
   "duration": 1.5,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "panel", "type": "color", "label": "Panel color", "default": "#f4f6f9", "group": "Colors" },
-    { "id": "accent", "type": "color", "label": "Edge color", "default": "#4f7cac", "group": "Colors" },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Panel color",
+      "default": "#f4f6f9",
+      "element": "Panel"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Edge color",
+      "default": "#4f7cac",
+      "element": "Edge"
+    },
     {
       "id": "direction",
       "type": "select",
       "label": "Direction",
       "default": "right",
       "options": [
-        { "value": "right", "label": "Left to right" },
-        { "value": "left", "label": "Right to left" }
-      ]
+        {
+          "value": "right",
+          "label": "Left to right"
+        },
+        {
+          "value": "left",
+          "label": "Right to left"
+        }
+      ],
+      "element": "Layout and timing"
     },
     {
       "id": "logo",
       "type": "image",
       "label": "Logo",
       "description": "A mark at the centre of the frame, seen only while the panel covers it: it fades in behind the leading edge and out ahead of the trailing one. With none chosen nothing is drawn.",
-      "box": { "x": 0.448, "y": 0.407, "width": 0.104, "height": 0.185 },
+      "box": {
+        "x": 0.448,
+        "y": 0.407,
+        "width": 0.104,
+        "height": 0.185
+      },
       "fit": "contain",
       "align": "center",
-      "margin": 0.1
+      "margin": 0.1,
+      "element": "Logo"
     }
   ]
 }

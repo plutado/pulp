@@ -8,18 +8,75 @@
   "license": "CC0-1.0",
   "category": "overlay",
   "type": "frame",
-  "tags": ["frame", "border", "gold"],
+  "tags": [
+    "frame",
+    "border",
+    "gold"
+  ],
   "duration": 6,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "gold", "type": "color", "label": "Frame color", "default": "#e8b54d", "group": "Colors" },
-    { "id": "second", "type": "color", "label": "Twinkle color", "default": "#fff6e8", "group": "Colors" },
-    { "id": "margin", "type": "number", "label": "Margin (px at 1080p)", "default": 56, "min": 24, "max": 160, "step": 4 },
-    { "id": "weight", "type": "number", "label": "Line weight", "default": 4, "min": 1, "max": 12, "step": 1 },
-    { "id": "radius", "type": "number", "label": "Corner radius", "default": 40, "min": 0, "max": 120, "step": 4 },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 1, "min": 0.2, "max": 2, "step": 0.1 }
+    {
+      "id": "gold",
+      "type": "color",
+      "label": "Frame color",
+      "default": "#e8b54d",
+      "element": "Frame"
+    },
+    {
+      "id": "second",
+      "type": "color",
+      "label": "Twinkle color",
+      "default": "#fff6e8",
+      "element": "Twinkle"
+    },
+    {
+      "id": "margin",
+      "type": "number",
+      "label": "Margin (px at 1080p)",
+      "default": 56,
+      "min": 24,
+      "max": 160,
+      "step": 4,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "weight",
+      "type": "number",
+      "label": "Line weight",
+      "default": 4,
+      "min": 1,
+      "max": 12,
+      "step": 1,
+      "element": "Line"
+    },
+    {
+      "id": "radius",
+      "type": "number",
+      "label": "Corner radius",
+      "default": 40,
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 1,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

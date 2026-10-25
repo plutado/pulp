@@ -8,26 +8,97 @@
   "license": "CC0-1.0",
   "category": "other",
   "type": "arrows",
-  "tags": ["pointer", "bar", "slash"],
+  "tags": [
+    "pointer",
+    "bar",
+    "slash"
+  ],
   "duration": 5,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "label", "type": "text", "label": "Label", "default": "Breaking", "maxLength": 24 },
     {
-      "id": "side", "type": "select", "label": "Points toward", "default": "right",
-      "options": [
-        { "value": "right", "label": "Right" },
-        { "value": "left", "label": "Left" }
-      ]
+      "id": "label",
+      "type": "text",
+      "label": "Label",
+      "default": "Breaking",
+      "maxLength": 24,
+      "element": "Label"
     },
-    { "id": "y", "type": "number", "label": "Vertical position (% of height)", "default": 50, "min": 5, "max": 95, "step": 1 },
-    { "id": "reach", "type": "number", "label": "Reach (% of width)", "default": 45, "min": 20, "max": 90, "step": 1 },
-    { "id": "accent", "type": "color", "label": "Accent color", "default": "#e0263c", "group": "Colors" },
-    { "id": "panel", "type": "color", "label": "Panel color", "default": "#0e1526f2", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.35, "min": 0.15, "max": 1.5, "step": 0.05 }
+    {
+      "id": "side",
+      "type": "select",
+      "label": "Points toward",
+      "default": "right",
+      "options": [
+        {
+          "value": "right",
+          "label": "Right"
+        },
+        {
+          "value": "left",
+          "label": "Left"
+        }
+      ],
+      "element": "Layout and timing"
+    },
+    {
+      "id": "y",
+      "type": "number",
+      "label": "Vertical position (% of height)",
+      "default": 50,
+      "min": 5,
+      "max": 95,
+      "step": 1,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "reach",
+      "type": "number",
+      "label": "Reach (% of width)",
+      "default": 45,
+      "min": 20,
+      "max": 90,
+      "step": 1,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#e0263c",
+      "element": "Accent"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Panel color",
+      "default": "#0e1526f2",
+      "element": "Panel"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#ffffff",
+      "element": "Text"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.35,
+      "min": 0.15,
+      "max": 1.5,
+      "step": 0.05,
+      "element": "Layout and timing"
+    }
   ]
 }

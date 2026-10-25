@@ -8,16 +8,52 @@
   "license": "CC0-1.0",
   "category": "transition",
   "type": "flash",
-  "tags": ["flash", "cut", "broadcast"],
+  "tags": [
+    "flash",
+    "cut",
+    "broadcast"
+  ],
   "duration": 1,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "accent", "type": "color", "label": "Red frame color", "default": "#e0263c", "group": "Colors" },
-    { "id": "flash", "type": "color", "label": "White frame color", "default": "#ffffff", "group": "Colors" },
-    { "id": "stripe", "type": "color", "label": "Stripe color", "default": "#0e1526", "group": "Colors" },
-    { "id": "slant", "type": "number", "label": "Slant", "default": 0.22, "min": 0.05, "max": 0.5, "step": 0.01 }
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Red frame color",
+      "default": "#e0263c",
+      "element": "Red frame"
+    },
+    {
+      "id": "flash",
+      "type": "color",
+      "label": "White frame color",
+      "default": "#ffffff",
+      "element": "White frame"
+    },
+    {
+      "id": "stripe",
+      "type": "color",
+      "label": "Stripe color",
+      "default": "#0e1526",
+      "element": "Stripe"
+    },
+    {
+      "id": "slant",
+      "type": "number",
+      "label": "Slant",
+      "default": 0.22,
+      "min": 0.05,
+      "max": 0.5,
+      "step": 0.01,
+      "element": "Newsdesk flash cut"
+    }
   ]
 }

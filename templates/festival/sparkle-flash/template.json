@@ -8,28 +8,74 @@
   "license": "CC0-1.0",
   "category": "transition",
   "type": "flash",
-  "tags": ["flash", "sparkle", "festive"],
+  "tags": [
+    "flash",
+    "sparkle",
+    "festive"
+  ],
   "duration": 1.4,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "gold", "type": "color", "label": "Bloom color", "default": "#e8b54d", "group": "Colors" },
-    { "id": "core", "type": "color", "label": "Core color", "default": "#fff6e0", "group": "Colors" },
+    {
+      "id": "gold",
+      "type": "color",
+      "label": "Bloom color",
+      "default": "#e8b54d",
+      "element": "Bloom"
+    },
+    {
+      "id": "core",
+      "type": "color",
+      "label": "Core color",
+      "default": "#fff6e0",
+      "element": "Core"
+    },
     {
       "id": "origin",
       "type": "select",
       "label": "Origin",
       "default": "center",
       "options": [
-        { "value": "center", "label": "Center" },
-        { "value": "top-left", "label": "Top left" },
-        { "value": "top-right", "label": "Top right" },
-        { "value": "bottom-left", "label": "Bottom left" },
-        { "value": "bottom-right", "label": "Bottom right" }
-      ]
+        {
+          "value": "center",
+          "label": "Center"
+        },
+        {
+          "value": "top-left",
+          "label": "Top left"
+        },
+        {
+          "value": "top-right",
+          "label": "Top right"
+        },
+        {
+          "value": "bottom-left",
+          "label": "Bottom left"
+        },
+        {
+          "value": "bottom-right",
+          "label": "Bottom right"
+        }
+      ],
+      "element": "Origin"
     },
-    { "id": "twinkles", "type": "number", "label": "Twinkles", "default": 48, "min": 0, "max": 160, "step": 4 }
+    {
+      "id": "twinkles",
+      "type": "number",
+      "label": "Twinkles",
+      "default": 48,
+      "min": 0,
+      "max": 160,
+      "step": 4,
+      "element": "Twinkles"
+    }
   ]
 }

@@ -8,31 +8,122 @@
   "license": "CC0-1.0",
   "category": "overlay",
   "type": "logo-bug",
-  "tags": ["score", "bug", "scoreboard"],
+  "tags": [
+    "score",
+    "bug",
+    "scoreboard"
+  ],
   "duration": 6,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "home", "type": "text", "label": "Home side", "default": "ROV", "maxLength": 4 },
-    { "id": "away", "type": "text", "label": "Away side", "default": "UTD", "maxLength": 4 },
-    { "id": "homeScore", "type": "number", "label": "Home score", "default": 2, "min": 0, "max": 199, "step": 1 },
-    { "id": "awayScore", "type": "number", "label": "Away score", "default": 1, "min": 0, "max": 199, "step": 1 },
-    { "id": "accent", "type": "color", "label": "Score color", "default": "#d4f531", "group": "Colors" },
-    { "id": "panel", "type": "color", "label": "Panel color", "default": "#101010f2", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#ffffff", "group": "Colors" },
+    {
+      "id": "home",
+      "type": "text",
+      "label": "Home side",
+      "default": "ROV",
+      "maxLength": 4,
+      "element": "Home side"
+    },
+    {
+      "id": "away",
+      "type": "text",
+      "label": "Away side",
+      "default": "UTD",
+      "maxLength": 4,
+      "element": "Away side"
+    },
+    {
+      "id": "homeScore",
+      "type": "number",
+      "label": "Home score",
+      "default": 2,
+      "min": 0,
+      "max": 199,
+      "step": 1,
+      "element": "Home score"
+    },
+    {
+      "id": "awayScore",
+      "type": "number",
+      "label": "Away score",
+      "default": 1,
+      "min": 0,
+      "max": 199,
+      "step": 1,
+      "element": "Away score"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Score color",
+      "default": "#d4f531",
+      "element": "Score"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Panel color",
+      "default": "#101010f2",
+      "element": "Panel"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#ffffff",
+      "element": "Text"
+    },
     {
       "id": "corner",
       "type": "select",
       "label": "Corner",
       "default": "top-left",
       "options": [
-        { "value": "top-left", "label": "Top left" },
-        { "value": "top-right", "label": "Top right" }
-      ]
+        {
+          "value": "top-left",
+          "label": "Top left"
+        },
+        {
+          "value": "top-right",
+          "label": "Top right"
+        }
+      ],
+      "element": "Layout and timing"
     },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.35, "min": 0.15, "max": 1.5, "step": 0.05 },
-    { "id": "logo", "type": "image", "label": "Logo", "description": "A club crest at the leading edge of the score bug, before the home side; with none chosen the bug is as it always was.", "box": { "x": 0.033, "y": 0.059, "width": 0.033, "height": 0.059 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "home" }
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.35,
+      "min": 0.15,
+      "max": 1.5,
+      "step": 0.05,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "A club crest at the leading edge of the score bug, before the home side; with none chosen the bug is as it always was.",
+      "box": {
+        "x": 0.033,
+        "y": 0.059,
+        "width": 0.033,
+        "height": 0.059
+      },
+      "fit": "contain",
+      "align": "center",
+      "margin": 0.1,
+      "fallbackText": "home",
+      "element": "Logo"
+    }
   ]
 }

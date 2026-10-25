@@ -61,6 +61,18 @@ describe('bundled sample templates', async () => {
     expect(Object.keys(defaultParams(result.manifest))).toHaveLength(result.manifest.parameters.length);
   });
 
+  it.each(dirs)('%s names the part of the graphic every setting belongs to', async (dir) => {
+    const result = parseManifest(await readFile(join(TEMPLATES_DIR, dir, 'template.json'), 'utf8'));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    for (const p of result.manifest.parameters) {
+      // A flat group named after a kind of setting says nothing about what it affects
+      // (docs/ui-style.md, "Settings by element, not by kind"), so every parameter names its part.
+      expect(p.element, `${dir}: ${p.id} has no element`).toBeTruthy();
+      expect(p.group, `${dir}: ${p.id} still carries a group`).toBeUndefined();
+    }
+  });
+
   it.each(dirs)('%s defines window.pulpRender and avoids wall-clock time', async (dir) => {
     const html = await readFile(join(TEMPLATES_DIR, dir, 'index.html'), 'utf8');
     expect(html).toContain('window.pulpRender');

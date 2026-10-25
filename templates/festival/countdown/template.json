@@ -8,18 +8,68 @@
   "license": "CC0-1.0",
   "category": "other",
   "type": "countdown",
-  "tags": ["countdown", "midnight", "confetti"],
+  "tags": [
+    "countdown",
+    "midnight",
+    "confetti"
+  ],
   "duration": 11,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "from", "type": "number", "label": "Count from", "default": 10, "min": 3, "max": 10, "step": 1, "description": "The count fills the last (from + 1) seconds; trim the clip to that length." },
-    { "id": "word", "type": "text", "label": "Word at zero", "default": "Happy New Year", "maxLength": 32 },
-    { "id": "gold", "type": "color", "label": "Gold", "default": "#e8b54d", "group": "Colors" },
-    { "id": "plum", "type": "color", "label": "Plum", "default": "#341f3e", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#fff7ea", "group": "Colors" },
-    { "id": "confetti", "type": "boolean", "label": "Confetti", "default": true }
+    {
+      "id": "from",
+      "type": "number",
+      "label": "Count from",
+      "default": 10,
+      "min": 3,
+      "max": 10,
+      "step": 1,
+      "description": "The count fills the last (from + 1) seconds; trim the clip to that length.",
+      "element": "Figures"
+    },
+    {
+      "id": "word",
+      "type": "text",
+      "label": "Word at zero",
+      "default": "Happy New Year",
+      "maxLength": 32,
+      "element": "Word at zero"
+    },
+    {
+      "id": "gold",
+      "type": "color",
+      "label": "Gold",
+      "default": "#e8b54d",
+      "element": "Gold"
+    },
+    {
+      "id": "plum",
+      "type": "color",
+      "label": "Plum",
+      "default": "#341f3e",
+      "element": "Plum"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#fff7ea",
+      "element": "Text"
+    },
+    {
+      "id": "confetti",
+      "type": "boolean",
+      "label": "Confetti",
+      "default": true,
+      "element": "Confetti"
+    }
   ]
 }

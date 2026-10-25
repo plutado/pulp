@@ -8,27 +8,76 @@
   "license": "CC0-1.0",
   "category": "transition",
   "type": "reveal",
-  "tags": ["reveal", "iris", "festive"],
+  "tags": [
+    "reveal",
+    "iris",
+    "festive"
+  ],
   "duration": 1.4,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "panel", "type": "color", "label": "Field color", "default": "#341f3e", "group": "Colors" },
-    { "id": "gold", "type": "color", "label": "Rim color", "default": "#e8b54d", "group": "Colors" },
-    { "id": "softness", "type": "number", "label": "Edge softness", "default": 0.12, "min": 0, "max": 0.4, "step": 0.02 },
-    { "id": "twinkles", "type": "number", "label": "Twinkles", "default": 7, "min": 0, "max": 16, "step": 1 },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Field color",
+      "default": "#341f3e",
+      "element": "Field"
+    },
+    {
+      "id": "gold",
+      "type": "color",
+      "label": "Rim color",
+      "default": "#e8b54d",
+      "element": "Rim"
+    },
+    {
+      "id": "softness",
+      "type": "number",
+      "label": "Edge softness",
+      "default": 0.12,
+      "min": 0,
+      "max": 0.4,
+      "step": 0.02,
+      "element": "Edge"
+    },
+    {
+      "id": "twinkles",
+      "type": "number",
+      "label": "Twinkles",
+      "default": 7,
+      "min": 0,
+      "max": 16,
+      "step": 1,
+      "element": "Twinkles"
+    },
     {
       "id": "position",
       "type": "select",
       "label": "Iris position",
       "default": "centre",
       "options": [
-        { "value": "centre", "label": "Centre" },
-        { "value": "left", "label": "Left" },
-        { "value": "right", "label": "Right" }
-      ]
+        {
+          "value": "centre",
+          "label": "Centre"
+        },
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "element": "Layout and timing"
     }
   ]
 }

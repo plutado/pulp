@@ -8,19 +8,77 @@
   "license": "CC0-1.0",
   "category": "overlay",
   "type": "vignette",
-  "themes": ["summer", "travel", "concert"],
-  "styles": ["retro"],
-  "tags": ["vignette", "sepia", "vintage"],
+  "themes": [
+    "summer",
+    "travel",
+    "concert"
+  ],
+  "styles": [
+    "retro"
+  ],
+  "tags": [
+    "vignette",
+    "sepia",
+    "vintage"
+  ],
   "duration": 8,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "tintColor", "type": "color", "label": "Tint color", "default": "#c89a5a", "group": "Colors" },
-    { "id": "tint", "type": "number", "label": "Tint", "default": 0.18, "min": 0, "max": 0.6, "step": 0.02 },
-    { "id": "radius", "type": "number", "label": "Corner radius", "default": 0.18, "min": 0, "max": 0.5, "step": 0.02, "description": "As a fraction of the short side." },
-    { "id": "strength", "type": "number", "label": "Strength", "default": 0.75, "min": 0, "max": 1, "step": 0.05 },
-    { "id": "inOut", "type": "number", "label": "Fade in/out (seconds)", "default": 1, "min": 0.2, "max": 2, "step": 0.1 }
+    {
+      "id": "tintColor",
+      "type": "color",
+      "label": "Tint color",
+      "default": "#c89a5a",
+      "element": "Tintcolor"
+    },
+    {
+      "id": "tint",
+      "type": "number",
+      "label": "Tint",
+      "default": 0.18,
+      "min": 0,
+      "max": 0.6,
+      "step": 0.02,
+      "element": "Tint"
+    },
+    {
+      "id": "radius",
+      "type": "number",
+      "label": "Corner radius",
+      "default": 0.18,
+      "min": 0,
+      "max": 0.5,
+      "step": 0.02,
+      "description": "As a fraction of the short side.",
+      "element": "Layout and timing"
+    },
+    {
+      "id": "strength",
+      "type": "number",
+      "label": "Strength",
+      "default": 0.75,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Retro vignette"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Fade in/out (seconds)",
+      "default": 1,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

@@ -8,31 +8,105 @@
   "license": "CC0-1.0",
   "category": "title",
   "type": "callout",
-  "tags": ["callout", "speech-bubble", "playful"],
+  "tags": [
+    "callout",
+    "speech-bubble",
+    "playful"
+  ],
   "duration": 5,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "label", "type": "text", "label": "Label", "default": "Say hello!", "maxLength": 60 },
+    {
+      "id": "label",
+      "type": "text",
+      "label": "Label",
+      "default": "Say hello!",
+      "maxLength": 60,
+      "element": "Label"
+    },
     {
       "id": "tail",
       "type": "select",
       "label": "Tail toward",
       "default": "bottom",
       "options": [
-        { "value": "left", "label": "Left" },
-        { "value": "right", "label": "Right" },
-        { "value": "top", "label": "Top" },
-        { "value": "bottom", "label": "Bottom" }
-      ]
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        },
+        {
+          "value": "top",
+          "label": "Top"
+        },
+        {
+          "value": "bottom",
+          "label": "Bottom"
+        }
+      ],
+      "element": "Tail toward"
     },
-    { "id": "x", "type": "number", "label": "Bubble X (%)", "default": 50, "min": 0, "max": 100, "step": 1 },
-    { "id": "y", "type": "number", "label": "Bubble Y (%)", "default": 40, "min": 0, "max": 100, "step": 1 },
-    { "id": "gold", "type": "color", "label": "Gold color", "default": "#e8b54d", "group": "Colors" },
-    { "id": "panel", "type": "color", "label": "Panel color", "default": "#341f3ee6", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#fff6e8", "group": "Colors" },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.6, "min": 0.2, "max": 2, "step": 0.1 }
+    {
+      "id": "x",
+      "type": "number",
+      "label": "Bubble X (%)",
+      "default": 50,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "y",
+      "type": "number",
+      "label": "Bubble Y (%)",
+      "default": 40,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "gold",
+      "type": "color",
+      "label": "Gold color",
+      "default": "#e8b54d",
+      "element": "Gold"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Panel color",
+      "default": "#341f3ee6",
+      "element": "Panel"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#fff6e8",
+      "element": "Text"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

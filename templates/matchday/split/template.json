@@ -8,26 +8,72 @@
   "license": "CC0-1.0",
   "category": "transition",
   "type": "reveal",
-  "tags": ["reveal", "split", "chevron"],
+  "tags": [
+    "reveal",
+    "split",
+    "chevron"
+  ],
   "duration": 1.2,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "panel", "type": "color", "label": "Panel color", "default": "#101010", "group": "Colors" },
-    { "id": "accent", "type": "color", "label": "Chevron color", "default": "#d4f531", "group": "Colors" },
-    { "id": "teeth", "type": "number", "label": "Chevron rows", "default": 5, "min": 2, "max": 12, "step": 1 },
-    { "id": "hold", "type": "number", "label": "Hold (frames)", "default": 4, "min": 0, "max": 12, "step": 1 },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Panel color",
+      "default": "#101010",
+      "element": "Panel"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Chevron color",
+      "default": "#d4f531",
+      "element": "Chevron"
+    },
+    {
+      "id": "teeth",
+      "type": "number",
+      "label": "Chevron rows",
+      "default": 5,
+      "min": 2,
+      "max": 12,
+      "step": 1,
+      "element": "Chevron rows"
+    },
+    {
+      "id": "hold",
+      "type": "number",
+      "label": "Hold (frames)",
+      "default": 4,
+      "min": 0,
+      "max": 12,
+      "step": 1,
+      "element": "Layout and timing"
+    },
     {
       "id": "direction",
       "type": "select",
       "label": "Direction",
       "default": "horizontal",
       "options": [
-        { "value": "horizontal", "label": "From left and right" },
-        { "value": "vertical", "label": "From top and bottom" }
-      ]
+        {
+          "value": "horizontal",
+          "label": "From left and right"
+        },
+        {
+          "value": "vertical",
+          "label": "From top and bottom"
+        }
+      ],
+      "element": "Layout and timing"
     }
   ]
 }

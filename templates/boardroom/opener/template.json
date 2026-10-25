@@ -8,17 +8,61 @@
   "license": "CC0-1.0",
   "category": "title",
   "type": "opener",
-  "tags": ["opener", "logo", "hairline"],
+  "tags": [
+    "opener",
+    "logo",
+    "hairline"
+  ],
   "duration": 7,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "company", "type": "text", "label": "Company", "default": "Northwind Holdings", "maxLength": 60 },
-    { "id": "tagline", "type": "text", "label": "Tagline", "default": "Built on steady ground", "maxLength": 80 },
-    { "id": "accent", "type": "color", "label": "Accent color", "default": "#4f7cac", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#f4f6f9", "group": "Colors" },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.8, "min": 0.2, "max": 2, "step": 0.1 }
+    {
+      "id": "company",
+      "type": "text",
+      "label": "Company",
+      "default": "Northwind Holdings",
+      "maxLength": 60,
+      "element": "Company"
+    },
+    {
+      "id": "tagline",
+      "type": "text",
+      "label": "Tagline",
+      "default": "Built on steady ground",
+      "maxLength": 80,
+      "element": "Tagline"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#4f7cac",
+      "element": "Accent"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#f4f6f9",
+      "element": "Text"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.8,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

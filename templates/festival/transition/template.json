@@ -8,15 +8,51 @@
   "license": "CC0-1.0",
   "category": "transition",
   "type": "wipe",
-  "tags": ["wipe", "iris", "festive"],
+  "tags": [
+    "wipe",
+    "iris",
+    "festive"
+  ],
   "duration": 1.4,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "panel", "type": "color", "label": "Panel color", "default": "#341f3e", "group": "Colors" },
-    { "id": "gold", "type": "color", "label": "Rim color", "default": "#e8b54d", "group": "Colors" },
-    { "id": "logo", "type": "image", "label": "Logo", "description": "A logo at the centre of the iris while it is closed; nothing is drawn without one.", "box": { "x": 0.416, "y": 0.35, "width": 0.169, "height": 0.3 }, "fit": "contain", "align": "center", "margin": 0.1 }
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Panel color",
+      "default": "#341f3e",
+      "element": "Panel"
+    },
+    {
+      "id": "gold",
+      "type": "color",
+      "label": "Rim color",
+      "default": "#e8b54d",
+      "element": "Rim"
+    },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "A logo at the centre of the iris while it is closed; nothing is drawn without one.",
+      "box": {
+        "x": 0.416,
+        "y": 0.35,
+        "width": 0.169,
+        "height": 0.3
+      },
+      "fit": "contain",
+      "align": "center",
+      "margin": 0.1,
+      "element": "Logo"
+    }
   ]
 }

@@ -8,28 +8,85 @@
   "license": "CC0-1.0",
   "category": "background",
   "type": "animated-loop",
-  "tags": ["loop", "diagonal", "broadcast"],
+  "tags": [
+    "loop",
+    "diagonal",
+    "broadcast"
+  ],
   "duration": 8,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": false,
   "entry": "index.html",
   "parameters": [
-    { "id": "base", "type": "color", "label": "Base color", "default": "#0e1526", "group": "Colors" },
-    { "id": "deep", "type": "color", "label": "Deep color", "default": "#070b14", "group": "Colors" },
-    { "id": "accent", "type": "color", "label": "Band color", "default": "#e0263c", "group": "Colors" },
-    { "id": "cool", "type": "color", "label": "Second band", "default": "#27406b", "group": "Colors" },
-    { "id": "intensity", "type": "number", "label": "Band intensity", "default": 0.2, "min": 0, "max": 0.6, "step": 0.02 },
-    { "id": "slant", "type": "number", "label": "Slant", "default": 0.22, "min": 0.05, "max": 0.5, "step": 0.01 },
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Base color",
+      "default": "#0e1526",
+      "element": "Base"
+    },
+    {
+      "id": "deep",
+      "type": "color",
+      "label": "Deep color",
+      "default": "#070b14",
+      "element": "Deep"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Band color",
+      "default": "#e0263c",
+      "element": "Band"
+    },
+    {
+      "id": "cool",
+      "type": "color",
+      "label": "Second band",
+      "default": "#27406b",
+      "element": "Second band"
+    },
+    {
+      "id": "intensity",
+      "type": "number",
+      "label": "Band intensity",
+      "default": 0.2,
+      "min": 0,
+      "max": 0.6,
+      "step": 0.02,
+      "element": "Band"
+    },
+    {
+      "id": "slant",
+      "type": "number",
+      "label": "Slant",
+      "default": 0.22,
+      "min": 0.05,
+      "max": 0.5,
+      "step": 0.01,
+      "element": "Newsdesk background"
+    },
     {
       "id": "logo",
       "type": "image",
       "label": "Logo",
       "description": "A watermark in the bottom-right corner at 18% opacity, over the loop. With none chosen nothing is drawn.",
-      "box": { "x": 0.898, "y": 0.819, "width": 0.073, "height": 0.13 },
+      "box": {
+        "x": 0.898,
+        "y": 0.819,
+        "width": 0.073,
+        "height": 0.13
+      },
       "fit": "contain",
       "align": "center",
-      "margin": 0.1
+      "margin": 0.1,
+      "element": "Logo"
     }
   ]
 }

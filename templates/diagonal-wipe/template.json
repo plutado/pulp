@@ -7,25 +7,62 @@
   "author": "David Fugate",
   "license": "CC0-1.0",
   "category": "transition",
-  "tags": ["transition", "wipe", "graphic"],
+  "tags": [
+    "transition",
+    "wipe",
+    "graphic"
+  ],
   "duration": 1.5,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "lead", "type": "color", "label": "Leading band", "default": "#f43f5e" },
-    { "id": "main", "type": "color", "label": "Main band", "default": "#1e293b" },
-    { "id": "angle", "type": "number", "label": "Angle (degrees)", "default": 20, "min": 0, "max": 45, "step": 1 },
+    {
+      "id": "lead",
+      "type": "color",
+      "label": "Leading band",
+      "default": "#f43f5e",
+      "element": "Leading band"
+    },
+    {
+      "id": "main",
+      "type": "color",
+      "label": "Main band",
+      "default": "#1e293b",
+      "element": "Main band"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 20,
+      "min": 0,
+      "max": 45,
+      "step": 1,
+      "element": "Layout and timing"
+    },
     {
       "id": "direction",
       "type": "select",
       "label": "Direction",
       "default": "ltr",
       "options": [
-        { "value": "ltr", "label": "Left to right" },
-        { "value": "rtl", "label": "Right to left" }
-      ]
+        {
+          "value": "ltr",
+          "label": "Left to right"
+        },
+        {
+          "value": "rtl",
+          "label": "Right to left"
+        }
+      ],
+      "element": "Layout and timing"
     }
   ]
 }

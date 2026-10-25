@@ -8,18 +8,68 @@
   "license": "CC0-1.0",
   "category": "title",
   "type": "social",
-  "tags": ["social", "subscribe", "bell"],
+  "tags": [
+    "social",
+    "subscribe",
+    "bell"
+  ],
   "duration": 6,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "handle", "type": "text", "label": "Handle", "default": "@festivalnights", "maxLength": 40 },
-    { "id": "label", "type": "text", "label": "Label", "default": "Subscribe for more", "maxLength": 40 },
-    { "id": "gold", "type": "color", "label": "Gold color", "default": "#e8b54d", "group": "Colors" },
-    { "id": "panel", "type": "color", "label": "Panel color", "default": "#341f3ee6", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#fff6e8", "group": "Colors" },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.6, "min": 0.2, "max": 2, "step": 0.1 }
+    {
+      "id": "handle",
+      "type": "text",
+      "label": "Handle",
+      "default": "@festivalnights",
+      "maxLength": 40,
+      "element": "Handle"
+    },
+    {
+      "id": "label",
+      "type": "text",
+      "label": "Label",
+      "default": "Subscribe for more",
+      "maxLength": 40,
+      "element": "Label"
+    },
+    {
+      "id": "gold",
+      "type": "color",
+      "label": "Gold color",
+      "default": "#e8b54d",
+      "element": "Gold"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Panel color",
+      "default": "#341f3ee6",
+      "element": "Panel"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#fff6e8",
+      "element": "Text"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

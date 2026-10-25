@@ -8,28 +8,78 @@
   "license": "CC0-1.0",
   "category": "title",
   "type": "title",
-  "tags": ["headline", "centered", "hairline"],
+  "tags": [
+    "headline",
+    "centered",
+    "hairline"
+  ],
   "duration": 5,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "kicker", "type": "text", "label": "Kicker", "default": "Quarterly review", "maxLength": 40 },
-    { "id": "headline", "type": "text", "label": "Headline", "default": "Results and outlook", "maxLength": 60 },
-    { "id": "accent", "type": "color", "label": "Accent color", "default": "#4f7cac", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#f4f6f9", "group": "Colors" },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.8, "min": 0.2, "max": 2, "step": 0.1 },
+    {
+      "id": "kicker",
+      "type": "text",
+      "label": "Kicker",
+      "default": "Quarterly review",
+      "maxLength": 40,
+      "element": "Kicker"
+    },
+    {
+      "id": "headline",
+      "type": "text",
+      "label": "Headline",
+      "default": "Results and outlook",
+      "maxLength": 60,
+      "element": "Headline"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#4f7cac",
+      "element": "Accent"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#f4f6f9",
+      "element": "Text"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.8,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    },
     {
       "id": "logo",
       "type": "image",
       "label": "Logo",
       "description": "A mark centred above the kicker, fading up with the text. With none chosen the title is as it always was.",
-      "box": { "x": 0.471, "y": 0.251, "width": 0.057, "height": 0.102 },
+      "box": {
+        "x": 0.471,
+        "y": 0.251,
+        "width": 0.057,
+        "height": 0.102
+      },
       "fit": "contain",
       "align": "center",
       "margin": 0.1,
-      "fallbackText": "kicker"
+      "fallbackText": "kicker",
+      "element": "Logo"
     }
   ]
 }

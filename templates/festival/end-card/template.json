@@ -8,20 +8,92 @@
   "license": "CC0-1.0",
   "category": "title",
   "type": "end-card",
-  "tags": ["end-card", "thank-you", "confetti"],
+  "tags": [
+    "end-card",
+    "thank-you",
+    "confetti"
+  ],
   "duration": 7,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "thanks", "type": "text", "label": "Thank-you line", "default": "Thank you for celebrating with us", "maxLength": 100 },
-    { "id": "date", "type": "text", "label": "Date line", "default": "See you again on 31 December", "maxLength": 80 },
-    { "id": "gold", "type": "color", "label": "Gold color", "default": "#e8b54d", "group": "Colors" },
-    { "id": "panel", "type": "color", "label": "Panel color", "default": "#341f3ee6", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#fff6e8", "group": "Colors" },
-    { "id": "confetti", "type": "boolean", "label": "Confetti", "default": true },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.7, "min": 0.2, "max": 2, "step": 0.1 },
-    { "id": "logo", "type": "image", "label": "Logo", "description": "A lockup above the thank-you line; with none chosen the card is as it always was.", "box": { "x": 0.25, "y": 0.285, "width": 0.5, "height": 0.139 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "thanks" }
+    {
+      "id": "thanks",
+      "type": "text",
+      "label": "Thank-you line",
+      "default": "Thank you for celebrating with us",
+      "maxLength": 100,
+      "element": "Thank-you line"
+    },
+    {
+      "id": "date",
+      "type": "text",
+      "label": "Date line",
+      "default": "See you again on 31 December",
+      "maxLength": 80,
+      "element": "Date line"
+    },
+    {
+      "id": "gold",
+      "type": "color",
+      "label": "Gold color",
+      "default": "#e8b54d",
+      "element": "Gold"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Panel color",
+      "default": "#341f3ee6",
+      "element": "Panel"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#fff6e8",
+      "element": "Text"
+    },
+    {
+      "id": "confetti",
+      "type": "boolean",
+      "label": "Confetti",
+      "default": true,
+      "element": "Confetti"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.7,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "A lockup above the thank-you line; with none chosen the card is as it always was.",
+      "box": {
+        "x": 0.25,
+        "y": 0.285,
+        "width": 0.5,
+        "height": 0.139
+      },
+      "fit": "contain",
+      "align": "center",
+      "margin": 0.1,
+      "fallbackText": "thanks",
+      "element": "Logo"
+    }
   ]
 }

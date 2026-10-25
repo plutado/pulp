@@ -8,19 +8,75 @@
   "license": "CC0-1.0",
   "category": "overlay",
   "type": "film-grunge",
-  "themes": ["cinema", "concert"],
-  "styles": ["grunge"],
-  "tags": ["grain", "film", "noise"],
+  "themes": [
+    "cinema",
+    "concert"
+  ],
+  "styles": [
+    "grunge"
+  ],
+  "tags": [
+    "grain",
+    "film",
+    "noise"
+  ],
   "duration": 8,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "amount", "type": "number", "label": "Amount", "default": 0.5, "min": 0, "max": 1, "step": 0.05 },
-    { "id": "size", "type": "number", "label": "Grain size", "default": 2, "min": 1, "max": 6, "step": 0.5 },
-    { "id": "flicker", "type": "number", "label": "Flicker", "default": 0.3, "min": 0, "max": 1, "step": 0.05 },
-    { "id": "tint", "type": "color", "label": "Grain tint", "default": "#ffffff" },
-    { "id": "inOut", "type": "number", "label": "Fade in/out (seconds)", "default": 0.5, "min": 0.2, "max": 2, "step": 0.1 }
+    {
+      "id": "amount",
+      "type": "number",
+      "label": "Amount",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Film grain"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Grain size",
+      "default": 2,
+      "min": 1,
+      "max": 6,
+      "step": 0.5,
+      "element": "Film grain"
+    },
+    {
+      "id": "flicker",
+      "type": "number",
+      "label": "Flicker",
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Film grain"
+    },
+    {
+      "id": "tint",
+      "type": "color",
+      "label": "Grain tint",
+      "default": "#ffffff",
+      "element": "Film grain"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Fade in/out (seconds)",
+      "default": 0.5,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

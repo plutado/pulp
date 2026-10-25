@@ -8,17 +8,68 @@
   "license": "CC0-1.0",
   "category": "title",
   "type": "logo-reveal",
-  "tags": ["ident", "logo", "hairline"],
+  "tags": [
+    "ident",
+    "logo",
+    "hairline"
+  ],
   "duration": 2.5,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": false,
   "entry": "index.html",
   "parameters": [
-    { "id": "name", "type": "text", "label": "Name", "default": "Northwind Holdings", "maxLength": 60, "description": "Set in type where the logo would be when no logo is chosen." },
-    { "id": "ground", "type": "color", "label": "Ground color", "default": "#16233a", "group": "Colors" },
-    { "id": "accent", "type": "color", "label": "Accent color", "default": "#4f7cac", "group": "Colors" },
-    { "id": "text", "type": "color", "label": "Text color", "default": "#f4f6f9", "group": "Colors" },
-    { "id": "logo", "type": "image", "label": "Logo", "description": "Rises through the rule and settles at the centre; with none chosen the name stands in as a wordmark.", "box": { "x": 0.37, "y": 0.35, "width": 0.26, "height": 0.3 }, "fit": "contain", "align": "center", "margin": 0.1, "fallbackText": "name" }
+    {
+      "id": "name",
+      "type": "text",
+      "label": "Name",
+      "default": "Northwind Holdings",
+      "maxLength": 60,
+      "description": "Set in type where the logo would be when no logo is chosen.",
+      "element": "Name"
+    },
+    {
+      "id": "ground",
+      "type": "color",
+      "label": "Ground color",
+      "default": "#16233a",
+      "element": "Ground"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#4f7cac",
+      "element": "Accent"
+    },
+    {
+      "id": "text",
+      "type": "color",
+      "label": "Text color",
+      "default": "#f4f6f9",
+      "element": "Text"
+    },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "Rises through the rule and settles at the centre; with none chosen the name stands in as a wordmark.",
+      "box": {
+        "x": 0.37,
+        "y": 0.35,
+        "width": 0.26,
+        "height": 0.3
+      },
+      "fit": "contain",
+      "align": "center",
+      "margin": 0.1,
+      "fallbackText": "name",
+      "element": "Logo"
+    }
   ]
 }

@@ -8,12 +8,26 @@
   "license": "CC0-1.0",
   "category": "overlay",
   "type": "vignette",
-  "themes": ["cinema", "documentary"],
-  "styles": ["cinematic"],
-  "tags": ["letterbox", "bars", "vignette"],
+  "themes": [
+    "cinema",
+    "documentary"
+  ],
+  "styles": [
+    "cinematic"
+  ],
+  "tags": [
+    "letterbox",
+    "bars",
+    "vignette"
+  ],
   "duration": 8,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
@@ -23,13 +37,47 @@
       "label": "Picture ratio",
       "default": "2.39",
       "options": [
-        { "value": "2.39", "label": "2.39 : 1" },
-        { "value": "2.0", "label": "2.00 : 1" },
-        { "value": "1.85", "label": "1.85 : 1" }
-      ]
+        {
+          "value": "2.39",
+          "label": "2.39 : 1"
+        },
+        {
+          "value": "2.0",
+          "label": "2.00 : 1"
+        },
+        {
+          "value": "1.85",
+          "label": "1.85 : 1"
+        }
+      ],
+      "element": "Picture ratio"
     },
-    { "id": "bar", "type": "color", "label": "Bar color", "default": "#000000" },
-    { "id": "vignette", "type": "number", "label": "Vignette strength", "default": 0.45, "min": 0, "max": 1, "step": 0.05 },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 1, "min": 0.2, "max": 2, "step": 0.1 }
+    {
+      "id": "bar",
+      "type": "color",
+      "label": "Bar color",
+      "default": "#000000",
+      "element": "Bar"
+    },
+    {
+      "id": "vignette",
+      "type": "number",
+      "label": "Vignette strength",
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Vignette"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 1,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

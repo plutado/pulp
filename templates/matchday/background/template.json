@@ -8,17 +8,68 @@
   "license": "CC0-1.0",
   "category": "background",
   "type": "animated-loop",
-  "tags": ["loop", "speed-lines", "dark"],
+  "tags": [
+    "loop",
+    "speed-lines",
+    "dark"
+  ],
   "duration": 8,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": false,
   "entry": "index.html",
   "parameters": [
-    { "id": "base", "type": "color", "label": "Base color", "default": "#17181a", "group": "Colors" },
-    { "id": "deep", "type": "color", "label": "Deep color", "default": "#0a0b0c", "group": "Colors" },
-    { "id": "accent", "type": "color", "label": "Line color", "default": "#d4f531", "group": "Colors" },
-    { "id": "intensity", "type": "number", "label": "Line intensity", "default": 0.3, "min": 0, "max": 1, "step": 0.05 },
-    { "id": "logo", "type": "image", "label": "Logo", "description": "A watermark in the bottom-right corner at 18% opacity; nothing is drawn without one.", "box": { "x": 0.894, "y": 0.811, "width": 0.073, "height": 0.13 }, "fit": "contain", "align": "center", "margin": 0.1 }
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Base color",
+      "default": "#17181a",
+      "element": "Base"
+    },
+    {
+      "id": "deep",
+      "type": "color",
+      "label": "Deep color",
+      "default": "#0a0b0c",
+      "element": "Deep"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Line color",
+      "default": "#d4f531",
+      "element": "Line"
+    },
+    {
+      "id": "intensity",
+      "type": "number",
+      "label": "Line intensity",
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Line"
+    },
+    {
+      "id": "logo",
+      "type": "image",
+      "label": "Logo",
+      "description": "A watermark in the bottom-right corner at 18% opacity; nothing is drawn without one.",
+      "box": {
+        "x": 0.894,
+        "y": 0.811,
+        "width": 0.073,
+        "height": 0.13
+      },
+      "fit": "contain",
+      "align": "center",
+      "margin": 0.1,
+      "element": "Logo"
+    }
   ]
 }

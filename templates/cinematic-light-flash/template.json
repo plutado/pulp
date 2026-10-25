@@ -8,19 +8,73 @@
   "license": "CC0-1.0",
   "category": "transition",
   "type": "flash",
-  "themes": ["cinema", "documentary", "concert"],
-  "styles": ["cinematic"],
-  "tags": ["flash", "light leak", "anamorphic"],
+  "themes": [
+    "cinema",
+    "documentary",
+    "concert"
+  ],
+  "styles": [
+    "cinematic"
+  ],
+  "tags": [
+    "flash",
+    "light leak",
+    "anamorphic"
+  ],
   "duration": 1.6,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "warm", "type": "color", "label": "Warm color", "default": "#ffb060", "group": "Colors" },
-    { "id": "peak", "type": "color", "label": "Peak color", "default": "#fff7ec", "group": "Colors" },
-    { "id": "streak", "type": "number", "label": "Streak width", "default": 0.7, "min": 0.2, "max": 1, "step": 0.05 },
-    { "id": "warmth", "type": "number", "label": "Warmth", "default": 0.6, "min": 0, "max": 1, "step": 0.05 },
-    { "id": "grain", "type": "number", "label": "Grain", "default": 0.4, "min": 0, "max": 1, "step": 0.05 }
+    {
+      "id": "warm",
+      "type": "color",
+      "label": "Warm color",
+      "default": "#ffb060",
+      "element": "Warm"
+    },
+    {
+      "id": "peak",
+      "type": "color",
+      "label": "Peak color",
+      "default": "#fff7ec",
+      "element": "Peak"
+    },
+    {
+      "id": "streak",
+      "type": "number",
+      "label": "Streak width",
+      "default": 0.7,
+      "min": 0.2,
+      "max": 1,
+      "step": 0.05,
+      "element": "Streak"
+    },
+    {
+      "id": "warmth",
+      "type": "number",
+      "label": "Warmth",
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Warmth"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Cinematic light flash"
+    }
   ]
 }

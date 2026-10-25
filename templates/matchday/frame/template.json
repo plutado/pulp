@@ -8,18 +8,72 @@
   "license": "CC0-1.0",
   "category": "overlay",
   "type": "frame",
-  "tags": ["frame", "corners", "brackets"],
+  "tags": [
+    "frame",
+    "corners",
+    "brackets"
+  ],
   "duration": 6,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "accent", "type": "color", "label": "Bracket color", "default": "#d4f531", "group": "Colors" },
-    { "id": "bar", "type": "color", "label": "Bar color", "default": "#101010", "group": "Colors" },
-    { "id": "margin", "type": "number", "label": "Margin (px at 1080p)", "default": 56, "min": 24, "max": 160, "step": 4 },
-    { "id": "weight", "type": "number", "label": "Bracket weight", "default": 18, "min": 6, "max": 40, "step": 2 },
-    { "id": "bars", "type": "boolean", "label": "Backing bars", "default": true },
-    { "id": "inOut", "type": "number", "label": "Animate in/out (seconds)", "default": 0.6, "min": 0.2, "max": 2, "step": 0.1 }
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Bracket color",
+      "default": "#d4f531",
+      "element": "Bracket"
+    },
+    {
+      "id": "bar",
+      "type": "color",
+      "label": "Bar color",
+      "default": "#101010",
+      "element": "Bar"
+    },
+    {
+      "id": "margin",
+      "type": "number",
+      "label": "Margin (px at 1080p)",
+      "default": 56,
+      "min": 24,
+      "max": 160,
+      "step": 4,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "weight",
+      "type": "number",
+      "label": "Bracket weight",
+      "default": 18,
+      "min": 6,
+      "max": 40,
+      "step": 2,
+      "element": "Bracket"
+    },
+    {
+      "id": "bars",
+      "type": "boolean",
+      "label": "Backing bars",
+      "default": true,
+      "element": "Backing bars"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Animate in/out (seconds)",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
   ]
 }

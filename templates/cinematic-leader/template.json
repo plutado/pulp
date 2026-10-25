@@ -8,20 +8,78 @@
   "license": "CC0-1.0",
   "category": "other",
   "type": "countdown",
-  "themes": ["cinema", "documentary", "concert"],
-  "styles": ["cinematic"],
-  "tags": ["leader", "countdown", "film"],
+  "themes": [
+    "cinema",
+    "documentary",
+    "concert"
+  ],
+  "styles": [
+    "cinematic"
+  ],
+  "tags": [
+    "leader",
+    "countdown",
+    "film"
+  ],
   "duration": 11,
   "fps": 30,
-  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
   "alpha": true,
   "entry": "index.html",
   "parameters": [
-    { "id": "from", "type": "number", "label": "Count from", "default": 8, "min": 3, "max": 10, "step": 1, "description": "Counts down to 2, then goes dark; the leader fills the last (from + 1) seconds." },
-    { "id": "field", "type": "color", "label": "Field color", "default": "#2b2b2bf5", "group": "Colors" },
-    { "id": "wedge", "type": "color", "label": "Wedge color", "default": "#8d8d8d", "group": "Colors" },
-    { "id": "line", "type": "color", "label": "Line and figure color", "default": "#f2f2f2", "group": "Colors" },
-    { "id": "grain", "type": "number", "label": "Grain", "default": 0.5, "min": 0, "max": 1, "step": 0.05 },
-    { "id": "flicker", "type": "boolean", "label": "Flicker", "default": true }
+    {
+      "id": "from",
+      "type": "number",
+      "label": "Count from",
+      "default": 8,
+      "min": 3,
+      "max": 10,
+      "step": 1,
+      "description": "Counts down to 2, then goes dark; the leader fills the last (from + 1) seconds.",
+      "element": "Figures"
+    },
+    {
+      "id": "field",
+      "type": "color",
+      "label": "Field color",
+      "default": "#2b2b2bf5",
+      "element": "Field"
+    },
+    {
+      "id": "wedge",
+      "type": "color",
+      "label": "Wedge color",
+      "default": "#8d8d8d",
+      "element": "Wedge"
+    },
+    {
+      "id": "line",
+      "type": "color",
+      "label": "Line and figure color",
+      "default": "#f2f2f2",
+      "element": "Line"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Cinematic leader"
+    },
+    {
+      "id": "flicker",
+      "type": "boolean",
+      "label": "Flicker",
+      "default": true,
+      "element": "Cinematic leader"
+    }
   ]
 }
