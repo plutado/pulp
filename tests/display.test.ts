@@ -86,11 +86,11 @@ describe('rootLabel', () => {
 
 describe('the window title', () => {
   it('names the checkout when run from source, so two copies are told apart', () => {
-    expect(windowTitle('/Users/dana/Web/pulp/oak', false)).toBe('Pulp — oak');
+    expect(windowTitle('/Users/dana/Web/feature-x', false)).toBe('Pulp — feature-x');
     expect(windowTitle('/Users/dana/Web/pulp', false)).toBe('Pulp — pulp');
     // Windows paths and a trailing separator name the same folder.
-    expect(windowTitle('D:\\a\\pulp\\elm', false)).toBe('Pulp — elm');
-    expect(windowTitle('/Users/dana/Web/pulp/oak/', false)).toBe('Pulp — oak');
+    expect(windowTitle('D:\\a\\pulp\\release-2', false)).toBe('Pulp — release-2');
+    expect(windowTitle('/Users/dana/Web/feature-x/', false)).toBe('Pulp — feature-x');
   });
 
   it('is the plain name in a packaged build, whatever the path', () => {

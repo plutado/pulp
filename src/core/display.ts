@@ -85,7 +85,7 @@ export function dimensionsLabel(width: number, height: number): string {
 
 /**
  * What the window is called. A packaged build is just "Pulp"; run from source
- * it names the checkout it is running from — "Pulp — oak" — so two copies side
+ * it names the checkout it is running from — "Pulp — feature-x" — so two copies side
  * by side can be told apart in the Dock, the task bar and a window list. The
  * folder is the app path's own name; anything unusable leaves the plain name.
  */
