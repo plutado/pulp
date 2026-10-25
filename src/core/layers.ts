@@ -37,6 +37,23 @@ export type TextCase = (typeof TEXT_CASES)[number];
 export const TEXT_OVERFLOWS = ['wrap', 'shrink', 'truncate'] as const;
 export type TextOverflow = (typeof TEXT_OVERFLOWS)[number];
 
+/**
+ * How a layer arrives. `template` is the default and the point of a block: the
+ * layer takes the movement of the position it is in, so the design stays the
+ * author's. The rest are the person's own override for one layer, timed against
+ * the template's own timeline (src/core/layer-motion.ts).
+ */
+export const LAYER_MOTIONS = ['template', 'fade', 'slide', 'scale', 'none'] as const;
+export type LayerMotionType = (typeof LAYER_MOTIONS)[number];
+
+export interface LayerMotion {
+  type: LayerMotionType;
+  /** Seconds the layer waits before it comes in. Held inside the template's own time, so it always arrives. */
+  delay: number;
+}
+
+export const DEFAULT_MOTION: LayerMotion = { type: 'template', delay: 0 };
+
 /** How text is set: what a block's text layers start from, and what one layer can override. */
 export interface Typography {
   /** A font family name; the bundled set and imported families arrive with later items. */
@@ -88,6 +105,7 @@ export const LAYER_LIMITS = {
   spaceBefore: { min: 0, max: 1 },
   gap: { min: 0, max: 1 },
   maxLines: { min: 1, max: 20 },
+  motionDelay: { min: 0, max: 10 },
 } as const;
 
 interface LayerBase {
@@ -100,6 +118,8 @@ interface LayerBase {
   hidden: boolean;
   /** Room before this layer along the stack, as a fraction of the frame's short side. */
   spaceBefore: number;
+  /** How it arrives: the template's own movement for its position, or the person's override. */
+  motion: LayerMotion;
 }
 
 export interface TextLayer extends LayerBase, Typography {
@@ -234,9 +254,32 @@ function readTypography(raw: Record<string, unknown>, base: Typography, path: st
   return t;
 }
 
-/** The fields a layer of either type has, read against a base the same way as typography. */
-function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore'>, issue: (field: string, message: string) => void): Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore'> {
+/**
+ * A layer's motion, read against a base: an object naming a `type` and a
+ * `delay`, either of which may be left out. A wrong field is reported and the
+ * base kept, as everywhere else here.
+ */
+function readMotion(raw: unknown, base: LayerMotion, issue: (field: string, message: string) => void): LayerMotion {
+  if (raw === undefined) return { ...base };
+  if (!isRecord(raw)) {
+    issue('motion', `must be an object naming a type (${LAYER_MOTIONS.join(', ')}) and an optional delay in seconds`);
+    return { ...base };
+  }
   const out = { ...base };
+  if (raw.type !== undefined) {
+    if (oneOf(LAYER_MOTIONS, raw.type)) out.type = raw.type;
+    else issue('motion.type', `must be one of: ${LAYER_MOTIONS.join(', ')}`);
+  }
+  if (raw.delay !== undefined) {
+    if (inRange(raw.delay, LAYER_LIMITS.motionDelay)) out.delay = raw.delay;
+    else issue('motion.delay', `must be a number of seconds from ${LAYER_LIMITS.motionDelay.min} to ${LAYER_LIMITS.motionDelay.max}`);
+  }
+  return out;
+}
+
+/** The fields a layer of either type has, read against a base the same way as typography. */
+function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion'>, issue: (field: string, message: string) => void): Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion'> {
+  const out = { ...base, motion: readMotion(raw.motion, base.motion, issue) };
   if (raw.label !== undefined) {
     if (isNonEmptyString(raw.label)) out.label = raw.label.trim();
     else issue('label', 'must be a non-empty string');
@@ -254,7 +297,7 @@ function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'labe
 
 /** A fresh layer of a type, as a block hands it out: the block's typography, the default image size, nothing required. */
 export function newLayer(type: LayerType, block: Pick<Block, 'typography' | 'align'>, id: string, label?: string): Layer {
-  const base: LayerBase = { id, label: label ?? (type === 'text' ? 'Text' : 'Image'), required: false, hidden: false, spaceBefore: 0 };
+  const base: LayerBase = { id, label: label ?? (type === 'text' ? 'Text' : 'Image'), required: false, hidden: false, spaceBefore: 0, motion: { ...DEFAULT_MOTION } };
   if (type === 'text') return { ...base, ...block.typography, type: 'text', text: '', maxLines: DEFAULT_MAX_LINES };
   return { ...base, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
 }
@@ -282,7 +325,7 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
   const id = typeof raw.id === 'string' ? raw.id : '';
   const fresh = newLayer(raw.type, block, id, typeof raw.label === 'string' ? raw.label.trim() : undefined);
   const base = readLayerBase(raw, fresh, issue);
-  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore };
+  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, motion: base.motion };
   let layer: Layer;
   if (raw.type === 'text') {
     if (typeof raw.text !== 'string') issue('text', 'must be a string (the layer\'s default text)');

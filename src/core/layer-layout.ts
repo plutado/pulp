@@ -24,7 +24,8 @@
 
 import type { Size } from './aspect';
 import { boxFor, fitImage, type ImageValue, type PxBox } from './image-slot';
-import { DEFAULT_MAX_LINES, type Block, type ImageLayer, type Layer, type LayerValues, type TextCase, type TextLayer } from './layers';
+import { motionDraw, type MotionAt } from './layer-motion';
+import { DEFAULT_MAX_LINES, DEFAULT_MOTION, type Block, type ImageLayer, type Layer, type LayerMotion, type LayerValues, type TextCase, type TextLayer } from './layers';
 import type { TemplateManifest } from './manifest';
 
 /**
@@ -47,6 +48,8 @@ interface LayerStateBase {
   /** Room before this layer along the stack, in pixels of this frame. */
   spaceBefore: number;
   align: 'left' | 'center' | 'right';
+  /** How it arrives: the template's own movement for its position, or the person's override (src/core/layer-motion.ts). */
+  motion: LayerMotion;
 }
 
 export interface TextLayerState extends LayerStateBase {
@@ -135,6 +138,13 @@ export interface LayoutOptions {
   align?: 'left' | 'center' | 'right';
   /** Per layer, by stack position: what it is drawn with. Anything left out keeps its own value. */
   each?: (layer: LayerState, position: number) => Partial<LayerDraw> | undefined;
+  /**
+   * This frame's place in the template's timeline, which a layer's own motion
+   * override is timed against (src/core/layer-motion.ts). The bridge passes it
+   * from the frame state, so a template need not know about overrides at all;
+   * without it every layer takes the template's own movement.
+   */
+  at?: MotionAt;
 }
 
 /** Measures `text` at a font; the bridge hands the canvas's measurer, tests a stub. */
@@ -218,6 +228,39 @@ function alignedX(align: 'left' | 'center' | 'right', boxX: number, boxWidth: nu
 }
 
 /**
+ * What every layer of a block is drawn with this frame: what the template asked
+ * for each position, and then, for a layer whose motion the person overrode,
+ * what that override says instead.
+ *
+ * The override is multiplied by the block's **envelope** — the most the
+ * template is showing any of its layers at this frame. That is the template
+ * saying whether the graphic is there at all: while it is staggering its lines
+ * in, the leading one is already at full, so an override is free to show its
+ * layer from the first frame; when the graphic clears, every layer's alpha
+ * falls and the override goes with it. So an overridden layer cannot be left on
+ * screen after the design has gone (src/core/layer-motion.ts).
+ *
+ * An override replaces the whole of the template's movement for that layer,
+ * including any letter spacing the template was animating: the person said how
+ * this layer arrives, so the template no longer has a say in it.
+ */
+function layerDraws(block: BlockState, options: LayoutOptions): LayerDraw[] {
+  const asked = block.layers.map((layer, position) => ({ ...DEFAULT_DRAW, ...(options.each?.(layer, position) ?? {}) }));
+  const at = options.at;
+  if (!at) return asked;
+  const envelope = asked.reduce((most, draw) => Math.max(most, draw.alpha), 0);
+  return block.layers.map((layer, position) => {
+    const own = motionDraw(layer.motion, at, { distance: layerDistance(layer), direction: block.direction });
+    return own ? { ...own, alpha: own.alpha * envelope } : asked[position]!;
+  });
+}
+
+/** How far a slide travels and what a scale grows from, for this layer: its own size. */
+function layerDistance(layer: LayerState): number {
+  return layer.type === 'text' ? layer.fontSize : layer.size;
+}
+
+/**
  * Lay a block out for one frame: every layer measured, wrapped or shrunk, then
  * stacked in order with the gaps and the space before each, and the whole stack
  * placed in the box by its alignment. The stack position a layer ends up at is
@@ -230,11 +273,12 @@ function alignedX(align: 'left' | 'center' | 'right', boxX: number, boxWidth: nu
 export function layoutBlock(block: BlockState, measure: Measure, imageAspect: ImageAspect, options: LayoutOptions = {}): LaidBlock {
   const box = options.box ?? block.box;
   const column = block.direction === 'column';
+  const draws = layerDraws(block, options);
 
   // What each layer is: its text broken into lines at the size it ends up at, or its picture's
   // size. Measured once, then placed; `extent` is along the stack, `cross` across it.
   const measured = block.layers.map((layer, position) => {
-    const draw: LayerDraw = { ...DEFAULT_DRAW, ...(options.each?.(layer, position) ?? {}) };
+    const draw: LayerDraw = draws[position]!;
     if (layer.type === 'text') {
       const spacing = draw.letterSpacing ?? layer.letterSpacing;
       const { size, lines } = layoutTextLayer(layer, box.width, spacing, measure);
@@ -326,7 +370,7 @@ export function blockState(block: Block, layers: readonly Layer[], size: Size): 
 }
 
 function layerState(layer: Layer, position: number, short: number): LayerState {
-  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left' };
+  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', motion: layer.motion ?? { ...DEFAULT_MOTION } };
   if (layer.type === 'text') {
     const text = layer as TextLayer;
     return {

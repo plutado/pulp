@@ -19,11 +19,14 @@ import {
   defaultLayers,
   LAYER_ALIGNS,
   LAYER_LIMITS,
+  LAYER_MOTIONS,
   newLayer,
   resolveLayers,
   TEXT_CASES,
   TEXT_OVERFLOWS,
   type Layer,
+  type LayerMotion,
+  type LayerMotionType,
   type LayerType,
   type ImageLayer,
   type LayerValues,
@@ -981,11 +984,13 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
       gone.textContent = `"${familyLabel(layer.family)}" is not on this computer, so the line is drawn in a fallback face. Import it, or choose another family.`;
       parts.push(gone);
     }
+    parts.push(motionControls(blockId, layer));
     return parts;
   }
   return [
     imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }, { layer: true }),
     imageLayerControls(blockId, layer),
+    motionControls(blockId, layer),
   ];
 }
 
@@ -1023,6 +1028,57 @@ function imageLayerControls(blockId: string, layer: ImageLayer): HTMLElement {
 
 /** Which layers have their type controls open, across rebuilds of the form; keyed block.layer. */
 const openTypography = new Set<string>();
+
+/** The same for the Advanced disclosure, which holds a layer's own motion. */
+const openAdvanced = new Set<string>();
+
+const MOTION_LABELS: Record<LayerMotionType, string> = { template: 'Template', fade: 'Fade', slide: 'Slide', scale: 'Scale', none: 'None' };
+
+/** What the folded Advanced line says: nothing of its own while the template owns the movement. */
+function motionSummary(motion: LayerMotion): string {
+  if (motion.type === 'template') return 'Advanced';
+  const delay = motion.delay > 0 ? ` after ${motion.delay} s` : '';
+  return `Advanced · ${MOTION_LABELS[motion.type]}${delay}`;
+}
+
+/**
+ * A layer's own motion, folded away under Advanced: the template owns how a
+ * layer arrives — that is what a block is for — and this is the override for
+ * one layer. Whatever is chosen still goes when the graphic goes, so a layer
+ * cannot be left on screen after the design has cleared (src/core/layer-motion.ts).
+ */
+function motionControls(blockId: string, layer: Layer): HTMLElement {
+  const key = `${blockId}.${layer.id}`;
+  const details = document.createElement('details');
+  details.className = 'layer-advanced';
+  details.open = openAdvanced.has(key);
+  details.addEventListener('toggle', () => {
+    if (details.open) openAdvanced.add(key);
+    else openAdvanced.delete(key);
+  });
+  const summary = document.createElement('summary');
+  summary.textContent = motionSummary(layer.motion);
+  details.append(summary);
+
+  let current = layer.motion;
+  const set = (motion: LayerMotion) => {
+    current = motion;
+    editLayer(blockId, layer.id, (l) => ({ ...l, motion }) as Layer, false);
+    commitParams();
+    summary.textContent = motionSummary(current);
+    delay.hidden = current.type === 'template';
+  };
+
+  const grid = document.createElement('div');
+  grid.className = 'type-grid';
+  grid.append(typeField('Motion', selectOf(LAYER_MOTIONS, MOTION_LABELS, layer.motion.type, (v) => set({ ...current, type: v }), `${layer.label} motion`)));
+  const delay = typeField('Delay, seconds', numberOf(layer.motion.delay, LAYER_LIMITS.motionDelay, 0.1, (v) => set({ ...current, delay: v }), `${layer.label} motion delay`));
+  // The delay is the override's own: while the template owns the movement there is nothing to delay.
+  delay.hidden = layer.motion.type === 'template';
+  grid.append(delay);
+  details.append(grid);
+  return details;
+}
 
 const CASE_LABELS: Record<TextLayer['case'], string> = { none: 'As typed', upper: 'Uppercase', lower: 'Lowercase', title: 'Title case' };
 const OVERFLOW_LABELS: Record<TextLayer['overflow'], string> = { wrap: 'Wrap', shrink: 'Shrink to fit', truncate: 'Truncate' };

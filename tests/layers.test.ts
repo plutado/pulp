@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_IMAGE_LAYER_SIZE,
+  DEFAULT_MOTION,
   DEFAULT_TYPOGRAPHY,
   defaultLayers,
   hasBlocks,
@@ -69,7 +70,7 @@ describe('validateBlock', () => {
 
   it('an image layer carries no image, a size and an alignment, and may start hidden', () => {
     const mark = block().layers[2] as ImageLayer;
-    expect(mark).toEqual({ id: 'mark', type: 'image', label: 'Mark', required: false, hidden: true, spaceBefore: 0, image: null, size: 0.08, align: 'right' });
+    expect(mark).toEqual({ id: 'mark', type: 'image', label: 'Mark', required: false, hidden: true, spaceBefore: 0, motion: DEFAULT_MOTION, image: null, size: 0.08, align: 'right' });
     expect((block({ layers: [{ id: 'logo', type: 'image', label: 'Logo' }] }).layers[0] as ImageLayer)).toMatchObject({ size: DEFAULT_IMAGE_LAYER_SIZE, align: 'left' });
     expect(errorPaths(rawBlock({ layers: [{ id: 'logo', type: 'image', label: 'Logo', image: 'abc' }] }))).toEqual(['blocks[0].layers[0].image']);
   });
@@ -229,6 +230,34 @@ describe('resolveLayers', () => {
     return r.manifest;
   };
 
+  it('carries a layer\'s own motion, from the template and from use-time input alike', () => {
+    // A template may declare a layer's motion; anything it leaves out is the default.
+    const declared = validateBlock({ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [
+      { id: 'a', type: 'text', label: 'A', text: 'x', motion: { type: 'slide', delay: 1.5 } },
+      { id: 'b', type: 'text', label: 'B', text: 'y', motion: { type: 'fade' } },
+    ] }, 'blocks[0]', []);
+    expect(declared!.layers[0]!.motion).toEqual({ type: 'slide', delay: 1.5 });
+    expect(declared!.layers[1]!.motion).toEqual({ type: 'fade', delay: 0 });
+
+    // And a person's own, through every route that carries raw values (a preset, a collection, --param).
+    const { values, issues } = resolveLayers(manifest(), { strap: [{ id: 'name', motion: { type: 'scale', delay: 2 } }] });
+    expect(issues).toEqual([]);
+    expect(values.strap![0]!.motion).toEqual({ type: 'scale', delay: 2 });
+    // What is left out keeps what the layer had, field by field, as everything else here does.
+    expect(resolveLayers(manifest(), { strap: [{ id: 'name', motion: { delay: 1 } }] }).values.strap![0]!.motion).toEqual({ type: 'template', delay: 1 });
+  });
+
+  it('reports a motion it cannot use and keeps the layer\'s own', () => {
+    const errors: ValidationIssue[] = [];
+    validateBlock({ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [
+      { id: 'a', type: 'text', label: 'A', text: 'x', motion: { type: 'explode', delay: 99 } },
+    ] }, 'blocks[0]', errors);
+    expect(errors.map((e) => e.path)).toEqual(['blocks[0].layers[0].motion.type', 'blocks[0].layers[0].motion.delay']);
+    const bad = resolveLayers(manifest(), { strap: [{ id: 'name', motion: 'fast' }] });
+    expect(bad.issues.map((i) => i.message)).toEqual([expect.stringContaining('motion must be an object')]);
+    expect(bad.values.strap![0]!.motion).toEqual({ type: 'template', delay: 0 });
+  });
+
   it('returns the template\'s own stacks, as copies, when nothing is given', () => {
     const m = manifest();
     const { values, issues } = resolveLayers(m, undefined);
@@ -316,7 +345,7 @@ describe('resolveLayers', () => {
 
   it('newLayer hands out a layer of either type from a block', () => {
     const b = block({ align: 'center' });
-    expect(newLayer('text', b, 'x')).toEqual({ id: 'x', label: 'Text', required: false, hidden: false, spaceBefore: 0, ...b.typography, type: 'text', text: '', maxLines: 3 });
-    expect(newLayer('image', b, 'y', 'Logo')).toEqual({ id: 'y', label: 'Logo', required: false, hidden: false, spaceBefore: 0, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: 'center' });
+    expect(newLayer('text', b, 'x')).toEqual({ id: 'x', label: 'Text', required: false, hidden: false, spaceBefore: 0, motion: DEFAULT_MOTION, ...b.typography, type: 'text', text: '', maxLines: 3 });
+    expect(newLayer('image', b, 'y', 'Logo')).toEqual({ id: 'y', label: 'Logo', required: false, hidden: false, spaceBefore: 0, motion: DEFAULT_MOTION, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: 'center' });
   });
 });

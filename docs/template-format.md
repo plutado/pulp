@@ -160,7 +160,7 @@ A block:
 | `typography` | object | no | What the block's text layers start from; any of the text properties below. Unnamed properties take the built-in defaults (Inter, 0.06, 400, white, wrap). |
 | `layers` | object[] | no | The template's own layers, in stack order. Default `[]`: a block the user fills. |
 
-A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text` or `image`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`) and `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
+A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text` or `image`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `motion` (how it arrives; see **A layer's own motion** below). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
 
 | Property | Type | Description |
 |---|---|---|
@@ -194,6 +194,24 @@ An image layer has a `size` (the picture's height as a fraction of the frame's s
   }
 ]
 ```
+
+#### A layer's own motion
+
+By default a layer takes the movement of the **position it is in** — that is the whole point of a block, and it is what lets a line added in the middle move as the middle line of the design does. A layer may instead carry a `motion` of its own, which the person using the template can set in the Parameters tab under **Advanced**:
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `template`, `fade`, `slide`, `scale`, `none` | `template` (the default) leaves the movement to the template, as above. The rest are the layer's own entrance: fade in, slide into place, scale up, or arrive with no movement at all. |
+| `delay` | number | Seconds the layer waits before it comes in; 0 to 10, default 0. |
+
+Two rules keep an override inside the author's design, and a template needs no code for either:
+
+- **The entrance is the person's; the exit stays the template's.** What an override computes is multiplied by the block's *envelope* — the most the template is showing any of that block's layers at this frame, which is what the `each` hook already says. While a template staggers its lines in, its leading line is already at full, so an overridden layer is free to show from the first frame; when the graphic clears, every layer's alpha falls and the override goes with it. **No layer can be left on screen after the graphic has gone.**
+- **The entrance always finishes inside the template's own time.** A delay longer than the template is long is held back, and a template shorter than the entrance shortens the entrance, so an overridden layer has always arrived by the last frame.
+
+A slide travels the layer's own size — a line's type size, a picture's height — so it reads the same at every resolution and on type of any size; it rises into place in a `column` block and comes in from the left in a `row`. A scale grows from 0.8. An override replaces the whole of the template's movement for that layer, including any letter spacing the template was animating.
+
+`window.pulpLayoutBlock` applies all of this from the frame state it is already given, so **a template that uses blocks supports overrides without changing a line**. A template that lays a block out by hand, without the helper, is simply not offering the feature.
 
 ### Fonts
 

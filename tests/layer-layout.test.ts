@@ -14,7 +14,7 @@ import {
   type Measure,
   type TextLayerState,
 } from '../src/core/layer-layout';
-import type { ImageLayer, TextLayer } from '../src/core/layers';
+import { DEFAULT_MOTION, type ImageLayer, type TextLayer } from '../src/core/layers';
 import { validateManifest } from '../src/core/manifest';
 import { rawManifest } from './fixtures';
 
@@ -29,7 +29,7 @@ const noImages = () => null;
 
 function text(over: Partial<TextLayerState> = {}): TextLayerState {
   return {
-    id: 'a', label: 'A', type: 'text', position: 0, spaceBefore: 0, align: 'left',
+    id: 'a', label: 'A', type: 'text', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION },
     text: 'Hello', family: 'Test', fontSize: 100, weight: 400, italic: false, case: 'none',
     letterSpacing: 0, kerning: true, lineHeight: 1.2, color: '#ffffff', overflow: 'wrap', maxLines: 3,
     ...over,
@@ -37,7 +37,7 @@ function text(over: Partial<TextLayerState> = {}): TextLayerState {
 }
 
 function image(over: Partial<ImageLayerState> = {}): ImageLayerState {
-  return { id: 'i', label: 'I', type: 'image', position: 0, spaceBefore: 0, align: 'left', image: { id: 'a'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false }, size: 80, ...over };
+  return { id: 'i', label: 'I', type: 'image', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION }, image: { id: 'a'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false }, size: 80, ...over };
 }
 
 function block(layers: LayerState[], over: Partial<BlockState> = {}): BlockState {
@@ -291,5 +291,71 @@ describe('blockStates', () => {
     const states = blockStates(m, { card: [chosen] }, { width: 1920, height: 1080 });
     expect(layerImageIds(states)).toEqual(['b'.repeat(24)]);
     expect(layerImageIds(blockStates(m, {}, { width: 1920, height: 1080 }))).toEqual([]);
+  });
+});
+
+describe('a layer with a motion of its own (milestone 23)', () => {
+  const at = { time: 0.25, duration: 4 };
+  /** Two lines the template staggers in: the first is already full, the second not yet. */
+  const staggered = () => block([text({ id: 'a', position: 0 }), text({ id: 'b', text: 'Second', position: 1 })]);
+  const each = (_l: LayerState, position: number) => ({ alpha: position === 0 ? 1 : 0 });
+
+  it('keeps the template\'s own movement until a layer asks for something else', () => {
+    const laid = layoutBlock(staggered(), measure, noImages, { each, at });
+    expect(laid.layers.map((l) => l.draw.alpha)).toEqual([1, 0]);
+    // And with no timing given at all — a caller that is not drawing a frame — the template's stands.
+    const over = block([text({ motion: { type: 'fade', delay: 0 } })]);
+    expect(layoutBlock(over, measure, noImages, { each: () => ({ alpha: 0.5 }) }).layers[0]!.draw.alpha).toBe(0.5);
+  });
+
+  it('replaces the template\'s movement for that layer, and leaves the others alone', () => {
+    const b = staggered();
+    b.layers[1] = text({ id: 'b', text: 'Second', position: 1, motion: { type: 'none', delay: 0 } });
+    const laid = layoutBlock(b, measure, noImages, { each, at });
+    // The template was holding the second line back; its own motion says it is simply there.
+    expect(laid.layers.map((l) => l.draw.alpha)).toEqual([1, 1]);
+  });
+
+  it('goes when the graphic goes: an override is capped by the most the template is showing', () => {
+    const b = staggered();
+    b.layers[0] = text({ id: 'a', position: 0, motion: { type: 'none', delay: 0 } });
+    // The template has cleared the whole block — every layer at zero — so the override clears too.
+    const gone = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 0 }), at });
+    expect(gone.layers[0]!.draw.alpha).toBe(0);
+    // Half way out, it is held to half: it can never outlive the design.
+    const going = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 0.5 }), at });
+    expect(going.layers[0]!.draw.alpha).toBe(0.5);
+    // But a stagger is not an exit: while the leading line is full, an override may show from the first frame.
+    const early = layoutBlock(b, measure, noImages, { each, at: { time: 0, duration: 4 } });
+    expect(early.layers[0]!.draw.alpha).toBe(1);
+  });
+
+  it('drops the letter spacing the template was animating: the layer is the person\'s now', () => {
+    const b = block([text({ motion: { type: 'fade', delay: 0 } })]);
+    const laid = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 1, letterSpacing: 0.5 }), at: { time: 4, duration: 4 } });
+    expect(laid.layers[0]!.draw.letterSpacing).toBeUndefined();
+    // Measured at the layer's own spacing, then: five characters at 100 px, no tracking added.
+    expect(laid.layers[0]!.lines![0]!.width).toBe(250);
+  });
+
+  it('slides by the layer\'s own size, down the stack for a column and across for a row', () => {
+    const slide = { type: 'slide' as const, delay: 0 };
+    const start = { time: 0, duration: 4 };
+    const col = layoutBlock(block([text({ fontSize: 60, motion: slide })]), measure, noImages, { each, at: start });
+    expect(col.layers[0]!.draw).toMatchObject({ dx: 0, dy: 60 });
+    const row = layoutBlock(block([text({ fontSize: 60, motion: slide })], { direction: 'row' }), measure, noImages, { each, at: start });
+    expect(row.layers[0]!.draw).toMatchObject({ dx: -60, dy: 0 });
+    // An image layer slides by its own height.
+    const picture = layoutBlock(block([image({ size: 120, motion: slide })]), measure, () => 1, { each, at: start });
+    expect(picture.layers[0]!.draw.dy).toBe(120);
+  });
+
+  it('moves a layer without moving where the stack puts it: the box is where it always was', () => {
+    const plain = layoutBlock(staggered(), measure, noImages, { each, at });
+    const b = staggered();
+    b.layers[1] = text({ id: 'b', text: 'Second', position: 1, motion: { type: 'slide', delay: 0 } });
+    const moved = layoutBlock(b, measure, noImages, { each, at });
+    expect(moved.layers[1]!.box).toEqual(plain.layers[1]!.box);
+    expect(moved.layers[1]!.draw.dy).toBeGreaterThan(0);
   });
 });

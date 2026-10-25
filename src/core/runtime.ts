@@ -236,6 +236,46 @@ export const BRIDGE_SCRIPT = `(function () {
     var p = pictures[requestKey(layer.image)];
     return p && p.value ? p.value : null;
   }
+  /* Mirrors layerDraws and motionDraw in src/core/layer-layout.ts and src/core/layer-motion.ts, the
+     copies with unit tests: change both or neither. What the template asked for each position, and
+     then, for a layer the person gave a motion of its own, what that says instead -- multiplied by
+     the block's envelope, the most the template is showing any of its layers now, so an overridden
+     layer cannot be left on screen after the graphic has gone. */
+  var MOTION_IN = 0.5, SLIDE_DISTANCE = 1, SCALE_FROM = 0.8;
+  function easeInOutSine(x) { return (1 - Math.cos(Math.PI * x)) / 2; }
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function motionDraw(motion, time, duration, distance, column) {
+    if (!motion || motion.type === 'template') return null;
+    var over = Math.min(MOTION_IN, Math.max(0, duration));
+    var delay = Math.max(0, motion.delay || 0);
+    var start = Math.min(delay, Math.max(0, duration - over));
+    if (motion.type === 'none') return { alpha: time >= start ? 1 : 0, dx: 0, dy: 0, scale: 1 };
+    var eased = easeInOutSine(over <= 0 ? (time >= start ? 1 : 0) : clamp01((time - start) / over));
+    if (motion.type === 'fade') return { alpha: eased, dx: 0, dy: 0, scale: 1 };
+    if (motion.type === 'slide') {
+      var travel = (1 - eased) * SLIDE_DISTANCE * distance;
+      return column ? { alpha: eased, dx: 0, dy: travel, scale: 1 } : { alpha: eased, dx: -travel, dy: 0, scale: 1 };
+    }
+    if (motion.type === 'scale') return { alpha: eased, dx: 0, dy: 0, scale: SCALE_FROM + (1 - SCALE_FROM) * eased };
+    return null;
+  }
+  function layerDraws(block, state, options, column) {
+    var asked = block.layers.map(function (layer, position) {
+      var draw = { alpha: 1, dx: 0, dy: 0, scale: 1 };
+      var over = options.each ? options.each(layer, position) : null;
+      if (over) for (var k in over) if (over[k] !== undefined) draw[k] = over[k];
+      return draw;
+    });
+    if (!state || typeof state.time !== 'number' || typeof state.duration !== 'number') return asked;
+    var envelope = 0, i;
+    for (i = 0; i < asked.length; i++) envelope = Math.max(envelope, asked[i].alpha);
+    return block.layers.map(function (layer, position) {
+      var own = motionDraw(layer.motion, state.time, state.duration, layer.type === 'text' ? layer.fontSize : layer.size, column);
+      if (!own) return asked[position];
+      own.alpha = own.alpha * envelope;
+      return own;
+    });
+  }
   /* Mirrors layoutBlock in src/core/layer-layout.ts, which is the copy with unit tests: change both or neither. */
   function layoutBlock(ctx, state, blockId, options) {
     var block = state && state.blocks ? state.blocks[blockId] : null;
@@ -243,10 +283,9 @@ export const BRIDGE_SCRIPT = `(function () {
     options = options || {};
     var box = options.box || block.box;
     var column = block.direction !== 'row';
+    var draws = layerDraws(block, state, options, column);
     var measured = block.layers.map(function (layer, position) {
-      var draw = { alpha: 1, dx: 0, dy: 0, scale: 1 };
-      var over = options.each ? options.each(layer, position) : null;
-      if (over) for (var k in over) if (over[k] !== undefined) draw[k] = over[k];
+      var draw = draws[position];
       if (layer.type === 'text') {
         var spacing = draw.letterSpacing === undefined ? layer.letterSpacing : draw.letterSpacing;
         var laid = layoutText(ctx, layer, box.width, spacing);
