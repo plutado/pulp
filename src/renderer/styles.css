@@ -591,6 +591,9 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0;
 }
 .image-field .image-well:hover { border-color: var(--accent); }
+/* A hidden slot: kept, but nothing is drawn there. Dimmed, as a hidden layer is. */
+.image-field .image-well.hidden-slot { opacity: 0.45; }
+.image-field .image-buttons .icon-button[aria-pressed="true"] { color: var(--accent); }
 .image-field .image-well.empty { background-image: none; background-color: var(--panel-2); border-style: dashed; color: var(--muted); font-size: var(--font-secondary); }
 .image-field .image-well .empty-label { padding: 0 var(--space-2); text-align: center; }
 .image-field .image-well.empty:hover { color: var(--text); }

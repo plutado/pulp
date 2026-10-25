@@ -878,6 +878,30 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`${field}.querySelector('.segmented [data-treatment=white]').click()`);
       await until(() => page.eval<boolean>(`${field}.querySelector('.image-treatment .tint').hidden`), 'the tint swatch gone again');
 
+      // Hidden is not cleared: nothing is drawn there, not even the fallback, and the choice is kept.
+      await page.eval(`${field}.querySelector('.image-buttons .icon-button[aria-pressed]').click()`);
+      await until(() => page.eval<boolean>(`${field}.querySelector('.image-well').classList.contains('hidden-slot')`), 'the slot hidden');
+      expect(await page.eval<string>(`${field}.querySelector('.image-name').textContent`)).toBe('tiny · not drawn');
+      expect(await page.eval<string>(`${field}.querySelector('.image-buttons .icon-button[aria-pressed]').getAttribute('aria-label')`)).toBe('Show Logo');
+      // How it would be treated is not a question worth asking while nothing is drawn.
+      expect(await page.eval<boolean>(`${field}.querySelector('.image-treatment').hidden`)).toBe(true);
+      // It rides with the parameters, so a preset keeps it.
+      await page.eval(`(() => { const n = document.getElementById('param-preset-name'); n.value = 'Hidden logo'; n.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await page.eval(`document.getElementById('param-preset-save').click()`);
+      await until(async () => {
+        try {
+          const f = JSON.parse(await readFile(join(userData, 'presets', 'pulp.samples.lower-third-bar.json'), 'utf8')) as { presets: Record<string, { logo?: { id: string; hidden: boolean } }> };
+          return f.presets['Hidden logo']?.logo?.hidden === true && typeof f.presets['Hidden logo']?.logo?.id === 'string';
+        } catch {
+          return false;
+        }
+      }, 'the preset keeping the hidden slot and its image');
+      await page.eval(`document.getElementById('param-preset-delete').click()`);
+      // Shown again, the image it kept is back.
+      await page.eval(`${field}.querySelector('.image-buttons .icon-button[aria-pressed]').click()`);
+      await until(() => page.eval<boolean>(`!${field}.querySelector('.image-well').classList.contains('hidden-slot')`), 'the slot shown again');
+      expect(await page.eval<string>(`${field}.querySelector('.image-name').textContent`)).toBe('tiny');
+
       // Clear empties the slot; applying the preset brings the image back.
       await page.eval(`${field}.querySelector('[aria-label="Clear image"]').click()`);
       await until(() => page.eval<boolean>(`${field}.querySelector('.image-well').classList.contains('empty')`), 'the cleared slot');

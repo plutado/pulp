@@ -93,7 +93,7 @@ Type-specific rules:
 | `boolean` | boolean | | |
 | `select` | string | `options`: `[{ "value": string, "label": string }]` | Values must be unique; `default` must be one of them. |
 | `font` | CSS font-family string | `options`: string[] | If `options` is given the value must be one of them. Bundle font files in the template folder and load them with `@font-face`, or use families that exist on every target system. |
-| `image` | none (`null`); the user picks a library still | `box` (required), `fit`, `align`, `margin`, `fallbackText` | An **image slot**: see below. The value the template receives is `null` or `{ id, treatment, tint, effect }`, where `id` is a library item id, never a path. |
+| `image` | none (`null`); the user picks a library still | `box` (required), `fit`, `align`, `margin`, `fallbackText` | An **image slot**: see below. The value the template receives is `null` or `{ id, treatment, tint, effect, hidden }`, where `id` is a library item id, never a path. |
 
 ### Settings by element
 

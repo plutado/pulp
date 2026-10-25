@@ -37,7 +37,7 @@ function text(over: Partial<TextLayerState> = {}): TextLayerState {
 }
 
 function image(over: Partial<ImageLayerState> = {}): ImageLayerState {
-  return { id: 'i', label: 'I', type: 'image', position: 0, spaceBefore: 0, align: 'left', image: { id: 'a'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none' }, size: 80, ...over };
+  return { id: 'i', label: 'I', type: 'image', position: 0, spaceBefore: 0, align: 'left', image: { id: 'a'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false }, size: 80, ...over };
 }
 
 function block(layers: LayerState[], over: Partial<BlockState> = {}): BlockState {
@@ -287,7 +287,7 @@ describe('blockStates', () => {
   it('names the library ids the image layers need, for the grant', () => {
     const m = manifest();
     const mark = m.blocks[0]!.layers[2] as ImageLayer;
-    const chosen: ImageLayer = { ...mark, image: { id: 'b'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none' } };
+    const chosen: ImageLayer = { ...mark, image: { id: 'b'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false } };
     const states = blockStates(m, { card: [chosen] }, { width: 1920, height: 1080 });
     expect(layerImageIds(states)).toEqual(['b'.repeat(24)]);
     expect(layerImageIds(blockStates(m, {}, { width: 1920, height: 1080 }))).toEqual([]);

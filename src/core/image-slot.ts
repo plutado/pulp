@@ -35,14 +35,25 @@ export interface SlotBox {
 /** One box for every shape, or one per aspect id ("16:9") with an optional "default". */
 export type SlotBoxes = SlotBox | Record<string, SlotBox>;
 
-/** The value an image parameter holds: which library still, and how it is treated. Null is "no image". */
+/**
+ * The value an image parameter holds: which library still, how it is treated,
+ * and whether the slot is drawn at all. `null` is "no image, and the slot
+ * shows its fallback".
+ *
+ * **Hidden** is not the same as empty: nothing is drawn in the slot, not even
+ * the fallback, and the chosen image is kept for when it is shown again. A
+ * hidden slot therefore has a value even with no image (`id: null`), which is
+ * the one case where a value carries no id.
+ */
 export interface ImageValue {
-  /** Library item id (a 24-hex string), never a path. */
-  id: string;
+  /** Library item id (a 24-hex string), never a path; null only when the slot is hidden with nothing chosen. */
+  id: string | null;
   treatment: ImageTreatment;
   /** The colour for the tinted treatment; `#rrggbb`. */
   tint: string;
   effect: ImageEffect;
+  /** Kept, but not drawn: the slot stays empty and its fallback is not shown either. */
+  hidden: boolean;
 }
 
 const ID_PATTERN = /^[0-9a-f]{24}$/;
@@ -82,9 +93,11 @@ export function validateSlotBoxes(box: unknown, path: string, errors: Validation
  */
 export function sanitizeImageValue(input: unknown): ImageValue | null | undefined {
   if (input === null || input === undefined || input === '') return null;
-  // A string is an id, or — from the command line and CSV, where everything is text — a JSON object.
+  // A string is an id, the word "hidden", or — from the command line and CSV, where everything is
+  // text — a JSON object.
   let raw: unknown = input;
   if (typeof input === 'string') {
+    if (input.trim().toLowerCase() === 'hidden') return { id: null, treatment: 'original', tint: DEFAULT_TINT, effect: 'none', hidden: true };
     if (input.trim().startsWith('{')) {
       try {
         raw = JSON.parse(input);
@@ -95,11 +108,15 @@ export function sanitizeImageValue(input: unknown): ImageValue | null | undefine
   }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const r = raw as Record<string, unknown>;
-  if (typeof r.id !== 'string' || !ID_PATTERN.test(r.id)) return undefined;
+  const id = typeof r.id === 'string' && ID_PATTERN.test(r.id) ? r.id : null;
+  const hidden = r.hidden === true;
+  // Saying `id: null` is saying the slot is empty; an object with no usable id and nothing else to
+  // say — no id at all, or one that is not an id — is input that cannot be used, and is reported.
+  if (id === null && !hidden) return 'id' in r && r.id === null ? null : undefined;
   const treatment = (IMAGE_TREATMENTS as readonly string[]).includes(r.treatment as string) ? (r.treatment as ImageTreatment) : 'original';
   const tint = isValidColor(r.tint) ? r.tint.slice(0, 7).toLowerCase() : DEFAULT_TINT;
   const effect = (IMAGE_EFFECTS as readonly string[]).includes(r.effect as string) ? (r.effect as ImageEffect) : 'none';
-  return { id: r.id, treatment, tint, effect };
+  return { id, treatment, tint, effect, hidden };
 }
 
 /** The slot's box for a frame shape: the per-aspect one, the "default", or the single box. */
@@ -147,8 +164,10 @@ export interface ImageSlotState {
   margin: number;
   /** The slot's box in pixels of this frame. */
   box: PxBox;
-  /** The text the slot falls back to when no image is chosen, or null when it has none. */
+  /** The text the slot falls back to when no image is chosen, or null when it has none — or is hidden. */
   fallback: string | null;
+  /** The slot is kept but not drawn: no image, no fallback, and the design closes the space up. */
+  hidden: boolean;
 }
 
 /** The manifest fields this module reads, so it can take a validated parameter without importing the manifest types. */
@@ -178,10 +197,12 @@ export function imageSlots(
     if (param.type !== 'image') continue;
     const p = param as ImageSlotParam;
     const value = sanitizeImageValue(values[p.id]) ?? null;
+    const hidden = value?.hidden === true;
     const frac = boxFor(p.box, size);
-    const fallbackRaw = p.fallbackText ? values[p.fallbackText] ?? fallbackLayers[p.fallbackText] : undefined;
+    // Hidden means nothing is drawn there: no image to hand over, and no fallback to stand in for it.
+    const fallbackRaw = hidden || !p.fallbackText ? undefined : values[p.fallbackText] ?? fallbackLayers[p.fallbackText];
     slots[p.id] = {
-      id: value?.id ?? null,
+      id: hidden ? null : value?.id ?? null,
       treatment: value?.treatment ?? 'original',
       tint: value?.tint ?? DEFAULT_TINT,
       effect: value?.effect ?? 'none',
@@ -190,6 +211,7 @@ export function imageSlots(
       margin: p.margin,
       box: { x: frac.x * size.width, y: frac.y * size.height, width: frac.width * size.width, height: frac.height * size.height },
       fallback: typeof fallbackRaw === 'string' ? fallbackRaw : null,
+      hidden,
     };
   }
   return slots;
@@ -234,7 +256,7 @@ export function imageIdsIn(parameters: readonly { id: string; type: string }[], 
   for (const p of parameters) {
     if (p.type !== 'image') continue;
     const v = sanitizeImageValue(values[p.id]);
-    if (v && !ids.includes(v.id)) ids.push(v.id);
+    if (v?.id && !v.hidden && !ids.includes(v.id)) ids.push(v.id);
   }
   return ids.sort();
 }
@@ -261,7 +283,7 @@ export function resolveImageCell(cell: unknown, imported: readonly ImportedImage
     const name = i.name.toLowerCase();
     return name === want || name.replace(/\.[a-z0-9]+$/, '') === stem;
   });
-  return hit ? { id: hit.id, treatment: 'original', tint: DEFAULT_TINT, effect: 'none' } : undefined;
+  return hit ? { id: hit.id, treatment: 'original', tint: DEFAULT_TINT, effect: 'none', hidden: false } : undefined;
 }
 
 /**

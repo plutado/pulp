@@ -21,10 +21,14 @@ describe('image parameters', () => {
   it('default to no image, take a library id or a value object, and refuse anything else', () => {
     const m = withSlot();
     expect(defaultParams(m).logo).toBeNull();
-    expect(resolveParams(m, { logo: id }).values.logo).toEqual({ id, treatment: 'original', tint: '#ffffff', effect: 'none' });
-    expect(resolveParams(m, { logo: { id, treatment: 'tinted', tint: '#FF8800', effect: 'glow' } }).values.logo).toEqual({ id, treatment: 'tinted', tint: '#ff8800', effect: 'glow' });
+    expect(resolveParams(m, { logo: id }).values.logo).toEqual({ id, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false });
+    expect(resolveParams(m, { logo: { id, treatment: 'tinted', tint: '#FF8800', effect: 'glow' } }).values.logo).toEqual({ id, treatment: 'tinted', tint: '#ff8800', effect: 'glow', hidden: false });
     // Unknown treatments and effects fall back on their own; a bad tint falls back to white.
-    expect(resolveParams(m, { logo: { id, treatment: 'sepia', tint: 'red', effect: 'blur' } }).values.logo).toEqual({ id, treatment: 'original', tint: '#ffffff', effect: 'none' });
+    expect(resolveParams(m, { logo: { id, treatment: 'sepia', tint: 'red', effect: 'blur' } }).values.logo).toEqual({ id, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false });
+    // A hidden slot keeps its choice and is not the same as empty (milestone 22).
+    expect(resolveParams(m, { logo: { id, hidden: true } }).values.logo).toEqual({ id, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: true });
+    expect(resolveParams(m, { logo: 'hidden' }).values.logo).toEqual({ id: null, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: true });
+
     for (const bad of ['/Users/dana/logo.png', 'nope', 42, { id: '../x' }, { treatment: 'white' }]) {
       const r = resolveParams(m, { logo: bad });
       expect(r.values.logo, String(bad)).toBeNull();

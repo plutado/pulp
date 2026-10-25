@@ -351,9 +351,21 @@ export const BRIDGE_SCRIPT = `(function () {
       }
     }
   }
+  /* A slot the person hid: nothing is drawn there, not even the fallback, and a design that
+     keeps room for it should close the space up (docs/template-format.md, "Image slots"). */
+  function slotHidden(state, slotId) {
+    var slot = state && state.images ? state.images[slotId] : null;
+    return !!(slot && slot.hidden);
+  }
+  /* The words to put where a slot's image would go: its fallback, or the text passed in; nothing when hidden. */
+  function slotText(state, slotId, instead) {
+    if (slotHidden(state, slotId)) return '';
+    var slot = state && state.images ? state.images[slotId] : null;
+    return (slot && slot.fallback) || instead || '';
+  }
   function drawImage(ctx, state, slotId, box) {
     var slot = state && state.images ? state.images[slotId] : null;
-    if (!slot || !slot.bitmap) return false;
+    if (!slot || slot.hidden || !slot.bitmap) return false;
     var target = box || slot.box;
     var at = fitBox(target, slot.bitmap.width, slot.bitmap.height, slot.fit, slot.align, slot.margin);
     ctx.save();
@@ -404,8 +416,10 @@ export const BRIDGE_SCRIPT = `(function () {
       });
     });
   }
-  window.__pulp = { ready: ready, render: render, prepare: prepare, drawImage: drawImage, fitBox: fitBox, layoutBlock: layoutBlock, drawBlock: drawBlock };
+  window.__pulp = { ready: ready, render: render, prepare: prepare, drawImage: drawImage, fitBox: fitBox, layoutBlock: layoutBlock, drawBlock: drawBlock, slotHidden: slotHidden, slotText: slotText };
   window.pulpDrawImage = drawImage;
+  window.pulpSlotHidden = slotHidden;
+  window.pulpSlotText = slotText;
   window.pulpFitBox = fitBox;
   window.pulpLayoutBlock = layoutBlock;
   window.pulpDrawBlock = drawBlock;

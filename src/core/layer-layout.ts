@@ -374,12 +374,12 @@ export function layerTexts(blocks: Record<string, BlockState>): Record<string, s
   return out;
 }
 
-/** The images the blocks' layers have chosen, one entry per layer that has one. */
-export function layerImageChoices(blocks: Record<string, BlockState>): ImageValue[] {
-  const out: ImageValue[] = [];
+/** The images the blocks' layers have chosen and draw: one entry per layer with a picture to show. */
+export function layerImageChoices(blocks: Record<string, BlockState>): (ImageValue & { id: string })[] {
+  const out: (ImageValue & { id: string })[] = [];
   for (const block of Object.values(blocks)) {
     for (const layer of block.layers) {
-      if (layer.type === 'image' && layer.image) out.push(layer.image);
+      if (layer.type === 'image' && layer.image?.id && !layer.image.hidden) out.push(layer.image as ImageValue & { id: string });
     }
   }
   return out;

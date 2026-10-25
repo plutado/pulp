@@ -124,7 +124,8 @@
     lctx.clearRect(0, 0, W, H);
     var animated = scaledBox(box, 0.92 + 0.08 * rise);
     var drew = typeof window.pulpDrawImage === 'function' && window.pulpDrawImage(lctx, state, 'logo', animated);
-    if (!drew) drawWordmark(lctx, (slot && slot.fallback) || p.name, animated, p.ink, margin);
+    var words = window.pulpSlotText(state, 'logo', p.name);
+      if (!drew && words) drawWordmark(lctx, words, animated, p.ink, margin);
 
     // Pass 2: the light, clipped to the logo's pixels. The first sweep carries the darkness ahead
     // of it; the second is light only.

@@ -4,6 +4,7 @@ import {
   boxFor,
   chosenImageIds,
   fitImage,
+  imageIdsIn,
   imageRequests,
   imageSlots,
   isSlotBox,
@@ -56,12 +57,44 @@ describe('fitImage', () => {
   });
 });
 
+describe('a hidden slot', () => {
+  it('is a value of its own: kept, with the choice, and not the same as empty', () => {
+    expect(sanitizeImageValue({ id, hidden: true })).toEqual({ id, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: true });
+    // Hidden with nothing ever chosen: the one value that carries no id.
+    expect(sanitizeImageValue({ hidden: true })).toEqual({ id: null, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: true });
+    expect(sanitizeImageValue('hidden')).toMatchObject({ id: null, hidden: true });
+    expect(sanitizeImageValue(`{"id":"${id}","hidden":true,"treatment":"white"}`)).toMatchObject({ id, hidden: true, treatment: 'white' });
+    // Saying the slot is empty is `id: null`; an object that says only "not hidden" says nothing usable.
+    expect(sanitizeImageValue({ id: null })).toBeNull();
+    expect(sanitizeImageValue({ hidden: false })).toBeUndefined();
+  });
+
+  it('draws nothing: no image to hand over, and no fallback either', () => {
+    const params = [{ id: 'logo', type: 'image', box: { x: 0, y: 0, width: 0.5, height: 0.5 }, fit: 'contain', align: 'center', margin: 0, fallbackText: 'name' }] as const;
+    const size = { width: 1920, height: 1080 };
+    const shown = imageSlots(params as never, { logo: id, name: 'Northwind' }, size).logo!;
+    expect(shown).toMatchObject({ id, hidden: false, fallback: 'Northwind' });
+    const hidden = imageSlots(params as never, { logo: { id, hidden: true }, name: 'Northwind' }, size).logo!;
+    expect(hidden).toMatchObject({ id: null, hidden: true, fallback: null });
+    // Nothing is requested, granted or stamped for it.
+    expect(imageRequests({ logo: hidden })).toEqual([]);
+    expect(chosenImageIds({ logo: hidden })).toEqual([]);
+    expect(imageIdsIn(params as never, { logo: { id, hidden: true } })).toEqual([]);
+  });
+
+  it('keeps the slot\'s box, so a design can still lay out around it', () => {
+    const params = [{ id: 'logo', type: 'image', box: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 }, fit: 'contain', align: 'center', margin: 0 }] as const;
+    const slot = imageSlots(params as never, { logo: 'hidden' }, { width: 1000, height: 1000 }).logo!;
+    expect(slot.box).toEqual({ x: 100, y: 200, width: 300, height: 400 });
+  });
+});
+
 describe('image values and slot state', () => {
   const slot: ImageSlotParam = { id: 'logo', type: 'image', box: { x: 0.5, y: 0.5, width: 0.25, height: 0.25 }, fit: 'cover', align: 'top-left', margin: 0.1, fallbackText: 'name' };
   const params = [{ id: 'name', type: 'text' }, slot, { id: 'accent', type: 'color' }];
 
   it('read a library id or an object, and nothing path-like', () => {
-    expect(sanitizeImageValue(id)).toEqual({ id, treatment: 'original', tint: '#ffffff', effect: 'none' });
+    expect(sanitizeImageValue(id)).toEqual({ id, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false });
     expect(sanitizeImageValue({ id, treatment: 'black', effect: 'shadow' })).toMatchObject({ id, treatment: 'black', effect: 'shadow' });
     expect(sanitizeImageValue(null)).toBeNull();
     expect(sanitizeImageValue('')).toBeNull();
@@ -74,7 +107,7 @@ describe('image values and slot state', () => {
 
   it('lay every slot out in pixels for the frame, with the chosen image or the fallback', () => {
     const empty = imageSlots(params, { name: 'Acme' }, { width: 1920, height: 1080 });
-    expect(empty.logo).toEqual({ id: null, treatment: 'original', tint: '#ffffff', effect: 'none', fit: 'cover', align: 'top-left', margin: 0.1, box: { x: 960, y: 540, width: 480, height: 270 }, fallback: 'Acme' });
+    expect(empty.logo).toEqual({ id: null, treatment: 'original', tint: '#ffffff', effect: 'none', fit: 'cover', align: 'top-left', margin: 0.1, box: { x: 960, y: 540, width: 480, height: 270 }, fallback: 'Acme', hidden: false });
     const chosen = imageSlots(params, { name: 'Acme', logo: { id, treatment: 'tinted', tint: '#ff8800', effect: 'glow' } }, { width: 1080, height: 1920 });
     expect(chosen.logo).toMatchObject({ id, treatment: 'tinted', tint: '#ff8800', effect: 'glow', box: { x: 540, y: 960, width: 270, height: 480 } });
     expect(Object.keys(chosen)).toEqual(['logo']);

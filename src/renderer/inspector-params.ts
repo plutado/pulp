@@ -457,8 +457,10 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
   const buttons = document.createElement('span');
   buttons.className = 'image-buttons';
   const replace = iconButton('swap', 'Replace image', 'Choose another image');
+  // Hiding is not clearing: the choice is kept, and nothing is drawn there at all — not even the fallback.
+  const hide = iconButton('eye', `Hide ${slot.label}`, 'Draw nothing here, keeping the image for later');
   const clear = iconButton('x', 'Clear image', 'Use no image: the slot shows its fallback');
-  buttons.append(replace, clear);
+  buttons.append(hide, replace, clear);
   meta.append(caption, dims, buttons);
 
   const picker = document.createElement('div');
@@ -526,12 +528,18 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
 
   const entryFor = (id: string) => appState.value.index?.media.find((m) => m.id === id);
   const show = () => {
-    const entry = value ? entryFor(value.id) : undefined;
+    const entry = value?.id ? entryFor(value.id) : undefined;
+    const isHidden = value?.hidden === true;
     well.replaceChildren();
-    well.classList.toggle('empty', !value || !entry);
+    well.classList.toggle('empty', !entry);
+    well.classList.toggle('hidden-slot', isHidden);
+    setIcon(hide, isHidden ? 'eye-slash' : 'eye');
+    hide.setAttribute('aria-label', `${isHidden ? 'Show' : 'Hide'} ${slot.label}`);
+    hide.dataset.tip = isHidden ? 'Draw it here again' : 'Draw nothing here, keeping the image for later';
+    hide.setAttribute('aria-pressed', String(isHidden));
     if (value && entry) {
       // The poster when the library has made one; the still itself otherwise, so the box is never a broken image.
-      img.src = entry.thumbnail ?? mediaUrlFor(value.id);
+      img.src = entry.thumbnail ?? mediaUrlFor(value.id!);
       well.append(img);
       well.title = '';
       caption.textContent = entry.name;
@@ -539,14 +547,16 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
       // Said only once it is known: a size the library has not probed yet is left out, not guessed.
       dims.textContent = width && height ? dimensionsLabel(width, height) : '';
     } else {
-      emptyLabel.textContent = value ? 'Image not found — choose another' : 'Choose or drop an image';
+      emptyLabel.textContent = value?.id ? 'Image not found — choose another' : 'Choose or drop an image';
       well.append(emptyLabel);
       well.title = '';
-      caption.textContent = value ? '' : 'No image; the slot shows its fallback';
+      caption.textContent = value?.id ? '' : 'No image; the slot shows its fallback';
       dims.textContent = '';
     }
-    clear.hidden = value === null;
-    treat.hidden = value === null;
+    clear.hidden = value === null || (isHidden && !value.id);
+    // A hidden slot draws nothing, so how it would be treated is not a question worth asking.
+    treat.hidden = value === null || !value.id || isHidden;
+    if (isHidden) caption.textContent = entry ? `${entry.name} · not drawn` : 'Nothing drawn here';
     const treatment = value?.treatment ?? 'original';
     for (const button of treatmentButtons) button.setAttribute('aria-pressed', String(button.dataset.treatment === treatment));
     tint.value = value?.tint ?? '#ffffff';
@@ -554,7 +564,9 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
     for (const button of effectButtons) button.setAttribute('aria-pressed', String(button.dataset.effect === (value?.effect ?? 'none')));
     note.hidden = true;
     slotProblems.delete(slot.id);
-    if (value && !entry) {
+    if (isHidden) {
+      // Nothing to report: a hidden slot draws nothing, so an image it no longer has is no problem.
+    } else if (value?.id && !entry) {
       note.hidden = false;
       note.textContent = 'The chosen image is no longer in the library. The slot shows its fallback until another is picked.';
       slotProblems.set(slot.id, { label: slot.label, note: 'Not in the library; the slot shows its fallback' });
@@ -571,7 +583,7 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
     onChange(next);
     commitParams();
   };
-  const pick = (id: string) => set({ id, treatment: value?.treatment ?? 'original', tint: value?.tint ?? '#ffffff', effect: value?.effect ?? 'none' });
+  const pick = (id: string) => set({ id, treatment: value?.treatment ?? 'original', tint: value?.tint ?? '#ffffff', effect: value?.effect ?? 'none', hidden: value?.hidden ?? false });
   const listChoices = () => {
     choices.replaceChildren();
     const stills = libraryStills(search.value);
@@ -656,6 +668,12 @@ function imageField(initial: ImageValue | null, onChange: (v: ImageValue | null)
     if (file) importFile(file);
   });
   clear.addEventListener('click', () => set(null));
+  hide.addEventListener('click', () => {
+    const now = value?.hidden === true;
+    // Showing a slot that has no image again is simply an empty slot.
+    if (now && !value?.id) set(null);
+    else set({ id: value?.id ?? null, treatment: value?.treatment ?? 'original', tint: value?.tint ?? '#ffffff', effect: value?.effect ?? 'none', hidden: !now });
+  });
   for (const button of treatmentButtons) {
     button.addEventListener('click', () => {
       if (value) set({ ...value, treatment: button.dataset.treatment as ImageValue['treatment'] });

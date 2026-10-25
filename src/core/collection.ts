@@ -174,7 +174,8 @@ export function resolveCollection(c: Collection, index: LibraryIndex | null): Re
       for (const p of entry.manifest.parameters) {
         if (p.type !== 'image') continue;
         const v = sanitizeImageValue(item.params[p.id]);
-        if (!v) continue;
+        // A hidden slot draws nothing, so a missing image behind it is nothing to flag.
+        if (!v?.id || v.hidden) continue;
         const image = byId.get(v.id);
         if (!image || image.kind !== 'media' || image.mediaKind !== 'image' || image.offline) missingImages.push(p.label);
       }

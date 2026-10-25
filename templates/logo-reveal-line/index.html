@@ -116,7 +116,8 @@
       ctx.save();
       ctx.globalAlpha = logoT * fadeOut;
       var drew = typeof window.pulpDrawImage === 'function' && window.pulpDrawImage(ctx, state, 'logo', animated);
-      if (!drew) drawWordmark((slot && slot.fallback) || p.name, animated, p.ink, margin);
+      var words = window.pulpSlotText(state, 'logo', p.name);
+      if (!drew && words) drawWordmark(words, animated, p.ink, margin);
       ctx.restore();
     }
 

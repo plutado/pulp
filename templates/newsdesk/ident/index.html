@@ -82,7 +82,8 @@
     var drawn = window.pulpDrawImage ? window.pulpDrawImage(ctx, state, 'logo', box) : false;
     if (drawn) return;
     var slot = state.images && state.images.logo;
-    wordmark((slot && slot.fallback) || state.params.name, box, color);
+    var words = window.pulpSlotText(state, 'logo', state.params.name);
+    if (words) wordmark(words, box, color);
   }
 
   window.pulpRender = function (state) {
