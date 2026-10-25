@@ -1057,10 +1057,12 @@ describe.skipIf(!electron)('inspector UI', () => {
       // Reordered: the stack order is the list order, and the drawn order follows.
       await page.eval(`${rows}[2].querySelector('[aria-label="Move Line 3 up"]').click()`);
       await until(async () => (await layerIds())[1] === added, 'the reorder');
-      const reordered = await bands();
-      expect(reordered).toHaveLength(3);
-      // The middle band is now the added line, which is set at the block's own size: taller than the subtitle.
-      expect(reordered[1]!.height).toBeGreaterThan(reordered[2]!.height);
+      // The middle band is now the added line, which is set at the block's own size: taller than the
+      // subtitle. The list reorders before the frame redraws, so wait for the drawn stack, not the list.
+      await until(async () => {
+        const b = await bands();
+        return b.length === 3 && b[1]!.height > b[2]!.height;
+      }, 'the middle band drawn taller after the reorder');
 
       // Removed, then brought back by undo.
       await page.eval(`${rows}[1].querySelector('[aria-label="Remove Line 3"]').click()`);
