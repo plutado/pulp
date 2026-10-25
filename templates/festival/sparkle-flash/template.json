@@ -77,5 +77,8 @@
       "step": 4,
       "element": "Twinkles"
     }
+  ],
+  "themes": [
+    "valentines"
   ]
 }

@@ -81,5 +81,8 @@
       "fallbackText": "name",
       "element": "Logo"
     }
+  ],
+  "themes": [
+    "christmas"
   ]
 }

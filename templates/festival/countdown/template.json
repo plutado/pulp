@@ -71,5 +71,8 @@
       "default": true,
       "element": "Confetti"
     }
+  ],
+  "themes": [
+    "new-year"
   ]
 }

@@ -731,6 +731,93 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${NOISE}*(0.08+0.3*min(1,max(0,(t-0.4)*3))*exp(-0.25*(t-0.4)))`, 5), 5, 'highpass=f=1800'),
   },
 
+  // Celebration sounds, in theme folders inside their type folders, so each occasion stands on
+  // its own rather than on every piece of the Festival pack carrying every holiday.
+  {
+    folder: ['Sound effects', 'Musical phrases', 'Christmas'], file: 'sleigh-bells.wav', type: 'musical-phrase', note: 'Sleigh bells shaken in time.',
+    recipe: audio(evalSrc(`${NOISE}*gt(mod(t,0.25),0.17)*0.3`, 4), 4, 'highpass=f=2600,lowpass=f=11000'),
+  },
+  {
+    folder: ['Sound effects', 'Musical phrases', 'Christmas'], file: 'carol-chord.wav', type: 'musical-phrase', note: 'A warm chord, carol-like, with a long tail.',
+    recipe: audio(evalSrc(`${env(0, 3.2, 0.02, 1)}*(${[55, 59, 62, 67, 71].map((m) => tone(midi(m), 4)).join('+')})*0.06`, 3.6), 3.6, 'lowpass=f=3000'),
+  },
+  {
+    folder: ['Sound effects', 'Impacts', 'Christmas'], file: 'bauble-tap.wav', type: 'impact', note: 'A glass bauble tapped once.',
+    recipe: audio(evalSrc(`(${[1760, 2640, 3520].map((f) => tone(f, 1)).join('+')})*exp(-9*t)*0.12`, 1.6), 1.6, 'highpass=f=900'),
+  },
+  {
+    folder: ['Sound effects', 'Crowd', 'New year'], file: 'midnight-cheer.wav', type: 'crowd', note: 'A room cheering at midnight.',
+    recipe: audio(evalSrc(`${NOISE}*(0.1+0.32*${bell(1.4, 1.1)})`, 6), 6, 'bandpass=f=800:width_type=o:w=2.8'),
+  },
+  {
+    folder: ['Sound effects', 'Impacts', 'New year'], file: 'cork-pop.wav', type: 'impact', note: 'A cork leaving the bottle, and the fizz after.',
+    recipe: audio(evalSrc(`${env(0, 0.08, 0.001, 70)}*(${tone(420, 2)}*0.5+${NOISE}*0.3)+${NOISE2}*gt(t,0.1)*exp(-1.6*(t-0.1))*0.12`, 2.4), 2.4),
+  },
+  {
+    folder: ['Sound effects', 'UI tech', 'New year'], file: 'countdown-pips.wav', type: 'ui-tech', note: 'Five pips and a long tone, as a countdown ends.',
+    recipe: audio(evalSrc(`${tone(1000, 1)}*lt(mod(t,1),0.1)*lt(t,5)*0.3+${tone(1500, 1)}*gt(t,5)*lt(t,6)*0.3`, 6.4), 6.4),
+  },
+  {
+    folder: ['Sound effects', 'Musical phrases', 'Valentines'], file: 'harp-gliss.wav', type: 'musical-phrase', note: 'A harp glissando upward.',
+    recipe: audio(evalSrc(`${[60, 62, 64, 67, 69, 72, 74, 76].map((m, i) => `${env(i * 0.07, 2, 0.004, 2.2)}*${tone(midi(m), 2)}*0.1`).join('+')}`, 2.6), 2.6),
+  },
+  {
+    folder: ['Sound effects', 'Musical phrases', 'Valentines'], file: 'soft-chime.wav', type: 'musical-phrase', note: 'A tender two-note chime.',
+    recipe: audio(evalSrc(`${env(0, 2, 0.006, 1.6)}*${tone(midi(76), 3)}*0.18+${env(0.35, 2.2, 0.006, 1.4)}*${tone(midi(81), 3)}*0.16`, 2.8), 2.8),
+  },
+  {
+    folder: ['Sound effects', 'Ambience', 'Valentines'], file: 'heartbeat.wav', type: 'ambience', note: 'A slow, close heartbeat.',
+    recipe: audio(evalSrc(`(${env(0, 0.3, 0.01, 14)}+${env(0.33, 0.3, 0.01, 16)})*${tone(52, 2)}*0.5`, 6), 6, 'lowpass=f=320'),
+  },
+  {
+    folder: ['Sound effects', 'Musical phrases', 'Birthday'], file: 'party-horn.wav', type: 'musical-phrase', note: 'A party horn, twice.',
+    recipe: audio(evalSrc(`(${env(0, 0.4, 0.01, 7)}+${env(0.7, 0.5, 0.01, 6)})*(${tone(520, 4)})*0.14+${NOISE}*(${env(0, 0.4, 0.01, 9)})*0.06`, 1.8), 1.8, 'bandpass=f=1200:width_type=o:w=2'),
+  },
+  {
+    folder: ['Sound effects', 'Musical phrases', 'Birthday'], file: 'music-box.wav', type: 'musical-phrase', note: 'A music-box phrase, five notes.',
+    recipe: audio(evalSrc(`${[84, 86, 88, 84, 91].map((m, i) => `${env(i * 0.3, 1.6, 0.003, 3)}*${tone(midi(m), 2)}*0.12`).join('+')}`, 3), 3, 'highpass=f=500'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'Birthday'], file: 'candle-blow.wav', type: 'foley', note: 'Candles blown out in one breath.',
+    recipe: audio(evalSrc(`${NOISE}*${bell(0.5, 0.26)}*0.45`, 1.4), 1.4, 'bandpass=f=900:width_type=o:w=2.4'),
+  },
+  {
+    folder: ['Sound effects', 'Crowd', 'Birthday'], file: 'party-cheer.wav', type: 'crowd', note: 'A small room cheering.',
+    recipe: audio(evalSrc(`${NOISE}*(0.1+0.26*${bell(1, 0.8)})`, 4), 4, 'bandpass=f=950:width_type=o:w=2.4'),
+  },
+  {
+    folder: ['Music', 'Stings', 'Graduation'], file: 'pomp-fanfare.wav', type: 'sting', note: 'A processional fanfare in two calls.',
+    recipe: audio(evalSrc(`${env(0, 1, 0.01, 2.6)}*(${[53, 60, 65].map((m) => tone(midi(m), 5)).join('+')})*0.07+${env(0.9, 2.4, 0.01, 1.2)}*(${[48, 55, 60, 64].map((m) => tone(midi(m), 5)).join('+')})*0.07`, 3.6), 3.6, 'lowpass=f=4200'),
+  },
+  {
+    folder: ['Sound effects', 'Crowd', 'Graduation'], file: 'ceremony-applause.wav', type: 'crowd', note: 'A hall applauding as a name is read.',
+    recipe: audio(evalSrc(`${NOISE}*gt(random(6),0.52)*min(1,t*3)*min(1,(5-t)*1.1)*0.36`, 5), 5, 'highpass=f=1000,lowpass=f=7500'),
+  },
+  {
+    folder: ['Sound effects', 'Whooshes', 'Graduation'], file: 'cap-toss.wav', type: 'whoosh', note: 'A cap thrown up and caught by the cheer.',
+    recipe: audio(evalSrc(`${NOISE}*pow(sin(PI*min(t,0.8)/0.8),3)*0.4`, 1.2), 1.2, 'bandpass=f=1400:width_type=o:w=1.8'),
+  },
+  {
+    folder: ['Sound effects', 'Ambience', 'Christmas'], file: 'hearth-crackle.wav', type: 'ambience', note: 'A fire crackling in a quiet room.',
+    recipe: audio(evalSrc(`${NOISE}*0.07+${NOISE2}*gt(random(7),0.86)*0.3`, 8), 8, 'lowpass=f=3200'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'New year'], file: 'glasses-clink.wav', type: 'foley', note: 'Two glasses touched in a toast.',
+    recipe: audio(evalSrc(`(${[2100, 3150].map((f) => tone(f, 1)).join('+')})*exp(-11*t)*0.14`, 1.4), 1.4, 'highpass=f=1200'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'Valentines'], file: 'paper-heart-fold.wav', type: 'foley', note: 'A card taken from its envelope.',
+    recipe: audio(evalSrc(`${NOISE}*(${bell(0.35, 0.22)}+${bell(0.95, 0.18)})*0.35`, 1.6), 1.6, 'highpass=f=2000'),
+  },
+  {
+    folder: ['Sound effects', 'Impacts', 'Graduation'], file: 'diploma-stamp.wav', type: 'impact', note: 'A seal pressed onto a diploma.',
+    recipe: audio(evalSrc(`${env(0, 0.3, 0.002, 26)}*(${NOISE}*0.35+${tone(150, 2)}*0.35)`, 1), 1, 'lowpass=f=3000'),
+  },
+  {
+    folder: ['Sound effects', 'Musical phrases', 'Wedding'], file: 'chapel-bells.wav', type: 'musical-phrase', note: 'Chapel bells ringing a change.',
+    recipe: audio(evalSrc(`${([[262, 0], [330, 0.55], [392, 1.1], [262, 1.75]] as const).map(([hz, st]) => `${env(st, 2.6, 0.004, 1.1)}*${tone(hz, 4)}*0.12`).join('+')}`, 4.4), 4.4, 'lowpass=f=4500'),
+  },
+
 
   // ---- Milestone 26: the Assets group's Effects categories. Every asset is drawn on
   // transparency by the asset page over its own time: a WebM with alpha for the moving one,
@@ -899,6 +986,20 @@ const STILLS: SampleMediaItem[] = [
   { folder: ['Design elements', 'Icons', 'City'], file: 'neon-sign.png', type: 'icons', note: 'A neon café sign.', recipe: { kind: 'still', page: 'motif', variant: 'neon-sign', format: 'png', width: 1080, height: 1080 } },
   { folder: ['Design elements', 'Icons', 'City'], file: 'metro-map.png', type: 'icons', note: 'Metro lines with their stops.', recipe: { kind: 'still', page: 'motif', variant: 'metro-lines', format: 'png', width: 1080, height: 1080 } },
   { folder: ['Design elements', 'Icons', 'Food'], file: 'chef-hat.png', type: 'icons', note: 'A chef hat.', recipe: { kind: 'still', page: 'motif', variant: 'chef-hat', format: 'png', width: 1080, height: 1080 } },
+
+  // Celebration motifs: the Festival set is a general celebration look, so the specific
+  // occasions are carried by assets of their own rather than by every piece in the pack.
+  { folder: ['Design elements', 'Icons', 'Christmas'], file: 'ornament.png', type: 'icons', note: 'A bauble on its hook.', recipe: { kind: 'still', page: 'motif', variant: 'ornament', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Christmas'], file: 'tree.png', type: 'icons', note: 'A lit tree with a star.', recipe: { kind: 'still', page: 'motif', variant: 'christmas-tree', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'New year'], file: 'champagne-pop.png', type: 'icons', note: 'A bottle popping.', recipe: { kind: 'still', page: 'motif', variant: 'champagne-pop', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'New year'], file: 'midnight-clock.png', type: 'icons', note: 'A clock at midnight.', recipe: { kind: 'still', page: 'motif', variant: 'midnight-clock', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Valentines'], file: 'heart.png', type: 'icons', note: 'A heart.', recipe: { kind: 'still', page: 'motif', variant: 'heart', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Valentines'], file: 'rose.png', type: 'icons', note: 'A single rose.', recipe: { kind: 'still', page: 'motif', variant: 'rose', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Birthday'], file: 'cake.png', type: 'icons', note: 'A cake with three candles.', recipe: { kind: 'still', page: 'motif', variant: 'birthday-cake', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Birthday'], file: 'balloons.png', type: 'icons', note: 'Three balloons on strings.', recipe: { kind: 'still', page: 'motif', variant: 'balloons', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Graduation'], file: 'cap.png', type: 'icons', note: 'A mortarboard with its tassel.', recipe: { kind: 'still', page: 'motif', variant: 'graduation-cap', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Graduation'], file: 'diploma.png', type: 'icons', note: 'A rolled diploma with its ribbon.', recipe: { kind: 'still', page: 'motif', variant: 'diploma', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Wedding'], file: 'rings.png', type: 'icons', note: 'Two rings, linked.', recipe: { kind: 'still', page: 'motif', variant: 'wedding-rings', format: 'png', width: 1080, height: 1080 } },
 ];
 
 const CLIPS: SampleMediaItem[] = [

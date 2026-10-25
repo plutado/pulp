@@ -44,7 +44,9 @@ describe('bundled sample templates', async () => {
     expect(parsed.ok ? [] : parsed.problems).toEqual([]);
     if (!parsed.ok) return;
     expect(parsed.manifest.license).toBe('CC0-1.0');
-    expect(parsed.manifest.themes?.length).toBeGreaterThan(0);
+    // A pack may hand its templates a theme, but it does not have to: a set whose pieces each
+    // fit a different occasion says so on the pieces, since a pack's themes are added to every
+    // one of them and a child theme must never sit beside its parent (ADR 0010).
     expect(parsed.manifest.styles?.length).toBeGreaterThan(0);
     const folders = (await readdir(join(TEMPLATES_DIR, pack), { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => d.name).sort();
     expect([...parsed.manifest.templates].sort()).toEqual(folders);
@@ -132,18 +134,33 @@ describe('bundled sample templates', async () => {
     }
     // Pack defaults reach the templates: the set's themes and its one style, inherited by every member;
     // the five core roles are always there, and every member declares a type.
-    const expected: Record<string, { themes: string[]; styles: string[]; types: string[]; size: number }> = {
+    const expected: Record<string, { themes: string[]; styles: string[]; types: string[]; size: number; perPiece?: boolean }> = {
       boardroom: { themes: ['corporate', 'finance', 'technology', 'real-estate'], styles: ['clean'], types: ['animated-loop', 'frame', 'lower-third', 'title', 'wipe'], size: 16 },
       newsdesk: { themes: ['news', 'documentary', 'podcast'], styles: ['high-energy'], types: ['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe'], size: 15 },
       matchday: { themes: ['sports', 'football', 'basketball', 'soccer'], styles: ['high-energy'], types: ['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe'], size: 14 },
-      festival: { themes: ['holiday', 'new-year', 'christmas', 'valentines', 'birthday', 'graduation', 'wedding'], styles: ['playful'], types: ['animated-loop', 'light-particles', 'lower-third', 'title', 'wipe'], size: 15 },
+      // Festival is a general celebration look, so the set's pieces are not all of every occasion:
+      // each says the one it fits, and the pack imposes nothing (ADR 0010 — a child theme never
+      // repeats its parent, so a piece is "christmas" or "holiday", never both).
+      festival: { themes: ['holiday', 'new-year', 'christmas', 'valentines', 'birthday', 'graduation', 'wedding'], perPiece: true, styles: ['playful'], types: ['animated-loop', 'light-particles', 'lower-third', 'title', 'wipe'], size: 15 },
     };
     for (const [slug, want] of Object.entries(expected)) {
       const set = index.templates.filter((t) => t.pack?.slug === slug);
       expect(set, slug).toHaveLength(want.size);
       for (const t of set) {
-        expect({ themes: t.manifest.themes, styles: t.manifest.styles }, t.manifest.id).toEqual({ themes: want.themes, styles: want.styles });
+        if (want.perPiece) {
+          // One theme each, drawn from the set's own vocabulary, and never a child beside its parent.
+          expect(t.manifest.themes, t.manifest.id).toHaveLength(1);
+          expect(want.themes, t.manifest.id).toContain(t.manifest.themes![0]);
+          expect({ styles: t.manifest.styles }, t.manifest.id).toEqual({ styles: want.styles });
+        } else {
+          expect({ themes: t.manifest.themes, styles: t.manifest.styles }, t.manifest.id).toEqual({ themes: want.themes, styles: want.styles });
+        }
         expect(t.manifest.type, t.manifest.id).toBeDefined();
+      }
+      // Every occasion the set names is really used by one of its pieces.
+      if (want.perPiece) {
+        const used = new Set(set.flatMap((t) => t.manifest.themes ?? []));
+        for (const theme of want.themes) expect([...used], `${slug} uses ${theme}`).toContain(theme);
       }
       expect(set.map((t) => t.manifest.type), slug).toEqual(expect.arrayContaining(want.types));
     }

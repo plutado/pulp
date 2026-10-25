@@ -95,5 +95,8 @@
       "margin": 0.1,
       "element": "Logo"
     }
+  ],
+  "themes": [
+    "holiday"
   ]
 }

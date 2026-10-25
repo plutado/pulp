@@ -81,5 +81,8 @@
       "fallbackText": "kicker",
       "element": "Logo"
     }
+  ],
+  "themes": [
+    "holiday"
   ]
 }

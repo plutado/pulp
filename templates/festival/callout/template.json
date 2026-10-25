@@ -108,5 +108,8 @@
       "step": 0.1,
       "element": "Layout and timing"
     }
+  ],
+  "themes": [
+    "holiday"
   ]
 }

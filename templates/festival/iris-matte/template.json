@@ -79,5 +79,8 @@
       ],
       "element": "Layout and timing"
     }
+  ],
+  "themes": [
+    "holiday"
   ]
 }
