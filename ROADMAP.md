@@ -22,6 +22,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 19. Vertical and square formats | 13-21 h |
 | 22. Image slots in templates | 19-29 h |
 | 23. Layers in templates | 37-56 h |
+| 24. Browse panel: find as you type, one section open, deeper samples | 24-39 h |
 | 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 8-13 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -30,9 +31,9 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-23)** | **238-387 h** |
-| **Still open through 1.0 (unticked items only)** | **33-54 h** |
-| **Total including post-1.0 items** | **270-445 h** |
+| **Total through 1.0 (milestones 1-8, 10-13 and 17-24)** | **262-426 h** |
+| **Still open through 1.0 (unticked items only)** | **57-93 h** |
+| **Total including post-1.0 items** | **294-484 h** |
 
 ## 0. Foundation (done)
 
@@ -256,6 +257,14 @@ Milestone 22's fixed image slots stay exactly as they are. A slot is the author'
 - [x] Layers travel: saved presets, collection items, `.pulpcollection` files, `--param` headlessly, and a CSV batch with a column per layer. The render cache key covers the layers, so an added line renders afresh, and undo covers adding, removing, hiding, reordering and every property. They ride in the same bag of raw values as the parameters, so every route that carried parameters carries them; `--param '@layers={…}'` takes JSON, patching the template's stack and naming a bad block, a bad layer or bad JSON rather than falling back; each route has its own check (3-5 h)
 - [x] The Parameters tab by element, not by kind of setting. With layers a flat "Colors" group stopped saying what each colour affects, so a template names the part each setting belongs to (an `element` field beside `group`, validated and documented) and the tab becomes one collapsible card per part: a card per layer with its words, its type and what can be done to it; a card per element the parameters name, which a slot can join; and "Layout and timing" last for what belongs to the whole graphic. Layers a person adds are cards like the template's own. A template that names no element keeps the plain form it had. Title Card and Lower Third Bar are regrouped and their text colour lives on their text layers; the rest of the bundled templates name no element yet and are unchanged (4-6 h)
 - [x] Motion, last, behind an "Advanced" disclosure: the template owns a layer's movement by default, and a per-layer override offers Template, Fade, Slide, Scale or None with a delay. An overridden layer still finishes inside the template's own in and out, so no layer can be left on screen after the graphic has gone. The timing is pure and unit tested; the end-to-end test overrides one layer and reads pixels at the ends (3-5 h)
+
+## 24. Browse panel: find a category as you type, one section open at a time, deeper samples (24-39 h; GitHub issue pending)
+
+Right after milestone 23. The taxonomy has filled out — 46 types, 51 themes and 11 styles, with milestone 21 giving every type three to five samples — and the tree that maps it has grown past what scrolling serves: finding a category should be typing, not hunting, and the tree should stay short while you do. The third item deepens what choosing a category shows, so a node is never a near-empty room. (Pull requests took #24 and #25, so this milestone's GitHub issue gets its own number when it is created, noted here then.)
+
+- [ ] Find a category as you type: a field at the top of the browse panel, with Quick access, listing matching nodes across every taxonomy — types, themes, styles, packs, folders, and the Quick access entries — each labelled with where it lives ("Lower third · Types", "Holiday · Themes"). Choosing one selects that node and scopes the results exactly as clicking it in the tree does, scope chip and all. Keyboard first: arrows and Enter, Escape to clear; it finds categories, and the search bar above keeps finding items. The matching is a pure core module with unit tests, and the end-to-end test types, chooses and sees the scope land (4-6 h)
+- [ ] One section open at a time: opening a section or a group folds the others at its level, so the tree stays short. A setting, on by default; choosing a node in the find field unfolds the path to it and folds the rest (2-3 h)
+- [ ] Six or more original samples per category: every type, theme and style reaches at least six CC0 samples across the bundled templates and the sample-media catalogue, with no upper limit. The coverage test becomes a minimum only — today it fails a type above five unless exempted (18-30 h)
 
 ## 20. Social-ready export (8-13 h)
 
