@@ -344,7 +344,7 @@ initTray((id) => {
   const entry = [...(index?.templates ?? []), ...(index?.media ?? [])].find((e) => e.id === id);
   if (entry) dispatch((s) => setCollection(s, addItem(s.collection, itemFor(entry, currentPresetId(), currentOptions(), entry.kind === 'template' ? currentRawParams() : {}))));
 });
-mountBrowse($('browse-tree'));
+mountBrowse($('browse-find'), $('browse-tree'));
 mountResults(els.results, { onSelect: select, onStop: stopPlayback });
 
 // Add to collection: the item on the stage, with whatever the Output tab currently says.

@@ -2270,6 +2270,56 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)).toBe(true);
     }, 60_000);
 
+    it('finds a category as you type, names where it lives, and choosing it scopes the results', async () => {
+      await clearSearch();
+      const input = `document.querySelector('#browse-find input')`;
+      const type = (text: string) => page.eval(`(() => { const f = ${input}; f.value = ${JSON.stringify(text)}; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      const press = (key: string) => page.eval(`${input}.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(key)}, bubbles: true, cancelable: true }))`);
+      const options = () =>
+        page.eval<{ label: string; place: string; active: boolean }[]>(
+          `[...document.querySelectorAll('#browse-find-list [role=option]')].map((o) => ({ label: o.querySelector('.label').textContent, place: o.querySelector('.place').textContent, active: o.classList.contains('active') }))`,
+        );
+
+      // Matches come from every taxonomy, each named with the section it lives in; the first is active.
+      await type('lower');
+      await until(async () => (await options()).length > 0, 'matches for "lower"');
+      const lower = await options();
+      expect(lower[0]).toMatchObject({ label: 'Lower third', place: 'Types', active: true });
+      await type('holi');
+      await until(async () => (await options()).some((o) => o.place === 'Themes'), 'a theme match for "holi"');
+
+      // Keyboard first: the arrows move the active option, Enter chooses it, and the scope lands as if clicked in the tree.
+      await type('lower');
+      await until(async () => (await options())[0]?.label === 'Lower third', 'matches for "lower" again');
+      await press('Enter');
+      await until(async () => !(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)), 'the scope chip from the find field');
+      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower third');
+      const scoped = await names();
+      expect(scoped).toContain('Lower Third Bar');
+      expect(scoped).not.toContain('Diagonal Wipe');
+      // The field is clear again and its list closed: the choice is made, the tree shows it.
+      expect(await page.eval<string>(`${input}.value`)).toBe('');
+      expect(await page.eval<boolean>(`document.getElementById('browse-find-list').hidden`)).toBe(true);
+      expect(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]').classList.contains('active') ? 'yes' : 'no'`)).toBe('yes');
+      await page.eval(`document.getElementById('scope-chip-clear').click()`);
+      await until(async () => (await names()).includes('Diagonal Wipe'), 'the full library after clearing the scope');
+
+      // ArrowDown walks the list; Escape clears the field and closes the list.
+      await type('s');
+      await until(async () => (await options()).length > 1, 'several matches for "s"');
+      await press('ArrowDown');
+      expect((await options())[1]?.active).toBe(true);
+      await press('Escape');
+      expect(await page.eval<string>(`${input}.value`)).toBe('');
+      expect(await page.eval<boolean>(`document.getElementById('browse-find-list').hidden`)).toBe(true);
+
+      // It finds categories, not items: a template's name answers nothing here.
+      await type('Boardroom opener');
+      expect(await options()).toEqual([]);
+      expect(await page.eval<string>(`document.querySelector('#browse-find-list .find-none').textContent`)).toBe('No category matches');
+      await press('Escape');
+    }, 60_000);
+
     it('switches the results between cards and rows, and remembers the choice', async () => {
       await clearSearch();
       // Cards by default for anything visual: a thumbnail with badges under the name.

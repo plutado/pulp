@@ -17,6 +17,7 @@
 import { render } from 'preact';
 import { computed, signal } from '@preact/signals';
 import { sameScope, setScope } from '../core/app-state';
+import { findBrowseNodes, type FindMatch } from '../core/browse-find';
 import type { TreeNode } from '../core/browse-tree';
 import { appState, browseTree, dispatch } from './store';
 import { Icon, scopeIcon } from './icons';
@@ -30,6 +31,101 @@ function toggleFold(id: string): void {
   if (next.has(id)) next.delete(id);
   else next.add(id);
   folded.value = next;
+}
+
+/** Unfold every ancestor of a chosen node, so the choice is on screen where the tree says it lives. */
+function unfoldPath(path: readonly string[]): void {
+  if (!path.some((id) => folded.value.has(id))) return;
+  const next = new Set(folded.value);
+  for (const id of path) next.delete(id);
+  folded.value = next;
+}
+
+/**
+ * Find a category as you type (milestone 24): a combobox over the browse
+ * tree's own nodes, each answer named with the section it lives in. Choosing
+ * one selects that node — the same scope as clicking it in the tree, chip and
+ * all — and unfolds the tree to it. It finds categories; the search bar above
+ * the results keeps finding items.
+ */
+const findQuery = signal('');
+const findActive = signal(0);
+const findMatches = computed(() => findBrowseNodes(browseTree.value, findQuery.value));
+
+function setFindQuery(value: string): void {
+  findQuery.value = value;
+  findActive.value = 0;
+}
+
+function pickMatch(match: FindMatch): void {
+  dispatch((s) => setScope(s, match.scope));
+  unfoldPath(match.path);
+  setFindQuery('');
+}
+
+function onFindKeyDown(e: KeyboardEvent): void {
+  const matches = findMatches.value;
+  const open = matches.length > 0;
+  if (e.key === 'ArrowDown' && open) {
+    findActive.value = (findActive.value + 1) % matches.length;
+  } else if (e.key === 'ArrowUp' && open) {
+    findActive.value = (findActive.value - 1 + matches.length) % matches.length;
+  } else if (e.key === 'Enter' && open) {
+    pickMatch(matches[Math.min(findActive.value, matches.length - 1)]!);
+  } else if (e.key === 'Escape' && findQuery.value !== '') {
+    setFindQuery('');
+  } else {
+    return;
+  }
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+function Find() {
+  const matches = findMatches.value;
+  const open = matches.length > 0;
+  const activeAt = Math.min(findActive.value, Math.max(0, matches.length - 1));
+  return (
+    <div class="find-field">
+      <input
+        type="text"
+        role="combobox"
+        placeholder="Find a category"
+        aria-label="Find a category"
+        aria-expanded={open}
+        aria-controls="browse-find-list"
+        aria-activedescendant={open ? `browse-find-option-${activeAt}` : undefined}
+        aria-autocomplete="list"
+        value={findQuery.value}
+        onInput={(e) => setFindQuery((e.currentTarget as HTMLInputElement).value)}
+        onKeyDown={onFindKeyDown}
+      />
+      <ul id="browse-find-list" class="find-list" role="listbox" aria-label="Matching categories" hidden={!open && findQuery.value.trim() === ''}>
+        {matches.map((m, i) => (
+          <li
+            key={m.id}
+            id={`browse-find-option-${i}`}
+            role="option"
+            aria-selected={i === activeAt}
+            class={i === activeAt ? 'active' : ''}
+            data-node={m.id}
+            onMouseDown={(e) => {
+              e.preventDefault(); // keep focus in the field
+              pickMatch(m);
+            }}
+          >
+            <Icon name={scopeIcon(m.scope.kind, m.scope.group)} />
+            <span class="label">{m.label}</span>
+            <span class="place">{m.place}</span>
+            <span class="count" aria-hidden="true">{m.count}</span>
+          </li>
+        ))}
+        {!open && findQuery.value.trim() !== '' && (
+          <li class="find-none" role="presentation">No category matches</li>
+        )}
+      </ul>
+    </div>
+  );
 }
 
 /** A group's icon: its own scope's, or the one its children carry. */
@@ -177,7 +273,8 @@ function onKeyDown(e: KeyboardEvent): void {
   }
 }
 
-export function mountBrowse(container: HTMLElement): void {
+export function mountBrowse(find: HTMLElement, container: HTMLElement): void {
+  render(<Find />, find);
   container.addEventListener('keydown', onKeyDown);
   render(<Tree />, container);
 }
