@@ -74,6 +74,16 @@ Milestones 1-6, 10-13, 18, 19, 21-25 (renderer, alpha export, parameter editor, 
 
 The milestones through 1.0 total **313-501 hours**, of which **59-94 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, media slots, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
+### Also decided, not yet scheduled
+
+These are agreed and waiting for a milestone; the details, and the order they come in, are in [docs/ideas.md](docs/ideas.md).
+
+- **Rotate layers on the stage:** a rotate handle beside the move and resize ones, with snapping and an exact angle.
+- **Any length, set while editing:** templates declare an entrance, a hold and an exit, and you stretch the hold on the scrub bar or with a Length control, so a lower third can stay up as long as someone speaks.
+- **Projects and Pulp's own menu:** a `.pulp` project file that keeps the whole session (save, open, recent projects, autosave and recovery), and a File, Edit, View and Playback menu with a shortcut for every command.
+- **A start screen:** new and example projects, recent projects, a guided tour of the window, what's new, and a first-run checklist.
+- **A `pulp` command** for scripted renders, packaging today's headless flags.
+
 ## Template format
 
 The format is specified in [docs/template-format.md](docs/template-format.md). One hundred and twenty-four original sample templates live in [`templates/`](templates/) and are released under CC0 1.0: sixty-four standalone samples and four matched sets, each a pack of fourteen to sixteen templates sharing one look — a lower third, title, opener, end card, callout, transition, overlay, background, bug and more — **Boardroom** (corporate: ink blue and paper white, hairline rules, measured motion), **Newsdesk** (broadcast: signal red on navy, bold capitals, a diagonal slash motif), **Matchday** (sports: volt yellow on black, chevrons, a score bug, snappy moves) and **Festival** (celebration, any season: warm gold on deep plum, bokeh and confetti, gentle bouncy motion). The standalone samples spread across the style list — tech, retro, organic, hand-drawn, elegant, cinematic, grunge, playful and clean — so that every type, theme and style in the browse tree is at least six samples deep, counting the sample-media catalogue alongside the templates. The ten Assets categories are the exception, at two each until milestone 26 finishes filling them.

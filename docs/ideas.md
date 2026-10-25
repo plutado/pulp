@@ -19,11 +19,13 @@ The maintainer's intended sequence for what is decided here and what is already 
 1. **Quick wins from Decided:** all done — ghost slots, element cards for every bundled template, the Festival themes, and browse tree counts for screen readers. (The category search filtering the tree, and the tree showing only where you are, are done — milestone 24.)
 2. **Protection before the larger work:** done — every bundled template is hashed at each aspect and a few fixed frames (`tests/e2e/visual.e2e.test.ts`, 124 templates in `tests/visual/references.json`). It runs locally only until the cross-platform known issue above is settled. CI runs on Windows, macOS and Linux with a dependency audit.
 3. **Milestone 26: assets on the stage** — *in progress.* The Assets type group and the first two generated examples per category are in; what remains is six per category plus the Objects kind, asset libraries, Video layers, drop-onto-the-stage, and the rights-and-performance item. This is where a new session picks up.
-4. **Timing: any length, set while editing** (Decided item 5).
-5. **Milestone 27:** projects and the application menu.
-6. **Milestone 20:** social-ready export.
-7. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
-8. **Last:** milestone 17 (unsigned builds and the app icon), then milestone 7 (signing and auto-update).
+4. **Rotate layers on the stage** (Decided item 7).
+5. **Timing: any length, set while editing** (Decided item 5).
+6. **Milestone 27:** projects and the application menu.
+7. **The start screen:** examples, recent projects, a tour and a dashboard (Decided item 6).
+8. **Milestone 20:** social-ready export.
+9. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
+10. **Last:** milestone 17 (unsigned builds and the app icon), then milestone 7 (signing and auto-update).
 
 ## Decided
 
@@ -52,7 +54,19 @@ The maintainer's intended sequence for what is decided here and what is already 
    - **Backgrounds and loops repeat seamlessly** to any length (bringing forward milestone 15's loop item); **transitions** keep their designed length, with an optional speed control.
    - The bundled templates declare their parts; titles, lower thirds, callouts and overlays first. Undo covers every length change.
 
+6. **A start screen: examples, recent projects, a tour and a dashboard.** A new milestone placed right after milestone 27 (it needs `.pulp` projects). Shown at launch and from File → Home, with a "Show at startup" switch.
+   - **Get going:** New project, blank or by shape (16:9, 9:16, 1:1, 4:5), and by platform once milestone 20 exists. **Example projects:** a handful of ready-made `.pulp` files built from the bundled samples, each showing something Pulp does well (an interview with a lower third and a logo, a sports-highlight opener, a vertical social clip, a wedding title, a news package with ticker and bug, a product launch with layers and motion); opening one opens a copy, so the example stays as it was.
+   - **Recent projects** with thumbnails, last-opened dates and pinning; a missing file shows as missing, with a way to relink it.
+   - **Learn:** "Take the tour", a short guided walkthrough of the window (browse panel, stage, Parameters tab, collection tray) with highlights and Next / Skip, offered on first launch and replayable from Help; "What's new" from the changelog's latest release; keyboard shortcuts and the user guide (milestone 8).
+   - **Set up and status:** a first-run checklist (ffmpeg found, a library folder added, sample media made), each item a button that does it; the library at a glance (template and media counts, most-used categories, favourites); quick actions (add a library folder, import a pack, import a font). Milestone 14's "guided setup" can fold into the checklist.
+
+7. **Rotate layers on the stage** (extends milestone 25's placement; placed right after milestone 26). Placement is move and scale only today. Add rotation: a rotate handle just above the selected layer's outline turns it about its centre, Shift snaps to 15° steps, and an angle field in the layer's card sets it exactly; "Reset position" clears rotation with offset and scale. Stored with the placement per aspect, in degrees, so a 16:9 layout's rotation doesn't move the 9:16 one. The host applies it around the template's own draw of the layer, like offset and scale, so templates need no changes and the layer's motion still plays, rotated. Selection, hit-testing and snapping follow the rotated outline. Presets, collections, CSV, the cache key and undo carry it.
+
 ## Known issues
+
+- **Linux CI: 8K frames are clipped by one pixel** (CI run 40240858897 on `fb2b3a5`, `render-linux`): the virtual screen is exactly 7680 × 4320, and an offscreen window is kept inside it, so the 8K test captured 7679 × 4319. The CI virtual screen is now 8192 × 4608, larger than any render; the underlying clipping is the Linux issue above.
+- **Linux CI: colours one step off** (same run): three render tests read 218 where they expect exactly 217. Ubuntu's ffmpeg is 6.1, while Windows and macOS have 8 or 9, and it rounds the colour conversion a shade differently. Install a current ffmpeg on the Linux job, or allow a one-step tolerance in those checks.
+- **macOS CI: a blank frame can still slip through** (same run, `render-macos`): "renders between in and out points…" read 0 where it expected 217. `7d819f9` (draining the load's paints before the first frame) made the macOS job green once, so the stale-capture cause is narrowed but not gone.
 
 - **Linux: a render is clipped to the screen.** On Linux an offscreen render window is kept inside the screen, so on a 1920 × 1080 display a 1080p frame was captured at 1919 × 1079 and the render refused it (CI run 40240070884, `render-linux`, before its virtual screen was enlarged). CI now uses a 7680 × 4320 virtual screen, but a person on a 1080p Linux desktop would still hit it, and 4K or 8K renders on a smaller screen likewise. Make offscreen windows independent of the screen size on Linux, or size the capture another way, and test it on a small virtual screen.
 
