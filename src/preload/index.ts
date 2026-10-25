@@ -70,6 +70,7 @@ const api: PulpApi = {
   saveInfoSections: (sections) => ipcRenderer.invoke('info-sections:save', sections),
   getPlayer: () => ipcRenderer.invoke('player:get'),
   savePlayer: (player) => ipcRenderer.invoke('player:save', player),
+  getBrowseAccordion: () => ipcRenderer.invoke('browse-accordion:get'),
   getResultsView: () => ipcRenderer.invoke('results-view:get'),
   saveResultsView: (view) => ipcRenderer.invoke('results-view:save', view),
   onRenderQueue: (listener) => {

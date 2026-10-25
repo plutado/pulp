@@ -2431,5 +2431,44 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await cardH()) > wide, 'the tall pitch for the mixed grid');
       expect(await onResult<string>('Lower Third Bar', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('1920 / 1080');
     }, 60_000);
+
+    // Last in this suite on purpose: under the accordion, opening folds the other sections, and
+    // nothing after this test reads the tree, so the folded state cannot trip a neighbour.
+    it('keeps one section open at a time: opening a section folds the others', async () => {
+      const heading = (id: string) => `document.querySelector('#browse-tree .section-heading[data-node=${JSON.stringify(id)}]')`;
+      const openState = () =>
+        page.eval<Record<string, string>>(
+          `Object.fromEntries([...document.querySelectorAll('#browse-tree .section-heading')].map((h) => [h.dataset.node, h.getAttribute('aria-expanded')]))`,
+        );
+      // The tree starts fully open; folding one section is free and touches nothing else.
+      expect((await openState()).types).toBe('true');
+      await page.eval(`${heading('types')}.click()`);
+      await until(async () => (await openState()).types === 'false', 'Types folded');
+      expect((await openState()).themes).toBe('true');
+      // Opening it again folds the other sections: one stands open at a time.
+      await page.eval(`${heading('types')}.click()`);
+      await until(async () => (await openState()).types === 'true', 'Types open again');
+      const after = await openState();
+      for (const [id, open] of Object.entries(after)) expect(open, id).toBe(id === 'types' ? 'true' : 'false');
+      // The same inside a section: opening one type group folds the other groups, not the sections.
+      // A group's row selects its scope; its twisty is what folds.
+      const twist = (id: string) => page.eval(`document.querySelector('#browse-tree [data-node=${JSON.stringify(id)}]').closest('.node-row').querySelector('.twisty').click()`);
+      const groupOpen = (id: string) => page.eval<string>(`document.querySelector('#browse-tree [data-node=${JSON.stringify(id)}]').getAttribute('aria-expanded')`);
+      await twist('group:titles');
+      await until(async () => (await groupOpen('group:titles')) === 'false', 'the group folded');
+      await twist('group:titles');
+      await until(async () => (await groupOpen('group:titles')) === 'true', 'the group open again');
+      expect(await groupOpen('group:transitions')).toBe('false');
+      expect((await openState()).types).toBe('true');
+      // The find field still reaches into a folded section: choosing a theme unfolds the path to it.
+      await page.eval(`(() => { const f = document.querySelector('#browse-find input'); f.value = 'holiday'; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-find-list [role=option]')`), 'a match for "holiday"');
+      await page.eval(`document.querySelector('#browse-find input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))`);
+      await until(async () => (await openState()).themes === 'true', 'Themes unfolded by the choice');
+      // A find is a jump, not a reorganisation: what was open before the choice is still open.
+      expect((await openState()).types).toBe('true');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="theme:holidays"].active')`), 'the chosen theme group active in the tree');
+      await page.eval(`document.getElementById('scope-chip-clear').click()`);
+    }, 60_000);
   });
 });

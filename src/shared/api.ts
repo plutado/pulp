@@ -244,6 +244,8 @@ export interface PulpApi {
   /** Stage player preferences: loop, background, safe areas, volume. */
   getPlayer(): Promise<PlayerState>;
   savePlayer(player: PlayerState): Promise<void>;
+  /** Whether the browse tree keeps one section open at a time, from settings.json; on by default. */
+  getBrowseAccordion(): Promise<boolean>;
   /** Grid or list per kind and the thumbnail size, from settings.json. */
   getResultsView(): Promise<ResultsViewState>;
   saveResultsView(view: ResultsViewState): Promise<void>;

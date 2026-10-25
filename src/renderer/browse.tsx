@@ -18,6 +18,7 @@ import { render } from 'preact';
 import { computed, signal } from '@preact/signals';
 import { sameScope, setScope } from '../core/app-state';
 import { findBrowseNodes, type FindMatch } from '../core/browse-find';
+import { toggleFolded, unfoldPath } from '../core/browse-fold';
 import type { TreeNode } from '../core/browse-tree';
 import { appState, browseTree, dispatch } from './store';
 import { Icon, scopeIcon } from './icons';
@@ -26,19 +27,16 @@ const activeScope = computed(() => appState.value.scope);
 /** Folded sections and groups, by node id; the tree starts fully open. */
 const folded = signal<ReadonlySet<string>>(new Set());
 
-function toggleFold(id: string): void {
-  const next = new Set(folded.value);
-  if (next.has(id)) next.delete(id);
-  else next.add(id);
-  folded.value = next;
-}
+/**
+ * One section open at a time (milestone 24): opening a section or a group
+ * folds the others at its level, so the tree stays short. On by default;
+ * `browseAccordion: false` in settings.json folds and unfolds freely. The
+ * boot reads the setting (src/renderer/main.ts).
+ */
+export const browseAccordion = signal(true);
 
-/** Unfold every ancestor of a chosen node, so the choice is on screen where the tree says it lives. */
-function unfoldPath(path: readonly string[]): void {
-  if (!path.some((id) => folded.value.has(id))) return;
-  const next = new Set(folded.value);
-  for (const id of path) next.delete(id);
-  folded.value = next;
+function toggleFold(id: string): void {
+  folded.value = toggleFolded(browseTree.value, folded.value, id, browseAccordion.value);
 }
 
 /**
@@ -59,7 +57,8 @@ function setFindQuery(value: string): void {
 
 function pickMatch(match: FindMatch): void {
   dispatch((s) => setScope(s, match.scope));
-  unfoldPath(match.path);
+  // A find is a jump, not a reorganisation: the path to the choice opens, nothing else moves.
+  folded.value = unfoldPath(folded.value, match.path);
   setFindQuery('');
 }
 

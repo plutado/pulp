@@ -243,6 +243,7 @@ function registerIpc(): void {
     await updateSettings((s) => ({ ...s, player: sanitizePlayer(player) }));
   });
 
+  ipcMain.handle('browse-accordion:get', async () => (await loadSettings()).browseAccordion);
   ipcMain.handle('results-view:get', async () => (await loadSettings()).resultsView);
   ipcMain.handle('results-view:save', async (_event, view: unknown) => {
     await updateSettings((s) => ({ ...s, resultsView: sanitizeResultsView(view) }));

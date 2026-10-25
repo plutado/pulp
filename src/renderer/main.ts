@@ -9,7 +9,7 @@ import { initShell } from './shell';
 import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
 import { currentLayers, currentRawParams, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
 import { currentOptions, currentPresetId, initInspectorOutput, outputSetFfmpeg, outputShow, setTemplateShower, updateRenderControls } from './inspector-output';
-import { mountBrowse } from './browse';
+import { browseAccordion, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
 import { initTray } from './tray';
@@ -345,6 +345,7 @@ initTray((id) => {
   if (entry) dispatch((s) => setCollection(s, addItem(s.collection, itemFor(entry, currentPresetId(), currentOptions(), entry.kind === 'template' ? currentRawParams() : {}))));
 });
 mountBrowse($('browse-find'), $('browse-tree'));
+void window.pulp.getBrowseAccordion().then((on) => (browseAccordion.value = on));
 mountResults(els.results, { onSelect: select, onStop: stopPlayback });
 
 // Add to collection: the item on the stage, with whatever the Output tab currently says.

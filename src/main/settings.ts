@@ -27,6 +27,8 @@ export interface Settings {
   resultsView: ResultsViewState;
   /** Stage player preferences: loop, background, safe areas, volume (src/core/player.ts). */
   player: PlayerState;
+  /** The browse tree keeps one section or group open at a time; false folds and unfolds freely. */
+  browseAccordion: boolean;
   /** True once the "your editor links to this file" notice has been shown and dismissed. */
   dragNoticeSeen: boolean;
   /** Which Info tab sections are open, by section id (src/core/item-info.ts). */
@@ -41,6 +43,7 @@ const DEFAULTS: Settings = {
   layout: DEFAULT_LAYOUT,
   resultsView: DEFAULT_RESULTS_VIEW,
   player: DEFAULT_PLAYER,
+  browseAccordion: true,
   dragNoticeSeen: false,
   infoSections: {},
 };
@@ -69,6 +72,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     layout: sanitizeLayout(raw.layout),
     resultsView: sanitizeResultsView(raw.resultsView),
     player: sanitizePlayer(raw.player),
+    browseAccordion: raw.browseAccordion !== false,
     dragNoticeSeen: raw.dragNoticeSeen === true,
     infoSections: sanitizeInfoSections(raw.infoSections),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
