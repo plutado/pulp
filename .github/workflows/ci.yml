@@ -101,7 +101,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install ffmpeg and a virtual display
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg xvfb
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg xvfb dbus dbus-x11
       - run: npm ci
       - name: Fetch the Electron binary
         # Electron 44 downloads its binary the first time it runs, not during npm ci, and the
@@ -115,4 +115,6 @@ jobs:
           sudo chown root node_modules/electron/dist/chrome-sandbox
           sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - name: Unit and end-to-end tests
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm test
+        # A session bus, which the runner lacks: without one Electron logs "Failed to connect to the
+        # bus" on every launch, and the tests that expect a quiet run read it as an error.
+        run: dbus-run-session -- xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm test
