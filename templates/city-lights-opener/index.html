@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>City Lights Opener</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // City Lights Opener, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // The skyline is built from the seeded hash, the same towers every render; each
+  // window has its own moment to come on, sweeping roughly left to right.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var inF = 1.6, outF = 0.8;
+    var hold = Math.min(p.inOut, Math.max(0.2, d - inF - outF));
+    var gone = easeInOut(clamp01((t - inF - hold) / outF));
+    var come = easeOut(clamp01(t / inF));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+    ctx.globalAlpha = show;
+
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#060913');
+    g.addColorStop(1, '#101828');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // Towers across the frame, windows lighting on a left-to-right sweep with local scatter.
+    var x = 0, i = 0;
+    while (x < W) {
+      var bw = W * (0.045 + at(i) * 0.05);
+      var bh = H * (0.25 + at(i + 40) * 0.5);
+      ctx.fillStyle = i % 2 ? '#0c1320' : '#0a111c';
+      ctx.fillRect(x, H - bh, bw, bh);
+      var cols = Math.max(2, Math.floor(bw / (26 * u)));
+      var rows = Math.max(3, Math.floor(bh / (34 * u)));
+      for (var r2 = 0; r2 < rows; r2++) {
+        for (var c2 = 0; c2 < cols; c2++) {
+          var seed = i * 131 + r2 * 17 + c2;
+          var moment = (x / W) * 0.8 + at(seed) * 0.5; // 0..1.3 of the sweep
+          if (come * 1.3 < moment) continue;
+          if (at(seed + 7) < 0.35) continue; // a third of the windows stay dark
+          ctx.fillStyle = p.glow;
+          ctx.globalAlpha = show * (0.5 + at(seed + 13) * 0.5);
+          ctx.fillRect(x + bw * 0.12 + c2 * (bw * 0.8 / cols), H - bh + 14 * u + r2 * (bh - 24 * u) / rows, bw * 0.5 / cols, 9 * u);
+        }
+      }
+      x += bw + 6 * u;
+      i++;
+    }
+    ctx.globalAlpha = show;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    var wordsIn = easeOut(clamp01((t - 1) / 0.8));
+    ctx.globalAlpha = show * wordsIn;
+    ctx.fillStyle = '#f4f7ff';
+    ctx.font = '700 ' + Math.round(100 * u) + 'px Montserrat';
+    ctx.fillText(p.title, W / 2, H * 0.34);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

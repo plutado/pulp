@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.race-start-countdown",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Race Start Countdown",
+  "category": "other",
+  "type": "countdown",
+  "description": "Five start lights fill one per second, hold, and go out all at once on GO. The lights-out start, for races and launches of any kind.",
+  "tags": [
+    "countdown",
+    "start lights",
+    "race"
+  ],
+  "themes": [
+    "motorsport"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 8,
+  "parameters": [
+    {
+      "id": "lamp",
+      "type": "color",
+      "label": "Lamps",
+      "default": "#ef4444",
+      "element": "Gantry"
+    },
+    {
+      "id": "word",
+      "type": "text",
+      "label": "Final word",
+      "default": "GO",
+      "maxLength": 8,
+      "element": "Gantry"
+    }
+  ]
+}

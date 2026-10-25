@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.lap-counter",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Lap Counter",
+  "category": "other",
+  "type": "counter",
+  "description": "LAP so-many of so-many in a pit-board panel, with a sector bar sweeping each lap through. For race recaps and time-attack runs.",
+  "tags": [
+    "counter",
+    "laps",
+    "race"
+  ],
+  "themes": [
+    "motorsport"
+  ],
+  "styles": [
+    "tech"
+  ],
+  "duration": 6,
+  "parameters": [
+    {
+      "id": "lap",
+      "type": "number",
+      "label": "Lap",
+      "default": 14,
+      "min": 1,
+      "max": 999,
+      "step": 1,
+      "element": "Board"
+    },
+    {
+      "id": "of",
+      "type": "number",
+      "label": "Of",
+      "default": 20,
+      "min": 1,
+      "max": 999,
+      "step": 1,
+      "element": "Board"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#facc15",
+      "element": "Board"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Hold, seconds",
+      "default": 3.2,
+      "min": 1,
+      "max": 10,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Subscribe End Card</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Subscribe End Card, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // The button presses at a fixed beat and the bell swings right after it, as if the
+  // tap set it ringing; both are pure functions of time.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var come = easeOut(clamp01(t / 0.7));
+    var gone = easeInOut(clamp01((t - (d - 0.7)) / 0.7));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+    ctx.globalAlpha = show;
+
+    ctx.fillStyle = 'rgba(14, 14, 18, 0.88)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '600 ' + Math.round(54 * u) + 'px Inter';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(p.channel, W / 2, H * 0.3);
+
+    // The button presses at t = 1.4: it dips, and the label flips to SUBSCRIBED.
+    var pressAt = 1.4;
+    var press = clamp01((t - pressAt) / 0.18);
+    var dip = Math.sin(Math.min(press, 1) * Math.PI) * 8 * u;
+    var done = t > pressAt + 0.18;
+    var bw = 420 * u, bh = 96 * u, bx = W / 2 - bw / 2, by = H * 0.44 + dip;
+    ctx.fillStyle = done ? 'rgba(255,255,255,0.18)' : p.button;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 14 * u);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 ' + Math.round(36 * u) + 'px Inter';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(done ? 'SUBSCRIBED' : 'SUBSCRIBE', W / 2, by + bh / 2 + 2 * u);
+
+    // The bell swings once the press lands, decaying over a second and a half.
+    var ring = Math.max(0, t - (pressAt + 0.2));
+    var swing = Math.sin(ring * 14) * Math.exp(-ring * 2.2) * 0.5;
+    var bellX = W / 2, bellY = H * 0.68;
+    ctx.save();
+    ctx.translate(bellX, bellY - 30 * u);
+    ctx.rotate(swing);
+    ctx.translate(0, 30 * u);
+    ctx.fillStyle = '#ffd166';
+    ctx.beginPath();
+    ctx.arc(0, -10 * u, 34 * u, Math.PI, 0);
+    ctx.lineTo(44 * u, 18 * u);
+    ctx.lineTo(-44 * u, 18 * u);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 26 * u, 9 * u, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

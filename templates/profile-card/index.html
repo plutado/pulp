@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Profile Card</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Profile Card, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // The monogram is the name's first letter; the follower count eases up and shortens
+  // itself (128.4K) the way the platforms print it.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var inF = 0.6, outF = 0.5;
+    var hold = Math.min(p.inOut, Math.max(0.2, d - inF - outF));
+    var gone = easeInOut(clamp01((t - inF - hold) / outF));
+    var come = easeOut(clamp01(t / inF));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+
+    function compact(n) {
+      if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+      return String(n);
+    }
+    var f = easeInOut(clamp01((t - inF * 0.5) / 1.6));
+    var count = compact(Math.round(p.count * f));
+
+    var pw = 620 * u, ph = 150 * u;
+    var x = W * 0.07, y = H * 0.78 + (1 - come) * 30 * u;
+    ctx.globalAlpha = show;
+    ctx.fillStyle = 'rgba(250, 247, 245, 0.96)';
+    ctx.beginPath();
+    ctx.roundRect(x, y, pw, ph, ph / 2);
+    ctx.fill();
+
+    // The monogram disc, ringed in the accent.
+    var mx = x + ph / 2, my = y + ph / 2, mr = ph * 0.34;
+    ctx.fillStyle = p.accent;
+    ctx.beginPath();
+    ctx.arc(mx, my, mr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(40, 32, 36, 0.25)';
+    ctx.lineWidth = 2 * u;
+    ctx.stroke();
+    ctx.fillStyle = '#3a2e34';
+    ctx.font = '600 ' + Math.round(mr * 1.1) + 'px Playfair';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText((p.name || '?').charAt(0).toUpperCase(), mx, my + 2 * u);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#2b2328';
+    ctx.font = '600 ' + Math.round(40 * u) + 'px Playfair';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(p.name, x + ph * 0.9, y + 62 * u);
+    ctx.fillStyle = 'rgba(80, 70, 76, 0.85)';
+    ctx.font = '400 ' + Math.round(24 * u) + 'px Inter';
+    ctx.fillText(p.detail, x + ph * 0.9, y + 100 * u);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#2b2328';
+    ctx.font = '600 ' + Math.round(42 * u) + 'px Inter';
+    ctx.fillText(count, x + pw - 40 * u, y + 70 * u);
+    ctx.fillStyle = 'rgba(80, 70, 76, 0.8)';
+    ctx.font = '400 ' + Math.round(20 * u) + 'px Inter';
+    ctx.fillText('FOLLOWERS', x + pw - 40 * u, y + 100 * u);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Price Callout</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Price Callout, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // The board drops in on its string and settles with a decaying swing about the nail;
+  // the chalk line under the dish is wobbled by the seeded hash.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var inF = 0.8, outF = 0.5;
+    var hold = Math.min(p.inOut, Math.max(0.2, d - inF - outF));
+    var gone = easeInOut(clamp01((t - inF - hold) / outF));
+    var come = easeOut(clamp01(t / inF));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+
+    var nx = W * (p.x / 100), ny = H * (p.y / 100);
+    var swing = Math.sin(t * 6) * Math.exp(-t * 1.8) * 0.22;
+    var bw = 380 * u, bh = 220 * u;
+
+    ctx.save();
+    ctx.globalAlpha = show;
+    ctx.translate(nx, ny);
+    ctx.rotate(swing);
+    // The nail and the strings.
+    ctx.fillStyle = '#d9d2c3';
+    ctx.beginPath();
+    ctx.arc(0, 0, 6 * u, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#b8ab90';
+    ctx.lineWidth = 3 * u;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-bw * 0.3, 44 * u);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(bw * 0.3, 44 * u);
+    ctx.stroke();
+    // The board drops with `come`.
+    var drop = (1 - come) * -60 * u;
+    ctx.translate(0, 44 * u + bh / 2 + drop);
+    ctx.fillStyle = p.board;
+    ctx.beginPath();
+    ctx.roundRect(-bw / 2, -bh / 2, bw, bh, 10 * u);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(240, 235, 220, 0.5)';
+    ctx.lineWidth = 2 * u;
+    ctx.strokeRect(-bw / 2 + 10 * u, -bh / 2 + 10 * u, bw - 20 * u, bh - 20 * u);
+
+    ctx.fillStyle = '#f4efdf';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = '500 ' + Math.round(44 * u) + 'px Caveat';
+    ctx.fillText(p.dish, 0, -18 * u);
+    // A wobbly chalk underline.
+    ctx.strokeStyle = 'rgba(244, 239, 223, 0.8)';
+    ctx.beginPath();
+    for (var i = 0; i <= 12; i++) {
+      var lx = -bw * 0.32 + (bw * 0.64 * i) / 12;
+      var ly = 2 * u + (at(i) - 0.5) * 5 * u;
+      if (i === 0) ctx.moveTo(lx, ly); else ctx.lineTo(lx, ly);
+    }
+    ctx.stroke();
+    ctx.font = '700 ' + Math.round(62 * u) + 'px Caveat';
+    ctx.fillText(p.price, 0, 72 * u);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

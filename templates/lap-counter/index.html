@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Lap Counter</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Lap Counter, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // The lap number counts up to the one asked for, one tick a third of a second, the
+  // sector bar sweeping once per tick; the board slides in from the side.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var inF = 0.5, outF = 0.5;
+    var hold = Math.min(p.inOut, Math.max(0.2, d - inF - outF));
+    var gone = easeInOut(clamp01((t - inF - hold) / outF));
+    var come = easeOut(clamp01(t / inF));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+
+    var perTick = 0.33;
+    var ticks = Math.floor(Math.max(0, t - inF * 0.6) / perTick);
+    var lap = Math.min(p.lap, Math.max(1, p.lap - 3) + ticks);
+    var within = (Math.max(0, t - inF * 0.6) % perTick) / perTick;
+    var sweeping = lap < p.lap;
+
+    var pw = 440 * u, ph = 170 * u;
+    var x = W - W * 0.06 - pw + (1 - come) * 60 * u, y = H * 0.1;
+    ctx.globalAlpha = show;
+    ctx.fillStyle = 'rgba(10, 12, 16, 0.94)';
+    ctx.beginPath();
+    ctx.roundRect(x, y, pw, ph, 8 * u);
+    ctx.fill();
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(x, y, 10 * u, ph);
+
+    ctx.fillStyle = 'rgba(220, 228, 240, 0.75)';
+    ctx.font = '600 ' + Math.round(24 * u) + 'px JetBrains Mono';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('LAP', x + 36 * u, y + 48 * u);
+    ctx.fillStyle = '#f5f8ff';
+    ctx.font = '700 ' + Math.round(72 * u) + 'px JetBrains Mono';
+    ctx.fillText(String(lap).padStart(2, '0') + ' / ' + String(p.of).padStart(2, '0'), x + 36 * u, y + 118 * u);
+
+    // The sector bar sweeps once per tick while the count is still climbing, then holds full.
+    var bx = x + 36 * u, bw3 = pw - 72 * u, by = y + ph - 32 * u, bh3 = 10 * u;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+    ctx.fillRect(bx, by, bw3, bh3);
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(bx, by, bw3 * (sweeping ? within : 1), bh3);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

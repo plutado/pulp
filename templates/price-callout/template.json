@@ -1,0 +1,87 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.price-callout",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Price Callout",
+  "category": "title",
+  "type": "callout",
+  "description": "A chalk-styled dish and price on a little board that swings in from its nail. For menus, markets and cook-along totals.",
+  "tags": [
+    "callout",
+    "price",
+    "menu"
+  ],
+  "themes": [
+    "food"
+  ],
+  "styles": [
+    "hand-drawn"
+  ],
+  "duration": 6,
+  "parameters": [
+    {
+      "id": "dish",
+      "type": "text",
+      "label": "Dish",
+      "default": "Tomato soup",
+      "maxLength": 28,
+      "element": "Board"
+    },
+    {
+      "id": "price",
+      "type": "text",
+      "label": "Price",
+      "default": "$6.50",
+      "maxLength": 10,
+      "element": "Board"
+    },
+    {
+      "id": "board",
+      "type": "color",
+      "label": "Board",
+      "default": "#2f3e34",
+      "element": "Board"
+    },
+    {
+      "id": "x",
+      "type": "number",
+      "label": "Across, %",
+      "default": 70,
+      "min": 12,
+      "max": 88,
+      "step": 1,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "y",
+      "type": "number",
+      "label": "Down, %",
+      "default": 36,
+      "min": 10,
+      "max": 80,
+      "step": 1,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Hold, seconds",
+      "default": 3.2,
+      "min": 1,
+      "max": 10,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
+  ]
+}

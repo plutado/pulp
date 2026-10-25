@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.subscribe-end-card",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Subscribe End Card",
+  "category": "title",
+  "type": "end-card",
+  "description": "A bell that rings itself, a button that presses itself, and room for the channel name. The ask at the end of an upload.",
+  "tags": [
+    "end card",
+    "subscribe",
+    "bell"
+  ],
+  "themes": [
+    "social-media"
+  ],
+  "styles": [
+    "playful"
+  ],
+  "duration": 6,
+  "parameters": [
+    {
+      "id": "channel",
+      "type": "text",
+      "label": "Channel",
+      "default": "Field Notes Weekly",
+      "maxLength": 32,
+      "element": "Card"
+    },
+    {
+      "id": "button",
+      "type": "color",
+      "label": "Button",
+      "default": "#ef4444",
+      "element": "Card"
+    }
+  ]
+}

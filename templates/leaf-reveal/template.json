@@ -1,0 +1,51 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.leaf-reveal",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Leaf Reveal",
+  "category": "transition",
+  "type": "reveal",
+  "description": "A drift of leaves blows across the frame, thick enough at the midpoint to hide the cut, and clears with the wind.",
+  "tags": [
+    "transition",
+    "reveal",
+    "leaves"
+  ],
+  "themes": [
+    "nature"
+  ],
+  "styles": [
+    "organic"
+  ],
+  "duration": 1.8,
+  "parameters": [
+    {
+      "id": "leaf",
+      "type": "color",
+      "label": "Leaves",
+      "default": "#5b8a3c",
+      "element": "Leaves"
+    },
+    {
+      "id": "dense",
+      "type": "number",
+      "label": "Leaves",
+      "default": 90,
+      "min": 40,
+      "max": 160,
+      "step": 5,
+      "element": "Leaves"
+    }
+  ]
+}

@@ -23,26 +23,19 @@ const TEMPLATES_DIR = join(__dirname, '..', 'templates');
 export const MINIMUM = 6;
 
 /** Types not yet six deep (ROADMAP.md, milestone 24). Only shrinks. */
-const TYPES_STILL_OPEN = new Set<string>([
-  // Filled: every media type, and every type whose samples can honestly be pictures -- backdrops,
-  // textures, frames, vignettes, grunge, light leaks, logo bugs, shapes, icons, arrows and charts
-  // all ship as assets as readily as as templates. What is left is the nine types where the motion
-  // is the point, and each of those wants an original animation.
-  'opener', 'end-card', 'callout', 'social',
-  'reveal', 'flash', 'glitch',
-  'counter', 'countdown',
-]);
+const TYPES_STILL_OPEN = new Set<string>([]);
 
 /** Themes not yet six deep. Only shrinks. */
 const THEMES_STILL_OPEN = new Set<string>([
-  'medical', 'legal', 'baseball', 'hockey', 'golf', 'tennis', 'motorsport', 'fitness',
-  'easter', 'halloween', 'thanksgiving', 'patriotic', 'faith', 'ocean', 'weather', 'city', 'food',
-  'social-media', 'memorial', 'nonprofit', 'civic', 'space',
-  'fashion',
+  // What is left is themed media: the templates carried every theme a template honestly fits.
+  'medical', 'legal', 'faith', 'memorial', 'nonprofit', 'civic', 'space',
+  'baseball', 'hockey', 'golf', 'tennis', 'motorsport', 'fitness',
+  'easter', 'halloween', 'thanksgiving', 'patriotic',
+  'ocean', 'weather', 'city', 'food',
 ]);
 
 /** Styles not yet six deep. Only shrinks. */
-const STYLES_STILL_OPEN = new Set<string>(['hand-drawn', 'grunge']);
+const STYLES_STILL_OPEN = new Set<string>([]);
 
 const index = await scanLibrary([TEMPLATES_DIR]);
 

@@ -1,0 +1,78 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.profile-card",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Profile Card",
+  "category": "title",
+  "type": "social",
+  "description": "A profile strip with a monogram disc, a name and a follower count that ticks up as it lands. For introducing a creator on screen.",
+  "tags": [
+    "social",
+    "profile",
+    "followers"
+  ],
+  "themes": [
+    "social-media",
+    "fashion"
+  ],
+  "styles": [
+    "elegant"
+  ],
+  "duration": 5.5,
+  "parameters": [
+    {
+      "id": "name",
+      "type": "text",
+      "label": "Name",
+      "default": "Mara Lin",
+      "maxLength": 24,
+      "element": "Card"
+    },
+    {
+      "id": "detail",
+      "type": "text",
+      "label": "Detail",
+      "default": "Stylist \u00b7 Paris",
+      "maxLength": 32,
+      "element": "Card"
+    },
+    {
+      "id": "count",
+      "type": "number",
+      "label": "Followers",
+      "default": 128400,
+      "min": 0,
+      "max": 100000000,
+      "step": 100,
+      "element": "Card"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#e9b8c8",
+      "element": "Card"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Hold, seconds",
+      "default": 3,
+      "min": 1,
+      "max": 10,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
+  ]
+}

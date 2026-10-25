@@ -1,0 +1,50 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.signal-drop-glitch",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Signal Drop Glitch",
+  "category": "transition",
+  "type": "glitch",
+  "description": "The feed breaks up into blocks, drops to a NO SIGNAL card at the midpoint and claws its way back. For stream cuts and mission footage.",
+  "tags": [
+    "transition",
+    "glitch",
+    "signal"
+  ],
+  "themes": [
+    "gaming"
+  ],
+  "styles": [
+    "tech",
+    "grunge"
+  ],
+  "duration": 1.4,
+  "parameters": [
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#4ade80",
+      "element": "Card"
+    },
+    {
+      "id": "word",
+      "type": "text",
+      "label": "Card text",
+      "default": "NO SIGNAL",
+      "maxLength": 16,
+      "element": "Card"
+    }
+  ]
+}

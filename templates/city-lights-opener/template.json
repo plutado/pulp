@@ -1,0 +1,59 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.city-lights-opener",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "City Lights Opener",
+  "category": "title",
+  "type": "opener",
+  "description": "Window lights come on across a dark skyline, block by block, until the title glows over the city. For night-life and metro stories.",
+  "tags": [
+    "opener",
+    "city",
+    "night"
+  ],
+  "themes": [
+    "city"
+  ],
+  "styles": [
+    "cinematic"
+  ],
+  "duration": 6,
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "default": "AFTER HOURS",
+      "maxLength": 24,
+      "element": "Title"
+    },
+    {
+      "id": "glow",
+      "type": "color",
+      "label": "Windows",
+      "default": "#ffd98a",
+      "element": "Scene"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Hold, seconds",
+      "default": 3,
+      "min": 1,
+      "max": 10,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
+  ]
+}
