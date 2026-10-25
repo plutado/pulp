@@ -149,3 +149,12 @@ export function rootLabel(root: string, builtInRoot: string | undefined): string
   if (builtInRoot !== undefined && root === builtInRoot) return 'Built-in templates';
   return humanize(root.split(/[\\/]/).filter(Boolean).pop() ?? root);
 }
+
+/**
+ * A count of items in words, for somewhere it is read rather than seen: a
+ * browse node's accessible name says "Lower third, 5 items", where the panel
+ * shows the bare number beside the label.
+ */
+export function itemCount(count: number): string {
+  return `${count} ${count === 1 ? 'item' : 'items'}`;
+}

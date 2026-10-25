@@ -1,23 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  audioLabel,
-  categoryLabel,
-  clockLabel,
-  codecLabel,
-  dimensionsLabel,
-  durationLabel,
-  extensionLabel,
-  frameRateLabel,
-  humanize,
-  mediaKindLabel,
-  rootLabel,
-  sizeLabel,
-  styleLabel,
-  tagLabel,
-  themeLabel,
-  typeLabel,
-  windowTitle,
-} from '../src/core/display';
+import { audioLabel, categoryLabel, clockLabel, codecLabel, dimensionsLabel, durationLabel, extensionLabel, frameRateLabel, humanize, itemCount, mediaKindLabel, rootLabel, sizeLabel, styleLabel, tagLabel, themeLabel, typeLabel, windowTitle } from '../src/core/display';
 
 describe('humanize and tags', () => {
   it('turns stored slugs into sentence-case words', () => {
@@ -101,5 +83,13 @@ describe('the window title', () => {
     expect(windowTitle('/', false)).toBe('Pulp');
     expect(windowTitle('', false)).toBe('Pulp');
     expect(windowTitle('   ', false)).toBe('Pulp');
+  });
+});
+
+describe('itemCount', () => {
+  it('counts in words, so a browse node can be read as well as seen', () => {
+    expect(itemCount(0)).toBe('0 items');
+    expect(itemCount(1)).toBe('1 item');
+    expect(itemCount(5)).toBe('5 items');
   });
 });

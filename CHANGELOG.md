@@ -24,6 +24,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Changed
 
+- A browse node's count is read as well as seen. The tree's counts are drawn beside each label and hidden from screen readers, which left a node announced as "Lower third" with no idea how much was in it; the node's accessible name now carries it in words — "Lower third, 5 items", "Favorites, 1 item".
+
 - Every bundled template's Parameters tab is organised by part of the graphic. Only Title Card and Lower Third Bar named their parts; the other 89 kept a flat "Colors" group, which tells you what the controls are — which you can already see — and not what they affect. All 553 of their settings now name the part they belong to, in each template's own words: a newsdesk lower third offers Name, Topic, Live flag, Accent, Panel, Text, Logo and Layout and timing; a counter's start, target, decimals, prefix and suffix are one card of Figures; an overlay whose only subject is itself puts its amount, size and softness under its own name. A test holds every bundled template to it, so none can go back to a group named after a kind of setting.
 
 - No label repeats the heading it sits under. "Logo" as a card's title and "Logo" again as its one field read "Logo, Logo" over the image well; a field whose label matches its card's title — or, in a plain form, its group heading — now keeps the text as its accessible name and shows nothing. One rule in the core, in the style guide, and held to by the style test across every bundled template's Parameters tab.

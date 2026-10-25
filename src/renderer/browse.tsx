@@ -32,6 +32,7 @@ import { foldAllExcept, nodePath, toggleFolded } from '../core/browse-fold';
 import type { TreeNode } from '../core/browse-tree';
 import { appState, browseTree, dispatch } from './store';
 import { Icon, scopeIcon } from './icons';
+import { itemCount } from '../core/display';
 
 const activeScope = computed(() => appState.value.scope);
 /** Folded sections and groups, by node id; the tree starts fully open. */
@@ -179,7 +180,7 @@ function NodeButton({ node, depth, open }: RowProps & { open?: boolean }) {
       role="treeitem"
       aria-pressed={scope ? active : undefined}
       aria-expanded={foldable ? open : undefined}
-      aria-label={`${node.label}, ${node.count}`}
+      aria-label={`${node.label}, ${itemCount(node.count)}`}
       data-node={node.id}
       data-filter={scope?.filter}
       data-count={node.count}
