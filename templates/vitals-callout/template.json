@@ -1,0 +1,89 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.vitals-callout",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Vitals Callout",
+  "category": "title",
+  "type": "callout",
+  "description": "A reading and its label in a clinical panel, with a pulse line running beneath. Point it at the figure that matters.",
+  "tags": [
+    "callout",
+    "medical",
+    "reading"
+  ],
+  "themes": [
+    "medical",
+    "science"
+  ],
+  "styles": [
+    "corporate",
+    "clean"
+  ],
+  "duration": 6,
+  "parameters": [
+    {
+      "id": "value",
+      "type": "text",
+      "label": "Reading",
+      "default": "128 / 82",
+      "maxLength": 12,
+      "element": "Panel"
+    },
+    {
+      "id": "label",
+      "type": "text",
+      "label": "Label",
+      "default": "Blood pressure",
+      "maxLength": 28,
+      "element": "Panel"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#2dd4bf",
+      "element": "Panel"
+    },
+    {
+      "id": "x",
+      "type": "number",
+      "label": "Across, %",
+      "default": 62,
+      "min": 8,
+      "max": 92,
+      "step": 1,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "y",
+      "type": "number",
+      "label": "Down, %",
+      "default": 30,
+      "min": 8,
+      "max": 86,
+      "step": 1,
+      "element": "Layout and timing"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Hold, seconds",
+      "default": 3.4,
+      "min": 1,
+      "max": 10,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
+  ]
+}

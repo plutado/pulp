@@ -1,0 +1,52 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.ink-reveal",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Ink Reveal",
+  "category": "transition",
+  "type": "reveal",
+  "description": "Ink strokes sweep across the frame until it is covered at the midpoint, then lift away. A paper-and-brush turn for a cut.",
+  "tags": [
+    "transition",
+    "reveal",
+    "ink"
+  ],
+  "themes": [
+    "education",
+    "kids"
+  ],
+  "styles": [
+    "hand-drawn"
+  ],
+  "duration": 1.6,
+  "parameters": [
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Ink",
+      "default": "#1e2430",
+      "element": "Ink"
+    },
+    {
+      "id": "strokes",
+      "type": "number",
+      "label": "Strokes",
+      "default": 7,
+      "min": 3,
+      "max": 12,
+      "step": 1,
+      "element": "Ink"
+    }
+  ]
+}

@@ -38,13 +38,11 @@ const THEMES_STILL_OPEN = new Set<string>([
   'medical', 'legal', 'baseball', 'hockey', 'golf', 'tennis', 'motorsport', 'fitness',
   'easter', 'halloween', 'thanksgiving', 'patriotic', 'faith', 'ocean', 'weather', 'city', 'food',
   'social-media', 'memorial', 'nonprofit', 'civic', 'space',
-  'science', 'education', 'kids', 'fashion',
-  'gaming', 'nature',
-  'summer',
+  'kids', 'fashion',
 ]);
 
 /** Styles not yet six deep. Only shrinks. */
-const STYLES_STILL_OPEN = new Set<string>(['corporate', 'elegant', 'hand-drawn', 'grunge', 'organic', 'tech']);
+const STYLES_STILL_OPEN = new Set<string>(['corporate', 'elegant', 'hand-drawn', 'grunge', 'organic']);
 
 const index = await scanLibrary([TEMPLATES_DIR]);
 

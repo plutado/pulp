@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Ink Reveal</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Ink Reveal, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // Each stroke is a band with a wobbled edge, sweeping on a stagger so the frame is
+  // fully covered exactly at the midpoint, where the cut goes.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var half = d / 2;
+    var strokes = Math.round(p.strokes);
+    var bandH = H / strokes;
+    for (var i = 0; i < strokes; i++) {
+      // Each stroke gets 70% of its half to travel, staggered so the last lands at the midpoint.
+      var offset = (i / strokes) * 0.3;
+      var f;
+      if (t <= half) f = easeInOut(clamp01((t / half - offset) / 0.7));
+      else f = 1 - easeInOut(clamp01(((t - half) / half - offset) / 0.7));
+      if (f <= 0) continue;
+      var fromLeft = i % 2 === 0;
+      var w = W * f;
+      ctx.fillStyle = p.ink;
+      ctx.beginPath();
+      var x0 = fromLeft ? 0 : W - w;
+      var x1 = fromLeft ? w : W;
+      ctx.moveTo(x0, i * bandH);
+      // The leading edge wobbles like a dry brush; the wobble is a fixed function of the band.
+      var steps = 8;
+      for (var s2 = 0; s2 <= steps; s2++) {
+        var yy = i * bandH + (bandH * s2) / steps;
+        var wob = (at(i * 31 + s2) - 0.5) * 36 * u * (1 - Math.abs(f * 2 - 1));
+        if (fromLeft) ctx.lineTo(x1 + wob, yy);
+        else { if (s2 === 0) ctx.lineTo(x1, i * bandH); ctx.lineTo(x0 + wob, yy); }
+      }
+      if (fromLeft) { ctx.lineTo(x0, (i + 1) * bandH); }
+      else { ctx.lineTo(x1, (i + 1) * bandH); }
+      ctx.closePath();
+      ctx.fill();
+    }
+  };
+</script>
+</body>
+</html>

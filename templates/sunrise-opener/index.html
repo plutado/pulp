@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sunrise Opener</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Sunrise Opener, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // Rays rotate at a fixed slow rate; the sun and the title rise together and everything
+  // fades by the last frame, so the opener can sit at the head of any cut.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var inF = 1.2, outF = 0.8;
+    var hold = Math.min(p.inOut, Math.max(0.2, d - inF - outF));
+    var gone = easeInOut(clamp01((t - inF - hold) / outF));
+    var come = easeOut(clamp01(t / inF));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+
+    ctx.globalAlpha = show;
+    ctx.fillStyle = p.sky;
+    ctx.fillRect(0, 0, W, H);
+
+    // Rays: a slow turn around the sun, drawn as alternating translucent wedges.
+    var cx = W / 2, cy = H * 0.62 - come * H * 0.1;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(t * 0.05);
+    for (var i = 0; i < 16; i++) {
+      ctx.rotate(Math.PI / 8);
+      if (i % 2) continue;
+      ctx.fillStyle = 'rgba(255, 200, 120, 0.07)';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, Math.max(W, H) * 1.2, -Math.PI / 16, Math.PI / 16);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+
+    var r = 150 * u;
+    var glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 2.4);
+    glow.addColorStop(0, p.sun);
+    glow.addColorStop(1, 'rgba(255, 180, 90, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = p.sun;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    // The horizon band sits still so the sun reads as rising past it.
+    ctx.fillStyle = 'rgba(20, 10, 26, 0.85)';
+    ctx.fillRect(0, H * 0.72, W, H * 0.28);
+
+    ctx.fillStyle = '#fff6e6';
+    ctx.font = '600 ' + Math.round(86 * u) + 'px Montserrat';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(p.title, W / 2, H * 0.84 + (1 - come) * 40 * u);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

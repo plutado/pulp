@@ -1,0 +1,52 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.camera-flashes",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Camera Flashes",
+  "category": "transition",
+  "type": "flash",
+  "description": "A burst of press-pit camera flashes that peaks at the midpoint and dies away. Put it over a cut at a premiere or a runway turn.",
+  "tags": [
+    "transition",
+    "flash",
+    "press"
+  ],
+  "themes": [
+    "fashion",
+    "social-media"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 1.4,
+  "parameters": [
+    {
+      "id": "tint",
+      "type": "color",
+      "label": "Tint",
+      "default": "#ffffff",
+      "element": "Flashes"
+    },
+    {
+      "id": "bursts",
+      "type": "number",
+      "label": "Flashes",
+      "default": 9,
+      "min": 4,
+      "max": 16,
+      "step": 1,
+      "element": "Flashes"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.tape-glitch",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Tape Glitch",
+  "category": "transition",
+  "type": "glitch",
+  "description": "Horizontal tear bands and a rolling sync line, worst at the midpoint. An analogue break for a cut between shots.",
+  "tags": [
+    "transition",
+    "glitch",
+    "tape"
+  ],
+  "themes": [
+    "space"
+  ],
+  "styles": [
+    "grunge",
+    "retro"
+  ],
+  "duration": 1.2,
+  "parameters": [
+    {
+      "id": "tint",
+      "type": "color",
+      "label": "Tint",
+      "default": "#9ae6b4",
+      "element": "Bands"
+    },
+    {
+      "id": "bands",
+      "type": "number",
+      "label": "Tear bands",
+      "default": 10,
+      "min": 4,
+      "max": 20,
+      "step": 1,
+      "element": "Bands"
+    }
+  ]
+}

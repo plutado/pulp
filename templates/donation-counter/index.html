@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Donation Counter</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Donation Counter, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // The count eases over the first part and holds; the goal bar fills to the same
+  // fraction, and a goal met fills the bar end to end.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var inF = 0.5, outF = 0.6, countFor = 2.2;
+    var hold = Math.min(p.inOut, Math.max(0.2, d - inF - countFor - outF));
+    var gone = easeInOut(clamp01((t - (inF + countFor + hold)) / outF));
+    var come = easeOut(clamp01(t / inF));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+
+    var f = easeInOut(clamp01((t - inF * 0.6) / countFor));
+    var value = Math.round(p.target * f);
+    var text = p.prefix + value.toLocaleString('en-US');
+    var frac = Math.min(1, p.goal > 0 ? (p.target * f) / p.goal : 0);
+
+    var pw = Math.min(W * 0.8, 760 * u), ph = 230 * u;
+    var x = W / 2 - pw / 2, y = H * 0.74 - ph / 2;
+    ctx.globalAlpha = show;
+    ctx.fillStyle = 'rgba(16, 20, 28, 0.92)';
+    ctx.beginPath();
+    ctx.roundRect(x, y, pw, ph, 12 * u);
+    ctx.fill();
+
+    ctx.fillStyle = '#f3f7fb';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = '600 ' + Math.round(76 * u) + 'px Inter';
+    ctx.fillText(text, x + 36 * u, y + 96 * u);
+    ctx.fillStyle = 'rgba(190, 205, 220, 0.85)';
+    ctx.font = '400 ' + Math.round(26 * u) + 'px Inter';
+    ctx.fillText(p.label, x + 36 * u, y + 140 * u);
+
+    // The goal bar, with the met fraction in the accent and the rest as a trough.
+    var bx = x + 36 * u, bw = pw - 72 * u, by = y + ph - 52 * u, bh = 16 * u;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, bh / 2);
+    ctx.fill();
+    if (frac > 0.01) {
+      ctx.fillStyle = p.bar;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, Math.max(bh, bw * frac), bh, bh / 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

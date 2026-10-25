@@ -1,0 +1,88 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.donation-counter",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Donation Counter",
+  "category": "other",
+  "type": "counter",
+  "description": "A total counts up over a goal bar that fills to match. For telethons, fundraisers and campaign tallies.",
+  "tags": [
+    "counter",
+    "donations",
+    "goal"
+  ],
+  "themes": [
+    "nonprofit",
+    "civic"
+  ],
+  "styles": [
+    "corporate"
+  ],
+  "duration": 6,
+  "parameters": [
+    {
+      "id": "target",
+      "type": "number",
+      "label": "Raised",
+      "default": 48250,
+      "min": 0,
+      "max": 10000000,
+      "step": 50,
+      "element": "Figures"
+    },
+    {
+      "id": "goal",
+      "type": "number",
+      "label": "Goal",
+      "default": 60000,
+      "min": 1,
+      "max": 10000000,
+      "step": 50,
+      "element": "Figures"
+    },
+    {
+      "id": "prefix",
+      "type": "text",
+      "label": "Currency sign",
+      "default": "$",
+      "maxLength": 3,
+      "element": "Figures"
+    },
+    {
+      "id": "label",
+      "type": "text",
+      "label": "Label",
+      "default": "Raised for the shelter",
+      "maxLength": 40,
+      "element": "Figures"
+    },
+    {
+      "id": "bar",
+      "type": "color",
+      "label": "Bar",
+      "default": "#16a34a",
+      "element": "Panel"
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Hold, seconds",
+      "default": 2.4,
+      "min": 0.5,
+      "max": 10,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
+  ]
+}

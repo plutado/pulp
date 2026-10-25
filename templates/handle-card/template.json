@@ -1,0 +1,77 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.handle-card",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Handle Card",
+  "category": "title",
+  "type": "social",
+  "description": "An at-handle in a dark pill that types itself out, with a platform dot pulsing beside it. For naming an account on screen.",
+  "tags": [
+    "social",
+    "handle",
+    "pill"
+  ],
+  "themes": [
+    "social-media",
+    "gaming"
+  ],
+  "styles": [
+    "tech"
+  ],
+  "duration": 5,
+  "parameters": [
+    {
+      "id": "handle",
+      "type": "text",
+      "label": "Handle",
+      "default": "@fieldnotes",
+      "maxLength": 24,
+      "element": "Pill"
+    },
+    {
+      "id": "dot",
+      "type": "color",
+      "label": "Dot",
+      "default": "#22d3ee",
+      "element": "Pill"
+    },
+    {
+      "id": "side",
+      "type": "select",
+      "label": "Side",
+      "default": "left",
+      "element": "Layout and timing",
+      "options": [
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ]
+    },
+    {
+      "id": "inOut",
+      "type": "number",
+      "label": "Hold, seconds",
+      "default": 2.8,
+      "min": 1,
+      "max": 10,
+      "step": 0.1,
+      "element": "Layout and timing"
+    }
+  ]
+}

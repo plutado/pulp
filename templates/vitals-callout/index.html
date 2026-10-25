@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Vitals Callout</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Vitals Callout, a sample template for Pulp. CC0-1.0: no rights reserved.
+  // The pulse trace is a fixed waveform sampled against time, so every render agrees;
+  // the panel scales from its anchor and is gone by the last frame.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var inF = 0.6, outF = 0.5;
+    var hold = Math.min(p.inOut, Math.max(0.2, d - inF - outF));
+    var gone = easeInOut(clamp01((t - inF - hold) / outF));
+    var come = easeOut(clamp01(t / inF));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+
+    var px = W * (p.x / 100), py = H * (p.y / 100);
+    var pw = 420 * u, ph = 180 * u;
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(0.86 + 0.14 * show, 0.86 + 0.14 * show);
+    ctx.globalAlpha = show;
+    ctx.fillStyle = 'rgba(10, 18, 24, 0.92)';
+    ctx.strokeStyle = p.accent;
+    ctx.lineWidth = 2 * u;
+    ctx.beginPath();
+    ctx.roundRect(-pw / 2, -ph / 2, pw, ph, 10 * u);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#eef7f5';
+    ctx.font = '600 ' + Math.round(58 * u) + 'px JetBrains Mono';
+    ctx.fillText(p.value, -pw / 2 + 28 * u, -8 * u);
+    ctx.fillStyle = 'rgba(190, 215, 210, 0.8)';
+    ctx.font = '400 ' + Math.round(24 * u) + 'px Inter';
+    ctx.fillText(p.label.toUpperCase(), -pw / 2 + 28 * u, 32 * u);
+
+    // The pulse line: flat, a beat, flat again, scrolling with time.
+    ctx.strokeStyle = p.accent;
+    ctx.lineWidth = 2.5 * u;
+    ctx.beginPath();
+    for (var i = 0; i <= 80; i++) {
+      var f = i / 80;
+      var phase = (f * 2 + t * 0.9) % 1;
+      var beat = 0;
+      if (phase > 0.42 && phase < 0.48) beat = -(phase - 0.42) * 900;
+      else if (phase >= 0.48 && phase < 0.56) beat = (phase - 0.56) * -680 * -1;
+      var x = -pw / 2 + 28 * u + f * (pw - 56 * u);
+      var y = ph / 2 - 34 * u + beat * u * 0.12;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

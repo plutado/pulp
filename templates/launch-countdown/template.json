@@ -1,0 +1,60 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.launch-countdown",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "name": "Launch Countdown",
+  "category": "other",
+  "type": "countdown",
+  "description": "T-minus seconds in a mission readout, each second stamped in with a ring that closes around it. Ends on LAUNCH.",
+  "tags": [
+    "countdown",
+    "launch",
+    "t-minus"
+  ],
+  "themes": [
+    "space"
+  ],
+  "styles": [
+    "clean",
+    "corporate"
+  ],
+  "duration": 11,
+  "parameters": [
+    {
+      "id": "from",
+      "type": "number",
+      "label": "Count from",
+      "default": 10,
+      "min": 3,
+      "max": 10,
+      "step": 1,
+      "element": "Readout"
+    },
+    {
+      "id": "word",
+      "type": "text",
+      "label": "Final word",
+      "default": "LAUNCH",
+      "maxLength": 12,
+      "element": "Readout"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#60a5fa",
+      "element": "Readout"
+    }
+  ]
+}
