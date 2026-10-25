@@ -16,10 +16,11 @@ import { durationLabel, frameRateLabel } from '../core/display';
 import { OUTPUT_PRESETS, type PresetId } from '../core/render-plan';
 import { formatTimecode } from '../core/timecode';
 import { Icon } from './icons';
-import { appState, dispatch } from './store';
+import { BUNDLED_FAMILIES, importedFamilies } from '../core/fonts';
+import { appState, dispatch, importedFonts } from './store';
 
 /** Each item paired with what the library has for it now. */
-export const resolved = computed(() => resolveCollection(appState.value.collection, appState.value.index));
+export const resolved = computed(() => resolveCollection(appState.value.collection, appState.value.index, [...BUNDLED_FAMILIES, ...importedFamilies(importedFonts.value)]));
 
 const editingUid = computed(() => appState.value.editing);
 
@@ -44,6 +45,7 @@ function problem(r: ResolvedItem): string {
   if (r.missing) return 'Not in the library any more';
   if (r.offline) return 'Its folder is offline';
   if (r.missingImages.length > 0) return `${r.missingImages.join(', ')}: the chosen image is not in the library`;
+  if (r.missingFonts.length > 0) return `Set in ${r.missingFonts.join(' and ')}, which is not on this computer; it would render in a fallback face`;
   if (r.item.kind === 'media') return 'Converting media comes later';
   return '';
 }

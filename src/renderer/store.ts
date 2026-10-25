@@ -11,6 +11,7 @@ import { createResultsSelector, createTreeSelector, initialAppState, type AppSta
 import type { Size } from '../core/aspect';
 import type { TemplateEntry } from '../core/library-types';
 import { DEFAULT_RESULTS_VIEW, type ResultsViewState } from '../core/results-view';
+import type { ImportedFont } from '../core/fonts';
 
 export const appState = signal<AppState>(initialAppState);
 
@@ -36,6 +37,9 @@ export const selectedKey = computed(() => appState.value.selectedKey);
  * settings.json stores, not something a library change can alter.
  */
 export const resultsView = signal<ResultsViewState>(DEFAULT_RESULTS_VIEW);
+
+/** The person's own fonts, as the managed folder has them (milestone 23); the family control lists them and the window declares their faces. */
+export const importedFonts = signal<ImportedFont[]>([]);
 
 /**
  * The render's in and out points, in frames of the selected template's timeline.

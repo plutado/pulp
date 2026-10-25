@@ -157,13 +157,15 @@ export interface ResolvedItem {
   offline: boolean;
   /** Image slots whose chosen image is not in the library, or is offline: the slot labels (milestone 22). */
   missingImages: string[];
+  /** Families the item's layers are set in that are nowhere to be found: an imported font that has gone. */
+  missingFonts: string[];
 }
 
 /**
  * Pair each item with its library entry: by library id, then — for a template —
  * by the manifest id, which survives the library being rebuilt somewhere else.
  */
-export function resolveCollection(c: Collection, index: LibraryIndex | null): ResolvedItem[] {
+export function resolveCollection(c: Collection, index: LibraryIndex | null, availableFamilies: readonly string[] = []): ResolvedItem[] {
   const all: LibraryEntry[] = index ? [...index.templates, ...index.media] : [];
   const byId = new Map(all.map((e) => [e.id, e]));
   const byTemplateId = new Map(all.filter((e) => e.kind === 'template').map((e) => [e.manifest.id, e]));
@@ -180,7 +182,27 @@ export function resolveCollection(c: Collection, index: LibraryIndex | null): Re
         if (!image || image.kind !== 'media' || image.mediaKind !== 'image' || image.offline) missingImages.push(p.label);
       }
     }
-    return { item, entry, missing: entry === null, offline: entry?.offline === true, missingImages };
+    // A layer's family that is neither bundled, nor imported, nor one the template itself names has gone;
+    // the item is drawn in a fallback face if rendered, so it is said here first. Only when the caller
+    // says which families exist: a headless render has no font list and keeps the old behaviour.
+    const missingFonts: string[] = [];
+    if (availableFamilies.length > 0 && entry && entry.kind === 'template') {
+      const own = new Set<string>();
+      for (const block of entry.manifest.blocks) {
+        own.add(block.typography.family);
+        for (const layer of block.layers) if (layer.type === 'text') own.add(layer.family);
+      }
+      for (const param of entry.manifest.parameters) if (param.type === 'font') for (const f of [param.default, ...(param.options ?? [])]) own.add(f);
+      const stacks = (item.params['@layers'] ?? {}) as Record<string, unknown>;
+      for (const stack of Object.values(stacks)) {
+        if (!Array.isArray(stack)) continue;
+        for (const layer of stack) {
+          const family = (layer as { family?: unknown })?.family;
+          if (typeof family === 'string' && !own.has(family) && !availableFamilies.includes(family) && !missingFonts.includes(family)) missingFonts.push(family);
+        }
+      }
+    }
+    return { item, entry, missing: entry === null, offline: entry?.offline === true, missingImages, missingFonts };
   });
 }
 

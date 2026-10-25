@@ -2,7 +2,8 @@ import { protocol } from 'electron';
 import { readFile, realpath } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
-import { bundledFontFile, FONT_SCHEME, fontMimeType, TEMPLATE_FONTS_PATH } from '../core/fonts';
+import { bundledFontFile, FONT_SCHEME, fontMimeType, IMPORTED_FONTS_SLUG, importedFontFaceCss, TEMPLATE_FONTS_PATH } from '../core/fonts';
+import { importedFontPath, listImportedFonts } from './font-service';
 import { MEDIA_SCHEME, serveMedia } from '../core/media-serve';
 import { THUMB_SCHEME } from '../core/thumbnails';
 import { STRIP_SCHEME } from '../core/hover-scrub';
@@ -58,16 +59,28 @@ export function registerTemplateScheme(): void {
 async function serveBundledFont(path: string, method: string, extraHeaders: Record<string, string> = {}): Promise<Response> {
   const refuse = () => new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
   if (method !== 'GET' && method !== 'HEAD') return refuse();
-  const found = bundledFontFile(path);
-  if (!found) return refuse();
+  // A person's own fonts live under "imported/", by the file name the managed folder's index knows.
+  let filePath: string | null;
+  let fileName: string;
+  if (path.startsWith(`${IMPORTED_FONTS_SLUG}/`)) {
+    fileName = path.slice(IMPORTED_FONTS_SLUG.length + 1);
+    if (fileName.includes('/') || fileName.includes('\\')) return refuse();
+    filePath = await importedFontPath(fileName);
+  } else {
+    const found = bundledFontFile(path);
+    if (!found) return refuse();
+    fileName = found.file.file;
+    filePath = resolve(bundledFontsDir(), found.font.slug, found.file.file);
+  }
+  if (!filePath) return refuse();
   let body: Buffer;
   try {
-    body = await readFile(resolve(bundledFontsDir(), found.font.slug, found.file.file));
+    body = await readFile(filePath);
   } catch {
     return refuse();
   }
   const headers = {
-    'Content-Type': fontMimeType(found.file.file),
+    'Content-Type': fontMimeType(fileName),
     // The files never change while the app runs; a template page is reloaded often and need not refetch them.
     'Cache-Control': 'max-age=86400',
     'X-Content-Type-Options': 'nosniff',
@@ -206,7 +219,8 @@ export function handleTemplateProtocol(): void {
       'Cache-Control': 'no-store',
     });
     if (filePath === resolve(root, template.manifest.entry)) {
-      return new Response(injectBridge(body.toString('utf8')), { headers });
+      // The person's imported fonts are declared beside the bundled ones, from the folder as it is now.
+      return new Response(injectBridge(body.toString('utf8'), importedFontFaceCss(await listImportedFonts(), `/${TEMPLATE_FONTS_PATH}/`)), { headers });
     }
     return new Response(new Uint8Array(body), { headers });
   });

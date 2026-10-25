@@ -13,7 +13,8 @@ import { mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
 import { initTray } from './tray';
-import { FONT_SCHEME, fontFaceCss } from '../core/fonts';
+import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
+import { importedFonts } from './store';
 import { mountIcons } from './icons';
 import { initTooltips } from './tooltip';
 import { effect } from '@preact/signals';
@@ -240,7 +241,8 @@ async function confirmPack(): Promise<void> {
         ...(els.packExportAuthor.value.trim() ? { author: els.packExportAuthor.value.trim() } : {}),
       });
       els.packResult.className = result.ok || result.cancelled ? 'note' : 'note error';
-      els.packResult.textContent = result.ok ? `Wrote ${result.path} (${formatBytes(result.bytes)}).` : result.cancelled ? '' : result.message;
+      // A pack never carries an imported font; a template set in one is named so the warning travels with the file.
+      els.packResult.textContent = result.ok ? [`Wrote ${result.path} (${formatBytes(result.bytes)}).`, ...result.warnings].join(' ') : result.cancelled ? '' : result.message;
       if (result.ok) els.packConfirm.hidden = true;
     }
   } finally {
@@ -315,6 +317,15 @@ const fontStyle = document.createElement('style');
 fontStyle.dataset.pulpFonts = '';
 fontStyle.textContent = fontFaceCss(`${FONT_SCHEME}://`);
 document.head.append(fontStyle);
+// The person's own fonts too, as the managed folder has them now and whenever it changes.
+const importedStyle = document.createElement('style');
+importedStyle.dataset.pulpImportedFonts = '';
+document.head.append(importedStyle);
+effect(() => {
+  importedStyle.textContent = importedFontFaceCss(importedFonts.value, `${FONT_SCHEME}://`);
+});
+void window.pulp.listFonts().then((fonts) => (importedFonts.value = fonts));
+window.pulp.onFontsChanged((fonts) => (importedFonts.value = fonts));
 mountIcons();
 initTooltips();
 initShell();

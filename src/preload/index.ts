@@ -18,6 +18,14 @@ const api: PulpApi = {
   loadSlotImages: (ids) => ipcRenderer.invoke('images:load', ids),
   // The path never crosses from the page: the preload reads it off the File the picker handed over.
   importImage: (file) => ipcRenderer.invoke('images:import', webUtils.getPathForFile(file)),
+  listFonts: () => ipcRenderer.invoke('fonts:list'),
+  chooseFont: () => ipcRenderer.invoke('fonts:choose'),
+  importFont: (path, note) => ipcRenderer.invoke('fonts:import', path, note),
+  onFontsChanged: (listener) => {
+    const handler = (_event: unknown, fonts: Parameters<typeof listener>[0]) => listener(fonts);
+    ipcRenderer.on('fonts:changed', handler);
+    return () => ipcRenderer.removeListener('fonts:changed', handler);
+  },
   libraryDiagnostics: () => ipcRenderer.invoke('library:diagnostics'),
   ffmpegStatus: () => ipcRenderer.invoke('ffmpeg:status'),
   render: (request) => ipcRenderer.invoke('queue:add', request),

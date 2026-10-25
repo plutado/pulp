@@ -605,6 +605,16 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .family-list [role="option"]:hover { background: var(--panel-2); }
 .family-list [role="option"][aria-selected="true"] { color: var(--accent); }
 .family-list .family-divider { color: var(--muted); font-size: var(--font-caption); padding: var(--space-1) 8px 2px; border-top: 1px solid var(--border); margin-top: var(--space-1); }
+/* The last row of the family list: import a font of your own, with the licence note asked for in place. */
+.family-list .font-import { padding: 2px 8px var(--space-1); }
+.font-import-start { font-size: var(--font-caption); padding: 2px 0; background: none; border: none; color: var(--accent); cursor: pointer; }
+.font-import-form { display: grid; gap: var(--space-1); padding: var(--space-1) 0; }
+.font-import-family { color: var(--muted); font-size: var(--font-caption); white-space: normal; }
+.font-import-form input { font-size: var(--font-caption); min-width: 0; }
+.font-import-form button { justify-self: start; font-size: var(--font-caption); padding: 2px 8px; }
+.font-import .note.error { white-space: normal; }
+/* A layer set in a family that is nowhere on this computer: said beside the text, not silently drawn in a fallback. */
+.note.font-missing { margin: 0; }
 
 .layer-add { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; padding: 0 var(--space-1); }
 .layer-add > span { flex: 1; min-width: 0; color: var(--muted); font-size: var(--font-caption); }

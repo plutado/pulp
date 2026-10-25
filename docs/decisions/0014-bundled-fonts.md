@@ -35,4 +35,4 @@ Two constraints shape the answer. Template pages run under a Content Security Po
 
 ## Not decided here
 
-Importing a person's own fonts into a managed folder, with a licence note, is the next item of the milestone: it reuses the same delivery (another folder behind the same reserved path and scheme) and is kept out of exported packs, so sharing a pack can never redistribute a licence the sharer does not hold.
+Importing a person's own fonts into a managed folder, with a licence note, is the milestone's next item (since built): it reuses the same delivery (another folder behind the same reserved path and scheme) and is kept out of exported packs, so sharing a pack can never redistribute a licence the sharer does not hold.

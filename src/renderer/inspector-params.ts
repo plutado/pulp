@@ -13,7 +13,7 @@ import type { TemplateManifest, TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
 import { LAYERS_KEY, resolveParams, type ResolvedParams } from '../core/params';
-import { BUNDLED_FAMILIES, cssFontFamily, familyLabel } from '../core/fonts';
+import { BUNDLED_FAMILIES, cssFontFamily, familyLabel, importedFamilies, type ImportedFont } from '../core/fonts';
 import { hasCards, labelRepeatsHeading, paramCards, type ParamCard } from '../core/param-cards';
 import {
   defaultLayers,
@@ -36,7 +36,7 @@ import { setIcon, type IconName } from './icons';
 import type { MediaEntry } from '../core/library-types';
 import { mediaUrlFor } from '../core/media-url';
 import { stageSetParams } from './stage';
-import { appState, selectedTemplate, slotNotes } from './store';
+import { appState, importedFonts, selectedTemplate, slotNotes } from './store';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -973,7 +973,15 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
     input.setAttribute('aria-label', `${layer.label} text`);
     input.addEventListener('input', () => editLayer(blockId, layer.id, (l) => ({ ...l, text: input.value }), false));
     input.addEventListener('change', () => commitParams());
-    return [input, typographyControls(blockId, layer)];
+    const parts: HTMLElement[] = [input, typographyControls(blockId, layer)];
+    if (familyMissing(layer.family)) {
+      // A preset or a collection set in a font that has gone: said, not silently drawn in a fallback.
+      const gone = document.createElement('p');
+      gone.className = 'note font-missing';
+      gone.textContent = `"${familyLabel(layer.family)}" is not on this computer, so the line is drawn in a fallback face. Import it, or choose another family.`;
+      parts.push(gone);
+    }
+    return parts;
   }
   return [
     imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }, { layer: true }),
@@ -1021,10 +1029,18 @@ const OVERFLOW_LABELS: Record<TextLayer['overflow'], string> = { wrap: 'Wrap', s
 const ALIGN_LABELS: Record<TextLayer['align'], string> = { left: 'Left', center: 'Centre', right: 'Right' };
 const WEIGHT_LABELS: Record<number, string> = { 100: 'Thin', 200: 'Extra light', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semibold', 700: 'Bold', 800: 'Extra bold', 900: 'Black' };
 
-/** The families on offer: the bundled set, then whatever the template itself sets type in, then the layer's own if it is neither. */
-function familyChoices(current: string): { stack: string; bundled: boolean }[] {
-  const out: { stack: string; bundled: boolean }[] = BUNDLED_FAMILIES.map((f) => ({ stack: f, bundled: true }));
+type FamilyKind = 'bundled' | 'imported' | 'own';
+
+/** The families on offer: the bundled set, the person's imported ones with their licence notes, then whatever the template itself sets type in, then the layer's own if it is none of those. */
+function familyChoices(current: string): { stack: string; kind: FamilyKind; note?: string }[] {
+  const out: { stack: string; kind: FamilyKind; note?: string }[] = BUNDLED_FAMILIES.map((f) => ({ stack: f, kind: 'bundled' }));
   const seen = new Set(out.map((o) => o.stack));
+  for (const family of importedFamilies(importedFonts.value)) {
+    if (seen.has(family)) continue;
+    seen.add(family);
+    const note = importedFonts.value.find((f) => f.family === family && f.note.trim() !== '')?.note.trim();
+    out.push({ stack: family, kind: 'imported', ...(note ? { note } : {}) });
+  }
   const own: string[] = [];
   for (const block of selectedTemplate.value?.manifest.blocks ?? []) {
     own.push(block.typography.family);
@@ -1037,9 +1053,32 @@ function familyChoices(current: string): { stack: string; bundled: boolean }[] {
   for (const stack of own) {
     if (seen.has(stack)) continue;
     seen.add(stack);
-    out.push({ stack, bundled: false });
+    out.push({ stack, kind: 'own' });
   }
   return out;
+}
+
+/**
+ * A family a layer is set in that is nowhere to be found: not bundled, not
+ * imported, and not one the template itself names. That is a preset or a
+ * collection whose imported font has gone, and it is said rather than quietly
+ * drawn in whatever the renderer falls back to.
+ */
+function familyMissing(family: string): boolean {
+  if (BUNDLED_FAMILIES.includes(family) || importedFamilies(importedFonts.value).includes(family)) return false;
+  for (const block of selectedTemplate.value?.manifest.blocks ?? []) {
+    if (block.typography.family === family) return false;
+    for (const layer of block.layers) if (layer.type === 'text' && layer.family === family) return false;
+  }
+  for (const param of selectedTemplate.value?.manifest.parameters ?? []) {
+    if (param.type === 'font' && (param.default === family || (param.options ?? []).includes(family))) return false;
+  }
+  return true;
+}
+
+/** What the licence note says about an imported family, for where it is chosen; empty when there is none. */
+function importedNote(font: ImportedFont | undefined): string {
+  return font?.note.trim() ? `Imported · ${font.note.trim()}` : 'Imported';
 }
 
 /**
@@ -1074,24 +1113,30 @@ function familyPicker(current: string, onPick: (stack: string) => void): HTMLEle
   const onOutside = (e: Event) => {
     if (!wrap.contains(e.target as Node)) close();
   };
+  const divider = (text: string) => {
+    const rule = document.createElement('li');
+    rule.className = 'family-divider';
+    rule.setAttribute('role', 'presentation');
+    rule.textContent = text;
+    return rule;
+  };
   const open = () => {
     list.replaceChildren();
-    let divided = false;
+    let shownKind: FamilyKind = 'bundled';
     for (const choice of familyChoices(button.dataset.family ?? current)) {
-      if (!choice.bundled && !divided) {
-        divided = true;
-        const rule = document.createElement('li');
-        rule.className = 'family-divider';
-        rule.setAttribute('role', 'presentation');
-        rule.textContent = 'This template\'s';
-        list.append(rule);
+      if (choice.kind !== shownKind) {
+        shownKind = choice.kind;
+        list.append(divider(choice.kind === 'imported' ? 'Imported' : 'This template\'s'));
       }
       const li = document.createElement('li');
       li.setAttribute('role', 'option');
       li.setAttribute('aria-selected', String(choice.stack === (button.dataset.family ?? current)));
       li.dataset.family = choice.stack;
+      li.dataset.kind = choice.kind;
       li.style.fontFamily = cssFontFamily(choice.stack);
       li.textContent = familyLabel(choice.stack);
+      // The licence note travels with the family, where it is chosen: the licence is the person's to know.
+      if (choice.kind === 'imported') li.dataset.tip = importedNote(importedFonts.value.find((f) => f.family === choice.stack));
       li.addEventListener('click', () => {
         show(choice.stack);
         onPick(choice.stack);
@@ -1099,6 +1144,7 @@ function familyPicker(current: string, onPick: (stack: string) => void): HTMLEle
       });
       list.append(li);
     }
+    list.append(divider(''), fontImportRow(() => open()));
     list.hidden = false;
     button.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', onOutside, true);
@@ -1113,6 +1159,82 @@ function familyPicker(current: string, onPick: (stack: string) => void): HTMLEle
   });
   wrap.append(button, list);
   return wrap;
+}
+
+/**
+ * The last row of the family list: import a font of your own. The file dialog
+ * is the main process's; the family is read from the file, and the person
+ * writes what they know of its licence before it is kept. Pulp records the
+ * note and shows it with the family; the licence itself is theirs to answer for.
+ */
+function fontImportRow(onDone: () => void): HTMLElement {
+  const row = document.createElement('li');
+  row.className = 'font-import';
+  row.setAttribute('role', 'presentation');
+  const start = document.createElement('button');
+  start.type = 'button';
+  start.className = 'font-import-start';
+  start.textContent = 'Import font…';
+  start.dataset.tip = 'Copy a TTF, OTF or WOFF2 file of your own into Pulp\'s fonts folder';
+  const form = document.createElement('div');
+  form.className = 'font-import-form';
+  form.hidden = true;
+  const who = document.createElement('span');
+  who.className = 'font-import-family';
+  const note = document.createElement('input');
+  note.type = 'text';
+  note.placeholder = 'Licence note, e.g. "Bought from the foundry, desktop licence"';
+  note.setAttribute('aria-label', 'Licence note for the imported font');
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.textContent = 'Add';
+  const error = document.createElement('p');
+  error.className = 'note error';
+  error.hidden = true;
+  form.append(who, note, add);
+  row.append(start, form, error);
+  let chosen: { path: string; family: string; file: string } | null = null;
+  start.addEventListener('click', () => {
+    error.hidden = true;
+    void window.pulp.chooseFont().then((result) => {
+      if (result === null) return;
+      if ('error' in result) {
+        error.hidden = false;
+        error.textContent = result.error;
+        return;
+      }
+      chosen = result;
+      who.textContent = `${result.family} — its licence is yours to know. A note to keep with it:`;
+      form.hidden = false;
+      note.value = '';
+      note.focus();
+    });
+  });
+  const finish = () => {
+    if (!chosen) return;
+    add.disabled = true;
+    void window.pulp.importFont(chosen.path, note.value).then((result) => {
+      add.disabled = false;
+      if ('error' in result) {
+        error.hidden = false;
+        error.textContent = result.error;
+        return;
+      }
+      form.hidden = true;
+      chosen = null;
+      onDone();
+    });
+  };
+  add.addEventListener('click', finish);
+  note.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finish();
+    }
+  });
+  // Clicks inside the form must not count as choosing a family or as clicking outside the list.
+  row.addEventListener('click', (e) => e.stopPropagation());
+  return row;
 }
 
 /** A labelled control in the type grid. */

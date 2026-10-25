@@ -160,6 +160,19 @@ describe('resolving against the library', () => {
     expect(round.ok && round.collection.items[0]!.params.logo).toEqual(value);
   });
 
+  it('names a layer family that is neither available nor the template\'s own — an imported font that has gone', () => {
+    const stack = { strap: [{ id: 'name', type: 'text', label: 'Name', text: 'Ada', family: 'Acme Grotesk' }, { id: 'sub', type: 'text', label: 'Sub', text: '', family: 'Georgia, serif' }] };
+    const c = { items: [itemFor(strap, 'prores-4444', {}, { '@layers': stack })] };
+    // The font param's own choices excuse Georgia; Acme Grotesk answers to nothing.
+    const resolved = resolveCollection(c, index([strap]), ['Inter', 'Oswald'])[0]!;
+    expect(resolved.missingFonts).toEqual(['Acme Grotesk']);
+    // The same family imported: nothing missing. And with no font list given — a headless render — nothing is judged.
+    expect(resolveCollection(c, index([strap]), ['Inter', 'Acme Grotesk'])[0]!.missingFonts).toEqual([]);
+    expect(resolveCollection(c, index([strap]))[0]!.missingFonts).toEqual([]);
+    // A missing font warns but does not keep the item out of Render all: it renders in a fallback face.
+    expect(renderableItems([resolved])).toHaveLength(1);
+  });
+
   it('flags an offline item instead of losing it', () => {
     const resolved = resolveCollection(gathered(strap), index([{ ...strap, offline: true }]));
     expect(resolved[0]).toMatchObject({ missing: false, offline: true });

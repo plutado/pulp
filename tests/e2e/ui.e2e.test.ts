@@ -342,6 +342,14 @@ describe.skipIf(!electron)('inspector UI', () => {
       haveVideo = wide.code === 0 && tall.code === 0;
     }
     await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir] }));
+    // A font already imported: a real TTF in the managed folder under a family of its own, with a
+    // licence note, as fonts:import would leave it. The import dialog itself cannot be driven here.
+    await mkdir(join(userData, 'fonts'), { recursive: true });
+    await writeFile(join(userData, 'fonts', 'PulpTestFace.ttf'), await readFile(join(ROOT, 'fonts', 'bebas-neue', 'BebasNeue-Regular.ttf')));
+    await writeFile(
+      join(userData, 'fonts', 'fonts.json'),
+      JSON.stringify([{ family: 'Pulp Test Face', file: 'PulpTestFace.ttf', style: 'normal', weight: 400, note: 'Bought from the foundry, desktop licence', importedAt: '2026-10-24T00:00:00Z' }]),
+    );
     // The app's own output goes to a file, so a failing test can print what the main process said.
     appLog = join(userData, 'app.log');
     const logFd = openSync(appLog, 'a');
@@ -1141,6 +1149,35 @@ describe.skipIf(!electron)('inspector UI', () => {
       for (let i = 0; i < 9; i++) await page.eval(`document.getElementById('undo').click()`);
       await until(async () => (await summary()) === 'Georgia · 8.9% · Regular · Uppercase', 'the type back to the template\'s');
       expect(await page.eval<boolean>(`${section}.querySelector('.layers-reset').hidden`)).toBe(true);
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
+    it('offers an imported font with its licence note, declares its face, and ends the list with Import font…', async () => {
+      const title = `document.querySelector('#params .layer-row[data-layer=title]')`;
+      try {
+        // The managed folder was seeded with one font; the app window declares its face from the index.
+        expect(await page.eval<string>(`document.querySelector('style[data-pulp-imported-fonts]').textContent`)).toContain('"Pulp Test Face"');
+        await page.eval(`${title}.querySelector('.layer-type').open = true`);
+        await page.eval(`${title}.querySelector('.family-current').click()`);
+        await until(() => page.eval<boolean>(`!${title}.querySelector('.family-list').hidden`), 'the family list');
+        // The imported family sits under its own divider, set in itself, the licence note with it.
+        const rows = await page.eval<{ kind?: string; label: string; tip?: string; divider: boolean }[]>(
+          `[...${title}.querySelectorAll('.family-list > li')].map((l) => ({ kind: l.dataset.kind, label: l.textContent, tip: l.dataset.tip, divider: l.classList.contains('family-divider') }))`,
+        );
+        const dividerAt = rows.findIndex((r) => r.divider && r.label === 'Imported');
+        expect(dividerAt).toBeGreaterThan(0);
+        expect(rows[dividerAt + 1]).toMatchObject({ kind: 'imported', label: 'Pulp Test Face', tip: 'Imported · Bought from the foundry, desktop licence' });
+        // The last row imports a font of your own; the dialog itself cannot be driven here.
+        expect(await page.eval<string>(`${title}.querySelector('.family-list > li:last-child .font-import-start').textContent`)).toBe('Import font…');
+
+        // Picking it: the control shows it, and the face really loads — in the app window and the template page.
+        await page.eval(`[...${title}.querySelectorAll('.family-list [role=option]')].find((l) => l.dataset.family === 'Pulp Test Face').click()`);
+        await until(() => page.eval<string>(`${title}.querySelector('.family-current').style.fontFamily`).then((f) => f === '"Pulp Test Face"'), 'the control set in the imported face');
+        await until(() => page.eval<boolean>(`document.fonts.check('16px "Pulp Test Face"')`), 'the imported face loaded in the app window', 30_000);
+        await until(() => inTemplate<boolean>(`document.fonts.check('400 16px "Pulp Test Face"')`, CARD), 'the imported face loaded in the template page', 30_000);
+        await page.eval(`document.getElementById('undo').click()`);
       } finally {
         await restoreLayers();
       }

@@ -10,6 +10,7 @@ import type { RenderQueueSnapshot } from '../core/render-queue';
 import type { PlayerState } from '../core/player';
 import type { ResultsViewState } from '../core/results-view';
 import type { Collection, CollectionItem } from '../core/collection';
+import type { ImportedFont } from '../core/fonts';
 import type { CollisionChoice, PackManifest, PackPreview } from '../core/pack';
 
 export type { RenderJobStatus, RenderQueueJob, RenderQueueSnapshot } from '../core/render-queue';
@@ -174,6 +175,14 @@ export interface PulpApi {
   loadSlotImages(ids: string[]): Promise<{ images: { id: string; src: string }[]; missing: string[] }>;
   /** Copy a file from outside the library into the managed Imported folder and index it; resolves to its library id. */
   importImage(file: File): Promise<{ id: string } | { error: string }>;
+  /** The person's own fonts, as the managed folder's index records them (milestone 23). */
+  listFonts(): Promise<ImportedFont[]>;
+  /** A file dialog for a font; the family is read from the file so the licence note can name it. Null when cancelled. */
+  chooseFont(): Promise<{ path: string; family: string; file: string } | { error: string } | null>;
+  /** Copy a chosen font into the managed folder with the person's licence note. */
+  importFont(path: string, note: string): Promise<ImportedFont | { error: string }>;
+  /** The imported fonts changed: the family list and the pages' faces follow. */
+  onFontsChanged(listener: (fonts: ImportedFont[]) => void): () => void;
   /** What the background queue is doing: thumbnails, probes, the heavy-work chain. For diagnostics. */
   libraryDiagnostics(): Promise<LibraryDiagnostics>;
   ffmpegStatus(): Promise<FfmpegInfo>;
@@ -252,7 +261,7 @@ export interface PulpApi {
   installPack(path: string, choices: Record<string, CollisionChoice>): Promise<PackInstallResult | { error: string }>;
   listInstalledPacks(): Promise<{ dir: string; manifest: PackManifest }[]>;
   /** Save dialog, then zip the given templates with a pack.json. */
-  exportPack(templateIds: string[], meta: { name: string; author?: string; license: string; description?: string }): Promise<{ ok: true; path: string; bytes: number } | { ok: false; cancelled?: boolean; message: string }>;
+  exportPack(templateIds: string[], meta: { name: string; author?: string; license: string; description?: string }): Promise<{ ok: true; path: string; bytes: number; warnings: string[] } | { ok: false; cancelled?: boolean; message: string }>;
 }
 
 export const TEMPLATE_SCHEME = 'pulp-template';

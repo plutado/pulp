@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BUNDLED_FAMILIES, BUNDLED_FONTS, bundledFontFile, cssFontFamily, familyLabel, fontFaceCss, fontMimeType, TEMPLATE_FONTS_PATH } from '../src/core/fonts';
+import { BUNDLED_FAMILIES, BUNDLED_FONTS, bundledFontFile, cssFontFamily, familiesUsedBy, familyFromFileName, familyLabel, fontFaceCss, fontFileNames, fontMimeType, importedFamilies, importedFontFaceCss, sanitizeImportedFonts, TEMPLATE_FONTS_PATH, type ImportedFont } from '../src/core/fonts';
 
 const FONTS_DIR = join(__dirname, '..', 'fonts');
 const CREDITS = join(__dirname, '..', 'docs', 'font-credits.md');
@@ -118,5 +118,70 @@ describe('the bundled fonts', () => {
     expect(familyLabel('Georgia, Times New Roman, serif')).toBe('Georgia');
     expect(familyLabel('"Helvetica Neue", Arial, sans-serif')).toBe('Helvetica Neue');
     expect(familyLabel('Oswald')).toBe('Oswald');
+  });
+});
+
+describe("a person's own fonts", () => {
+  const font = (over: Partial<ImportedFont> = {}): ImportedFont => ({ family: 'Acme Grotesk', file: 'AcmeGrotesk.ttf', style: 'normal', weight: 400, note: '', importedAt: '2026-10-24T00:00:00Z', ...over });
+
+  it('reads a real font file for its family, subfamily and weight', async () => {
+    const bebas = fontFileNames(new Uint8Array(await readFile(join(FONTS_DIR, 'bebas-neue', 'BebasNeue-Regular.ttf'))));
+    expect(bebas).toMatchObject({ family: 'Bebas Neue', italic: false, weight: 400 });
+    const italic = fontFileNames(new Uint8Array(await readFile(join(FONTS_DIR, 'inter', 'InterVariable-Italic.ttf'))));
+    expect(italic?.family).toBe('Inter Variable');
+    expect(italic?.italic).toBe(true);
+    const cff = fontFileNames(new Uint8Array(await readFile(join(FONTS_DIR, 'dancing-script', 'DancingScript-Bold.otf'))));
+    expect(cff).toMatchObject({ family: 'Dancing Script', weight: 700 });
+  });
+
+  it('refuses bytes that are not a font, without throwing', () => {
+    expect(fontFileNames(new Uint8Array(0))).toBeNull();
+    expect(fontFileNames(new Uint8Array([1, 2, 3]))).toBeNull();
+    expect(fontFileNames(new TextEncoder().encode('this is a text file, not a font, long enough to pass the length check'))).toBeNull();
+  });
+
+  it('takes a WOFF2 family from the file name, with the style words dropped', () => {
+    expect(familyFromFileName('AcmeGrotesk-Regular.woff2')).toBe('AcmeGrotesk');
+    expect(familyFromFileName('source_serif_italic.woff2')).toBe('source serif');
+    expect(familyFromFileName('MyFont-VF.woff2')).toBe('MyFont');
+  });
+
+  it('keeps only well-formed index entries: a family, a file name with no path in it, a known extension', () => {
+    expect(sanitizeImportedFonts(null)).toEqual([]);
+    expect(sanitizeImportedFonts({})).toEqual([]);
+    const kept = sanitizeImportedFonts([
+      font(),
+      { family: ' ', file: 'a.ttf' },
+      { family: 'Up', file: '../escape.ttf' },
+      { family: 'Side', file: 'dir\\escape.ttf' },
+      { family: 'Wrong', file: 'a.exe' },
+      { family: 'Bare', file: 'Bare.woff2' },
+      'nonsense',
+    ]);
+    expect(kept.map((f) => f.family)).toEqual(['Acme Grotesk', 'Bare']);
+    // The bare entry is filled in with the safe defaults.
+    expect(kept[1]).toEqual({ family: 'Bare', file: 'Bare.woff2', style: 'normal', weight: 400, note: '', importedAt: '' });
+  });
+
+  it('declares one @font-face per file, a variable weight as a range, the file name URL-encoded', () => {
+    const css = importedFontFaceCss([font(), font({ family: 'Var "Face"', file: 'Var Face.woff2', style: 'italic', weight: [100, 900] })], 'pulp-font://');
+    const lines = css.split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toBe('@font-face{font-family:"Acme Grotesk";font-style:normal;font-weight:400;font-display:block;src:url("pulp-font://imported/AcmeGrotesk.ttf")}');
+    expect(lines[1]).toContain('font-family:"Var \\"Face\\""');
+    expect(lines[1]).toContain('font-weight:100 900');
+    expect(lines[1]).toContain('src:url("pulp-font://imported/Var%20Face.woff2")');
+  });
+
+  it('names each imported family once, in the order first imported', () => {
+    expect(importedFamilies([font(), font({ style: 'italic' }), font({ family: 'Other', file: 'Other.otf' })])).toEqual(['Acme Grotesk', 'Other']);
+  });
+
+  it('gathers the families a template sets type in: its typography and its text layers, nothing else', () => {
+    const blocks = [
+      { typography: { family: 'Inter' }, layers: [{ type: 'text', family: 'Acme Grotesk' }, { type: 'image' }, { type: 'text', family: 'Inter' }] },
+      { typography: { family: 'Oswald' }, layers: [] },
+    ];
+    expect(familiesUsedBy(blocks)).toEqual(['Inter', 'Acme Grotesk', 'Oswald']);
   });
 });

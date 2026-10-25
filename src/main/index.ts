@@ -20,6 +20,8 @@ import { chooseExportFile, choosePackFile, exportPackTo, installPack, listInstal
 import type { CollisionChoice } from '../core/pack';
 import { planBatch } from '../core/batch-csv';
 import { windowTitle } from '../core/display';
+import { familiesUsedBy, importedFamilies } from '../core/fonts';
+import { chooseFontFile, importFontFile, listImportedFonts } from './font-service';
 import { parseLayersArgument } from '../core/layers';
 import { LAYERS_KEY } from '../core/params';
 import { slug } from '../core/pack';
@@ -89,6 +91,10 @@ function registerIpc(): void {
   ipcMain.handle('images:load', (_event, ids: unknown) => readSlotImages(Array.isArray(ids) ? ids.map(String) : []));
   ipcMain.handle('library:diagnostics', () => libraryDiagnostics());
   ipcMain.handle('images:import', (_event, path: unknown) => (typeof path === 'string' && path ? importImageFile(path) : { error: 'No file was chosen.' }));
+  ipcMain.handle('fonts:list', () => listImportedFonts());
+  ipcMain.handle('fonts:choose', () => chooseFontFile());
+  ipcMain.handle('fonts:import', (_event, path: unknown, note: unknown) =>
+    typeof path === 'string' && path ? importFontFile(path, typeof note === 'string' ? note : '') : { error: 'No file was chosen.' });
   ipcMain.handle('library:add-sample-media', async () => {
     const result = await dialog.showOpenDialog({
       title: `Choose where to make the "${SAMPLE_MEDIA_FOLDER_NAME}" folder`,
@@ -177,7 +183,14 @@ function registerIpc(): void {
     if (!destination) return { ok: false, cancelled: true, message: 'Export cancelled.' };
     try {
       const out = await exportPackTo(destination, templates, { name: String(meta?.name || 'Pack'), license: String(meta?.license || ''), ...(meta?.author ? { author: String(meta.author) } : {}), ...(meta?.description ? { description: String(meta.description) } : {}) });
-      return { ok: true, path: destination, bytes: out.bytes };
+      // A pack never carries a person's imported fonts: a template whose type is set in one is named here,
+      // so whoever installs the pack knows what to supply (ADR 0014).
+      const imported = new Set(importedFamilies(await listImportedFonts()));
+      const warnings = templates
+        .map((t) => ({ name: t.manifest.name, fonts: familiesUsedBy(t.manifest.blocks).filter((f) => imported.has(f)) }))
+        .filter((t) => t.fonts.length > 0)
+        .map((t) => `${t.name} is set in ${t.fonts.join(' and ')}, an imported font that is not in the pack; whoever installs it needs that font.`);
+      return { ok: true, path: destination, bytes: out.bytes, warnings };
     } catch (err) {
       return { ok: false, message: (err as Error).message };
     }
