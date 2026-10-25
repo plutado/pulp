@@ -12,13 +12,23 @@
  * scope of its own (a theme group) folds instead. Keyboard: Up and Down move through
  * the visible rows, Home and End jump, Left folds or steps out to the parent, Right
  * unfolds or steps in, Enter or Space activates.
+ *
+ * Typing in the find field filters the tree itself rather than offering a list beside
+ * it (src/core/browse-filter.ts): what no longer matches disappears, what remains keeps
+ * its section and group so it is plain where each lives, the matched letters are lit,
+ * and every section holding a match is open for as long as the search lasts. Clearing
+ * the field puts the tree back exactly as it was, folds included.
+ *
+ * Under the accordion the tree shows only where you are: on launch everything is folded
+ * but the path to the active category, or Quick access when nothing is active, and
+ * choosing a category opens its path and folds the rest.
  */
 
 import { render } from 'preact';
 import { computed, signal } from '@preact/signals';
 import { sameScope, setScope } from '../core/app-state';
-import { findBrowseNodes, type FindMatch } from '../core/browse-find';
-import { toggleFolded, unfoldPath } from '../core/browse-fold';
+import { filterTree, labelPieces, matchedNodes, type FilteredNode } from '../core/browse-filter';
+import { foldAllExcept, nodePath, toggleFolded } from '../core/browse-fold';
 import type { TreeNode } from '../core/browse-tree';
 import { appState, browseTree, dispatch } from './store';
 import { Icon, scopeIcon } from './icons';
@@ -40,39 +50,64 @@ function toggleFold(id: string): void {
 }
 
 /**
- * Find a category as you type (milestone 24): a combobox over the browse
- * tree's own nodes, each answer named with the section it lives in. Choosing
- * one selects that node — the same scope as clicking it in the tree, chip and
- * all — and unfolds the tree to it. It finds categories; the search bar above
- * the results keeps finding items.
+ * Find a category as you type: the query filters the tree below (see the head
+ * of this file). Empty means no search, and the tree is whatever the folds say.
  */
 const findQuery = signal('');
-const findActive = signal(0);
-const findMatches = computed(() => findBrowseNodes(browseTree.value, findQuery.value));
+
+/** The tree as it is drawn: filtered while a search is on, whole otherwise. */
+const shownTree = computed(() => filterTree(browseTree.value, findQuery.value));
+const searching = computed(() => findQuery.value.trim() !== '');
 
 function setFindQuery(value: string): void {
   findQuery.value = value;
-  findActive.value = 0;
 }
 
-function pickMatch(match: FindMatch): void {
-  dispatch((s) => setScope(s, match.scope));
-  // A find is a jump, not a reorganisation: the path to the choice opens, nothing else moves.
-  folded.value = unfoldPath(folded.value, match.path);
+/**
+ * Choose a category: set the scope, and under the accordion fold the tree back
+ * to the path that holds it, so the panel shows where you now are. The search,
+ * having been answered, is cleared.
+ */
+function chooseNode(id: string, scope: NonNullable<TreeNode['scope']>): void {
+  dispatch((s) => setScope(s, scope));
+  showOnly(id);
   setFindQuery('');
 }
 
+/** Fold everything but the path to a node; free folding leaves the folds alone. */
+function showOnly(id: string): void {
+  if (!browseAccordion.value) return;
+  const found = nodePath(browseTree.value, (n) => n.id === id);
+  if (found) folded.value = foldAllExcept(browseTree.value, found.path);
+}
+
+/**
+ * The tree the panel opens on: the path to the active category, or Quick
+ * access alone when nothing is active. Called once the library is there, and
+ * whenever the scope changes from outside the panel (a chip, a card).
+ */
+export function browseFoldToActive(): void {
+  if (!browseAccordion.value) return;
+  const tree = browseTree.value;
+  if (tree.length === 0) return;
+  const scope = activeScope.value;
+  const found = scope ? nodePath(tree, (n) => n.scope !== null && sameScope(n.scope, scope)) : null;
+  folded.value = foldAllExcept(tree, found ? found.path : ['quick']);
+}
+
 function onFindKeyDown(e: KeyboardEvent): void {
-  const matches = findMatches.value;
-  const open = matches.length > 0;
-  if (e.key === 'ArrowDown' && open) {
-    findActive.value = (findActive.value + 1) % matches.length;
-  } else if (e.key === 'ArrowUp' && open) {
-    findActive.value = (findActive.value - 1 + matches.length) % matches.length;
-  } else if (e.key === 'Enter' && open) {
-    pickMatch(matches[Math.min(findActive.value, matches.length - 1)]!);
-  } else if (e.key === 'Escape' && findQuery.value !== '') {
+  if (e.key === 'Escape' && findQuery.value !== '') {
     setFindQuery('');
+  } else if (e.key === 'Enter') {
+    // Enter takes the first category that actually answered — not the section or group kept
+    // above it to say where it lives.
+    const first = matchedNodes(shownTree.value)[0];
+    if (!first?.scope) return;
+    chooseNode(first.id, first.scope);
+  } else if (e.key === 'ArrowDown') {
+    // Into the tree: the first row that can be chosen takes the focus.
+    const row = document.querySelector<HTMLButtonElement>('#browse-tree .browse-node');
+    row?.focus();
   } else {
     return;
   }
@@ -81,49 +116,29 @@ function onFindKeyDown(e: KeyboardEvent): void {
 }
 
 function Find() {
-  const matches = findMatches.value;
-  const open = matches.length > 0;
-  const activeAt = Math.min(findActive.value, Math.max(0, matches.length - 1));
+  const nothing = searching.value && shownTree.value.length === 0;
   return (
     <div class="find-field">
       <input
         type="text"
-        role="combobox"
         placeholder="Find a category"
         aria-label="Find a category"
-        aria-expanded={open}
-        aria-controls="browse-find-list"
-        aria-activedescendant={open ? `browse-find-option-${activeAt}` : undefined}
-        aria-autocomplete="list"
+        aria-controls="browse-tree"
         value={findQuery.value}
         onInput={(e) => setFindQuery((e.currentTarget as HTMLInputElement).value)}
         onKeyDown={onFindKeyDown}
       />
-      <ul id="browse-find-list" class="find-list" role="listbox" aria-label="Matching categories" hidden={!open && findQuery.value.trim() === ''}>
-        {matches.map((m, i) => (
-          <li
-            key={m.id}
-            id={`browse-find-option-${i}`}
-            role="option"
-            aria-selected={i === activeAt}
-            class={i === activeAt ? 'active' : ''}
-            data-node={m.id}
-            onMouseDown={(e) => {
-              e.preventDefault(); // keep focus in the field
-              pickMatch(m);
-            }}
-          >
-            <Icon name={scopeIcon(m.scope.kind, m.scope.group)} />
-            <span class="label">{m.label}</span>
-            <span class="place">{m.place}</span>
-            <span class="count" aria-hidden="true">{m.count}</span>
-          </li>
-        ))}
-        {!open && findQuery.value.trim() !== '' && (
-          <li class="find-none" role="presentation">No category matches</li>
-        )}
-      </ul>
+      {nothing && <p class="find-none" role="status">No category matches</p>}
     </div>
+  );
+}
+
+/** The label, with the letters a search matched lit. */
+function Label({ node }: { node: FilteredNode }) {
+  return (
+    <span class="label">
+      {labelPieces(node.label, node.ranges).map((piece, i) => (piece.hit ? <mark key={i}>{piece.text}</mark> : <span key={i}>{piece.text}</span>))}
+    </span>
   );
 }
 
@@ -133,8 +148,9 @@ function groupIcon(node: TreeNode) {
 }
 
 /** A section: a heading, not a row. The whole heading folds; nothing about it highlights. */
-function Section({ node }: { node: TreeNode }) {
-  const open = !folded.value.has(node.id);
+function Section({ node }: { node: FilteredNode }) {
+  // A section holding a match stays open for as long as the search lasts, whatever the folds say.
+  const open = searching.value || !folded.value.has(node.id);
   return (
     <li role="none" class="tree-section">
       <button type="button" class="section-heading" role="treeitem" aria-expanded={open} data-node={node.id} data-foldable="true" onClick={() => toggleFold(node.id)}>
@@ -147,7 +163,7 @@ function Section({ node }: { node: TreeNode }) {
 }
 
 interface RowProps {
-  node: TreeNode;
+  node: FilteredNode;
   depth: 1 | 2;
 }
 
@@ -169,10 +185,18 @@ function NodeButton({ node, depth, open }: RowProps & { open?: boolean }) {
       data-count={node.count}
       data-foldable={foldable ? 'true' : undefined}
       data-tip={scope?.root}
-      onClick={() => (scope ? dispatch((s) => setScope(s, active ? null : scope)) : toggleFold(node.id))}
+      onClick={() => {
+        if (!scope) {
+          toggleFold(node.id);
+          return;
+        }
+        // Clicking the active one clears the scope; any other takes it, and the tree folds to it.
+        if (active) dispatch((s) => setScope(s, null));
+        else chooseNode(node.id, scope);
+      }}
     >
       {depth === 1 && <Icon name={groupIcon(node)} />}
-      <span class="label">{node.label}</span>
+      <Label node={node} />
       <span class="count" aria-hidden="true">{node.count}</span>
     </button>
   );
@@ -180,7 +204,7 @@ function NodeButton({ node, depth, open }: RowProps & { open?: boolean }) {
 
 /** A row that holds children: a twisty in the gutter, then the row itself. */
 function Group({ node, depth }: RowProps) {
-  const open = !folded.value.has(node.id);
+  const open = searching.value || !folded.value.has(node.id);
   const active = node.scope ? sameScope(activeScope.value, node.scope) : false;
   return (
     <li role="none">
@@ -209,7 +233,7 @@ function Item({ node, depth }: RowProps) {
   );
 }
 
-function Rows({ nodes, depth }: { nodes: TreeNode[]; depth: 1 | 2 }) {
+function Rows({ nodes, depth }: { nodes: FilteredNode[]; depth: 1 | 2 }) {
   return (
     <ul role="group" class={depth === 2 ? 'tree-rows nested' : 'tree-rows'}>
       {nodes.map((node) => (node.children.length > 0 ? <Group key={node.id} node={node} depth={depth} /> : <Item key={node.id} node={node} depth={depth} />))}
@@ -220,7 +244,7 @@ function Rows({ nodes, depth }: { nodes: TreeNode[]; depth: 1 | 2 }) {
 function Tree() {
   return (
     <ul role="group" class="tree-rows sections">
-      {browseTree.value.map((section) => (
+      {shownTree.value.map((section) => (
         <Section key={section.id} node={section} />
       ))}
     </ul>
@@ -253,6 +277,8 @@ function onKeyDown(e: KeyboardEvent): void {
       return focus(rows.length - 1);
     case 'ArrowRight':
     case 'ArrowLeft': {
+      // While a search holds the sections open, folding keys have nothing to say.
+      if (searching.value) return;
       const row = rows[current];
       if (!row) return;
       e.preventDefault();

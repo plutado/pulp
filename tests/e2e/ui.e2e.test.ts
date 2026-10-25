@@ -260,6 +260,17 @@ describe.skipIf(!electron)('inspector UI', () => {
   const clickResult = (name: string) => onResult(name, '(li) => li.click()');
 
   /**
+   * Bring a category into view whatever the tree is folded to: typing in the find field filters
+   * the tree to the matches and opens every section holding one. `clearFindField` puts the tree
+   * back. Tests that need a particular node use these rather than assuming the tree is open,
+   * which it no longer is (the panel shows only where you are).
+   */
+  const findCategory = (text: string) =>
+    page.eval(`(() => { const f = document.querySelector('#browse-find input'); f.value = ${JSON.stringify(text)}; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  const clearFindField = () =>
+    page.eval(`(() => { const f = document.querySelector('#browse-find input'); f.value = ''; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+
+  /**
    * Every result name, in list order, collected by scrolling through the window.
    * Items are kept apart by their library id, so two items of the same name both count.
    */
@@ -1951,12 +1962,16 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(listed.filter((n) => n === 'Title Card')).toHaveLength(1);
       // The installed pack appears in the browse tree, counting its templates; the bundled
       // matched sets are there as well, each counting what its pack.json lists.
+      await findCategory('News Pack');
       await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="pack:news-pack"]')`), 'the installed pack in the browse tree');
       expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:news-pack"]').dataset.count`))).toBe(2);
       for (const slug of ['boardroom', 'newsdesk', 'matchday', 'festival']) {
-        const pack = JSON.parse(await readFile(join(__dirname, '..', '..', 'templates', slug, 'pack.json'), 'utf8')) as { templates: string[] };
+        const pack = JSON.parse(await readFile(join(__dirname, '..', '..', 'templates', slug, 'pack.json'), 'utf8')) as { name: string; templates: string[] };
+        await findCategory(pack.name);
+        await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="pack:${slug}"]')`), `${slug} in the tree`);
         expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="pack:${slug}"]').dataset.count`)), slug).toBe(pack.templates.length);
       }
+      await clearFindField();
     }, 90_000);
 
     it('offers Replace only for templates installed from a pack, and refuses a broken zip with a plain message', async () => {
@@ -2377,6 +2392,8 @@ describe.skipIf(!electron)('inspector UI', () => {
 
     it('scopes the results to a browse node, shows the chip, and clears it with the ×', async () => {
       await clearSearch();
+      await findCategory('Lower third');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]')`), 'the type in the filtered tree');
       await page.eval(`document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]').click()`);
       await until(async () => !(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)), 'the scope chip for a type node');
       expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower third');
@@ -2385,11 +2402,15 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(lowerThirds).not.toContain('Diagonal Wipe');
       expect(lowerThirds).not.toContain('tiny');
       // The node's count agrees with the results it scopes to.
+      await findCategory('Lower third');
       expect(Number(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]').dataset.count`))).toBe(lowerThirds.length);
+      await clearFindField();
       await page.eval(`document.getElementById('scope-chip-clear').click()`);
       await until(async () => (await names()).includes('Diagonal Wipe'), 'the full library after clearing the type scope');
 
-      await page.eval(`[...document.querySelectorAll('#browse-tree .browse-node')].find((b) => b.querySelector('.label')?.textContent === 'Media library').click()`);
+      await findCategory('Media library');
+      await until(() => page.eval<boolean>(`[...document.querySelectorAll('#browse-tree .browse-node')].some((b) => b.textContent.includes('Media library'))`), 'the folder in the filtered tree');
+      await page.eval(`[...document.querySelectorAll('#browse-tree .browse-node')].find((b) => b.textContent.includes('Media library')).click()`);
       await until(async () => !(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)), 'the scope chip');
       expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Media library');
       expect(await page.eval<string>(`document.getElementById('scope-chip-label').dataset.tip`)).toBe(mediaDir);
@@ -2401,54 +2422,59 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)).toBe(true);
     }, 60_000);
 
-    it('finds a category as you type, names where it lives, and choosing it scopes the results', async () => {
+    it('filters the tree as a category is typed, lights what matched, and chooses from it', async () => {
       await clearSearch();
       const input = `document.querySelector('#browse-find input')`;
       const type = (text: string) => page.eval(`(() => { const f = ${input}; f.value = ${JSON.stringify(text)}; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       const press = (key: string) => page.eval(`${input}.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(key)}, bubbles: true, cancelable: true }))`);
-      const options = () =>
-        page.eval<{ label: string; place: string; active: boolean }[]>(
-          `[...document.querySelectorAll('#browse-find-list [role=option]')].map((o) => ({ label: o.querySelector('.label').textContent, place: o.querySelector('.place').textContent, active: o.classList.contains('active') }))`,
-        );
+      const rows = () => page.eval<string[]>(`[...document.querySelectorAll('#browse-tree .browse-node')].map((b) => b.dataset.node)`);
+      const headings = () => page.eval<string[]>(`[...document.querySelectorAll('#browse-tree .section-heading')].map((h) => h.dataset.node)`);
 
-      // Matches come from every taxonomy, each named with the section it lives in; the first is active.
-      await type('lower');
-      await until(async () => (await options()).length > 0, 'matches for "lower"');
-      const lower = await options();
-      expect(lower[0]).toMatchObject({ label: 'Lower third', place: 'Types', active: true });
-      await type('holi');
-      await until(async () => (await options()).some((o) => o.place === 'Themes'), 'a theme match for "holi"');
+      // Before: the whole tree, every section there to be opened.
+      const whole = await headings();
+      expect(whole.length).toBeGreaterThan(3);
 
-      // Keyboard first: the arrows move the active option, Enter chooses it, and the scope lands as if clicked in the tree.
+      // Typing takes away everything that does not match. What is left keeps its section and
+      // its group, so it is plain where each lives, and it sits at the top with nothing to scroll.
       await type('lower');
-      await until(async () => (await options())[0]?.label === 'Lower third', 'matches for "lower" again');
+      await until(async () => (await headings()).join() === 'types', 'only the section holding a match');
+      const left = await rows();
+      expect(left).toContain('type:lower-third');
+      expect(left).not.toContain('favorites');
+      expect(left.filter((r) => r.startsWith('type:'))).toEqual(['type:lower-third']);
+      // The group above it stays, unlit, to say where the match lives; the match itself is lit.
+      expect(left).toContain('group:titles');
+      expect(await page.eval<string>(`document.querySelector('#browse-tree [data-node="type:lower-third"] mark').textContent`)).toBe('Lower');
+      expect(await page.eval<number>(`document.querySelectorAll('#browse-tree [data-node="group:titles"] mark').length`)).toBe(0);
+
+      // A section that was folded still shows its matches: the search overrides the folds.
+      await type('spor');
+      await until(async () => (await rows()).some((r) => r.startsWith('theme')), 'a theme match from a folded section');
+
+      // Nothing matches: the tree is empty and says so.
+      await type('zzzznope');
+      await until(async () => (await rows()).length === 0, 'an empty tree');
+      expect(await page.eval<string>(`document.querySelector('#browse-find .find-none').textContent`)).toBe('No category matches');
+
+      // Clearing puts the tree back exactly as it was, folds included.
+      await press('Escape');
+      await until(async () => (await headings()).join() === whole.join(), 'the tree restored');
+      expect(await page.eval<string>(`${input}.value`)).toBe('');
+
+      // Enter takes the first category still standing, and scopes the results by it.
+      await type('lower');
+      await until(async () => (await rows()).includes('type:lower-third'), 'the match again');
       await press('Enter');
-      await until(async () => !(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)), 'the scope chip from the find field');
+      await until(() => page.eval<boolean>(`!document.getElementById('scope-chip').hidden`), 'the scope chip');
       expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower third');
       const scoped = await names();
       expect(scoped).toContain('Lower Third Bar');
       expect(scoped).not.toContain('Diagonal Wipe');
-      // The field is clear again and its list closed: the choice is made, the tree shows it.
+      // The field is clear and the tree is whole again, folded to where the choice lives.
       expect(await page.eval<string>(`${input}.value`)).toBe('');
-      expect(await page.eval<boolean>(`document.getElementById('browse-find-list').hidden`)).toBe(true);
-      expect(await page.eval<string>(`document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]').classList.contains('active') ? 'yes' : 'no'`)).toBe('yes');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"].active')`), 'the chosen category active in the tree');
       await page.eval(`document.getElementById('scope-chip-clear').click()`);
-      await until(async () => (await names()).includes('Diagonal Wipe'), 'the full library after clearing the scope');
-
-      // ArrowDown walks the list; Escape clears the field and closes the list.
-      await type('s');
-      await until(async () => (await options()).length > 1, 'several matches for "s"');
-      await press('ArrowDown');
-      expect((await options())[1]?.active).toBe(true);
-      await press('Escape');
-      expect(await page.eval<string>(`${input}.value`)).toBe('');
-      expect(await page.eval<boolean>(`document.getElementById('browse-find-list').hidden`)).toBe(true);
-
-      // It finds categories, not items: a template's name answers nothing here.
-      await type('Boardroom opener');
-      expect(await options()).toEqual([]);
-      expect(await page.eval<string>(`document.querySelector('#browse-find-list .find-none').textContent`)).toBe('No category matches');
-      await press('Escape');
+      await until(async () => (await names()).includes('Diagonal Wipe'), 'the full library again');
     }, 60_000);
 
     it('switches the results between cards and rows, and remembers the choice', async () => {
@@ -2492,7 +2518,10 @@ describe.skipIf(!electron)('inspector UI', () => {
         page.eval(`document.getElementById('browse-tree').dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(k)}, bubbles: true }))`);
       const has = (node: string) => page.eval<boolean>(`!!document.querySelector('#browse-tree [data-node=${JSON.stringify(node)}]')`);
 
-      // Down and Up walk the visible rows, headings included; Home jumps to the first.
+      // The tree shows only where you are, so Quick access is opened first and the walk starts there.
+      await clearFindField();
+      await page.eval(`(() => { const h = document.querySelector('#browse-tree .section-heading[data-node=quick]'); if (h.getAttribute('aria-expanded') === 'false') h.click(); })()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree [data-node=favorites]')`), 'Quick access open');
       await page.eval(`document.querySelector('#browse-tree .section-heading').focus()`);
       expect(await focused()).toBe('quick');
       await key('ArrowDown');
@@ -2505,6 +2534,10 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await focused()).toBe('quick');
 
       // Right steps into an open group, Left steps back out to it, Left again folds it.
+      await page.eval(`(() => { const h = document.querySelector('#browse-tree .section-heading[data-node=types]'); if (h.getAttribute('aria-expanded') === 'false') h.click(); })()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree [data-node="group:titles"]')`), 'the Types section open');
+      await page.eval(`(() => { const r = document.querySelector('#browse-tree [data-node="group:titles"]'); if (r.getAttribute('aria-expanded') === 'false') r.closest('.node-row').querySelector('.twisty').click(); })()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree [data-node="type:lower-third"]')`), 'the group open');
       await page.eval(`document.querySelector('#browse-tree [data-node="group:titles"]').focus()`);
       await key('ArrowRight');
       expect(await focused()).toBe('type:lower-third');
@@ -2580,41 +2613,55 @@ describe.skipIf(!electron)('inspector UI', () => {
 
     // Last in this suite on purpose: under the accordion, opening folds the other sections, and
     // nothing after this test reads the tree, so the folded state cannot trip a neighbour.
-    it('keeps one section open at a time: opening a section folds the others', async () => {
+    it('shows only where you are: folded to the active path, and one section open at a time', async () => {
       const heading = (id: string) => `document.querySelector('#browse-tree .section-heading[data-node=${JSON.stringify(id)}]')`;
       const openState = () =>
         page.eval<Record<string, string>>(
           `Object.fromEntries([...document.querySelectorAll('#browse-tree .section-heading')].map((h) => [h.dataset.node, h.getAttribute('aria-expanded')]))`,
         );
-      // The tree starts fully open; folding one section is free and touches nothing else.
-      expect((await openState()).types).toBe('true');
-      await page.eval(`${heading('types')}.click()`);
-      await until(async () => (await openState()).types === 'false', 'Types folded');
-      expect((await openState()).themes).toBe('true');
-      // Opening it again folds the other sections: one stands open at a time.
-      await page.eval(`${heading('types')}.click()`);
-      await until(async () => (await openState()).types === 'true', 'Types open again');
-      const after = await openState();
-      for (const [id, open] of Object.entries(after)) expect(open, id).toBe(id === 'types' ? 'true' : 'false');
-      // The same inside a section: opening one type group folds the other groups, not the sections.
-      // A group's row selects its scope; its twisty is what folds.
+      await clearSearch();
+      await page.eval(`(() => { const b = document.getElementById('scope-chip-clear'); if (b && !document.getElementById('scope-chip').hidden) b.click(); })()`);
+
+      // (What the panel opens on at launch — the active category's path, or Quick access alone —
+      // is `foldAllExcept` in src/core/browse-fold.ts, covered by its own unit tests: the app
+      // cannot be relaunched mid-suite, so this checks the rule that holds from here on.)
+
+      // Choosing a category folds the tree to the path that holds it: its section open, the rest shut.
+      const openSection = async (id: string) => {
+        await page.eval(`(() => { const h = document.querySelector('#browse-tree .section-heading[data-node=${JSON.stringify(id)}]'); if (h.getAttribute('aria-expanded') === 'false') h.click(); })()`);
+        await until(async () => (await openState())[id] === 'true', `${id} open`);
+      };
+      await openSection('types');
+      await page.eval(`(() => { const r = document.querySelector('#browse-tree [data-node="group:titles"]'); if (r.getAttribute('aria-expanded') === 'false') r.closest('.node-row').querySelector('.twisty').click(); })()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]')`), 'the group open');
+      await page.eval(`document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]').click()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('scope-chip').hidden`), 'the category chosen');
+      const afterChoice = await openState();
+      for (const [id, open] of Object.entries(afterChoice)) expect(open, id).toBe(id === 'types' ? 'true' : 'false');
+
+      // Opening another section folds the one that was open: one at a time.
+      await openSection('themes');
+      expect((await openState()).types, 'the section that was open folds').toBe('false');
+
+      // Folding is still free: closing one touches nothing else.
+      await page.eval(`${heading('themes')}.click()`);
+      await until(async () => (await openState()).themes === 'false', 'Themes folded');
+      const allShut = await openState();
+      expect(Object.values(allShut).every((v) => v === 'false'), JSON.stringify(allShut)).toBe(true);
+
+      // Inside a section, one group at a time as well: a group's row selects, its twisty folds.
+      await openSection('types');
       const twist = (id: string) => page.eval(`document.querySelector('#browse-tree [data-node=${JSON.stringify(id)}]').closest('.node-row').querySelector('.twisty').click()`);
       const groupOpen = (id: string) => page.eval<string>(`document.querySelector('#browse-tree [data-node=${JSON.stringify(id)}]').getAttribute('aria-expanded')`);
-      await twist('group:titles');
-      await until(async () => (await groupOpen('group:titles')) === 'false', 'the group folded');
-      await twist('group:titles');
-      await until(async () => (await groupOpen('group:titles')) === 'true', 'the group open again');
-      expect(await groupOpen('group:transitions')).toBe('false');
-      expect((await openState()).types).toBe('true');
-      // The find field still reaches into a folded section: choosing a theme unfolds the path to it.
-      await page.eval(`(() => { const f = document.querySelector('#browse-find input'); f.value = 'holiday'; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-find-list [role=option]')`), 'a match for "holiday"');
-      await page.eval(`document.querySelector('#browse-find input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))`);
-      await until(async () => (await openState()).themes === 'true', 'Themes unfolded by the choice');
-      // A find is a jump, not a reorganisation: what was open before the choice is still open.
-      expect((await openState()).types).toBe('true');
-      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="theme:holidays"].active')`), 'the chosen theme group active in the tree');
+      // Open whichever group is shut, and the other folds: one group at a time inside the section.
+      const shut = (await groupOpen('group:titles')) === 'false' ? 'group:titles' : 'group:transitions';
+      const other = shut === 'group:titles' ? 'group:transitions' : 'group:titles';
+      await twist(shut);
+      await until(async () => (await groupOpen(shut)) === 'true', `${shut} opened`);
+      expect(await groupOpen(other), 'the other group folds').toBe('false');
+
       await page.eval(`document.getElementById('scope-chip-clear').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('scope-chip').hidden`), 'the scope cleared');
     }, 60_000);
   });
 });

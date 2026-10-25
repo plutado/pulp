@@ -9,7 +9,7 @@ import { initShell } from './shell';
 import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
 import { currentLayers, currentRawParams, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
 import { currentOptions, currentPresetId, initInspectorOutput, outputSetFfmpeg, outputShow, setTemplateShower, updateRenderControls } from './inspector-output';
-import { browseAccordion, mountBrowse } from './browse';
+import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
 import { initTray } from './tray';
@@ -85,7 +85,11 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
     setScanning(false);
   }
   if (!index) return;
+  const first = appState.value.index === null;
   dispatch((s) => setIndex(s, index));
+  // The panel opens on where you are rather than on everything at once: the first time there is a
+  // tree to fold, it folds to the active category's path, or to Quick access alone.
+  if (first) browseFoldToActive();
   if (selectedTemplate.value) {
     const still = index.templates.find((t) => t.manifest.id === selectedTemplate.value?.manifest.id);
     if (!still) clearSelection();

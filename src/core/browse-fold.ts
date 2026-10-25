@@ -50,3 +50,43 @@ export function unfoldPath(folded: ReadonlySet<string>, path: readonly string[])
   for (const id of path) next.delete(id);
   return next;
 }
+
+/** Every foldable node's id, anywhere in the tree. */
+function foldableIds(tree: readonly TreeNode[]): string[] {
+  const out: string[] = [];
+  const walk = (nodes: readonly TreeNode[]): void => {
+    for (const node of nodes) {
+      if (node.children.length > 0) out.push(node.id);
+      walk(node.children);
+    }
+  };
+  walk(tree);
+  return out;
+}
+
+/**
+ * The node a predicate picks out, with the ids of its ancestors, outermost
+ * first. Null when nothing answers.
+ */
+export function nodePath(tree: readonly TreeNode[], want: (node: TreeNode) => boolean): { node: TreeNode; path: string[] } | null {
+  const walk = (nodes: readonly TreeNode[], path: string[]): { node: TreeNode; path: string[] } | null => {
+    for (const node of nodes) {
+      if (want(node)) return { node, path };
+      const deeper = walk(node.children, [...path, node.id]);
+      if (deeper) return deeper;
+    }
+    return null;
+  };
+  return walk(tree, []);
+}
+
+/**
+ * The folded set that shows one path and nothing else: everything foldable is
+ * folded except the ancestors named. This is what the tree looks like under the
+ * accordion when a category is chosen, or on launch with one already active —
+ * the panel opens on where you are rather than on everything at once.
+ */
+export function foldAllExcept(tree: readonly TreeNode[], open: readonly string[]): ReadonlySet<string> {
+  const keep = new Set(open);
+  return new Set(foldableIds(tree).filter((id) => !keep.has(id)));
+}
