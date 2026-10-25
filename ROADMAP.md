@@ -32,7 +32,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
 | **Total through 1.0 (milestones 1-8, 10-13 and 17-24)** | **262-426 h** |
-| **Still open through 1.0 (unticked items only)** | **57-93 h** |
+| **Still open through 1.0 (unticked items only)** | **33-54 h** |
 | **Total including post-1.0 items** | **294-484 h** |
 
 ## 0. Foundation (done)
@@ -264,7 +264,7 @@ Right after milestone 23. The taxonomy has filled out — 46 types, 51 themes an
 
 - [x] Find a category as you type: a field at the top of the browse panel, with Quick access, listing matching nodes across every taxonomy — types, themes, styles, packs, folders, and the Quick access entries — each labelled with where it lives ("Lower third · Types", "Holiday · Themes"). Choosing one selects that node and scopes the results exactly as clicking it in the tree does, scope chip and all. Keyboard first: arrows and Enter, Escape to clear; it finds categories, and the search bar above keeps finding items. The matching is a pure core module with unit tests, and the end-to-end test types, chooses and sees the scope land (4-6 h)
 - [x] One section open at a time: opening a section or a group folds the others at its level, so the tree stays short. A setting, on by default; choosing a node in the find field unfolds the path to it (2-3 h)
-- [ ] Six or more original samples per category: every type, theme and style reaches at least six CC0 samples across the bundled templates and the sample-media catalogue, with no upper limit. The coverage test becomes a minimum only — today it fails a type above five unless exempted (18-30 h)
+- [x] Six or more original samples per category: every type, theme and style reaches at least six CC0 samples across the bundled templates and the sample-media catalogue, with no upper limit. The coverage test becomes a minimum only — today it fails a type above five unless exempted (18-30 h)
 
 ## 20. Social-ready export (8-13 h)
 

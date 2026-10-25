@@ -444,6 +444,283 @@ const SFX: SampleMediaItem[] = [
     folder: ['Sound effects', 'Musical phrases'], file: 'resolve-phrase.wav', type: 'musical-phrase', note: 'A phrase that settles onto its root.',
     recipe: audio(evalSrc(`${env(0, 0.6, 0.008, 4)}*${tone(midi(71), 2)}*0.3+${env(0.3, 0.6, 0.008, 4)}*${tone(midi(74), 2)}*0.3+${env(0.6, 2.4, 0.008, 1.2)}*(${[48, 55, 60, 64].map((m) => tone(midi(m), 3)).join('+')})*0.1`, 3.2), 3.2),
   },
+
+
+  // ---- Milestone 24: themed sounds, in theme folders inside their type folders, so every
+  // theme in the tree is at least six deep. The folder gives the file its theme the same way
+  // the type folder above it gives it its type.
+
+  // Medical.
+  {
+    folder: ['Sound effects', 'UI tech', 'Medical'], file: 'monitor-beeps.wav', type: 'ui-tech', note: 'A patient monitor beeping steadily.',
+    recipe: audio(evalSrc(`${tone(880, 2)}*lt(mod(t,1),0.09)*min(1,mod(t,1)*80)*0.3`, 6), 6, 'lowpass=f=4000'),
+  },
+  {
+    folder: ['Sound effects', 'Vehicles', 'Medical'], file: 'ambulance-pass.wav', type: 'vehicles', note: 'A two-tone siren passing by.',
+    recipe: audio(evalSrc(`(gt(mod(t,1.1),0.55)*${tone(960)}+lt(mod(t,1.1),0.55)*${tone(720)})*${bell(3, 1.5)}*0.4+${NOISE}*${bell(3, 1.2)}*0.1`, 6), 6, 'lowpass=f=5000'),
+  },
+  {
+    folder: ['Sound effects', 'Ambience', 'Medical'], file: 'waiting-room.wav', type: 'ambience', note: 'A quiet waiting room: air, a distant page tone.',
+    recipe: audio(evalSrc(`${NOISE}*0.07+${env(3.2, 0.4, 0.01, 6)}*${tone(660, 2)}*0.08`, 8), 8, 'lowpass=f=1400'),
+  },
+
+  // Legal.
+  {
+    folder: ['Sound effects', 'Impacts', 'Legal'], file: 'gavel-raps.wav', type: 'impact', note: 'Three gavel raps on the block.',
+    recipe: audio(evalSrc(`${[0, 0.5, 1].map((s) => `${env(s, 0.3, 0.002, 30)}`).join('+')}*(sin(2*PI*(300+220*exp(-50*t))*t)*0.4+${NOISE}*0.35)`, 2), 2, 'lowpass=f=5000'),
+  },
+  {
+    folder: ['Sound effects', 'Crowd', 'Legal'], file: 'courtroom-murmur.wav', type: 'crowd', note: 'A gallery murmuring, then settling.',
+    recipe: audio(evalSrc(`${NOISE}*(0.14+0.05*sin(2*PI*0.25*t))*min(1,max(0.3,(6-t)*0.5))`, 7), 7, 'bandpass=f=850:width_type=o:w=2.2'),
+  },
+  {
+    folder: ['Music', 'Stings', 'Legal'], file: 'verdict.wav', type: 'sting', note: 'Two low chords, stated and answered.',
+    recipe: audio(evalSrc(`${env(0, 1.1, 0.01, 2.2)}*(${[41, 48, 53].map((m) => tone(midi(m), 3)).join('+')})*0.1+${env(1, 2.2, 0.01, 1.2)}*(${[36, 43, 48, 55].map((m) => tone(midi(m), 3)).join('+')})*0.09`, 3.4), 3.4),
+  },
+
+  // Faith.
+  {
+    folder: ['Sound effects', 'Musical phrases', 'Faith'], file: 'church-bells.wav', type: 'musical-phrase', note: 'Two church bells in a slow peal.',
+    recipe: audio(evalSrc(`${[0, 1.4, 2.8, 4.2].map((s, i) => `${env(s, 3, 0.004, 1)}*${tone(i % 2 ? 311 : 233, 4)}*0.14`).join('+')}`, 7), 7, 'lowpass=f=5000'),
+  },
+  {
+    folder: ['Music', 'Stings', 'Faith'], file: 'choir-swell.wav', type: 'sting', note: 'A voiced chord swelling and settling.',
+    recipe: audio(evalSrc(`min(1,t/1.6)*min(1,max(0,(4-t)*0.8))*(${[48, 55, 60, 64, 67].map((m) => tone(midi(m), 5)).join('+')})*0.05`, 4), 4, 'lowpass=f=2200'),
+  },
+  {
+    folder: ['Sound effects', 'Crowd', 'Faith'], file: 'congregation.wav', type: 'crowd', note: 'A congregation rising to speak together.',
+    recipe: audio(evalSrc(`${NOISE}*(0.08+0.1*min(1,t/2))`, 6), 6, 'bandpass=f=700:width_type=o:w=2'),
+  },
+  {
+    folder: ['Sound effects', 'Ambience', 'Faith'], file: 'sanctuary.wav', type: 'ambience', note: 'A large stone room: air and a long hush.',
+    recipe: audio(evalSrc(`${NOISE}*0.05+${NOISE2}*0.04`, 9), 9, 'lowpass=f=900,highpass=f=70'),
+  },
+
+  // Memorial.
+  {
+    folder: ['Sound effects', 'Musical phrases', 'Memorial'], file: 'single-bell-toll.wav', type: 'musical-phrase', note: 'One bell, tolling three times, far apart.',
+    recipe: audio(evalSrc(`${[0, 2.2, 4.4].map((s) => `${env(s, 2.6, 0.004, 0.9)}*${tone(196, 4)}*0.15`).join('+')}`, 7), 7, 'lowpass=f=3200'),
+  },
+  {
+    folder: ['Music', 'Stings', 'Memorial'], file: 'farewell-strings.wav', type: 'sting', note: 'A minor swell that releases into quiet.',
+    recipe: audio(evalSrc(`min(1,t/2)*min(1,max(0,(4.5-t)*0.7))*(${[45, 52, 57, 60, 64].map((m) => tone(midi(m), 6)).join('+')})*0.04`, 4.5), 4.5, 'lowpass=f=1800'),
+  },
+
+  // Nonprofit.
+  {
+    folder: ['Sound effects', 'Crowd', 'Nonprofit'], file: 'community-applause.wav', type: 'crowd', note: 'A warm room of applause, close and kind.',
+    recipe: audio(evalSrc(`${NOISE}*gt(random(2),0.5)*min(1,t*4)*min(1,(5-t)*1.1)*0.35`, 5), 5, 'highpass=f=900,lowpass=f=7000'),
+  },
+
+  // Space.
+  {
+    folder: ['Sound effects', 'Ambience', 'Space'], file: 'deep-drone.wav', type: 'ambience', note: 'A deep ship-hull drone with a slow sweep.',
+    recipe: audio(evalSrc(`${tone(55, 3)}*0.18+${tone(82.5, 2)}*(0.08+0.05*sin(2*PI*0.07*t))+${NOISE}*0.03`, 10), 10, 'lowpass=f=800'),
+  },
+
+  // Baseball.
+  {
+    folder: ['Sound effects', 'Impacts', 'Baseball'], file: 'bat-crack.wav', type: 'impact', note: 'A bat meeting the ball, with the park behind it.',
+    recipe: audio(evalSrc(`${NOISE}*exp(-60*t)*0.6+sin(2*PI*(1200*exp(-40*t)+180)*t)*exp(-30*t)*0.3+${NOISE2}*exp(-1.5*t)*0.05`, 2), 2, 'highpass=f=250'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'Baseball'], file: 'glove-catch.wav', type: 'foley', note: 'A ball snapping into a leather glove.',
+    recipe: audio(evalSrc(`${NOISE}*exp(-45*t)*0.5+sin(2*PI*140*t)*exp(-25*t)*0.3`, 0.8), 0.8, 'lowpass=f=3000'),
+  },
+  {
+    folder: ['Sound effects', 'Musical phrases', 'Baseball'], file: 'ballpark-organ.wav', type: 'musical-phrase', note: 'The charge call on a ballpark organ.',
+    recipe: audio(evalSrc(`${[60, 64, 67, 72, 69, 72].map((m, i) => `${env(i * 0.22, 0.26, 0.005, 6)}*${tone(midi(m), 4)}*0.12`).join('+')}+${env(1.32, 1.2, 0.005, 2)}*(${[60, 67, 72].map((m) => tone(midi(m), 4)).join('+')})*0.1`, 2.8), 2.8),
+  },
+  {
+    folder: ['Sound effects', 'Crowd', 'Baseball'], file: 'ballpark-crowd.wav', type: 'crowd', note: 'A ballpark swell after the hit.',
+    recipe: audio(evalSrc(`${NOISE}*(0.12+0.3*${bell(1.5, 1.2)})`, 6), 6, 'bandpass=f=750:width_type=o:w=2.8'),
+  },
+
+  // Hockey.
+  {
+    folder: ['Sound effects', 'Impacts', 'Hockey'], file: 'puck-slap.wav', type: 'impact', note: 'A slap shot off the stick.',
+    recipe: audio(evalSrc(`${NOISE}*exp(-70*t)*0.55+sin(2*PI*(320*exp(-60*t)+90)*t)*exp(-35*t)*0.3`, 0.7), 0.7, 'highpass=f=180'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'Hockey'], file: 'skate-carve.wav', type: 'foley', note: 'Skates carving ice, two strides and a stop.',
+    recipe: audio(evalSrc(`${NOISE}*(${env(0, 0.5, 0.05, 4)}+${env(0.7, 0.5, 0.05, 4)}+${env(1.4, 0.7, 0.02, 7)}*1.4)*0.4`, 2.4), 2.4, 'highpass=f=1500,lowpass=f=9000'),
+  },
+  {
+    folder: ['Sound effects', 'Alarms', 'Hockey'], file: 'goal-horn.wav', type: 'alarm', note: 'The goal horn, long and proud.',
+    recipe: audio(evalSrc(`(${tone(233, 5)})*min(1,t*30)*min(1,max(0,(2.4-t)*3))*0.3`, 2.6), 2.6, 'lowpass=f=3200'),
+  },
+  {
+    folder: ['Sound effects', 'Crowd', 'Hockey'], file: 'rink-roar.wav', type: 'crowd', note: 'An arena roar off the glass.',
+    recipe: audio(evalSrc(`${NOISE}*(0.14+0.26*${bell(1.2, 1)})`, 5), 5, 'bandpass=f=900:width_type=o:w=2.6'),
+  },
+
+  // Golf.
+  {
+    folder: ['Sound effects', 'Whooshes', 'Golf'], file: 'drive-swing.wav', type: 'whoosh', note: 'A driver through the ball: swish, then click.',
+    recipe: audio(evalSrc(`${NOISE}*pow(sin(PI*min(t,0.5)/0.5),4)*0.5+${env(0.42, 0.1, 0.001, 70)}*(${NOISE2}*0.5+${tone(2400, 1)}*0.2)`, 1.2), 1.2, 'highpass=f=600'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'Golf'], file: 'ball-in-cup.wav', type: 'foley', note: 'The ball rattling into the cup.',
+    recipe: audio(evalSrc(`${[0, 0.09, 0.2, 0.34].map((s, i) => `${env(s, 0.1, 0.001, 50)}*${tone(1500 - i * 220, 2)}*0.2`).join('+')}`, 0.9), 0.9, 'highpass=f=500'),
+  },
+  {
+    folder: ['Sound effects', 'Crowd', 'Golf'], file: 'polite-applause.wav', type: 'crowd', note: 'Gallery applause, brief and polite.',
+    recipe: audio(evalSrc(`${NOISE}*gt(random(2),0.62)*min(1,t*8)*min(1,(2.6-t)*1.6)*0.3`, 2.6), 2.6, 'highpass=f=1100,lowpass=f=6500'),
+  },
+  {
+    folder: ['Music', 'Stings', 'Golf'], file: 'birdie.wav', type: 'sting', note: 'A small rising figure for a made putt.',
+    recipe: audio(evalSrc(`${[67, 71, 74].map((m, i) => `${env(i * 0.16, 1.4, 0.006, 3)}*${tone(midi(m), 3)}*0.14`).join('+')}`, 2.2), 2.2),
+  },
+
+  // Tennis.
+  {
+    folder: ['Sound effects', 'Impacts', 'Tennis'], file: 'serve-pop.wav', type: 'impact', note: 'A first serve off the strings.',
+    recipe: audio(evalSrc(`${NOISE}*exp(-80*t)*0.5+${tone(420, 2)}*exp(-45*t)*0.35`, 0.6), 0.6, 'highpass=f=300'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'Tennis'], file: 'rally.wav', type: 'foley', note: 'Four strokes of a baseline rally.',
+    recipe: audio(evalSrc(`${[0, 0.8, 1.6, 2.4].map((s, i) => `${env(s, 0.12, 0.001, 55)}*(${NOISE}*0.35+${tone(i % 2 ? 380 : 440, 2)}*0.3)`).join('+')}`, 3.2), 3.2, 'highpass=f=250'),
+  },
+  {
+    folder: ['Sound effects', 'Crowd', 'Tennis'], file: 'point-won.wav', type: 'crowd', note: 'A held hush breaking into applause.',
+    recipe: audio(evalSrc(`${NOISE}*0.04*lt(t,1.2)+${NOISE2}*gt(random(3),0.55)*gt(t,1.2)*min(1,(t-1.2)*6)*min(1,(4-t)*1.4)*0.35`, 4), 4, 'highpass=f=800,lowpass=f=7000'),
+  },
+  {
+    folder: ['Music', 'Stings', 'Tennis'], file: 'match-point.wav', type: 'sting', note: 'A taut two-note call and its answer.',
+    recipe: audio(evalSrc(`${env(0, 0.5, 0.005, 5)}*${tone(midi(69), 3)}*0.3+${env(0.3, 0.5, 0.005, 5)}*${tone(midi(64), 3)}*0.3+${env(0.7, 1.6, 0.005, 1.6)}*(${[57, 61, 64].map((m) => tone(midi(m), 3)).join('+')})*0.1`, 2.6), 2.6),
+  },
+
+  // Motorsport.
+  {
+    folder: ['Sound effects', 'Vehicles', 'Motorsport'], file: 'grid-revs.wav', type: 'vehicles', note: 'Engines blipping on the grid.',
+    recipe: audio(evalSrc(`${tone(95, 5)}*(0.2+0.25*(${bell(0.6, 0.18)}+${bell(1.4, 0.2)}+${bell(2.3, 0.25)}))+${NOISE}*0.05`, 4), 4, 'lowpass=f=2600'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'Motorsport'], file: 'pit-gun.wav', type: 'foley', note: 'A wheel gun: on, off, and the drop.',
+    recipe: audio(evalSrc(`(${env(0, 0.4, 0.004, 9)}+${env(0.7, 0.4, 0.004, 9)})*${NOISE}*0.5+${env(1.3, 0.3, 0.002, 25)}*(${NOISE2}*0.4+${tone(120, 2)}*0.3)`, 2), 2, 'highpass=f=400'),
+  },
+
+  // Fitness.
+  {
+    folder: ['Sound effects', 'Impacts', 'Fitness'], file: 'weight-rack.wav', type: 'impact', note: 'Plates set back on the rack, twice.',
+    recipe: audio(evalSrc(`(${env(0, 0.4, 0.002, 18)}+${env(0.9, 0.4, 0.002, 18)})*(${NOISE}*0.35+${tone(180, 3)}*0.3)`, 1.8), 1.8, 'lowpass=f=4200'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'Fitness'], file: 'treadmill-run.wav', type: 'foley', note: 'A steady run on a treadmill belt.',
+    recipe: audio(evalSrc(`${NOISE}*0.1+${NOISE2}*gt(mod(t,0.36),0.3)*0.3`, 6), 6, 'lowpass=f=2200'),
+  },
+  {
+    folder: ['Sound effects', 'Ambience', 'Fitness'], file: 'gym-floor.wav', type: 'ambience', note: 'A gym floor: hum, clinks far off.',
+    recipe: audio(evalSrc(`${NOISE}*0.08+${env(2.2, 0.2, 0.004, 20)}*${tone(900, 2)}*0.06+${env(4.6, 0.2, 0.004, 20)}*${tone(760, 2)}*0.06`, 7), 7, 'lowpass=f=3000'),
+  },
+
+  // Easter.
+  {
+    folder: ['Sound effects', 'Nature weather', 'Easter'], file: 'spring-dawn.wav', type: 'nature-weather', note: 'A spring dawn: light air, bright chirps.',
+    recipe: audio(evalSrc(`${NOISE}*0.05+${[0.6, 1.7, 2.9, 4.2, 5.1].map((s, i) => `${env(s, 0.18, 0.01, 18)}*${tone(2600 + i * 300, 1)}*0.12`).join('+')}`, 6.5), 6.5, 'highpass=f=300'),
+  },
+  {
+    folder: ['Music', 'Stings', 'Easter'], file: 'egg-hunt.wav', type: 'sting', note: 'A bright little bell figure, found-it happy.',
+    recipe: audio(evalSrc(`${[72, 76, 79, 84].map((m, i) => `${env(i * 0.14, 1.2, 0.004, 4)}*${tone(midi(m), 2)}*0.14`).join('+')}`, 2.2), 2.2),
+  },
+  {
+    folder: ['Sound effects', 'Ambience', 'Easter'], file: 'meadow-morning.wav', type: 'ambience', note: 'A meadow: soft wind, a bee passing once.',
+    recipe: audio(evalSrc(`${NOISE}*(0.06+0.03*sin(2*PI*0.11*t))+${tone(190, 3)}*${bell(3.4, 0.5)}*0.05`, 7), 7, 'lowpass=f=4000'),
+  },
+
+  // Halloween.
+  {
+    folder: ['Sound effects', 'Nature weather', 'Halloween'], file: 'night-wind-howl.wav', type: 'nature-weather', note: 'Wind howling past a cold house.',
+    recipe: audio(evalSrc(`${NOISE}*(0.12+0.16*pow(sin(2*PI*0.13*t+1),2))`, 8), 8, 'bandpass=f=420:width_type=o:w=1.4'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'Halloween'], file: 'creaking-door.wav', type: 'foley', note: 'A door creaking open, slowly.',
+    recipe: audio(evalSrc(`sin(2*PI*(170+60*sin(2*PI*0.8*t))*t)*(0.12+0.08*sin(2*PI*2.4*t))*min(1,t*2)*min(1,(2.6-t))`, 2.8), 2.8, 'lowpass=f=1600'),
+  },
+  {
+    folder: ['Music', 'Stings', 'Halloween'], file: 'something-stirs.wav', type: 'sting', note: 'A wavering minor line over a low pedal.',
+    recipe: audio(evalSrc(`sin(2*PI*(440+18*sin(2*PI*5*t))*t)*min(1,t/1.2)*min(1,max(0,(3.4-t)))*0.14+${tone(55, 2)}*0.12`, 3.6), 3.6, 'lowpass=f=2600'),
+  },
+
+  // Thanksgiving.
+  {
+    folder: ['Sound effects', 'Crowd', 'Thanksgiving'], file: 'dinner-table.wav', type: 'crowd', note: 'A full table: talk, a laugh, cutlery.',
+    recipe: audio(evalSrc(`${NOISE}*(0.11+0.04*sin(2*PI*0.3*t))+${[1.1, 2.8, 4.6].map((s) => `${env(s, 0.08, 0.002, 40)}*${tone(2100, 1)}*0.08`).join('+')}`, 6.5), 6.5, 'bandpass=f=1000:width_type=o:w=2.4'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'Thanksgiving'], file: 'carving-board.wav', type: 'foley', note: 'Carving at the board, six strokes.',
+    recipe: audio(evalSrc(`${[0, 0.5, 1, 1.5, 2, 2.5].map((s) => `${env(s, 0.22, 0.02, 10)}`).join('+')}*${NOISE}*0.3`, 3.2), 3.2, 'bandpass=f=1900:width_type=o:w=1.6'),
+  },
+  {
+    folder: ['Music', 'Stings', 'Thanksgiving'], file: 'harvest-home.wav', type: 'sting', note: 'A warm plagal figure, home for the holiday.',
+    recipe: audio(evalSrc(`${env(0, 1.4, 0.01, 1.6)}*(${[53, 57, 60].map((m) => tone(midi(m), 4)).join('+')})*0.08+${env(1.1, 2.4, 0.01, 1.1)}*(${[48, 52, 55, 60].map((m) => tone(midi(m), 4)).join('+')})*0.08`, 3.6), 3.6, 'lowpass=f=2400'),
+  },
+
+  // Patriotic.
+  {
+    folder: ['Sound effects', 'Explosions', 'Patriotic'], file: 'fireworks-volley.wav', type: 'explosion', note: 'Three shells: whistle up, burst, crackle.',
+    recipe: audio(evalSrc(`${[0, 1.1, 2.1].map((s, i) => `sin(2*PI*(900+500*min(1,max(0,(t-${num(s)})*2)))*t)*${env(s, 0.5, 0.02, 4)}*0.08+${env(s + 0.55, 0.5, 0.001, 9)}*${NOISE}*0.45+gt(random(${i + 4}),0.75)*${env(s + 0.7, 0.9, 0.01, 4)}*${NOISE2}*0.2`).join('+')}`, 4), 4, 'lowpass=f=7000'),
+  },
+  {
+    folder: ['Sound effects', 'Musical phrases', 'Patriotic'], file: 'parade-snares.wav', type: 'musical-phrase', note: 'Parade snares: a roll into two accents.',
+    recipe: audio(evalSrc(`${NOISE}*gt(mod(t,0.125),0.095)*lt(t,1.5)*0.3+(${env(1.6, 0.3, 0.002, 22)}+${env(2, 0.5, 0.002, 16)})*${NOISE2}*0.5`, 2.8), 2.8, 'bandpass=f=3200:width_type=o:w=1.6'),
+  },
+  {
+    folder: ['Music', 'Stings', 'Patriotic'], file: 'fanfare.wav', type: 'sting', note: 'A brass fanfare in two calls.',
+    recipe: audio(evalSrc(`${([[60, 0], [67, 0.3], [72, 0.6]] as const).map(([note, start]) => `${env(start, 0.9, 0.01, 3)}*${tone(midi(note), 5)}*0.08`).join('+')}+${env(1.1, 2, 0.01, 1.4)}*(${[55, 60, 64, 67].map((m) => tone(midi(m), 5)).join('+')})*0.06`, 3.2), 3.2, 'lowpass=f=4500'),
+  },
+
+  // Ocean.
+  {
+    folder: ['Sound effects', 'Nature weather', 'Ocean'], file: 'shore-waves.wav', type: 'nature-weather', note: 'Waves breaking and drawing back, three sets.',
+    recipe: audio(evalSrc(`${NOISE}*(0.08+0.22*(${bell(1.2, 0.7)}+${bell(4, 0.8)}+${bell(6.8, 0.7)}))`, 8.5), 8.5, 'lowpass=f=5000,highpass=f=120'),
+  },
+  {
+    folder: ['Sound effects', 'Animals', 'Ocean'], file: 'gulls.wav', type: 'animals', note: 'Gulls calling over the water.',
+    recipe: audio(evalSrc(`${[0.4, 1.3, 2.6, 3.2, 4.8].map((s, i) => `${env(s, 0.5, 0.03, 6)}*sin(2*PI*(${num(1500 + (i % 3) * 180)}-500*min(1,max(0,(t-${num(s)})*3)))*t)*0.12`).join('+')}`, 6), 6, 'highpass=f=700'),
+  },
+  {
+    folder: ['Sound effects', 'Ambience', 'Ocean'], file: 'harbor-morning.wav', type: 'ambience', note: 'A harbor: low water, a far bell buoy.',
+    recipe: audio(evalSrc(`${NOISE}*0.08+(${env(2, 2.4, 0.004, 1.2)}+${env(6, 2.4, 0.004, 1.2)})*${tone(415, 3)}*0.06`, 9), 9, 'lowpass=f=2400'),
+  },
+
+  // Weather.
+  {
+    folder: ['Sound effects', 'Nature weather', 'Weather'], file: 'thunder-roll.wav', type: 'nature-weather', note: 'A near strike and the roll that follows.',
+    recipe: audio(evalSrc(`${env(0.2, 0.4, 0.002, 10)}*${NOISE}*0.6+${NOISE2}*(0.3*exp(-0.8*(t-0.4))*gt(t,0.4))`, 6), 6, 'lowpass=f=900'),
+  },
+  {
+    folder: ['Sound effects', 'Nature weather', 'Weather'], file: 'hail-on-roof.wav', type: 'nature-weather', note: 'Hail rattling a tin roof.',
+    recipe: audio(evalSrc(`${NOISE}*gt(random(5),0.6)*0.35+${NOISE2}*0.05`, 6), 6, 'highpass=f=1200,lowpass=f=9000'),
+  },
+  {
+    folder: ['Sound effects', 'Nature weather', 'Weather'], file: 'squall-front.wav', type: 'nature-weather', note: 'A squall arriving: wind up, rain in.',
+    recipe: audio(evalSrc(`${NOISE}*(0.08+0.2*min(1,t/3))`, 7), 7, 'bandpass=f=600:width_type=o:w=2.6'),
+  },
+
+  // City.
+  {
+    folder: ['Sound effects', 'Vehicles', 'City'], file: 'subway-pass.wav', type: 'vehicles', note: 'A subway pulling through below the grate.',
+    recipe: audio(evalSrc(`(${NOISE}*0.3+${tone(60, 3)}*0.22)*${bell(2.6, 1.3)}+${NOISE2}*gt(mod(t,0.4),0.36)*${bell(2.6, 1.3)}*0.18`, 6), 6, 'lowpass=f=2000'),
+  },
+  {
+    folder: ['Sound effects', 'UI tech', 'City'], file: 'crosswalk-signal.wav', type: 'ui-tech', note: 'A crosswalk signal ticking to walk.',
+    recipe: audio(evalSrc(`${tone(1050, 1)}*lt(mod(t,0.55),0.05)*lt(t,3.3)*0.3+${tone(1400, 1)}*lt(mod(t,0.14),0.05)*gt(t,3.3)*0.25`, 5.5), 5.5),
+  },
+  {
+    folder: ['Sound effects', 'Ambience', 'City'], file: 'night-street.wav', type: 'ambience', note: 'A city street at night: hum, one far horn.',
+    recipe: audio(evalSrc(`${NOISE}*0.1+${tone(72, 2)}*0.05+${env(4.1, 0.5, 0.02, 4)}*(${tone(392, 2)}+${tone(466, 2)})*0.05`, 8), 8, 'lowpass=f=1500'),
+  },
+
+  // Food.
+  {
+    folder: ['Sound effects', 'Foley', 'Food'], file: 'chopping-board.wav', type: 'foley', note: 'A knife on the board, eight quick cuts.',
+    recipe: audio(evalSrc(`${[0, 0.28, 0.56, 0.84, 1.12, 1.4, 1.68, 1.96].map((s) => `${env(s, 0.1, 0.001, 45)}`).join('+')}*(${NOISE}*0.4+${tone(260, 2)}*0.2)`, 2.6), 2.6, 'lowpass=f=5000'),
+  },
+  {
+    folder: ['Sound effects', 'Foley', 'Food'], file: 'pan-sizzle.wav', type: 'foley', note: 'A pan sizzling as something lands in it.',
+    recipe: audio(evalSrc(`${NOISE}*(0.08+0.3*min(1,max(0,(t-0.4)*3))*exp(-0.25*(t-0.4)))`, 5), 5, 'highpass=f=1800'),
+  },
 ];
 
 const MUSIC: SampleMediaItem[] = [
@@ -544,6 +821,50 @@ const STILLS: SampleMediaItem[] = [
   { folder: ['Design elements', 'Infographics'], file: 'chart-bars.png', type: 'infographic', note: 'A five-bar chart on a baseline.', recipe: { kind: 'still', page: 'element', variant: 'chart-bars', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Design elements', 'Infographics'], file: 'chart-donut.png', type: 'infographic', note: 'A four-part donut chart.', recipe: { kind: 'still', page: 'element', variant: 'chart-donut', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Design elements', 'Infographics'], file: 'chart-line.png', type: 'infographic', note: 'A line chart with plotted points.', recipe: { kind: 'still', page: 'element', variant: 'chart-line', format: 'png', width: 1920, height: 1080 } },
+
+
+  // ---- Milestone 24: themed motifs, so every theme in the tree is at least six deep.
+  { folder: ['Design elements', 'Icons', 'Medical'], file: 'medical-cross.png', type: 'icons', note: 'A ringed medical cross.', recipe: { kind: 'still', page: 'motif', variant: 'medical-cross', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Medical'], file: 'heart-pulse.png', type: 'icons', note: 'A pulse trace in a disc.', recipe: { kind: 'still', page: 'motif', variant: 'heart-pulse', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Legal'], file: 'scales.png', type: 'icons', note: 'The scales of justice.', recipe: { kind: 'still', page: 'motif', variant: 'scales', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Legal'], file: 'gavel.png', type: 'icons', note: 'A gavel over its block.', recipe: { kind: 'still', page: 'motif', variant: 'gavel', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Faith'], file: 'dove.png', type: 'icons', note: 'A dove in flight.', recipe: { kind: 'still', page: 'motif', variant: 'dove', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Memorial'], file: 'remembrance-candle.png', type: 'icons', note: 'A candle with a remembrance ring.', recipe: { kind: 'still', page: 'motif', variant: 'candle-remembrance', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Nonprofit'], file: 'hands-heart.png', type: 'icons', note: 'Hands holding up a heart.', recipe: { kind: 'still', page: 'motif', variant: 'hands-heart', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Nonprofit'], file: 'awareness-ribbon.png', type: 'icons', note: 'An awareness ribbon.', recipe: { kind: 'still', page: 'motif', variant: 'awareness-ribbon', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Civic'], file: 'ballot-box.png', type: 'icons', note: 'A ballot dropping into its box.', recipe: { kind: 'still', page: 'motif', variant: 'ballot-box', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Space'], file: 'ringed-planet.png', type: 'icons', note: 'A ringed planet.', recipe: { kind: 'still', page: 'motif', variant: 'planet-ring', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Baseball'], file: 'diamond.png', type: 'icons', note: 'A ball field from above.', recipe: { kind: 'still', page: 'motif', variant: 'baseball-diamond', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Baseball'], file: 'pennant.png', type: 'icons', note: 'A team pennant on its pole.', recipe: { kind: 'still', page: 'motif', variant: 'pennant', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Hockey'], file: 'rink.png', type: 'icons', note: 'A rink with centre line and face-off circle.', recipe: { kind: 'still', page: 'motif', variant: 'hockey-rink', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Hockey'], file: 'goalie-mask.png', type: 'icons', note: 'A goalie mask.', recipe: { kind: 'still', page: 'motif', variant: 'goalie-mask', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Golf'], file: 'pin-flag.png', type: 'icons', note: 'The pin and its flag over a cup.', recipe: { kind: 'still', page: 'motif', variant: 'golf-flag', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Golf'], file: 'green.png', type: 'icons', note: 'A green with the pin and a ball.', recipe: { kind: 'still', page: 'motif', variant: 'golf-green', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Tennis'], file: 'court.png', type: 'icons', note: 'A court from above.', recipe: { kind: 'still', page: 'motif', variant: 'tennis-court', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Tennis'], file: 'racket.png', type: 'icons', note: 'A strung racket.', recipe: { kind: 'still', page: 'motif', variant: 'racket', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Motorsport'], file: 'checkered-flag.png', type: 'icons', note: 'The checkered flag.', recipe: { kind: 'still', page: 'motif', variant: 'checkered-flag', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Fitness'], file: 'dumbbell.png', type: 'icons', note: 'A dumbbell.', recipe: { kind: 'still', page: 'motif', variant: 'dumbbell', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Fitness'], file: 'whistle.png', type: 'icons', note: 'A referee whistle on its ring.', recipe: { kind: 'still', page: 'motif', variant: 'whistle', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Easter'], file: 'painted-egg.png', type: 'icons', note: 'A painted egg with bands and dots.', recipe: { kind: 'still', page: 'motif', variant: 'egg', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Easter'], file: 'tulip.png', type: 'icons', note: 'A tulip in bloom.', recipe: { kind: 'still', page: 'motif', variant: 'tulip', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Easter'], file: 'basket.png', type: 'icons', note: 'A woven basket of eggs.', recipe: { kind: 'still', page: 'motif', variant: 'basket', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Halloween'], file: 'pumpkin.png', type: 'icons', note: 'A carved pumpkin.', recipe: { kind: 'still', page: 'motif', variant: 'pumpkin', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Halloween'], file: 'bat.png', type: 'icons', note: 'A bat mid-flap.', recipe: { kind: 'still', page: 'motif', variant: 'bat', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Halloween'], file: 'haunted-house.png', type: 'icons', note: 'A lit house on a dark hill.', recipe: { kind: 'still', page: 'motif', variant: 'haunted-house', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Thanksgiving'], file: 'turkey.png', type: 'icons', note: 'A fanned-tail turkey.', recipe: { kind: 'still', page: 'motif', variant: 'turkey', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Thanksgiving'], file: 'cornucopia.png', type: 'icons', note: 'A horn of plenty.', recipe: { kind: 'still', page: 'motif', variant: 'cornucopia', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Patriotic'], file: 'shield.png', type: 'icons', note: 'A stars-and-stripes shield.', recipe: { kind: 'still', page: 'motif', variant: 'stars-stripes-shield', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Patriotic'], file: 'bunting.png', type: 'icons', note: 'Bunting on a swag line.', recipe: { kind: 'still', page: 'motif', variant: 'bunting', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Patriotic'], file: 'tricolor-flag.png', type: 'icons', note: 'A tricolour flag on its pole.', recipe: { kind: 'still', page: 'motif', variant: 'rosette-flag', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Ocean'], file: 'lighthouse.png', type: 'icons', note: 'A lighthouse with its beam.', recipe: { kind: 'still', page: 'motif', variant: 'lighthouse', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Ocean'], file: 'wave.png', type: 'icons', note: 'A breaking wave.', recipe: { kind: 'still', page: 'motif', variant: 'wave-crest', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Ocean'], file: 'shell.png', type: 'icons', note: 'A fan shell.', recipe: { kind: 'still', page: 'motif', variant: 'shell', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Weather'], file: 'sun-and-cloud.png', type: 'icons', note: 'Sun behind a cloud.', recipe: { kind: 'still', page: 'motif', variant: 'sun-cloud', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Weather'], file: 'umbrella.png', type: 'icons', note: 'An open umbrella.', recipe: { kind: 'still', page: 'motif', variant: 'umbrella', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Weather'], file: 'lightning.png', type: 'icons', note: 'A lightning bolt.', recipe: { kind: 'still', page: 'motif', variant: 'lightning-bolt', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'City'], file: 'neon-sign.png', type: 'icons', note: 'A neon café sign.', recipe: { kind: 'still', page: 'motif', variant: 'neon-sign', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'City'], file: 'metro-map.png', type: 'icons', note: 'Metro lines with their stops.', recipe: { kind: 'still', page: 'motif', variant: 'metro-lines', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Food'], file: 'chef-hat.png', type: 'icons', note: 'A chef hat.', recipe: { kind: 'still', page: 'motif', variant: 'chef-hat', format: 'png', width: 1080, height: 1080 } },
 ];
 
 const CLIPS: SampleMediaItem[] = [

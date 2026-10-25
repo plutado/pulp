@@ -2,12 +2,12 @@
  * Milestone 24's rule: every type, theme and style in the browse tree has at
  * least **six** examples across the bundled templates and the sample-media
  * catalogue, and no upper limit — a category people reach for may go as deep
- * as it likes. (Milestone 21's rule was three to five, which capped a category
- * just as it became useful; the cap is gone and the floor has risen.)
+ * as it likes. (Milestone 21's band was three to five; the upper bound was
+ * never the point, and this milestone removed it and raised the floor.)
  *
- * While the milestone is open, the categories still to be filled are named
- * below. Those lists only shrink: a category that reaches six has to come off
- * its list, and the last test here fails if one is left on it.
+ * The still-open lists below are empty since the milestone landed: a new
+ * type, theme or style goes on its list until its examples do, and comes off
+ * the moment it reaches six.
  */
 
 import { join } from 'node:path';
@@ -26,13 +26,7 @@ export const MINIMUM = 6;
 const TYPES_STILL_OPEN = new Set<string>([]);
 
 /** Themes not yet six deep. Only shrinks. */
-const THEMES_STILL_OPEN = new Set<string>([
-  // What is left is themed media: the templates carried every theme a template honestly fits.
-  'medical', 'legal', 'faith', 'memorial', 'nonprofit', 'civic', 'space',
-  'baseball', 'hockey', 'golf', 'tennis', 'motorsport', 'fitness',
-  'easter', 'halloween', 'thanksgiving', 'patriotic',
-  'ocean', 'weather', 'city', 'food',
-]);
+const THEMES_STILL_OPEN = new Set<string>([]);
 
 /** Styles not yet six deep. Only shrinks. */
 const STYLES_STILL_OPEN = new Set<string>([]);
