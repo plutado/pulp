@@ -568,7 +568,7 @@ export function initStage(): void {
       s.inFlight = false;
       clearReplyWatchdog();
       noteFrameState();
-      if (data.type === 'pulp:rendered') stageLayersUpdate(((data as { laid?: LaidReport }).laid ?? {}));
+      if (data.type === 'pulp:rendered') stageLayersUpdate((data as { laid?: LaidReport }).laid ?? null);
       if (data.type === 'pulp:error') {
         els.note.hidden = false;
         els.note.textContent = `Template error: ${data.message ?? 'unknown'}`;

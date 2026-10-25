@@ -10,12 +10,19 @@
 
 import { effect } from '@preact/signals';
 import { aspectOf } from '../core/aspect';
-import { clampPlacement, clampScale, hitLayer, nudgeFraction, placedBox, scaleFromDrag, snapMove, type LaidReport, type SnapGuide } from '../core/stage-place';
+import { clampPlacement, clampScale, EMPTY_LAID, hitLayer, nudgeFraction, placedBox, scaleFromDrag, snapMove, type LaidReport, type SnapGuide } from '../core/stage-place';
 import { placementFor, type Layer, type LayerPlacement, type LayerPlacements } from '../core/layers';
 import { layerEditor, selectedLayer } from './layer-edit';
 
 /** How close a drag has to come to a line before it takes, in screen pixels. */
 const SNAP_SCREEN_PX = 6;
+
+/**
+ * How far off a layer a click may land and still take it, in screen pixels. The preview is
+ * usually much smaller than the frame, so a line of type can be a few pixels tall on screen;
+ * without this, selecting one would ask for an aim nobody has.
+ */
+const GRAB_SCREEN_PX = 4;
 
 interface Host {
   /** The template pixels the preview is rendered at. */
@@ -24,7 +31,7 @@ interface Host {
 
 let host: Host | null = null;
 let overlay: HTMLElement | null = null;
-let laid: LaidReport = {};
+let laid: LaidReport = EMPTY_LAID;
 
 interface DragState {
   kind: 'move' | 'resize';
@@ -66,7 +73,7 @@ function pct(v: number, of: number): string {
 }
 
 function laidLayer(block: string, id: string) {
-  return laid[block]?.layers.find((l) => l.id === id) ?? null;
+  return laid.blocks[block]?.layers.find((l) => l.id === id) ?? null;
 }
 
 /** The placement the layer currently stores for the frame's aspect. */
@@ -144,10 +151,13 @@ function paintSelection(): void {
 
 /** The stage reports what the frame laid; the overlay follows it. */
 export function stageLayersUpdate(report: LaidReport | null): void {
-  laid = report ?? {};
-  const any = Object.values(laid).some((b) => b.layers.length > 0);
+  laid = report ?? EMPTY_LAID;
+  const any = Object.values(laid.blocks).some((b) => b.layers.length > 0);
   if (overlay) {
     overlay.classList.toggle('active', any);
+    // The frame this report describes, so anyone waiting for the overlay to catch up with the
+    // preview can see that it has (the end-to-end test does; see docs/platform-notes.md).
+    overlay.dataset.laidFrame = laid.frame === null ? '' : String(laid.frame);
     if (!any) clearGuides();
   }
   paintSelection();
@@ -173,7 +183,8 @@ function onPointerDown(e: PointerEvent): void {
     return;
   }
 
-  const hit = hitLayer(laid, point.x, point.y);
+  const grab = (GRAB_SCREEN_PX / Math.max(1, overlay.getBoundingClientRect().width)) * host.frameSize().width;
+  const hit = hitLayer(laid, point.x, point.y, grab);
   selectedLayer.value = hit;
   if (!hit) return;
   const hitBox = placedBox(laidLayer(hit.block, hit.id)!);
@@ -200,7 +211,7 @@ function onPointerMove(e: PointerEvent): void {
   const travel = { x: point.x - drag.start.x, y: point.y - drag.start.y };
   const candidate = { ...drag.startBox, x: drag.startBox.x + travel.x, y: drag.startBox.y + travel.y };
   const threshold = (SNAP_SCREEN_PX / overlay.getBoundingClientRect().width) * size.width;
-  const block = laid[drag.block]?.box ?? { x: 0, y: 0, width: size.width, height: size.height };
+  const block = laid.blocks[drag.block]?.box ?? { x: 0, y: 0, width: size.width, height: size.height };
   const snap = snapMove(candidate, size, block, threshold);
   showGuides(snap.guides);
   const dx = drag.from.dx + (travel.x + snap.dx) / size.width;

@@ -174,6 +174,15 @@ Once the tests waited for `window.__pulp.drawn` (above), five layers tests timed
 - **`backgroundThrottling: false` on the window.** The preview answers frame requests through animation frames; a window that stops running them cannot answer. Pulp is a tool whose window may well be occluded while it renders, so this is right beyond CI.
 - **The bridge's two-frame wait is bounded**, like every other wait in a frame's path: the draw itself has already happened synchronously when the wait starts, so after 250 ms the frame is declared drawn rather than held forever. A healthy page resolves on the second animation frame long before that; an in-page `getImageData` reads the canvas's backing store, which holds the draw whether or not a compositor frame ever carried it.
 
+### Clicking a layer on the stage missed it on Windows (fixed, October 2026)
+
+The stage's handles (milestone 25) worked on macOS and Ubuntu and failed on `windows-latest`: the end-to-end test clicked the drawn title and nothing was selected. Two things were wrong, and the runner's window — 1008 × 655, so a 1920-pixel frame previewed about 157 px wide — is what exposed both.
+
+- **The overlay hit-tests the last report the page sent it, which can lag the frame on screen.** The bridge sets `window.__pulp.drawn` and *then* posts `pulp:rendered` with what it laid, so a test (or a person) that acts the moment `drawn` says the frame is there can click while the overlay still holds the previous frame's boxes. The report now carries the frame it describes, the overlay publishes it as `data-laid-frame`, and the test waits for the overlay to catch up. **Rule: a reply that two parties must agree on has to say which frame it is about.**
+- **A pixel-exact hit is an aim nobody has.** At 157 px wide, a line of type is a few screen pixels tall and a thin one is barely one. Hit-testing now forgives four screen pixels' worth of frame pixels, which is the difference between selecting a subtitle and not, on any small window.
+
+The test also assumed the frame was 1920 wide when mapping a click; it reads the preview's real size now, so a portrait aspect cannot throw the mapping off.
+
 ### Deleting a folder a process just used fails with EBUSY
 
 Windows refuses to delete a file or folder while any process holds a handle open; macOS and Linux unlink immediately and let the process keep its handle. The UI test's cleanup killed the app and deleted its scratch user data folder in the next statement, and the job failed on `EBUSY: resource busy or locked` with every test green. `child.kill()` returns before the process is gone, and Chromium's GPU and renderer helpers can outlive the main process by a moment, each holding profile files (LevelDB, caches, the lock file). Fix in both end-to-end files: wait for the child's `exit` event (with a timeout), then `fs.rm` with `maxRetries` and `retryDelay`, which Node retries on EBUSY, ENOTEMPTY and EPERM. Apply the same to any folder a just-finished ffmpeg or Electron process wrote into.

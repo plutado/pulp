@@ -1248,22 +1248,34 @@ describe.skipIf(!electron)('inspector UI', () => {
         await scrubAndWait(110);
         await until(() => page.eval<boolean>(`${overlay}.classList.contains('active')`), 'the overlay active over a template with layers');
 
-        type Laid = Record<string, { box: { x: number; y: number; width: number; height: number }; layers: { id: string; type: string; box: { x: number; y: number; width: number; height: number }; draw: { alpha: number; dx: number; dy: number; scale: number } }[] }>;
+        type Laid = { frame: number | null; blocks: Record<string, { box: { x: number; y: number; width: number; height: number }; layers: { id: string; type: string; box: { x: number; y: number; width: number; height: number }; draw: { alpha: number; dx: number; dy: number; scale: number } }[] }> };
         const laid = () => inTemplate<Laid>(`window.__pulp.laid`, CARD);
-        const titleDraw = async () => (await laid()).card!.layers.find((l) => l.id === 'title')!.draw;
-        const box = () => page.eval<{ left: number; top: number; width: number }>(`(() => { const r = ${overlay}.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width }; })()`);
-        /** The client point of a frame-pixel point, through the overlay's box. */
+        const titleDraw = async () => (await laid()).blocks.card!.layers.find((l) => l.id === 'title')!.draw;
+        const box = () => page.eval<{ left: number; top: number; width: number; height: number }>(`(() => { const r = ${overlay}.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
+        const frameSize = () => page.eval<{ width: number; height: number }>(`(() => { const c = document.getElementById('preview-frame'); const [w, h] = (c.style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`);
+        /**
+         * The overlay hit-tests the last report the page sent it, which can lag the frame the page
+         * has drawn: `drawn` is set before the reply is posted. Waiting for the overlay to hold the
+         * same frame is what makes a click land on what is on screen (docs/platform-notes.md).
+         */
+        const overlayReady = (frame: number) =>
+          until(() => page.eval<boolean>(`${overlay}.dataset.laidFrame === '${frame}'`), `the overlay holding frame ${frame}`);
+        /**
+         * The client point of a frame-pixel point, through the overlay's own box and the size the
+         * preview really renders at — never an assumed 1920, which a portrait aspect would break.
+         */
         const client = async (fx: number, fy: number) => {
           const b = await box();
-          const scale = b.width / 1920;
-          return { x: b.left + fx * scale, y: b.top + fy * scale };
+          const f = await frameSize();
+          return { x: b.left + (fx / f.width) * b.width, y: b.top + (fy / f.height) * b.height };
         };
         const pointer = (type: string, x: number, y: number, target = overlay) =>
           page.eval(`${target}.dispatchEvent(new PointerEvent(${JSON.stringify(type)}, { clientX: ${x}, clientY: ${y}, pointerId: 7, button: 0, bubbles: true }))`);
 
         // Click the title where it was really drawn: it is selected on the stage and in the tab.
+        await overlayReady(110);
         const before = await laid();
-        const t0 = before.card!.layers.find((l) => l.id === 'title')!;
+        const t0 = before.blocks.card!.layers.find((l) => l.id === 'title')!;
         const centreF = { x: t0.box.x + t0.draw.dx + t0.box.width / 2, y: t0.box.y + t0.draw.dy + t0.box.height / 2 };
         const at0 = await client(centreF.x, centreF.y);
         await pointer('pointerdown', at0.x, at0.y);
@@ -1277,7 +1289,7 @@ describe.skipIf(!electron)('inspector UI', () => {
 
         // Drag it right and down; the placement lands as frame fractions, snap tolerance allowed.
         const b = await box();
-        const toFrame = 1920 / b.width;
+        const toFrame = (await frameSize()).width / b.width;
         await pointer('pointermove', at0.x + 80, at0.y + 40);
         await pointer('pointerup', at0.x + 80, at0.y + 40);
         // Snapping is honest to the eye, not the maths: within 6 screen pixels a line takes the
@@ -1319,7 +1331,7 @@ describe.skipIf(!electron)('inspector UI', () => {
 
         // Per aspect: what was placed at 16:9 does not move the 9:16 layout.
         await fire('#opt-aspect', '9:16', 'change');
-        await until(async () => (await laid()).card !== undefined && (await inTemplate<number>(`document.getElementById('c').width`, CARD)) < 1200, 'the tall preview');
+        await until(async () => (await laid()).blocks.card !== undefined && (await inTemplate<number>(`document.getElementById('c').width`, CARD)) < 1200, 'the tall preview');
         await scrubAndWait(110);
         expect((await titleDraw()).dx, 'a 16:9 placement never moves the 9:16 frame').toBe(0);
         await fire('#opt-aspect', '16:9', 'change');
@@ -1341,14 +1353,15 @@ describe.skipIf(!electron)('inspector UI', () => {
         await scrubAndWait(110);
         const pictured = await until(async () => {
           const l = await laid();
-          return (l.card?.layers.some((y) => y.type === 'image' && y.box.width > 0)) === true;
+          return (l.blocks.card?.layers.some((y) => y.type === 'image' && y.box.width > 0)) === true;
         }, 'the picture drawn').then(() => laid());
-        const logo = pictured.card!.layers.find((y) => y.type === 'image')!;
+        await overlayReady(110);
+        const logo = pictured.blocks.card!.layers.find((y) => y.type === 'image')!;
         const logoAt = await client(logo.box.x + logo.draw.dx + logo.box.width / 2, logo.box.y + logo.draw.dy + logo.box.height / 2);
         await pointer('pointerdown', logoAt.x, logoAt.y);
         await pointer('pointermove', logoAt.x - 70, logoAt.y + 30);
         await pointer('pointerup', logoAt.x - 70, logoAt.y + 30);
-        const logoDraw = async () => (await laid()).card!.layers.find((y) => y.type === 'image')!.draw;
+        const logoDraw = async () => (await laid()).blocks.card!.layers.find((y) => y.type === 'image')!.draw;
         await until(async () => (await logoDraw()).dx < -40, 'the logo moved left');
         await page.eval(`document.querySelector('#params [aria-label="Reset ${ilabel} position"]').click()`);
         await until(async () => Math.abs((await logoDraw()).dx) < 0.5, 'Reset position putting the logo back');

@@ -23,7 +23,14 @@ export interface LaidBlockReport {
   layers: LaidLayerReport[];
 }
 
-export type LaidReport = Record<string, LaidBlockReport>;
+/** What the page reports for a frame: which frame it was, and the blocks it laid. */
+export interface LaidReport {
+  /** The frame this describes, so a report that lags the preview can be told from the current one. */
+  frame: number | null;
+  blocks: Record<string, LaidBlockReport>;
+}
+
+export const EMPTY_LAID: LaidReport = { frame: null, blocks: {} };
 
 /** Where a layer was really drawn: its slot moved by the draw's offset and scaled about its centre. */
 export function placedBox(layer: LaidLayerReport): PxBox {
@@ -36,14 +43,19 @@ export function placedBox(layer: LaidLayerReport): PxBox {
 /**
  * The layer under a point, topmost first — the stack draws bottom to top, so
  * the last hit wins — ignoring what was not drawn (alpha 0, an empty box).
+ *
+ * `tolerance` widens every box, in frame pixels. The preview is often far
+ * smaller than the frame — a stage 157 px wide shows a 1920-pixel frame, where
+ * a line of type is a few pixels tall on screen — so a pixel-exact hit would
+ * ask for an aim nobody has. The stage passes a few screen pixels' worth.
  */
-export function hitLayer(laid: LaidReport, x: number, y: number): { block: string; id: string } | null {
+export function hitLayer(laid: LaidReport, x: number, y: number, tolerance = 0): { block: string; id: string } | null {
   let hit: { block: string; id: string } | null = null;
-  for (const [block, report] of Object.entries(laid)) {
+  for (const [block, report] of Object.entries(laid.blocks)) {
     for (const layer of report.layers) {
       if (layer.draw.alpha <= 0 || layer.box.width <= 0 || layer.box.height <= 0) continue;
       const b = placedBox(layer);
-      if (x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height) hit = { block, id: layer.id };
+      if (x >= b.x - tolerance && x <= b.x + b.width + tolerance && y >= b.y - tolerance && y <= b.y + b.height + tolerance) hit = { block, id: layer.id };
     }
   }
   return hit;

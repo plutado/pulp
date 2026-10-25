@@ -19,7 +19,8 @@ describe('placedBox', () => {
 
 describe('hitLayer', () => {
   const laid: LaidReport = {
-    card: {
+    frame: 110,
+    blocks: { card: {
       box: { x: 0, y: 0, width: 1920, height: 1080 },
       layers: [
         layer('under', { x: 100, y: 100, width: 400, height: 200 }),
@@ -27,15 +28,23 @@ describe('hitLayer', () => {
         layer('ghost', { x: 0, y: 0, width: 1920, height: 1080 }, { alpha: 0 }),
         layer('empty', { x: 0, y: 0, width: 0, height: 0 }),
       ],
-    },
+    } },
   };
   it('answers the topmost drawn layer, skipping invisible and empty ones', () => {
     expect(hitLayer(laid, 300, 200)).toEqual({ block: 'card', id: 'over' }); // overlap: the later one is on top
     expect(hitLayer(laid, 120, 120)).toEqual({ block: 'card', id: 'under' });
     expect(hitLayer(laid, 1800, 1000)).toBeNull(); // only the ghost is there, and it is not drawn
   });
+  it('forgives a near miss by the tolerance, so a thin line on a small preview is still clickable', () => {
+    // 2 px above the "under" layer's top edge: a miss with no tolerance, a hit with 4.
+    expect(hitLayer(laid, 300, 98)).toBeNull();
+    expect(hitLayer(laid, 300, 98, 4)).toEqual({ block: 'card', id: 'under' });
+    // The tolerance does not reach a layer that was never drawn.
+    expect(hitLayer(laid, 1800, 1000, 40)).toBeNull();
+  });
+
   it('hits where the layer was drawn, not where its slot is', () => {
-    const moved: LaidReport = { b: { box: { x: 0, y: 0, width: 1920, height: 1080 }, layers: [layer('m', { x: 0, y: 0, width: 100, height: 100 }, { dx: 500, dy: 500 })] } };
+    const moved: LaidReport = { frame: 1, blocks: { b: { box: { x: 0, y: 0, width: 1920, height: 1080 }, layers: [layer('m', { x: 0, y: 0, width: 100, height: 100 }, { dx: 500, dy: 500 })] } } };
     expect(hitLayer(moved, 550, 550)).toEqual({ block: 'b', id: 'm' });
     expect(hitLayer(moved, 50, 50)).toBeNull();
   });
