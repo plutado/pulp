@@ -2420,16 +2420,31 @@ describe.skipIf(!electron)('inspector UI', () => {
       await fire('#search', 'type:template', 'input');
       await until(async () => (await names()).includes('Lower Third Bar') && !(await names()).includes('tall'), 'templates only');
       const wide = await cardH();
-      expect(await onResult<string>('Lower Third Bar', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('1920 / 1080');
+      // At the wide pitch every picture box is the same 16:9, which is what keeps the rows tight.
+      expect(await onResult<string>('Lower Third Bar', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('16 / 9');
       // The tall fixture clip (36 × 64, once probed) is a portrait item: a grid holding it takes a taller row, and its own picture is tall.
       await fire('#search', 'orientation:portrait type:video', 'input');
       await until(async () => (await names()).join() === 'tall', 'the tall clip alone', 30_000);
       await until(async () => (await cardH()) > wide, 'the taller row pitch');
       expect(await onResult<string>('tall', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('36 / 64');
-      // With everything showing, the one tall item sets the pitch for the whole grid; a wide card keeps its own shape inside it.
+      // With everything showing the grid is mixed, and it stays at the wide pitch rather than
+      // giving every wide card a tall cell (docs/ideas.md): the tall picture is contained in the
+      // same 16:9 box, and its Vertical badge is what still says it is tall.
       await clearSearch();
-      await until(async () => (await cardH()) > wide, 'the tall pitch for the mixed grid');
-      expect(await onResult<string>('Lower Third Bar', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('1920 / 1080');
+      await until(async () => (await cardH()) === wide, 'the wide pitch for the mixed grid');
+      expect(await onResult<string>('Lower Third Bar', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('16 / 9');
+      expect(await onResult<string>('tall', '(li) => li.querySelector(".thumb").style.aspectRatio')).toBe('16 / 9');
+      expect(await onResult<string[]>('tall', '(li) => [...li.querySelectorAll(".badge")].map((b) => b.dataset.badge)')).toContain('vertical');
+
+      // The Vertical chip keeps portrait media *and* templates that draw tall, and a template's own
+      // poster is wide, so that grid is still mixed and still sits at the wide pitch. The taller
+      // pitch belongs to a set that is portrait all through, which the search above showed.
+      await page.eval(`document.getElementById('chip-vertical').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('chip-vertical').getAttribute('aria-pressed') === 'true'`), 'the Vertical chip pressed');
+      await until(async () => (await names()).includes('tall'), 'the tall clip among the vertical results');
+      expect(await cardH(), 'templates draw tall but their posters are wide, so the grid stays mixed').toBe(wide);
+      await page.eval(`document.getElementById('chip-vertical').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('chip-vertical').getAttribute('aria-pressed') === 'false'`), 'the chip released');
     }, 60_000);
 
     // Last in this suite on purpose: under the accordion, opening folds the other sections, and

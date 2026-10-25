@@ -91,7 +91,13 @@ function Waveform({ entry }: { entry: LibraryEntry }) {
   );
 }
 
-export function Thumb({ entry, scrubbable }: { entry: LibraryEntry; scrubbable?: boolean }) {
+/**
+ * `gridRatio` is the pitch the results grid is laid out on: at the landscape
+ * pitch every picture box is 16:9 so a mixed grid stays tight, and a taller
+ * picture is contained inside it. Anywhere else — the Info tab's poster, a
+ * list row — a picture keeps its own shape, which is the default.
+ */
+export function Thumb({ entry, scrubbable, gridRatio }: { entry: LibraryEntry; scrubbable?: boolean; gridRatio?: number }) {
   const at = scrubbable ? scrub.value : null;
   const strip = at?.id === entry.id ? strips.value.get(entry.id) : undefined;
   const handlers = scrubbable
@@ -102,7 +108,7 @@ export function Thumb({ entry, scrubbable }: { entry: LibraryEntry; scrubbable?:
       }
     : {};
   return (
-    <span class={`thumb checker${entry.thumbnail ? '' : ' empty'}`} style={{ aspectRatio: thumbAspect(entry) }} {...handlers}>
+    <span class={`thumb checker${entry.thumbnail ? '' : ' empty'}`} style={{ aspectRatio: thumbAspect(entry, gridRatio) }} {...handlers}>
       {entry.thumbnail ? <img src={entry.thumbnail} alt="" /> : wantsWaveform(entry) ? <Waveform entry={entry} /> : <Icon name={placeholderIcon(entry)} size={20} />}
       {/* Over the poster, not instead of it: the checkerboard behind stays visible through alpha. */}
       {strip && (

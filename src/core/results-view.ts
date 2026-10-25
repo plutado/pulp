@@ -99,8 +99,15 @@ export function entryShape(entry: LibraryEntry): { width: number; height: number
   return width && height ? { width, height } : null;
 }
 
-/** The CSS `aspect-ratio` a thumbnail takes, so a tall item is drawn tall rather than letterboxed into 16:9. */
-export function thumbAspect(entry: LibraryEntry): string {
+/**
+ * The CSS `aspect-ratio` a thumbnail takes. In a grid whose pitch is a tall
+ * one — everything shown is square or taller — a card is drawn in its own
+ * shape. In a grid at the landscape pitch every picture box is 16:9 and a
+ * taller picture is contained inside it, which is what keeps a mixed grid
+ * tight (see `gridRatio`).
+ */
+export function thumbAspect(entry: LibraryEntry, gridRatio: number = PORTRAIT_RATIO): string {
+  if (gridRatio <= LANDSCAPE_RATIO) return '16 / 9';
   const shape = entryShape(entry);
   if (!shape) return '16 / 9';
   const ratio = Math.min(PORTRAIT_RATIO, Math.max(LANDSCAPE_RATIO, shape.height / shape.width));
@@ -108,10 +115,8 @@ export function thumbAspect(entry: LibraryEntry): string {
 }
 
 /**
- * The windowing math wants one row pitch, so a grid of mixed shapes takes its
- * height from the tallest picture in it (docs/ui-layout.md, milestone 19), as
- * height over width between a landscape 16:9 and a portrait 9:16. An all-wide
- * grid is exactly what it was.
+ * The tallest picture shape in a set, as height over width, between a
+ * landscape 16:9 and a portrait 9:16.
  */
 export function tallestRatio(entries: readonly LibraryEntry[]): number {
   let tallest = LANDSCAPE_RATIO;
@@ -122,6 +127,35 @@ export function tallestRatio(entries: readonly LibraryEntry[]): number {
     if (tallest >= PORTRAIT_RATIO) break;
   }
   return tallest;
+}
+
+/**
+ * The one row pitch a grid is laid out on, as height over width.
+ *
+ * The windowing math needs every row the same height, and taking that from the
+ * tallest picture anywhere in the results made a mixed grid loose: one square
+ * logo in the library gave every wide card a square cell, so each picture and
+ * its text sat in the top half with a band of nothing beneath.
+ *
+ * So the tall pitch is used only when **everything shown is square or taller** —
+ * the Vertical chip pressed, a portrait folder, a library of square art — where
+ * the height is what every card needs. The moment one wide item is shown the
+ * grid goes to 16:9 and the taller pictures are contained inside that box,
+ * keeping their shape badge (`thumbAspect`). An item whose shape is not known
+ * yet is drawn 16:9, so it counts as a wide one.
+ */
+export function gridRatio(entries: readonly LibraryEntry[]): number {
+  let tallest = LANDSCAPE_RATIO;
+  let known = 0;
+  for (const entry of entries) {
+    const shape = entryShape(entry);
+    if (!shape) return LANDSCAPE_RATIO;
+    known += 1;
+    const ratio = Math.min(PORTRAIT_RATIO, shape.height / shape.width);
+    if (ratio < 1) return LANDSCAPE_RATIO;
+    tallest = Math.max(tallest, ratio);
+  }
+  return known > 0 ? tallest : LANDSCAPE_RATIO;
 }
 
 /** The picture's height inside a card of this width, for the tallest ratio the grid holds. */

@@ -22,7 +22,7 @@ import {
   columnsFor,
   entryBadges,
   listRow,
-  tallestRatio,
+  gridRatio,
   thumbHeight,
   viewModeFor,
   LIST_ROW_HEIGHT,
@@ -80,7 +80,7 @@ function summary(entry: LibraryEntry): string {
   return `${name} — ${entry.offline ? 'Offline · ' : ''}${meta}${tags}`;
 }
 
-function Card({ entry, selected, onSelect }: ItemProps) {
+function Card({ entry, selected, onSelect, gridRatio }: ItemProps & { gridRatio: number }) {
   return (
     <li
       class={`card${entry.offline ? ' offline' : ''}`}
@@ -96,7 +96,7 @@ function Card({ entry, selected, onSelect }: ItemProps) {
       }}
       onClick={() => onSelect(entry)}
     >
-      <Thumb entry={entry} scrubbable />
+      <Thumb entry={entry} scrubbable gridRatio={gridRatio} />
       <span class="card-text">
         <span class="name-row">
           <Favorite entry={entry} />
@@ -136,10 +136,12 @@ function Row({ entry, selected, onSelect }: ItemProps) {
 function geometry(entries: readonly LibraryEntry[]) {
   const view = resultsView.value;
   const grid = viewModeFor(view, entries) === 'grid';
-  // One row pitch for the whole grid: the tallest picture in it decides, and each card draws its own shape inside that.
-  const ratio = grid ? tallestRatio(entries) : 0;
+  // One row pitch for the whole grid (src/core/results-view.ts): 16:9 the moment anything wide is
+  // shown, the taller pitch only when everything shown is square or taller.
+  const ratio = grid ? gridRatio(entries) : 0;
   return {
     grid,
+    ratio,
     columns: grid ? columnsFor(viewport.value.width, view.thumbSize) : 1,
     rowHeight: grid ? cardHeight(view.thumbSize, ratio) : LIST_ROW_HEIGHT,
     thumbHeight: grid ? thumbHeight(view.thumbSize, ratio) : 0,
@@ -206,16 +208,19 @@ function Results({ onSelect }: { onSelect: (entry: LibraryEntry) => void }) {
   if (!hasIndex.value) return null;
   const { entries } = results.value;
   if (entries.length === 0) return <Empty entries={entries} />;
-  const { grid, columns, rowHeight } = geometry(entries);
+  const { grid, ratio, columns, rowHeight } = geometry(entries);
   const win = virtualWindow({ total: entries.length, columns, rowHeight, viewportHeight: viewport.value.height, scrollTop: scrollTop.value });
   const selected = selectedKey.value;
-  const Item = grid ? Card : Row;
   return (
     <>
       {win.topPad > 0 && <li class="spacer" role="presentation" aria-hidden="true" style={{ height: `${win.topPad}px` }} />}
-      {entries.slice(win.start, win.end).map((entry) => (
-        <Item key={entry.key} entry={entry} selected={selected === entry.key} onSelect={onSelect} />
-      ))}
+      {entries.slice(win.start, win.end).map((entry) =>
+        grid ? (
+          <Card key={entry.key} entry={entry} selected={selected === entry.key} onSelect={onSelect} gridRatio={ratio} />
+        ) : (
+          <Row key={entry.key} entry={entry} selected={selected === entry.key} onSelect={onSelect} />
+        ),
+      )}
       {win.bottomPad > 0 && <li class="spacer" role="presentation" aria-hidden="true" style={{ height: `${win.bottomPad}px` }} />}
     </>
   );

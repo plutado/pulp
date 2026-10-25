@@ -12,6 +12,7 @@ import {
   resultsKind,
   sanitizeResultsView,
   snapThumbSize,
+  gridRatio,
   tallestRatio,
   THUMB_SIZES,
   thumbAspect,
@@ -106,6 +107,38 @@ describe('card geometry', () => {
     expect(thumbAspect(banner)).toBe('9 / 16');
     expect(thumbAspect(unknown)).toBe('16 / 9');
     expect(thumbAspect(media('ultrawide', { meta: { width: 4000, height: 1000 } as MediaEntry['meta'] }))).toBe('16 / 9');
+  });
+
+  it('lays a mixed grid out at 16:9, and takes the tall pitch only when everything shown is square or taller', () => {
+    const wide = template('Wide', { width: 1920, height: 1080 });
+    const tall = template('Tall', { aspects: ['9:16'], width: undefined, height: undefined });
+    const square = media('square', { meta: { width: 720, height: 720 } as MediaEntry['meta'] });
+    const banner = media('banner', { meta: { width: 300, height: 1500 } as MediaEntry['meta'] });
+    const unknown = media('unprobed');
+
+    // The bug this fixes: one square item used to give every wide card a square cell.
+    expect(gridRatio([wide, square])).toBe(LANDSCAPE_RATIO);
+    expect(gridRatio([wide, tall])).toBe(LANDSCAPE_RATIO);
+    expect(gridRatio([wide])).toBe(LANDSCAPE_RATIO);
+    expect(cardHeight(160, gridRatio([wide, square]))).toBe(cardHeight(160));
+
+    // Everything square or taller: the tall pitch is what every card needs, so it is used.
+    expect(gridRatio([square])).toBe(1);
+    expect(gridRatio([square, tall])).toBe(PORTRAIT_RATIO);
+    expect(gridRatio([tall, banner])).toBe(PORTRAIT_RATIO);
+
+    // A picture whose shape is not known yet is drawn 16:9, so it counts as a wide one.
+    expect(gridRatio([tall, unknown])).toBe(LANDSCAPE_RATIO);
+    expect(gridRatio([])).toBe(LANDSCAPE_RATIO);
+    expect(gridRatio([unknown])).toBe(LANDSCAPE_RATIO);
+
+    // At the landscape pitch every picture box is 16:9 and a taller picture is contained in it;
+    // at a tall pitch each card keeps its own shape, as before.
+    expect(thumbAspect(tall, LANDSCAPE_RATIO)).toBe('16 / 9');
+    expect(thumbAspect(square, LANDSCAPE_RATIO)).toBe('16 / 9');
+    expect(thumbAspect(wide, LANDSCAPE_RATIO)).toBe('16 / 9');
+    expect(thumbAspect(tall, PORTRAIT_RATIO)).toBe('1080 / 1920');
+    expect(thumbAspect(square, 1)).toBe('720 / 720');
   });
 });
 

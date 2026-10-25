@@ -204,21 +204,32 @@ describe('the windowed results region', () => {
     expect([...stripCalls].sort()).toEqual(['id-4', 'id-5']);
   });
 
-  it('gives a grid with a tall item a taller row, and that card its own shape', async () => {
-    // One clip probed as portrait: every row grows to fit it, and only its picture is drawn tall.
+  it('keeps a mixed grid at 16:9, and takes the taller pitch only when every card needs it', async () => {
+    // One clip probed as portrait among the wide ones. The row pitch used to come from the tallest
+    // picture anywhere in the results, which gave every wide card a 9:16 cell with a band of
+    // nothing under its picture and text (docs/ideas.md). A mixed grid now stays at 16:9.
     const tall = { ...clip(3), meta: { duration: 4, width: 1080, height: 1920 } as MediaEntry['meta'] };
     const mixed: LibraryIndex = { ...index, media: index.media.map((m) => (m.key === tall.key ? tall : m)) };
     appState.value = setIndex(appState.value, mixed);
     await settle();
+    expect(container.style.getPropertyValue('--card-h')).toBe(`${CARD_H}px`);
+    expect(container.style.getPropertyValue('--thumb-h')).toBe(`${thumbHeight(CARD_WIDTH)}px`);
+    // The tall picture is contained in the same 16:9 box as the rest, keeping its badge.
+    expect(container.querySelector<HTMLElement>('[data-id="id-3"] .thumb')?.style.aspectRatio).toBe('16 / 9');
+    expect(container.querySelector<HTMLElement>('[data-id="id-4"] .thumb')?.style.aspectRatio).toBe('16 / 9');
+
+    // Every item shown is portrait: now the taller pitch is what every card needs, so it is used
+    // and each card draws its own shape again. This is the Vertical chip's case.
+    const allTall: LibraryIndex = { ...index, templates: [], media: index.media.map((m) => ({ ...m, meta: { duration: 4, width: 1080, height: 1920 } as MediaEntry['meta'] })) };
+    appState.value = setIndex(appState.value, allTall);
+    await settle();
     const tallRow = cardHeight(CARD_WIDTH, PORTRAIT_RATIO);
     expect(container.style.getPropertyValue('--card-h')).toBe(`${tallRow}px`);
     expect(container.style.getPropertyValue('--thumb-h')).toBe(`${thumbHeight(CARD_WIDTH, PORTRAIT_RATIO)}px`);
-    // Three rows of the taller pitch no longer fit the same viewport, so the window holds fewer cards.
+    expect(container.querySelector<HTMLElement>('[data-id="id-4"] .thumb')?.style.aspectRatio).toBe('1080 / 1920');
+    // Fewer rows of the taller pitch fit the viewport, and the spacers measure the whole list at it.
     const visibleRows = Math.ceil(HEIGHT / tallRow);
     expect(rendered()).toHaveLength((visibleRows + OVERSCAN) * COLUMNS);
-    expect(container.querySelector<HTMLElement>('[data-id="id-3"] .thumb')?.style.aspectRatio).toBe('1080 / 1920');
-    expect(container.querySelector<HTMLElement>('[data-id="id-4"] .thumb')?.style.aspectRatio).toBe('16 / 9');
-    // The spacers still measure the whole list at the new pitch.
     expect(spacers().reduce((a, b) => a + b, 0) + (visibleRows + OVERSCAN) * tallRow).toBe((COUNT / COLUMNS) * tallRow);
 
     appState.value = setIndex(appState.value, index);
