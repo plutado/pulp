@@ -410,15 +410,23 @@ export const BRIDGE_SCRIPT = `(function () {
       /* Two animation frames: the first callback runs before the frame holding the draw is
          committed to the compositor, so resolving there can let a capture see the previous frame
          (observed on Windows CI as a blank or one-frame-stale first capture). The second callback
-         runs after that commit. */
+         runs after that commit. The wait is bounded: a throttled renderer — an occluded window, an
+         offscreen frame — may never run an animation frame at all, and the draw itself has already
+         happened, so after a moment the frame is declared drawn rather than held forever
+         (docs/platform-notes.md, "Windows CI"). */
       return new Promise(function (resolve) {
-        requestAnimationFrame(function () { requestAnimationFrame(function () {
+        var settled = false;
+        function done() {
+          if (settled) return;
+          settled = true;
           /* What is on the canvas now, for anyone asking whether a change has been drawn yet: a test
              reads the canvas after the frame it changed has landed, not after a guess at how long
              that takes (docs/platform-notes.md, "Windows CI"). */
           window.__pulp.drawn = { frame: state && state.frame, at: Date.now(), layers: countLayers(state), pictures: picturesIn(state) };
           resolve(true);
-        }); });
+        }
+        requestAnimationFrame(function () { requestAnimationFrame(done); });
+        setTimeout(done, 250);
       });
     });
   }

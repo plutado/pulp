@@ -56,6 +56,10 @@ function createWindow(): void {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
+      // An occluded or backgrounded window must keep drawing: the preview answers frame requests
+      // through requestAnimationFrame, which throttling stops entirely — seen on the Windows CI
+      // runner, whose desktop occludes the window, as a preview that never draws the frame asked for.
+      backgroundThrottling: false,
     },
   });
 

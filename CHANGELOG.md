@@ -6,6 +6,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Fixed
+
+- The preview answers even when the window is occluded or the frame has no screen time. Chromium throttles rendering for a window it believes no one can see — a covered window, a CI runner's desktop — and `requestAnimationFrame` then never fires, so the template page could never say a frame was drawn: the frame asked for never arrived and the stage's watchdog let request after request go. The window now opts out of background throttling, and the bridge's after-draw wait of two animation frames is bounded at a quarter of a second — the draw itself has already happened when the wait starts — so a frame is declared drawn rather than held forever (docs/platform-notes.md, "A throttled renderer runs no animation frames at all").
+
 ### Changed
 
 - No label repeats the heading it sits under. "Logo" as a card's title and "Logo" again as its one field read "Logo, Logo" over the image well; a field whose label matches its card's title — or, in a plain form, its group heading — now keeps the text as its accessible name and shows nothing. One rule in the core, in the style guide, and held to by the style test across every bundled template's Parameters tab.
