@@ -31,7 +31,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
 | **Total through 1.0 (milestones 1-8, 10-13 and 17-23)** | **238-387 h** |
-| **Still open through 1.0 (unticked items only)** | **36-60 h** |
+| **Still open through 1.0 (unticked items only)** | **33-54 h** |
 | **Total including post-1.0 items** | **270-445 h** |
 
 ## 0. Foundation (done)
@@ -238,7 +238,7 @@ Right after milestone 19, because both touch the template format and milestone 8
 - [x] A "logo reveal" type in the Titles and text group (the type list is closed and versioned, so the taxonomy version moves to 2, with ADR 0010's extension rule followed: added, never renamed; the coverage test picks it up). Three to five standalone reveals across families canvas does well — minimal, elegant line, glitch, particles, light sweep, ink — each around a slot, and a short ident for each matched set (one to three seconds, dark ground, one move) in its look. All original CC0, inspired by common patterns, never copied; each rendered and checked at 16:9 and 9:16 (4-6 h)
 - [ ] Media slots, after the image slots and possibly after 1.0: a `media` parameter for a video plate behind a title or inside a frame, drawn frame-accurately from a library clip (the host decodes the frame for the template's time, with a trim and a loop option), with the same grant rule, picker and cache-key handling as images (3-5 h, post-1.0)
 
-## 23. Layers in templates (29-44 h)
+## 23. Layers in templates (37-56 h)
 
 After milestone 22, which it grows out of, and before milestone 8's schema and authoring guide, for the same reason every format milestone comes first: the guide should describe the format as it ends up.
 
