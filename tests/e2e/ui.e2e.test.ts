@@ -985,7 +985,15 @@ describe.skipIf(!electron)('inspector UI', () => {
             if (ink > 1) { if (start < 0) { start = y; out.push({ top: y, height: 0, alpha: 0 }); } out[out.length - 1].height = y - start + 1; out[out.length - 1].alpha = Math.max(out[out.length - 1].alpha, brightest); }
             else start = -1;
           }
-          return { canvas: [c.width, c.height], bands: out.filter((b) => b.height > 3) };
+          // Join bands a few pixels apart: one line of type can leave a thin gap above its
+          // descenders in a substitute font (Linux has no Georgia), and a line is not two lines.
+          const joined = [];
+          for (const b of out) {
+            const last = joined[joined.length - 1];
+            if (last && b.top - (last.top + last.height) <= 8) { last.height = b.top + b.height - last.top; last.alpha = Math.max(last.alpha, b.alpha); }
+            else joined.push({ ...b });
+          }
+          return { canvas: [c.width, c.height], bands: joined.filter((b) => b.height > 3) };
         })()`,
         CARD,
       );
