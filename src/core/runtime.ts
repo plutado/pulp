@@ -412,11 +412,22 @@ export const BRIDGE_SCRIPT = `(function () {
          (observed on Windows CI as a blank or one-frame-stale first capture). The second callback
          runs after that commit. */
       return new Promise(function (resolve) {
-        requestAnimationFrame(function () { requestAnimationFrame(function () { resolve(true); }); });
+        requestAnimationFrame(function () { requestAnimationFrame(function () {
+          /* What is on the canvas now, for anyone asking whether a change has been drawn yet: a test
+             reads the canvas after the frame it changed has landed, not after a guess at how long
+             that takes (docs/platform-notes.md, "Windows CI"). */
+          window.__pulp.drawn = { frame: state && state.frame, at: Date.now(), layers: countLayers(state) };
+          resolve(true);
+        }); });
       });
     });
   }
-  window.__pulp = { ready: ready, render: render, prepare: prepare, drawImage: drawImage, fitBox: fitBox, layoutBlock: layoutBlock, drawBlock: drawBlock, slotHidden: slotHidden, slotText: slotText };
+  function countLayers(state) {
+    var n = 0, blocks = state && state.blocks ? state.blocks : {};
+    Object.keys(blocks).forEach(function (id) { n += (blocks[id].layers || []).length; });
+    return n;
+  }
+  window.__pulp = { ready: ready, render: render, prepare: prepare, drawImage: drawImage, fitBox: fitBox, layoutBlock: layoutBlock, drawBlock: drawBlock, slotHidden: slotHidden, slotText: slotText, drawn: null };
   window.pulpDrawImage = drawImage;
   window.pulpSlotHidden = slotHidden;
   window.pulpSlotText = slotText;

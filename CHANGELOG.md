@@ -157,6 +157,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- The template page now says what frame it has drawn (`window.__pulp.drawn`), and the stage puts its frame state on the preview box, so a test — or a person — waits for the frame it changed rather than guessing how long a two-core machine takes. Four Windows end-to-end failures were canvases read one change too early.
+
 - A bundled font would not load in a template page on Windows, and the frame waited for it for ever, so a line added to a template never appeared. A font load is a CORS request even to the page's own origin, and these schemes enforce CORS; the answer now says who may read it instead of relying on two custom-scheme origins comparing equal, and `font-src` names the scheme as well as `'self'`. The bridge's wait for a face is bounded at three seconds, so a font that cannot be fetched costs one frame in the fallback rather than every frame. The layers tests put the template's own layers back even when they fail, so one failure no longer wrecks the next test.
 
 - The preview could freeze for good. A frame is drawn when the template page answers, and a page with no room on screen — the stage collapsed, squeezed to nothing, or the window too short — runs no animation frames and never answers, after which every later frame was parked behind the one in flight and the preview showed one stale picture until the app was restarted. Each request now has a four-second watchdog: the stage lets the unanswered one go and asks again, so the preview catches up by itself as soon as it has room. This is what made three Windows end-to-end tests fail on the small display the runner has.

@@ -371,6 +371,13 @@ describe.skipIf(!electron)('inspector UI', () => {
     // The results box: a list squeezed to a few pixels is what made the sweeps fall short on Windows CI.
     lines.push(`results box: ${JSON.stringify(await probe('results box', () => page.eval(`(() => { const b = document.getElementById('results'); return { clientHeight: b.clientHeight, scrollHeight: b.scrollHeight, scrollTop: b.scrollTop, cols: b.style.getPropertyValue('--cols'), rowHeight: b.style.getPropertyValue('--card-h'), stage: document.getElementById('region-stage').clientHeight, tray: document.getElementById('region-tray').clientHeight }; })()`, undefined, 5_000)))}`);
     lines.push(`frame callback: ${JSON.stringify(await probe('rAF', () => page.eval(`new Promise((r) => { const t = performance.now(); const timer = setTimeout(() => r('no frame callback within 3 s'), 3000); requestAnimationFrame(() => { clearTimeout(timer); r(Math.round(performance.now() - t) + ' ms'); }); })`, undefined, 5_000)))}`);
+    // The preview: what frame the stage asked for, whether it is still waiting, and what the page last drew.
+    lines.push(`preview: ${JSON.stringify(await probe('preview', () => page.eval(`(() => { const f = document.getElementById('preview-frame'); return { frame: f.dataset.frame, inFlight: f.dataset.inFlight, pending: f.dataset.pending, watchdogFired: f.dataset.watchdog, src: document.getElementById('preview').getAttribute('src') }; })()`, undefined, 5_000)))}`);
+    const previewSrc = await probe('preview src', () => page.eval<string | null>(`document.getElementById('preview').getAttribute('src')`, undefined, 5_000));
+    const templateId = typeof previewSrc === 'string' ? /^pulp-template:\/\/([^/]+)\//.exec(previewSrc)?.[1] : undefined;
+    if (templateId) {
+      lines.push(`template page: ${JSON.stringify(await probe('template page', () => inTemplate(`({ drawn: window.__pulp && window.__pulp.drawn, fonts: [...document.fonts].filter((f) => f.status !== 'unloaded').map((f) => f.family + ':' + f.status) })`, templateId)))}`);
+    }
     lines.push(`library: ${JSON.stringify(await probe('diagnostics', () => page.eval(`window.pulp.libraryDiagnostics()`, undefined, 5_000)))}`);
     lines.push(`render queue: ${JSON.stringify(await probe('queue', () => page.eval(`window.pulp.getRenderQueue().then((q) => q.jobs.map((j) => j.status + ' ' + j.templateId))`, undefined, 5_000)))}`);
     if (appLog && existsSync(appLog)) {
@@ -949,9 +956,14 @@ describe.skipIf(!electron)('inspector UI', () => {
         CARD,
       );
 
+    /**
+     * Scrub, then wait until the template page says it has drawn that frame — not until a guessed
+     * number of milliseconds has passed. A frame on a two-core runner can take longer than any
+     * guess, and a canvas read before it lands shows the previous frame (docs/platform-notes.md).
+     */
     const scrubAndWait = async (frame: number) => {
       await scrubTo(frame);
-      await sleep(300);
+      await until(() => inTemplate<boolean>(`!!(window.__pulp && window.__pulp.drawn && window.__pulp.drawn.frame === ${frame})`, CARD).catch(() => false), `frame ${frame} to be drawn`);
     };
 
     /**
@@ -1001,6 +1013,8 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`(() => { const i = ${rows}[2].querySelector('.layer-text'); i.value = 'Recorded on location'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
       await scrubAndWait(110);
       await until(async () => (await bands()).length === 3, 'the third line in the preview');
+      // The page says how many layers the frame on the canvas carried: that, not the pixels, is the direct answer.
+      expect(await inTemplate<number>(`window.__pulp.drawn.layers`, CARD)).toBe(3);
 
       // It rides the stack: each position starts 0.7 s after the one above it, and the card clears at the end.
       await scrubAndWait(36); // 1.2 s: the subtitle is in, the third line starts at 1.4 s
@@ -1204,6 +1218,10 @@ describe.skipIf(!electron)('inspector UI', () => {
     it('the lower third: an added line grows the panel and rides its wipe and fade, wide and tall', async () => {
       const LT = 'pulp.samples.lower-third-bar';
       const strap = `document.querySelector('#params .layers-block[data-block=strap]')`;
+      const scrubAndWait = async (frame: number) => {
+        await scrubTo(frame);
+        await until(() => inTemplate<boolean>(`!!(window.__pulp && window.__pulp.drawn && window.__pulp.drawn.frame === ${frame})`, LT).catch(() => false), `frame ${frame} of the lower third to be drawn`);
+      };
       await clickResult('Lower Third Bar');
       await until(() => page.eval<boolean>(`!!${strap}`), 'the strap\'s layers');
       try {

@@ -191,6 +191,17 @@ function clearReplyWatchdog(): void {
   replyWatchdog = undefined;
 }
 
+/** How many times the watchdog has let a frame go this session: a count that should stay at zero. */
+let watchdogFired = 0;
+
+/** The preview's state, readable from the DOM: what a failing test prints, and what a person can inspect. */
+function noteFrameState(): void {
+  els.previewFrame.dataset.frame = String(s.frame);
+  els.previewFrame.dataset.inFlight = String(s.inFlight);
+  els.previewFrame.dataset.pending = s.pendingFrame === null ? '' : String(s.pendingFrame);
+  els.previewFrame.dataset.watchdog = String(watchdogFired);
+}
+
 function postFrame(frame: number): void {
   const win = els.preview.contentWindow;
   if (!win || !s.manifest) return;
@@ -201,6 +212,7 @@ function postFrame(frame: number): void {
     // catches up by itself the moment it has room again.
     replyWatchdog = undefined;
     if (!s.inFlight) return;
+    watchdogFired++;
     s.inFlight = false;
     const next = s.pendingFrame ?? s.frame;
     s.pendingFrame = null;
@@ -208,6 +220,7 @@ function postFrame(frame: number): void {
   }, FRAME_REPLY_TIMEOUT_MS);
   win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, previewSize(), s.layers) }, '*');
   updateTimecode(frame);
+  noteFrameState();
 }
 
 /**
@@ -544,6 +557,7 @@ export function initStage(): void {
     } else if (data?.type === 'pulp:rendered' || data?.type === 'pulp:error') {
       s.inFlight = false;
       clearReplyWatchdog();
+      noteFrameState();
       if (data.type === 'pulp:error') {
         els.note.hidden = false;
         els.note.textContent = `Template error: ${data.message ?? 'unknown'}`;
