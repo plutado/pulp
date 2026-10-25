@@ -45,6 +45,11 @@ const key = (label: string): string => label.trim().toLowerCase();
  *
  * A parameter whose `element` matches a layer's label joins that layer's card,
  * so an author can put a slot's picker beside the words it sits with.
+ *
+ * A parameter may also name "Layout and timing" itself, which most bundled
+ * templates do to say plainly where a setting goes. That names the last card,
+ * not a part of the graphic, so it joins the rest and stays at the end: an
+ * element declared after it — a slot's card, say — still comes before it.
  */
 export function paramCards(manifest: Pick<TemplateManifest, 'parameters' | 'blocks'>, layers: LayerValues): ParamCard[] {
   const cards: ParamCard[] = [];
@@ -67,6 +72,9 @@ export function paramCards(manifest: Pick<TemplateManifest, 'parameters' | 'bloc
   }
 
   const rest: ParamCard = { id: 'rest', label: REST_CARD_LABEL, kind: 'rest', params: [] };
+  // Unless a layer is already called that, in which case the layer keeps the name.
+  if (!byKey.has(key(REST_CARD_LABEL))) byKey.set(key(REST_CARD_LABEL), rest);
+
   for (const param of manifest.parameters) {
     const element = param.element?.trim();
     if (!element) {

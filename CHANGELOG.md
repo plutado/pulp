@@ -12,6 +12,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- The Parameters tab always ends with "Layout and timing". Most bundled templates say outright which settings belong there by naming it as a parameter's element, and the tab took that at face value and made it a card like any other, in the order it was declared — so Lower Third Bar read Name, Title, Panel, Layout and timing, then Logo, with a part of the graphic stranded after the card that is meant to close the tab. A parameter may still name it, and now joins the last card instead of making one, wherever it is declared; a layer actually called that keeps the name, as it always did.
+
 - The collection tray no longer keeps a stale message. "Every item now has those output settings.", "Saved as …" and "Rendering 3 items." used to stay on the status line after the collection was emptied, replaced or changed, describing something that was no longer there. A confirmation now fades after a few seconds and goes the moment the collection changes under it; an error waits until the next action, so it is not missed; and an empty collection says only "Nothing collected yet."
 
 - A squeezed stage keeps its picture. With the collection tray open on a short window, the stage gave every pixel to its own transport, tools and item row and left the preview nothing: the picture went invisible under its "no room" rule and the stage could not be clicked at all. The picture now keeps a floor and the chrome around it gives way first; when even that cannot be met the stage says so instead of showing nothing, and the layer overlay stops taking clicks it could never act on. This is what had been failing on Windows CI, where the window is 1008 × 655 (docs/platform-notes.md).

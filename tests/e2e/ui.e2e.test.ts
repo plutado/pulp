@@ -1437,11 +1437,14 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<number>(`document.querySelectorAll('#params .param-card[data-card="element:Logo"] .field > .field-head > span:not(.visually-hidden)').length`)).toBe(0);
       expect(await page.eval<string>(`document.querySelector('#params .param-card[data-card="element:Panel"] [data-param=panel] .field-head > span').textContent`)).toBe('Fill');
 
-      // A template that names no element keeps the plain form it always had.
+      // A template with no layers at all is still a card per part, and still ends with the timing:
+      // the opener names its elements in the manifest, "Layout and timing" among them, and naming
+      // that one must not make a card of it where it is declared.
       await clickResult('Boardroom opener');
-      await until(() => page.eval<boolean>(`!!document.querySelector('#params .field')`), 'the opener\'s form');
-      expect(await page.eval<number>(`document.querySelectorAll('#params .param-card').length`)).toBe(0);
-      expect(await page.eval<string[]>(`[...document.querySelectorAll('#params .group-label')].map((g) => g.textContent)`)).toEqual(['Colors']);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card')`), 'the opener\'s cards');
+      expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`))
+        .toEqual(['Company: company', 'Tagline: tagline', 'Accent: accent', 'Text: text', 'Layout and timing: inOut']);
+      expect(await page.eval<number>(`document.querySelectorAll('#params .group-label').length`)).toBe(0);
     }, 90_000);
 
     it('an image layer stacks with the lines and rides the animation by its position, on both proofs, wide and tall', async () => {

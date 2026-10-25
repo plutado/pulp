@@ -53,6 +53,36 @@ describe('paramCards', () => {
     expect(hasCards(paramCards(m, {}))).toBe(true);
   });
 
+  it('keeps the last card last when a parameter names it, with later elements still before it', () => {
+    const m = manifest({
+      blocks: [block()],
+      parameters: [
+        { id: 'panel', type: 'color', label: 'Fill', default: '#000000', element: 'Panel' },
+        { id: 'side', type: 'select', label: 'Position', default: 'left', options: [{ value: 'left', label: 'Left' }], element: REST_CARD_LABEL },
+        { id: 'logo', type: 'image', label: 'Logo', element: 'Logo', box: { x: 0, y: 0, width: 0.2, height: 0.2 } },
+        { id: 'inOut', type: 'number', label: 'Animate in/out', default: 0.6, element: '  layout AND timing ' },
+      ],
+    });
+    expect(shape(m)).toEqual([
+      'layer:Name:—',
+      'layer:Title:—',
+      'element:Panel:panel',
+      'element:Logo:logo',
+      `rest:${REST_CARD_LABEL}:side,inOut`,
+    ]);
+  });
+
+  it('lets a layer of that name keep it, and gives the rest its own card after', () => {
+    const m = manifest({
+      blocks: [block({ layers: [{ id: 'name', type: 'text', label: REST_CARD_LABEL, text: 'Alex', required: true }] })],
+      parameters: [
+        { id: 'a', type: 'color', label: 'A', default: '#000000', element: REST_CARD_LABEL },
+        { id: 'b', type: 'color', label: 'B', default: '#000000' },
+      ],
+    });
+    expect(shape(m)).toEqual([`layer:${REST_CARD_LABEL}:a`, `rest:${REST_CARD_LABEL}:b`]);
+  });
+
   it('leaves out the last card when every parameter belongs to a part', () => {
     const m = manifest({
       blocks: [block()],
