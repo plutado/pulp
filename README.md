@@ -11,7 +11,7 @@ Templates use an open, documented format: a folder with a `template.json` manife
 
 "Pulp" is a working name and may change.
 
-**Status: early development.** The renderer, the template format, search, categorization, template packs, drag-out to editing apps, the window shell, the card grid, the player, collections, image slots and layers are in place; social-ready export, 1.0 hardening and installers are still to come. Expect breaking changes to the format and the app until 1.0. See [ROADMAP.md](ROADMAP.md).
+**Status: early development.** The renderer, the template format, search, categorization, template packs, drag-out to editing apps, the window shell, the card grid, the player, collections, vertical and square formats, image slots, layers and moving layers on the stage are in place. In progress: **assets on the stage** — the Assets categories and the first generated examples are in, and asset libraries, Video layers and drop-onto-the-stage are not. Social-ready export, 1.0 hardening and installers are still to come. Expect breaking changes to the format and the app until 1.0. See [ROADMAP.md](ROADMAP.md).
 
 ![Pulp's window: the browse tree on the left, the search bar with filter chips above a live preview of the Lower Third Bar template and a grid of template cards in the center, and on the right the inspector's Parameters tab organised by part of the graphic — a card for each line of type with its words and face, one for the panel's colours, one for the logo, and Layout and timing last — with the render tray collapsed to a one-line summary at the bottom and a status bar](docs/images/app-window.png)
 
@@ -39,7 +39,7 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 ## What works today
 
 - Library scan of the bundled samples and any folders you add: templates are validated; media files (video, image, audio) are indexed with tags from folder names and metadata from ffprobe, with cached thumbnails and preview in the app (video, image and audio play in the stage).
-- Search with free text plus filters: `tag:`, `type:` (video, image, audio, or a taxonomy type or group such as `type:whoosh`, `type:transitions`), `theme:`, `style:`, `category:`, and from metadata `duration:>5`, `width:>=1920`, `height:`, `fps:`, `res:1080p` (also `4k`, `hd`), `codec:prores`, `alpha:yes`, `orientation:portrait`, `favorite:yes`, `recent:10`. Scope the search to Favorites, Recently used or one folder from the browse panel; narrow with filter chips (templates, video, images, audio, vertical, alpha, favorites); sort by relevance, name, recently used or duration. The last eight searches are remembered. Your tags and favorites are kept in the library database and survive folders going offline.
+- Search with free text plus filters: `tag:`, `type:` (video, image, audio, or a taxonomy type or group such as `type:whoosh`, `type:transitions`), `theme:`, `style:`, `category:`, `pack:`, and from metadata `duration:>5`, `width:>=1920`, `height:`, `fps:`, `res:1080p` (also `4k`, `hd`), `codec:prores`, `alpha:yes`, `orientation:portrait`, `favorite:yes`, `recent:10`. Scope the search to Favorites, Recently used or one folder from the browse panel; narrow with filter chips (templates, video, images, audio, vertical, alpha, favorites); sort by relevance, name, recently used or duration. The last eight searches are remembered. Your tags and favorites are kept in the library database and survive folders going offline.
 - Live preview with play, scrub, frame step and a loop toggle (templates open on their mid-progress frame, so transitions don't show a blank first frame), Set in / Set out marks that are the render's trim, volume and mute, a background of your choosing behind transparency (checkerboard, black, white or any colour) and a title-safe and action-safe overlay; hover a card to scrub through eight frames of it without opening it. Audio files show a waveform in the stage and in every list row, and audition mode walks a folder of sounds with the arrow keys, playing each as it comes up. A parameter form generated from the manifest: color pickers with alpha and recent colors, sliders, character counters, per-template undo/redo, saved parameter presets, and batch rendering from CSV.
 - Rendering through ffmpeg to ProRes 4444 (alpha), ProRes 422 HQ, PNG sequence (alpha), QuickTime Animation (alpha), WebM VP9 (alpha), H.264 MP4 and, on macOS, HEVC with alpha — with frame-rate override, background flattening and in/out trim. Alpha import verified in Premiere Pro and DaVinci Resolve on macOS ([docs/nle-verification.md](docs/nle-verification.md)).
 - Drag a finished render from the queue into your editor's bin or timeline, or "Prepare for drag" to render into a managed cache first; verified in Premiere Pro and Resolve on macOS.
@@ -48,33 +48,35 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Results as a grid of cards — thumbnail, name and badges for alpha, loop, duration, resolution and pack — or as a list with name, duration, type, themes and file columns, with the grid/list toggle and the thumbnail size in the search bar. Only what is in view is built, so a library of thousands scrolls smoothly.
 - Collections: gather items while browsing (Add to collection, or drag a card into the tray), give each its own output settings, reorder them, apply one item's settings to all, save and reopen the collection as a file, and render the lot into one folder. A saved collection also records what a project used: items it can no longer find are flagged, not dropped.
 - Vertical and square formats: a template is a shape, not a pixel size. It declares the aspects it draws for (16:9, 9:16, 1:1, 4:5), the Output tab picks the aspect and the resolution (standard sizes or a custom one) and the preview turns to match; `orientation:portrait` and a Vertical chip find tall items, cards take an item's own shape, and the safe-area overlay adds the zones a vertical video keeps clear. Every bundled set's lower third and title re-lay out for a tall frame.
-- Sample media on demand: a "Sample media" folder of original CC0 sounds, music, stills and clips, made with ffmpeg and the renderer when you ask for it, so the browse tree has something under every media type.
+- Sample media on demand: a "Sample media" folder of 304 original CC0 sounds, music, stills, clips and assets, made with ffmpeg and the renderer when you ask for it, so the browse tree has something under every media type. It takes about a minute and only fills what is missing, so running it again is quick.
 - Image slots: a template says where a logo belongs and the picture is drawn inside the graphic's own layers, so it follows every move, fade and wipe without being keyframed. Choose one in the Parameters tab or drop a file on the well — it is copied into a managed Imported folder — with treatments (tinted, white, black, shadow, glow), an eye toggle to leave the spot deliberately empty, and a fallback to the template's own words when nothing is chosen. A template page is handed only the images picked for it, by id, never a path into your library.
 - Layers: add your own lines of text and logos to a template, and they ride its animation by their position in the stack — a line added in the middle moves as the middle line of the design does. Each layer has its own typography (family, size as a share of the frame, weight, case, tracking, line height, colour, alignment, overflow) in one of ten bundled open-licence fonts or a font you import with a licence note of your own; behind Advanced, a layer can take a motion of its own — fade, slide, scale or none, after a delay — which still arrives and clears with the graphic. The Parameters tab is organised by part of the graphic rather than by kind of setting, and layers travel with saved presets, collections, the render cache, CSV batches and the command line.
 - Move and resize layers on the stage: click a line or a logo in the preview to select it — its card in the Parameters tab lights up with it — drag it anywhere, scale it by a corner handle, nudge it with the arrows. It snaps to the frame's centre lines, the safe areas and its own block, a guide drawn while it holds; the position is stored as fractions per aspect, every gesture is one undo step, and the template's motion still carries the layer from wherever it was put.
-- Find a category as you type: a field at the top of the browse panel lists matching nodes across every taxonomy — types, themes, styles, packs, folders — each named with the section it lives in, and choosing one scopes the results exactly as the tree does. The tree keeps one section open at a time so it stays short, and every type, theme and style in it is at least six samples deep, with no upper limit.
+- Find a category as you type: a field at the top of the browse panel lists matching nodes across every taxonomy — types, themes, styles, packs, folders — each named with the section it lives in, and choosing one scopes the results exactly as the tree does. The tree keeps one section open at a time so it stays short, and every type, theme and style in it is at least six samples deep, with no upper limit — the ten Assets categories excepted, which milestone 26 is still filling.
+- Assets, the beginning of it: an Assets type group of isolated elements on transparency — fire, smoke, sparks, explosions, energy, light, weather, liquids, confetti, brush strokes — with two generated CC0 examples in each, a transparent WebM for the moving one and a PNG for the still, seeded so every generation is identical.
 - A headless command-line render mode (below).
 
-Not yet: social-ready export, 1.0 hardening and docs, installers and signed builds, verification on Windows. These are on the [roadmap](ROADMAP.md).
+Not yet: the rest of the assets work (six per category and the themed Objects kind, asset libraries of your own, Video layers, dropping an asset onto the stage), social-ready export, 1.0 hardening and docs, installers and signed builds, verification on Windows. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
 The [roadmap](ROADMAP.md) breaks the path to 1.0 into milestones with task-level estimates. Estimates are working hours for one developer, including tests and docs.
 
-Milestones 1-6, 10-13, 18, 19, 21-25 (renderer, alpha export, parameter editor, library, drag-out, template packs, the window shell, visual polish, categorization, browsing and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, accordion and six-deep coverage, and layers moved and resized on the stage) are done, apart from verification items that need a Windows machine and the media slots held back until after 1.0. In planned order, what remains to 1.0:
+Milestones 1-6, 10-13, 18, 19, 21-25 (renderer, alpha export, parameter editor, library, drag-out, template packs, the window shell, visual polish, categorization, browsing and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, accordion and six-deep coverage, and layers moved and resized on the stage) are done, apart from four verification items that need the test Mac or a Windows machine and the media slots held back until after 1.0. In planned order, what remains to 1.0:
 
 | Milestone | What it delivers | Estimate |
 |---|---|---|
+| 26. Assets on the stage (**in progress**) | Isolated elements on transparency as a media kind of their own. Done: the Assets categories and two generated CC0 examples in each. Open: six per category plus a themed Objects kind, asset libraries of your own with alpha detection, Video layers decoded frame-accurately, dropping an asset onto the preview to make it a layer, and the rights-and-performance rules | 26-40 h open |
 | 20. Social-ready export | Platform presets (aspect, resolution, frame rate, H.264/AAC, bitrate) with warnings when a render runs past a platform's length or file-size limit, a cover image, and handing the file to the system share sheet or the platform's upload page — no accounts, no posting through APIs | 8-13 h |
-| 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide, an accessibility pass, local crash reporting, more sample templates, a user guide | 9-16 h |
+| 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide with a starter folder, an accessibility pass across every region, local crash reporting, a user guide | 8-13 h |
 | 17. Unsigned builds and releases | electron-builder, an app icon of Pulp's own and the names and shortcuts each system shows, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 8-14 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 
-The milestones through 1.0 total **278-448 hours**, of which **33-54 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, image parameters, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **313-501 hours**, of which **59-94 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, media slots, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
-The format is specified in [docs/template-format.md](docs/template-format.md). Twenty-three original sample templates live in [`templates/`](templates/) and are released under CC0 1.0: three standalone samples and four matched sets, each a pack with a lower third, title, transition, overlay and background sharing one look — **Boardroom** (corporate: ink blue and paper white, hairline rules, measured motion), **Newsdesk** (broadcast: signal red on navy, bold capitals, a diagonal slash motif), **Matchday** (sports: volt yellow on black, chevrons, a score bug, snappy moves) and **Festival** (celebration, any season: warm gold on deep plum, bokeh and confetti, gentle bouncy motion).
+The format is specified in [docs/template-format.md](docs/template-format.md). One hundred and twenty-four original sample templates live in [`templates/`](templates/) and are released under CC0 1.0: sixty-four standalone samples and four matched sets, each a pack of fourteen to sixteen templates sharing one look — a lower third, title, opener, end card, callout, transition, overlay, background, bug and more — **Boardroom** (corporate: ink blue and paper white, hairline rules, measured motion), **Newsdesk** (broadcast: signal red on navy, bold capitals, a diagonal slash motif), **Matchday** (sports: volt yellow on black, chevrons, a score bug, snappy moves) and **Festival** (celebration, any season: warm gold on deep plum, bokeh and confetti, gentle bouncy motion). The standalone samples spread across the style list — tech, retro, organic, hand-drawn, elegant, cinematic, grunge, playful and clean — so that every type, theme and style in the browse tree is at least six samples deep, counting the sample-media catalogue alongside the templates. The ten Assets categories are the exception, at two each until milestone 26 finishes filling them.
 
 ## Built with
 
@@ -91,10 +93,12 @@ Requirements: Node.js 22 or newer, npm 10 or newer, and ffmpeg on your PATH for 
 
 ```sh
 npm install
-npm run dev        # start the app with hot reload
-npm test           # unit tests (no Electron or ffmpeg needed)
-npm run lint       # eslint + TypeScript type checks
-npm run build      # production build into out/
+npm run dev          # start the app with hot reload
+npm test             # unit tests, plus end-to-end ones where Electron and ffmpeg are installed
+npm run test:e2e     # the end-to-end tests alone
+npm run lint         # eslint + TypeScript type checks
+npm run build        # production build into out/
+npm run visual:check # every bundled template still looks like itself (after a build)
 ```
 
 The first `npm run dev` downloads the Electron binary.
@@ -113,6 +117,17 @@ npx electron . --render pulp.samples.lower-third-bar --preset prores-4444 \
 Preset ids: `prores-4444`, `prores-422hq`, `png-sequence`, `qt-animation`, `webm-vp9-alpha`, `h264-mp4`, and on macOS `hevc-alpha`.
 
 `--fps <rate>` samples the template at another frame rate, one of the standard rates 23.976, 24, 25, 29.97, 30, 47.952, 48, 50, 59.94, 60, 100, 119.88 and 120 (a 30 fps template rendered at 60 fps gets twice the frames, same duration). `--background #RRGGBB` is the color alpha templates are flattened over in presets without alpha (default black). `--in-point` and `--out-point` are the first and last frame to render, inclusive, counted at the output rate: timecode such as `00:00:02:00` (semicolons for drop-frame at 29.97 and 59.94, three frame digits at 100 fps and above), a frame number such as `60`, or seconds such as `2.5s`. PNG sequences are numbered with the frame indices they hold, so a render from frame 60 starts at `_00060.png`. `--batch file.csv` renders one output per CSV row into the `--out` folder: headers match a parameter id or label (any case), a `name` column names the files, unknown columns are reported before rendering. `--library <folder>` adds a template folder for that run only (repeatable; not saved to settings). `--frame-timeout <seconds>` changes how long one frame may take before the template is treated as hung (default 10).
+
+A template declares the shapes it draws for, not a pixel size, so the size is chosen here: `--aspect 9:16` picks one of the aspects the template supports (refused with the list if it does not), and `--size 1080x1920` an exact size, which must be of that aspect. With neither, the template's default size is used.
+
+Two more entry points take no `--render`:
+
+```sh
+npx electron . --collection show.pulpcollection --out renders/   # each item with its own settings
+npx electron . --sample-media "~/Pulp sample media"              # write the CC0 catalogue
+```
+
+`--collection <file>` renders a saved collection, naming and skipping what the library cannot answer for rather than failing the lot. `--sample-media <folder>` writes the 304-file CC0 catalogue of sounds, music, stills, clips and assets, skipping whatever is already there, so running it again only fills gaps.
 
 ## Project layout
 

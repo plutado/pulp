@@ -2,6 +2,12 @@
 
 Estimates are working hours for one developer, including tests and docs. They are rough; the total range reflects that. Checked items are done. The "still open" row is the sum of the unticked items' own estimates, not the previous figure minus what was finished — recompute it from the items, or it drifts.
 
+## Where things stand
+
+**Milestone 26, assets on the stage, is the one in progress** — 2 of its 7 items are done. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 304-file sample-media catalogue, 56 types / 51 themes / 11 styles in the taxonomy, every category at least six deep except the ten Assets categories milestone 26 is still filling.
+
+What is left after 26: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Four verification items wait on hardware: two need the test Mac, two a Windows machine (see `docs/ideas.md`, Decided item 1, which replaces "hardware-blocked" with a Windows VM). Known issues and anything not yet scheduled are in `docs/ideas.md`.
+
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. Ideas, decisions not yet scheduled and known issues wait in `docs/ideas.md` until a milestone takes them. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
 | Milestone | Estimate |
@@ -24,7 +30,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 23. Layers in templates | 37-56 h |
 | 24. Browse panel: find as you type, one section open, deeper samples | 29-46 h |
 | 25. Move and resize layers on the stage | 16-22 h |
-| 26. Assets on the stage | 30-46 h |
+| 26. Assets on the stage (**in progress**, 2 of 7 items done) | 30-46 h |
 | 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 8-13 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -34,7 +40,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
 | **Total through 1.0 (milestones 1-8, 10-13 and 17-26)** | **313-501 h** |
-| **Still open through 1.0 (unticked items only)** | **58-91 h** |
+| **Still open through 1.0 (unticked items only)** | **59-94 h** |
 | **Total including post-1.0 items** | **345-559 h** |
 
 ## 0. Foundation (done)
