@@ -36,7 +36,10 @@ export const PHOTO_PAGE = page(
   var LOOKS = {
     sunset: { sky: ['#1b1030', '#7a2b4d', '#f0804a', '#ffd27a'], horizon: 0.64, ground: ['#1a0f1c', '#2a1626'], sun: { x: 0.62, y: 0.6, r: 0.11, c: '#ffe6a8' }, bokeh: 10, haze: 'rgba(255,170,110,0.25)' },
     ocean: { sky: ['#0a1a3a', '#1f4a7a', '#4f8fb8', '#b7d7e8'], horizon: 0.58, ground: ['#0b2a4a', '#145a86'], sun: { x: 0.5, y: 0.52, r: 0.07, c: '#fff4d6' }, bokeh: 26, haze: 'rgba(120,180,220,0.2)' },
-    forest: { sky: ['#0f1f12', '#1f4a26', '#5d8f3a', '#cfe29a'], horizon: 0.72, ground: ['#0a150c', '#173019'], sun: { x: 0.3, y: 0.18, r: 0.16, c: '#f6f2c9' }, bokeh: 18, haze: 'rgba(200,230,150,0.18)' }
+    forest: { sky: ['#0f1f12', '#1f4a26', '#5d8f3a', '#cfe29a'], horizon: 0.72, ground: ['#0a150c', '#173019'], sun: { x: 0.3, y: 0.18, r: 0.16, c: '#f6f2c9' }, bokeh: 18, haze: 'rgba(200,230,150,0.18)' },
+    city: { sky: ['#07101f', '#16304f', '#3f6d8f', '#9fc3d8'], horizon: 0.66, ground: ['#060b14', '#101d2e'], sun: { x: 0.78, y: 0.56, r: 0.05, c: '#ffd9a0' }, bokeh: 34, haze: 'rgba(130,170,210,0.22)' },
+    desert: { sky: ['#2a1407', '#8a4418', '#d98b3a', '#f4d79a'], horizon: 0.7, ground: ['#2b1708', '#6b3d16'], sun: { x: 0.44, y: 0.63, r: 0.13, c: '#fff0c4' }, bokeh: 6, haze: 'rgba(230,180,110,0.26)' },
+    snow: { sky: ['#1b2436', '#43566f', '#8fa4b8', '#e6eef5'], horizon: 0.6, ground: ['#b9c6d2', '#eef4f8'], sun: { x: 0.68, y: 0.3, r: 0.09, c: '#ffffff' }, bokeh: 14, haze: 'rgba(220,235,245,0.3)' }
   };
   window.pulpRender = function (state) {
     var d = size(state), W = d.W, H = d.H;
@@ -72,7 +75,7 @@ export const PHOTO_PAGE = page(
     var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.45)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
-    grain(W, H, 18, state.params.variant === 'ocean' ? 11 : state.params.variant === 'forest' ? 23 : 5);
+    grain(W, H, 18, { ocean: 11, forest: 23, city: 31, desert: 37, snow: 41 }[state.params.variant] || 5);
   };
 `,
 );
@@ -134,11 +137,53 @@ export const ILLUSTRATION_PAGE = page(
     ctx.fillStyle = flame; ctx.beginPath(); ctx.moveTo(-50 * u, 280 * u); ctx.quadraticCurveTo(0, 560 * u, 50 * u, 280 * u); ctx.fill();
     ctx.restore();
   }
+  function mountains(W, H) {
+    var sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#102a43'); sky.addColorStop(1, '#f0b429');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff3c4'; ctx.beginPath(); ctx.arc(W * 0.72, H * 0.3, Math.min(W, H) * 0.09, 0, Math.PI * 2); ctx.fill();
+    var bands = [['#243b53', 0.52, 0.22], ['#334e68', 0.64, 0.3], ['#486581', 0.78, 0.18]];
+    for (var b = 0; b < bands.length; b++) {
+      ctx.fillStyle = bands[b][0]; ctx.beginPath(); ctx.moveTo(0, H);
+      for (var px = 0; px <= W; px += W / 14) {
+        var peak = H * bands[b][1] - Math.abs(Math.sin(px / W * 6 + b * 2)) * H * bands[b][2];
+        ctx.lineTo(px, peak);
+      }
+      ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+    }
+  }
+  function waves(W, H) {
+    var sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#003f5c'); sky.addColorStop(1, '#2f4b7c');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    for (var w = 0; w < 7; w++) {
+      ctx.fillStyle = ['#2f4b7c', '#3d6a9a', '#4f88b8', '#6aa5cf', '#8cc0e0', '#b0d8ee', '#d6edf8'][w];
+      ctx.beginPath(); ctx.moveTo(0, H);
+      for (var px = 0; px <= W; px += W / 40) {
+        ctx.lineTo(px, H * (0.42 + w * 0.085) + Math.sin(px / W * 9 + w) * H * 0.022);
+      }
+      ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+    }
+  }
+  function leaves(W, H) {
+    ctx.fillStyle = '#f7f3e8'; ctx.fillRect(0, 0, W, H);
+    var u = Math.min(W, H) / 1080;
+    for (var i = 0; i < 26; i++) {
+      var x = hash(i * 5) * W, y = hash(i * 5 + 1) * H, r = (40 + hash(i * 5 + 2) * 90) * u;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(hash(i * 5 + 3) * Math.PI * 2);
+      ctx.fillStyle = ['#2f6b3f', '#4a8a52', '#7cb07a', '#bcd4a0'][i % 4];
+      ctx.beginPath(); ctx.moveTo(0, -r); ctx.quadraticCurveTo(r * 0.7, 0, 0, r); ctx.quadraticCurveTo(-r * 0.7, 0, 0, -r); ctx.fill();
+      ctx.restore();
+    }
+  }
   window.pulpRender = function (state) {
     var d = size(state);
     ctx.clearRect(0, 0, d.W, d.H);
     var v = state.params.variant;
-    if (v === 'skyline') skyline(d.W, d.H); else if (v === 'rocket') rocket(d.W, d.H); else hills(d.W, d.H);
+    if (v === 'skyline') skyline(d.W, d.H);
+    else if (v === 'rocket') rocket(d.W, d.H);
+    else if (v === 'mountains') mountains(d.W, d.H);
+    else if (v === 'waves') waves(d.W, d.H);
+    else if (v === 'leaves') leaves(d.W, d.H);
+    else hills(d.W, d.H);
   };
 `,
 );
@@ -176,11 +221,47 @@ export const LAYERED_PAGE = page(
     ctx.fillStyle = '#1d1d1f';
     for (var i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(x + w / 2 + (i - 1) * 90 * u, y + h / 2, 22 * u, 0, Math.PI * 2); ctx.fill(); }
   }
+  function arrowMark(W, H) {
+    var u = Math.min(W, H) / 1080;
+    ctx.save(); ctx.translate(W / 2, H / 2);
+    ctx.fillStyle = '#ff6b35';
+    ctx.beginPath(); ctx.moveTo(-260 * u, -70 * u); ctx.lineTo(90 * u, -70 * u); ctx.lineTo(90 * u, -170 * u); ctx.lineTo(300 * u, 0);
+    ctx.lineTo(90 * u, 170 * u); ctx.lineTo(90 * u, 70 * u); ctx.lineTo(-260 * u, 70 * u); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  function starBurst(W, H) {
+    var u = Math.min(W, H) / 1080, points = 16;
+    ctx.save(); ctx.translate(W / 2, H / 2);
+    ctx.fillStyle = '#ffd23f'; ctx.beginPath();
+    for (var i = 0; i < points * 2; i++) {
+      var a = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2, r = (i % 2 ? 190 : 330) * u;
+      if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ee4266'; ctx.beginPath(); ctx.arc(0, 0, 150 * u, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  function tagLabel(W, H) {
+    var u = Math.min(W, H) / 1080;
+    ctx.save(); ctx.translate(W / 2, H / 2);
+    ctx.fillStyle = '#1f7a8c';
+    ctx.beginPath(); ctx.moveTo(-420 * u, -110 * u); ctx.lineTo(300 * u, -110 * u); ctx.lineTo(430 * u, 0);
+    ctx.lineTo(300 * u, 110 * u); ctx.lineTo(-420 * u, 110 * u); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e8f6f8'; ctx.beginPath(); ctx.arc(320 * u, 0, 26 * u, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(-420 * u, -110 * u, 720 * u, 36 * u);
+    ctx.restore();
+  }
   window.pulpRender = function (state) {
     var d = size(state);
     ctx.clearRect(0, 0, d.W, d.H);
     var v = state.params.variant;
-    if (v === 'ribbon') ribbon(d.W, d.H); else if (v === 'bubble') bubble(d.W, d.H); else badge(d.W, d.H);
+    if (v === 'ribbon') ribbon(d.W, d.H);
+    else if (v === 'bubble') bubble(d.W, d.H);
+    else if (v === 'arrow') arrowMark(d.W, d.H);
+    else if (v === 'starburst') starBurst(d.W, d.H);
+    else if (v === 'tag') tagLabel(d.W, d.H);
+    else badge(d.W, d.H);
   };
 `,
 );

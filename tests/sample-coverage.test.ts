@@ -23,16 +23,13 @@ export const MINIMUM = 6;
 
 /** Types not yet six deep (ROADMAP.md, milestone 24). Only shrinks. */
 const TYPES_STILL_OPEN = new Set<string>([
+  // The media types are filled: the catalogue (src/core/sample-media.ts) carries six of each.
+  // What is left is the template types, one original animation at a time.
   'opener', 'end-card', 'callout', 'social', 'lower-third', 'title',
   'still-background', 'texture', 'animated-loop',
   'reveal', 'flash', 'glitch', 'wipe',
   'frame', 'light-particles', 'film-grunge', 'logo-bug', 'vignette', 'overlay',
   'shapes', 'icons', 'arrows', 'infographic', 'counter', 'countdown',
-  'stock-footage',
-  'photo', 'illustration', 'layered-graphic',
-  'full-mix', 'stems', 'sting',
-  'ambience', 'impact', 'alarm', 'nature-weather', 'animals', 'vehicles', 'crowd',
-  'foley', 'explosion', 'sci-fi', 'musical-phrase', 'whoosh', 'ui-tech',
 ]);
 
 /** Themes not yet six deep. Only shrinks. */

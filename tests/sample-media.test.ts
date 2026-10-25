@@ -11,9 +11,12 @@ import {
   sampleMediaReadme,
 } from '../src/core/sample-media';
 import { STILL_PAGES, stillPageUrl } from '../src/core/sample-stills';
-import { TYPE_GROUPS, TYPES } from '../src/core/taxonomy';
+import { scanLibrary } from '../src/core/library';
+import { entryType, typeInfo, TYPE_GROUPS, TYPES } from '../src/core/taxonomy';
+import { join } from 'node:path';
 
 const MEDIA_GROUPS = new Set(['video', 'stills', 'music', 'sfx']);
+const bundled = await scanLibrary([join(__dirname, '..', 'templates')]);
 const mediaTypes = TYPES.filter((t) => MEDIA_GROUPS.has(t.group));
 
 describe('the sample-media catalogue', () => {
@@ -23,13 +26,13 @@ describe('the sample-media catalogue', () => {
     }
   });
 
-  it('fills every media type with three to five files, and no other type', () => {
+  it('fills every media type at least six deep, and no other type', () => {
+    // Milestone 24 raised the floor from three and dropped the ceiling of five
+    // (tests/sample-coverage.test.ts): a media type people reach for may run as deep as it likes.
     const counts = new Map<string, number>();
     for (const item of SAMPLE_MEDIA) counts.set(item.type, (counts.get(item.type) ?? 0) + 1);
     for (const t of mediaTypes) {
-      const n = counts.get(t.id) ?? 0;
-      expect(n, `${t.label} (${t.id})`).toBeGreaterThanOrEqual(3);
-      expect(n, `${t.label} (${t.id})`).toBeLessThanOrEqual(5);
+      expect(counts.get(t.id) ?? 0, `${t.label} (${t.id})`).toBeGreaterThanOrEqual(6);
     }
     for (const type of counts.keys()) expect(mediaTypes.map((t) => t.id), type).toContain(type);
     // The four media groups are exactly the ones the catalogue fills.
@@ -88,7 +91,23 @@ describe('the sample-media catalogue', () => {
     }
     for (const item of SAMPLE_MEDIA) {
       if (item.recipe.kind === 'still') expect(Object.keys(STILL_PAGES)).toContain(item.recipe.page);
-      if (item.recipe.kind === 'clip') expect(item.recipe.templateId).toMatch(/^pulp\.samples\.[a-z]+\.background$/);
+      // Every variant is one its page really draws. A page picks its variant by name and falls back
+      // to a default, so a typo would quietly write the default picture under the new file's name
+      // rather than fail — with six variants a page, that is easy to do and hard to see.
+      if (item.recipe.kind === 'still') {
+        const page = STILL_PAGES[item.recipe.page];
+        const variant = item.recipe.variant;
+        const drawn = new RegExp(`['"]${variant}['"]|\\b${variant}\\s*[:(]`).test(page);
+        expect(drawn, `${item.recipe.page} does not draw "${variant}"`).toBe(true);
+      }
+      // A clip is rendered from a bundled background, checked against the library rather than by
+      // its name: a matched set's background or a standalone one both qualify.
+      if (item.recipe.kind === 'clip') {
+        const id = item.recipe.templateId;
+        const source = bundled.templates.find((t) => t.manifest.id === id);
+        expect(source, id).toBeDefined();
+        expect(typeInfo(entryType(source!) ?? '')?.group, `${id} is not a background`).toBe('backgrounds');
+      }
     }
   });
 
