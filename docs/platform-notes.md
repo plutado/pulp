@@ -167,7 +167,7 @@ Four layers tests failed on `windows-latest` with pictures that were one change 
 - **Rule:** never read a canvas after a sleep. Wait for the frame you changed, by its number; a sleep is a guess about a machine you are not on.
 - The one failure that was not a race — the leftover layer that made "organises the tab" find an extra card — was the wreckage of a test that failed before its cleanup. Every layers test puts the template's own layers back in a `finally`.
 
-### A throttled renderer runs no animation frames at all (fix attempted, October 2026)
+### A throttled renderer runs no animation frames at all (fixed, October 2026)
 
 Once the tests waited for `window.__pulp.drawn` (above), five layers tests timed out on `windows-latest` with the frame never drawn: `data-in-flight` stuck at true, the watchdog count climbing with every request, `drawn` still null — and in most dumps **no fonts even requested**, so the page had not reached the draw. The window reported itself visible and focused, yet the renderer behaved exactly as the "no room on screen" case: no animation frame ever ran. Chromium throttles rendering for a window it believes occluded — which a CI runner's desktop, with no one watching it, can be — and for an offscreen cross-origin frame, and `requestAnimationFrame` then never fires, however visible the DOM says it is. Two fixes, each sufficient for the preview:
 
