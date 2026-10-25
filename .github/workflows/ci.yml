@@ -105,8 +105,9 @@ jobs:
       - run: npm ci
       - name: Fetch the Electron binary
         # Electron 44 downloads its binary the first time it runs, not during npm ci, and the
-        # sandbox step below needs the files it brings.
-        run: npx electron --version
+        # sandbox step below needs the files it brings. The installer script fetches them without
+        # launching Electron, which would abort here before its sandbox helper is set up.
+        run: node node_modules/electron/install.js
       - name: Let Electron's sandbox run
         # The runner's kernel blocks unprivileged user namespaces, which Chromium's sandbox needs;
         # the setuid helper is the supported alternative.

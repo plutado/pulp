@@ -37,7 +37,13 @@ async function findElectron(): Promise<string | null> {
 const electron = await findElectron();
 if (!electron && process.env.PULP_E2E === '1') throw new Error('visual regression needs the Electron binary (PULP_E2E=1)');
 
-describe.skipIf(!electron)('every bundled template still looks like itself', () => {
+// The references are hashes made on the maintainer's Mac, and other machines draw a frame a few
+// bits differently: on CI's Windows runner, its macOS virtual machine and Linux, frames differed by
+// 7 to 64 bits against a tolerance of 6. Until references work across platforms (docs/ideas.md,
+// Known issues), the check runs locally and is skipped on CI rather than failing it for nothing.
+const onCi = Boolean(process.env.CI);
+
+describe.skipIf(!electron || onCi)('every bundled template still looks like itself', () => {
   it('matches the approved references, naming the template, aspect and frame of anything that moved', async () => {
     expect(existsSync(REFERENCES), 'the references are committed; run npm run visual:approve to make them').toBe(true);
     const result = await runBounded(electron!, ['.', '--visual-hashes', REFERENCES, '--check'], { cwd: ROOT, timeoutMs: 600_000 });
