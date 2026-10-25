@@ -97,6 +97,8 @@ The maintainer's intended sequence for what is decided here and what is already 
 
 ## Known issues
 
+- **Windows: clicking a layer on the stage doesn't select it** (CI run 40219158552 on `d572948`; milestone 25). `tests/e2e/ui.e2e.test.ts`, "moves, scales and nudges a layer on the stage…", fails only on Windows: `timed out waiting for the title card lit by the stage selection`. The click on the drawn title never selects its layer there, while macOS and Ubuntu pass. Likely areas, unconfirmed: mapping the pointer position to frame coordinates under Windows display scaling (the runner uses 150%), or the selection overlay not receiving the event on that platform. Read the run's log, fix it in the app if a person would hit it too, and record the trap in `docs/platform-notes.md`.
+
 - **The sample-media end-to-end test is close to its time limit.** `tests/e2e/render.e2e.test.ts` ("makes the whole sample-media folder…") generates the whole catalogue, now about 250 files, inside a 9-minute bound. Run alone it passes; inside a full `npm test` on a busy machine it ran out of time once (2026-10-25). Make it fit comfortably: generate in parallel where the generator allows, or check a representative subset end to end and the full catalogue in a separate, longer job.
 
 
