@@ -21,7 +21,7 @@ import { frameState } from '../core/runtime';
 import { framesToCheck, frameHash, hammingDistance, looksSame, type VisualReferences } from '../core/visual-hash';
 import { scanLibrary } from '../core/library';
 import type { TemplateEntry } from '../core/library-types';
-import { offscreenDeviceScaleFactor, paintComposited } from './render';
+import { drainPaints, offscreenDeviceScaleFactor, paintComposited } from './render';
 import { withTimeout } from '../core/render-guard';
 
 export interface VisualResult {
@@ -57,6 +57,9 @@ async function hashTemplate(entry: TemplateEntry, aspect: string): Promise<Visua
   try {
     win.setContentSize(size.width, size.height);
     await withTimeout(win.loadURL(`pulp-template://${manifest.id}/`), LOAD_TIMEOUT_MS, 'the template did not load');
+    // The load's own paints, out of the way before the first frame waits for one (see drainPaints):
+    // a stale paint there would hash the blank page instead of the template.
+    await drainPaints(win);
     const params = resolveParams(manifest, defaultParams(manifest)).values;
     const out: VisualResult[] = [];
     for (const frame of frames) {

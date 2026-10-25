@@ -263,6 +263,10 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       }
     }
 
+    // The page is loaded and its images are in: let the paints that cost queue up arrive before the
+    // first frame waits for one of its own, or it can be handed the frame from before the draw.
+    await drainPaints(win);
+
     await mkdir(dirname(plan.output), { recursive: true });
     existedBefore = await existingFiles(
       partialOutputFiles({
@@ -355,6 +359,48 @@ class TemplateError extends Error {
  * timeout keeps an occluded or otherwise non-painting window from hanging the
  * frame; the capture then behaves as before the wait existed.
  */
+/** How long the paint stream must be quiet before the backlog counts as drained, and the cap on waiting. */
+const PAINT_QUIET_MS = 48;
+const PAINT_DRAIN_CAP_MS = 2000;
+
+/**
+ * Wait for the offscreen paint stream to go quiet.
+ *
+ * `paintComposited` resolves on the *next* `paint` event, which it takes to be
+ * the frame it just invalidated for. That holds only when nothing else is in
+ * flight. Loading the page, and handing a template its images, each queue
+ * paints of their own; on a slow machine one of those can still be travelling
+ * when the first frame's wait begins, satisfy it, and leave `capturePage`
+ * returning the state from *before* the draw — a blank first frame
+ * (docs/platform-notes.md, "macOS CI").
+ *
+ * So the backlog is drained once, after the page is loaded and prepared and
+ * before the first frame: paints are counted until none has arrived for
+ * PAINT_QUIET_MS. The last one is by definition the newest state, so from then
+ * on a paint can only be the frame that was asked for. The cost is one quiet
+ * period per render, not per frame; the cap keeps a window that paints
+ * continuously from holding the render up.
+ */
+export function drainPaints(win: BrowserWindow): Promise<void> {
+  return new Promise((resolve) => {
+    let quiet: NodeJS.Timeout;
+    const done = (): void => {
+      clearTimeout(quiet);
+      clearTimeout(cap);
+      win.webContents.removeListener('paint', onPaint);
+      resolve();
+    };
+    const onPaint = (): void => {
+      clearTimeout(quiet);
+      quiet = setTimeout(done, PAINT_QUIET_MS);
+    };
+    const cap = setTimeout(done, PAINT_DRAIN_CAP_MS);
+    quiet = setTimeout(done, PAINT_QUIET_MS);
+    win.webContents.on('paint', onPaint);
+    win.webContents.invalidate();
+  });
+}
+
 export function paintComposited(win: BrowserWindow): Promise<void> {
   return new Promise((resolve) => {
     const done = (): void => {
@@ -458,6 +504,8 @@ export async function captureTemplateFrames(
       if (err instanceof RenderTimeoutError) return { ok: false, message: err.message, timedOut: true };
       return { ok: false, message: `Could not load template "${manifest.name}": ${(err as Error).message}` };
     }
+    // The load's own paints, out of the way before the first frame waits for one (see drainPaints).
+    await drainPaints(win);
     const frameTimeoutMs = options.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS;
     const captured: Buffer[] = [];
     for (const frame of frames) {
@@ -500,6 +548,7 @@ export async function captureStillPage(url: string, size: Size, params: Record<s
     win.setContentSize(size.width, size.height);
     const state = { frame: 0, time: 0, progress: 0, fps: 1, duration: 1, totalFrames: 1, width: size.width, height: size.height, params };
     await withTimeout(win.loadURL(url), timeoutMs, `the page did not load within ${Math.round(timeoutMs / 1000)} s`);
+    await drainPaints(win);
     await withTimeout(
       win.webContents.executeJavaScript(
         `Promise.resolve(window.pulpRender(${JSON.stringify(state)})).then(function () { return new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); }); })`,
@@ -549,6 +598,7 @@ export async function captureAssetFrames(
   try {
     win.setContentSize(size.width, size.height);
     await withTimeout(win.loadURL(url), timeoutMs, `the page did not load within ${Math.round(timeoutMs / 1000)} s`);
+    await drainPaints(win);
     const frames: Buffer[] = [];
     for (let frame = 0; frame < total; frame++) {
       const time = frame / clip.fps;
