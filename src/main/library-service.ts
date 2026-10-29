@@ -346,6 +346,21 @@ export function setItemThemes(id: string, themes: string[]): LibraryIndex {
   return index;
 }
 
+/**
+ * The rate a frame sequence is read at (milestone 30). A folder of frames
+ * records none, so Pulp states one; this keeps a person's own answer with the
+ * item, like a tag. `undefined` goes back to the stated default.
+ */
+export function setItemSequenceFps(id: string, fps: number | undefined): LibraryIndex {
+  const st = getStore();
+  const key = st.keyForId(id);
+  const clamped = fps === undefined || !Number.isFinite(fps) || fps <= 0 ? undefined : Math.min(240, Math.max(1, Math.round(fps * 1000) / 1000));
+  if (key) st.setUserData(key, { sequenceFps: clamped });
+  const index = st.toIndex();
+  broadcast(index);
+  return index;
+}
+
 export function setItemFavorite(id: string, favorite: boolean): LibraryIndex {
   const st = getStore();
   const key = st.keyForId(id);

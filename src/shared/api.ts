@@ -153,6 +153,8 @@ export interface PulpApi {
   /** Replace an item's user tags. Resolves to the updated index. */
   setItemTags(id: string, tags: string[]): Promise<LibraryIndex>;
   setItemFavorite(id: string, favorite: boolean): Promise<LibraryIndex>;
+  /** The rate a frame sequence is read at; `undefined` goes back to Pulp's stated default (milestone 30). */
+  setItemSequenceFps(id: string, fps: number | undefined): Promise<LibraryIndex>;
   /** Replace an item's user themes (built-in ids or custom words, normalized like tags). */
   setItemThemes(id: string, themes: string[]): Promise<LibraryIndex>;
   /**

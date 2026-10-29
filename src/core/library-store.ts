@@ -55,6 +55,12 @@ export interface UserItemData {
   favorite: boolean;
   /** ISO time of the last selection or render, if any. */
   lastUsed?: string;
+  /**
+   * Frames per second for a frame sequence (milestone 30). A folder of frames
+   * records no rate, so Pulp states one; this is where a person's own answer
+   * is kept, per item, like a tag or a favourite.
+   */
+  sequenceFps?: number;
 }
 
 interface RootRow {
@@ -159,6 +165,8 @@ export class LibraryStore {
     // user_items predates themes and is never dropped; add the column where it is missing.
     const userColumns = this.db.prepare('PRAGMA table_info(user_items)').all() as unknown as { name: string }[];
     if (!userColumns.some((c) => c.name === 'themes')) this.db.exec("ALTER TABLE user_items ADD COLUMN themes TEXT NOT NULL DEFAULT '[]'");
+    // The rate a frame sequence is read at (milestone 30) came later again.
+    if (!userColumns.some((c) => c.name === 'sequence_fps')) this.db.exec('ALTER TABLE user_items ADD COLUMN sequence_fps REAL');
     if (!userColumns.some((c) => c.name === 'render_count')) this.db.exec('ALTER TABLE user_items ADD COLUMN render_count INTEGER NOT NULL DEFAULT 0');
     this.db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run('schema', String(SCHEMA_VERSION));
   }
@@ -467,13 +475,14 @@ export class LibraryStore {
     const metaByKey = new Map(metaRows.map((m) => [m.key, m]));
     const thumbRows = this.db.prepare('SELECT key, size, mtime_ms FROM thumbs WHERE file IS NOT NULL').all() as unknown as { key: string; size: number; mtime_ms: number }[];
     const thumbByKey = new Map(thumbRows.map((t) => [t.key, t]));
-    const userRows = this.db.prepare('SELECT key, tags, themes, favorite, last_used, render_count FROM user_items').all() as unknown as {
+    const userRows = this.db.prepare('SELECT key, tags, themes, favorite, last_used, render_count, sequence_fps FROM user_items').all() as unknown as {
       key: string;
       tags: string;
       themes: string;
       favorite: number;
       last_used: string | null;
       render_count: number;
+      sequence_fps: number | null;
     }[];
     const userByKey = new Map(userRows.map((u) => [u.key, u]));
     const seenIds = new Map<string, string>();
@@ -512,6 +521,12 @@ export class LibraryStore {
       } else {
         const m = metaByKey.get(row.key);
         if (m && m.size === row.size && m.mtime_ms === row.mtime_ms) entry.meta = JSON.parse(m.meta) as MediaMetadata;
+        // A rate of the person's own for a frame sequence (milestone 30), over the one the probe
+        // recorded from Pulp's stated default. After the metadata, or it would be overwritten.
+        const rate = userByKey.get(row.key)?.sequence_fps;
+        if (rate && entry.sequence) {
+          entry.meta = { ...entry.meta, fps: rate, duration: Math.round((entry.sequence.count / rate) * 1000) / 1000 };
+        }
         index.media.push(entry);
       }
     }
@@ -656,11 +671,17 @@ export class LibraryStore {
   }
 
   getUserData(key: string): UserItemData {
-    const row = this.db.prepare('SELECT tags, themes, favorite, last_used FROM user_items WHERE key = ?').get(key) as
-      | { tags: string; themes: string; favorite: number; last_used: string | null }
+    const row = this.db.prepare('SELECT tags, themes, favorite, last_used, sequence_fps FROM user_items WHERE key = ?').get(key) as
+      | { tags: string; themes: string; favorite: number; last_used: string | null; sequence_fps: number | null }
       | undefined;
     if (!row) return { tags: [], themes: [], favorite: false };
-    return { tags: JSON.parse(row.tags) as string[], themes: JSON.parse(row.themes ?? '[]') as string[], favorite: row.favorite === 1, ...(row.last_used ? { lastUsed: row.last_used } : {}) };
+    return {
+      tags: JSON.parse(row.tags) as string[],
+      themes: JSON.parse(row.themes ?? '[]') as string[],
+      favorite: row.favorite === 1,
+      ...(row.last_used ? { lastUsed: row.last_used } : {}),
+      ...(row.sequence_fps ? { sequenceFps: row.sequence_fps } : {}),
+    };
   }
 
   /** One more finished render of this item, for the Info tab's Usage section. */
@@ -674,10 +695,11 @@ export class LibraryStore {
     const next = { ...this.getUserData(key), ...patch };
     this.db
       .prepare(
-        'INSERT INTO user_items (key, tags, themes, favorite, last_used) VALUES (?, ?, ?, ?, ?) ' +
-          'ON CONFLICT(key) DO UPDATE SET tags = excluded.tags, themes = excluded.themes, favorite = excluded.favorite, last_used = excluded.last_used',
+        'INSERT INTO user_items (key, tags, themes, favorite, last_used, sequence_fps) VALUES (?, ?, ?, ?, ?, ?) ' +
+          'ON CONFLICT(key) DO UPDATE SET tags = excluded.tags, themes = excluded.themes, favorite = excluded.favorite, ' +
+          'last_used = excluded.last_used, sequence_fps = excluded.sequence_fps',
       )
-      .run(key, JSON.stringify(next.tags), JSON.stringify(next.themes), next.favorite ? 1 : 0, next.lastUsed ?? null);
+      .run(key, JSON.stringify(next.tags), JSON.stringify(next.themes), next.favorite ? 1 : 0, next.lastUsed ?? null, next.sequenceFps ?? null);
     return next;
   }
 }

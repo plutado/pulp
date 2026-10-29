@@ -121,6 +121,12 @@
             <button id="mark-out" type="button" disabled data-tip="Set the out point of the render to this frame"><span class="label">Set out</span></button>
             <button id="mark-clear" type="button" disabled data-tip="Render the whole template again"><span class="label">Clear</span></button>
           </span>
+          <span id="sequence-rate" class="tool-group sequence-rate" hidden>
+            <label for="sequence-fps">Frames per second</label>
+            <input id="sequence-fps" type="number" min="1" max="240" step="1" value="30"
+                   data-tip="A folder of frames records no rate, so Pulp reads it at this one">
+            <button id="sequence-fps-reset" type="button" class="ghost" hidden>Reset</button>
+          </span>
           <span class="tool-group volume">
             <button id="mute" type="button" class="icon-button" data-icon="speaker-high" data-icon-size="20" aria-pressed="false" aria-label="Mute"></button>
             <input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">

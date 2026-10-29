@@ -471,6 +471,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   border: 1px solid #0d1117; border-radius: 2px; background: var(--accent); cursor: ew-resize;
 }
 .length-handle[hidden] { display: none; }
+/* The rate a frame sequence is read at (milestone 30): beside the transport, since it is what
+   the transport steps by, and only there when a sequence is being previewed. */
+.sequence-rate[hidden] { display: none; }
+.sequence-rate label { color: var(--muted); font-size: var(--font-caption); }
+.sequence-rate input[type="number"] { width: 62px; }
 .length-handle:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .scrub-marks .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--accent); }
 .scrub-marks .mark[hidden] { display: none; }

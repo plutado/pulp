@@ -350,6 +350,12 @@ describe.skipIf(!electron)('inspector UI', () => {
       const wide = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'clip.mp4')]), { timeoutMs: 60_000 });
       // A tall clip too, for the orientation filter and the portrait cards.
       const tall = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=36x64:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'tall.mp4')]), { timeoutMs: 60_000 });
+      // A run of numbered frames (milestone 26), so the stage has a sequence to step through.
+      await mkdir(join(mediaDir, 'frames'), { recursive: true });
+      await runBounded(ffmpeg.path, ffmpegArgs([
+        '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '1.2',
+        '-start_number', '1', join(mediaDir, 'frames', 'walk_%04d.png'),
+      ]), { timeoutMs: 60_000 });
       haveVideo = wide.code === 0 && tall.code === 0;
     }
     // A template that declares an animate-in, a hold and an animate-out (milestone 30), so the
@@ -1910,6 +1916,36 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<string>(`${lengthField}.value`)).toBe('2');
       // At its own length there is nothing to reset to, so the button goes.
       expect(await page.eval<boolean>(`!!document.querySelector('#params .length-field .field-reset')`)).toBe(false);
+    }, 120_000);
+
+    it('steps a frame sequence on the stage, at a rate that can be changed (milestone 30)', async () => {
+      // The fixture frames are made with ffmpeg, so without it there is no sequence to step.
+      if (!haveVideo) return;
+      await clickResult('walk');
+      // Twelve frames at ten a second: the transport counts them rather than sitting on frame one.
+      await until(() => page.eval<string>(`document.getElementById('scrub').max`).then((m) => m === '11'), 'the scrub bar over the sequence');
+      expect(await page.eval<boolean>(`document.getElementById('scrub').disabled`)).toBe(false);
+      expect(await page.eval<boolean>(`document.getElementById('play').disabled`)).toBe(false);
+      // Each frame is its own file, asked for by index.
+      const src = () => page.eval<string>(`document.getElementById('media-image').getAttribute('src')`);
+      expect(await src()).toMatch(/^pulp-media:\/\/[0-9a-f]{24}\/0$/);
+      await page.eval(`(() => { const sc = document.getElementById('scrub'); sc.value = '7'; sc.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await until(async () => (await src()).endsWith('/7'), 'the seventh frame after a scrub');
+
+      // Pulp states a rate because the files record none, and it can be changed for this item.
+      const rate = `document.getElementById('sequence-fps')`;
+      expect(await page.eval<boolean>(`document.getElementById('sequence-rate').hidden`)).toBe(false);
+      expect(await page.eval<string>(`${rate}.value`)).toBe('30');
+      await page.eval(`(() => { const f = ${rate}; f.value = '12'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(() => page.eval<string>(`${rate}.value`).then((v) => v === '12'), 'the rate it is read at');
+      // It is the item's own, so it survives looking at something else and coming back.
+      await clickResult('Title Card');
+      await until(() => page.eval<boolean>(`document.getElementById('sequence-rate').hidden`), 'the rate control gone with the sequence');
+      await clickResult('walk');
+      await until(() => page.eval<string>(`${rate}.value`).then((v) => v === '12'), 'the rate remembered for this sequence');
+      // And Reset puts the stated rate back.
+      await page.eval(`document.getElementById('sequence-fps-reset').click()`);
+      await until(() => page.eval<string>(`${rate}.value`).then((v) => v === '30'), 'the stated rate again');
     }, 120_000);
   });
 

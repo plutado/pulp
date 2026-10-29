@@ -17,6 +17,7 @@ import type { LayerValues } from '../core/layers';
 import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import type { TemplateManifest } from '../core/manifest';
+import { SEQUENCE_FPS } from '../core/media-sequence';
 import { lengthFrameCount, lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
 import type { ResolvedParams } from '../core/params';
 import { mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
@@ -57,6 +58,9 @@ const els = {
   partHold: $<HTMLSpanElement>('part-hold'),
   partExit: $<HTMLSpanElement>('part-exit'),
   lengthHandle: $<HTMLButtonElement>('length-handle'),
+  sequenceRate: $<HTMLSpanElement>('sequence-rate'),
+  sequenceFps: $<HTMLInputElement>('sequence-fps'),
+  sequenceFpsReset: $<HTMLButtonElement>('sequence-fps-reset'),
   trimBefore: $<HTMLSpanElement>('trim-before'),
   trimAfter: $<HTMLSpanElement>('trim-after'),
   markInFlag: $<HTMLSpanElement>('mark-in-flag'),
@@ -102,6 +106,12 @@ const s = {
   clipSources: {} as Record<string, ClipSource>,
   /** Seconds the graphic runs for, when a length has been chosen (milestone 30). */
   length: undefined as number | undefined,
+  /**
+   * A frame sequence being previewed on its own (milestone 30): a folder of
+   * numbered frames has no video element to play it, so the stage steps it
+   * through the same transport a template uses.
+   */
+  sequence: null as { entry: MediaEntry; frames: number; fps: number } | null,
   /** Preferences from settings.json: loop, background, safe areas, volume. */
   player: DEFAULT_PLAYER as PlayerState,
   /** The audio item on the stage, so its waveform can be drawn again when the peaks land. */
@@ -154,8 +164,19 @@ function applyPlayer(): void {
  * timecode all agree with what a render would write.
  */
 function previewFrames(): number {
+  if (s.sequence) return s.sequence.frames;
   if (!s.manifest) return 0;
   return lengthFrameCount(resolveLength(s.manifest.duration, s.manifest.structure ?? null, s.length), s.manifest.fps);
+}
+
+/** The rate the transport runs at: the template's, or the rate a sequence is read at. */
+function previewFps(): number {
+  return s.sequence ? s.sequence.fps : (s.manifest?.fps ?? SEQUENCE_FPS);
+}
+
+/** Is there something the transport can step through — a template, or a sequence? */
+function hasTimeline(): boolean {
+  return Boolean(s.manifest || s.sequence);
 }
 
 /**
@@ -163,6 +184,27 @@ function previewFrames(): number {
  * its length (milestone 30). Only a template that declares what may stretch
  * has parts to show; for every other the bar is as it always was.
  */
+/** The rate control, shown only while a frame sequence is being previewed (milestone 30). */
+function applySequenceRate(): void {
+  const seq = s.sequence;
+  els.sequenceRate.hidden = !seq;
+  if (!seq) return;
+  els.sequenceFps.value = String(seq.fps);
+  els.sequenceFpsReset.hidden = seq.fps === SEQUENCE_FPS;
+}
+
+/** Read a sequence at another rate, kept with the item; `undefined` is Pulp's stated default. */
+function setSequenceFps(fps: number | undefined): void {
+  const seq = s.sequence;
+  if (!seq) return;
+  const next = fps === undefined ? SEQUENCE_FPS : Math.min(240, Math.max(1, Math.round(fps)));
+  s.sequence = { ...seq, fps: next };
+  // The count does not change, so the playhead stays where it is; only the pace does.
+  applySequenceRate();
+  updateTimecode(s.frame);
+  void window.pulp.setItemSequenceFps(seq.entry.id, fps === undefined ? undefined : next);
+}
+
 function applyParts(): void {
   const structure = s.manifest?.structure;
   const hasParts = Boolean(s.manifest && structure);
@@ -200,14 +242,15 @@ function applyTrim(): void {
   if (outFrame !== null) els.markOutFlag.style.left = `${markPercent(outFrame, total)}%`;
   els.markClear.disabled = !s.manifest || (inFrame === null && outFrame === null);
   applyParts();
+  applySequenceRate();
 }
 
 function updateTransport(): void {
-  const ready = Boolean(s.manifest) && s.previewReady;
+  const ready = (Boolean(s.manifest) && s.previewReady) || Boolean(s.sequence);
   els.play.disabled = !ready;
   els.stepBack.disabled = !ready;
   els.stepForward.disabled = !ready;
-  els.scrub.disabled = !s.manifest;
+  els.scrub.disabled = !hasTimeline();
   // Marks are frames of a template's timeline; a media item has no render to trim.
   els.markIn.disabled = !s.manifest;
   els.markOut.disabled = !s.manifest;
@@ -220,12 +263,12 @@ function clearNote(): void {
 }
 
 function updateTimecode(frame: number): void {
-  if (!s.manifest) {
+  if (!hasTimeline()) {
     els.timecode.textContent = '--';
     return;
   }
   els.scrub.value = String(frame);
-  els.timecode.textContent = `${formatTimecode(frame, s.manifest.fps)} · ${frame + 1}/${previewFrames()}`;
+  els.timecode.textContent = `${formatTimecode(frame, previewFps())} · ${frame + 1}/${previewFrames()}`;
 }
 
 /**
@@ -346,6 +389,14 @@ function clipDrawnHeight(blocks: Record<string, BlockState>, clipId: string, fra
 /** Only one frame is in flight at a time; newer requests replace queued ones. */
 function requestFrame(frame: number): void {
   s.frame = frame;
+  if (s.sequence) {
+    // No page to ask and no bridge to wait for: the frame is a file, served by index.
+    const at = Math.max(0, Math.min(s.sequence.frames - 1, frame));
+    els.mediaImage.src = mediaFrameUrlFor(s.sequence.entry.id, at);
+    els.scrub.value = String(at);
+    updateTimecode(at);
+    return;
+  }
   if (!s.previewReady) return;
   syncImages();
   if (!s.imagesReady) {
@@ -364,9 +415,9 @@ let playStart = 0;
 let playStartFrame = 0;
 
 function tick(now: number): void {
-  if (!s.playing || !s.manifest) return;
+  if (!s.playing || !hasTimeline()) return;
   const total = previewFrames();
-  const frame = playheadAt(playStartFrame, now - playStart, s.manifest.fps, total, s.player.loop);
+  const frame = playheadAt(playStartFrame, now - playStart, previewFps(), total, s.player.loop);
   if (frame === null) {
     // The end, with looping off: stop on the last frame rather than snapping back.
     requestFrame(total - 1);
@@ -378,7 +429,7 @@ function tick(now: number): void {
 }
 
 function play(): void {
-  if (!s.manifest || !s.previewReady) return;
+  if (!hasTimeline() || (s.manifest && !s.previewReady)) return;
   // Starting from the last frame with looping off would stop at once; begin again instead.
   if (!s.player.loop && s.frame >= previewFrames() - 1) s.frame = 0;
   s.playing = true;
@@ -411,6 +462,8 @@ function clearMediaPreview(): void {
   }
   els.mediaImage.removeAttribute('src');
   els.mediaImage.hidden = true;
+  // A sequence's transport belongs to the sequence; nothing shown, nothing to step.
+  s.sequence = null;
   els.mediaWaveform.setAttribute('hidden', '');
   s.audio = null;
 }
@@ -478,12 +531,15 @@ export function stageShowMedia(entry: MediaEntry): void {
     if (w > 0 && h > 0) setPreviewShape(w, h);
   };
   if (entry.sequence) {
-    // A frame sequence is a clip made of image files: <video> cannot play one, so the stage
-    // shows a frame. Stepping through them belongs with Video layers, which decodes a clip
-    // for the template's own time (milestone 26); until then this is its first frame.
+    // A frame sequence is a clip made of image files, and <video> cannot play one — so the
+    // stage steps it itself, through the same transport a template uses (milestone 30).
     els.mediaImage.hidden = false;
     els.mediaImage.onload = () => fit(els.mediaImage.naturalWidth, els.mediaImage.naturalHeight);
-    els.mediaImage.src = mediaFrameUrlFor(entry.id, 0);
+    s.sequence = { entry, frames: entry.sequence.count, fps: entry.meta?.fps ?? SEQUENCE_FPS };
+    s.frame = 0;
+    els.scrub.max = String(Math.max(0, entry.sequence.count - 1));
+    updateTransport();
+    requestFrame(0);
   } else if (entry.mediaKind === 'video') {
     els.mediaVideo.hidden = false;
     els.mediaVideo.onloadedmetadata = () => fit(els.mediaVideo.videoWidth, els.mediaVideo.videoHeight);
@@ -636,7 +692,7 @@ export function stageSetParams(params: ResolvedParams, layers: LayerValues = {},
 
 /** Move by whole frames; stepping stops playback, as scrubbing does. */
 function step(delta: number): void {
-  if (!s.manifest) return;
+  if (!hasTimeline()) return;
   stageStop();
   requestFrame(steppedFrame(s.frame, delta, previewFrames(), s.player.loop));
 }
@@ -653,6 +709,11 @@ export function initStage(): void {
   els.stepBack.addEventListener('click', () => step(-1));
   els.stepForward.addEventListener('click', () => step(1));
   els.loop.addEventListener('click', () => setPlayer({ loop: !s.player.loop }));
+  els.sequenceFps.addEventListener('change', () => {
+    const value = Number(els.sequenceFps.value);
+    if (Number.isFinite(value) && value > 0) setSequenceFps(value);
+  });
+  els.sequenceFpsReset.addEventListener('click', () => setSequenceFps(undefined));
   els.lengthHandle.addEventListener('pointerdown', onLengthPointerDown);
   els.lengthHandle.addEventListener('pointermove', onLengthPointerMove);
   els.lengthHandle.addEventListener('pointerup', onLengthPointerUp);
