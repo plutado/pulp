@@ -12,7 +12,7 @@ import type { TemplateEntry } from '../core/library-types';
 import type { TemplateManifest, TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
-import { LAYERS_KEY, resolveParams, type ResolvedParams } from '../core/params';
+import { LAYERS_KEY, lengthIn, resolveParams, withLength, type ResolvedParams } from '../core/params';
 import { BUNDLED_FAMILIES, cssFontFamily, familyLabel, importedFamilies, type ImportedFont } from '../core/fonts';
 import { hasCards, labelRepeatsHeading, paramCards, type ParamCard } from '../core/param-cards';
 import {
@@ -40,6 +40,7 @@ import {
   type TextLayer,
 } from '../core/layers';
 import { addRecentColor } from '../core/recent-colors';
+import { lengthParts, minimumLength, resolveLength } from '../core/timing';
 import { dimensionsLabel } from '../core/display';
 import { IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } from '../core/image-slot';
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue } from '../core/video-layer';
@@ -185,7 +186,7 @@ function setParam(id: string, value: unknown): void {
   p.raw[id] = value;
   editorFor(selected.manifest.id).current = p.raw;
   p.values = resolveParams(selected.manifest, p.raw).values;
-  stageSetParams(p.values, currentLayers());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw));
   scheduleCommit();
   updateResetButtons();
 }
@@ -205,7 +206,7 @@ function applySnapshot(snapshot: Snapshot, record: boolean): void {
   editor.committed = { ...p.raw };
   p.values = resolveParams(selected.manifest, p.raw).values;
   buildParamForm(selected.manifest);
-  stageSetParams(p.values, currentLayers());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw));
   updateHistoryButtons();
 }
 
@@ -896,7 +897,7 @@ function setLayers(next: LayerValues, rebuild: boolean): void {
   if (sameLayers(next, defaultLayers(selected.manifest))) delete p.raw[LAYERS_KEY];
   else p.raw[LAYERS_KEY] = next;
   editorFor(selected.manifest.id).current = p.raw;
-  stageSetParams(p.values, currentLayers());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw));
   if (rebuild) {
     buildParamForm(selected.manifest);
     commitParams();
@@ -955,6 +956,59 @@ function resetLayers(blockId: string): void {
   const selected = selectedTemplate.value;
   if (!selected) return;
   setLayers({ ...currentLayers(), [blockId]: defaultLayers(selected.manifest)[blockId] ?? [] }, true);
+}
+
+/**
+ * How long the graphic runs for (milestone 30): seconds, with a floor of the
+ * entrance plus the exit, and a way back to the length the template was
+ * designed at. Absent for a template that declares no structure — there is
+ * nothing to stretch, so there is nothing to ask.
+ */
+function lengthField(): HTMLElement | null {
+  const selected = selectedTemplate.value;
+  const structure = selected?.manifest.structure;
+  if (!selected || !structure) return null;
+  const duration = selected.manifest.duration;
+  const floor = minimumLength(structure, duration);
+  const current = resolveLength(duration, structure, lengthIn(p.raw));
+
+  const wrap = document.createElement('div');
+  wrap.className = 'length-field';
+  const input = numberOf(current, { min: floor, max: MAX_LENGTH_SECONDS }, 0.5, (v) => setLength(v === duration ? undefined : v), 'Length, seconds');
+  wrap.append(typeField('Length, seconds', input));
+  const note = document.createElement('p');
+  note.className = 'note';
+  const parts = lengthParts(duration, structure, current);
+  note.textContent =
+    `In ${parts.entrance} s, hold ${Math.round((parts.holdTo - parts.holdFrom) * 10) / 10} s, out ${parts.exit} s. ` +
+    'Only the hold stretches; the entrance and the exit keep the speed they were designed at.';
+  wrap.append(note);
+  if (current !== duration) {
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'field-reset';
+    reset.textContent = `Reset to ${duration} s`;
+    reset.title = 'Back to the length this template was designed at';
+    reset.addEventListener('click', (e) => {
+      e.preventDefault();
+      setLength(undefined);
+    });
+    wrap.append(reset);
+  }
+  return wrap;
+}
+
+/** Choose a length, as one undo step; `undefined` is the template's own. */
+function setLength(length: number | undefined): void {
+  const selected = selectedTemplate.value;
+  if (!selected) return;
+  // The same path a parameter edit takes: the raw values, the editor's own copy, the preview,
+  // then one history step. The form is rebuilt because the note and the reset button follow it.
+  p.raw = withLength(p.raw, length);
+  editorFor(selected.manifest.id).current = p.raw;
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw));
+  commitParams();
+  buildParamForm(selected.manifest);
 }
 
 /** One block's layers: the stack, what can be done to each, and how to add one. */
@@ -1292,6 +1346,9 @@ const openTypography = new Set<string>();
 
 /** The same for the Advanced disclosure, which holds a layer's own motion. */
 const openAdvanced = new Set<string>();
+
+/** The longest graphic the Length field offers; past ten minutes is a film, not a graphic. */
+const MAX_LENGTH_SECONDS = 600;
 
 const MOTION_LABELS: Record<LayerMotionType, string> = { template: 'Template', fade: 'Fade', slide: 'Slide', scale: 'Scale', none: 'None' };
 
@@ -1841,6 +1898,12 @@ function paramCardEl(card: ParamCard): HTMLElement {
   body.hidden = !open;
   if (card.layer) body.append(...layerBody(card.layer.block, card.layer.layer));
   for (const param of card.params) body.append(paramField(param, card.label));
+  // How long the graphic runs for belongs with the layout and the timing (milestone 30), and only
+  // a template that says which part of itself may stretch can be asked.
+  if (card.kind === 'rest') {
+    const field = lengthField();
+    if (field) body.append(field);
+  }
   section.append(body);
   toggle.addEventListener('click', () => {
     const nowOpen = body.hidden;
@@ -1861,7 +1924,9 @@ function buildParamForm(manifest: TemplateManifest): void {
   const parameters = manifest.parameters;
   els.params.replaceChildren();
   recentRows.clear();
-  if (parameters.length === 0 && manifest.blocks.length === 0) {
+  // A template with no parameters and no layers still has something to edit when it declares
+  // what may stretch: how long the graphic runs for (milestone 30).
+  if (parameters.length === 0 && manifest.blocks.length === 0 && !manifest.structure) {
     const note = document.createElement('p');
     note.className = 'note';
     note.textContent = 'This template has no editable parameters.';
@@ -1881,6 +1946,10 @@ function buildParamForm(manifest: TemplateManifest): void {
       group = param.group;
       els.params.append(paramField(param, group));
     }
+    // The unheaded form has no "Layout and timing" card to put it in, so the length goes last,
+    // where that card would have been (milestone 30).
+    const length = lengthField();
+    if (length) els.params.append(length);
     updateHistoryButtons();
     return;
   }

@@ -51,7 +51,7 @@ const key = (label: string): string => label.trim().toLowerCase();
  * not a part of the graphic, so it joins the rest and stays at the end: an
  * element declared after it — a slot's card, say — still comes before it.
  */
-export function paramCards(manifest: Pick<TemplateManifest, 'parameters' | 'blocks'>, layers: LayerValues): ParamCard[] {
+export function paramCards(manifest: Pick<TemplateManifest, 'parameters' | 'blocks'> & { structure?: unknown }, layers: LayerValues): ParamCard[] {
   const cards: ParamCard[] = [];
   const byKey = new Map<string, ParamCard>();
 
@@ -90,9 +90,11 @@ export function paramCards(manifest: Pick<TemplateManifest, 'parameters' | 'bloc
     card.params.push(param);
   }
 
-  if (rest.params.length > 0) {
+  // The card is shown when it holds a setting, and also when the template declares what may
+  // stretch (milestone 30): the Length control lives here, and a template may have nothing else.
+  if (rest.params.length > 0 || manifest.structure !== undefined) {
     // Nothing else to show: the template names no elements, so this is simply its form, unheaded.
-    if (cards.length === 0) rest.label = '';
+    if (cards.length === 0 && rest.params.length > 0) rest.label = '';
     cards.push(rest);
   }
   return cards;

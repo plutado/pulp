@@ -6,7 +6,7 @@
  */
 
 import type { TemplateManifest } from './manifest';
-import { LAYERS_KEY, resolveParams } from './params';
+import { LAYERS_KEY, LENGTH_KEY, resolveParams } from './params';
 
 export type PresetValues = Record<string, unknown>;
 
@@ -29,6 +29,8 @@ export function diffFromDefaults(manifest: Pick<TemplateManifest, 'parameters'>,
   }
   // The layer stacks ride with the parameters, so a preset keeps the layers the person built.
   if (raw[LAYERS_KEY] !== undefined) out[LAYERS_KEY] = raw[LAYERS_KEY];
+  // And so does the length, when one was chosen (milestone 30).
+  if (raw[LENGTH_KEY] !== undefined) out[LENGTH_KEY] = raw[LENGTH_KEY];
   return out;
 }
 
@@ -36,7 +38,7 @@ export function diffFromDefaults(manifest: Pick<TemplateManifest, 'parameters'>,
 export function applyPreset(manifest: Pick<TemplateManifest, 'parameters'>, values: PresetValues): PresetValues {
   const known = new Set(manifest.parameters.map((p) => p.id));
   const out: PresetValues = {};
-  for (const [id, value] of Object.entries(values)) if (known.has(id) || id === LAYERS_KEY) out[id] = value;
+  for (const [id, value] of Object.entries(values)) if (known.has(id) || id === LAYERS_KEY || id === LENGTH_KEY) out[id] = value;
   return out;
 }
 

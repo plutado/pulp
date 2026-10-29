@@ -352,6 +352,12 @@ describe.skipIf(!electron)('inspector UI', () => {
       const tall = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=36x64:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'tall.mp4')]), { timeoutMs: 60_000 });
       haveVideo = wide.code === 0 && tall.code === 0;
     }
+    // A template that declares an animate-in, a hold and an animate-out (milestone 30), so the
+    // Length control has something to act on; the bundled ones do not declare their parts yet.
+    await mkdir(join(mediaDir, 'structure'), { recursive: true });
+    for (const file of ['template.json', 'index.html']) {
+      await writeFile(join(mediaDir, 'structure', file), await readFile(join(__dirname, 'templates', 'structure', file)));
+    }
     await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir] }));
     // A font already imported: a real TTF in the managed folder under a family of its own, with a
     // licence note, as fonts:import would leave it. The import dialog itself cannot be driven here.
@@ -1824,6 +1830,52 @@ describe.skipIf(!electron)('inspector UI', () => {
       await fire('#opt-aspect', '16:9', 'change');
       await until(async () => (await shape()) === 'landscape', 'the wide preview again');
     }, 90_000);
+  });
+
+  describe('length (milestone 30)', () => {
+    const lengthField = `document.querySelector('#params .length-field input[aria-label="Length, seconds"]')`;
+
+    it('offers a length only for a template that says what may stretch, and the preview follows it', async () => {
+      // A bundled template declares no structure yet, so there is nothing to ask.
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card')`), 'the parameter form');
+      expect(await page.eval<boolean>(`!!${lengthField}`), 'no Length where nothing may stretch').toBe(false);
+
+      // The fixture does: two seconds, half a second of entrance and half a second of exit.
+      await clickResult('Test Structure');
+      await until(() => page.eval<boolean>(`!!${lengthField}`), 'the Length field');
+      expect(await page.eval<string>(`${lengthField}.value`)).toBe('2');
+      // Its floor is the entrance plus the exit plus the least hold, not zero.
+      expect(Number(await page.eval<string>(`${lengthField}.min`))).toBeCloseTo(1.05, 2);
+      // The card says what stretches and what does not.
+      expect(await page.eval<string>(`document.querySelector('#params .length-field .note').textContent`))
+        .toContain('Only the hold stretches');
+
+      // Sixty frames at its own length.
+      await until(() => page.eval<string>(`document.getElementById('scrub').max`).then((m) => m === '59'), 'the scrub bar at its own length');
+
+      // Ask for ten seconds: the preview is 300 frames and the transport follows at once.
+      await page.eval(`(() => { const f = ${lengthField}; f.value = '10'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(() => page.eval<string>(`document.getElementById('scrub').max`).then((m) => m === '299'), 'the scrub bar at ten seconds');
+      await until(() => page.eval<string>(`document.getElementById('timecode').textContent`).then((t) => t.includes('/300')), 'the timecode counting the new length');
+
+      // The frame drawn at the middle is the middle of the template's hold, not of its own
+      // timeline: the fixture paints its time in, so the preview can be read back.
+      const drawnTime = async () => {
+        const px = await previewPixel(10, 10, 'pulp.test.structure');
+        return (px[0]! * 256 + px[1]!) / 1000;
+      };
+      await scrubTo(150);
+      await until(async () => Math.abs((await drawnTime()) - 1) < 0.05, 'the middle of ten seconds showing the middle of the hold');
+      // The entrance keeps its designed speed: frame 15 is half a second in, as it was before.
+      await scrubTo(15);
+      await until(async () => Math.abs((await drawnTime()) - 0.5) < 0.05, 'the entrance at its designed speed');
+
+      // Back to the template's own length, and the transport goes with it.
+      await page.eval(`document.querySelector('#params .length-field .field-reset').click()`);
+      await until(() => page.eval<string>(`document.getElementById('scrub').max`).then((m) => m === '59'), 'the scrub bar back at its own length');
+      expect(await page.eval<string>(`${lengthField}.value`)).toBe('2');
+    }, 120_000);
   });
 
   describe('saved presets and batch', () => {

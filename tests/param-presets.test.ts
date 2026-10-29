@@ -21,6 +21,15 @@ describe('parameter presets', () => {
     expect(applyPreset(manifest, { title: 'Bye', removedParam: 'x', size: 75 })).toEqual({ title: 'Bye', size: 75 });
   });
 
+  it('keeps a chosen length, and drops it for a template that no longer declares one', () => {
+    // A length is not a parameter, but it rides with them so a preset carries it (milestone 30).
+    const kept = diffFromDefaults(manifest, { '@length': 20 });
+    expect(kept['@length']).toBe(20);
+    expect(applyPreset(manifest, { '@length': 20, nonsense: 1 })).toEqual({ '@length': 20 });
+    // Nothing chosen, nothing stored.
+    expect(diffFromDefaults(manifest, {})['@length']).toBeUndefined();
+  });
+
   it('sanitizes a preset file', () => {
     expect(sanitizePresetFile(null, 't')).toEqual({ templateId: 't', presets: {} });
     expect(sanitizePresetFile({ presets: { ' Show A ': { title: 'A' }, '': { title: 'x' }, bad: 3, list: [1] } }, 't')).toEqual({

@@ -23,10 +23,35 @@ export type ResolvedParams = Record<string, ParamValue>;
  */
 export const LAYERS_KEY = '@layers';
 
+/**
+ * Where the length a person chose rides (milestone 30), for the same reason:
+ * a length is not a parameter of the template — it is how long the graphic
+ * runs — but it travels with the parameters, so a preset, a collection card,
+ * the undo history and a render request all carry it without a new channel.
+ */
+export const LENGTH_KEY = '@length';
+
 /** Raw values split into the parameters and the layer stacks that rode with them. */
 export function splitLayers(raw: Record<string, unknown>): { params: Record<string, unknown>; layers: LayerValues } {
-  const { [LAYERS_KEY]: layers, ...params } = raw;
-  return { params, layers: (layers ?? {}) as LayerValues };
+  const { [LAYERS_KEY]: layers, ...rest } = raw;
+  // The length rides here too, and is read with `lengthIn`; it is no more a parameter than the
+  // layers are, so it does not travel on into parameter resolution.
+  delete rest[LENGTH_KEY];
+  return { params: rest, layers: (layers ?? {}) as LayerValues };
+}
+
+/** The length riding with a bag of raw values, or undefined when none was chosen. */
+export function lengthIn(raw: Record<string, unknown>): number | undefined {
+  const value = raw[LENGTH_KEY];
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+/** The raw values with a length put in, or with it taken out when there is none. */
+export function withLength(params: Record<string, unknown>, length: number | undefined): Record<string, unknown> {
+  const out = { ...params };
+  if (length === undefined) delete out[LENGTH_KEY];
+  else out[LENGTH_KEY] = length;
+  return out;
 }
 
 /** The raw values with the layer stacks put back in, or untouched when there are none. */

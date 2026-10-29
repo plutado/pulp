@@ -32,7 +32,7 @@ import { lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, type FrameFormat, type RenderOptions } from '../core/render-plan';
-import { resolveParams, splitLayers } from '../core/params';
+import { lengthIn, resolveParams, splitLayers } from '../core/params';
 import {
   captureBytesMessage,
   captureSizeMessage,
@@ -146,6 +146,10 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     }
   }
 
+  // A length chosen in the window rides with the parameters (src/core/params.ts), so it reaches a
+  // render from wherever they came — the form, a preset, a collection card, a CSV row. An explicit
+  // option wins, which is what `--length` on the command line is.
+  const chosenLength = job.options?.length ?? lengthIn(job.params);
   let plan;
   try {
     plan = buildRenderPlan({
@@ -155,7 +159,9 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       overwrite: job.overwrite ?? false,
       frameFormat,
       tagAlphaMode: ffmpeg.alphaModeAware,
-      ...(job.options ? { options: job.options } : {}),
+      ...(job.options || chosenLength !== undefined
+        ? { options: { ...(job.options ?? {}), ...(chosenLength !== undefined ? { length: chosenLength } : {}) } }
+        : {}),
       ...(probe?.format ? { rawInput: probe.format } : {}),
     });
   } catch (err) {

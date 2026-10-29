@@ -16,7 +16,8 @@ import { clipProxySize, type ClipSource, type ClipValue } from '../core/video-la
 import type { LayerValues } from '../core/layers';
 import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
-import { frameCount, type TemplateManifest } from '../core/manifest';
+import type { TemplateManifest } from '../core/manifest';
+import { lengthFrameCount, resolveLength } from '../core/timing';
 import type { ResolvedParams } from '../core/params';
 import { mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
 import { selectedLayer } from './layer-edit';
@@ -95,6 +96,8 @@ const s = {
   prepareId: 0,
   /** What the host measured about each clip a video layer chose, by library id (milestone 26). */
   clipSources: {} as Record<string, ClipSource>,
+  /** Seconds the graphic runs for, when a length has been chosen (milestone 30). */
+  length: undefined as number | undefined,
   /** Preferences from settings.json: loop, background, safe areas, volume. */
   player: DEFAULT_PLAYER as PlayerState,
   /** The audio item on the stage, so its waveform can be drawn again when the peaks land. */
@@ -140,9 +143,20 @@ function applyPlayer(): void {
   }
 }
 
+/**
+ * Frames the preview holds: the chosen length's, or the template's own when
+ * no length was chosen or nothing may stretch (milestone 30). Every count on
+ * the stage goes through here, so the scrub bar, the transport and the
+ * timecode all agree with what a render would write.
+ */
+function previewFrames(): number {
+  if (!s.manifest) return 0;
+  return lengthFrameCount(resolveLength(s.manifest.duration, s.manifest.structure ?? null, s.length), s.manifest.fps);
+}
+
 /** The in and out marks over the scrub bar, and what a render would drop. */
 function applyTrim(): void {
-  const total = s.manifest ? frameCount(s.manifest) : 0;
+  const total = previewFrames();
   const { inFrame, outFrame } = trim.value;
   const away = trimmedAway(inFrame, outFrame, total);
   els.trimBefore.style.width = `${away.before}%`;
@@ -177,7 +191,7 @@ function updateTimecode(frame: number): void {
     return;
   }
   els.scrub.value = String(frame);
-  els.timecode.textContent = `${formatTimecode(frame, s.manifest.fps)} · ${frame + 1}/${frameCount(s.manifest)}`;
+  els.timecode.textContent = `${formatTimecode(frame, s.manifest.fps)} · ${frame + 1}/${previewFrames()}`;
 }
 
 /**
@@ -225,7 +239,7 @@ function postFrame(frame: number): void {
     s.pendingFrame = null;
     requestFrame(next);
   }, FRAME_REPLY_TIMEOUT_MS);
-  win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, previewSize(), s.layers, s.clipSources) }, '*');
+  win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, previewSize(), s.layers, s.clipSources, s.length) }, '*');
   updateTimecode(frame);
   noteFrameState();
 }
@@ -317,7 +331,7 @@ let playStartFrame = 0;
 
 function tick(now: number): void {
   if (!s.playing || !s.manifest) return;
-  const total = frameCount(s.manifest);
+  const total = previewFrames();
   const frame = playheadAt(playStartFrame, now - playStart, s.manifest.fps, total, s.player.loop);
   if (frame === null) {
     // The end, with looping off: stop on the last frame rather than snapping back.
@@ -332,7 +346,7 @@ function tick(now: number): void {
 function play(): void {
   if (!s.manifest || !s.previewReady) return;
   // Starting from the last frame with looping off would stop at once; begin again instead.
-  if (!s.player.loop && s.frame >= frameCount(s.manifest) - 1) s.frame = 0;
+  if (!s.player.loop && s.frame >= previewFrames() - 1) s.frame = 0;
   s.playing = true;
   playStart = performance.now();
   playStartFrame = s.frame;
@@ -394,7 +408,7 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
   s.manifest = m;
   s.params = params;
   s.layers = layers;
-  s.frame = Math.floor(frameCount(m) / 2);
+  s.frame = Math.floor(previewFrames() / 2);
   s.previewReady = false;
   s.inFlight = false;
   clearReplyWatchdog();
@@ -411,7 +425,7 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
     els.previewEmpty.hidden = true;
     els.preview.src = templateUrlFor(m.id, m.entry);
   }
-  els.scrub.max = String(frameCount(m) - 1);
+  els.scrub.max = String(previewFrames() - 1);
   els.scrub.value = String(s.frame);
   updateTransport();
 }
@@ -512,9 +526,17 @@ function applyZones(): void {
 }
 
 /** New parameter values (edit, undo, preset): redraw the current frame with them. */
-export function stageSetParams(params: ResolvedParams, layers: LayerValues = {}): void {
+export function stageSetParams(params: ResolvedParams, layers: LayerValues = {}, length?: number): void {
   s.params = params;
   s.layers = layers;
+  // A new length changes how many frames there are, so the scrub bar and the playhead follow it.
+  if (length !== s.length) {
+    s.length = length;
+    const last = Math.max(0, previewFrames() - 1);
+    els.scrub.max = String(last);
+    if (s.frame > last) s.frame = last;
+    applyTrim();
+  }
   requestFrame(s.frame);
 }
 
@@ -522,7 +544,7 @@ export function stageSetParams(params: ResolvedParams, layers: LayerValues = {})
 function step(delta: number): void {
   if (!s.manifest) return;
   stageStop();
-  requestFrame(steppedFrame(s.frame, delta, frameCount(s.manifest), s.player.loop));
+  requestFrame(steppedFrame(s.frame, delta, previewFrames(), s.player.loop));
 }
 
 export function initStage(): void {
