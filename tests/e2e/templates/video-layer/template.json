@@ -1,0 +1,31 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.video-layer",
+  "name": "Test Video Layer",
+  "description": "One open block holding a video layer, drawn by the host, so a render can check that a clip plays inside a graphic (milestone 26).",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "other",
+  "tags": ["test"],
+  "duration": 2,
+  "fps": 30,
+  "width": 320,
+  "height": 180,
+  "alpha": true,
+  "parameters": [],
+  "blocks": [
+    {
+      "id": "stack",
+      "label": "Stack",
+      "box": { "x": 0, "y": 0, "width": 1, "height": 1 },
+      "gap": 0,
+      "align": "center",
+      "verticalAlign": "middle",
+      "open": true,
+      "typography": { "family": "Inter", "size": 0.1, "weight": 600, "color": "#ffffff" },
+      "layers": [
+        { "id": "plate", "type": "video", "label": "Plate", "size": 0.5 }
+      ]
+    }
+  ]
+}

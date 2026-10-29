@@ -160,7 +160,7 @@ A block:
 | `typography` | object | no | What the block's text layers start from; any of the text properties below. Unnamed properties take the built-in defaults (Inter, 0.06, 400, white, wrap). |
 | `layers` | object[] | no | The template's own layers, in stack order. Default `[]`: a block the user fills. |
 
-A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text` or `image`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `motion` (how it arrives; see **A layer's own motion** below). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
+A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text`, `image` or `video`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `motion` (how it arrives; see **A layer's own motion** below). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
 
 | Property | Type | Description |
 |---|---|---|
@@ -194,6 +194,12 @@ An image layer has a `size` (the picture's height as a fraction of the frame's s
   }
 ]
 ```
+
+#### Video layers
+
+A `video` layer plays a clip inside the graphic (milestone 26). It takes its room exactly as an image layer does — `size` is a height as a fraction of the frame's short side, the width follows the clip's shape, and `align` places it across the block — and like an image layer it carries **no clip of its own**: a template ships no library ids, so `clip` is left out or `null` and the person using the template chooses one.
+
+What they choose carries the clip's id with how it plays: an in point and an out point in clip frames, `loop` or `once` at the end, a `speed` (1 is the recorded rate) and a `delay` in seconds before it starts. The host decides which frame of the clip belongs to each moment of the graphic and hands the page that frame; a clip played `once` **clears** when it reaches its out point rather than freezing on the last frame, and a layer that is not playing takes no room at all, so the stack closes up around it. Templates need no code for any of this: a block drawn with `pulpLayoutBlock` and `pulpDrawBlock` plays its video layers already.
 
 #### A layer's own motion
 

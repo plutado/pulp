@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Video-layer fixture (milestone 26). The template says nothing about the clip or when it
+  // plays: the host decides which frame belongs to this moment and draws it. A marker in the
+  // top-left corner is painted every frame so a blank render can be told from an absent layer.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  window.pulpRender = function (state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+    ctx.fillStyle = '#ffff00';
+    ctx.fillRect(0, 0, 8, 8);
+    var laid = window.pulpLayoutBlock(ctx, state, 'stack', {});
+    window.pulpDrawBlock(ctx, laid);
+  };
+</script>
+</body>
+</html>

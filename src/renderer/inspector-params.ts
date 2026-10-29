@@ -20,6 +20,7 @@ import {
   LAYER_ALIGNS,
   LAYER_LIMITS,
   LAYER_MOTIONS,
+  LAYER_TYPES,
   newLayer,
   resolveLayers,
   TEXT_CASES,
@@ -880,7 +881,7 @@ function addLayer(blockId: string, type: LayerType): void {
   if (!block) return;
   const layers = currentLayers();
   const stack = layers[blockId] ?? [];
-  const layer = newLayer(type, block, freeLayerId(stack, type), type === 'text' ? `Line ${stack.length + 1}` : `Image ${stack.length + 1}`);
+  const layer = newLayer(type, block, freeLayerId(stack, type), `${ADD_LAYER_LABELS[type] === 'Text' ? 'Line' : ADD_LAYER_LABELS[type]} ${stack.length + 1}`);
   setLayers({ ...layers, [blockId]: [...stack, layer] }, true);
 }
 
@@ -919,11 +920,12 @@ function blockFooter(manifest: TemplateManifest, blockId: string, label: string,
   const addLabel = document.createElement('span');
   addLabel.textContent = showLabel ? `Add layer to ${label}` : 'Add layer';
   foot.append(addLabel);
-  for (const type of ['text', 'image'] as LayerType[]) {
+  // Video sits beside Text and Image: a clip is as much a layer as a line or a picture (milestone 26).
+  for (const type of LAYER_TYPES as readonly LayerType[]) {
     const button = document.createElement('button');
     button.type = 'button';
     button.dataset.add = type;
-    button.textContent = type === 'text' ? 'Text' : 'Image';
+    button.textContent = ADD_LAYER_LABELS[type];
     setIcon(button, 'plus');
     button.addEventListener('click', () => addLayer(blockId, type));
     foot.append(button);
@@ -1026,6 +1028,9 @@ function libraryClips(query: string): MediaEntry[] {
 }
 
 const ENDING_LABELS: Record<ClipEnding, string> = { loop: 'Loop', once: 'Play once' };
+
+/** What the Add layer buttons say, and what a new layer of each type is called. */
+const ADD_LAYER_LABELS: Record<LayerType, string> = { text: 'Text', image: 'Image', video: 'Video' };
 
 /**
  * A video layer's clip: which clip, and how it plays. Chosen from the library

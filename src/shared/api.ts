@@ -173,6 +173,12 @@ export interface PulpApi {
    * to hand to the template page; ids that are not online stills come back as missing.
    */
   loadSlotImages(ids: string[]): Promise<{ images: { id: string; src: string }[]; missing: string[] }>;
+  /** The clips chosen for video layers: their frames, and what was measured about each (milestone 26). */
+  loadLayerClips(requests: { id: string; value: ClipValue; drawnHeight: number }[]): Promise<{
+    clips: { id: string; kind: 'clip'; srcs: string[] }[];
+    sources: Record<string, ClipSource>;
+    missing: string[];
+  }>;
   /** Copy a file from outside the library into the managed Imported folder and index it; resolves to its library id. */
   importImage(file: File): Promise<{ id: string } | { error: string }>;
   /** The person's own fonts, as the managed folder's index records them (milestone 23). */
@@ -268,6 +274,8 @@ export interface PulpApi {
 
 export const TEMPLATE_SCHEME = 'pulp-template';
 export { MEDIA_SCHEME, mediaFrameUrlFor, mediaUrlFor } from '../core/media-url';
+export type { ClipSource, ClipValue } from '../core/video-layer';
+import type { ClipSource, ClipValue } from '../core/video-layer';
 
 /** Template ids are lowercase and dot/dash separated, so they are valid URL hosts as-is. */
 export function templateUrlFor(templateId: string, entry = 'index.html'): string {

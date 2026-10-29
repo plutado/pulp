@@ -61,6 +61,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 | `library-watch.ts` | Node | `watchRoot`: recursive `fs.watch` with coalescing, or null where unsupported. |
 | `library.ts` | Node | `scanLibrary`: one-shot scan through a throwaway in-memory store. |
 | `media-meta.ts` | yes | `MediaMetadata`, `parseFfprobe`, resolution labels and aliases; alpha from the pixel format, VP9's `alpha_mode` tag, or HEVC's auxiliary layer. |
+| `video-layer.ts` | yes | Video layers (milestone 26): the clip value a layer carries, and `clipFrameAt` — which frame of a clip belongs to a moment of the graphic, with in and out points, loop or once, speed and delay. The one place that decision is made, so the preview and the render cannot disagree. |
 | `media-sequence.ts` | yes | Frame sequences (milestone 26): `groupSequences` reads a folder's names into numbered runs, plus a run's frame names, ffmpeg pattern, duration and poster frame. |
 | `media-probe.ts` | Node | `probeMedia` through the injectable runner, `ffprobePathFor`. |
 | `thumbnails.ts` | yes | Which items get thumbnails, ffmpeg arguments for frame and poster, cache file names, `pulp-thumb` URLs. |

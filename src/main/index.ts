@@ -2,6 +2,7 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { SAMPLE_MEDIA_FOLDER_NAME } from '../core/sample-media';
 import { generateSampleMedia } from './sample-media-service';
 import { readSlotImages, resolveRowImages } from './image-grant';
+import { loadLayerClips } from './clip-grant';
 import { join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
@@ -93,6 +94,8 @@ function registerIpc(): void {
   ipcMain.handle('library:set-favorite', (_event, id: string, favorite: boolean) => setItemFavorite(id, favorite === true));
   ipcMain.handle('library:mark-used', (_event, id: string) => markItemUsed(id));
   ipcMain.handle('images:load', (_event, ids: unknown) => readSlotImages(Array.isArray(ids) ? ids.map(String) : []));
+  // The clips a video layer chose, read the same way and by the same rule (milestone 26).
+  ipcMain.handle('clips:load', (_event, requests: unknown) => loadLayerClips(Array.isArray(requests) ? requests : []));
   ipcMain.handle('library:diagnostics', () => libraryDiagnostics());
   ipcMain.handle('images:import', (_event, path: unknown) => (typeof path === 'string' && path ? importImageFile(path) : { error: 'No file was chosen.' }));
   ipcMain.handle('fonts:list', () => listImportedFonts());

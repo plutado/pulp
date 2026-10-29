@@ -50,6 +50,31 @@ describe('planBatch', () => {
     expect(numbered.rows.map((r) => r.fileName)).toEqual(['Row 1', 'Row 2']);
   });
 
+  it('a column may name a video layer: each row plays its own clip (milestone 26)', () => {
+    const withVideo = validateManifest(
+      rawManifest({
+        blocks: [{ id: 'stack', label: 'Stack', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [
+          { id: 'who', type: 'text', label: 'Who', text: 'Alex' },
+          { id: 'plate', type: 'video', label: 'Plate' },
+        ] }],
+      }),
+    );
+    if (!withVideo.ok) throw new Error('fixture');
+    const plan = planBatch(withVideo.manifest, 'Who,Plate\nSam,abc123\nKim,"def456 ending=once delay=0.5"\nJo,\n');
+    expect(plan.columns).toEqual([
+      { header: 'Who', paramId: 'who', layer: { block: 'stack', id: 'who', type: 'text' } },
+      { header: 'Plate', paramId: 'plate', layer: { block: 'stack', id: 'plate', type: 'video' } },
+    ]);
+    expect(plan.warnings).toEqual([]);
+    const clips = plan.rows.map((r) => (r.params['@layers'] as { stack: { id: string; clip?: unknown }[] }).stack.find((l) => l.id === 'plate')?.clip);
+    expect(clips[0]).toMatchObject({ id: 'abc123', ending: 'loop' });
+    expect(clips[1]).toMatchObject({ id: 'def456', ending: 'once', delay: 0.5 });
+    // An empty cell leaves the layer as the template has it, rather than clearing the clip.
+    expect(clips[2]).toBeNull();
+    // Rows are named from the words, never from a clip id.
+    expect(plan.rows.map((r) => r.label)).toEqual(['Sam', 'Kim', 'Jo']);
+  });
+
   it('a column may name a text layer: the row carries the template\'s stack with that layer\'s words changed', () => {
     const withBlock = validateManifest(
       rawManifest({
@@ -63,8 +88,8 @@ describe('planBatch', () => {
     if (!withBlock.ok) throw new Error('fixture');
     const plan = planBatch(withBlock.manifest, 'Name,TITLE,size\nSam Lee,Producer,40\nKim,,\n');
     expect(plan.columns).toEqual([
-      { header: 'Name', paramId: 'name', layer: { block: 'strap', id: 'name' } },
-      { header: 'TITLE', paramId: 'title', layer: { block: 'strap', id: 'title' } },
+      { header: 'Name', paramId: 'name', layer: { block: 'strap', id: 'name', type: 'text' } },
+      { header: 'TITLE', paramId: 'title', layer: { block: 'strap', id: 'title', type: 'text' } },
       { header: 'size', paramId: 'size' },
     ]);
     expect(plan.warnings).toEqual([]);
@@ -76,7 +101,7 @@ describe('planBatch', () => {
 
   it('warns about empty input, no matching columns and no rows', () => {
     expect(planBatch(manifest, '').warnings).toEqual(['The CSV is empty.']);
-    expect(planBatch(manifest, 'foo,bar\n1,2').warnings).toEqual(['No column matches a parameter or a text layer of this template.', 'Unknown columns ignored: foo, bar.']);
+    expect(planBatch(manifest, 'foo,bar\n1,2').warnings).toEqual(['No column matches a parameter or a layer of this template.', 'Unknown columns ignored: foo, bar.']);
     expect(planBatch(manifest, 'title\n').warnings).toEqual(['The CSV has a header but no rows.']);
   });
 

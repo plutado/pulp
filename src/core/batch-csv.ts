@@ -7,6 +7,7 @@
  */
 
 import { defaultLayers, type Block, type LayerValues } from './layers';
+import { clipValueFromText } from './video-layer';
 import type { TemplateManifest } from './manifest';
 import { LAYERS_KEY } from './params';
 
@@ -21,8 +22,8 @@ export interface BatchRow {
 }
 
 export interface BatchPlan {
-  /** CSV header to parameter id — or, for a column that names a text layer, that layer's id — for the columns that matched. */
-  columns: { header: string; paramId: string; layer?: { block: string; id: string } }[];
+  /** CSV header to parameter id — or, for a column that names a layer, that layer's id — for the columns that matched. */
+  columns: { header: string; paramId: string; layer?: { block: string; id: string; type: 'text' | 'video' } }[];
   /** The column used for job and file names, if any. */
   nameColumn?: string;
   unknownColumns: string[];
@@ -95,16 +96,18 @@ export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blo
     byKey.set(p.id.toLowerCase(), p.id);
     byKey.set(p.label.trim().toLowerCase(), p.id);
   }
-  // A column may name a text layer too, by its id or label: the words of a lower third's name line, say.
-  const layerByKey = new Map<string, { block: string; id: string }>();
+  // A column may name a layer too, by its id or label: the words of a lower third's name line,
+  // or the clip a video layer plays (milestone 26, written as `clipValueToText` writes it).
+  const layerByKey = new Map<string, { block: string; id: string; type: 'text' | 'video' }>();
   for (const block of manifest.blocks ?? []) {
     for (const layer of block.layers) {
-      if (layer.type !== 'text') continue;
-      if (!layerByKey.has(layer.id.toLowerCase())) layerByKey.set(layer.id.toLowerCase(), { block: block.id, id: layer.id });
-      if (!layerByKey.has(layer.label.trim().toLowerCase())) layerByKey.set(layer.label.trim().toLowerCase(), { block: block.id, id: layer.id });
+      if (layer.type !== 'text' && layer.type !== 'video') continue;
+      const entry = { block: block.id, id: layer.id, type: layer.type };
+      if (!layerByKey.has(layer.id.toLowerCase())) layerByKey.set(layer.id.toLowerCase(), entry);
+      if (!layerByKey.has(layer.label.trim().toLowerCase())) layerByKey.set(layer.label.trim().toLowerCase(), entry);
     }
   }
-  const layerColumns = new Map<number, { block: string; id: string }>();
+  const layerColumns = new Map<number, { block: string; id: string; type: 'text' | 'video' }>();
   let nameIndex = -1;
   const columnIds: (string | null)[] = headers.map((h, i) => {
     const key = h.toLowerCase();
@@ -127,13 +130,14 @@ export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blo
     if (h !== '') plan.unknownColumns.push(h);
     return null;
   });
-  if (plan.columns.length === 0) plan.warnings.push('No column matches a parameter or a text layer of this template.');
+  if (plan.columns.length === 0) plan.warnings.push('No column matches a parameter or a layer of this template.');
   if (plan.unknownColumns.length > 0) {
     plan.warnings.push(`Unknown column${plan.unknownColumns.length > 1 ? 's' : ''} ignored: ${plan.unknownColumns.join(', ')}.`);
   }
   // The row's label when no name column: the first text parameter with a column, else the first text layer with one.
   const firstText = manifest.parameters.find((p) => p.type === 'text' && columnIds.includes(p.id))?.id;
-  const firstLayerColumn = [...layerColumns.keys()].sort((a, b) => a - b)[0];
+  // A clip id makes a poor file name, so only a text layer's column names a row.
+  const firstLayerColumn = [...layerColumns.entries()].filter(([, l]) => l.type === 'text').map(([i]) => i).sort((a, b) => a - b)[0];
   if (table.length === 1) plan.warnings.push('The CSV has a header but no rows.');
 
   const used = new Map<string, number>();
@@ -151,7 +155,13 @@ export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blo
         return;
       }
       layers ??= defaultLayers({ blocks: [...(manifest.blocks ?? [])] });
-      layers[layer.block] = (layers[layer.block] ?? []).map((l) => (l.id === layer.id && l.type === 'text' ? { ...l, text: v } : l));
+      layers[layer.block] = (layers[layer.block] ?? []).map((l) => {
+        if (l.id !== layer.id) return l;
+        if (l.type === 'text') return { ...l, text: v };
+        // A video layer's cell is a clip id, optionally with its in, out, ending, speed and delay.
+        if (l.type === 'video') return { ...l, clip: clipValueFromText(v) };
+        return l;
+      });
     });
     if (layers) params[LAYERS_KEY] = layers;
     const layerName = firstLayerColumn !== undefined ? cells[firstLayerColumn]?.trim() : '';

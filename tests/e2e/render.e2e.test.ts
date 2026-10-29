@@ -445,6 +445,63 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await pixels(titleFrame, 540, 1600))[3]).toBe(0); // the caption band
   }, 240_000);
 
+  it('plays a clip inside a graphic, on the template\'s own time (milestone 26)', async () => {
+    // A transparent clip whose red square moves left to right over its 30 frames, so which frame
+    // was drawn can be read off the rendered picture. The library sees it by path, as any clip.
+    const lib = join(out, 'clip-library');
+    await mkdir(lib, { recursive: true });
+    const clip = join(lib, 'plate.mov');
+    const built = await runBounded(ffmpeg, ffmpegArgs([
+      '-v', 'error', '-y',
+      '-f', 'lavfi', '-i', 'color=c=black@0:s=160x160:d=1:r=30,format=rgba',
+      '-f', 'lavfi', '-i', 'color=c=red:s=40x40:d=1:r=30,format=rgba',
+      '-filter_complex', "[0][1]overlay=x='floor(t*120)':y=60:format=auto",
+      '-c:v', 'qtrle', clip,
+    ]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(built.code, built.stderr).toBe(0);
+    const clipId = itemId(`media:${clip}`);
+
+    const layers = (value: unknown) => ['--param', `@layers=${JSON.stringify({ stack: [{ id: 'plate', clip: value }] })}`];
+    const common = ['--library', FIXTURES, '--library', lib];
+    // Where the clip's square lands on the rendered frame at its first frame, and the corner
+    // marker the fixture paints every frame: that tells a missing layer from a blank render.
+    const square = [125, 90] as const;
+    const marker = [2, 2] as const;
+
+    // Looping: the template runs twice as long as the clip, so frame 30 is the clip's frame 0 again.
+    const loop = await render('pulp.test.video-layer', 'png-sequence', 'vid-loop', { extra: [...common, ...layers(clipId)] });
+    expect(loop.code, loop.stderr).toBe(0);
+    expect((await pixels(join(out, 'vid-loop_00000.png'), ...square))[3], 'the clip draws from the first frame').toBe(255);
+    expect(await pixels(join(out, 'vid-loop_00030.png'), ...square)).toEqual(await pixels(join(out, 'vid-loop_00000.png'), ...square));
+    // And it really moves: a later frame has the square somewhere else.
+    expect((await pixels(join(out, 'vid-loop_00020.png'), ...square))[3], 'the square has moved on').toBe(0);
+
+    // Played once, it clears at its end rather than freezing — the frame still renders.
+    const once = await render('pulp.test.video-layer', 'png-sequence', 'vid-once', {
+      extra: [...common, ...layers({ id: clipId, ending: 'once' })],
+    });
+    expect(once.code, once.stderr).toBe(0);
+    expect((await pixels(join(out, 'vid-once_00000.png'), ...square))[3]).toBe(255);
+    expect((await pixels(join(out, 'vid-once_00045.png'), ...square))[3], 'gone once it has played').toBe(0);
+    expect((await pixels(join(out, 'vid-once_00045.png'), ...marker))[3], 'but the frame was drawn').toBe(255);
+
+    // A start delay holds it back; the graphic is drawn throughout either way.
+    const delayed = await render('pulp.test.video-layer', 'png-sequence', 'vid-delay', {
+      extra: [...common, ...layers({ id: clipId, delay: 1 })],
+    });
+    expect(delayed.code, delayed.stderr).toBe(0);
+    expect((await pixels(join(out, 'vid-delay_00000.png'), ...square))[3], 'not yet').toBe(0);
+    expect((await pixels(join(out, 'vid-delay_00000.png'), ...marker))[3]).toBe(255);
+    expect((await pixels(join(out, 'vid-delay_00030.png'), ...square))[3], 'and away it goes').toBe(255);
+
+    // A clip that is not in the library stops the render by name rather than drawing nothing.
+    const missing = await render('pulp.test.video-layer', 'png-sequence', 'vid-missing', {
+      extra: [...common, ...layers('deadbeefdeadbeefdeadbeef')],
+    });
+    expect(missing.code).toBe(1);
+    expect(missing.stderr).toContain('clip chosen for a layer');
+  }, 300_000);
+
   it('indexes a folder of frames as one transparent clip, not a card per frame', async () => {
     // Milestone 26: asset stock often ships as numbered frames. A real alpha sequence is what the
     // renderer itself writes, so the fixture is a PNG-sequence render placed in a library folder.

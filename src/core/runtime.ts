@@ -15,6 +15,7 @@ import { blockStates, layerTexts, type BlockState } from './layer-layout';
 import type { Block, LayerValues } from './layers';
 import { frameCount, type TemplateManifest, type TemplateParameter } from './manifest';
 import type { ResolvedParams } from './params';
+import type { ClipSource } from './video-layer';
 
 export interface FrameState {
   /** Zero-based frame index. */
@@ -52,11 +53,14 @@ export function frameState(
   size: Size,
   /** The layers the person using the template built; the template's own defaults when not given. */
   layers: LayerValues = {},
+  /** What the host measured about each chosen clip, by library id; only video layers need it. */
+  clips: Record<string, ClipSource> = {},
 ): FrameState {
   const totalFrames = frameCount(manifest);
-  const blocks = manifest.blocks ? blockStates({ blocks: manifest.blocks as Block[] }, layers, size) : {};
   const f = Math.min(Math.max(0, Math.floor(frame)), totalFrames - 1);
   const time = f / manifest.fps;
+  // The blocks are laid out for this moment, so a video layer knows which of its frames is now.
+  const blocks = manifest.blocks ? blockStates({ blocks: manifest.blocks as Block[] }, layers, size, { time, sources: clips }) : {};
   return {
     frame: f,
     time,
@@ -108,6 +112,9 @@ export const BRIDGE_SCRIPT = `(function () {
   });
   var MAX_SIDE = 4096;
   var pictures = {};
+  /* A video layer's frames, by library id: the window the host handed over, in order. The page
+     never learns the clip's own numbering, only which of these to draw (milestone 26). */
+  var clips = {};
   function requestKey(r) { return r.id + '|' + r.treatment + '|' + (r.treatment === 'tinted' ? r.tint : ''); }
   function loadPicture(r) {
     return new Promise(function (resolve, reject) {
@@ -133,9 +140,31 @@ export const BRIDGE_SCRIPT = `(function () {
       return c;
     });
   }
+  function loadFrame(src) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.decoding = 'async';
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { reject(new Error('a clip frame could not be decoded')); };
+      img.src = src;
+    });
+  }
+  /* A clip's frames, decoded once and kept: a render asks for a different one every frame, and
+     decoding per frame would cost more than drawing does. */
+  function loadClip(r) {
+    return Promise.all((r.srcs || []).map(loadFrame)).then(function (frames) { return frames; });
+  }
   function prepare(requests) {
     return ready.then(function () {
       return Promise.all((requests || []).map(function (r) {
+        if (r.kind === 'clip') {
+          if (!clips[r.id]) {
+            var clip = loadClip(r);
+            clip.then(function (f) { clip.value = f; }, function () { clip.value = null; });
+            clips[r.id] = clip;
+          }
+          return clips[r.id];
+        }
         var key = requestKey(r);
         if (!pictures[key]) {
           var entry = loadPicture(r);
@@ -232,6 +261,16 @@ export const BRIDGE_SCRIPT = `(function () {
     return boxY + (boxHeight - extent) / 2;
   }
   function pictureFor(layer) {
+    if (layer.type === 'video') {
+      /* Nothing to draw before the clip starts, or after one that plays once has ended: the host
+         says so with a null frame, and the layer then takes no room at all. */
+      if (!layer.clip || !layer.clip.id || layer.clip.hidden || layer.frame === null || layer.frame === undefined) return null;
+      var c = clips[layer.clip.id];
+      var frames = c && c.value ? c.value : null;
+      if (!frames || frames.length === 0) return null;
+      var i = Math.max(0, Math.min(frames.length - 1, Math.floor(layer.frame)));
+      return frames[i];
+    }
     if (!layer.image || !layer.image.id || layer.image.hidden) return null;
     var p = pictures[requestKey(layer.image)];
     return p && p.value ? p.value : null;
@@ -491,6 +530,7 @@ export const BRIDGE_SCRIPT = `(function () {
     Object.keys(blocks).forEach(function (id) {
       (blocks[id].layers || []).forEach(function (layer) {
         if (layer.type === 'image') out[id + '.' + layer.id] = layer.image ? (pictureFor(layer) ? 'drawn' : 'no picture for ' + requestKey(layer.image)) : 'none chosen';
+        if (layer.type === 'video') out[id + '.' + layer.id] = !layer.clip ? 'none chosen' : layer.frame === null ? 'not playing now' : (pictureFor(layer) ? 'drawn' : 'no frames for ' + layer.clip.id);
       });
     });
     out.cached = Object.keys(pictures).join(',');

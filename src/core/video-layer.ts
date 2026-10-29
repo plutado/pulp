@@ -127,6 +127,18 @@ export function clipFrameAt(time: number, value: ClipValue, source: ClipSource):
 }
 
 /**
+ * Where in the **handed window** a moment lands: the same answer as
+ * `clipFrameAt`, counted from the window's first frame rather than the clip's.
+ * The page is given the window's frames and nothing else — it never learns
+ * what the in point was — so this is the index it draws by.
+ */
+export function clipWindowIndexAt(time: number, value: ClipValue, source: ClipSource): number | null {
+  const frame = clipFrameAt(time, value, source);
+  if (frame === null) return null;
+  return frame - clipWindow(value, source).first;
+}
+
+/**
  * Every clip frame a render needs, in the order it needs them, for one layer.
  * The host decodes a clip once per render and walks it forward, so what it
  * wants is the whole list up front rather than a frame at a time; `null`
@@ -198,4 +210,24 @@ export function clipValueFromText(text: string): ClipValue | null {
     else if (raw.trim() !== '' && Number.isFinite(Number(raw))) fields[field] = Number(raw);
   }
   return sanitizeClipValue(fields) ?? null;
+}
+
+/**
+ * Every clip id named by a set of layer stacks, however raw. Used where the
+ * stacks have not been resolved against a manifest yet — the render cache key
+ * is built before the template is loaded — so it reads tolerantly and ignores
+ * anything that is not a clip.
+ */
+export function clipIdsInLayers(layers: unknown): string[] {
+  const ids: string[] = [];
+  if (typeof layers !== 'object' || layers === null) return ids;
+  for (const stack of Object.values(layers as Record<string, unknown>)) {
+    if (!Array.isArray(stack)) continue;
+    for (const layer of stack) {
+      if (typeof layer !== 'object' || layer === null) continue;
+      const value = sanitizeClipValue((layer as { clip?: unknown }).clip);
+      if (value?.id && !value.hidden && !ids.includes(value.id)) ids.push(value.id);
+    }
+  }
+  return ids.sort();
 }

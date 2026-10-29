@@ -11,7 +11,8 @@
 
 import { templateDefaultSize } from '../core/aspect';
 import { chosenImageIds, imageRequests, imageSlots } from '../core/image-slot';
-import { blockStates, layerImageChoices, layerImageIds } from '../core/layer-layout';
+import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, type BlockState } from '../core/layer-layout';
+import type { ClipSource, ClipValue } from '../core/video-layer';
 import type { LayerValues } from '../core/layers';
 import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
@@ -92,6 +93,8 @@ const s = {
   imagesKey: '',
   imagesReady: true,
   prepareId: 0,
+  /** What the host measured about each clip a video layer chose, by library id (milestone 26). */
+  clipSources: {} as Record<string, ClipSource>,
   /** Preferences from settings.json: loop, background, safe areas, volume. */
   player: DEFAULT_PLAYER as PlayerState,
   /** The audio item on the stage, so its waveform can be drawn again when the peaks land. */
@@ -222,7 +225,7 @@ function postFrame(frame: number): void {
     s.pendingFrame = null;
     requestFrame(next);
   }, FRAME_REPLY_TIMEOUT_MS);
-  win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, previewSize(), s.layers) }, '*');
+  win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, previewSize(), s.layers, s.clipSources) }, '*');
   updateTimecode(frame);
   noteFrameState();
 }
@@ -243,21 +246,51 @@ function syncImages(): void {
   const layerIds = layerImageIds(blocks);
   const requests = [...imageRequests(slots), ...layerImageChoices(blocks).map((c) => ({ id: c.id, treatment: c.treatment, tint: c.tint }))]
     .filter((r, i, all) => all.findIndex((o) => o.id === r.id && o.treatment === r.treatment && o.tint === r.tint) === i);
-  const key = requests.map((r) => `${r.id}|${r.treatment}|${r.tint}`).sort().join(',');
+  // The clips video layers chose, with how tall each is drawn here, so only that much is decoded.
+  const clipRequests = layerClipChoices(blocks)
+    .filter((c, i, all) => all.findIndex((o) => o.id === c.id) === i)
+    .map((c) => ({ id: c.id, value: c as ClipValue, drawnHeight: clipDrawnHeight(blocks, c.id, size.height) }));
+  const key = [
+    ...requests.map((r) => `${r.id}|${r.treatment}|${r.tint}`),
+    ...clipRequests.map((c) => `clip:${c.id}|${c.value.inPoint}|${c.value.outPoint}|${c.drawnHeight}`),
+  ].sort().join(',');
   if (key === s.imagesKey) return;
   s.imagesKey = key;
   s.imagesReady = false;
   const id = ++s.prepareId;
-  // The main process reads exactly the chosen stills and the page gets their bytes (ADR 0013).
-  void window.pulp.loadSlotImages([...new Set([...chosenImageIds(slots), ...layerIds])]).then((handed) => {
+  // The main process reads exactly the chosen stills and clips, and the page gets their bytes (ADR 0013).
+  void Promise.all([
+    window.pulp.loadSlotImages([...new Set([...chosenImageIds(slots), ...layerIds])]),
+    clipRequests.length > 0 ? window.pulp.loadLayerClips(clipRequests) : Promise.resolve({ clips: [], sources: {}, missing: [] }),
+  ]).then(([handed, clips]) => {
     if (id !== s.prepareId || !s.manifest || els.preview.contentWindow !== win) return;
     if (handed.missing.length > 0) {
       els.note.hidden = false;
       els.note.textContent = 'An image chosen for this template is not in the library; its slot shows the fallback.';
+    } else if (clips.missing.length > 0) {
+      els.note.hidden = false;
+      els.note.textContent = 'A clip chosen for a layer could not be read; that layer draws nothing.';
     }
+    s.clipSources = clips.sources;
     const srcById = new Map(handed.images.map((i) => [i.id, i.src]));
-    win.postMessage({ type: 'pulp:prepare', id, requests: requests.filter((r) => srcById.has(r.id)).map((r) => ({ ...r, src: srcById.get(r.id) })) }, '*');
+    win.postMessage({
+      type: 'pulp:prepare',
+      id,
+      requests: [...requests.filter((r) => srcById.has(r.id)).map((r) => ({ ...r, src: srcById.get(r.id) })), ...clips.clips],
+    }, '*');
   });
+}
+
+/** How tall, in preview pixels, the tallest layer using this clip is drawn: what to decode it at. */
+function clipDrawnHeight(blocks: Record<string, BlockState>, clipId: string, frameHeight: number): number {
+  let tallest = 0;
+  for (const block of Object.values(blocks)) {
+    for (const layer of block.layers) {
+      if (layer.type !== 'video' || layer.clip?.id !== clipId) continue;
+      tallest = Math.max(tallest, layer.size * Math.max(1, layer.placement?.scale ?? 1));
+    }
+  }
+  return Math.max(16, Math.min(frameHeight, Math.round(tallest)));
 }
 
 /** Only one frame is in flight at a time; newer requests replace queued ones. */

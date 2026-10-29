@@ -25,8 +25,9 @@
 import { aspectOf, type Size } from './aspect';
 import { boxFor, fitImage, type ImageValue, type PxBox } from './image-slot';
 import { motionDraw, type MotionAt } from './layer-motion';
-import { DEFAULT_MAX_LINES, DEFAULT_MOTION, IDENTITY_PLACEMENT, placementFor, type Block, type ImageLayer, type Layer, type LayerMotion, type LayerValues, type TextCase, type TextLayer } from './layers';
+import { DEFAULT_MAX_LINES, DEFAULT_MOTION, IDENTITY_PLACEMENT, placementFor, type Block, type ImageLayer, type Layer, type LayerMotion, type LayerValues, type TextCase, type TextLayer, type VideoLayer } from './layers';
 import type { TemplateManifest } from './manifest';
+import { clipWindowIndexAt, type ClipSource, type ClipValue } from './video-layer';
 
 /**
  * The line box a text layer occupies: ascent above the baseline, descent below,
@@ -80,7 +81,34 @@ export interface ImageLayerState extends LayerStateBase {
   size: number;
 }
 
-export type LayerState = TextLayerState | ImageLayerState;
+/**
+ * A video layer laid out for one moment (milestone 26). `frame` is an index
+ * into the clip frames the host handed the page — not the clip's own numbering
+ * — and `null` means the layer draws nothing now: before its delay, or after a
+ * clip that plays once has finished.
+ */
+export interface VideoLayerState extends LayerStateBase {
+  type: 'video';
+  /** The chosen clip, or null: nothing is drawn and no room is taken. */
+  clip: ClipValue | null;
+  /** The picture's height in pixels of this frame; its width follows the clip's shape. */
+  size: number;
+  frame: number | null;
+}
+
+export type LayerState = TextLayerState | ImageLayerState | VideoLayerState;
+
+/** The layer states that take their room from a picture: a still, or a clip's current frame. */
+export type PictureLayerState = ImageLayerState | VideoLayerState;
+
+/**
+ * Has this layer a picture to draw right now? A still layer has one once an
+ * image is chosen; a video layer only while the clip is playing — before its
+ * delay and after a one-shot ends there is nothing, and it takes no room.
+ */
+export function layerHasPicture(layer: PictureLayerState): boolean {
+  return layer.type === 'image' ? layer.image !== null : layer.clip !== null && layer.frame !== null;
+}
 
 /** One block, laid out as far as it can be without measuring text. */
 export interface BlockState {
@@ -107,7 +135,7 @@ export interface LaidLine {
   width: number;
 }
 
-export type LaidLayer = (TextLayerState | ImageLayerState) & {
+export type LaidLayer = (TextLayerState | PictureLayerState) & {
   /** Where the layer sits, in pixels of this frame. */
   box: PxBox;
   /** The size it is actually set at, after shrinking to fit; text only. */
@@ -153,7 +181,7 @@ export interface LayoutOptions {
 export type Measure = (text: string, font: { family: string; fontSize: number; weight: number; italic: boolean }) => number;
 
 /** A picture's width over its height, or null when the layer has none to draw. */
-export type ImageAspect = (layer: ImageLayerState) => number | null;
+export type ImageAspect = (layer: PictureLayerState) => number | null;
 
 const DEFAULT_DRAW: LayerDraw = { alpha: 1, dx: 0, dy: 0, scale: 1 };
 
@@ -293,7 +321,7 @@ export function layoutBlock(block: BlockState, measure: Measure, imageAspect: Im
       const width = widths.reduce((widest, w) => Math.max(widest, w), 0);
       return { layer, draw, size, lines, widths, width, height, extent: column ? height : width, cross: column ? width : height };
     }
-    const aspect = layer.image === null ? null : imageAspect(layer);
+    const aspect = layerHasPicture(layer) ? imageAspect(layer) : null;
     if (aspect === null) return { layer, draw, size: 0, lines: [], widths: [], width: 0, height: 0, extent: 0, cross: 0 };
     const height = layer.size;
     const width = Math.min(box.width, height * Math.max(0.01, aspect));
@@ -358,8 +386,20 @@ function crossStart(verticalAlign: 'top' | 'middle' | 'bottom', boxY: number, bo
   return boxY + (boxHeight - extent) / 2;
 }
 
+/**
+ * What a video layer needs to know which of its frames belongs to now: the
+ * moment being drawn, and what the host measured about each chosen clip, by
+ * library id. Absent for a template with no video layers, and for the layout
+ * work (hit-testing, the stage's own geometry) that does not care about time.
+ */
+export interface ClipContext {
+  /** Seconds into the graphic. */
+  time: number;
+  sources: Record<string, ClipSource>;
+}
+
 /** The per-frame state for one block: its box and layers in pixels, hidden ones left out. */
-export function blockState(block: Block, layers: readonly Layer[], size: Size): BlockState {
+export function blockState(block: Block, layers: readonly Layer[], size: Size, clips?: ClipContext): BlockState {
   const frac = boxFor(block.box, size);
   const short = Math.min(size.width, size.height);
   const drawn = layers.filter((l) => !l.hidden);
@@ -371,11 +411,11 @@ export function blockState(block: Block, layers: readonly Layer[], size: Size): 
     gap: block.gap * short,
     align: block.align,
     verticalAlign: block.verticalAlign,
-    layers: drawn.map((layer, position) => layerState(layer, position, short, size)),
+    layers: drawn.map((layer, position) => layerState(layer, position, short, size, clips)),
   };
 }
 
-function layerState(layer: Layer, position: number, short: number, size: Size): LayerState {
+function layerState(layer: Layer, position: number, short: number, size: Size, clips?: ClipContext): LayerState {
   // The person's placement, resolved for this frame's shape and turned into pixels of it.
   const placed = placementFor(layer.placement, aspectOf(size.width, size.height));
   const placement = placed === IDENTITY_PLACEMENT ? { ...IDENTITY_PLACEMENT } : { dx: placed.dx * size.width, dy: placed.dy * size.height, scale: placed.scale };
@@ -400,14 +440,21 @@ function layerState(layer: Layer, position: number, short: number, size: Size): 
       align: text.align,
     };
   }
+  if (layer.type === 'video') {
+    const video = layer as VideoLayer;
+    const source = video.clip?.id ? clips?.sources[video.clip.id] : undefined;
+    // No clip, or one the host has not measured yet: the layer is laid out but draws nothing.
+    const frame = video.clip && source ? clipWindowIndexAt(clips?.time ?? 0, video.clip, source) : null;
+    return { ...base, type: 'video', clip: video.clip, size: video.size * short, align: video.align, frame };
+  }
   const image = layer as ImageLayer;
   return { ...base, type: 'image', image: image.image, size: image.size * short, align: image.align };
 }
 
 /** Every block of a template, laid out as far as the host can take it. */
-export function blockStates(manifest: Pick<TemplateManifest, 'blocks'>, layers: LayerValues, size: Size): Record<string, BlockState> {
+export function blockStates(manifest: Pick<TemplateManifest, 'blocks'>, layers: LayerValues, size: Size, clips?: ClipContext): Record<string, BlockState> {
   const out: Record<string, BlockState> = {};
-  for (const block of manifest.blocks) out[block.id] = blockState(block, layers[block.id] ?? block.layers, size);
+  for (const block of manifest.blocks) out[block.id] = blockState(block, layers[block.id] ?? block.layers, size, clips);
   return out;
 }
 
@@ -422,6 +469,17 @@ export function layerTexts(blocks: Record<string, BlockState>): Record<string, s
   for (const block of Object.values(blocks)) {
     for (const layer of block.layers) {
       if (layer.type === 'text' && out[layer.id] === undefined) out[layer.id] = layer.text;
+    }
+  }
+  return out;
+}
+
+/** The clips the blocks' layers have chosen and draw: one entry per video layer with a clip to show. */
+export function layerClipChoices(blocks: Record<string, BlockState>): (ClipValue & { id: string })[] {
+  const out: (ClipValue & { id: string })[] = [];
+  for (const block of Object.values(blocks)) {
+    for (const layer of block.layers) {
+      if (layer.type === 'video' && layer.clip?.id && !layer.clip.hidden) out.push(layer.clip as ClipValue & { id: string });
     }
   }
   return out;

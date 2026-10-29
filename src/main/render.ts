@@ -22,7 +22,10 @@ import { access, mkdir, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { templateDefaultSize, type Size } from '../core/aspect';
 import { chosenImageIds, imageRequests, imageSlots, MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
-import { blockStates, layerImageChoices, layerImageIds, layerTexts } from '../core/layer-layout';
+import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, layerTexts, type BlockState } from '../core/layer-layout';
+import { readClipFrames, resolveClipSource, type ClipFrameData } from './clip-grant';
+import { ffprobePathFor } from '../core/media-probe';
+import type { ClipSource } from '../core/video-layer';
 import { resolveLayers } from '../core/layers';
 import { checkImages, readSlotImages } from './image-grant';
 import { lookupMedia } from './library-service';
@@ -176,6 +179,18 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   const refused = imageProblem(manifest, slots, imageIds);
   if (refused) return { ok: false, message: refused };
 
+  // Video layers (milestone 26): what the library measured about each chosen clip, so the blocks
+  // can be laid out for a moment and the host knows which window to read.
+  const clipChoices = layerClipChoices(blocks);
+  const clipSources: Record<string, ClipSource> = {};
+  for (const choice of clipChoices) {
+    if (clipSources[choice.id]) continue;
+    // Read the file if the library has not: a headless render never runs the background pass.
+    const source = await resolveClipSource(ffprobePathFor(ffmpeg.path), choice.id);
+    if (source) clipSources[choice.id] = source;
+    else return { ok: false, message: `A clip chosen for a layer is not in the library, is offline, or could not be read.` };
+  }
+
   // The frame size is the plan's, not the manifest's: a template draws for a shape and the
   // size is chosen per render (ADR 0012). The window, the capture check and ffmpeg agree on it.
   const frameSize = { name: manifest.name, width: plan.width, height: plan.height };
@@ -247,14 +262,24 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     // before the first frame, under the load budget rather than a frame's (ADR 0013).
     const requests = [...imageRequests(slots), ...layerImageChoices(blocks).map((c) => ({ id: c.id, treatment: c.treatment, tint: c.tint }))]
       .filter((r, i, all) => all.findIndex((o) => o.id === r.id && o.treatment === r.treatment && o.tint === r.tint) === i);
-    if (requests.length > 0) {
+    // A clip's frames are decoded once, at the size the layer draws them, and handed over with
+    // the stills; the page then has every frame it will be asked for (src/main/clip-grant.ts).
+    const clipData: ClipFrameData[] = [];
+    for (const choice of clipChoices) {
+      if (!clipSources[choice.id] || clipData.some((c) => c.id === choice.id)) continue;
+      const drawn = layerDrawnHeight(blocks, choice.id, plan.height);
+      const read = await readClipFrames(ffmpeg.path, choice.id, choice, clipSources[choice.id]!, drawn);
+      if (!read.ok) return { ok: false, message: `Template "${manifest.name}": a clip chosen for a layer ${read.message}.` };
+      clipData.push(read.data);
+    }
+    if (requests.length > 0 || clipData.length > 0) {
       try {
         const handed = await readSlotImages(imageIds);
         if (handed.missing.length > 0) return { ok: false, message: `The image for "${slotLabel(manifest, slots, handed.missing[0]!)}" could not be read.` };
         const srcById = new Map(handed.images.map((i) => [i.id, i.src]));
         const withBytes = requests.map((r) => ({ ...r, src: srcById.get(r.id) }));
         await withTimeout(
-          win.webContents.executeJavaScript(`window.__pulp.prepare(${JSON.stringify(withBytes)})`),
+          win.webContents.executeJavaScript(`window.__pulp.prepare(${JSON.stringify([...withBytes, ...clipData])})`),
           loadTimeoutMs,
           `Template "${manifest.name}": its images did not load within ${Math.round(loadTimeoutMs / 1000)} s`,
         );
@@ -295,7 +320,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       if (child.exitCode !== null) break;
 
       const frame = plan.firstFrame + i;
-      const state = frameState(timeline, frame, values, frameSize, layers);
+      const state = frameState(timeline, frame, values, frameSize, layers, clipSources);
       let pixels: Buffer;
       try {
         pixels = await withTimeout(
@@ -324,6 +349,24 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   } finally {
     win.destroy();
   }
+}
+
+/**
+ * How tall, in pixels of the rendered frame, the tallest layer using this clip
+ * is drawn. The clip is decoded at that size rather than its own: a plate an
+ * eighth of the frame high needs nothing like a 4K clip's resolution, and the
+ * difference is what keeps a render's memory in hand.
+ */
+function layerDrawnHeight(blocks: Record<string, BlockState>, clipId: string, frameHeight: number): number {
+  let tallest = 0;
+  for (const block of Object.values(blocks)) {
+    for (const layer of block.layers) {
+      if (layer.type !== 'video' || layer.clip?.id !== clipId) continue;
+      // The layer's own height, and what a placement scales it to.
+      tallest = Math.max(tallest, layer.size * Math.max(1, layer.placement?.scale ?? 1));
+    }
+  }
+  return Math.max(16, Math.min(frameHeight, Math.round(tallest)));
 }
 
 /** The label of the slot an image id fills, for messages. */

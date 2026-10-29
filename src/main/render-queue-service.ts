@@ -16,6 +16,9 @@ import { slug } from '../core/pack';
 import { cacheKey } from '../core/render-cache';
 import { imageIdsIn } from '../core/image-slot';
 import { imageStamps, resolveRowImages } from './image-grant';
+import { clipStamps } from './clip-grant';
+import { clipIdsInLayers } from '../core/video-layer';
+import { splitLayers } from '../core/params';
 import { cacheFileForKey, dragFileFor, evictIfNeeded, isCachedFile } from './render-cache-service';
 import { existsSync } from 'node:fs';
 import { findTemplate, markItemRendered, markItemUsed } from './library-service';
@@ -104,7 +107,16 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
     return { ok: false, message: (err as Error).message };
   }
   // The chosen images' size and mtime are part of the key, so a replaced logo renders afresh (milestone 22).
-  const key = cacheKey({ templateId: template.manifest.id, manifest: template.manifest, params: request.params, presetId: preset.id, options: request.options, images: imageStamps(imageIdsIn(template.manifest.parameters, request.params)) });
+  const key = cacheKey({
+    templateId: template.manifest.id,
+    manifest: template.manifest,
+    params: request.params,
+    presetId: preset.id,
+    options: request.options,
+    images: imageStamps(imageIdsIn(template.manifest.parameters, request.params)),
+    // A clip a layer plays is an input like a chosen still: re-export it and this is a new render.
+    clips: clipStamps(clipIdsInLayers(splitLayers(request.params).layers)),
+  });
   // Clean names (the editor shows them as clip names): lower-third-bar.mov, lower-third-bar-2.mov, keyed in the cache index.
   const { path: outputPath } = await cacheFileForKey(key, template.manifest.name, preset.extension, preset.sequence);
   const existing = dragFileFor(outputPath, timing.firstFrame);
