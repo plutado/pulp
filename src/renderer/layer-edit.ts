@@ -8,7 +8,7 @@
  */
 
 import { signal } from '@preact/signals';
-import type { Layer } from '../core/layers';
+import type { Layer, LayerType } from '../core/layers';
 
 /** The selected layer, shared by the stage and the Parameters tab; null is nothing selected. */
 export const selectedLayer = signal<{ block: string; id: string } | null>(null);
@@ -20,6 +20,13 @@ export interface LayerEditor {
   get(block: string, id: string): Layer | undefined;
   /** Commit whatever live edits are pending as one undo step. */
   commit(): void;
+  /**
+   * Add a layer showing a library item, as a drop on the stage does
+   * (milestone 26): the tab picks a block that takes more layers, makes the
+   * layer and gives it the picture or clip. Returns where it landed, or null
+   * with a reason when nothing can hold it.
+   */
+  addForItem(type: LayerType, itemId: string, label: string): { block: string; id: string } | { refused: string };
 }
 
 let editor: LayerEditor | null = null;

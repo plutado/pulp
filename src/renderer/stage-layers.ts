@@ -12,6 +12,7 @@ import { effect } from '@preact/signals';
 import { aspectOf } from '../core/aspect';
 import { clampPlacement, clampScale, EMPTY_LAID, hitLayer, nudgeFraction, placedBox, scaleFromDrag, snapMove, type LaidReport, type SnapGuide } from '../core/stage-place';
 import { placementFor, type Layer, type LayerPlacement, type LayerPlacements } from '../core/layers';
+import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { layerEditor, selectedLayer } from './layer-edit';
 
 /** How close a drag has to come to a line before it takes, in screen pixels. */
@@ -163,6 +164,7 @@ export function stageLayersUpdate(report: LaidReport | null): void {
     overlay.dataset.laidFrame = laid.frame === null ? '' : String(laid.frame);
     if (!any) clearGuides();
   }
+  placePendingDrop();
   paintSelection();
 }
 
@@ -245,6 +247,86 @@ function onKeyDown(e: KeyboardEvent): void {
   const from = currentPlacement(chosen.block, chosen.id);
   writePlacement(chosen.block, chosen.id, { ...from, dx: clampPlacement(from.dx + move[0]), dy: clampPlacement(from.dy + move[1]) }, true);
   e.preventDefault();
+}
+
+/**
+ * A drop that has been added but not yet placed (milestone 26). A new layer
+ * lands wherever its block's stack puts it, and only the page can say where
+ * that was — so the drop point is kept until the frame that holds the layer is
+ * reported, and the placement that moves it there is applied then, as one more
+ * step of the same undo entry.
+ */
+let pendingDrop: { block: string; id: string; point: { x: number; y: number } } | null = null;
+
+/** Place a freshly dropped layer under the pointer, once the page has said where it landed. */
+function placePendingDrop(): void {
+  if (!pendingDrop || !host) return;
+  const report = laidLayer(pendingDrop.block, pendingDrop.id);
+  if (!report) return;
+  const { block, id, point } = pendingDrop;
+  pendingDrop = null;
+  const editor = layerEditor();
+  if (!editor) return;
+  const size = host.frameSize();
+  const box = placedBox(report);
+  const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const aspect = aspectOf(size.width, size.height);
+  const dx = clampPlacement((point.x - centre.x) / size.width);
+  const dy = clampPlacement((point.y - centre.y) / size.height);
+  editor.edit(block, id, (layer) => {
+    const placement: LayerPlacements = { ...(layer.placement ?? {}) };
+    placement[aspect] = { ...placementFor(layer.placement, aspect), dx, dy };
+    return { ...layer, placement };
+  }, true);
+  selectedLayer.value = { block, id };
+}
+
+/** The frame point a drag event is over, for a drop. */
+function dropPoint(e: DragEvent, el: HTMLElement): { x: number; y: number } {
+  const box = el.getBoundingClientRect();
+  const size = host!.frameSize();
+  return {
+    x: Math.max(0, Math.min(size.width, ((e.clientX - box.left) / Math.max(1, box.width)) * size.width)),
+    y: Math.max(0, Math.min(size.height, ((e.clientY - box.top) / Math.max(1, box.height)) * size.height)),
+  };
+}
+
+/**
+ * Dropping a library item on the preview makes it a layer where it was
+ * dropped (milestone 26): a still becomes an image layer, a clip a video
+ * layer. Anything else — a sound, a template — is refused with a word about
+ * why rather than ignored.
+ */
+export function mountStageDrop(el: HTMLElement, stageHost: Host, lookup: (id: string) => { kind: 'image' | 'video' | 'other'; name: string } | null, note: (text: string) => void): void {
+  host = stageHost;
+  el.addEventListener('dragover', (e) => {
+    if (!e.dataTransfer?.types.includes(COLLECTION_DRAG_TYPE)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    el.classList.add('drop-target');
+  });
+  for (const type of ['dragleave', 'dragend', 'drop'] as const) {
+    el.addEventListener(type, () => el.classList.remove('drop-target'));
+  }
+  el.addEventListener('drop', (e) => {
+    const itemId = e.dataTransfer?.getData(COLLECTION_DRAG_TYPE);
+    if (!itemId) return;
+    e.preventDefault();
+    const found = lookup(itemId);
+    if (!found) return;
+    if (found.kind === 'other') {
+      note('Only a picture or a clip can be dropped on the stage.');
+      return;
+    }
+    const editor = layerEditor();
+    if (!editor) return;
+    const added = editor.addForItem(found.kind === 'video' ? 'video' : 'image', itemId, found.name);
+    if ('refused' in added) {
+      note(added.refused);
+      return;
+    }
+    pendingDrop = { ...added, point: dropPoint(e, el) };
+  });
 }
 
 export function mountStageLayers(el: HTMLElement, stageHost: Host): void {

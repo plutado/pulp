@@ -29,14 +29,17 @@ import {
   type LayerMotion,
   type LayerMotionType,
   type LayerType,
+  type ImageLayer,
   type LayerValues,
   type PictureLayer,
+  type VideoLayer,
   type TextLayer,
 } from '../core/layers';
 import { addRecentColor } from '../core/recent-colors';
 import { dimensionsLabel } from '../core/display';
 import { IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } from '../core/image-slot';
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, type ClipEnding, type ClipValue } from '../core/video-layer';
+import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { setIcon, type IconName } from './icons';
 import type { MediaEntry } from '../core/library-types';
 import { mediaUrlFor } from '../core/media-url';
@@ -1686,6 +1689,45 @@ function paramField(param: TemplateParameter, heading?: string): HTMLElement {
 }
 
 /**
+ * A picture layer's card takes a drop from the results: a still replaces an
+ * image layer's picture, a clip a video layer's clip. A drop of the wrong kind
+ * is refused on the card itself rather than silently swapping a layer's type,
+ * which would move it in the stack and lose its settings.
+ */
+function acceptItemDrop(section: HTMLElement, block: string, layer: ImageLayer | VideoLayer): void {
+  const wants = layer.type === 'video' ? 'video' : 'image';
+  const entryFor = (id: string) => appState.value.index?.media.find((m) => m.id === id);
+  section.addEventListener('dragover', (e) => {
+    const id = e.dataTransfer?.types.includes(COLLECTION_DRAG_TYPE);
+    if (!id) return;
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = 'copy';
+    section.classList.add('drop-target');
+  });
+  for (const type of ['dragleave', 'dragend', 'drop'] as const) {
+    section.addEventListener(type, () => section.classList.remove('drop-target'));
+  }
+  section.addEventListener('drop', (e) => {
+    const id = e.dataTransfer?.getData(COLLECTION_DRAG_TYPE);
+    if (!id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const entry = entryFor(id);
+    if (!entry || entry.offline || entry.mediaKind !== wants) return;
+    editLayer(block, layer.id, (l) =>
+      l.type === 'video'
+        ? { ...l, clip: { ...EMPTY_CLIP, id } }
+        : { ...l, image: { id, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false } },
+    true);
+    commitParams();
+    // The card shows what the layer holds, so it is rebuilt: the field's own display was made
+    // from the value as it was.
+    const selected = selectedTemplate.value;
+    if (selected) buildParamForm(selected.manifest);
+  });
+}
+
+/**
  * One part of the graphic, folded or open: its name, what can be done to it
  * when it is a layer, and every setting that belongs to it.
  */
@@ -1696,6 +1738,9 @@ function paramCardEl(card: ParamCard): HTMLElement {
   if (card.layer) {
     section.dataset.layer = card.layer.layer.id;
     section.dataset.block = card.layer.block;
+    // Dropping a library item on a picture layer's card replaces what it shows (milestone 26).
+    const { block, layer } = card.layer;
+    if (layer.type === 'image' || layer.type === 'video') acceptItemDrop(section, block, layer);
   }
   const head = document.createElement('div');
   head.className = 'card-head';
@@ -1894,6 +1939,23 @@ export function initInspectorParams(): void {
       commitParams();
       const selected = selectedTemplate.value;
       if (selected) buildParamForm(selected.manifest);
+    },
+    addForItem: (type, itemId, label) => {
+      const selected = selectedTemplate.value;
+      if (!selected) return { refused: 'No template is open.' };
+      // The first block that takes added layers. A template whose blocks are all closed has
+      // decided its stack is its own, and a drop says so rather than quietly doing nothing.
+      const block = selected.manifest.blocks.find((b) => b.open);
+      if (!block) return { refused: 'This template does not take added layers.' };
+      const layers = currentLayers();
+      const stack = layers[block.id] ?? [];
+      const id = freeLayerId(stack, type);
+      const fresh = newLayer(type, block, id, label);
+      const layer = type === 'video'
+        ? { ...fresh, clip: { ...EMPTY_CLIP, id: itemId } }
+        : { ...fresh, image: { id: itemId, treatment: 'original' as const, tint: '#ffffff', effect: 'none' as const, hidden: false } };
+      setLayers({ ...layers, [block.id]: [...stack, layer as Layer] }, true);
+      return { block: block.id, id };
     },
   });
 

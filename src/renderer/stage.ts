@@ -18,7 +18,7 @@ import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { frameCount, type TemplateManifest } from '../core/manifest';
 import type { ResolvedParams } from '../core/params';
-import { mountStageLayers, stageLayersUpdate } from './stage-layers';
+import { mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
 import { selectedLayer } from './layer-edit';
 import type { LaidReport } from '../core/stage-place';
 import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor, type PlayerState, type StageBackground } from '../core/player';
@@ -26,7 +26,7 @@ import { frameState } from '../core/runtime';
 import { formatTimecode } from '../core/timecode';
 import { mediaFrameUrlFor, mediaUrlFor, templateUrlFor } from '../shared/api';
 import { setIcon } from './icons';
-import { frameSize, trim } from './store';
+import { appState, frameSize, trim } from './store';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
 
@@ -568,6 +568,23 @@ export function initStage(): void {
   els.bgCustom.addEventListener('input', () => setPlayer({ background: 'custom', customBackground: els.bgCustom.value }));
   els.safeToggle.addEventListener('click', () => setPlayer({ safeAreas: !s.player.safeAreas }));
   mountStageLayers(els.layerOverlay, { frameSize: () => previewSize() });
+  // Dropping a picture or a clip from the results makes it a layer where it was dropped
+  // (milestone 26). The preview frame takes the drop, not the overlay, which stands aside
+  // when a template has no layers yet — which is exactly when a first drop is likely.
+  mountStageDrop(
+    els.previewFrame,
+    { frameSize: () => previewSize() },
+    (id) => {
+      const entry = appState.value.index?.media.find((m) => m.id === id);
+      if (!entry || entry.offline) return null;
+      const kind = entry.mediaKind === 'image' ? 'image' : entry.mediaKind === 'video' ? 'video' : 'other';
+      return { kind, name: entry.name };
+    },
+    (text) => {
+      els.note.hidden = false;
+      els.note.textContent = text;
+    },
+  );
   els.audition.addEventListener('click', () => setPlayer({ audition: !s.player.audition }));
 
   // Peaks arrive after the file is shown; redraw the one on screen when they do.

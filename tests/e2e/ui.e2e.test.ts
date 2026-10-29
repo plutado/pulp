@@ -1262,6 +1262,73 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+
+    it('makes a dropped picture a layer where it was dropped, and a drop on a layer card replaces what it shows (milestone 26)', async () => {
+      try {
+        // The id of the fixture still, read from its result row rather than computed.
+        const tinyId = await onResult<string>('tiny', '(li) => li.dataset.id');
+        expect(tinyId, 'the fixture still is in the library').toMatch(/^[0-9a-f]{24}$/);
+        await clickResult('Title Card');
+        await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+        // A frame drawn first: the drop is placed from what the page reports it laid.
+        await scrubAndWait(110);
+        const before = await layerIds();
+
+        /** A drag over and a drop at a fraction across an element, as a real drag sends them. */
+        const dropAt = (target: string, fx: number, fy: number, id: string) =>
+          page.eval<boolean>(
+            `(() => {
+              const el = ${target};
+              const r = el.getBoundingClientRect();
+              const dt = new DataTransfer();
+              dt.setData('application/x-pulp-item', ${JSON.stringify(id)});
+              const at = { clientX: r.left + r.width * ${fx}, clientY: r.top + r.height * ${fy}, dataTransfer: dt, bubbles: true, cancelable: true };
+              el.dispatchEvent(new DragEvent('dragover', at));
+              el.dispatchEvent(new DragEvent('drop', at));
+              return true;
+            })()`,
+          );
+
+        // Dropped a quarter across and a third down the preview.
+        await dropAt(`document.getElementById('preview-frame')`, 0.25, 0.33, tinyId!);
+        await until(async () => (await layerIds()).length === before.length + 1, 'a layer added by the drop');
+        const added = (await layerIds()).find((id) => !before.includes(id))!;
+        const card = `document.querySelector('#params .param-card[data-layer="${added}"]')`;
+        // It is an image layer named for what was dropped, already showing that picture.
+        expect(await page.eval<string>(`${card}.querySelector('.layer-label').textContent`)).toBe('tiny');
+        expect(await page.eval<string>(`${card}.querySelector('.image-name').textContent`)).toBe('tiny');
+
+        // And it was put where the pointer was: the page reports it drawn left of centre and above it,
+        // which the stack alone (centred, below the two lines) would never do.
+        type Laid = { blocks: Record<string, { layers: { id: string; box: { x: number; y: number; width: number; height: number }; draw: { dx: number; dy: number; scale: number } }[] }> };
+        const placedCentre = async () => {
+          const laid = await inTemplate<Laid>(`window.__pulp.laid`, CARD);
+          const layer = laid.blocks.card?.layers.find((l) => l.id === added);
+          if (!layer) return null;
+          return { x: layer.box.x + layer.draw.dx + layer.box.width / 2, y: layer.box.y + layer.draw.dy + layer.box.height / 2 };
+        };
+        const frame = await page.eval<{ width: number; height: number }>(
+          `(() => { const [w, h] = (document.getElementById('preview-frame').style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`,
+        );
+        await until(async () => {
+          const centre = await placedCentre().catch(() => null);
+          return centre !== null && Math.abs(centre.x - frame.width * 0.25) < frame.width * 0.06;
+        }, 'the dropped layer sitting where it was dropped');
+        const centre = (await placedCentre())!;
+        expect(centre.y, 'and at the height it was dropped at').toBeCloseTo(frame.height * 0.33, -2);
+
+        // Dropping another still on that layer's card replaces its picture rather than adding a layer.
+        const markId = await onResult<string>('mark', '(li) => li.dataset.id');
+        await clickResult('Title Card');
+        await until(() => page.eval<boolean>(`!!${section}`), 'back on the card');
+        await dropAt(card, 0.5, 0.5, markId!);
+        await until(() => page.eval<string>(`${card}.querySelector('.image-name').textContent`).then((t) => t === 'mark'), 'the card showing the dropped still');
+        expect(await layerIds(), 'no second layer from a drop on a card').toHaveLength(before.length + 1);
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
     it('moves, scales and nudges a layer on the stage, one undo step a gesture, and motion still carries it', async () => {
       const overlay = `document.getElementById('layer-overlay')`;
       try {
