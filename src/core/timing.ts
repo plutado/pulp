@@ -23,10 +23,13 @@
  * measured on the template's own clock, never on the chosen length: `holdFrom`
  * is where the entrance has finished, `holdTo` where the exit begins.
  */
-export interface TemplateStructure {
-  holdFrom: number;
-  holdTo: number;
-}
+export type TemplateStructure =
+  /** The entrance and the exit keep their designed speed; the hold between them stretches. */
+  | { kind: 'hold'; holdFrom: number; holdTo: number }
+  /** There is nothing to hold: the graphic repeats, seamlessly, for as long as it is asked to. */
+  | { kind: 'loop' }
+  /** The whole thing plays faster or slower — what a transition does instead of stretching. */
+  | { kind: 'scale' };
 
 /** What a template's structure must satisfy to be usable; a manifest saying otherwise is refused. */
 /**
@@ -47,8 +50,18 @@ export const STRUCTURE_LIMITS = {
  */
 export function readStructure(raw: unknown, duration: number): { structure: TemplateStructure | null; problem?: string } {
   if (raw === undefined || raw === null) return { structure: null };
-  if (typeof raw !== 'object') return { structure: null, problem: 'must be an object with holdFrom and holdTo, in seconds' };
+  if (typeof raw !== 'object') return { structure: null, problem: 'must be an object with holdFrom and holdTo, or loop, or scale' };
   const r = raw as Record<string, unknown>;
+  // A graphic that repeats, or one that plays faster and slower, says so instead of naming a hold.
+  if (r.loop !== undefined || r.scale !== undefined) {
+    if (r.holdFrom !== undefined || r.holdTo !== undefined) {
+      return { structure: null, problem: 'names a hold as well as loop or scale; it can only be one of the three' };
+    }
+    if (r.loop !== undefined && r.scale !== undefined) return { structure: null, problem: 'is both loop and scale; it can only be one' };
+    if (r.loop !== undefined && r.loop !== true) return { structure: null, problem: 'loop must be true, or left out' };
+    if (r.scale !== undefined && r.scale !== true) return { structure: null, problem: 'scale must be true, or left out' };
+    return { structure: r.loop === true ? { kind: 'loop' } : { kind: 'scale' } };
+  }
   const holdFrom = r.holdFrom;
   const holdTo = r.holdTo;
   if (typeof holdFrom !== 'number' || !Number.isFinite(holdFrom) || holdFrom < 0) {
@@ -60,18 +73,21 @@ export function readStructure(raw: unknown, duration: number): { structure: Temp
   if (holdTo - holdFrom < STRUCTURE_LIMITS.minHold) {
     return { structure: null, problem: `holdTo must be at least ${STRUCTURE_LIMITS.minHold} s after holdFrom, so there is a hold to stretch` };
   }
-  return { structure: { holdFrom, holdTo } };
+  return { structure: { kind: 'hold', holdFrom, holdTo } };
 }
 
-/** Seconds the entrance takes: the template's start up to where the hold begins. */
+/** Seconds the entrance takes: the template's start up to where the hold begins. Nothing, unless it holds. */
 export function entranceSeconds(structure: TemplateStructure): number {
-  return Math.max(0, structure.holdFrom);
+  return structure.kind === 'hold' ? Math.max(0, structure.holdFrom) : 0;
 }
 
-/** Seconds the exit takes: where the hold ends to the template's own end. */
+/** Seconds the exit takes: where the hold ends to the template's own end. Nothing, unless it holds. */
 export function exitSeconds(structure: TemplateStructure, duration: number): number {
-  return Math.max(0, duration - structure.holdTo);
+  return structure.kind === 'hold' ? Math.max(0, duration - structure.holdTo) : 0;
 }
+
+/** How fast a `scale` graphic may be asked to play, against the speed it was designed at. */
+export const SCALE_LIMITS = { min: 0.25, max: 4 } as const;
 
 /**
  * The shortest length a template with this structure can be asked for: its
@@ -80,7 +96,16 @@ export function exitSeconds(structure: TemplateStructure, duration: number): num
  * thing this is meant not to do.
  */
 export function minimumLength(structure: TemplateStructure, duration: number): number {
+  // A loop may be asked for any length down to a moment of itself; a scaled graphic down to
+  // the fastest it may be played.
+  if (structure.kind === 'loop') return STRUCTURE_LIMITS.minHold;
+  if (structure.kind === 'scale') return round(duration / SCALE_LIMITS.max);
   return round(entranceSeconds(structure) + exitSeconds(structure, duration) + STRUCTURE_LIMITS.minHold);
+}
+
+/** The longest a graphic may be asked for: a scaled one is bounded by how slowly it may play. */
+export function maximumLength(structure: TemplateStructure, duration: number): number {
+  return structure.kind === 'scale' ? round(Math.min(MAX_LENGTH_SECONDS, duration * SCALE_LIMITS.max)) : MAX_LENGTH_SECONDS;
 }
 
 /** Seconds, to the millisecond: lengths are shown and stored as tidy numbers. */
@@ -100,7 +125,7 @@ export function resolveLength(
 ): number {
   if (asked === undefined || !Number.isFinite(asked) || asked <= 0) return round(duration);
   if (!structure) return round(duration);
-  return round(Math.min(MAX_LENGTH_SECONDS, Math.max(minimumLength(structure, duration), asked)));
+  return round(Math.min(maximumLength(structure, duration), Math.max(minimumLength(structure, duration), asked)));
 }
 
 /**
@@ -115,6 +140,17 @@ export function resolveLength(
  */
 export function templateTimeAt(time: number, duration: number, structure: TemplateStructure | null, length: number): number {
   if (!structure || length === duration || !Number.isFinite(time)) return clamp(time, 0, duration);
+  if (structure.kind === 'loop') {
+    // Round and round: the last moment of the graphic meets its first, so a longer length is
+    // simply more passes. The very end is the end rather than a fresh start, so a render that
+    // stops there stops on the frame the template drew last.
+    const t = clamp(time, 0, length);
+    return t >= length ? duration : t % duration;
+  }
+  if (structure.kind === 'scale') {
+    // The whole thing, faster or slower: every moment moves by the same factor.
+    return clamp((time / Math.max(1e-9, length)) * duration, 0, duration);
+  }
   const entrance = entranceSeconds(structure);
   const exit = exitSeconds(structure, duration);
   const t = clamp(time, 0, length);
@@ -151,7 +187,10 @@ export interface LengthParts {
 }
 
 export function lengthParts(duration: number, structure: TemplateStructure | null, length: number): LengthParts {
-  if (!structure) return { entrance: 0, holdFrom: 0, holdTo: round(length), exit: 0, length: round(length) };
+  // A loop is all hold — every moment of it may be repeated — and a scaled graphic has no part
+  // that behaves differently from any other, so neither shades an entrance or an exit.
+  if (!structure || structure.kind === 'loop') return { entrance: 0, holdFrom: 0, holdTo: round(length), exit: 0, length: round(length) };
+  if (structure.kind === 'scale') return { entrance: 0, holdFrom: 0, holdTo: 0, exit: 0, length: round(length) };
   const entrance = entranceSeconds(structure);
   const exit = exitSeconds(structure, duration);
   return {

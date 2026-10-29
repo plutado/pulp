@@ -22,6 +22,7 @@
     "print"
   ],
   "duration": 10,
+  "structure": { "loop": true },
   "fps": 30,
   "aspects": [
     "16:9",

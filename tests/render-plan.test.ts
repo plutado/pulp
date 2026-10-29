@@ -362,7 +362,7 @@ describe('resolveTiming', () => {
   });
 
   it('runs for a length the template allows, and refuses one it does not (milestone 30)', () => {
-    const designed = { fps: 30, duration: 6, structure: { holdFrom: 1, holdTo: 5 } };
+    const designed = { fps: 30, duration: 6, structure: { kind: 'hold' as const, holdFrom: 1, holdTo: 5 } };
     // Twenty seconds of a six-second lower third is 600 frames at 30 fps.
     expect(resolveTiming(designed, { length: 20 })).toEqual({ fps: 30, firstFrame: 0, totalFrames: 600, length: 20 });
     // A trim is taken within the chosen length, not within the template's own.

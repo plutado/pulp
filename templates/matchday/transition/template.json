@@ -14,6 +14,7 @@
     "fast"
   ],
   "duration": 1.2,
+  "structure": { "scale": true },
   "fps": 30,
   "aspects": [
     "16:9",

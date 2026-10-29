@@ -30,6 +30,7 @@
     "high-energy"
   ],
   "duration": 1.4,
+  "structure": { "scale": true },
   "parameters": [
     {
       "id": "tint",

@@ -15,7 +15,7 @@ describe('a template\'s structure (milestone 30)', () => {
     // One that does gets an entrance, a hold and an exit on its own clock.
     const declared = validateManifest(rawManifest({ duration: 6, structure: { holdFrom: 1, holdTo: 5 } }));
     expect(declared.ok).toBe(true);
-    if (declared.ok) expect(declared.manifest.structure).toEqual({ holdFrom: 1, holdTo: 5 });
+    if (declared.ok) expect(declared.manifest.structure).toEqual({ kind: 'hold', holdFrom: 1, holdTo: 5 });
   });
 
   it('is refused when it does not fit the duration, naming the field', () => {

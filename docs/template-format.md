@@ -205,6 +205,15 @@ A template is designed at a length — its `duration` — and a person may want 
 
 Both are seconds on the template's **own** clock: the entrance runs from 0 to `holdFrom`, the hold from `holdFrom` to `holdTo`, and the exit from `holdTo` to `duration`. The hold must be at least 0.05 s long and both must lie inside the duration, or the manifest is refused.
 
+Two other kinds of graphic stretch differently, and say so instead of naming a hold:
+
+```json
+{ "structure": { "loop": true } }    // a background or overlay: it goes round
+{ "structure": { "scale": true } }   // a transition: the whole thing plays faster or slower
+```
+
+A **loop** repeats for as long as it is asked to, so its last moment must meet its first: whatever moves must be back where it started by `duration`. It may be asked for less than its own duration as well as more. A **scale** keeps every proportion and changes only how fast it plays, which is what a wipe or a flash wants — it is bounded to between a quarter and four times its designed speed, so it can never become a still or a flicker. A structure may be one of the three and no more than one.
+
 The host then maps every moment of the chosen length back to a moment of the template's own time: the entrance and the exit play at the speed they were designed at, and only the hold stretches or shrinks. **A template needs no code for this** — it keeps drawing against `state.time` and its own `state.duration`, exactly as it always did. A template that declares no `structure` has nothing to stretch, keeps its fixed length, and is refused a `--length` rather than quietly ignoring it.
 
 A template that declares a structure should not also offer a "Hold, seconds" parameter: the length is the control now, and two ways to set the same thing would fight.

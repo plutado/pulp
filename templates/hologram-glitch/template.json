@@ -30,6 +30,7 @@
     "tech"
   ],
   "duration": 1.2,
+  "structure": { "scale": true },
   "parameters": [
     {
       "id": "beam",

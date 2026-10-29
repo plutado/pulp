@@ -11,9 +11,12 @@ import {
   exitSeconds,
   lengthFrameCount,
   lengthParts,
+  maximumLength,
+  MAX_LENGTH_SECONDS,
   minimumLength,
   readStructure,
   resolveLength,
+  SCALE_LIMITS,
   STRUCTURE_LIMITS,
   templateTimeAt,
   type TemplateStructure,
@@ -21,7 +24,7 @@ import {
 
 /** A six-second lower third: one second in, four seconds of hold, one second out. */
 const DURATION = 6;
-const STRUCTURE: TemplateStructure = { holdFrom: 1, holdTo: 5 };
+const STRUCTURE: TemplateStructure = { kind: 'hold', holdFrom: 1, holdTo: 5 };
 
 describe('the structure a template declares', () => {
   it('is read when it is usable, and refused with a reason when it is not', () => {
@@ -37,7 +40,7 @@ describe('the structure a template declares', () => {
     expect(readStructure('later', 6).problem).toContain('holdFrom and holdTo');
     // A hold too short to stretch is no hold.
     expect(readStructure({ holdFrom: 1, holdTo: 1 + STRUCTURE_LIMITS.minHold / 2 }, 6).problem).toContain('so there is a hold to stretch');
-    expect(readStructure({ holdFrom: 1, holdTo: 1 + STRUCTURE_LIMITS.minHold }, 6).structure).toEqual({ holdFrom: 1, holdTo: 1.05 });
+    expect(readStructure({ holdFrom: 1, holdTo: 1 + STRUCTURE_LIMITS.minHold }, 6).structure).toEqual({ kind: 'hold', holdFrom: 1, holdTo: 1.05 });
   });
 
   it('measures the parts that keep their speed', () => {
@@ -46,7 +49,7 @@ describe('the structure a template declares', () => {
     // The shortest it can be asked for is its entrance and exit plus the least hold.
     expect(minimumLength(STRUCTURE, DURATION)).toBe(2 + STRUCTURE_LIMITS.minHold);
     // A template that is all entrance and exit still has a floor.
-    expect(minimumLength({ holdFrom: 2.9, holdTo: 3.1 }, 6)).toBe(5.85);
+    expect(minimumLength({ kind: 'hold', holdFrom: 2.9, holdTo: 3.1 }, 6)).toBe(5.85);
   });
 });
 
@@ -124,12 +127,12 @@ describe('where a moment of the chosen length lands on the template', () => {
 
   it('works for a template that is nearly all hold, and one that is nearly none', () => {
     // A background with a one-frame entrance: almost everything stretches.
-    const loop: TemplateStructure = { holdFrom: 0.1, holdTo: 5.9 };
+    const loop: TemplateStructure = { kind: 'hold', holdFrom: 0.1, holdTo: 5.9 };
     expect(templateTimeAt(0.05, 6, loop, 60)).toBe(0.05);
     expect(templateTimeAt(30, 6, loop, 60)).toBeCloseTo(3, 6);
     expect(templateTimeAt(60, 6, loop, 60)).toBe(6);
     // A transition that is all movement: the hold is a sliver, so a longer length mostly waits there.
-    const wipe: TemplateStructure = { holdFrom: 0.45, holdTo: 0.55 };
+    const wipe: TemplateStructure = { kind: 'hold', holdFrom: 0.45, holdTo: 0.55 };
     expect(templateTimeAt(0.2, 1, wipe, 5)).toBe(0.2);
     expect(templateTimeAt(2.5, 1, wipe, 5)).toBeCloseTo(0.5, 6);
     expect(templateTimeAt(5, 1, wipe, 5)).toBe(1);
@@ -146,5 +149,51 @@ describe('the parts of a chosen length', () => {
     // Squeezed to the floor, the hold is a sliver rather than a negative.
     const tight = lengthParts(DURATION, STRUCTURE, 2);
     expect(tight.holdTo).toBeGreaterThanOrEqual(tight.holdFrom);
+  });
+});
+
+describe('a graphic that repeats, and one that plays faster or slower (milestone 30)', () => {
+  const LOOP: TemplateStructure = { kind: 'loop' };
+  const SCALE: TemplateStructure = { kind: 'scale' };
+
+  it('is read from the manifest, and cannot be two things at once', () => {
+    expect(readStructure({ loop: true }, 6)).toEqual({ structure: LOOP });
+    expect(readStructure({ scale: true }, 1.4)).toEqual({ structure: SCALE });
+    expect(readStructure({ loop: true, scale: true }, 6).problem).toContain('only be one');
+    expect(readStructure({ loop: true, holdFrom: 1, holdTo: 5 }, 6).problem).toContain('only be one of the three');
+    expect(readStructure({ loop: 'yes' }, 6).problem).toContain('loop must be true');
+    expect(readStructure({ scale: 1 }, 6).problem).toContain('scale must be true');
+  });
+
+  it('repeats a loop to any length, ending where the template ends', () => {
+    // Six seconds of graphic over twenty: three full passes and a bit of a fourth.
+    expect(templateTimeAt(0, 6, LOOP, 20)).toBe(0);
+    expect(templateTimeAt(3, 6, LOOP, 20)).toBe(3);
+    expect(templateTimeAt(6, 6, LOOP, 20)).toBe(0);
+    expect(templateTimeAt(7.5, 6, LOOP, 20)).toBe(1.5);
+    expect(templateTimeAt(19, 6, LOOP, 20)).toBe(1);
+    // The very last moment is the template's own last moment, not the start of another pass.
+    expect(templateTimeAt(20, 6, LOOP, 20)).toBe(6);
+    // A loop has no entrance to protect, so it may be asked for less than it was designed at.
+    expect(resolveLength(6, LOOP, 2)).toBe(2);
+    expect(templateTimeAt(1.5, 6, LOOP, 2)).toBe(1.5);
+    // Shading says it is all hold: every moment of it may be repeated.
+    expect(lengthParts(6, LOOP, 20)).toEqual({ entrance: 0, holdFrom: 0, holdTo: 20, exit: 0, length: 20 });
+  });
+
+  it('scales a transition rather than stretching part of it', () => {
+    // A 1.4 s wipe asked to take 2.8 s plays every moment at half speed.
+    expect(templateTimeAt(0, 1.4, SCALE, 2.8)).toBe(0);
+    expect(templateTimeAt(1.4, 1.4, SCALE, 2.8)).toBeCloseTo(0.7, 6);
+    expect(templateTimeAt(2.8, 1.4, SCALE, 2.8)).toBeCloseTo(1.4, 6);
+    // And asked to take half as long, twice as fast.
+    expect(templateTimeAt(0.35, 1.4, SCALE, 0.7)).toBeCloseTo(0.7, 6);
+    // How far it may be pushed is bounded both ways, so it never becomes a still or a flicker.
+    expect(resolveLength(1.4, SCALE, 99)).toBe(1.4 * SCALE_LIMITS.max);
+    expect(resolveLength(1.4, SCALE, 0.01)).toBeCloseTo(1.4 / SCALE_LIMITS.max, 6);
+    expect(maximumLength(SCALE, 1.4)).toBe(5.6);
+    expect(maximumLength(LOOP, 6)).toBe(MAX_LENGTH_SECONDS);
+    // There is no part of it that behaves differently, so the bar shades nothing.
+    expect(lengthParts(1.4, SCALE, 2.8)).toEqual({ entrance: 0, holdFrom: 0, holdTo: 0, exit: 0, length: 2.8 });
   });
 });

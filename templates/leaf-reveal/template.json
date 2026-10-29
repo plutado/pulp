@@ -29,6 +29,7 @@
     "organic"
   ],
   "duration": 1.8,
+  "structure": { "scale": true },
   "parameters": [
     {
       "id": "leaf",

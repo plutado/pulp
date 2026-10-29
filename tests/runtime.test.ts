@@ -58,7 +58,7 @@ describe('injectBridge', () => {
 });
 
 describe('frameState under a chosen length (milestone 30)', () => {
-  const designed = () => ({ ...timing(), duration: 6, fps: 30, structure: { holdFrom: 1, holdTo: 5 } });
+  const designed = () => ({ ...timing(), duration: 6, fps: 30, structure: { kind: 'hold' as const, holdFrom: 1, holdTo: 5 } });
 
   it('keeps a template that declares nothing exactly as it was', () => {
     const plain = timing();

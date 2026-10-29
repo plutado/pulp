@@ -488,6 +488,43 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(fixed.stderr).toContain('does not declare an animate-in, hold and animate-out');
   }, 240_000);
 
+  it('repeats a loop and scales a transition to the length asked for (milestone 30)', async () => {
+    const diff = async (a: string, b: string): Promise<number> => {
+      const read = async (file: string) => {
+        const { stdout } = await runBoundedBuffer(ffmpeg, ffmpegArgs(['-v', 'error', '-i', file, '-vf', 'format=rgba', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']), { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
+        return stdout;
+      };
+      const [x, y] = await Promise.all([read(a), read(b)]);
+      let total = 0;
+      for (let i = 0; i < x.length; i += 4) total += Math.abs(x[i]! - y[i]!) + Math.abs(x[i + 3]! - y[i + 3]!);
+      return total / (x.length / 4);
+    };
+    const small = ['--fps', '25', '--size', '192x108'];
+
+    // Scanlines is an eight-second loop. Asked for twenty, it goes round rather than slowing:
+    // a whole pass later the frame is the same one again.
+    const loop = await render('pulp.samples.scanlines', 'png-sequence', 'loop-20', { extra: [...small, '--length', '20'] });
+    expect(loop.code, loop.stderr).toBe(0);
+    expect((await readdir(out)).filter((f) => /^loop-20_\d{5}\.png$/.test(f))).toHaveLength(500);
+    expect(await diff(join(out, 'loop-20_00000.png'), join(out, 'loop-20_00200.png')), 'one whole pass later, the same frame').toBeLessThan(0.01);
+    expect(await diff(join(out, 'loop-20_00000.png'), join(out, 'loop-20_00100.png')), 'and in between, a different one').toBeGreaterThan(0.05);
+
+    // A wipe keeps its shape and plays slower: at twice its length, its own frame 17 is the
+    // moment that frame 35 shows, and both renders end on the same picture.
+    const own = await render('pulp.samples.circle-wipe', 'png-sequence', 'wipe-own', { extra: small });
+    expect(own.code, own.stderr).toBe(0);
+    const slower = await render('pulp.samples.circle-wipe', 'png-sequence', 'wipe-slow', { extra: [...small, '--length', '2.8'] });
+    expect(slower.code, slower.stderr).toBe(0);
+    expect((await readdir(out)).filter((f) => /^wipe-slow_\d{5}\.png$/.test(f))).toHaveLength(70);
+    expect(await diff(join(out, 'wipe-slow_00035.png'), join(out, 'wipe-own_00017.png')), 'half speed, the same moment').toBeLessThan(0.01);
+    expect(await diff(join(out, 'wipe-slow_00069.png'), join(out, 'wipe-own_00034.png')), 'and the same last frame').toBeLessThan(0.01);
+
+    // How far a transition may be pushed is bounded, so it never becomes a still or a flicker.
+    const tooSlow = await render('pulp.samples.circle-wipe', 'png-sequence', 'wipe-cap', { extra: [...small, '--length', '60'] });
+    expect(tooSlow.code, tooSlow.stderr).toBe(0);
+    expect((await readdir(out)).filter((f) => /^wipe-cap_\d{5}\.png$/.test(f)), 'held at four times its own length').toHaveLength(140);
+  }, 300_000);
+
   it('draws a layer turned, about the words rather than the block (milestone 29)', async () => {
     // The hairline lower third is alpha, and its "who" line is aligned at the left of a block
     // that spans most of the frame — the case where turning about the slot would swing the line

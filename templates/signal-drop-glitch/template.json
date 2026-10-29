@@ -30,6 +30,7 @@
     "grunge"
   ],
   "duration": 1.4,
+  "structure": { "scale": true },
   "parameters": [
     {
       "id": "accent",

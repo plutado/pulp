@@ -30,6 +30,7 @@
     "elegant"
   ],
   "duration": 1.6,
+  "structure": { "scale": true },
   "parameters": [
     {
       "id": "tint",
