@@ -20,10 +20,11 @@ import { itemId, mediaKindForPath } from '../core/library-scan';
 import { LibraryStore, type ScanStats } from '../core/library-store';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { mediaThumbArgs, posterThumbArgs, thumbFileName } from '../core/thumbnails';
-import { canHaveStrip, framesStripArgs, mediaStripArgs, stripFileName, stripFrameIndices, stripUrlFor, wantsStrip } from '../core/hover-scrub';
+import { canHaveStrip, framesStripArgs, mediaStripArgs, sequenceStripArgs, stripFileName, stripFrameIndices, stripUrlFor, wantsStrip } from '../core/hover-scrub';
+import { SEQUENCE_FPS, sequenceFrameName, sequenceMetadata, sequencePatternName, sequencePosterFrame } from '../core/media-sequence';
 import { encodePeaks, peaksFromPcm, wantsWaveform, waveformArgs } from '../core/waveform';
 import { captureTemplateFrames, renderTemplate } from './render';
-import type { LibraryEntry, LibraryIndex, TemplateEntry } from '../core/library-types';
+import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
 import type { HoverStripResult, WaveformResult } from '../shared/api';
 import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
@@ -237,7 +238,9 @@ async function probePendingMetadata(): Promise<void> {
       for (let i = 0; i < pending.length; i += PROBE_CONCURRENCY) {
         await Promise.all(
           pending.slice(i, i + PROBE_CONCURRENCY).map(async (entry) => {
-            const meta = await probeMedia(ffprobe!, entry.path, nodeRunner);
+            // A sequence is probed through its first frame; the run says how long it runs for.
+            const probed = await probeMedia(ffprobe!, entry.path, nodeRunner);
+            const meta = entry.sequence ? sequenceMetadata(probed, entry.sequence) : probed;
             st.setMetadata(entry, meta);
           }),
         );
@@ -278,7 +281,11 @@ async function generatePendingThumbnails(): Promise<void> {
           // A turn per item, not for the whole queue, so a hover-scrub strip can get in between.
           ok = await heavyWork(async () => {
             if (entry.kind === 'media') {
-              const result = await nodeRunner(ffmpegPath!, mediaThumbArgs(entry.path, out, entry.meta?.duration, entry.mediaKind === 'video'));
+              // A sequence posters from the frame a tenth in, as a clip is sampled a tenth in;
+              // that frame is a still image, so nothing is sought within it.
+              const seq = entry.sequence;
+              const input = seq ? join(seq.dir, sequenceFrameName(seq, sequencePosterFrame(seq.count))) : entry.path;
+              const result = await nodeRunner(ffmpegPath!, mediaThumbArgs(input, out, entry.meta?.duration, !seq && entry.mediaKind === 'video'));
               return result.code === 0 && existsSync(out);
             }
             return renderPoster(entry, out);
@@ -451,7 +458,7 @@ async function makeStrip(id: string): Promise<HoverStripResult> {
     // One piece of heavy work at a time: a strip that fought the poster queue for a
     // two-core machine could outlast any sensible wait (docs/platform-notes.md).
     result = await heavyWork(() =>
-      entry.kind === 'media' ? mediaStrip(entry.path, entry.meta?.duration ?? 0, out) : templateStrip(entry, out),
+      entry.kind === 'media' ? mediaStrip(entry, out) : templateStrip(entry, out),
     );
   } catch (err) {
     return recordFailure(entry.key, `${entry.key}: ${(err as Error).message}`);
@@ -462,8 +469,13 @@ async function makeStrip(id: string): Promise<HoverStripResult> {
   return { url: stripUrlFor(id) };
 }
 
-async function mediaStrip(input: string, duration: number, out: string): Promise<HoverStripResult> {
-  const result = await nodeRunner(ffmpegPath!, mediaStripArgs(input, out, duration));
+async function mediaStrip(entry: MediaEntry, out: string): Promise<HoverStripResult> {
+  const duration = entry.meta?.duration ?? 0;
+  const seq = entry.sequence;
+  const args = seq
+    ? sequenceStripArgs(join(seq.dir, sequencePatternName(seq)), seq.start, out, duration, entry.meta?.fps ?? SEQUENCE_FPS)
+    : mediaStripArgs(entry.path, out, duration);
+  const result = await nodeRunner(ffmpegPath!, args);
   if (result.code !== 0) return { url: null, reason: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
   if (!existsSync(out)) return { url: null, reason: 'ffmpeg wrote no strip' };
   return { url: out };

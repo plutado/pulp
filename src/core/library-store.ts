@@ -19,6 +19,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
 import { folderTags, itemId, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES, type PackContext } from './library-scan';
+import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
 import { PACK_FILENAME, parsePackManifest, slug } from './pack';
 import { inferMediaType, inferThemes } from './taxonomy';
 import type { MediaLookup } from './media-serve';
@@ -280,8 +281,75 @@ export class LibraryStore {
         }
 
         entries.sort((a, b) => a.name.localeCompare(b.name));
+
+        // Numbered frame runs in this folder are one clip each, not a card per frame
+        // (milestone 26). Their member files are skipped by the loop below.
+        const { sequences } = groupSequences(
+          dir,
+          entries.filter((e) => e.isFile() && !e.name.startsWith('.')).map((e) => e.name),
+        );
+        const sequenceFrames = new Set<string>();
+        for (const seq of sequences) {
+          for (let i = 0; i < seq.count; i++) sequenceFrames.add(sequenceFrameName(seq, i));
+        }
+        for (const seq of sequences) {
+          if (fileCount >= maxFiles) {
+            if (!truncated) problems.push({ path: rootPath, message: `stopped after ${maxFiles} files` });
+            truncated = true;
+            return;
+          }
+          // A sequence counts as the files it holds, so a folder of them cannot slip past the cap.
+          fileCount += seq.count;
+          stats.visited += 1;
+          const key = `media:${join(dir, sequenceKeyName(seq))}`;
+          seen.add(key);
+          const first = join(dir, sequenceFrameName(seq, 0));
+          const last = join(dir, sequenceFrameName(seq, seq.count - 1));
+          let firstInfo;
+          let lastInfo;
+          try {
+            [firstInfo, lastInfo] = await Promise.all([stat(first), stat(last)]);
+          } catch (err) {
+            problems.push({ path: first, message: `could not stat frame: ${(err as Error).message}` });
+            seen.delete(key);
+            continue;
+          }
+          // The signature is the two ends: re-rendering frames changes their times, and adding
+          // or removing frames moves the last one, so the run is read again when it should be.
+          const size = firstInfo.size + lastInfo.size;
+          const mtimeMs = Math.max(firstInfo.mtimeMs, lastInfo.mtimeMs);
+          const storedSeq = existing.get(key);
+          if (storedSeq && storedSeq.size === size && storedSeq.mtime_ms === mtimeMs) {
+            stats.kept += 1;
+            continue;
+          }
+          stats.loaded += 1;
+          const segments = folderTags(rootPath, dir);
+          // A run of frames is a clip, so it is typed and filtered as video however its frames are stored.
+          const inferredType = inferMediaType('video', segments);
+          const inferredThemes = inferThemes(segments);
+          const media: MediaEntry = {
+            kind: 'media',
+            key,
+            id: itemId(key),
+            path: first,
+            root: rootPath,
+            name: seq.stem.replace(/[-_. ]+$/, '') || seq.stem,
+            mediaKind: 'video',
+            ext: seq.ext,
+            size,
+            mtimeMs,
+            tags: segments,
+            sequence: seq,
+            ...(inferredType ? { type: inferredType } : {}),
+            ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
+          };
+          upserts.push({ key, kind: 'media', size, mtimeMs, entry: media });
+        }
+
         for (const entry of entries) {
           if (entry.name.startsWith('.')) continue;
+          if (sequenceFrames.has(entry.name)) continue;
           const full = join(dir, entry.name);
           // Symlinks are skipped to avoid cycles and surprising scans outside the chosen roots.
           if (entry.isSymbolicLink()) continue;

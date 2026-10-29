@@ -6,9 +6,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { MediaEntry } from '../src/core/library-types';
 import { itemId } from '../src/core/library-scan';
 import { mediaUrlFor, parseRange, serveMedia, type MediaLookup } from '../src/core/media-serve';
+import { mediaFrameUrlFor } from '../src/core/media-url';
+import type { MediaSequence } from '../src/core/media-sequence';
 
 let dir: string;
 let root: string;
+let sequenceId = '';
 const items = new Map<string, MediaLookup>();
 
 function media(path: string, root: string, mediaKind: MediaEntry['mediaKind'], ext: string): MediaEntry {
@@ -45,6 +48,18 @@ beforeAll(async () => {
   items.set(link.id, { entry: link, root, online: true });
   items.set(wrongKind.id, { entry: wrongKind, root, online: true });
   items.set('offline0000000000000000', { entry: offline, root, online: false });
+
+  // A frame sequence (milestone 26): one entry, eight frames on disk, addressed by index.
+  await mkdir(join(root, 'Frames'), { recursive: true });
+  for (let i = 0; i < 8; i++) {
+    await writeFile(join(root, 'Frames', `f_${String(i + 1).padStart(4, '0')}.png`), Buffer.alloc(20, i + 1));
+  }
+  const seq: MediaSequence = { dir: join(root, 'Frames'), stem: 'f_', ext: '.png', digits: 4, start: 1, count: 8 };
+  const clip: MediaEntry = { ...media(join(root, 'Frames', 'f_0001.png'), root, 'video', '.png'), sequence: seq };
+  clip.key = `media:${join(root, 'Frames', 'f_%04d.png')}`;
+  clip.id = itemId(clip.key);
+  items.set(clip.id, { entry: clip, root, online: true });
+  sequenceId = clip.id;
 });
 
 afterAll(async () => {
@@ -148,5 +163,46 @@ describe('serveMedia success and ranges', () => {
     expect(parseRange('bytes=0-0', 10)).toEqual({ start: 0, end: 0 });
     expect(parseRange('bytes=-0', 10)).toBe('unsatisfiable');
     expect(parseRange('bytes=-', 10)).toBeNull();
+  });
+});
+
+describe('a frame sequence is served one frame at a time', () => {
+  const frame = (n: number) =>
+    serveMedia({ method: 'GET', url: mediaFrameUrlFor(sequenceId, n) }, (k) => items.get(k));
+
+  it('serves the frame at an index, as the image it is', async () => {
+    const first = await frame(0);
+    expect(first.status).toBe(200);
+    expect(first.headers['Content-Type']).toBe('image/png');
+    // Each fixture frame is filled with its own number, so the bytes say which one came back.
+    expect((await body(first.body))[0]).toBe(1);
+    expect((await body((await frame(7)).body))[0]).toBe(8);
+  });
+
+  it('serves the first frame when no frame is asked for', async () => {
+    const whole = await get(sequenceId);
+    expect(whole.status).toBe(200);
+    expect((await body(whole.body))[0]).toBe(1);
+  });
+
+  it('refuses a frame outside the run, and anything that is not a plain index', async () => {
+    expect((await frame(8)).status).toBe(404);
+    expect((await frame(9999)).status).toBe(404);
+    const ask = (path: string) =>
+      serveMedia({ method: 'GET', url: `pulp-media://${sequenceId}${path}` }, (k) => items.get(k));
+    // A frame is named by index and the handler builds the file name, so nothing here can
+    // reach a file: dot segments are resolved by the URL parser and what is left is not a number.
+    for (const path of ['/../../outside/secret.wav', '/f_0001.png', '/0x1', '/-1', '/1.5', '/1/2', '/%201']) {
+      expect((await ask(path)).status, path).toBe(404);
+    }
+    // "/%2e%2e" is resolved to the item root by the URL parser, so it means the item itself.
+    expect((await ask('/%2e%2e')).status).toBe(200);
+    expect((await body((await ask('/%2e%2e')).body))[0], 'the item\'s own first frame').toBe(1);
+  });
+
+  it('refuses a frame path on an item that is not a sequence', async () => {
+    const tone = [...items.values()].find((l) => l.entry.path.endsWith('tone.wav'))!;
+    const r = await serveMedia({ method: 'GET', url: mediaFrameUrlFor(tone.entry.id, 0) }, (k) => items.get(k));
+    expect(r.status).toBe(404);
   });
 });

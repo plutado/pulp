@@ -9,12 +9,14 @@
  */
 
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
 import { probeMedia } from '../../src/core/media-probe';
+import { SEQUENCE_FPS, sequenceMetadata, sequencePatternName } from '../../src/core/media-sequence';
+import { sequenceStripArgs } from '../../src/core/hover-scrub';
 import { itemId } from '../../src/core/library-scan';
 import { mediaUrlFor } from '../../src/core/media-url';
 import { scanLibrary } from '../../src/core/library';
@@ -441,6 +443,54 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(await probe(titleFrame)).toMatchObject({ width: 1080, height: 1920 });
     expect((await pixels(titleFrame, 200, 780))[3]).toBe(255); // a headline glyph, wrapped onto the tall frame
     expect((await pixels(titleFrame, 540, 1600))[3]).toBe(0); // the caption band
+  }, 240_000);
+
+  it('indexes a folder of frames as one transparent clip, not a card per frame', async () => {
+    // Milestone 26: asset stock often ships as numbered frames. A real alpha sequence is what the
+    // renderer itself writes, so the fixture is a PNG-sequence render placed in a library folder.
+    const root = join(out, 'frame-library');
+    const folder = join(root, 'Assets', 'Fire and flames');
+    await mkdir(folder, { recursive: true });
+    const made = await render('pulp.samples.boardroom.lower-third', 'png-sequence', join('frame-library', 'Assets', 'Fire and flames', 'flame'), {
+      extra: ['--in-point', '60', '--out-point', '119'],
+    });
+    expect(made.code, made.stderr).toBe(0);
+    expect((await readdir(folder)).filter((f) => f.endsWith('.png'))).toHaveLength(60);
+    // Files that are not frames of the run stay pictures of their own: two variants and a poster.
+    for (const name of ['logo-1.png', 'logo-2.png', 'poster.png']) {
+      await copyFile(join(folder, 'flame_00060.png'), join(folder, name));
+    }
+
+    const index = await scanLibrary([root]);
+    expect(index.problems).toEqual([]);
+    const clips = index.media.filter((m) => m.sequence);
+    expect(clips, 'one entry for the whole run').toHaveLength(1);
+    const clip = clips[0]!;
+    expect(clip).toMatchObject({ name: 'flame', mediaKind: 'video', ext: '.png', type: 'fire' });
+    expect(clip.sequence).toMatchObject({ start: 60, count: 60, digits: 5, stem: 'flame_' });
+    // Its path is the first frame, and the three loose pictures are indexed separately.
+    expect(basename(clip.path)).toBe('flame_00060.png');
+    expect(index.media.filter((m) => !m.sequence).map((m) => m.name).sort()).toEqual(['logo-1', 'logo-2', 'poster']);
+
+    // The run's first frame says it is transparent, and the run says how long it plays for.
+    const meta = sequenceMetadata(await probeMedia(ffprobe, clip.path, nodeRunner), clip.sequence!);
+    expect(meta).toMatchObject({ codec: 'png', alpha: true, fps: SEQUENCE_FPS, duration: 60 / SEQUENCE_FPS });
+
+    // A hover-scrub strip is made from the run itself, eight tiles wide, with its alpha kept.
+    const strip = join(out, 'sequence-strip.png');
+    const args = sequenceStripArgs(join(folder, sequencePatternName(clip.sequence!)), clip.sequence!.start, strip, meta!.duration!, SEQUENCE_FPS);
+    const built = await runBounded(ffmpeg, ffmpegArgs(args), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(built.code, built.stderr).toBe(0);
+    const stripInfo = await probe(strip);
+    expect(stripInfo.pix_fmt).toBe('rgba');
+    expect(stripInfo.width / stripInfo.height, 'eight 16:9 tiles side by side').toBeCloseTo(8 * (16 / 9), 0);
+    // The panel is drawn in every tile and the top corner is clear in all of them: this is the
+    // clip through its hold, not one frame repeated or a blank sheet.
+    const tile = stripInfo.width / 8;
+    for (const t of [0, 4, 7]) {
+      expect((await pixels(strip, Math.round(t * tile + tile * 0.07), Math.round(stripInfo.height * 0.83)))[3], `tile ${t} draws the panel`).toBeGreaterThan(0);
+      expect((await pixels(strip, Math.round(t * tile + tile * 0.5), Math.round(stripInfo.height * 0.1)))[3], `tile ${t} is clear above it`).toBe(0);
+    }
   }, 240_000);
 
   it('renders between in and out points, numbering the files with the template frame indices', async () => {

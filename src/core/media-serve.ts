@@ -4,7 +4,8 @@
  * Items are addressed by their library id, never by path. The file's real
  * location is resolved (following symlinks) and must still lie inside the
  * item's registered root; its real extension must be a recognized media
- * extension of the item's kind. Only GET and HEAD, no folder listings, byte
+ * extension of the item's kind. A frame sequence is addressed one frame at a
+ * time (`pulp-media://<id>/12`), by index into the run and never by name. Only GET and HEAD, no folder listings, byte
  * ranges honored so video can seek. Anything unknown, offline, missing or
  * out of bounds is a bare 404 with no file system detail. Pages served from
  * pulp-template:// are refused, so a template pack cannot read the library;
@@ -16,10 +17,11 @@
 
 import { createReadStream } from 'node:fs';
 import { realpath, stat } from 'node:fs/promises';
-import { extname, sep } from 'node:path';
+import { extname, join, sep } from 'node:path';
 import type { Readable } from 'node:stream';
 import type { MediaEntry } from './library-types';
 import { mediaKindForPath } from './library-scan';
+import { sequenceFrameName } from './media-sequence';
 import { MEDIA_SCHEME } from './media-url';
 
 export { MEDIA_SCHEME, mediaUrlFor } from './media-url';
@@ -109,22 +111,36 @@ export async function serveMedia(req: ServeRequest, lookup: (id: string) => Medi
   } catch {
     return notFound();
   }
-  if (url.protocol !== `${MEDIA_SCHEME}:` || (url.pathname !== '' && url.pathname !== '/') || url.search || url.username || url.password) {
-    return notFound();
-  }
+  if (url.protocol !== `${MEDIA_SCHEME}:` || url.search || url.username || url.password) return notFound();
+  const path = url.pathname === '' ? '/' : url.pathname;
   const found = lookup(url.hostname);
   if (!found || !found.online || found.entry.kind !== 'media') return notFound();
+
+  // A sequence is addressed a frame at a time, "/12"; everything else has one file and
+  // only "/". The number is an index into the run and the handler builds the file name
+  // from it, so no part of a request ever reaches the file system as text.
+  const seq = found.entry.sequence;
+  let file = found.entry.path;
+  if (path !== '/') {
+    if (!seq || !/^\/\d{1,9}$/.test(path)) return notFound();
+    const frame = Number(path.slice(1));
+    if (frame >= seq.count) return notFound();
+    file = join(seq.dir, sequenceFrameName(seq, frame));
+  }
 
   let real: string;
   let realRoot: string;
   try {
-    [real, realRoot] = await Promise.all([realpath(found.entry.path), realpath(found.root)]);
+    [real, realRoot] = await Promise.all([realpath(file), realpath(found.root)]);
   } catch {
     return notFound();
   }
   if (!real.startsWith(realRoot + sep)) return notFound();
   const ext = extname(real).toLowerCase();
-  if (mediaKindForPath(real) !== found.entry.mediaKind || !(ext in MEDIA_MIME)) return notFound();
+  // A sequence entry is a video made of image files, so its frames are checked as what
+  // they are rather than against the kind the clip browses as.
+  const wantKind = seq ? 'image' : found.entry.mediaKind;
+  if (mediaKindForPath(real) !== wantKind || !(ext in MEDIA_MIME)) return notFound();
 
   let size: number;
   try {

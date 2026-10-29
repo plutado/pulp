@@ -89,6 +89,28 @@ export function mediaStripArgs(input: string, output: string, durationSeconds: n
 }
 
 /**
+ * ffmpeg: a frame sequence, read through the image2 demuxer and tiled the same
+ * way a clip is. The run is fed in at its own rate so that the `fps` filter
+ * above picks the same frames it would from a video of that length;
+ * `-start_number` is what tells the demuxer where the run begins.
+ */
+export function sequenceStripArgs(
+  patternPath: string,
+  startNumber: number,
+  output: string,
+  durationSeconds: number,
+  sequenceFps: number,
+  frames = STRIP_FRAMES,
+): string[] {
+  const rate = ((frames * 1.08) / Math.max(durationSeconds, 0.1)).toFixed(6);
+  return [
+    '-v', 'error', '-y',
+    '-start_number', String(startNumber), '-framerate', String(sequenceFps), '-i', patternPath,
+    '-an', '-vf', `fps=${rate},${TILE_SCALE},tile=${frames}x1`, '-frames:v', '1', '-f', 'image2', output,
+  ];
+}
+
+/**
  * ffmpeg: frames already captured, arriving as one PNG stream on stdin, tiled
  * into one image. A pipe rather than a numbered pattern in a scratch folder:
  * nothing to name, nothing to clean up, and no Windows path to get wrong.

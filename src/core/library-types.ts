@@ -2,6 +2,7 @@
 
 import type { TemplateManifest, ValidationIssue } from './manifest';
 import type { MediaMetadata } from './media-meta';
+import type { MediaSequence } from './media-sequence';
 
 export type { MediaMetadata } from './media-meta';
 
@@ -67,6 +68,12 @@ export interface MediaEntry {
   tags: string[];
   /** From ffprobe, once probed; absent until then or when ffprobe could not read the file. */
   meta?: MediaMetadata;
+  /**
+   * Set when this entry is a run of numbered frames read as one clip rather
+   * than a single file (milestone 26). `path` is then its first frame, and
+   * `mediaKind` is `video` however the frames are stored.
+   */
+  sequence?: MediaSequence;
 }
 
 export type LibraryEntry = TemplateEntry | MediaEntry;

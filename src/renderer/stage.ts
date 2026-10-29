@@ -23,7 +23,7 @@ import type { LaidReport } from '../core/stage-place';
 import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor, type PlayerState, type StageBackground } from '../core/player';
 import { frameState } from '../core/runtime';
 import { formatTimecode } from '../core/timecode';
-import { mediaUrlFor, templateUrlFor } from '../shared/api';
+import { mediaFrameUrlFor, mediaUrlFor, templateUrlFor } from '../shared/api';
 import { setIcon } from './icons';
 import { frameSize, trim } from './store';
 import { peaksFor, waveforms } from './waveforms';
@@ -394,7 +394,14 @@ export function stageShowMedia(entry: MediaEntry): void {
   const fit = (w: number, h: number) => {
     if (w > 0 && h > 0) setPreviewShape(w, h);
   };
-  if (entry.mediaKind === 'video') {
+  if (entry.sequence) {
+    // A frame sequence is a clip made of image files: <video> cannot play one, so the stage
+    // shows a frame. Stepping through them belongs with Video layers, which decodes a clip
+    // for the template's own time (milestone 26); until then this is its first frame.
+    els.mediaImage.hidden = false;
+    els.mediaImage.onload = () => fit(els.mediaImage.naturalWidth, els.mediaImage.naturalHeight);
+    els.mediaImage.src = mediaFrameUrlFor(entry.id, 0);
+  } else if (entry.mediaKind === 'video') {
     els.mediaVideo.hidden = false;
     els.mediaVideo.onloadedmetadata = () => fit(els.mediaVideo.videoWidth, els.mediaVideo.videoHeight);
     els.mediaVideo.src = url;
