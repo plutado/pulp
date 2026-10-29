@@ -7,7 +7,7 @@ import { mountItemInfo } from './item-info';
 import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback } from './stage';
 import { initShell } from './shell';
 import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
-import { currentLayers, currentRawParams, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
+import { chosenLibraryItems, currentLayers, currentRawParams, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
 import { currentOptions, currentPresetId, initInspectorOutput, outputSetFfmpeg, outputShow, setTemplateShower, updateRenderControls } from './inspector-output';
 import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
@@ -276,6 +276,20 @@ function showExportDialog(): void {
     lic.textContent = `${t.manifest.license}${t.manifest.author ? ` · ${t.manifest.author}` : ''}`;
     li.append(name, lic);
     els.packTemplates.append(li);
+  }
+  // A pack carries template folders and nothing else. Pictures and clips chosen for these
+  // templates live in the library and stay there — an asset is referenced where it lies and is
+  // never copied into a pack or an export (milestone 26) — so say it before the file is written.
+  const chosen = chosenLibraryItems(listed.map((t) => t.manifest.id));
+  if (chosen.length > 0) {
+    const items = chosen.reduce((n, c) => n + c.items, 0);
+    els.packLicense.hidden = false;
+    els.packLicense.className = 'note warn';
+    els.packLicense.textContent =
+      `${items === 1 ? 'A picture or clip' : `${items} pictures and clips`} chosen for ` +
+      `${chosen.length === 1 ? 'one of these templates' : `${chosen.length} of these templates`} ` +
+      'will not be in the pack: library media stays in your library, as an imported font does. ' +
+      'Whoever installs the pack chooses their own.';
   }
   els.packExportFields.hidden = false;
   els.packExportName.value = listed.length === 1 ? listed[0]!.manifest.name : '';

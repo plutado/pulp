@@ -14,11 +14,11 @@ Each move is a commit, so the history shows when an idea was decided and where i
 
 ## Suggested order
 
-The maintainer's intended sequence for what is decided here and what is already on the roadmap (milestones 23, 24 and 25 are done; **26 is the one in progress**). Scheduling follows it unless a request says otherwise.
+The maintainer's intended sequence for what is decided here and what is already on the roadmap (milestones 23, 24, 25 and 26 are done; **the timing milestone is next**). Scheduling follows it unless a request says otherwise.
 
 1. **Quick wins from Decided:** all done — ghost slots, element cards for every bundled template, the Festival themes, and browse tree counts for screen readers. (The category search filtering the tree, and the tree showing only where you are, are done — milestone 24.)
 2. **Protection before the larger work:** done — every bundled template is hashed at each aspect and a few fixed frames (`tests/e2e/visual.e2e.test.ts`, 124 templates in `tests/visual/references.json`). It runs locally only until the cross-platform known issue above is settled. CI runs on Windows, macOS and Linux with a dependency audit.
-3. **Milestone 26: assets on the stage** — *in progress.* The Assets type group is filled: six per Effects category, the ten Objects categories with 132 themed props, and every theme holding three or more assets (taxonomy version 4). What remains is asset libraries, Video layers, drop-onto-the-stage, and the rights-and-performance item. This is where a new session picks up.
+3. **Milestone 26: assets on the stage** — *done.* The Assets type group is filled (six per Effects category, ten Objects categories, every theme three assets deep, taxonomy version 4); asset libraries read transparency from ProRes 4444, VP9, HEVC's auxiliary layer and folders of numbered frames; video layers play a clip on the template's own time; a picture or clip dropped on the preview becomes a layer; and clips are proxied, cached and never copied.
 4. **Rotate layers on the stage** (Decided item 7).
 5. **Timing: any length, set while editing** (Decided item 5).
 6. **Milestone 28: per-layer timing, transitions and looks** (Decided item 8; GitHub issue #29). After item 5, whose length and structure a layer's own start and end are set within, and before 27, which has to save all of it.

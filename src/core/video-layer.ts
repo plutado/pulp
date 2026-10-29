@@ -231,3 +231,18 @@ export function clipIdsInLayers(layers: unknown): string[] {
   }
   return ids.sort();
 }
+
+/**
+ * Proxy sizes clip frames are decoded at, in pixels of the frame's longest
+ * side. A clip is read at the smallest of these that covers how tall the
+ * layer is drawn, so **scrubbing a 4K alpha clip decodes a small picture**,
+ * not a large one — and, just as usefully, nudging a window a few pixels
+ * wider does not change the answer, so nothing is decoded again for it.
+ */
+export const CLIP_PROXY_SIZES: readonly number[] = [240, 480, 720, 1080, 1440, 2048];
+
+/** The proxy size that covers a drawn height: the smallest step at or above it, the largest otherwise. */
+export function clipProxySize(drawnHeight: number): number {
+  const want = Math.max(1, Math.round(drawnHeight));
+  return CLIP_PROXY_SIZES.find((size) => size >= want) ?? CLIP_PROXY_SIZES[CLIP_PROXY_SIZES.length - 1]!;
+}

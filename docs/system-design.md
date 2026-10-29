@@ -61,7 +61,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 | `library-watch.ts` | Node | `watchRoot`: recursive `fs.watch` with coalescing, or null where unsupported. |
 | `library.ts` | Node | `scanLibrary`: one-shot scan through a throwaway in-memory store. |
 | `media-meta.ts` | yes | `MediaMetadata`, `parseFfprobe`, resolution labels and aliases; alpha from the pixel format, VP9's `alpha_mode` tag, or HEVC's auxiliary layer. |
-| `video-layer.ts` | yes | Video layers (milestone 26): the clip value a layer carries, and `clipFrameAt` — which frame of a clip belongs to a moment of the graphic, with in and out points, loop or once, speed and delay. The one place that decision is made, so the preview and the render cannot disagree. |
+| `video-layer.ts` | yes | Video layers (milestone 26): the clip value a layer carries, and `clipFrameAt` — which frame of a clip belongs to a moment of the graphic, with in and out points, loop or once, speed and delay. The one place that decision is made, so the preview and the render cannot disagree. `clipProxySize` picks the step a clip is decoded at. |
 | `media-sequence.ts` | yes | Frame sequences (milestone 26): `groupSequences` reads a folder's names into numbered runs, plus a run's frame names, ffmpeg pattern, duration and poster frame. |
 | `media-probe.ts` | Node | `probeMedia` through the injectable runner, `ffprobePathFor`. |
 | `thumbnails.ts` | yes | Which items get thumbnails, ffmpeg arguments for frame and poster, cache file names, `pulp-thumb` URLs. |
@@ -103,6 +103,15 @@ The preload exposes a small `window.pulp` API (`src/shared/api.ts`). The UI is T
 10. The UI gets the stored index at once on start (`library:get`), and every scan result afterwards as `library:changed`. Scans run on demand (Rescan, Add folder), when a watched root changes (`fs.watch` recursive, coalesced into one rescan of that root per quiet period; absent where unsupported), when the window regains focus and the last scan is older than 5 s, and every 15 s if an offline root exists again. Scans are serialized.
 
 Measured on a synthetic library of 5,100 items (5,000 tiny media files in 100 folders, 100 templates), Apple M3 Max, macOS, file-backed database: first scan 145 ms, unchanged rescan 105 ms, rescan with 10 changed and 10 new files 93 ms, building the index for the UI 12 ms. Target: a library of 5,000 items should scan from cold in under 1 s and rescan unchanged in under 500 ms on a laptop; the test in `tests/library-perf.test.ts` prints the numbers on every run (`--silent=false` to see them) and fails only above loose CI ceilings (15 s, 5 s).
+
+### Video layers and assets (milestone 26)
+
+A clip a layer plays never reaches the template page as a URL — the same rule as image slots (ADR 0013). `src/main/clip-grant.ts` reads only the clips a layer named, by library id: it resolves what the library measured about each (probing the one file on demand when the background pass has not run, as a headless render never does), decodes **only the window the layer plays**, and hands the page those frames as data URLs. `frameState` then carries, per video layer, the index of the frame that belongs to this moment, and the page draws it through the same path an image layer uses.
+
+- **Proxies.** A clip is decoded at `clipProxySize(drawn height × 2)` — the smallest of 240, 480, 720, 1080, 1440 or 2048 px that covers how tall the layer is drawn. A quarter-height plate on a 4K render decodes a small picture, and a window nudged a few pixels wider asks for the same size, so nothing is decoded twice for it.
+- **Cache.** Decoded windows are kept in the main process, keyed by the clip's id and stat signature, the window and the proxy size, oldest out first under a budget (`CLIP_CACHE_BUDGET_BYTES`). A re-exported clip has a new signature and so is never served stale.
+- **Bounds.** A window longer than `MAX_CLIP_FRAMES` (900, about 30 s at 30 fps) is refused by name with the advice to set an in and out point, rather than quietly holding a film in memory.
+- **Rights.** An asset is referenced where it lies. Nothing copies it: a pack carries template folders only, and the export dialog says so when the templates being exported are currently showing library pictures or clips.
 
 ### Preview
 

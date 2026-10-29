@@ -12,8 +12,10 @@ import {
   clipPassSeconds,
   clipValueFromText,
   clipValueToText,
+  clipProxySize,
   clipWindow,
   CLIP_LIMITS,
+  CLIP_PROXY_SIZES,
   EMPTY_CLIP,
   sanitizeClipValue,
   type ClipSource,
@@ -152,5 +154,18 @@ describe('reading and writing a clip value', () => {
     expect(clipValueFromText('')).toBeNull();
     // Junk between the fields is ignored rather than failing the row.
     expect(clipValueFromText('abc ending=once what speed=')).toMatchObject({ id: 'abc', ending: 'once', speed: 1 });
+  });
+});
+
+describe('proxy sizes (milestone 26)', () => {
+  it('takes the smallest step that covers what is drawn, so a 4K clip scrubs small', () => {
+    expect(clipProxySize(1)).toBe(240);
+    expect(clipProxySize(240)).toBe(240);
+    expect(clipProxySize(241)).toBe(480);
+    expect(clipProxySize(1080)).toBe(1080);
+    // Beyond the largest step it stops there: one careless layer cannot ask for a 8K decode.
+    expect(clipProxySize(99_999)).toBe(CLIP_PROXY_SIZES[CLIP_PROXY_SIZES.length - 1]);
+    // Steady across a nudge, which is the point: no re-decode for a window a few pixels wider.
+    expect(clipProxySize(300)).toBe(clipProxySize(320));
   });
 });

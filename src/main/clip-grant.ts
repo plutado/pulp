@@ -18,7 +18,7 @@ import { join } from 'node:path';
 import { detectFfmpeg, nodeRunner, runForBuffer } from '../core/ffmpeg';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { sequencePatternName, SEQUENCE_FPS } from '../core/media-sequence';
-import { clipWindow, sanitizeClipValue, type ClipSource, type ClipValue } from '../core/video-layer';
+import { clipProxySize, clipWindow, sanitizeClipValue, type ClipSource, type ClipValue } from '../core/video-layer';
 import type { MediaEntry } from '../core/library-types';
 import { lookupMedia } from './library-service';
 
@@ -80,6 +80,51 @@ export function checkClips(ids: readonly string[]): { ok: string[]; missing: str
     else missing.push(id);
   }
   return { ok, missing };
+}
+
+/**
+ * Decoded clip windows, kept so that choosing a template again, or scrubbing
+ * after a change elsewhere, does not decode the same frames twice. Keyed by
+ * everything that decides the bytes — the clip and its stat signature, the
+ * window, and the proxy size — so a re-exported clip is never served stale.
+ * Oldest out first, under a budget counted in the characters actually held.
+ */
+const frameCache = new Map<string, ClipFrameData>();
+let frameCacheBytes = 0;
+
+/** How much decoded clip the main process holds at once. Generous enough for a few proxies, bounded. */
+export const CLIP_CACHE_BUDGET_BYTES = 192 * 1024 * 1024;
+
+function cacheSize(data: ClipFrameData): number {
+  return data.srcs.reduce((n, src) => n + src.length, 0);
+}
+
+function cacheTake(key: string): ClipFrameData | undefined {
+  const hit = frameCache.get(key);
+  if (!hit) return undefined;
+  // Most recently used goes to the back, so the oldest is always the first out.
+  frameCache.delete(key);
+  frameCache.set(key, hit);
+  return hit;
+}
+
+function cachePut(key: string, data: ClipFrameData): void {
+  const size = cacheSize(data);
+  if (size > CLIP_CACHE_BUDGET_BYTES) return;
+  frameCache.set(key, data);
+  frameCacheBytes += size;
+  for (const [oldest, held] of frameCache) {
+    if (frameCacheBytes <= CLIP_CACHE_BUDGET_BYTES) break;
+    if (oldest === key) continue;
+    frameCache.delete(oldest);
+    frameCacheBytes -= cacheSize(held);
+  }
+}
+
+/** Forget every decoded frame; for tests, and for a library that has been rescanned from scratch. */
+export function clearClipFrameCache(): void {
+  frameCache.clear();
+  frameCacheBytes = 0;
 }
 
 /** The size and modification time of each chosen clip, for the render cache key; unknown ids stamp as zero. */
@@ -148,12 +193,20 @@ export async function readClipFrames(
     const seconds = Math.round(MAX_CLIP_FRAMES / Math.max(1, source.fps));
     return { ok: false, message: `plays ${window.frames} frames, more than the ${MAX_CLIP_FRAMES} a layer may hold (about ${seconds} s); set an in and out point` };
   }
-  const args = clipFramesArgs(found.entry, source, window, Math.max(16, drawnHeight * 2));
+  // Twice the drawn height, rounded up to a proxy step: sharp enough for a scaled or rotated
+  // layer, and stable while a window is resized, so nothing is decoded twice for a few pixels.
+  const side = clipProxySize(drawnHeight * 2);
+  const key = `${id}|${found.entry.size}|${found.entry.mtimeMs}|${window.first}|${window.frames}|${side}`;
+  const cached = cacheTake(key);
+  if (cached) return { ok: true, data: cached };
+  const args = clipFramesArgs(found.entry, source, window, side);
   const result = await runForBuffer(ffmpegPath, args);
   if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
   const frames = splitPngStream(result.stdout);
   if (frames.length === 0) return { ok: false, message: 'ffmpeg decoded no frames from it' };
-  return { ok: true, data: { id, kind: 'clip', srcs: frames.map((f) => `data:image/png;base64,${f.toString('base64')}`) } };
+  const data: ClipFrameData = { id, kind: 'clip', srcs: frames.map((f) => `data:image/png;base64,${f.toString('base64')}`) };
+  cachePut(key, data);
+  return { ok: true, data };
 }
 
 /** What the window asks for: a layer's clip and how tall it is drawn in the preview. */

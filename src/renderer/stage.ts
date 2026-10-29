@@ -12,7 +12,7 @@
 import { templateDefaultSize } from '../core/aspect';
 import { chosenImageIds, imageRequests, imageSlots } from '../core/image-slot';
 import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, type BlockState } from '../core/layer-layout';
-import type { ClipSource, ClipValue } from '../core/video-layer';
+import { clipProxySize, type ClipSource, type ClipValue } from '../core/video-layer';
 import type { LayerValues } from '../core/layers';
 import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
@@ -252,7 +252,9 @@ function syncImages(): void {
     .map((c) => ({ id: c.id, value: c as ClipValue, drawnHeight: clipDrawnHeight(blocks, c.id, size.height) }));
   const key = [
     ...requests.map((r) => `${r.id}|${r.treatment}|${r.tint}`),
-    ...clipRequests.map((c) => `clip:${c.id}|${c.value.inPoint}|${c.value.outPoint}|${c.drawnHeight}`),
+    // The proxy step, not the exact height: a window nudged a few pixels wider asks for the
+    // same frames, so nothing is decoded again for it (milestone 26).
+    ...clipRequests.map((c) => `clip:${c.id}|${c.value.inPoint}|${c.value.outPoint}|${clipProxySize(c.drawnHeight * 2)}`),
   ].sort().join(',');
   if (key === s.imagesKey) return;
   s.imagesKey = key;

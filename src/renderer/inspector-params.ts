@@ -38,7 +38,7 @@ import {
 import { addRecentColor } from '../core/recent-colors';
 import { dimensionsLabel } from '../core/display';
 import { IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } from '../core/image-slot';
-import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, type ClipEnding, type ClipValue } from '../core/video-layer';
+import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue } from '../core/video-layer';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { setIcon, type IconName } from './icons';
 import type { MediaEntry } from '../core/library-types';
@@ -108,6 +108,43 @@ function editorFor(templateId: string): Editor {
 }
 
 const sameSnapshot = (a: Snapshot, b: Snapshot): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Library items these templates are currently set to show: ids chosen for
+ * image slots, image layers and video layers, by template id (milestone 26).
+ *
+ * A pack carries template folders and nothing else, so none of it travels —
+ * the pack export says so with this (ADR 0013 keeps library media out of a
+ * template's reach, and an asset is referenced where it lies, never copied).
+ */
+export function chosenLibraryItems(templateIds: readonly string[]): { templateId: string; items: number }[] {
+  const out: { templateId: string; items: number }[] = [];
+  for (const templateId of templateIds) {
+    const raw = editors.get(templateId)?.current;
+    if (!raw) continue;
+    const ids = new Set<string>();
+    for (const [key, value] of Object.entries(raw)) {
+      if (key === LAYERS_KEY) continue;
+      const image = sanitizeImageValue(value);
+      if (image?.id && !image.hidden) ids.add(image.id);
+    }
+    const layers = raw[LAYERS_KEY];
+    if (layers && typeof layers === 'object') {
+      for (const stack of Object.values(layers as Record<string, unknown>)) {
+        if (!Array.isArray(stack)) continue;
+        for (const layer of stack) {
+          if (typeof layer !== 'object' || layer === null) continue;
+          const image = sanitizeImageValue((layer as { image?: unknown }).image);
+          if (image?.id && !image.hidden) ids.add(image.id);
+          const clip = sanitizeClipValue((layer as { clip?: unknown }).clip);
+          if (clip?.id && !clip.hidden) ids.add(clip.id);
+        }
+      }
+    }
+    if (ids.size > 0) out.push({ templateId, items: ids.size });
+  }
+  return out;
+}
 
 let commitTimer: ReturnType<typeof setTimeout> | undefined;
 
