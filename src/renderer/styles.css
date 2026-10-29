@@ -459,6 +459,19 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .scrub-marks .trimmed { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.45); }
 .scrub-marks #trim-before { left: 0; }
 .scrub-marks #trim-after { right: 0; }
+/* The parts of a graphic whose length can be set (milestone 30): the entrance and the exit keep
+   their designed speed, and only the hold between them stretches. Drawn under the trim shading,
+   so a trim still reads as "this is dropped". */
+.scrub-marks .part { position: absolute; top: 0; bottom: 0; }
+.scrub-marks .part[hidden] { display: none; }
+.scrub-marks .part.entrance, .scrub-marks .part.exit { background: rgba(125, 211, 252, 0.28); }
+.scrub-marks .part.hold { background: rgba(125, 211, 252, 0.12); }
+.length-handle {
+  position: absolute; top: 50%; width: 9px; height: 18px; margin: -9px 0 0 -4px; padding: 0;
+  border: 1px solid #0d1117; border-radius: 2px; background: var(--accent); cursor: ew-resize;
+}
+.length-handle[hidden] { display: none; }
+.length-handle:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .scrub-marks .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--accent); }
 .scrub-marks .mark[hidden] { display: none; }
 

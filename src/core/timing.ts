@@ -29,6 +29,12 @@ export interface TemplateStructure {
 }
 
 /** What a template's structure must satisfy to be usable; a manifest saying otherwise is refused. */
+/**
+ * The longest a graphic may be asked to run for. Past ten minutes it is a film
+ * rather than a graphic, and the frames would have to be held somewhere.
+ */
+export const MAX_LENGTH_SECONDS = 600;
+
 export const STRUCTURE_LIMITS = {
   /** The shortest hold a template may declare. Shorter than a frame or two is not a part. */
   minHold: 0.05,
@@ -94,7 +100,7 @@ export function resolveLength(
 ): number {
   if (asked === undefined || !Number.isFinite(asked) || asked <= 0) return round(duration);
   if (!structure) return round(duration);
-  return round(Math.max(minimumLength(structure, duration), asked));
+  return round(Math.min(MAX_LENGTH_SECONDS, Math.max(minimumLength(structure, duration), asked)));
 }
 
 /**

@@ -101,11 +101,17 @@
           <span class="scrub-wrap">
             <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
             <span id="scrub-marks" class="scrub-marks" aria-hidden="true">
+              <span id="part-entrance" class="part entrance" hidden></span>
+              <span id="part-hold" class="part hold" hidden></span>
+              <span id="part-exit" class="part exit" hidden></span>
               <span id="trim-before" class="trimmed"></span>
               <span id="trim-after" class="trimmed"></span>
               <span id="mark-in-flag" class="mark in" hidden></span>
               <span id="mark-out-flag" class="mark out" hidden></span>
             </span>
+            <button id="length-handle" class="length-handle" type="button" hidden
+                    role="slider" aria-label="Graphic length, seconds" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"
+                    data-tip="Drag to set how long the graphic runs; only the hold stretches"></button>
           </span>
           <span id="timecode" class="timecode">--</span>
         </div>

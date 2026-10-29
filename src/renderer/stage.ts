@@ -17,10 +17,10 @@ import type { LayerValues } from '../core/layers';
 import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import type { TemplateManifest } from '../core/manifest';
-import { lengthFrameCount, resolveLength } from '../core/timing';
+import { lengthFrameCount, lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
 import type { ResolvedParams } from '../core/params';
 import { mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
-import { selectedLayer } from './layer-edit';
+import { layerEditor, selectedLayer } from './layer-edit';
 import type { LaidReport } from '../core/stage-place';
 import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor, type PlayerState, type StageBackground } from '../core/player';
 import { frameState } from '../core/runtime';
@@ -53,6 +53,10 @@ const els = {
   scrub: $<HTMLInputElement>('scrub'),
   timecode: $<HTMLSpanElement>('timecode'),
   note: $<HTMLParagraphElement>('stage-note'),
+  partEntrance: $<HTMLSpanElement>('part-entrance'),
+  partHold: $<HTMLSpanElement>('part-hold'),
+  partExit: $<HTMLSpanElement>('part-exit'),
+  lengthHandle: $<HTMLButtonElement>('length-handle'),
   trimBefore: $<HTMLSpanElement>('trim-before'),
   trimAfter: $<HTMLSpanElement>('trim-after'),
   markInFlag: $<HTMLSpanElement>('mark-in-flag'),
@@ -154,6 +158,35 @@ function previewFrames(): number {
   return lengthFrameCount(resolveLength(s.manifest.duration, s.manifest.structure ?? null, s.length), s.manifest.fps);
 }
 
+/**
+ * The parts of the graphic shaded over the scrub bar, and the handle that sets
+ * its length (milestone 30). Only a template that declares what may stretch
+ * has parts to show; for every other the bar is as it always was.
+ */
+function applyParts(): void {
+  const structure = s.manifest?.structure;
+  const hasParts = Boolean(s.manifest && structure);
+  for (const el of [els.partEntrance, els.partHold, els.partExit]) el.hidden = !hasParts;
+  els.lengthHandle.hidden = !hasParts;
+  if (!hasParts || !s.manifest || !structure) return;
+  const duration = s.manifest.duration;
+  const length = resolveLength(duration, structure, s.length);
+  const parts = lengthParts(duration, structure, length);
+  const pct = (seconds: number) => `${(seconds / Math.max(0.001, length)) * 100}%`;
+  els.partEntrance.style.left = '0';
+  els.partEntrance.style.width = pct(parts.entrance);
+  els.partHold.style.left = pct(parts.holdFrom);
+  els.partHold.style.width = pct(parts.holdTo - parts.holdFrom);
+  els.partExit.style.left = pct(parts.holdTo);
+  els.partExit.style.width = pct(length - parts.holdTo);
+  // The handle sits at the graphic's end, which is what dragging it moves.
+  els.lengthHandle.style.left = '100%';
+  els.lengthHandle.setAttribute('aria-valuemin', String(minimumLength(structure, duration)));
+  els.lengthHandle.setAttribute('aria-valuemax', String(MAX_LENGTH_SECONDS));
+  els.lengthHandle.setAttribute('aria-valuenow', String(length));
+  els.lengthHandle.setAttribute('aria-valuetext', `${length} seconds`);
+}
+
 /** The in and out marks over the scrub bar, and what a render would drop. */
 function applyTrim(): void {
   const total = previewFrames();
@@ -166,6 +199,7 @@ function applyTrim(): void {
   if (inFrame !== null) els.markInFlag.style.left = `${markPercent(inFrame, total)}%`;
   if (outFrame !== null) els.markOutFlag.style.left = `${markPercent(outFrame, total)}%`;
   els.markClear.disabled = !s.manifest || (inFrame === null && outFrame === null);
+  applyParts();
 }
 
 function updateTransport(): void {
@@ -525,6 +559,66 @@ function applyZones(): void {
   }
 }
 
+/**
+ * Dragging the graphic's end on the scrub bar (milestone 30). The bar's scale
+ * at the moment the drag began sets how far a pixel goes, so the length
+ * follows the pointer at the rate the bar was showing — a bar that rescales
+ * under a drag that is changing its scale would chase itself.
+ */
+let lengthDrag: { pointerId: number; from: number; startX: number; secondsPerPx: number } | null = null;
+
+function lengthFloor(): number {
+  const structure = s.manifest?.structure;
+  return s.manifest && structure ? minimumLength(structure, s.manifest.duration) : 0;
+}
+
+/** Set the length from the handle, clamped, and tell the Parameters tab so undo and presets carry it. */
+function setLengthFromHandle(seconds: number, commit: boolean): void {
+  if (!s.manifest) return;
+  const wanted = Math.min(MAX_LENGTH_SECONDS, Math.max(lengthFloor(), Math.round(seconds * 10) / 10));
+  // Back at the template's own length, there is nothing to remember.
+  const next = wanted === s.manifest.duration ? undefined : wanted;
+  layerEditor()?.setLength(next, commit);
+}
+
+function onLengthPointerDown(e: PointerEvent): void {
+  if (!s.manifest || e.button !== 0) return;
+  const width = els.scrub.getBoundingClientRect().width;
+  const length = resolveLength(s.manifest.duration, s.manifest.structure ?? null, s.length);
+  lengthDrag = { pointerId: e.pointerId, from: length, startX: e.clientX, secondsPerPx: length / Math.max(1, width) };
+  try {
+    els.lengthHandle.setPointerCapture(e.pointerId);
+  } catch {
+    // Not a capturable pointer (a test's synthetic one): the drag still works over the handle.
+  }
+  e.preventDefault();
+}
+
+function onLengthPointerMove(e: PointerEvent): void {
+  if (!lengthDrag || e.pointerId !== lengthDrag.pointerId) return;
+  setLengthFromHandle(lengthDrag.from + (e.clientX - lengthDrag.startX) * lengthDrag.secondsPerPx, false);
+}
+
+function onLengthPointerUp(e: PointerEvent): void {
+  if (!lengthDrag || e.pointerId !== lengthDrag.pointerId) return;
+  const finished = lengthDrag;
+  lengthDrag = null;
+  // One undo step for the gesture, whatever it passed through on the way.
+  setLengthFromHandle(finished.from + (e.clientX - finished.startX) * finished.secondsPerPx, true);
+}
+
+/** The handle is a slider, so the arrows move it: a tenth of a second, or a second with Shift. */
+function onLengthKeyDown(e: KeyboardEvent): void {
+  if (!s.manifest) return;
+  const step = e.shiftKey ? 1 : 0.1;
+  const moves: Record<string, number> = { ArrowRight: step, ArrowUp: step, ArrowLeft: -step, ArrowDown: -step };
+  const move = moves[e.key];
+  if (move === undefined) return;
+  const length = resolveLength(s.manifest.duration, s.manifest.structure ?? null, s.length);
+  setLengthFromHandle(length + move, true);
+  e.preventDefault();
+}
+
 /** New parameter values (edit, undo, preset): redraw the current frame with them. */
 export function stageSetParams(params: ResolvedParams, layers: LayerValues = {}, length?: number): void {
   s.params = params;
@@ -559,6 +653,11 @@ export function initStage(): void {
   els.stepBack.addEventListener('click', () => step(-1));
   els.stepForward.addEventListener('click', () => step(1));
   els.loop.addEventListener('click', () => setPlayer({ loop: !s.player.loop }));
+  els.lengthHandle.addEventListener('pointerdown', onLengthPointerDown);
+  els.lengthHandle.addEventListener('pointermove', onLengthPointerMove);
+  els.lengthHandle.addEventListener('pointerup', onLengthPointerUp);
+  els.lengthHandle.addEventListener('pointercancel', onLengthPointerUp);
+  els.lengthHandle.addEventListener('keydown', onLengthKeyDown);
   els.scrub.addEventListener('input', () => {
     stageStop();
     requestFrame(Number(els.scrub.value));

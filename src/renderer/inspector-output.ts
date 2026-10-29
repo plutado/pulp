@@ -10,11 +10,12 @@ import { AspectError, aspectById, defaultAspect, orientationOf, resolutionsFor, 
 import { planBatch, type BatchPlan } from '../core/batch-csv';
 import { dimensionsLabel } from '../core/display';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
-import { frameCount } from '../core/manifest';
 import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, timecodePattern } from '../core/timecode';
 import type { TemplateEntry } from '../core/library-types';
 import { currentRawParams } from './inspector-params';
+import { lengthIn } from '../core/params';
+import { lengthFrameCount, resolveLength } from '../core/timing';
 import { stageStop } from './stage';
 import { appState, dispatch, frameSize, renderBlocked, selectedTemplate, trim } from './store';
 import { setCollection, setEditing } from '../core/app-state';
@@ -299,20 +300,25 @@ function updateOptionsNote(): void {
     return;
   }
   const fps = chosenFps() ?? m.fps;
+  // The length chosen in the Parameters tab (milestone 30): a trim is taken within it, so the
+  // placeholders and the summary below are of the graphic as it will be rendered.
+  const length = resolveLength(m.duration, m.structure ?? null, lengthIn(currentRawParams()));
   // Placeholders show the range at the chosen rate, in that rate's timecode form.
-  const lastFrame = Math.max(1, Math.round(m.duration * fps)) - 1;
+  const lastFrame = Math.max(1, Math.round(length * fps)) - 1;
   els.optIn.placeholder = formatTimecode(0, fps);
   els.optOut.placeholder = formatTimecode(lastFrame, fps);
   els.optIn.title = els.optOut.title = `Timecode ${timecodePattern(fps)}, a frame number, or seconds such as 2.5s`;
   try {
-    const options = readRenderOptions();
+    const options = { ...readRenderOptions(), ...(length !== m.duration ? { length } : {}) };
     const t = resolveTiming(m, options);
     const size = resolveRenderSize(m, options);
     const own = templateDefaultSize(m);
     const seconds = t.totalFrames / t.fps;
     const parts: string[] = [];
     if (size.width !== own.width || size.height !== own.height) parts.push(`${dimensionsLabel(size.width, size.height)} (${size.aspect})`);
-    if (t.fps !== m.fps || t.totalFrames !== frameCount(m) || t.firstFrame !== 0) {
+    // A length set in the Parameters tab is said here too, since this is where a render is set up.
+    if (t.length !== m.duration) parts.push(`${t.length} s long (designed at ${m.duration} s)`);
+    if (t.fps !== m.fps || t.totalFrames !== lengthFrameCount(t.length, t.fps) || t.firstFrame !== 0) {
       const last = t.firstFrame + t.totalFrames - 1;
       parts.push(`${t.totalFrames} frames at ${t.fps} fps (${seconds.toFixed(2)} s), ${formatTimecode(t.firstFrame, t.fps)} to ${formatTimecode(last, t.fps)}`);
     }
@@ -347,6 +353,15 @@ function markPresetAvailability(encoders: readonly string[]): void {
   }
   els.presetUnavailable.hidden = reasons.length === 0;
   els.presetUnavailable.textContent = reasons.length ? `Unavailable: ${reasons.join(' ')}` : '';
+}
+
+/**
+ * Read the options again and say what they amount to. The Parameters tab calls
+ * this when the graphic's length changes (milestone 30): a trim is taken
+ * within the length, so what this tab shows depends on it.
+ */
+export function outputRefreshOptions(): void {
+  updateOptionsNote();
 }
 
 export function updateRenderControls(): void {

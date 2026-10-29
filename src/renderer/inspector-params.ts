@@ -40,7 +40,7 @@ import {
   type TextLayer,
 } from '../core/layers';
 import { addRecentColor } from '../core/recent-colors';
-import { lengthParts, minimumLength, resolveLength } from '../core/timing';
+import { lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
 import { dimensionsLabel } from '../core/display';
 import { IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } from '../core/image-slot';
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue } from '../core/video-layer';
@@ -49,6 +49,7 @@ import { setIcon, type IconName } from './icons';
 import type { MediaEntry } from '../core/library-types';
 import { mediaUrlFor } from '../core/media-url';
 import { stageSetParams } from './stage';
+import { outputRefreshOptions } from './inspector-output';
 import { appState, frameSize, importedFonts, selectedTemplate, slotNotes } from './store';
 import { aspectOf } from '../core/aspect';
 import { registerLayerEditor, selectedLayer } from './layer-edit';
@@ -998,8 +999,12 @@ function lengthField(): HTMLElement | null {
   return wrap;
 }
 
-/** Choose a length, as one undo step; `undefined` is the template's own. */
-function setLength(length: number | undefined): void {
+/**
+ * Choose a length; `undefined` is the template's own. `commit` makes it one
+ * undo step — a field change or the end of a drag — where a live drag passes
+ * false and only redraws.
+ */
+function setLength(length: number | undefined, commit = true): void {
   const selected = selectedTemplate.value;
   if (!selected) return;
   // The same path a parameter edit takes: the raw values, the editor's own copy, the preview,
@@ -1007,6 +1012,9 @@ function setLength(length: number | undefined): void {
   p.raw = withLength(p.raw, length);
   editorFor(selected.manifest.id).current = p.raw;
   stageSetParams(p.values, currentLayers(), lengthIn(p.raw));
+  // The Output tab trims within the length, so what it shows follows it.
+  outputRefreshOptions();
+  if (!commit) return;
   commitParams();
   buildParamForm(selected.manifest);
 }
@@ -1346,9 +1354,6 @@ const openTypography = new Set<string>();
 
 /** The same for the Advanced disclosure, which holds a layer's own motion. */
 const openAdvanced = new Set<string>();
-
-/** The longest graphic the Length field offers; past ten minutes is a film, not a graphic. */
-const MAX_LENGTH_SECONDS = 600;
 
 const MOTION_LABELS: Record<LayerMotionType, string> = { template: 'Template', fade: 'Fade', slide: 'Slide', scale: 'Scale', none: 'None' };
 
@@ -2082,6 +2087,7 @@ export function initInspectorParams(): void {
       const selected = selectedTemplate.value;
       if (selected) buildParamForm(selected.manifest);
     },
+    setLength: (length, commit) => setLength(length, commit),
     addForItem: (type, itemId, label) => {
       const selected = selectedTemplate.value;
       if (!selected) return { refused: 'No template is open.' };

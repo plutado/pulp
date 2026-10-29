@@ -1,6 +1,7 @@
 /**
- * The one channel between the stage and the Parameters tab for layers
- * (milestone 25): which layer is selected, and how the stage edits one. The
+ * The one channel between the stage and the Parameters tab (milestone 25, and
+ * the graphic's length since milestone 30): which layer is selected, and how
+ * the stage edits one. The
  * Parameters tab owns the layer values, their history and their redraws, so it
  * registers its editor here at mount; the stage calls through it and never
  * reaches into the tab's DOM (docs/ui-layout.md: regions meet through state,
@@ -27,6 +28,12 @@ export interface LayerEditor {
    * with a reason when nothing can hold it.
    */
   addForItem(type: LayerType, itemId: string, label: string): { block: string; id: string } | { refused: string };
+  /**
+   * Set how long the graphic runs for (milestone 30), as the handle on the
+   * scrub bar does; `undefined` is the length the template was designed at.
+   * `commit` makes it one undo step, false is a live drag.
+   */
+  setLength(length: number | undefined, commit: boolean): void;
 }
 
 let editor: LayerEditor | null = null;

@@ -1871,10 +1871,45 @@ describe.skipIf(!electron)('inspector UI', () => {
       await scrubTo(15);
       await until(async () => Math.abs((await drawnTime()) - 0.5) < 0.05, 'the entrance at its designed speed');
 
+      // The scrub bar shades the parts: a tenth of ten seconds is the entrance, a tenth the exit.
+      const parts = () => page.eval<Record<string, number>>(`(() => {
+        const read = (id) => { const el = document.getElementById(id); const r = el.getBoundingClientRect(); const bar = document.getElementById('scrub').getBoundingClientRect(); return { left: (r.left - bar.left) / bar.width, width: r.width / bar.width, hidden: el.hidden }; };
+        return { entrance: read('part-entrance'), hold: read('part-hold'), exit: read('part-exit') };
+      })()`);
+      const shaded = await parts() as unknown as Record<string, { left: number; width: number; hidden: boolean }>;
+      expect(shaded.entrance!.hidden).toBe(false);
+      expect(shaded.entrance!.width).toBeCloseTo(0.05, 1);
+      expect(shaded.hold!.width).toBeCloseTo(0.9, 1);
+      expect(shaded.exit!.width).toBeCloseTo(0.05, 1);
+      // They sit end to end across the whole bar.
+      expect(shaded.hold!.left).toBeCloseTo(shaded.entrance!.width, 1);
+      expect(shaded.exit!.left + shaded.exit!.width).toBeCloseTo(1, 1);
+
+      // The Output tab says the length too, since that is where a render is set up.
+      await page.eval(`document.getElementById('tab-output').click()`);
+      await until(() => page.eval<string>(`document.getElementById('options-note').textContent`).then((t) => t.includes('10 s long')), 'the Output tab naming the length');
+      expect(await page.eval<string>(`document.getElementById('options-note').textContent`)).toContain('designed at 2 s');
+      await page.eval(`document.getElementById('tab-parameters').click()`);
+
+      // The handle on the scrub bar sets it by hand: a slider, so the arrows move it.
+      const handle = `document.getElementById('length-handle')`;
+      expect(await page.eval<boolean>(`${handle}.hidden`)).toBe(false);
+      expect(await page.eval<string>(`${handle}.getAttribute('aria-valuenow')`)).toBe('10');
+      await page.eval(`(() => { ${handle}.focus(); ${handle}.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true, cancelable: true })); })()`);
+      await until(() => page.eval<string>(`${handle}.getAttribute('aria-valuenow')`).then((v) => v === '11'), 'a bold arrow step lengthening the graphic');
+      expect(await page.eval<string>(`${lengthField}.value`), 'and the field follows it').toBe('11');
+      // It cannot be dragged shorter than the entrance and the exit need.
+      for (let i = 0; i < 200; i++) {
+        await page.eval(`${handle}.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', shiftKey: true, bubbles: true, cancelable: true }))`);
+      }
+      expect(Number(await page.eval<string>(`${handle}.getAttribute('aria-valuenow')`))).toBeCloseTo(1.05, 2);
+
       // Back to the template's own length, and the transport goes with it.
-      await page.eval(`document.querySelector('#params .length-field .field-reset').click()`);
+      await page.eval(`(() => { const f = ${lengthField}; f.value = '2'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
       await until(() => page.eval<string>(`document.getElementById('scrub').max`).then((m) => m === '59'), 'the scrub bar back at its own length');
       expect(await page.eval<string>(`${lengthField}.value`)).toBe('2');
+      // At its own length there is nothing to reset to, so the button goes.
+      expect(await page.eval<boolean>(`!!document.querySelector('#params .length-field .field-reset')`)).toBe(false);
     }, 120_000);
   });
 
