@@ -14,6 +14,7 @@
     "hairline"
   ],
   "duration": 6,
+  "structure": { "holdFrom": 1.95, "holdTo": 4.05 },
   "fps": 30,
   "aspects": [
     "16:9",

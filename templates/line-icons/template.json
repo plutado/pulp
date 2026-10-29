@@ -23,6 +23,7 @@
     "stroke"
   ],
   "duration": 5,
+  "structure": { "holdFrom": 2.23, "holdTo": 2.85 },
   "fps": 30,
   "aspects": [
     "16:9",

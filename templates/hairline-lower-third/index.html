@@ -33,10 +33,11 @@
     var u = Math.min(W, H) / 1080;
     ctx.clearRect(0, 0, W, H);
 
-    // In, hold, out. The hold is the parameter; the in and out are fixed at 0.8 s each, and the
-    // whole thing is clamped inside the clip so nothing is left on screen at the last frame.
+    // In, hold, out. All three are the design's: the in and out are fixed at 0.8 s each, the hold
+    // is no longer a setting — the graphic's length is the control (milestone 30) — and the whole
+    // thing is clamped inside the clip so nothing is left on screen at the last frame.
     var inFor = 0.8, outFor = 0.8;
-    var hold = Math.min(p.hold, Math.max(0.2, d - inFor - outFor));
+    var hold = Math.min(3.4, Math.max(0.2, d - inFor - outFor));
     var outAt = inFor + hold;
     var draw = easeOut(clamp01(t / inFor));
     var gone = easeOut(clamp01((t - outAt) / outFor));

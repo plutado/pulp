@@ -14,6 +14,7 @@
     "scoreboard"
   ],
   "duration": 6,
+  "structure": { "holdFrom": 1.43, "holdTo": 4.44 },
   "fps": 30,
   "aspects": [
     "16:9",

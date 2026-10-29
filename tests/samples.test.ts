@@ -75,6 +75,34 @@ describe('bundled sample templates', async () => {
     }
   });
 
+  // Milestone 30: what each template says may stretch. Where a hold sits is measured by
+  // rendering it (docs/template-format.md, "Choosing holdFrom and holdTo"), which is too slow
+  // for a unit test; what is checked here is the shape of the answer across the whole library.
+  it('says what may stretch, each in the way its kind of graphic stretches', async () => {
+    const index = await scanLibrary([TEMPLATES_DIR]);
+    const kinds: Record<string, string[]> = { hold: [], loop: [], scale: [], none: [] };
+    for (const t of index.templates) kinds[t.manifest.structure?.kind ?? 'none']!.push(t.manifest.id);
+    // A loop is what a background or an overlay does, a scale what a transition does, and a hold
+    // belongs to a graphic that says something and waits — never to a transition.
+    for (const t of index.templates) {
+      const { structure, category, id } = t.manifest;
+      if (structure?.kind === 'loop') expect(['background', 'overlay'], id).toContain(category);
+      if (structure?.kind === 'scale') expect(category, id).toBe('transition');
+      if (structure?.kind === 'hold') expect(category, id).not.toBe('transition');
+      // The length is the control for a graphic that declares a hold, so it must not also offer
+      // one: two ways to set the same thing would fight (docs/template-format.md).
+      if (structure?.kind === 'hold') {
+        for (const p of t.manifest.parameters) expect(p.label, `${id}: ${p.id}`).not.toMatch(/^Hold\b/i);
+      }
+    }
+    // Every template is accounted for, and the counts are a tripwire: a structure added without
+    // measuring where the graphic settles, or one dropped, shows up here first.
+    expect(kinds.hold).toHaveLength(38);
+    expect(kinds.loop).toHaveLength(23);
+    expect(kinds.scale).toHaveLength(24);
+    expect(kinds.none).toHaveLength(39);
+  });
+
   it.each(dirs)('%s defines window.pulpRender and avoids wall-clock time', async (dir) => {
     const html = await readFile(join(TEMPLATES_DIR, dir, 'index.html'), 'utf8');
     expect(html).toContain('window.pulpRender');

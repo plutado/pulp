@@ -22,6 +22,7 @@
     "warm"
   ],
   "duration": 8,
+  "structure": { "holdFrom": 2.15, "holdTo": 5.85 },
   "fps": 30,
   "aspects": [
     "16:9",

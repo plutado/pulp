@@ -14,6 +14,7 @@
     "label"
   ],
   "duration": 6,
+  "structure": { "holdFrom": 4.09, "holdTo": 4.19 },
   "fps": 30,
   "aspects": [
     "16:9",

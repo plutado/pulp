@@ -14,6 +14,7 @@
     "slash"
   ],
   "duration": 7,
+  "structure": { "holdFrom": 3.91, "holdTo": 5.36 },
   "fps": 30,
   "aspects": [
     "16:9",

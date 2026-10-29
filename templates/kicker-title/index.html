@@ -34,7 +34,8 @@
     ctx.clearRect(0, 0, W, H);
 
     var inFor = 0.9, outFor = 0.7;
-    var hold = Math.min(p.hold, Math.max(0.2, d - inFor - outFor));
+    // The hold is the design's own, no longer a setting: the length is the control (milestone 30).
+    var hold = Math.min(2.6, Math.max(0.2, d - inFor - outFor));
     var outAt = inFor + hold;
     var gone = easeInOut(clamp01((t - outAt) / outFor));
     if (gone >= 1) return;

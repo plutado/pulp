@@ -14,6 +14,7 @@
     "versus"
   ],
   "duration": 7,
+  "structure": { "holdFrom": 2.79, "holdTo": 5.48 },
   "fps": 30,
   "aspects": [
     "16:9",

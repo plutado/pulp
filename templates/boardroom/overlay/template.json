@@ -14,6 +14,7 @@
     "corners"
   ],
   "duration": 6,
+  "structure": { "holdFrom": 0.99, "holdTo": 5.01 },
   "fps": 30,
   "aspects": [
     "16:9",

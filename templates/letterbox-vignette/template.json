@@ -21,6 +21,7 @@
     "vignette"
   ],
   "duration": 8,
+  "structure": { "holdFrom": 2.11, "holdTo": 5.89 },
   "fps": 30,
   "aspects": [
     "16:9",

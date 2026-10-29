@@ -30,6 +30,7 @@
     "corporate"
   ],
   "duration": 6,
+  "structure": { "holdFrom": 2.63, "holdTo": 4.97 },
   "parameters": [
     {
       "id": "target",
@@ -73,16 +74,6 @@
       "label": "Bar",
       "default": "#16a34a",
       "element": "Panel"
-    },
-    {
-      "id": "inOut",
-      "type": "number",
-      "label": "Hold, seconds",
-      "default": 2.4,
-      "min": 0.5,
-      "max": 10,
-      "step": 0.1,
-      "element": "Layout and timing"
     }
   ]
 }

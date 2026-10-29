@@ -1566,8 +1566,10 @@ describe.skipIf(!electron)('inspector UI', () => {
         );
       await clickResult('Title Card');
       await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card')`), 'the title card\'s cards');
-      // Its two lines, then the card's own colours, then the logo. No "Colors" group, and nothing left over.
-      expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`)).toEqual(['Title: ', 'Subtitle: ', 'Card: background,rule', 'Logo: logo']);
+      // Its two lines, then the card's own colours, then the logo, and the timing last — the title
+      // card declares a hold (milestone 30), so that card holds its Length and no parameter of its
+      // own. No "Colors" group, and nothing left over.
+      expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`)).toEqual(['Title: ', 'Subtitle: ', 'Card: background,rule', 'Logo: logo', 'Layout and timing: ']);
       expect(await page.eval<number>(`document.querySelectorAll('#params .group-label').length`)).toBe(0);
       // A line's card holds its words and its type, with what can be done to the layer beside the heading.
       expect(await page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="layer:card.title"] .layer-text')`)).toBe(true);
@@ -1580,14 +1582,14 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect((await cards()).find((c) => c.card === 'element:Card')!.open).toBe(false);
       expect(await page.eval<boolean>(`document.querySelector('#params .param-card[data-card="element:Card"] .card-body').hidden`)).toBe(true);
       await page.eval(`document.querySelector('#params .layers-block [data-add=text]').click()`);
-      await until(async () => (await cards()).length === 5, 'the added line\'s card');
+      await until(async () => (await cards()).length === 6, 'the added line\'s card');
       expect((await cards()).find((c) => c.card === 'element:Card')!.open, 'still folded after the rebuild').toBe(false);
       // The added line is a card like the template's own, and can be taken out again.
       const added = (await cards())[2]!;
       expect(added.label).toBe('Line 3');
       expect(await page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="${added.card}"] .layer-type')`)).toBe(true);
       await page.eval(`document.querySelector('#params .param-card[data-card="${added.card}"] [aria-label="Remove Line 3"]').click()`);
-      await until(async () => (await cards()).length === 4, 'the card gone with the layer');
+      await until(async () => (await cards()).length === 5, 'the card gone with the layer');
       await page.eval(`document.querySelector('#params .param-card[data-card="element:Card"] .card-toggle').click()`);
 
       // The lower third: the panel's two colours together, and what belongs to the whole graphic last.
@@ -1842,8 +1844,8 @@ describe.skipIf(!electron)('inspector UI', () => {
     const lengthField = `document.querySelector('#params .length-field input[aria-label="Length, seconds"]')`;
 
     it('offers a length only for a template that says what may stretch, and the preview follows it', async () => {
-      // A bundled template declares no structure yet, so there is nothing to ask.
-      await clickResult('Lower Third Bar');
+      // A countdown counts real seconds and so declares no structure: there is nothing to ask.
+      await clickResult('Launch Countdown');
       await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card')`), 'the parameter form');
       expect(await page.eval<boolean>(`!!${lengthField}`), 'no Length where nothing may stretch').toBe(false);
 

@@ -30,7 +30,6 @@
     "organic"
   ],
   "duration": 6,
-  "structure": { "holdFrom": 1.08, "holdTo": 5.12 },
   "parameters": [
     {
       "id": "line",

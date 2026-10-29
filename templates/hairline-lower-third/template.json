@@ -12,6 +12,7 @@
   "themes": ["documentary", "science"],
   "styles": ["elegant", "clean"],
   "duration": 6,
+  "structure": { "holdFrom": 0.83, "holdTo": 4.05 },
   "fps": 30,
   "aspects": ["16:9", "9:16", "1:1", "4:5"],
   "alpha": true,
@@ -35,7 +36,6 @@
     }
   ],
   "parameters": [
-    { "id": "rule", "type": "color", "label": "Rule", "default": "#38bdf8", "element": "Rule" },
-    { "id": "hold", "type": "number", "label": "Hold, seconds", "default": 3.4, "min": 1, "max": 10, "step": 0.1, "element": "Layout and timing" }
+    { "id": "rule", "type": "color", "label": "Rule", "default": "#38bdf8", "element": "Rule" }
   ]
 }

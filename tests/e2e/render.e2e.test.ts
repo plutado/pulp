@@ -9,7 +9,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -482,8 +482,9 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await readdir(out)).filter((f) => /^len-trim_\d{5}\.png$/.test(f))).toHaveLength(10);
     expect(await templateTime(join(out, 'len-trim_00150.png'))).toBeCloseTo(1, 2);
 
-    // A template that declares nothing to stretch says so rather than quietly ignoring the ask.
-    const fixed = await render('pulp.samples.lower-third-bar', 'png-sequence', 'len-fixed', { extra: ['--length', '20'] });
+    // A template that declares nothing to stretch — a countdown counts real seconds — says so
+    // rather than quietly ignoring the ask.
+    const fixed = await render('pulp.samples.launch-countdown', 'png-sequence', 'len-fixed', { extra: ['--length', '20'] });
     expect(fixed.code).toBe(1);
     expect(fixed.stderr).toContain('does not declare an animate-in, hold and animate-out');
   }, 240_000);
@@ -534,6 +535,47 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(tooSlow.code, tooSlow.stderr).toBe(0);
     expect((await readdir(out)).filter((f) => /^wipe-cap_\d{5}\.png$/.test(f)), 'held at four times its own length').toHaveLength(140);
   }, 300_000);
+
+  it('holds still right through the hold a bundled template declares, however it is set (milestone 30)', async () => {
+    // One ffmpeg pass for the whole sequence: a hold runs to dozens of frames and a call for each
+    // would cost more than the render that made them.
+    const sequence = async (name: string, width: number, height: number) => {
+      const { stdout } = await runBoundedBuffer(ffmpeg, ffmpegArgs(['-v', 'error', '-i', join(out, `${name}_%05d.png`), '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']), { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
+      const stride = width * height * 4;
+      return Array.from({ length: Math.floor(stdout.length / stride) }, (_, i) => stdout.subarray(i * stride, (i + 1) * stride));
+    };
+    const fps = 25;
+    const [width, height] = [192, 108];
+
+    // A declared hold promises that stretching those moments changes nothing but how long they
+    // are on screen, so nothing inside it may move — and it has to keep that promise however the
+    // template is set, not only as it ships. Both ways it can be contradicted are squeezed here:
+    // the parameter that decides how long the entrance and exit take, at the slowest it goes, and
+    // a line added to an open block, which a stack that staggers its layers brings in after its own.
+    const cases = [
+      { folder: 'lower-third-bar', file: 'hold-strap', params: ['--param', 'inOut=2', '--param', '@layers={"strap":[{"id":"extra","type":"text","text":"One more line"}]}'] },
+      { folder: 'title-card', file: 'hold-card', params: ['--param', '@layers={"card":[{"id":"extra","type":"text","text":"One more line"}]}'] },
+    ];
+    for (const c of cases) {
+      const manifest = JSON.parse(await readFile(join(ROOT, 'templates', c.folder, 'template.json'), 'utf8')) as { id: string; structure: { holdFrom: number; holdTo: number } };
+      const r = await render(manifest.id, 'png-sequence', c.file, { extra: ['--fps', String(fps), '--size', `${width}x${height}`, ...c.params] });
+      expect(r.code, r.stderr).toBe(0);
+      const frames = await sequence(c.file, width, height);
+      const first = Math.ceil(manifest.structure.holdFrom * fps);
+      const last = Math.floor(manifest.structure.holdTo * fps);
+      expect(last, `${manifest.id} declares a hold with frames in it`).toBeGreaterThan(first);
+      let worst = 0;
+      let at = first;
+      for (let i = first + 1; i <= last; i++) {
+        let total = 0;
+        for (let p = 0; p < frames[first]!.length; p++) total += Math.abs(frames[first]![p]! - frames[i]![p]!);
+        const mean = total / (width * height);
+        if (mean > worst) { worst = mean; at = i; }
+      }
+      // A mean level per pixel, over all four channels: a hold that really holds reads 0 or close to it.
+      expect(worst, `${manifest.id} moves at frame ${at}, inside the hold it declares`).toBeLessThan(0.05);
+    }
+  }, 240_000);
 
   it('draws a layer turned, about the words rather than the block (milestone 29)', async () => {
     // The hairline lower third is alpha, and its "who" line is aligned at the left of a block

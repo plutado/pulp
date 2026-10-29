@@ -218,6 +218,18 @@ The host then maps every moment of the chosen length back to a moment of the tem
 
 A template that declares a structure should not also offer a "Hold, seconds" parameter: the length is the control now, and two ways to set the same thing would fight.
 
+#### Choosing `holdFrom` and `holdTo`
+
+The hold is what the graphic **settles into**, and the declaration is a promise about the pictures between those two moments: stretching them must change nothing but how long they are on screen. Three things decide where they go.
+
+**The hold must really hold.** Measure it rather than reading it off the easings: render the template small, difference each frame against the first frame of the stretch, and keep only a stretch where nothing differs. Ambient motion disqualifies a graphic even though it looks still frame to frame — a glow that breathes, confetti that keeps falling, a second hand that ticks. Stretched, such a graphic would play that motion in slow motion, which is exactly what a declared hold promises not to do. A pause at the turn of a drift is not a hold either: look for the stretch a graphic settles into, not the moment its movement changes direction.
+
+**A parameter that moves the parts moves them for every value it can take.** A structure is fixed in the manifest while a parameter is chosen per use, so an "Animate in/out (seconds)" that runs from 0.2 to 2 must not be able to push the entrance past `holdFrom`. Declare the hold that holds at **every** value in the range — in practice the one measured at the slowest in and out — and the shorter settings simply spend longer sitting still inside the declared entrance, which looks the same either way. The alternative, narrowing the parameter to fit the structure, takes a published range away from the people using the template.
+
+**Allow for a line being added.** A block that is `open` takes layers the template never shipped, and a stack whose entrance is staggered per layer finishes later for each one. Declare the hold the design settles into with a line added to every open block, not the one it reaches with the layers it ships.
+
+Where no stretch survives all three, the template declares no structure and keeps its fixed length. That is the right answer for a countdown, for a graphic that drifts throughout, and for anything whose whole duration is movement. The end-to-end suite checks the promise on a bundled template of each kind, at the settings that squeeze its hold hardest (`tests/e2e/render.e2e.test.ts`).
+
 #### Video layers
 
 A `video` layer plays a clip inside the graphic (milestone 26). It takes its room exactly as an image layer does — `size` is a height as a fraction of the frame's short side, the width follows the clip's shape, and `align` places it across the block — and like an image layer it carries **no clip of its own**: a template ships no library ids, so `clip` is left out or `null` and the person using the template chooses one.

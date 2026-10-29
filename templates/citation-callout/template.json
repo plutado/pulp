@@ -30,6 +30,7 @@
     "corporate"
   ],
   "duration": 6,
+  "structure": { "holdFrom": 1.35, "holdTo": 3.97 },
   "parameters": [
     {
       "id": "quote",
@@ -72,16 +73,6 @@
       "min": 15,
       "max": 85,
       "step": 1,
-      "element": "Layout and timing"
-    },
-    {
-      "id": "inOut",
-      "type": "number",
-      "label": "Hold, seconds",
-      "default": 3.4,
-      "min": 1,
-      "max": 10,
-      "step": 0.1,
       "element": "Layout and timing"
     }
   ]
