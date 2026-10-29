@@ -21,11 +21,12 @@ The maintainer's intended sequence for what is decided here and what is already 
 3. **Milestone 26: assets on the stage** — *in progress.* The Assets type group is filled: six per Effects category, the ten Objects categories with 132 themed props, and every theme holding three or more assets (taxonomy version 4). What remains is asset libraries, Video layers, drop-onto-the-stage, and the rights-and-performance item. This is where a new session picks up.
 4. **Rotate layers on the stage** (Decided item 7).
 5. **Timing: any length, set while editing** (Decided item 5).
-6. **Milestone 27:** projects and the application menu.
-7. **The start screen:** examples, recent projects, a tour and a dashboard (Decided item 6).
-8. **Milestone 20:** social-ready export.
-9. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
-10. **Last:** milestone 17 (unsigned builds and the app icon), then milestone 7 (signing and auto-update).
+6. **Milestone 28: per-layer timing, transitions and looks** (Decided item 8; GitHub issue #29). After item 5, whose length and structure a layer's own start and end are set within, and before 27, which has to save all of it.
+7. **Milestone 27:** projects and the application menu.
+8. **The start screen:** examples, recent projects, a tour and a dashboard (Decided item 6).
+9. **Milestone 20:** social-ready export.
+10. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
+11. **Last:** milestone 17 (unsigned builds and the app icon), then milestone 7 (signing and auto-update).
 
 ## Decided
 
@@ -61,6 +62,15 @@ The maintainer's intended sequence for what is decided here and what is already 
    - **Set up and status:** a first-run checklist (ffmpeg found, a library folder added, sample media made), each item a button that does it; the library at a glance (template and media counts, most-used categories, favourites); quick actions (add a library folder, import a pack, import a font). Milestone 14's "guided setup" can fold into the checklist.
 
 7. **Rotate layers on the stage** (extends milestone 25's placement; placed right after milestone 26). Placement is move and scale only today. Add rotation: a rotate handle just above the selected layer's outline turns it about its centre, Shift snaps to 15° steps, and an angle field in the layer's card sets it exactly; "Reset position" clears rotation with offset and scale. Stored with the placement per aspect, in degrees, so a 16:9 layout's rotation doesn't move the 9:16 one. The host applies it around the template's own draw of the layer, like offset and scale, so templates need no changes and the layer's motion still plays, rotated. Selection, hit-testing and snapping follow the rotated outline. Presets, collections, CSV, the cache key and undo carry it.
+
+8. **Per-layer timing, transitions and looks.** A new milestone, **28** (GitHub issue #29), placed after the timing milestone (item 5) and before 27, so that a layer's start and end are set within a graphic whose length can be set, and a project can save the lot. Today a layer is on screen for the whole graphic, enters the way the template or its single entrance override says, and looks exactly as the template draws it; an image layer's treatments (tinted, white, black, shadow, glow) are the only looks there are.
+   - **Start and end per layer:** when a layer appears and when it leaves, within the graphic's own time. Set in the layer's card (seconds or timecode) and shown as one bar per layer under the scrub bar, whose ends can be dragged. A layer can leave before the graphic ends but never outlasts it. Defaults keep today's behaviour: the whole graphic, the template's motion.
+   - **Entrance and exit transitions per layer:** Template, Fade, Slide, Scale, Wipe or None, chosen separately for the entrance and the exit, each with a duration; Slide and Wipe take a direction. Takes over milestone 23's entrance-only override, whose saved values keep working. Transitions finish inside the layer's start and end; the timing is a pure core module with unit tests.
+   - **Looks on every layer type,** set once per layer and not animated: opacity; drop shadow (colour, distance, angle, softness); outer glow (colour, size); outline (colour, width); blur; blend mode (Normal, Multiply, Screen, Overlay); colour adjust (brightness, saturation, tint). Image layers' existing treatments map onto these without changing how saved work looks. **Image and video layers** also take rounded corners (radius) and soft edges (feather width).
+   - **Drawn by the host,** around the template's own draw of the layer, like milestone 25's placement, so templates need no changes. The looks use what the renderer's canvas already provides (shadows, filters, compositing), with the cost of blur on video layers measured and kept responsive while scrubbing.
+   - **Everything carries it:** saved presets, collection items, `.pulpcollection` files, `--param` headlessly, a CSV batch column per layer, the render cache key, undo, and milestone 27's `.pulp` projects.
+   - **Tests:** unit tests for the timing and the look settings; an end-to-end render that checks a layer is absent before its start and after its end, that an exit transition plays, and that a look changes the drawn pixels where expected.
+   - Left out on purpose: inner glow, scribble, roughen, twist, warp and 3D — shape effects that suit vector drawings but not clips and photos.
 
 ## Known issues
 
