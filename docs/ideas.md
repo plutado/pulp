@@ -14,9 +14,9 @@ Each move is a commit, so the history shows when an idea was decided and where i
 
 ## Suggested order
 
-The maintainer's intended sequence for what is decided here and what is already on the roadmap (milestones 23, 24, 25, 26 and 29 are done; **milestone 30, timing, is all but finished**). Scheduling follows it unless a request says otherwise.
+The maintainer's intended sequence for what is decided here and what is already on the roadmap (milestones 23, 24, 25, 26, 29 and 30 are done). Scheduling follows it unless a request says otherwise.
 
-Every milestone decided here now has its number and its GitHub issue, so the two cannot drift: **27** projects and the application menu (#30), **28** per-layer timing, transitions and looks (#29), **29** rotate layers on the stage (#31), **30** timing: any length, set while editing (#32), **31** a start screen (#33). The numbers are the order they were decided in, not the order they are built in — the list below is the order, as `ROADMAP.md`'s is (CONTRIBUTING.md).
+Every milestone decided here now has its number and its GitHub issue, so the two cannot drift: **27** projects and the application menu (#30), **28** per-layer timing, transitions and looks (#29), **29** rotate layers on the stage (#31), **30** timing: any length, set while editing (#32), **31** a start screen (#33), **32** stock library import (#34), **33** layered Photoshop graphics (#35). The numbers are the order they were decided in, not the order they are built in — the list below is the order, as `ROADMAP.md`'s is (CONTRIBUTING.md).
 
 1. **Quick wins from Decided:** all done — ghost slots, element cards for every bundled template, the Festival themes, and browse tree counts for screen readers. (The category search filtering the tree, and the tree showing only where you are, are done — milestone 24.)
 2. **Protection before the larger work:** done — every bundled template is hashed at each aspect and a few fixed frames (`tests/e2e/visual.e2e.test.ts`, 124 templates in `tests/visual/references.json`). It runs locally only until the cross-platform known issue above is settled. CI runs on Windows, macOS and Linux with a dependency audit.
@@ -26,9 +26,11 @@ Every milestone decided here now has its number and its GitHub issue, so the two
 6. **Milestone 28: per-layer timing, transitions and looks** (Decided item 6; GitHub issue #29). After 30, whose length and structure a layer's own start and end are set within, and before 27, which has to save all of it.
 7. **Milestone 27: projects and the application menu** (Decided item 3; GitHub issue #30).
 8. **Milestone 31: a start screen** — examples, recent projects, a tour and a dashboard (Decided item 5; GitHub issue #33).
-9. **Milestone 20:** social-ready export.
-10. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
-11. **Last:** milestone 17 (unsigned builds and the app icon), then milestone 7 (signing and auto-update).
+9. **Milestone 32: stock library import** (Decided item 7; GitHub issue #34).
+10. **Milestone 33: layered Photoshop graphics** (Decided item 8; GitHub issue #35).
+11. **Milestone 20:** social-ready export.
+12. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
+13. **Last:** milestone 17 (unsigned builds and the app icon), then milestone 7 (signing and auto-update).
 
 ## Decided
 
@@ -65,6 +67,24 @@ Every milestone decided here now has its number and its GitHub issue, so the two
    - **Tests:** unit tests for the timing and the look settings; an end-to-end render that checks a layer is absent before its start and after its end, that an exit transition plays, and that a look changes the drawn pixels where expected.
    - Left out on purpose: inner glow, scribble, roughen, twist, warp and 3D — shape effects that suit vector drawings but not clips and photos.
 
+7. **Stock library import.** Milestone **32** (GitHub issue #34), built after 30 and 28, whose in, hold and out parts and per-layer looks it uses. Large collections of stock graphics, clips and music, hundreds of gigabytes on external drives or in archives, often delivered as sets of files that belong together and with an index of their own, brought in as they were organised. Milestone 26's asset libraries already read plain media where it lies; this makes a whole collection browsable at once and keeps its structure.
+   - **Previews before full media:** a very large library is indexed from small previews and thumbnails first, so it can be browsed and searched straight away; the full-quality file is read only when an item is placed or rendered. The index records where each full file lives and says plainly when its drive or archive is not available.
+   - **Known as well as owned:** a library can list everything a catalog or index says exists, with items whose files are not on this computer shown greyed out, so a person sees the whole collection and what is missing from it.
+   - **Importing an existing catalog's organisation:** when a library comes with its own index (names, categories, keywords, thumbnails), Pulp reads it so the imported items browse and search the way they were organised, mapped onto Pulp's taxonomy, rather than only by folder names.
+   - **Clip sets as one asset:** separate entry, loop and exit files that belong together are recognised as one item that stretches: the entry plays once, the loop repeats for as long as the chosen length needs, then the exit plays — milestone 30's parts, with the files supplying them instead of a template.
+   - **Several layers in one clip set:** a set can carry more than one layer that moves together (a main graphic and a flare, say), each with its own entry, loop and exit, placed and timed as one item while each layer keeps its own look (milestone 28).
+   - **Rights:** imported media stays where it is, referenced in place, never copied into packs, exports or the repository; tests use generated fixtures only.
+
+8. **Layered Photoshop graphics.** Milestone **33** (GitHub issue #35): read a `.psd` as a stack of layers, so a layered still from a stock library can be browsed and used without flattening it first.
+   - **Reading:** layers, their names, order, visibility, opacity and blend modes where the file has them; groups shown as groups. Reading only, no editing of the file in Pulp.
+   - **Browsing:** a flattened preview for the grid and the stage, with the layer list shown in the Info tab.
+   - **Showing and hiding layers** in the preview, kept with the item like any other edit (presets, collections, undo, the render cache key).
+   - **Placing:** as one picture, or as separate image layers that keep their positions, then moved and styled with milestones 25 and 28.
+   - **Limits stated plainly:** layer effects, smart objects and adjustment layers Pulp can't reproduce are named rather than silently dropped; the flattened composite stored in the file is the fallback.
+   - **Tests** on generated `.psd` fixtures only.
+
+9. **Output presets per kind of asset:** an item for milestone 14, defaults per type and guided setup (GitHub issue #14): one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen, alongside "Save as default for this type" and the guided setup.
+
 ## Known issues
 
 - **Linux CI: 8K frames are clipped by one pixel** (CI run 40240858897 on `fb2b3a5`, `render-linux`): the virtual screen is exactly 7680 × 4320, and an offscreen window is kept inside it, so the 8K test captured 7679 × 4319. The CI virtual screen is now 8192 × 4608, larger than any render; the underlying clipping is the Linux issue above.
@@ -89,10 +109,3 @@ Every milestone decided here now has its number and its GitHub issue, so the two
 - **Localisation** (after 1.0): UI strings moved out of the code so they can be translated; right-to-left and complex scripts in text layers (Noto Sans is bundled).
 - **Light and high-contrast themes** (after 1.0), following the system setting; Pulp is dark-only today.
 - **Customisable keyboard shortcuts** (after 1.0), once the application menu exists.
-- **Layered Photoshop graphics:** read a `.psd` as a stack of layers, so a layered still from a stock library can be browsed with its layers listed, have layers shown or hidden in the preview, and be placed as one picture or as separate image layers. Reading only (no editing in Pulp); flattened previews for the grid; layer names and blend modes kept where the file has them.
-- **Previews before full media, for very large libraries:** a library of hundreds of gigabytes (whole stock collections on external drives or archives) is indexed from small previews and thumbnails first, so it can be browsed and searched straight away, and the full-quality file is read only when an item is placed or rendered. The index records where each full file lives and says plainly when its drive or archive is not available.
-- **Clip sets as one asset:** separate entry, loop and exit files that belong together (a common way stock graphics are delivered) are recognised as one item that stretches: the entry plays once, the loop repeats for as long as the chosen length needs, then the exit plays. It fits the in, hold and out parts of milestone 30 (#32), with the files supplying the parts instead of a template.
-- **Several layers in one clip set:** a set can carry more than one layer that moves together, for example a main graphic and a flare, each with its own entry, loop and exit, placed and timed as one item while each layer keeps its own look.
-- **Known as well as owned:** a library can list everything a catalog or index says exists, with items whose files are not on this computer shown greyed out, so a person sees the whole collection and what is missing from it.
-- **Importing an existing catalog's organisation:** when a library comes with its own index (names, categories, keywords, thumbnails), Pulp reads it so the imported items browse and search the way they were organised, rather than only by folder names.
-- **Output presets per kind of asset:** one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen; related to milestone 14's guided setup.
