@@ -4,7 +4,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 ## Where things stand
 
-**Milestone 29, rotating layers on the stage, is done** — all 4 items; milestone 26, assets on the stage, is done before it. **Milestone 30, timing, is next.** Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
+**Milestone 30, timing — any length set while editing, is the one in progress.** Milestones 26 and 29 are done before it. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
 What is left after 26: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Four verification items wait on hardware: two need the test Mac, two a Windows machine (see `docs/ideas.md`, Decided item 1, which replaces "hardware-blocked" with a Windows VM). Known issues and anything not yet scheduled are in `docs/ideas.md`.
 
@@ -32,6 +32,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 25. Move and resize layers on the stage | 16-22 h |
 | 26. Assets on the stage (**done**) | 30-46 h |
 | 29. Rotate layers on the stage (**done**) | 5-8 h |
+| 30. Timing: any length, set while editing (**in progress**) | 18-28 h |
 | 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 8-13 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -310,6 +311,17 @@ Right after milestone 26, and the last of milestone 25's placement: a layer can 
 - [x] A rotate handle just above the selected layer's outline turns it about its centre, with Shift snapping to 15° steps and the angle shown while it turns; an angle field in the layer's card sets it exactly, and "Reset position" clears rotation along with the offset and the scale (2-3 h)
 - [x] Selection, hit-testing and snapping follow the rotated outline: the selection is drawn as the turned rectangle it is, a click takes the layer where it was really drawn, and a move snaps the rotated shape's own edges to the lines a frame cares about. *A turn goes about what the layer draws, not the slot: a text layer's slot is its whole block, so the page now reports the ink box beside it and both the canvas and the outline turn about its centre* (1-2 h)
 - [x] Everything carries it — presets, collections, CSV, `--param @layers`, the render cache key and undo — and an end-to-end render proves a rotated layer is drawn turned, with unit tests for the arithmetic (1 h)
+
+## 30. Timing: any length, set while editing (18-28 h; GitHub issue #32)
+
+After milestone 29. A template's length is fixed in its manifest today (mostly 5-8 seconds); Set in and Set out only shorten it, the frame rate changes how many frames are drawn but not how long, and only a few templates expose pacing parameters. A lower third that should stay up for twenty seconds cannot. The length becomes something set while editing, and a template says which parts of it may stretch.
+
+- [ ] **Templates declare their structure:** an animate-in part, a hold and an animate-out part, in the manifest and validated in the format. The host remaps time so the entrance and the exit keep their designed speed and only the hold stretches or shrinks; a template that declares no structure keeps its fixed length, exactly as now. A pure core module with unit tests, used by the preview and the render alike (4-6 h)
+- [ ] **Length while editing:** a Length control in the Parameters tab's "Layout and timing" card, in seconds or timecode, with a floor of the entrance plus the exit; the scrub bar shows the in, hold and out parts as shaded segments, and the hold's edges can be dragged. The preview plays at the new length at once, and undo covers every change (4-6 h)
+- [ ] **Everything downstream picks it up:** the Output tab shows the length and trims within it, and presets, collections, CSV batch, the render cache key and a `--length` on the command line carry it (3-5 h)
+- [ ] **Loops and transitions:** backgrounds and animated loops repeat seamlessly to any length (bringing forward milestone 15's loop item); a transition keeps its designed length, with an optional speed control (3-5 h)
+- [ ] **Frame sequences play on the stage:** a run of numbered frames previewed on its own shows only its first frame today, because the stage cannot hand a folder of files to a video element. Step it at its rate through the decode path milestone 26 built for Video layers, so previewing a sequence matches how it plays as a layer and in a render; a sequence records no rate, so the one Pulp states becomes a default a person can change (2-3 h)
+- [ ] **The bundled templates declare their parts,** titles, lower thirds, callouts and overlays first, and the format guide says how (2-3 h)
 
 ## 20. Social-ready export (8-13 h)
 
