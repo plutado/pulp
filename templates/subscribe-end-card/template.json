@@ -29,6 +29,7 @@
     "playful"
   ],
   "duration": 6,
+  "structure": { "holdFrom": 1.64, "holdTo": 5.36 },
   "parameters": [
     {
       "id": "channel",

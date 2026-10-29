@@ -30,6 +30,7 @@
     "elegant"
   ],
   "duration": 7,
+  "structure": { "holdFrom": 1.4, "holdTo": 5.76 },
   "blocks": [
     {
       "id": "words",

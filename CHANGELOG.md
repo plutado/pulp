@@ -49,6 +49,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- Six bundled templates declare their parts, so their length can be set: the Boardroom, Matchday and Newsdesk idents, and the memorial, thanks and subscribe end cards. Each one's hold was measured rather than guessed — every frame differenced against the one before to find the quiet stretch between the movements, then the stretch checked end to end so that a slow drift could not pass for a hold — and none of them renders any differently at the length it was designed at.
+
 - The scrub bar shows a graphic's parts: the entrance and the exit shaded firmly, the hold that stretches between them shaded lightly, so what a length change will and will not touch is visible before it is made. A handle at the graphic's end sets the length by hand — drag it, or use the arrows, since it is a slider — and it stops where the entrance and the exit leave no hold. The Output tab names the length too, beside what it was designed at, since that is where a render is set up.
 
 - A **Length** control in the Parameters tab, for a template that says what may stretch: seconds, with a floor of its entrance plus its exit, a line saying what stretches and what keeps its speed, and a way back to the length it was designed at. The preview follows at once — the scrub bar, the transport and the timecode all count the new length — and the choice is one undo step. It rides with the parameters, so a preset, a collection card, a CSV row and the render cache carry it without anything new.
