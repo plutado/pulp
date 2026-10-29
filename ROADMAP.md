@@ -43,7 +43,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **360-573 h** |
-| **Still open through 1.0 (unticked items only)** | **57-90 h** |
+| **Still open through 1.0 (unticked items only)** | **53-84 h** |
 | **Total including post-1.0 items** | **389-626 h** |
 
 ## 0. Foundation (done)
@@ -328,7 +328,7 @@ After milestone 29. A template's length is fixed in its manifest today (mostly 5
 
 After milestone 30, whose length a layer's own start and end are set within, and before 27, which has to save all of it. Today a layer is on screen for the whole graphic, arrives the way the template or its one entrance override says, and looks exactly as the template draws it; an image layer's treatments — tinted, white, black, shadow, glow — are the only looks there are.
 
-- [ ] **A layer's own start and end:** when it appears and when it leaves, in seconds of the graphic's own time, set in the layer's card as seconds or timecode. A layer may leave before the graphic ends but never outlast it, and the default is the whole graphic, so nothing already saved changes. A pure core module with unit tests, applied by the host around the template's own draw as milestone 25's placement is, and mirrored in the bridge so the preview, the stage and the render cannot disagree (4-6 h)
+- [x] **A layer's own start and end:** when it appears and when it leaves, in seconds of the graphic's own time, set in the layer's card as seconds or timecode. A layer may leave before the graphic ends but never outlast it, and the default is the whole graphic, so nothing already saved changes. A pure core module with unit tests, applied by the host around the template's own draw as milestone 25's placement is, and mirrored in the bridge so the preview, the stage and the render cannot disagree. *`layer-time.ts`; the seconds are the ones a person is watching — milestone 30's chosen length — so the same span is right at every length. Seconds, as the Length control is; a timecode field would be the first in the app and belongs with the bars. A span is held to leaving the layer on screen for a moment, since hiding it is a different thing and says so* (4-6 h)
 - [ ] **The bars under the scrub bar:** one per layer of the block being edited, showing where it is on screen against the graphic's length, with ends that drag and a keyboard equivalent. Milestone 30's in, hold and out parts shade behind them, so a start can be read against what the template is doing (3-5 h)
 - [ ] **Entrance and exit transitions per layer:** Template, Fade, Slide, Scale, Wipe or None, chosen separately for the entrance and the exit, each with its own duration; Slide and Wipe take a direction. Both are held inside the layer's start and end, so a transition cannot run past the moment the layer leaves. Takes over milestone 23's entrance-only override, whose saved values keep working (5-7 h)
 - [ ] **Looks on every layer type,** set once per layer and not animated: opacity; drop shadow (colour, distance, angle, softness); outer glow (colour, size); outline (colour, width); blur; blend mode (Normal, Multiply, Screen, Overlay); colour adjust (brightness, saturation, tint). Drawn by the host with what the renderer's canvas already provides, with the cost of a blur on a video layer measured and kept responsive while scrubbing (6-9 h)

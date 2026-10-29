@@ -25,6 +25,7 @@
 import { aspectOf, type Size } from './aspect';
 import { boxFor, fitImage, type ImageValue, type PxBox } from './image-slot';
 import { motionDraw, type MotionAt } from './layer-motion';
+import { spanAt, type LayerSpan, type WatchedAt } from './layer-time';
 import { DEFAULT_MAX_LINES, DEFAULT_MOTION, IDENTITY_PLACEMENT, placementFor, type Block, type ImageLayer, type Layer, type LayerMotion, type LayerValues, type TextCase, type TextLayer, type VideoLayer } from './layers';
 import type { TemplateManifest } from './manifest';
 import { clipWindowIndexAt, type ClipSource, type ClipValue } from './video-layer';
@@ -54,6 +55,8 @@ interface LayerStateBase {
   /** Where the person put it, for this frame's aspect, in pixels of this frame; identity when never moved. */
   /** The person's placement for this frame's shape: offsets in pixels, the scale, the angle in degrees. */
   placement: { dx: number; dy: number; scale: number; rotate: number };
+  /** When it comes and goes, in seconds of the graphic as it is watched; absent is the whole of it (src/core/layer-time.ts). */
+  span?: LayerSpan;
 }
 
 export interface TextLayerState extends LayerStateBase {
@@ -178,6 +181,14 @@ export interface LayoutOptions {
    * without it every layer takes the template's own movement.
    */
   at?: MotionAt;
+  /**
+   * This frame's place in the graphic **as it is watched** — the chosen length,
+   * which milestone 30 let differ from the template's own clock — which a
+   * layer's own start and end are set in (src/core/layer-time.ts). The bridge
+   * works it out from the frame state; without it every layer is on screen for
+   * the whole graphic, as every layer was before milestone 28.
+   */
+  watched?: WatchedAt;
 }
 
 /** Measures `text` at a font; the bridge hands the canvas's measurer, tests a stub. */
@@ -276,14 +287,21 @@ function alignedX(align: 'left' | 'center' | 'right', boxX: number, boxWidth: nu
  * An override replaces the whole of the template's movement for that layer,
  * including any letter spacing the template was animating: the person said how
  * this layer arrives, so the template no longer has a say in it.
+ *
+ * A layer's own start and end (milestone 28) are the last word on top of all of
+ * it: outside them the layer is simply not there, whether the movement is the
+ * template's or the person's.
  */
 function layerDraws(block: BlockState, options: LayoutOptions): LayerDraw[] {
   const asked = block.layers.map((layer, position) => ({ ...DEFAULT_DRAW, ...(options.each?.(layer, position) ?? {}) }));
   const at = options.at;
+  const watched = options.watched;
   const envelope = asked.reduce((most, draw) => Math.max(most, draw.alpha), 0);
   return block.layers.map((layer, position) => {
     const own = at ? motionDraw(layer.motion, at, { distance: layerDistance(layer), direction: block.direction }) : null;
-    const draw = own ? { ...own, alpha: own.alpha * envelope } : asked[position]!;
+    const before = own ? { ...own, alpha: own.alpha * envelope } : asked[position]!;
+    const on = watched && layer.span ? spanAt(layer.span, watched) : 1;
+    const draw = on === 1 ? before : { ...before, alpha: before.alpha * on };
     // The person's placement is applied around whatever the template (or the override) asked:
     // the offsets add and the scales multiply, so a placed layer still rides the design.
     const placed = layer.placement;
@@ -433,7 +451,7 @@ function layerState(layer: Layer, position: number, short: number, size: Size, c
   const placement = placed === IDENTITY_PLACEMENT
     ? { ...IDENTITY_PLACEMENT }
     : { dx: placed.dx * size.width, dy: placed.dy * size.height, scale: placed.scale, rotate: placed.rotate };
-  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', motion: layer.motion ?? { ...DEFAULT_MOTION }, placement };
+  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', motion: layer.motion ?? { ...DEFAULT_MOTION }, placement, ...(layer.span ? { span: layer.span } : {}) };
   if (layer.type === 'text') {
     const text = layer as TextLayer;
     return {

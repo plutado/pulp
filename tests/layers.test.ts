@@ -311,6 +311,38 @@ describe('resolveLayers', () => {
     expect(cleared.values.strap![0]!.placement).toBeUndefined();
   });
 
+  it('carries a layer\'s own start and end, and drops what says nothing (milestone 28)', () => {
+    const { values, issues } = resolveLayers(manifest(), { strap: [{ id: 'name', span: { start: 2, end: 8 } }] });
+    expect(issues).toEqual([]);
+    expect(values.strap![0]!.span).toEqual({ start: 2, end: 8 });
+    // No end at all is the end of the graphic, whatever length it is being watched at.
+    const open = resolveLayers(manifest(), { strap: [{ id: 'name', span: { start: 1.5 } }] });
+    expect(open.values.strap![0]!.span).toEqual({ start: 1.5, end: null });
+    // The whole graphic is no span; a layer nobody has timed serializes as it always did.
+    const clean = resolveLayers(manifest(), { strap: [{ id: 'name', span: { start: 0, end: null } }] });
+    expect(clean.values.strap![0]!.span).toBeUndefined();
+    expect('span' in clean.values.strap![0]!).toBe(false);
+    // Null clears a span a stored stack carried.
+    const cleared = resolveLayers(manifest(), { strap: [{ id: 'name', span: null }] });
+    expect(cleared.values.strap![0]!.span).toBeUndefined();
+    // Seconds are kept to the millisecond, as a length is.
+    const fine = resolveLayers(manifest(), { strap: [{ id: 'name', span: { start: 1.23456 } }] });
+    expect(fine.values.strap![0]!.span!.start).toBe(1.235);
+  });
+
+  it('refuses a start or an end it cannot use, naming the field, and keeps the rest', () => {
+    const bad = resolveLayers(manifest(), { strap: [{ id: 'name', span: { start: -1, end: 4 } }] });
+    expect(bad.issues.map((i) => i.message).join(' ')).toContain('span.start must be a number of seconds');
+    // The good field lands even though its neighbour did not.
+    expect(bad.values.strap![0]!.span).toEqual({ start: 0, end: 4 });
+    const wrong = resolveLayers(manifest(), { strap: [{ id: 'name', span: 'later' }] });
+    expect(wrong.issues.map((i) => i.message).join(' ')).toContain('span must be an object of start and end');
+    expect(wrong.values.strap![0]!.span).toBeUndefined();
+    const far = resolveLayers(manifest(), { strap: [{ id: 'name', span: { end: 9999 } }] });
+    expect(far.issues.map((i) => i.message).join(' ')).toContain('or null to run to the end');
+    expect(far.values.strap![0]!.span).toBeUndefined();
+  });
+
   it('carries an angle, folded into a half turn either way (milestone 29)', () => {
     const turned = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { rotate: 15 } } }] });
     expect(turned.issues).toEqual([]);

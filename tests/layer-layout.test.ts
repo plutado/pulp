@@ -414,3 +414,61 @@ describe("a layer placed on the stage (milestone 25)", () => {
     expect(laid.layers[0]!.draw).toMatchObject({ alpha: 1, dx: 50, dy: 0, scale: 2 });
   });
 });
+
+describe('a layer with a start and an end of its own (milestone 28)', () => {
+  const each = () => ({ alpha: 1 });
+  const at = { time: 2, duration: 6 };
+  const alphaAt = (elapsed: number, layer: LayerState) =>
+    layoutBlock(block([layer]), measure, noImages, { each, at, watched: { elapsed, length: 6 } }).layers[0]!.draw.alpha;
+
+  it('leaves a layer that says nothing on screen for the whole graphic', () => {
+    const plain = text();
+    expect([alphaAt(0, plain), alphaAt(3, plain), alphaAt(5.9, plain)]).toEqual([1, 1, 1]);
+    // And with no watched time at all — a caller that is not drawing a frame — nothing changes.
+    const timed = text({ span: { start: 2, end: 4 } });
+    expect(layoutBlock(block([timed]), measure, noImages, { each, at }).layers[0]!.draw.alpha).toBe(1);
+  });
+
+  it('draws it between its start and its end, and nowhere else', () => {
+    const timed = text({ span: { start: 2, end: 4 } });
+    expect([alphaAt(1.9, timed), alphaAt(2, timed), alphaAt(3.9, timed), alphaAt(4, timed)]).toEqual([0, 1, 1, 0]);
+  });
+
+  it('has the last word over the template\'s own movement and over an override', () => {
+    // The template is showing this layer in full; the span says it has not arrived.
+    const owned = text({ span: { start: 3, end: null } });
+    expect(alphaAt(1, owned)).toBe(0);
+    // An override says the layer is simply there; the span still takes it off screen.
+    const over = text({ motion: { type: 'none', delay: 0 }, span: { start: 3, end: null } });
+    expect(alphaAt(1, over)).toBe(0);
+    expect(alphaAt(4, over)).toBe(1);
+  });
+
+  it('dims with the design rather than replacing it: the template clearing still clears it', () => {
+    const timed = text({ span: { start: 0, end: 4 } });
+    const going = layoutBlock(block([timed]), measure, noImages, { each: () => ({ alpha: 0.5 }), at, watched: { elapsed: 2, length: 6 } });
+    expect(going.layers[0]!.draw.alpha).toBe(0.5);
+  });
+
+  it('leaves the layout alone: a layer waiting its turn keeps the room the stack gave it', () => {
+    const b = block([text({ id: 'a' }), text({ id: 'b', text: 'Second', position: 1, span: { start: 3, end: null } })]);
+    const before = layoutBlock(b, measure, noImages, { each, at, watched: { elapsed: 0, length: 6 } });
+    const during = layoutBlock(b, measure, noImages, { each, at, watched: { elapsed: 4, length: 6 } });
+    expect(before.layers[1]!.draw.alpha).toBe(0);
+    expect(during.layers[1]!.draw.alpha).toBe(1);
+    expect(before.layers[1]!.box).toEqual(during.layers[1]!.box);
+  });
+
+  it('is carried into the layer states a block is built from', () => {
+    const r = validateManifest(rawManifest({
+      blocks: [{ id: 'card', label: 'Card', box: { x: 0.1, y: 0.2, width: 0.8, height: 0.5 }, layers: [{ id: 'title', type: 'text', label: 'Title', text: 'Hello' }] }],
+    }));
+    if (!r.ok) throw new Error(r.errors.map((e) => e.path).join());
+    const title = r.manifest.blocks[0]!.layers[0] as TextLayer;
+    const timed: TextLayer = { ...title, span: { start: 1, end: 3 } };
+    const states = blockStates(r.manifest, { card: [timed] }, { width: 1920, height: 1080 }).card!;
+    expect(states.layers[0]!.span).toEqual({ start: 1, end: 3 });
+    // A layer with none has none, so nothing a template ships carries a key it never asked for.
+    expect(blockStates(r.manifest, { card: [title] }, { width: 1920, height: 1080 }).card!.layers[0]!.span).toBeUndefined();
+  });
+});

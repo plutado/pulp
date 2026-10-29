@@ -18,6 +18,8 @@
 
 import { sanitizeImageValue, validateSlotBoxes, type ImageValue, type SlotBoxes } from './image-slot';
 import { sanitizeClipValue, type ClipValue } from './video-layer';
+import { isWholeGraphic, roundSeconds, type LayerSpan } from './layer-time';
+import { MAX_LENGTH_SECONDS } from './timing';
 import { isValidColor, type TemplateManifest, type ValidationIssue } from './manifest';
 
 export const LAYER_TYPES = ['text', 'image', 'video'] as const;
@@ -153,6 +155,8 @@ export const LAYER_LIMITS = {
   motionDelay: { min: 0, max: 10 },
   placementOffset: { min: -1, max: 1 },
   placementScale: { min: 0.05, max: 10 },
+  /** A layer's own start and end, in seconds of the graphic; no graphic may run longer than this. */
+  spanSeconds: { min: 0, max: MAX_LENGTH_SECONDS },
 } as const;
 
 interface LayerBase {
@@ -169,6 +173,13 @@ interface LayerBase {
   motion: LayerMotion;
   /** Where the person put it, by aspect; absent until a layer is moved or scaled on the stage. */
   placement?: LayerPlacements;
+  /**
+   * When it comes and goes, in seconds of the graphic as it is watched
+   * (milestone 30's chosen length, not the template's own clock); absent until
+   * a layer is given a time of its own, which is the whole graphic
+   * (src/core/layer-time.ts).
+   */
+  span?: LayerSpan;
 }
 
 export interface TextLayer extends LayerBase, Typography {
@@ -403,12 +414,47 @@ export function placementFor(placements: LayerPlacements | undefined, aspect: st
   return placements?.[aspect] ?? placements?.default ?? IDENTITY_PLACEMENT;
 }
 
+/**
+ * A layer's own start and end, read against a base: an object naming `start`
+ * and `end` in seconds, either of which may be left out, and `end: null` for
+ * "as long as the graphic". A span that leaves the layer on screen for the
+ * whole graphic is no span at all, so a layer nobody has timed serializes
+ * exactly as it always did.
+ *
+ * What a start past the graphic's end, or an end before its start, comes to is
+ * settled when the frame is drawn and the graphic's length is known
+ * (`spanWindow` in src/core/layer-time.ts), not here: the length is a use-time
+ * choice and the same stored span is right at every one of them.
+ */
+function readSpan(raw: unknown, base: LayerSpan | undefined, issue: (field: string, message: string) => void): LayerSpan | undefined {
+  if (raw === undefined) return base ? { ...base } : undefined;
+  if (raw === null) return undefined;
+  if (!isRecord(raw)) {
+    issue('span', 'must be an object of start and end in seconds, such as {"start":2,"end":8}');
+    return base ? { ...base } : undefined;
+  }
+  const out: LayerSpan = base ? { ...base } : { start: 0, end: null };
+  if (raw.start !== undefined) {
+    if (inRange(raw.start, LAYER_LIMITS.spanSeconds)) out.start = roundSeconds(raw.start);
+    else issue('span.start', `must be a number of seconds from ${LAYER_LIMITS.spanSeconds.min} to ${LAYER_LIMITS.spanSeconds.max}`);
+  }
+  if (raw.end !== undefined) {
+    if (raw.end === null) out.end = null;
+    else if (inRange(raw.end, LAYER_LIMITS.spanSeconds)) out.end = roundSeconds(raw.end);
+    else issue('span.end', `must be a number of seconds from ${LAYER_LIMITS.spanSeconds.min} to ${LAYER_LIMITS.spanSeconds.max}, or null to run to the end`);
+  }
+  return isWholeGraphic(out) ? undefined : out;
+}
+
 /** The fields a layer of either type has, read against a base the same way as typography. */
-function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion' | 'placement'>, issue: (field: string, message: string) => void): Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion' | 'placement'> {
+function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion' | 'placement' | 'span'>, issue: (field: string, message: string) => void): Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion' | 'placement' | 'span'> {
   const out = { ...base, motion: readMotion(raw.motion, base.motion, issue) };
   const placement = readPlacement(raw.placement, base.placement, issue);
   if (placement) out.placement = placement;
   else delete out.placement;
+  const span = readSpan(raw.span, base.span, issue);
+  if (span) out.span = span;
+  else delete out.span;
   if (raw.label !== undefined) {
     if (isNonEmptyString(raw.label)) out.label = raw.label.trim();
     else issue('label', 'must be a non-empty string');
@@ -456,7 +502,7 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
   const id = typeof raw.id === 'string' ? raw.id : '';
   const fresh = newLayer(raw.type, block, id, typeof raw.label === 'string' ? raw.label.trim() : undefined);
   const base = readLayerBase(raw, fresh, issue);
-  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, motion: base.motion, ...(base.placement ? { placement: base.placement } : {}) };
+  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, motion: base.motion, ...(base.placement ? { placement: base.placement } : {}), ...(base.span ? { span: base.span } : {}) };
   let layer: Layer;
   if (raw.type === 'text') {
     if (typeof raw.text !== 'string') issue('text', 'must be a string (the layer\'s default text)');
@@ -574,6 +620,18 @@ export function hasBlocks(manifest: Pick<TemplateManifest, 'blocks'>): boolean {
 function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, report: (message: string) => void): Layer {
   const issue = (field: string, message: string) => report(`${field} ${message}; kept`);
   const common = readLayerBase(raw, base, issue);
+  /**
+   * The layer, with `common` over its base. The two optionals need saying twice: spreading
+   * `common` cannot clear a key it does not have, so a `"placement": null` or `"span": null`
+   * — how a stored stack says "back to the template's" — would otherwise let the base's own
+   * value through.
+   */
+  const settled = <T extends Layer>(layer: T): T => {
+    const out = { ...layer };
+    if (!common.placement) delete out.placement;
+    if (!common.span) delete out.span;
+    return out;
+  };
   if (base.type === 'text') {
     const typography = readTypography(raw, base, '', issue);
     let text = base.text;
@@ -586,7 +644,7 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
       if (Number.isInteger(raw.maxLines) && inRange(raw.maxLines, LAYER_LIMITS.maxLines)) maxLines = raw.maxLines as number;
       else issue('maxLines', `must be an integer from ${LAYER_LIMITS.maxLines.min} to ${LAYER_LIMITS.maxLines.max}`);
     }
-    return { ...base, ...common, ...typography, text, maxLines };
+    return settled({ ...base, ...common, ...typography, text, maxLines });
   }
   let image = base.type === 'image' ? base.image : null;
   if (base.type === 'image' && raw.image !== undefined) {
@@ -611,8 +669,8 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
     else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`);
   }
   void block;
-  if (base.type === 'video') return { ...base, ...common, clip, size, align };
-  return { ...base, ...common, image, size, align };
+  if (base.type === 'video') return settled({ ...base, ...common, clip, size, align });
+  return settled({ ...base, ...common, image, size, align });
 }
 
 /**

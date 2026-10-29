@@ -254,6 +254,24 @@ A slide travels the layer's own size — a line's type size, a picture's height 
 
 `window.pulpLayoutBlock` applies all of this from the frame state it is already given, so **a template that uses blocks supports overrides without changing a line**. A template that lays a block out by hand, without the helper, is simply not offering the feature.
 
+#### A layer's own start and end
+
+A layer is drawn for the whole of the graphic unless it carries a `span` of its own (milestone 28), set in the Parameters tab under **Advanced**:
+
+| Field | Type | Description |
+|---|---|---|
+| `start` | number | Seconds at which the layer appears; 0, the default, is the first frame. |
+| `end` | number or `null` | Seconds at which it leaves — the moment it has gone, so a layer ending at 3 is not drawn at 3. `null`, the default, runs it to the end of the graphic. |
+
+Both are seconds of the graphic **as it is watched** — milestone 30's chosen length — not of the template's own clock. The two differ as soon as a length is asked for: someone who wants a line five seconds into a lower third stretched to twenty means five seconds into the twenty they are watching, so that is what a span counts, and the same stored span is right at every length. A video layer's `delay` is timed this way too.
+
+Two rules hold a span to shortening a layer's time on screen rather than taking it away:
+
+- **A layer never outlasts the graphic.** An end past the graphic's length is its length, which is what no end at all means too.
+- **A layer is always on screen for a moment.** A start past the end of the graphic, or an end at or before the start, is held back to leave 0.05 s — the same reasoning as the entrance always finishing inside the template, and as milestone 30's least hold. A layer that should not be there at all is **hidden**, which is a different thing and says so.
+
+The span is the last word: outside it the layer is not drawn, whether the movement for that frame was the template's own or an override's. The layout is untouched — a layer waiting its turn keeps the room the stack gave it — so a design does not reflow as layers come and go. A layer with no span serializes exactly as it always did, and `"span": null` in a stored stack puts it back to the whole graphic.
+
 #### A layer's own placement
 
 A layer may carry a `placement`: where the person using the template put it, set by dragging it on the stage (milestone 25). It is an object keyed by aspect id (or `"default"`), each entry any of:

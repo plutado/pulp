@@ -577,6 +577,49 @@ describe.skipIf(!available)('end-to-end render', () => {
     }
   }, 240_000);
 
+  it('draws a layer only between its own start and end, on the clock the graphic is watched at (milestone 28)', async () => {
+    // One line of a lower third is given a start and an end; the rest of the graphic is untouched,
+    // so a frame either side of the span differs from one inside it by exactly that line.
+    const timed = ['--param', `@layers=${JSON.stringify({ strap: [{ id: 'name', span: { start: 2, end: 4 } }] })}`];
+    const small = ['--fps', '25', '--size', '192x108'];
+    const diff = async (a: string, b: string): Promise<number> => {
+      const read = async (file: string) => {
+        const { stdout } = await runBoundedBuffer(ffmpeg, ffmpegArgs(['-v', 'error', '-i', file, '-vf', 'format=rgba', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']), { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
+        return stdout;
+      };
+      const [x, y] = await Promise.all([read(a), read(b)]);
+      let total = 0;
+      for (let i = 0; i < x.length; i++) total += Math.abs(x[i]! - y[i]!);
+      return total / (x.length / 4);
+    };
+    const frame = (name: string, n: number) => join(out, `${name}_${String(n).padStart(5, '0')}.png`);
+
+    const plain = await render('pulp.samples.lower-third-bar', 'png-sequence', 'span-plain', { extra: small });
+    expect(plain.code, plain.stderr).toBe(0);
+    const span = await render('pulp.samples.lower-third-bar', 'png-sequence', 'span-cut', { extra: [...small, ...timed] });
+    expect(span.code, span.stderr).toBe(0);
+
+    // Inside the span the two renders are the same picture; outside it the line is missing.
+    for (const n of [50, 75, 99]) {
+      expect(await diff(frame('span-cut', n), frame('span-plain', n)), `frame ${n} is inside the span`).toBeLessThan(0.01);
+    }
+    for (const n of [25, 49, 100, 125]) {
+      expect(await diff(frame('span-cut', n), frame('span-plain', n)), `frame ${n} is outside the span`).toBeGreaterThan(1);
+    }
+
+    // The clock is the one a person is watching, not the template's own: asked for twenty seconds,
+    // the line still comes at two and goes at four of those twenty, rather than being stretched
+    // along with the hold. Frame 50 is 2.00 s and frame 100 is 4.00 s either way.
+    const long = await render('pulp.samples.lower-third-bar', 'png-sequence', 'span-long', { extra: [...small, '--length', '20', ...timed] });
+    expect(long.code, long.stderr).toBe(0);
+    expect((await readdir(out)).filter((f) => /^span-long_\d{5}\.png$/.test(f))).toHaveLength(500);
+    const inside = await diff(frame('span-long', 75), frame('span-long', 60));
+    expect(inside, 'the line is there right through its own two seconds').toBeLessThan(0.01);
+    for (const n of [49, 100, 300, 480]) {
+      expect(await diff(frame('span-long', n), frame('span-long', 75)), `frame ${n} of five hundred is outside the span`).toBeGreaterThan(1);
+    }
+  }, 240_000);
+
   it('draws a layer turned, about the words rather than the block (milestone 29)', async () => {
     // The hairline lower third is alpha, and its "who" line is aligned at the left of a block
     // that spans most of the frame — the case where turning about the slot would swing the line

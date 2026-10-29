@@ -1219,6 +1219,60 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+    it('gives one layer a start and an end of its own, on the clock the graphic is watched at (milestone 28)', async () => {
+      const subtitle = `document.querySelector('#params .layer-row[data-layer=subtitle]')`;
+      const summary = () => page.eval<string>(`${subtitle}.querySelector('.layer-advanced summary').textContent`);
+      try {
+        // The card is 5 s at 30 fps, and both its lines are well in by 1.5 s (frame 45).
+        await scrubAndWait(45);
+        const both = await untilDrawn((d) => d.bands.length === 2, 'the title and the subtitle together');
+        expect(both.bands, JSON.stringify(both)).toHaveLength(2);
+
+        await page.eval(`${subtitle}.querySelector('.layer-advanced').open = true`);
+        // With no span of its own the layer is on screen for the whole graphic, so End starts at
+        // the graphic's own length and the folded line says nothing about timing.
+        expect(await page.eval<string>(`${subtitle}.querySelector('input[aria-label="Subtitle start"]').value`)).toBe('0');
+        expect(await page.eval<string>(`${subtitle}.querySelector('input[aria-label="Subtitle end"]').value`)).toBe('5');
+        expect(await summary()).toBe('Advanced');
+
+        await fire('[data-layer=subtitle] input[aria-label="Subtitle start"]', '2', 'change');
+        await fire('[data-layer=subtitle] input[aria-label="Subtitle end"]', '3', 'change');
+        await until(() => summary().then((t) => t === 'Advanced · 2-3 s'), 'the summary to say when the layer is on screen');
+
+        // The same frame as before, and the line is not there yet.
+        await scrubAndWait(45);
+        const waiting = await untilDrawn((d) => d.bands.length === 1, 'the title alone before the subtitle starts');
+        expect(waiting.bands, JSON.stringify(waiting)).toHaveLength(1);
+        // Two seconds in it has arrived, and by three it has gone — the layout never moved, so
+        // the title stays exactly where it was all along.
+        await scrubAndWait(75);
+        const on = await untilDrawn((d) => d.bands.length === 2, 'the subtitle inside its own span');
+        expect(on.bands[0]!.top, 'the title did not move when the line below it came and went').toBe(both.bands[0]!.top);
+        await scrubAndWait(95);
+        const gone = await untilDrawn((d) => d.bands.length === 1, 'the subtitle gone at its own end');
+        expect(gone.bands, JSON.stringify(gone)).toHaveLength(1);
+
+        // An end at or past the graphic's own end is no end at all: the layer runs as long as the
+        // graphic does, and the summary says so by naming the length.
+        await fire('[data-layer=subtitle] input[aria-label="Subtitle end"]', '5', 'change');
+        await until(() => summary().then((t) => t === 'Advanced · 2-5 s'), 'the summary back to the end of the graphic');
+        await scrubAndWait(95);
+        const back = await untilDrawn((d) => d.bands.length === 2, 'the subtitle to the end of the graphic');
+        expect(back.bands, JSON.stringify(back)).toHaveLength(2);
+
+        // Each change was one undo step, and the whole graphic comes back.
+        await page.eval(`document.getElementById('undo').click()`);
+        await page.eval(`document.getElementById('undo').click()`);
+        await page.eval(`document.getElementById('undo').click()`);
+        await until(() => summary().then((t) => t === 'Advanced'), 'undo back to the whole graphic');
+        await scrubAndWait(45);
+        const whole = await untilDrawn((d) => d.bands.length === 2, 'both lines again');
+        expect(whole.bands, JSON.stringify(whole)).toHaveLength(2);
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
     it('gives one layer a motion of its own, which still goes when the graphic goes', async () => {
       const subtitle = `document.querySelector('#params .layer-row[data-layer=subtitle]')`;
       try {

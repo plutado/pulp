@@ -312,6 +312,22 @@ export const BRIDGE_SCRIPT = `(function () {
     if (motion.type === 'scale') return { alpha: eased, dx: 0, dy: 0, scale: SCALE_FROM + (1 - SCALE_FROM) * eased };
     return null;
   }
+  /* Mirrors spanAt and spanWindow in src/core/layer-time.ts, the copy with unit tests: change both
+     or neither. A layer's own start and end (milestone 28) are seconds of the graphic as it is
+     watched -- milestone 30's chosen length, not the template's own clock -- which the frame state
+     gives as the frame and the frames there are, both at the output rate. */
+  var MIN_ON_SCREEN = 0.05;
+  function watchedAt(state) {
+    var fps = state && state.fps > 0 ? state.fps : 1;
+    return { elapsed: (state ? state.frame || 0 : 0) / fps, length: (state ? state.totalFrames || 0 : 0) / fps };
+  }
+  function spanAt(span, at) {
+    if (!span) return 1;
+    var whole = Math.max(0, at.length);
+    var from = Math.min(Math.max(0, span.start || 0), Math.max(0, whole - MIN_ON_SCREEN));
+    var to = span.end === null || span.end === undefined ? whole : Math.min(whole, Math.max(span.end, from + MIN_ON_SCREEN));
+    return at.elapsed >= from && at.elapsed < to ? 1 : 0;
+  }
   function layerDraws(block, state, options, column) {
     var asked = block.layers.map(function (layer, position) {
       var draw = { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0 };
@@ -321,10 +337,14 @@ export const BRIDGE_SCRIPT = `(function () {
     });
     var envelope = 0, i;
     for (i = 0; i < asked.length; i++) envelope = Math.max(envelope, asked[i].alpha);
+    var watched = watchedAt(state);
     return block.layers.map(function (layer, position) {
       var own = motionDraw(layer.motion, state.time, state.duration, layer.type === 'text' ? layer.fontSize : layer.size, column);
       var draw = asked[position];
       if (own) { own.alpha = own.alpha * envelope; draw = own; }
+      /* The layer's own start and end are the last word: outside them it is simply not there,
+         whether the movement above was the template's or the person's. */
+      if (layer.span) draw = { alpha: draw.alpha * spanAt(layer.span, watched), dx: draw.dx, dy: draw.dy, scale: draw.scale, rotate: draw.rotate, letterSpacing: draw.letterSpacing };
       /* The person's placement (milestone 25) wraps whatever the template or the override asked:
          offsets add, scales multiply, so a placed layer still rides the design. Mirrors layerDraws
          in src/core/layer-layout.ts: change both or neither. */

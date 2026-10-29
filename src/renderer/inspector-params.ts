@@ -13,6 +13,7 @@ import type { TemplateManifest, TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
 import { LAYERS_KEY, lengthIn, resolveParams, withLength, type ResolvedParams } from '../core/params';
+import { isWholeGraphic, roundSeconds, spanWindow, type LayerSpan } from '../core/layer-time';
 import { BUNDLED_FAMILIES, cssFontFamily, familyLabel, importedFamilies, type ImportedFont } from '../core/fonts';
 import { hasCards, labelRepeatsHeading, paramCards, type ParamCard } from '../core/param-cards';
 import {
@@ -1357,11 +1358,51 @@ const openAdvanced = new Set<string>();
 
 const MOTION_LABELS: Record<LayerMotionType, string> = { template: 'Template', fade: 'Fade', slide: 'Slide', scale: 'Scale', none: 'None' };
 
+/** The length the graphic is running at, which a layer's own start and end are set within. */
+function graphicLength(): number {
+  const selected = selectedTemplate.value;
+  if (!selected) return 0;
+  return resolveLength(selected.manifest.duration, selected.manifest.structure ?? null, lengthIn(p.raw));
+}
+
+/** "2-8 s", or nothing at all while the layer is on screen for the whole graphic. */
+function spanSummary(span: LayerSpan | undefined, length: number): string {
+  if (isWholeGraphic(span)) return '';
+  const { from, to } = spanWindow(span, length);
+  return ` · ${roundSeconds(from)}-${roundSeconds(to)} s`;
+}
+
 /** What the folded Advanced line says: nothing of its own while the template owns the movement. */
-function motionSummary(motion: LayerMotion): string {
-  if (motion.type === 'template') return 'Advanced';
+function motionSummary(motion: LayerMotion, span: LayerSpan | undefined, length: number): string {
+  const timing = spanSummary(span, length);
+  if (motion.type === 'template') return `Advanced${timing}`;
   const delay = motion.delay > 0 ? ` after ${motion.delay} s` : '';
-  return `Advanced · ${MOTION_LABELS[motion.type]}${delay}`;
+  return `Advanced · ${MOTION_LABELS[motion.type]}${delay}${timing}`;
+}
+
+/**
+ * When a layer comes and goes, in seconds of the graphic as it is watched
+ * (milestone 28). The default is the whole of it, which is every layer before
+ * this and stays the answer until someone says otherwise, so End shows the
+ * graphic's length and setting it back there stores nothing: the layer then
+ * follows the length rather than being pinned to the number it had when it was
+ * set (src/core/layer-time.ts).
+ */
+function spanControls(blockId: string, layer: Layer, onChange: () => void): HTMLElement[] {
+  const length = graphicLength();
+  let current = layer.span;
+  const set = (span: LayerSpan) => {
+    current = isWholeGraphic(span) ? undefined : span;
+    editLayer(blockId, layer.id, (l) => ({ ...l, span: current }) as Layer, false);
+    commitParams();
+    onChange();
+  };
+  const window = spanWindow(layer.span, length);
+  const limit = { min: 0, max: Math.max(0, length) };
+  const start = numberOf(window.from, limit, 0.1, (v) => set({ start: v, end: current?.end ?? null }), `${layer.label} start`);
+  // An end at or past the graphic's end is no end of its own: the layer runs as long as the graphic does.
+  const end = numberOf(window.to, limit, 0.1, (v) => set({ start: current?.start ?? 0, end: v >= length ? null : v }), `${layer.label} end`);
+  return [typeField('Start, s', start), typeField('End, s', end)];
 }
 
 /**
@@ -1380,17 +1421,20 @@ function motionControls(blockId: string, layer: Layer): HTMLElement {
     else openAdvanced.delete(key);
   });
   const summary = document.createElement('summary');
-  summary.textContent = motionSummary(layer.motion);
-  details.append(summary);
+  const length = graphicLength();
+  let span = layer.span;
+  const retitle = () => { summary.textContent = motionSummary(current, span, length); };
 
   let current = layer.motion;
   const set = (motion: LayerMotion) => {
     current = motion;
     editLayer(blockId, layer.id, (l) => ({ ...l, motion }) as Layer, false);
     commitParams();
-    summary.textContent = motionSummary(current);
+    retitle();
     delay.hidden = current.type === 'template';
   };
+  retitle();
+  details.append(summary);
 
   const grid = document.createElement('div');
   grid.className = 'type-grid';
@@ -1399,8 +1443,14 @@ function motionControls(blockId: string, layer: Layer): HTMLElement {
   // The delay is the override's own: while the template owns the movement there is nothing to delay.
   delay.hidden = layer.motion.type === 'template';
   grid.append(delay, angleField(blockId, layer));
+  grid.append(...spanControls(blockId, layer, () => { span = currentLayer(blockId, layer.id)?.span; retitle(); }));
   details.append(grid);
   return details;
+}
+
+/** The layer as it stands now, after an edit that did not rebuild the form. */
+function currentLayer(blockId: string, layerId: string): Layer | undefined {
+  return currentLayers()[blockId]?.find((l) => l.id === layerId);
 }
 
 /**
