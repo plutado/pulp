@@ -8,6 +8,7 @@
  */
 
 import { ASPECT_IDS, aspectOf, isBuiltInAspect, MAX_DIMENSION, MIN_DIMENSION, type Size } from './aspect';
+import { readStructure, type TemplateStructure } from './timing';
 import { IMAGE_ALIGNS, IMAGE_FITS, validateSlotBoxes, type ImageAlign, type ImageFit, type SlotBoxes } from './image-slot';
 import { validateBlock, type Block } from './layers';
 import { isBuiltInStyle, isBuiltInType, normalizeTheme, STYLES } from './taxonomy';
@@ -130,8 +131,15 @@ export interface TemplateManifest {
   /** How it looks, from the built-in style list only. */
   styles?: string[];
   tags: string[];
-  /** Duration in seconds. */
+  /** Duration in seconds: the length the template was designed at. */
   duration: number;
+  /**
+   * Which part of that duration may be stretched when a person asks for a
+   * different length (milestone 30): the entrance runs to `holdFrom` and the
+   * exit begins at `holdTo`, both in seconds of the template's own time. A
+   * template that declares none keeps its fixed length.
+   */
+  structure?: TemplateStructure;
   fps: number;
   /**
    * The shapes the template draws for, as "16:9" ids (src/core/aspect.ts); at least one.
@@ -374,6 +382,18 @@ export function validateManifest(raw: unknown): ValidationResult {
   if (!isFiniteNumber(raw.duration) || raw.duration <= 0 || raw.duration > MAX_DURATION_SECONDS) {
     errors.push({ path: 'duration', message: `must be a number of seconds in (0, ${MAX_DURATION_SECONDS}]` });
   }
+  // The parts that may stretch, if the template says (milestone 30). Checked against the
+  // duration above, so a structure is only read once that is known to be a usable number.
+  let structure: TemplateStructure | null = null;
+  if (raw.structure !== undefined) {
+    if (isFiniteNumber(raw.duration) && raw.duration > 0) {
+      const read = readStructure(raw.structure, raw.duration);
+      if (read.problem) errors.push({ path: 'structure', message: read.problem });
+      structure = read.structure;
+    } else {
+      errors.push({ path: 'structure', message: 'cannot be read without a usable duration' });
+    }
+  }
   if (!isFiniteNumber(raw.fps) || raw.fps <= 0 || raw.fps > 240) {
     errors.push({ path: 'fps', message: 'must be a number in (0, 240]' });
   } else if (!Number.isInteger(raw.fps) && ![23.976, 29.97, 59.94].includes(raw.fps)) {
@@ -482,7 +502,7 @@ export function validateManifest(raw: unknown): ValidationResult {
 
   const known = new Set([
     'formatVersion', 'id', 'name', 'description', 'version', 'author', 'license', 'category', 'type', 'themes', 'styles', 'tags',
-    'duration', 'fps', 'aspects', 'width', 'height', 'alpha', 'entry', 'thumbnail', 'parameters', 'blocks',
+    'duration', 'structure', 'fps', 'aspects', 'width', 'height', 'alpha', 'entry', 'thumbnail', 'parameters', 'blocks',
   ]);
   for (const key of Object.keys(raw)) {
     if (!known.has(key) && !key.startsWith('x-')) {
@@ -501,6 +521,7 @@ export function validateManifest(raw: unknown): ValidationResult {
     category: raw.category as TemplateCategory,
     tags,
     duration: raw.duration as number,
+    ...(structure ? { structure } : {}),
     fps: raw.fps as number,
     aspects: aspects ?? [],
     alpha: (raw.alpha as boolean | undefined) ?? false,

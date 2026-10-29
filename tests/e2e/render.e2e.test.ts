@@ -445,6 +445,49 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await pixels(titleFrame, 540, 1600))[3]).toBe(0); // the caption band
   }, 240_000);
 
+  it('runs a graphic for the length asked for, stretching only its hold (milestone 30)', async () => {
+    // The fixture paints its own time into every frame — whole seconds in red, thousandths in
+    // green — so a render can be read back moment by moment. It is designed at two seconds with
+    // half a second of entrance and half a second of exit.
+    const templateTime = async (file: string): Promise<number> => {
+      // Milliseconds across two channels: the high byte in red, the low one in green.
+      const [r, g] = await pixels(file, 10, 10);
+      return (r! * 256 + g!) / 1000;
+    };
+
+    const own = await render('pulp.test.structure', 'png-sequence', 'len-own', { extra: ['--library', FIXTURES] });
+    expect(own.code, own.stderr).toBe(0);
+    expect((await readdir(out)).filter((f) => /^len-own_\d{5}\.png$/.test(f))).toHaveLength(60);
+
+    const long = await render('pulp.test.structure', 'png-sequence', 'len-long', { extra: ['--library', FIXTURES, '--length', '10'] });
+    expect(long.code, long.stderr).toBe(0);
+    // Ten seconds at 30 fps, where its own two seconds were sixty frames.
+    expect((await readdir(out)).filter((f) => /^len-long_\d{5}\.png$/.test(f))).toHaveLength(300);
+
+    // The entrance plays at the speed it was designed at: frame 15 is half a second in, either way.
+    expect(await templateTime(join(out, 'len-long_00015.png'))).toBeCloseTo(await templateTime(join(out, 'len-own_00015.png')), 3);
+    expect(await templateTime(join(out, 'len-long_00015.png'))).toBeCloseTo(0.5, 2);
+    // The exit begins half a second before the end, wherever the end is, and both renders finish
+    // on the same moment of the template.
+    expect(await templateTime(join(out, 'len-long_00285.png'))).toBeCloseTo(1.5, 2);
+    expect(await templateTime(join(out, 'len-long_00299.png'))).toBeCloseTo(await templateTime(join(out, 'len-own_00059.png')), 3);
+    // And only the hold stretched: the middle of ten seconds is the middle of its one-second hold.
+    expect(await templateTime(join(out, 'len-long_00150.png'))).toBeCloseTo(1, 2);
+
+    // A trim is taken within the chosen length, not within the template's own two seconds.
+    const trimmed = await render('pulp.test.structure', 'png-sequence', 'len-trim', {
+      extra: ['--library', FIXTURES, '--length', '10', '--in-point', '150', '--out-point', '159'],
+    });
+    expect(trimmed.code, trimmed.stderr).toBe(0);
+    expect((await readdir(out)).filter((f) => /^len-trim_\d{5}\.png$/.test(f))).toHaveLength(10);
+    expect(await templateTime(join(out, 'len-trim_00150.png'))).toBeCloseTo(1, 2);
+
+    // A template that declares nothing to stretch says so rather than quietly ignoring the ask.
+    const fixed = await render('pulp.samples.lower-third-bar', 'png-sequence', 'len-fixed', { extra: ['--length', '20'] });
+    expect(fixed.code).toBe(1);
+    expect(fixed.stderr).toContain('does not declare an animate-in, hold and animate-out');
+  }, 240_000);
+
   it('draws a layer turned, about the words rather than the block (milestone 29)', async () => {
     // The hairline lower third is alpha, and its "who" line is aligned at the left of a block
     // that spans most of the frame — the case where turning about the slot would swing the line

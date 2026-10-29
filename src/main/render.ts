@@ -322,7 +322,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       if (child.exitCode !== null) break;
 
       const frame = plan.firstFrame + i;
-      const state = frameState(timeline, frame, values, frameSize, layers, clipSources);
+      const state = frameState(timeline, frame, values, frameSize, layers, clipSources, plan.length);
       let pixels: Buffer;
       try {
         pixels = await withTimeout(

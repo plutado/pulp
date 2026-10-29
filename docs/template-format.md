@@ -195,6 +195,20 @@ An image layer has a `size` (the picture's height as a fraction of the frame's s
 ]
 ```
 
+### Length and structure
+
+A template is designed at a length — its `duration` — and a person may want the graphic to run for another. A template says which part of itself may be stretched by declaring a `structure` beside its duration:
+
+```json
+{ "duration": 6, "structure": { "holdFrom": 1, "holdTo": 5 } }
+```
+
+Both are seconds on the template's **own** clock: the entrance runs from 0 to `holdFrom`, the hold from `holdFrom` to `holdTo`, and the exit from `holdTo` to `duration`. The hold must be at least 0.05 s long and both must lie inside the duration, or the manifest is refused.
+
+The host then maps every moment of the chosen length back to a moment of the template's own time: the entrance and the exit play at the speed they were designed at, and only the hold stretches or shrinks. **A template needs no code for this** — it keeps drawing against `state.time` and its own `state.duration`, exactly as it always did. A template that declares no `structure` has nothing to stretch, keeps its fixed length, and is refused a `--length` rather than quietly ignoring it.
+
+A template that declares a structure should not also offer a "Hold, seconds" parameter: the length is the control now, and two ways to set the same thing would fight.
+
 #### Video layers
 
 A `video` layer plays a clip inside the graphic (milestone 26). It takes its room exactly as an image layer does — `size` is a height as a fraction of the frame's short side, the width follows the clip's shape, and `align` places it across the block — and like an image layer it carries **no clip of its own**: a template ships no library ids, so `clip` is left out or `null` and the person using the template chooses one.
@@ -306,10 +320,13 @@ It may return a Promise; the host waits for it to settle before capturing.
 
 | Field | Type | Description |
 |---|---|---|
-| `frame` | integer | Zero-based frame index. |
-| `time` | number | Seconds from the start: `frame / fps`. |
+| `frame` | integer | Zero-based frame index of the **render**. |
+| `time` | number | Seconds on the **template's own** clock, from 0 to `duration`. At the template's own length this is `frame / fps`; under a chosen length (see **Length and structure**) it is the moment of the template that this frame of the render shows. |
 | `progress` | number | `time / duration`, clamped to 0..1. |
-| `fps`, `duration`, `totalFrames` | number | From the manifest. |
+| `fps`, `duration` | number | From the manifest: the rate frames are sampled at, and the length the template was **designed** at. |
+| `totalFrames` | integer | Frames in this render, which is more than the manifest's own when a longer length was asked for. |
+
+**Animate from `time` or `progress`, not from `frame / totalFrames`.** They are the same thing at the template's own length, and they part company as soon as a person asks for a different one: `time` stays on the clock the template was drawn against, which is what lets it be stretched without being rewritten.
 | `width`, `height` | integer | The canvas for this render in pixels: the chosen aspect and resolution, not anything from the manifest. Size the canvas from these on every call, since the same template is drawn tall, square and wide. |
 | `params` | object | Resolved parameter values keyed by parameter id. An image parameter's value is `null` or `{ id, treatment, tint, effect }`. |
 | `images` | object | One entry per image slot (see Image slots): `{ id, box, fit, align, margin, treatment, tint, effect, fallback, bitmap? }`, the box in pixels of this frame. Draw them with `window.pulpDrawImage`. |

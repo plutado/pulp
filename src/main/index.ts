@@ -6,7 +6,7 @@ import { loadLayerClips } from './clip-grant';
 import { join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
-import { parseTimecode, TimecodeError } from '../core/timecode';
+import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest } from '../shared/api';
 import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
@@ -258,7 +258,7 @@ function registerIpc(): void {
  *   electron . --render <template-id> --preset <preset-id> --out <path> [--param key=value ...]
  *
  * A parameter may be a layer stack: `--param '@layers={"strap":[{"id":"name","text":"Ada Lovelace"}]}'`.
- *     [--fps <rate>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
+ *     [--fps <rate>] [--length <seconds|tc>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
  *     [--aspect 16:9|9:16|1:1|4:5] [--size <width>x<height>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
  *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
@@ -295,6 +295,8 @@ interface CliRender {
   /** `--visual-hashes <file>`: write or check the visual references. */
   visualHashes?: { file: string; check: boolean };
   options: RenderOptions;
+  /** The length as typed; read as seconds once the frame rate is known (milestone 30). */
+  length?: string;
   /** In and out points as typed; parsed once the frame rate is known. */
   inPoint?: string;
   outPoint?: string;
@@ -377,6 +379,7 @@ function parseCliRender(argv: string[]): CliRender | null {
   }
   const inPoint = get('--in-point');
   const outPoint = get('--out-point');
+  const length = get('--length');
   const batch = get('--batch');
   const collection = get('--collection');
   const sampleMedia = get('--sample-media');
@@ -389,6 +392,7 @@ function parseCliRender(argv: string[]): CliRender | null {
     libraries,
     options,
     badNumbers,
+    ...(length !== undefined ? { length } : {}),
     ...(inPoint !== undefined ? { inPoint } : {}),
     ...(batch !== undefined ? { batch: resolve(batch) } : {}),
     ...(collection !== undefined ? { collection: resolve(collection) } : {}),
@@ -425,6 +429,15 @@ async function runCliRender(cli: CliRender): Promise<number> {
   // In and out points are frames at the output rate, so they are parsed once the template is known.
   const fps = cli.options.fps ?? template.manifest.fps;
   try {
+    // The length is settled before the points, which are frames of the length it chooses.
+    if (cli.length !== undefined) {
+      const seconds = parseLengthSeconds(cli.length, fps);
+      if (seconds === null) {
+        console.error(`--length: "${cli.length}" is not a number of seconds ("20", "20s") or a timecode (${timecodePattern(fps)})`);
+        return 2;
+      }
+      cli.options.length = seconds;
+    }
     if (cli.inPoint !== undefined) cli.options.inFrame = parseTimecode(cli.inPoint, fps);
     if (cli.outPoint !== undefined) cli.options.outFrame = parseTimecode(cli.outPoint, fps);
   } catch (err) {

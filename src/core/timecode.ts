@@ -126,3 +126,28 @@ export function formatTimecode(frames: number, fps: number, dropFrame = false): 
   const two = (v: number) => String(v).padStart(2, '0');
   return `${two(hh)}:${two(mm)}:${two(ss)}${sep}${String(ff).padStart(FRAME_DIGITS(fps), '0')}`;
 }
+
+/**
+ * A `--length` argument as seconds (milestone 30), or null when it is not one.
+ *
+ * A length is **seconds** by default — `20` and `20s` both mean twenty seconds
+ * — where an in or out point defaults to a frame number. The two read the same
+ * way because they are different things: a point is a place on a timeline,
+ * which is naturally a frame, and a length is a span, which is naturally a
+ * duration. Timecode works for both, and is what makes a long length readable.
+ */
+export function parseLengthSeconds(text: string, fps: number): number | null {
+  const s = text.trim();
+  if (s === '') return null;
+  if (/^\d+(?:\.\d+)?\s*s?$/i.test(s)) {
+    const seconds = Number(s.replace(/s$/i, '').trim());
+    return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+  }
+  try {
+    const frames = parseTimecode(s, fps);
+    const seconds = frames / fps;
+    return seconds > 0 ? Math.round(seconds * 1000) / 1000 : null;
+  } catch {
+    return null;
+  }
+}

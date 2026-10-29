@@ -7,6 +7,30 @@ function errorPaths(raw: unknown): string[] {
   return result.ok ? [] : result.errors.map((e) => e.path);
 }
 
+describe('a template\'s structure (milestone 30)', () => {
+  it('is optional, and read against the template\'s own duration', () => {
+    // Most templates will say nothing, and they keep their fixed length exactly as before.
+    const plain = validateManifest(rawManifest({}));
+    expect(plain.ok && plain.manifest.structure).toBeUndefined();
+    // One that does gets an entrance, a hold and an exit on its own clock.
+    const declared = validateManifest(rawManifest({ duration: 6, structure: { holdFrom: 1, holdTo: 5 } }));
+    expect(declared.ok).toBe(true);
+    if (declared.ok) expect(declared.manifest.structure).toEqual({ holdFrom: 1, holdTo: 5 });
+  });
+
+  it('is refused when it does not fit the duration, naming the field', () => {
+    const past = validateManifest(rawManifest({ duration: 6, structure: { holdFrom: 1, holdTo: 9 } }));
+    expect(past.ok).toBe(false);
+    if (!past.ok) expect(past.errors.map((e) => `${e.path}: ${e.message}`).join(' ')).toContain('structure: holdTo');
+    const backwards = validateManifest(rawManifest({ duration: 6, structure: { holdFrom: 5, holdTo: 1 } }));
+    expect(backwards.ok).toBe(false);
+    // A structure beside a duration that is itself wrong says so rather than reading it anyway.
+    const noDuration = validateManifest(rawManifest({ duration: 'soon', structure: { holdFrom: 1, holdTo: 5 } }));
+    expect(noDuration.ok).toBe(false);
+    if (!noDuration.ok) expect(noDuration.errors.map((e) => e.path)).toContain('structure');
+  });
+});
+
 describe('validateManifest', () => {
   it('accepts a valid manifest and fills defaults', () => {
     const result = validateManifest(rawManifest());

@@ -13,9 +13,10 @@ import { fontFaceCss, TEMPLATE_FONTS_PATH } from './fonts';
 import { imageSlots, type ImageSlotState } from './image-slot';
 import { blockStates, layerTexts, type BlockState } from './layer-layout';
 import type { Block, LayerValues } from './layers';
-import { frameCount, type TemplateManifest, type TemplateParameter } from './manifest';
+import type { TemplateManifest, TemplateParameter } from './manifest';
 import type { ResolvedParams } from './params';
 import type { ClipSource } from './video-layer';
+import { lengthFrameCount, resolveLength, templateTimeAt, type TemplateStructure } from './timing';
 
 export interface FrameState {
   /** Zero-based frame index. */
@@ -47,7 +48,7 @@ export interface FrameState {
  * pixel size from here (docs/template-format.md, ADR 0012).
  */
 export function frameState(
-  manifest: Pick<TemplateManifest, 'duration' | 'fps'> & { parameters?: readonly TemplateParameter[]; blocks?: readonly Block[] },
+  manifest: Pick<TemplateManifest, 'duration' | 'fps'> & { structure?: TemplateStructure; parameters?: readonly TemplateParameter[]; blocks?: readonly Block[] },
   frame: number,
   params: ResolvedParams,
   size: Size,
@@ -55,12 +56,25 @@ export function frameState(
   layers: LayerValues = {},
   /** What the host measured about each chosen clip, by library id; only video layers need it. */
   clips: Record<string, ClipSource> = {},
+  /**
+   * Seconds the graphic is to run for (milestone 30), when a person has asked
+   * for a length other than the one the template was designed at. Only a
+   * template that declares a structure can be asked; for every other, and when
+   * nothing is asked, this is its own duration and nothing below changes.
+   */
+  askedLength?: number,
 ): FrameState {
-  const totalFrames = frameCount(manifest);
+  const structure = manifest.structure ?? null;
+  const length = resolveLength(manifest.duration, structure, askedLength);
+  const totalFrames = lengthFrameCount(length, manifest.fps);
   const f = Math.min(Math.max(0, Math.floor(frame)), totalFrames - 1);
-  const time = f / manifest.fps;
-  // The blocks are laid out for this moment, so a video layer knows which of its frames is now.
-  const blocks = manifest.blocks ? blockStates({ blocks: manifest.blocks as Block[] }, layers, size, { time, sources: clips }) : {};
+  // Where this frame sits in the graphic as it will be watched, and where that lands on the
+  // template's own timeline: the entrance and the exit as designed, the hold stretched.
+  const elapsed = f / manifest.fps;
+  const time = templateTimeAt(elapsed, manifest.duration, structure, length);
+  // A video layer plays against the graphic a person sees, so its own time is the elapsed one:
+  // a clip delayed five seconds starts five seconds in, however the hold is stretched.
+  const blocks = manifest.blocks ? blockStates({ blocks: manifest.blocks as Block[] }, layers, size, { time: elapsed, sources: clips }) : {};
   return {
     frame: f,
     time,

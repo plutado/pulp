@@ -28,6 +28,7 @@
  */
 
 import { AspectError, resolveRenderSize } from './aspect';
+import { resolveLength, type TemplateStructure } from './timing';
 import { isValidColor, type TemplateManifest } from './manifest';
 import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
 
@@ -210,6 +211,12 @@ export interface RenderOptions {
   /** Output size in pixels, of the chosen aspect. Default: the template's declared size for that aspect, else the aspect's standard 1080-class size. */
   width?: number;
   height?: number;
+  /**
+   * Seconds the graphic is to run for (milestone 30). Only a template that
+   * declares a structure can be stretched; for any other it is ignored, and
+   * the template's own duration stands.
+   */
+  length?: number;
 }
 
 export interface RenderTiming {
@@ -218,6 +225,8 @@ export interface RenderTiming {
   /** Index of the first rendered frame on that timeline (time = frame / fps). */
   firstFrame: number;
   totalFrames: number;
+  /** Seconds the whole graphic runs for, which a trim is taken within (milestone 30). */
+  length: number;
 }
 
 /**
@@ -226,15 +235,24 @@ export interface RenderTiming {
  * template timeline, so a trimmed render shows the same picture at a given
  * second as a full one, and the output numbering can carry the same indices.
  */
-export function resolveTiming(manifest: Pick<TemplateManifest, 'fps' | 'duration'>, options: RenderOptions = {}): RenderTiming {
+export function resolveTiming(manifest: Pick<TemplateManifest, 'fps' | 'duration'> & { structure?: TemplateStructure }, options: RenderOptions = {}): RenderTiming {
   const fps = options.fps ?? manifest.fps;
   if (options.fps !== undefined && !isStandardFrameRate(options.fps)) {
     throw new RenderPlanError(
       `frame rate must be one of ${STANDARD_FRAME_RATES.map((r) => r.fps).join(', ')}, got ${String(options.fps)}`,
     );
   }
+  // The length the graphic runs for: what was asked, held to what the structure allows, or the
+  // template's own duration. A trim is then taken within that, as it always was.
+  if (options.length !== undefined && (!Number.isFinite(options.length) || options.length <= 0)) {
+    throw new RenderPlanError(`length must be a number of seconds greater than 0, got ${String(options.length)}`);
+  }
+  if (options.length !== undefined && !manifest.structure) {
+    throw new RenderPlanError('this template does not declare an animate-in, hold and animate-out, so its length is fixed');
+  }
+  const length = resolveLength(manifest.duration, manifest.structure ?? null, options.length);
   // Like frameCount: a template shorter than one frame still has one frame.
-  const lastFrame = Math.max(1, Math.round(manifest.duration * fps)) - 1;
+  const lastFrame = Math.max(1, Math.round(length * fps)) - 1;
   const inFrame = options.inFrame ?? 0;
   const outFrame = options.outFrame ?? lastFrame;
   if (!Number.isInteger(inFrame) || inFrame < 0) throw new RenderPlanError(`in point must be a frame number of 0 or more, got ${String(options.inFrame)}`);
@@ -242,7 +260,7 @@ export function resolveTiming(manifest: Pick<TemplateManifest, 'fps' | 'duration
     throw new RenderPlanError(`out point must be at most the last frame (${lastFrame} at ${fps} fps), got ${String(options.outFrame)}`);
   }
   if (outFrame < inFrame) throw new RenderPlanError(`out point (frame ${outFrame}) must not be before the in point (frame ${inFrame})`);
-  return { fps, firstFrame: inFrame, totalFrames: outFrame - inFrame + 1 };
+  return { fps, firstFrame: inFrame, totalFrames: outFrame - inFrame + 1, length };
 }
 
 export interface RenderPlanInput {
@@ -274,6 +292,8 @@ export interface RenderPlan {
   /** First frame index on that timeline; 0 unless trimmed. */
   firstFrame: number;
   totalFrames: number;
+  /** Seconds the whole graphic runs for; a trim is taken within it (milestone 30). */
+  length: number;
   /** The aspect rendered and the frame size in pixels: the offscreen window, the capture check and ffmpeg's input all use this. */
   aspect: string;
   width: number;
@@ -374,5 +394,5 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   // Sequence files are numbered with the frame indices they hold, so a render from frame 60 starts at _00060.
   if (preset.sequence) args.push('-start_number', String(timing.firstFrame));
   args.push('-frames:v', String(totalFrames), '-r', fps, output);
-  return { preset, frameFormat, args, output, fps: timing.fps, firstFrame: timing.firstFrame, totalFrames, aspect: frameSize.aspect, width, height, warnings };
+  return { preset, frameFormat, args, output, fps: timing.fps, firstFrame: timing.firstFrame, totalFrames, length: timing.length, aspect: frameSize.aspect, width, height, warnings };
 }

@@ -322,13 +322,13 @@ describe('resolveTiming', () => {
   const two = { fps: 30, duration: 2 };
 
   it('defaults to the template timing', () => {
-    expect(resolveTiming(two)).toEqual({ fps: 30, firstFrame: 0, totalFrames: 60 });
-    expect(resolveTiming(two, {})).toEqual({ fps: 30, firstFrame: 0, totalFrames: 60 });
+    expect(resolveTiming(two)).toEqual({ fps: 30, firstFrame: 0, totalFrames: 60, length: 2 });
+    expect(resolveTiming(two, {})).toEqual({ fps: 30, firstFrame: 0, totalFrames: 60, length: 2 });
   });
 
   it('samples at a standard override rate over the same duration', () => {
-    expect(resolveTiming(two, { fps: 60 })).toEqual({ fps: 60, firstFrame: 0, totalFrames: 120 });
-    expect(resolveTiming(two, { fps: 25 })).toEqual({ fps: 25, firstFrame: 0, totalFrames: 50 });
+    expect(resolveTiming(two, { fps: 60 })).toEqual({ fps: 60, firstFrame: 0, totalFrames: 120, length: 2 });
+    expect(resolveTiming(two, { fps: 25 })).toEqual({ fps: 25, firstFrame: 0, totalFrames: 50, length: 2 });
     expect(resolveTiming(two, { fps: 23.976 }).totalFrames).toBe(48);
     expect(resolveTiming(two, { fps: 119.88 }).totalFrames).toBe(240);
   });
@@ -339,15 +339,15 @@ describe('resolveTiming', () => {
     expect(() => resolveTiming(two, { fps: 0 })).toThrow(/must be one of/);
     expect(() => resolveTiming(two, { fps: Number.NaN })).toThrow(/must be one of/);
     // A non-standard template rate is fine when not overridden.
-    expect(resolveTiming({ fps: 12.5, duration: 2 })).toEqual({ fps: 12.5, firstFrame: 0, totalFrames: 25 });
+    expect(resolveTiming({ fps: 12.5, duration: 2 })).toEqual({ fps: 12.5, firstFrame: 0, totalFrames: 25, length: 2 });
   });
 
   it('applies in and out points as inclusive frames at the output rate', () => {
-    expect(resolveTiming(two, { inFrame: 15, outFrame: 44 })).toEqual({ fps: 30, firstFrame: 15, totalFrames: 30 });
-    expect(resolveTiming(two, { inFrame: 30 })).toEqual({ fps: 30, firstFrame: 30, totalFrames: 30 });
-    expect(resolveTiming(two, { outFrame: 14 })).toEqual({ fps: 30, firstFrame: 0, totalFrames: 15 });
-    expect(resolveTiming(two, { inFrame: 10, outFrame: 10 })).toEqual({ fps: 30, firstFrame: 10, totalFrames: 1 });
-    expect(resolveTiming(two, { fps: 60, inFrame: 60, outFrame: 119 })).toEqual({ fps: 60, firstFrame: 60, totalFrames: 60 });
+    expect(resolveTiming(two, { inFrame: 15, outFrame: 44 })).toEqual({ fps: 30, firstFrame: 15, totalFrames: 30, length: 2 });
+    expect(resolveTiming(two, { inFrame: 30 })).toEqual({ fps: 30, firstFrame: 30, totalFrames: 30, length: 2 });
+    expect(resolveTiming(two, { outFrame: 14 })).toEqual({ fps: 30, firstFrame: 0, totalFrames: 15, length: 2 });
+    expect(resolveTiming(two, { inFrame: 10, outFrame: 10 })).toEqual({ fps: 30, firstFrame: 10, totalFrames: 1, length: 2 });
+    expect(resolveTiming(two, { fps: 60, inFrame: 60, outFrame: 119 })).toEqual({ fps: 60, firstFrame: 60, totalFrames: 60, length: 2 });
   });
 
   it('rejects impossible in and out points with a clear message', () => {
@@ -358,6 +358,22 @@ describe('resolveTiming', () => {
   });
 
   it('still renders one frame for a template shorter than a frame, like frameCount', () => {
-    expect(resolveTiming({ fps: 30, duration: 0.01 })).toEqual({ fps: 30, firstFrame: 0, totalFrames: 1 });
+    expect(resolveTiming({ fps: 30, duration: 0.01 })).toEqual({ fps: 30, firstFrame: 0, totalFrames: 1, length: 0.01 });
+  });
+
+  it('runs for a length the template allows, and refuses one it does not (milestone 30)', () => {
+    const designed = { fps: 30, duration: 6, structure: { holdFrom: 1, holdTo: 5 } };
+    // Twenty seconds of a six-second lower third is 600 frames at 30 fps.
+    expect(resolveTiming(designed, { length: 20 })).toEqual({ fps: 30, firstFrame: 0, totalFrames: 600, length: 20 });
+    // A trim is taken within the chosen length, not within the template's own.
+    expect(resolveTiming(designed, { length: 20, inFrame: 300, outFrame: 599 })).toMatchObject({ firstFrame: 300, totalFrames: 300 });
+    expect(() => resolveTiming(designed, { inFrame: 0, outFrame: 599 })).toThrow(/out point must be at most the last frame \(179 at 30 fps\)/);
+    // Shorter than the entrance and exit allow is held at the floor rather than rushing them.
+    expect(resolveTiming(designed, { length: 0.5 }).length).toBe(2.05);
+    // A template with nothing to stretch says so instead of pretending.
+    expect(() => resolveTiming({ fps: 30, duration: 6 }, { length: 20 })).toThrow(/does not declare an animate-in, hold and animate-out/);
+    for (const length of [0, -2, Number.NaN]) {
+      expect(() => resolveTiming(designed, { length }), String(length)).toThrow(/length must be a number of seconds greater than 0/);
+    }
   });
 });

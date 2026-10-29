@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.structure",
+  "name": "Test Structure",
+  "description": "Declares an animate-in, a hold and an animate-out, and paints its own time into the frame so a render can be read back moment by moment (milestone 30).",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "other",
+  "tags": ["test"],
+  "duration": 2,
+  "structure": { "holdFrom": 0.5, "holdTo": 1.5 },
+  "fps": 30,
+  "width": 320,
+  "height": 180,
+  "alpha": false,
+  "parameters": []
+}
