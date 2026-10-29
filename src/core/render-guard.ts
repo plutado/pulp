@@ -38,9 +38,21 @@ export interface TemplateErrorDetail {
  */
 export function frameCallScript(state: FrameState): string {
   return (
-    `window.__pulp.render(${JSON.stringify(state)}).then(function () { return null; }, function (e) {` +
-    ` return e instanceof Error ? { name: e.name, message: e.message, stack: String(e.stack || '') } : { message: String(e) }; })`
+    `window.__pulp.render(${JSON.stringify(state)}).then(function (by) { return { drawn: by === 'timeout' ? 'timeout' : 'raf' }; }, function (e) {` +
+    ` return { error: e instanceof Error ? { name: e.name, message: e.message, stack: String(e.stack || '') } : { message: String(e) } }; })`
   );
+}
+
+/** What one frame call answered: the draw settled this way, or the template threw. */
+export interface FrameCallResult {
+  /**
+   * How the page's after-draw wait ended. `raf` means the frame holding the
+   * draw has been committed and a capture may be taken; `timeout` means the
+   * renderer never ran an animation frame, so the draw's place in the order is
+   * not established and the capture needs more care (docs/platform-notes.md).
+   */
+  drawn?: 'raf' | 'timeout';
+  error?: TemplateErrorDetail;
 }
 
 /** "TypeError: x is undefined (index.html:42:7)" from the details a template error carries. */
@@ -141,4 +153,24 @@ export function expandSequence(pattern: string, count: number, start = 0): strin
   const before = pattern.slice(0, match.index);
   const after = pattern.slice(match.index + match[0].length);
   return Array.from({ length: count }, (_, i) => before + String(start + i).padStart(width, pad) + after);
+}
+
+/**
+ * Is a captured frame entirely transparent? Read on the capture's own BGRA
+ * bytes, so no image codec runs.
+ *
+ * It is how a **stale first capture** is told from a real one. `capturePage`
+ * on an offscreen window hands back the last painted frame, and on a loaded
+ * machine the first capture of a render can be taken before the first draw has
+ * been composited — the surface is then still the blank page, and the frame is
+ * written empty (docs/platform-notes.md, "macOS CI"). Nothing the host can ask
+ * proves a paint carries a given draw, but "the page has drawn and the capture
+ * is empty" is a condition worth one more look: a frame that really is empty
+ * comes back empty again and is believed, and a stale one comes back right.
+ */
+export function isBlankCapture(bgra: Buffer | Uint8Array): boolean {
+  for (let i = 3; i < bgra.length; i += 4) {
+    if (bgra[i] !== 0) return false;
+  }
+  return true;
 }

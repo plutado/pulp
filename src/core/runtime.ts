@@ -539,17 +539,20 @@ export const BRIDGE_SCRIPT = `(function () {
          (docs/platform-notes.md, "Windows CI"). */
       return new Promise(function (resolve) {
         var settled = false;
-        function done() {
+        function done(by) {
           if (settled) return;
           settled = true;
           /* What is on the canvas now, for anyone asking whether a change has been drawn yet: a test
              reads the canvas after the frame it changed has landed, not after a guess at how long
              that takes (docs/platform-notes.md, "Windows CI"). */
-          window.__pulp.drawn = { frame: state && state.frame, at: Date.now(), layers: countLayers(state), pictures: picturesIn(state) };
-          resolve(true);
+          /* "by" says how the wait ended: 'raf' means the frame holding the draw has been
+             committed, 'timeout' that the renderer never ran an animation frame and the
+             ordering the capture relies on was not established (docs/platform-notes.md). */
+          window.__pulp.drawn = { frame: state && state.frame, at: Date.now(), by: by, layers: countLayers(state), pictures: picturesIn(state) };
+          resolve(by);
         }
-        requestAnimationFrame(function () { requestAnimationFrame(done); });
-        setTimeout(done, 250);
+        requestAnimationFrame(function () { requestAnimationFrame(function () { done('raf'); }); });
+        setTimeout(function () { done('timeout'); }, 250);
       });
     });
   }

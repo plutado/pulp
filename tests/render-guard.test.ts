@@ -5,6 +5,7 @@ import {
   expandSequence,
   formatTemplateError,
   frameCallScript,
+  isBlankCapture,
   frameTimeoutMessage,
   loadTimeoutMessage,
   partialOutputFiles,
@@ -54,18 +55,44 @@ describe('frameCallScript', () => {
     expect(frameCallScript(state)).toContain(JSON.stringify(state));
   });
 
-  it('resolves to null when the frame renders', async () => {
-    await expect(run(() => Promise.resolve(true))).resolves.toBeNull();
+  it('says how the draw settled when the frame renders', async () => {
+    // The page answers 'raf' when the frame holding the draw was committed, and 'timeout' when
+    // the renderer never ran an animation frame — which is what tells the host to take more care
+    // before it captures (docs/platform-notes.md).
+    await expect(run(() => Promise.resolve('raf'))).resolves.toEqual({ drawn: 'raf' });
+    await expect(run(() => Promise.resolve('timeout'))).resolves.toEqual({ drawn: 'timeout' });
+    // A page from before this answered `true`; it is read as the ordinary case rather than as a warning.
+    await expect(run(() => Promise.resolve(true))).resolves.toEqual({ drawn: 'raf' });
   });
 
   it('turns a thrown Error into data instead of rejecting', async () => {
     const err = new TypeError('ctx is null');
     err.stack = 'TypeError: ctx is null\n    at draw (pulp-template://com.example.x/index.html:12:5)';
-    await expect(run(() => Promise.reject(err))).resolves.toEqual({ name: 'TypeError', message: 'ctx is null', stack: err.stack });
+    await expect(run(() => Promise.reject(err))).resolves.toEqual({ error: { name: 'TypeError', message: 'ctx is null', stack: err.stack } });
   });
 
   it('handles non-Error rejections', async () => {
-    await expect(run(() => Promise.reject('nope'))).resolves.toEqual({ message: 'nope' });
+    await expect(run(() => Promise.reject('nope'))).resolves.toEqual({ error: { message: 'nope' } });
+  });
+});
+
+describe('isBlankCapture', () => {
+  const frame = (pixels: number[][]): Buffer => Buffer.from(pixels.flat());
+
+  it('is true only when every pixel is fully transparent', () => {
+    // BGRA: the fourth byte of each pixel is the alpha the test reads.
+    expect(isBlankCapture(frame([[0, 0, 0, 0], [0, 0, 0, 0]]))).toBe(true);
+    // Colour with no alpha is still nothing drawn — a premultiplied capture leaves it at zero,
+    // and an unpremultiplied one is invisible either way.
+    expect(isBlankCapture(frame([[9, 9, 9, 0], [0, 0, 0, 0]]))).toBe(true);
+    // One opaque pixel anywhere is enough to call the capture real.
+    expect(isBlankCapture(frame([[0, 0, 0, 0], [0, 0, 0, 1]]))).toBe(false);
+    expect(isBlankCapture(frame([[0, 0, 0, 255], [0, 0, 0, 0]]))).toBe(false);
+    // An empty buffer has nothing drawn in it.
+    expect(isBlankCapture(Buffer.alloc(0))).toBe(true);
+    // It reads a Uint8Array as readily as a Buffer, which is what toBitmap may hand back.
+    expect(isBlankCapture(new Uint8Array([0, 0, 0, 0]))).toBe(true);
+    expect(isBlankCapture(new Uint8Array([0, 0, 0, 7]))).toBe(false);
   });
 });
 

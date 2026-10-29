@@ -39,12 +39,14 @@ import {
   DEFAULT_FRAME_TIMEOUT_MS,
   DEFAULT_LOAD_TIMEOUT_MS,
   frameCallScript,
+  isBlankCapture,
   frameTimeoutMessage,
   loadTimeoutMessage,
   partialOutputFiles,
   RenderTimeoutError,
   templateThrewMessage,
   withTimeout,
+  type FrameCallResult,
   type TemplateErrorDetail,
 } from '../core/render-guard';
 import { frameState } from '../core/runtime';
@@ -324,7 +326,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       let pixels: Buffer;
       try {
         pixels = await withTimeout(
-          captureFrame(win, state, frameSize, plan.frameFormat),
+          captureFrame(win, state, frameSize, plan.frameFormat, { first: i === 0 }),
           frameTimeoutMs,
           frameTimeoutMessage(manifest.name, frame, frameTimeoutMs),
         );
@@ -404,6 +406,9 @@ class TemplateError extends Error {
  */
 /** How long the paint stream must be quiet before the backlog counts as drained, and the cap on waiting. */
 const PAINT_QUIET_MS = 48;
+
+/** How many times a first capture that came back blank is taken again before it is believed. */
+const BLANK_RECAPTURE_TRIES = 3;
 const PAINT_DRAIN_CAP_MS = 2000;
 
 /**
@@ -454,6 +459,31 @@ export function drainPaints(win: BrowserWindow): Promise<void> {
   });
 }
 
+/**
+ * Settle the offscreen surface and capture it. `verify` is for the **first**
+ * capture after a page is loaded, which is the one that can be taken before
+ * the first draw has been composited and so comes back blank: it is taken
+ * again, a paint cycle apart, until it holds something or the tries run out.
+ * A frame that really is blank answers the same way every time and is
+ * believed, so this costs a cycle and never a wrong frame.
+ */
+async function captureSettled(win: BrowserWindow, verify: boolean): Promise<Electron.NativeImage> {
+  await paintComposited(win);
+  let image = await win.webContents.capturePage();
+  if (!verify) return image;
+  let tries = 0;
+  for (; tries < BLANK_RECAPTURE_TRIES && isBlankCapture(image.toBitmap()); tries++) {
+    await paintComposited(win);
+    image = await win.webContents.capturePage();
+  }
+  // Said when it mattered: a capture that was blank and then was not is the stale first capture
+  // this guards against, and seeing it in a CI log is how we know the guard is earning its keep.
+  if (tries > 0 && !isBlankCapture(image.toBitmap())) {
+    console.warn(`The first capture came back blank and was taken again (${tries} ${tries === 1 ? 'try' : 'tries'}); see docs/platform-notes.md.`);
+  }
+  return image;
+}
+
 export function paintComposited(win: BrowserWindow): Promise<void> {
   return new Promise((resolve) => {
     const done = (): void => {
@@ -478,11 +508,16 @@ async function captureFrame(
   state: ReturnType<typeof frameState>,
   manifest: { name: string; width: number; height: number },
   frameFormat: FrameFormat,
+  options: { first?: boolean } = {},
 ): Promise<Buffer> {
-  const detail = (await win.webContents.executeJavaScript(frameCallScript(state))) as TemplateErrorDetail | null;
-  if (detail) throw new TemplateError(detail);
-  await paintComposited(win);
-  const image = await win.webContents.capturePage();
+  const result = (await win.webContents.executeJavaScript(frameCallScript(state))) as FrameCallResult;
+  if (result?.error) throw new TemplateError(result.error);
+  // The renderer never ran an animation frame, so nothing orders the draw against the capture:
+  // give the compositor a cycle of its own before believing what it holds.
+  if (result?.drawn === 'timeout') await paintComposited(win);
+  // The first capture of a render is the one that can be taken before the first draw has been
+  // composited (docs/platform-notes.md), so it is the one checked.
+  const image = await captureSettled(win, options.first === true);
   const size = image.getSize();
   if (size.width !== manifest.width || size.height !== manifest.height) {
     // The window is at scale 1 (see offscreenDeviceScaleFactor), so a different size means the
@@ -564,7 +599,7 @@ export async function captureTemplateFrames(
     for (const frame of frames) {
       if (options.signal?.aborted) return { ok: false, message: 'Cancelled.' };
       try {
-        captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values, frameSize, layers), frameSize, 'png'), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
+        captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values, frameSize, layers), frameSize, 'png', { first: captured.length === 0 }), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
       } catch (err) {
         if (err instanceof RenderTimeoutError) {
           win.webContents.forcefullyCrashRenderer();
@@ -609,8 +644,8 @@ export async function captureStillPage(url: string, size: Size, params: Record<s
       timeoutMs,
       `the page did not draw within ${Math.round(timeoutMs / 1000)} s`,
     );
-    await paintComposited(win);
-    const image = await win.webContents.capturePage();
+    // The only capture this makes is a first capture, so it is checked.
+    const image = await captureSettled(win, true);
     const got = image.getSize();
     if (got.width !== size.width || got.height !== size.height) {
       return { ok: false, message: `captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}` };
@@ -663,8 +698,7 @@ export async function captureAssetFrames(
         timeoutMs,
         `the page did not draw frame ${frame} within ${Math.round(timeoutMs / 1000)} s`,
       );
-      await paintComposited(win);
-      const image = await win.webContents.capturePage();
+      const image = await captureSettled(win, frame === 0);
       const got = image.getSize();
       if (got.width !== size.width || got.height !== size.height) {
         return { ok: false, message: `captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}` };
