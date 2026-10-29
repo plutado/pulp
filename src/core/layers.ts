@@ -18,7 +18,10 @@
 
 import { sanitizeImageValue, validateSlotBoxes, type ImageValue, type SlotBoxes } from './image-slot';
 import { sanitizeClipValue, type ClipValue } from './video-layer';
-import { isWholeGraphic, roundSeconds, type LayerSpan } from './layer-time';
+import {
+  DEFAULT_TRANSITION, DEFAULT_TRANSITIONS, isTemplateMovement, isWholeGraphic, LAYER_TRANSITIONS, roundSeconds,
+  TRANSITION_DIRECTIONS, TRANSITION_LIMITS, type LayerSpan, type LayerTransition, type LayerTransitions,
+} from './layer-time';
 import { MAX_LENGTH_SECONDS } from './timing';
 import { isValidColor, type TemplateManifest, type ValidationIssue } from './manifest';
 
@@ -41,17 +44,19 @@ export const TEXT_OVERFLOWS = ['wrap', 'shrink', 'truncate'] as const;
 export type TextOverflow = (typeof TEXT_OVERFLOWS)[number];
 
 /**
- * How a layer arrives. `template` is the default and the point of a block: the
- * layer takes the movement of the position it is in, so the design stays the
- * author's. The rest are the person's own override for one layer, timed against
- * the template's own timeline (src/core/layer-motion.ts).
+ * How a layer arrived, before milestone 28 gave it two ends. A stored stack —
+ * a preset, a collection card, a `--param @layers` — may still carry one, and
+ * is read as the entrance it always was: the type becomes `transition.in` over
+ * the half second it always took, and the delay becomes the layer's own start,
+ * which is the same moment on the same clock at the template's own length.
+ * Nothing writes one any more.
  */
 export const LAYER_MOTIONS = ['template', 'fade', 'slide', 'scale', 'none'] as const;
 export type LayerMotionType = (typeof LAYER_MOTIONS)[number];
 
 export interface LayerMotion {
   type: LayerMotionType;
-  /** Seconds the layer waits before it comes in. Held inside the template's own time, so it always arrives. */
+  /** Seconds the layer waited before it came in. */
   delay: number;
 }
 
@@ -152,6 +157,7 @@ export const LAYER_LIMITS = {
   spaceBefore: { min: 0, max: 1 },
   gap: { min: 0, max: 1 },
   maxLines: { min: 1, max: 20 },
+  /** A stored `motion`'s delay, which is read as the layer's own start. */
   motionDelay: { min: 0, max: 10 },
   placementOffset: { min: -1, max: 1 },
   placementScale: { min: 0.05, max: 10 },
@@ -169,8 +175,12 @@ interface LayerBase {
   hidden: boolean;
   /** Room before this layer along the stack, as a fraction of the frame's short side. */
   spaceBefore: number;
-  /** How it arrives: the template's own movement for its position, or the person's override. */
-  motion: LayerMotion;
+  /**
+   * How it arrives and how it leaves: the template's own movement for its
+   * position at either end, or the person's own (src/core/layer-time.ts).
+   * Absent until a layer is given one, which is the template's at both ends.
+   */
+  transition?: LayerTransitions;
   /** Where the person put it, by aspect; absent until a layer is moved or scaled on the stage. */
   placement?: LayerPlacements;
   /**
@@ -333,9 +343,10 @@ function readTypography(raw: Record<string, unknown>, base: Typography, path: st
 }
 
 /**
- * A layer's motion, read against a base: an object naming a `type` and a
+ * A stored `motion`, read against a base: an object naming a `type` and a
  * `delay`, either of which may be left out. A wrong field is reported and the
- * base kept, as everywhere else here.
+ * base kept, as everywhere else here. Nothing writes one any more; this is how
+ * the ones already saved are read (`readTransitions`).
  */
 function readMotion(raw: unknown, base: LayerMotion, issue: (field: string, message: string) => void): LayerMotion {
   if (raw === undefined) return { ...base };
@@ -353,6 +364,61 @@ function readMotion(raw: unknown, base: LayerMotion, issue: (field: string, mess
     else issue('motion.delay', `must be a number of seconds from ${LAYER_LIMITS.motionDelay.min} to ${LAYER_LIMITS.motionDelay.max}`);
   }
   return out;
+}
+
+/** One end of a layer, read against a base: a type, how long it takes, and which edge it travels from. */
+function readTransition(raw: unknown, base: LayerTransition, end: 'in' | 'out', issue: (field: string, message: string) => void): LayerTransition {
+  if (raw === undefined) return { ...base };
+  if (!isRecord(raw)) {
+    issue(`transition.${end}`, `must be an object naming a type (${LAYER_TRANSITIONS.join(', ')}), seconds and a direction`);
+    return { ...base };
+  }
+  const out = { ...base };
+  if (raw.type !== undefined) {
+    if (oneOf(LAYER_TRANSITIONS, raw.type)) out.type = raw.type;
+    else issue(`transition.${end}.type`, `must be one of: ${LAYER_TRANSITIONS.join(', ')}`);
+  }
+  if (raw.seconds !== undefined) {
+    if (inRange(raw.seconds, TRANSITION_LIMITS.seconds)) out.seconds = roundSeconds(raw.seconds);
+    else issue(`transition.${end}.seconds`, `must be a number of seconds from ${TRANSITION_LIMITS.seconds.min} to ${TRANSITION_LIMITS.seconds.max}`);
+  }
+  if (raw.direction !== undefined) {
+    if (oneOf(TRANSITION_DIRECTIONS, raw.direction)) out.direction = raw.direction;
+    else issue(`transition.${end}.direction`, `must be one of: ${TRANSITION_DIRECTIONS.join(', ')}`);
+  }
+  return out;
+}
+
+/**
+ * A layer's two ends, read against a base: an object with `in` and `out`,
+ * either of which may be left out. The template's movement at both ends is no
+ * transition at all, so a layer nobody has given one serializes as it did.
+ */
+function readTransitions(raw: unknown, base: LayerTransitions | undefined, issue: (field: string, message: string) => void): LayerTransitions | undefined {
+  if (raw === null) return undefined;
+  if (raw !== undefined && !isRecord(raw)) {
+    issue('transition', 'must be an object with in and out, such as {"in":{"type":"fade","seconds":0.4}}');
+    return base ? { in: { ...base.in }, out: { ...base.out } } : undefined;
+  }
+  const from = base ?? DEFAULT_TRANSITIONS;
+  const given = (raw ?? {}) as Record<string, unknown>;
+  const out: LayerTransitions = {
+    in: readTransition(given.in, from.in, 'in', issue),
+    out: readTransition(given.out, from.out, 'out', issue),
+  };
+  return isTemplateMovement(out) ? undefined : out;
+}
+
+/**
+ * The entrance a stored `motion` means, for a stack saved before milestone 28:
+ * the same shape over the same half second it always took, going the way the
+ * stack goes, and nothing said about leaving. Its delay is the layer's own
+ * start, which is the moment it always was.
+ */
+function transitionsFromMotion(motion: LayerMotion): { transition?: LayerTransitions; start: number } {
+  const start = Math.max(0, motion.delay);
+  if (motion.type === 'template') return { start };
+  return { transition: { in: { ...DEFAULT_TRANSITION, type: motion.type }, out: { ...DEFAULT_TRANSITION } }, start };
 }
 
 /**
@@ -446,13 +512,25 @@ function readSpan(raw: unknown, base: LayerSpan | undefined, issue: (field: stri
   return isWholeGraphic(out) ? undefined : out;
 }
 
+type LayerBaseFields = Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'transition' | 'placement' | 'span'>;
+
 /** The fields a layer of either type has, read against a base the same way as typography. */
-function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion' | 'placement' | 'span'>, issue: (field: string, message: string) => void): Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'motion' | 'placement' | 'span'> {
-  const out = { ...base, motion: readMotion(raw.motion, base.motion, issue) };
+function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issue: (field: string, message: string) => void): LayerBaseFields {
+  const out = { ...base };
+  // A stack saved before milestone 28 carries a `motion` and no `transition`: it is read as the
+  // entrance it always was, and its delay as the start it always was. Anything that names a
+  // transition of its own has already been through this and the old field is left alone.
+  const legacy = raw.motion !== undefined && raw.transition === undefined
+    ? transitionsFromMotion(readMotion(raw.motion, { ...DEFAULT_MOTION }, issue))
+    : null;
+  const transition = readTransitions(raw.transition, legacy?.transition ?? base.transition, issue);
+  if (transition) out.transition = transition;
+  else delete out.transition;
   const placement = readPlacement(raw.placement, base.placement, issue);
   if (placement) out.placement = placement;
   else delete out.placement;
-  const span = readSpan(raw.span, base.span, issue);
+  const spanBase = legacy && legacy.start > 0 && raw.span === undefined ? { start: legacy.start, end: null } : base.span;
+  const span = readSpan(raw.span, spanBase, issue);
   if (span) out.span = span;
   else delete out.span;
   if (raw.label !== undefined) {
@@ -473,7 +551,7 @@ function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'labe
 /** A fresh layer of a type, as a block hands it out: the block's typography, the default image size, nothing required. */
 export function newLayer(type: LayerType, block: Pick<Block, 'typography' | 'align'>, id: string, label?: string): Layer {
   const fallbackLabel = type === 'text' ? 'Text' : type === 'video' ? 'Video' : 'Image';
-  const base: LayerBase = { id, label: label ?? fallbackLabel, required: false, hidden: false, spaceBefore: 0, motion: { ...DEFAULT_MOTION } };
+  const base: LayerBase = { id, label: label ?? fallbackLabel, required: false, hidden: false, spaceBefore: 0 };
   if (type === 'text') return { ...base, ...block.typography, type: 'text', text: '', maxLines: DEFAULT_MAX_LINES };
   if (type === 'video') return { ...base, type: 'video', clip: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
   return { ...base, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
@@ -502,7 +580,7 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
   const id = typeof raw.id === 'string' ? raw.id : '';
   const fresh = newLayer(raw.type, block, id, typeof raw.label === 'string' ? raw.label.trim() : undefined);
   const base = readLayerBase(raw, fresh, issue);
-  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, motion: base.motion, ...(base.placement ? { placement: base.placement } : {}), ...(base.span ? { span: base.span } : {}) };
+  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, ...(base.transition ? { transition: base.transition } : {}), ...(base.placement ? { placement: base.placement } : {}), ...(base.span ? { span: base.span } : {}) };
   let layer: Layer;
   if (raw.type === 'text') {
     if (typeof raw.text !== 'string') issue('text', 'must be a string (the layer\'s default text)');
@@ -621,13 +699,14 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
   const issue = (field: string, message: string) => report(`${field} ${message}; kept`);
   const common = readLayerBase(raw, base, issue);
   /**
-   * The layer, with `common` over its base. The two optionals need saying twice: spreading
-   * `common` cannot clear a key it does not have, so a `"placement": null` or `"span": null`
-   * — how a stored stack says "back to the template's" — would otherwise let the base's own
-   * value through.
+   * The layer, with `common` over its base. The optionals need saying twice: spreading `common`
+   * cannot clear a key it does not have, so a `"placement": null` or `"span": null` — how a
+   * stored stack says "back to the template's" — would otherwise let the base's own value
+   * through.
    */
   const settled = <T extends Layer>(layer: T): T => {
     const out = { ...layer };
+    if (!common.transition) delete out.transition;
     if (!common.placement) delete out.placement;
     if (!common.span) delete out.span;
     return out;

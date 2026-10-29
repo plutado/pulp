@@ -289,44 +289,79 @@ export const BRIDGE_SCRIPT = `(function () {
     var p = pictures[requestKey(layer.image)];
     return p && p.value ? p.value : null;
   }
-  /* Mirrors layerDraws and motionDraw in src/core/layer-layout.ts and src/core/layer-motion.ts, the
-     copies with unit tests: change both or neither. What the template asked for each position, and
-     then, for a layer the person gave a motion of its own, what that says instead -- multiplied by
-     the block's envelope, the most the template is showing any of its layers now, so an overridden
-     layer cannot be left on screen after the graphic has gone. */
-  var MOTION_IN = 0.5, SLIDE_DISTANCE = 1, SCALE_FROM = 0.8;
+  /* Mirrors layerDraws in src/core/layer-layout.ts and the whole of src/core/layer-time.ts, the
+     copies with unit tests: change both or neither. What the template asked for each position,
+     and then, for a layer the person gave an entrance or an exit of its own (milestone 28), what
+     that says instead -- all of it multiplied by the block's envelope, the most the template is
+     showing any of its layers now, so a layer cannot be left on screen after the graphic has gone.
+
+     A layer's own start, end and transitions are seconds of the graphic as it is watched --
+     milestone 30's chosen length, not the template's own clock -- which the frame state gives as
+     the frame and the frames there are, both at the output rate. */
+  var MIN_ON_SCREEN = 0.05, SLIDE_DISTANCE = 1, SCALE_FROM = 0.8;
   function easeInOutSine(x) { return (1 - Math.cos(Math.PI * x)) / 2; }
   function clamp01(x) { return Math.max(0, Math.min(1, x)); }
-  function motionDraw(motion, time, duration, distance, column) {
-    if (!motion || motion.type === 'template') return null;
-    var over = Math.min(MOTION_IN, Math.max(0, duration));
-    var delay = Math.max(0, motion.delay || 0);
-    var start = Math.min(delay, Math.max(0, duration - over));
-    if (motion.type === 'none') return { alpha: time >= start ? 1 : 0, dx: 0, dy: 0, scale: 1 };
-    var eased = easeInOutSine(over <= 0 ? (time >= start ? 1 : 0) : clamp01((time - start) / over));
-    if (motion.type === 'fade') return { alpha: eased, dx: 0, dy: 0, scale: 1 };
-    if (motion.type === 'slide') {
-      var travel = (1 - eased) * SLIDE_DISTANCE * distance;
-      return column ? { alpha: eased, dx: 0, dy: travel, scale: 1 } : { alpha: eased, dx: -travel, dy: 0, scale: 1 };
-    }
-    if (motion.type === 'scale') return { alpha: eased, dx: 0, dy: 0, scale: SCALE_FROM + (1 - SCALE_FROM) * eased };
-    return null;
-  }
-  /* Mirrors spanAt and spanWindow in src/core/layer-time.ts, the copy with unit tests: change both
-     or neither. A layer's own start and end (milestone 28) are seconds of the graphic as it is
-     watched -- milestone 30's chosen length, not the template's own clock -- which the frame state
-     gives as the frame and the frames there are, both at the output rate. */
-  var MIN_ON_SCREEN = 0.05;
   function watchedAt(state) {
     var fps = state && state.fps > 0 ? state.fps : 1;
     return { elapsed: (state ? state.frame || 0 : 0) / fps, length: (state ? state.totalFrames || 0 : 0) / fps };
   }
+  function spanWindow(span, length) {
+    var whole = Math.max(0, length > 0 ? length : 0);
+    if (!span) return { from: 0, to: whole };
+    var from = Math.min(Math.max(0, span.start || 0), Math.max(0, whole - MIN_ON_SCREEN));
+    if (span.end === null || span.end === undefined) return { from: from, to: whole };
+    return { from: from, to: Math.min(whole, Math.max(span.end, from + MIN_ON_SCREEN)) };
+  }
   function spanAt(span, at) {
     if (!span) return 1;
-    var whole = Math.max(0, at.length);
-    var from = Math.min(Math.max(0, span.start || 0), Math.max(0, whole - MIN_ON_SCREEN));
-    var to = span.end === null || span.end === undefined ? whole : Math.min(whole, Math.max(span.end, from + MIN_ON_SCREEN));
-    return at.elapsed >= from && at.elapsed < to ? 1 : 0;
+    var w = spanWindow(span, at.length);
+    return at.elapsed >= w.from && at.elapsed < w.to ? 1 : 0;
+  }
+  function templateBothEnds(t) { return !t || (t.in.type === 'template' && t.out.type === 'template'); }
+  function transitionSeconds(t, window) {
+    var room = Math.max(0, window.to - window.from);
+    var inS = t && t.in.type !== 'template' ? Math.max(0, t.in.seconds) : 0;
+    var outS = t && t.out.type !== 'template' ? Math.max(0, t.out.seconds) : 0;
+    var total = inS + outS;
+    if (total <= room || total <= 0) return { in: inS, out: outS };
+    var factor = room / total;
+    return { in: inS * factor, out: outS * factor };
+  }
+  function travelFrom(direction, column, distance) {
+    var from = direction === 'auto' ? (column ? 'bottom' : 'left') : direction;
+    if (from === 'top') return { dx: 0, dy: -distance };
+    if (from === 'bottom') return { dx: 0, dy: distance };
+    if (from === 'left') return { dx: -distance, dy: 0 };
+    return { dx: distance, dy: 0 };
+  }
+  function transitionShape(transition, progress, distance, column) {
+    if (transition.type === 'template' || transition.type === 'none') return { alpha: 1, dx: 0, dy: 0, scale: 1 };
+    var eased = easeInOutSine(clamp01(progress));
+    if (transition.type === 'fade') return { alpha: eased, dx: 0, dy: 0, scale: 1 };
+    if (transition.type === 'scale') return { alpha: eased, dx: 0, dy: 0, scale: SCALE_FROM + (1 - SCALE_FROM) * eased };
+    if (transition.type === 'slide') {
+      var t = travelFrom(transition.direction, column, (1 - eased) * SLIDE_DISTANCE * distance);
+      return { alpha: eased, dx: t.dx, dy: t.dy, scale: 1 };
+    }
+    var edge = transition.direction === 'auto' ? (column ? 'bottom' : 'left') : transition.direction;
+    return { alpha: 1, dx: 0, dy: 0, scale: 1, wipe: { from: edge, shown: eased } };
+  }
+  function transitionsAt(span, transitions, at, distance, column) {
+    if (templateBothEnds(transitions)) return { entrance: null, exit: null };
+    var w = spanWindow(span, at.length);
+    var secs = transitionSeconds(transitions, w);
+    var elapsed = isFinite(at.elapsed) ? at.elapsed : w.from;
+    return {
+      entrance: transitions.in.type === 'template' ? null
+        : transitionShape(transitions.in, secs.in <= 0 ? 1 : (elapsed - w.from) / secs.in, distance, column),
+      exit: transitions.out.type === 'template' ? null
+        : transitionShape(transitions.out, secs.out <= 0 ? 1 : (w.to - elapsed) / secs.out, distance, column),
+    };
+  }
+  function combineShapes(base, over) {
+    var wipe = base.wipe && over.wipe ? (base.wipe.shown <= over.wipe.shown ? base.wipe : over.wipe) : (base.wipe || over.wipe);
+    return { alpha: base.alpha * over.alpha, dx: base.dx + over.dx, dy: base.dy + over.dy, scale: base.scale * over.scale,
+             rotate: base.rotate, letterSpacing: base.letterSpacing, wipe: wipe };
   }
   function layerDraws(block, state, options, column) {
     var asked = block.layers.map(function (layer, position) {
@@ -339,12 +374,15 @@ export const BRIDGE_SCRIPT = `(function () {
     for (i = 0; i < asked.length; i++) envelope = Math.max(envelope, asked[i].alpha);
     var watched = watchedAt(state);
     return block.layers.map(function (layer, position) {
-      var own = motionDraw(layer.motion, state.time, state.duration, layer.type === 'text' ? layer.fontSize : layer.size, column);
+      var ends = templateBothEnds(layer.transition)
+        ? { entrance: null, exit: null }
+        : transitionsAt(layer.span, layer.transition, watched, layer.type === 'text' ? layer.fontSize : layer.size, column);
       var draw = asked[position];
-      if (own) { own.alpha = own.alpha * envelope; draw = own; }
+      if (ends.entrance) draw = { alpha: ends.entrance.alpha * envelope, dx: ends.entrance.dx, dy: ends.entrance.dy, scale: ends.entrance.scale, rotate: 0, wipe: ends.entrance.wipe };
+      if (ends.exit) draw = combineShapes(draw, ends.exit);
       /* The layer's own start and end are the last word: outside them it is simply not there,
          whether the movement above was the template's or the person's. */
-      if (layer.span) draw = { alpha: draw.alpha * spanAt(layer.span, watched), dx: draw.dx, dy: draw.dy, scale: draw.scale, rotate: draw.rotate, letterSpacing: draw.letterSpacing };
+      if (layer.span) draw = { alpha: draw.alpha * spanAt(layer.span, watched), dx: draw.dx, dy: draw.dy, scale: draw.scale, rotate: draw.rotate, letterSpacing: draw.letterSpacing, wipe: draw.wipe };
       /* The person's placement (milestone 25) wraps whatever the template or the override asked:
          offsets add, scales multiply, so a placed layer still rides the design. Mirrors layerDraws
          in src/core/layer-layout.ts: change both or neither. */
@@ -472,6 +510,19 @@ export const BRIDGE_SCRIPT = `(function () {
         var ink = inkBox(layer);
         var ix = ink.x + ink.width / 2, iy = ink.y + ink.height / 2;
         ctx.translate(ix, iy); ctx.rotate(d.rotate * Math.PI / 180); ctx.translate(-ix, -iy);
+      }
+      /* A wipe (milestone 28) uncovers the layer from one edge rather than fading it, so it reads
+         on any background. It is clipped to what the layer actually draws, not to the slot it sits
+         in, for the same reason a turn goes about the ink box. */
+      if (d.wipe && d.wipe.shown < 1) {
+        if (d.wipe.shown <= 0) { ctx.restore(); continue; }
+        var w = inkBox(layer), shown = d.wipe.shown, edge = d.wipe.from;
+        ctx.beginPath();
+        if (edge === 'left') ctx.rect(w.x, w.y, w.width * shown, w.height);
+        else if (edge === 'right') ctx.rect(w.x + w.width * (1 - shown), w.y, w.width * shown, w.height);
+        else if (edge === 'top') ctx.rect(w.x, w.y, w.width, w.height * shown);
+        else ctx.rect(w.x, w.y + w.height * (1 - shown), w.width, w.height * shown);
+        ctx.clip();
       }
       if (layer.type === 'text') drawTextLayer(ctx, layer);
       else if (layer.picture) {

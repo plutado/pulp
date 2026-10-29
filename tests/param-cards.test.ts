@@ -126,7 +126,7 @@ describe('paramCards', () => {
     const layers = defaultLayers(m);
     layers.strap = [
       ...layers.strap!,
-      { id: 'extra', type: 'text', label: 'Line 3', text: 'Added', required: false, hidden: true, spaceBefore: 0, motion: { type: 'template', delay: 0 }, align: 'left', family: 'Inter', size: 0.05, weight: 400, italic: false, case: 'none', letterSpacing: 0, kerning: true, lineHeight: 1.2, color: '#ffffff', overflow: 'wrap', maxLines: 3 },
+      { id: 'extra', type: 'text', label: 'Line 3', text: 'Added', required: false, hidden: true, spaceBefore: 0, align: 'left', family: 'Inter', size: 0.05, weight: 400, italic: false, case: 'none', letterSpacing: 0, kerning: true, lineHeight: 1.2, color: '#ffffff', overflow: 'wrap', maxLines: 3 },
     ];
     const cards = paramCards(m, layers);
     expect(cards.map((c) => c.label)).toEqual(['Name', 'Title', 'Line 3']);

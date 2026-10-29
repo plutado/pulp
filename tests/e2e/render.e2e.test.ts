@@ -620,6 +620,52 @@ describe.skipIf(!available)('end-to-end render', () => {
     }
   }, 240_000);
 
+  it('brings a layer in and takes it out the way the layer says, not the template (milestone 28)', async () => {
+    // The title card's subtitle, wiped in from the left over a second and cut at four, so what the
+    // transition did can be read straight off the frame: a wipe uncovers rather than fades, so the
+    // lit columns of the subtitle's band grow from one edge while its brightness never changes.
+    const timed = ['--param', `@layers=${JSON.stringify({
+      card: [{ id: 'subtitle', transition: { in: { type: 'wipe', seconds: 1, direction: 'left' } }, span: { start: 1, end: 4 } }],
+    })}`];
+    const [width, height] = [192, 108];
+    const band = async (n: number) => {
+      const { stdout } = await runBoundedBuffer(ffmpeg, ffmpegArgs(['-v', 'error', '-i', join(out, `wipe-in_${String(n).padStart(5, '0')}.png`), '-vf', 'format=rgba', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']), { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
+      // The subtitle sits below the middle of the card; the title is above it and never moves.
+      let first = width, last = -1, lit = 0, brightest = 0;
+      for (let y = Math.floor(height * 0.55); y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          if (stdout[i]! <= 110 || stdout[i + 1]! <= 110 || stdout[i + 2]! <= 110) continue;
+          lit++;
+          brightest = Math.max(brightest, stdout[i]!);
+          first = Math.min(first, x);
+          last = Math.max(last, x);
+        }
+      }
+      return { lit, first, last, brightest };
+    };
+
+    const r = await render('pulp.samples.title-card', 'png-sequence', 'wipe-in', { extra: ['--fps', '25', '--size', `${width}x${height}`, ...timed] });
+    expect(r.code, r.stderr).toBe(0);
+
+    // Nothing before the layer's own start, however far into the template's own stagger that is.
+    expect((await band(20)).lit, 'nothing before the layer starts').toBe(0);
+    const opening = await band(37);
+    const half = await band(45);
+    const whole = await band(50);
+    // Uncovered from the left: the lit part starts at the same column throughout and reaches
+    // further to the right as the wipe runs, rather than appearing all at once or fading up.
+    expect(opening.lit, 'the wipe has begun').toBeGreaterThan(0);
+    expect(opening.last, 'and has not finished').toBeLessThan(whole.last);
+    expect(half.last).toBeGreaterThan(opening.last);
+    expect([opening.first, half.first], 'uncovered from one edge, which does not move').toEqual([whole.first, whole.first]);
+    // A wipe does not fade: what is shown is as bright at a quarter of the way through as at the end.
+    expect(Math.abs(opening.brightest - whole.brightest), 'a wipe uncovers rather than fades').toBeLessThan(8);
+    // Still whole just before the layer's end, and gone at it.
+    expect((await band(99)).lit).toBe(whole.lit);
+    expect((await band(100)).lit, 'gone at the layer\'s own end').toBe(0);
+  }, 240_000);
+
   it('draws a layer turned, about the words rather than the block (milestone 29)', async () => {
     // The hairline lower third is alpha, and its "who" line is aligned at the left of a block
     // that spans most of the frame — the case where turning about the slot would swing the line

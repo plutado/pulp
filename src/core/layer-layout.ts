@@ -24,9 +24,10 @@
 
 import { aspectOf, type Size } from './aspect';
 import { boxFor, fitImage, type ImageValue, type PxBox } from './image-slot';
-import { motionDraw, type MotionAt } from './layer-motion';
-import { spanAt, type LayerSpan, type WatchedAt } from './layer-time';
-import { DEFAULT_MAX_LINES, DEFAULT_MOTION, IDENTITY_PLACEMENT, placementFor, type Block, type ImageLayer, type Layer, type LayerMotion, type LayerValues, type TextCase, type TextLayer, type VideoLayer } from './layers';
+import {
+  combineShapes, isTemplateMovement, spanAt, transitionsAt, type LayerSpan, type LayerTransitions, type TransitionShape, type WatchedAt,
+} from './layer-time';
+import { DEFAULT_MAX_LINES, IDENTITY_PLACEMENT, placementFor, type Block, type ImageLayer, type Layer, type LayerValues, type TextCase, type TextLayer, type VideoLayer } from './layers';
 import type { TemplateManifest } from './manifest';
 import { clipWindowIndexAt, type ClipSource, type ClipValue } from './video-layer';
 
@@ -50,8 +51,8 @@ interface LayerStateBase {
   /** Room before this layer along the stack, in pixels of this frame. */
   spaceBefore: number;
   align: 'left' | 'center' | 'right';
-  /** How it arrives: the template's own movement for its position, or the person's override (src/core/layer-motion.ts). */
-  motion: LayerMotion;
+  /** How it arrives and how it leaves: the template's own movement at either end, or the person's (src/core/layer-time.ts). */
+  transition?: LayerTransitions;
   /** Where the person put it, for this frame's aspect, in pixels of this frame; identity when never moved. */
   /** The person's placement for this frame's shape: offsets in pixels, the scale, the angle in degrees. */
   placement: { dx: number; dy: number; scale: number; rotate: number };
@@ -165,6 +166,8 @@ export interface LayerDraw {
   rotate?: number;
   /** In em, replacing the layer's own for this frame; a template animating its tracking passes it here. */
   letterSpacing?: number;
+  /** How much of the layer a wipe is showing, and which edge it grows from (milestone 28); absent unless one is running. */
+  wipe?: TransitionShape['wipe'];
 }
 
 export interface LayoutOptions {
@@ -175,18 +178,12 @@ export interface LayoutOptions {
   /** Per layer, by stack position: what it is drawn with. Anything left out keeps its own value. */
   each?: (layer: LayerState, position: number) => Partial<LayerDraw> | undefined;
   /**
-   * This frame's place in the template's timeline, which a layer's own motion
-   * override is timed against (src/core/layer-motion.ts). The bridge passes it
-   * from the frame state, so a template need not know about overrides at all;
-   * without it every layer takes the template's own movement.
-   */
-  at?: MotionAt;
-  /**
    * This frame's place in the graphic **as it is watched** — the chosen length,
    * which milestone 30 let differ from the template's own clock — which a
-   * layer's own start and end are set in (src/core/layer-time.ts). The bridge
-   * works it out from the frame state; without it every layer is on screen for
-   * the whole graphic, as every layer was before milestone 28.
+   * layer's own start, end and transitions are set in
+   * (src/core/layer-time.ts). The bridge works it out from the frame state;
+   * without it every layer is on screen for the whole graphic with the
+   * template's own movement, as every layer was before milestone 28.
    */
   watched?: WatchedAt;
 }
@@ -273,33 +270,37 @@ function alignedX(align: 'left' | 'center' | 'right', boxX: number, boxWidth: nu
 
 /**
  * What every layer of a block is drawn with this frame: what the template asked
- * for each position, and then, for a layer whose motion the person overrode,
- * what that override says instead.
+ * for each position, and then, for a layer the person gave an entrance or an
+ * exit of its own, what that says instead.
  *
- * The override is multiplied by the block's **envelope** — the most the
- * template is showing any of its layers at this frame. That is the template
- * saying whether the graphic is there at all: while it is staggering its lines
- * in, the leading one is already at full, so an override is free to show its
- * layer from the first frame; when the graphic clears, every layer's alpha
- * falls and the override goes with it. So an overridden layer cannot be left on
- * screen after the design has gone (src/core/layer-motion.ts).
+ * The person's **entrance** replaces the template's movement for that layer,
+ * including any letter spacing the template was animating; the person said how
+ * this layer arrives, so the template no longer has a say in it. The person's
+ * **exit** is multiplied into whatever was already there, template or not, so
+ * the two ends can be chosen separately.
  *
- * An override replaces the whole of the template's movement for that layer,
- * including any letter spacing the template was animating: the person said how
- * this layer arrives, so the template no longer has a say in it.
+ * All of it is multiplied by the block's **envelope** — the most the template
+ * is showing any of its layers at this frame. That is the template saying
+ * whether the graphic is there at all: while it is staggering its lines in, the
+ * leading one is already at full, so a layer of one's own is free to show from
+ * the first frame; when the graphic clears, every layer's alpha falls and the
+ * layer goes with it. So a layer cannot be left on screen after the design has
+ * gone (src/core/layer-time.ts).
  *
- * A layer's own start and end (milestone 28) are the last word on top of all of
- * it: outside them the layer is simply not there, whether the movement is the
- * template's or the person's.
+ * A layer's own start and end are the last word on top of all of it: outside
+ * them the layer is simply not there, whether the movement is the template's or
+ * the person's.
  */
 function layerDraws(block: BlockState, options: LayoutOptions): LayerDraw[] {
   const asked = block.layers.map((layer, position) => ({ ...DEFAULT_DRAW, ...(options.each?.(layer, position) ?? {}) }));
-  const at = options.at;
   const watched = options.watched;
   const envelope = asked.reduce((most, draw) => Math.max(most, draw.alpha), 0);
   return block.layers.map((layer, position) => {
-    const own = at ? motionDraw(layer.motion, at, { distance: layerDistance(layer), direction: block.direction }) : null;
-    const before = own ? { ...own, alpha: own.alpha * envelope } : asked[position]!;
+    const ends = watched && !isTemplateMovement(layer.transition)
+      ? transitionsAt(layer.span, layer.transition, watched, { distance: layerDistance(layer), direction: block.direction })
+      : { entrance: null, exit: null };
+    const arrived: LayerDraw = ends.entrance ? { ...ends.entrance, rotate: 0, alpha: ends.entrance.alpha * envelope } : asked[position]!;
+    const before = ends.exit ? combineShapes(arrived, ends.exit) : arrived;
     const on = watched && layer.span ? spanAt(layer.span, watched) : 1;
     const draw = on === 1 ? before : { ...before, alpha: before.alpha * on };
     // The person's placement is applied around whatever the template (or the override) asked:
@@ -451,7 +452,7 @@ function layerState(layer: Layer, position: number, short: number, size: Size, c
   const placement = placed === IDENTITY_PLACEMENT
     ? { ...IDENTITY_PLACEMENT }
     : { dx: placed.dx * size.width, dy: placed.dy * size.height, scale: placed.scale, rotate: placed.rotate };
-  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', motion: layer.motion ?? { ...DEFAULT_MOTION }, placement, ...(layer.span ? { span: layer.span } : {}) };
+  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', placement, ...(layer.transition ? { transition: layer.transition } : {}), ...(layer.span ? { span: layer.span } : {}) };
   if (layer.type === 'text') {
     const text = layer as TextLayer;
     return {

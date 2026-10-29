@@ -13,7 +13,11 @@ import type { TemplateManifest, TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
 import { LAYERS_KEY, lengthIn, resolveParams, withLength, type ResolvedParams } from '../core/params';
-import { isWholeGraphic, roundSeconds, spanWindow, type LayerSpan } from '../core/layer-time';
+import {
+  DEFAULT_TRANSITION, isTemplateMovement, isWholeGraphic, LAYER_TRANSITIONS, roundSeconds, spanWindow,
+  TRANSITION_DIRECTIONS, TRANSITION_LIMITS, type LayerSpan, type LayerTransition, type LayerTransitions,
+  type LayerTransitionType, type TransitionDirection,
+} from '../core/layer-time';
 import { BUNDLED_FAMILIES, cssFontFamily, familyLabel, importedFamilies, type ImportedFont } from '../core/fonts';
 import { hasCards, labelRepeatsHeading, paramCards, type ParamCard } from '../core/param-cards';
 import {
@@ -21,7 +25,6 @@ import {
   LAYER_ALIGNS,
   LAYER_LIMITS,
   isIdentityPlacement,
-  LAYER_MOTIONS,
   LAYER_TYPES,
   newLayer,
   normalizeAngle,
@@ -30,8 +33,6 @@ import {
   TEXT_CASES,
   TEXT_OVERFLOWS,
   type Layer,
-  type LayerMotion,
-  type LayerMotionType,
   type LayerType,
   type ImageLayer,
   type LayerPlacements,
@@ -1356,7 +1357,8 @@ const openTypography = new Set<string>();
 /** The same for the Advanced disclosure, which holds a layer's own motion. */
 const openAdvanced = new Set<string>();
 
-const MOTION_LABELS: Record<LayerMotionType, string> = { template: 'Template', fade: 'Fade', slide: 'Slide', scale: 'Scale', none: 'None' };
+const MOTION_LABELS: Record<LayerTransitionType, string> = { template: 'Template', fade: 'Fade', slide: 'Slide', scale: 'Scale', wipe: 'Wipe', none: 'None' };
+const DIRECTION_LABELS: Record<TransitionDirection, string> = { auto: 'With the stack', top: 'The top', bottom: 'The bottom', left: 'The left', right: 'The right' };
 
 /** The length the graphic is running at, which a layer's own start and end are set within. */
 function graphicLength(): number {
@@ -1372,12 +1374,15 @@ function spanSummary(span: LayerSpan | undefined, length: number): string {
   return ` · ${roundSeconds(from)}-${roundSeconds(to)} s`;
 }
 
-/** What the folded Advanced line says: nothing of its own while the template owns the movement. */
-function motionSummary(motion: LayerMotion, span: LayerSpan | undefined, length: number): string {
+/** What the folded Advanced line says: nothing of its own while the template owns both ends. */
+function motionSummary(transition: LayerTransitions | undefined, span: LayerSpan | undefined, length: number): string {
   const timing = spanSummary(span, length);
-  if (motion.type === 'template') return `Advanced${timing}`;
-  const delay = motion.delay > 0 ? ` after ${motion.delay} s` : '';
-  return `Advanced · ${MOTION_LABELS[motion.type]}${delay}${timing}`;
+  if (isTemplateMovement(transition) || !transition) return `Advanced${timing}`;
+  const ends = [
+    transition.in.type === 'template' ? '' : `in ${MOTION_LABELS[transition.in.type]}`,
+    transition.out.type === 'template' ? '' : `out ${MOTION_LABELS[transition.out.type]}`,
+  ].filter(Boolean).join(', ');
+  return `Advanced · ${ends}${timing}`;
 }
 
 /**
@@ -1406,10 +1411,36 @@ function spanControls(blockId: string, layer: Layer, onChange: () => void): HTML
 }
 
 /**
- * A layer's own motion, folded away under Advanced: the template owns how a
- * layer arrives — that is what a block is for — and this is the override for
- * one layer. Whatever is chosen still goes when the graphic goes, so a layer
- * cannot be left on screen after the design has cleared (src/core/layer-motion.ts).
+ * One end of a layer: how it arrives, or how it leaves. The template owns both
+ * by default — that is what a block is for — and these are the person's own
+ * for this layer. Whatever is chosen still goes when the graphic goes, so a
+ * layer cannot be left on screen after the design has cleared
+ * (src/core/layer-time.ts).
+ */
+function transitionFields(label: string, end: 'in' | 'out', layer: Layer, read: () => LayerTransitions, set: (t: LayerTransitions) => void): HTMLElement[] {
+  const current = () => read()[end];
+  const put = (over: Partial<LayerTransition>) => {
+    const next = read();
+    set({ ...next, [end]: { ...next[end], ...over } });
+    follow();
+  };
+  const type = typeField(label, selectOf(LAYER_TRANSITIONS, MOTION_LABELS, current().type, (v) => put({ type: v }), `${layer.label} ${end === 'in' ? 'entrance' : 'exit'}`));
+  const seconds = typeField(`${label}, s`, numberOf(current().seconds, TRANSITION_LIMITS.seconds, 0.05, (v) => put({ seconds: v }), `${layer.label} ${end === 'in' ? 'entrance' : 'exit'} seconds`));
+  const direction = typeField(`${label} from`, selectOf(TRANSITION_DIRECTIONS, DIRECTION_LABELS, current().direction, (v) => put({ direction: v }), `${layer.label} ${end === 'in' ? 'entrance' : 'exit'} direction`));
+  /** Seconds mean nothing while the template owns the end, and an edge means nothing to a fade. */
+  function follow(): void {
+    const t = current().type;
+    seconds.hidden = t === 'template';
+    direction.hidden = t !== 'slide' && t !== 'wipe';
+  }
+  follow();
+  return [type, seconds, direction];
+}
+
+/**
+ * A layer's own two ends and its own time on screen, folded away under
+ * Advanced. Both ends default to the template's movement, which is what every
+ * layer had before milestone 28 and what it keeps until someone says otherwise.
  */
 function motionControls(blockId: string, layer: Layer): HTMLElement {
   const key = `${blockId}.${layer.id}`;
@@ -1423,26 +1454,25 @@ function motionControls(blockId: string, layer: Layer): HTMLElement {
   const summary = document.createElement('summary');
   const length = graphicLength();
   let span = layer.span;
-  const retitle = () => { summary.textContent = motionSummary(current, span, length); };
-
-  let current = layer.motion;
-  const set = (motion: LayerMotion) => {
-    current = motion;
-    editLayer(blockId, layer.id, (l) => ({ ...l, motion }) as Layer, false);
-    commitParams();
-    retitle();
-    delay.hidden = current.type === 'template';
-  };
+  let transition: LayerTransitions | undefined = layer.transition;
+  const retitle = () => { summary.textContent = motionSummary(transition, span, length); };
   retitle();
   details.append(summary);
 
+  const setTransition = (next: LayerTransitions) => {
+    // The template's movement at both ends is no transition at all, so the layer is stored as it was.
+    transition = isTemplateMovement(next) ? undefined : next;
+    editLayer(blockId, layer.id, (l) => ({ ...l, transition }) as Layer, false);
+    commitParams();
+    retitle();
+  };
+  const readTransition = (): LayerTransitions => transition ?? { in: { ...DEFAULT_TRANSITION }, out: { ...DEFAULT_TRANSITION } };
+
   const grid = document.createElement('div');
   grid.className = 'type-grid';
-  grid.append(typeField('Motion', selectOf(LAYER_MOTIONS, MOTION_LABELS, layer.motion.type, (v) => set({ ...current, type: v }), `${layer.label} motion`)));
-  const delay = typeField('Delay, seconds', numberOf(layer.motion.delay, LAYER_LIMITS.motionDelay, 0.1, (v) => set({ ...current, delay: v }), `${layer.label} motion delay`));
-  // The delay is the override's own: while the template owns the movement there is nothing to delay.
-  delay.hidden = layer.motion.type === 'template';
-  grid.append(delay, angleField(blockId, layer));
+  grid.append(...transitionFields('In', 'in', layer, readTransition, setTransition));
+  grid.append(...transitionFields('Out', 'out', layer, readTransition, setTransition));
+  grid.append(angleField(blockId, layer));
   grid.append(...spanControls(blockId, layer, () => { span = currentLayer(blockId, layer.id)?.span; retitle(); }));
   details.append(grid);
   return details;

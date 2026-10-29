@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_IMAGE_LAYER_SIZE,
-  DEFAULT_MOTION,
   DEFAULT_TYPOGRAPHY,
   defaultLayers,
   hasBlocks,
@@ -17,6 +16,7 @@ import {
 } from '../src/core/layers';
 import { validateManifest, type ValidationIssue } from '../src/core/manifest';
 import { normalizeAngle } from '../src/core/layers';
+import { DEFAULT_TRANSITION } from '../src/core/layer-time';
 import { EMPTY_CLIP } from '../src/core/video-layer';
 import { rawManifest } from './fixtures';
 
@@ -73,7 +73,7 @@ describe('validateBlock', () => {
 
   it('an image layer carries no image, a size and an alignment, and may start hidden', () => {
     const mark = block().layers[2] as ImageLayer;
-    expect(mark).toEqual({ id: 'mark', type: 'image', label: 'Mark', required: false, hidden: true, spaceBefore: 0, motion: DEFAULT_MOTION, image: null, size: 0.08, align: 'right' });
+    expect(mark).toEqual({ id: 'mark', type: 'image', label: 'Mark', required: false, hidden: true, spaceBefore: 0, image: null, size: 0.08, align: 'right' });
     expect((block({ layers: [{ id: 'logo', type: 'image', label: 'Logo' }] }).layers[0] as ImageLayer)).toMatchObject({ size: DEFAULT_IMAGE_LAYER_SIZE, align: 'left' });
     expect(errorPaths(rawBlock({ layers: [{ id: 'logo', type: 'image', label: 'Logo', image: 'abc' }] }))).toEqual(['blocks[0].layers[0].image']);
   });
@@ -270,45 +270,61 @@ describe('resolveLayers', () => {
     return r.manifest;
   };
 
-  it('carries a layer\'s own motion, from the template and from use-time input alike', () => {
-    // A template may declare a layer's motion; anything it leaves out is the default.
+  it('carries a layer\'s two ends, from the template and from use-time input alike (milestone 28)', () => {
+    // A template may declare how a layer arrives and leaves; anything it leaves out is the default.
     const declared = validateBlock({ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [
-      { id: 'a', type: 'text', label: 'A', text: 'x', motion: { type: 'slide', delay: 1.5 } },
-      { id: 'b', type: 'text', label: 'B', text: 'y', motion: { type: 'fade' } },
+      { id: 'a', type: 'text', label: 'A', text: 'x', transition: { in: { type: 'slide', seconds: 0.8, direction: 'left' } } },
+      { id: 'b', type: 'text', label: 'B', text: 'y', transition: { out: { type: 'fade' } } },
     ] }, 'blocks[0]', []);
-    expect(declared!.layers[0]!.motion).toEqual({ type: 'slide', delay: 1.5 });
-    expect(declared!.layers[1]!.motion).toEqual({ type: 'fade', delay: 0 });
+    expect(declared!.layers[0]!.transition).toEqual({ in: { type: 'slide', seconds: 0.8, direction: 'left' }, out: { ...DEFAULT_TRANSITION } });
+    expect(declared!.layers[1]!.transition).toEqual({ in: { ...DEFAULT_TRANSITION }, out: { ...DEFAULT_TRANSITION, type: 'fade' } });
 
     // And a person's own, through every route that carries raw values (a preset, a collection, --param).
-    const { values, issues } = resolveLayers(manifest(), { strap: [{ id: 'name', motion: { type: 'scale', delay: 2 } }] });
+    const { values, issues } = resolveLayers(manifest(), { strap: [{ id: 'name', transition: { in: { type: 'scale', seconds: 0.25 } } }] });
     expect(issues).toEqual([]);
-    expect(values.strap![0]!.motion).toEqual({ type: 'scale', delay: 2 });
-    // What is left out keeps what the layer had, field by field, as everything else here does.
-    expect(resolveLayers(manifest(), { strap: [{ id: 'name', motion: { delay: 1 } }] }).values.strap![0]!.motion).toEqual({ type: 'template', delay: 1 });
+    expect(values.strap![0]!.transition).toEqual({ in: { type: 'scale', seconds: 0.25, direction: 'auto' }, out: { ...DEFAULT_TRANSITION } });
+    // The template's movement at both ends is no transition at all, so the layer is stored as it was.
+    const clean = resolveLayers(manifest(), { strap: [{ id: 'name', transition: { in: { type: 'template' } } }] });
+    expect(clean.values.strap![0]!.transition).toBeUndefined();
+    expect('transition' in clean.values.strap![0]!).toBe(false);
+    // Null clears a pair a stored stack carried.
+    expect(resolveLayers(manifest(), { strap: [{ id: 'name', transition: null }] }).values.strap![0]!.transition).toBeUndefined();
   });
 
-  it('reports a motion it cannot use and keeps the layer\'s own', () => {
+  it('reads a stack saved with the old entrance-only motion, which still means what it meant', () => {
+    // Milestone 23's `motion` is the entrance it always was, over the half second it always took.
+    const { values, issues } = resolveLayers(manifest(), { strap: [{ id: 'name', motion: { type: 'slide', delay: 2 } }] });
+    expect(issues).toEqual([]);
+    expect(values.strap![0]!.transition).toEqual({ in: { type: 'slide', seconds: 0.5, direction: 'auto' }, out: { ...DEFAULT_TRANSITION } });
+    // And its delay is the layer's own start, which is the same moment on the same clock.
+    expect(values.strap![0]!.span).toEqual({ start: 2, end: null });
+    // A motion that left the movement to the template said nothing but when the layer arrives.
+    const plain = resolveLayers(manifest(), { strap: [{ id: 'name', motion: { type: 'template', delay: 1 } }] });
+    expect(plain.values.strap![0]!.transition).toBeUndefined();
+    expect(plain.values.strap![0]!.span).toEqual({ start: 1, end: null });
+    // A stack that names both has already been through this: the old field is left where it lies.
+    const newer = resolveLayers(manifest(), { strap: [{ id: 'name', motion: { type: 'slide', delay: 2 }, transition: { in: { type: 'fade' } } }] });
+    expect(newer.values.strap![0]!.transition!.in.type).toBe('fade');
+    expect(newer.values.strap![0]!.span).toBeUndefined();
+  });
+
+  it('reports an end it cannot use and keeps the layer\'s own', () => {
     const errors: ValidationIssue[] = [];
     validateBlock({ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [
-      { id: 'a', type: 'text', label: 'A', text: 'x', motion: { type: 'explode', delay: 99 } },
+      { id: 'a', type: 'text', label: 'A', text: 'x', transition: { in: { type: 'explode', seconds: 99, direction: 'sideways' } } },
     ] }, 'blocks[0]', errors);
-    expect(errors.map((e) => e.path)).toEqual(['blocks[0].layers[0].motion.type', 'blocks[0].layers[0].motion.delay']);
-    const bad = resolveLayers(manifest(), { strap: [{ id: 'name', motion: 'fast' }] });
-    expect(bad.issues.map((i) => i.message)).toEqual([expect.stringContaining('motion must be an object')]);
-    expect(bad.values.strap![0]!.motion).toEqual({ type: 'template', delay: 0 });
-  });
-
-  it('carries a layer\'s placement by aspect, and drops what says nothing (milestone 25)', () => {
-    const { values, issues } = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { dx: 0.1, dy: -0.05 }, 'default': { scale: 1.4 } } }] });
-    expect(issues).toEqual([]);
-    expect(values.strap![0]!.placement).toEqual({ '16:9': { dx: 0.1, dy: -0.05, scale: 1, rotate: 0 }, default: { dx: 0, dy: 0, scale: 1.4, rotate: 0 } });
-    // An identity entry is no placement; a layer that ends with none serializes as it always did.
-    const clean = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { dx: 0, dy: 0, scale: 1, rotate: 0 } } }] });
-    expect(clean.values.strap![0]!.placement).toBeUndefined();
-    expect('placement' in clean.values.strap![0]!).toBe(false);
-    // Null clears a placement a preset carried.
-    const cleared = resolveLayers(manifest(), { strap: [{ id: 'name', placement: null }] });
-    expect(cleared.values.strap![0]!.placement).toBeUndefined();
+    expect(errors.map((e) => e.path)).toEqual([
+      'blocks[0].layers[0].transition.in.type',
+      'blocks[0].layers[0].transition.in.seconds',
+      'blocks[0].layers[0].transition.in.direction',
+    ]);
+    const bad = resolveLayers(manifest(), { strap: [{ id: 'name', transition: 'fast' }] });
+    expect(bad.issues.map((i) => i.message)).toEqual([expect.stringContaining('transition must be an object')]);
+    expect(bad.values.strap![0]!.transition).toBeUndefined();
+    // A stored motion that is not an object is still reported, and still says nothing.
+    const legacy = resolveLayers(manifest(), { strap: [{ id: 'name', motion: 'fast' }] });
+    expect(legacy.issues.map((i) => i.message)).toEqual([expect.stringContaining('motion must be an object')]);
+    expect(legacy.values.strap![0]!.transition).toBeUndefined();
   });
 
   it('carries a layer\'s own start and end, and drops what says nothing (milestone 28)', () => {
@@ -462,7 +478,7 @@ describe('resolveLayers', () => {
 
   it('newLayer hands out a layer of either type from a block', () => {
     const b = block({ align: 'center' });
-    expect(newLayer('text', b, 'x')).toEqual({ id: 'x', label: 'Text', required: false, hidden: false, spaceBefore: 0, motion: DEFAULT_MOTION, ...b.typography, type: 'text', text: '', maxLines: 3 });
-    expect(newLayer('image', b, 'y', 'Logo')).toEqual({ id: 'y', label: 'Logo', required: false, hidden: false, spaceBefore: 0, motion: DEFAULT_MOTION, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: 'center' });
+    expect(newLayer('text', b, 'x')).toEqual({ id: 'x', label: 'Text', required: false, hidden: false, spaceBefore: 0, ...b.typography, type: 'text', text: '', maxLines: 3 });
+    expect(newLayer('image', b, 'y', 'Logo')).toEqual({ id: 'y', label: 'Logo', required: false, hidden: false, spaceBefore: 0, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: 'center' });
   });
 });

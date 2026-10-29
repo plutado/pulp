@@ -14,7 +14,8 @@ import {
   type Measure,
   type TextLayerState,
 } from '../src/core/layer-layout';
-import { DEFAULT_MOTION, type ImageLayer, type TextLayer } from '../src/core/layers';
+import type { ImageLayer, TextLayer } from '../src/core/layers';
+import { DEFAULT_TRANSITION, type LayerTransition, type LayerTransitions } from '../src/core/layer-time';
 import { validateManifest } from '../src/core/manifest';
 import { rawManifest } from './fixtures';
 
@@ -29,7 +30,7 @@ const noImages = () => null;
 
 function text(over: Partial<TextLayerState> = {}): TextLayerState {
   return {
-    id: 'a', label: 'A', type: 'text', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION }, placement: { dx: 0, dy: 0, scale: 1, rotate: 0 },
+    id: 'a', label: 'A', type: 'text', position: 0, spaceBefore: 0, align: 'left', placement: { dx: 0, dy: 0, scale: 1, rotate: 0 },
     text: 'Hello', family: 'Test', fontSize: 100, weight: 400, italic: false, case: 'none',
     letterSpacing: 0, kerning: true, lineHeight: 1.2, color: '#ffffff', overflow: 'wrap', maxLines: 3,
     ...over,
@@ -37,7 +38,7 @@ function text(over: Partial<TextLayerState> = {}): TextLayerState {
 }
 
 function image(over: Partial<ImageLayerState> = {}): ImageLayerState {
-  return { id: 'i', label: 'I', type: 'image', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION }, placement: { dx: 0, dy: 0, scale: 1, rotate: 0 }, image: { id: 'a'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false }, size: 80, ...over };
+  return { id: 'i', label: 'I', type: 'image', position: 0, spaceBefore: 0, align: 'left', placement: { dx: 0, dy: 0, scale: 1, rotate: 0 }, image: { id: 'a'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false }, size: 80, ...over };
 }
 
 function block(layers: LayerState[], over: Partial<BlockState> = {}): BlockState {
@@ -294,74 +295,96 @@ describe('blockStates', () => {
   });
 });
 
-describe('a layer with a motion of its own (milestone 23)', () => {
-  const at = { time: 0.25, duration: 4 };
+describe('a layer with an entrance or an exit of its own (milestone 28)', () => {
+  const watched = { elapsed: 0.25, length: 4 };
+  const ends = (over: Partial<LayerTransitions>): LayerTransitions => ({ in: { ...DEFAULT_TRANSITION }, out: { ...DEFAULT_TRANSITION }, ...over });
+  const now = (type: LayerTransition['type']) => ends({ in: { ...DEFAULT_TRANSITION, type, seconds: 0.5 } });
   /** Two lines the template staggers in: the first is already full, the second not yet. */
   const staggered = () => block([text({ id: 'a', position: 0 }), text({ id: 'b', text: 'Second', position: 1 })]);
   const each = (_l: LayerState, position: number) => ({ alpha: position === 0 ? 1 : 0 });
 
   it('keeps the template\'s own movement until a layer asks for something else', () => {
-    const laid = layoutBlock(staggered(), measure, noImages, { each, at });
+    const laid = layoutBlock(staggered(), measure, noImages, { each, watched });
     expect(laid.layers.map((l) => l.draw.alpha)).toEqual([1, 0]);
     // And with no timing given at all — a caller that is not drawing a frame — the template's stands.
-    const over = block([text({ motion: { type: 'fade', delay: 0 } })]);
+    const over = block([text({ transition: now('fade') })]);
     expect(layoutBlock(over, measure, noImages, { each: () => ({ alpha: 0.5 }) }).layers[0]!.draw.alpha).toBe(0.5);
   });
 
   it('replaces the template\'s movement for that layer, and leaves the others alone', () => {
     const b = staggered();
-    b.layers[1] = text({ id: 'b', text: 'Second', position: 1, motion: { type: 'none', delay: 0 } });
-    const laid = layoutBlock(b, measure, noImages, { each, at });
-    // The template was holding the second line back; its own motion says it is simply there.
+    b.layers[1] = text({ id: 'b', text: 'Second', position: 1, transition: now('none') });
+    const laid = layoutBlock(b, measure, noImages, { each, watched });
+    // The template was holding the second line back; its own entrance says it is simply there.
     expect(laid.layers.map((l) => l.draw.alpha)).toEqual([1, 1]);
   });
 
-  it('goes when the graphic goes: an override is capped by the most the template is showing', () => {
+  it('goes when the graphic goes: a layer of one\'s own is capped by the most the template is showing', () => {
     const b = staggered();
-    b.layers[0] = text({ id: 'a', position: 0, motion: { type: 'none', delay: 0 } });
-    // The template has cleared the whole block — every layer at zero — so the override clears too.
-    const gone = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 0 }), at });
+    b.layers[0] = text({ id: 'a', position: 0, transition: now('none') });
+    // The template has cleared the whole block — every layer at zero — so the layer clears too.
+    const gone = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 0 }), watched });
     expect(gone.layers[0]!.draw.alpha).toBe(0);
     // Half way out, it is held to half: it can never outlive the design.
-    const going = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 0.5 }), at });
+    const going = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 0.5 }), watched });
     expect(going.layers[0]!.draw.alpha).toBe(0.5);
-    // But a stagger is not an exit: while the leading line is full, an override may show from the first frame.
-    const early = layoutBlock(b, measure, noImages, { each, at: { time: 0, duration: 4 } });
+    // But a stagger is not an exit: while the leading line is full, a layer may show from the first frame.
+    const early = layoutBlock(b, measure, noImages, { each, watched: { elapsed: 0, length: 4 } });
     expect(early.layers[0]!.draw.alpha).toBe(1);
   });
 
   it('drops the letter spacing the template was animating: the layer is the person\'s now', () => {
-    const b = block([text({ motion: { type: 'fade', delay: 0 } })]);
-    const laid = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 1, letterSpacing: 0.5 }), at: { time: 4, duration: 4 } });
+    const b = block([text({ transition: now('fade') })]);
+    const laid = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 1, letterSpacing: 0.5 }), watched: { elapsed: 4, length: 4 } });
     expect(laid.layers[0]!.draw.letterSpacing).toBeUndefined();
     // Measured at the layer's own spacing, then: five characters at 100 px, no tracking added.
     expect(laid.layers[0]!.lines![0]!.width).toBe(250);
   });
 
   it('slides by the layer\'s own size, down the stack for a column and across for a row', () => {
-    const slide = { type: 'slide' as const, delay: 0 };
-    const start = { time: 0, duration: 4 };
-    const col = layoutBlock(block([text({ fontSize: 60, motion: slide })]), measure, noImages, { each, at: start });
+    const slide = now('slide');
+    const start = { elapsed: 0, length: 4 };
+    const col = layoutBlock(block([text({ fontSize: 60, transition: slide })]), measure, noImages, { each, watched: start });
     expect(col.layers[0]!.draw).toMatchObject({ dx: 0, dy: 60 });
-    const row = layoutBlock(block([text({ fontSize: 60, motion: slide })], { direction: 'row' }), measure, noImages, { each, at: start });
+    const row = layoutBlock(block([text({ fontSize: 60, transition: slide })], { direction: 'row' }), measure, noImages, { each, watched: start });
     expect(row.layers[0]!.draw).toMatchObject({ dx: -60, dy: 0 });
     // An image layer slides by its own height.
-    const picture = layoutBlock(block([image({ size: 120, motion: slide })]), measure, () => 1, { each, at: start });
+    const picture = layoutBlock(block([image({ size: 120, transition: slide })]), measure, () => 1, { each, watched: start });
     expect(picture.layers[0]!.draw.dy).toBe(120);
   });
 
   it('moves a layer without moving where the stack puts it: the box is where it always was', () => {
-    const plain = layoutBlock(staggered(), measure, noImages, { each, at });
+    const plain = layoutBlock(staggered(), measure, noImages, { each, watched });
     const b = staggered();
-    b.layers[1] = text({ id: 'b', text: 'Second', position: 1, motion: { type: 'slide', delay: 0 } });
-    const moved = layoutBlock(b, measure, noImages, { each, at });
+    b.layers[1] = text({ id: 'b', text: 'Second', position: 1, transition: now('slide') });
+    const moved = layoutBlock(b, measure, noImages, { each, watched });
     expect(moved.layers[1]!.box).toEqual(plain.layers[1]!.box);
     expect(moved.layers[1]!.draw.dy).toBeGreaterThan(0);
+  });
+
+  it('takes the exit from the layer\'s end, over whatever the template was already doing', () => {
+    const b = block([text({ transition: ends({ out: { ...DEFAULT_TRANSITION, type: 'fade', seconds: 1 } }) })]);
+    // The entrance is still the template's, so what it asks for stands until the exit begins.
+    const held = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 0.8 }), watched: { elapsed: 1, length: 4 } });
+    expect(held.layers[0]!.draw.alpha).toBe(0.8);
+    // Half a second from the end, half way through a one-second fade out, over the template's 0.8.
+    const leaving = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 0.8 }), watched: { elapsed: 3.5, length: 4 } });
+    expect(leaving.layers[0]!.draw.alpha).toBeCloseTo(0.8 * 0.5, 10);
+  });
+
+  it('carries a wipe through to the draw, which is the only thing that can act on it', () => {
+    const b = block([text({ transition: now('wipe') })]);
+    const quarter = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 1 }), watched: { elapsed: 0.25, length: 4 } });
+    // A wipe does not fade: the layer is whole, and how much of it shows is the draw's business.
+    expect(quarter.layers[0]!.draw.alpha).toBe(1);
+    expect(quarter.layers[0]!.draw.wipe!.from).toBe('bottom');
+    expect(quarter.layers[0]!.draw.wipe!.shown).toBeCloseTo(0.5, 10);
+    expect(layoutBlock(b, measure, noImages, { each: () => ({ alpha: 1 }), watched: { elapsed: 2, length: 4 } }).layers[0]!.draw.wipe!.shown).toBe(1);
   });
 });
 
 describe("a layer placed on the stage (milestone 25)", () => {
-  const at = { time: 2, duration: 4 };
+  const watched = { elapsed: 2, length: 4 };
   const each = () => ({ alpha: 0.8, dx: 5, dy: -3, scale: 2 });
   const manifest = () => {
     const r = validateManifest(rawManifest({
@@ -388,45 +411,44 @@ describe("a layer placed on the stage (milestone 25)", () => {
 
   it('wraps the template\'s own draw: offsets add, scales multiply, and the box never moves', () => {
     const b = block([text({ placement: { dx: 100, dy: 40, scale: 1.5, rotate: 0 } })]);
-    const laid = layoutBlock(b, measure, noImages, { each, at });
+    const laid = layoutBlock(b, measure, noImages, { each, watched });
     expect(laid.layers[0]!.draw).toMatchObject({ alpha: 0.8, dx: 105, dy: 37, scale: 3 });
     // The layout slot is untouched: placement is drawn around the stack, not into it.
-    const plain = layoutBlock(block([text()]), measure, noImages, { each, at });
+    const plain = layoutBlock(block([text()]), measure, noImages, { each, watched });
     expect(laid.layers[0]!.box).toEqual(plain.layers[0]!.box);
   });
 
   it('turns a layer about its centre, adding angles as it adds offsets (milestone 29)', () => {
     const b = block([text({ placement: { dx: 0, dy: 0, scale: 1, rotate: 30 } })]);
-    const laid = layoutBlock(b, measure, noImages, { each, at });
+    const laid = layoutBlock(b, measure, noImages, { each, watched });
     expect(laid.layers[0]!.draw.rotate).toBe(30);
     // The slot is untouched: a turn is drawn around the stack, never laid into it.
-    const plain = layoutBlock(block([text()]), measure, noImages, { each, at });
+    const plain = layoutBlock(block([text()]), measure, noImages, { each, watched });
     expect(laid.layers[0]!.box).toEqual(plain.layers[0]!.box);
     expect(plain.layers[0]!.draw.rotate ?? 0).toBe(0);
     // A turn rides along with an offset and a scale rather than replacing them.
-    const all = layoutBlock(block([text({ placement: { dx: 100, dy: 40, scale: 1.5, rotate: -45 } })]), measure, noImages, { each, at });
+    const all = layoutBlock(block([text({ placement: { dx: 100, dy: 40, scale: 1.5, rotate: -45 } })]), measure, noImages, { each, watched });
     expect(all.layers[0]!.draw).toMatchObject({ dx: 105, dy: 37, scale: 3, rotate: -45 });
   });
 
   it('wraps a motion override the same way', () => {
-    const b = block([text({ motion: { type: 'none', delay: 0 }, placement: { dx: 50, dy: 0, scale: 2, rotate: 0 } })]);
-    const laid = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 1 }), at });
+    const b = block([text({ transition: { in: { ...DEFAULT_TRANSITION, type: 'none' }, out: { ...DEFAULT_TRANSITION } }, placement: { dx: 50, dy: 0, scale: 2, rotate: 0 } })]);
+    const laid = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 1 }), watched });
     expect(laid.layers[0]!.draw).toMatchObject({ alpha: 1, dx: 50, dy: 0, scale: 2 });
   });
 });
 
 describe('a layer with a start and an end of its own (milestone 28)', () => {
   const each = () => ({ alpha: 1 });
-  const at = { time: 2, duration: 6 };
   const alphaAt = (elapsed: number, layer: LayerState) =>
-    layoutBlock(block([layer]), measure, noImages, { each, at, watched: { elapsed, length: 6 } }).layers[0]!.draw.alpha;
+    layoutBlock(block([layer]), measure, noImages, { each, watched: { elapsed, length: 6 } }).layers[0]!.draw.alpha;
 
   it('leaves a layer that says nothing on screen for the whole graphic', () => {
     const plain = text();
     expect([alphaAt(0, plain), alphaAt(3, plain), alphaAt(5.9, plain)]).toEqual([1, 1, 1]);
     // And with no watched time at all — a caller that is not drawing a frame — nothing changes.
     const timed = text({ span: { start: 2, end: 4 } });
-    expect(layoutBlock(block([timed]), measure, noImages, { each, at }).layers[0]!.draw.alpha).toBe(1);
+    expect(layoutBlock(block([timed]), measure, noImages, { each }).layers[0]!.draw.alpha).toBe(1);
   });
 
   it('draws it between its start and its end, and nowhere else', () => {
@@ -434,26 +456,26 @@ describe('a layer with a start and an end of its own (milestone 28)', () => {
     expect([alphaAt(1.9, timed), alphaAt(2, timed), alphaAt(3.9, timed), alphaAt(4, timed)]).toEqual([0, 1, 1, 0]);
   });
 
-  it('has the last word over the template\'s own movement and over an override', () => {
+  it('has the last word over the template\'s own movement and over an entrance of its own', () => {
     // The template is showing this layer in full; the span says it has not arrived.
     const owned = text({ span: { start: 3, end: null } });
     expect(alphaAt(1, owned)).toBe(0);
-    // An override says the layer is simply there; the span still takes it off screen.
-    const over = text({ motion: { type: 'none', delay: 0 }, span: { start: 3, end: null } });
+    // Its own entrance says it is simply there; the span still takes it off screen.
+    const over = text({ transition: { in: { ...DEFAULT_TRANSITION, type: 'none' }, out: { ...DEFAULT_TRANSITION } }, span: { start: 3, end: null } });
     expect(alphaAt(1, over)).toBe(0);
     expect(alphaAt(4, over)).toBe(1);
   });
 
   it('dims with the design rather than replacing it: the template clearing still clears it', () => {
     const timed = text({ span: { start: 0, end: 4 } });
-    const going = layoutBlock(block([timed]), measure, noImages, { each: () => ({ alpha: 0.5 }), at, watched: { elapsed: 2, length: 6 } });
+    const going = layoutBlock(block([timed]), measure, noImages, { each: () => ({ alpha: 0.5 }), watched: { elapsed: 2, length: 6 } });
     expect(going.layers[0]!.draw.alpha).toBe(0.5);
   });
 
   it('leaves the layout alone: a layer waiting its turn keeps the room the stack gave it', () => {
     const b = block([text({ id: 'a' }), text({ id: 'b', text: 'Second', position: 1, span: { start: 3, end: null } })]);
-    const before = layoutBlock(b, measure, noImages, { each, at, watched: { elapsed: 0, length: 6 } });
-    const during = layoutBlock(b, measure, noImages, { each, at, watched: { elapsed: 4, length: 6 } });
+    const before = layoutBlock(b, measure, noImages, { each, watched: { elapsed: 0, length: 6 } });
+    const during = layoutBlock(b, measure, noImages, { each, watched: { elapsed: 4, length: 6 } });
     expect(before.layers[1]!.draw.alpha).toBe(0);
     expect(during.layers[1]!.draw.alpha).toBe(1);
     expect(before.layers[1]!.box).toEqual(during.layers[1]!.box);

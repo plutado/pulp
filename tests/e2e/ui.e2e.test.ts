@@ -1273,8 +1273,10 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
-    it('gives one layer a motion of its own, which still goes when the graphic goes', async () => {
+    it('gives one layer an entrance and an exit of its own, which still go when the graphic goes', async () => {
       const subtitle = `document.querySelector('#params .layer-row[data-layer=subtitle]')`;
+      const summary = () => page.eval<string>(`${subtitle}.querySelector('.layer-advanced summary').textContent`);
+      const shown = (selector: string) => page.eval<boolean>(`!${subtitle}.querySelector(${JSON.stringify(selector)}).closest('.type-field').hidden`);
       try {
         // The card is 5 s at 30 fps. The template staggers its lines: at 0.9 s (frame 27) the title
         // is well in and the subtitle, which starts at 0.7 s over a second, is not yet drawn at all.
@@ -1282,44 +1284,59 @@ describe.skipIf(!electron)('inspector UI', () => {
         const staggered = await untilDrawn((d) => d.bands.length === 1, 'the title alone while the subtitle is still coming in');
         expect(staggered.bands, JSON.stringify(staggered)).toHaveLength(1);
 
-        // Advanced: the layer's own motion. "None" means it arrives with no movement of its own.
+        // Advanced: the layer's own two ends. "None" means it arrives with no movement at all.
         await page.eval(`${subtitle}.querySelector('.layer-advanced').open = true`);
-        expect(await page.eval<string>(`${subtitle}.querySelector('.layer-advanced summary').textContent`)).toBe('Advanced');
-        // The delay is the override's own: there is nothing to delay while the template owns the movement.
-        expect(await page.eval<boolean>(`${subtitle}.querySelector('[aria-label="Subtitle motion delay"]').closest('.type-field').hidden`)).toBe(true);
-        await fire('[data-layer=subtitle] select[aria-label="Subtitle motion"]', 'none', 'change');
-        await until(() => page.eval<string>(`${subtitle}.querySelector('.layer-advanced summary').textContent`).then((t) => t === 'Advanced · None'), 'the summary to name the override');
-        expect(await page.eval<boolean>(`${subtitle}.querySelector('[aria-label="Subtitle motion delay"]').closest('.type-field').hidden`)).toBe(false);
+        expect(await summary()).toBe('Advanced');
+        // Seconds mean nothing while the template owns the end, and an edge means nothing to a fade.
+        expect(await shown('[aria-label="Subtitle entrance seconds"]')).toBe(false);
+        expect(await shown('[aria-label="Subtitle entrance direction"]')).toBe(false);
+        await fire('[data-layer=subtitle] select[aria-label="Subtitle entrance"]', 'none', 'change');
+        await until(() => summary().then((t) => t === 'Advanced · in None'), 'the summary to name the entrance');
+        expect(await shown('[aria-label="Subtitle entrance seconds"]')).toBe(true);
+        expect(await shown('[aria-label="Subtitle entrance direction"]')).toBe(false);
 
-        // Same frame: the subtitle is there now, because its own motion says it simply is.
+        // Same frame: the subtitle is there now, because its own entrance says it simply is.
         await scrubAndWait(27);
-        const overridden = await untilDrawn((d) => d.bands.length === 2, 'the subtitle drawn from its own motion');
+        const overridden = await untilDrawn((d) => d.bands.length === 2, 'the subtitle drawn from its own entrance');
         expect(overridden.bands, JSON.stringify(overridden)).toHaveLength(2);
 
         // The ends. At the first frame the graphic has not arrived, so neither has the layer...
         await scrubAndWait(0);
         expect(await bands(), 'nothing is drawn before the card arrives').toHaveLength(0);
-        // ...and at the last the card has cleared, so the overridden layer has gone with it. An
-        // override is an entrance, never a way to outlive the design (docs/template-format.md).
+        // ...and at the last the card has cleared, so the layer has gone with it. An end of one's
+        // own is never a way to outlive the design (docs/template-format.md).
         await scrubAndWait(149);
-        const ended = await untilDrawn((d) => d.bands.length === 0, 'the overridden layer gone with the graphic');
+        const ended = await untilDrawn((d) => d.bands.length === 0, 'the layer gone with the graphic');
         expect(ended.bands, JSON.stringify(ended)).toHaveLength(0);
 
-        // A delay holds the entrance off: 1 s in, a layer that waits 3 s is not there yet.
-        await fire('[data-layer=subtitle] select[aria-label="Subtitle motion"]', 'fade', 'change');
-        await fire('[data-layer=subtitle] input[aria-label="Subtitle motion delay"]', '3', 'change');
-        await until(() => page.eval<string>(`${subtitle}.querySelector('.layer-advanced summary').textContent`).then((t) => t === 'Advanced · Fade after 3 s'), 'the summary to name the delay');
-        await scrubAndWait(30);
-        expect(await bands(), 'the delayed line has not arrived').toHaveLength(1);
-        await scrubAndWait(110);
-        const arrived = await untilDrawn((d) => d.bands.length === 2, 'the delayed line arrived');
-        expect(arrived.bands, JSON.stringify(arrived)).toHaveLength(2);
+        // A slide takes an edge to travel from, and says how long it takes.
+        await fire('[data-layer=subtitle] select[aria-label="Subtitle entrance"]', 'slide', 'change');
+        await until(() => summary().then((t) => t === 'Advanced · in Slide'), 'the summary to name the slide');
+        expect(await shown('[aria-label="Subtitle entrance direction"]')).toBe(true);
+
+        // An exit of its own: a one-second fade into an end of its own at three seconds, so it is
+        // over while the template is still showing the card in full.
+        await fire('[data-layer=subtitle] select[aria-label="Subtitle entrance"]', 'template', 'change');
+        await fire('[data-layer=subtitle] select[aria-label="Subtitle exit"]', 'fade', 'change');
+        await fire('[data-layer=subtitle] input[aria-label="Subtitle exit seconds"]', '1', 'change');
+        await fire('[data-layer=subtitle] input[aria-label="Subtitle end"]', '3', 'change');
+        await until(() => summary().then((t) => t === 'Advanced · out Fade · 0-3 s'), 'the summary to name the exit and the end');
+        // Two seconds in, where the fade begins, both lines are as bright as each other...
+        await scrubAndWait(60);
+        const full = await untilDrawn((d) => d.bands.length === 2 && d.bands[1]!.alpha > 200, 'both lines in full at the start of the fade');
+        expect(full.bands[1]!.alpha, JSON.stringify(full)).toBeGreaterThan(200);
+        // ...half way through it the subtitle is dimmer than the title, which the template has not
+        // touched; and by its end it has gone while the title is still there.
+        await scrubAndWait(75);
+        const leaving = await untilDrawn((d) => d.bands.length === 2 && d.bands[1]!.alpha < d.bands[0]!.alpha - 40, 'the subtitle fading out under the title');
+        expect(leaving.bands[1]!.alpha, JSON.stringify(leaving)).toBeLessThan(leaving.bands[0]!.alpha);
+        await scrubAndWait(95);
+        const gone = await untilDrawn((d) => d.bands.length === 1, 'the subtitle gone at its own end, the title still there');
+        expect(gone.bands, JSON.stringify(gone)).toHaveLength(1);
 
         // Each change was one undo step, and the template's own movement comes back.
-        await page.eval(`document.getElementById('undo').click()`);
-        await page.eval(`document.getElementById('undo').click()`);
-        await page.eval(`document.getElementById('undo').click()`);
-        await until(() => page.eval<string>(`${subtitle}.querySelector('.layer-advanced summary').textContent`).then((t) => t === 'Advanced'), 'undo back to the template\'s own movement');
+        for (let i = 0; i < 6; i++) await page.eval(`document.getElementById('undo').click()`);
+        await until(() => summary().then((t) => t === 'Advanced'), 'undo back to the template\'s own movement');
         await scrubAndWait(27);
         const back = await untilDrawn((d) => d.bands.length === 1, 'the stagger back as the template has it');
         expect(back.bands, JSON.stringify(back)).toHaveLength(1);
@@ -1327,7 +1344,6 @@ describe.skipIf(!electron)('inspector UI', () => {
         await restoreLayers();
       }
     }, 120_000);
-
 
     it('makes a dropped picture a layer where it was dropped, and a drop on a layer card replaces what it shows (milestone 26)', async () => {
       try {
@@ -1471,7 +1487,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
-    it('moves, scales and nudges a layer on the stage, one undo step a gesture, and motion still carries it', async () => {
+    it('moves, scales and nudges a layer on the stage, one undo step a gesture, and the design still carries it', async () => {
       const overlay = `document.getElementById('layer-overlay')`;
       try {
         // The window CI runs at, with the tray open: the geometry that once left the preview 2 px
@@ -1559,7 +1575,7 @@ describe.skipIf(!electron)('inspector UI', () => {
           return Math.abs(d.dx) < 0.5 && Math.abs(d.dy) < 0.5 && Math.abs(d.scale - 1) < 0.01;
         }, 'undo returning the layer to its stack');
 
-        // Motion still owns the entrance: a placed layer is still absent before its turn.
+        // The template still owns the entrance: a placed layer is still absent before its turn.
         await page.eval(`${overlay}.focus()`);
         await page.eval(`${overlay}.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true, cancelable: true }))`);
         await until(async () => (await titleDraw()).dx > 20, 'the bold nudge landed');
@@ -1665,6 +1681,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         .toEqual(['Company: company', 'Tagline: tagline', 'Accent: accent', 'Text: text', 'Layout and timing: inOut']);
       expect(await page.eval<number>(`document.querySelectorAll('#params .group-label').length`)).toBe(0);
     }, 90_000);
+
 
     it('an image layer stacks with the lines and rides the animation by its position, on both proofs, wide and tall', async () => {
       /** The "mark" still is solid red, so every pixel of it says where the picture is, and none reads as a line of text. */

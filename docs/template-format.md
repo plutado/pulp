@@ -160,7 +160,7 @@ A block:
 | `typography` | object | no | What the block's text layers start from; any of the text properties below. Unnamed properties take the built-in defaults (Inter, 0.06, 400, white, wrap). |
 | `layers` | object[] | no | The template's own layers, in stack order. Default `[]`: a block the user fills. |
 
-A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text`, `image` or `video`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `motion` (how it arrives; see **A layer's own motion** below). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
+A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text`, `image` or `video`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `transition` (how it arrives and how it leaves; see **A layer's own entrance and exit** below) and `span` (when it comes and goes; see **A layer's own start and end**). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
 
 | Property | Type | Description |
 |---|---|---|
@@ -236,23 +236,27 @@ A `video` layer plays a clip inside the graphic (milestone 26). It takes its roo
 
 What they choose carries the clip's id with how it plays: an in point and an out point in clip frames, `loop` or `once` at the end, a `speed` (1 is the recorded rate) and a `delay` in seconds before it starts. The host decides which frame of the clip belongs to each moment of the graphic and hands the page that frame; a clip played `once` **clears** when it reaches its out point rather than freezing on the last frame, and a layer that is not playing takes no room at all, so the stack closes up around it. Templates need no code for any of this: a block drawn with `pulpLayoutBlock` and `pulpDrawBlock` plays its video layers already.
 
-#### A layer's own motion
+#### A layer's own entrance and exit
 
-By default a layer takes the movement of the **position it is in** — that is the whole point of a block, and it is what lets a line added in the middle move as the middle line of the design does. A layer may instead carry a `motion` of its own, which the person using the template can set in the Parameters tab under **Advanced**:
+By default a layer takes the movement of the **position it is in** — that is the whole point of a block, and it is what lets a line added in the middle move as the middle line of the design does. A layer may instead carry a `transition` of its own, which the person using the template sets in the Parameters tab under **Advanced**. It has an `in` and an `out`, chosen separately, each of:
 
 | Field | Type | Description |
 |---|---|---|
-| `type` | `template`, `fade`, `slide`, `scale`, `none` | `template` (the default) leaves the movement to the template, as above. The rest are the layer's own entrance: fade in, slide into place, scale up, or arrive with no movement at all. |
-| `delay` | number | Seconds the layer waits before it comes in; 0 to 10, default 0. |
+| `type` | `template`, `fade`, `slide`, `scale`, `wipe`, `none` | `template` (the default) leaves that end to the template, as above. The rest are the layer's own: fade, slide into place, scale up, uncover with a wipe, or arrive and leave with no movement at all. |
+| `seconds` | number | How long that end takes; 0.05 to 10, default 0.5. |
+| `direction` | `auto`, `top`, `bottom`, `left`, `right` | Which edge a slide travels from and a wipe opens from — and for the exit, where it goes back to, so a layer leaves the way it came. `auto`, the default, is the way the stack goes: up from below in a `column`, in from the left in a `row`. Nothing to a fade, a scale or none. |
 
-Two rules keep an override inside the author's design, and a template needs no code for either:
+Three rules keep a layer of one's own inside the author's design, and a template needs no code for any of them:
 
-- **The entrance is the person's; the exit stays the template's.** What an override computes is multiplied by the block's *envelope* — the most the template is showing any of that block's layers at this frame, which is what the `each` hook already says. While a template staggers its lines in, its leading line is already at full, so an overridden layer is free to show from the first frame; when the graphic clears, every layer's alpha falls and the override goes with it. **No layer can be left on screen after the graphic has gone.**
-- **The entrance always finishes inside the template's own time.** A delay longer than the template is long is held back, and a template shorter than the entrance shortens the entrance, so an overridden layer has always arrived by the last frame.
+- **The entrance replaces the template's movement for that layer; the exit is multiplied into it.** So one end can be the person's and the other the template's, which is what choosing them separately means.
+- **Whatever is chosen still goes when the graphic goes.** All of it is multiplied by the block's *envelope* — the most the template is showing any of that block's layers at this frame, which is what the `each` hook already says. While a template staggers its lines in, its leading line is already at full, so a layer with an entrance of its own is free to show from the first frame; when the graphic clears, every layer's alpha falls and the layer goes with it. **No layer can be left on screen after the graphic has gone.**
+- **Both ends finish inside the layer's own time on screen.** A two-second entrance on a layer that is there for one second would never finish, so when the two ends together ask for more room than there is they are shortened in proportion rather than one eating the other.
 
-A slide travels the layer's own size — a line's type size, a picture's height — so it reads the same at every resolution and on type of any size; it rises into place in a `column` block and comes in from the left in a `row`. A scale grows from 0.8. An override replaces the whole of the template's movement for that layer, including any letter spacing the template was animating.
+A slide travels the layer's own size — a line's type size, a picture's height — so it reads the same at every resolution and on type of any size. A scale grows from 0.8. A **wipe** does not fade at all: the layer is drawn whole and clipped to the part that has been uncovered, so it reads on any background, and it is clipped to what the layer draws rather than to the slot it sits in, for the same reason a turn goes about the ink box. An entrance of the person's replaces the whole of the template's movement for that layer, including any letter spacing the template was animating.
 
-`window.pulpLayoutBlock` applies all of this from the frame state it is already given, so **a template that uses blocks supports overrides without changing a line**. A template that lays a block out by hand, without the helper, is simply not offering the feature.
+`window.pulpLayoutBlock` applies all of this from the frame state it is already given, so **a template that uses blocks supports this without changing a line**. A template that lays a block out by hand, without the helper, is simply not offering the feature.
+
+A stack saved before this carried a `motion` — an entrance-only `type` with a `delay` — and still works: the type is read as `transition.in` over the half second it always took, and the delay as the layer's own `start`, which is the same moment on the same clock. Nothing writes a `motion` any more.
 
 #### A layer's own start and end
 
@@ -270,7 +274,7 @@ Two rules hold a span to shortening a layer's time on screen rather than taking 
 - **A layer never outlasts the graphic.** An end past the graphic's length is its length, which is what no end at all means too.
 - **A layer is always on screen for a moment.** A start past the end of the graphic, or an end at or before the start, is held back to leave 0.05 s — the same reasoning as the entrance always finishing inside the template, and as milestone 30's least hold. A layer that should not be there at all is **hidden**, which is a different thing and says so.
 
-The span is the last word: outside it the layer is not drawn, whether the movement for that frame was the template's own or an override's. The layout is untouched — a layer waiting its turn keeps the room the stack gave it — so a design does not reflow as layers come and go. A layer with no span serializes exactly as it always did, and `"span": null` in a stored stack puts it back to the whole graphic.
+The span is the last word: outside it the layer is not drawn, whether the movement for that frame was the template's own or the layer's. Both ends of the layer's own transition are timed against it — the entrance from the start, the exit into the end — so moving either moves them with it. The layout is untouched — a layer waiting its turn keeps the room the stack gave it — so a design does not reflow as layers come and go. A layer with no span serializes exactly as it always did, and `"span": null` in a stored stack puts it back to the whole graphic.
 
 #### A layer's own placement
 
