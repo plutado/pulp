@@ -230,7 +230,9 @@ describe.skipIf(!available)('end-to-end render', () => {
   it('makes the whole sample-media folder, and every file lands with the type its folder means', async () => {
     const folder = join(out, 'Sample media');
     const makeAll = async () => {
-      const r = await runBounded(electron, ['.', '--sample-media', folder], { cwd: ROOT, timeoutMs: 540_000 });
+      // 481 files, 55 of them transparent clips captured frame by frame: about three minutes on a
+      // Mac, two and a half times that on a CI runner, so the bound sits well above both.
+      const r = await runBounded(electron, ['.', '--sample-media', folder], { cwd: ROOT, timeoutMs: 840_000 });
       return { code: r.code ?? -1, stdout: r.stdout, stderr: r.stderr };
     };
     const result = await makeAll();
@@ -276,6 +278,13 @@ describe.skipIf(!available)('end-to-end render', () => {
     const assetStill = join(folder, 'Assets', 'Fire and flames', 'torch-flame.png');
     expect(await probe(assetStill)).toMatchObject({ width: 512, height: 512, pix_fmt: 'rgba' });
     expect((await pixels(assetStill, 4, 4))[3], 'an asset still leaves its corner clear').toBe(0);
+    // An object (the Objects kind, taxonomy 4): its mark in the middle, its corner clear, and its
+    // theme subfolder read by the scan.
+    const objectStill = join(folder, 'Assets', 'Sports equipment', 'Soccer', 'soccer-ball.png');
+    expect(await probe(objectStill)).toMatchObject({ width: 512, height: 512, pix_fmt: 'rgba' });
+    expect((await pixels(objectStill, 256, 256))[3], 'an object is opaque at its centre').toBe(255);
+    expect((await pixels(objectStill, 4, 4))[3], 'an object leaves its corner clear').toBe(0);
+    expect(byPath.get(objectStill)?.themes, 'the theme folder tags the object').toContain('soccer');
     const assetClip = join(folder, 'Assets', 'Confetti and celebration', 'confetti-burst.webm');
     const clipInfo = await probe(assetClip);
     expect(clipInfo).toMatchObject({ width: 640, height: 360 });
@@ -314,7 +323,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     const again = await makeAll();
     expect(again.code, again.stderr).toBe(0);
     expect(again.stdout).toMatch(/0 written, \d+ already there, 0 failed/);
-  }, 600_000);
+  }, 900_000);
 
   it('keeps frames pixel-exact when the display is scaled to 150%', async () => {
     // Chromium's switch makes the primary display report scale 1.5, as Windows does at 150% scaling.

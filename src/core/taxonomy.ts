@@ -14,9 +14,11 @@ import { normalizeTag } from './tags';
  * 2: logo-reveal added to Titles and text (milestone 22).
  * 3: the Assets group and its Effects categories (milestone 26) — isolated elements on
  *    transparency, placed on a frame, as distinct from Overlays, which cover the whole frame.
+ * 4: the Assets group's Objects categories (milestone 26) — themed props, each tagged with the
+ *    themes it fits, so every theme has assets of its own.
  * Ids are permanent; the list only grows (ADR 0010).
  */
-export const TAXONOMY_VERSION = 3;
+export const TAXONOMY_VERSION = 4;
 
 export interface TypeGroup {
   id: string;
@@ -101,6 +103,23 @@ export const TYPES: readonly TaxonomyType[] = [
   { id: 'liquid', label: 'Liquids and splashes', group: 'assets' },
   { id: 'confetti', label: 'Confetti and celebration', group: 'assets' },
   { id: 'brush', label: 'Brush and ink strokes', group: 'assets' },
+  // The Objects kind: themed props, organised along the theme groups. A label is a plain noun
+  // phrase on purpose — "Business objects", not "Business and work" — because every part of a
+  // label split on "and" becomes a folder alias for the type (see `aliases`), and a person's
+  // "Business" or "Travel" folder of stills must not be read as a folder of assets. Each
+  // category covers more than its name says: Science takes in health and technology, Media
+  // takes in entertainment, Nature the ocean and space, Travel the city, Home the kitchen, and
+  // Community education, faith, charity and civic life; the theme subfolders say which.
+  { id: 'sports-objects', label: 'Sports equipment', group: 'assets' },
+  { id: 'celebration-objects', label: 'Celebration objects', group: 'assets' },
+  { id: 'holiday-objects', label: 'Holiday objects', group: 'assets' },
+  { id: 'business-objects', label: 'Business objects', group: 'assets' },
+  { id: 'science-objects', label: 'Science objects', group: 'assets' },
+  { id: 'media-objects', label: 'Media objects', group: 'assets' },
+  { id: 'nature-objects', label: 'Nature objects', group: 'assets' },
+  { id: 'travel-objects', label: 'Travel objects', group: 'assets' },
+  { id: 'home-objects', label: 'Home objects', group: 'assets' },
+  { id: 'community-objects', label: 'Community objects', group: 'assets' },
 ] as const;
 
 export interface ThemeGroup {

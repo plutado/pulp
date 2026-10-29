@@ -6,6 +6,10 @@
  * page as a data URL in an offscreen window and captures it once.
  */
 
+import { ASSET_EFFECTS_JS } from './sample-asset-effects';
+import { ASSET_OBJECTS_JS } from './sample-asset-objects';
+import { ASSET_OBJECTS_MORE_JS } from './sample-asset-objects-more';
+
 const SHARED = `
   'use strict';
   var canvas = document.getElementById('c');
@@ -966,7 +970,10 @@ export const MOTIF_PAGE = page(
  * in time so the same page serves a still and a clip. `state.time` and
  * `state.duration` drive everything; a looping asset is written so the last
  * frame meets the first, a one-shot plays once and clears. Deterministic from
- * the seeded hash, never a random source.
+ * the seeded hash, never a random source. The first twenty effects and the
+ * helpers are here; the rest of the Effects and the Objects are spliced in
+ * from `sample-asset-effects.ts`, `sample-asset-objects.ts` and
+ * `sample-asset-objects-more.ts`, which share this script's scope.
  */
 export const ASSET_PAGE = page(
   'Sample asset',
@@ -1052,7 +1059,8 @@ export const ASSET_PAGE = page(
       blob(W / 2, H / 2, r * 0.6, '255,200,120', (1 - f) * 0.3);
     },
     'dust-burst': function (W, H) {
-      var f = P;
+      /* A still (P is 0) shows the burst part-way out, not the instant before it. */
+      var f = P === 0 ? 0.45 : P;
       for (var i = 0; i < 26; i++) {
         var a = (i / 26) * Math.PI * 2;
         var d2 = Math.min(W, H) * 0.42 * f * (0.6 + hash(i) * 0.7);
@@ -1134,7 +1142,7 @@ export const ASSET_PAGE = page(
       ctx.beginPath(); ctx.arc(0, 0, Math.min(W, H) * 0.12 + Math.min(W, H) * 0.3 * f, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     },
     'ink-bloom': function (W, H) {
-      var f = P;
+      var f = P === 0 ? 0.6 : P;
       for (var i = 0; i < 14; i++) {
         var a = (i / 14) * Math.PI * 2 + hash(i);
         var d2 = Math.min(W, H) * 0.3 * f * (0.5 + hash(i + 21) * 0.9);
@@ -1185,7 +1193,8 @@ export const ASSET_PAGE = page(
       ctx.globalAlpha = 1;
     },
     'marker-underline': function (W, H) {
-      var f = P;
+      /* A still (P is 0) shows the whole stroke, not the dot it starts from. */
+      var f = P === 0 ? 1 : P;
       ctx.strokeStyle = rgba('250,205,60', 0.85);
       ctx.lineCap = 'round';
       ctx.lineWidth = Math.max(2, H * 0.22);
@@ -1195,6 +1204,11 @@ export const ASSET_PAGE = page(
       ctx.stroke();
     }
   };
+  ` +
+    ASSET_EFFECTS_JS +
+    ASSET_OBJECTS_JS +
+    ASSET_OBJECTS_MORE_JS +
+    `
   window.pulpRender = function (state) {
     var d = size(state);
     ctx.clearRect(0, 0, d.W, d.H);

@@ -817,31 +817,6 @@ const SFX: SampleMediaItem[] = [
     folder: ['Sound effects', 'Musical phrases', 'Wedding'], file: 'chapel-bells.wav', type: 'musical-phrase', note: 'Chapel bells ringing a change.',
     recipe: audio(evalSrc(`${([[262, 0], [330, 0.55], [392, 1.1], [262, 1.75]] as const).map(([hz, st]) => `${env(st, 2.6, 0.004, 1.1)}*${tone(hz, 4)}*0.12`).join('+')}`, 4.4), 4.4, 'lowpass=f=4500'),
   },
-
-
-  // ---- Milestone 26: the Assets group's Effects categories. Every asset is drawn on
-  // transparency by the asset page over its own time: a WebM with alpha for the moving one,
-  // a PNG for the still. Two apiece to start; the categories run to six as the milestone goes on.
-  { folder: ['Assets', 'Fire and flames'], file: 'candle-flame.webm', type: 'fire', note: 'A candle flame licking on the spot; loops.', recipe: { kind: 'asset', page: 'asset', variant: 'candle-flame', format: 'webm', width: 512, height: 512, seconds: 2, fps: ASSET_FPS, loop: true } },
-  { folder: ['Assets', 'Fire and flames'], file: 'torch-flame.png', type: 'fire', note: 'A torch flame, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'torch-flame', format: 'png', width: 512, height: 512, seconds: 1, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Smoke and steam'], file: 'smoke-wisps.webm', type: 'smoke', note: 'Wisps of smoke rising and thinning; loops.', recipe: { kind: 'asset', page: 'asset', variant: 'smoke-wisps', format: 'webm', width: 512, height: 512, seconds: 2, fps: ASSET_FPS, loop: true } },
-  { folder: ['Assets', 'Smoke and steam'], file: 'steam-cup.png', type: 'smoke', note: 'Steam off a cup, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'steam-cup', format: 'png', width: 512, height: 512, seconds: 1, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Sparks and embers'], file: 'spark-shower.webm', type: 'sparks', note: 'A shower of sparks thrown and falling; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'spark-shower', format: 'webm', width: 640, height: 360, seconds: 2, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Sparks and embers'], file: 'drifting-embers.png', type: 'sparks', note: 'Embers adrift, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'drifting-embers', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Explosions and impacts'], file: 'shockwave-ring.webm', type: 'explosion-asset', note: 'A shockwave ring opening out; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'shockwave-ring', format: 'webm', width: 640, height: 360, seconds: 2, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Explosions and impacts'], file: 'dust-burst.png', type: 'explosion-asset', note: 'A burst of dust, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'dust-burst', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Energy and magic'], file: 'energy-orb.webm', type: 'energy', note: 'An orb pulsing inside its rings; loops.', recipe: { kind: 'asset', page: 'asset', variant: 'energy-orb', format: 'webm', width: 512, height: 512, seconds: 2, fps: ASSET_FPS, loop: true } },
-  { folder: ['Assets', 'Energy and magic'], file: 'sparkle-trail.png', type: 'energy', note: 'A trail of sparkles, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'sparkle-trail', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Light and flares'], file: 'glint.webm', type: 'light-asset', note: 'A glint flaring and dying; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'glint', format: 'webm', width: 512, height: 512, seconds: 2, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Light and flares'], file: 'lens-flare.png', type: 'light-asset', note: 'An anamorphic lens flare, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'lens-flare', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Weather effects'], file: 'rain-fall.webm', type: 'weather-asset', note: 'Rain falling across the frame; loops.', recipe: { kind: 'asset', page: 'asset', variant: 'rain-fall', format: 'webm', width: 640, height: 360, seconds: 2, fps: ASSET_FPS, loop: true } },
-  { folder: ['Assets', 'Weather effects'], file: 'snow-flurry.png', type: 'weather-asset', note: 'A flurry of snow, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'snow-flurry', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Liquids and splashes'], file: 'water-splash.webm', type: 'liquid', note: 'A splash thrown up and out; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'water-splash', format: 'webm', width: 512, height: 512, seconds: 2, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Liquids and splashes'], file: 'ink-bloom.png', type: 'liquid', note: 'Ink blooming in water, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'ink-bloom', format: 'png', width: 512, height: 512, seconds: 1, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Confetti and celebration'], file: 'confetti-burst.webm', type: 'confetti', note: 'Confetti thrown up and falling; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'confetti-burst', format: 'webm', width: 640, height: 360, seconds: 2, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Confetti and celebration'], file: 'glitter-fall.png', type: 'confetti', note: 'Glitter falling, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'glitter-fall', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Brush and ink strokes'], file: 'brush-swipe.webm', type: 'brush', note: 'A brush swiping across; one shot.', recipe: { kind: 'asset', page: 'asset', variant: 'brush-swipe', format: 'webm', width: 640, height: 360, seconds: 2, fps: ASSET_FPS, loop: false } },
-  { folder: ['Assets', 'Brush and ink strokes'], file: 'marker-underline.png', type: 'brush', note: 'A marker underline, held still.', recipe: { kind: 'asset', page: 'asset', variant: 'marker-underline', format: 'png', width: 640, height: 360, seconds: 1, fps: ASSET_FPS, loop: false } },
 ];
 
 const MUSIC: SampleMediaItem[] = [
@@ -1023,8 +998,253 @@ const CLIPS: SampleMediaItem[] = [
   },
 ];
 
+// ---- Milestone 26: the Assets group. Every asset is drawn on transparency by the asset page
+// over its own time: a WebM with alpha for a moving one, a PNG for a still. Effects first,
+// generic and tagged with whichever theme fits; then the Objects, themed props filed under the
+// theme they belong to, so that every theme in the taxonomy has assets of its own.
+
+/**
+ * One asset: its folder under "Assets" (the category, then the theme subfolder that tags it),
+ * the variant the asset page draws, and how it moves — a loop meets its own first frame, a
+ * one-shot plays once and clears, and no motion at all is a still. Squares are 512 px, wide
+ * effects 640 × 360; clips run two seconds.
+ */
+function asset(folder: readonly string[], type: string, variant: string, note: string, shape: 'square' | 'wide' = 'square', motion?: 'loop' | 'once'): SampleMediaItem {
+  const size = shape === 'wide' ? { width: 640, height: 360 } : { width: 512, height: 512 };
+  const clip = motion !== undefined;
+  return {
+    folder: ['Assets', ...folder],
+    file: `${variant}.${clip ? 'webm' : 'png'}`,
+    type,
+    note,
+    recipe: { kind: 'asset', page: 'asset', variant, format: clip ? 'webm' : 'png', ...size, seconds: clip ? 2 : 1, fps: ASSET_FPS, loop: motion === 'loop' },
+  };
+}
+
+const ASSETS: SampleMediaItem[] = [
+  // Fire and flames
+  asset(['Fire and flames'], 'fire', 'candle-flame', 'A candle flame licking on the spot; loops.', 'square', 'loop'),
+  asset(['Fire and flames'], 'fire', 'torch-flame', 'A torch flame, held still.'),
+  asset(['Fire and flames', 'Nature'], 'fire', 'campfire', 'A campfire over crossed logs; loops.', 'square', 'loop'),
+  asset(['Fire and flames'], 'fire', 'match-flare', 'A match struck, flaring and settling; one shot.', 'square', 'once'),
+  asset(['Fire and flames', 'Gaming'], 'fire', 'fireball', 'A fireball with its trailing tail, held still.', 'wide'),
+  asset(['Fire and flames'], 'fire', 'flame-burst', 'Flames bursting upward from a line, held still.', 'wide'),
+  // Smoke and steam
+  asset(['Smoke and steam'], 'smoke', 'smoke-wisps', 'Wisps of smoke rising and thinning; loops.', 'square', 'loop'),
+  asset(['Smoke and steam'], 'smoke', 'steam-cup', 'Steam off a cup, held still.'),
+  asset(['Smoke and steam'], 'smoke', 'smoke-puff', 'A puff of smoke rolling out and fading; one shot.', 'square', 'once'),
+  asset(['Smoke and steam'], 'smoke', 'smoke-trail', 'A smoke trail curling off to one side, held still.', 'wide'),
+  asset(['Smoke and steam', 'Halloween'], 'smoke', 'fog-patch', 'Low fog drifting along the ground; loops.', 'wide', 'loop'),
+  asset(['Smoke and steam'], 'smoke', 'smoke-ring', 'A smoke ring, held still.'),
+  // Sparks and embers
+  asset(['Sparks and embers'], 'sparks', 'spark-shower', 'A shower of sparks thrown and falling; one shot.', 'wide', 'once'),
+  asset(['Sparks and embers'], 'sparks', 'drifting-embers', 'Embers adrift, held still.', 'wide'),
+  asset(['Sparks and embers', 'Technology'], 'sparks', 'welding-sparks', 'Welding sparks spraying from a point; loops.', 'wide', 'loop'),
+  asset(['Sparks and embers', 'New year'], 'sparks', 'sparkler', 'A sparkler fizzing on its stick; loops.', 'square', 'loop'),
+  asset(['Sparks and embers', 'Patriotic'], 'sparks', 'firework-burst', 'A single firework bursting and falling; one shot.', 'square', 'once'),
+  asset(['Sparks and embers', 'Science'], 'sparks', 'electric-arc', 'An electric arc between two points, held still.', 'wide'),
+  // Explosions and impacts
+  asset(['Explosions and impacts'], 'explosion-asset', 'shockwave-ring', 'A shockwave ring opening out; one shot.', 'wide', 'once'),
+  asset(['Explosions and impacts'], 'explosion-asset', 'dust-burst', 'A burst of dust, held still.', 'wide'),
+  asset(['Explosions and impacts'], 'explosion-asset', 'fireball-blast', 'A fireball blast rolling up; one shot.', 'square', 'once'),
+  asset(['Explosions and impacts'], 'explosion-asset', 'debris-scatter', 'Debris scattered from an impact, held still.', 'wide'),
+  asset(['Explosions and impacts', 'Gaming'], 'explosion-asset', 'energy-burst', 'A burst of energy shards flying out; one shot.', 'square', 'once'),
+  asset(['Explosions and impacts'], 'explosion-asset', 'starburst-flash', 'A starburst flash, held still.'),
+  // Energy and magic
+  asset(['Energy and magic'], 'energy', 'energy-orb', 'An orb pulsing inside its rings; loops.', 'square', 'loop'),
+  asset(['Energy and magic'], 'energy', 'sparkle-trail', 'A trail of sparkles, held still.', 'wide'),
+  asset(['Energy and magic', 'Gaming'], 'energy', 'portal-ring', 'A portal ring turning with its runes; loops.', 'square', 'loop'),
+  asset(['Energy and magic', 'Gaming'], 'energy', 'plasma-beam', 'A plasma beam across the frame, held still.', 'wide'),
+  asset(['Energy and magic', 'Technology'], 'energy', 'glow-pulse', 'A glow pulsing out in rings; loops.', 'square', 'loop'),
+  asset(['Energy and magic'], 'energy', 'magic-bolt', 'A jagged bolt of magic, held still.', 'wide'),
+  // Light and flares
+  asset(['Light and flares'], 'light-asset', 'glint', 'A glint flaring and dying; one shot.', 'square', 'once'),
+  asset(['Light and flares'], 'light-asset', 'lens-flare', 'An anamorphic lens flare, held still.', 'wide'),
+  asset(['Light and flares', 'Faith'], 'light-asset', 'light-rays', 'Rays of light fanning down and shifting; loops.', 'wide', 'loop'),
+  asset(['Light and flares', 'City'], 'light-asset', 'neon-flicker', 'A neon tube flickering on; loops.', 'wide', 'loop'),
+  asset(['Light and flares', 'Concert'], 'light-asset', 'bokeh-cluster', 'A cluster of bokeh discs, held still.', 'wide'),
+  asset(['Light and flares', 'Cinema'], 'light-asset', 'flashlight-beam', 'A flashlight beam cutting across, held still.', 'wide'),
+  // Weather effects
+  asset(['Weather effects'], 'weather-asset', 'rain-fall', 'Rain falling across the frame; loops.', 'wide', 'loop'),
+  asset(['Weather effects'], 'weather-asset', 'snow-flurry', 'A flurry of snow, held still.', 'wide'),
+  asset(['Weather effects', 'Weather'], 'weather-asset', 'rain-cloud', 'A cloud raining; loops.', 'square', 'loop'),
+  asset(['Weather effects', 'Thanksgiving'], 'weather-asset', 'falling-leaves', 'Autumn leaves tumbling down; loops.', 'wide', 'loop'),
+  asset(['Weather effects', 'Weather'], 'weather-asset', 'hail', 'Hailstones falling, held still.', 'wide'),
+  asset(['Weather effects', 'Weather'], 'weather-asset', 'drifting-cloud', 'A cloud drifting by, held still.', 'wide'),
+  // Liquids and splashes
+  asset(['Liquids and splashes'], 'liquid', 'water-splash', 'A splash thrown up and out; one shot.', 'square', 'once'),
+  asset(['Liquids and splashes'], 'liquid', 'ink-bloom', 'Ink blooming in water, held still.'),
+  asset(['Liquids and splashes', 'Kids'], 'liquid', 'paint-splash', 'A splash of paint, held still.'),
+  asset(['Liquids and splashes'], 'liquid', 'drip', 'A drop forming, falling and rippling; loops.', 'square', 'loop'),
+  asset(['Liquids and splashes', 'Ocean'], 'liquid', 'rising-bubbles', 'Bubbles rising and wobbling; loops.', 'square', 'loop'),
+  asset(['Liquids and splashes', 'Food'], 'liquid', 'pouring-stream', 'A stream pouring from above, held still.'),
+  // Confetti and celebration
+  asset(['Confetti and celebration'], 'confetti', 'confetti-burst', 'Confetti thrown up and falling; one shot.', 'wide', 'once'),
+  asset(['Confetti and celebration'], 'confetti', 'glitter-fall', 'Glitter falling, held still.', 'wide'),
+  asset(['Confetti and celebration', 'Birthday'], 'confetti', 'balloon-release', 'Balloons released and rising; one shot.', 'square', 'once'),
+  asset(['Confetti and celebration', 'New year'], 'confetti', 'streamers', 'Streamers hanging in curls, held still.', 'wide'),
+  asset(['Confetti and celebration', 'Wedding'], 'confetti', 'petal-shower', 'Petals showering down; loops.', 'wide', 'loop'),
+  asset(['Confetti and celebration', 'Kids'], 'confetti', 'star-burst', 'Stars bursting from a point, held still.'),
+  // Brush and ink strokes
+  asset(['Brush and ink strokes'], 'brush', 'brush-swipe', 'A brush swiping across; one shot.', 'wide', 'once'),
+  asset(['Brush and ink strokes'], 'brush', 'marker-underline', 'A marker underline, held still.', 'wide'),
+  asset(['Brush and ink strokes', 'Kids'], 'brush', 'ink-scribble', 'An ink scribble drawing itself; one shot.', 'square', 'once'),
+  asset(['Brush and ink strokes', 'Education'], 'brush', 'hand-drawn-circle', 'A circle drawn by hand around something; one shot.', 'square', 'once'),
+  asset(['Brush and ink strokes'], 'brush', 'paint-splatter', 'Paint splattered across, held still.', 'wide'),
+  asset(['Brush and ink strokes'], 'brush', 'roller-stroke', 'A paint roller stroke, held still.', 'wide'),
+
+  // ---- Objects: themed props. The theme subfolder is what tags each one.
+  // Sports equipment
+  asset(['Sports equipment', 'Sports'], 'sports-objects', 'trophy', 'A gold trophy cup.'),
+  asset(['Sports equipment', 'Sports'], 'sports-objects', 'whistle', 'A referee whistle on its cord.'),
+  asset(['Sports equipment', 'Sports'], 'sports-objects', 'medal', 'A gold medal on a ribbon.'),
+  asset(['Sports equipment', 'Sports'], 'sports-objects', 'stopwatch', 'A stopwatch, its hand sweeping; loops.', 'square', 'loop'),
+  asset(['Sports equipment', 'Football'], 'sports-objects', 'football-ball', 'A football with its laces.'),
+  asset(['Sports equipment', 'Football'], 'sports-objects', 'football-helmet', 'A football helmet.'),
+  asset(['Sports equipment', 'Football'], 'sports-objects', 'goalpost', 'A goalpost.'),
+  asset(['Sports equipment', 'Basketball'], 'sports-objects', 'basketball-ball', 'A basketball bouncing; loops.', 'square', 'loop'),
+  asset(['Sports equipment', 'Basketball'], 'sports-objects', 'basketball-hoop', 'A hoop with its net and backboard.'),
+  asset(['Sports equipment', 'Basketball'], 'sports-objects', 'basketball-jersey', 'A basketball jersey.'),
+  asset(['Sports equipment', 'Baseball'], 'sports-objects', 'baseball-ball', 'A baseball with its stitching.'),
+  asset(['Sports equipment', 'Baseball'], 'sports-objects', 'baseball-bat', 'A baseball bat.'),
+  asset(['Sports equipment', 'Baseball'], 'sports-objects', 'baseball-glove', 'A baseball glove.'),
+  asset(['Sports equipment', 'Soccer'], 'sports-objects', 'soccer-ball', 'A soccer ball.'),
+  asset(['Sports equipment', 'Soccer'], 'sports-objects', 'soccer-goal', 'A soccer goal with its net.'),
+  asset(['Sports equipment', 'Soccer'], 'sports-objects', 'soccer-boot', 'A soccer boot.'),
+  asset(['Sports equipment', 'Hockey'], 'sports-objects', 'hockey-puck', 'A hockey puck.'),
+  asset(['Sports equipment', 'Hockey'], 'sports-objects', 'hockey-stick', 'A hockey stick.'),
+  asset(['Sports equipment', 'Hockey'], 'sports-objects', 'hockey-skate', 'An ice skate.'),
+  asset(['Sports equipment', 'Golf'], 'sports-objects', 'golf-ball', 'A dimpled golf ball on its tee.'),
+  asset(['Sports equipment', 'Golf'], 'sports-objects', 'golf-flag', 'A pin flag in its hole.'),
+  asset(['Sports equipment', 'Golf'], 'sports-objects', 'golf-club', 'A golf club.'),
+  asset(['Sports equipment', 'Tennis'], 'sports-objects', 'tennis-ball', 'A tennis ball.'),
+  asset(['Sports equipment', 'Tennis'], 'sports-objects', 'tennis-racket', 'A tennis racket.'),
+  asset(['Sports equipment', 'Tennis'], 'sports-objects', 'tennis-net', 'A tennis net.'),
+  asset(['Sports equipment', 'Motorsport'], 'sports-objects', 'checkered-flag-wave', 'A checkered flag waving; loops.', 'square', 'loop'),
+  asset(['Sports equipment', 'Motorsport'], 'sports-objects', 'racing-tyre', 'A racing tyre.'),
+  asset(['Sports equipment', 'Motorsport'], 'sports-objects', 'racing-helmet', 'A racing helmet.'),
+  asset(['Sports equipment', 'Fitness'], 'sports-objects', 'dumbbell-pair', 'A pair of dumbbells.'),
+  asset(['Sports equipment', 'Fitness'], 'sports-objects', 'kettlebell', 'A kettlebell.'),
+  asset(['Sports equipment', 'Fitness'], 'sports-objects', 'jump-rope', 'A jump rope.'),
+  // Celebration objects
+  asset(['Celebration objects', 'Wedding'], 'celebration-objects', 'wedding-rings-pair', 'Two wedding rings linked.'),
+  asset(['Celebration objects', 'Wedding'], 'celebration-objects', 'bouquet', 'A bridal bouquet.'),
+  asset(['Celebration objects', 'Birthday'], 'celebration-objects', 'birthday-cake-candles', 'A birthday cake, its candles flickering; loops.', 'square', 'loop'),
+  asset(['Celebration objects', 'Birthday'], 'celebration-objects', 'gift-box-bow', 'A gift box with a bow.'),
+  asset(['Celebration objects', 'Graduation'], 'celebration-objects', 'mortarboard-toss', 'A mortarboard tossed up and turning; one shot.', 'square', 'once'),
+  asset(['Celebration objects', 'Graduation'], 'celebration-objects', 'diploma-scroll', 'A diploma rolled and ribboned.'),
+  asset(['Celebration objects', 'Graduation'], 'celebration-objects', 'mortarboard', 'A mortarboard with its tassel.'),
+  asset(['Celebration objects', 'Baby'], 'celebration-objects', 'baby-rattle', 'A baby rattle.'),
+  asset(['Celebration objects', 'Baby'], 'celebration-objects', 'pacifier', 'A pacifier.'),
+  asset(['Celebration objects', 'Baby'], 'celebration-objects', 'baby-bottle', 'A baby bottle.'),
+  asset(['Celebration objects', 'Memorial'], 'celebration-objects', 'memorial-candle', 'A memorial candle burning; loops.', 'square', 'loop'),
+  asset(['Celebration objects', 'Memorial'], 'celebration-objects', 'dove', 'A dove in flight.'),
+  asset(['Celebration objects', 'Memorial'], 'celebration-objects', 'lily', 'A white lily.'),
+  // Holiday objects
+  asset(['Holiday objects', 'Holiday'], 'holiday-objects', 'gift-stack', 'A stack of wrapped gifts.'),
+  asset(['Holiday objects', 'Holiday'], 'holiday-objects', 'string-lights', 'A string of lights twinkling; loops.', 'wide', 'loop'),
+  asset(['Holiday objects', 'Holiday'], 'holiday-objects', 'lantern', 'A paper lantern.'),
+  asset(['Holiday objects', 'Christmas'], 'holiday-objects', 'bauble', 'A bauble on its hook.'),
+  asset(['Holiday objects', 'Christmas'], 'holiday-objects', 'fir-tree', 'A decorated fir tree.'),
+  asset(['Holiday objects', 'Christmas'], 'holiday-objects', 'candy-cane', 'A candy cane.'),
+  asset(['Holiday objects', 'New year'], 'holiday-objects', 'champagne-cork-pop', 'A champagne cork popping; one shot.', 'square', 'once'),
+  asset(['Holiday objects', 'Valentines'], 'holiday-objects', 'heart-balloon', 'A heart-shaped balloon.'),
+  asset(['Holiday objects', 'Valentines'], 'holiday-objects', 'love-letter', 'A sealed love letter.'),
+  asset(['Holiday objects', 'Valentines'], 'holiday-objects', 'rose-stem', 'A rose on its stem.'),
+  asset(['Holiday objects', 'Easter'], 'holiday-objects', 'easter-egg', 'A painted egg.'),
+  asset(['Holiday objects', 'Easter'], 'holiday-objects', 'tulip-pair', 'Two tulips.'),
+  asset(['Holiday objects', 'Easter'], 'holiday-objects', 'chick', 'A chick.'),
+  asset(['Holiday objects', 'Halloween'], 'holiday-objects', 'jack-o-lantern', 'A jack-o-lantern, its candle flickering; loops.', 'square', 'loop'),
+  asset(['Holiday objects', 'Halloween'], 'holiday-objects', 'witch-hat', 'A witch hat.'),
+  asset(['Holiday objects', 'Thanksgiving'], 'holiday-objects', 'pumpkin-pie', 'A slice of pumpkin pie.'),
+  asset(['Holiday objects', 'Thanksgiving'], 'holiday-objects', 'roast-turkey', 'A roast turkey on its platter.'),
+  asset(['Holiday objects', 'Summer'], 'holiday-objects', 'beach-ball', 'A beach ball.'),
+  asset(['Holiday objects', 'Summer'], 'holiday-objects', 'sunshine', 'A sun, its rays turning; loops.', 'square', 'loop'),
+  asset(['Holiday objects', 'Summer'], 'holiday-objects', 'ice-cream-cone', 'An ice cream cone.'),
+  asset(['Holiday objects', 'Patriotic'], 'holiday-objects', 'waving-flag', 'A striped flag waving; loops.', 'wide', 'loop'),
+  asset(['Holiday objects', 'Patriotic'], 'holiday-objects', 'rosette-ribbon', 'A rosette with ribbons.'),
+  // Business objects
+  asset(['Business objects', 'Corporate'], 'business-objects', 'briefcase', 'A briefcase.'),
+  asset(['Business objects', 'Corporate'], 'business-objects', 'id-badge', 'An ID badge on a lanyard.'),
+  asset(['Business objects', 'Corporate'], 'business-objects', 'bar-chart-rise', 'A bar chart growing with a rising arrow; one shot.', 'square', 'once'),
+  asset(['Business objects', 'Finance'], 'business-objects', 'spinning-coin', 'A coin spinning; loops.', 'square', 'loop'),
+  asset(['Business objects', 'Finance'], 'business-objects', 'money-stack', 'A stack of banknotes.'),
+  asset(['Business objects', 'Finance'], 'business-objects', 'piggy-bank', 'A piggy bank.'),
+  asset(['Business objects', 'Real estate'], 'business-objects', 'house-key', 'A key with a house tag.'),
+  asset(['Business objects', 'Real estate'], 'business-objects', 'house-front', 'The front of a house.'),
+  asset(['Business objects', 'Real estate'], 'business-objects', 'sold-sign', 'A sold sign on its post.'),
+  asset(['Business objects', 'Legal'], 'business-objects', 'gavel', 'A gavel on its block.'),
+  asset(['Business objects', 'Legal'], 'business-objects', 'scales-of-justice', 'The scales of justice.'),
+  asset(['Business objects', 'Legal'], 'business-objects', 'law-book', 'A law book.'),
+  // Science objects
+  asset(['Science objects', 'Technology'], 'science-objects', 'gear-spin', 'Two gears turning together; loops.', 'square', 'loop'),
+  asset(['Science objects', 'Technology'], 'science-objects', 'smartphone', 'A smartphone.'),
+  asset(['Science objects', 'Medical'], 'science-objects', 'first-aid-cross', 'A first-aid cross on its case.'),
+  asset(['Science objects', 'Medical'], 'science-objects', 'heartbeat-line', 'A heartbeat line tracing itself; loops.', 'wide', 'loop'),
+  asset(['Science objects', 'Medical'], 'science-objects', 'pill-capsule', 'A two-tone capsule.'),
+  asset(['Science objects', 'Science'], 'science-objects', 'atom-orbit', 'An atom, its electrons orbiting; loops.', 'square', 'loop'),
+  asset(['Science objects', 'Science'], 'science-objects', 'dna-helix', 'A DNA helix.'),
+  asset(['Science objects', 'Science'], 'science-objects', 'beaker-bubbling', 'A beaker bubbling; loops.', 'square', 'loop'),
+  // Media objects
+  asset(['Media objects', 'News'], 'media-objects', 'news-microphone', 'A hand microphone with a flag.'),
+  asset(['Media objects', 'News'], 'media-objects', 'tv-camera', 'A studio camera.'),
+  asset(['Media objects', 'News'], 'media-objects', 'newspaper', 'A folded newspaper.'),
+  asset(['Media objects', 'Documentary'], 'media-objects', 'film-reel', 'A film reel.'),
+  asset(['Media objects', 'Documentary'], 'media-objects', 'vintage-camera', 'A vintage camera.'),
+  asset(['Media objects', 'Documentary'], 'media-objects', 'boom-mic', 'A boom microphone.'),
+  asset(['Media objects', 'Podcast'], 'media-objects', 'podcast-mic', 'A studio microphone on its arm.'),
+  asset(['Media objects', 'Podcast'], 'media-objects', 'headphones', 'A pair of headphones.'),
+  asset(['Media objects', 'Podcast'], 'media-objects', 'on-air-sign', 'An on-air sign lighting up; loops.', 'wide', 'loop'),
+  asset(['Media objects', 'Social media'], 'media-objects', 'like-heart-burst', 'A like heart popping with sparks; one shot.', 'square', 'once'),
+  asset(['Media objects', 'Social media'], 'media-objects', 'speech-bubble', 'A speech bubble with three dots.'),
+  asset(['Media objects', 'Social media'], 'media-objects', 'thumbs-up', 'A thumbs up.'),
+  asset(['Media objects', 'Concert'], 'media-objects', 'music-notes-float', 'Music notes floating up; loops.', 'square', 'loop'),
+  asset(['Media objects', 'Concert'], 'media-objects', 'vinyl-record-spin', 'A vinyl record spinning; loops.', 'square', 'loop'),
+  asset(['Media objects', 'Cinema'], 'media-objects', 'clapperboard', 'A clapperboard.'),
+  asset(['Media objects', 'Cinema'], 'media-objects', 'popcorn-bucket', 'A bucket of popcorn.'),
+  asset(['Media objects', 'Kids'], 'media-objects', 'teddy-bear', 'A teddy bear.'),
+  asset(['Media objects', 'Fashion'], 'media-objects', 'lipstick', 'A lipstick.'),
+  asset(['Media objects', 'Fashion'], 'media-objects', 'high-heel', 'A high-heeled shoe.'),
+  asset(['Media objects', 'Fashion'], 'media-objects', 'handbag', 'A handbag.'),
+  // Nature objects
+  asset(['Nature objects', 'Nature'], 'nature-objects', 'green-leaf', 'A green leaf.'),
+  asset(['Nature objects', 'Nature'], 'nature-objects', 'butterfly-flap', 'A butterfly flapping; loops.', 'square', 'loop'),
+  asset(['Nature objects', 'Ocean'], 'nature-objects', 'fish-swim', 'A fish swimming; loops.', 'square', 'loop'),
+  asset(['Nature objects', 'Ocean'], 'nature-objects', 'scallop-shell', 'A scallop shell.'),
+  asset(['Nature objects', 'Space'], 'nature-objects', 'planet-rings', 'A ringed planet.'),
+  asset(['Nature objects', 'Space'], 'nature-objects', 'rocket-launch', 'A rocket lifting off; one shot.', 'square', 'once'),
+  asset(['Nature objects', 'Space'], 'nature-objects', 'comet-streak', 'A comet with its tail.', 'wide'),
+  asset(['Nature objects', 'Weather'], 'nature-objects', 'rainbow-arc', 'A rainbow.', 'wide'),
+  asset(['Nature objects', 'Weather'], 'nature-objects', 'umbrella-open', 'An open umbrella.'),
+  // Travel objects
+  asset(['Travel objects', 'Travel'], 'travel-objects', 'aeroplane-fly', 'An aeroplane flying by; loops.', 'wide', 'loop'),
+  asset(['Travel objects', 'Travel'], 'travel-objects', 'suitcase', 'A suitcase with stickers.'),
+  asset(['Travel objects', 'Travel'], 'travel-objects', 'compass-rose', 'A compass.'),
+  asset(['Travel objects', 'City'], 'travel-objects', 'traffic-light-cycle', 'A traffic light cycling; loops.', 'square', 'loop'),
+  asset(['Travel objects', 'City'], 'travel-objects', 'map-pin-drop', 'A map pin dropping in; one shot.', 'square', 'once'),
+  asset(['Travel objects', 'City'], 'travel-objects', 'street-lamp', 'A street lamp.'),
+  // Home objects
+  asset(['Home objects', 'Food'], 'home-objects', 'coffee-cup-steam', 'A coffee cup steaming; loops.', 'square', 'loop'),
+  asset(['Home objects', 'Food'], 'home-objects', 'pizza-slice', 'A slice of pizza.'),
+  asset(['Home objects', 'Food'], 'home-objects', 'cupcake', 'A cupcake.'),
+  asset(['Home objects'], 'home-objects', 'house-plant', 'A house plant in its pot.'),
+  asset(['Home objects'], 'home-objects', 'table-lamp', 'A table lamp.'),
+  asset(['Home objects'], 'home-objects', 'toaster-pop', 'A toaster popping its toast; one shot.', 'square', 'once'),
+  // Community objects
+  asset(['Community objects', 'Faith'], 'community-objects', 'candle-pair', 'Two candles burning; loops.', 'square', 'loop'),
+  asset(['Community objects', 'Faith'], 'community-objects', 'church-bell', 'A bell.'),
+  asset(['Community objects', 'Education'], 'community-objects', 'pencil-and-ruler', 'A pencil and a ruler.'),
+  asset(['Community objects', 'Education'], 'community-objects', 'red-apple', 'A red apple.'),
+  asset(['Community objects', 'Nonprofit'], 'community-objects', 'heart-in-hands', 'A heart held in two hands.'),
+  asset(['Community objects', 'Nonprofit'], 'community-objects', 'donation-jar', 'A jar of coins.'),
+  asset(['Community objects', 'Nonprofit'], 'community-objects', 'awareness-ribbon', 'An awareness ribbon.'),
+  asset(['Community objects', 'Civic'], 'community-objects', 'ballot-box', 'A ballot box.'),
+  asset(['Community objects', 'Civic'], 'community-objects', 'columned-building', 'A building with columns.'),
+  asset(['Community objects', 'Civic'], 'community-objects', 'megaphone', 'A megaphone.'),
+];
+
 /** Every sample file, in the order they are made. */
-export const SAMPLE_MEDIA: readonly SampleMediaItem[] = [...CLIPS, ...STILLS, ...MUSIC, ...SFX];
+export const SAMPLE_MEDIA: readonly SampleMediaItem[] = [...CLIPS, ...STILLS, ...MUSIC, ...SFX, ...ASSETS];
 
 /** The file's media kind, from its extension. */
 export function sampleMediaKind(item: SampleMediaItem): MediaKind {
@@ -1089,7 +1309,7 @@ export function sampleMediaReadme(): string {
   const lines = [
     '# Sample media',
     '',
-    'Generated by Pulp so that every media type in the browse tree has at least six examples. Everything here is original and CC0 (see LICENSE-CC0.txt): sounds are synthesized from tones, noise and envelopes (the animal calls are synthesized, not recorded), stills are drawn on a canvas, and the clips are the bundled background templates rendered out. The folder names give each file its type when the folder is in a Pulp library.',
+    'Generated by Pulp so that every media type in the browse tree has at least six examples. Everything here is original and CC0 (see LICENSE-CC0.txt): sounds are synthesized from tones, noise and envelopes (the animal calls are synthesized, not recorded), stills are drawn on a canvas, the clips are the bundled background templates rendered out, and the assets are drawn on transparency. The folder names give each file its type when the folder is in a Pulp library.',
     '',
     'Delete any file and run the generator again to get it back; files that already exist are left alone.',
     '',

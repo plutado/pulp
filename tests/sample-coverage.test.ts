@@ -23,12 +23,14 @@ const TEMPLATES_DIR = join(__dirname, '..', 'templates');
 export const MINIMUM = 6;
 
 /** Types not yet six deep (ROADMAP.md, milestone 24). Only shrinks. */
-const TYPES_STILL_OPEN = new Set<string>([
-  // Milestone 26's Assets group: the categories exist and each has its first two examples, on the
-  // way to six. They come off this list as the generator's recipes fill them in.
-  'fire', 'smoke', 'sparks', 'explosion-asset', 'energy',
-  'light-asset', 'weather-asset', 'liquid', 'confetti', 'brush',
-]);
+const TYPES_STILL_OPEN = new Set<string>([]);
+
+/**
+ * Milestone 26's rule for the Assets group: every theme in the taxonomy has at least this many
+ * assets tagged with it, so that a theme's node has props and effects to drop on a frame and
+ * not only templates. Assets are generated media, so their themes come from their folders.
+ */
+export const ASSETS_PER_THEME = 3;
 
 /** Themes not yet six deep. Only shrinks. */
 const THEMES_STILL_OPEN = new Set<string>([]);
@@ -97,6 +99,17 @@ describe(`every category is at least ${MINIMUM} deep`, () => {
       if (types.every((t) => TYPES_STILL_OPEN.has(t.id))) continue;
       const filled = types.filter((t) => (counts.types.get(t.id) ?? 0) >= MINIMUM);
       expect(filled.length, group.label).toBeGreaterThan(0);
+    }
+  });
+
+  it(`gives every theme ${ASSETS_PER_THEME} or more assets`, () => {
+    const perTheme = new Map<string, number>();
+    for (const item of SAMPLE_MEDIA) {
+      if (typeInfo(item.type)?.group !== 'assets') continue;
+      for (const theme of new Set(inferThemes(item.folder.map(normalizeTag)))) perTheme.set(theme, (perTheme.get(theme) ?? 0) + 1);
+    }
+    for (const theme of ALL_THEMES) {
+      expect(perTheme.get(theme.id) ?? 0, `${theme.label}: an asset or two of its own to place on a frame`).toBeGreaterThanOrEqual(ASSETS_PER_THEME);
     }
   });
 

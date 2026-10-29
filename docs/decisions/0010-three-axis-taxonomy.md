@@ -41,6 +41,10 @@ Within taxonomy version 1, the type and style lists only grow, never rename or r
 
 Milestone 22 added `logo-reveal` to the Titles and text group: a piece built around an image slot whose whole job is to bring a logo on. Added under the rule above — nothing renamed, nothing removed — and `TAXONOMY_VERSION` moved to 2.
 
+### Versions 3 and 4 (October 2026)
+
+Milestone 26 added the **Assets** type group — isolated elements on transparency placed on a frame, as distinct from Overlays, which cover it — in two steps. Version 3 brought its ten Effects categories (fire, smoke, sparks, explosions, energy, light, weather, liquids, confetti, brush strokes). Version 4 brought ten Objects categories of themed props: Sports equipment and Celebration, Holiday, Business, Science, Media, Nature, Travel, Home and Community objects. Their labels are plain noun phrases on purpose: every part of a label split on "and" or "/" becomes a folder alias for the type, and a label such as "Business and work" would have made a person's own "Business" folder of stills read as a folder of assets. The themes an object fits come from its theme subfolder, as for any media file, so the open themes axis needed nothing new; the coverage test holds every theme to three assets or more.
+
 ## Alternatives considered
 
 - **One flat category list, grown.** Where the format started. Cannot say "everything corporate" across lower thirds, backgrounds and stingers, which is the browsing the layout plan is built around.
