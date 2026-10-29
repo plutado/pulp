@@ -300,7 +300,7 @@ export const BRIDGE_SCRIPT = `(function () {
   }
   function layerDraws(block, state, options, column) {
     var asked = block.layers.map(function (layer, position) {
-      var draw = { alpha: 1, dx: 0, dy: 0, scale: 1 };
+      var draw = { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0 };
       var over = options.each ? options.each(layer, position) : null;
       if (over) for (var k in over) if (over[k] !== undefined) draw[k] = over[k];
       return draw;
@@ -315,8 +315,8 @@ export const BRIDGE_SCRIPT = `(function () {
          offsets add, scales multiply, so a placed layer still rides the design. Mirrors layerDraws
          in src/core/layer-layout.ts: change both or neither. */
       var placed = layer.placement;
-      if (placed && (placed.dx || placed.dy || placed.scale !== 1)) {
-        draw = { alpha: draw.alpha, dx: draw.dx + placed.dx, dy: draw.dy + placed.dy, scale: draw.scale * placed.scale, letterSpacing: draw.letterSpacing };
+      if (placed && (placed.dx || placed.dy || placed.scale !== 1 || placed.rotate)) {
+        draw = { alpha: draw.alpha, dx: draw.dx + placed.dx, dy: draw.dy + placed.dy, scale: draw.scale * placed.scale, rotate: (draw.rotate || 0) + (placed.rotate || 0), letterSpacing: draw.letterSpacing };
       }
       return draw;
     });
@@ -409,7 +409,10 @@ export const BRIDGE_SCRIPT = `(function () {
       ctx.globalAlpha = ctx.globalAlpha * alpha;
       var cx = layer.box.x + layer.box.width / 2, cy = layer.box.y + layer.box.height / 2;
       ctx.translate((d.dx || 0), (d.dy || 0));
+      /* The scale and the angle are both about the layer's own centre (milestone 29), so they
+         compose in either order; the offset above has already moved that centre. */
       if (d.scale !== undefined && d.scale !== 1) { ctx.translate(cx, cy); ctx.scale(d.scale, d.scale); ctx.translate(-cx, -cy); }
+      if (d.rotate) { ctx.translate(cx, cy); ctx.rotate(d.rotate * Math.PI / 180); ctx.translate(-cx, -cy); }
       if (layer.type === 'text') drawTextLayer(ctx, layer);
       else if (layer.picture) {
         var at = fitBox(layer.box, layer.picture.width, layer.picture.height, 'contain', 'center', 0);

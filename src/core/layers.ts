@@ -70,11 +70,34 @@ export interface LayerPlacement {
   dy: number;
   /** About the layer's centre; 1 is the size the stack gave it. */
   scale: number;
+  /** About the layer's centre, in degrees clockwise; 0 is as the stack set it (milestone 29). */
+  rotate: number;
 }
 
 export type LayerPlacements = Record<string, LayerPlacement>;
 
-export const IDENTITY_PLACEMENT: LayerPlacement = { dx: 0, dy: 0, scale: 1 };
+export const IDENTITY_PLACEMENT: LayerPlacement = { dx: 0, dy: 0, scale: 1, rotate: 0 };
+
+/**
+ * An angle in degrees, folded into (-180, 180]. An angle is cyclic, so a value
+ * outside that is a different way of writing one inside it rather than a
+ * mistake: 270 means -90, and a preset or a CSV cell saying so is read, not
+ * refused. (`dx`, `dy` and `scale` are reported when out of range, because for
+ * those a number past the end really is wrong.)
+ */
+export function normalizeAngle(degrees: number): number {
+  if (!Number.isFinite(degrees)) return 0;
+  const wrapped = ((degrees % 360) + 540) % 360 - 180;
+  // The fold above lands exactly -180 for a half turn; 180 is the friendlier way to write it.
+  const settled = wrapped === -180 ? 180 : wrapped;
+  // Hundredths: finer than any handle or field offers, and it keeps the stored value tidy.
+  return Math.round(settled * 100) / 100 + 0;
+}
+
+/** True when a placement leaves the layer exactly where its stack put it. */
+export function isIdentityPlacement(p: LayerPlacement): boolean {
+  return p.dx === 0 && p.dy === 0 && p.scale === 1 && p.rotate === 0;
+}
 
 /** How text is set: what a block's text layers start from, and what one layer can override. */
 export interface Typography {
@@ -327,7 +350,7 @@ function readMotion(raw: unknown, base: LayerMotion, issue: (field: string, mess
  */
 function readOnePlacement(raw: unknown, issue: (field: string, message: string) => void): LayerPlacement | null {
   if (!isRecord(raw)) {
-    issue('placement', 'each aspect must be an object of dx, dy and scale');
+    issue('placement', 'each aspect must be an object of dx, dy, scale and rotate');
     return null;
   }
   const out = { ...IDENTITY_PLACEMENT };
@@ -340,12 +363,16 @@ function readOnePlacement(raw: unknown, issue: (field: string, message: string) 
     if (inRange(raw.scale, LAYER_LIMITS.placementScale)) out.scale = raw.scale;
     else issue('placement.scale', `must be a factor from ${LAYER_LIMITS.placementScale.min} to ${LAYER_LIMITS.placementScale.max}`);
   }
+  if (raw.rotate !== undefined) {
+    if (typeof raw.rotate === 'number' && Number.isFinite(raw.rotate)) out.rotate = normalizeAngle(raw.rotate);
+    else issue('placement.rotate', 'must be an angle in degrees');
+  }
   return out;
 }
 
 /**
  * A layer's placements, read against a base: an object keyed by aspect id (or
- * "default"), each an offset and a scale. An identity entry is dropped, and a
+ * "default"), each an offset, a scale and an angle. An identity entry is dropped, and a
  * placement that ends up empty is no placement at all, so an unmoved layer
  * serializes exactly as it always did.
  */
@@ -364,7 +391,8 @@ function readPlacement(raw: unknown, base: LayerPlacements | undefined, issue: (
     }
     const one = readOnePlacement(value, issue);
     if (!one) continue;
-    if (one.dx === 0 && one.dy === 0 && one.scale === 1) continue;
+    // An identity entry is no placement at all, so an untouched layer serializes as it always did.
+    if (isIdentityPlacement(one)) continue;
     out[key] = one;
   }
   return Object.keys(out).length > 0 ? out : undefined;

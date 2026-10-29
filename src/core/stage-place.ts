@@ -8,14 +8,15 @@
  */
 
 import type { PxBox } from './image-slot';
+import { normalizeAngle } from './layers';
 import { SAFE_AREAS } from './player';
 
 /** What the template page reports for one drawn layer: its slot and what it was drawn with. */
 export interface LaidLayerReport {
   id: string;
-  type: 'text' | 'image';
+  type: 'text' | 'image' | 'video';
   box: PxBox;
-  draw: { alpha: number; dx: number; dy: number; scale: number };
+  draw: { alpha: number; dx: number; dy: number; scale: number; rotate?: number };
 }
 
 export interface LaidBlockReport {
@@ -40,6 +41,62 @@ export function placedBox(layer: LaidLayerReport): PxBox {
   return { x: cx - (box.width * draw.scale) / 2, y: cy - (box.height * draw.scale) / 2, width: box.width * draw.scale, height: box.height * draw.scale };
 }
 
+/** A point in frame pixels. */
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/** The angle a layer is drawn at, in degrees; 0 for one that was never turned. */
+export function placedAngle(layer: LaidLayerReport): number {
+  return layer.draw.rotate ?? 0;
+}
+
+/** Turn a point about a centre, clockwise, by degrees. */
+export function rotatePoint(point: Point, centre: Point, degrees: number): Point {
+  if (!degrees) return { x: point.x, y: point.y };
+  const radians = (degrees * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const dx = point.x - centre.x;
+  const dy = point.y - centre.y;
+  return { x: centre.x + dx * cos - dy * sin, y: centre.y + dx * sin + dy * cos };
+}
+
+/** The centre of where a layer was really drawn. */
+export function placedCentre(layer: LaidLayerReport): Point {
+  const b = placedBox(layer);
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+}
+
+/**
+ * The four corners of where a layer was really drawn, turned (milestone 29):
+ * top-left, top-right, bottom-right, bottom-left. `placedBox` is the same
+ * rectangle before the turn, which is still what a drag and a scale work in —
+ * the selection outline and hit-testing are what need the corners.
+ */
+export function placedQuad(layer: LaidLayerReport): Point[] {
+  const b = placedBox(layer);
+  const centre = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  const angle = placedAngle(layer);
+  return [
+    { x: b.x, y: b.y },
+    { x: b.x + b.width, y: b.y },
+    { x: b.x + b.width, y: b.y + b.height },
+    { x: b.x, y: b.y + b.height },
+  ].map((corner) => rotatePoint(corner, centre, angle));
+}
+
+/** The upright box that contains a turned layer: what snapping measures, and what a guide lines up with. */
+export function placedBounds(layer: LaidLayerReport): PxBox {
+  const quad = placedQuad(layer);
+  const xs = quad.map((p) => p.x);
+  const ys = quad.map((p) => p.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+}
+
 /**
  * The layer under a point, topmost first — the stack draws bottom to top, so
  * the last hit wins — ignoring what was not drawn (alpha 0, an empty box).
@@ -54,8 +111,14 @@ export function hitLayer(laid: LaidReport, x: number, y: number, tolerance = 0):
   for (const [block, report] of Object.entries(laid.blocks)) {
     for (const layer of report.layers) {
       if (layer.draw.alpha <= 0 || layer.box.width <= 0 || layer.box.height <= 0) continue;
+      // A turned layer is tested in its own upright frame: the point is turned back about the
+      // layer's centre, and the same box test then answers for the rotated outline exactly.
       const b = placedBox(layer);
-      if (x >= b.x - tolerance && x <= b.x + b.width + tolerance && y >= b.y - tolerance && y <= b.y + b.height + tolerance) hit = { block, id: layer.id };
+      const angle = placedAngle(layer);
+      const point = angle ? rotatePoint({ x, y }, { x: b.x + b.width / 2, y: b.y + b.height / 2 }, -angle) : { x, y };
+      if (point.x >= b.x - tolerance && point.x <= b.x + b.width + tolerance && point.y >= b.y - tolerance && point.y <= b.y + b.height + tolerance) {
+        hit = { block, id: layer.id };
+      }
     }
   }
   return hit;
@@ -138,4 +201,29 @@ export function scaleFromDrag(start: { x: number; y: number }, now: { x: number;
   const is = Math.hypot(now.x - centre.x, now.y - centre.y);
   if (was < 1) return startScale;
   return clampScale(startScale * (is / was));
+}
+
+/** Angles a turn settles on when Shift is held: every 15 degrees, as a protractor reads. */
+export const ANGLE_SNAP_DEGREES = 15;
+
+/**
+ * The angle a rotate-handle drag asks for: the angle the pointer has swept
+ * about the placed centre since the gesture began, added to the angle the
+ * layer already had. With Shift it settles on the nearest 15°, measured on the
+ * **result** rather than the sweep, so the layer lands on 0, 15, 30 and so on
+ * whatever angle it started from.
+ */
+export function angleFromDrag(start: Point, now: Point, centre: Point, startAngle: number, snap: boolean): number {
+  const was = Math.atan2(start.y - centre.y, start.x - centre.x);
+  const is = Math.atan2(now.y - centre.y, now.x - centre.x);
+  const swept = ((is - was) * 180) / Math.PI;
+  const angle = startAngle + swept;
+  return normalizeAngle(snap ? Math.round(angle / ANGLE_SNAP_DEGREES) * ANGLE_SNAP_DEGREES : angle);
+}
+
+/** Where the rotate handle sits: above the layer's top edge, turned with it. */
+export function rotateHandleAt(layer: LaidLayerReport, distance: number): Point {
+  const b = placedBox(layer);
+  const centre = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  return rotatePoint({ x: centre.x, y: b.y - distance }, centre, placedAngle(layer));
 }

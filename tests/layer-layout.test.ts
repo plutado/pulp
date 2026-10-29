@@ -29,7 +29,7 @@ const noImages = () => null;
 
 function text(over: Partial<TextLayerState> = {}): TextLayerState {
   return {
-    id: 'a', label: 'A', type: 'text', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION }, placement: { dx: 0, dy: 0, scale: 1 },
+    id: 'a', label: 'A', type: 'text', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION }, placement: { dx: 0, dy: 0, scale: 1, rotate: 0 },
     text: 'Hello', family: 'Test', fontSize: 100, weight: 400, italic: false, case: 'none',
     letterSpacing: 0, kerning: true, lineHeight: 1.2, color: '#ffffff', overflow: 'wrap', maxLines: 3,
     ...over,
@@ -37,7 +37,7 @@ function text(over: Partial<TextLayerState> = {}): TextLayerState {
 }
 
 function image(over: Partial<ImageLayerState> = {}): ImageLayerState {
-  return { id: 'i', label: 'I', type: 'image', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION }, placement: { dx: 0, dy: 0, scale: 1 }, image: { id: 'a'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false }, size: 80, ...over };
+  return { id: 'i', label: 'I', type: 'image', position: 0, spaceBefore: 0, align: 'left', motion: { ...DEFAULT_MOTION }, placement: { dx: 0, dy: 0, scale: 1, rotate: 0 }, image: { id: 'a'.repeat(24), treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false }, size: 80, ...over };
 }
 
 function block(layers: LayerState[], over: Partial<BlockState> = {}): BlockState {
@@ -375,19 +375,19 @@ describe("a layer placed on the stage (milestone 25)", () => {
   it('resolves the placement for the frame\'s aspect into pixels of it', () => {
     const m = manifest();
     const title = m.blocks[0]!.layers[0] as TextLayer;
-    const placed: TextLayer = { ...title, placement: { '16:9': { dx: 0.1, dy: -0.05, scale: 1.5 }, default: { dx: 0.5, dy: 0.5, scale: 2 } } };
+    const placed: TextLayer = { ...title, placement: { '16:9': { dx: 0.1, dy: -0.05, scale: 1.5, rotate: 0 }, default: { dx: 0.5, dy: 0.5, scale: 2, rotate: 0 } } };
     const wide = blockStates(m, { card: [placed] }, { width: 1920, height: 1080 }).card!;
-    expect(wide.layers[0]!.placement).toEqual({ dx: 192, dy: -54, scale: 1.5 });
+    expect(wide.layers[0]!.placement).toEqual({ dx: 192, dy: -54, scale: 1.5, rotate: 0 });
     // A tall frame answers with "default", so the 16:9 layout never moves the 9:16 one.
     const tall = blockStates(m, { card: [placed] }, { width: 1080, height: 1920 }).card!;
-    expect(tall.layers[0]!.placement).toEqual({ dx: 540, dy: 960, scale: 2 });
+    expect(tall.layers[0]!.placement).toEqual({ dx: 540, dy: 960, scale: 2, rotate: 0 });
     // No placement is identity.
     const plain = blockStates(m, { card: [title] }, { width: 1920, height: 1080 }).card!;
-    expect(plain.layers[0]!.placement).toEqual({ dx: 0, dy: 0, scale: 1 });
+    expect(plain.layers[0]!.placement).toEqual({ dx: 0, dy: 0, scale: 1, rotate: 0 });
   });
 
   it('wraps the template\'s own draw: offsets add, scales multiply, and the box never moves', () => {
-    const b = block([text({ placement: { dx: 100, dy: 40, scale: 1.5 } })]);
+    const b = block([text({ placement: { dx: 100, dy: 40, scale: 1.5, rotate: 0 } })]);
     const laid = layoutBlock(b, measure, noImages, { each, at });
     expect(laid.layers[0]!.draw).toMatchObject({ alpha: 0.8, dx: 105, dy: 37, scale: 3 });
     // The layout slot is untouched: placement is drawn around the stack, not into it.
@@ -395,8 +395,21 @@ describe("a layer placed on the stage (milestone 25)", () => {
     expect(laid.layers[0]!.box).toEqual(plain.layers[0]!.box);
   });
 
+  it('turns a layer about its centre, adding angles as it adds offsets (milestone 29)', () => {
+    const b = block([text({ placement: { dx: 0, dy: 0, scale: 1, rotate: 30 } })]);
+    const laid = layoutBlock(b, measure, noImages, { each, at });
+    expect(laid.layers[0]!.draw.rotate).toBe(30);
+    // The slot is untouched: a turn is drawn around the stack, never laid into it.
+    const plain = layoutBlock(block([text()]), measure, noImages, { each, at });
+    expect(laid.layers[0]!.box).toEqual(plain.layers[0]!.box);
+    expect(plain.layers[0]!.draw.rotate ?? 0).toBe(0);
+    // A turn rides along with an offset and a scale rather than replacing them.
+    const all = layoutBlock(block([text({ placement: { dx: 100, dy: 40, scale: 1.5, rotate: -45 } })]), measure, noImages, { each, at });
+    expect(all.layers[0]!.draw).toMatchObject({ dx: 105, dy: 37, scale: 3, rotate: -45 });
+  });
+
   it('wraps a motion override the same way', () => {
-    const b = block([text({ motion: { type: 'none', delay: 0 }, placement: { dx: 50, dy: 0, scale: 2 } })]);
+    const b = block([text({ motion: { type: 'none', delay: 0 }, placement: { dx: 50, dy: 0, scale: 2, rotate: 0 } })]);
     const laid = layoutBlock(b, measure, noImages, { each: () => ({ alpha: 1 }), at });
     expect(laid.layers[0]!.draw).toMatchObject({ alpha: 1, dx: 50, dy: 0, scale: 2 });
   });

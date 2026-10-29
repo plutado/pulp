@@ -1,8 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { clampPlacement, clampScale, hitLayer, nudgeFraction, placedBox, scaleFromDrag, snapLines, snapMove, type LaidReport } from '../src/core/stage-place';
+import {
+  angleFromDrag,
+  ANGLE_SNAP_DEGREES,
+  clampPlacement,
+  clampScale,
+  hitLayer,
+  nudgeFraction,
+  placedBounds,
+  placedBox,
+  placedCentre,
+  placedQuad,
+  rotateHandleAt,
+  scaleFromDrag,
+  snapLines,
+  snapMove,
+  type LaidReport,
+} from '../src/core/stage-place';
 import { SAFE_AREAS } from '../src/core/player';
 
-const layer = (id: string, box: { x: number; y: number; width: number; height: number }, draw: Partial<{ alpha: number; dx: number; dy: number; scale: number }> = {}) => ({
+const layer = (id: string, box: { x: number; y: number; width: number; height: number }, draw: Partial<{ alpha: number; dx: number; dy: number; scale: number; rotate: number }> = {}) => ({
   id, type: 'text' as const, box, draw: { alpha: 1, dx: 0, dy: 0, scale: 1, ...draw },
 });
 const FRAME = { width: 1920, height: 1080 };
@@ -88,5 +104,79 @@ describe('scaleFromDrag', () => {
     expect(scaleFromDrag({ x: 700, y: 500 }, { x: 600, y: 500 }, centre, 2)).toBe(1);
     // A degenerate start at the centre changes nothing rather than exploding.
     expect(scaleFromDrag(centre, { x: 900, y: 500 }, centre, 1.5)).toBe(1.5);
+  });
+});
+
+describe('a turned layer (milestone 29)', () => {
+  const box = { x: 100, y: 200, width: 200, height: 100 };
+  const near = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+    expect(a.x).toBeCloseTo(b.x, 6);
+    expect(a.y).toBeCloseTo(b.y, 6);
+  };
+
+  it('keeps its centre and its size, and turns its corners about that centre', () => {
+    const turned = layer('a', box, { rotate: 90 });
+    // The box a drag works in is the unturned one; the quad is where it was really drawn.
+    expect(placedBox(turned)).toEqual(box);
+    near(placedCentre(turned), { x: 200, y: 250 });
+    const quad = placedQuad(turned);
+    expect(quad).toHaveLength(4);
+    // A quarter turn clockwise takes the top-left corner to the top-right of the centre.
+    near(quad[0]!, { x: 250, y: 150 });
+    near(quad[2]!, { x: 150, y: 350 });
+    // Every corner stays its own distance from the centre: a turn is not a resize.
+    for (const corner of quad) {
+      expect(Math.hypot(corner.x - 200, corner.y - 250)).toBeCloseTo(Math.hypot(100, 50), 6);
+    }
+    // No angle, no change.
+    expect(placedQuad(layer('a', box))[0]).toEqual({ x: 100, y: 200 });
+  });
+
+  it('reports the upright box that contains it, which is what snapping measures', () => {
+    // Upright, the bounds are the box itself.
+    expect(placedBounds(layer('a', box))).toEqual(box);
+    // At a quarter turn the sides swap.
+    const quarter = placedBounds(layer('a', box, { rotate: 90 }));
+    expect(quarter.width).toBeCloseTo(100, 6);
+    expect(quarter.height).toBeCloseTo(200, 6);
+    near({ x: quarter.x + quarter.width / 2, y: quarter.y + quarter.height / 2 }, { x: 200, y: 250 });
+    // At 45° it is wider than either side, and still centred on the same point.
+    const diagonal = placedBounds(layer('a', box, { rotate: 45 }));
+    expect(diagonal.width).toBeCloseTo(Math.SQRT1_2 * (200 + 100), 6);
+    near({ x: diagonal.x + diagonal.width / 2, y: diagonal.y + diagonal.height / 2 }, { x: 200, y: 250 });
+  });
+
+  it('is hit where it was drawn, not where its upright box is', () => {
+    const laid: LaidReport = {
+      frame: 1,
+      blocks: { card: { box: { x: 0, y: 0, width: 1920, height: 1080 }, layers: [layer('turned', box, { rotate: 90 })] } },
+    };
+    // Turned a quarter, the layer is tall and narrow about (200, 250).
+    expect(hitLayer(laid, 200, 330)).toEqual({ block: 'card', id: 'turned' });
+    expect(hitLayer(laid, 290, 250), 'outside the turned shape, inside the unturned box').toBeNull();
+    expect(hitLayer(laid, 200, 250), 'the centre is always inside').toEqual({ block: 'card', id: 'turned' });
+    // The tolerance still widens it, in the layer's own frame.
+    expect(hitLayer(laid, 200, 356)).toBeNull();
+    expect(hitLayer(laid, 200, 356, 10)).toEqual({ block: 'card', id: 'turned' });
+  });
+
+  it('turns by the angle the pointer sweeps, settling on 15° steps with Shift', () => {
+    const centre = { x: 0, y: 0 };
+    // A quarter sweep clockwise from the right-hand side adds 90°.
+    expect(angleFromDrag({ x: 100, y: 0 }, { x: 0, y: 100 }, centre, 0, false)).toBeCloseTo(90, 6);
+    // It adds to the angle already there, and folds past half a turn.
+    expect(angleFromDrag({ x: 100, y: 0 }, { x: 0, y: 100 }, centre, 120, false)).toBeCloseTo(-150, 6);
+    // Shift settles the result on a step, whatever angle the layer started from.
+    expect(angleFromDrag({ x: 100, y: 0 }, { x: 100, y: 12 }, centre, 7, true) % ANGLE_SNAP_DEGREES).toBe(0);
+    expect(angleFromDrag({ x: 100, y: 0 }, { x: 0, y: 100 }, centre, 7, true)).toBe(90);
+    // A pointer that has not moved asks for the angle the layer already had.
+    expect(angleFromDrag({ x: 100, y: 0 }, { x: 100, y: 0 }, centre, 33, false)).toBe(33);
+  });
+
+  it('puts the rotate handle above the layer, turned with it', () => {
+    // Upright: straight above the top edge.
+    near(rotateHandleAt(layer('a', box), 30), { x: 200, y: 170 });
+    // Turned a quarter clockwise, "above" is to the right.
+    near(rotateHandleAt(layer('a', box, { rotate: 90 }), 30), { x: 280, y: 250 });
   });
 });

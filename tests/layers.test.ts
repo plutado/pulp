@@ -16,6 +16,7 @@ import {
   type TextLayer,
 } from '../src/core/layers';
 import { validateManifest, type ValidationIssue } from '../src/core/manifest';
+import { normalizeAngle } from '../src/core/layers';
 import { EMPTY_CLIP } from '../src/core/video-layer';
 import { rawManifest } from './fixtures';
 
@@ -300,9 +301,9 @@ describe('resolveLayers', () => {
   it('carries a layer\'s placement by aspect, and drops what says nothing (milestone 25)', () => {
     const { values, issues } = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { dx: 0.1, dy: -0.05 }, 'default': { scale: 1.4 } } }] });
     expect(issues).toEqual([]);
-    expect(values.strap![0]!.placement).toEqual({ '16:9': { dx: 0.1, dy: -0.05, scale: 1 }, default: { dx: 0, dy: 0, scale: 1.4 } });
+    expect(values.strap![0]!.placement).toEqual({ '16:9': { dx: 0.1, dy: -0.05, scale: 1, rotate: 0 }, default: { dx: 0, dy: 0, scale: 1.4, rotate: 0 } });
     // An identity entry is no placement; a layer that ends with none serializes as it always did.
-    const clean = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { dx: 0, dy: 0, scale: 1 } } }] });
+    const clean = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { dx: 0, dy: 0, scale: 1, rotate: 0 } } }] });
     expect(clean.values.strap![0]!.placement).toBeUndefined();
     expect('placement' in clean.values.strap![0]!).toBe(false);
     // Null clears a placement a preset carried.
@@ -310,12 +311,33 @@ describe('resolveLayers', () => {
     expect(cleared.values.strap![0]!.placement).toBeUndefined();
   });
 
+  it('carries an angle, folded into a half turn either way (milestone 29)', () => {
+    const turned = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { rotate: 15 } } }] });
+    expect(turned.issues).toEqual([]);
+    expect(turned.values.strap![0]!.placement).toEqual({ '16:9': { dx: 0, dy: 0, scale: 1, rotate: 15 } });
+    // An angle is cyclic, so a value past half a turn is another way of writing one inside it.
+    const cases: [number, number][] = [[270, -90], [-270, 90], [360, 0], [720, 0], [540, 180], [181, -179], [-180, 180], [15.004, 15]];
+    for (const [given, want] of cases) {
+      expect(normalizeAngle(given), `${given}°`).toBe(want);
+    }
+    const wrapped = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { rotate: 450 } } }] });
+    expect(wrapped.issues).toEqual([]);
+    expect(wrapped.values.strap![0]!.placement!['16:9']!.rotate).toBe(90);
+    // A whole turn says nothing, so it is no placement at all.
+    const full = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { rotate: 360 } } }] });
+    expect(full.values.strap![0]!.placement).toBeUndefined();
+    // What is not a number still fails, as every other field does.
+    const bad = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { '16:9': { rotate: 'sideways' } } }] });
+    expect(bad.issues.map((i) => i.message).join(' ')).toContain('placement.rotate must be an angle in degrees');
+    expect(bad.values.strap![0]!.placement).toBeUndefined();
+  });
+
   it('refuses a placement it cannot use, naming the field, and keeps what it can', () => {
     const bad = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { sideways: { dx: 0.1 }, '16:9': { dx: 9, scale: 0.5 } } }] });
     expect(bad.issues.map((i) => i.message).join(' | ')).toContain('"sideways" is not an aspect id');
     expect(bad.issues.map((i) => i.message).join(' | ')).toContain('placement.dx must be a fraction');
     // The good field survives the bad neighbour: the scale lands, the wild offset falls back.
-    expect(bad.values.strap![0]!.placement).toEqual({ '16:9': { dx: 0, dy: 0, scale: 0.5 } });
+    expect(bad.values.strap![0]!.placement).toEqual({ '16:9': { dx: 0, dy: 0, scale: 0.5, rotate: 0 } });
     const notObject = resolveLayers(manifest(), { strap: [{ id: 'name', placement: 'everywhere' }] });
     expect(notObject.issues.some((i) => i.message.includes('placements by aspect id'))).toBe(true);
     expect(notObject.values.strap![0]!.placement).toBeUndefined();

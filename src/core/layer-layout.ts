@@ -52,7 +52,8 @@ interface LayerStateBase {
   /** How it arrives: the template's own movement for its position, or the person's override (src/core/layer-motion.ts). */
   motion: LayerMotion;
   /** Where the person put it, for this frame's aspect, in pixels of this frame; identity when never moved. */
-  placement: { dx: number; dy: number; scale: number };
+  /** The person's placement for this frame's shape: offsets in pixels, the scale, the angle in degrees. */
+  placement: { dx: number; dy: number; scale: number; rotate: number };
 }
 
 export interface TextLayerState extends LayerStateBase {
@@ -157,6 +158,8 @@ export interface LayerDraw {
   dx: number;
   dy: number;
   scale: number;
+  /** Degrees clockwise about the layer's centre; 0 unless a placement turns it (milestone 29). */
+  rotate?: number;
   /** In em, replacing the layer's own for this frame; a template animating its tracking passes it here. */
   letterSpacing?: number;
 }
@@ -183,7 +186,7 @@ export type Measure = (text: string, font: { family: string; fontSize: number; w
 /** A picture's width over its height, or null when the layer has none to draw. */
 export type ImageAspect = (layer: PictureLayerState) => number | null;
 
-const DEFAULT_DRAW: LayerDraw = { alpha: 1, dx: 0, dy: 0, scale: 1 };
+const DEFAULT_DRAW: LayerDraw = { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0 };
 
 export function applyCase(text: string, how: TextCase): string {
   if (how === 'upper') return text.toUpperCase();
@@ -284,8 +287,16 @@ function layerDraws(block: BlockState, options: LayoutOptions): LayerDraw[] {
     // The person's placement is applied around whatever the template (or the override) asked:
     // the offsets add and the scales multiply, so a placed layer still rides the design.
     const placed = layer.placement;
-    if (!placed || (placed.dx === 0 && placed.dy === 0 && placed.scale === 1)) return draw;
-    return { ...draw, dx: draw.dx + placed.dx, dy: draw.dy + placed.dy, scale: draw.scale * placed.scale };
+    if (!placed || (placed.dx === 0 && placed.dy === 0 && placed.scale === 1 && placed.rotate === 0)) return draw;
+    return {
+      ...draw,
+      dx: draw.dx + placed.dx,
+      dy: draw.dy + placed.dy,
+      scale: draw.scale * placed.scale,
+      // Angles add, as offsets do: a template that turns a layer and a person who turns it further
+      // both get what they asked for.
+      rotate: (draw.rotate ?? 0) + placed.rotate,
+    };
   });
 }
 
@@ -418,7 +429,10 @@ export function blockState(block: Block, layers: readonly Layer[], size: Size, c
 function layerState(layer: Layer, position: number, short: number, size: Size, clips?: ClipContext): LayerState {
   // The person's placement, resolved for this frame's shape and turned into pixels of it.
   const placed = placementFor(layer.placement, aspectOf(size.width, size.height));
-  const placement = placed === IDENTITY_PLACEMENT ? { ...IDENTITY_PLACEMENT } : { dx: placed.dx * size.width, dy: placed.dy * size.height, scale: placed.scale };
+  // Offsets become pixels of this frame; the scale and the angle are already frame-independent.
+  const placement = placed === IDENTITY_PLACEMENT
+    ? { ...IDENTITY_PLACEMENT }
+    : { dx: placed.dx * size.width, dy: placed.dy * size.height, scale: placed.scale, rotate: placed.rotate };
   const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', motion: layer.motion ?? { ...DEFAULT_MOTION }, placement };
   if (layer.type === 'text') {
     const text = layer as TextLayer;

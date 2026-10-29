@@ -228,7 +228,7 @@ A layer may carry a `placement`: where the person using the template put it, set
 | `dx`, `dy` | number | The offset from where the block stacked the layer, as fractions of the frame's width and height; −1 to 1, default 0. |
 | `scale` | number | About the layer's own centre; 0.05 to 10, default 1. |
 
-The host applies a placement **around the template's own draw** of that layer — the offsets add to whatever the template (or the layer's own motion) asked for the frame, and the scales multiply — so a placed layer still enters, moves and leaves with the design, and **templates need no changes**. Keeping it per aspect means a layout placed at 16:9 never moves what was placed at 9:16: a frame answers with its own aspect's entry, then `"default"`, then nothing. The stack's layout is untouched — the layer's slot stays where the block put it, and "Reset position" simply drops the placement.
+The host applies a placement **around the template's own draw** of that layer — the offsets add to whatever the template (or the layer's own motion) asked for the frame, the scales multiply, and the angles add (`rotate`, in degrees clockwise about the layer's centre; milestone 29) — so a placed layer still enters, moves and leaves with the design, and **templates need no changes**. Keeping it per aspect means a layout placed at 16:9 never moves what was placed at 9:16: a frame answers with its own aspect's entry, then `"default"`, then nothing. The stack's layout is untouched — the layer's slot stays where the block put it, and "Reset position" simply drops the placement.
 
 Like every layer value it rides in the same bag as the parameters, so presets, collections, CSV batches, `--param '@layers={…}'` and the render cache key all carry it.
 
