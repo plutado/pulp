@@ -4,9 +4,9 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 ## Where things stand
 
-**Milestone 30, timing — any length set while editing, is done:** 85 of the 124 bundled templates declare how they stretch — 23 loops, 24 transitions and 38 with a hold — and the other 39 move all the way through and keep their fixed length. Milestones 26 and 29 are done before it. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
+**Milestone 28, per-layer timing, transitions and looks, is the one in progress.** Milestone 30 is done before it — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
-What is left after 26: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Four verification items wait on hardware: two need the test Mac, two a Windows machine (see `docs/ideas.md`, Decided item 1, which replaces "hardware-blocked" with a Windows VM). Known issues and anything not yet scheduled are in `docs/ideas.md`.
+What is left after 28: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Milestones 27 (projects and the application menu), 31, 32 and 33 are decided but not yet scheduled. Four verification items wait on hardware: two need the test Mac, two a Windows machine (see `docs/ideas.md`, Decided item 1, which replaces "hardware-blocked" with a Windows VM). Known issues and anything not yet scheduled are in `docs/ideas.md`.
 
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. Ideas, decisions not yet scheduled and known issues wait in `docs/ideas.md` until a milestone takes them. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
@@ -33,6 +33,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 26. Assets on the stage (**done**) | 30-46 h |
 | 29. Rotate layers on the stage (**done**) | 5-8 h |
 | 30. Timing: any length, set while editing (**done**) | 18-28 h |
+| 28. Per-layer timing, transitions and looks (**in progress**) | 24-36 h |
 | 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 8-13 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -41,9 +42,9 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
-| **Total through 1.0 (milestones 1-8, 10-13 and 17-26)** | **313-501 h** |
-| **Still open through 1.0 (unticked items only)** | **59-94 h** |
-| **Total including post-1.0 items** | **345-559 h** |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **360-573 h** |
+| **Still open through 1.0 (unticked items only)** | **57-90 h** |
+| **Total including post-1.0 items** | **389-626 h** |
 
 ## 0. Foundation (done)
 
@@ -322,6 +323,19 @@ After milestone 29. A template's length is fixed in its manifest today (mostly 5
 - [x] **Loops and transitions:** backgrounds and animated loops repeat seamlessly to any length (bringing forward milestone 15's loop item); a transition keeps its designed length, with an optional speed control. *A structure is one of three things: a hold that stretches, a `loop` that repeats, or a `scale` that plays the whole graphic faster or slower — which is the transition's speed control, bounded to a quarter and four times its designed speed. 23 loops and 24 transitions declare theirs; which genuinely loop was measured by checking the seam against the motion through the middle, so a fade in and out could not pass for a loop* (3-5 h)
 - [x] **Frame sequences play on the stage:** a run of numbered frames previewed on its own shows only its first frame today, because the stage cannot hand a folder of files to a video element. Step it at its rate through the decode path milestone 26 built for Video layers, so previewing a sequence matches how it plays as a layer and in a render; a sequence records no rate, so the one Pulp states becomes a default a person can change. *The stage steps it through the same transport a template uses, asking for one frame at a time by index — no decode path needed on this side, since each frame is already a file. The rate is kept with the item, like a tag* (2-3 h)
 - [x] **The bundled templates declare their parts,** titles, lower thirds, callouts and overlays first, and the format guide says how. *85 of 124 declare how they stretch — 23 loops, 24 transitions and 38 with a hold; the other 39 are movement all the way through, countdowns among them, and keep their fixed length. Every hold was measured by rendering the template and differencing each frame of the stretch against its first, at the settings that squeeze it hardest: the "Animate in/out" parameter at the slowest it goes, and a line added to every open block. That measurement replaced an end-to-end check that let a graphic through if it came back to where it started, and all six holds declared before it had motion inside them: four are withdrawn and two corrected. Eleven templates that offered a "Hold, seconds" parameter had it removed, since the length is the control now and the parameter could only shorten a hold inside the template's own duration; three more that offer one keep it, having no hold to declare. Every one draws the same pixels at its own length, so the visual references are untouched* (2-3 h)
+
+## 28. Per-layer timing, transitions and looks (24-36 h; GitHub issue #29)
+
+After milestone 30, whose length a layer's own start and end are set within, and before 27, which has to save all of it. Today a layer is on screen for the whole graphic, arrives the way the template or its one entrance override says, and looks exactly as the template draws it; an image layer's treatments — tinted, white, black, shadow, glow — are the only looks there are.
+
+- [ ] **A layer's own start and end:** when it appears and when it leaves, in seconds of the graphic's own time, set in the layer's card as seconds or timecode. A layer may leave before the graphic ends but never outlast it, and the default is the whole graphic, so nothing already saved changes. A pure core module with unit tests, applied by the host around the template's own draw as milestone 25's placement is, and mirrored in the bridge so the preview, the stage and the render cannot disagree (4-6 h)
+- [ ] **The bars under the scrub bar:** one per layer of the block being edited, showing where it is on screen against the graphic's length, with ends that drag and a keyboard equivalent. Milestone 30's in, hold and out parts shade behind them, so a start can be read against what the template is doing (3-5 h)
+- [ ] **Entrance and exit transitions per layer:** Template, Fade, Slide, Scale, Wipe or None, chosen separately for the entrance and the exit, each with its own duration; Slide and Wipe take a direction. Both are held inside the layer's start and end, so a transition cannot run past the moment the layer leaves. Takes over milestone 23's entrance-only override, whose saved values keep working (5-7 h)
+- [ ] **Looks on every layer type,** set once per layer and not animated: opacity; drop shadow (colour, distance, angle, softness); outer glow (colour, size); outline (colour, width); blur; blend mode (Normal, Multiply, Screen, Overlay); colour adjust (brightness, saturation, tint). Drawn by the host with what the renderer's canvas already provides, with the cost of a blur on a video layer measured and kept responsive while scrubbing (6-9 h)
+- [ ] **Rounded corners and soft edges on image and video layers,** and milestone 22's image treatments mapped onto the looks, so work saved before this draws exactly as it did (3-4 h)
+- [ ] **Everything carries it:** saved presets, collection items, `.pulpcollection` files, `--param @layers` on the command line, a CSV batch column per layer, the render cache key and undo; an end-to-end render proves a layer is absent before its start and after its end, that an exit transition plays, and that a look changes the pixels where it should (3-5 h)
+
+Left out on purpose: inner glow, scribble, roughen, twist, warp and 3D — shape effects that suit vector drawings but not the clips and photographs these layers hold.
 
 ## 20. Social-ready export (8-13 h)
 

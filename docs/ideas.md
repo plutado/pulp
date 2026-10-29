@@ -23,11 +23,11 @@ Every milestone decided here now has its number and its GitHub issue, so the two
 3. **Milestone 26: assets on the stage** — *done.* The Assets type group is filled (six per Effects category, ten Objects categories, every theme three assets deep, taxonomy version 4); asset libraries read transparency from ProRes 4444, VP9, HEVC's auxiliary layer and folders of numbered frames; video layers play a clip on the template's own time; a picture or clip dropped on the preview becomes a layer; and clips are proxied, cached and never copied.
 4. **Milestone 29: rotate layers on the stage** — *done* (GitHub issue #31), and in `ROADMAP.md`. It finished milestone 25's placement: a layer can now be moved, resized and turned.
 5. **Milestone 30: timing — any length, set while editing** — *done* (GitHub issue #32), and in `ROADMAP.md`. It also gives a frame sequence somewhere to say what rate it plays at, which milestone 26 had to state rather than ask.
-6. **Milestone 28: per-layer timing, transitions and looks** (Decided item 6; GitHub issue #29). After 30, whose length and structure a layer's own start and end are set within, and before 27, which has to save all of it.
+6. **Milestone 28: per-layer timing, transitions and looks** — *in progress,* now in `ROADMAP.md` (GitHub issue #29). After 30, whose length and structure a layer's own start and end are set within, and before 27, which has to save all of it.
 7. **Milestone 27: projects and the application menu** (Decided item 3; GitHub issue #30).
 8. **Milestone 31: a start screen** — examples, recent projects, a tour and a dashboard (Decided item 5; GitHub issue #33).
-9. **Milestone 32: stock library import** (Decided item 7; GitHub issue #34).
-10. **Milestone 33: layered Photoshop graphics** (Decided item 8; GitHub issue #35).
+9. **Milestone 32: stock library import** (Decided item 6; GitHub issue #34).
+10. **Milestone 33: layered Photoshop graphics** (Decided item 7; GitHub issue #35).
 11. **Milestone 20:** social-ready export.
 12. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
 13. **Last:** milestone 17 (unsigned builds and the app icon), then milestone 7 (signing and auto-update).
@@ -58,16 +58,7 @@ Every milestone decided here now has its number and its GitHub issue, so the two
    - **Learn:** "Take the tour", a short guided walkthrough of the window (browse panel, stage, Parameters tab, collection tray) with highlights and Next / Skip, offered on first launch and replayable from Help; "What's new" from the changelog's latest release; keyboard shortcuts and the user guide (milestone 8).
    - **Set up and status:** a first-run checklist (ffmpeg found, a library folder added, sample media made), each item a button that does it; the library at a glance (template and media counts, most-used categories, favourites); quick actions (add a library folder, import a pack, import a font). Milestone 14's "guided setup" can fold into the checklist.
 
-6. **Per-layer timing, transitions and looks.** Milestone **28** (GitHub issue #29), built after 30 and before 27, so that a layer's start and end are set within a graphic whose length can be set, and a project can save the lot. Today a layer is on screen for the whole graphic, enters the way the template or its single entrance override says, and looks exactly as the template draws it; an image layer's treatments (tinted, white, black, shadow, glow) are the only looks there are.
-   - **Start and end per layer:** when a layer appears and when it leaves, within the graphic's own time. Set in the layer's card (seconds or timecode) and shown as one bar per layer under the scrub bar, whose ends can be dragged. A layer can leave before the graphic ends but never outlasts it. Defaults keep today's behaviour: the whole graphic, the template's motion.
-   - **Entrance and exit transitions per layer:** Template, Fade, Slide, Scale, Wipe or None, chosen separately for the entrance and the exit, each with a duration; Slide and Wipe take a direction. Takes over milestone 23's entrance-only override, whose saved values keep working. Transitions finish inside the layer's start and end; the timing is a pure core module with unit tests.
-   - **Looks on every layer type,** set once per layer and not animated: opacity; drop shadow (colour, distance, angle, softness); outer glow (colour, size); outline (colour, width); blur; blend mode (Normal, Multiply, Screen, Overlay); colour adjust (brightness, saturation, tint). Image layers' existing treatments map onto these without changing how saved work looks. **Image and video layers** also take rounded corners (radius) and soft edges (feather width).
-   - **Drawn by the host,** around the template's own draw of the layer, like milestone 25's placement, so templates need no changes. The looks use what the renderer's canvas already provides (shadows, filters, compositing), with the cost of blur on video layers measured and kept responsive while scrubbing.
-   - **Everything carries it:** saved presets, collection items, `.pulpcollection` files, `--param` headlessly, a CSV batch column per layer, the render cache key, undo, and milestone 27's `.pulp` projects.
-   - **Tests:** unit tests for the timing and the look settings; an end-to-end render that checks a layer is absent before its start and after its end, that an exit transition plays, and that a look changes the drawn pixels where expected.
-   - Left out on purpose: inner glow, scribble, roughen, twist, warp and 3D — shape effects that suit vector drawings but not clips and photos.
-
-7. **Stock library import.** Milestone **32** (GitHub issue #34), built after 30 and 28, whose in, hold and out parts and per-layer looks it uses. Large collections of stock graphics, clips and music, hundreds of gigabytes on external drives or in archives, often delivered as sets of files that belong together and with an index of their own, brought in as they were organised. Milestone 26's asset libraries already read plain media where it lies; this makes a whole collection browsable at once and keeps its structure.
+6. **Stock library import.** Milestone **32** (GitHub issue #34), built after 30 and 28, whose in, hold and out parts and per-layer looks it uses. Large collections of stock graphics, clips and music, hundreds of gigabytes on external drives or in archives, often delivered as sets of files that belong together and with an index of their own, brought in as they were organised. Milestone 26's asset libraries already read plain media where it lies; this makes a whole collection browsable at once and keeps its structure.
    - **Previews before full media:** a very large library is indexed from small previews and thumbnails first, so it can be browsed and searched straight away; the full-quality file is read only when an item is placed or rendered. The index records where each full file lives and says plainly when its drive or archive is not available.
    - **Known as well as owned:** a library can list everything a catalog or index says exists, with items whose files are not on this computer shown greyed out, so a person sees the whole collection and what is missing from it.
    - **Importing an existing catalog's organisation:** when a library comes with its own index (names, categories, keywords, thumbnails), Pulp reads it so the imported items browse and search the way they were organised, mapped onto Pulp's taxonomy, rather than only by folder names.
@@ -75,7 +66,7 @@ Every milestone decided here now has its number and its GitHub issue, so the two
    - **Several layers in one clip set:** a set can carry more than one layer that moves together (a main graphic and a flare, say), each with its own entry, loop and exit, placed and timed as one item while each layer keeps its own look (milestone 28).
    - **Rights:** imported media stays where it is, referenced in place, never copied into packs, exports or the repository; tests use generated fixtures only.
 
-8. **Layered Photoshop graphics.** Milestone **33** (GitHub issue #35): read a `.psd` as a stack of layers, so a layered still from a stock library can be browsed and used without flattening it first.
+7. **Layered Photoshop graphics.** Milestone **33** (GitHub issue #35): read a `.psd` as a stack of layers, so a layered still from a stock library can be browsed and used without flattening it first.
    - **Reading:** layers, their names, order, visibility, opacity and blend modes where the file has them; groups shown as groups. Reading only, no editing of the file in Pulp.
    - **Browsing:** a flattened preview for the grid and the stage, with the layer list shown in the Info tab.
    - **Showing and hiding layers** in the preview, kept with the item like any other edit (presets, collections, undo, the render cache key).
@@ -83,7 +74,7 @@ Every milestone decided here now has its number and its GitHub issue, so the two
    - **Limits stated plainly:** layer effects, smart objects and adjustment layers Pulp can't reproduce are named rather than silently dropped; the flattened composite stored in the file is the fallback.
    - **Tests** on generated `.psd` fixtures only.
 
-9. **Output presets per kind of asset:** an item for milestone 14, defaults per type and guided setup (GitHub issue #14): one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen, alongside "Save as default for this type" and the guided setup.
+8. **Output presets per kind of asset:** an item for milestone 14, defaults per type and guided setup (GitHub issue #14): one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen, alongside "Save as default for this type" and the guided setup.
 
 ## Known issues
 
