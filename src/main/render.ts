@@ -375,27 +375,37 @@ const PAINT_DRAIN_CAP_MS = 2000;
  * (docs/platform-notes.md, "macOS CI").
  *
  * So the backlog is drained once, after the page is loaded and prepared and
- * before the first frame: paints are counted until none has arrived for
- * PAINT_QUIET_MS. The last one is by definition the newest state, so from then
- * on a paint can only be the frame that was asked for. The cost is one quiet
- * period per render, not per frame; the cap keeps a window that paints
- * continuously from holding the render up.
+ * before the first frame. The drain asks for a repaint of its own and waits for
+ * the paint that answers it: paints arrive in the order they were produced, so
+ * that one is behind every paint the load queued, and when it is in, so are
+ * they. Only then does the quiet period start counting — paints are watched
+ * until none has arrived for PAINT_QUIET_MS — so that a late straggler is
+ * taken too. The last one is by definition the newest state, so from then on a
+ * paint can only be the frame that was asked for.
+ *
+ * The first version started the quiet period at once, so on a loaded runner,
+ * where a paint of a 1080p surface can take longer than PAINT_QUIET_MS to
+ * arrive, the drain could finish *before* its own paint did, and that paint
+ * then satisfied the first frame's wait: a blank single-frame render on the
+ * macOS runner even after the drain was in place (CI run 40244410162).
+ *
+ * The cost is one quiet period per render, not per frame; the cap keeps a
+ * window that never paints, or paints continuously, from holding the render up.
  */
 export function drainPaints(win: BrowserWindow): Promise<void> {
   return new Promise((resolve) => {
-    let quiet: NodeJS.Timeout;
+    let quiet: NodeJS.Timeout | undefined;
     const done = (): void => {
-      clearTimeout(quiet);
+      if (quiet) clearTimeout(quiet);
       clearTimeout(cap);
       win.webContents.removeListener('paint', onPaint);
       resolve();
     };
     const onPaint = (): void => {
-      clearTimeout(quiet);
+      if (quiet) clearTimeout(quiet);
       quiet = setTimeout(done, PAINT_QUIET_MS);
     };
     const cap = setTimeout(done, PAINT_DRAIN_CAP_MS);
-    quiet = setTimeout(done, PAINT_QUIET_MS);
     win.webContents.on('paint', onPaint);
     win.webContents.invalidate();
   });
