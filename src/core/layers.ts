@@ -17,9 +17,10 @@
  */
 
 import { sanitizeImageValue, validateSlotBoxes, type ImageValue, type SlotBoxes } from './image-slot';
+import { sanitizeClipValue, type ClipValue } from './video-layer';
 import { isValidColor, type TemplateManifest, type ValidationIssue } from './manifest';
 
-export const LAYER_TYPES = ['text', 'image'] as const;
+export const LAYER_TYPES = ['text', 'image', 'video'] as const;
 export type LayerType = (typeof LAYER_TYPES)[number];
 
 export const BLOCK_DIRECTIONS = ['column', 'row'] as const;
@@ -154,6 +155,21 @@ export interface TextLayer extends LayerBase, Typography {
   maxLines: number;
 }
 
+/**
+ * A clip playing inside the graphic (milestone 26). It takes its room the way
+ * an image layer does — a height as a fraction of the frame, width from the
+ * clip's shape — and `clip` says which clip and how it plays; the host decodes
+ * it for the template's own time (`video-layer.ts`).
+ */
+export interface VideoLayer extends LayerBase {
+  type: 'video';
+  /** A library clip with its in and out points, ending, speed and delay, or null: nothing chosen, nothing drawn. */
+  clip: ClipValue | null;
+  /** The picture's height as a fraction of the frame's short side; its width follows its shape, capped by the block. */
+  size: number;
+  align: LayerAlign;
+}
+
 export interface ImageLayer extends LayerBase {
   type: 'image';
   /** A library still with its treatment (milestone 22), or null: nothing chosen, nothing drawn, no room taken. */
@@ -163,7 +179,10 @@ export interface ImageLayer extends LayerBase {
   align: LayerAlign;
 }
 
-export type Layer = TextLayer | ImageLayer;
+export type Layer = TextLayer | ImageLayer | VideoLayer;
+
+/** Layers that take their room from a picture rather than from type. */
+export type PictureLayer = ImageLayer | VideoLayer;
 
 export interface Block {
   id: string;
@@ -379,8 +398,10 @@ function readLayerBase(raw: Record<string, unknown>, base: Pick<LayerBase, 'labe
 
 /** A fresh layer of a type, as a block hands it out: the block's typography, the default image size, nothing required. */
 export function newLayer(type: LayerType, block: Pick<Block, 'typography' | 'align'>, id: string, label?: string): Layer {
-  const base: LayerBase = { id, label: label ?? (type === 'text' ? 'Text' : 'Image'), required: false, hidden: false, spaceBefore: 0, motion: { ...DEFAULT_MOTION } };
+  const fallbackLabel = type === 'text' ? 'Text' : type === 'video' ? 'Video' : 'Image';
+  const base: LayerBase = { id, label: label ?? fallbackLabel, required: false, hidden: false, spaceBefore: 0, motion: { ...DEFAULT_MOTION } };
   if (type === 'text') return { ...base, ...block.typography, type: 'text', text: '', maxLines: DEFAULT_MAX_LINES };
+  if (type === 'video') return { ...base, type: 'video', clip: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
   return { ...base, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
 }
 
@@ -418,7 +439,10 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
     }
     layer = { ...common, ...readTypography(raw, block.typography, path, issue), type: 'text', text: typeof raw.text === 'string' ? raw.text : '', maxLines };
   } else {
-    if (raw.image !== undefined && raw.image !== null) issue('image', 'an image layer has no image of its own: leave it out or set it to null');
+    // A template ships no library ids, so neither an image nor a clip is declared here.
+    const chosen = raw.type === 'video' ? 'clip' : 'image';
+    const kind = raw.type === 'video' ? 'a video layer has no clip of its own' : 'an image layer has no image of its own';
+    if (raw[chosen] !== undefined && raw[chosen] !== null) issue(chosen, `${kind}: leave it out or set it to null`);
     let size = DEFAULT_IMAGE_LAYER_SIZE;
     if (raw.size !== undefined) {
       if (inRange(raw.size, LAYER_LIMITS.size)) size = raw.size;
@@ -429,7 +453,9 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
       if (oneOf(LAYER_ALIGNS, raw.align)) align = raw.align;
       else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`);
     }
-    layer = { ...common, type: 'image', image: null, size, align };
+    layer = raw.type === 'video'
+      ? { ...common, type: 'video', clip: null, size, align }
+      : { ...common, type: 'image', image: null, size, align };
   }
   return errors.length === start ? layer : null;
 }
@@ -534,11 +560,17 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
     }
     return { ...base, ...common, ...typography, text, maxLines };
   }
-  let image = base.image;
-  if (raw.image !== undefined) {
+  let image = base.type === 'image' ? base.image : null;
+  if (base.type === 'image' && raw.image !== undefined) {
     const value = sanitizeImageValue(raw.image);
     if (value === undefined) issue('image', 'must be a library id with an optional treatment, or null');
     else image = value;
+  }
+  let clip = base.type === 'video' ? base.clip : null;
+  if (base.type === 'video' && raw.clip !== undefined) {
+    const value = sanitizeClipValue(raw.clip);
+    if (value === undefined) issue('clip', 'must be a library id with optional in, out, ending, speed and delay, or null');
+    else clip = value;
   }
   let size = base.size;
   if (raw.size !== undefined) {
@@ -551,6 +583,7 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
     else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`);
   }
   void block;
+  if (base.type === 'video') return { ...base, ...common, clip, size, align };
   return { ...base, ...common, image, size, align };
 }
 

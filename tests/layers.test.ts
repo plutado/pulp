@@ -12,9 +12,11 @@ import {
   parseLayersArgument,
   type Block,
   type ImageLayer,
+  type VideoLayer,
   type TextLayer,
 } from '../src/core/layers';
 import { validateManifest, type ValidationIssue } from '../src/core/manifest';
+import { EMPTY_CLIP } from '../src/core/video-layer';
 import { rawManifest } from './fixtures';
 
 /** A lower third's block: a name over a title, the name required, room for one more line. */
@@ -95,7 +97,7 @@ describe('validateBlock', () => {
         typography: { family: '', size: 0, weight: 50, italic: 'no', case: 'caps', letterSpacing: 5, kerning: 1, lineHeight: 0, color: 'white', align: 'justify', overflow: 'ellipsis' },
         layers: [
           { id: 'a', type: 'text', label: 'A', text: 1, spaceBefore: -1, hidden: 'no', required: 'yes' },
-          { id: 'b', type: 'video', label: 'B' },
+          { id: 'b', type: 'audio', label: 'B' },
           { id: 'c c', type: 'image', label: 'C', size: 3, align: 'top' },
           'not a layer',
         ],
@@ -204,7 +206,7 @@ describe('parseLayersArgument', () => {
     expect(message('{"strap":{}}')).toBe('layers: "strap" must be an array of layers.');
     expect(message('{"strap":[{"id":"nmae","text":"x"}]}')).toContain('"strap" has no layer "nmae" (it has "name", "title", "mark"); to add one, give it a type of text or image');
     expect(message('{"strap":[7]}')).toBe('layers: "strap" layer 0 must be an object.');
-    expect(message('{"strap":[{"text":"x"}]}')).toContain('needs an id of one of its layers, or a type of text or image to add one');
+    expect(message('{"strap":[{"text":"x"}]}')).toContain('needs an id of one of its layers, or a type of text or image or video to add one');
     expect(message('{"corner":[{"type":"text","text":"x"}]}')).toBe('layers: "corner" takes no more layers.');
   });
 
@@ -220,6 +222,43 @@ describe('parseLayersArgument', () => {
     const message = (parseLayersArgument('{"nope":[],"strap":[{"id":"zzz"}]}', m()) as { message: string }).message;
     expect(message).toContain('"nope" is not a block of this template');
     expect(message).toContain('"strap" has no layer "zzz"');
+  });
+});
+
+describe('video layers (milestone 26)', () => {
+  const videoBlock = (over: Record<string, unknown> = {}) =>
+    validateBlock({ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, open: true, layers: [{ id: 'plate', type: 'video', label: 'Plate', ...over }] }, 'blocks[0]', []);
+
+  it('is a type a template may declare, carrying no clip of its own', () => {
+    const layer = videoBlock()!.layers[0] as VideoLayer;
+    expect(layer).toMatchObject({ type: 'video', clip: null, size: DEFAULT_IMAGE_LAYER_SIZE });
+    // A template ships no library ids, so naming one is an error, exactly as for an image layer.
+    const errors: ValidationIssue[] = [];
+    validateBlock({ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [{ id: 'p', type: 'video', label: 'P', clip: 'abc123' }] }, 'blocks[0]', errors);
+    expect(errors.map((e) => e.path)).toEqual(['blocks[0].layers[0].clip']);
+    expect(errors[0]!.message).toContain('no clip of its own');
+  });
+
+  it('takes its room like a picture, and may be added to an open block', () => {
+    const sized = videoBlock({ size: 0.4, align: 'right' })!.layers[0] as VideoLayer;
+    expect(sized).toMatchObject({ size: 0.4, align: 'right' });
+    const fresh = newLayer('video', { typography: videoBlock()!.typography, align: 'center' }, 'extra');
+    expect(fresh).toMatchObject({ type: 'video', clip: null, label: 'Video', align: 'center' });
+  });
+
+  it('takes a clip at use time, through every route that carries raw values', () => {
+    const r = validateManifest(rawManifest({ blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, open: true, layers: [{ id: 'plate', type: 'video', label: 'Plate' }] }] }));
+    if (!r.ok) throw new Error('fixture');
+    const { values, issues } = resolveLayers(r.manifest, { b: [{ id: 'plate', clip: { id: 'abc123', inPoint: 10, outPoint: 40, ending: 'once', speed: 2, delay: 0.5 } }] });
+    expect(issues).toEqual([]);
+    expect((values.b![0] as VideoLayer).clip).toEqual({ id: 'abc123', inPoint: 10, outPoint: 40, ending: 'once', speed: 2, delay: 0.5, hidden: false });
+    // A bare id is the whole clip, looping.
+    const bare = resolveLayers(r.manifest, { b: [{ id: 'plate', clip: 'xyz' }] });
+    expect((bare.values.b![0] as VideoLayer).clip).toEqual({ ...EMPTY_CLIP, id: 'xyz' });
+    // Nonsense is reported and the layer keeps what it had, rather than drawing something unasked for.
+    const bad = resolveLayers(r.manifest, { b: [{ id: 'plate', clip: 42 }] });
+    expect(bad.issues.map((i) => i.message).join(' ')).toContain('clip');
+    expect((bad.values.b![0] as VideoLayer).clip).toBeNull();
   });
 });
 

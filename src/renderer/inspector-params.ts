@@ -28,13 +28,14 @@ import {
   type LayerMotion,
   type LayerMotionType,
   type LayerType,
-  type ImageLayer,
   type LayerValues,
+  type PictureLayer,
   type TextLayer,
 } from '../core/layers';
 import { addRecentColor } from '../core/recent-colors';
 import { dimensionsLabel } from '../core/display';
 import { IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } from '../core/image-slot';
+import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, type ClipEnding, type ClipValue } from '../core/video-layer';
 import { setIcon, type IconName } from './icons';
 import type { MediaEntry } from '../core/library-types';
 import { mediaUrlFor } from '../core/media-url';
@@ -1003,6 +1004,13 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
     parts.push(motionControls(blockId, layer));
     return parts;
   }
+  if (layer.type === 'video') {
+    return [
+      clipField(layer.clip, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, clip: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }),
+      imageLayerControls(blockId, layer),
+      motionControls(blockId, layer),
+    ];
+  }
   return [
     imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }, { layer: true }),
     imageLayerControls(blockId, layer),
@@ -1010,11 +1018,198 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
   ];
 }
 
+/** Library clips a video layer may use: anything that plays, including a folder of frames. */
+function libraryClips(query: string): MediaEntry[] {
+  const q = query.trim().toLowerCase();
+  const clips = (appState.value.index?.media ?? []).filter((m) => m.mediaKind === 'video' && !m.offline);
+  return clips.filter((m) => !q || m.name.toLowerCase().includes(q) || m.tags.some((t) => t.includes(q))).slice(0, 60);
+}
+
+const ENDING_LABELS: Record<ClipEnding, string> = { loop: 'Loop', once: 'Play once' };
+
+/**
+ * A video layer's clip: which clip, and how it plays. Chosen from the library
+ * only — a clip is referenced where it lies and never imported or copied
+ * (milestone 26), so there is no File… here as there is for a still.
+ */
+function clipField(
+  initial: ClipValue | null,
+  onChange: (value: ClipValue | null) => void,
+  slot: { id: string; label: string },
+): HTMLElement {
+  let value = initial;
+  const wrap = document.createElement('div');
+  wrap.className = 'image-field clip-field';
+  const well = document.createElement('div');
+  well.className = 'image-well checker';
+  const img = document.createElement('img');
+  img.alt = '';
+  const emptyLabel = document.createElement('span');
+  emptyLabel.className = 'empty-label';
+  const meta = document.createElement('div');
+  meta.className = 'image-meta';
+  const caption = document.createElement('span');
+  caption.className = 'name';
+  const dims = document.createElement('span');
+  dims.className = 'dims';
+  const actions = document.createElement('span');
+  actions.className = 'image-actions';
+  const choose = document.createElement('button');
+  choose.type = 'button';
+  choose.className = 'ghost';
+  choose.textContent = 'Choose…';
+  const hide = iconButton('eye', `Hide ${slot.label}`);
+  const clear = iconButton('trash', `Clear ${slot.label}`);
+  actions.append(choose, hide, clear);
+  meta.append(caption, dims, actions);
+
+  const picker = document.createElement('div');
+  picker.className = 'image-picker';
+  picker.hidden = true;
+  const search = document.createElement('input');
+  search.type = 'search';
+  search.placeholder = 'Search clips';
+  search.setAttribute('aria-label', `Search clips for ${slot.label}`);
+  const choices = document.createElement('ul');
+  choices.className = 'image-choices';
+  picker.append(search, choices);
+
+  const settings = document.createElement('div');
+  settings.className = 'type-grid clip-settings';
+  const note = document.createElement('p');
+  note.className = 'note image-note';
+  wrap.append(well, meta, picker, settings, note);
+
+  const entryFor = (id: string) => appState.value.index?.media.find((m) => m.id === id);
+  const set = (next: ClipValue | null) => {
+    value = next;
+    show();
+    onChange(next);
+    commitParams();
+  };
+  const patch = (over: Partial<ClipValue>) => {
+    if (!value) return;
+    set({ ...value, ...over });
+  };
+
+  function buildSettings(entry: MediaEntry | undefined): void {
+    settings.replaceChildren();
+    if (!value?.id || value.hidden) return;
+    const frames = entry?.meta?.duration && entry.meta.fps ? Math.round(entry.meta.duration * entry.meta.fps) : 0;
+    const lastFrame = Math.max(0, frames - 1);
+    settings.append(
+      typeField('In point, frame', numberOf(value.inPoint, { min: 0, max: Math.max(0, lastFrame) }, 1, (v) => patch({ inPoint: Math.round(v) }), `${slot.label} in point`)),
+      // -1 is "to the end", and stays that way unless a frame is named.
+      typeField('Out point, frame', numberOf(value.outPoint < 0 ? lastFrame : value.outPoint, { min: 0, max: Math.max(0, lastFrame) }, 1, (v) => patch({ outPoint: Math.round(v) }), `${slot.label} out point`)),
+      typeField('At the end', selectOf(CLIP_ENDINGS, ENDING_LABELS, value.ending, (v) => patch({ ending: v }), `${slot.label} ending`)),
+      typeField('Speed', numberOf(value.speed, CLIP_LIMITS.speed, 0.1, (v) => patch({ speed: v }), `${slot.label} speed`)),
+      typeField('Start delay, s', numberOf(value.delay, CLIP_LIMITS.delay, 0.1, (v) => patch({ delay: v }), `${slot.label} start delay`)),
+    );
+    if (frames === 0) {
+      const waiting = document.createElement('p');
+      waiting.className = 'note';
+      waiting.textContent = 'Its length is not known yet, so the whole clip plays; set in and out once the library has read it.';
+      settings.append(waiting);
+    }
+  }
+
+  function show(): void {
+    const entry = value?.id ? entryFor(value.id) : undefined;
+    const isHidden = value?.hidden === true;
+    well.replaceChildren();
+    well.classList.toggle('empty', !entry);
+    well.classList.toggle('hidden-slot', isHidden);
+    setIcon(hide, isHidden ? 'eye-slash' : 'eye');
+    hide.setAttribute('aria-label', `${isHidden ? 'Show' : 'Hide'} ${slot.label}`);
+    hide.dataset.tip = isHidden ? 'Draw it here again' : 'Draw nothing here, keeping the clip for later';
+    hide.setAttribute('aria-pressed', String(isHidden));
+    if (value && entry) {
+      // A clip's poster, never the file: a <video> here would decode a whole clip for one picture.
+      if (entry.thumbnail) img.src = entry.thumbnail;
+      well.append(img);
+      caption.textContent = entry.name;
+      const { width, height } = entry.meta ?? {};
+      dims.textContent = width && height ? dimensionsLabel(width, height) : '';
+    } else {
+      emptyLabel.textContent = value?.id ? 'Clip not found — choose another' : 'Choose a clip';
+      well.append(emptyLabel);
+      caption.textContent = value?.id ? '' : 'No clip; the layer takes no room';
+      dims.textContent = '';
+    }
+    clear.hidden = value === null || (isHidden && !value.id);
+    if (isHidden) caption.textContent = entry ? `${entry.name} · not drawn` : 'Nothing drawn here';
+    buildSettings(entry);
+    note.hidden = true;
+    slotProblems.delete(slot.id);
+    if (isHidden) {
+      // A hidden layer draws nothing, so a clip it no longer has is no problem.
+    } else if (value?.id && !entry) {
+      note.hidden = false;
+      note.textContent = 'The chosen clip is no longer in the library. The layer draws nothing until another is picked.';
+      slotProblems.set(slot.id, { label: slot.label, note: 'Not in the library; the layer draws nothing' });
+    } else if (entry?.offline) {
+      note.hidden = false;
+      note.textContent = 'The chosen clip\'s folder is offline.';
+      slotProblems.set(slot.id, { label: slot.label, note: 'Its folder is offline' });
+    }
+    publishSlotNotes();
+  }
+
+  const listChoices = () => {
+    choices.replaceChildren();
+    const clips = libraryClips(search.value);
+    if (clips.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'note';
+      li.textContent = search.value.trim() ? 'No clips match.' : 'No clips in the library yet. Add a folder with video, or make the sample media.';
+      choices.append(li);
+      return;
+    }
+    for (const m of clips) {
+      const li = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'image-choice';
+      button.dataset.id = m.id;
+      button.setAttribute('aria-pressed', String(value?.id === m.id));
+      const t = document.createElement('span');
+      t.className = 'thumb checker';
+      const i = document.createElement('img');
+      i.alt = '';
+      if (m.thumbnail) i.src = m.thumbnail;
+      t.append(i);
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = m.name;
+      button.append(t, name);
+      button.addEventListener('click', () => {
+        // A new clip starts from the whole of it: in and out points of the one before mean nothing here.
+        set({ ...EMPTY_CLIP, id: m.id, ending: value?.ending ?? 'loop', speed: value?.speed ?? 1, delay: value?.delay ?? 0 });
+        picker.hidden = true;
+      });
+      li.append(button);
+      choices.append(li);
+    }
+  };
+  choose.addEventListener('click', () => {
+    picker.hidden = !picker.hidden;
+    if (!picker.hidden) {
+      listChoices();
+      search.focus();
+    }
+  });
+  search.addEventListener('input', listChoices);
+  hide.addEventListener('click', () => set({ ...(value ?? EMPTY_CLIP), hidden: !(value?.hidden === true) }));
+  clear.addEventListener('click', () => set(null));
+  show();
+  return wrap;
+}
+
 /** An image layer's own two settings: how tall the picture is, and where it sits across the block. No type here. */
-function imageLayerControls(blockId: string, layer: ImageLayer): HTMLElement {
+function imageLayerControls(blockId: string, layer: PictureLayer): HTMLElement {
   const grid = document.createElement('div');
   grid.className = 'type-grid image-layer-controls';
-  const set = <K extends keyof ImageLayer>(prop: K, value: ImageLayer[K]) => {
+  const set = <K extends keyof PictureLayer>(prop: K, value: PictureLayer[K]) => {
     editLayer(blockId, layer.id, (l) => ({ ...l, [prop]: value }) as Layer, false);
     commitParams();
   };
