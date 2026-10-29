@@ -9,6 +9,7 @@ import {
   placedBounds,
   placedBox,
   placedCentre,
+  placedPoint,
   placedQuad,
   rotateHandleAt,
   scaleFromDrag,
@@ -171,6 +172,29 @@ describe('a turned layer (milestone 29)', () => {
     expect(angleFromDrag({ x: 100, y: 0 }, { x: 0, y: 100 }, centre, 7, true)).toBe(90);
     // A pointer that has not moved asks for the angle the layer already had.
     expect(angleFromDrag({ x: 100, y: 0 }, { x: 100, y: 0 }, centre, 33, false)).toBe(33);
+  });
+
+  it('turns about what it draws, not the slot it sits in', () => {
+    // A line aligned at the left of a block-wide slot: the slot is 1000 wide, the words 200.
+    const slot = { x: 0, y: 100, width: 1000, height: 50 };
+    const ink = { x: 0, y: 100, width: 200, height: 50 };
+    const line = { id: 'who', type: 'text' as const, box: slot, ink, draw: { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 90 } };
+    // It spins about the middle of the words, not the middle of the block.
+    near(placedCentre(line), { x: 100, y: 125 });
+    // So the drawn shape stays over the words rather than swinging across the frame.
+    const bounds = placedBounds(line);
+    expect(bounds.x + bounds.width / 2).toBeCloseTo(100, 6);
+    // Without an ink box — a page too old to report one — the slot is all there is to go on.
+    near(placedCentre({ ...line, ink: undefined }), { x: 500, y: 125 });
+    // The offset and the scale move that centre, as they move everything else.
+    // Scaling is about the slot's centre (500, 125), so the ink centre at (100, 125) is pushed
+    // twice as far from it, and the offset moves everything: 500 + 40 + (100 - 500) * 2 = -260.
+    near(placedCentre({ ...line, draw: { alpha: 1, dx: 40, dy: 10, scale: 2, rotate: 0 } }), { x: -260, y: 135 });
+    near(placedPoint(line, { x: 500, y: 125 }), { x: 500, y: 125 });
+    // A hit lands on the turned words.
+    const laid: LaidReport = { frame: 1, blocks: { card: { box: { x: 0, y: 0, width: 1920, height: 1080 }, layers: [line] } } };
+    expect(hitLayer(laid, 100, 400)).toEqual({ block: 'card', id: 'who' });
+    expect(hitLayer(laid, 600, 125), 'the far end of the empty slot is not the layer').toBeNull();
   });
 
   it('puts the rotate handle above the layer, turned with it', () => {

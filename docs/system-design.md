@@ -113,6 +113,12 @@ A clip a layer plays never reaches the template page as a URL — the same rule 
 - **Bounds.** A window longer than `MAX_CLIP_FRAMES` (900, about 30 s at 30 fps) is refused by name with the advice to set an in and out point, rather than quietly holding a film in memory.
 - **Rights.** An asset is referenced where it lies. Nothing copies it: a pack carries template folders only, and the export dialog says so when the templates being exported are currently showing library pictures or clips.
 
+### Rotating a layer (milestone 29)
+
+A turn goes about **what the layer draws, not the slot it was given**. The two differ for a text layer in a column block: the stack hands it the block's whole width and the line is aligned inside that, so turning about the slot's middle would swing a left-aligned line across the frame instead of spinning it where it sits. `inkBox` (in `layer-layout.ts`, mirrored in the bridge) narrows a text layer's slot to its widest line; a picture's slot is already its picture, so for that it is the slot itself.
+
+The page reports both boxes with each frame, so the stage's chrome and the canvas agree: the selection outline is the slot, turned about the ink centre with `transform-origin`, and `placedCentre`, `placedQuad`, `hitLayer` and the rotate handle all work from that same point. A click is tested by turning the pointer back about it, which makes the rotated outline the hit area exactly.
+
 ### Preview
 
 1. UI sets the iframe `src` to `pulp-template://<id>/<entry>`.

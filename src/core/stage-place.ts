@@ -15,7 +15,14 @@ import { SAFE_AREAS } from './player';
 export interface LaidLayerReport {
   id: string;
   type: 'text' | 'image' | 'video';
+  /** The slot the stack gave the layer. */
   box: PxBox;
+  /**
+   * What the layer actually draws (milestone 29). A text layer's slot is the
+   * block's whole width with the line aligned inside it, so the two differ;
+   * for a picture, and for a page too old to report this, it is the slot.
+   */
+  ink?: PxBox;
   draw: { alpha: number; dx: number; dy: number; scale: number; rotate?: number };
 }
 
@@ -63,10 +70,26 @@ export function rotatePoint(point: Point, centre: Point, degrees: number): Point
   return { x: centre.x + dx * cos - dy * sin, y: centre.y + dx * sin + dy * cos };
 }
 
-/** The centre of where a layer was really drawn. */
+/**
+ * A point of the layer's own space, where the draw's offset and scale put it:
+ * moved by the offset, then scaled about the slot's centre, exactly as the
+ * canvas does it before any turn.
+ */
+export function placedPoint(layer: LaidLayerReport, point: Point): Point {
+  const { box, draw } = layer;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  return { x: cx + draw.dx + (point.x - cx) * draw.scale, y: cy + draw.dy + (point.y - cy) * draw.scale };
+}
+
+/**
+ * The point a layer turns about: the centre of what it draws, where the offset
+ * and scale have put it. For a line aligned in a wide block that is the middle
+ * of the words, not the middle of the block, so a turn spins it where it sits.
+ */
 export function placedCentre(layer: LaidLayerReport): Point {
-  const b = placedBox(layer);
-  return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  const ink = layer.ink ?? layer.box;
+  return placedPoint(layer, { x: ink.x + ink.width / 2, y: ink.y + ink.height / 2 });
 }
 
 /**
@@ -77,7 +100,7 @@ export function placedCentre(layer: LaidLayerReport): Point {
  */
 export function placedQuad(layer: LaidLayerReport): Point[] {
   const b = placedBox(layer);
-  const centre = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  const centre = placedCentre(layer);
   const angle = placedAngle(layer);
   return [
     { x: b.x, y: b.y },
@@ -115,7 +138,7 @@ export function hitLayer(laid: LaidReport, x: number, y: number, tolerance = 0):
       // layer's centre, and the same box test then answers for the rotated outline exactly.
       const b = placedBox(layer);
       const angle = placedAngle(layer);
-      const point = angle ? rotatePoint({ x, y }, { x: b.x + b.width / 2, y: b.y + b.height / 2 }, -angle) : { x, y };
+      const point = angle ? rotatePoint({ x, y }, placedCentre(layer), -angle) : { x, y };
       if (point.x >= b.x - tolerance && point.x <= b.x + b.width + tolerance && point.y >= b.y - tolerance && point.y <= b.y + b.height + tolerance) {
         hit = { block, id: layer.id };
       }
@@ -224,6 +247,5 @@ export function angleFromDrag(start: Point, now: Point, centre: Point, startAngl
 /** Where the rotate handle sits: above the layer's top edge, turned with it. */
 export function rotateHandleAt(layer: LaidLayerReport, distance: number): Point {
   const b = placedBox(layer);
-  const centre = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-  return rotatePoint({ x: centre.x, y: b.y - distance }, centre, placedAngle(layer));
+  return rotatePoint({ x: b.x + b.width / 2, y: b.y - distance }, placedCentre(layer), placedAngle(layer));
 }

@@ -472,6 +472,31 @@ export function blockStates(manifest: Pick<TemplateManifest, 'blocks'>, layers: 
   return out;
 }
 
+/**
+ * What a laid layer actually draws, in pixels of the frame — the ink, not the
+ * slot (milestone 29). They differ for a text layer in a column block: the
+ * stack gives it the block's whole width and the line is aligned inside that,
+ * so its slot is usually far wider than its words. A picture layer's slot is
+ * already narrowed to the picture, and an empty layer has no ink, so for both
+ * this is the slot itself.
+ *
+ * It is what a turn goes about: a line spins where it sits rather than swinging
+ * around the middle of a block it only occupies one end of.
+ */
+export function inkBox(layer: LaidLayer): PxBox {
+  if (layer.type !== 'text' || !layer.lines || layer.lines.length === 0) return layer.box;
+  let left = Infinity;
+  let right = -Infinity;
+  for (const line of layer.lines) {
+    if (line.width <= 0) continue;
+    left = Math.min(left, line.x);
+    right = Math.max(right, line.x + line.width);
+  }
+  if (!Number.isFinite(left) || right <= left) return layer.box;
+  // Vertically the slot is already the text's own extent; only the width is the block's.
+  return { x: left, y: layer.box.y, width: right - left, height: layer.box.height };
+}
+
 /** Where a layer's picture lands inside the room the stack gave it: contained and centred, as an image slot. */
 export function fitLayerImage(layer: LaidLayer, imageW: number, imageH: number): PxBox {
   return fitImage(layer.box, imageW, imageH, 'contain', 'center', 0);

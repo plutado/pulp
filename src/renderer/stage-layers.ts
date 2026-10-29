@@ -10,8 +10,8 @@
 
 import { effect } from '@preact/signals';
 import { aspectOf } from '../core/aspect';
-import { clampPlacement, clampScale, EMPTY_LAID, hitLayer, nudgeFraction, placedBox, scaleFromDrag, snapMove, type LaidReport, type SnapGuide } from '../core/stage-place';
-import { placementFor, type Layer, type LayerPlacement, type LayerPlacements } from '../core/layers';
+import { angleFromDrag, clampPlacement, clampScale, EMPTY_LAID, hitLayer, nudgeFraction, placedAngle, placedBounds, placedBox, placedCentre, scaleFromDrag, snapMove, type LaidReport, type SnapGuide } from '../core/stage-place';
+import { isIdentityPlacement, placementFor, type Layer, type LayerPlacement, type LayerPlacements } from '../core/layers';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { layerEditor, selectedLayer } from './layer-edit';
 
@@ -35,7 +35,7 @@ let overlay: HTMLElement | null = null;
 let laid: LaidReport = EMPTY_LAID;
 
 interface DragState {
-  kind: 'move' | 'resize';
+  kind: 'move' | 'resize' | 'rotate';
   block: string;
   id: string;
   pointerId: number;
@@ -95,7 +95,7 @@ function writePlacement(block: string, id: string, next: LayerPlacement, commit:
     id,
     (layer: Layer): Layer => {
       const placements: LayerPlacements = { ...layer.placement };
-      if (next.dx === 0 && next.dy === 0 && next.scale === 1) delete placements[aspect];
+      if (isIdentityPlacement(next)) delete placements[aspect];
       else placements[aspect] = next;
       if (Object.keys(placements).length === 0) {
         const rest = { ...layer };
@@ -135,17 +135,43 @@ function paintSelection(): void {
   if (!layer || layer.box.width <= 0) return;
   const size = host.frameSize();
   const box = placedBox(layer);
+  const angle = placedAngle(layer);
   const el = document.createElement('div');
   el.className = 'stage-select';
   el.style.left = pct(box.x, size.width);
   el.style.top = pct(box.y, size.height);
   el.style.width = pct(box.width, size.width);
   el.style.height = pct(box.height, size.height);
+  // The outline is the slot, turned about the centre of what the layer draws — the same point
+  // the canvas turns about (milestone 29) — so the outline is the drawn shape exactly. For a
+  // line aligned in a wide block that centre is well off the slot's middle, which is why the
+  // origin is set rather than left at the default.
+  if (angle) {
+    const centre = placedCentre(layer);
+    // As a fraction of the outline's own box, since the box is sized in percentages of the
+    // overlay: frame pixels would mean something else again on a preview of any other size.
+    const ox = box.width > 0 ? ((centre.x - box.x) / box.width) * 100 : 50;
+    const oy = box.height > 0 ? ((centre.y - box.y) / box.height) * 100 : 50;
+    el.style.transformOrigin = `${ox}% ${oy}%`;
+    el.style.transform = `rotate(${angle}deg)`;
+  }
+  el.dataset.angle = String(angle);
   for (const corner of ['nw', 'ne', 'sw', 'se']) {
     const handle = document.createElement('div');
     handle.className = `stage-handle ${corner}`;
     handle.dataset.handle = corner;
     el.append(handle);
+  }
+  const rotate = document.createElement('div');
+  rotate.className = 'stage-handle rotate';
+  rotate.dataset.handle = 'rotate';
+  rotate.title = 'Turn the layer; hold Shift for 15° steps';
+  el.append(rotate);
+  if (drag?.kind === 'rotate') {
+    const readout = document.createElement('div');
+    readout.className = 'stage-angle';
+    readout.textContent = `${Math.round(angle)}°`;
+    el.append(readout);
   }
   overlay.append(el);
 }
@@ -179,9 +205,10 @@ function onPointerDown(e: PointerEvent): void {
     if (!layer) return;
     const box = placedBox(layer);
     drag = {
-      kind: 'resize', block: chosen.block, id: chosen.id, pointerId: e.pointerId,
+      kind: target.dataset.handle === 'rotate' ? 'rotate' : 'resize',
+      block: chosen.block, id: chosen.id, pointerId: e.pointerId,
       start: point, from: currentPlacement(chosen.block, chosen.id),
-      centre: { x: box.x + box.width / 2, y: box.y + box.height / 2 }, startBox: box, moved: false,
+      centre: placedCentre(layer), startBox: box, moved: false,
     };
     capture(e.pointerId);
     e.preventDefault();
@@ -192,7 +219,9 @@ function onPointerDown(e: PointerEvent): void {
   const hit = hitLayer(laid, point.x, point.y, grab);
   selectedLayer.value = hit;
   if (!hit) return;
-  const hitBox = placedBox(laidLayer(hit.block, hit.id)!);
+  // Snapping measures the upright box that contains the layer as drawn, so a turned one
+  // lines its real edges up with the frame's lines rather than its unturned ones.
+  const hitBox = placedBounds(laidLayer(hit.block, hit.id)!);
   drag = { kind: 'move', block: hit.block, id: hit.id, pointerId: e.pointerId, start: point, from: currentPlacement(hit.block, hit.id), centre: point, startBox: hitBox, moved: false };
   capture(e.pointerId);
   overlay.focus();
@@ -204,6 +233,12 @@ function onPointerMove(e: PointerEvent): void {
   const size = host.frameSize();
   const point = framePoint(e);
   drag.moved = true;
+
+  if (drag.kind === 'rotate') {
+    const rotate = angleFromDrag(drag.start, point, drag.centre, drag.from.rotate, e.shiftKey);
+    writePlacement(drag.block, drag.id, { ...drag.from, rotate }, false);
+    return;
+  }
 
   if (drag.kind === 'resize') {
     const next = { ...drag.from, scale: clampScale(scaleFromDrag(drag.start, point, drag.centre, drag.from.scale)) };

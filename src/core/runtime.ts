@@ -392,10 +392,30 @@ export const BRIDGE_SCRIPT = `(function () {
     window.__pulp.laid.blocks[blockId] = {
       box: { x: box.x, y: box.y, width: box.width, height: box.height },
       layers: layers.map(function (l) {
-        return { id: l.id, type: l.type, box: { x: l.box.x, y: l.box.y, width: l.box.width, height: l.box.height }, draw: { alpha: l.draw.alpha, dx: l.draw.dx || 0, dy: l.draw.dy || 0, scale: l.draw.scale === undefined ? 1 : l.draw.scale } };
+        var ink = inkBox(l);
+        return {
+          id: l.id, type: l.type,
+          box: { x: l.box.x, y: l.box.y, width: l.box.width, height: l.box.height },
+          ink: { x: ink.x, y: ink.y, width: ink.width, height: ink.height },
+          draw: { alpha: l.draw.alpha, dx: l.draw.dx || 0, dy: l.draw.dy || 0, scale: l.draw.scale === undefined ? 1 : l.draw.scale, rotate: l.draw.rotate || 0 }
+        };
       })
     };
     return { id: block.id, box: box, layers: layers };
+  }
+  /* What a laid layer really draws, as against the slot it was given. Mirrors inkBox in
+     src/core/layer-layout.ts, the copy with unit tests: change both or neither. */
+  function inkBox(layer) {
+    if (layer.type !== 'text' || !layer.lines || layer.lines.length === 0) return layer.box;
+    var left = Infinity, right = -Infinity, i;
+    for (i = 0; i < layer.lines.length; i++) {
+      var line = layer.lines[i];
+      if (line.width <= 0) continue;
+      if (line.x < left) left = line.x;
+      if (line.x + line.width > right) right = line.x + line.width;
+    }
+    if (!isFinite(left) || right <= left) return layer.box;
+    return { x: left, y: layer.box.y, width: right - left, height: layer.box.height };
   }
   /* Draws a block laid out by layoutBlock: each layer with the alpha, offset and scale the template gave it. */
   function drawBlock(ctx, laid) {
@@ -412,7 +432,13 @@ export const BRIDGE_SCRIPT = `(function () {
       /* The scale and the angle are both about the layer's own centre (milestone 29), so they
          compose in either order; the offset above has already moved that centre. */
       if (d.scale !== undefined && d.scale !== 1) { ctx.translate(cx, cy); ctx.scale(d.scale, d.scale); ctx.translate(-cx, -cy); }
-      if (d.rotate) { ctx.translate(cx, cy); ctx.rotate(d.rotate * Math.PI / 180); ctx.translate(-cx, -cy); }
+      if (d.rotate) {
+        /* About what the layer draws, not the slot it sits in: a line aligned in a wide block
+           turns where it is rather than swinging about the middle of the block (milestone 29). */
+        var ink = inkBox(layer);
+        var ix = ink.x + ink.width / 2, iy = ink.y + ink.height / 2;
+        ctx.translate(ix, iy); ctx.rotate(d.rotate * Math.PI / 180); ctx.translate(-ix, -iy);
+      }
       if (layer.type === 'text') drawTextLayer(ctx, layer);
       else if (layer.picture) {
         var at = fitBox(layer.box, layer.picture.width, layer.picture.height, 'contain', 'center', 0);

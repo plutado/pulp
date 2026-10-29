@@ -19,9 +19,12 @@ import {
   defaultLayers,
   LAYER_ALIGNS,
   LAYER_LIMITS,
+  isIdentityPlacement,
   LAYER_MOTIONS,
   LAYER_TYPES,
   newLayer,
+  normalizeAngle,
+  placementFor,
   resolveLayers,
   TEXT_CASES,
   TEXT_OVERFLOWS,
@@ -30,6 +33,7 @@ import {
   type LayerMotionType,
   type LayerType,
   type ImageLayer,
+  type LayerPlacements,
   type LayerValues,
   type PictureLayer,
   type VideoLayer,
@@ -44,7 +48,8 @@ import { setIcon, type IconName } from './icons';
 import type { MediaEntry } from '../core/library-types';
 import { mediaUrlFor } from '../core/media-url';
 import { stageSetParams } from './stage';
-import { appState, importedFonts, selectedTemplate, slotNotes } from './store';
+import { appState, frameSize, importedFonts, selectedTemplate, slotNotes } from './store';
+import { aspectOf } from '../core/aspect';
 import { registerLayerEditor, selectedLayer } from './layer-edit';
 import { effect } from '@preact/signals';
 
@@ -1331,9 +1336,40 @@ function motionControls(blockId: string, layer: Layer): HTMLElement {
   const delay = typeField('Delay, seconds', numberOf(layer.motion.delay, LAYER_LIMITS.motionDelay, 0.1, (v) => set({ ...current, delay: v }), `${layer.label} motion delay`));
   // The delay is the override's own: while the template owns the movement there is nothing to delay.
   delay.hidden = layer.motion.type === 'template';
-  grid.append(delay);
+  grid.append(delay, angleField(blockId, layer));
   details.append(grid);
   return details;
+}
+
+/**
+ * The angle a layer is turned by, for this frame's aspect (milestone 29). The
+ * handle on the stage is the quick way; this is the exact one, and the place
+ * to read what a drag settled on. Degrees, clockwise, from a half turn either
+ * way — the same number the placement stores.
+ */
+function angleField(blockId: string, layer: Layer): HTMLElement {
+  // The shape being previewed decides which placement this field edits; before one is known,
+  // the default entry is the one a layer would be given.
+  const size = frameSize.value;
+  const aspect = size ? aspectOf(size.width, size.height) : 'default';
+  const current = placementFor(layer.placement, aspect);
+  const input = numberOf(current.rotate, { min: -180, max: 180 }, 1, (v) => {
+    const rotate = normalizeAngle(v);
+    editLayer(blockId, layer.id, (l) => {
+      const placements: LayerPlacements = { ...l.placement };
+      const next = { ...placementFor(l.placement, aspect), rotate };
+      if (isIdentityPlacement(next)) delete placements[aspect];
+      else placements[aspect] = next;
+      if (Object.keys(placements).length === 0) {
+        const rest = { ...l };
+        delete rest.placement;
+        return rest;
+      }
+      return { ...l, placement: placements };
+    }, true);
+    commitParams();
+  }, `${layer.label} angle`);
+  return typeField('Angle, degrees', input);
 }
 
 const CASE_LABELS: Record<TextLayer['case'], string> = { none: 'As typed', upper: 'Uppercase', lower: 'Lowercase', title: 'Title case' };
