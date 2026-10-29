@@ -509,15 +509,25 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(await diff(join(out, 'loop-20_00000.png'), join(out, 'loop-20_00200.png')), 'one whole pass later, the same frame').toBeLessThan(0.01);
     expect(await diff(join(out, 'loop-20_00000.png'), join(out, 'loop-20_00100.png')), 'and in between, a different one').toBeGreaterThan(0.05);
 
-    // A wipe keeps its shape and plays slower: at twice its length, its own frame 17 is the
-    // moment that frame 35 shows, and both renders end on the same picture.
+    // A wipe keeps its shape and plays slower: at twice its length every second frame is one of
+    // its own, in order — frame 2n of the slowed render is the moment frame n shows at its own
+    // length, out to the last frame the template draws. Only the moments that line up are
+    // compared: the slowed render samples twice as finely, so its final frame falls half a frame
+    // of the template's clock past the native one's, at the point where the circle is a fraction
+    // of a pixel across and each platform rounds it its own way.
     const own = await render('pulp.samples.circle-wipe', 'png-sequence', 'wipe-own', { extra: small });
     expect(own.code, own.stderr).toBe(0);
     const slower = await render('pulp.samples.circle-wipe', 'png-sequence', 'wipe-slow', { extra: [...small, '--length', '2.8'] });
     expect(slower.code, slower.stderr).toBe(0);
     expect((await readdir(out)).filter((f) => /^wipe-slow_\d{5}\.png$/.test(f))).toHaveLength(70);
-    expect(await diff(join(out, 'wipe-slow_00035.png'), join(out, 'wipe-own_00017.png')), 'half speed, the same moment').toBeLessThan(0.01);
-    expect(await diff(join(out, 'wipe-slow_00069.png'), join(out, 'wipe-own_00034.png')), 'and the same last frame').toBeLessThan(0.01);
+    const frame = (name: string, n: number) => join(out, `${name}_${String(n).padStart(5, '0')}.png`);
+    for (const n of [5, 9, 17, 26, 34]) {
+      expect(await diff(frame('wipe-slow', 2 * n), frame('wipe-own', n)), `frame ${2 * n} at half speed is frame ${n} at its own`).toBeLessThan(0.01);
+    }
+    // Half speed rather than merely alike: where the circle grows fastest, the frames either side
+    // of the one it matches look nothing like it.
+    expect(await diff(frame('wipe-slow', 18), frame('wipe-own', 8)), 'not the frame before').toBeGreaterThan(1);
+    expect(await diff(frame('wipe-slow', 18), frame('wipe-own', 10)), 'nor the one after').toBeGreaterThan(1);
 
     // How far a transition may be pushed is bounded, so it never becomes a still or a flicker.
     const tooSlow = await render('pulp.samples.circle-wipe', 'png-sequence', 'wipe-cap', { extra: [...small, '--length', '60'] });
