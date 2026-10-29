@@ -42,6 +42,22 @@ describe('parseFfprobe', () => {
     expect(parseFfprobe(h264)).toMatchObject({ alpha: false, fps: 25, width: 1080, height: 1920 });
   });
 
+  it("sees HEVC's alpha layer, which no pixel format reports", () => {
+    // Real ffprobe 8 output. macOS writes alpha into an auxiliary HEVC layer, so the stream reads
+    // yuv420p exactly as an opaque file does; view_ids_available is what gives it away. Both files
+    // below came from hevc_videotoolbox, one through the hevc-alpha preset and one without alpha.
+    const withAlpha = `{"streams":[{"codec_name":"hevc","codec_type":"video","width":1920,"height":1080,"pix_fmt":"yuv420p","view_ids_available":"0,0","view_pos_available":"","r_frame_rate":"30/1","avg_frame_rate":"30/1","duration":"6.000000","tags":{}}],"format":{"duration":"6.000000"}}`;
+    expect(parseFfprobe(withAlpha)).toMatchObject({ codec: 'hevc', pixelFormat: 'yuv420p', alpha: true });
+    const opaque = `{"streams":[{"codec_name":"hevc","codec_type":"video","width":1920,"height":1080,"pix_fmt":"yuv420p","view_ids_available":"","view_pos_available":"","r_frame_rate":"30/1"}],"format":{"duration":"1.0"}}`;
+    expect(parseFfprobe(opaque)).toMatchObject({ codec: 'hevc', alpha: false });
+    // A stereo pair is multilayer too, and is not transparent: it reports where each view sits.
+    const stereo = `{"streams":[{"codec_name":"hevc","codec_type":"video","width":1920,"height":1080,"pix_fmt":"yuv420p","view_ids_available":"0,1","view_pos_available":"left,right","r_frame_rate":"30/1"}],"format":{"duration":"1.0"}}`;
+    expect(parseFfprobe(stereo)).toMatchObject({ alpha: false });
+    // The layer belongs to HEVC alone; nothing else is read this way.
+    const otherCodec = `{"streams":[{"codec_name":"h264","codec_type":"video","width":64,"height":64,"pix_fmt":"yuv420p","view_ids_available":"0,0","view_pos_available":"","r_frame_rate":"30/1"}],"format":{"duration":"1.0"}}`;
+    expect(parseFfprobe(otherCodec)).toMatchObject({ alpha: false });
+  });
+
   it('handles images and audio-only files', () => {
     const png = `{"streams":[{"codec_type":"video","codec_name":"png","width":2,"height":2,"pix_fmt":"rgba","r_frame_rate":"25/1","avg_frame_rate":"0/0"}],"format":{}}`;
     expect(parseFfprobe(png)).toEqual({ codec: 'png', width: 2, height: 2, pixelFormat: 'rgba', fps: 25, alpha: true });
@@ -68,6 +84,8 @@ describe('probeMedia and helpers', () => {
     expect(calls[0]?.[0]).toBe('/bin/ffprobe');
     expect(calls[0]?.at(-1)).toBe('/lib/a.webm');
     expect(ffprobeArgs('x')).toContain('json');
+    // One call answers everything, alpha included: the scan probes a file once and caches it.
+    expect(ffprobeArgs('x').join(' ')).toContain('view_ids_available');
     const failing: ProcessRunner = async () => ({ code: 1, stdout: '', stderr: 'Invalid data' });
     expect(await probeMedia('ffprobe', '/lib/bad.mov', failing)).toBeNull();
     const missing: ProcessRunner = async () => {

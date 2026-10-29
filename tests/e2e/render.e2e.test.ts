@@ -13,7 +13,8 @@ import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { detectFfmpeg } from '../../src/core/ffmpeg';
+import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
+import { probeMedia } from '../../src/core/media-probe';
 import { itemId } from '../../src/core/library-scan';
 import { mediaUrlFor } from '../../src/core/media-url';
 import { scanLibrary } from '../../src/core/library';
@@ -584,6 +585,12 @@ describe.skipIf(!available)('end-to-end render', () => {
     } else {
       expect(min).toBe(0);
       expect(max).toBe(255);
+      // And the library can tell: the stream reads yuv420p like any opaque file, so a scan has only
+      // the auxiliary layer to go on. A file this app wrote is the one certain alpha HEVC to test with.
+      const meta = await probeMedia(ffprobe, file, nodeRunner);
+      expect(meta?.codec).toBe('hevc');
+      expect(meta?.pixelFormat).toBe('yuv420p');
+      expect(meta?.alpha, 'an HEVC alpha clip earns the Alpha badge').toBe(true);
     }
   }, 180_000);
 

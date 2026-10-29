@@ -13,7 +13,10 @@ export interface MediaMetadata {
   /** Video codec name as ffprobe reports it, e.g. "prores", "h264", "vp9", "png". */
   codec?: string;
   pixelFormat?: string;
-  /** True when the video carries an alpha channel (alpha pixel format, or VP9's alpha_mode tag). */
+  /**
+   * True when the video carries an alpha channel: an alpha pixel format, VP9's
+   * `alpha_mode` tag, or HEVC's auxiliary alpha layer (see `hevcAlpha`).
+   */
   alpha?: boolean;
   audioCodec?: string;
   channels?: number;
@@ -21,6 +24,26 @@ export interface MediaMetadata {
 }
 
 const ALPHA_PIX_FMT = /^(yuva|rgba|argb|bgra|abgr|gbrap|ya|ayuv|pal8)/;
+
+/**
+ * HEVC with alpha (what macOS writes, and what VideoToolbox encodes) keeps the
+ * alpha in an **auxiliary layer** of the same track, not in the pixel format:
+ * the stream reads `yuv420p`, exactly like an opaque H.264, so the pixel
+ * format cannot tell them apart. What does is `view_ids_available`, which
+ * ffmpeg exports for a multilayer HEVC stream — "0,0" for base plus alpha,
+ * absent for a single-layer one. Decoding confirms it: ffmpeg 8.0 hands back
+ * `yuva420p` frames for such a file (docs/platform-notes.md).
+ *
+ * Multiview (stereo) HEVC is multilayer too, so `view_pos_available` has to be
+ * empty: ffmpeg fills it with left/right positions for a stereo pair and
+ * leaves it empty for an alpha layer, which has no position to report.
+ */
+function hevcAlpha(stream: ProbeStream): boolean {
+  if (stream.codec_name !== 'hevc') return false;
+  const views = (stream.view_ids_available ?? '').split(',').filter((v) => v.trim().length > 0);
+  const positions = (stream.view_pos_available ?? '').split(',').filter((v) => v.trim().length > 0);
+  return views.length > 1 && positions.length === 0;
+}
 
 interface ProbeStream {
   codec_type?: string;
@@ -33,6 +56,8 @@ interface ProbeStream {
   duration?: string;
   channels?: number;
   sample_rate?: string;
+  view_ids_available?: string;
+  view_pos_available?: string;
   tags?: Record<string, string>;
 }
 
@@ -66,7 +91,7 @@ export function parseFfprobe(json: string): MediaMetadata | null {
     const fps = rate(video.avg_frame_rate) ?? rate(video.r_frame_rate);
     if (fps && fps > 0) meta.fps = fps;
     const alphaTag = video.tags?.alpha_mode ?? video.tags?.ALPHA_MODE;
-    meta.alpha = (video.pix_fmt !== undefined && ALPHA_PIX_FMT.test(video.pix_fmt)) || alphaTag === '1';
+    meta.alpha = (video.pix_fmt !== undefined && ALPHA_PIX_FMT.test(video.pix_fmt)) || alphaTag === '1' || hevcAlpha(video);
   }
   if (audio) {
     if (audio.codec_name) meta.audioCodec = audio.codec_name;
