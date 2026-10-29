@@ -4,7 +4,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 ## Where things stand
 
-**Milestone 30, timing — any length set while editing, is the one in progress.** Milestones 26 and 29 are done before it. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
+**Milestone 30, timing — any length set while editing, is all but finished:** five of its six items are done, and the sixth is partly — 53 of the 124 bundled templates declare how they stretch, and 30 more are held up by a known issue (an "Animate in/out" parameter that a fixed structure would contradict). Milestones 26 and 29 are done before it. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
 What is left after 26: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Four verification items wait on hardware: two need the test Mac, two a Windows machine (see `docs/ideas.md`, Decided item 1, which replaces "hardware-blocked" with a Windows VM). Known issues and anything not yet scheduled are in `docs/ideas.md`.
 
@@ -32,7 +32,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 25. Move and resize layers on the stage | 16-22 h |
 | 26. Assets on the stage (**done**) | 30-46 h |
 | 29. Rotate layers on the stage (**done**) | 5-8 h |
-| 30. Timing: any length, set while editing (**in progress**) | 18-28 h |
+| 30. Timing: any length, set while editing (**5 of 6 items done**) | 18-28 h |
 | 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 8-13 h |
 | 17. Unsigned builds and releases | 8-14 h |

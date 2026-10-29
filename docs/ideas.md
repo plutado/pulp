@@ -14,7 +14,7 @@ Each move is a commit, so the history shows when an idea was decided and where i
 
 ## Suggested order
 
-The maintainer's intended sequence for what is decided here and what is already on the roadmap (milestones 23, 24, 25, 26 and 29 are done; **milestone 30, timing, is in progress**). Scheduling follows it unless a request says otherwise.
+The maintainer's intended sequence for what is decided here and what is already on the roadmap (milestones 23, 24, 25, 26 and 29 are done; **milestone 30, timing, is all but finished**). Scheduling follows it unless a request says otherwise.
 
 Every milestone decided here now has its number and its GitHub issue, so the two cannot drift: **27** projects and the application menu (#30), **28** per-layer timing, transitions and looks (#29), **29** rotate layers on the stage (#31), **30** timing: any length, set while editing (#32), **31** a start screen (#33). The numbers are the order they were decided in, not the order they are built in — the list below is the order, as `ROADMAP.md`'s is (CONTRIBUTING.md).
 
@@ -22,7 +22,7 @@ Every milestone decided here now has its number and its GitHub issue, so the two
 2. **Protection before the larger work:** done — every bundled template is hashed at each aspect and a few fixed frames (`tests/e2e/visual.e2e.test.ts`, 124 templates in `tests/visual/references.json`). It runs locally only until the cross-platform known issue above is settled. CI runs on Windows, macOS and Linux with a dependency audit.
 3. **Milestone 26: assets on the stage** — *done.* The Assets type group is filled (six per Effects category, ten Objects categories, every theme three assets deep, taxonomy version 4); asset libraries read transparency from ProRes 4444, VP9, HEVC's auxiliary layer and folders of numbered frames; video layers play a clip on the template's own time; a picture or clip dropped on the preview becomes a layer; and clips are proxied, cached and never copied.
 4. **Milestone 29: rotate layers on the stage** — *done* (GitHub issue #31), and in `ROADMAP.md`. It finished milestone 25's placement: a layer can now be moved, resized and turned.
-5. **Milestone 30: timing — any length, set while editing** — *in progress,* now in `ROADMAP.md` (GitHub issue #32). It also gives a frame sequence somewhere to say what rate it plays at, which milestone 26 had to state rather than ask.
+5. **Milestone 30: timing — any length, set while editing** — *five of six items done,* in `ROADMAP.md` (GitHub issue #32). It also gives a frame sequence somewhere to say what rate it plays at, which milestone 26 had to state rather than ask.
 6. **Milestone 28: per-layer timing, transitions and looks** (Decided item 6; GitHub issue #29). After 30, whose length and structure a layer's own start and end are set within, and before 27, which has to save all of it.
 7. **Milestone 27: projects and the application menu** (Decided item 3; GitHub issue #30).
 8. **Milestone 31: a start screen** — examples, recent projects, a tour and a dashboard (Decided item 5; GitHub issue #33).
