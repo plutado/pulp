@@ -445,6 +445,49 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await pixels(titleFrame, 540, 1600))[3]).toBe(0); // the caption band
   }, 240_000);
 
+  it('draws a layer turned, about the words rather than the block (milestone 29)', async () => {
+    // The hairline lower third is alpha, and its "who" line is aligned at the left of a block
+    // that spans most of the frame — the case where turning about the slot would swing the line
+    // away instead of spinning it where it sits.
+    const turn = (angle: number) => ['--param', `@layers=${JSON.stringify({ name: [{ id: 'who', placement: { '16:9': { rotate: angle } } }] })}`];
+    const ink = async (file: string) => {
+      // The drawn extent of the frame, from its alpha: where the graphic is, and how big.
+      const { stdout } = await runBoundedBuffer(ffmpeg, ffmpegArgs(['-v', 'error', '-i', file, '-vf', 'format=rgba', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']), { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
+      let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
+      for (let y = 0; y < 1080; y++) {
+        for (let x = 0; x < 1920; x++) {
+          if (stdout[(y * 1920 + x) * 4 + 3]! <= 16) continue;
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+      return { x0, y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
+    };
+
+    const flat = await render('pulp.samples.hairline-lower-third', 'png-sequence', 'turn-0', { extra: ['--in-point', '90', '--out-point', '90', ...turn(0)] });
+    expect(flat.code, flat.stderr).toBe(0);
+    const upright = await ink(join(out, 'turn-0_00090.png'));
+    // Flat, the graphic is a wide, short band: a rule with two lines under it.
+    expect(upright.height).toBeLessThan(200);
+
+    const quarter = await render('pulp.samples.hairline-lower-third', 'png-sequence', 'turn-90', { extra: ['--in-point', '90', '--out-point', '90', ...turn(90)] });
+    expect(quarter.code, quarter.stderr).toBe(0);
+    const turned = await ink(join(out, 'turn-90_00090.png'));
+    // Turned a quarter, the line stands on end, so the graphic is far taller than it was.
+    expect(turned.height, 'the turned line makes the graphic taller').toBeGreaterThan(upright.height * 2);
+    // And it spun where it sat: the line stays over the left of the frame rather than swinging
+    // to the middle of its block, so the drawn area starts about where it did.
+    expect(Math.abs(turned.x0 - upright.x0), 'the graphic still starts at the same edge').toBeLessThan(60);
+    expect(turned.width, 'and it did not swing across the frame').toBeLessThan(upright.width + 60);
+
+    // A whole turn says nothing at all, so it draws exactly what no placement draws.
+    const full = await render('pulp.samples.hairline-lower-third', 'png-sequence', 'turn-360', { extra: ['--in-point', '90', '--out-point', '90', ...turn(360)] });
+    expect(full.code, full.stderr).toBe(0);
+    expect(await ink(join(out, 'turn-360_00090.png'))).toEqual(upright);
+  }, 240_000);
+
   it('plays a clip inside a graphic, on the template\'s own time (milestone 26)', async () => {
     // A transparent clip whose red square moves left to right over its 30 frames, so which frame
     // was drawn can be read off the rendered picture. The library sees it by path, as any clip.

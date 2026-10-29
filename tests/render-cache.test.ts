@@ -21,6 +21,10 @@ describe('render cache', () => {
     // A placement is a layer value like any other, so a moved layer renders afresh (milestone 25).
     const placed = cacheKey({ ...base, params: { '@layers': { strap: [{ id: 'name', text: 'Ada', placement: { '16:9': { dx: 0.1, dy: 0, scale: 1 } } }] } } });
     expect(placed).not.toBe(one);
+    // And so is an angle (milestone 29): a turned layer is a different render from a straight one.
+    const turned = cacheKey({ ...base, params: { '@layers': { strap: [{ id: 'name', text: 'Ada', placement: { '16:9': { dx: 0.1, dy: 0, scale: 1, rotate: 30 } } }] } } });
+    expect(turned).not.toBe(placed);
+    expect(turned).toBe(cacheKey({ ...base, params: { '@layers': { strap: [{ id: 'name', text: 'Ada', placement: { '16:9': { dx: 0.1, dy: 0, scale: 1, rotate: 30 } } }] } } }));
   });
 
   it('keys the same inputs the same and different inputs differently', () => {

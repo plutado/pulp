@@ -1329,6 +1329,82 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+    it('turns a layer by its handle, snapping to 15° with Shift, and by the angle field (milestone 29)', async () => {
+      const overlay = `document.getElementById('layer-overlay')`;
+      try {
+        await page.send('Emulation.setDeviceMetricsOverride', { width: 1008, height: 655, deviceScaleFactor: 1, mobile: false });
+        await clickResult('Title Card');
+        await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+        await scrubAndWait(110);
+
+        type Laid = { frame: number | null; blocks: Record<string, { box: { x: number; y: number; width: number; height: number }; layers: { id: string; box: { x: number; y: number; width: number; height: number }; ink?: { x: number; y: number; width: number; height: number }; draw: { alpha: number; dx: number; dy: number; scale: number; rotate?: number } }[] }> };
+        const laid = () => inTemplate<Laid>(`window.__pulp.laid`, CARD);
+        const titleDraw = async () => (await laid()).blocks.card!.layers.find((l) => l.id === 'title')!.draw;
+        const box = () => page.eval<{ left: number; top: number; width: number; height: number }>(`(() => { const r = ${overlay}.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
+        const frameSize = () => page.eval<{ width: number; height: number }>(`(() => { const c = document.getElementById('preview-frame'); const [w, h] = (c.style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`);
+        const client = async (fx: number, fy: number) => {
+          const b = await box();
+          const f = await frameSize();
+          return { x: b.left + (fx / f.width) * b.width, y: b.top + (fy / f.height) * b.height };
+        };
+        const pointer = (type: string, x: number, y: number, shift = false, target = overlay) =>
+          page.eval(`${target}.dispatchEvent(new PointerEvent(${JSON.stringify(type)}, { clientX: ${x}, clientY: ${y}, pointerId: 9, button: 0, shiftKey: ${shift}, bubbles: true }))`);
+        const overlayReady = (frame: number) =>
+          until(() => page.eval<boolean>(`${overlay}.dataset.laidFrame === '${frame}'`), `the overlay holding frame ${frame}`);
+
+        // The page reports what the layer draws beside the slot it sits in: for a line of type
+        // the two differ, and the turn goes about the words.
+        await overlayReady(110);
+        const title = (await laid()).blocks.card!.layers.find((l) => l.id === 'title')!;
+        expect(title.ink, 'the page reports the drawn box').toBeDefined();
+        expect(title.ink!.width, 'a line is narrower than the block that holds it').toBeLessThan(title.box.width);
+
+        // Select it where it was drawn, then take hold of the rotate handle.
+        const inkCentre = { x: title.ink!.x + title.ink!.width / 2, y: title.ink!.y + title.ink!.height / 2 };
+        const at = await client(inkCentre.x, inkCentre.y);
+        await pointer('pointerdown', at.x, at.y);
+        await pointer('pointerup', at.x, at.y);
+        await until(() => page.eval<boolean>(`!!${overlay}.querySelector('.stage-handle.rotate')`), 'the rotate handle on the selection');
+
+        // Sweep a quarter turn clockwise about that centre: from above it to the right of it.
+        const above = await client(inkCentre.x, inkCentre.y - 200);
+        const right = await client(inkCentre.x + 200, inkCentre.y);
+        const handle = `${overlay}.querySelector('.stage-handle.rotate')`;
+        await pointer('pointerdown', above.x, above.y, false, handle);
+        await pointer('pointermove', right.x, right.y);
+        await pointer('pointerup', right.x, right.y);
+        await until(async () => Math.abs(((await titleDraw()).rotate ?? 0) - 90) < 6, 'the sweep turned the layer a quarter');
+        // The angle field in the card shows what the drag settled on.
+        const angleField = `document.querySelector('#params .param-card[data-layer=title] input[aria-label="Title angle"]')`;
+        await until(() => page.eval<boolean>(`!!${angleField}`), 'the angle field');
+        expect(Math.abs(Number(await page.eval<string>(`${angleField}.value`)) - (await titleDraw()).rotate!)).toBeLessThan(1);
+
+        // Shift settles it on a 15° step, whatever the sweep lands on.
+        const offStep = await client(inkCentre.x + 200, inkCentre.y + 37);
+        await pointer('pointerdown', above.x, above.y, false, handle);
+        await pointer('pointermove', offStep.x, offStep.y, true);
+        await pointer('pointerup', offStep.x, offStep.y, true);
+        await until(async () => ((await titleDraw()).rotate ?? 0) % 15 === 0, 'Shift settling the turn on a step');
+
+        // The field sets it exactly, and it is one undo step like any other edit.
+        await page.eval(`(() => { const f = ${angleField}; f.value = '-30'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(async () => Math.abs(((await titleDraw()).rotate ?? 0) + 30) < 0.01, 'the angle field setting it exactly');
+        await page.eval(`document.getElementById('undo').click()`);
+        await until(async () => ((await titleDraw()).rotate ?? 0) !== -30, 'undo stepping back past the field');
+
+        // Reset position clears the turn with everything else.
+        await page.eval(`document.querySelector('#params [aria-label="Reset Title position"]').click()`);
+        await until(async () => {
+          const d = await titleDraw();
+          return (d.rotate ?? 0) === 0 && Math.abs(d.dx) < 0.5 && Math.abs(d.scale - 1) < 0.01;
+        }, 'Reset position putting the layer back');
+        expect(await page.eval<boolean>(`!!document.querySelector('#params [aria-label="Reset Title position"]')`), 'and the button goes with it').toBe(false);
+      } finally {
+        await restoreLayers();
+        await page.send('Emulation.clearDeviceMetricsOverride');
+      }
+    }, 120_000);
+
     it('moves, scales and nudges a layer on the stage, one undo step a gesture, and motion still carries it', async () => {
       const overlay = `document.getElementById('layer-overlay')`;
       try {

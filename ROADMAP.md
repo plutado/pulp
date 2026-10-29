@@ -4,7 +4,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 ## Where things stand
 
-**Milestone 29, rotating layers on the stage, is the one in progress.** Milestone 26, assets on the stage, is done — all 7 items. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
+**Milestone 29, rotating layers on the stage, is done** — all 4 items; milestone 26, assets on the stage, is done before it. **Milestone 30, timing, is next.** Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
 What is left after 26: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Four verification items wait on hardware: two need the test Mac, two a Windows machine (see `docs/ideas.md`, Decided item 1, which replaces "hardware-blocked" with a Windows VM). Known issues and anything not yet scheduled are in `docs/ideas.md`.
 
@@ -31,7 +31,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 24. Browse panel: find as you type, one section open, deeper samples | 29-46 h |
 | 25. Move and resize layers on the stage | 16-22 h |
 | 26. Assets on the stage (**done**) | 30-46 h |
-| 29. Rotate layers on the stage (**in progress**) | 5-8 h |
+| 29. Rotate layers on the stage (**done**) | 5-8 h |
 | 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 8-13 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -302,14 +302,14 @@ Right after milestone 25, whose drag and placement it builds on. Templates are d
 
 This absorbs milestone 22's post-1.0 "media slots" item (a video plate in a template's slot).
 
-## 29. Rotate layers on the stage (5-8 h; GitHub issue #31)
+## 29. Rotate layers on the stage (5-8 h; GitHub issue #31) — done
 
 Right after milestone 26, and the last of milestone 25's placement: a layer can be moved and scaled on the stage but not turned. Rotation is stored with the offset and the scale, per aspect, and applied by the host around the template's own draw, so templates need no changes and a layer still enters, moves and leaves with the design — turned.
 
-- [ ] Rotation in the placement: `rotate` in degrees beside `dx`, `dy` and `scale`, per aspect, so a 16:9 layout's rotation does not move the 9:16 one. The host applies it about the layer's centre, after the scale and with it, in the layout's copy and the bridge's alike; an unrotated layer serializes exactly as it does today (1-2 h)
-- [ ] A rotate handle just above the selected layer's outline turns it about its centre, with Shift snapping to 15° steps and the angle shown while it turns; an angle field in the layer's card sets it exactly, and "Reset position" clears rotation along with the offset and the scale (2-3 h)
-- [ ] Selection, hit-testing and snapping follow the rotated outline: the selection is drawn as the turned rectangle it is, a click takes the layer where it was really drawn, and a move snaps the rotated shape's own edges to the lines a frame cares about (1-2 h)
-- [ ] Everything carries it — presets, collections, CSV, `--param @layers`, the render cache key and undo — and an end-to-end render proves a rotated layer is drawn turned, with unit tests for the arithmetic (1 h)
+- [x] Rotation in the placement: `rotate` in degrees beside `dx`, `dy` and `scale`, per aspect, so a 16:9 layout's rotation does not move the 9:16 one. The host applies it about the layer's centre, after the scale and with it, in the layout's copy and the bridge's alike; an unrotated layer serializes exactly as it does today. *An angle is cyclic, so one past half a turn is folded rather than refused* (1-2 h)
+- [x] A rotate handle just above the selected layer's outline turns it about its centre, with Shift snapping to 15° steps and the angle shown while it turns; an angle field in the layer's card sets it exactly, and "Reset position" clears rotation along with the offset and the scale (2-3 h)
+- [x] Selection, hit-testing and snapping follow the rotated outline: the selection is drawn as the turned rectangle it is, a click takes the layer where it was really drawn, and a move snaps the rotated shape's own edges to the lines a frame cares about. *A turn goes about what the layer draws, not the slot: a text layer's slot is its whole block, so the page now reports the ink box beside it and both the canvas and the outline turn about its centre* (1-2 h)
+- [x] Everything carries it — presets, collections, CSV, `--param @layers`, the render cache key and undo — and an end-to-end render proves a rotated layer is drawn turned, with unit tests for the arithmetic (1 h)
 
 ## 20. Social-ready export (8-13 h)
 
