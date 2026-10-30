@@ -8,7 +8,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 **Milestone 27, projects and the application menu, is done:** a session saves as a `.pulp` project — guarded, recovered and relinked — and Pulp has its own menu on every platform. Milestone 28 is done before it — a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar — and milestone 30 before that — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
-What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come a deeper library (36), stock library import (32) and Lottie animations (35); the start screen (31), the browse panel that says what things are (34, all but its card sort), layered graphics (33) and converting library media (15) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
+What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come the transport row (37), a deeper library (36), stock library import (32) and Lottie animations (35); the start screen (31), the browse panel that says what things are (34, all but its card sort), layered graphics (33) and converting library media (15) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
 
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. A decision is written here as soon as it is made — a new milestone, or items in an existing one — even when it is low priority and may never be built, so everything decided is visible in one place; `docs/ideas.md` keeps only ideas not yet decided and known issues. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
@@ -42,6 +42,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 32. Stock library import | 27-46 h |
 | 33. Layered graphics: Photoshop, Illustrator, SVG (**done**) | 19-33 h |
 | 15. Convert library media (**done**) | 8-12 h |
+| 37. The transport row: play and scrub at the bottom of the window | 8-14 h |
 | 36. A deeper library: nothing in single digits | 30-48 h |
 | 35. Lottie animations | 18-30 h |
 | 20. Social-ready export | 9-14 h |
@@ -51,9 +52,9 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
-| **Total through 1.0 (every milestone above not marked post-1.0)** | **523-839 h** |
-| **Still open through 1.0 (unticked items only)** | **115-189 h** |
-| **Total including post-1.0 items** | **546-882 h** |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **531-853 h** |
+| **Still open through 1.0 (unticked items only)** | **123-203 h** |
+| **Total including post-1.0 items** | **554-896 h** |
 
 ## 0. Foundation (done)
 
@@ -423,6 +424,17 @@ Brought into 1.0 (2026-10-30): with assets (26), layered graphics (33) and stock
 - [x] Loop tools for loopable media: extend to any duration with a crossfade join; speed control (milestone 30 brought templates' loops forward; this is the same for clips). *The clip's last crossfade seconds fade into its first, making a seamless unit one crossfade shorter, written losslessly to a scratch file and stream-looped to length, so memory stays flat however long the result; a plain repeat and a held still need no scratch. Speed takes the sound with it* (2-3 h)
 - [x] Matte pass: a separate alpha matte file next to the render, for codecs and editors without alpha (HEVC in Premiere Pro, WebM). *`<name>-matte<ext>`, the alpha as grey in the preset's own codec, split from the same frames before any flattening; templates and media alike* (2-3 h)
 - [x] Recolor: a tint at render time for media, next to template color parameters, built while the media render path is fresh (brought forward from after 1.0, 2026-10-30). *The picture's luminance in one colour, alpha kept, applied before the size fit and inside a loop's unit so every repeat matches* (1-2 h)
+
+## 37. The transport row: play and scrub at the bottom of the window (8-14 h; GitHub issue #39)
+
+Decided 2026-10-30, first in the next task and before milestone 36. The player's controls live inside the stage today: play, step, loop, in and out, timecode, volume, the scrub bar and milestone 28's bar per layer all share the picture's box. They move out to one defined row across the bottom of the window, as editors put their transport and timeline, so the stage is only the picture — what the workspace and the output show — and the scrub bar gets the window's width. From the top, the bottom of the window reads: the collection tray (a drawer under the centre and right columns, as now), the transport row, the status bar. Lottie (35) and any later timing work build on this row rather than on the stage.
+
+- [ ] **The plan written first:** `docs/ui-layout.md` gains the transport row as a region (where it sits, what it holds, what stays on the stage), with a short ADR for moving the player's controls out of the stage (1-2 h)
+- [ ] **The row:** play/pause, frame step both ways, loop, in and out marks, timecode, volume and mute, and the scrub bar across nearly the full width, in one row of its own above the status bar; resizable in height like the other panes, its size kept in `settings.json` (2-4 h)
+- [ ] **Layer bars under the scrub bar:** milestone 28's bar per layer moves with it, so the row is a small timeline whose bars line up with the scrub bar's time; dragging an end, selecting a layer and undo work as they do today (2-3 h)
+- [ ] **The stage keeps only how the picture is viewed:** the background toggle and the frame and safe-area guides stay; everything that plays or moves through time leaves (1-2 h)
+- [ ] **Nothing chosen, or nothing that plays:** the row stays in place, disabled, so the layout never jumps; a still shows no scrub bar but keeps the row (1 h)
+- [ ] **Everything that points at the controls follows:** the Playback menu and its shortcuts, the guided tour's steps, the keyboard focus order, the user guide's screenshots when milestone 8 writes them; the UI end-to-end tests find the controls in their new place (1-2 h)
 
 ## 36. A deeper library: nothing in single digits (30-48 h; GitHub issue #38)
 
