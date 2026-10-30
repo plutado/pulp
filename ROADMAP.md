@@ -6,9 +6,9 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 **Milestone 27, projects and the application menu, is done:** a session saves as a `.pulp` project — guarded, recovered and relinked — and Pulp has its own menu on every platform. Milestone 28 is done before it — a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar — and milestone 30 before that — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
-What is left: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Milestones 31, 32 and 33 are decided but not yet scheduled. Four verification items wait on hardware: two need the test Mac, two a Windows machine (see `docs/ideas.md`, Decided item 1, which replaces "hardware-blocked" with a Windows VM). Known issues and anything not yet scheduled are in `docs/ideas.md`.
+What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come the start screen (31), a browse panel that says what things are (34), stock library import (32) and layered Photoshop graphics (33). Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
 
-Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. Ideas, decisions not yet scheduled and known issues wait in `docs/ideas.md` until a milestone takes them. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
+Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. A decision is written here as soon as it is made — a new milestone, or items in an existing one — even when it is low priority and may never be built, so everything decided is visible in one place; `docs/ideas.md` keeps only ideas not yet decided and known issues. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
 | Milestone | Estimate |
 |---|---|
@@ -35,17 +35,21 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 30. Timing: any length, set while editing (**done**) | 18-28 h |
 | 28. Per-layer timing, transitions and looks (**done**) | 24-36 h |
 | 27. Projects and the application menu (**done**) | 20-32 h |
+| 31. A start screen | 14-22 h |
+| 34. A browse panel that says what things are | 14-23 h |
+| 32. Stock library import | 27-46 h |
+| 33. Layered Photoshop graphics | 10-18 h |
 | 20. Social-ready export | 8-13 h |
-| 8. 1.0 hardening and docs | 8-13 h |
+| 8. 1.0 hardening and docs | 12-20 h |
 | 17. Unsigned builds and releases | 8-14 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
-| 14. Defaults per type and guided setup (post-1.0) | 6-10 h |
+| 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
-| 9. Later (post-1.0) | 7-17 h |
-| **Total through 1.0 (every milestone above not marked post-1.0)** | **380-605 h** |
-| **Still open through 1.0 (unticked items only)** | **33-54 h** |
-| **Total including post-1.0 items** | **409-658 h** |
+| 9. Later (post-1.0) | 7-16 h |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **449-721 h** |
+| **Still open through 1.0 (unticked items only)** | **102-170 h** |
+| **Total including post-1.0 items** | **480-776 h** |
 
 ## 0. Foundation (done)
 
@@ -74,7 +78,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 
 - [x] Verify each alpha preset imports with correct transparency in Premiere Pro and DaVinci Resolve on macOS; results in `docs/nle-verification.md`. ProRes 4444 and PNG pass with defaults; QuickTime Animation needs Data Levels: Full in Resolve (now tagged full-range RGB, re-check); HEVC: no alpha in Premiere, Alpha Mode: Straight in Resolve; WebM: not importable in Premiere, broken alpha in Resolve (3-5 h)
 - [ ] On the test Mac: re-check whether Resolve's Data Levels Auto honors the new full-range QuickTime Animation tag (1-2 h)
-- [ ] Hardware-blocked: verify alpha import in Premiere Pro and Resolve on Windows; needs a Windows machine with the apps — milestone 17's unsigned builds make the session easy when one is available (1 h)
+- [ ] Verify alpha import in Premiere Pro and Resolve on Windows, in a Windows 11 virtual machine on the maintainer's Mac (also used for debugging Windows-only failures); if either app can't run in the VM, the check waits for a real Windows machine and stops blocking 1.0 (1 h)
 - [x] Straight versus premultiplied alpha: Chromium captures premultiplied (measured by a probe), every preset is written straight, Premiere and Resolve read ProRes, PNG and Animation as straight; no export option, HEVC's Resolve default documented as a caveat; ADR 0008 (2-3 h)
 - [x] Additional presets: QuickTime Animation (qtrle) for older workflows, HEVC with alpha on macOS via VideoToolbox where available; shown as unavailable elsewhere with the reason; ADR 0005 (2-3 h)
 - [x] Preset options: frame-rate override from the standard list, background color picker for flattening, in/out points as timecode or frames; in the inspector and as `--fps`, `--background`, `--in-point`, `--out-point`; verified on macOS and Windows CI (1-3 h)
@@ -103,7 +107,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [x] "Render and drag": Prepare for drag renders into the cache through the queue (progress, cancel), reuses a cached render with the same key, then arms the drag handle (2-4 h)
 - [x] Verify drop behavior in Premiere Pro and DaVinci Resolve on macOS: bin and timeline drops from a queue job and from Prepare for drag all land with alpha intact; both apps link to the file, so cache clearing takes clips offline (warned in the app) (3-6 h)
 - [ ] On the test Mac: the PNG sequence preset and a second drag of a cached render in Premiere Pro and Resolve (1-2 h)
-- [ ] Hardware-blocked: drop behavior in Premiere Pro and Resolve on Windows, including whether the target window must be focused and whether Resolve accepts drops from other apps there (1 h)
+- [ ] Drop behavior in Premiere Pro and Resolve on Windows, including whether the target window must be focused and whether Resolve accepts drops from other apps there, checked in the Windows 11 virtual machine; if either app can't run in it, the check waits for a real Windows machine and stops blocking 1.0 (1 h)
 - [x] Render cache management: folder setting, size limit with oldest-first eviction, Clear cache (1-3 h)
 
 ## 6. Template packs import (6-10 h)
@@ -351,6 +355,55 @@ After milestone 28, since a project has to save per-layer timing and looks as we
 
 Opening a `.pulp` file by double-clicking it needs the packaged app, so the file association lands with milestone 17.
 
+## 31. A start screen: examples, recent projects, a tour and a dashboard (14-22 h; GitHub issue #33)
+
+After milestone 27, since it needs `.pulp` projects. Shown at launch and from File → Home, with a "Show at startup" switch.
+
+- [ ] **Get going:** New project, blank or by shape (16:9, 9:16, 1:1, 4:5), and by platform once milestone 20 exists. **Example projects:** a handful of ready-made `.pulp` files built from the bundled samples, each showing something Pulp does well (an interview with a lower third and a logo, a sports-highlight opener, a vertical social clip, a wedding title, a news package with ticker and bug, a product launch with layers and motion); opening one opens a copy, so the example stays as it was (4-6 h)
+- [ ] **Recent projects** with thumbnails, last-opened dates and pinning; a missing file shows as missing, with a way to relink it (2-3 h)
+- [ ] **Learn:** "Take the tour", a short guided walkthrough of the window (browse panel, stage, Parameters tab, collection tray) with highlights and Next / Skip, offered on first launch and replayable from Help; "What's new" from the changelog's latest release; keyboard shortcuts and the user guide (milestone 8) (3-5 h)
+- [ ] **Set up and status:** a first-run checklist (ffmpeg found, a library folder added, sample media made), each item a button that does it; the library at a glance (template and media counts, most-used categories, favourites); quick actions (add a library folder, import a pack, import a font). Milestone 14's "guided setup" can fold into the checklist (3-5 h)
+- [ ] **What are you making?** A handful of plain choices — an interview, a sports opener, a wedding, a social clip, a news package — each leading into the right browse categories and filters (milestone 34), so a first-time user starts from what they want to make rather than from how the library is sorted (2-3 h)
+
+## 34. A browse panel that says what things are (14-23 h; GitHub issue #36)
+
+The browse panel's top level is five ways of sorting — Types, Themes, Styles, Packs, Folders — and a person has to learn what each means before they can find anything. Stock libraries people already know lead with what you get: animated lower thirds, animated backgrounds, matching sets, overlays, wipes and transitions, music. This milestone makes Pulp's panel read the same way, in this order.
+
+- [ ] **What it is, at the top:** the browse tree opens on plain categories with no "Types" heading — Lower thirds, Titles and openers, End cards, Matching sets, Animated backgrounds, Still backgrounds, Overlays and frames, Transitions and wipes, Design elements, Effects, Objects, Stock video, Photos and stills, Music, Sound effects. Lower thirds stands on its own as the most used; "animated" and "still" are named wherever they are the difference. The 66 types underneath stay as they are (3-5 h)
+- [ ] **Everyday names for the other ways in:** Themes becomes "For…" (weddings, sports, news, holidays), Styles becomes "Look" (clean, elegant, retro), Packs becomes "Matching sets", Folders becomes "My folders", and imported collections appear under "Stock libraries" with their own top-level folders kept (milestone 32). Saved searches, settings and the taxonomy's ids keep working (2-3 h)
+- [ ] **Category cards:** choosing a category with nothing searched shows its subcategories as cards, each with a representative thumbnail and a count, so a picture explains what a name might not (4-6 h)
+- [ ] **A one-line description for every category,** shown under its heading and on hover ("Lower thirds: name and title bars that sit at the bottom of the frame") (1-2 h)
+- [ ] **"For…" and "Look" as filters, not separate trees:** pick what in the tree, then narrow it with chips (Lower thirds › For: Wedding › Look: Elegant), so browsing is one path rather than five (3-5 h)
+- [ ] **Checked with people and held by a test:** a short card sort with three to five people on the new labels before they are final, and a unit test that every top-level category has a description and every category a thumbnail (1-2 h)
+
+## 32. Stock library import: open the stock media you already own (27-46 h; GitHub issue #34)
+
+Built after 30 and 28, whose in, hold and out parts and per-layer looks it uses. Many editors own licensed stock collections: older ones delivered on discs with a browser of their own that previewed the media and converted it on the way out, and newer ones downloaded from a subscription library as zip archives of clips, music and project files. A person who holds the licence should be able to point Pulp at that media where it lies — a folder, an external drive, a disc image — and browse, preview, place, edit and render it, as anyone else with similar files could. Pulp never ships, copies or downloads stock media; it reads what is on the person's machine. Milestone 26's asset libraries already read plain media where it lies; this makes a whole collection browsable at once and keeps its structure.
+
+- [ ] **Before scheduling: check the formats.** Look at a real archive of each kind one sample at a time — plain stills and clips, entry/loop/exit sets, item and project files from an old browser, disc images, layered music, motion-graphics project files, zipped downloads — and write down for each whether Pulp can read it as it is, needs converting first, or is out of scope. The items below are then made specific to what was found. Samples stay on the maintainer's machine and never enter the repository (2-4 h)
+- [ ] **Add a stock library** from a folder, a drive or a disc image, read in place and never copied; a library on a drive that is not connected stays listed and says so plainly, and comes back when it is (2-3 h)
+- [ ] **Previews before full media:** a very large library (hundreds of gigabytes) is indexed from small previews and thumbnails first, so it can be browsed and searched straight away; the full-quality file is read only when an item is placed or rendered (4-6 h)
+- [ ] **The library's own organisation:** when it comes with an index — names, categories, keywords, thumbnails, in its own files or folder layout — Pulp reads it, so the items browse and search the way they were organised, mapped onto Pulp's taxonomy rather than only by folder name (4-6 h)
+- [ ] **Known as well as owned:** a library can list everything its index says exists, with items whose files are not on this computer shown greyed out, so a person sees the whole collection and what is missing from it (2-3 h)
+- [ ] **Clips that work as they are:** video with transparency (QuickTime PNG, Animation and ProRes 4444, WebM with alpha, image sequences), at whatever size and rate the library used, including sizes that are not a standard frame, placed as Video layers and scaled to fit (1-2 h)
+- [ ] **Clip sets as one asset:** separate entry, loop and exit files that belong together are recognised as one item that stretches: the entry plays once, the loop repeats for as long as the chosen length needs, then the exit plays — milestone 30's parts, with the files supplying them instead of a template (3-5 h)
+- [ ] **Several layers in one clip set:** a set can carry more than one layer that moves together (a main graphic and a flare, say), each with its own entry, loop and exit, placed and timed as one item while each layer keeps its own look (milestone 28) (2-4 h)
+- [ ] **Music and sound effects:** tracks in several lengths shown as one item; layered music whose stems can be switched on and off (milestone 16); sound effects paired with the wipes and transitions they were made for (3-5 h)
+- [ ] **Zipped downloads:** an archive is browsed without unpacking it first, and unpacked into the library's folder only when something from it is used (2-4 h)
+- [ ] **What is out of scope is said, not hidden:** a format Pulp cannot read — a motion-graphics project file, a disc only the original browser could convert — is listed with its preview where one exists and a plain note of what it needs, rather than skipped (1-2 h)
+- [ ] **Rights:** the media stays the person's, referenced in place; Pulp never sends it anywhere, never copies it into packs, exports or the repository, and tests use generated fixtures only (1-2 h)
+
+## 33. Layered Photoshop graphics (10-18 h; GitHub issue #35)
+
+Read a `.psd` as a stack of layers, so a layered still from a stock library can be browsed and used without flattening it first.
+
+- [ ] **Reading:** layers, their names, order, visibility, opacity and blend modes where the file has them; groups shown as groups. Reading only, no editing of the file in Pulp (3-5 h)
+- [ ] **Browsing:** a flattened preview for the grid and the stage, with the layer list shown in the Info tab (1-2 h)
+- [ ] **Showing and hiding layers** in the preview, kept with the item like any other edit (presets, collections, undo, the render cache key) (2-3 h)
+- [ ] **Placing:** as one picture, or as separate image layers that keep their positions, then moved and styled with milestones 25 and 28 (2-4 h)
+- [ ] **Limits stated plainly:** layer effects, smart objects and adjustment layers Pulp can't reproduce are named rather than silently dropped; the flattened composite stored in the file is the fallback (1-2 h)
+- [ ] **Tests** on generated `.psd` fixtures only (1-2 h)
+
 ## 20. Social-ready export (8-13 h)
 
 After milestone 19, which it depends on: a platform preset is mostly an aspect, a resolution and a frame rate, and none of those are choices until templates stop declaring a pixel size.
@@ -362,13 +415,16 @@ After milestone 19, which it depends on: a platform preset is mostly an aspect, 
 - [ ] Cover image: a still from a frame picked on the scrub bar, written beside the video at the same aspect and resolution, for the thumbnail or cover a platform asks for separately (2-3 h)
 - [ ] Hand-off: "Share…" opens the system share sheet with the rendered file, and "Open upload page" opens the platform's own upload page in the browser with the file revealed in the file manager. An ADR records the choice of hand-off over integration, so the reasoning survives the first request for one-click posting (2-3 h)
 
-## 8. 1.0 hardening and docs (8-13 h)
+## 8. 1.0 hardening and docs (12-20 h)
 
 - [ ] A JSON Schema for the template manifest and `pack.json`, generated from or checked against the validator, and the compatibility rule stated where authors read it: fields are added rather than repurposed, and an incompatible change takes a new `formatVersion`. **No version freeze is planned.** This item used to be "freeze template format v1 here"; milestone 19 changes the format and later milestones may too, so the format stays versioned and documented rather than declared final (2-3 h)
 - [ ] Template authoring guide with a step-by-step walkthrough and a `pulp-template` starter folder (2-3 h)
 - [ ] Accessibility pass across every region: keyboard navigation for the browse tree and nodes, the grid, the player, the tray, the inspector tabs (arrow keys, roving tabindex), the filter chips and the scope chip; splitter keyboard resizing kept; focus states and screen reader labels throughout (2-3 h)
 - [ ] Crash and error reporting that stays local (log file, "copy diagnostics" in the status bar) (1-2 h)
 - [ ] User guide for the window: regions, keyboard shortcuts, search syntax; README and screenshots updated for the new layout (1-2 h)
+- [ ] Third-party notices: a file covering Electron and Chromium, the npm dependencies, the bundled fonts and ffmpeg if it is ever bundled, shown in an "Acknowledgements" screen reached from About, and checked in CI so a new dependency cannot ship unlisted; required before any build is distributed (milestone 17) (2-4 h)
+- [ ] A release process: version numbers, release notes drawn from the changelog's Unreleased section, a tag per release (1-2 h)
+- [ ] Project basics: issue and pull request templates, a code of conduct, and a `SECURITY.md` saying how to report a vulnerability (1 h)
 
 ## 17. Unsigned builds and releases (8-14 h)
 
@@ -390,10 +446,11 @@ After milestone 19, which it depends on: a platform preset is mostly an aspect, 
 - [ ] Windows: code signing (1-2 h)
 - [ ] Auto-update (electron-updater; needs signed builds on macOS) (1-2 h)
 
-## 14. Defaults per type and guided setup (6-10 h, after 1.0)
+## 14. Defaults per type and guided setup (8-13 h, after 1.0)
 
 - [ ] "Save as default for this type" in the Output tab; new items of that type (a template type, video, image or audio) start from it (2-3 h)
 - [ ] Guided setup: a modal with numbered steps (what it is for, size and frame rate, format and alpha, audio, where to save), a live preview over a checkerboard, a settings summary, a save-as-default checkbox, and Add to collection at the end (4-7 h)
+- [ ] Output presets per kind of asset: one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen, alongside "Save as default for this type" and the guided setup (2-3 h)
 
 ## 15. Convert library media (8-12 h, after 1.0)
 
@@ -410,7 +467,7 @@ Takes over "audio in templates" from the Later list. Manifest additions are opti
 - [ ] Paired sound effects with variations on transitions: declared by the template or the pack, chosen in the stage's variant picker, shown as badges on cards, embedded on render (2-4 h)
 - [ ] Stems: layered music as several files or a stem manifest; one lane per layer with waveform and mute and solo in the stage; render the selected mix or one file per stem (4-6 h)
 
-## 9. Later, after 1.0 (7-17 h)
+## 9. Later, after 1.0 (7-16 h)
 
-- [ ] Command-line interface as a separate entry point for scripted batch renders (2-4 h)
+- [ ] A proper `pulp` command: what already renders without the window (`--render`, `--param` including `@layers`, `--length`, `--collection`, CSV batch) packaged as its own entry point — `pulp render …` and `pulp collection …` — with help text, exit codes and a section in the README, rather than a second interface (2-3 h)
 - [ ] Optional local semantic search over the library (on-device embeddings, off by default, no network) (5-13 h)

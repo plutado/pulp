@@ -71,22 +71,16 @@ Milestones 1-6, 10-13, 18, 19, 21-25 (renderer, alpha export, parameter editor, 
 | 30. Timing: any length, set while editing (**done**) | A template says how it stretches — a hold between a fixed entrance and exit, a loop that repeats, or a whole that plays faster or slower — and the length is set while editing, with the scrub bar showing the parts. 85 of the 124 bundled templates declare theirs | — |
 | 28. Per-layer timing, transitions and looks (**done**) | When each layer appears and leaves within the graphic, its own entrance and exit transitions, and looks on every layer type — opacity, shadow, glow, outline, blur, blend mode and colour adjust, with rounded corners and soft edges on pictures and clips; drawn by the host, so templates need no changes | — |
 | 27. Projects and the application menu (**done**) | A `.pulp` project file holding the collection, every item's parameters, layers and placed assets, the output settings and the library folders it draws from — New, Open, Save, Save As and Open Recent, unsaved changes shown and never lost by accident, autosave with crash recovery, and missing media flagged and relinkable; and Pulp's own application menu on every platform | — |
+| 31. A start screen | New and example projects, recent projects, a guided tour, what's new, a first-run checklist, and "What are you making?" leading into the right categories | 14-22 h |
+| 34. A browse panel that says what things are | The browse tree opens on what you get — lower thirds, animated backgrounds, matching sets, overlays, transitions — with everyday names, category cards with thumbnails, a line on each, and "For…" and "Look" as filters | 14-23 h |
+| 32. Stock library import | Open the licensed stock media you already own where it lies — folders, drives, disc images, zipped downloads — browsed as it was organised, with clip sets that stretch, layered music, and what can't be read said plainly | 27-46 h |
+| 33. Layered Photoshop graphics | Read a `.psd` as layers: browse it, show and hide layers, place it as one picture or as separate layers | 10-18 h |
 | 20. Social-ready export | Platform presets (aspect, resolution, frame rate, H.264/AAC, bitrate) with warnings when a render runs past a platform's length or file-size limit, a cover image, and handing the file to the system share sheet or the platform's upload page — no accounts, no posting through APIs | 8-13 h |
-| 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide with a starter folder, an accessibility pass across every region, local crash reporting, a user guide | 8-13 h |
+| 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide with a starter folder, an accessibility pass across every region, local crash reporting, a user guide, third-party notices, a release process and project basics | 12-20 h |
 | 17. Unsigned builds and releases | electron-builder, an app icon of Pulp's own and the names and shortcuts each system shows, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 8-14 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 
-The milestones through 1.0 total **313-501 hours**, of which **59-94 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, media slots, a CLI, optional on-device semantic search) add 32-58 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
-
-### Also decided, not yet scheduled
-
-These are agreed and waiting for a milestone; the details, and the order they come in, are in [docs/ideas.md](docs/ideas.md).
-
-- **Rotate layers on the stage:** a rotate handle beside the move and resize ones, with snapping and an exact angle.
-- **Any length, set while editing:** templates declare an entrance, a hold and an exit, and you stretch the hold on the scrub bar or with a Length control, so a lower third can stay up as long as someone speaks.
-- **Projects and Pulp's own menu:** a `.pulp` project file that keeps the whole session (save, open, recent projects, autosave and recovery), and a File, Edit, View and Playback menu with a shortcut for every command.
-- **A start screen:** new and example projects, recent projects, a guided tour of the window, what's new, and a first-run checklist.
-- **A `pulp` command** for scripted renders, packaging today's headless flags.
+The milestones through 1.0 total **449-721 hours**, of which **102-170 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, converting library media, audio with stems and paired effects, media slots, output presets per kind of asset, a `pulp` command, optional on-device semantic search) add 31-55 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 

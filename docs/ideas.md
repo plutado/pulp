@@ -1,74 +1,19 @@
 # Ideas
 
-Where work waits before it is on the roadmap. `ROADMAP.md` is the plan; this file is what comes before it: suggestions not yet decided, decisions not yet scheduled into a milestone, and known issues not yet fixed.
+Where work waits before it is decided. `ROADMAP.md` is the plan, and everything decided is in it; this file holds suggestions not yet decided and known issues not yet fixed.
 
 ## How an idea moves
 
 1. **Idea.** Anyone may suggest one. It goes under [Ideas](#ideas) with a line on what it is and why.
-2. **Decided.** When the maintainer agrees to it, it moves to [Decided](#decided), with what was decided and what "done" looks like.
-3. **Scheduled.** When a request schedules it, it is written into `ROADMAP.md` (a new milestone, or items in an existing one) and removed from this file in the same commit. A new milestone takes the next milestone number and gets its own GitHub issue; both are written here as soon as they exist, and the roadmap repeats the issue number beside the milestone when it is scheduled (see CONTRIBUTING.md). The numbers are assigned in the order milestones are decided, so they are rarely the order they are built in.
+2. **Decided.** When the maintainer agrees to it, it goes straight into `ROADMAP.md` — a new milestone, or items in an existing one — with what "done" looks like and an estimate, and leaves this file in the same commit. It does not wait for a request to schedule it: the roadmap can hold work that is low priority or may never be built, and that is fine, since it is then visible with everything else. A new milestone takes the next milestone number and gets its own GitHub issue, written beside its heading (see CONTRIBUTING.md). The numbers are assigned in the order milestones are decided, so they are rarely the order they are built in; the roadmap's planned order is the order.
 
-Known issues follow the same path: a bug found and understood goes under [Known issues](#known-issues), and leaves when it is fixed or scheduled.
+A bug found and understood goes under [Known issues](#known-issues), and leaves when it is fixed or written into a milestone.
 
 Each move is a commit, so the history shows when an idea was decided and where it went.
 
-## Suggested order
+## Order
 
-The maintainer's intended sequence for what is decided here and what is already on the roadmap (milestones 23 to 30 are done). Scheduling follows it unless a request says otherwise.
-
-Every milestone decided here now has its number and its GitHub issue, so the two cannot drift: **27** projects and the application menu (#30), **28** per-layer timing, transitions and looks (#29), **29** rotate layers on the stage (#31), **30** timing: any length, set while editing (#32), **31** a start screen (#33), **32** stock library import (#34), **33** layered Photoshop graphics (#35). The numbers are the order they were decided in, not the order they are built in — the list below is the order, as `ROADMAP.md`'s is (CONTRIBUTING.md).
-
-1. **Quick wins from Decided:** all done — ghost slots, element cards for every bundled template, the Festival themes, and browse tree counts for screen readers. (The category search filtering the tree, and the tree showing only where you are, are done — milestone 24.)
-2. **Protection before the larger work:** done — every bundled template is hashed at each aspect and a few fixed frames (`tests/e2e/visual.e2e.test.ts`, 124 templates in `tests/visual/references.json`). It runs locally only until the cross-platform known issue above is settled. CI runs on Windows, macOS and Linux with a dependency audit.
-3. **Milestone 26: assets on the stage** — *done.* The Assets type group is filled (six per Effects category, ten Objects categories, every theme three assets deep, taxonomy version 4); asset libraries read transparency from ProRes 4444, VP9, HEVC's auxiliary layer and folders of numbered frames; video layers play a clip on the template's own time; a picture or clip dropped on the preview becomes a layer; and clips are proxied, cached and never copied.
-4. **Milestone 29: rotate layers on the stage** — *done* (GitHub issue #31), and in `ROADMAP.md`. It finished milestone 25's placement: a layer can now be moved, resized and turned.
-5. **Milestone 30: timing — any length, set while editing** — *done* (GitHub issue #32), and in `ROADMAP.md`. It also gives a frame sequence somewhere to say what rate it plays at, which milestone 26 had to state rather than ask.
-6. **Milestone 28: per-layer timing, transitions and looks** — *done* (GitHub issue #29), and in `ROADMAP.md`. After 30, whose length and structure a layer's own start and end are set within, and before 27, which has to save all of it.
-7. **Milestone 27: projects and the application menu** — *done* (GitHub issue #30), and in `ROADMAP.md`.
-8. **Milestone 31: a start screen** — examples, recent projects, a tour and a dashboard (Decided item 4; GitHub issue #33).
-9. **Milestone 32: stock library import** (Decided item 5; GitHub issue #34).
-10. **Milestone 33: layered Photoshop graphics** (Decided item 6; GitHub issue #35).
-11. **Milestone 20:** social-ready export.
-12. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
-13. **Last:** milestone 17 (unsigned builds and the app icon), then milestone 7 (signing and auto-update).
-
-## Decided
-
-1. **Windows checks in milestones 2 and 5: a VM, not "hardware-blocked".** Both milestones' Windows items say they need a Windows machine and that milestone 17's builds make it easy. The plan now is a local Windows 11 VM on the maintainer's Mac, used for these checks and for debugging Windows-only failures. Reword both items to say so; if Premiere Pro or DaVinci Resolve can't run in the VM, the checks wait for a real Windows machine and stop blocking 1.0.
-
-2. **Milestone 9's "command-line interface as a separate entry point": redefine it.** Pulp already renders without its window through `--render`, `--param` (including `@layers`), `--collection` and CSV batch. Redefine the item as packaging those as a proper `pulp` command (its own entry point, `pulp render …` and `pulp collection …`, help text, exit codes, documented in the README) rather than building a second interface, and re-estimate it.
-
-3. **Third-party notices, release process and project basics.** A third-party notices file covering Electron and Chromium, the npm dependencies, the bundled fonts and ffmpeg if it is ever bundled, shown in an "Acknowledgements" screen reached from About, and checked in CI so a new dependency cannot ship unlisted; required before any build is distributed (milestone 17). A release process: version numbers, release notes drawn from the changelog's Unreleased section, a tag per release. Issue and pull request templates, a code of conduct, and a `SECURITY.md` saying how to report a vulnerability.
-
-4. **A start screen: examples, recent projects, a tour and a dashboard.** Milestone **31** (GitHub issue #33), built after 27 (it needs `.pulp` projects). Shown at launch and from File → Home, with a "Show at startup" switch.
-   - **Get going:** New project, blank or by shape (16:9, 9:16, 1:1, 4:5), and by platform once milestone 20 exists. **Example projects:** a handful of ready-made `.pulp` files built from the bundled samples, each showing something Pulp does well (an interview with a lower third and a logo, a sports-highlight opener, a vertical social clip, a wedding title, a news package with ticker and bug, a product launch with layers and motion); opening one opens a copy, so the example stays as it was.
-   - **Recent projects** with thumbnails, last-opened dates and pinning; a missing file shows as missing, with a way to relink it.
-   - **Learn:** "Take the tour", a short guided walkthrough of the window (browse panel, stage, Parameters tab, collection tray) with highlights and Next / Skip, offered on first launch and replayable from Help; "What's new" from the changelog's latest release; keyboard shortcuts and the user guide (milestone 8).
-   - **Set up and status:** a first-run checklist (ffmpeg found, a library folder added, sample media made), each item a button that does it; the library at a glance (template and media counts, most-used categories, favourites); quick actions (add a library folder, import a pack, import a font). Milestone 14's "guided setup" can fold into the checklist.
-
-5. **Stock library import: open the stock media you already own.** Milestone **32** (GitHub issue #34), built after 30 and 28, whose in, hold and out parts and per-layer looks it uses. Many editors own licensed stock collections: older ones delivered on discs with a browser of their own that previewed the media and converted it on the way out, and newer ones downloaded from a subscription library as zip archives of clips, music and project files. A person who holds the licence should be able to point Pulp at that media where it lies — a folder, an external drive, a disc image — and browse, preview, place, edit and render it, as anyone else with similar files could. Pulp never ships, copies or downloads stock media; it reads what is on the person's machine. Milestone 26's asset libraries already read plain media where it lies; this makes a whole collection browsable at once and keeps its structure.
-   - **Before scheduling: check the formats.** Look at a real archive of each kind one sample at a time — plain stills and clips, entry/loop/exit sets, item and project files from an old browser, disc images, layered music, motion-graphics project files, zipped downloads — and write down for each whether Pulp can read it as it is, needs converting first, or is out of scope. The items below are then made specific to what was found. Samples stay on the maintainer's machine and never enter the repository.
-   - **Add a stock library** from a folder, a drive or a disc image, read in place and never copied; a library on a drive that is not connected stays listed and says so plainly, and comes back when it is.
-   - **Previews before full media:** a very large library (hundreds of gigabytes) is indexed from small previews and thumbnails first, so it can be browsed and searched straight away; the full-quality file is read only when an item is placed or rendered.
-   - **The library's own organisation:** when it comes with an index — names, categories, keywords, thumbnails, in its own files or folder layout — Pulp reads it, so the items browse and search the way they were organised, mapped onto Pulp's taxonomy rather than only by folder name.
-   - **Known as well as owned:** a library can list everything its index says exists, with items whose files are not on this computer shown greyed out, so a person sees the whole collection and what is missing from it.
-   - **Clips that work as they are:** video with transparency (QuickTime PNG, Animation and ProRes 4444, WebM with alpha, image sequences), at whatever size and rate the library used, including sizes that are not a standard frame, placed as Video layers and scaled to fit.
-   - **Clip sets as one asset:** separate entry, loop and exit files that belong together are recognised as one item that stretches: the entry plays once, the loop repeats for as long as the chosen length needs, then the exit plays — milestone 30's parts, with the files supplying them instead of a template.
-   - **Several layers in one clip set:** a set can carry more than one layer that moves together (a main graphic and a flare, say), each with its own entry, loop and exit, placed and timed as one item while each layer keeps its own look (milestone 28).
-   - **Music and sound effects:** tracks in several lengths shown as one item; layered music whose stems can be switched on and off (milestone 16); sound effects paired with the wipes and transitions they were made for.
-   - **Zipped downloads:** an archive is browsed without unpacking it first, and unpacked into the library's folder only when something from it is used.
-   - **What is out of scope is said, not hidden:** a format Pulp cannot read — a motion-graphics project file, a disc only the original browser could convert — is listed with its preview where one exists and a plain note of what it needs, rather than skipped.
-   - **Rights:** the media stays the person's, referenced in place; Pulp never sends it anywhere, never copies it into packs, exports or the repository, and tests use generated fixtures only.
-
-6. **Layered Photoshop graphics.** Milestone **33** (GitHub issue #35): read a `.psd` as a stack of layers, so a layered still from a stock library can be browsed and used without flattening it first.
-   - **Reading:** layers, their names, order, visibility, opacity and blend modes where the file has them; groups shown as groups. Reading only, no editing of the file in Pulp.
-   - **Browsing:** a flattened preview for the grid and the stage, with the layer list shown in the Info tab.
-   - **Showing and hiding layers** in the preview, kept with the item like any other edit (presets, collections, undo, the render cache key).
-   - **Placing:** as one picture, or as separate image layers that keep their positions, then moved and styled with milestones 25 and 28.
-   - **Limits stated plainly:** layer effects, smart objects and adjustment layers Pulp can't reproduce are named rather than silently dropped; the flattened composite stored in the file is the fallback.
-   - **Tests** on generated `.psd` fixtures only.
-
-7. **Output presets per kind of asset:** an item for milestone 14, defaults per type and guided setup (GitHub issue #14): one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen, alongside "Save as default for this type" and the guided setup.
+The order work is built in is `ROADMAP.md`'s planned order, which scheduling follows unless a request says otherwise. Milestones 23 to 30 are done; next come 31 (a start screen, #33), 34 (a browse panel that says what things are, #36), 32 (stock library import, #34) and 33 (layered Photoshop graphics, #35), then 20, 8, 17 and 7.
 
 ## Known issues
 
