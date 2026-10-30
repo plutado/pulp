@@ -5,9 +5,11 @@
  * pdf.js with its optional content groups switched as asked. The page hands
  * back a canvas data URL, so nothing is captured off the screen.
  *
- * pdf.js (Apache-2.0) is injected into the page from its file once per window;
- * its worker runs from a blob of the same build, so no scheme and no network
- * is involved. Calls run one at a time: the page is shared state.
+ * pdf.js (Apache-2.0, version 6) is imported into the page from a blob of its
+ * own module text once per window; its worker runs from another blob of the
+ * same build, so no scheme and no network is involved, and it is opened with
+ * `isEvalSupported: false`, so the PDF's own functions are interpreted rather
+ * than compiled. Calls run one at a time: the page is shared state.
  */
 
 import { app, BrowserWindow } from 'electron';
@@ -16,7 +18,7 @@ import { join } from 'node:path';
 
 /** Where pdf.js's build lives: node_modules in a checkout; packaging (milestone 17) must carry these two files. */
 function pdfJsBuildDir(): string {
-  return join(app.getAppPath(), 'node_modules', 'pdfjs-dist', 'legacy', 'build');
+  return join(app.getAppPath(), 'node_modules', 'pdfjs-dist', 'build');
 }
 
 let win: BrowserWindow | null = null;
@@ -80,12 +82,20 @@ export function rasterizeSvg(svg: string, width: number, height: number): Promis
 async function ensurePdfJs(): Promise<void> {
   if (pdfJsLoaded && win && !win.isDestroyed()) return;
   await rasterizerWindow();
-  const lib = await readFile(join(pdfJsBuildDir(), 'pdf.min.js'), 'utf8');
-  const worker = await readFile(join(pdfJsBuildDir(), 'pdf.worker.min.js'), 'utf8');
-  await run(`(() => { ${lib}; window.pdfjsLib = globalThis.pdfjsLib || globalThis['pdfjs-dist/build/pdf'];
-    const blob = new Blob([${JSON.stringify(worker)}], { type: 'text/javascript' });
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
-    return true; })()`);
+  // pdf.js 6 ships as ES modules: the library is imported from a blob of its own text and its
+  // worker started from another, so the sandboxed page reaches no scheme and no network for either.
+  const lib = await readFile(join(pdfJsBuildDir(), 'pdf.min.mjs'), 'utf8');
+  const worker = await readFile(join(pdfJsBuildDir(), 'pdf.worker.min.mjs'), 'utf8');
+  await run(`(async () => {
+    const libUrl = URL.createObjectURL(new Blob([${JSON.stringify(lib)}], { type: 'text/javascript' }));
+    const workerUrl = URL.createObjectURL(new Blob([${JSON.stringify(worker)}], { type: 'text/javascript' }));
+    window.pdfjsLib = await import(libUrl);
+    // A blob worker is refused from about:blank's opaque origin, so pdf.js runs its worker module on
+    // the page's own thread instead, imported from the same blob — slower, and all inside the sandbox.
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+    window.pdfjsLib.GlobalWorkerOptions.workerPort = null;
+    return true;
+  })()`);
   pdfJsLoaded = true;
 }
 
@@ -101,9 +111,12 @@ export interface PdfInfo {
 const PDF_PAGE_HELPERS = `
   async function pulpOpenPdf(base64) {
     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-    const doc = await window.pdfjsLib.getDocument({ data: bytes, isEvalSupported: false, disableFontFace: false }).promise;
+    // Eval stays off: the PDF's own functions are interpreted, never compiled.
+    const task = window.pdfjsLib.getDocument({ data: bytes, isEvalSupported: false, disableFontFace: false });
+    const doc = await task.promise;
     const page = await doc.getPage(1);
-    return { doc, page };
+    // pdf.js 6 closes a document through its loading task.
+    return { doc, page, close: () => { task.destroy().catch(() => undefined); } };
   }
   function pulpFlattenOrder(order, depth, out) {
     for (const entry of order || []) {
@@ -119,16 +132,17 @@ export function pdfInfo(bytes: Buffer): Promise<PdfInfo> {
   return enqueue(async () => {
     await ensurePdfJs();
     return run<PdfInfo>(`(async () => { ${PDF_PAGE_HELPERS}
-      const { doc, page } = await pulpOpenPdf(${JSON.stringify(bytes.toString('base64'))});
+      const { doc, page, close } = await pulpOpenPdf(${JSON.stringify(bytes.toString('base64'))});
       const viewport = page.getViewport({ scale: 96 / 72 });
       const config = await doc.getOptionalContentConfig();
       const flat = pulpFlattenOrder(config.getOrder(), 0, []);
       const groups = flat.map((f) => {
         const group = config.getGroup(f.id) || {};
-        return { ocgId: f.id, name: String(group.name || 'Layer'), visible: config.isVisible({ type: 'OCG', id: f.id }) !== false, depth: f.depth };
+        const visible = typeof group.visible === 'boolean' ? group.visible : config.isVisible({ type: 'OCG', id: f.id }) !== false;
+        return { ocgId: f.id, name: String(group.name || 'Layer'), visible, depth: f.depth };
       });
       const out = { width: Math.round(viewport.width), height: Math.round(viewport.height), pages: doc.numPages, groups };
-      await doc.destroy();
+      close();
       return out;
     })()`);
   });
@@ -142,7 +156,7 @@ export function rasterizePdf(bytes: Buffer, scale: number, visibleOcgIds?: reado
   return enqueue(async () => {
     await ensurePdfJs();
     const dataUrl = await run<string>(`(async () => { ${PDF_PAGE_HELPERS}
-      const { doc, page } = await pulpOpenPdf(${JSON.stringify(bytes.toString('base64'))});
+      const { doc, page, close } = await pulpOpenPdf(${JSON.stringify(bytes.toString('base64'))});
       const viewport = page.getViewport({ scale: ${Math.max(0.05, scale)} * 96 / 72 });
       const config = await doc.getOptionalContentConfig();
       const shown = ${visibleOcgIds ? JSON.stringify(visibleOcgIds) : 'null'};
@@ -153,9 +167,9 @@ export function rasterizePdf(bytes: Buffer, scale: number, visibleOcgIds?: reado
       const c = document.createElement('canvas');
       c.width = Math.max(1, Math.round(viewport.width));
       c.height = Math.max(1, Math.round(viewport.height));
-      await page.render({ canvasContext: c.getContext('2d'), viewport, background: 'rgba(0,0,0,0)', optionalContentConfigPromise: Promise.resolve(config) }).promise;
+      await page.render({ canvas: c, canvasContext: c.getContext('2d'), viewport, background: 'rgba(0,0,0,0)', optionalContentConfigPromise: Promise.resolve(config) }).promise;
       const out = c.toDataURL('image/png');
-      await doc.destroy();
+      close();
       return out;
     })()`);
     return dataUrlToPng(dataUrl);

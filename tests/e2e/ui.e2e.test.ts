@@ -2993,7 +2993,7 @@ describe.skipIf(!electron)('inspector UI', () => {
 
       // A PDF's optional content groups are its layers; the one the file switches off starts unchecked.
       await selectMedia('drawn');
-      await until(async () => (await layerRows()).length === 2, 'the PDF layer list', 60_000);
+      await until(async () => (await layerRows()).length === 2, `the PDF layer list (section says: ${await page.eval<string>(`document.querySelector('#info-item [data-section=layers]')?.textContent ?? '(no section)'`)})`, 60_000);
       const pdfRows = await layerRows();
       expect(pdfRows.find((r) => r.name === 'Backdrop')).toMatchObject({ checked: true, disabled: false });
       expect(pdfRows.find((r) => r.name === 'Mark')).toMatchObject({ checked: false });
@@ -3063,12 +3063,16 @@ describe.skipIf(!electron)('inspector UI', () => {
       // the five items this test asserts on - not for any five: with the matched sample sets, more than
       // a dozen posters are queued and a slow machine finishes five others first (Windows CI, October 2026).
       const needed = ['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'clip', 'tiny'];
-      const loaded = '(li) => { const i = li.querySelector(".thumb img"); return !!i && i.complete && i.naturalWidth > 0; }';
-      const read = '(li) => { const i = li.querySelector(".thumb img"); return { src: i.src, w: i.naturalWidth, h: i.naturalHeight }; }';
+      // One read per check: the size is taken in the same step that sees the picture loaded, since a
+      // poster can be replaced between two calls while the background queue is still at work.
+      const read = '(li) => { const i = li.querySelector(".thumb img"); return i && i.complete && i.naturalWidth > 0 ? { src: i.src, w: i.naturalWidth, h: i.naturalHeight } : null; }';
       const byName: Record<string, { src: string; w: number; h: number }> = {};
       for (const name of needed) {
-        await until(() => onResult<boolean>(name, loaded), `the thumbnail for ${name}`, 120_000);
-        byName[name] = await onResult<{ src: string; w: number; h: number }>(name, read);
+        await until(async () => {
+          const seen = await onResult<{ src: string; w: number; h: number } | null>(name, read);
+          if (seen) byName[name] = seen;
+          return seen !== null;
+        }, `the thumbnail for ${name}`, 120_000);
       }
       for (const i of Object.values(byName)) expect(i.src).toMatch(/^pulp-thumb:\/\/[0-9a-f]{24}\/$/);
       expect(byName['Title Card']).toMatchObject({ w: 240, h: 135 }); // 1920x1080 poster, fit into 240
