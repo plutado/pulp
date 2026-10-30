@@ -7,7 +7,7 @@
  */
 
 import { computed, signal } from '@preact/signals';
-import { createResultsSelector, createTreeSelector, initialAppState, type AppState } from '../core/app-state';
+import { createFacetSelector, createResultsSelector, createTreeSelector, initialAppState, type AppState } from '../core/app-state';
 import type { Size } from '../core/aspect';
 import type { TemplateEntry } from '../core/library-types';
 import { DEFAULT_RESULTS_VIEW, type ResultsViewState } from '../core/results-view';
@@ -29,6 +29,9 @@ export const hasIndex = computed(() => appState.value.index !== null);
 const selectTree = createTreeSelector();
 /** The browse tree with counts: rebuilt only when the index, query or chips change. */
 export const browseTree = computed(() => selectTree(appState.value));
+const selectFacets = createFacetSelector();
+/** The entries the typed query and the chips leave, the scope not: what the tree, the For… and Look chips and the category cards count (milestone 34). */
+export const facets = computed(() => selectFacets(appState.value));
 export const selectedKey = computed(() => appState.value.selectedKey);
 
 /**

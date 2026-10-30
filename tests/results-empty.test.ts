@@ -28,6 +28,11 @@ describe('why the results are empty', () => {
     expect(typed.reason).toBe('search');
     expect(typed.title).toBe('No matches for “northwind”');
     expect(typed.actions.map((a) => a.id)).toEqual(['clear-search']);
+    // The For… and Look chips narrow like the others, and are cleared with them (milestone 34).
+    const chipped = ask({ forTheme: 'wedding' })!;
+    expect(chipped.reason).toBe('search');
+    expect(chipped.actions).toEqual([{ id: 'clear-filters', label: 'Clear filter' }]);
+    expect(ask({ forTheme: 'wedding', look: 'elegant' })!.actions.map((a) => a.label)).toEqual(['Clear filters']);
     // Whitespace alone is not a search.
     expect(ask({ query: '   ' })!.reason).toBe('none');
   });

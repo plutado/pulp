@@ -150,7 +150,7 @@ Depth is shown by **structure, not by type size**. Every row that can be selecte
 
 The browse panel is the worked example; anything with the same shape follows it.
 
-- **Section headings are not rows.** Quick access, Types, Themes, Styles, Packs, Folders are supporting text (12 px, 600, muted) with space above and a thin rule between sections, and a chevron that folds the section. They never highlight on hover and are never selected — there is nothing to select.
+- **Section headings are not rows.** Quick access and My folders are supporting text (12 px, 600, muted) with space above and a thin rule between sections, and a chevron that folds the section. They never highlight on hover and are never selected — there is nothing to select. The categories at the top of the panel (milestone 34) have no heading at all: they are the panel's top level, not a section of it.
 - **A row that holds children** gets a disclosure twisty (caret right folded, caret down open) in a fixed gutter before its icon, then its icon, label and count.
 - **A row with nothing under it** keeps the icon and label and leaves the gutter empty, so every icon at that level lines up whether or not the row folds.
 - **Children indent one step** behind a thin vertical guide line running down the middle of the parent's icon, and **do not repeat the parent's icon** — the group already said what they are. Their labels align with the parent's label, and they sit one text role quieter (`--muted` against `--text-secondary`) until hovered or selected.

@@ -15,7 +15,7 @@ Templates use an open, documented format: a folder with a `template.json` manife
 
 ![Pulp's window: the browse tree on the left, the search bar with filter chips above a live preview of the Lower Third Bar template and a grid of template cards in the center, and on the right the inspector's Parameters tab organised by part of the graphic — a card for each line of type with its words and face, one for the panel's colours, one for the logo, and Layout and timing last — with the render tray collapsed to a one-line summary at the bottom and a status bar](docs/images/app-window.png)
 
-*The browse tree (Quick access, Types, Themes, Styles, Packs, Folders, with counts) on the left; the search bar with filter chips, sorting and the grid/list toggle over the stage — a live preview with play and scrub — and the results as cards with badges in the center; the inspector with its Parameters, Output and Info tabs on the right; the render tray and a status bar along the bottom. Panes resize and collapse, and the layout is remembered. All content shown is from the bundled sample templates.*
+*The browse tree (what things are — Lower thirds, Titles and openers, Matching sets, Animated backgrounds and so on — then Quick access and My folders, with counts) on the left; the search bar with filter chips, sorting and the grid/list toggle over the stage — a live preview with play and scrub — and the results as cards with badges in the center; the inspector with its Parameters, Output and Info tabs on the right; the render tray and a status bar along the bottom. Panes resize and collapse, and the layout is remembered. All content shown is from the bundled sample templates.*
 
 ### Sample output
 

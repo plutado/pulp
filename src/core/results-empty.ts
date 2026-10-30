@@ -44,6 +44,9 @@ export interface ResultsContext {
   query: string;
   scope: Scope | null;
   filters: readonly FilterChipId[];
+  /** The "For…" and "Look" chips (milestone 34); chips like the others, cleared with them. */
+  forTheme?: string | null;
+  look?: string | null;
 }
 
 /**
@@ -70,10 +73,11 @@ export function emptyResults(context: ResultsContext): EmptyResults | null {
   }
 
   // Something was asked for and nothing answers: offer to undo each thing that narrows it.
-  if (query !== '' || filters.length > 0) {
+  const chips = filters.length + (context.forTheme ? 1 : 0) + (context.look ? 1 : 0);
+  if (query !== '' || chips > 0) {
     const actions: EmptyAction[] = [];
     if (query !== '') actions.push({ id: 'clear-search', label: 'Clear search' });
-    if (filters.length > 0) actions.push({ id: 'clear-filters', label: filters.length > 1 ? 'Clear filters' : 'Clear filter' });
+    if (chips > 0) actions.push({ id: 'clear-filters', label: chips > 1 ? 'Clear filters' : 'Clear filter' });
     if (scope) actions.push({ id: 'clear-scope', label: 'Search the whole library' });
     return {
       reason: 'search',

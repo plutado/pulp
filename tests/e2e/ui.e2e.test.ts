@@ -3129,8 +3129,10 @@ describe.skipIf(!electron)('inspector UI', () => {
       await findCategory('Lower third');
       await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]')`), 'the type in the filtered tree');
       await page.eval(`document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]').click()`);
-      await until(async () => !(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)), 'the scope chip for a type node');
-      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower third');
+      await until(async () => !(await page.eval<boolean>(`document.getElementById('scope-chip').hidden`)), 'the scope chip for a category');
+      // Lower thirds is a category of one type: the type's scope under the plainer name (milestone 34).
+      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower thirds');
+      expect(await page.eval<string>(`document.getElementById('results-description').textContent`)).toContain('bottom of the frame');
       const lowerThirds = await names();
       expect(lowerThirds).toContain('Lower Third Bar');
       expect(lowerThirds).not.toContain('Diagonal Wipe');
@@ -3164,26 +3166,30 @@ describe.skipIf(!electron)('inspector UI', () => {
       const rows = () => page.eval<string[]>(`[...document.querySelectorAll('#browse-tree .browse-node')].map((b) => b.dataset.node)`);
       const headings = () => page.eval<string[]>(`[...document.querySelectorAll('#browse-tree .section-heading')].map((h) => h.dataset.node)`);
 
-      // Before: the whole tree, every section there to be opened.
+      // Before: the whole tree — the categories at the top draw no heading; Quick access and My
+      // folders are the sections there to be opened (milestone 34).
       const whole = await headings();
-      expect(whole.length).toBeGreaterThan(3);
+      expect(whole).toEqual(['quick', 'folders']);
+      const allRows = await rows();
+      expect(allRows[0]).toBe('category:lower-thirds');
+      expect(allRows).toContain('untyped');
 
-      // Typing takes away everything that does not match. What is left keeps its section and
-      // its group, so it is plain where each lives, and it sits at the top with nothing to scroll.
-      await type('lower');
-      await until(async () => (await headings()).join() === 'types', 'only the section holding a match');
+      // Typing takes away everything that does not match. What is left keeps its category, so it
+      // is plain where each lives, and it sits at the top with nothing to scroll.
+      await type('glitch');
+      await until(async () => (await rows()).includes('type:glitch'), 'the type that matches');
       const left = await rows();
-      expect(left).toContain('type:lower-third');
       expect(left).not.toContain('favorites');
-      expect(left.filter((r) => r.startsWith('type:'))).toEqual(['type:lower-third']);
-      // The group above it stays, unlit, to say where the match lives; the match itself is lit.
-      expect(left).toContain('group:titles');
-      expect(await page.eval<string>(`document.querySelector('#browse-tree [data-node="type:lower-third"] mark').textContent`)).toBe('Lower');
-      expect(await page.eval<number>(`document.querySelectorAll('#browse-tree [data-node="group:titles"] mark').length`)).toBe(0);
+      expect(left.filter((r) => r.startsWith('type:'))).toEqual(['type:glitch']);
+      // The category above it stays, unlit, to say where the match lives; the match itself is lit.
+      expect(left).toContain('category:transitions-wipes');
+      expect(await page.eval<string>(`document.querySelector('#browse-tree [data-node="type:glitch"] mark').textContent`)).toBe('Glitch');
+      expect(await page.eval<number>(`document.querySelectorAll('#browse-tree [data-node="category:transitions-wipes"] mark').length`)).toBe(0);
+      expect(await headings(), 'no section holds a match, so none is shown').toEqual([]);
 
       // A section that was folded still shows its matches: the search overrides the folds.
-      await type('spor');
-      await until(async () => (await rows()).some((r) => r.startsWith('theme')), 'a theme match from a folded section');
+      await type('recen');
+      await until(async () => (await rows()).includes('recent'), 'a Quick access match from a folded section');
 
       // Nothing matches: the tree is empty and says so.
       await type('zzzznope');
@@ -3197,10 +3203,10 @@ describe.skipIf(!electron)('inspector UI', () => {
 
       // Enter takes the first category still standing, and scopes the results by it.
       await type('lower');
-      await until(async () => (await rows()).includes('type:lower-third'), 'the match again');
+      await until(async () => (await rows()).includes('category:lower-thirds'), 'the match again');
       await press('Enter');
       await until(() => page.eval<boolean>(`!document.getElementById('scope-chip').hidden`), 'the scope chip');
-      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower third');
+      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower thirds');
       const scoped = await names();
       expect(scoped).toContain('Lower Third Bar');
       expect(scoped).not.toContain('Diagonal Wipe');
@@ -3264,23 +3270,22 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await focused()).toBe('recent');
       await key('ArrowUp');
       expect(await focused()).toBe('favorites');
+      // Home is the top of the panel, which the categories are now (milestone 34).
       await key('Home');
-      expect(await focused()).toBe('quick');
+      expect(await focused()).toBe('category:lower-thirds');
 
-      // Right steps into an open group, Left steps back out to it, Left again folds it.
-      await page.eval(`(() => { const h = document.querySelector('#browse-tree .section-heading[data-node=types]'); if (h.getAttribute('aria-expanded') === 'false') h.click(); })()`);
-      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree [data-node="group:titles"]')`), 'the Types section open');
-      await page.eval(`(() => { const r = document.querySelector('#browse-tree [data-node="group:titles"]'); if (r.getAttribute('aria-expanded') === 'false') r.closest('.node-row').querySelector('.twisty').click(); })()`);
-      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree [data-node="type:lower-third"]')`), 'the group open');
-      await page.eval(`document.querySelector('#browse-tree [data-node="group:titles"]').focus()`);
+      // Right steps into an open category, Left steps back out to it, Left again folds it.
+      await page.eval(`(() => { const r = document.querySelector('#browse-tree [data-node="category:titles-openers"]'); if (r.getAttribute('aria-expanded') === 'false') r.closest('.node-row').querySelector('.twisty').click(); })()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree [data-node="type:title"]')`), 'the category open');
+      await page.eval(`document.querySelector('#browse-tree [data-node="category:titles-openers"]').focus()`);
       await key('ArrowRight');
-      expect(await focused()).toBe('type:lower-third');
+      expect(await focused()).toBe('type:title');
       await key('ArrowLeft');
-      expect(await focused()).toBe('group:titles');
+      expect(await focused()).toBe('category:titles-openers');
       await key('ArrowLeft');
-      await until(async () => !(await has('type:lower-third')), 'the group to fold');
+      await until(async () => !(await has('type:title')), 'the category to fold');
       await key('ArrowRight');
-      await until(() => has('type:lower-third'), 'the group to unfold again');
+      await until(() => has('type:title'), 'the category to unfold again');
     }, 60_000);
 
     it('a filter chip narrows the results while pressed', async () => {
@@ -3360,39 +3365,39 @@ describe.skipIf(!electron)('inspector UI', () => {
       // is `foldAllExcept` in src/core/browse-fold.ts, covered by its own unit tests: the app
       // cannot be relaunched mid-suite, so this checks the rule that holds from here on.)
 
-      // Choosing a category folds the tree to the path that holds it: its section open, the rest shut.
+      // Choosing a category folds the tree to the path that holds it. The categories are the
+      // panel's top level and never fold (milestone 34), so the sections below them all shut.
       const openSection = async (id: string) => {
         await page.eval(`(() => { const h = document.querySelector('#browse-tree .section-heading[data-node=${JSON.stringify(id)}]'); if (h.getAttribute('aria-expanded') === 'false') h.click(); })()`);
         await until(async () => (await openState())[id] === 'true', `${id} open`);
       };
-      await openSection('types');
-      await page.eval(`(() => { const r = document.querySelector('#browse-tree [data-node="group:titles"]'); if (r.getAttribute('aria-expanded') === 'false') r.closest('.node-row').querySelector('.twisty').click(); })()`);
-      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]')`), 'the group open');
+      await openSection('quick');
       await page.eval(`document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"]').click()`);
       await until(() => page.eval<boolean>(`!document.getElementById('scope-chip').hidden`), 'the category chosen');
       const afterChoice = await openState();
-      for (const [id, open] of Object.entries(afterChoice)) expect(open, id).toBe(id === 'types' ? 'true' : 'false');
+      for (const [id, open] of Object.entries(afterChoice)) expect(open, id).toBe('false');
+      expect(await page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-node="category:lower-thirds"].active')`), 'the category still on screen, active').toBe(true);
 
       // Opening another section folds the one that was open: one at a time.
-      await openSection('themes');
-      expect((await openState()).types, 'the section that was open folds').toBe('false');
+      await openSection('quick');
+      await openSection('folders');
+      expect((await openState()).quick, 'the section that was open folds').toBe('false');
 
       // Folding is still free: closing one touches nothing else.
-      await page.eval(`${heading('themes')}.click()`);
-      await until(async () => (await openState()).themes === 'false', 'Themes folded');
+      await page.eval(`${heading('folders')}.click()`);
+      await until(async () => (await openState()).folders === 'false', 'My folders folded');
       const allShut = await openState();
       expect(Object.values(allShut).every((v) => v === 'false'), JSON.stringify(allShut)).toBe(true);
 
-      // Inside a section, one group at a time as well: a group's row selects, its twisty folds.
-      await openSection('types');
+      // Among the categories, one open at a time as well: a category's row selects, its twisty folds.
       const twist = (id: string) => page.eval(`document.querySelector('#browse-tree [data-node=${JSON.stringify(id)}]').closest('.node-row').querySelector('.twisty').click()`);
       const groupOpen = (id: string) => page.eval<string>(`document.querySelector('#browse-tree [data-node=${JSON.stringify(id)}]').getAttribute('aria-expanded')`);
-      // Open whichever group is shut, and the other folds: one group at a time inside the section.
-      const shut = (await groupOpen('group:titles')) === 'false' ? 'group:titles' : 'group:transitions';
-      const other = shut === 'group:titles' ? 'group:transitions' : 'group:titles';
+      // Open whichever category is shut, and the other folds.
+      const shut = (await groupOpen('category:titles-openers')) === 'false' ? 'category:titles-openers' : 'category:transitions-wipes';
+      const other = shut === 'category:titles-openers' ? 'category:transitions-wipes' : 'category:titles-openers';
       await twist(shut);
       await until(async () => (await groupOpen(shut)) === 'true', `${shut} opened`);
-      expect(await groupOpen(other), 'the other group folds').toBe('false');
+      expect(await groupOpen(other), 'the other category folds').toBe('false');
 
       await page.eval(`document.getElementById('scope-chip-clear').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('scope-chip').hidden`), 'the scope cleared');
@@ -3435,7 +3440,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.querySelector('#start-making .start-card').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'the screen closed by a making choice');
       await until(() => page.eval<boolean>(`!document.getElementById('scope-chip').hidden`), 'the browse scope set');
-      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower third');
+      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower thirds');
 
       // Escape closes it too, and the session is left as the choice set it.
       await page.eval(`window.pulpMenuCommand('app.home')`);

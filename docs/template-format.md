@@ -47,6 +47,7 @@ A UTF-8 JSON object.
 | `alpha` | boolean | no | `true` if the template draws on a transparent background and is meant to be composited. Default `false`. |
 | `entry` | string | no | Path to the HTML entry page, relative to the folder. Default `index.html`. Must not be absolute or contain `..`. |
 | `thumbnail` | string | no | Relative path to a poster image. |
+| `posterAt` | number | no | The moment, in seconds, the card's poster is taken at. Without it, Pulp picks the frame that shows the most from eight spread over the timeline, and crops a transparent template's poster to what it draws. |
 | `parameters` | object[] | no | Editable parameters, see below. Default `[]`. |
 | `blocks` | object[] | no | Blocks where layers live, see **Blocks and layers** below. Default `[]`. |
 

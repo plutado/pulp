@@ -4,9 +4,10 @@
  * state. */
 
 import { effect } from '@preact/signals';
-import { FILTER_CHIPS, setScope, setSort, toggleFilter, type SortKey } from '../core/app-state';
+import { FILTER_CHIPS, setFor, setLook, setScope, setSort, toggleFilter, type SortKey } from '../core/app-state';
+import { forOptions, lookOptions, scopeCategory, type ChipOption } from '../core/categories';
 import { resultsKind, THUMB_SIZES, withThumbSize, withViewMode, type ResultsViewState, type ViewMode } from '../core/results-view';
-import { appState, dispatch, results, resultsView } from './store';
+import { appState, dispatch, facets, results, resultsView } from './store';
 import { scopeIcon, setIcon } from './icons';
 
 const $ = (id: string): HTMLElement => {
@@ -65,13 +66,61 @@ function initViewControls(): void {
   });
 }
 
+/** An option row: the label and, when it is known, how many items carry it. */
+function optionFor(option: ChipOption): HTMLOptionElement {
+  const el = document.createElement('option');
+  el.value = option.id;
+  el.textContent = option.count > 0 ? `${option.label} (${option.count})` : option.label;
+  return el;
+}
+
+/**
+ * The "For…" and "Look" chips (milestone 34): a theme and a style the results
+ * are narrowed to, offered as selects dressed as chips. Each lists what the
+ * library has, with counts, grouped the way the themes are; the one chosen
+ * stays listed however the counts move, so it can always be cleared.
+ */
+function initNarrowingChips(): void {
+  const forSelect = $('for-select') as HTMLSelectElement;
+  const lookSelect = $('look-select') as HTMLSelectElement;
+  forSelect.addEventListener('change', () => dispatch((s) => setFor(s, forSelect.value || null)));
+  lookSelect.addEventListener('change', () => dispatch((s) => setLook(s, lookSelect.value || null)));
+  effect(() => {
+    const entries = facets.value;
+    const { forTheme, look } = appState.value;
+    const head = forSelect.options[0]!;
+    forSelect.replaceChildren(head);
+    for (const group of forOptions(entries, forTheme)) {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = group.label;
+      for (const option of group.options) optgroup.append(optionFor(option));
+      forSelect.append(optgroup);
+    }
+    forSelect.value = forTheme ?? '';
+    head.textContent = forTheme ? 'For: any' : 'For…';
+    forSelect.parentElement?.classList.toggle('set', forTheme !== null);
+
+    const lookHead = lookSelect.options[0]!;
+    lookSelect.replaceChildren(lookHead);
+    for (const option of lookOptions(entries, look)) lookSelect.append(optionFor(option));
+    lookSelect.value = look ?? '';
+    lookHead.textContent = look ? 'Look: any' : 'Look';
+    lookSelect.parentElement?.classList.toggle('set', look !== null);
+  });
+}
+
 export function initSearchBar(): void {
   const chip = $('scope-chip');
   const chipLabel = $('scope-chip-label');
+  const description = $('results-description');
   effect(() => {
     const scope = appState.value.scope;
     chip.hidden = scope === null;
     chipLabel.textContent = scope ? `in: ${scope.label}` : '';
+    // One line on what the chosen category holds, under the results heading (milestone 34).
+    const category = scopeCategory(scope);
+    description.textContent = category ? (scope?.kind === 'type' ? `${category.label} · ${category.description}` : category.description) : '';
+    description.title = description.textContent ?? '';
     // A folder scope shows its humanized name; the full path is in the tooltip.
     if (scope?.root) chipLabel.dataset.tip = scope.root;
     else delete chipLabel.dataset.tip;
@@ -97,6 +146,7 @@ export function initSearchBar(): void {
   });
 
   initViewControls();
+  initNarrowingChips();
 
   // The last eight committed searches feed the input's native suggestion list.
   void window.pulp.getRecentSearches().then(refreshHistory);

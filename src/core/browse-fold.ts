@@ -12,7 +12,7 @@ import type { TreeNode } from './browse-tree';
 /** The ids of the foldable nodes beside `id` — same parent, children of their own — or null when `id` is not in the tree. */
 function foldableSiblings(tree: readonly TreeNode[], id: string): string[] | null {
   const search = (nodes: readonly TreeNode[]): string[] | null => {
-    if (nodes.some((n) => n.id === id)) return nodes.filter((n) => n.id !== id && n.children.length > 0).map((n) => n.id);
+    if (nodes.some((n) => n.id === id)) return nodes.filter((n) => n.id !== id && n.children.length > 0 && !n.fixed).map((n) => n.id);
     for (const node of nodes) {
       const found = search(node.children);
       if (found) return found;
@@ -51,12 +51,12 @@ export function unfoldPath(folded: ReadonlySet<string>, path: readonly string[])
   return next;
 }
 
-/** Every foldable node's id, anywhere in the tree. */
+/** Every foldable node's id, anywhere in the tree; a fixed node (the categories) never folds. */
 function foldableIds(tree: readonly TreeNode[]): string[] {
   const out: string[] = [];
   const walk = (nodes: readonly TreeNode[]): void => {
     for (const node of nodes) {
-      if (node.children.length > 0) out.push(node.id);
+      if (node.children.length > 0 && !node.fixed) out.push(node.id);
       walk(node.children);
     }
   };

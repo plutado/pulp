@@ -155,6 +155,8 @@ export interface TemplateManifest {
   entry: string;
   /** Optional poster image relative to the template folder. */
   thumbnail?: string;
+  /** The moment, in seconds, the poster is taken at — for a template that knows its best frame (milestone 34). Otherwise the frame that shows most is chosen. */
+  posterAt?: number;
   parameters: TemplateParameter[];
   /** Blocks where layers live (milestone 23, src/core/layers.ts); `[]` when the template declares none. */
   blocks: Block[];
@@ -452,6 +454,9 @@ export function validateManifest(raw: unknown): ValidationResult {
   if (raw.thumbnail !== undefined && (typeof raw.thumbnail !== 'string' || !isSafeRelativePath(raw.thumbnail))) {
     errors.push({ path: 'thumbnail', message: 'must be a relative path inside the template folder' });
   }
+  if (raw.posterAt !== undefined && (typeof raw.posterAt !== 'number' || !Number.isFinite(raw.posterAt) || raw.posterAt < 0)) {
+    errors.push({ path: 'posterAt', message: 'must be a time in seconds, zero or more' });
+  }
 
   const parameters: TemplateParameter[] = [];
   if (raw.parameters !== undefined && !Array.isArray(raw.parameters)) {
@@ -502,7 +507,7 @@ export function validateManifest(raw: unknown): ValidationResult {
 
   const known = new Set([
     'formatVersion', 'id', 'name', 'description', 'version', 'author', 'license', 'category', 'type', 'themes', 'styles', 'tags',
-    'duration', 'structure', 'fps', 'aspects', 'width', 'height', 'alpha', 'entry', 'thumbnail', 'parameters', 'blocks',
+    'duration', 'structure', 'fps', 'aspects', 'width', 'height', 'alpha', 'entry', 'thumbnail', 'posterAt', 'parameters', 'blocks',
   ]);
   for (const key of Object.keys(raw)) {
     if (!known.has(key) && !key.startsWith('x-')) {
@@ -536,6 +541,7 @@ export function validateManifest(raw: unknown): ValidationResult {
   if (typeof raw.description === 'string') manifest.description = raw.description;
   if (typeof raw.author === 'string') manifest.author = raw.author;
   if (typeof raw.thumbnail === 'string') manifest.thumbnail = raw.thumbnail;
+  if (typeof raw.posterAt === 'number') manifest.posterAt = raw.posterAt;
   return { ok: true, manifest, warnings };
 }
 

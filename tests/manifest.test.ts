@@ -99,6 +99,14 @@ describe('validateManifest', () => {
     expect(errorPaths(rawManifest({ entry: 'src/index.html', thumbnail: 'poster.png' }))).toEqual([]);
   });
 
+  it('takes posterAt as a time in seconds, zero or more (milestone 34)', () => {
+    expect(errorPaths(rawManifest({ posterAt: 'middle' }))).toContain('posterAt');
+    expect(errorPaths(rawManifest({ posterAt: -1 }))).toContain('posterAt');
+    expect(errorPaths(rawManifest({ posterAt: 1.5 }))).toEqual([]);
+    const parsed = validateManifest(rawManifest({ posterAt: 1.5 }));
+    expect(parsed.ok && parsed.manifest.posterAt).toBe(1.5);
+  });
+
   it('warns about odd dimensions, unusual fps and unknown fields but still accepts', () => {
     const result = validateManifest(rawManifest({ width: 1921, fps: 12.5, colour: 'red', 'x-studio': { a: 1 } }));
     expect(result.ok).toBe(true);

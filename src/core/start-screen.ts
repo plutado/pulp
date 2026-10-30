@@ -7,7 +7,9 @@
 
 import { ASPECTS } from './aspect';
 import type { Scope } from './app-state';
-import type { LibraryIndex } from './library-types';
+import type { LibraryEntry, LibraryIndex } from './library-types';
+import { categoryInfo, categoryScope } from './categories';
+import { entryType } from './taxonomy';
 import { SAMPLE_MEDIA_FOLDER_NAME } from './sample-media';
 import { typeLabel } from './display';
 
@@ -23,26 +25,46 @@ export const PROJECT_SHAPES: readonly { id: string; label: string; hint: string 
 // ---------------------------------------------------------------- what are you making?
 
 /**
- * Plain starting points, each leading into the browse categories that serve it,
- * so a first-time user starts from what they want to make rather than from how
- * the library is sorted. The scopes are the browse tree's own nodes (the same
- * label and filter), so choosing one lands on a row the panel can fold to.
+ * Plain starting points, each opening the browse category that serves it with
+ * its "For…" chip set (milestone 34): Interview → Lower thirds › For:
+ * Podcast / interview. A first-time user starts from what they want to make
+ * rather than from how the library is sorted.
  */
 export interface MakingChoice {
   id: string;
   label: string;
   /** What choosing it narrows the library to, in words. */
   hint: string;
-  scope: Scope;
+  /** A browse category's id (src/core/categories.ts). */
+  category: string;
+  /** The theme the "For…" chip is set to — when the library has anything in the category carrying it. */
+  forTheme: string;
 }
 
 export const MAKING_CHOICES: readonly MakingChoice[] = [
-  { id: 'interview', label: 'An interview', hint: 'Lower thirds to name who is speaking', scope: { label: 'Lower third', filter: 'type:lower-third', kind: 'type', group: 'titles' } },
-  { id: 'sports', label: 'A sports opener', hint: 'Openers, score bugs and countdowns', scope: { label: 'Sports', filter: 'theme:sports', kind: 'theme' } },
-  { id: 'wedding', label: 'A wedding', hint: 'Elegant titles, reveals and counters', scope: { label: 'Wedding', filter: 'theme:wedding', kind: 'theme' } },
-  { id: 'social', label: 'A social clip', hint: 'Cards, handles and subscribe graphics', scope: { label: 'Social media', filter: 'theme:social-media', kind: 'theme' } },
-  { id: 'news', label: 'A news package', hint: 'Openers, tickers, bugs and captions', scope: { label: 'News / broadcast', filter: 'theme:news', kind: 'theme' } },
+  { id: 'interview', label: 'An interview', hint: 'Lower thirds to name who is speaking', category: 'lower-thirds', forTheme: 'podcast' },
+  { id: 'sports', label: 'A sports opener', hint: 'Openers and titles with a matchday look', category: 'titles-openers', forTheme: 'sports' },
+  { id: 'wedding', label: 'A wedding', hint: 'Elegant titles and reveals', category: 'titles-openers', forTheme: 'wedding' },
+  { id: 'social', label: 'A social clip', hint: 'Cards, handles and subscribe graphics', category: 'titles-openers', forTheme: 'social-media' },
+  { id: 'news', label: 'A news package', hint: 'Lower thirds, straps and bugs for the newsdesk', category: 'lower-thirds', forTheme: 'news' },
 ];
+
+/**
+ * Where a choice lands: the category's scope, and the theme for the "For…"
+ * chip — but only when something in that category carries the theme, since a
+ * chip that empties the results would be a worse start than none.
+ */
+export function makingChoiceLanding(choice: MakingChoice, entries: readonly LibraryEntry[]): { scope: Scope; forTheme: string | null } | null {
+  const category = categoryInfo(choice.category);
+  const scope = category ? categoryScope(category) : null;
+  if (!scope) return null;
+  const types = new Set(category!.types);
+  const carried = entries.some((e) => {
+    const type = entryType(e);
+    return type !== undefined && types.has(type) && (e.themes ?? []).includes(choice.forTheme);
+  });
+  return { scope, forTheme: carried ? choice.forTheme : null };
+}
 
 // ---------------------------------------------------------------- set up and status
 

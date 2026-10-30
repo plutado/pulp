@@ -11,19 +11,20 @@
 
 import { app, BrowserWindow } from 'electron';
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
-import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput } from '../core/ffmpeg';
+import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput, runWithInputForBuffer } from '../core/ffmpeg';
 import { MAX_IMAGE_FILE_BYTES, type ImportedImage } from '../core/image-slot';
 import { itemId, mediaKindForPath } from '../core/library-scan';
 import { LibraryStore, type ScanStats } from '../core/library-store';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
-import { mediaThumbArgs, posterThumbArgs, thumbFileName } from '../core/thumbnails';
+import { mediaThumbArgs, thumbFileName } from '../core/thumbnails';
+import { choosePosterFrame, contentCrop, isNearlyUniform, measureFrame, posterCandidateFrames, posterFromFrameArgs, PROBE_HEIGHT, PROBE_WIDTH, probeFrameArgs, type FrameMeasure } from '../core/poster';
 import { canHaveStrip, framesStripArgs, mediaStripArgs, sequenceStripArgs, stripFileName, stripFrameIndices, stripUrlFor, wantsStrip } from '../core/hover-scrub';
 import { SEQUENCE_FPS, sequenceFrameName, sequenceMetadata, sequencePatternName, sequencePosterFrame } from '../core/media-sequence';
 import { encodePeaks, peaksFromPcm, wantsWaveform, waveformArgs } from '../core/waveform';
-import { captureTemplateFrames, renderTemplate } from './render';
+import { captureTemplateFrames } from './render';
+import { templateDefaultSize } from '../core/aspect';
 import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
 import type { HoverStripResult, WaveformResult } from '../shared/api';
 import type { MediaLookup } from '../core/media-serve';
@@ -303,28 +304,30 @@ async function generatePendingThumbnails(): Promise<void> {
   }
 }
 
-/** One frame of a template at mid-progress, with default parameters, shrunk into the cache. */
+/**
+ * A template's poster (milestone 34): frames spread over the timeline — or the
+ * one moment `posterAt` names — captured through one offscreen window, each
+ * measured for how much it shows, the best taken, and a transparent template's
+ * cropped to what it draws. The choosing is pure (src/core/poster.ts).
+ */
 async function renderPoster(entry: TemplateEntry, out: string): Promise<boolean> {
-  const tmp = await mkdtemp(join(tmpdir(), 'pulp-poster-'));
-  try {
-    const total = Math.max(1, Math.round(entry.manifest.duration * entry.manifest.fps));
-    const mid = Math.floor(total / 2);
-    const result = await renderTemplate({
-      template: entry,
-      params: {},
-      presetId: 'png-sequence',
-      outputPath: join(tmp, 'poster'),
-      options: { inFrame: mid, outFrame: mid },
-      overwrite: true,
-      frameTimeoutMs: 10_000,
-    });
-    if (!result.ok) return false;
-    const frame = join(tmp, `poster_${String(mid).padStart(5, '0')}.png`);
-    const scaled = await nodeRunner(ffmpegPath!, posterThumbArgs(frame, out));
-    return scaled.code === 0 && existsSync(out);
-  } finally {
-    await rm(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  const { manifest } = entry;
+  const total = Math.max(1, Math.round(manifest.duration * manifest.fps));
+  const candidates = posterCandidateFrames(total, manifest.fps, manifest.posterAt);
+  const shot = await captureTemplateFrames(entry, candidates, { frameTimeoutMs: 10_000 });
+  if (!shot.ok || shot.frames.length === 0) return false;
+  const measures: FrameMeasure[] = [];
+  for (const frame of shot.frames) {
+    const probe = await runWithInputForBuffer(ffmpegPath!, probeFrameArgs(), frame);
+    const bytes = new Uint8Array(probe.stdout.buffer, probe.stdout.byteOffset, probe.stdout.byteLength);
+    measures.push(probe.code === 0 && bytes.length >= PROBE_WIDTH * PROBE_HEIGHT * 4 ? measureFrame(bytes, PROBE_WIDTH, PROBE_HEIGHT) : { coverage: 0, spread: 0, bbox: null });
   }
+  const pick = choosePosterFrame(measures);
+  const chosen = measures[pick]!;
+  if (isNearlyUniform(chosen)) console.warn(`Poster for ${manifest.id} is nearly uniform at every frame tried; a posterAt in its manifest may help.`);
+  const crop = manifest.alpha ? contentCrop(chosen.bbox, templateDefaultSize(manifest)) : null;
+  const scaled = await runWithInput(ffmpegPath!, posterFromFrameArgs(out, crop), shot.frames[pick]!);
+  return scaled.code === 0 && existsSync(out);
 }
 
 /** Replace an item's user tags (normalized, deduplicated) and tell the UI. */

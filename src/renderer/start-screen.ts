@@ -8,12 +8,12 @@
  */
 
 import { effect } from '@preact/signals';
-import { setScope } from '../core/app-state';
+import { setFor, setLook, setScope } from '../core/app-state';
 import {
-  lastOpenedLabel, libraryGlance, MAKING_CHOICES, orderRecents, PROJECT_SHAPES, setupChecklist,
+  lastOpenedLabel, libraryGlance, MAKING_CHOICES, makingChoiceLanding, orderRecents, PROJECT_SHAPES, setupChecklist,
 } from '../core/start-screen';
 import type { RecentProjectRow } from '../core/start-screen';
-import { appState, dispatch, preferredAspect } from './store';
+import { appState, dispatch, facets, preferredAspect } from './store';
 import { browseFoldToActive } from './browse';
 import { newProject, openExampleFrom, openProjectFrom } from './project';
 import { showShortcuts } from './shortcuts';
@@ -174,7 +174,10 @@ function fillMaking(): void {
     text.append(name, meta);
     button.append(text);
     button.addEventListener('click', () => {
-      dispatch((s) => setScope(s, choice.scope));
+      // The category, with "For…" set when the library has anything there for it (milestone 34).
+      const landing = makingChoiceLanding(choice, facets.peek());
+      if (!landing) return;
+      dispatch((s) => setLook(setFor(setScope(s, landing.scope), landing.forTheme), null));
       browseFoldToActive();
       hideStartScreen();
     });

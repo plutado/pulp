@@ -19,7 +19,7 @@ const find = (nodes: TreeNode[], id: string): TreeNode | undefined => {
   return undefined;
 };
 
-describe('buildBrowseTree', () => {
+describe('buildBrowseTree (milestone 34: what things are, at the top)', () => {
   const entries = [
     template('strap', { category: 'lower-third', themes: ['news'], styles: ['clean'] }, { favorite: true }),
     template('wipe', { category: 'transition', type: 'glitch', themes: ['news', 'my-show'], styles: ['grunge', 'clean'] }, { lastUsed: '2026-10-23T00:00:00Z' }),
@@ -27,79 +27,55 @@ describe('buildBrowseTree', () => {
     media('swipe', { type: 'whoosh', mediaKind: 'audio', themes: ['sports'] }),
     media('loose'),
   ];
-  // Entries carry their merged themes the way the store hands them out.
   for (const e of entries) if (e.kind === 'template' && e.manifest.themes) e.themes = [...e.manifest.themes];
   const tree = buildBrowseTree(entries, ['/app/templates', '/lib', '/media'], '/app/templates');
 
-  it('has the five sections, with Quick access and Folders as fixed entry points', () => {
-    expect(tree.map((s) => s.id)).toEqual(['quick', 'types', 'themes', 'styles', 'folders']);
-    expect(tree[0]?.label).toBe('Quick access');
+  it('opens on the categories, then Quick access and My folders; no Themes, Styles or Packs trees', () => {
+    expect(tree.map((s) => s.id)).toEqual(['categories', 'quick', 'folders']);
+    // The categories are the panel's top level: fixed, so they never fold and draw no heading.
+    expect(tree[0]?.fixed).toBe(true);
+    expect(tree[1]?.label).toBe('Quick access');
+    expect(tree[2]?.label).toBe('My folders');
     expect(find(tree, 'favorites')?.count).toBe(1);
     expect(find(tree, 'recent')?.count).toBe(1);
     expect(find(tree, 'folders')?.children.map((n) => [n.label, n.count])).toEqual([['Built-in templates', 0], ['Lib', 3], ['Media', 2]]);
     expect(find(tree, 'root:/media')?.scope).toMatchObject({ root: '/media', kind: 'folder' });
   });
 
-  it('shows only the type groups and types the entries have, plus Untyped', () => {
-    const types = find(tree, 'types')!;
-    expect(types.children.map((n) => n.id)).toEqual(['group:titles', 'group:transitions', 'group:sfx', 'untyped']);
-    expect(find(tree, 'group:transitions')).toMatchObject({ count: 1, scope: { filter: 'type:transitions', kind: 'group', group: 'transitions' } });
-    expect(find(tree, 'group:transitions')?.children.map((n) => n.id)).toEqual(['type:glitch']);
-    expect(find(tree, 'type:lower-third')).toMatchObject({ label: 'Lower third', count: 1, scope: { filter: 'type:lower-third', kind: 'type', group: 'titles' } });
+  it('shows only the categories the entries have, in the stock-library order, plus Untyped', () => {
+    const categories = find(tree, 'categories')!;
+    expect(categories.children.map((n) => n.id)).toEqual(['category:lower-thirds', 'category:transitions-wipes', 'category:sound-effects', 'untyped']);
+    // A category of one type is that type with the plainer name: a leaf, scoped exactly as the type.
+    expect(find(tree, 'category:lower-thirds')).toMatchObject({ label: 'Lower thirds', count: 1, children: [], scope: { filter: 'type:lower-third', kind: 'category', group: 'lower-thirds' } });
+    expect(find(tree, 'category:lower-thirds')?.description).toMatch(/bottom of the frame/);
+    // A category of several types scopes to all of them as alternatives and opens on the ones present.
+    const transitions = find(tree, 'category:transitions-wipes')!;
+    expect(transitions.scope?.filter).toBe('type:wipe type:reveal type:flash type:glitch');
+    expect(transitions.children.map((n) => n.id)).toEqual(['type:glitch']);
+    expect(find(tree, 'type:glitch')).toMatchObject({ label: 'Glitch', count: 1, scope: { filter: 'type:glitch', kind: 'type', group: 'transitions-wipes' } });
     expect(find(tree, 'type:wipe')).toBeUndefined(); // no entry of that type
     expect(find(tree, 'untyped')).toMatchObject({ label: 'Untyped', count: 2, scope: { filter: 'type:untyped', kind: 'untyped' } }); // "other" template and the loose clip
   });
 
-  it('puts a group\'s general theme on the group itself, never under it', () => {
-    // The only sporting item carries the general theme, so Sports is there with nothing beneath it.
-    const sports = find(tree, 'themes:sports')!;
-    expect(sports.count).toBe(1);
-    expect(sports.children).toEqual([]);
-    expect(sports.scope).toMatchObject({ filter: 'theme:sports', kind: 'theme' });
-    expect(find(tree, 'theme:sports'), 'no child repeating the group').toBeUndefined();
-
-    // A specific theme is a child, and the group counts it too.
-    const withChild = buildBrowseTree([...entries, media('derby', { themes: ['soccer'] })], ['/lib', '/media'], undefined);
-    expect(find(withChild, 'themes:sports')?.count).toBe(2);
-    expect(find(withChild, 'themes:sports')?.children.map((n) => n.id)).toEqual(['theme:soccer']);
-  });
-
-  it('counts an item in two themes of one group once', () => {
-    const both = buildBrowseTree([media('clip', { themes: ['football', 'basketball'] })], ['/media'], undefined);
-    expect(find(both, 'themes:sports')?.count).toBe(1);
-    expect(find(both, 'themes:sports')?.children.map((n) => [n.label, n.count])).toEqual([
-      ['Football', 1],
-      ['Basketball', 1],
-    ]);
-  });
-
-  it('groups built-in themes and puts custom ones under Custom; styles are templates only', () => {
-    const themes = find(tree, 'themes')!;
-    expect(themes.children.map((n) => n.id)).toEqual(['themes:media', 'themes:sports', 'themes:custom']);
-    expect(find(tree, 'theme:news')).toMatchObject({ label: 'News / broadcast', count: 2, scope: { filter: 'theme:news', kind: 'theme' } });
-    expect(find(tree, 'theme:my-show')).toMatchObject({ label: 'My show', count: 1 });
-    expect(find(tree, 'styles')?.children.map((n) => [n.id, n.count])).toEqual([['style:clean', 2], ['style:grunge', 1]]);
-  });
-
-  it('lists packs the entries came from, and hides the section when there are none', () => {
+  it('gathers packs under Matching sets, and leaves it out when there are none', () => {
     const packed = buildBrowseTree(
       [template('a', {}, { pack: { name: 'News Pack', slug: 'news-pack' } }), template('b', {}, { pack: { name: 'News Pack', slug: 'news-pack' } }), template('c', {}, { pack: { name: 'Holiday', slug: 'holiday' } }), media('x')],
       ['/lib', '/media'],
       undefined,
     );
-    expect(packed.map((s) => s.id)).toEqual(['quick', 'types', 'packs', 'folders']);
-    expect(find(packed, 'packs')?.children.map((n) => [n.label, n.count])).toEqual([['Holiday', 1], ['News Pack', 2]]);
+    const sets = find(packed, 'category:matching-sets')!;
+    expect(sets).toMatchObject({ label: 'Matching sets', count: 3, scope: null, iconKind: 'pack' });
+    expect(sets.children.map((n) => [n.label, n.count])).toEqual([['Holiday', 1], ['News Pack', 2]]);
     expect(find(packed, 'pack:news-pack')?.scope).toEqual({ label: 'News Pack', filter: 'pack:news-pack', kind: 'pack' });
-    expect(find(tree, 'packs')).toBeUndefined();
+    expect(find(tree, 'category:matching-sets')).toBeUndefined();
   });
 
-  it('drops empty taxonomy sections but keeps Quick access, Untyped and Folders, dimmed at zero', () => {
+  it('keeps Untyped and the fixed sections, dimmed at zero, when the library is bare', () => {
     const bare = buildBrowseTree([media('x')], ['/media'], undefined);
-    expect(bare.map((s) => s.id)).toEqual(['quick', 'types', 'folders']);
-    expect(find(bare, 'types')?.children.map((n) => n.id)).toEqual(['untyped']);
+    expect(bare.map((s) => s.id)).toEqual(['categories', 'quick', 'folders']);
+    expect(find(bare, 'categories')?.children.map((n) => n.id)).toEqual(['untyped']);
     const empty = buildBrowseTree([], [], undefined);
-    expect(empty.map((s) => s.id)).toEqual(['quick', 'types', 'folders']);
-    expect(find(empty, 'untyped')?.count).toBe(0); // shown, dimmed, like Favorites at zero
+    expect(find(empty, 'untyped')?.count).toBe(0);
     expect(find(empty, 'favorites')?.count).toBe(0);
   });
 });

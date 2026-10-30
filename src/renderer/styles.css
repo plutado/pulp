@@ -1001,3 +1001,59 @@ progress { width: 100%; margin: 2px 0; }
 .whats-new-body h3 { font-size: var(--font-secondary); font-weight: 600; color: var(--muted); margin: var(--space-3) 0 var(--space-2); }
 .whats-new-body ul { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
 .whats-new-body li { color: var(--text-secondary); }
+
+/* ---------------------------------------------------------------- the browse panel says what things are (milestone 34) */
+
+/* The categories are the panel's top level: no heading above them, and the rule that separates
+   sections sits under them rather than over them. */
+.browse-tree .tree-top { padding-top: var(--space-1); }
+.browse-tree .tree-section + .tree-section.tree-top { border-top: 0; }
+
+/* For… and Look: a select dressed as a chip, so narrowing by theme or look sits with the other chips. */
+.filter-chips .chip-select { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 0 4px 0 7px; background: var(--panel-2); }
+.filter-chips .chip-select:hover { color: var(--text); }
+.filter-chips .chip-select.set { color: var(--text); border-color: var(--accent); }
+.filter-chips .chip-select select.chip { border: 0; background: transparent; padding: 2px 2px 2px 0; font-size: var(--font-caption); color: inherit; max-width: 160px; }
+.filter-chips .chip-select select.chip:focus-visible { outline-offset: 0; }
+
+/* One line under the results heading on what the chosen category holds. */
+.results-head { gap: var(--space-2); flex-wrap: wrap; }
+.results-description { color: var(--muted); font-size: var(--font-caption); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.results-description:empty { display: none; }
+
+/* Category cards: the subcategories of what is chosen, or the categories themselves, as a row of
+   pictures with counts above the items. One row that scrolls sideways, so it never takes the
+   results' room. */
+.category-cards { flex: 0 0 auto; display: flex; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-2); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.category-cards[hidden] { display: none; }
+/* The items keep their floor whatever sits above them; on a short window the cards go first,
+   since the stage and the list have the floors the layout promises (docs/platform-notes.md). */
+.results { min-height: var(--results-min-h); }
+@media (max-height: 760px) { .category-cards { display: none; } }
+.category-card {
+  flex: 0 0 auto; width: 112px; display: flex; flex-direction: column; gap: 2px; text-align: left;
+  padding: var(--space-1); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-surface);
+}
+.category-card:hover { background: var(--panel-2); }
+.category-card .category-thumb {
+  width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius-control); overflow: hidden; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); background: var(--panel-2);
+}
+.category-card .category-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.category-card .category-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.category-card .category-count { font-size: var(--font-caption); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* A transparent template's poster sits on a quiet backdrop tinted by its category rather than on
+   bare checkerboard (milestone 34): the Alpha badge already says it is transparent, and a tint
+   tells overlays, lower thirds and effects apart at a glance. The stage keeps the checkerboard. */
+.results .card[data-alpha="true"] .thumb.checker { background-image: none; background-color: var(--poster-backdrop, #20242c); }
+.results .card[data-alpha="true"][data-category="lower-thirds"] { --poster-backdrop: #1f2a36; }
+.results .card[data-alpha="true"][data-category="titles-openers"] { --poster-backdrop: #2a2334; }
+.results .card[data-alpha="true"][data-category="end-cards"] { --poster-backdrop: #2c2730; }
+.results .card[data-alpha="true"][data-category="overlays-frames"] { --poster-backdrop: #1f2d2a; }
+.results .card[data-alpha="true"][data-category="transitions-wipes"] { --poster-backdrop: #33281f; }
+.results .card[data-alpha="true"][data-category="design-elements"] { --poster-backdrop: #2f2b20; }
+.results .card[data-alpha="true"][data-category="effects"] { --poster-backdrop: #33211f; }
+.results .card[data-alpha="true"][data-category="objects"] { --poster-backdrop: #26302a; }
+.results .card[data-alpha="true"][data-category="animated-backgrounds"],
+.results .card[data-alpha="true"][data-category="still-backgrounds"] { --poster-backdrop: #232a33; }

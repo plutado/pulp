@@ -201,15 +201,15 @@ describe('browse tree counts', () => {
     const t = template('straps');
     let s = setIndex(initialAppState, index([t], [media('clip'), media('other')]));
     const all = select(s);
-    const typesOf = (tree: ReturnType<typeof select>) => tree.find((n) => n.id === 'types')?.children.map((n) => [n.id, n.count]);
-    expect(typesOf(all)).toEqual([['group:titles', 1], ['untyped', 2]]);
+    const typesOf = (tree: ReturnType<typeof select>) => tree.find((n) => n.id === 'categories')?.children.map((n) => [n.id, n.count]);
+    expect(typesOf(all)).toEqual([['category:titles-openers', 1], ['untyped', 2]]);
     // The scope does not change the counts (selecting a node must not zero the others), nor rebuild the tree.
     expect(select(setScope(s, { label: 'Untyped', filter: 'type:untyped', kind: 'untyped' }))).toBe(all);
     expect(select(setSelection(s, 'clip'))).toBe(all);
     // The typed query does.
     s = setQuery(s, 'clip');
     expect(typesOf(select(s))).toEqual([['untyped', 1]]);
-    expect(typesOf(select(setQuery(s, 'straps')))).toEqual([['group:titles', 1], ['untyped', 0]]); // Untyped stays, at zero
+    expect(typesOf(select(setQuery(s, 'straps')))).toEqual([['category:titles-openers', 1], ['untyped', 0]]); // Untyped stays, at zero
     expect(facetEntries(s).map((e) => e.key)).toEqual(['clip']);
   });
 });

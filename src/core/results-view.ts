@@ -219,7 +219,7 @@ function entrySize(entry: LibraryEntry): { width?: number; height?: number } {
   return entry.kind === 'template' ? templateDefaultSize(entry.manifest) : { width: entry.meta?.width, height: entry.meta?.height };
 }
 
-function hasAlpha(entry: LibraryEntry): boolean {
+export function hasAlpha(entry: LibraryEntry): boolean {
   return entry.kind === 'template' ? entry.manifest.alpha : entry.meta?.alpha === true;
 }
 

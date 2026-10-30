@@ -87,6 +87,26 @@ export function runForBuffer(command: string, args: string[]): Promise<{ code: n
   });
 }
 
+/**
+ * Both at once: images in on stdin, bytes out on stdout. The poster probe feeds
+ * a captured PNG in and reads a few hundred raw pixels back (src/core/poster.ts).
+ */
+export function runWithInputForBuffer(command: string, args: string[], input: Buffer): Promise<{ code: number; stdout: Buffer; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+    const chunks: Buffer[] = [];
+    let stderr = '';
+    child.stdout?.on('data', (chunk: Buffer) => chunks.push(chunk));
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderr = (stderr + chunk.toString('utf8')).slice(-8000);
+    });
+    child.on('error', reject);
+    child.on('close', (code) => resolve({ code: code ?? 1, stdout: Buffer.concat(chunks), stderr }));
+    child.stdin?.on('error', () => undefined);
+    child.stdin?.end(input);
+  });
+}
+
 /** Extract "8.0" from the first line of `ffmpeg -version`. */
 export function parseFfmpegVersion(output: string): string | null {
   const m = /ffmpeg version (\S+)/.exec(output);

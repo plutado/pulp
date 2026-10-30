@@ -148,8 +148,19 @@ function groupIcon(node: TreeNode) {
   return node.scope ? scopeIcon(node.scope.kind, node.scope.group) : scopeIcon(node.iconKind, undefined);
 }
 
-/** A section: a heading, not a row. The whole heading folds; nothing about it highlights. */
+/**
+ * A section: a heading, not a row. The whole heading folds; nothing about it
+ * highlights. The categories (milestone 34) are the panel's top level rather
+ * than a section of it: no heading, never folded, their rows simply first.
+ */
 function Section({ node }: { node: FilteredNode }) {
+  if (node.fixed) {
+    return (
+      <li role="none" class="tree-section tree-top" data-section={node.id}>
+        <Rows nodes={node.children} depth={1} />
+      </li>
+    );
+  }
   // A section holding a match stays open for as long as the search lasts, whatever the folds say.
   const open = searching.value || !folded.value.has(node.id);
   return (
@@ -185,7 +196,7 @@ function NodeButton({ node, depth, open }: RowProps & { open?: boolean }) {
       data-filter={scope?.filter}
       data-count={node.count}
       data-foldable={foldable ? 'true' : undefined}
-      data-tip={scope?.root}
+      data-tip={node.description ?? scope?.root}
       onClick={() => {
         if (!scope) {
           toggleFold(node.id);

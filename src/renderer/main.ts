@@ -3,6 +3,7 @@ import { formatBytes, setCollection, setIndex, setJobs, setQuery, setSelection, 
 import { addItem, itemFor } from '../core/collection';
 import { appState, dispatch, results, selectedTemplate } from './store';
 import { mountResults } from './results';
+import { mountCategoryCards } from './category-cards';
 import { mountItemInfo } from './item-info';
 import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback } from './stage';
 import { initShell } from './shell';
@@ -390,6 +391,8 @@ void window.pulp.getStartScreenPrefs().then((prefs) => {
 mountBrowse($('browse-find'), $('browse-tree'));
 void window.pulp.getBrowseAccordion().then((on) => (browseAccordion.value = on));
 mountResults(els.results, { onSelect: select, onStop: stopPlayback });
+// What a chosen category holds, as pictures (milestone 34).
+mountCategoryCards($('category-cards'));
 
 // Add to collection: the item on the stage, with whatever the Output tab currently says.
 const addToCollection = $<HTMLButtonElement>('add-to-collection');

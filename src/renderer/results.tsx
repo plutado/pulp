@@ -21,6 +21,7 @@ import {
   cardHeight,
   columnsFor,
   entryBadges,
+  hasAlpha,
   listRow,
   gridRatio,
   thumbHeight,
@@ -30,6 +31,7 @@ import {
   type BadgeId,
   type ResultBadge,
 } from '../core/results-view';
+import { categoryOfEntry } from '../core/categories';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { emptyResults, resultsLabel, type EmptyActionId } from '../core/results-empty';
 import { setQuery } from '../core/app-state';
@@ -88,6 +90,8 @@ function Card({ entry, selected, onSelect, gridRatio }: ItemProps & { gridRatio:
       role="option"
       data-id={entry.id}
       data-kind={entry.kind}
+      data-category={categoryOfEntry(entry)?.id}
+      data-alpha={hasAlpha(entry) ? 'true' : undefined}
       aria-selected={selected ? 'true' : 'false'}
       draggable
       onDragStart={(e: DragEvent) => {
@@ -156,7 +160,7 @@ function geometry(entries: readonly LibraryEntry[]) {
  */
 function takeAction(id: EmptyActionId): void {
   if (id === 'clear-search') dispatch((s) => setQuery(s, ''));
-  else if (id === 'clear-filters') dispatch((s) => ({ ...s, filters: [] }));
+  else if (id === 'clear-filters') dispatch((s) => ({ ...s, filters: [], forTheme: null, look: null }));
   else if (id === 'clear-scope') dispatch((s) => ({ ...s, scope: null }));
   else document.getElementById(id === 'add-folder' ? 'add-folder' : 'add-sample-media')?.click();
 }
@@ -183,7 +187,7 @@ function GhostSlots({ entries }: { entries: readonly LibraryEntry[] }) {
 /** Why there is nothing here, and what to do about it, over the ghost slots. */
 function Empty({ entries }: { entries: readonly LibraryEntry[] }) {
   const s = appState.value;
-  const empty = emptyResults({ index: s.index, query: s.query, scope: s.scope, filters: s.filters });
+  const empty = emptyResults({ index: s.index, query: s.query, scope: s.scope, filters: s.filters, forTheme: s.forTheme, look: s.look });
   if (!empty) return null;
   return (
     <>
@@ -301,7 +305,7 @@ export function mountResults(container: HTMLElement, actions: ResultsActions): v
   let search = '';
   effect(() => {
     const s = appState.value;
-    const next = `${s.query}\u0000${s.sort}\u0000${s.filters.join()}\u0000${s.scope?.label ?? ''}\u0000${s.scope?.filter ?? ''}\u0000${s.scope?.root ?? ''}`;
+    const next = `${s.query}\u0000${s.sort}\u0000${s.filters.join()}\u0000${s.forTheme ?? ''}\u0000${s.look ?? ''}\u0000${s.scope?.label ?? ''}\u0000${s.scope?.filter ?? ''}\u0000${s.scope?.root ?? ''}`;
     if (next === search) return;
     search = next;
     container.scrollTop = 0;

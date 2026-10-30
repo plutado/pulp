@@ -10,7 +10,7 @@ The window in this plan is built. The regions are resizable, collapsible panes w
 
 | Region | Where | What it does |
 |---|---|---|
-| **Browse panel** | left | A find-a-category field over a tree with sections: Types (group → type), Themes, Styles, Packs, Folders, Favorites, Recent. Each node shows an item count. Typing in the field **filters the tree itself** — what no longer matches disappears, what remains keeps its section and group, the matched letters are lit, and every section holding a match is open while the search lasts; clearing restores the tree exactly. The panel shows only where you are: folded to the active category's path, or Quick access alone, and choosing a category folds the tree to it. Selecting a node sets the **scope**: the results and the search are narrowed to it. Clearing the selection widens back to everything. |
+| **Browse panel** | left | A find-a-category field over a tree that opens on what things are (milestone 34, `src/core/categories.ts`): Lower thirds, Titles and openers, End cards, Matching sets, Animated backgrounds, Still backgrounds, Overlays and frames, Transitions and wipes, Design elements, Effects, Objects, Stock video, Photos and stills, Music, Sound effects — the taxonomy's types beneath the ones that gather several, packs beneath Matching sets — then Quick access (Favorites, Recently used) and My folders. Themes and styles are not trees: they are the **For…** and **Look** chips in the search bar, narrowing whatever category is chosen. Each node shows an item count and a one-line description on hover. Typing in the field **filters the tree itself** — what no longer matches disappears, what remains keeps its section and group, the matched letters are lit, and every section holding a match is open while the search lasts; clearing restores the tree exactly. The panel shows only where you are: folded to the active category's path, or Quick access alone, and choosing a category folds the tree to it. Selecting a node sets the **scope**: the results and the search are narrowed to it. Clearing the selection widens back to everything. |
 | **Search bar** | above the results | Search field; a **scope chip** naming the selected node ("in: Lower thirds › Sports", × to clear); recent searches; filter chips for alpha, loop, duration and resolution; sort; grid/list toggle; thumbnail size. |
 | **Results** | center | **Grid of cards**: thumbnail with hover-scrub, name, badges (alpha, loop, duration, resolution, audio variants, pack). **List view** for audio and long lists: name, duration, type, themes, file. **Audition mode**: autoplay with arrow keys. A card can be dragged to the collection tray, to the stage, or straight out to an editor once rendered. |
 | **Stage** | center, above the results in a resizable split; collapsible to a thin bar | The player: play/pause, loop toggle, frame step, in and out marks, timecode, volume and mute. A **background toggle** (checkerboard, black, white, custom) for checking alpha. Title-safe and action-safe overlay. A **waveform** under the scrub bar for audio and for templates with sound. **Stem lanes** for layered music, one waveform per layer with mute and solo. A **variant picker** for paired sound effects. |
@@ -28,8 +28,8 @@ Nothing is dropped; everything moves into a region.
 | Today | Target region |
 |---|---|
 | Search field | Search bar |
-| Add folder, rescan, library summary | Browse panel (Folders section) and status bar |
-| Pack import and export | Browse panel (Packs section) |
+| Add folder, rescan, library summary | Browse panel (My folders) and status bar |
+| Pack import and export | Browse panel (Matching sets) |
 | Flat result list with thumbnails | Results, list view (the grid is added later) |
 | Preview, play, scrub, timecode | Stage |
 | Details | Inspector, Info tab |

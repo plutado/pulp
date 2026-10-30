@@ -2,9 +2,12 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ASPECT_IDS } from '../src/core/aspect';
-import { THEME_GROUPS, TYPES } from '../src/core/taxonomy';
+import { THEME_GROUPS } from '../src/core/taxonomy';
+import { categoryInfo, categoryScope } from '../src/core/categories';
+import type { LibraryEntry } from '../src/core/library-types';
+import { validManifest } from './fixtures';
 import {
-  hasSampleMedia, lastOpenedLabel, MAKING_CHOICES, orderRecents, PROJECT_SHAPES, projectFileName,
+  hasSampleMedia, lastOpenedLabel, MAKING_CHOICES, makingChoiceLanding, orderRecents, PROJECT_SHAPES, projectFileName,
   setupChecklist, TOUR_STEPS, type RecentProjectRow,
 } from '../src/core/start-screen';
 
@@ -18,16 +21,26 @@ describe('the start screen (milestone 31)', () => {
     for (const shape of PROJECT_SHAPES) expect(shape.hint).toMatch(/^(Landscape|Vertical|Square)$/);
   });
 
-  it('leads each "what are you making" choice into a category the taxonomy really has', () => {
+  it('leads each "what are you making" choice into a browse category that exists, with a real theme for its chip', () => {
     const themeIds = new Set(THEME_GROUPS.flatMap((g) => g.themes.map((t) => t.id)));
-    const typeIds = new Set(TYPES.map((t) => t.id));
     for (const choice of MAKING_CHOICES) {
-      const filter = choice.scope.filter!;
-      const [kind, id] = filter.split(':');
-      if (kind === 'theme') expect(themeIds.has(id!), filter).toBe(true);
-      else if (kind === 'type') expect(typeIds.has(id!), filter).toBe(true);
-      else throw new Error(`unexpected filter ${filter}`);
+      const category = categoryInfo(choice.category);
+      expect(category, choice.id).toBeDefined();
+      expect(category!.types.length, `${choice.id} lands on a category with types to show`).toBeGreaterThan(0);
+      expect(themeIds.has(choice.forTheme), `${choice.id}: ${choice.forTheme}`).toBe(true);
     }
+  });
+
+  it('sets the For chip only when the category has something carrying the theme', () => {
+    const interview = MAKING_CHOICES.find((c) => c.id === 'interview')!;
+    const strap = (themes: string[]): LibraryEntry => ({
+      kind: 'template', key: 'strap', id: 'id-strap', dir: '/lib/strap', root: '/lib', tags: [], warnings: [], themes,
+      manifest: validManifest({ id: 'test.strap', name: 'strap', category: 'lower-third' }),
+    });
+    expect(makingChoiceLanding(interview, [strap(['podcast'])])).toEqual({ scope: categoryScope(categoryInfo('lower-thirds')!), forTheme: 'podcast' });
+    // Nothing in Lower thirds is for an interview here: the category opens, the chip stays clear.
+    expect(makingChoiceLanding(interview, [strap(['news'])])?.forTheme).toBeNull();
+    expect(makingChoiceLanding(interview, [])?.scope.label).toBe('Lower thirds');
   });
 
   it('ticks the checklist off from what the session knows', () => {

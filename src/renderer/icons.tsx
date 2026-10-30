@@ -16,6 +16,7 @@ import checkCircle from '@phosphor-icons/core/assets/regular/check-circle.svg?ra
 import circle from '@phosphor-icons/core/assets/regular/circle.svg?raw';
 import checkerboard from '@phosphor-icons/core/assets/regular/checkerboard.svg?raw';
 import copy from '@phosphor-icons/core/assets/regular/copy.svg?raw';
+import cube from '@phosphor-icons/core/assets/regular/cube.svg?raw';
 import clock from '@phosphor-icons/core/assets/regular/clock.svg?raw';
 import dotsSixVertical from '@phosphor-icons/core/assets/regular/dots-six-vertical.svg?raw';
 import deviceMobile from '@phosphor-icons/core/assets/regular/device-mobile.svg?raw';
@@ -23,7 +24,10 @@ import downloadSimple from '@phosphor-icons/core/assets/regular/download-simple.
 import exportIcon from '@phosphor-icons/core/assets/regular/export.svg?raw';
 import eye from '@phosphor-icons/core/assets/regular/eye.svg?raw';
 import eyeSlash from '@phosphor-icons/core/assets/regular/eye-slash.svg?raw';
+import filmReel from '@phosphor-icons/core/assets/regular/film-reel.svg?raw';
+import filmSlate from '@phosphor-icons/core/assets/regular/film-slate.svg?raw';
 import filmStrip from '@phosphor-icons/core/assets/regular/film-strip.svg?raw';
+import fire from '@phosphor-icons/core/assets/regular/fire.svg?raw';
 import folder from '@phosphor-icons/core/assets/regular/folder.svg?raw';
 import folderOpen from '@phosphor-icons/core/assets/regular/folder-open.svg?raw';
 import link from '@phosphor-icons/core/assets/regular/link.svg?raw';
@@ -57,14 +61,18 @@ import speakerSlash from '@phosphor-icons/core/assets/regular/speaker-slash.svg?
 import spinner from '@phosphor-icons/core/assets/regular/spinner.svg?raw';
 import square from '@phosphor-icons/core/assets/regular/square.svg?raw';
 import stack from '@phosphor-icons/core/assets/regular/stack.svg?raw';
+import subtitles from '@phosphor-icons/core/assets/regular/subtitles.svg?raw';
 import swap from '@phosphor-icons/core/assets/regular/swap.svg?raw';
 import star from '@phosphor-icons/core/assets/regular/star.svg?raw';
 import starFill from '@phosphor-icons/core/assets/fill/star-fill.svg?raw';
 import textAa from '@phosphor-icons/core/assets/regular/text-aa.svg?raw';
+import textT from '@phosphor-icons/core/assets/regular/text-t.svg?raw';
 import trash from '@phosphor-icons/core/assets/regular/trash.svg?raw';
 import uploadSimple from '@phosphor-icons/core/assets/regular/upload-simple.svg?raw';
 import warning from '@phosphor-icons/core/assets/regular/warning.svg?raw';
 import x from '@phosphor-icons/core/assets/regular/x.svg?raw';
+
+import { BROWSE_CATEGORIES } from '../core/categories';
 
 const ICONS = {
   'arrow-clockwise': arrowClockwise,
@@ -78,13 +86,17 @@ const ICONS = {
   circle,
   clock,
   copy,
+  cube,
   'dots-six-vertical': dotsSixVertical,
   'device-mobile': deviceMobile,
   'download-simple': downloadSimple,
   export: exportIcon,
   eye,
   'eye-slash': eyeSlash,
+  'film-reel': filmReel,
+  'film-slate': filmSlate,
   'film-strip': filmStrip,
+  fire,
   folder,
   'folder-open': folderOpen,
   'folder-plus': folderPlus,
@@ -118,10 +130,12 @@ const ICONS = {
   square,
   stack,
   star,
+  subtitles,
   'star-fill': starFill,
   swap,
   tag,
   'text-aa': textAa,
+  'text-t': textT,
   trash,
   'upload-simple': uploadSimple,
   warning,
@@ -182,7 +196,16 @@ export const TYPE_GROUP_ICONS: Record<string, IconName> = {
   sfx: 'speaker-high',
 };
 
-/** One icon per scope kind, shared by the tree, the icon rail and the scope chip (type and group scopes use their group's icon). */
+/**
+ * One icon per browse category (milestone 34), read off the category list so the
+ * tree, the cards and the scope chip agree; the names are checked against the set
+ * by a test. A category's types share its icon.
+ */
+export const CATEGORY_ICONS: Record<string, IconName> = Object.fromEntries(
+  BROWSE_CATEGORIES.map((c) => [c.id, isIconName(c.icon) ? c.icon : 'shapes']),
+) as Record<string, IconName>;
+
+/** One icon per scope kind, shared by the tree, the icon rail and the scope chip (a category and its types use the category's icon). */
 export function scopeIcon(kind: string | undefined, group: string | undefined): IconName {
   switch (kind) {
     case 'favorites': return 'star';
@@ -190,8 +213,9 @@ export function scopeIcon(kind: string | undefined, group: string | undefined): 
     case 'built-in':
     case 'pack': return 'package';
     case 'folder': return 'folder';
+    case 'category':
     case 'type':
-    case 'group': return group ? (TYPE_GROUP_ICONS[group] ?? 'shapes') : 'shapes';
+    case 'group': return group ? (CATEGORY_ICONS[group] ?? TYPE_GROUP_ICONS[group] ?? 'shapes') : 'shapes';
     case 'untyped': return 'question';
     case 'theme': return 'tag';
     case 'style': return 'palette';

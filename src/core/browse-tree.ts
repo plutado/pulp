@@ -1,20 +1,28 @@
 /**
- * The browse tree (docs/ui-layout.md, milestone 10): Quick access (Favorites, Recently
- * used), Types (group → type, plus Untyped), Themes (built-in groups plus Custom), Styles,
- * and Folders, each node with the count of entries it would scope to. Counts come from the
- * entries passed in — the typed query and chips applied, the scope not — in one pass.
- * Empty taxonomy nodes are left out: the tree is a map of what the library has, not of
- * the whole vocabulary. The fixed places — Favorites, Recently used, Untyped, folders —
- * are always there and dim at zero. Pure.
+ * The browse tree (docs/ui-layout.md, milestones 10, 24 and 34). It opens on
+ * what things are: plain categories — Lower thirds, Titles and openers,
+ * Matching sets, Animated backgrounds, Overlays and frames, Music — with the
+ * taxonomy's types beneath the ones that gather several (src/core/categories.ts).
+ * Then Quick access (Favorites, Recently used) and My folders. Themes and
+ * styles are not trees here: they are the "For…" and "Look" chips in the
+ * search bar, which narrow whatever category is chosen.
+ *
+ * Every node carries the count of entries it would scope to. Counts come from
+ * the entries passed in — the typed query and the chips applied, the scope
+ * not — in one pass. Empty categories and types are left out: the tree is a
+ * map of what the library has, not of the whole vocabulary. The fixed places —
+ * Favorites, Recently used, Untyped, folders — are always there and dim at
+ * zero. Pure.
  */
 
 import type { Scope } from './app-state';
-import { rootLabel, styleLabel, themeLabel, typeLabel } from './display';
+import { BROWSE_CATEGORIES, categoryScope, MATCHING_SETS, typeScope } from './categories';
+import { rootLabel } from './display';
 import type { LibraryEntry } from './library-types';
-import { entryType, groupChildThemes, isBuiltInTheme, STYLES, THEME_GROUPS, themeGroupOf, TYPE_GROUPS, TYPES, typeInfo } from './taxonomy';
+import { entryType } from './taxonomy';
 
 export interface TreeNode {
-  /** Unique within the tree: "type:wipe", "group:transitions", "theme:news", "root:/path", "untyped"… */
+  /** Unique within the tree: "category:lower-thirds", "type:wipe", "pack:news", "root:/path", "untyped"… */
   id: string;
   label: string;
   /** Entries this node would scope to. */
@@ -23,6 +31,10 @@ export interface TreeNode {
   scope: Scope | null;
   /** For a group with no scope of its own: what its children are, so the UI need not guess its icon. */
   iconKind?: Scope['kind'];
+  /** One line on what lives here, for the tooltip and the results heading. */
+  description?: string;
+  /** Never folds and draws no heading: the categories are the panel's top level, not a section of it. */
+  fixed?: true;
   children: TreeNode[];
 }
 
@@ -32,10 +44,6 @@ function bump(map: Map<string, number>, key: string): void {
 
 export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonly string[], builtInRoot: string | undefined): TreeNode[] {
   const byType = new Map<string, number>();
-  const byGroup = new Map<string, number>();
-  const byTheme = new Map<string, number>();
-  const byThemeGroup = new Map<string, number>();
-  const byStyle = new Map<string, number>();
   const byRoot = new Map<string, number>();
   const byPack = new Map<string, { name: string; count: number }>();
   let untyped = 0;
@@ -44,23 +52,8 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
 
   for (const entry of entries) {
     const type = entryType(entry);
-    if (type) {
-      bump(byType, type);
-      const group = typeInfo(type)?.group;
-      if (group) bump(byGroup, group);
-    } else {
-      untyped += 1;
-    }
-    const groupsSeen = new Set<string>();
-    for (const theme of entry.themes ?? []) {
-      bump(byTheme, theme);
-      const group = themeGroupOf(theme);
-      if (group !== undefined && !groupsSeen.has(group)) {
-        groupsSeen.add(group);
-        bump(byThemeGroup, group);
-      }
-    }
-    if (entry.kind === 'template') for (const style of entry.manifest.styles ?? []) bump(byStyle, style);
+    if (type) bump(byType, type);
+    else untyped += 1;
     bump(byRoot, entry.root);
     if (entry.kind === 'template' && entry.pack) {
       const p = byPack.get(entry.pack.slug) ?? { name: entry.pack.name, count: 0 };
@@ -70,6 +63,36 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     if (entry.favorite) favorites += 1;
     if (entry.lastUsed) recent += 1;
   }
+
+  // What it is, at the top. A category of one type is the type with the plainer name; one of
+  // several opens on the types it gathers; Matching sets opens on the packs.
+  const categoryNodes: TreeNode[] = [];
+  for (const category of BROWSE_CATEGORIES) {
+    if (category.id === MATCHING_SETS) {
+      const packs = [...byPack.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
+      if (packs.length === 0) continue;
+      categoryNodes.push({
+        id: `category:${category.id}`,
+        label: category.label,
+        description: category.description,
+        count: packs.reduce((n, [, p]) => n + p.count, 0),
+        scope: null,
+        iconKind: 'pack',
+        children: packs.map(([slug, p]) => ({ id: `pack:${slug}`, label: p.name, count: p.count, scope: { label: p.name, filter: `pack:${slug}`, kind: 'pack' as const }, children: [] })),
+      });
+      continue;
+    }
+    const count = category.types.reduce((n, t) => n + (byType.get(t) ?? 0), 0);
+    if (count === 0) continue;
+    const scope = categoryScope(category);
+    const children = category.types.length < 2
+      ? []
+      : category.types.filter((t) => (byType.get(t) ?? 0) > 0).map((t): TreeNode => ({ id: `type:${t}`, label: typeScope(t).label, count: byType.get(t) ?? 0, scope: typeScope(t), children: [] }));
+    categoryNodes.push({ id: `category:${category.id}`, label: category.label, description: category.description, count, scope, children });
+  }
+  // Always present: the place for what has no type yet, dimmed when nothing is there.
+  categoryNodes.push({ id: 'untyped', label: 'Untyped', description: 'Items no folder or manifest has said the type of yet.', count: untyped, scope: { label: 'Untyped', filter: 'type:untyped', kind: 'untyped' }, children: [] });
+  const categories: TreeNode = { id: 'categories', label: 'Categories', count: entries.length, scope: null, fixed: true, children: categoryNodes };
 
   const quick: TreeNode = {
     id: 'quick',
@@ -82,76 +105,9 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     ],
   };
 
-  const typeGroups: TreeNode[] = TYPE_GROUPS.filter((g) => (byGroup.get(g.id) ?? 0) > 0).map((g) => ({
-    id: `group:${g.id}`,
-    label: g.label,
-    count: byGroup.get(g.id) ?? 0,
-    scope: { label: g.label, filter: `type:${g.id}`, kind: 'group', group: g.id },
-    children: TYPES.filter((t) => t.group === g.id && (byType.get(t.id) ?? 0) > 0).map((t) => ({
-      id: `type:${t.id}`,
-      label: typeLabel(t.id),
-      count: byType.get(t.id) ?? 0,
-      scope: { label: typeLabel(t.id), filter: `type:${t.id}`, kind: 'type', group: g.id },
-      children: [],
-    })),
-  }));
-  // Always present: the place for what has no type yet, dimmed when nothing is there.
-  typeGroups.push({ id: 'untyped', label: 'Untyped', count: untyped, scope: { label: 'Untyped', filter: 'type:untyped', kind: 'untyped' }, children: [] });
-  const types: TreeNode = { id: 'types', label: 'Types', count: entries.length - untyped, scope: null, children: typeGroups };
-
-  // A theme group is a node of its own, not just a heading: it holds the items carrying
-  // the theme that means the group ("sports") as well as everything under its children,
-  // and its count is of entries, not of themes, so an item in two of them counts once.
-  const themeGroups: TreeNode[] = THEME_GROUPS.map((g): TreeNode => ({
-    id: `themes:${g.id}`,
-    label: g.label,
-    count: byThemeGroup.get(g.id) ?? 0,
-    scope: { label: g.label, filter: `theme:${g.id}`, kind: 'theme' },
-    iconKind: 'theme',
-    children: groupChildThemes(g)
-      .filter((t) => (byTheme.get(t.id) ?? 0) > 0)
-      .map((t) => ({ id: `theme:${t.id}`, label: themeLabel(t.id), count: byTheme.get(t.id) ?? 0, scope: { label: themeLabel(t.id), filter: `theme:${t.id}`, kind: 'theme' }, children: [] })),
-  })).filter((g) => g.count > 0);
-  const customThemes = [...byTheme.keys()].filter((t) => !isBuiltInTheme(t)).sort((a, b) => a.localeCompare(b));
-  if (customThemes.length > 0) {
-    themeGroups.push({
-      id: 'themes:custom',
-      label: 'Custom',
-      count: customThemes.reduce((n, t) => n + (byTheme.get(t) ?? 0), 0),
-      scope: null,
-      iconKind: 'theme',
-      children: customThemes.map((t) => ({ id: `theme:${t}`, label: themeLabel(t), count: byTheme.get(t) ?? 0, scope: { label: themeLabel(t), filter: `theme:${t}`, kind: 'theme' }, children: [] })),
-    });
-  }
-  const themes: TreeNode = { id: 'themes', label: 'Themes', count: byTheme.size, scope: null, children: themeGroups };
-
-  const styles: TreeNode = {
-    id: 'styles',
-    label: 'Styles',
-    count: byStyle.size,
-    scope: null,
-    children: STYLES.filter((s) => (byStyle.get(s.id) ?? 0) > 0).map((s) => ({
-      id: `style:${s.id}`,
-      label: styleLabel(s.id),
-      count: byStyle.get(s.id) ?? 0,
-      scope: { label: styleLabel(s.id), filter: `style:${s.id}`, kind: 'style' },
-      children: [],
-    })),
-  };
-
-  const packs: TreeNode = {
-    id: 'packs',
-    label: 'Packs',
-    count: byPack.size,
-    scope: null,
-    children: [...byPack.entries()]
-      .sort((a, b) => a[1].name.localeCompare(b[1].name))
-      .map(([slug, p]) => ({ id: `pack:${slug}`, label: p.name, count: p.count, scope: { label: p.name, filter: `pack:${slug}`, kind: 'pack' as const }, children: [] })),
-  };
-
   const folders: TreeNode = {
     id: 'folders',
-    label: 'Folders',
+    label: 'My folders',
     count: roots.length,
     scope: null,
     children: roots.map((root) => {
@@ -160,6 +116,5 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     }),
   };
 
-  // Sections with nothing under them are left out, except the fixed entry points (Quick access, Types with Untyped, Folders).
-  return [quick, types, themes, styles, packs, folders].filter((section) => section.id === 'quick' || section.id === 'folders' || section.children.length > 0);
+  return [categories, quick, folders];
 }

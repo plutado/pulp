@@ -69,6 +69,12 @@
           <button id="chip-vertical" class="chip" type="button" data-chip="vertical" data-icon="device-mobile" aria-pressed="false" data-tip="Portrait items, and templates that draw tall"><span class="label">Vertical</span></button>
           <button id="chip-alpha" class="chip" type="button" data-chip="alpha" data-icon="checkerboard" aria-pressed="false"><span class="label">Alpha</span></button>
           <button id="chip-favorites" class="chip" type="button" data-chip="favorites" data-icon="star" aria-pressed="false"><span class="label">Favorites</span></button>
+          <span class="chip-select" data-icon="tag" data-tip="Narrow the results to what they are for: a wedding, sports, news…">
+            <select id="for-select" class="chip" aria-label="For"><option value="">For…</option></select>
+          </span>
+          <span class="chip-select" data-icon="palette" data-tip="Narrow the results by look: clean, elegant, retro…">
+            <select id="look-select" class="chip" aria-label="Look"><option value="">Look</option></select>
+          </span>
         </div>
       </div>
       <section id="region-stage" class="stage" aria-label="Stage">
@@ -149,7 +155,11 @@
       </section>
       <div id="split-stage" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the stage"></div>
       <section id="region-results" class="results-region" aria-label="Results">
-        <div class="results-head"><span id="results-label" class="region-count">Results</span></div>
+        <div class="results-head">
+          <span id="results-label" class="region-count">Results</span>
+          <span id="results-description" class="results-description"></span>
+        </div>
+        <div id="category-cards" class="category-cards" hidden></div>
         <ul id="results" class="results grid" role="listbox" aria-label="Library"></ul>
       </section>
     </main>

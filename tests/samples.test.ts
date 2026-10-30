@@ -6,7 +6,7 @@ import { parseManifest } from '../src/core/manifest';
 import { parsePackManifest, PACK_FILENAME } from '../src/core/pack';
 import { defaultParams } from '../src/core/params';
 import { buildRenderPlan, PRESET_IDS } from '../src/core/render-plan';
-import { buildBrowseTree } from '../src/core/browse-tree';
+import { forOptions } from '../src/core/categories';
 import { searchLibrary } from '../src/core/search';
 import { THEME_GROUPS } from '../src/core/taxonomy';
 
@@ -194,25 +194,21 @@ describe('bundled sample templates', async () => {
     }
   });
 
-  it('builds a theme tree where every group in use has several children, and none repeats its parent', async () => {
+  it('fills the For… chip with groups of several themes each, and a group covers its children (milestone 34)', async () => {
     const index = await scanLibrary([TEMPLATES_DIR]);
-    const tree = buildBrowseTree(index.templates, [TEMPLATES_DIR], TEMPLATES_DIR);
-    const themes = tree.find((s) => s.id === 'themes');
-    expect(themes, 'the samples should fill a Themes section').toBeDefined();
-    const groups = themes!.children;
+    // Themes are the For… chip now rather than a tree: the samples should fill it, group by group.
+    const groups = forOptions(index.templates);
     expect(groups.length, 'groups in use').toBeGreaterThan(0);
     for (const group of groups) {
-      // Several, never one: a group that opens onto a single child is not a hierarchy. There is no
-      // upper limit — "three to five" was only ever shorthand for that floor, and milestone 24
-      // fills every theme, so a group shows as many children as the taxonomy gives it.
-      expect(group.children.length, `${group.label} children`).toBeGreaterThanOrEqual(3);
-      for (const child of group.children) {
-        expect(child.count, `${group.label} › ${child.label}`).toBeGreaterThan(0);
-      }
-      // Selecting a group covers its own items and everything under it, so it is never smaller than a child.
-      for (const child of group.children) {
-        expect(group.count, `${group.label} vs ${child.label}`).toBeGreaterThanOrEqual(child.count);
-      }
+      // Several, never one: a group that opens onto a single choice is not a grouping. There is no
+      // upper limit — milestone 24 fills every theme, so a group offers as many as the taxonomy gives it.
+      expect(group.options.length, `${group.label} options`).toBeGreaterThanOrEqual(3);
+      for (const option of group.options) expect(option.count, `${group.label} › ${option.label}`).toBeGreaterThan(0);
+      // Searching the group itself covers its own items and everything under it, so it is never smaller than a child.
+      const built = THEME_GROUPS.find((g) => g.label === group.label);
+      if (!built) continue;
+      const whole = searchLibrary(index, `theme:${built.id}`).length;
+      for (const option of group.options) expect(whole, `${group.label} vs ${option.label}`).toBeGreaterThanOrEqual(option.count);
     }
   });
 });
