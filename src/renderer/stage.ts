@@ -37,6 +37,7 @@ import { mediaFrameUrlFor, mediaUrlFor, templateUrlFor } from '../shared/api';
 import { psdCompositeUrlFor } from '../core/media-url';
 import { isPsdEntry, psdHidden } from './psd-state';
 import { setIcon } from './icons';
+import { onLayoutApplied } from './shell';
 import { appState, frameSize, transport, trim } from './store';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
@@ -834,7 +835,54 @@ function step(delta: number): void {
   requestFrame(steppedFrame(s.frame, delta, previewFrames(), s.player.loop));
 }
 
+/**
+ * The scrub bar lines up one to one under the picture (milestone 38): its left
+ * and right ends sit under the picture's edges, so halfway along the bar is
+ * halfway along the picture, and it follows the picture as the window, the
+ * stage split, the browse panel or the aspect changes. A tall picture would
+ * make it too short to scrub, so it keeps a floor, centred under the picture.
+ * Measured in viewport coordinates, because the row spans the whole window
+ * while the picture lives in the centre column.
+ */
+const SCRUB_MIN_WIDTH = 320;
+
+function placeScrubLine(): void {
+  const row = els.row;
+  const rowWidth = row.clientWidth;
+  if (rowWidth < 1) return;
+  const frame = els.previewFrame.getBoundingClientRect();
+  let left = frame.left;
+  let width = frame.width;
+  if (width < 1) {
+    // No picture to line up under (the stage collapsed): the centre column stands in.
+    const column = document.querySelector('.center')?.getBoundingClientRect();
+    if (!column) return;
+    left = column.left + 16;
+    width = column.width - 32;
+  }
+  if (width < SCRUB_MIN_WIDTH) {
+    left += (width - SCRUB_MIN_WIDTH) / 2;
+    width = SCRUB_MIN_WIDTH;
+  }
+  width = Math.min(width, rowWidth - 24);
+  left = Math.max(12, Math.min(left, rowWidth - width - 12));
+  // Sub-pixel, not rounded: the picture's box is fractional, and one-to-one means one to one.
+  row.style.setProperty('--scrub-left', `${left}px`);
+  row.style.setProperty('--scrub-w', `${width}px`);
+}
+
 export function initStage(): void {
+  // The picture's box changes with the window, the stage split, the browse panel and the
+  // aspect: the splits resize the centre column, the rest resize the picture itself, so
+  // observing both covers them all; the pane toggles arrive through the layout.
+  const column = document.querySelector('.center');
+  const follow = new ResizeObserver(() => placeScrubLine());
+  follow.observe(els.previewFrame);
+  if (column) follow.observe(column);
+  window.addEventListener('resize', placeScrubLine);
+  onLayoutApplied(placeScrubLine);
+  placeScrubLine();
+
   // A layer of the layered file on the stage was shown or hidden: the picture follows (milestone 33).
   effect(() => {
     const hidden = psdHidden.value;

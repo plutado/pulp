@@ -19,6 +19,7 @@ import { askAboutRecovery, initProjectUi } from './project-ui';
 import { initMenu } from './menu';
 import { hideStartScreen, initStartScreen, showStartScreen } from './start-screen';
 import { browsedHiddenChoice } from './psd-state';
+import { initTheater } from './theater';
 import { initTour } from './tour';
 import { initWhatsNew } from './whats-new';
 import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
@@ -379,6 +380,7 @@ initTooltips();
 initShell();
 initStage();
 initInspectorTabs();
+initTheater();
 initInspectorParams();
 setTemplateShower((templateId) => {
   const entry = appState.value.index?.templates.find((t) => t.manifest.id === templateId);

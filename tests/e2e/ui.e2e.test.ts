@@ -2756,6 +2756,24 @@ describe.skipIf(!electron)('inspector UI', () => {
         // The default window has the tray collapsed to its summary line; the test before this one opened it.
         await page.eval(`(() => { if (!document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); return true; })()`);
         await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray collapsed');
+
+        // The results and the category cards stay inside their region, and the region clear of the
+        // tray — measured on the elements, not the regions: on eda45d8 the list itself ran under the
+        // tray's buttons while every region box looked right (GitHub issue #40).
+        const contained = async (when: string) => {
+          const m = await page.eval<{ region: number[]; list: number[]; cards: number[] | null; trayTop: number }>(
+            `(() => { const b = (el) => el ? [el.getBoundingClientRect().top, el.getBoundingClientRect().bottom] : null;
+              const cards = document.getElementById('category-cards');
+              return { region: b(document.getElementById('region-results')), list: b(document.getElementById('results')),
+                cards: cards.hidden || cards.getBoundingClientRect().height === 0 ? null : b(cards),
+                trayTop: document.getElementById('region-tray').getBoundingClientRect().top }; })()`,
+          );
+          expect(m.region[1], `the region clear of the tray ${when}`).toBeLessThanOrEqual(m.trayTop + 1);
+          expect(m.list[1], `the list inside its region ${when}`).toBeLessThanOrEqual(m.region[1]! + 1);
+          expect(m.list[1]! - m.list[0]!, `the list at its floor ${when}`).toBeGreaterThanOrEqual(120);
+          if (m.cards) expect(m.cards[1], `the cards inside the region ${when}`).toBeLessThanOrEqual(m.region[1]! + 1);
+        };
+        await contained('on the default view');
         await clickResult('Lower Third Bar');
         await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
 
@@ -2794,13 +2812,65 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(picture.stageH - picture.h, 'nothing but padding around the picture').toBeLessThanOrEqual(26);
         expect(picture.h, 'the picture gets its share of the window').toBeGreaterThanOrEqual(788 * 0.38);
 
-        // One key gives the stage everything: the results fold away and the stage takes their room.
-        await page.eval(`document.getElementById('results-toggle').click()`);
-        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('results-collapsed')`), 'the results folded');
+        // The scrub bar has a line of its own, lined up one to one under the picture: its ends sit
+        // under the picture's edges, so halfway along the bar is halfway along the picture. The
+        // buttons sit on their own line below it, in their three clusters.
+        const scrubAgainstPicture = () =>
+          page.eval<{ scrub: number[]; pic: number[]; scrubTop: number; buttonsTop: number; playX: number; marksX: number; tabsX: number; rowRight: number }>(
+            `(() => { const r = (el) => el.getBoundingClientRect(); const sc = r(document.querySelector('#region-transport .scrub-wrap'));
+              const pic = r(document.getElementById('preview-frame')); const bl = r(document.querySelector('#region-transport .buttons-line'));
+              return { scrub: [sc.left, sc.right], pic: [pic.left, pic.right], scrubTop: sc.top, buttonsTop: bl.top,
+                playX: r(document.getElementById('play')).left, marksX: r(document.getElementById('mark-in')).left,
+                tabsX: r(document.getElementById('tab-info')).right, rowRight: r(document.getElementById('region-transport')).right }; })()`,
+          );
+        let lines = await scrubAgainstPicture();
+        expect(lines.scrub[0], 'the scrub bar starts at the picture\'s left edge').toBeCloseTo(lines.pic[0]!, 0);
+        expect(lines.scrub[1], 'and ends at its right edge').toBeCloseTo(lines.pic[1]!, 0);
+        expect(lines.buttonsTop, 'the buttons on a second line below the scrub bar').toBeGreaterThan(lines.scrubTop + 10);
+        expect(lines.playX, 'play on the left').toBeLessThan(200);
+        expect(lines.marksX, 'the marks in the middle').toBeGreaterThan(400);
+        expect(lines.tabsX, 'the tabs on the right').toBeGreaterThan(lines.rowRight - 40);
+
+        // A tall picture would make the bar too short to scrub: it keeps its floor, centred under it.
+        await clickResult('Boardroom opener');
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the opener preview');
+        await fire('#opt-aspect', '9:16', 'change');
+        await until(async () => {
+          const m = await scrubAgainstPicture();
+          const picW = m.pic[1]! - m.pic[0]!;
+          return picW > 0 && picW < 320 && Math.abs(m.scrub[1]! - m.scrub[0]! - 320) <= 0.5;
+        }, 'the bar at its floor under the tall picture');
+        lines = await scrubAgainstPicture();
+        const picMid = (lines.pic[0]! + lines.pic[1]!) / 2;
+        const scrubMid = (lines.scrub[0]! + lines.scrub[1]!) / 2;
+        expect(Math.abs(scrubMid - picMid), 'the bar centred under the tall picture').toBeLessThanOrEqual(1);
+        await fire('#opt-aspect', '16:9', 'change');
+        await until(async () => {
+          const m = await scrubAgainstPicture();
+          return Math.abs(m.scrub[0]! - m.pic[0]!) <= 1 && Math.abs(m.scrub[1]! - m.pic[1]!) <= 1;
+        }, 'the bar following the picture back to 16:9');
+
+        // Theater: the button by the stage (and the bare T) folds the browse panel to its rail,
+        // hides the results and closes the drawer, so the picture grows; off again, everything
+        // comes back as it was — the panel, the results, the open drawer.
+        await openTab('parameters');
+        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('inspector-open')`), 'the drawer open before theater');
+        const pictureBefore = await page.eval<number>(`document.querySelector('#region-stage .preview-wrap').getBoundingClientRect().height`);
+        await page.eval(`document.getElementById('theater').click()`);
+        await until(() => page.eval<boolean>(
+          `(() => { const c = document.getElementById('app').classList; return c.contains('results-collapsed') && c.contains('browse-collapsed') && !c.contains('inspector-open'); })()`,
+        ), 'theater on: the rail, no results, no drawer');
+        expect(await page.eval<string>(`document.getElementById('theater').getAttribute('aria-pressed')`)).toBe('true');
         const grown = await page.eval<number>(`document.querySelector('#region-stage .preview-wrap').getBoundingClientRect().height`);
-        expect(grown).toBeGreaterThan(picture.h + 100);
-        await page.eval(`document.getElementById('results-toggle').click()`);
-        await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('results-collapsed')`), 'the results back');
+        expect(grown, 'the picture grows in theater').toBeGreaterThan(pictureBefore + 100);
+        await page.eval(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 't', bubbles: true }))`);
+        await until(() => page.eval<boolean>(
+          `(() => { const c = document.getElementById('app').classList; return !c.contains('results-collapsed') && !c.contains('browse-collapsed') && c.contains('inspector-open'); })()`,
+        ), 'theater off: the panel, the results and the drawer back as they were');
+        await page.eval(`document.getElementById('inspector-close').click()`);
+        // Typing a t in the search field is typing, not theater.
+        await page.eval(`(() => { const s = document.getElementById('search'); s.focus(); s.dispatchEvent(new KeyboardEvent('keydown', { key: 't', bubbles: true })); s.blur(); })()`);
+        expect(await page.eval<boolean>(`document.getElementById('app').classList.contains('results-collapsed')`)).toBe(false);
 
         // The drawer rises over the results and only the results: the stage keeps its box.
         await openTab('output');
@@ -2813,6 +2883,20 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(drawer!.right).toBeLessThanOrEqual(results2!.right + 1);
         expect(drawer!.bottom).toBeLessThanOrEqual(results2!.bottom + 1);
         await page.eval(`document.getElementById('inspector-close').click()`);
+
+        // With the collection tray open, the results keep their floor and stay clear of it —
+        // the list and the cards themselves, not just the region's box.
+        await page.eval(`(() => { if (document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); return true; })()`);
+        await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray open');
+        await until(async () => {
+          const m = await page.eval<{ regionH: number; sh: number }>(
+            `(() => ({ regionH: document.getElementById('region-results').getBoundingClientRect().height, sh: document.documentElement.scrollHeight }))()`,
+          );
+          return m.regionH >= 184 && m.sh <= 788;
+        }, 'the region at its floor with the tray open, nothing to scroll');
+        await contained('with the tray open');
+        await page.eval(`document.getElementById('tray-toggle').click()`);
+        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray back to its summary line');
       } finally {
         await page.send('Emulation.clearDeviceMetricsOverride', {});
       }

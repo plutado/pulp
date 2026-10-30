@@ -1,7 +1,7 @@
 # 0015. The transport row: the player's controls leave the stage for one row across the bottom of the window
 
 Date: 2026-10-30
-Status: Accepted
+Status: Accepted (amended the same day by milestone 38: the row is two lines now — the scrub bar on its own line, one to one under the picture, the buttons below — and holds the inspector's tabs; ADR 0016)
 
 ## Context
 

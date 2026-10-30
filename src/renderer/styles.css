@@ -29,7 +29,8 @@
      row cannot go (LAYOUT_LIMITS.transportHeight.min); on a short window it yields toward it first. */
   --results-min-h: 160px;
   --center-min-h: 444px;
-  --transport-min-h: 40px;
+  /* The floor holds the row's two lines — the scrub bar and the buttons — with no lanes. */
+  --transport-min-h: 80px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: var(--font-body);
   color: var(--text);
@@ -71,7 +72,7 @@ input[type="checkbox"] { width: auto; }
 }
 .sidebar { grid-column: 1; grid-row: 1 / 3; }
 #split-browse { grid-column: 2; grid-row: 1 / 3; }
-.center { grid-column: 3; grid-row: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.center { grid-column: 3; grid-row: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .tray { grid-column: 3; grid-row: 2; }
 .transport-row { grid-column: 1 / 4; grid-row: 3; }
 .status-bar { grid-column: 1 / 4; grid-row: 4; }
@@ -290,7 +291,10 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 
 /* The results keep a readable height however short the window: the stage above shrinks first
    (flex-shrink below), and the tray body is capped so the center column keeps room for both. */
-.results-region { position: relative; flex: 1; min-height: calc(var(--results-min-h) + 24px); display: flex; flex-direction: column; }
+/* The region clips (milestone 38): its own floor can be less than its children's — the cards and the
+   list's floor — and without clipping the list ran under the collection tray (GitHub issue #40). A size
+   container, so the cards below can yield to the region's own room rather than the window's. */
+.results-region { position: relative; flex: 1; min-height: calc(var(--results-min-h) + 24px); display: flex; flex-direction: column; overflow: hidden; container-type: size; }
 /* The region says what it holds, always: a count is a fact worth having when the list is long,
    and the only thing naming the region when it is empty. */
 .results-head { flex: 0 0 auto; display: flex; align-items: baseline; padding: var(--space-1) var(--space-3) 0; }
@@ -305,7 +309,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   height: var(--tray-h, 220px);
   /* 64px: the status bar and the tray's own head, which sit outside the center column, as the transport
      row does — at the height it really has, which on a short window is less than its setting. */
-  max-height: calc(100vh - var(--center-min-h) - 64px - clamp(var(--transport-min-h), var(--transport-h, 92px), calc(100vh - var(--center-min-h) - 160px)));
+  max-height: calc(100vh - var(--center-min-h) - 64px - clamp(var(--transport-min-h), var(--transport-h, 124px), calc(100vh - var(--center-min-h) - 160px)));
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -456,7 +460,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .summary .problem { color: var(--danger); }
 
 /* flex-shrink 1 and overflow hidden: on a short window the stage gives way to the results (.results-region) and clips rather than paints over them. */
-.stage { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; padding: 12px 16px; flex: 0 1 var(--stage-share, 72%); }
+.stage { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; padding: 8px 16px; flex: 0 1 var(--stage-share, 72%); }
 /* One key gives the stage everything (milestone 38): the results fold away and the stage takes the room. */
 .app.results-collapsed #region-results, .app.results-collapsed #split-stage { display: none; }
 .app.results-collapsed .stage { flex: 1 1 auto; }
@@ -522,15 +526,16 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
    controls keep their own height and the lanes take the rest, scrolling when the layers outrun it.
    Nothing chosen leaves the row in place, disabled, so the layout never jumps. */
 .transport-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(0, 1fr);
-  column-gap: var(--space-3);
+  /* Two lines with room to breathe (milestone 38): the scrub bar on a line of its own with the
+     lanes for the bars per layer under it, the buttons on a second line below. The row's own
+     padding keeps its lines off the border above it and off its own edges. */
+  display: flex;
+  flex-direction: column;
   /* Its own height, until the window is short: then it gives up its lanes down to its floor before
      the centre column or the tray have to, since the bars per layer are the first thing to spare.
      160px: the tray's head and the status bar, and about a hundred pixels of tray. */
-  height: clamp(var(--transport-min-h), var(--transport-h, 92px), calc(100vh - var(--center-min-h) - 160px));
-  padding: 0 var(--space-3) var(--space-1);
+  height: clamp(var(--transport-min-h), var(--transport-h, 124px), calc(100vh - var(--center-min-h) - 160px));
+  padding: var(--space-2) 0;
   background: var(--panel);
   border-top: 1px solid var(--border);
   position: relative;
@@ -538,9 +543,17 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 }
 /* The bar that resizes the row is its own top edge, as the tray's is. */
 .transport-row > .splitter.h { position: absolute; left: 0; right: 0; top: -1px; margin: 0; }
-.transport-buttons { grid-row: 1; grid-column: 1; display: flex; align-items: center; gap: var(--space-1); }
-.transport-row .scrub-wrap { grid-row: 1; grid-column: 2; }
-.transport-tools { grid-row: 1; grid-column: 3; display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); }
+/* The scrub bar's own line, one to one under the picture: the stage publishes the picture's box
+   and sets --scrub-left and --scrub-w on the row (src/renderer/stage.ts), so halfway along the
+   bar is halfway along the picture; a narrow picture gets the bar's floor, centred under it. */
+.scrub-line { flex: 0 0 auto; padding: 2px 0; }
+.scrub-line .scrub-wrap { margin-left: var(--scrub-left, 16px); width: var(--scrub-w, calc(100% - 32px)); }
+/* The buttons on a second line: play, step and loop on the left, the playhead and its marks in
+   the middle, volume and the inspector's tabs on the right. */
+.buttons-line { flex: 0 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; column-gap: var(--space-4); padding: 6px var(--space-3) 0; min-width: 0; }
+.transport-buttons { justify-self: start; display: flex; align-items: center; gap: var(--space-1); }
+.transport-middle { display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); min-width: 0; }
+.transport-tools { justify-self: end; display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); min-width: 0; }
 /* The drawer's tabs, at the row's end: open, switch, or choose again to close (milestone 38). */
 .transport-tabs { display: inline-flex; align-items: center; gap: 4px; margin-left: var(--space-2); padding-left: var(--space-3); border-left: 1px solid var(--border); }
 .transport-tabs .tab { position: relative; display: inline-flex; align-items: center; font-size: var(--font-secondary); padding: 3px 10px; color: var(--muted); background: none; border-color: transparent; }
@@ -554,16 +567,22 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 @media (max-width: 1100px) {
   .transport-tabs .tab .label { display: none; }
 }
-/* The lanes clip what scrolls out of them, and a bar's end handles reach 3 px past its ends, so the
-   lanes are widened by a padding they take back as margin: the bars' own box stays the scrub bar's. */
-.transport-lanes { grid-row: 2; grid-column: 2; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 4px; margin: 0 -4px; }
+/* The lanes sit under the scrub bar at its width. They clip what scrolls out of them, and a bar's
+   end handles reach 3 px past its ends, so the lanes are 4 px wider on each side as padding: the
+   bars' own box stays exactly the scrub bar's. */
+.transport-lanes {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  margin-left: calc(var(--scrub-left, 16px) - 4px);
+  width: calc(var(--scrub-w, calc(100% - 32px)) + 8px);
+  padding: 0 4px;
+}
 .transport-button { padding: 4px 8px; }
 .transport-row .icon-button { color: var(--muted); background: none; border-color: transparent; }
 .transport-row .icon-button:hover:not(:disabled) { color: var(--text); }
 .transport-row .icon-button[aria-pressed="true"] { color: var(--accent); }
-.transport-tools .tool-group { display: inline-flex; align-items: center; gap: var(--space-1); }
-.transport-tools button { font-size: var(--font-secondary); padding: 3px 8px; }
-.transport-tools .icon-button { padding: 3px 5px; }
+.buttons-line .tool-group { display: inline-flex; align-items: center; gap: var(--space-1); }
+.transport-middle button, .transport-tools button { font-size: var(--font-secondary); padding: 3px 8px; }
+.transport-middle .icon-button, .transport-tools .icon-button { padding: 3px 5px; }
 .transport-tools #volume { width: 72px; padding: 0; background: none; border: 0; accent-color: var(--accent); }
 .timecode { font-family: Menlo, Consolas, monospace; color: var(--muted); min-width: 160px; text-align: right; font-size: var(--font-secondary); white-space: nowrap; }
 /* A still has no time, so the row shows no scrub bar — and keeps its place (milestone 37). */
@@ -1104,11 +1123,16 @@ progress { width: 100%; margin: 2px 0; }
    pictures with counts above the items. One row that scrolls sideways, so it never takes the
    results' room. */
 .category-cards { flex: 0 0 auto; display: flex; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-2); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+/* The cards go first when the region is short (its own room, not the window's: the stage leans
+   big and the tray takes its share, so the window's height says little), keeping the floors the
+   layout promises for the stage and the list (docs/platform-notes.md). */
+@container (max-height: 339px) {
+  .category-cards { display: none; }
+}
 .category-cards[hidden] { display: none; }
 /* The items keep their floor whatever sits above them; on a short window the cards go first,
    since the stage and the list have the floors the layout promises (docs/platform-notes.md). */
 .results { min-height: var(--results-min-h); }
-@media (max-height: 760px) { .category-cards { display: none; } }
 .category-card {
   flex: 0 0 auto; width: 112px; display: flex; flex-direction: column; gap: 2px; text-align: left;
   padding: var(--space-1); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-surface);

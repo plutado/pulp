@@ -51,7 +51,7 @@ describe('layoutCssVariables', () => {
       '--inspector-h': '320px',
       '--stage-share': '62.5%',
       '--tray-h': '220px',
-      '--transport-h': '92px',
+      '--transport-h': '124px',
     });
   });
 });

@@ -16,6 +16,8 @@ import checkCircle from '@phosphor-icons/core/assets/regular/check-circle.svg?ra
 import circle from '@phosphor-icons/core/assets/regular/circle.svg?raw';
 import checkerboard from '@phosphor-icons/core/assets/regular/checkerboard.svg?raw';
 import copy from '@phosphor-icons/core/assets/regular/copy.svg?raw';
+import cornersIn from '@phosphor-icons/core/assets/regular/corners-in.svg?raw';
+import cornersOut from '@phosphor-icons/core/assets/regular/corners-out.svg?raw';
 import cube from '@phosphor-icons/core/assets/regular/cube.svg?raw';
 import clock from '@phosphor-icons/core/assets/regular/clock.svg?raw';
 import dotsSixVertical from '@phosphor-icons/core/assets/regular/dots-six-vertical.svg?raw';
@@ -81,6 +83,8 @@ const ICONS = {
   'caret-left': caretLeft,
   'caret-right': caretRight,
   'caret-up': caretUp,
+  'corners-in': cornersIn,
+  'corners-out': cornersOut,
   'check-circle': checkCircle,
   checkerboard,
   circle,

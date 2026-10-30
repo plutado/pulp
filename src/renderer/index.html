@@ -108,6 +108,7 @@
             <input id="bg-custom" type="color" value="#808080" aria-label="Custom background color" data-tip="Custom background color">
           </span>
           <button id="safe-toggle" type="button" class="icon-button" data-icon="frame-corners" data-icon-size="20" aria-pressed="false" aria-label="Title-safe and action-safe areas"></button>
+          <button id="theater" type="button" class="icon-button" data-icon="corners-out" data-icon-size="20" aria-pressed="false" aria-label="Theater: hide the results" data-tip="Theater: the stage takes the window (T)"></button>
         </div>
         <p id="stage-note" class="note error" hidden></p>
       </section>
@@ -296,54 +297,60 @@
 
     <section id="region-transport" class="transport-row" aria-label="Transport">
       <div id="split-transport" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the transport row"></div>
-      <div class="transport-buttons" role="group" aria-label="Playback">
-        <button id="step-back" type="button" class="icon-button" data-icon="caret-left" data-icon-size="20" aria-label="Previous frame" data-tip="Previous frame" disabled></button>
-        <button id="play" type="button" class="icon-button transport-button" data-icon="play" data-icon-size="24" aria-label="Play" disabled></button>
-        <button id="step-forward" type="button" class="icon-button" data-icon="caret-right" data-icon-size="20" aria-label="Next frame" data-tip="Next frame" disabled></button>
-        <button id="loop" type="button" class="icon-button" data-icon="repeat" data-icon-size="20" aria-pressed="true" aria-label="Loop playback"></button>
-      </div>
-      <span class="scrub-wrap">
-        <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
-        <span id="scrub-marks" class="scrub-marks" aria-hidden="true">
-          <span id="part-entrance" class="part entrance" hidden></span>
-          <span id="part-hold" class="part hold" hidden></span>
-          <span id="part-exit" class="part exit" hidden></span>
-          <span id="trim-before" class="trimmed"></span>
-          <span id="trim-after" class="trimmed"></span>
-          <span id="mark-in-flag" class="mark in" hidden></span>
-          <span id="mark-out-flag" class="mark out" hidden></span>
-        </span>
-        <button id="length-handle" class="length-handle" type="button" hidden
-                role="slider" aria-label="Graphic length, seconds" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"
-                data-tip="Drag to set how long the graphic runs; only the hold stretches"></button>
-      </span>
-      <div class="transport-tools" role="toolbar" aria-label="Transport tools">
-        <span id="timecode" class="timecode">--</span>
-        <span class="tool-group marks">
-          <button id="mark-in" type="button" disabled data-tip="Set the in point of the render to this frame"><span class="label">Set in</span></button>
-          <button id="mark-out" type="button" disabled data-tip="Set the out point of the render to this frame"><span class="label">Set out</span></button>
-          <button id="mark-clear" type="button" disabled data-tip="Render the whole thing again"><span class="label">Clear</span></button>
-        </span>
-        <span id="sequence-rate" class="tool-group sequence-rate" hidden>
-          <label for="sequence-fps">Frames per second</label>
-          <input id="sequence-fps" type="number" min="1" max="240" step="1" value="30"
-                 data-tip="A folder of frames records no rate, so Pulp reads it at this one">
-          <button id="sequence-fps-reset" type="button" class="ghost" hidden>Reset</button>
-        </span>
-        <span class="tool-group volume">
-          <button id="mute" type="button" class="icon-button" data-icon="speaker-high" data-icon-size="20" aria-pressed="false" aria-label="Mute"></button>
-          <input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">
-        </span>
-        <button id="audition" type="button" class="icon-button" data-icon="play-circle" data-icon-size="20" aria-pressed="false" aria-label="Audition mode" data-tip="Audition: choosing a sound plays it, and the arrow keys move through the results"></button>
-        <button id="add-to-collection" type="button" class="icon-button" disabled data-icon="stack" data-icon-size="20" aria-label="Add to collection" data-tip="Add this item to the collection in the tray"></button>
-        <span class="transport-tabs" role="tablist" aria-label="Inspector sections">
-          <button id="tab-parameters" class="tab" type="button" role="tab" aria-selected="true" aria-controls="pane-parameters" data-icon="sliders-horizontal" data-tip="The template's own settings; choosing again closes the drawer"><span class="label">Parameters</span></button>
-          <button id="tab-output" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-output" data-icon="export" data-tip="Format, size and trim of a render; choosing again closes the drawer"><span class="label">Output</span></button>
-          <button id="tab-info" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-info" data-icon="info" data-tip="What the item is; choosing again closes the drawer"><span class="label">Info</span></button>
+      <div class="scrub-line">
+        <span class="scrub-wrap">
+          <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
+          <span id="scrub-marks" class="scrub-marks" aria-hidden="true">
+            <span id="part-entrance" class="part entrance" hidden></span>
+            <span id="part-hold" class="part hold" hidden></span>
+            <span id="part-exit" class="part exit" hidden></span>
+            <span id="trim-before" class="trimmed"></span>
+            <span id="trim-after" class="trimmed"></span>
+            <span id="mark-in-flag" class="mark in" hidden></span>
+            <span id="mark-out-flag" class="mark out" hidden></span>
+          </span>
+          <button id="length-handle" class="length-handle" type="button" hidden
+                  role="slider" aria-label="Graphic length, seconds" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"
+                  data-tip="Drag to set how long the graphic runs; only the hold stretches"></button>
         </span>
       </div>
       <div class="transport-lanes">
         <div id="layer-bars" class="layer-bars" role="group" aria-label="When each layer is on screen" hidden></div>
+      </div>
+      <div class="buttons-line">
+        <div class="transport-buttons" role="group" aria-label="Playback">
+          <button id="step-back" type="button" class="icon-button" data-icon="caret-left" data-icon-size="20" aria-label="Previous frame" data-tip="Previous frame" disabled></button>
+          <button id="play" type="button" class="icon-button transport-button" data-icon="play" data-icon-size="24" aria-label="Play" disabled></button>
+          <button id="step-forward" type="button" class="icon-button" data-icon="caret-right" data-icon-size="20" aria-label="Next frame" data-tip="Next frame" disabled></button>
+          <button id="loop" type="button" class="icon-button" data-icon="repeat" data-icon-size="20" aria-pressed="true" aria-label="Loop playback"></button>
+        </div>
+        <div class="transport-middle" role="group" aria-label="Playhead and marks">
+          <span id="timecode" class="timecode">--</span>
+          <span class="tool-group marks">
+            <button id="mark-in" type="button" disabled data-tip="Set the in point of the render to this frame"><span class="label">Set in</span></button>
+            <button id="mark-out" type="button" disabled data-tip="Set the out point of the render to this frame"><span class="label">Set out</span></button>
+            <button id="mark-clear" type="button" disabled data-tip="Render the whole thing again"><span class="label">Clear</span></button>
+          </span>
+          <span id="sequence-rate" class="tool-group sequence-rate" hidden>
+            <label for="sequence-fps">Frames per second</label>
+            <input id="sequence-fps" type="number" min="1" max="240" step="1" value="30"
+                   data-tip="A folder of frames records no rate, so Pulp reads it at this one">
+            <button id="sequence-fps-reset" type="button" class="ghost" hidden>Reset</button>
+          </span>
+        </div>
+        <div class="transport-tools" role="toolbar" aria-label="Transport tools">
+          <span class="tool-group volume">
+            <button id="mute" type="button" class="icon-button" data-icon="speaker-high" data-icon-size="20" aria-pressed="false" aria-label="Mute"></button>
+            <input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">
+          </span>
+          <button id="audition" type="button" class="icon-button" data-icon="play-circle" data-icon-size="20" aria-pressed="false" aria-label="Audition mode" data-tip="Audition: choosing a sound plays it, and the arrow keys move through the results"></button>
+          <button id="add-to-collection" type="button" class="icon-button" disabled data-icon="stack" data-icon-size="20" aria-label="Add to collection" data-tip="Add this item to the collection in the tray"></button>
+          <span class="transport-tabs" role="tablist" aria-label="Inspector sections">
+            <button id="tab-parameters" class="tab" type="button" role="tab" aria-selected="true" aria-controls="pane-parameters" data-icon="sliders-horizontal" data-tip="The template's own settings; choosing again closes the drawer"><span class="label">Parameters</span></button>
+            <button id="tab-output" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-output" data-icon="export" data-tip="Format, size and trim of a render; choosing again closes the drawer"><span class="label">Output</span></button>
+            <button id="tab-info" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-info" data-icon="info" data-tip="What the item is; choosing again closes the drawer"><span class="label">Info</span></button>
+          </span>
+        </div>
       </div>
     </section>
 

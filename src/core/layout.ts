@@ -34,8 +34,9 @@ export const LAYOUT_LIMITS = {
   inspectorHeight: { min: 160, max: 560 },
   stageShare: { min: 0.2, max: 0.85 },
   trayHeight: { min: 120, max: 480 },
-  // The floor is the controls line alone; anything above it is lanes for the bars per layer.
-  transportHeight: { min: 40, max: 320 },
+  // The floor is the row's two lines — the scrub bar and the buttons — with no lanes;
+  // anything above it is lanes for the bars per layer.
+  transportHeight: { min: 80, max: 320 },
 } as const;
 
 export const DEFAULT_LAYOUT: LayoutState = {
@@ -47,8 +48,8 @@ export const DEFAULT_LAYOUT: LayoutState = {
   // and the results are a strip to pick from, scrolling inside their own pane.
   stageShare: 0.72,
   trayHeight: 220,
-  // The controls line and room for three layers' bars under the scrub bar.
-  transportHeight: 92,
+  // The scrub line, the buttons line, and room for three layers' bars under the scrub bar.
+  transportHeight: 124,
   browseCollapsed: false,
   stageCollapsed: false,
   trayCollapsed: true,
