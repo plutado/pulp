@@ -17,8 +17,15 @@
 
 export const PSD_EXTENSION = '.psd';
 
-/** The blend modes Pulp draws; anything else is drawn as normal and named. */
-export const PSD_BLENDS = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'difference'] as const;
+/**
+ * The blend modes Pulp draws: every one a canvas draws natively (the W3C
+ * compositing set), computed here with the same formulas so the stage, the
+ * grant and a render agree. Anything else is drawn as normal and named.
+ */
+export const PSD_BLENDS = [
+  'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn',
+  'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity',
+] as const;
 export type PsdBlend = (typeof PSD_BLENDS)[number];
 
 const BLEND_KEYS: Record<string, PsdBlend> = {
@@ -28,14 +35,23 @@ const BLEND_KEYS: Record<string, PsdBlend> = {
   over: 'overlay',
   dark: 'darken',
   lite: 'lighten',
+  'div ': 'color-dodge',
+  idiv: 'color-burn',
+  hLit: 'hard-light',
+  sLit: 'soft-light',
   diff: 'difference',
+  smud: 'exclusion',
+  'hue ': 'hue',
+  'sat ': 'saturation',
+  colr: 'color',
+  'lum ': 'luminosity',
   pass: 'normal',
 };
 
+/** Photoshop's own modes with no canvas equivalent: drawn as normal, named in words. */
 const BLEND_NAMES: Record<string, string> = {
-  diss: 'dissolve', idiv: 'color burn', lbrn: 'linear burn', dkCl: 'darker color', 'div ': 'color dodge', lddg: 'linear dodge',
-  lgCl: 'lighter color', sLit: 'soft light', hLit: 'hard light', vLit: 'vivid light', lLit: 'linear light', pLit: 'pin light',
-  hMix: 'hard mix', smud: 'exclusion', fsub: 'subtract', fdiv: 'divide', 'hue ': 'hue', 'sat ': 'saturation', colr: 'color', 'lum ': 'luminosity',
+  diss: 'dissolve', lbrn: 'linear burn', dkCl: 'darker color', lddg: 'linear dodge', lgCl: 'lighter color',
+  vLit: 'vivid light', lLit: 'linear light', pLit: 'pin light', hMix: 'hard mix', fsub: 'subtract', fdiv: 'divide',
 };
 
 /** Additional-info keys that mean a layer is something Pulp cannot reproduce, and what to call it. */
@@ -148,8 +164,37 @@ export function unpackBits(src: Uint8Array, expected: number): Uint8Array {
   return out;
 }
 
+/** Zlib's inflate, as node:zlib's inflateSync gives it; injected so this module stays pure. */
+export type Inflate = (bytes: Uint8Array) => Uint8Array;
+
+/**
+ * Undo zip-with-prediction (compression 3) in place: each row is stored as
+ * deltas — of bytes at 8 bits, of big-endian 16-bit values at 16 — so the
+ * samples come back by summing along the row.
+ */
+export function undoPrediction(raw: Uint8Array, width: number, height: number, depth: number): Uint8Array {
+  if (depth === 16) {
+    for (let y = 0; y < height; y += 1) {
+      const row = y * width * 2;
+      for (let x = 1; x < width; x += 1) {
+        const at = row + x * 2;
+        const prev = ((raw[at - 2]! << 8) | raw[at - 1]!);
+        const value = (prev + ((raw[at]! << 8) | raw[at + 1]!)) & 0xffff;
+        raw[at] = value >> 8;
+        raw[at + 1] = value & 0xff;
+      }
+    }
+    return raw;
+  }
+  for (let y = 0; y < height; y += 1) {
+    const row = y * width;
+    for (let x = 1; x < width; x += 1) raw[row + x] = (raw[row + x]! + raw[row + x - 1]!) & 0xff;
+  }
+  return raw;
+}
+
 /** One channel's samples as bytes, whatever the depth: 16-bit takes the high byte. */
-function readChannel(r: Reader, width: number, height: number, depth: number, compression: number, length: number | null): Uint8Array {
+function readChannel(r: Reader, width: number, height: number, depth: number, compression: number, length: number | null, inflate: Inflate | undefined): Uint8Array {
   const count = width * height;
   const bytesPer = depth === 16 ? 2 : 1;
   const start = r.at;
@@ -162,8 +207,15 @@ function readChannel(r: Reader, width: number, height: number, depth: number, co
     raw = new Uint8Array(count * bytesPer);
     const rowBytes = width * bytesPer;
     for (let y = 0; y < height; y += 1) raw.set(unpackBits(r.slice(rowLengths[y]!), rowBytes), y * rowBytes);
+  } else if (compression === 2 || compression === 3) {
+    // Zip: one zlib stream per channel. With prediction (3), rows are deltas.
+    if (!inflate) throw new Error('zip-compressed layer data needs an inflate, and none was given');
+    if (length === null) throw new Error('zip-compressed data with no stated length');
+    const inflated = inflate(r.slice(length));
+    if (inflated.length < count * bytesPer) throw new Error('zip-compressed channel data is shorter than the layer');
+    raw = compression === 3 ? undoPrediction(inflated.subarray(0, count * bytesPer), width, height, depth) : inflated.subarray(0, count * bytesPer);
   } else {
-    throw new Error(`compression ${compression} (zip) is not supported`);
+    throw new Error(`compression ${compression} is not one the format has`);
   }
   if (length !== null) r.at = start + length;
   if (bytesPer === 1) return raw;
@@ -248,9 +300,10 @@ function readLayerRecord(r: Reader): RawLayer {
 
 /**
  * Read a `.psd`. Version 1 (not `.psb`), RGB or grayscale, 8 or 16 bits per
- * channel, raw or RLE; anything else is refused by name rather than half-read.
+ * channel; raw, RLE, or — given an inflate — zip with or without prediction in
+ * the layer data. Anything else is refused by name rather than half-read.
  */
-export function parsePsd(bytes: Uint8Array): PsdResult {
+export function parsePsd(bytes: Uint8Array, options: { inflate?: Inflate } = {}): PsdResult {
   try {
     if (bytes.length < 26 || String.fromCharCode(...bytes.subarray(0, 4)) !== '8BPS') return { ok: false, message: 'not a Photoshop file (no 8BPS signature)' };
     const r = new Reader(bytes);
@@ -297,7 +350,7 @@ export function parsePsd(bytes: Uint8Array): PsdResult {
               r.skip(dataLength);
               continue;
             }
-            channels.set(ch.id, readChannel(r, w, h, depth, compression, dataLength));
+            channels.set(ch.id, readChannel(r, w, h, depth, compression, dataLength, options.inflate));
           }
           pixelsByIndex.push(w > 0 && h > 0 && channels.size > 0 ? interleave(channels, w * h, gray) : undefined);
         }
@@ -433,15 +486,74 @@ export function layerShown(layers: readonly Pick<PsdLayer, 'id' | 'parent'>[], i
 
 // ---------------------------------------------------------------- compositing
 
+// The separable blend modes, per channel, with the W3C compositing formulas a canvas uses.
 function blendChannel(mode: PsdBlend, cb: number, cs: number): number {
   switch (mode) {
     case 'multiply': return cb * cs;
     case 'screen': return cb + cs - cb * cs;
-    case 'overlay': return cb <= 0.5 ? 2 * cb * cs : 1 - 2 * (1 - cb) * (1 - cs);
+    case 'overlay': return blendChannel('hard-light', cs, cb);
     case 'darken': return Math.min(cb, cs);
     case 'lighten': return Math.max(cb, cs);
+    case 'color-dodge': return cb === 0 ? 0 : cs === 1 ? 1 : Math.min(1, cb / (1 - cs));
+    case 'color-burn': return cb === 1 ? 1 : cs === 0 ? 0 : 1 - Math.min(1, (1 - cb) / cs);
+    case 'hard-light': return cs <= 0.5 ? blendChannel('multiply', cb, 2 * cs) : blendChannel('screen', cb, 2 * cs - 1);
+    case 'soft-light': {
+      if (cs <= 0.5) return cb - (1 - 2 * cs) * cb * (1 - cb);
+      const d = cb <= 0.25 ? ((16 * cb - 12) * cb + 4) * cb : Math.sqrt(cb);
+      return cb + (2 * cs - 1) * (d - cb);
+    }
     case 'difference': return Math.abs(cb - cs);
+    case 'exclusion': return cb + cs - 2 * cb * cs;
     default: return cs;
+  }
+}
+
+// The non-separable modes work on the whole colour: one of hue, saturation and
+// luminosity is taken from the source, the rest kept from the backdrop.
+type Rgb = [number, number, number];
+
+function lum(c: Rgb): number {
+  return 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
+}
+
+function clipColor(c: Rgb): Rgb {
+  const l = lum(c);
+  const n = Math.min(...c);
+  const x = Math.max(...c);
+  let out = c;
+  if (n < 0) out = out.map((v) => l + ((v - l) * l) / (l - n)) as Rgb;
+  if (x > 1) out = out.map((v) => l + ((v - l) * (1 - l)) / (x - l)) as Rgb;
+  return out;
+}
+
+function setLum(c: Rgb, l: number): Rgb {
+  const d = l - lum(c);
+  return clipColor([c[0] + d, c[1] + d, c[2] + d]);
+}
+
+function sat(c: Rgb): number {
+  return Math.max(...c) - Math.min(...c);
+}
+
+function setSat(c: Rgb, s: number): Rgb {
+  const order = [0, 1, 2].sort((a, b) => c[a]! - c[b]!);
+  const [minI, midI, maxI] = order as [number, number, number];
+  const out: Rgb = [0, 0, 0];
+  if (c[maxI]! > c[minI]!) {
+    out[midI] = ((c[midI]! - c[minI]!) * s) / (c[maxI]! - c[minI]!);
+    out[maxI] = s;
+  }
+  return out;
+}
+
+/** One pixel's blended colour: the separable modes per channel, the colour modes on the triple. */
+export function blendPixel(mode: PsdBlend, backdrop: Rgb, source: Rgb): Rgb {
+  switch (mode) {
+    case 'hue': return setLum(setSat(source, sat(backdrop)), lum(backdrop));
+    case 'saturation': return setLum(setSat(backdrop, sat(source)), lum(backdrop));
+    case 'color': return setLum(source, lum(backdrop));
+    case 'luminosity': return setLum(backdrop, lum(source));
+    default: return [blendChannel(mode, backdrop[0], source[0]), blendChannel(mode, backdrop[1], source[1]), blendChannel(mode, backdrop[2], source[2])];
   }
 }
 
@@ -483,11 +595,12 @@ export function compositePsd(doc: PsdDocument, hidden: ReadonlySet<string> = new
         const d = (y * width + x) * 4;
         const ab = out[d + 3]!;
         const ao = as + ab * (1 - as);
+        const source: Rgb = [px[s]! / 255, px[s + 1]! / 255, px[s + 2]! / 255];
+        const backdrop: Rgb = [out[d]!, out[d + 1]!, out[d + 2]!];
+        const mixed = blendPixel(layer.blend, backdrop, source);
         for (let c = 0; c < 3; c += 1) {
-          const cs = px[s + c]! / 255;
-          const cb = out[d + c]!;
-          const blended = (1 - ab) * cs + ab * blendChannel(layer.blend, cb, cs);
-          out[d + c] = ao > 0 ? ((1 - as) * cb * ab + as * blended) / ao : 0;
+          const blended = (1 - ab) * source[c]! + ab * mixed[c]!;
+          out[d + c] = ao > 0 ? ((1 - as) * backdrop[c]! * ab + as * blended) / ao : 0;
         }
         out[d + 3] = ao;
       }

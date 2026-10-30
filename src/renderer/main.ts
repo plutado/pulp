@@ -18,6 +18,7 @@ import { initProject } from './project';
 import { askAboutRecovery, initProjectUi } from './project-ui';
 import { initMenu } from './menu';
 import { hideStartScreen, initStartScreen, showStartScreen } from './start-screen';
+import { browsedHiddenChoice } from './psd-state';
 import { initTour } from './tour';
 import { initWhatsNew } from './whats-new';
 import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
@@ -342,6 +343,17 @@ els.addSampleMedia.addEventListener('click', () => {
     });
 });
 els.rescan.addEventListener('click', () => void loadLibrary(window.pulp.rescanLibrary()));
+
+/**
+ * What an entry is collected with (milestone 33): a template's current
+ * parameters; for a layered still browsed with layers hidden, that list, so an
+ * unplaced item keeps the picture it was collected as.
+ */
+function collectedParams(entry: LibraryEntry): Record<string, unknown> {
+  if (entry.kind === 'template') return currentRawParams();
+  const psd = browsedHiddenChoice(entry);
+  return psd ? { psd } : {};
+}
 window.pulp.onRenderQueue((snapshot) => dispatch((s) => setJobs(s, snapshot)));
 
 // The bundled fonts (ADR 0014), so the family control can show each face in itself.
@@ -374,7 +386,7 @@ initStatusBar();
 initTray((id) => {
   const index = appState.value.index;
   const entry = [...(index?.templates ?? []), ...(index?.media ?? [])].find((e) => e.id === id);
-  if (entry) dispatch((s) => setCollection(s, addItem(s.collection, itemFor(entry, currentPresetId(), currentOptions(), entry.kind === 'template' ? currentRawParams() : {}))));
+  if (entry) dispatch((s) => setCollection(s, addItem(s.collection, itemFor(entry, currentPresetId(), currentOptions(), collectedParams(entry)))));
 });
 // The project (milestone 27): the session as a file, with its unsaved changes guarded.
 initProject(sayInTray);
@@ -399,7 +411,7 @@ const addToCollection = $<HTMLButtonElement>('add-to-collection');
 addToCollection.addEventListener('click', () => {
   const entry = shownEntry(appState.value);
   if (!entry) return;
-  dispatch((s) => setCollection(s, addItem(s.collection, itemFor(entry, currentPresetId(), currentOptions(), entry.kind === 'template' ? currentRawParams() : {}))));
+  dispatch((s) => setCollection(s, addItem(s.collection, itemFor(entry, currentPresetId(), currentOptions(), collectedParams(entry)))));
 });
 effect(() => {
   addToCollection.disabled = shownEntry(appState.value) === null;

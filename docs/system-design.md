@@ -70,7 +70,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 | `media-sequence.ts` | yes | Frame sequences (milestone 26): `groupSequences` reads a folder's names into numbered runs, plus a run's frame names, ffmpeg pattern, duration and poster frame. |
 | `media-probe.ts` | Node | `probeMedia` through the injectable runner, `ffprobePathFor`. |
 | `thumbnails.ts` | yes | Which items get thumbnails, ffmpeg arguments for frame and poster, cache file names, `pulp-thumb` URLs. |
-| `psd.ts` | yes | Layered Photoshop files (milestone 33): the reader (layers, groups, visibility, opacity, blend modes, the stored composite), compositing with a hidden list, one layer alone, and what is not reproduced, named. |
+| `psd.ts` | yes | Layered Photoshop files (milestone 33): the reader (layers, groups, visibility, opacity, blend modes, the stored composite; raw, RLE or zip channels, the inflate injected), compositing with a hidden list under the canvas blend set, one layer alone, and what is not reproduced, named. |
 | `png.ts` | yes | A PNG from RGBA pixels, for a layered file's composite and layers; the deflate is injected. |
 | `atomic-file.ts` | Node | `writeFileAtomic`: temp file in the same folder, fsync, rename over the target, rename retried while Windows holds it busy. |
 | `zip.ts` | Node (zlib) | Minimal ZIP read and write with safe-name, size and entry-count limits. |

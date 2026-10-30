@@ -22,6 +22,8 @@ import { setCollection, setEditing } from '../core/app-state';
 import { updateItem } from '../core/collection';
 import { editing } from './collection';
 import { paramsApply } from './inspector-params';
+import { sanitizePsdChoice } from '../core/image-slot';
+import { setPsdHidden } from './psd-state';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -553,6 +555,12 @@ function initCollectionEditing(): void {
       updateOptionsNote();
       // Only when the form really is this template's, or the values would land on the wrong one.
       if (item.templateId && selectedTemplate.value?.manifest.id === item.templateId) paramsApply(item.params);
+      // A layered still collected with layers hidden (milestone 33): choosing its card brings that
+      // list back into the session, so the stage and the Info tab show the picture it was collected as.
+      if (item.kind === 'media') {
+        const psd = sanitizePsdChoice((item.params as { psd?: unknown }).psd);
+        if (psd?.hide) setPsdHidden(item.id, psd.hide);
+      }
     } finally {
       o.loadingCard = false;
     }

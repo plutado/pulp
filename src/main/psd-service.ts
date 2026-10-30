@@ -12,7 +12,7 @@
 
 import { readFile, stat } from 'node:fs/promises';
 import { extname } from 'node:path';
-import { deflateSync } from 'node:zlib';
+import { deflateSync, inflateSync } from 'node:zlib';
 import { encodePng } from '../core/png';
 import { compositePsd, fileHiddenLayers, layerOnCanvas, parsePsd, PSD_EXTENSION, psdOutline, type PsdDocument, type PsdOutline } from '../core/psd';
 import { lookupMedia } from './library-service';
@@ -49,7 +49,7 @@ export async function readPsdFile(path: string): Promise<PsdRead> {
   } catch (err) {
     return { ok: false, message: `could not read the file: ${(err as Error).message}` };
   }
-  const parsed = parsePsd(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+  const parsed = parsePsd(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength), { inflate: (b) => new Uint8Array(inflateSync(b)) });
   if (!parsed.ok) return parsed;
   documents.set(path, { signature, document: parsed.document });
   while (documents.size > DOCUMENTS_KEPT) {

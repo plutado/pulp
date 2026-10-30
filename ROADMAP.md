@@ -6,7 +6,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 **Milestone 27, projects and the application menu, is done:** a session saves as a `.pulp` project — guarded, recovered and relinked — and Pulp has its own menu on every platform. Milestone 28 is done before it — a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar — and milestone 30 before that — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
-What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those comes stock library import (32); the start screen (31), the browse panel that says what things are (34) and layered Photoshop graphics (33) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
+What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come stock library import (32), the rest of layered graphics — Illustrator, SVG, layered PDF and OpenRaster (33) — and Lottie animations (35); the start screen (31), the browse panel that says what things are (34, all but its card sort) and the `.psd` part of 33 are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
 
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. A decision is written here as soon as it is made — a new milestone, or items in an existing one — even when it is low priority and may never be built, so everything decided is visible in one place; `docs/ideas.md` keeps only ideas not yet decided and known issues. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
@@ -38,7 +38,8 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 31. A start screen (**done**) | 14-22 h |
 | 34. A browse panel that says what things are (all but the card sort) | 20-32 h |
 | 32. Stock library import | 27-46 h |
-| 33. Layered Photoshop graphics (**done**) | 10-18 h |
+| 33. Layered graphics: Photoshop (**done**), Illustrator, SVG | 19-33 h |
+| 35. Lottie animations | 18-30 h |
 | 20. Social-ready export | 9-14 h |
 | 8. 1.0 hardening and docs | 14-23 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -47,9 +48,9 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
-| **Total through 1.0 (every milestone above not marked post-1.0)** | **458-734 h** |
-| **Still open through 1.0 (unticked items only)** | **78-131 h** |
-| **Total including post-1.0 items** | **489-789 h** |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **485-779 h** |
+| **Still open through 1.0 (unticked items only)** | **95-158 h** |
+| **Total including post-1.0 items** | **516-834 h** |
 
 ## 0. Foundation (done)
 
@@ -395,16 +396,34 @@ Built after 30 and 28, whose in, hold and out parts and per-layer looks it uses.
 - [ ] **What is out of scope is said, not hidden:** a format Pulp cannot read — a motion-graphics project file, a disc only the original browser could convert — is listed with its preview where one exists and a plain note of what it needs, rather than skipped (1-2 h)
 - [ ] **Rights:** the media stays the person's, referenced in place; Pulp never sends it anywhere, never copies it into packs, exports or the repository, and tests use generated fixtures only (1-2 h)
 
-## 33. Layered Photoshop graphics (10-18 h; GitHub issue #35) — done
+## 33. Layered graphics: Photoshop, Illustrator, SVG (19-33 h; GitHub issue #35)
 
-Read a `.psd` as a stack of layers, so a layered still from a stock library can be browsed and used without flattening it first.
+Read layered stills as a stack of layers, so a layered graphic from a stock library or a designer can be browsed and used without flattening it first. The `.psd` came first (done); the other formats go through the same layer list, show and hide, placing and limits.
 
-- [x] **Reading:** layers, their names, order, visibility, opacity and blend modes where the file has them; groups shown as groups. Reading only, no editing of the file in Pulp. *Pulp's own reader (`src/core/psd.ts`): version 1 files, RGB or grayscale, 8 or 16 bits, raw or RLE; normal, multiply, screen, overlay, darken, lighten and difference are drawn, the rest named* (3-5 h)
+- [x] **Reading:** layers, their names, order, visibility, opacity and blend modes where the file has them; groups shown as groups. Reading only, no editing of the file in Pulp. *Pulp's own reader (`src/core/psd.ts`): version 1 files, RGB or grayscale, 8 or 16 bits; raw, RLE, or zip with and without prediction in the layer data (zlib injected, so the core stays pure); every blend mode a canvas draws natively is drawn with the W3C formulas, the rest named* (3-5 h)
 - [x] **Browsing:** a flattened preview for the grid and the stage, with the layer list shown in the Info tab. *The stage and the grant are served a PNG composited by the main process, since nothing in a page decodes a `.psd`* (1-2 h)
-- [x] **Showing and hiding layers** in the preview, kept with the item like any other edit (presets, collections, undo, the render cache key). *Browsed, the hidden list is the session's and shows on the stage; placed, it lives in the image value's `psd.hide`, which every store of parameters already carries* (2-3 h)
+- [x] **Showing and hiding layers** in the preview, kept with the item like any other edit (presets, collections, undo, the render cache key). *Browsed, the hidden list is the session's and shows on the stage; placed, it lives in the image value's `psd.hide`, which every store of parameters already carries; collected unplaced, it is snapshotted onto the collection item's `params.psd` — the card says so and shows that composite, choosing the card brings the list back, and a later media conversion renders it* (2-3 h)
 - [x] **Placing:** as one picture, or as separate image layers that keep their positions, then moved and styled with milestones 25 and 28. *Each split layer draws its layer on the file's whole canvas, so the layers keep their places by construction and the one picture's size and placement are simply copied* (2-4 h)
 - [x] **Limits stated plainly:** layer effects, smart objects and adjustment layers Pulp can't reproduce are named rather than silently dropped; the flattened composite stored in the file is the fallback (1-2 h)
 - [x] **Tests** on generated `.psd` fixtures only (1-2 h)
+- [ ] **SVG:** drawn by the renderer itself, so it stays sharp at any output size; the top-level groups are the layers — Illustrator writes each layer as a named `<g>`, Inkscape marks its layers explicitly — and a file with none is one layer. Linked images and web fonts inside it resolve against the file's folder or are named as missing (2-4 h)
+- [ ] **Illustrator `.ai` and layered PDF:** read through the PDF that an `.ai` carries (Illustrator's "Create PDF Compatible File", on by default) with a PDF reader such as pdf.js, drawn as vectors at the output size. Layers come from the PDF's optional content groups, which Illustrator writes when the file is saved with PDF layers; without them the file is one picture and the Info tab says why, and an `.ai` saved without PDF compatibility is named as unreadable with how to re-save it. The same path covers layered PDFs exported from InDesign, Affinity, Figma and others (4-6 h)
+- [ ] **OpenRaster and Krita:** an `.ora` or `.kra` is a zip of PNG layers and a stack file giving their order, names, visibility, opacity and positions; read directly (1-2 h)
+- [x] **More of the `.psd`:** ZIP-compressed layer data read with zlib, with and without prediction, at 8 and 16 bits (Photoshop's choice for some 16-bit files), and every blend mode a canvas draws natively — colour dodge and burn, hard and soft light, exclusion, hue, saturation, colour, luminosity join the first seven — so only the modes with no canvas name (vivid, linear and pin light, hard mix, linear burn and dodge, darker and lighter colour, subtract, divide, dissolve) stay named. *The stored composite keeps to raw and RLE, as the format does; a zipped one would still be named and composited from the layers* (2-3 h)
+- [ ] **Files Pulp does not read are named with the export that works,** not refused silently: Affinity's own files (export as PSD, SVG or PDF), GIMP `.xcf`, Sketch, Procreate and EPS (save as `.ai` or SVG); and the tests on generated fixtures for every format above — SVG, PDF with and without layers, `.ai`, `.ora` (1-2 h)
+
+## 35. Lottie animations (18-30 h; GitHub issue #37)
+
+After milestone 33. Lottie is the animated vector format After Effects exports through Bodymovin and many apps and sites use: a JSON file (or a zipped `.lottie`) that describes shapes, text, images and their keyframes. It is motion graphics already made, so Pulp reads it as an item that plays, renders and is edited like a template, rather than as a picture.
+
+- [ ] **Read and index:** `.json` Lottie files (told apart from other JSON by their shape) and `.lottie` archives, with their size, frame rate, length and markers; a poster and hover-scrub strip like any template, typed and filed by the taxonomy like other items (2-4 h)
+- [ ] **Render frame-accurately** through the existing renderer with an open-source player (lottie-web, MIT) stepped to each frame rather than played in real time, at any output size and aspect (fitted, filled or centred), with alpha export as for templates (3-5 h)
+- [ ] **Edit what the file exposes:** text layers, colours and images become parameters in the Parameters tab — Lottie's slots and theming where the file has them, otherwise its named text layers and fill colours — saved with the item like any other parameters (4-6 h)
+- [ ] **Fonts and images inside:** embedded images used as they are; text in fonts the file names but does not carry is drawn in an installed or imported font of that family, or named as missing with the fallback shown (2-3 h)
+- [ ] **Timing:** markers named intro, loop and outro (or the file's own names) map onto milestone 30's hold and loop, so a Lottie stretches to any length the way a template does; without markers it plays at its own length or loops (2-4 h)
+- [ ] **On the stage and in projects:** placed as a layer over video or a template, moved, resized and timed with milestones 25 and 28, carried in `.pulp` projects, collections and the render cache key (2-3 h)
+- [ ] **Limits stated plainly and samples:** features the player cannot draw (expressions, some effects and mattes) are named on the item rather than silently dropped; a few CC0 sample animations made for Pulp (lower third, title, transition, icon loop), since most shared Lottie files carry their own licences (2-3 h)
+- [ ] **Tests** on generated Lottie fixtures: frame accuracy against keyframes, alpha, a changed text and colour, markers stretching to a new length (1-2 h)
 
 ## 20. Social-ready export (9-14 h)
 

@@ -40,7 +40,12 @@ export interface CollectionItem {
   path?: string;
   presetId: string;
   options: RenderOptions;
-  /** Templates only: the parameter values this item renders with. */
+  /**
+   * A template's parameter values, which it renders with. For a layered
+   * Photoshop still collected unplaced (milestone 33), `params.psd` keeps the
+   * layers it was browsed with hidden, so the choice survives the project and
+   * is what a later conversion renders.
+   */
   params: Record<string, unknown>;
 }
 

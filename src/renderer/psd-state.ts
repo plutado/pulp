@@ -59,6 +59,21 @@ export function setPsdHidden(id: string, hidden: readonly string[]): void {
   psdHidden.value = { ...psdHidden.value, [id]: [...hidden].sort((a, b) => Number(a.slice(1)) - Number(b.slice(1))) };
 }
 
+/**
+ * The hidden list an item leaves the browse session with, when it says
+ * something: the layers hidden now, where that differs from the file's own
+ * visibility. What a collected or placed picture starts from (milestone 33).
+ * Null for any other still, an untouched file, or a list matching the file's.
+ */
+export function browsedHiddenChoice(entry: LibraryEntry): { hide: string[] } | null {
+  if (!isPsdEntry(entry)) return null;
+  const hide = psdHidden.value[entry.id];
+  if (!hide) return null;
+  const known = psdOutlines.value[entry.id];
+  if (known && known.ok === true && !hiddenDiffersFromFile(entry.id, known.outline)) return null;
+  return { hide };
+}
+
 export function togglePsdLayer(id: string, outline: PsdOutline, layer: string): void {
   const now = new Set(hiddenFor(id, outline));
   if (now.has(layer)) now.delete(layer);

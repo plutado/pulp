@@ -342,7 +342,7 @@ function Layers({ entry }: { entry: LibraryEntry }) {
             const shown = layerShown(outline.layers, layer.id, hidden);
             const facts = [
               layer.opacity < 1 ? `${Math.round(layer.opacity * 100)}%` : '',
-              layer.blend !== 'normal' ? layer.blend : '',
+              layer.blend !== 'normal' ? layer.blend.replace(/-/g, ' ') : '',
             ].filter(Boolean).join(' · ');
             return (
               <li key={layer.id} class={`psd-layer${layer.kind === 'group' ? ' group' : ''}${shown ? '' : ' hidden'}`} style={{ paddingLeft: `${layer.depth * 16}px` }} data-layer={layer.id}>

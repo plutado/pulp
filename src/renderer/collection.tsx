@@ -19,6 +19,8 @@ import { Icon } from './icons';
 import { BUNDLED_FAMILIES, importedFamilies } from '../core/fonts';
 import { appState, dispatch, importedFonts } from './store';
 import { relinkMissing } from './project';
+import { sanitizePsdChoice } from '../core/image-slot';
+import { psdCompositeUrlFor } from '../core/media-url';
 
 /** Each item paired with what the library has for it now. */
 export const resolved = computed(() => resolveCollection(appState.value.collection, appState.value.index, [...BUNDLED_FAMILIES, ...importedFamilies(importedFonts.value)]));
@@ -38,7 +40,16 @@ function settingsLine(r: ResolvedItem): string {
     parts.push(`${from} to ${to}`);
   }
   if (r.entry?.kind === 'template' && Object.keys(r.item.params).length > 0) parts.push('edited');
+  const psd = collectedHide(r.item);
+  if (psd) parts.push(`${psd.length} ${psd.length === 1 ? 'layer' : 'layers'} hidden`);
   return parts.join(' · ');
+}
+
+/** The hidden layers a layered still was collected with (milestone 33), or null. */
+function collectedHide(item: ResolvedItem['item']): string[] | null {
+  if (item.kind !== 'media') return null;
+  const psd = sanitizePsdChoice((item.params as { psd?: unknown }).psd);
+  return psd?.hide ?? null;
 }
 
 /** Why a card cannot render, in a few words, or an empty string when it can. */
@@ -47,7 +58,11 @@ function problem(r: ResolvedItem): string {
   if (r.offline) return 'Its folder is offline';
   if (r.missingImages.length > 0) return `${r.missingImages.join(', ')}: the chosen image is not in the library`;
   if (r.missingFonts.length > 0) return `Set in ${r.missingFonts.join(' and ')}, which is not on this computer; it would render in a fallback face`;
-  if (r.item.kind === 'media') return 'Converting media comes later';
+  if (r.item.kind === 'media') {
+    // A layered still still says what it was collected as: the conversion note is about rendering, not the picture.
+    const psd = collectedHide(r.item);
+    return `Converting media comes later${psd ? ` · ${psd.length} ${psd.length === 1 ? 'layer' : 'layers'} hidden` : ''}`;
+  }
   return '';
 }
 
@@ -55,7 +70,9 @@ function Item({ r, first, last }: { r: ResolvedItem; first: boolean; last: boole
   const { item } = r;
   const chosen = editingUid.value === item.uid;
   const trouble = problem(r);
-  const thumbnail = r.entry?.thumbnail;
+  // A layered still collected with layers hidden shows the picture it was collected as, composited on demand.
+  const hide = collectedHide(item);
+  const thumbnail = hide && r.entry && !r.missing && !r.offline ? psdCompositeUrlFor(r.entry.id, hide) : r.entry?.thumbnail;
   const move = (delta: number) => dispatch((s) => setCollection(s, moveItem(s.collection, item.uid, delta)));
   return (
     <li

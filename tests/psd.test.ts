@@ -6,12 +6,16 @@
  */
 
 import { inflateSync, deflateSync } from 'node:zlib';
+
 import { describe, expect, it } from 'vitest';
 import { encodePng } from '../src/core/png';
 import {
-  compositePsd, fileHiddenLayers, layerCanvasBox, layerOnCanvas, layersTopFirst, layerShown, parsePsd, placeableLayers, psdLimitSummary, psdOutline, unpackBits,
+  blendPixel, compositePsd, fileHiddenLayers, layerCanvasBox, layerOnCanvas, layersTopFirst, layerShown, parsePsd, placeableLayers, psdLimitSummary, psdOutline, undoPrediction, unpackBits,
 } from '../src/core/psd';
-import { solid, writePsd, type FixtureOptions } from './psd-fixture';
+import { applyPrediction, solid, writePsd, type FixtureOptions } from './psd-fixture';
+
+const inflate = (b: Uint8Array) => new Uint8Array(inflateSync(b));
+const deflate = (b: Uint8Array) => new Uint8Array(deflateSync(b));
 
 const RED: [number, number, number, number] = [255, 0, 0, 255];
 const BLUE: [number, number, number, number] = [0, 0, 255, 255];
@@ -40,7 +44,7 @@ function fixture(over: Partial<FixtureOptions> = {}): Uint8Array {
 const px = (rgba: Uint8Array, width: number, x: number, y: number) => [...rgba.subarray((y * width + x) * 4, (y * width + x) * 4 + 4)];
 
 function parsed(bytes: Uint8Array) {
-  const result = parsePsd(bytes);
+  const result = parsePsd(bytes, { inflate });
   if (!result.ok) throw new Error(result.message);
   return result.document;
 }
@@ -79,6 +83,28 @@ describe('reading a .psd', () => {
     const gray = parsed(writePsd({ width: 2, height: 1, grayscale: true, layers: [{ name: 'G', left: 0, top: 0, width: 2, height: 1, rgba: new Uint8Array([200, 200, 200, 255, 10, 10, 10, 128]) }] }));
     expect(gray.mode).toBe('grayscale');
     expect([...gray.layers[0]!.pixels!]).toEqual([200, 200, 200, 255, 10, 10, 10, 128]);
+  });
+
+  it('reads zip-compressed layer data, plain and with prediction, at 8 and 16 bits', () => {
+    const raw = parsed(fixture());
+    for (const compression of ['zip', 'zip-prediction'] as const) {
+      for (const depth of [8, 16] as const) {
+        const doc = parsed(fixture({ compression, depth, deflate }));
+        expect(doc.layers[2]!.pixels, `${compression} at ${depth}`).toEqual(raw.layers[2]!.pixels);
+        expect(doc.layers[0]!.pixels, `${compression} at ${depth}`).toEqual(raw.layers[0]!.pixels);
+      }
+    }
+    // A varied row, so the prediction really has deltas to carry: a gradient survives the round trip.
+    const gradient = new Uint8Array(16 * 4);
+    for (let x = 0; x < 16; x += 1) gradient.set([x * 16, 255 - x * 16, (x * 37) % 256, 255], x * 4);
+    const wavy = parsed(writePsd({ width: 16, height: 1, compression: 'zip-prediction', depth: 16, deflate, layers: [{ name: 'G', left: 0, top: 0, width: 16, height: 1, rgba: gradient }] }));
+    expect([...wavy.layers[0]!.pixels!]).toEqual([...gradient]);
+    // Prediction decode is the encode undone, at both depths.
+    const row = new Uint8Array([5, 250, 7, 0, 130, 129]);
+    expect(undoPrediction(applyPrediction(row, 3, 1, 8), 3, 1, 8)).toEqual(row);
+    expect(undoPrediction(applyPrediction(row, 3, 1, 16), 3, 1, 16)).toEqual(row);
+    // Without an inflate, zip data is refused by name rather than half-read.
+    expect(parsePsd(fixture({ compression: 'zip', deflate }))).toMatchObject({ ok: false, message: expect.stringContaining('inflate') });
   });
 
   it('refuses what it cannot read, by name', () => {
@@ -120,14 +146,14 @@ describe('compositing', () => {
       layers: [
         { name: 'Base', left: 0, top: 0, width: 1, height: 1, rgba: new Uint8Array([128, 128, 128, 255]) },
         { name: 'Mult', left: 0, top: 0, width: 1, height: 1, rgba: new Uint8Array([128, 255, 0, 255]), blendKey: 'mul ' },
-        { name: 'Odd', left: 0, top: 0, width: 1, height: 1, rgba: new Uint8Array([0, 0, 0, 0]), blendKey: 'sLit' },
+        { name: 'Odd', left: 0, top: 0, width: 1, height: 1, rgba: new Uint8Array([0, 0, 0, 0]), blendKey: 'lLit' },
         { group: 'Faint', opacity: 0.5, layers: [{ name: 'White', left: 0, top: 0, width: 1, height: 1, rgba: new Uint8Array([255, 255, 255, 255]), blendKey: 'scrn' }] },
       ],
     });
     const doc = parsed(bytes);
     expect(doc.layers[1]!.blend).toBe('multiply');
     expect(doc.layers[2]!.blend).toBe('normal');
-    expect(doc.layers[2]!.limits).toEqual(['blend mode "soft light" drawn as normal']);
+    expect(doc.layers[2]!.limits).toEqual(['blend mode "linear light" drawn as normal']);
     // Multiply: 128*128/255 ≈ 64, 128*255/255 = 128, 0; then white screened at half the group's opacity brightens each halfway to 255.
     const out = compositePsd(doc, new Set(['L3', 'L5']));
     expect(px(out, 1, 0, 0)).toEqual([64, 128, 0, 255]);
@@ -140,6 +166,68 @@ describe('compositing', () => {
     expect(flat.layers).toEqual([]);
     expect(flat.limits.some((l) => l.includes('no layers'))).toBe(true);
     expect(px(compositePsd(flat), 2, 1, 1)).toEqual(BLUE);
+  });
+});
+
+describe('the canvas blend set', () => {
+  const grey: [number, number, number] = [0.5, 0.25, 0.75];
+
+  it('maps every key a canvas draws natively, and computes with the same formulas', () => {
+    const keyed = (key: string) => parsed(writePsd({ width: 1, height: 1, layers: [{ name: 'x', left: 0, top: 0, width: 1, height: 1, rgba: solid(1, 1, [0, 0, 0, 255]), blendKey: key }] })).layers[0]!;
+    const mapped: Record<string, string> = {
+      'mul ': 'multiply', scrn: 'screen', over: 'overlay', dark: 'darken', lite: 'lighten', 'div ': 'color-dodge', idiv: 'color-burn',
+      hLit: 'hard-light', sLit: 'soft-light', diff: 'difference', smud: 'exclusion', 'hue ': 'hue', 'sat ': 'saturation', colr: 'color', 'lum ': 'luminosity',
+    };
+    for (const [key, blend] of Object.entries(mapped)) {
+      const layer = keyed(key);
+      expect(layer.blend, key).toBe(blend);
+      expect(layer.limits, key).toEqual([]);
+    }
+    // Photoshop's own modes with no canvas name stay named.
+    expect(keyed('vLit').limits).toEqual(['blend mode "vivid light" drawn as normal']);
+
+    // The separable formulas, spot-checked against the W3C definitions.
+    expect(blendPixel('color-dodge', grey, [0.5, 0.5, 0.5])).toEqual([1, 0.5, 1]);
+    expect(blendPixel('color-burn', grey, [0.5, 0.5, 0.5])[0]).toBeCloseTo(0, 5);
+    expect(blendPixel('hard-light', [0.5, 0.5, 0.5], [0.25, 0.75, 0.5])).toEqual([0.25, 0.75, 0.5]);
+    expect(blendPixel('soft-light', [0.25, 0.25, 0.25], [0.75, 0.75, 0.75])[0]).toBeCloseTo(0.25 + 0.5 * (((16 * 0.25 - 12) * 0.25 + 4) * 0.25 - 0.25), 5);
+    expect(blendPixel('exclusion', [0.5, 0, 1], [0.5, 0.5, 0.5])).toEqual([0.5, 0.5, 0.5]);
+    // Overlay is hard-light with the two swapped.
+    expect(blendPixel('overlay', [0.25, 0.75, 0.5], [0.5, 0.5, 0.5])).toEqual([0.25, 0.75, 0.5]);
+  });
+
+  it('computes the non-separable modes on the whole colour', () => {
+    const red: [number, number, number] = [1, 0, 0];
+    const grn: [number, number, number] = [0, 1, 0];
+    // Luminosity: the backdrop's colour at the source's brightness — grey over red is still red, brighter.
+    const lum = blendPixel('luminosity', red, [0.5, 0.5, 0.5]);
+    expect(0.3 * lum[0]! + 0.59 * lum[1]! + 0.11 * lum[2]!).toBeCloseTo(0.5, 2);
+    expect(lum[0]).toBeGreaterThan(lum[1]);
+    expect(lum[1]).toBeCloseTo(lum[2], 5);
+    // Colour: the source's hue and saturation at the backdrop's luminosity — red over green stays as bright as green.
+    const col = blendPixel('color', grn, red);
+    expect(col[0]).toBeGreaterThan(col[1]);
+    expect(0.3 * col[0]! + 0.59 * col[1]! + 0.11 * col[2]!).toBeCloseTo(0.59, 2);
+    // Hue keeps the backdrop's saturation and luminosity; saturation the backdrop's hue and luminosity.
+    const hue = blendPixel('hue', grn, red);
+    expect(0.3 * hue[0]! + 0.59 * hue[1]! + 0.11 * hue[2]!).toBeCloseTo(0.59, 2);
+    const sat = blendPixel('saturation', red, [0.5, 0.5, 0.5]);
+    expect(Math.max(...sat) - Math.min(...sat)).toBeCloseTo(0, 5);
+    // A grey backdrop has no hue to keep: everything clips back to its luminosity.
+    expect(blendPixel('saturation', [0.5, 0.5, 0.5], red).every((v) => v >= 0 && v <= 1)).toBe(true);
+  });
+
+  it('draws a mapped mode through the compositor', () => {
+    const doc = parsed(writePsd({
+      width: 1, height: 1,
+      layers: [
+        { name: 'Base', left: 0, top: 0, width: 1, height: 1, rgba: new Uint8Array([64, 64, 64, 255]) },
+        { name: 'Dodge', left: 0, top: 0, width: 1, height: 1, rgba: new Uint8Array([128, 128, 128, 255]), blendKey: 'div ' },
+      ],
+    }));
+    const out = compositePsd(doc);
+    // color-dodge: 0.25 / (1 - 0.5) = 0.5 of full.
+    expect([...out.subarray(0, 4)].map((v) => Math.round(v / 10))).toEqual([13, 13, 13, 26]);
   });
 });
 

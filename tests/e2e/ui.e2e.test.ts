@@ -2865,9 +2865,30 @@ describe.skipIf(!electron)('inspector UI', () => {
       const hidden = await image();
       expect(hidden.src).toMatch(/\/composite\?hide=L0\+L3$/);
       await until(async () => (await image()).loaded, 'the new composite to load');
-      // Showing it again goes back to the file's own picture.
+      // Added to the collection unplaced, the item keeps the picture it was collected as: the hidden
+      // list goes with it, the card says so and shows that composite, and choosing the card later
+      // brings the list back (the follow-up to milestone 33).
+      await page.eval(`(() => { if (document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); })()`);
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      const card = `[...document.querySelectorAll('#collection .collection-card')].find((c) => c.querySelector('.job-name').textContent === 'layered')`;
+      await until(() => page.eval<boolean>(`!!${card}`), 'the collected card');
+      expect(await page.eval<string>(`${card}.querySelector('.job-status').textContent`)).toContain('2 layers hidden');
+      expect(await page.eval<string>(`${card}.querySelector('.job-thumb img').src`)).toMatch(/\/composite\?hide=L0\+L3$/);
+
+      // Showing the backdrop again goes back to the file's own picture; the card keeps what it was collected with.
       await page.eval(`document.querySelector('#info-item [data-section=layers] .psd-layer[data-layer="L0"] input').click()`);
       await until(async () => /\/composite\?hide=L3$/.test((await image()).src), 'the file\'s own hidden list again');
+      expect(await page.eval<string>(`${card}.querySelector('.job-thumb img').src`)).toMatch(/\/composite\?hide=L0\+L3$/);
+
+      // Choosing the card brings its hidden list back into the session, and the stage follows.
+      await page.eval(`${card}.click()`);
+      await until(async () => /\/composite\?hide=L0\+L3$/.test((await image()).src), 'the collected picture back on the stage');
+      await page.eval(`document.getElementById('editing-done').click()`);
+      // Left as the file has it for the tests that follow.
+      await page.eval(`document.querySelector('#info-item [data-section=layers] .psd-layer[data-layer="L0"] input').click()`);
+      await until(async () => /\/composite\?hide=L3$/.test((await image()).src), 'the file\'s own picture again');
+      await page.eval(`${card}.querySelector('button[aria-label="Remove from the collection"]').click()`);
+      await until(() => page.eval<boolean>(`!${card}`), 'the card removed');
       await page.eval(`document.getElementById('tab-parameters').click()`);
     }, 60_000);
 

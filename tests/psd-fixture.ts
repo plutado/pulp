@@ -5,6 +5,8 @@
  * shipped. Mirrors what src/core/psd.ts reads; nothing in the app writes a PSD.
  */
 
+export type FixtureCompression = 'raw' | 'rle' | 'zip' | 'zip-prediction';
+
 export interface FixtureLayer {
   name: string;
   /** Canvas rectangle. */
@@ -41,6 +43,9 @@ export interface FixtureOptions {
   /** Straight RGBA for the stored composite; omitted writes a transparent one. */
   composite?: Uint8Array;
   rle?: boolean;
+  /** How layer channels are stored; `rle: true` is shorthand for 'rle'. Zip needs a deflate (node:zlib). */
+  compression?: FixtureCompression;
+  deflate?: (bytes: Uint8Array) => Uint8Array;
   depth?: 8 | 16;
   grayscale?: boolean;
   version?: number;
@@ -78,14 +83,42 @@ function channelBytes(samples: Uint8Array, depth: 8 | 16): Uint8Array {
   return out;
 }
 
+/** Row-delta prediction, the encode side of src/core/psd.ts's undoPrediction: bytes at 8 bits, 16-bit values at 16. */
+export function applyPrediction(bytes: Uint8Array, width: number, height: number, depth: 8 | 16): Uint8Array {
+  const out = new Uint8Array(bytes);
+  if (depth === 16) {
+    for (let y = 0; y < height; y += 1) {
+      const row = y * width * 2;
+      for (let x = width - 1; x >= 1; x -= 1) {
+        const at = row + x * 2;
+        const value = ((out[at]! << 8) | out[at + 1]!) - ((out[at - 2]! << 8) | out[at - 1]!);
+        out[at] = (value >> 8) & 0xff;
+        out[at + 1] = value & 0xff;
+      }
+    }
+    return out;
+  }
+  for (let y = 0; y < height; y += 1) {
+    const row = y * width;
+    for (let x = width - 1; x >= 1; x -= 1) out[row + x] = (out[row + x]! - out[row + x - 1]!) & 0xff;
+  }
+  return out;
+}
+
 /** One channel's image data for a layer: compression word, then the samples. */
-function writeChannelData(samples: Uint8Array, width: number, height: number, depth: 8 | 16, rle: boolean): Uint8Array {
+function writeChannelData(samples: Uint8Array, width: number, height: number, depth: 8 | 16, compression: FixtureCompression, deflate?: (bytes: Uint8Array) => Uint8Array): Uint8Array {
   const w = new Writer();
   const bytes = channelBytes(samples, depth);
   const rowBytes = width * (depth === 16 ? 2 : 1);
-  if (!rle) {
+  if (compression === 'raw') {
     w.u16(0);
     w.bytes(bytes);
+    return w.done();
+  }
+  if (compression === 'zip' || compression === 'zip-prediction') {
+    if (!deflate) throw new Error('a zip fixture needs a deflate');
+    w.u16(compression === 'zip' ? 2 : 3);
+    w.bytes(deflate(compression === 'zip' ? bytes : applyPrediction(bytes, width, height, depth)));
     return w.done();
   }
   w.u16(1);
@@ -130,6 +163,7 @@ export function writePsd(options: FixtureOptions): Uint8Array {
   const { width, height } = options;
   const depth = options.depth ?? 8;
   const rle = options.rle ?? false;
+  const compression: FixtureCompression = options.compression ?? (rle ? 'rle' : 'raw');
   const gray = options.grayscale ?? false;
   const colourChannels = gray ? [0] : [0, 1, 2];
   const w = new Writer();
@@ -152,7 +186,7 @@ export function writePsd(options: FixtureOptions): Uint8Array {
     const l = rec.layer;
     const ids = l ? [...colourChannels, -1] : [];
     const datas = l
-      ? ids.map((id) => writeChannelData(plane(l.rgba, id === -1 ? 3 : id), l.width, l.height, depth, rle))
+      ? ids.map((id) => writeChannelData(plane(l.rgba, id === -1 ? 3 : id), l.width, l.height, depth, compression, options.deflate))
       : [];
     layerInfo.i32(l ? l.top : 0);
     layerInfo.i32(l ? l.left : 0);
