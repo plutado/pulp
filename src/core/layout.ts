@@ -13,6 +13,8 @@ export interface LayoutState {
   stageShare: number;
   /** Collection tray height in px when open. */
   trayHeight: number;
+  /** The transport row's height in px (milestone 37): the controls, and under them the lanes for the bars per layer. */
+  transportHeight: number;
   browseCollapsed: boolean;
   stageCollapsed: boolean;
   /** The tray starts collapsed to its one-line summary and opens when the first job arrives. */
@@ -24,6 +26,8 @@ export const LAYOUT_LIMITS = {
   inspectorWidth: { min: 240, max: 560 },
   stageShare: { min: 0.2, max: 0.85 },
   trayHeight: { min: 120, max: 480 },
+  // The floor is the controls line alone; anything above it is lanes for the bars per layer.
+  transportHeight: { min: 40, max: 320 },
 } as const;
 
 export const DEFAULT_LAYOUT: LayoutState = {
@@ -32,6 +36,8 @@ export const DEFAULT_LAYOUT: LayoutState = {
   inspectorWidth: 350,
   stageShare: 0.6,
   trayHeight: 220,
+  // The controls line and room for three layers' bars under the scrub bar.
+  transportHeight: 92,
   browseCollapsed: false,
   stageCollapsed: false,
   trayCollapsed: true,
@@ -54,13 +60,14 @@ export function sanitizeLayout(raw: unknown): LayoutState {
     inspectorWidth: number(r.inspectorWidth, DEFAULT_LAYOUT.inspectorWidth, L.inspectorWidth.min, L.inspectorWidth.max),
     stageShare: number(r.stageShare, DEFAULT_LAYOUT.stageShare, L.stageShare.min, L.stageShare.max),
     trayHeight: number(r.trayHeight, DEFAULT_LAYOUT.trayHeight, L.trayHeight.min, L.trayHeight.max),
+    transportHeight: number(r.transportHeight, DEFAULT_LAYOUT.transportHeight, L.transportHeight.min, L.transportHeight.max),
     browseCollapsed: r.browseCollapsed === true,
     stageCollapsed: r.stageCollapsed === true,
     trayCollapsed: r.trayCollapsed !== false,
   };
 }
 
-export type SizedPane = 'browseWidth' | 'inspectorWidth' | 'stageShare' | 'trayHeight';
+export type SizedPane = 'browseWidth' | 'inspectorWidth' | 'stageShare' | 'trayHeight' | 'transportHeight';
 export type CollapsiblePane = 'browse' | 'stage' | 'tray';
 
 /** A drag or keyboard resize; the value is clamped to the pane's limits. Same object when unchanged. */
@@ -85,5 +92,6 @@ export function layoutCssVariables(l: LayoutState): Record<string, string> {
     '--inspector-w': `${l.inspectorWidth}px`,
     '--stage-share': `${Math.round(l.stageShare * 1000) / 10}%`,
     '--tray-h': `${l.trayHeight}px`,
+    '--transport-h': `${l.transportHeight}px`,
   };
 }

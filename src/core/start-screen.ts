@@ -206,7 +206,12 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     target: 'region-stage',
     title: 'Stage',
-    body: 'The preview. Play it, scrub it, set in and out points, and move or resize layers right on the picture.',
+    body: 'The picture, as the output will show it: choose what sits behind transparency, show the safe areas, and move, resize or turn layers right on it.',
+  },
+  {
+    target: 'region-transport',
+    title: 'Transport row',
+    body: 'Play, step a frame at a time, loop, set in and out points and the volume. The scrub bar runs the width of the window, with a bar for each layer under it showing when it is on screen.',
   },
   {
     target: 'tab-parameters',

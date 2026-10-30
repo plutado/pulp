@@ -2727,6 +2727,76 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(new Set(text.map((t) => t.lineHeight)), `one line height (${JSON.stringify(text)})`).toHaveProperty('size', 1);
       expect(new Set(text.map((t) => t.family)), `one family (${JSON.stringify(text)})`).toHaveProperty('size', 1);
     }, 60_000);
+
+    it('puts the transport row across the bottom of the window, above the status bar, resizable and remembered (milestone 37)', async () => {
+      type Box = { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      const box = (id: string) =>
+        page.eval<Box>(`(() => { const b = document.getElementById(${JSON.stringify(id)}).getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width, height: b.height }; })()`);
+
+      // What plays or moves through time is in the row; what views the picture stays on the stage.
+      const inRow = ['play', 'step-back', 'step-forward', 'loop', 'scrub', 'timecode', 'mark-in', 'mark-out', 'mark-clear', 'volume', 'mute', 'audition', 'layer-bars', 'length-handle', 'sequence-rate'];
+      const onStage = ['preview-frame', 'bg-checker', 'bg-black', 'bg-white', 'bg-custom', 'safe-toggle', 'add-to-collection'];
+      const where = await page.eval<Record<string, string>>(
+        `(() => { const out = {}; for (const id of ${JSON.stringify([...inRow, ...onStage])}) { const el = document.getElementById(id); out[id] = !el ? 'missing' : el.closest('#region-transport') ? 'transport' : el.closest('#region-stage') ? 'stage' : 'elsewhere'; } return out; })()`,
+      );
+      for (const id of inRow) expect(where[id], `#${id}`).toBe('transport');
+      for (const id of onStage) expect(where[id], `#${id}`).toBe('stage');
+
+      // From the top, the bottom of the window reads: the tray, the transport row, the status bar — and the row spans the window.
+      const [app, tray, row, status] = await Promise.all([box('app'), box('region-tray'), box('region-transport'), box('region-status')]);
+      expect(row.top, 'the row is under the tray').toBeGreaterThanOrEqual(tray.bottom - 1);
+      expect(row.bottom, 'and over the status bar').toBeLessThanOrEqual(status.top + 1);
+      expect(row.left, 'spanning the window').toBeCloseTo(app.left, 0);
+      expect(row.right).toBeCloseTo(app.right, 0);
+
+      // The lanes for the bars per layer share the scrub bar's grid column, so they line up with its time by
+      // construction: the lanes' content box (their padding is room for the end handles) is the scrub bar's box.
+      const edges = await page.eval<{ scrub: Box; lanes: Box }>(
+        `(() => { const r = (el) => { const b = el.getBoundingClientRect(); const c = getComputedStyle(el); return { left: b.left + parseFloat(c.paddingLeft), right: b.right - parseFloat(c.paddingRight) }; };
+          return { scrub: r(document.querySelector('#region-transport .scrub-wrap')), lanes: r(document.querySelector('#region-transport .transport-lanes')) }; })()`,
+      );
+      expect(edges.lanes.left).toBeCloseTo(edges.scrub.left, 0);
+      expect(edges.lanes.right).toBeCloseTo(edges.scrub.right, 0);
+
+      // The row resizes from its top edge, by the keyboard as the other panes do, and the height is remembered.
+      // The setting is read off the shell's custom property: on a short window (the CI runner's) the row
+      // yields below its setting, so its box is a floor on the setting rather than the setting itself.
+      const setting = () => page.eval<number>(`parseFloat(getComputedStyle(document.getElementById('app')).getPropertyValue('--transport-h'))`);
+      const before = row.height;
+      const was = await setting();
+      expect(before).toBeLessThanOrEqual(was + 0.5);
+      const squeeze = (key: 'ArrowUp' | 'ArrowDown', times: number) =>
+        page.eval(`(() => { const s = document.getElementById('split-transport'); for (let i = 0; i < ${times}; i++) s.dispatchEvent(new KeyboardEvent('keydown', { key: '${key}', bubbles: true })); })()`);
+      try {
+        await squeeze('ArrowDown', 2);
+        await until(async () => (await setting()) === was + 32, 'the row\'s setting up by two steps');
+        expect((await box('region-transport')).height).toBeGreaterThanOrEqual(before - 0.5);
+        await until(async () => {
+          try {
+            return (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { layout?: { transportHeight?: number } }).layout?.transportHeight === was + 32;
+          } catch {
+            return false;
+          }
+        }, 'the row\'s height in settings.json');
+      } finally {
+        await squeeze('ArrowUp', 2);
+      }
+      await until(async () => (await setting()) === was, 'the row back at its setting');
+      await until(async () => Math.abs((await box('region-transport')).height - before) < 1, 'the row back at its height');
+
+      // A still has no time: the row shows no scrub bar, is disabled, and keeps its place.
+      await clickResult('tiny');
+      await until(() => page.eval<boolean>(`document.getElementById('region-transport').classList.contains('still')`), 'the row told it shows a still');
+      expect(await page.eval<string>(`getComputedStyle(document.querySelector('#region-transport .scrub-wrap')).visibility`)).toBe('hidden');
+      expect(await page.eval<boolean>(`document.getElementById('play').disabled`)).toBe(true);
+      expect(await page.eval<string>(`document.getElementById('timecode').textContent`)).toBe('--');
+      expect((await box('region-transport')).height).toBeCloseTo(before, 0);
+      // And a template has the bar back.
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
+      expect(await page.eval<boolean>(`document.getElementById('region-transport').classList.contains('still')`)).toBe(false);
+      expect(await page.eval<string>(`getComputedStyle(document.querySelector('#region-transport .scrub-wrap')).visibility`)).toBe('visible');
+    }, 90_000);
   });
 
   describe('template packs', () => {
@@ -3020,6 +3090,23 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`(() => { const v = document.getElementById('media-video'); return !v.hidden && v.readyState >= 1; })()`), 'video metadata');
       const duration = await page.eval<number>(`document.getElementById('media-video').duration`);
       expect(Math.abs(duration - 2)).toBeLessThan(0.3);
+
+      // The transport row plays it (milestone 37): the element has no controls of its own, and the row
+      // counts the clip in frames, plays and pauses it, seeks it from the scrub bar and steps it a frame.
+      expect(await page.eval<boolean>(`document.getElementById('media-video').controls`)).toBe(false);
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled && Number(document.getElementById('scrub').max) > 0`), 'the row counting the clip');
+      const frames = await page.eval<number>(`Number(document.getElementById('scrub').max) + 1`);
+      expect(await page.eval<string>(`document.getElementById('timecode').textContent`)).toContain(`/${frames}`);
+      await page.eval(`document.getElementById('play').click()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('media-video').paused && document.getElementById('play').getAttribute('aria-label') === 'Pause'`), 'the clip playing from the row');
+      await page.eval(`document.getElementById('play').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('media-video').paused && document.getElementById('play').getAttribute('aria-label') === 'Play'`), 'the clip paused from the row');
+      await page.eval(`(() => { const el = document.getElementById('scrub'); el.value = String(Math.floor(${frames} / 2)); el.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await until(() => page.eval<boolean>(`Math.abs(document.getElementById('media-video').currentTime - ${duration} / 2) < 0.15`), 'the seek from the scrub bar');
+      const at = await page.eval<number>(`document.getElementById('media-video').currentTime`);
+      await page.eval(`document.getElementById('step-forward').click()`);
+      await until(() => page.eval<boolean>(`(() => { const t = document.getElementById('media-video').currentTime; return t > ${at} + 0.01 && t < ${at} + 0.2; })()`), 'one frame on');
+
       await page.eval(`document.getElementById('media-video').currentTime = 1.5`);
       await until(() => page.eval<boolean>(`(() => { const v = document.getElementById('media-video'); return !v.seeking && Math.abs(v.currentTime - 1.5) < 0.2 && v.readyState >= 2; })()`), 'the seek to finish');
     }, 60_000);
@@ -3225,9 +3312,12 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(await page.eval<string>(`document.getElementById('audition').getAttribute('aria-pressed')`)).toBe('true');
         await key('ArrowUp'); // back to the top of a one-item list: the same sound, played this time
         await until(playing, 'the sound to play');
+        // The transport row follows the element (milestone 37), whoever started it.
+        await until(() => page.eval<boolean>(`document.getElementById('play').getAttribute('aria-label') === 'Pause'`), 'the row showing the sound playing');
         // Escape stops it.
         await key('Escape');
         await until(async () => !(await playing()), 'the sound to stop');
+        await until(() => page.eval<boolean>(`document.getElementById('play').getAttribute('aria-label') === 'Play'`), 'the row showing it stopped');
         await page.eval(`document.getElementById('audition').click()`);
       } finally {
         await setSearch('');

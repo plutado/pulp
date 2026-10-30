@@ -11,7 +11,7 @@ import { planBatch, type BatchPlan } from '../core/batch-csv';
 import { dimensionsLabel } from '../core/display';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type AudioOptions, type PresetId, type RenderOptions } from '../core/render-plan';
-import { AUDIO_PRESET_IDS, AUDIO_PRESETS, AUDIO_TIMECODE_FPS, DEFAULT_MEDIA_FPS, DEFAULT_STILL_SECONDS, isAudioPresetId, NOT_MEASURED, resolveMediaTiming, sourceFromEntry } from '../core/media-render';
+import { AUDIO_PRESET_IDS, AUDIO_PRESETS, DEFAULT_STILL_SECONDS, isAudioPresetId, mediaDefaultFps, NOT_MEASURED, resolveMediaTiming, sourceFromEntry } from '../core/media-render';
 import type { MediaEntry } from '../core/library-types';
 import { browsedHiddenChoice } from './psd-state';
 import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, timecodePattern } from '../core/timecode';
@@ -284,12 +284,6 @@ function showSizeChoice(m: { aspects: readonly string[]; size?: Size }, options:
     }
   }
   els.optSizeCustom.hidden = els.optResolution.value !== CUSTOM_SIZE;
-}
-
-/** The rate a media item is counted at when none is chosen: its own, a still's 30, a sound's 25 fps timecode clock. */
-function mediaDefaultFps(entry: MediaEntry): number {
-  const source = sourceFromEntry(entry);
-  return source.kind === 'image' ? DEFAULT_MEDIA_FPS : source.kind === 'audio' ? AUDIO_TIMECODE_FPS : source.fps ?? DEFAULT_MEDIA_FPS;
 }
 
 /** The output frame rate as currently chosen: the override, or the template's — or the media item's own. */

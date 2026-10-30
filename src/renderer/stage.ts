@@ -1,9 +1,14 @@
 /**
- * The stage region: the template preview with playback, the media preview, the
- * transport and the preview tools (loop, frame step, in and out marks, volume,
- * background and safe areas). Owns its elements and playback state; other
- * regions talk to it only through this API (show, clear, set parameters) and
- * through the shared `trim` signal, never through its DOM.
+ * The player: the stage region — the picture, with the background toggle and
+ * the safe areas, the only chrome it keeps (milestone 37) — and the transport
+ * row across the bottom of the window that plays and scrubs it (play, frame
+ * step, loop, in and out marks, timecode, volume, the scrub bar with a bar per
+ * layer under it). Two regions in the layout, one playhead: a template is
+ * drawn a frame at a time by its page, a frame sequence by index, a clip or a
+ * sound by its media element, and every one of them is counted, stepped and
+ * marked by the same row. Owns its elements and playback state; other regions
+ * talk to it only through this API (show, clear, set parameters) and through
+ * the shared `trim` and `transport` signals, never through its DOM.
  *
  * What the controls mean lives in `src/core/player.ts`; the preferences they
  * set are kept in settings.json.
@@ -17,6 +22,7 @@ import type { LayerValues } from '../core/layers';
 import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import type { TemplateManifest } from '../core/manifest';
+import { mediaDefaultFps } from '../core/media-render';
 import { SEQUENCE_FPS } from '../core/media-sequence';
 import { lengthFrameCount, lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
 import type { ResolvedParams } from '../core/params';
@@ -43,6 +49,8 @@ const $ = <T extends Element>(id: string): T => {
 };
 
 const els = {
+  /** The transport row (milestone 37): told what kind of thing is shown, so a still can hide the scrub bar. */
+  row: $<HTMLElement>('region-transport'),
   previewFrame: $<HTMLDivElement>('preview-frame'),
   preview: $<HTMLIFrameElement>('preview'),
   previewEmpty: $<HTMLDivElement>('preview-empty'),
@@ -115,6 +123,15 @@ const s = {
    * through the same transport a template uses.
    */
   sequence: null as { entry: MediaEntry; frames: number; fps: number } | null,
+  /**
+   * A clip or a sound on the stage (milestone 37): its element plays it, and
+   * the transport row counts it in frames at the rate the Output tab trims it
+   * at, so a mark on the bar is the frame the field shows. `frames` is 0 until
+   * the metadata has arrived.
+   */
+  media: null as { el: HTMLMediaElement; fps: number; frames: number } | null,
+  /** A still is shown: nothing to play, so the row shows no scrub bar and keeps its place. */
+  still: false,
   /** Preferences from settings.json: loop, background, safe areas, volume. */
   player: DEFAULT_PLAYER as PlayerState,
   /** The audio item on the stage, so its waveform can be drawn again when the peaks land. */
@@ -160,6 +177,8 @@ function applyPlayer(): void {
   for (const el of [els.mediaVideo, els.mediaAudio]) {
     el.volume = p.volume;
     el.muted = p.muted;
+    // The row's loop toggle is the one loop: a clip or a sound comes round at its end as a template does.
+    el.loop = p.loop;
   }
 }
 
@@ -171,18 +190,21 @@ function applyPlayer(): void {
  */
 function previewFrames(): number {
   if (s.sequence) return s.sequence.frames;
+  if (s.media) return s.media.frames;
   if (!s.manifest) return 0;
   return lengthFrameCount(resolveLength(s.manifest.duration, s.manifest.structure ?? null, s.length), s.manifest.fps);
 }
 
 /** The rate the transport runs at: the template's, or the rate a sequence is read at. */
 function previewFps(): number {
-  return s.sequence ? s.sequence.fps : (s.manifest?.fps ?? SEQUENCE_FPS);
+  if (s.sequence) return s.sequence.fps;
+  if (s.media) return s.media.fps;
+  return s.manifest?.fps ?? SEQUENCE_FPS;
 }
 
-/** Is there something the transport can step through — a template, or a sequence? */
+/** Is there something the transport can step through — a template, a sequence, a clip or a sound? */
 function hasTimeline(): boolean {
-  return Boolean(s.manifest || s.sequence);
+  return Boolean(s.manifest || s.sequence || s.media);
 }
 
 /**
@@ -246,7 +268,7 @@ function applyTrim(): void {
   els.markOutFlag.hidden = outFrame === null;
   if (inFrame !== null) els.markInFlag.style.left = `${markPercent(inFrame, total)}%`;
   if (outFrame !== null) els.markOutFlag.style.left = `${markPercent(outFrame, total)}%`;
-  els.markClear.disabled = !s.manifest || (inFrame === null && outFrame === null);
+  els.markClear.disabled = !hasTimeline() || (inFrame === null && outFrame === null);
   applyParts();
   applySequenceRate();
   applyLayerBars();
@@ -258,14 +280,18 @@ function applyLayerBars(): void {
 }
 
 function updateTransport(): void {
-  const ready = (Boolean(s.manifest) && s.previewReady) || Boolean(s.sequence);
+  // A template once its page is ready, a sequence at once, a clip or a sound once its length is known.
+  const ready = (Boolean(s.manifest) && s.previewReady) || Boolean(s.sequence) || Boolean(s.media && s.media.frames > 0);
   els.play.disabled = !ready;
   els.stepBack.disabled = !ready;
   els.stepForward.disabled = !ready;
   els.scrub.disabled = !hasTimeline();
-  // Marks are frames of a template's timeline; a media item has no render to trim.
-  els.markIn.disabled = !s.manifest;
-  els.markOut.disabled = !s.manifest;
+  // Marks are frames of whatever has a timeline: the Output tab trims a media render too (milestone 15).
+  els.markIn.disabled = !hasTimeline();
+  els.markOut.disabled = !hasTimeline();
+  // Nothing chosen, or nothing that plays: the row stays in place, disabled; a still shows no scrub bar.
+  els.row.classList.toggle('still', s.still);
+  if (!hasTimeline()) updateTimecode(0);
   applyTrim();
   publishTransport();
 }
@@ -421,6 +447,14 @@ function requestFrame(frame: number): void {
     updateTimecode(at);
     return;
   }
+  if (s.media) {
+    // The element holds the picture; the row only tells it where to be.
+    const at = Math.max(0, Math.min(Math.max(0, s.media.frames - 1), frame));
+    s.frame = at;
+    if (s.media.frames > 0) s.media.el.currentTime = at / s.media.fps;
+    updateTimecode(at);
+    return;
+  }
   if (!s.previewReady) return;
   syncImages();
   if (!s.imagesReady) {
@@ -440,6 +474,19 @@ let playStartFrame = 0;
 
 function tick(now: number): void {
   if (!s.playing || !hasTimeline()) return;
+  if (s.media) {
+    // The element keeps its own time; the row follows it, and learns the length if it arrived late.
+    const el = s.media.el;
+    if (s.media.frames === 0 && Number.isFinite(el.duration) && el.duration > 0) setMediaLength(el.duration);
+    const total = previewFrames();
+    const frame = Math.min(Math.max(0, total - 1), Math.floor(el.currentTime * s.media.fps));
+    if (frame !== s.frame) {
+      s.frame = frame;
+      updateTimecode(frame);
+    }
+    rafId = requestAnimationFrame(tick);
+    return;
+  }
   const total = previewFrames();
   const frame = playheadAt(playStartFrame, now - playStart, previewFps(), total, s.player.loop);
   if (frame === null) {
@@ -454,6 +501,12 @@ function tick(now: number): void {
 
 function play(): void {
   if (!hasTimeline() || (s.manifest && !s.previewReady)) return;
+  if (s.media) {
+    // The element plays; its own play and pause events put the row in step (startFollowing).
+    if (!s.player.loop && s.media.frames > 0 && s.frame >= s.media.frames - 1) s.media.el.currentTime = 0;
+    void s.media.el.play().catch(() => undefined);
+    return;
+  }
   // Starting from the last frame with looping off would stop at once; begin again instead.
   if (!s.player.loop && s.frame >= previewFrames() - 1) s.frame = 0;
   s.playing = true;
@@ -477,6 +530,33 @@ export function stageStop(): void {
   setIcon(els.play, 'play', 24);
   els.play.setAttribute('aria-label', 'Play');
   publishTransport();
+  if (s.media && !s.media.el.paused) s.media.el.pause();
+}
+
+/** A clip or a sound began playing — by the row, or by audition: the row follows its time. */
+function startFollowing(el: HTMLMediaElement): void {
+  if (s.media?.el !== el) return;
+  s.playing = true;
+  setIcon(els.play, 'pause', 24);
+  els.play.setAttribute('aria-label', 'Pause');
+  publishTransport();
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(tick);
+}
+
+/** The clip or the sound stopped, at its end with looping off or by the row: the row shows it stopped. */
+function stopFollowing(el: HTMLMediaElement): void {
+  if (s.media?.el !== el || !s.playing) return;
+  stageStop();
+}
+
+/** The length of the clip or the sound on the stage has arrived: the row can count it now. */
+function setMediaLength(seconds: number): void {
+  if (!s.media || !Number.isFinite(seconds) || seconds <= 0) return;
+  s.media.frames = Math.max(1, Math.round(seconds * s.media.fps));
+  els.scrub.max = String(s.media.frames - 1);
+  updateTimecode(Math.min(s.frame, s.media.frames - 1));
+  updateTransport();
 }
 
 function clearMediaPreview(): void {
@@ -490,6 +570,8 @@ function clearMediaPreview(): void {
   els.mediaImage.hidden = true;
   // A sequence's transport belongs to the sequence; nothing shown, nothing to step.
   s.sequence = null;
+  s.media = null;
+  s.still = false;
   els.mediaWaveform.setAttribute('hidden', '');
   s.audio = null;
 }
@@ -568,27 +650,45 @@ export function stageShowMedia(entry: MediaEntry): void {
     updateTransport();
     requestFrame(0);
   } else if (entry.mediaKind === 'video') {
+    // The element draws the clip; the transport row plays, steps and scrubs it (milestone 37), counting
+    // frames at the rate the Output tab trims it at.
     els.mediaVideo.hidden = false;
-    els.mediaVideo.onloadedmetadata = () => fit(els.mediaVideo.videoWidth, els.mediaVideo.videoHeight);
+    s.media = { el: els.mediaVideo, fps: mediaDefaultFps(entry), frames: 0 };
+    s.frame = 0;
+    els.scrub.max = '0';
+    els.mediaVideo.onloadedmetadata = () => {
+      fit(els.mediaVideo.videoWidth, els.mediaVideo.videoHeight);
+      setMediaLength(els.mediaVideo.duration);
+    };
     els.mediaVideo.src = url;
+    updateTransport();
   } else if (isPsdEntry(entry)) {
     // A layered file is shown composited by the main process, with the layers the Info tab hides left out.
     els.mediaImage.hidden = false;
     els.mediaImage.onload = () => fit(els.mediaImage.naturalWidth, els.mediaImage.naturalHeight);
     s.psd = entry;
+    s.still = true;
     els.mediaImage.src = psdCompositeUrlFor(entry.id, psdHidden.peek()[entry.id] ?? []);
+    updateTransport();
   } else if (entry.mediaKind === 'image') {
     els.mediaImage.hidden = false;
     els.mediaImage.onload = () => fit(els.mediaImage.naturalWidth, els.mediaImage.naturalHeight);
+    s.still = true;
     els.mediaImage.src = url;
+    updateTransport();
   } else {
     setPreviewShape(16, 9);
     els.mediaAudio.hidden = false;
+    s.media = { el: els.mediaAudio, fps: mediaDefaultFps(entry), frames: 0 };
+    s.frame = 0;
+    els.scrub.max = '0';
+    els.mediaAudio.onloadedmetadata = () => setMediaLength(els.mediaAudio.duration);
     els.mediaAudio.src = url;
     s.audio = entry;
     drawWaveform(entry);
+    updateTransport();
     // Audition mode: picking a sound plays it, so a list can be heard by arrowing through it.
-    if (s.player.audition) void els.mediaAudio.play().catch(() => undefined);
+    if (s.player.audition) play();
   }
 }
 
@@ -757,7 +857,7 @@ export function initStage(): void {
     if (Number.isFinite(value) && value > 0) setSequenceFps(value);
   });
   els.sequenceFpsReset.addEventListener('click', () => setSequenceFps(undefined));
-  mountLayerBars($<HTMLDivElement>('layer-bars'), els.scrub.closest('.transport') as HTMLElement);
+  mountLayerBars($<HTMLDivElement>('layer-bars'), els.row);
   els.lengthHandle.addEventListener('pointerdown', onLengthPointerDown);
   els.lengthHandle.addEventListener('pointermove', onLengthPointerMove);
   els.lengthHandle.addEventListener('pointerup', onLengthPointerUp);
@@ -785,9 +885,13 @@ export function initStage(): void {
   });
 
   els.mute.addEventListener('click', () => setPlayer({ muted: !s.player.muted }));
-  // <video> and <audio> carry their own volume control; what the user does there is the preference too.
   for (const el of [els.mediaVideo, els.mediaAudio]) {
+    // The elements have no controls of their own (milestone 37), but a volume change from anywhere is the preference.
     el.addEventListener('volumechange', () => setPlayer({ volume: el.volume, muted: el.muted }));
+    // Playing and pausing are the element's own events, so the row is right whoever started it.
+    el.addEventListener('play', () => startFollowing(el));
+    el.addEventListener('pause', () => stopFollowing(el));
+    el.addEventListener('ended', () => stopFollowing(el));
   }
   els.volume.addEventListener('input', () => setPlayer({ volume: Number(els.volume.value) / 100, muted: false }));
   for (const [kind, button] of Object.entries(BACKGROUND_BUTTONS)) {

@@ -4,16 +4,19 @@ import { DEFAULT_LAYOUT, LAYOUT_LIMITS, layoutCssVariables, sanitizeLayout, with
 describe('sanitizeLayout', () => {
   it('falls back to the defaults for garbage', () => {
     expect(sanitizeLayout(undefined)).toEqual(DEFAULT_LAYOUT);
+    // A settings file from before the transport row (milestone 37) has no height for it: the default serves.
+    expect(sanitizeLayout({ browseWidth: 200 }).transportHeight).toBe(DEFAULT_LAYOUT.transportHeight);
     expect(sanitizeLayout('nope')).toEqual(DEFAULT_LAYOUT);
     expect(sanitizeLayout({ browseWidth: 'wide', stageShare: NaN, trayCollapsed: 1 })).toEqual(DEFAULT_LAYOUT);
   });
 
   it('clamps sizes to the limits and keeps valid values', () => {
-    const l = sanitizeLayout({ browseWidth: 5000, inspectorWidth: 10, stageShare: 0.5, trayHeight: 300, browseCollapsed: true, trayCollapsed: false });
+    const l = sanitizeLayout({ browseWidth: 5000, inspectorWidth: 10, stageShare: 0.5, trayHeight: 300, transportHeight: 1000, browseCollapsed: true, trayCollapsed: false });
     expect(l.browseWidth).toBe(LAYOUT_LIMITS.browseWidth.max);
     expect(l.inspectorWidth).toBe(LAYOUT_LIMITS.inspectorWidth.min);
     expect(l.stageShare).toBe(0.5);
     expect(l.trayHeight).toBe(300);
+    expect(l.transportHeight).toBe(LAYOUT_LIMITS.transportHeight.max);
     expect(l.browseCollapsed).toBe(true);
     expect(l.trayCollapsed).toBe(false);
   });
@@ -26,6 +29,7 @@ describe('withPaneSize and withCollapsed', () => {
     expect(withPaneSize(l, 'stageShare', 0)).toHaveProperty('stageShare', LAYOUT_LIMITS.stageShare.min);
     expect(withPaneSize(l, 'browseWidth', l.browseWidth)).toBe(l);
     expect(withPaneSize(l, 'trayHeight', NaN)).toBe(l);
+    expect(withPaneSize(l, 'transportHeight', 10).transportHeight).toBe(LAYOUT_LIMITS.transportHeight.min);
     expect(withCollapsed(l, 'tray', true)).toBe(l);
     expect(withCollapsed(l, 'tray', false).trayCollapsed).toBe(false);
   });
@@ -38,6 +42,7 @@ describe('layoutCssVariables', () => {
       '--inspector-w': '350px',
       '--stage-share': '62.5%',
       '--tray-h': '220px',
+      '--transport-h': '92px',
     });
   });
 });

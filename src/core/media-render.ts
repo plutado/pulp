@@ -130,6 +130,17 @@ export const SPEED_LIMITS = { min: 0.1, max: 10 } as const;
 /** The timecode base for a sound, which has no frames of its own. */
 export const AUDIO_TIMECODE_FPS = 25;
 
+/**
+ * The rate an item is counted at when none is asked for: a clip's own, a sound
+ * at the timecode base, a still at the default. The Output tab's trim fields
+ * and the transport row's scrub bar both count in these frames, so a mark set
+ * on the bar is the frame the field shows (milestones 15 and 37).
+ */
+export function mediaDefaultFps(entry: MediaEntry): number {
+  const source = sourceFromEntry(entry);
+  return source.kind === 'image' ? DEFAULT_MEDIA_FPS : source.kind === 'audio' ? AUDIO_TIMECODE_FPS : source.fps ?? DEFAULT_MEDIA_FPS;
+}
+
 export interface MediaTiming {
   fps: number;
   speed: number;

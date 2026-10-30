@@ -96,6 +96,8 @@ export function initShell(): void {
     return (e.clientY - top) / Math.max(1, c.height - searchBar.getBoundingClientRect().height);
   });
   wireSplitter(app, $('split-tray'), 'trayHeight', (e) => $('region-tray').getBoundingClientRect().bottom - e.clientY);
+  // The transport row (milestone 37) resizes from its top edge, as the tray does: up is more room for the layer bars.
+  wireSplitter(app, $('split-transport'), 'transportHeight', (e) => $('region-transport').getBoundingClientRect().bottom - e.clientY);
 
   wireToggle(app, $('browse-toggle'), 'browse');
   wireToggle(app, $('browse-expand'), 'browse');

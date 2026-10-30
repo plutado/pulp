@@ -4,7 +4,9 @@
  * scale so a start can be read against what the template is doing above it.
  * Its entrance and exit are shaded at the ends, and the ends drag — or, since
  * each is a slider, step by the arrow keys. Clicking a bar selects its layer,
- * as clicking it on the stage does.
+ * as clicking it on the stage does. The bars live in the transport row's lanes
+ * (milestone 37), the row's grid column under the scrub bar, so they share its
+ * edges without measuring anything.
  *
  * The Parameters tab owns the layer values, so every change goes through the
  * layer editor (./layer-edit.ts) and comes back as new values to draw, exactly
@@ -35,8 +37,6 @@ let transport: HTMLElement | null = null;
 const bars = new Map<string, Bar>();
 let current: { manifest: TemplateManifest | null; layers: LayerValues; length: number } = { manifest: null, layers: {}, length: 0 };
 
-const ROW_PX = 14;
-
 /** Draw the bars for this template's layers at this length; nothing when there are no layers. */
 export function layerBarsUpdate(manifest: TemplateManifest | null, layers: LayerValues, chosenLength: number | undefined, showing: boolean): void {
   if (!host || !transport) return;
@@ -48,7 +48,6 @@ export function layerBarsUpdate(manifest: TemplateManifest | null, layers: Layer
   const show = showing && rows.length > 0 && current.length > 0;
   host.hidden = !show;
   transport.classList.toggle('has-bars', show);
-  transport.style.setProperty('--layer-bars-height', show ? `${rows.length * ROW_PX + 6}px` : '0px');
   if (!show) {
     for (const bar of bars.values()) bar.root.remove();
     bars.clear();
@@ -217,6 +216,7 @@ function onEndKeyDown(e: KeyboardEvent, block: string, id: string, which: 'start
   e.preventDefault();
 }
 
+/** `transportEl` is the transport row, which is told whether it has bars to show. */
 export function mountLayerBars(el: HTMLDivElement, transportEl: HTMLElement): void {
   host = el;
   transport = transportEl;

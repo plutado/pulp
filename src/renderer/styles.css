@@ -24,9 +24,12 @@
   --radius-surface: 8px;
   /* The center column on a short window: the results list never collapses below --results-min-h, and
      the tray body is capped so the center keeps --center-min-h (the search bar with its chips wrapped,
-     the results at their minimum, and about 180 px of stage). */
+     94 px; the results region at its minimum, 191 px; and about 160 px of stage — enough since the
+     stage's chrome is one row of tools and the item strip now the transport has left it, milestone 37). Below --transport-min-h the transport
+     row cannot go (LAYOUT_LIMITS.transportHeight.min); on a short window it yields toward it first. */
   --results-min-h: 160px;
-  --center-min-h: 464px;
+  --center-min-h: 444px;
+  --transport-min-h: 40px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: var(--font-body);
   color: var(--text);
@@ -59,7 +62,8 @@ input[type="checkbox"] { width: auto; }
 .app {
   display: grid;
   grid-template-columns: var(--browse-w, 220px) 6px minmax(0, 1fr) 6px var(--inspector-w, 350px);
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  /* Rows: the regions, the collection tray, the transport row, the status bar (milestone 37). */
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
   height: 100vh;
 }
 .sidebar { grid-column: 1; grid-row: 1 / 3; }
@@ -68,7 +72,8 @@ input[type="checkbox"] { width: auto; }
 #split-inspector { grid-column: 4; grid-row: 1; }
 .inspector { grid-column: 5; grid-row: 1; }
 .tray { grid-column: 3 / 6; grid-row: 2; }
-.status-bar { grid-column: 1 / 6; grid-row: 3; }
+.transport-row { grid-column: 1 / 6; grid-row: 3; }
+.status-bar { grid-column: 1 / 6; grid-row: 4; }
 
 .sidebar, .inspector {
   background: var(--panel);
@@ -275,8 +280,9 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .tray-head .region-toggle { display: inline-flex; align-items: center; }
 .tray-body {
   height: var(--tray-h, 220px);
-  /* 64px: the status bar and the tray's own head, which sit outside the center column. */
-  max-height: calc(100vh - var(--center-min-h) - 64px);
+  /* 64px: the status bar and the tray's own head, which sit outside the center column, as the transport
+     row does — at the height it really has, which on a short window is less than its setting. */
+  max-height: calc(100vh - var(--center-min-h) - 64px - clamp(var(--transport-min-h), var(--transport-h, 92px), calc(100vh - var(--center-min-h) - 160px)));
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -464,9 +470,9 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 }
 .preview .media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; }
 .preview .media[hidden] { display: none; }
-.preview audio.media { top: auto; height: 40px; }
-/* The stage waveform sits behind the audio transport, filling the picture area. Its own
-   backdrop: a checkerboard behind a sound would promise a transparency it does not have. */
+.preview audio.media { display: none; }
+/* The stage waveform is the picture of a sound, filling the picture area; the transport row plays
+   it. Its own backdrop: a checkerboard behind a sound would promise a transparency it does not have. */
 .preview .waveform { position: absolute; inset: 0; width: 100%; height: 100%; background: var(--panel); }
 .preview .waveform[hidden] { display: none; }
 .preview .waveform path { stroke: var(--text-secondary); stroke-width: 1; vector-effect: non-scaling-stroke; }
@@ -483,17 +489,52 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   background-position: 0 0, 0 10px, 10px -10px, -10px 0;
 }
 
-.transport { display: flex; align-items: center; gap: var(--space-2); }
+/* The transport row (milestone 37): one row across the bottom of the window, above the status bar,
+   where the player's controls live now that the stage is only the picture. A grid of three columns —
+   the playback buttons, the scrub bar, the tools — and two rows: the controls, and under the scrub bar
+   the lanes for the bars per layer (milestone 28), which share its column and so line up with its
+   time by construction. The row's height is a pane size from settings.json (--transport-h); the
+   controls keep their own height and the lanes take the rest, scrolling when the layers outrun it.
+   Nothing chosen leaves the row in place, disabled, so the layout never jumps. */
+.transport-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: var(--space-3);
+  /* Its own height, until the window is short: then it gives up its lanes down to its floor before
+     the centre column or the tray have to, since the bars per layer are the first thing to spare.
+     160px: the tray's head and the status bar, and about a hundred pixels of tray. */
+  height: clamp(var(--transport-min-h), var(--transport-h, 92px), calc(100vh - var(--center-min-h) - 160px));
+  padding: 0 var(--space-3) var(--space-1);
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  position: relative;
+  min-width: 0;
+}
+/* The bar that resizes the row is its own top edge, as the tray's is. */
+.transport-row > .splitter.h { position: absolute; left: 0; right: 0; top: -1px; margin: 0; }
+.transport-buttons { grid-row: 1; grid-column: 1; display: flex; align-items: center; gap: var(--space-1); }
+.transport-row .scrub-wrap { grid-row: 1; grid-column: 2; }
+.transport-tools { grid-row: 1; grid-column: 3; display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); }
+/* The lanes clip what scrolls out of them, and a bar's end handles reach 3 px past its ends, so the
+   lanes are widened by a padding they take back as margin: the bars' own box stays the scrub bar's. */
+.transport-lanes { grid-row: 2; grid-column: 2; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 4px; margin: 0 -4px; }
 .transport-button { padding: 4px 8px; }
-.transport .icon-button { color: var(--muted); background: none; border-color: transparent; }
-.transport .icon-button:hover:not(:disabled) { color: var(--text); }
-.transport .icon-button[aria-pressed="true"] { color: var(--accent); }
-.timecode { font-family: Menlo, Consolas, monospace; color: var(--muted); min-width: 190px; text-align: right; }
+.transport-row .icon-button { color: var(--muted); background: none; border-color: transparent; }
+.transport-row .icon-button:hover:not(:disabled) { color: var(--text); }
+.transport-row .icon-button[aria-pressed="true"] { color: var(--accent); }
+.transport-tools .tool-group { display: inline-flex; align-items: center; gap: var(--space-1); }
+.transport-tools button { font-size: var(--font-secondary); padding: 3px 8px; }
+.transport-tools .icon-button { padding: 3px 5px; }
+.transport-tools #volume { width: 72px; padding: 0; background: none; border: 0; accent-color: var(--accent); }
+.timecode { font-family: Menlo, Consolas, monospace; color: var(--muted); min-width: 160px; text-align: right; font-size: var(--font-secondary); white-space: nowrap; }
+/* A still has no time, so the row shows no scrub bar — and keeps its place (milestone 37). */
+.transport-row.still .scrub-wrap { visibility: hidden; }
 
 /* The scrub bar with the render's in and out marks over it: what a render would
    drop is dimmed, and each mark is a thin accent line where it sits. */
-.scrub-wrap { position: relative; flex: 1; display: flex; align-items: center; }
-.scrub-wrap input[type="range"] { flex: 1; padding: 0; margin: 0; }
+.scrub-wrap { position: relative; flex: 1; display: flex; align-items: center; min-width: 0; }
+.scrub-wrap input[type="range"] { flex: 1; padding: 0; margin: 0; min-width: 0; }
 .scrub-marks { position: absolute; left: 0; right: 0; top: 50%; height: 12px; transform: translateY(-50%); pointer-events: none; }
 .scrub-marks .trimmed { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.45); }
 .scrub-marks #trim-before { left: 0; }
@@ -518,14 +559,14 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .length-handle:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 /* One bar per layer under the scrub bar (milestone 28): where it is on screen against the graphic's
    length, lined up under the scrub bar's own scale, its entrance and exit shaded at the ends and its
-   ends draggable. The transport grows to make room; the bars themselves are positioned under the
-   range so they share its left and right edges, whatever sits beside it. */
-.transport.has-bars { padding-bottom: var(--layer-bars-height, 0px); }
-.layer-bars { position: absolute; left: 0; right: 0; top: calc(50% + 10px); display: grid; gap: 2px; pointer-events: none; }
+   ends draggable. The bars sit in the lanes under the scrub bar's own grid column (milestone 37), so
+   they share its left and right edges whatever sits beside it, and scroll when there are more than
+   the row has room for. */
+.layer-bars { display: grid; gap: 2px; padding: 4px 0 var(--space-1); }
 .layer-bars[hidden] { display: none; }
 .layer-bar { position: relative; height: 12px; }
 .layer-bar .bar-body {
-  position: absolute; top: 0; bottom: 0; min-width: 6px; border-radius: 3px; pointer-events: auto; cursor: pointer;
+  position: absolute; top: 0; bottom: 0; min-width: 6px; border-radius: 3px; cursor: pointer;
   background: rgba(148, 163, 184, 0.35); overflow: visible;
 }
 .layer-bar.selected .bar-body { background: rgba(125, 211, 252, 0.55); }
@@ -538,7 +579,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 }
 .layer-bar .bar-end {
   position: absolute; top: -2px; width: 7px; height: 16px; margin: 0; padding: 0; border: 1px solid #0d1117; border-radius: 2px;
-  background: var(--muted); cursor: ew-resize; pointer-events: auto;
+  background: var(--muted); cursor: ew-resize;
 }
 .layer-bar.selected .bar-end { background: var(--accent); }
 .layer-bar .bar-end.start { left: -3px; }
@@ -547,14 +588,13 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .scrub-marks .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--accent); }
 .scrub-marks .mark[hidden] { display: none; }
 
-/* Preview tools: marks, volume, background and safe areas, one quiet row. */
+/* Preview tools: how the picture is viewed — background and safe areas — one quiet row. */
 .stage-tools { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; font-size: var(--font-secondary); }
 .stage-tools .tool-group { display: inline-flex; align-items: center; gap: var(--space-1); }
 .stage-tools button { font-size: var(--font-secondary); padding: 3px 8px; }
 .stage-tools .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
 .stage-tools .icon-button:hover { color: var(--text); }
 .stage-tools .icon-button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--panel-2); }
-.stage-tools #volume { width: 72px; padding: 0; background: none; border: 0; accent-color: var(--accent); }
 .stage-tools .swatch { width: 22px; height: 22px; padding: 0; border-radius: var(--radius-control); border: 1px solid var(--border); }
 .stage-tools .swatch.black { background: #000000; }
 .stage-tools .swatch.white { background: #ffffff; }
