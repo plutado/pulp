@@ -1,0 +1,36 @@
+{
+  "formatVersion": 1,
+  "items": [
+    {
+      "uid": "ex-int-1",
+      "id": "pulp.samples.boardroom.lower-third",
+      "kind": "template",
+      "name": "Boardroom lower third",
+      "templateId": "pulp.samples.boardroom.lower-third",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-int-2",
+      "id": "pulp.samples.boardroom.bug",
+      "kind": "template",
+      "name": "Boardroom bug",
+      "templateId": "pulp.samples.boardroom.bug",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-int-3",
+      "id": "pulp.samples.hairline-lower-third",
+      "kind": "template",
+      "name": "Hairline Lower Third",
+      "templateId": "pulp.samples.hairline-lower-third",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    }
+  ],
+  "libraryFolders": []
+}

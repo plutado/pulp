@@ -161,6 +161,6 @@ export function initProjectUi(): void {
 }
 
 /** Asked once, at launch, after the library is in: a recovery copy is only useful with a library behind it. */
-export async function askAboutRecovery(): Promise<void> {
-  await offerRecovery(askRecovery);
+export async function askAboutRecovery(): Promise<boolean> {
+  return offerRecovery(askRecovery);
 }

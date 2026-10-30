@@ -16,6 +16,9 @@ import { initTray, sayInTray } from './tray';
 import { initProject } from './project';
 import { askAboutRecovery, initProjectUi } from './project-ui';
 import { initMenu } from './menu';
+import { hideStartScreen, initStartScreen, showStartScreen } from './start-screen';
+import { initTour } from './tour';
+import { initWhatsNew } from './whats-new';
 import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
 import { importedFonts } from './store';
 import { mountIcons } from './icons';
@@ -91,8 +94,12 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
   const first = appState.value.index === null;
   dispatch((s) => setIndex(s, index));
   // A session that ended suddenly is offered back once the library is in, since the items it
-  // holds mean nothing without one.
-  if (first) void askAboutRecovery();
+  // holds mean nothing without one. Recovering it is choosing to work, so the start screen goes.
+  if (first) {
+    void askAboutRecovery().then((recovered) => {
+      if (recovered) hideStartScreen();
+    });
+  }
   // The panel opens on where you are rather than on everything at once: the first time there is a
   // tree to fold, it folds to the active category's path, or to Quick access alone.
   if (first) browseFoldToActive();
@@ -373,6 +380,13 @@ initProject(sayInTray);
 initProjectUi();
 // Pulp's own application menu (milestone 27): it does what the window's own buttons do.
 initMenu();
+// The start screen, tour and What's new (milestone 31); File → Home brings the screen back.
+initTour();
+initWhatsNew();
+initStartScreen();
+void window.pulp.getStartScreenPrefs().then((prefs) => {
+  if (prefs.showAtStartup) showStartScreen();
+});
 mountBrowse($('browse-find'), $('browse-tree'));
 void window.pulp.getBrowseAccordion().then((on) => (browseAccordion.value = on));
 mountResults(els.results, { onSelect: select, onStop: stopPlayback });

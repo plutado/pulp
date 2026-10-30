@@ -1,0 +1,46 @@
+{
+  "formatVersion": 1,
+  "items": [
+    {
+      "uid": "ex-wd-1",
+      "id": "pulp.samples.soft-gradient",
+      "kind": "template",
+      "name": "Soft gradient",
+      "templateId": "pulp.samples.soft-gradient",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-wd-2",
+      "id": "pulp.samples.logo-reveal-line",
+      "kind": "template",
+      "name": "Line-drawn logo reveal",
+      "templateId": "pulp.samples.logo-reveal-line",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-wd-3",
+      "id": "pulp.samples.soft-bloom-flash",
+      "kind": "template",
+      "name": "Soft Bloom Flash",
+      "templateId": "pulp.samples.soft-bloom-flash",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-wd-4",
+      "id": "pulp.samples.soft-vignette",
+      "kind": "template",
+      "name": "Soft vignette",
+      "templateId": "pulp.samples.soft-vignette",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    }
+  ],
+  "libraryFolders": []
+}

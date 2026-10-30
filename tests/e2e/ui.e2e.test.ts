@@ -364,7 +364,9 @@ describe.skipIf(!electron)('inspector UI', () => {
     for (const file of ['template.json', 'index.html']) {
       await writeFile(join(mediaDir, 'structure', file), await readFile(join(__dirname, 'templates', 'structure', file)));
     }
-    await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir] }));
+    // The start screen stays out of the way: this suite drives the window underneath it,
+    // and the screen has its own test, which shows it through File → Home.
+    await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir], showStartScreen: false }));
     // A font already imported: a real TTF in the managed folder under a family of its own, with a
     // licence note, as fonts:import would leave it. The import dialog itself cannot be driven here.
     await mkdir(join(userData, 'fonts'), { recursive: true });
@@ -3395,5 +3397,61 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.getElementById('scope-chip-clear').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('scope-chip').hidden`), 'the scope cleared');
     }, 60_000);
+  });
+
+  describe('the start screen (milestone 31)', () => {
+    it('shows from File → Home, opens an example as a copy, and leads into browse', async () => {
+      // A clean session first, so nothing below has to answer the unsaved question.
+      await page.eval(`window.pulpMenuCommand('project.new')`);
+      await until(
+        () => page.eval<boolean>(
+          `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
+            return document.querySelectorAll('#collection .collection-card').length === 0; })()`,
+        ),
+        'a clean session',
+      );
+
+      // The suite launches with "show at startup" off (the seeded settings.json); Home shows it anyway.
+      expect(await page.eval<boolean>(`document.getElementById('start-screen').hidden`)).toBe(true);
+      await page.eval(`window.pulpMenuCommand('app.home')`);
+      await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'the start screen from File → Home');
+      expect(await page.eval<boolean>(`document.getElementById('start-show-at-startup').checked`)).toBe(false);
+
+      // The bundled examples are listed, and opening one opens a copy: the example's items arrive,
+      // the project takes its name, and there is no path — Save will ask where.
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#start-examples .start-card').length`)) >= 4, 'the example projects listed');
+      const exampleName = await page.eval<string>(`document.querySelector('#start-examples .start-card .start-card-name').textContent`);
+      await page.eval(`document.querySelector('#start-examples .start-card').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'the screen closed by opening an example');
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#collection .collection-card').length`)) > 0, 'the example items in the tray');
+      expect(await page.eval<string>(`document.querySelector('#project-button .label').textContent`)).toBe(exampleName);
+      expect(await page.eval<string>(`document.getElementById('project-button').title`)).toBe('Not saved anywhere yet');
+
+      // Back home: the setup checklist is there, and "What are you making?" lands on a browse category.
+      await page.eval(`window.pulpMenuCommand('app.home')`);
+      await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'home again');
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#start-checklist li').length`)) === 3, 'the setup checklist');
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#start-making .start-card').length`)) >= 4, 'the making choices');
+      await page.eval(`document.querySelector('#start-making .start-card').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'the screen closed by a making choice');
+      await until(() => page.eval<boolean>(`!document.getElementById('scope-chip').hidden`), 'the browse scope set');
+      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower third');
+
+      // Escape closes it too, and the session is left as the choice set it.
+      await page.eval(`window.pulpMenuCommand('app.home')`);
+      await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'home once more');
+      await page.eval(`document.getElementById('start-close').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'closed');
+      await page.eval(`document.getElementById('scope-chip-clear').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('scope-chip').hidden`), 'the scope cleared again');
+      await page.eval(`window.pulpMenuCommand('project.new')`);
+      await until(
+        () => page.eval<boolean>(
+          `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
+            return document.querySelector('#project-button .label').textContent === 'Untitled'; })()`,
+        ),
+        'a clean session left behind',
+      );
+    }, 90_000);
   });
 });

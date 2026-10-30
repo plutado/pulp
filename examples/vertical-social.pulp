@@ -1,0 +1,42 @@
+{
+  "formatVersion": 1,
+  "items": [
+    {
+      "uid": "ex-so-1",
+      "id": "pulp.samples.profile-card",
+      "kind": "template",
+      "name": "Profile Card",
+      "templateId": "pulp.samples.profile-card",
+      "presetId": "prores-4444",
+      "options": {
+        "aspect": "9:16"
+      },
+      "params": {}
+    },
+    {
+      "uid": "ex-so-2",
+      "id": "pulp.samples.handle-card",
+      "kind": "template",
+      "name": "Handle Card",
+      "templateId": "pulp.samples.handle-card",
+      "presetId": "prores-4444",
+      "options": {
+        "aspect": "9:16"
+      },
+      "params": {}
+    },
+    {
+      "uid": "ex-so-3",
+      "id": "pulp.samples.subscribe-end-card",
+      "kind": "template",
+      "name": "Subscribe End Card",
+      "templateId": "pulp.samples.subscribe-end-card",
+      "presetId": "prores-4444",
+      "options": {
+        "aspect": "9:16"
+      },
+      "params": {}
+    }
+  ],
+  "libraryFolders": []
+}

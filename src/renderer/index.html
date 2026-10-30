@@ -302,6 +302,77 @@
       <span id="status-cache" class="note status-item" data-icon="hard-drive"><span class="label"></span></span>
     </footer>
   </div>
+  <section id="start-screen" class="start-screen" aria-label="Home" hidden>
+    <div class="start-inner">
+      <header class="start-head">
+        <div>
+          <h1>Pulp</h1>
+          <p class="note">Browse, customize and render motion-graphics templates.</p>
+        </div>
+        <label class="start-startup"><input id="start-show-at-startup" type="checkbox" checked> Show at startup</label>
+        <button id="start-close" type="button" class="primary">Close</button>
+      </header>
+      <div class="start-columns">
+        <section class="start-section start-going" aria-labelledby="start-going-head">
+          <h2 id="start-going-head">Get going</h2>
+          <div class="start-new">
+            <button id="start-new-blank" type="button">New project</button>
+            <span id="start-shapes" class="start-shapes" role="group" aria-label="New project by shape"></span>
+          </div>
+          <h3>Example projects</h3>
+          <p class="note">Each opens as a copy, so the example stays as it was.</p>
+          <ul id="start-examples" class="start-cards"></ul>
+          <p id="start-examples-empty" class="note" hidden>No examples came with this build.</p>
+        </section>
+        <section class="start-section" aria-labelledby="start-recent-head">
+          <h2 id="start-recent-head">Recent projects</h2>
+          <ul id="start-recent" class="start-cards"></ul>
+          <p id="start-recent-empty" class="note">Nothing opened yet.</p>
+          <h2>What are you making?</h2>
+          <ul id="start-making" class="start-cards start-making"></ul>
+        </section>
+        <section class="start-section" aria-labelledby="start-learn-head">
+          <h2 id="start-learn-head">Learn</h2>
+          <div class="start-actions">
+            <button id="start-tour" type="button">Take the tour</button>
+            <button id="start-whats-new" type="button">What&#8217;s new</button>
+            <button id="start-shortcuts" type="button">Keyboard shortcuts</button>
+          </div>
+          <p id="start-tour-hint" class="note" hidden>New here? The tour shows the window in five short steps.</p>
+          <h2>Set up</h2>
+          <ul id="start-checklist" class="start-checklist"></ul>
+          <p id="start-glance" class="note"></p>
+          <div class="start-actions">
+            <button id="start-add-folder" type="button">Add library folder…</button>
+            <button id="start-import-pack" type="button">Import pack…</button>
+            <button id="start-sample-media" type="button">Make sample media</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+  <div id="tour-overlay" class="tour-overlay" hidden>
+    <div id="tour-ring" class="tour-ring" aria-hidden="true"></div>
+    <div id="tour-card" class="tour-card" role="dialog" aria-labelledby="tour-title">
+      <h2 id="tour-title"></h2>
+      <p id="tour-body"></p>
+      <div class="tour-foot">
+        <span id="tour-count" class="note"></span>
+        <button id="tour-skip" type="button">Skip</button>
+        <button id="tour-back" type="button">Back</button>
+        <button id="tour-next" type="button" class="primary">Next</button>
+      </div>
+    </div>
+  </div>
+  <dialog id="whats-new-dialog" class="pack-dialog whats-new-dialog">
+    <form method="dialog">
+      <h2 id="whats-new-title">What&#8217;s new</h2>
+      <div id="whats-new-body" class="whats-new-body"></div>
+      <div class="render-actions">
+        <button id="whats-new-close" type="button">Close</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="project-dialog" class="pack-dialog project-dialog">
     <form method="dialog">
       <h2>Project</h2>

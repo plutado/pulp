@@ -73,3 +73,11 @@ export const frameSize = signal<Size | null>(null);
 
 /** Image slots of the selected template whose chosen image is not in the library or is offline: slot label and what is wrong (milestone 22). */
 export const slotNotes = signal<{ label: string; note: string }[]>([]);
+
+/**
+ * The shape the session leans to (milestone 31): the start screen's "New 9:16
+ * project" makes every template open at that shape until it is changed by
+ * hand. Only a lean — a template that does not draw the shape keeps its own
+ * default, and the Output tab's field stays free to choose.
+ */
+export const preferredAspect = signal<string | null>(null);

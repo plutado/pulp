@@ -6,7 +6,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 **Milestone 27, projects and the application menu, is done:** a session saves as a `.pulp` project — guarded, recovered and relinked — and Pulp has its own menu on every platform. Milestone 28 is done before it — a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar — and milestone 30 before that — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
-What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come the start screen (31), a browse panel that says what things are (34), stock library import (32) and layered Photoshop graphics (33). Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
+What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come a browse panel that says what things are (34), stock library import (32) and layered Photoshop graphics (33); the start screen (31) is done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
 
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. A decision is written here as soon as it is made — a new milestone, or items in an existing one — even when it is low priority and may never be built, so everything decided is visible in one place; `docs/ideas.md` keeps only ideas not yet decided and known issues. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
@@ -35,7 +35,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 30. Timing: any length, set while editing (**done**) | 18-28 h |
 | 28. Per-layer timing, transitions and looks (**done**) | 24-36 h |
 | 27. Projects and the application menu (**done**) | 20-32 h |
-| 31. A start screen | 14-22 h |
+| 31. A start screen (**done**) | 14-22 h |
 | 34. A browse panel that says what things are | 14-23 h |
 | 32. Stock library import | 27-46 h |
 | 33. Layered Photoshop graphics | 10-18 h |
@@ -48,7 +48,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **449-721 h** |
-| **Still open through 1.0 (unticked items only)** | **102-170 h** |
+| **Still open through 1.0 (unticked items only)** | **88-148 h** |
 | **Total including post-1.0 items** | **480-776 h** |
 
 ## 0. Foundation (done)
@@ -355,15 +355,15 @@ After milestone 28, since a project has to save per-layer timing and looks as we
 
 Opening a `.pulp` file by double-clicking it needs the packaged app, so the file association lands with milestone 17.
 
-## 31. A start screen: examples, recent projects, a tour and a dashboard (14-22 h; GitHub issue #33)
+## 31. A start screen: examples, recent projects, a tour and a dashboard (14-22 h; GitHub issue #33) — done
 
 After milestone 27, since it needs `.pulp` projects. Shown at launch and from File → Home, with a "Show at startup" switch.
 
-- [ ] **Get going:** New project, blank or by shape (16:9, 9:16, 1:1, 4:5), and by platform once milestone 20 exists. **Example projects:** a handful of ready-made `.pulp` files built from the bundled samples, each showing something Pulp does well (an interview with a lower third and a logo, a sports-highlight opener, a vertical social clip, a wedding title, a news package with ticker and bug, a product launch with layers and motion); opening one opens a copy, so the example stays as it was (4-6 h)
-- [ ] **Recent projects** with thumbnails, last-opened dates and pinning; a missing file shows as missing, with a way to relink it (2-3 h)
-- [ ] **Learn:** "Take the tour", a short guided walkthrough of the window (browse panel, stage, Parameters tab, collection tray) with highlights and Next / Skip, offered on first launch and replayable from Help; "What's new" from the changelog's latest release; keyboard shortcuts and the user guide (milestone 8) (3-5 h)
-- [ ] **Set up and status:** a first-run checklist (ffmpeg found, a library folder added, sample media made), each item a button that does it; the library at a glance (template and media counts, most-used categories, favourites); quick actions (add a library folder, import a pack, import a font). Milestone 14's "guided setup" can fold into the checklist (3-5 h)
-- [ ] **What are you making?** A handful of plain choices — an interview, a sports opener, a wedding, a social clip, a news package — each leading into the right browse categories and filters (milestone 34), so a first-time user starts from what they want to make rather than from how the library is sorted (2-3 h)
+- [x] **Get going:** New project, blank or by shape (16:9, 9:16, 1:1, 4:5), and by platform once milestone 20 exists. **Example projects:** a handful of ready-made `.pulp` files built from the bundled samples, each showing something Pulp does well (an interview with a lower third and a logo, a sports-highlight opener, a vertical social clip, a wedding title, a news package with ticker and bug, a product launch with layers and motion); opening one opens a copy, so the example stays as it was. *A shape is a lean, not a lock: the choice presets the Output tab's aspect for every template that draws it, and the field stays free* (4-6 h)
+- [x] **Recent projects** with thumbnails, last-opened dates and pinning; a missing file shows as missing, with a way to relink it. *The thumbnail is the project's first template's, through `pulp-thumb://`; relinking points the recent entry at the file's new place and keeps its pin* (2-3 h)
+- [x] **Learn:** "Take the tour", a short guided walkthrough of the window (browse panel, stage, Parameters tab, collection tray) with highlights and Next / Skip, offered on first launch and replayable from Help; "What's new" from the changelog's latest release; keyboard shortcuts and the user guide (milestone 8) (3-5 h)
+- [x] **Set up and status:** a first-run checklist (ffmpeg found, a library folder added, sample media made), each item a button that does it; the library at a glance (template and media counts, most-used categories, favourites); quick actions (add a library folder, import a pack, import a font). Milestone 14's "guided setup" can fold into the checklist. *Importing a font stays in the Parameters tab, where the family is chosen; the quick actions are add a folder, import a pack and make sample media* (3-5 h)
+- [x] **What are you making?** A handful of plain choices — an interview, a sports opener, a wedding, a social clip, a news package — each leading into the right browse categories and filters (milestone 34), so a first-time user starts from what they want to make rather than from how the library is sorted. *Until 34 lands, each choice folds the browse tree to the type or theme that serves it* (2-3 h)
 
 ## 34. A browse panel that says what things are (14-23 h; GitHub issue #36)
 

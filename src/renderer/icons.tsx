@@ -13,6 +13,7 @@ import caretLeft from '@phosphor-icons/core/assets/regular/caret-left.svg?raw';
 import caretRight from '@phosphor-icons/core/assets/regular/caret-right.svg?raw';
 import caretUp from '@phosphor-icons/core/assets/regular/caret-up.svg?raw';
 import checkCircle from '@phosphor-icons/core/assets/regular/check-circle.svg?raw';
+import circle from '@phosphor-icons/core/assets/regular/circle.svg?raw';
 import checkerboard from '@phosphor-icons/core/assets/regular/checkerboard.svg?raw';
 import copy from '@phosphor-icons/core/assets/regular/copy.svg?raw';
 import clock from '@phosphor-icons/core/assets/regular/clock.svg?raw';
@@ -38,6 +39,8 @@ import musicNotes from '@phosphor-icons/core/assets/regular/music-notes.svg?raw'
 import packageIcon from '@phosphor-icons/core/assets/regular/package.svg?raw';
 import plus from '@phosphor-icons/core/assets/regular/plus.svg?raw';
 import palette from '@phosphor-icons/core/assets/regular/palette.svg?raw';
+import pushPin from '@phosphor-icons/core/assets/regular/push-pin.svg?raw';
+import pushPinFill from '@phosphor-icons/core/assets/fill/push-pin-fill.svg?raw';
 import question from '@phosphor-icons/core/assets/regular/question.svg?raw';
 import repeat from '@phosphor-icons/core/assets/regular/repeat.svg?raw';
 import rows from '@phosphor-icons/core/assets/regular/rows.svg?raw';
@@ -72,6 +75,7 @@ const ICONS = {
   'caret-up': caretUp,
   'check-circle': checkCircle,
   checkerboard,
+  circle,
   clock,
   copy,
   'dots-six-vertical': dotsSixVertical,
@@ -96,6 +100,8 @@ const ICONS = {
   palette,
   plus,
   pause,
+  'push-pin': pushPin,
+  'push-pin-fill': pushPinFill,
   question,
   play,
   'play-circle': playCircle,

@@ -1,0 +1,46 @@
+{
+  "formatVersion": 1,
+  "items": [
+    {
+      "uid": "ex-sp-1",
+      "id": "pulp.samples.matchday.opener",
+      "kind": "template",
+      "name": "Matchday opener",
+      "templateId": "pulp.samples.matchday.opener",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-sp-2",
+      "id": "pulp.samples.matchday.lower-third",
+      "kind": "template",
+      "name": "Matchday lower third",
+      "templateId": "pulp.samples.matchday.lower-third",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-sp-3",
+      "id": "pulp.samples.matchday.overlay",
+      "kind": "template",
+      "name": "Matchday score bug",
+      "templateId": "pulp.samples.matchday.overlay",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-sp-4",
+      "id": "pulp.samples.matchday.transition",
+      "kind": "template",
+      "name": "Matchday chevron wipe",
+      "templateId": "pulp.samples.matchday.transition",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    }
+  ],
+  "libraryFolders": []
+}

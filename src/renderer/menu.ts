@@ -13,10 +13,14 @@
  */
 
 import { effect } from '@preact/signals';
-import { acceleratorLabel, shortcutList, type MenuCommand, type MenuState } from '../core/menu';
+import type { MenuCommand, MenuState } from '../core/menu';
 import { THUMB_SIZES } from '../core/results-view';
 import { appState, renderBlocked, results, resultsView, transport } from './store';
 import { newProject, openProjectFrom, saveProject } from './project';
+import { showShortcuts } from './shortcuts';
+import { showStartScreen } from './start-screen';
+import { showWhatsNew } from './whats-new';
+import { startTour } from './tour';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -43,6 +47,7 @@ function stepCardSize(delta: number): void {
 
 function run(command: MenuCommand, arg: string | null): void {
   switch (command) {
+    case 'app.home': showStartScreen(); return;
     case 'project.new': void newProject(); return;
     case 'project.open': void openProjectFrom(null); return;
     case 'project.openRecent': if (arg) void openProjectFrom(arg); return;
@@ -75,6 +80,8 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'play.setIn': press('mark-in'); return;
     case 'play.setOut': press('mark-out'); return;
     case 'play.loop': press('loop'); return;
+    case 'help.tour': startTour(); return;
+    case 'help.whatsNew': showWhatsNew(); return;
     case 'help.shortcuts': void showShortcuts(); return;
     case 'help.diagnostics': void copyDiagnostics(); return;
   }
@@ -115,29 +122,8 @@ function readState(recent: string[]): MenuState {
   };
 }
 
-// ---------------------------------------------------------------- the two Help items
-
-async function showShortcuts(): Promise<void> {
-  const sections = await window.pulp.menuSections();
-  const mac = window.pulp.platform === 'darwin';
-  const list = $('shortcuts-list');
-  list.replaceChildren();
-  for (const group of shortcutList(sections)) {
-    const head = document.createElement('h3');
-    head.textContent = group.section;
-    const rows = document.createElement('dl');
-    rows.className = 'shortcut-rows';
-    for (const { label, accelerator } of group.shortcuts) {
-      const name = document.createElement('dt');
-      name.textContent = label;
-      const key = document.createElement('dd');
-      key.textContent = acceleratorLabel(accelerator, mac);
-      rows.append(name, key);
-    }
-    list.append(head, rows);
-  }
-  $<HTMLDialogElement>('shortcuts-dialog').showModal();
-}
+// ---------------------------------------------------------------- Copy Diagnostics
+// (The shortcut list lives in ./shortcuts.ts, shared with the start screen.)
 
 /**
  * What Pulp knows about itself, on the clipboard: enough for someone to say

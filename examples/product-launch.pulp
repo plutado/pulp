@@ -1,0 +1,56 @@
+{
+  "formatVersion": 1,
+  "items": [
+    {
+      "uid": "ex-pl-1",
+      "id": "pulp.samples.boardroom.opener",
+      "kind": "template",
+      "name": "Boardroom opener",
+      "templateId": "pulp.samples.boardroom.opener",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-pl-2",
+      "id": "pulp.samples.boardroom.title",
+      "kind": "template",
+      "name": "Boardroom title",
+      "templateId": "pulp.samples.boardroom.title",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-pl-3",
+      "id": "pulp.samples.boardroom.bar-chart",
+      "kind": "template",
+      "name": "Boardroom bar chart",
+      "templateId": "pulp.samples.boardroom.bar-chart",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-pl-4",
+      "id": "pulp.samples.launch-countdown",
+      "kind": "template",
+      "name": "Launch Countdown",
+      "templateId": "pulp.samples.launch-countdown",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-pl-5",
+      "id": "pulp.samples.boardroom.ident",
+      "kind": "template",
+      "name": "Boardroom ident",
+      "templateId": "pulp.samples.boardroom.ident",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    }
+  ],
+  "libraryFolders": []
+}

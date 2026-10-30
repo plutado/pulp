@@ -1,0 +1,32 @@
+[
+  {
+    "file": "interview.pulp",
+    "name": "Interview",
+    "description": "Lower thirds to name who is speaking, and a corner bug to brand the cut."
+  },
+  {
+    "file": "sports-opener.pulp",
+    "name": "Sports highlight opener",
+    "description": "A matchday opener with a lower third, a score bug and a chevron wipe."
+  },
+  {
+    "file": "vertical-social.pulp",
+    "name": "Vertical social clip",
+    "description": "Profile, handle and subscribe cards, every item set to 9:16."
+  },
+  {
+    "file": "wedding-title.pulp",
+    "name": "Wedding title",
+    "description": "A soft gradient behind a line-drawn reveal, with a bloom and a vignette."
+  },
+  {
+    "file": "news-package.pulp",
+    "name": "News package",
+    "description": "An opener, lower third, ticker, bug and end card that match."
+  },
+  {
+    "file": "product-launch.pulp",
+    "name": "Product launch",
+    "description": "An opener and title with a bar chart, a countdown and an ident."
+  }
+]

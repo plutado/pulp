@@ -1,0 +1,56 @@
+{
+  "formatVersion": 1,
+  "items": [
+    {
+      "uid": "ex-nw-1",
+      "id": "pulp.samples.newsdesk.opener",
+      "kind": "template",
+      "name": "Newsdesk opener",
+      "templateId": "pulp.samples.newsdesk.opener",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-nw-2",
+      "id": "pulp.samples.newsdesk.lower-third",
+      "kind": "template",
+      "name": "Newsdesk lower third",
+      "templateId": "pulp.samples.newsdesk.lower-third",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-nw-3",
+      "id": "pulp.samples.newsdesk.ticker",
+      "kind": "template",
+      "name": "Newsdesk ticker",
+      "templateId": "pulp.samples.newsdesk.ticker",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-nw-4",
+      "id": "pulp.samples.newsdesk.overlay",
+      "kind": "template",
+      "name": "Newsdesk bug",
+      "templateId": "pulp.samples.newsdesk.overlay",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    },
+    {
+      "uid": "ex-nw-5",
+      "id": "pulp.samples.newsdesk.end-card",
+      "kind": "template",
+      "name": "Newsdesk end card",
+      "templateId": "pulp.samples.newsdesk.end-card",
+      "presetId": "prores-4444",
+      "options": {},
+      "params": {}
+    }
+  ],
+  "libraryFolders": []
+}

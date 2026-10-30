@@ -18,8 +18,9 @@ import { deletePreset, listPresets, savePreset } from './preset-service';
 import { openCollectionFile, readCollectionFile, renderCollection, saveCollectionTo } from './collection-service';
 import {
   clearRecovery, forgetProject, missingLibraryFolders, openProjectDialog, readProjectFile, readRecovery,
-  recentProjects, relinkProjectItem, saveProjectTo, writeRecovery,
+  recentProjects, recentProjectsDetailed, relinkProjectItem, relinkRecentProject, saveProjectTo, setProjectPinned, writeRecovery,
 } from './project-service';
+import { listExamples, readExample } from './examples-service';
 import type { Project } from '../core/project';
 import { initMenu, menuSections, setMenuState } from './menu-service';
 import type { MenuState } from '../core/menu';
@@ -205,6 +206,23 @@ function registerIpc(): void {
     typeof path === 'string' && path ? readProjectFile(path) : { ok: false as const, message: 'No project was chosen.' });
   ipcMain.handle('project:recent', () => recentProjects());
   ipcMain.handle('project:forget', (_event, path: unknown) => forgetProject(String(path ?? '')));
+  // The start screen (milestone 31): the recent list with pins and times, the examples, and its switches.
+  ipcMain.handle('project:recent-detailed', () => recentProjectsDetailed());
+  ipcMain.handle('project:set-pinned', (_event, path: unknown, pinned: unknown) => setProjectPinned(String(path ?? ''), pinned === true));
+  ipcMain.handle('project:relink-recent', (_event, path: unknown, answer: unknown) =>
+    relinkRecentProject(String(path ?? ''), typeof answer === 'string' && answer ? answer : undefined));
+  ipcMain.handle('examples:list', () => listExamples());
+  ipcMain.handle('examples:read', (_event, path: unknown) => readExample(String(path ?? '')));
+  ipcMain.handle('start-screen:get', async () => {
+    const s = await loadSettings();
+    return { showAtStartup: s.showStartScreen, tourSeen: s.tourSeen };
+  });
+  ipcMain.handle('start-screen:show-at-startup', async (_event, on: unknown) => {
+    await updateSettings((s) => ({ ...s, showStartScreen: on === true }));
+  });
+  ipcMain.handle('start-screen:tour-seen', async () => {
+    await updateSettings((s) => ({ ...s, tourSeen: true }));
+  });
   ipcMain.handle('project:autosave', (_event, project: Project, path: unknown) =>
     writeRecovery(project, typeof path === 'string' && path ? path : null));
   ipcMain.handle('project:clear-recovery', () => clearRecovery());

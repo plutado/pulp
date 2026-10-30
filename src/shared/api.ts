@@ -22,6 +22,28 @@ export type { RenderOptions } from '../core/render-plan';
 export type { Collection, CollectionItem } from '../core/collection';
 export type { Project } from '../core/project';
 export type { MenuCommand, MenuSection, MenuState } from '../core/menu';
+export type { RecentProjectRow } from '../core/start-screen';
+import type { RecentProjectRow } from '../core/start-screen';
+
+/** The start screen's remembered switches (milestone 31). */
+export interface StartScreenPrefs {
+  /** The screen is shown at launch; File → Home shows it either way. */
+  showAtStartup: boolean;
+  /** The guided tour has been taken or skipped, so it is offered only before then. */
+  tourSeen: boolean;
+}
+
+/** A bundled example project: a ready-made `.pulp` that opens as a copy. */
+export interface ExampleProject {
+  path: string;
+  name: string;
+  description: string;
+  /** Manifest id of its first template, whose thumbnail stands for it. */
+  thumbTemplateId?: string;
+}
+
+/** Reading an example back: its contents, never a path, so it opens as a copy. */
+export type ExampleReadResult = { ok: true; name: string; project: Project } | { ok: false; message: string };
 
 export interface FfmpegInfo {
   ok: boolean;
@@ -263,6 +285,19 @@ export interface PulpApi {
   /** Recently opened projects, newest first; `forgetProject` takes one off. */
   recentProjects(): Promise<string[]>;
   forgetProject(path: string): Promise<string[]>;
+  /** The recent projects with pins, last-opened times and whether each file is still there (milestone 31). */
+  recentProjectsDetailed(): Promise<RecentProjectRow[]>;
+  /** Pin or unpin a recent project on the start screen; resolves to the pinned paths. */
+  setProjectPinned(path: string, pinned: boolean): Promise<string[]>;
+  /** A recent project whose file moved: ask where it is now and point the entry there. */
+  relinkRecentProject(path: string, answer?: string): Promise<{ ok: boolean; path?: string }>;
+  /** The bundled example projects, and one of them read back as a copy. */
+  listExamples(): Promise<ExampleProject[]>;
+  readExample(path: string): Promise<ExampleReadResult>;
+  /** The start screen's switches: shown at startup, and whether the tour was taken. */
+  getStartScreenPrefs(): Promise<StartScreenPrefs>;
+  setShowStartScreen(on: boolean): Promise<void>;
+  setTourSeen(): Promise<void>;
   /** Write the recovery copy while there are unsaved changes, and clear it when there are none. */
   autosaveProject(project: Project, path: string | null): Promise<void>;
   clearRecovery(): Promise<void>;

@@ -22,6 +22,7 @@
  */
 
 export type MenuCommand =
+  | 'app.home'
   | 'project.new'
   | 'project.open'
   | 'project.openRecent'
@@ -49,6 +50,8 @@ export type MenuCommand =
   | 'play.setIn'
   | 'play.setOut'
   | 'play.loop'
+  | 'help.tour'
+  | 'help.whatsNew'
   | 'help.shortcuts'
   | 'help.diagnostics';
 
@@ -190,6 +193,9 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
   sections.push({
     label: 'File',
     items: [
+      // The start screen (milestone 31): also shown at launch, so this is the way back to it.
+      { command: 'app.home', label: 'Home' },
+      sep,
       { command: 'project.new', label: 'New Project', accelerator: 'CmdOrCtrl+N' },
       { command: 'project.open', label: 'Open…', accelerator: 'CmdOrCtrl+O' },
       { label: 'Open Recent', submenu: recentSubmenu(state.recent) },
@@ -284,6 +290,9 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
   sections.push({
     label: 'Help',
     items: [
+      { command: 'help.tour', label: 'Take the Tour' },
+      { command: 'help.whatsNew', label: "What's New" },
+      sep,
       { command: 'help.shortcuts', label: 'Keyboard Shortcuts' },
       { command: 'help.diagnostics', label: 'Copy Diagnostics' },
     ],

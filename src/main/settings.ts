@@ -35,6 +35,14 @@ export interface Settings {
   dragNoticeSeen: boolean;
   /** Which Info tab sections are open, by section id (src/core/item-info.ts). */
   infoSections: Record<string, boolean>;
+  /** The start screen is shown at launch (milestone 31); File → Home shows it either way. */
+  showStartScreen: boolean;
+  /** True once the guided tour has been taken or skipped, so it is offered only on first launch. */
+  tourSeen: boolean;
+  /** Recent projects pinned to the top of the start screen's list, by path. */
+  pinnedProjects: string[];
+  /** When each recent project was last opened or saved, path to ISO timestamp. */
+  recentProjectTimes: Record<string, string>;
 }
 
 const DEFAULTS: Settings = {
@@ -49,7 +57,22 @@ const DEFAULTS: Settings = {
   browseAccordion: true,
   dragNoticeSeen: false,
   infoSections: {},
+  showStartScreen: true,
+  tourSeen: false,
+  pinnedProjects: [],
+  recentProjectTimes: {},
 };
+
+/** Only string-to-string entries, and only for paths the recent list still holds. */
+function sanitizeRecentTimes(raw: unknown, recents: readonly string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!raw || typeof raw !== 'object') return out;
+  const kept = new Set(recents);
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (kept.has(key) && typeof value === 'string') out[key] = value;
+  }
+  return out;
+}
 
 /** Only the known section ids, only booleans; anything else in the file is ignored. */
 function sanitizeInfoSections(raw: unknown): Record<string, boolean> {
@@ -67,12 +90,13 @@ function settingsPath(): string {
 }
 
 function sanitize(raw: Partial<Settings>): Settings {
+  const recentProjects = Array.isArray(raw.recentProjects) ? raw.recentProjects.filter((p): p is string => typeof p === 'string' && p.trim() !== '').slice(0, 20) : [];
   return {
     libraryFolders: Array.isArray(raw.libraryFolders) ? raw.libraryFolders.filter((f): f is string => typeof f === 'string') : [],
     recentColors: sanitizeRecentColors(raw.recentColors),
     recentSearches: sanitizeRecentSearches(raw.recentSearches),
     // Paths, kept as they were written: a file that has gone is said when it is opened, not dropped here.
-    recentProjects: Array.isArray(raw.recentProjects) ? raw.recentProjects.filter((p): p is string => typeof p === 'string' && p.trim() !== '').slice(0, 20) : [],
+    recentProjects,
     renderCacheMaxMB: sanitizeCacheMaxMB(raw.renderCacheMaxMB),
     layout: sanitizeLayout(raw.layout),
     resultsView: sanitizeResultsView(raw.resultsView),
@@ -80,6 +104,11 @@ function sanitize(raw: Partial<Settings>): Settings {
     browseAccordion: raw.browseAccordion !== false,
     dragNoticeSeen: raw.dragNoticeSeen === true,
     infoSections: sanitizeInfoSections(raw.infoSections),
+    showStartScreen: raw.showStartScreen !== false,
+    tourSeen: raw.tourSeen === true,
+    // A pin names a recent entry; one whose project left the list goes with it.
+    pinnedProjects: Array.isArray(raw.pinnedProjects) ? raw.pinnedProjects.filter((p): p is string => typeof p === 'string' && recentProjects.includes(p)) : [],
+    recentProjectTimes: sanitizeRecentTimes(raw.recentProjectTimes, recentProjects),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
   };
 }

@@ -17,7 +17,7 @@ import { currentRawParams } from './inspector-params';
 import { lengthIn } from '../core/params';
 import { lengthFrameCount, resolveLength } from '../core/timing';
 import { stageStop } from './stage';
-import { appState, dispatch, frameSize, renderBlocked, selectedTemplate, trim } from './store';
+import { appState, dispatch, frameSize, preferredAspect, renderBlocked, selectedTemplate, trim } from './store';
 import { setCollection, setEditing } from '../core/app-state';
 import { updateItem } from '../core/collection';
 import { editing } from './collection';
@@ -130,7 +130,9 @@ function populateAspects(m: { aspects: readonly string[]; size?: Size }): void {
     opt.textContent = word ? `${id} · ${word}` : id;
     els.optAspect.append(opt);
   }
-  els.optAspect.value = defaultAspect(m);
+  // The session's preferred shape wins where the template draws it (milestone 31).
+  const preferred = preferredAspect.peek();
+  els.optAspect.value = preferred && m.aspects.includes(preferred) ? preferred : defaultAspect(m);
   els.optAspectField.hidden = m.aspects.length < 2;
 }
 

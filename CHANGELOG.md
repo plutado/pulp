@@ -6,6 +6,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+
+- A start screen, shown at launch and from File → Home, with a "Show at startup" switch. It offers a new project blank or by shape (16:9, 9:16, 1:1, 4:5 — the choice presets the Output tab's aspect for every template that draws it); six example projects built from the bundled templates, each opening as a copy so the example stays as it was; the recent projects with thumbnails, last-opened dates and pinning, where a missing file says so and can be relinked; a Learn section with a guided five-step tour of the window (replayable from Help → Take the Tour), "What's new" read from this changelog's latest release, and the keyboard shortcuts; a first-run checklist (FFmpeg found, a library folder added, sample media made) whose undone items are buttons that do it, with the library at a glance beside it; and "What are you making?" — an interview, a sports opener, a wedding, a social clip, a news package — each folding the browse panel to the category that serves it.
+
 ### Security
 
 - Electron 44.9.1, which carries the mitigation for compromised eMudhra intermediate certificates (GHSA-jr5w-w6x2-84p9) that 44.9.0 lacked. CI now audits dependencies and fails on a known high or critical advisory.

@@ -159,6 +159,23 @@ export async function openProjectFrom(path: string | null): Promise<boolean> {
   return true;
 }
 
+/**
+ * Open a bundled example as a copy (milestone 31): its contents arrive with no
+ * path, so Save asks where and the example file stays as it was.
+ */
+export async function openExampleFrom(path: string): Promise<boolean> {
+  if (!(await confirmDiscard())) return false;
+  const result = await window.pulp.readExample(path);
+  if (!result.ok) {
+    say(result.message, true);
+    return false;
+  }
+  adopt(result.project, { path: null, name: result.name });
+  markSaved(result.project);
+  say(`Opened a copy of the ${result.name} example. Saving will ask where to put it.`);
+  return true;
+}
+
 export async function newProject(): Promise<boolean> {
   if (!(await confirmDiscard())) return false;
   dispatch((s) => openProjectState(s, { items: [] }, initialProjectState));
@@ -252,14 +269,18 @@ export function initProject(note: (text: string, isError?: boolean) => void): vo
   });
 }
 
-/** A recovery copy left by a session that ended suddenly, offered once at launch. */
-export async function offerRecovery(ask: (name: string, savedAt: string) => Promise<boolean>): Promise<void> {
+/**
+ * A recovery copy left by a session that ended suddenly, offered once at
+ * launch. True when it was taken, so the launch can get out of its way —
+ * the start screen is not shown over work just recovered (milestone 31).
+ */
+export async function offerRecovery(ask: (name: string, savedAt: string) => Promise<boolean>): Promise<boolean> {
   const recovery = await window.pulp.pendingRecovery();
-  if (!recovery) return;
+  if (!recovery) return false;
   const name = recovery.name || UNTITLED_PROJECT;
   if (!(await ask(name, recovery.savedAt))) {
     await window.pulp.clearRecovery();
-    return;
+    return false;
   }
   adopt(recovery.project, { path: recovery.path, name });
   // Recovered, not saved: the changes are still unsaved, which is the whole point of recovering them.
@@ -267,4 +288,5 @@ export async function offerRecovery(ask: (name: string, savedAt: string) => Prom
   refreshDirty();
   pushTitle();
   say(`Recovered ${name}. The changes have not been saved yet.`);
+  return true;
 }

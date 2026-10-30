@@ -22,6 +22,7 @@ import {
   parseProject, pathShift, projectFromCollection, serializeProject, shiftPath, type Project,
 } from '../core/project';
 import type { LibraryIndex } from '../core/library-types';
+import type { RecentProjectRow } from '../core/start-screen';
 import type { ProjectFileResult, ProjectRecovery, RelinkResult } from '../shared/api';
 import { addLibraryFolder, getLibrary } from './library-service';
 import { loadSettings, updateSettings } from './settings';
@@ -43,10 +44,17 @@ function projectName(path: string): string {
 }
 
 async function remember(path: string): Promise<string[]> {
-  const settings = await updateSettings((s) => ({
-    ...s,
-    recentProjects: [path, ...s.recentProjects.filter((p) => p !== path)].slice(0, RECENT_PROJECTS_KEPT),
-  }));
+  const settings = await updateSettings((s) => {
+    const recentProjects = [path, ...s.recentProjects.filter((p) => p !== path)].slice(0, RECENT_PROJECTS_KEPT);
+    const kept = new Set(recentProjects);
+    return {
+      ...s,
+      recentProjects,
+      // The start screen's "last opened" and pins follow the list: an entry that fell off takes its facts with it.
+      recentProjectTimes: Object.fromEntries([...Object.entries(s.recentProjectTimes), [path, new Date().toISOString()]].filter(([p]) => kept.has(p!))),
+      pinnedProjects: s.pinnedProjects.filter((p) => kept.has(p)),
+    };
+  });
   return settings.recentProjects;
 }
 
@@ -57,7 +65,83 @@ export async function recentProjects(): Promise<string[]> {
 
 /** Take a project off the recent list — what a file that has gone deserves. */
 export async function forgetProject(path: string): Promise<string[]> {
-  return (await updateSettings((s) => ({ ...s, recentProjects: s.recentProjects.filter((p) => p !== path) }))).recentProjects;
+  return (await updateSettings((s) => ({
+    ...s,
+    recentProjects: s.recentProjects.filter((p) => p !== path),
+    pinnedProjects: s.pinnedProjects.filter((p) => p !== path),
+    recentProjectTimes: Object.fromEntries(Object.entries(s.recentProjectTimes).filter(([p]) => p !== path)),
+  }))).recentProjects;
+}
+
+// ---------------------------------------------------------------- the start screen's recent list (milestone 31)
+
+/** The first template an item list names, whose thumbnail stands for the whole project. */
+function firstTemplateId(items: readonly CollectionItem[]): string | undefined {
+  return items.find((i) => i.kind === 'template' && i.templateId)?.templateId;
+}
+
+/**
+ * The recent projects with what the start screen says about each: pinned,
+ * when it was last opened, whether the file is still there, and the template
+ * whose thumbnail stands for it. Each file is read here — they are small JSON
+ * files, and reading is also how "missing" is found out rather than guessed.
+ */
+export async function recentProjectsDetailed(): Promise<RecentProjectRow[]> {
+  const settings = await loadSettings();
+  const pinned = new Set(settings.pinnedProjects);
+  return Promise.all(settings.recentProjects.map(async (path): Promise<RecentProjectRow> => {
+    const row: RecentProjectRow = {
+      path,
+      name: projectName(path),
+      pinned: pinned.has(path),
+      lastOpened: settings.recentProjectTimes[path] ?? '',
+      missing: false,
+    };
+    try {
+      const parsed = parseProject(await readFile(path, 'utf8'));
+      const thumb = parsed.ok ? firstTemplateId(parsed.project.collection.items) : undefined;
+      return thumb ? { ...row, thumbTemplateId: thumb } : row;
+    } catch {
+      return { ...row, missing: true };
+    }
+  }));
+}
+
+/** Pin or unpin a recent project; resolves to the pinned paths. */
+export async function setProjectPinned(path: string, pinned: boolean): Promise<string[]> {
+  return (await updateSettings((s) => ({
+    ...s,
+    pinnedProjects: pinned
+      ? (s.pinnedProjects.includes(path) ? s.pinnedProjects : [...s.pinnedProjects, path])
+      : s.pinnedProjects.filter((p) => p !== path),
+  }))).pinnedProjects;
+}
+
+/**
+ * A recent project whose file has gone: ask where it is now and point the
+ * entry there, keeping its pin. The file itself is untouched — this relinks
+ * the list, where relinkProjectItem below relinks a project's media.
+ */
+export async function relinkRecentProject(oldPath: string, answer?: string): Promise<{ ok: boolean; path?: string }> {
+  let chosen = answer;
+  if (!chosen) {
+    const pick = await dialog.showOpenDialog({
+      title: `Where is "${projectName(oldPath)}" now?`,
+      defaultPath: dirname(oldPath) || homedir(),
+      filters: OPEN_FILTERS,
+      properties: ['openFile'],
+    });
+    chosen = pick.filePaths[0];
+    if (pick.canceled || !chosen) return { ok: false };
+  }
+  const to = chosen;
+  await updateSettings((s) => ({
+    ...s,
+    recentProjects: s.recentProjects.map((p) => (p === oldPath ? to : p)),
+    pinnedProjects: s.pinnedProjects.map((p) => (p === oldPath ? to : p)),
+    recentProjectTimes: Object.fromEntries(Object.entries(s.recentProjectTimes).map(([p, t]) => [p === oldPath ? to : p, t])),
+  }));
+  return { ok: true, path: to };
 }
 
 /**
