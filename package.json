@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "vitest run tests/e2e",
+    "test:quick": "vitest run --changed HEAD --exclude 'tests/e2e/**'",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint . && npm run typecheck",
     "visual:check": "electron . --visual-hashes tests/visual/references.json --check",
