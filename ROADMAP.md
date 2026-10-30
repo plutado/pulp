@@ -36,7 +36,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 28. Per-layer timing, transitions and looks (**done**) | 24-36 h |
 | 27. Projects and the application menu (**done**) | 20-32 h |
 | 31. A start screen (**done**) | 14-22 h |
-| 34. A browse panel that says what things are | 20-32 h |
+| 34. A browse panel that says what things are (all but the card sort) | 20-32 h |
 | 32. Stock library import | 27-46 h |
 | 33. Layered Photoshop graphics | 10-18 h |
 | 20. Social-ready export | 9-14 h |
@@ -48,7 +48,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **458-734 h** |
-| **Still open through 1.0 (unticked items only)** | **97-161 h** |
+| **Still open through 1.0 (unticked items only)** | **78-131 h** |
 | **Total including post-1.0 items** | **489-789 h** |
 
 ## 0. Foundation (done)
@@ -365,7 +365,7 @@ After milestone 27, since it needs `.pulp` projects. Shown at launch and from Fi
 - [x] **Set up and status:** a first-run checklist (ffmpeg found, a library folder added, sample media made), each item a button that does it; the library at a glance (template and media counts, most-used categories, favourites); quick actions (add a library folder, import a pack, import a font). Milestone 14's "guided setup" can fold into the checklist. *Importing a font stays in the Parameters tab, where the family is chosen; the quick actions are add a folder, import a pack and make sample media* (3-5 h)
 - [x] **What are you making?** A handful of plain choices — an interview, a sports opener, a wedding, a social clip, a news package — each leading into the right browse categories and filters (milestone 34), so a first-time user starts from what they want to make rather than from how the library is sorted. *Until 34 lands, each choice folds the browse tree to the type or theme that serves it* (2-3 h)
 
-## 34. A browse panel that says what things are (20-32 h; GitHub issue #36) — done
+## 34. A browse panel that says what things are (20-32 h; GitHub issue #36)
 
 The browse panel's top level is five ways of sorting — Types, Themes, Styles, Packs, Folders — and a person has to learn what each means before they can find anything. Stock libraries people already know lead with what you get: animated lower thirds, animated backgrounds, matching sets, overlays, wipes and transitions, music. This milestone makes Pulp's panel read the same way, in this order.
 
