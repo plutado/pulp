@@ -2586,13 +2586,20 @@ describe.skipIf(!electron)('inspector UI', () => {
       // The tray is open from the tests above. Windows CI runs on a small display, where the tray
       // and the stage's share once left the results list a few pixels tall (docs/platform-notes.md).
       const metrics = () =>
-        page.eval<{ inner: number; results: number; stage: number; tray: number; search: number }>(
-          `({ inner: window.innerHeight, results: document.getElementById('results').clientHeight, stage: document.getElementById('region-stage').clientHeight, tray: document.getElementById('region-tray').clientHeight, search: document.getElementById('region-search').clientHeight })`,
+        page.eval<{ inner: number; results: number; stage: number; tray: number; search: number; transport: number; status: number; center: number }>(
+          `({ inner: window.innerHeight, results: document.getElementById('results').clientHeight, stage: document.getElementById('region-stage').clientHeight, tray: document.getElementById('region-tray').clientHeight, search: document.getElementById('region-search').clientHeight, transport: document.getElementById('region-transport').getBoundingClientRect().height, status: document.getElementById('region-status').getBoundingClientRect().height, center: document.querySelector('.center').getBoundingClientRect().height })`,
         );
       // The tray must be open for the squeeze; the collection tests above leave it so, and a run of
       // this test alone opens it itself.
       await page.eval(`(() => { if (document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); return true; })()`);
       await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray open');
+      // Classic scroll bars, on every platform: Linux and Windows draw bars that take layout room
+      // (about 12 and 17 px) where macOS overlays them, and the floors once held only where the
+      // bars were free (stage 146/141 px on CI, 150 on macOS). Forced here so every platform runs
+      // the short window the way the strictest one draws it.
+      await page.eval(`(() => { const st = document.createElement('style'); st.id = 'classic-scrollbars';
+        st.textContent = '::-webkit-scrollbar{width:17px;height:17px}::-webkit-scrollbar-thumb{background:#666}::-webkit-scrollbar-track{background:#222}';
+        document.head.append(st); return true; })()`);
       const own = await metrics();
       try {
         // The narrowest window Pulp allows is last: there the search bar's chips wrap to a second
@@ -2610,6 +2617,7 @@ describe.skipIf(!electron)('inspector UI', () => {
           expect(await sweepTo(last)).toBe(true);
         }
       } finally {
+        await page.eval(`(() => { document.getElementById('classic-scrollbars')?.remove(); return true; })()`);
         await page.send('Emulation.clearDeviceMetricsOverride', {});
       }
       await until(async () => (await metrics()).inner === own.inner, `the window back at its own ${own.inner} px`);
