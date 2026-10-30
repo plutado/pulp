@@ -666,54 +666,122 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await band(100)).lit, 'gone at the layer\'s own end').toBe(0);
   }, 240_000);
 
-  it('draws a layer with the look it was given: a shadow spreads its ink, an opacity thins it (milestone 28)', async () => {
-    // The title card's title, plain and then with a look; the frame is read back as the ink of
-    // the title's band so what the look did can be measured rather than eyeballed.
+  it('draws a layer with the look it was given: a shadow falls the way it is pointed (milestone 28)', async () => {
+    // The title card's title, plain and then with a look. What a shadow does is measured against
+    // the plain render of the same frame rather than against an absolute darkness, and by **where**
+    // it falls rather than how many pixels it covers: a count is a number about this machine's font
+    // and this machine's blur, and the first version of this test was tuned on one of them
+    // (docs/platform-notes.md). The geometry is the same everywhere.
     const [width, height] = [384, 216];
-    const band = async (name: string) => {
+    const frame = async (name: string): Promise<Buffer> => {
       const { stdout } = await runBoundedBuffer(ffmpeg, ffmpegArgs(['-v', 'error', '-i', join(out, `${name}_00075.png`), '-vf', 'format=rgba', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']), { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
-      // Rows of the title: lit pixels (any channel well above the card's dark ground) and the
-      // brightest red, which is what the title's near-white fill reads as.
-      let lit = 0, brightest = 0, top = height, bottom = -1, dark = 0;
-      // The title's rows alone: the subtitle's ascenders reach up to about 55% of the frame.
-      for (let y = Math.floor(height * 0.3); y < Math.floor(height * 0.48); y++) {
+      return stdout;
+    };
+    const lit = (b: Buffer, x: number, y: number) => {
+      const i = (y * width + x) * 4;
+      return b[i]! > 60 || b[i + 1]! > 60 || b[i + 2]! > 60;
+    };
+    /** The title's own rows: the first unbroken run of lit rows from the top, so the rule under it
+     *  and the subtitle below are left out without naming a row number. */
+    const titleRows = (b: Buffer) => {
+      let top = -1, bottom = -1;
+      for (let y = 0; y < height; y++) {
+        const any = [...Array(width).keys()].some((x) => lit(b, x, y));
+        if (any) { if (top < 0) top = y; bottom = y; } else if (top >= 0) break;
+      }
+      return { top, bottom };
+    };
+    const brightest = (b: Buffer, rows: { top: number; bottom: number }) => {
+      let most = 0;
+      for (let y = rows.top; y <= rows.bottom; y++) {
         for (let x = 0; x < width; x++) {
           const i = (y * width + x) * 4;
-          const r = stdout[i]!, g = stdout[i + 1]!, b = stdout[i + 2]!;
-          if (r > 60 || g > 60 || b > 60) { lit++; brightest = Math.max(brightest, r); top = Math.min(top, y); bottom = Math.max(bottom, y); }
-          // Pixels darker than the card's own ground: only a shadow can put those there.
-          if (r < 10 && g < 14 && b < 28) dark++;
+          if (lit(b, x, y)) most = Math.max(most, b[i]!);
         }
       }
-      return { lit, brightest, rows: bottom - top + 1, dark };
+      return most;
     };
+    /** Where the title's ink sits, as one row: what a shadow's own middle is measured against. */
+    const inkCentre = (b: Buffer, rows: { top: number; bottom: number }) => {
+      let total = 0, weighted = 0;
+      for (let y = rows.top; y <= rows.bottom; y++) {
+        for (let x = 0; x < width; x++) if (lit(b, x, y)) { total++; weighted += y; }
+      }
+      return weighted / total;
+    };
+    /**
+     * Where the look darkened the frame, against the plain render of the same thing. A shadow is
+     * black over a ground of (15, 23, 42), so it takes about 69 off the three channels together;
+     * drawing the glyph once for the shadow pass and once for itself thickens its antialiased
+     * edges, which goes the other way. Twelve is well above that and well below a shadow.
+     */
+    const darkening = (plain: Buffer, look: Buffer) => {
+      let total = 0, weighted = 0, first = height, last = -1;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          const d = (plain[i]! - look[i]!) + (plain[i + 1]! - look[i + 1]!) + (plain[i + 2]! - look[i + 2]!);
+          if (d <= 12) continue;
+          total++;
+          weighted += y;
+          first = Math.min(first, y);
+          last = Math.max(last, y);
+        }
+      }
+      return { total, first, last, centre: total === 0 ? -1 : weighted / total };
+    };
+
     const one = ['--fps', '25', '--size', `${width}x${height}`, '--in-point', '75', '--out-point', '75'];
     const styled = (look: unknown) => ['--param', `@layers=${JSON.stringify({ card: [{ id: 'title', look }] })}`];
+    const shadow = (angle: number) => styled({ shadowColor: '#000000ff', shadowDistance: 0.03, shadowAngle: angle, shadowSoftness: 0.01 });
 
-    const plain = await render('pulp.samples.title-card', 'png-sequence', 'look-plain', { extra: one });
-    expect(plain.code, plain.stderr).toBe(0);
-    const base = await band('look-plain');
-    expect(base.lit).toBeGreaterThan(100);
+    const plainRun = await render('pulp.samples.title-card', 'png-sequence', 'look-plain', { extra: one });
+    expect(plainRun.code, plainRun.stderr).toBe(0);
+    const plain = await frame('look-plain');
+    const rows = titleRows(plain);
+    expect(rows.bottom, 'the title is drawn').toBeGreaterThan(rows.top);
+    const ground = brightest(plain, rows);
 
-    // A soft shadow falling well below the title: more of the band is covered, some of it darker
-    // than the card's own ground, and the title's own fill is as bright as it was.
-    const shadowed = await render('pulp.samples.title-card', 'png-sequence', 'look-shadow', { extra: [...one, ...styled({ shadowColor: '#000000ff', shadowDistance: 0.03, shadowAngle: 90, shadowSoftness: 0.01 })] });
-    expect(shadowed.code, shadowed.stderr).toBe(0);
-    const shadow = await band('look-shadow');
-    expect(shadow.dark, 'the shadow is darker than the card behind it').toBeGreaterThan(base.dark + 50);
-    expect(Math.abs(shadow.brightest - base.brightest), 'the title itself is untouched').toBeLessThan(4);
+    // The same shadow pointed down and pointed up. Which way it lands is the thing being tested,
+    // and the pair is symmetric, so whatever this machine's font and blur do falls out of it.
+    const downRun = await render('pulp.samples.title-card', 'png-sequence', 'look-down', { extra: [...one, ...shadow(90)] });
+    expect(downRun.code, downRun.stderr).toBe(0);
+    const upRun = await render('pulp.samples.title-card', 'png-sequence', 'look-up', { extra: [...one, ...shadow(-90)] });
+    expect(upRun.code, upRun.stderr).toBe(0);
+    const downFrame = await frame('look-down');
+    const down = darkening(plain, downFrame);
+    const up = darkening(plain, await frame('look-up'));
+
+    // Both darken the frame, which only a shadow can do: the title's own ink is drawn the same.
+    expect(down.total, 'a shadow pointed down darkens the frame').toBeGreaterThan(50);
+    expect(up.total, 'and so does one pointed up').toBeGreaterThan(50);
+
+    // Where each one lands. A blur spreads a shadow evenly about itself, so it cannot move the
+    // middle of one: only the offset does, which is the thing being tested. Every comparison here
+    // is either of that middle, or of a reach that a wider blur would only make truer.
+    const middle = inkCentre(plain, rows);
+    expect(down.centre, 'a shadow pointed down has its middle below the title').toBeGreaterThan(middle);
+    expect(up.centre, 'and one pointed up has its middle above').toBeLessThan(middle);
+    expect(down.centre - up.centre, 'the two land twice the offset apart').toBeGreaterThan(6);
+    // And each reaches past the title the way it is pointed.
+    expect(down.last, 'a shadow falling down reaches below the title\'s ink').toBeGreaterThan(rows.bottom);
+    expect(up.first, 'and one falling up reaches above it').toBeLessThan(rows.top);
+
+    // The title's own fill is untouched by the shadow behind it.
+    expect(Math.abs(brightest(downFrame, rows) - ground), 'the title itself is as bright as it was').toBeLessThan(4);
 
     // Half opacity: the same ink, half as bright against the ground.
     const thin = await render('pulp.samples.title-card', 'png-sequence', 'look-thin', { extra: [...one, ...styled({ opacity: 0.5 })] });
     expect(thin.code, thin.stderr).toBe(0);
-    const half = await band('look-thin');
-    expect(half.brightest, 'half way between the fill and the ground').toBeLessThan(base.brightest * 0.65);
-    expect(half.brightest).toBeGreaterThan(base.brightest * 0.35);
+    const half = brightest(await frame('look-thin'), rows);
+    expect(half, 'half way between the fill and the ground').toBeLessThan(ground * 0.65);
+    expect(half).toBeGreaterThan(ground * 0.35);
 
-    // A look that says nothing draws exactly what no look draws.
+    // A look that says nothing is no look at all, so the layer takes the very same path: not a
+    // frame that looks the same, the same frame, to the byte.
     const none = await render('pulp.samples.title-card', 'png-sequence', 'look-none', { extra: [...one, ...styled({ opacity: 1, blend: 'normal' })] });
     expect(none.code, none.stderr).toBe(0);
-    expect(await band('look-none')).toEqual(base);
+    expect(Buffer.compare(await frame('look-none'), plain), 'a look that says nothing draws what no look draws').toBe(0);
   }, 240_000);
 
   it('draws a layer turned, about the words rather than the block (milestone 29)', async () => {
