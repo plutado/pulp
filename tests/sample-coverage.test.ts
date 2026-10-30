@@ -34,8 +34,20 @@ export const CATEGORY_FLOORS: Record<string, number> = {
   'lower-third': 20,
   'end-card': 12,
   'animated-loop': 12,
-  'stock-footage': 12,
+  // Milestone 36's second batch raised stock video past its first floor: the twelve re-rendered
+  // backgrounds and eight footage scenes with subjects of their own.
+  'stock-footage': 20,
 };
+
+/**
+ * Milestone 36's second batch: every generated type — the stills, music, sound effects, clips
+ * and assets the catalogue draws and synthesizes, and the two background types it shares with
+ * the bundled templates — is at least ten deep, counted as everything here is. The floor is the
+ * groups', so a type added to one of these groups starts at ten rather than six.
+ */
+export const GENERATED_MINIMUM = 10;
+const GENERATED_GROUPS = new Set(['video', 'stills', 'music', 'sfx', 'assets']);
+const GENERATED_EXTRA_TYPES = ['still-background', 'texture'];
 
 /**
  * Milestone 26's rule for the Assets group: every theme in the taxonomy has at least this many
@@ -101,6 +113,12 @@ describe(`every category is at least ${MINIMUM} deep`, () => {
   it.each(Object.entries(CATEGORY_FLOORS))('the top category %s is at least %i deep (milestone 36)', (type, floor) => {
     expect(typeInfo(type), type).toBeDefined();
     expect(counts.types.get(type) ?? 0, `${typeInfo(type)?.label}: a top category that reads as empty at six`).toBeGreaterThanOrEqual(floor);
+  });
+
+  const generated = [...TYPES.filter((t) => GENERATED_GROUPS.has(t.group)).map((t) => t.id), ...GENERATED_EXTRA_TYPES];
+  it.each(generated)(`the generated type %s is at least ${GENERATED_MINIMUM} deep (milestone 36)`, (type) => {
+    expect(typeInfo(type), type).toBeDefined();
+    expect(counts.types.get(type) ?? 0, `${typeInfo(type)?.label}: a generated type the catalogue can always deepen`).toBeGreaterThanOrEqual(GENERATED_MINIMUM);
   });
 
   it('has no upper limit: a category may run as deep as it likes', () => {

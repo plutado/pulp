@@ -3,6 +3,7 @@ import { detectFfmpeg, nodeRunner } from '../src/core/ffmpeg';
 import {
   SAMPLE_MEDIA,
   SAMPLE_MEDIA_LICENSE,
+  sampleAssetArgs,
   sampleAudioArgs,
   sampleJpegArgs,
   sampleMediaInferredType,
@@ -30,13 +31,14 @@ describe('the sample-media catalogue', () => {
     }
   });
 
-  it('fills every media type at least six deep, and no other type', () => {
-    // Milestone 24 raised the floor from three and dropped the ceiling of five
-    // (tests/sample-coverage.test.ts): a media type people reach for may run as deep as it likes.
+  it('fills every media type at least ten deep, and no other type', () => {
+    // Milestone 24 raised the floor from three and dropped the ceiling of five; milestone 36
+    // raised it again to ten (tests/sample-coverage.test.ts): a media type people reach for may
+    // run as deep as it likes, and a category with six things in it reads as empty.
     const counts = new Map<string, number>();
     for (const item of SAMPLE_MEDIA) counts.set(item.type, (counts.get(item.type) ?? 0) + 1);
     for (const t of mediaTypes) {
-      expect(counts.get(t.id) ?? 0, `${t.label} (${t.id})`).toBeGreaterThanOrEqual(6);
+      expect(counts.get(t.id) ?? 0, `${t.label} (${t.id})`).toBeGreaterThanOrEqual(10);
     }
     // Every type the catalogue fills is a media type or one of the asset groups above; nothing else.
     const allowed = new Set(TYPES.filter((t) => MEDIA_GROUPS.has(t.group) || ASSET_GROUPS.has(t.group)).map((t) => t.id));
@@ -53,7 +55,8 @@ describe('the sample-media catalogue', () => {
       if (item.recipe.kind === 'audio') expect(ext).toBe('.wav');
       if (item.recipe.kind === 'still') expect(ext).toBe(`.${item.recipe.format}`);
       if (item.recipe.kind === 'clip') expect(ext).toBe('.mp4');
-      // An asset is a transparent WebM or a PNG, and its kind follows which (milestone 26).
+      // An asset is a transparent WebM, a PNG, or opaque MP4 footage (milestones 26 and 36),
+      // and its kind follows which.
       if (item.recipe.kind === 'asset') expect(ext).toBe(`.${item.recipe.format}`);
       const wantKind = item.recipe.kind === 'audio' ? 'audio'
         : item.recipe.kind === 'still' ? 'image'
@@ -91,6 +94,14 @@ describe('the sample-media catalogue', () => {
       expect(args).toContain('pcm_s16le');
     }
     expect(sampleJpegArgs('/out/p.jpg').at(-1)).toBe('/out/p.jpg');
+    // The asset encodings match their formats: alpha kept for an element, none for footage.
+    for (const item of SAMPLE_MEDIA) {
+      if (item.recipe.kind !== 'asset' || item.recipe.format === 'png') continue;
+      const args = sampleAssetArgs(item.recipe, '/out/a').join(' ');
+      if (item.recipe.format === 'webm') expect(args, item.file).toContain('yuva420p');
+      else expect(args, item.file).toContain('yuv420p');
+      if (item.recipe.format === 'mp4') expect(args, item.file).toContain('libx264');
+    }
   });
 
   it('draws stills from pages that are deterministic and size themselves from the state', () => {

@@ -35,8 +35,10 @@ export type SampleRecipe =
    * An asset (milestone 26): an isolated element drawn on transparency by a canvas page over
    * the clip's own time, written as a transparent WebM or a PNG still. `loop` says the last
    * frame meets the first, which is what makes a flame or a wisp of steam usable on a long shot.
+   * Milestone 36 adds `mp4`: a full-frame scene drawn opaque over time and encoded H.264 — the
+   * stock footage with subjects of its own, rather than a background template re-rendered.
    */
-  | { kind: 'asset'; page: keyof typeof STILL_PAGES; variant: string; format: 'webm' | 'png'; width: number; height: number; seconds: number; fps: number; loop: boolean };
+  | { kind: 'asset'; page: keyof typeof STILL_PAGES; variant: string; format: 'webm' | 'png' | 'mp4'; width: number; height: number; seconds: number; fps: number; loop: boolean };
 
 export interface SampleMediaItem {
   /** Folder segments under the sample-media root, as shown ("Sound effects", "Whooshes"). */
@@ -163,6 +165,11 @@ const MATCHDAY_PULSE: Song = { bpm: 140, bass: [40, 40, 40, 43, 40, 40, 47, 46],
 const FESTIVAL_LIGHTS: Song = { bpm: 104, bass: [43, 43, 50, 48, 45, 45, 52, 50], chord: [55, 59, 62, 66], lead: [74, 0, 78, 0, 81, 0, 78, 74, 0, 71, 0, 74, 0, 0, 0, 0], seconds: 16 };
 const QUIET_STUDY: Song = { bpm: 72, bass: [36, 36, 43, 43, 41, 41, 38, 38], chord: [48, 52, 55, 59], lead: [67, 0, 0, 0, 71, 0, 0, 0, 72, 0, 0, 71, 0, 0, 67, 0], seconds: 16 };
 const CITY_RUSH: Song = { bpm: 128, bass: [38, 38, 45, 38, 41, 41, 43, 45], chord: [50, 53, 57, 60], lead: [72, 0, 74, 75, 0, 72, 0, 70, 72, 0, 77, 0, 75, 0, 72, 0], seconds: 16 };
+// Milestone 36: four more pieces, so Full mix reaches ten; two of them bring their stems along.
+const HARBOR_DAWN: Song = { bpm: 76, bass: [33, 33, 40, 40, 38, 38, 36, 36], chord: [45, 48, 52, 57], lead: [64, 0, 0, 0, 67, 0, 69, 0, 72, 0, 0, 69, 0, 0, 64, 0], seconds: 16 };
+const NEON_ARCADE: Song = { bpm: 132, bass: [40, 40, 47, 40, 43, 43, 45, 47], chord: [52, 55, 59, 64], lead: [76, 0, 79, 76, 0, 83, 0, 79, 76, 0, 74, 76, 0, 71, 0, 0], seconds: 16 };
+const GOLDEN_HOUR: Song = { bpm: 92, bass: [41, 41, 36, 36, 38, 38, 45, 43], chord: [53, 57, 60, 64], lead: [72, 0, 0, 76, 0, 77, 0, 0, 76, 0, 72, 0, 69, 0, 0, 0], seconds: 16 };
+const SUMMIT_CLIMB: Song = { bpm: 112, bass: [38, 38, 41, 41, 43, 43, 46, 45], chord: [50, 53, 58, 62], lead: [74, 0, 77, 0, 79, 0, 0, 77, 81, 0, 79, 0, 77, 0, 74, 0], seconds: 16 };
 
 // ---------------------------------------------------------------------------
 // Sound effects.
@@ -817,6 +824,77 @@ const SFX: SampleMediaItem[] = [
     folder: ['Sound effects', 'Musical phrases', 'Wedding'], file: 'chapel-bells.wav', type: 'musical-phrase', note: 'Chapel bells ringing a change.',
     recipe: audio(evalSrc(`${([[262, 0], [330, 0.55], [392, 1.1], [262, 1.75]] as const).map(([hz, st]) => `${env(st, 2.6, 0.004, 1.1)}*${tone(hz, 4)}*0.12`).join('+')}`, 4.4), 4.4, 'lowpass=f=4500'),
   },
+
+  // ---- Milestone 36: the sounds that take every sound-effect type to ten.
+  // Sci-fi.
+  {
+    folder: ['Sound effects', 'Sci-fi'], file: 'teleport.wav', type: 'sci-fi', note: 'A teleport: a riser that bursts into shimmer.',
+    recipe: audio(evalSrc(`${env(0, 1, 0.02, 0.5)}*sin(2*PI*(300+900*t*t)*t)*0.5+${env(0.9, 0.8, 0.01, 6)}*${NOISE}*0.5`, 1.7), 1.7, 'highpass=f=250'),
+  },
+  {
+    folder: ['Sound effects', 'Sci-fi'], file: 'alien-signal.wav', type: 'sci-fi', note: 'An alien signal: slow warbles between two tones.',
+    recipe: audio(evalSrc(`sin(2*PI*(620+140*sin(2*PI*2.2*t))*t)*(0.55+0.45*sin(2*PI*0.5*t))*min(1,t*2)*min(1,(3.4-t))*0.5`, 3.4), 3.4),
+  },
+  {
+    folder: ['Sound effects', 'Sci-fi'], file: 'robot-servo.wav', type: 'sci-fi', note: 'A robot servo sweeping up, then back.',
+    recipe: audio(evalSrc(`if(lt(t,0.5),sin(2*PI*(180+500*t)*t),sin(2*PI*(430-360*(t-0.5))*t))*${tone(1, 1)}*0+if(lt(t,0.5),sin(2*PI*(180+500*t)*t),sin(2*PI*(430-360*(t-0.5))*t))*0.45+${NOISE}*0.06`, 1), 1, 'bandpass=f=900:width_type=o:w=2'),
+  },
+  {
+    folder: ['Sound effects', 'Sci-fi'], file: 'force-field.wav', type: 'sci-fi', note: 'A force field: a hum with a bright shimmer over it.',
+    recipe: audio(evalSrc(`(${tone(110, 4)}*0.3+sin(2*PI*(1800+60*sin(2*PI*7*t))*t)*0.12)*min(1,t*3)*min(1,(4-t)*2)`, 4), 4),
+  },
+  // Alarms.
+  {
+    folder: ['Sound effects', 'Alarms'], file: 'clock-radio.wav', type: 'alarm', note: 'A clock radio: four beeps, a breath, four more.',
+    recipe: audio(evalSrc(`lt(mod(t,1.6),0.9)*lt(mod(t,0.225),0.1)*min(1,mod(t,0.225)*300)*sin(2*PI*950*t)*0.55`, 3.2), 3.2),
+  },
+  {
+    folder: ['Sound effects', 'Alarms'], file: 'warning-klaxon.wav', type: 'alarm', note: 'A klaxon falling from high to low, twice.',
+    recipe: audio(evalSrc(`${tone(1, 1)}*0+sin(2*PI*(900-350*mod(t,1.4)/1.4)*t)*lt(mod(t,1.4),1.1)*0.5`, 2.8), 2.8, 'highpass=f=200'),
+  },
+  {
+    folder: ['Sound effects', 'Alarms'], file: 'gentle-chime-alarm.wav', type: 'alarm', note: 'A gentle wake chime, four soft strikes.',
+    recipe: audio(evalSrc([0, 0.8, 1.6, 2.4].map((st) => `${env(st, 1.4, 0.004, 2.2)}*${tone(880, 2)}*0.3`).join('+'), 4), 4, 'lowpass=f=5000'),
+  },
+  // Animals.
+  {
+    folder: ['Sound effects', 'Animals'], file: 'owl-synth.wav', type: 'animals', note: 'A synthesized owl: two low hoots, twice.',
+    recipe: audio(evalSrc([0, 0.45, 1.8, 2.25].map((st) => `${env(st, 0.4, 0.04, 6)}*${tone(310, 2)}*0.5`).join('+'), 3), 3, 'lowpass=f=900'),
+  },
+  {
+    folder: ['Sound effects', 'Animals'], file: 'cat-meow-synth.wav', type: 'animals', note: 'A synthesized cat: one rising-falling meow.',
+    recipe: audio(evalSrc(`${env(0, 0.9, 0.08, 2.2)}*${tone(1, 1)}*0+${env(0, 0.9, 0.08, 2.2)}*sin(2*PI*(520+260*sin(PI*min(1,t/0.9)))*t)*0.45`, 1.2), 1.2, 'bandpass=f=900:width_type=o:w=2'),
+  },
+  {
+    folder: ['Sound effects', 'Animals'], file: 'bee-swarm-synth.wav', type: 'animals', note: 'A synthesized bee swarm: detuned buzzing that drifts.',
+    recipe: audio(evalSrc(`(${tone(190, 5)}*0.2+${tone(203, 4)}*0.16)*(0.75+0.25*sin(2*PI*0.7*t))*min(1,t*2)*min(1,(4-t)*2)`, 4), 4, 'highpass=f=120'),
+  },
+  // Explosions.
+  {
+    folder: ['Sound effects', 'Explosions'], file: 'firework-volley.wav', type: 'explosion', note: 'Three fireworks bursting, with crackle after each.',
+    recipe: audio(evalSrc([0, 1.1, 2.2].map((st) => `${env(st, 0.9, 0.005, 5)}*${NOISE}*0.6+${NOISE2}*gt(random(1),0.975)*${env(st + 0.15, 0.9, 0.02, 3)}*0.5`).join('+'), 3.4), 3.4, 'lowpass=f=5000'),
+  },
+  {
+    folder: ['Sound effects', 'Explosions'], file: 'implosion.wav', type: 'explosion', note: 'An implosion: a reverse suck into one low thump.',
+    recipe: audio(evalSrc(`${NOISE}*pow(min(1,t/1.1),3)*lt(t,1.1)*0.5+${env(1.12, 1.4, 0.004, 3)}*sin(2*PI*46*t)*0.7`, 2.6), 2.6, 'lowpass=f=900'),
+  },
+  {
+    folder: ['Sound effects', 'Explosions'], file: 'rumble-collapse.wav', type: 'explosion', note: 'A long collapse: rumble with falling hits inside it.',
+    recipe: audio(evalSrc(`${NOISE}*${env(0, 4.5, 0.15, 0.7)}*(0.6+0.4*sin(2*PI*1.9*t))*0.7+${[0.4, 1.3, 2.4].map((st) => `${env(st, 0.5, 0.004, 14)}*sin(2*PI*60*t)*0.5`).join('+')}`, 4.5), 4.5, 'lowpass=f=160,volume=1.1'),
+  },
+  // Whooshes.
+  { folder: ['Sound effects', 'Whooshes'], file: 'whoosh-double.wav', type: 'whoosh', note: 'Two passes, the second closer.', recipe: audio(evalSrc(`${NOISE}*(${bell(0.5, 0.22)}*0.6+${bell(1.25, 0.28)})`, 1.8), 1.8, 'bandpass=f=1000:width_type=o:w=1.8,volume=0.9') },
+  { folder: ['Sound effects', 'Whooshes'], file: 'whoosh-flutter.wav', type: 'whoosh', note: 'A whoosh that flutters as it passes.', recipe: audio(evalSrc(`${NOISE}*pow(sin(PI*t/1.2),2)*(0.55+0.45*sin(2*PI*16*t))`, 1.2), 1.2, 'bandpass=f=800:width_type=o:w=1.6,volume=0.9') },
+  // UI / tech.
+  {
+    folder: ['Sound effects', 'UI tech'], file: 'ui-notification.wav', type: 'ui-tech', note: 'A soft two-note notification.',
+    recipe: audio(evalSrc(`${env(0, 0.3, 0.006, 7)}*${tone(740, 2)}*0.4+${env(0.16, 0.5, 0.006, 5)}*${tone(988, 2)}*0.4`, 0.8), 0.8, 'lowpass=f=6000'),
+  },
+  // Vehicles.
+  {
+    folder: ['Sound effects', 'Vehicles'], file: 'helicopter.wav', type: 'vehicles', note: 'A helicopter: rotor chop over a low turbine.',
+    recipe: audio(evalSrc(`${NOISE}*(0.25+0.75*pow(sin(2*PI*6.5*t),8))*0.6+${tone(95, 3)}*0.18`, 4), 4, 'lowpass=f=1400,volume=1.1'),
+  },
 ];
 
 const MUSIC: SampleMediaItem[] = [
@@ -858,6 +936,19 @@ const MUSIC: SampleMediaItem[] = [
     folder: ['Music', 'Stings'], file: 'logo-tag.wav', type: 'sting', note: 'A two-chord tag to close a logo.',
     recipe: audio(evalSrc(`${env(0, 0.7, 0.005, 3)}*(${[50, 57, 62].map((m) => tone(midi(m), 3)).join('+')})*0.11+${env(0.45, 2.3, 0.005, 1.2)}*(${[55, 62, 67, 71].map((m) => tone(midi(m), 3)).join('+')})*0.1`, 2.8), 2.8),
   },
+
+  // ---- Milestone 36: four more pieces, so Full mix reaches ten; Harbor dawn and
+  // Neon arcade bring their stems, so the Stems folders deepen with them.
+  { folder: ['Music', 'Full mix'], file: 'harbor-dawn.wav', type: 'full-mix', note: 'A slow, open piece at 76 bpm.', recipe: fullMix(HARBOR_DAWN) },
+  { folder: ['Music', 'Full mix'], file: 'neon-arcade.wav', type: 'full-mix', note: 'A bright, quick piece at 132 bpm.', recipe: fullMix(NEON_ARCADE) },
+  { folder: ['Music', 'Full mix'], file: 'golden-hour.wav', type: 'full-mix', note: 'An easy piece at 92 bpm.', recipe: fullMix(GOLDEN_HOUR) },
+  { folder: ['Music', 'Full mix'], file: 'summit-climb.wav', type: 'full-mix', note: 'A steady, building piece at 112 bpm.', recipe: fullMix(SUMMIT_CLIMB) },
+  { folder: ['Music', 'Stems', 'Harbor dawn'], file: 'drums.wav', type: 'stems', note: 'The drums of Harbor dawn.', recipe: stem(HARBOR_DAWN, 'drums') },
+  { folder: ['Music', 'Stems', 'Harbor dawn'], file: 'bass.wav', type: 'stems', note: 'The bass of Harbor dawn.', recipe: stem(HARBOR_DAWN, 'bass') },
+  { folder: ['Music', 'Stems', 'Harbor dawn'], file: 'pad.wav', type: 'stems', note: 'The pad of Harbor dawn.', recipe: stem(HARBOR_DAWN, 'pad') },
+  { folder: ['Music', 'Stems', 'Neon arcade'], file: 'drums.wav', type: 'stems', note: 'The drums of Neon arcade.', recipe: stem(NEON_ARCADE, 'drums') },
+  { folder: ['Music', 'Stems', 'Neon arcade'], file: 'bass.wav', type: 'stems', note: 'The bass of Neon arcade.', recipe: stem(NEON_ARCADE, 'bass') },
+  { folder: ['Music', 'Stems', 'Neon arcade'], file: 'lead.wav', type: 'stems', note: 'The lead of Neon arcade.', recipe: stem(NEON_ARCADE, 'lead') },
 ];
 
 const STILLS: SampleMediaItem[] = [
@@ -882,6 +973,20 @@ const STILLS: SampleMediaItem[] = [
   { folder: ['Stills', 'Layered graphics'], file: 'starburst.png', type: 'layered-graphic', note: 'A starburst badge on a transparent background.', recipe: { kind: 'still', page: 'layered', variant: 'starburst', format: 'png', width: 1080, height: 1080 } },
   { folder: ['Stills', 'Layered graphics'], file: 'tag-label.png', type: 'layered-graphic', note: 'A tag-shaped label on a transparent background.', recipe: { kind: 'still', page: 'layered', variant: 'tag', format: 'png', width: 1920, height: 1080 } },
 
+  // ---- Milestone 36: every stills type to ten.
+  { folder: ['Stills', 'Photos'], file: 'storm-front.jpg', type: 'photo', note: 'A photo-style storm sky in slate greys.', recipe: { kind: 'still', page: 'photo', variant: 'storm', format: 'jpg', width: 1920, height: 1080 } },
+  { folder: ['Stills', 'Photos'], file: 'meadow-morning.jpg', type: 'photo', note: 'A photo-style meadow under a bright morning sky.', recipe: { kind: 'still', page: 'photo', variant: 'meadow', format: 'jpg', width: 1920, height: 1080 } },
+  { folder: ['Stills', 'Photos'], file: 'golden-coast.jpg', type: 'photo', note: 'A photo-style coastline in golden evening light.', recipe: { kind: 'still', page: 'photo', variant: 'coast', format: 'jpg', width: 1920, height: 1080 } },
+  { folder: ['Stills', 'Photos'], file: 'clear-night.jpg', type: 'photo', note: 'A photo-style clear night with a bright moon.', recipe: { kind: 'still', page: 'photo', variant: 'night', format: 'jpg', width: 1920, height: 1080 } },
+  { folder: ['Stills', 'Illustrations'], file: 'hot-air-balloons.png', type: 'illustration', note: 'Flat-shape hot-air balloons over hills at dawn.', recipe: { kind: 'still', page: 'illustration', variant: 'balloon', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Stills', 'Illustrations'], file: 'sailboat.png', type: 'illustration', note: 'A flat-shape sailboat on banded water.', recipe: { kind: 'still', page: 'illustration', variant: 'sailboat', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Stills', 'Illustrations'], file: 'lighthouse-cliff.png', type: 'illustration', note: 'A flat-shape lighthouse sweeping its beam at dusk.', recipe: { kind: 'still', page: 'illustration', variant: 'beacon', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Stills', 'Illustrations'], file: 'planets.png', type: 'illustration', note: 'Flat-shape planets, one ringed, among stars.', recipe: { kind: 'still', page: 'illustration', variant: 'planets', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Stills', 'Layered graphics'], file: 'shield-crest.png', type: 'layered-graphic', note: 'A shield crest on a transparent background.', recipe: { kind: 'still', page: 'layered', variant: 'shield', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Stills', 'Layered graphics'], file: 'laurel-wreath.png', type: 'layered-graphic', note: 'A laurel wreath on a transparent background.', recipe: { kind: 'still', page: 'layered', variant: 'laurel', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Stills', 'Layered graphics'], file: 'wax-seal.png', type: 'layered-graphic', note: 'A wax seal on a transparent background.', recipe: { kind: 'still', page: 'layered', variant: 'wax-seal', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Stills', 'Layered graphics'], file: 'location-pin.png', type: 'layered-graphic', note: 'A map pin on a transparent background.', recipe: { kind: 'still', page: 'layered', variant: 'location-pin', format: 'png', width: 1080, height: 1080 } },
+
 
   // ---- Milestone 24: overlay plates, backdrops and design elements, as stills.
   { folder: ['Backgrounds'], file: 'mesh-gradient.png', type: 'still-background', note: 'A deep blue mesh gradient with soft blooms.', recipe: { kind: 'still', page: 'backdrop', variant: 'mesh-gradient', format: 'png', width: 1920, height: 1080 } },
@@ -890,6 +995,15 @@ const STILLS: SampleMediaItem[] = [
   { folder: ['Textures'], file: 'canvas-weave.png', type: 'texture', note: 'A woven canvas texture.', recipe: { kind: 'still', page: 'backdrop', variant: 'canvas-weave', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Textures'], file: 'concrete.png', type: 'texture', note: 'A mottled concrete texture.', recipe: { kind: 'still', page: 'backdrop', variant: 'concrete', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Textures'], file: 'noise-grid.png', type: 'texture', note: 'A sparse lit grid on near-black.', recipe: { kind: 'still', page: 'backdrop', variant: 'noise-grid', format: 'png', width: 1920, height: 1080 } },
+  // ---- Milestone 36: still backgrounds and textures to ten, counted with the bundled templates.
+  { folder: ['Backgrounds'], file: 'spotlight-wall.png', type: 'still-background', note: 'A dark wall under one warm spotlight.', recipe: { kind: 'still', page: 'backdrop', variant: 'spotlight-wall', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Backgrounds'], file: 'duotone-split.png', type: 'still-background', note: 'Two flat colours split on a diagonal.', recipe: { kind: 'still', page: 'backdrop', variant: 'duotone-split', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Backgrounds'], file: 'bokeh-dark.png', type: 'still-background', note: 'Warm and cool bokeh on near-black.', recipe: { kind: 'still', page: 'backdrop', variant: 'bokeh-dark', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Backgrounds'], file: 'horizon-glow.png', type: 'still-background', note: 'A glowing horizon band between dark skies.', recipe: { kind: 'still', page: 'backdrop', variant: 'horizon-glow', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Textures'], file: 'brushed-metal.png', type: 'texture', note: 'A brushed-metal sheet with fine streaks.', recipe: { kind: 'still', page: 'backdrop', variant: 'brushed-metal', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Textures'], file: 'marble-veins.png', type: 'texture', note: 'Pale marble with wandering veins.', recipe: { kind: 'still', page: 'backdrop', variant: 'marble-veins', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Textures'], file: 'halftone-dots.png', type: 'texture', note: 'A halftone dot ramp on cream.', recipe: { kind: 'still', page: 'backdrop', variant: 'halftone-dots', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Textures'], file: 'linen-weave.png', type: 'texture', note: 'A fine linen weave.', recipe: { kind: 'still', page: 'backdrop', variant: 'linen-weave', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Overlays', 'Frames'], file: 'frame-thin.png', type: 'frame', note: 'A thin double rule framing the frame.', recipe: { kind: 'still', page: 'overlay', variant: 'frame-thin', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Overlays', 'Frames'], file: 'frame-corners.png', type: 'frame', note: 'Gold corner marks, as a viewfinder.', recipe: { kind: 'still', page: 'overlay', variant: 'frame-corners', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Overlays', 'Frames'], file: 'frame-deco.png', type: 'frame', note: 'A bordered frame with corner dots.', recipe: { kind: 'still', page: 'overlay', variant: 'frame-deco', format: 'png', width: 1920, height: 1080 } },
@@ -1007,6 +1121,24 @@ const CLIPS: SampleMediaItem[] = [
     type: 'stock-footage',
     note: `The ${name} background rendered to H.264 at 1280 × 720, ${seconds === 5 ? 'five' : seconds === 6 ? 'six' : 'eight'} seconds — one whole loop.`,
     recipe: { kind: 'clip', templateId: `pulp.samples.${slug}`, seconds, width: 1280, height: 720 },
+  })),
+  // Milestone 36: footage with subjects of its own — scenes drawn over the clip's time by the
+  // footage page and encoded opaque H.264, rather than a background template re-rendered.
+  ...([
+    ['ocean-swell', 'Rolling ocean swells with whitecaps, mid-sea.', true],
+    ['rolling-clouds', 'Clouds crossing a sunlit sky in three layers.', true],
+    ['rain-on-glass', 'Rain running down a window over blurred lights.', true],
+    ['city-traffic', 'City traffic at night: head and tail lights under lit towers.', true],
+    ['snowfall-pines', 'Snow falling over a stand of pines.', true],
+    ['meadow-breeze', 'A meadow swaying in the wind, flowers in the grass.', true],
+    ['bird-flock', 'A flock crossing an evening sky, wings beating.', true],
+    ['night-sky', 'A starfield twinkling over a ridge, one meteor.', true],
+  ] as const).map(([variant, note, loop]): SampleMediaItem => ({
+    folder: ['Video clips', 'Stock footage'],
+    file: `${variant}.mp4`,
+    type: 'stock-footage',
+    note: `${note} Drawn over five seconds${loop ? '; loops' : ''}.`,
+    recipe: { kind: 'asset', page: 'footage', variant, format: 'mp4', width: 1280, height: 720, seconds: 5, fps: ASSET_FPS, loop },
   })),
 ];
 
@@ -1253,6 +1385,61 @@ const ASSETS: SampleMediaItem[] = [
   asset(['Community objects', 'Civic'], 'community-objects', 'ballot-box', 'A ballot box.'),
   asset(['Community objects', 'Civic'], 'community-objects', 'columned-building', 'A building with columns.'),
   asset(['Community objects', 'Civic'], 'community-objects', 'megaphone', 'A megaphone.'),
+
+  // ---- Milestone 36: four more of each effect, so every Effects category is ten deep.
+  asset(['Fire and flames', 'Food'], 'fire', 'gas-ring', 'A gas ring burning blue; loops.', 'square', 'loop'),
+  asset(['Fire and flames'], 'fire', 'oil-lamp', 'An oil lamp with its flame, held still.'),
+  asset(['Fire and flames'], 'fire', 'ember-bed', 'A bed of embers breathing; loops.', 'wide', 'loop'),
+  asset(['Fire and flames', 'Gaming'], 'fire', 'fire-swirl', 'A fire swirl climbing; loops.', 'square', 'loop'),
+  asset(['Smoke and steam', 'Home'], 'smoke', 'chimney-smoke', 'Chimney smoke drifting off; loops.', 'wide', 'loop'),
+  asset(['Smoke and steam'], 'smoke', 'incense-ribbon', 'An incense ribbon rising, held still.'),
+  asset(['Smoke and steam'], 'smoke', 'dust-roll', 'Dust rolling through; one shot.', 'wide', 'once'),
+  asset(['Smoke and steam'], 'smoke', 'vapor-drift', 'A sheet of vapor, held still.', 'wide'),
+  asset(['Sparks and embers'], 'sparks', 'flint-strike', 'A flint struck; one shot.', 'square', 'once'),
+  asset(['Sparks and embers'], 'sparks', 'spark-fountain', 'A fountain of sparks; loops.', 'square', 'loop'),
+  asset(['Sparks and embers'], 'sparks', 'ember-swirl', 'Embers circling; loops.', 'square', 'loop'),
+  asset(['Sparks and embers', 'Technology'], 'sparks', 'static-sparks', 'Static discharges, held still.', 'wide'),
+  asset(['Explosions and impacts'], 'explosion-asset', 'ground-burst', 'A burst off the ground; one shot.', 'wide', 'once'),
+  asset(['Explosions and impacts'], 'explosion-asset', 'flash-pop', 'A flash with rays; one shot.', 'square', 'once'),
+  asset(['Explosions and impacts', 'Gaming'], 'explosion-asset', 'debris-ring', 'A ring of thrown debris; one shot.', 'square', 'once'),
+  asset(['Explosions and impacts'], 'explosion-asset', 'impact-dust', 'Dust kicked out by a landing; one shot.', 'wide', 'once'),
+  asset(['Energy and magic', 'Gaming'], 'energy', 'plasma-orb', 'A plasma orb arcing; loops.', 'square', 'loop'),
+  asset(['Energy and magic', 'Science'], 'energy', 'power-beam', 'A beam with riding motes; loops.', 'wide', 'loop'),
+  asset(['Energy and magic', 'Fantasy'], 'energy', 'rune-circle', 'A rune circle turning; loops.', 'square', 'loop'),
+  asset(['Energy and magic'], 'energy', 'charge-up', 'Energy drawn to a point; one shot.', 'square', 'once'),
+  asset(['Light and flares'], 'light-asset', 'light-leak-sweep', 'A warm light leak across a corner, held still.', 'wide'),
+  asset(['Light and flares', 'Cinema'], 'light-asset', 'projector-cone', 'A projector cone with drifting dust, held still.', 'wide'),
+  asset(['Light and flares'], 'light-asset', 'flare-streak', 'An anamorphic flare streak, held still.', 'wide'),
+  asset(['Light and flares', 'Music'], 'light-asset', 'spot-sweep', 'A spotlight sweeping; loops.', 'square', 'loop'),
+  asset(['Weather effects', 'Weather'], 'weather-asset', 'rain-streaks', 'Rain streaking down; loops.', 'wide', 'loop'),
+  asset(['Weather effects', 'Christmas'], 'weather-asset', 'snow-settle', 'Snow falling and settling; loops.', 'wide', 'loop'),
+  asset(['Weather effects', 'Weather'], 'weather-asset', 'lightning-flash', 'A lightning strike and its flash; one shot.', 'wide', 'once'),
+  asset(['Weather effects', 'Faith'], 'weather-asset', 'sun-shafts', 'Sun shafts through a high light, held still.', 'wide'),
+  asset(['Liquids and splashes'], 'liquid', 'ripple-rings', 'Rings spreading from a drop; one shot.', 'wide', 'once'),
+  asset(['Liquids and splashes', 'Ocean'], 'liquid', 'bubble-column', 'Bubbles rising in a column; loops.', 'square', 'loop'),
+  asset(['Liquids and splashes'], 'liquid', 'splash-crown', 'A splash crown; one shot.', 'square', 'once'),
+  asset(['Liquids and splashes', 'Ocean'], 'liquid', 'wave-lap', 'Water lapping in bands; loops.', 'wide', 'loop'),
+  asset(['Confetti and celebration', 'Birthday'], 'confetti', 'streamer-fall', 'Paper streamers falling; loops.', 'square', 'loop'),
+  asset(['Confetti and celebration', 'New year'], 'confetti', 'confetti-cannon', 'A cannon firing confetti across; one shot.', 'wide', 'once'),
+  asset(['Confetti and celebration'], 'confetti', 'star-twinkle', 'Scattered stars twinkling; loops.', 'wide', 'loop'),
+  asset(['Confetti and celebration'], 'confetti', 'ticker-tape', 'Ticker tape tumbling; loops.', 'square', 'loop'),
+  asset(['Brush and ink strokes'], 'brush', 'ink-splat', 'An ink splat landing; one shot.', 'square', 'once'),
+  asset(['Brush and ink strokes'], 'brush', 'paint-roller-pass', 'A roller laying a band of paint; one shot.', 'wide', 'once'),
+  asset(['Brush and ink strokes'], 'brush', 'dry-brush', 'A dry-brush stroke, held still.', 'wide'),
+  asset(['Brush and ink strokes'], 'brush', 'ink-drips', 'Ink running down from an edge; one shot.', 'square', 'once'),
+
+  // ---- Milestone 36: the thin object kinds to ten.
+  asset(['Travel objects', 'Travel'], 'travel-objects', 'passport', 'A passport.'),
+  asset(['Travel objects', 'Travel'], 'travel-objects', 'postcard', 'A postcard.'),
+  asset(['Travel objects', 'Summer'], 'travel-objects', 'sunglasses', 'Sunglasses.'),
+  asset(['Travel objects', 'Outdoors'], 'travel-objects', 'camper-van', 'A camper van.'),
+  asset(['Home objects'], 'home-objects', 'armchair', 'An armchair.'),
+  asset(['Home objects'], 'home-objects', 'alarm-clock', 'An alarm clock.'),
+  asset(['Home objects', 'Food'], 'home-objects', 'teapot', 'A teapot.'),
+  asset(['Home objects', 'Family'], 'home-objects', 'framed-photo', 'A framed photo.'),
+  asset(['Science objects', 'Science'], 'science-objects', 'microscope', 'A microscope.'),
+  asset(['Science objects', 'Education'], 'science-objects', 'magnet', 'A horseshoe magnet.'),
+  asset(['Nature objects', 'Autumn'], 'nature-objects', 'acorn', 'An acorn.'),
 ];
 
 /** Every sample file, in the order they are made. */
@@ -1268,18 +1455,18 @@ export function sampleMediaKind(item: SampleMediaItem): MediaKind {
 }
 
 /**
- * Encode an asset's PNG frames as WebM with alpha: VP9 in `yuva420p`, which is
- * the transparent video every platform here can decode. Tuned for speed over
- * size — these are generated on demand, not shipped.
+ * Encode an asset's PNG frames: WebM with alpha (VP9 in `yuva420p`, the
+ * transparent video every platform here can decode) for an element, opaque
+ * H.264 in `yuv420p` for the footage scenes (milestone 36), which every editor
+ * takes as it takes any clip. Tuned for speed over size — these are generated
+ * on demand, not shipped.
  */
 export function sampleAssetArgs(recipe: Extract<SampleRecipe, { kind: 'asset' }>, out: string): string[] {
-  return [
-    '-hide_banner', '-loglevel', 'error', '-y',
-    '-f', 'image2pipe', '-vcodec', 'png', '-framerate', String(recipe.fps), '-i', '-',
-    '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0', '-crf', '34',
-    '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1',
-    out,
-  ];
+  const pipe = ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'image2pipe', '-vcodec', 'png', '-framerate', String(recipe.fps), '-i', '-'];
+  if (recipe.format === 'mp4') {
+    return [...pipe, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-crf', '21', '-movflags', '+faststart', out];
+  }
+  return [...pipe, '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0', '-crf', '34', '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1', out];
 }
 
 /** The type the library scan will give the file from its folders, so the test can compare it with the intent. */
@@ -1321,7 +1508,7 @@ export function sampleMediaReadme(): string {
   const lines = [
     '# Sample media',
     '',
-    'Generated by Pulp so that every media type in the browse tree has at least six examples. Everything here is original and CC0 (see LICENSE-CC0.txt): sounds are synthesized from tones, noise and envelopes (the animal calls are synthesized, not recorded), stills are drawn on a canvas, the clips are the bundled background templates rendered out, and the assets are drawn on transparency. The folder names give each file its type when the folder is in a Pulp library.',
+    'Generated by Pulp so that every media type in the browse tree has at least ten examples. Everything here is original and CC0 (see LICENSE-CC0.txt): sounds are synthesized from tones, noise and envelopes (the animal calls are synthesized, not recorded), stills are drawn on a canvas, the clips are the bundled background templates rendered out or footage-like scenes drawn over time, and the assets are drawn on transparency. The folder names give each file its type when the folder is in a Pulp library.',
     '',
     'Delete any file and run the generator again to get it back; files that already exist are left alone.',
     '',
