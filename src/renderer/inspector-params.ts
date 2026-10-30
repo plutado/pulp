@@ -694,6 +694,7 @@ function imageField(
       const box = document.createElement('input');
       box.type = 'checkbox';
       box.checked = !hidden.has(layer.id);
+      box.disabled = layer.hasPixels === false;
       box.setAttribute('aria-label', `Show ${layer.name || 'layer'}`);
       box.addEventListener('change', () => {
         const next = new Set(hidden);

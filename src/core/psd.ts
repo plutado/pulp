@@ -17,6 +17,13 @@
 
 export const PSD_EXTENSION = '.psd';
 
+/** The extensions read as layered stills (milestone 33). `.ai` reads through the PDF it carries. */
+export const LAYERED_EXTENSIONS = ['.psd', '.ora', '.kra', '.svg', '.ai', '.pdf'] as const;
+
+export function isLayeredExtension(ext: string): boolean {
+  return (LAYERED_EXTENSIONS as readonly string[]).includes(ext.toLowerCase());
+}
+
 /**
  * The blend modes Pulp draws: every one a canvas draws natively (the W3C
  * compositing set), computed here with the same formulas so the stage, the
@@ -113,7 +120,10 @@ export interface PsdDocument {
 export interface PsdOutline {
   width: number;
   height: number;
-  layers: Omit<PsdLayer, 'pixels'>[];
+  layers: (Omit<PsdLayer, 'pixels'> & {
+    /** False when the layer's pixels cannot be had (Krita's tile format): it cannot be toggled or placed alone. */
+    hasPixels?: boolean;
+  })[];
   limits: string[];
   hasComposite: boolean;
 }
@@ -457,7 +467,7 @@ export function psdOutline(doc: PsdDocument): PsdOutline {
   return {
     width: doc.width,
     height: doc.height,
-    layers: doc.layers.map(({ pixels: _pixels, ...rest }) => rest),
+    layers: doc.layers.map(({ pixels, ...rest }) => ({ ...rest, hasPixels: rest.kind === 'group' || pixels !== undefined })),
     limits: doc.limits,
     hasComposite: doc.composite !== null,
   };
@@ -626,9 +636,9 @@ export function layerCanvasBox(doc: Pick<PsdDocument, 'width' | 'height'>, layer
   return { x: layer.left / doc.width, y: layer.top / doc.height, width: layer.width / doc.width, height: layer.height / doc.height };
 }
 
-/** The layers a split places: the drawn, shown, non-group layers, top first so the stack reads as the file does. */
+/** The layers a split places: the drawn, shown, non-group layers whose pixels can be had, top first so the stack reads as the file does. */
 export function placeableLayers(outline: Pick<PsdOutline, 'layers'>, hidden: ReadonlySet<string>): PsdOutline['layers'] {
-  return outline.layers.filter((l) => l.kind === 'layer' && l.width > 0 && l.height > 0 && layerShown(outline.layers, l.id, hidden));
+  return outline.layers.filter((l) => l.kind === 'layer' && l.width > 0 && l.height > 0 && l.hasPixels !== false && layerShown(outline.layers, l.id, hidden));
 }
 
 /** A sentence on what the file has that Pulp does not reproduce, across all its layers; empty when nothing. */

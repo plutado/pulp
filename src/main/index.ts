@@ -2,7 +2,7 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { SAMPLE_MEDIA_FOLDER_NAME } from '../core/sample-media';
 import { generateSampleMedia } from './sample-media-service';
 import { readSlotImages, resolveRowImages } from './image-grant';
-import { psdOutlineFor } from './psd-service';
+import { layeredOutlineFor } from './layered-service';
 import { renderMedia } from './media-render';
 import { AUDIO_PRESETS, isAudioPresetId } from '../core/media-render';
 import { sanitizePsdChoice, type ImageGrantRequest } from '../core/image-slot';
@@ -154,7 +154,7 @@ function registerIpc(): void {
   ipcMain.handle('library:set-sequence-fps', (_event, id: string, fps: unknown) => setItemSequenceFps(id, typeof fps === 'number' ? fps : undefined));
   ipcMain.handle('library:mark-used', (_event, id: string) => markItemUsed(id));
   ipcMain.handle('images:load', (_event, requests: unknown) => readSlotImages(grantRequestsFrom(requests)));
-  ipcMain.handle('psd:outline', (_event, id: unknown) => psdOutlineFor(String(id ?? '')));
+  ipcMain.handle('psd:outline', (_event, id: unknown) => layeredOutlineFor(String(id ?? '')));
   // The clips a video layer chose, read the same way and by the same rule (milestone 26).
   ipcMain.handle('clips:load', (_event, requests: unknown) => loadLayerClips(Array.isArray(requests) ? requests : []));
   ipcMain.handle('library:diagnostics', () => libraryDiagnostics());

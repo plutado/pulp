@@ -35,6 +35,7 @@ function settingsLine(r: ResolvedItem): string {
   // What a media item renders with, beyond the preset (milestone 15).
   if (options.length !== undefined) parts.push(`${options.length} s`);
   if (options.speed !== undefined && options.speed !== 1) parts.push(`×${options.speed}`);
+  if (options.tint) parts.push('recoloured');
   if (options.matte) parts.push('matte');
   const fps = options.fps;
   if (fps !== undefined) parts.push(frameRateLabel(fps));

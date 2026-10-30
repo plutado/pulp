@@ -78,7 +78,8 @@ function renderResults(): void {
   for (const p of index.problems.slice(0, 5)) {
     const div = document.createElement('div');
     div.className = 'problem';
-    div.title = p.issues?.map((i) => `${i.path}: ${i.message}`).join('\n') ?? '';
+    // The bar keeps one line, so the whole message rides in the tooltip.
+    div.title = p.issues?.map((i) => `${i.path}: ${i.message}`).join('\n') || `${p.message} (${p.path})`;
     div.textContent = `${p.message} (${p.path.split(/[\\/]/).slice(-2).join('/')})`;
     els.summary.append(div);
   }

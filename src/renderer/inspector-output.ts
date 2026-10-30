@@ -58,6 +58,9 @@ const els = {
   optCrossfadeField: $<HTMLLabelElement>('opt-crossfade-field'),
   optCrossfade: $<HTMLInputElement>('opt-crossfade'),
   optMatteField: $<HTMLLabelElement>('opt-matte-field'),
+  optTintField: $<HTMLLabelElement>('opt-tint-field'),
+  optTintOn: $<HTMLInputElement>('opt-tint-on'),
+  optTint: $<HTMLInputElement>('opt-tint'),
   optMatte: $<HTMLInputElement>('opt-matte'),
   audioOptions: $<HTMLDivElement>('audio-options'),
   optSampleRate: $<HTMLSelectElement>('opt-sample-rate'),
@@ -329,6 +332,7 @@ export function readRenderOptions(): RenderOptions {
     if (speed !== undefined && speed !== 1) options.speed = speed;
     const crossfade = els.optCrossfadeField.hidden ? undefined : number(els.optCrossfade);
     if (crossfade !== undefined) options.crossfade = crossfade;
+    if (!els.optTintField.hidden && els.optTintOn.checked) options.tint = els.optTint.value;
     if (!els.audioOptions.hidden) {
       const audio: AudioOptions = {};
       if (els.optSampleRate.value) audio.sampleRate = Number(els.optSampleRate.value);
@@ -449,6 +453,7 @@ function updateMediaOptionsNote(entry: MediaEntry): void {
     } else {
       parts.push(`${(t.totalFrames / t.fps).toFixed(2)} s of sound`);
     }
+    if (options.tint) parts.push(`recoloured ${options.tint}`);
     if (options.matte) parts.push('with a matte file');
     els.optionsNote.classList.remove('error');
     els.optionsNote.textContent = parts.join(' · ');
@@ -646,8 +651,9 @@ function showMediaFields(entry: MediaEntry | null): void {
   els.optSpeedField.hidden = kind === 'image';
   els.optCrossfadeField.hidden = kind === 'image';
   els.audioOptions.hidden = kind !== 'audio';
-  // A sound has no picture to flatten, fit or matte.
+  // A sound has no picture to flatten, fit, matte or recolour.
   els.optMatteField.hidden = kind === 'audio';
+  els.optTintField.hidden = kind === 'audio';
   els.optResolution.parentElement!.hidden = kind === 'audio';
   els.optBackgroundField.hidden = kind === 'audio' || els.optBackgroundField.hidden;
 }
@@ -680,6 +686,8 @@ export function outputShowMedia(entry: MediaEntry): void {
   els.optSpeed.value = '';
   els.optCrossfade.value = '';
   els.optMatte.checked = false;
+  els.optTintOn.checked = false;
+  els.optTint.hidden = true;
   els.optSampleRate.value = '';
   els.optChannels.value = '';
   els.optBitDepth.value = '16';
@@ -759,6 +767,9 @@ function initCollectionEditing(): void {
         els.optSpeed.value = item.options.speed === undefined ? '' : String(item.options.speed);
         els.optCrossfade.value = item.options.crossfade === undefined ? '' : String(item.options.crossfade);
         els.optMatte.checked = item.options.matte === true;
+        els.optTintOn.checked = item.options.tint !== undefined;
+        els.optTint.hidden = item.options.tint === undefined;
+        if (item.options.tint) els.optTint.value = item.options.tint;
         els.optSampleRate.value = item.options.audio?.sampleRate ? String(item.options.audio.sampleRate) : '';
         els.optChannels.value = item.options.audio?.channels ? String(item.options.audio.channels) : '';
         els.optBitDepth.value = item.options.audio?.bitDepth === 24 ? '24' : '16';
@@ -856,6 +867,15 @@ export function initInspectorOutput(): void {
       saveToEditedCard();
     });
   }
+  els.optTintOn.addEventListener('change', () => {
+    els.optTint.hidden = !els.optTintOn.checked;
+    updateOptionsNote();
+    saveToEditedCard();
+  });
+  els.optTint.addEventListener('input', () => {
+    updateOptionsNote();
+    saveToEditedCard();
+  });
   for (const el of [els.optMatte, els.optSampleRate, els.optChannels, els.optBitDepth]) {
     el.addEventListener('change', () => {
       updateOptionsNote();

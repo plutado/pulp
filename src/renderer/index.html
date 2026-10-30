@@ -241,6 +241,13 @@
             <span>Loop crossfade</span>
             <input id="opt-crossfade" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0.5" data-tip="Seconds the end fades into the start at each loop join; 0 for a plain repeat">
           </label>
+          <label class="field" id="opt-tint-field">
+            <span>Recolor</span>
+            <span class="tint-row">
+              <input id="opt-tint-on" type="checkbox" aria-label="Recolor the picture" data-tip="Render the picture's luminance in one colour, alpha kept — to match a palette">
+              <input id="opt-tint" type="color" value="#f59e0b" aria-label="Recolor colour" hidden>
+            </span>
+          </label>
           <div id="audio-options" class="audio-options" hidden>
             <label class="field"><span>Sample rate</span>
               <select id="opt-sample-rate"><option value="">As it is</option><option value="44100">44.1 kHz</option><option value="48000">48 kHz</option><option value="96000">96 kHz</option></select>

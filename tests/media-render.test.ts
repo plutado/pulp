@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  atempoChain, AUDIO_PRESET_IDS, audioCodecArgsFor, audioPresetArgs, buildMediaRenderPlan, DEFAULT_STILL_SECONDS, parseProgressLine, resolveMediaTiming,
+  atempoChain, AUDIO_PRESET_IDS, audioCodecArgsFor, audioPresetArgs, buildMediaRenderPlan, DEFAULT_STILL_SECONDS, parseProgressLine, resolveMediaTiming, tintFilter,
   type MediaSource,
 } from '../src/core/media-render';
 import { AUDIO_PRESETS } from '../src/core/media-render';
@@ -152,6 +152,23 @@ describe('a clip or a still through a video preset', () => {
     expect(() => buildMediaRenderPlan({ source: clip, presetId: 'h264-mp4', outputPath: '/out/c.mp4', options: { width: 1001, height: 601 } })).toThrow(/even width and height/);
     expect(() => buildMediaRenderPlan({ source: sound, presetId: 'h264-mp4', outputPath: '/out/s.mp4' })).toThrow(/renders with an audio preset/);
     expect(() => buildMediaRenderPlan({ source: clip, presetId: 'nope', outputPath: '/out/c' })).toThrow(/unknown output preset/);
+  });
+});
+
+describe('recolor (milestone 15)', () => {
+  it('renders the luminance in one colour, alpha kept, before the size fit', () => {
+    expect(tintFilter('#ffffff')).toBe('format=rgba,colorchannelmixer=0.299:0.587:0.114:0:0.299:0.587:0.114:0:0.299:0.587:0.114:0:0:0:0:1');
+    // Half red: every luma weight scaled by 0.5 on the red row, zero elsewhere.
+    const half = tintFilter('#800000');
+    expect(half).toContain('colorchannelmixer=0.150086:0.294651:0.057224:0:0:0:0:0:0:0:0:0:0:0:0:1');
+    const plan = buildMediaRenderPlan({ source: clip, presetId: 'prores-4444', outputPath: '/out/c', options: { tint: '#f59e0b' } });
+    const g = plan.stages[0]!.args[plan.stages[0]!.args.indexOf('-filter_complex') + 1]!;
+    expect(g).toContain('colorchannelmixer=');
+    expect(g.indexOf('fps=25')).toBeLessThan(g.indexOf('colorchannelmixer'));
+    // The loop unit carries the recolor, so every repeat matches.
+    const looped = buildMediaRenderPlan({ source: clip, presetId: 'prores-4444', outputPath: '/out/c', options: { tint: '#f59e0b', length: 10, crossfade: 1 }, scratchDir: '/tmp/s' });
+    expect(looped.stages[0]!.args.join(' ')).toContain('colorchannelmixer');
+    expect(() => buildMediaRenderPlan({ source: clip, presetId: 'h264-mp4', outputPath: '/out/c.mp4', options: { tint: 'red' } })).toThrow(/tint must be #RRGGBB/);
   });
 });
 

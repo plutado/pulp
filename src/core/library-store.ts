@@ -19,6 +19,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
 import { folderTags, itemId, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES, type PackContext } from './library-scan';
+import { unreadableDesignNote } from './layered';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
 import { PACK_FILENAME, parsePackManifest, slug } from './pack';
 import { inferMediaType, inferThemes } from './taxonomy';
@@ -368,7 +369,12 @@ export class LibraryStore {
           }
           if (!entry.isFile()) continue;
           const kind = mediaKindForPath(entry.name);
-          if (!kind) continue;
+          if (!kind) {
+            // A design file Pulp does not read is named with the export that works, not skipped silently (milestone 33).
+            const note = unreadableDesignNote(entry.name, extname(entry.name));
+            if (note) problems.push({ path: full, message: note });
+            continue;
+          }
           if (fileCount >= maxFiles) {
             if (!truncated) problems.push({ path: rootPath, message: `stopped after ${maxFiles} files` });
             truncated = true;

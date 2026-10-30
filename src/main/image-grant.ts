@@ -15,7 +15,7 @@ import { MEDIA_MIME } from '../core/media-serve';
 import { resolveImageCell, sanitizeImageValue } from '../core/image-slot';
 import type { TemplateManifest } from '../core/manifest';
 import { importedImages, lookupMedia } from './library-service';
-import { compositePng, isPsdPath, layerPng, readPsdFile } from './psd-service';
+import { isLayeredPath, layeredFileFor } from './layered-service';
 
 /** One still, ready to be handed to a template page: a data URL the bridge decodes through an <img>. */
 export interface SlotImageData {
@@ -95,13 +95,13 @@ export async function readSlotImages(requests: readonly (string | ImageGrantRequ
       continue;
     }
     try {
-      if (isPsdPath(found.entry.path)) {
-        const read = await readPsdFile(found.entry.path);
-        if (!read.ok) {
-          missing.push(request.id);
-          continue;
-        }
-        const png = request.psd?.layer ? layerPng(read.document, request.psd.layer) : compositePng(read.document, request.psd?.hide);
+      // A layered still crosses as a PNG the main process made: composited with the value's hidden
+      // layers left out, or as the one layer the value names (milestone 33). An SVG with no layered
+      // choice keeps its own bytes below, which the page rasterizes sharply itself.
+      const svg = found.entry.path.toLowerCase().endsWith('.svg');
+      if (isLayeredPath(found.entry.path) && (request.psd !== undefined || !svg)) {
+        const read = await layeredFileFor(found.entry.path);
+        const png = read.ok ? (request.psd?.layer ? await read.handle.layer(request.psd.layer) : await read.handle.composite(request.psd?.hide)) : null;
         if (!png) {
           missing.push(request.id);
           continue;

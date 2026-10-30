@@ -25,13 +25,13 @@ import { SEQUENCE_FPS, sequenceFrameName, sequenceMetadata, sequencePatternName,
 import { encodePeaks, peaksFromPcm, wantsWaveform, waveformArgs } from '../core/waveform';
 import { captureTemplateFrames } from './render';
 import { templateDefaultSize } from '../core/aspect';
-import { compositePng, isPsdPath, readPsdFile } from './psd-service';
+import { isLayeredPath, layeredFileFor } from './layered-service';
 
 /** A layered file's size and transparency, read from the file itself: ffprobe is not asked (milestone 33). */
-async function psdMetadata(path: string): Promise<MediaMetadata | null> {
-  const read = await readPsdFile(path);
+async function layeredMetadata(path: string): Promise<MediaMetadata | null> {
+  const read = await layeredFileFor(path);
   if (!read.ok) return null;
-  return { width: read.document.width, height: read.document.height, codec: 'psd', alpha: true };
+  return { width: read.handle.outline.width, height: read.handle.outline.height, codec: extname(path).slice(1).toLowerCase(), alpha: true };
 }
 import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
 import type { MediaMetadata } from '../core/media-meta';
@@ -249,7 +249,7 @@ async function probePendingMetadata(): Promise<void> {
         await Promise.all(
           pending.slice(i, i + PROBE_CONCURRENCY).map(async (entry) => {
             // A sequence is probed through its first frame; the run says how long it runs for.
-            const probed = isPsdPath(entry.path) ? await psdMetadata(entry.path) : await probeMedia(ffprobe!, entry.path, nodeRunner);
+            const probed = isLayeredPath(entry.path) ? await layeredMetadata(entry.path) : await probeMedia(ffprobe!, entry.path, nodeRunner);
             const meta = entry.sequence ? sequenceMetadata(probed, entry.sequence) : probed;
             st.setMetadata(entry, meta);
           }),
@@ -290,11 +290,11 @@ async function generatePendingThumbnails(): Promise<void> {
         try {
           // A turn per item, not for the whole queue, so a hover-scrub strip can get in between.
           ok = await heavyWork(async () => {
-            if (entry.kind === 'media' && isPsdPath(entry.path)) {
+            if (entry.kind === 'media' && isLayeredPath(entry.path)) {
               // A layered file's thumbnail is its composite as the file shows it, shrunk like a poster (milestone 33).
-              const read = await readPsdFile(entry.path);
+              const read = await layeredFileFor(entry.path);
               if (!read.ok) return false;
-              const scaled = await runWithInput(ffmpegPath!, posterFromFrameArgs(out, null), compositePng(read.document));
+              const scaled = await runWithInput(ffmpegPath!, posterFromFrameArgs(out, null), await read.handle.composite());
               return scaled.code === 0 && existsSync(out);
             }
             if (entry.kind === 'media') {

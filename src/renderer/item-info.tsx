@@ -347,7 +347,7 @@ function Layers({ entry }: { entry: LibraryEntry }) {
             return (
               <li key={layer.id} class={`psd-layer${layer.kind === 'group' ? ' group' : ''}${shown ? '' : ' hidden'}`} style={{ paddingLeft: `${layer.depth * 16}px` }} data-layer={layer.id}>
                 <label>
-                  <input type="checkbox" checked={!own} onChange={() => togglePsdLayer(entry.id, outline, layer.id)} aria-label={`Show ${layer.name || 'layer'}`} />
+                  <input type="checkbox" checked={!own} disabled={layer.hasPixels === false} onChange={() => togglePsdLayer(entry.id, outline, layer.id)} aria-label={`Show ${layer.name || 'layer'}`} />
                   {layer.kind === 'group' && <Icon name="folder" />}
                   <span class="name">{layer.name || (layer.kind === 'group' ? 'Group' : 'Layer')}</span>
                   {facts && <span class="facts">{facts}</span>}

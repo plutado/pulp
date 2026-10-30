@@ -327,7 +327,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .shortcut-rows { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--space-3); margin: 0; }
 .shortcut-rows dt { font-size: var(--font-secondary); }
 .shortcut-rows dd { margin: 0; font-family: Menlo, Consolas, monospace; font-size: var(--font-caption); color: var(--muted); white-space: nowrap; }
-.status-bar .summary { border-top: 0; padding: 0; display: flex; gap: 12px; flex-wrap: wrap; min-width: 0; }
+/* One line, always: a library problem joins the row truncated (its full text is the tooltip)
+   rather than wrapping the bar taller — a taller bar would eat the stage's floor on a short window. */
+.status-bar .summary { border-top: 0; padding: 0; display: flex; gap: 12px; flex-wrap: nowrap; min-width: 0; overflow: hidden; }
+.status-bar .summary > div { white-space: nowrap; }
+.status-bar .summary .problem { overflow: hidden; text-overflow: ellipsis; max-width: 240px; flex: 0 1 auto; }
 
 .pack-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-surface); padding: var(--space-4); width: min(560px, 90vw); }
 .pack-dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
@@ -1081,4 +1085,5 @@ progress { width: 100%; margin: 2px 0; }
 .media-options { display: contents; }
 .audio-options { display: contents; }
 .matte-field { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.tint-row { display: flex; align-items: center; gap: var(--space-2); }
 .matte-field input { width: auto; }

@@ -9,7 +9,7 @@
 
 import { signal } from '@preact/signals';
 import type { LibraryEntry } from '../core/library-types';
-import { fileHiddenLayers, PSD_EXTENSION, type PsdOutline } from '../core/psd';
+import { fileHiddenLayers, isLayeredExtension, type PsdOutline } from '../core/psd';
 
 export type OutlineState = { ok: true; outline: PsdOutline } | { ok: false; message: string } | { ok: 'pending' };
 
@@ -19,9 +19,9 @@ export const psdOutlines = signal<Readonly<Record<string, OutlineState>>>({});
 /** Hidden layers by item id while browsing; an item with no entry shows the file's own visibility. */
 export const psdHidden = signal<Readonly<Record<string, string[]>>>({});
 
-/** Not a type guard on purpose: a media entry is still a media entry when it is not layered. */
+/** Any layered still (milestone 33): Photoshop, OpenRaster, Krita, SVG, or the PDF an .ai carries. */
 export function isPsdEntry(entry: LibraryEntry | null | undefined): boolean {
-  return !!entry && entry.kind === 'media' && entry.ext.toLowerCase() === PSD_EXTENSION;
+  return !!entry && entry.kind === 'media' && isLayeredExtension(entry.ext);
 }
 
 /** The outline for an item, asking for it the first time; `pending` until it lands. */

@@ -17,6 +17,8 @@ import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { solid, writePsd } from '../psd-fixture';
+import { writePdf } from '../pdf-fixture';
+import { encodePng } from '../../src/core/png';
 import { detectFfmpeg } from '../../src/core/ffmpeg';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
@@ -346,6 +348,22 @@ describe.skipIf(!electron)('inspector UI', () => {
       '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent}canvas{display:block;width:100%;height:100%}</style></head><body><canvas id="c"></canvas><script>var c=document.getElementById("c"),x=c.getContext("2d");window.pulpRender=function(s){if(c.width!==s.width||c.height!==s.height){c.width=s.width;c.height=s.height;}x.clearRect(0,0,s.width,s.height);x.fillStyle="#4f7cac";x.fillRect(s.width*0.1,s.height*0.6,s.width*0.5,s.height*0.2);};</script></body></html>',
     );
     await writeFile(join(mediaDir, 'silence.wav'), await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'silence.wav')));
+    // The other layered stills (milestone 33), generated like the Photoshop one: an OpenRaster of
+    // the same picture, an SVG whose top-level groups are the layers, a PDF with two optional
+    // content groups (one off), and a Sketch file Pulp names rather than reads.
+    const oraPng = (rgba: Uint8Array, w: number, h: number) => Buffer.from(encodePng(rgba, w, h, (b) => new Uint8Array(deflateSync(b))));
+    await writeFile(join(mediaDir, 'painted.ora'), writeZip([
+      { name: 'mimetype', data: Buffer.from('image/openraster') },
+      { name: 'stack.xml', data: Buffer.from('<image w="8" h="6"><stack><stack name="Marks"><layer name="Green mark" src="data/green.png" visibility="hidden" x="4" y="3"/><layer name="Blue mark" src="data/blue.png"/></stack><layer name="Backdrop" src="data/backdrop.png"/></stack></image>') },
+      { name: 'data/backdrop.png', data: oraPng(solid(8, 6, [255, 0, 0, 255]), 8, 6) },
+      { name: 'data/blue.png', data: oraPng(solid(4, 3, [0, 0, 255, 255]), 4, 3) },
+      { name: 'data/green.png', data: oraPng(solid(4, 3, [0, 255, 0, 255]), 4, 3) },
+      { name: 'mergedimage.png', data: oraPng(solid(8, 6, [255, 0, 0, 255]), 8, 6) },
+    ]));
+    await writeFile(join(mediaDir, 'grouped.svg'),
+      '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="60"><g id="Backplate"><rect width="80" height="60" fill="#f00"/></g><g id="Badge" display="none"><circle cx="40" cy="30" r="20" fill="#00f"/></g></svg>');
+    await writeFile(join(mediaDir, 'drawn.pdf'), writePdf());
+    await writeFile(join(mediaDir, 'design.sketch'), Buffer.from('not really a sketch file'));
     // A layered Photoshop file (milestone 33), generated: a red backdrop and a group holding a shown blue mark and a hidden green one.
     await writeFile(join(mediaDir, 'layered.psd'), writePsd({
       width: 8, height: 6,
@@ -2564,12 +2582,12 @@ describe.skipIf(!electron)('inspector UI', () => {
       try {
         for (const height of [697, 600]) {
           await page.send('Emulation.setDeviceMetricsOverride', { width: 1024, height, deviceScaleFactor: 1, mobile: false });
-          await until(async () => (await metrics()).inner === height, `the window at ${height} px`);
-          const m = await metrics();
-          expect(m.results, `results at ${height}: ${JSON.stringify(m)}`).toBeGreaterThanOrEqual(160);
-          expect(m.stage, `stage at ${height}: ${JSON.stringify(m)}`).toBeGreaterThanOrEqual(150);
-          // Nothing overflows the window: what the column holds adds up to what it has.
-          expect(m.search + m.stage + m.results, `fit at ${height}: ${JSON.stringify(m)}`).toBeLessThanOrEqual(height);
+          // The floors are polled, not read once: flex settles a few frames after the window does.
+          let m = await metrics();
+          await until(async () => {
+            m = await metrics();
+            return m.inner === height && m.results >= 160 && m.stage >= 150 && m.search + m.stage + m.results <= height;
+          }, `the floors at ${height} px (last: ${JSON.stringify(m)})`);
           // And the sweep still reaches the last item at this size.
           const last = (await resultNames()).at(-1)!;
           expect(await sweepTo(last)).toBe(true);
@@ -2945,7 +2963,55 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.getElementById('tab-parameters').click()`);
     }, 60_000);
 
-    it('plays and seeks a video, which needs byte ranges', async () => {
+    it('reads OpenRaster, SVG and PDF as layers too, and names what it cannot read (milestone 33)', async () => {
+      const image = () => page.eval<{ src: string; width: number; loaded: boolean }>(`(() => { const i = document.getElementById('media-image'); return { src: i.src, width: i.naturalWidth, loaded: !i.hidden && i.complete && i.naturalWidth > 0 }; })()`);
+      const layerRows = () => page.eval<{ id: string; name: string; checked: boolean; disabled: boolean }[]>(
+        `[...document.querySelectorAll('#info-item [data-section=layers] .psd-layer')].map((li) => ({ id: li.dataset.layer, name: li.querySelector('.name').textContent, checked: li.querySelector('input').checked, disabled: li.querySelector('input').disabled }))`,
+      );
+
+      // An SVG's top-level groups are its layers; a hidden one really shows when its box is ticked.
+      await selectMedia('grouped');
+      await until(async () => (await image()).loaded, 'the SVG composite, rasterized by the renderer');
+      expect((await image()).src).toMatch(/\/composite$/);
+      expect((await image()).width).toBe(80);
+      await page.eval(`document.getElementById('tab-info').click()`);
+      await until(async () => (await layerRows()).length === 2, 'the SVG layer list');
+      expect(await layerRows()).toEqual([
+        { id: 'L1', name: 'Badge', checked: false, disabled: false },
+        { id: 'L0', name: 'Backplate', checked: true, disabled: false },
+      ]);
+      await page.eval(`document.querySelector('#info-item [data-section=layers] .psd-layer[data-layer="L1"] input').click()`);
+      await until(async () => /\/composite\?hide=$/.test((await image()).src) || /\/composite$/.test((await image()).src), 'every layer shown');
+      await until(async () => (await image()).loaded, 'the recomposited SVG');
+
+      // An OpenRaster reads exactly as the Photoshop file does: groups, visibility, toggling.
+      await selectMedia('painted');
+      await until(async () => (await layerRows()).length === 4, 'the OpenRaster layer list');
+      expect((await layerRows()).map((r) => r.name)).toEqual(['Marks', 'Green mark', 'Blue mark', 'Backdrop']);
+      await until(async () => (await image()).loaded, 'the OpenRaster composite');
+      expect((await image()).width).toBe(8);
+
+      // A PDF's optional content groups are its layers; the one the file switches off starts unchecked.
+      await selectMedia('drawn');
+      await until(async () => (await layerRows()).length === 2, 'the PDF layer list', 60_000);
+      const pdfRows = await layerRows();
+      expect(pdfRows.find((r) => r.name === 'Backdrop')).toMatchObject({ checked: true, disabled: false });
+      expect(pdfRows.find((r) => r.name === 'Mark')).toMatchObject({ checked: false });
+      await until(async () => (await image()).loaded, 'the PDF composite, drawn by pdf.js', 60_000);
+      expect((await image()).width).toBe(133); // 100 points at 96 per inch
+      // Showing the switched-off group recomposites.
+      const markRow = pdfRows.find((r) => r.name === 'Mark')!;
+      await page.eval(`document.querySelector('#info-item [data-section=layers] .psd-layer[data-layer="${markRow.id}"] input').click()`);
+      await until(async () => (await image()).src.includes('/composite?hide=') || /composite$/.test((await image()).src), 'the PDF recomposited');
+      await until(async () => (await image()).loaded, 'the new PDF picture', 60_000);
+
+      // A Sketch file in the folder is named with the export that works, not skipped silently.
+      const problems = await page.eval<string[]>(`[...document.querySelectorAll('#library-summary .problem')].map((p) => p.textContent)`);
+      expect(problems.some((p) => p.includes('Sketch') && p.includes('export'))).toBe(true);
+      await page.eval(`document.getElementById('tab-parameters').click()`);
+    }, 180_000);
+
+        it('plays and seeks a video, which needs byte ranges', async () => {
       if (!haveVideo) {
         console.info('ffmpeg not available to make a test video; video preview check skipped.');
         return;

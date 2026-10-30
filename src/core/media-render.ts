@@ -225,6 +225,21 @@ function hexToFfmpegColor(hex: string): string {
   return `0x${hex.slice(1, 7)}`;
 }
 
+/**
+ * Recolor (milestone 15): the picture's luminance in one colour, alpha kept —
+ * what a light leak or a texture is tinted to match a palette. One
+ * colorchannelmixer: each output channel is the Rec.601 luma scaled by the
+ * tint's channel, so grey stays the tint and black stays black.
+ */
+export function tintFilter(tint: string): string {
+  const r = parseInt(tint.slice(1, 3), 16) / 255;
+  const g = parseInt(tint.slice(3, 5), 16) / 255;
+  const b = parseInt(tint.slice(5, 7), 16) / 255;
+  const n = (v: number) => Number(v.toFixed(6));
+  const row = (c: number) => `${n(0.299 * c)}:${n(0.587 * c)}:${n(0.114 * c)}:0`;
+  return `format=rgba,colorchannelmixer=${row(r)}:${row(g)}:${row(b)}:0:0:0:1`;
+}
+
 /** ffmpeg's atempo takes 0.5 to 2 per step, so a wider change is a chain of them. */
 export function atempoChain(speed: number): string[] {
   const steps: string[] = [];
@@ -329,10 +344,13 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
   const overwrite = input.overwrite ? '-y' : '-n';
   const head = ['-hide_banner', '-loglevel', 'error', overwrite, ...PROGRESS];
 
-  // What every path normalises the picture to first: speed, a constant output rate, the size.
+  const tint = options.tint;
+  if (tint !== undefined && !isValidColor(tint)) throw new RenderPlanError(`tint must be #RRGGBB, got "${tint}"`);
+  // What every path normalises the picture to first: speed, a constant output rate, the recolor, the size.
   const normalise = (speedToo: boolean): string[] => [
     ...(speedToo && timing.speed !== 1 ? [`setpts=PTS/${timing.speed}`] : []),
     `fps=${fps}`,
+    ...(tint ? [tintFilter(tint)] : []),
     ...(fitted ? [fitFilter(width, height, preset.alpha || matte || source.alpha, background)] : []),
   ];
   const normaliseAudio = (speedToo: boolean): string[] => (speedToo && timing.speed !== 1 ? atempoChain(timing.speed) : []);

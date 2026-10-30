@@ -26,7 +26,7 @@ import { OUTPUT_PRESETS, RenderPlanError, type PresetId, type RenderOptions } fr
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { nodeRunner } from '../core/ffmpeg';
 import type { RenderProgress, RenderResult } from '../shared/api';
-import { compositePng, isPsdPath, readPsdFile } from './psd-service';
+import { isLayeredPath, layeredFileFor } from './layered-service';
 
 export interface MediaRenderJob {
   entry: MediaEntry;
@@ -41,19 +41,23 @@ export interface MediaRenderJob {
 }
 
 /** What the planner needs to know about an item: the library's measurements, or a probe now; a layered file as its collected composite. */
-export async function mediaSourceFor(entry: MediaEntry, ffmpeg: FfmpegStatus & { ok: true }, scratchDir?: string, params: Record<string, unknown> = {}): Promise<MediaSource> {
-  if (isPsdPath(entry.path)) {
-    const read = await readPsdFile(entry.path);
+export async function mediaSourceFor(entry: MediaEntry, ffmpeg: FfmpegStatus & { ok: true }, scratchDir?: string, params: Record<string, unknown> = {}, target?: { width?: number; height?: number }): Promise<MediaSource> {
+  if (isLayeredPath(entry.path)) {
+    const read = await layeredFileFor(entry.path);
     if (!read.ok) throw new RenderPlanError(`the layered file could not be read: ${read.message}`);
+    const { width, height } = read.handle.outline;
     if (!scratchDir) {
       // Planned, not run: the size is all that is needed.
-      return { kind: 'image', input: { path: entry.path }, width: read.document.width, height: read.document.height, alpha: true, hasAudio: false };
+      return { kind: 'image', input: { path: entry.path }, width, height, alpha: true, hasAudio: false };
     }
-    // The composite as collected, as a still in the scratch folder.
+    // The composite as collected, as a still in the scratch folder. A vector format is drawn at the
+    // render's own size — never below its own — so the picture stays sharp at any output (milestone 33).
     const hide = sanitizePsdChoice((params as { psd?: unknown }).psd)?.hide;
+    const vector = /\.(svg|ai|pdf)$/i.test(entry.path);
+    const scale = vector && target ? Math.max(1, (target.width ?? 0) / width, (target.height ?? 0) / height) : 1;
     const still = join(scratchDir, 'composite.png');
-    await writeFile(still, compositePng(read.document, hide));
-    return { kind: 'image', input: { path: still }, width: read.document.width, height: read.document.height, alpha: true, hasAudio: false };
+    await writeFile(still, await read.handle.composite(hide, scale));
+    return { kind: 'image', input: { path: still }, width: Math.round(width * scale), height: Math.round(height * scale), alpha: true, hasAudio: false };
   }
   let measured = entry;
   if (!entry.meta) {
@@ -122,7 +126,7 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
   if (problem) return { ok: false, message: problem };
   const scratch = await mkdtemp(join(tmpdir(), 'pulp-media-'));
   try {
-    const source = await mediaSourceFor(job.entry, ffmpeg, scratch, job.params);
+    const source = await mediaSourceFor(job.entry, ffmpeg, scratch, job.params, { ...(job.options?.width ? { width: job.options.width } : {}), ...(job.options?.height ? { height: job.options.height } : {}) });
     const plan = buildMediaRenderPlan({ source, presetId: job.presetId, outputPath: job.outputPath, options: job.options, overwrite: job.overwrite, scratchDir: scratch });
     await mkdir(dirname(plan.output), { recursive: true });
     const total = plan.timing.totalFrames;

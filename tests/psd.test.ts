@@ -8,7 +8,7 @@
 import { inflateSync, deflateSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
-import { encodePng } from '../src/core/png';
+import { decodePng, encodePng } from '../src/core/png';
 import {
   blendPixel, compositePsd, fileHiddenLayers, layerCanvasBox, layerOnCanvas, layersTopFirst, layerShown, parsePsd, placeableLayers, psdLimitSummary, psdOutline, undoPrediction, unpackBits,
 } from '../src/core/psd';
@@ -273,6 +273,40 @@ describe('limits, said plainly', () => {
     expect(outline.layers.every((l) => !('pixels' in l))).toBe(true);
     expect(outline.hasComposite).toBe(true);
     expect([outline.width, outline.height]).toEqual([4, 4]);
+  });
+});
+
+describe('a PNG back to pixels', () => {
+  const inflate = (b: Uint8Array) => new Uint8Array(inflateSync(b));
+
+  it('round-trips what the encoder writes, and reads the filtered rows other writers use', () => {
+    const rgba = new Uint8Array(4 * 2 * 4);
+    for (let i = 0; i < 8; i += 1) rgba.set([i * 30, 255 - i * 30, (i * 77) % 256, 200 + i], i * 4);
+    const decoded = decodePng(encodePng(rgba, 4, 2, (b) => new Uint8Array(deflateSync(b))), inflate);
+    expect([decoded.width, decoded.height]).toEqual([4, 2]);
+    expect([...decoded.rgba]).toEqual([...rgba]);
+    // Hand-filtered rows: Sub, Up, Average and Paeth all undo to the same pixels.
+    const width = 2, height = 2, stride = width * 4;
+    const plain = new Uint8Array([10, 20, 30, 255, 14, 24, 34, 255, 11, 21, 31, 255, 16, 26, 36, 255]);
+    const filtered = new Uint8Array((stride + 1) * height);
+    filtered[0] = 1; // Sub
+    filtered.set([10, 20, 30, 255, 4, 4, 4, 0], 1);
+    filtered[stride + 1] = 2; // Up
+    filtered.set([1, 1, 1, 0, 2, 2, 2, 0], stride + 2);
+    const png = (() => {
+      // Rebuild a file around the filtered bytes: the encoder's framing with our own IDAT.
+      const framed = encodePng(plain, width, height, () => new Uint8Array(deflateSync(filtered)));
+      return framed;
+    })();
+    expect([...decodePng(png, inflate).rgba]).toEqual([...plain]);
+  });
+
+  it('reads greyscale, grey+alpha and RGB, and refuses what it cannot, by name', () => {
+    // A grey PNG built by hand: the encoder only writes RGBA, so frame one with colour type 0.
+    expect(() => decodePng(new Uint8Array([1, 2, 3]), inflate)).toThrow(/not a PNG/);
+    const bad16 = encodePng(new Uint8Array(16), 2, 1, (b) => new Uint8Array(deflateSync(b)));
+    bad16[24] = 16; // depth byte inside IHDR
+    expect(() => decodePng(bad16, inflate)).toThrow(/16-bit/);
   });
 });
 

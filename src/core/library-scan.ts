@@ -12,8 +12,9 @@ import { normalizeTag } from './tags';
 
 export const MEDIA_EXTENSIONS: Record<MediaKind, readonly string[]> = {
   video: ['.mov', '.mp4', '.m4v', '.mkv', '.webm', '.mxf', '.avi'],
-  // A layered Photoshop file is a still too (milestone 33): browsed as its composite, placed whole or as layers.
-  image: ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.exr', '.webp', '.gif', '.bmp', '.dpx', '.svg', '.psd'],
+  // A layered still is a still too (milestone 33): Photoshop, OpenRaster, Krita, SVG, and the PDF
+  // an .ai carries — browsed as its composite, placed whole or as layers.
+  image: ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.exr', '.webp', '.gif', '.bmp', '.dpx', '.svg', '.psd', '.ora', '.kra', '.ai', '.pdf'],
   audio: ['.wav', '.aif', '.aiff', '.mp3', '.m4a', '.aac', '.flac', '.ogg'],
 };
 

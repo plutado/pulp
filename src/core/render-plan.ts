@@ -226,6 +226,8 @@ export interface RenderOptions {
   matte?: boolean;
   /** Media only (milestone 15): playback speed of a clip; 1 is as recorded. */
   speed?: number;
+  /** Media only: recolor the picture at render time — its luminance in this colour (`#rrggbb`), alpha kept. */
+  tint?: string;
   /** Media only: seconds of crossfade at the join when a clip is looped past its own length. */
   crossfade?: number;
   /** Audio presets only: how the sound is written. */
