@@ -22,6 +22,7 @@ import {
   DEFAULT_TRANSITION, DEFAULT_TRANSITIONS, isTemplateMovement, isWholeGraphic, LAYER_TRANSITIONS, roundSeconds,
   TRANSITION_DIRECTIONS, TRANSITION_LIMITS, type LayerSpan, type LayerTransition, type LayerTransitions,
 } from './layer-time';
+import { hasShadow, lookFromImageEffect, readLook, type LayerLook } from './layer-look';
 import { MAX_LENGTH_SECONDS } from './timing';
 import { isValidColor, type TemplateManifest, type ValidationIssue } from './manifest';
 
@@ -190,6 +191,8 @@ interface LayerBase {
    * (src/core/layer-time.ts).
    */
   span?: LayerSpan;
+  /** How it looks — opacity, shadow, glow, outline, blur, blend, colour (src/core/layer-look.ts); absent is as the template draws it. */
+  look?: LayerLook;
 }
 
 export interface TextLayer extends LayerBase, Typography {
@@ -512,7 +515,7 @@ function readSpan(raw: unknown, base: LayerSpan | undefined, issue: (field: stri
   return isWholeGraphic(out) ? undefined : out;
 }
 
-type LayerBaseFields = Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'transition' | 'placement' | 'span'>;
+type LayerBaseFields = Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'transition' | 'placement' | 'span' | 'look'>;
 
 /** The fields a layer of either type has, read against a base the same way as typography. */
 function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issue: (field: string, message: string) => void): LayerBaseFields {
@@ -533,6 +536,9 @@ function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issu
   const span = readSpan(raw.span, spanBase, issue);
   if (span) out.span = span;
   else delete out.span;
+  const look = readLook(raw.look, base.look, issue);
+  if (look) out.look = look;
+  else delete out.look;
   if (raw.label !== undefined) {
     if (isNonEmptyString(raw.label)) out.label = raw.label.trim();
     else issue('label', 'must be a non-empty string');
@@ -580,7 +586,7 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
   const id = typeof raw.id === 'string' ? raw.id : '';
   const fresh = newLayer(raw.type, block, id, typeof raw.label === 'string' ? raw.label.trim() : undefined);
   const base = readLayerBase(raw, fresh, issue);
-  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, ...(base.transition ? { transition: base.transition } : {}), ...(base.placement ? { placement: base.placement } : {}), ...(base.span ? { span: base.span } : {}) };
+  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, ...(base.transition ? { transition: base.transition } : {}), ...(base.placement ? { placement: base.placement } : {}), ...(base.span ? { span: base.span } : {}), ...(base.look ? { look: base.look } : {}) };
   let layer: Layer;
   if (raw.type === 'text') {
     if (typeof raw.text !== 'string') issue('text', 'must be a string (the layer\'s default text)');
@@ -709,6 +715,7 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
     if (!common.transition) delete out.transition;
     if (!common.placement) delete out.placement;
     if (!common.span) delete out.span;
+    if (!common.look) delete out.look;
     return out;
   };
   if (base.type === 'text') {
@@ -749,6 +756,18 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
   }
   void block;
   if (base.type === 'video') return settled({ ...base, ...common, clip, size, align });
+  // Milestone 22's shadow and glow on a picture are looks now (milestone 28). A stored one is read
+  // as the look it always drew as, against the picture's own height, and the picture is left
+  // with none, so there is one place that says how it looks. A look of the layer's own wins.
+  if (image && image.effect !== 'none') {
+    const settledLook = common.look;
+    const stylesAlready = settledLook && (hasShadow(settledLook) || settledLook.glowSize > 0);
+    if (!stylesAlready) {
+      const glow = image.treatment === 'tinted' ? image.tint : '#ffffffd9';
+      common.look = readLook(lookFromImageEffect(image.effect, size, glow), settledLook, issue);
+    }
+    image = { ...image, effect: 'none' };
+  }
   return settled({ ...base, ...common, image, size, align });
 }
 

@@ -22,8 +22,12 @@ export interface BatchRow {
 }
 
 export interface BatchPlan {
-  /** CSV header to parameter id — or, for a column that names a layer, that layer's id — for the columns that matched. */
-  columns: { header: string; paramId: string; layer?: { block: string; id: string; type: 'text' | 'video' } }[];
+  /**
+   * CSV header to parameter id — or, for a column that names a layer, that layer's id — for the
+   * columns that matched. A layer's `settings` column (milestone 28) carries the rest of what a
+   * layer can be given, as JSON: its span, transitions, look, placement, or hidden.
+   */
+  columns: { header: string; paramId: string; layer?: { block: string; id: string; type: 'text' | 'video' | 'image'; settings?: true } }[];
   /** The column used for job and file names, if any. */
   nameColumn?: string;
   unknownColumns: string[];
@@ -71,6 +75,16 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((v) => v.trim() !== ''));
 }
 
+/** A settings cell as the object it holds, or null when it is not one. */
+function parseSettings(cell: string): Record<string, unknown> | null {
+  try {
+    const value: unknown = JSON.parse(cell);
+    return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** A safe file name: no path separators or reserved characters, trimmed, bounded. */
 export function safeFileName(text: string, fallback: string): string {
   const cleaned = Array.from(text, (ch) => (ch.charCodeAt(0) < 32 || '\\/:*?"<>|'.includes(ch) ? '-' : ch))
@@ -97,17 +111,22 @@ export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blo
     byKey.set(p.label.trim().toLowerCase(), p.id);
   }
   // A column may name a layer too, by its id or label: the words of a lower third's name line,
-  // or the clip a video layer plays (milestone 26, written as `clipValueToText` writes it).
-  const layerByKey = new Map<string, { block: string; id: string; type: 'text' | 'video' }>();
+  // or the clip a video layer plays (milestone 26, written as `clipValueToText` writes it). And
+  // "<layer> settings" takes everything else a layer can be given, as one JSON object per row
+  // (milestone 28): {"span":{"start":2},"transition":{"in":{"type":"fade"}},"look":{"opacity":0.5}}.
+  type LayerColumn = { block: string; id: string; type: 'text' | 'video' | 'image'; settings?: true };
+  const layerByKey = new Map<string, LayerColumn>();
   for (const block of manifest.blocks ?? []) {
     for (const layer of block.layers) {
-      if (layer.type !== 'text' && layer.type !== 'video') continue;
-      const entry = { block: block.id, id: layer.id, type: layer.type };
-      if (!layerByKey.has(layer.id.toLowerCase())) layerByKey.set(layer.id.toLowerCase(), entry);
-      if (!layerByKey.has(layer.label.trim().toLowerCase())) layerByKey.set(layer.label.trim().toLowerCase(), entry);
+      const entry: LayerColumn = { block: block.id, id: layer.id, type: layer.type };
+      const settings: LayerColumn = { ...entry, settings: true };
+      for (const key of [layer.id.toLowerCase(), layer.label.trim().toLowerCase()]) {
+        if (layer.type !== 'image' && !layerByKey.has(key)) layerByKey.set(key, entry);
+        if (!layerByKey.has(`${key} settings`)) layerByKey.set(`${key} settings`, settings);
+      }
     }
   }
-  const layerColumns = new Map<number, { block: string; id: string; type: 'text' | 'video' }>();
+  const layerColumns = new Map<number, LayerColumn>();
   let nameIndex = -1;
   const columnIds: (string | null)[] = headers.map((h, i) => {
     const key = h.toLowerCase();
@@ -136,8 +155,8 @@ export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blo
   }
   // The row's label when no name column: the first text parameter with a column, else the first text layer with one.
   const firstText = manifest.parameters.find((p) => p.type === 'text' && columnIds.includes(p.id))?.id;
-  // A clip id makes a poor file name, so only a text layer's column names a row.
-  const firstLayerColumn = [...layerColumns.entries()].filter(([, l]) => l.type === 'text').map(([i]) => i).sort((a, b) => a - b)[0];
+  // A clip id makes a poor file name, and so does a settings cell, so only a text layer's words name a row.
+  const firstLayerColumn = [...layerColumns.entries()].filter(([, l]) => l.type === 'text' && !l.settings).map(([i]) => i).sort((a, b) => a - b)[0];
   if (table.length === 1) plan.warnings.push('The CSV has a header but no rows.');
 
   const used = new Map<string, number>();
@@ -154,9 +173,18 @@ export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blo
         params[id] = v;
         return;
       }
+      // A settings cell is JSON patched onto the layer; what it says is read, checked and reported
+      // by resolveLayers on the way to the render, as every stored stack is. A cell that is not
+      // JSON is reported here, since nothing downstream would see it, and changes nothing.
+      const settings = layer.settings ? parseSettings(v) : undefined;
+      if (layer.settings && settings === null) {
+        plan.warnings.push(`Row ${r}: "${layer.id} settings" is not a JSON object; ignored.`);
+        return;
+      }
       layers ??= defaultLayers({ blocks: [...(manifest.blocks ?? [])] });
       layers[layer.block] = (layers[layer.block] ?? []).map((l) => {
         if (l.id !== layer.id) return l;
+        if (settings) return { ...l, ...settings, id: l.id, type: l.type } as typeof l;
         if (l.type === 'text') return { ...l, text: v };
         // A video layer's cell is a clip id, optionally with its in, out, ending, speed and delay.
         if (l.type === 'video') return { ...l, clip: clipValueFromText(v) };

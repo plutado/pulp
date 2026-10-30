@@ -1273,6 +1273,80 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+    it('shows a bar per layer under the scrub bar, whose ends set when the layer is on screen (milestone 28)', async () => {
+      const bars = `document.querySelectorAll('#layer-bars .layer-bar')`;
+      const bar = `document.querySelector('#layer-bars .layer-bar[data-layer=subtitle]')`;
+      const subtitle = `document.querySelector('#params .layer-row[data-layer=subtitle]')`;
+      try {
+        // One bar per layer of the card, the whole width while nothing has been timed.
+        await until(() => page.eval<number>(`${bars}.length`).then((n) => n === 2), 'a bar for each of the card\'s two lines');
+        expect(await page.eval<string[]>(`[...${bars}].map((b) => b.querySelector('.bar-label').textContent)`)).toEqual(['Title', 'Subtitle']);
+        expect(await page.eval<string>(`${bar}.querySelector('.bar-body').style.width`)).toBe('100%');
+        // Its ends are sliders over the graphic's five seconds.
+        expect(await page.eval<string>(`${bar}.querySelector('.bar-end.end').getAttribute('aria-valuenow')`)).toBe('5');
+
+        // Clicking a bar selects its layer, as clicking it on the stage does.
+        await page.eval(`${bar}.querySelector('.bar-body').dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true }))`);
+        await until(() => page.eval<boolean>(`${bar}.classList.contains('selected')`), 'the bar lit as selected');
+
+        // The arrow keys move an end by a tenth of a second, a second with Shift, one undo step each.
+        const endHandle = `${bar}.querySelector('.bar-end.end')`;
+        await page.eval(`${endHandle}.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', shiftKey: true, bubbles: true, cancelable: true }))`);
+        await until(() => page.eval<string>(`${endHandle}.getAttribute('aria-valuenow')`).then((v) => v === '4'), 'the end a second earlier');
+        expect(await page.eval<string>(`${bar}.querySelector('.bar-body').style.width`)).toBe('80%');
+        // And the layer's own card agrees: the bar and the fields are two views of one span.
+        await page.eval(`${subtitle}.querySelector('.layer-advanced').open = true`);
+        expect(await page.eval<string>(`${subtitle}.querySelector('input[aria-label="Subtitle end"]').value`)).toBe('4');
+
+        // A drag on the start: the bar's scale when the drag began sets how far a pixel goes.
+        const startHandle = `${bar}.querySelector('.bar-end.start')`;
+        const width = await page.eval<number>(`document.getElementById('layer-bars').getBoundingClientRect().width`);
+        const px = (seconds: number) => Math.round((seconds / 5) * width);
+        await page.eval(`${startHandle}.dispatchEvent(new PointerEvent('pointerdown', { button: 0, pointerId: 7, clientX: 100, bubbles: true }))`);
+        await page.eval(`${startHandle}.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: ${100 + px(1)}, bubbles: true }))`);
+        await page.eval(`${startHandle}.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, clientX: ${100 + px(1)}, bubbles: true }))`);
+        await until(() => page.eval<string>(`${startHandle}.getAttribute('aria-valuenow')`).then((v) => v === '1'), 'the start a second in');
+        expect(await page.eval<string>(`${bar}.querySelector('.bar-body').style.left`)).toBe('20%');
+        expect(await page.eval<string>(`${bar}.querySelector('.bar-body').style.width`)).toBe('60%');
+
+        // An entrance shades the start of the bar for the time it takes.
+        await fire('[data-layer=subtitle] select[aria-label="Subtitle entrance"]', 'fade', 'change');
+        await fire('[data-layer=subtitle] input[aria-label="Subtitle entrance seconds"]', '1.5', 'change');
+        await until(() => page.eval<string>(`${bar}.querySelector('.bar-in').style.width`).then((w) => w === '50%'), 'the entrance shaded over half the bar');
+
+        // Undo takes it all back, a step at a time, and the bar follows.
+        for (let i = 0; i < 4; i++) await page.eval(`document.getElementById('undo').click()`);
+        await until(() => page.eval<string>(`${bar}.querySelector('.bar-body').style.width`).then((w) => w === '100%'), 'the bar back to the whole graphic');
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
+    it('gives a layer a look of its own, and says which parts of it are in play (milestone 28)', async () => {
+      const subtitle = `document.querySelector('#params .layer-row[data-layer=subtitle]')`;
+      const summary = () => page.eval<string>(`${subtitle}.querySelector('.layer-look summary').textContent`);
+      try {
+        await page.eval(`${subtitle}.querySelector('.layer-look').open = true`);
+        expect(await summary()).toBe('Look');
+        // The controls are built the first time the disclosure opens.
+        await until(() => page.eval<boolean>(`!!${subtitle}.querySelector('input[aria-label="Subtitle opacity, %"]')`), 'the look controls');
+        // A text layer has no corners or soft edges to set; a picture does.
+        expect(await page.eval<boolean>(`!!${subtitle}.querySelector('input[aria-label="Subtitle corners, %"]')`)).toBe(false);
+        await fire('[data-layer=subtitle] input[aria-label="Subtitle opacity, %"]', '40', 'change');
+        await until(() => summary().then((t) => t === 'Look · 40%'), 'the summary to name the opacity');
+        await fire('[data-layer=subtitle] input[aria-label="Subtitle shadow distance, %"]', '1', 'change');
+        await fire('[data-layer=subtitle] select[aria-label="Subtitle blend"]', 'multiply', 'change');
+        await until(() => summary().then((t) => t === 'Look · 40%, shadow, Multiply'), 'the summary to name the shadow and the blend');
+        // Back to full opacity, no shadow and Normal is no look at all.
+        await fire('[data-layer=subtitle] input[aria-label="Subtitle opacity, %"]', '100', 'change');
+        await fire('[data-layer=subtitle] input[aria-label="Subtitle shadow distance, %"]', '0', 'change');
+        await fire('[data-layer=subtitle] select[aria-label="Subtitle blend"]', 'normal', 'change');
+        await until(() => summary().then((t) => t === 'Look'), 'the summary back to nothing');
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
     it('gives one layer an entrance and an exit of its own, which still go when the graphic goes', async () => {
       const subtitle = `document.querySelector('#params .layer-row[data-layer=subtitle]')`;
       const summary = () => page.eval<string>(`${subtitle}.querySelector('.layer-advanced summary').textContent`);

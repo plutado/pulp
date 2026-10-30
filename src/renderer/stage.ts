@@ -21,6 +21,7 @@ import { SEQUENCE_FPS } from '../core/media-sequence';
 import { lengthFrameCount, lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
 import type { ResolvedParams } from '../core/params';
 import { mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
+import { layerBarsUpdate, mountLayerBars } from './stage-bars';
 import { layerEditor, selectedLayer } from './layer-edit';
 import type { LaidReport } from '../core/stage-place';
 import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor, type PlayerState, type StageBackground } from '../core/player';
@@ -243,6 +244,12 @@ function applyTrim(): void {
   els.markClear.disabled = !s.manifest || (inFrame === null && outFrame === null);
   applyParts();
   applySequenceRate();
+  applyLayerBars();
+}
+
+/** The bars under the scrub bar (milestone 28): the layers of the template being previewed, at its length. */
+function applyLayerBars(): void {
+  layerBarsUpdate(s.manifest, s.layers, s.length, Boolean(s.manifest) && !s.sequence);
 }
 
 function updateTransport(): void {
@@ -515,6 +522,7 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
   els.scrub.max = String(previewFrames() - 1);
   els.scrub.value = String(s.frame);
   updateTransport();
+  applyLayerBars();
 }
 
 /** Show a media item, served by id through pulp-media://. */
@@ -574,6 +582,7 @@ export function stageClear(): void {
   els.previewEmpty.textContent = 'Select a template';
   els.previewEmpty.hidden = false;
   updateTransport();
+  applyLayerBars();
 }
 
 /** The size the template is drawn at: the Output tab's choice, else the template's default. */
@@ -686,6 +695,8 @@ export function stageSetParams(params: ResolvedParams, layers: LayerValues = {},
     els.scrub.max = String(last);
     if (s.frame > last) s.frame = last;
     applyTrim();
+  } else {
+    applyLayerBars();
   }
   requestFrame(s.frame);
 }
@@ -714,6 +725,7 @@ export function initStage(): void {
     if (Number.isFinite(value) && value > 0) setSequenceFps(value);
   });
   els.sequenceFpsReset.addEventListener('click', () => setSequenceFps(undefined));
+  mountLayerBars($<HTMLDivElement>('layer-bars'), els.scrub.closest('.transport') as HTMLElement);
   els.lengthHandle.addEventListener('pointerdown', onLengthPointerDown);
   els.lengthHandle.addEventListener('pointermove', onLengthPointerMove);
   els.lengthHandle.addEventListener('pointerup', onLengthPointerUp);

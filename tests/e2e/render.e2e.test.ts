@@ -666,6 +666,56 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await band(100)).lit, 'gone at the layer\'s own end').toBe(0);
   }, 240_000);
 
+  it('draws a layer with the look it was given: a shadow spreads its ink, an opacity thins it (milestone 28)', async () => {
+    // The title card's title, plain and then with a look; the frame is read back as the ink of
+    // the title's band so what the look did can be measured rather than eyeballed.
+    const [width, height] = [384, 216];
+    const band = async (name: string) => {
+      const { stdout } = await runBoundedBuffer(ffmpeg, ffmpegArgs(['-v', 'error', '-i', join(out, `${name}_00075.png`), '-vf', 'format=rgba', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']), { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
+      // Rows of the title: lit pixels (any channel well above the card's dark ground) and the
+      // brightest red, which is what the title's near-white fill reads as.
+      let lit = 0, brightest = 0, top = height, bottom = -1, dark = 0;
+      // The title's rows alone: the subtitle's ascenders reach up to about 55% of the frame.
+      for (let y = Math.floor(height * 0.3); y < Math.floor(height * 0.48); y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          const r = stdout[i]!, g = stdout[i + 1]!, b = stdout[i + 2]!;
+          if (r > 60 || g > 60 || b > 60) { lit++; brightest = Math.max(brightest, r); top = Math.min(top, y); bottom = Math.max(bottom, y); }
+          // Pixels darker than the card's own ground: only a shadow can put those there.
+          if (r < 10 && g < 14 && b < 28) dark++;
+        }
+      }
+      return { lit, brightest, rows: bottom - top + 1, dark };
+    };
+    const one = ['--fps', '25', '--size', `${width}x${height}`, '--in-point', '75', '--out-point', '75'];
+    const styled = (look: unknown) => ['--param', `@layers=${JSON.stringify({ card: [{ id: 'title', look }] })}`];
+
+    const plain = await render('pulp.samples.title-card', 'png-sequence', 'look-plain', { extra: one });
+    expect(plain.code, plain.stderr).toBe(0);
+    const base = await band('look-plain');
+    expect(base.lit).toBeGreaterThan(100);
+
+    // A soft shadow falling well below the title: more of the band is covered, some of it darker
+    // than the card's own ground, and the title's own fill is as bright as it was.
+    const shadowed = await render('pulp.samples.title-card', 'png-sequence', 'look-shadow', { extra: [...one, ...styled({ shadowColor: '#000000ff', shadowDistance: 0.03, shadowAngle: 90, shadowSoftness: 0.01 })] });
+    expect(shadowed.code, shadowed.stderr).toBe(0);
+    const shadow = await band('look-shadow');
+    expect(shadow.dark, 'the shadow is darker than the card behind it').toBeGreaterThan(base.dark + 50);
+    expect(Math.abs(shadow.brightest - base.brightest), 'the title itself is untouched').toBeLessThan(4);
+
+    // Half opacity: the same ink, half as bright against the ground.
+    const thin = await render('pulp.samples.title-card', 'png-sequence', 'look-thin', { extra: [...one, ...styled({ opacity: 0.5 })] });
+    expect(thin.code, thin.stderr).toBe(0);
+    const half = await band('look-thin');
+    expect(half.brightest, 'half way between the fill and the ground').toBeLessThan(base.brightest * 0.65);
+    expect(half.brightest).toBeGreaterThan(base.brightest * 0.35);
+
+    // A look that says nothing draws exactly what no look draws.
+    const none = await render('pulp.samples.title-card', 'png-sequence', 'look-none', { extra: [...one, ...styled({ opacity: 1, blend: 'normal' })] });
+    expect(none.code, none.stderr).toBe(0);
+    expect(await band('look-none')).toEqual(base);
+  }, 240_000);
+
   it('draws a layer turned, about the words rather than the block (milestone 29)', async () => {
     // The hairline lower third is alpha, and its "who" line is aligned at the left of a block
     // that spans most of the frame — the case where turning about the slot would swing the line
@@ -757,6 +807,32 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await pixels(join(out, 'vid-delay_00000.png'), ...square))[3], 'not yet').toBe(0);
     expect((await pixels(join(out, 'vid-delay_00000.png'), ...marker))[3]).toBe(255);
     expect((await pixels(join(out, 'vid-delay_00030.png'), ...square))[3], 'and away it goes').toBe(255);
+
+    // Rounded corners and soft edges (milestone 28) shape the clip's picture. A solid clip shows
+    // them plainly: the layer is 90 px tall in the 320 x 180 frame, so its picture runs from
+    // (115, 45), and a corner of it is cut away by a radius and faded by a feather while its
+    // middle is untouched by either.
+    const solid = join(lib, 'solid.mov');
+    const madeSolid = await runBounded(ffmpeg, ffmpegArgs(['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=160x160:d=1:r=30,format=rgba', '-c:v', 'qtrle', solid]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(madeSolid.code, madeSolid.stderr).toBe(0);
+    const solidId = itemId(`media:${solid}`);
+    const shapedLayers = (look: unknown) => ['--param', `@layers=${JSON.stringify({ stack: [{ id: 'plate', clip: solidId, look }] })}`];
+    const pictureCorner = [117, 47] as const;
+    const pictureEdge = [120, 90] as const;
+    const pictureMiddle = [160, 90] as const;
+    const plainSolid = await render('pulp.test.video-layer', 'png-sequence', 'vid-solid', { extra: [...common, ...shapedLayers({})] });
+    expect(plainSolid.code, plainSolid.stderr).toBe(0);
+    expect((await pixels(join(out, 'vid-solid_00000.png'), ...pictureCorner))[3], 'the picture\'s corner is drawn plain').toBe(255);
+    const shaped = await render('pulp.test.video-layer', 'png-sequence', 'vid-shaped', { extra: [...common, ...shapedLayers({ corners: 0.08 })] });
+    expect(shaped.code, shaped.stderr).toBe(0);
+    expect((await pixels(join(out, 'vid-shaped_00000.png'), ...pictureCorner))[3], 'and rounded away').toBe(0);
+    expect((await pixels(join(out, 'vid-shaped_00000.png'), ...pictureMiddle))[3], 'the middle stays').toBe(255);
+    const soft = await render('pulp.test.video-layer', 'png-sequence', 'vid-soft', { extra: [...common, ...shapedLayers({ feather: 0.06 })] });
+    expect(soft.code, soft.stderr).toBe(0);
+    const edge = (await pixels(join(out, 'vid-soft_00000.png'), ...pictureEdge))[3]!;
+    expect(edge, 'the edge is faded, neither solid nor gone').toBeGreaterThan(0);
+    expect(edge).toBeLessThan(200);
+    expect((await pixels(join(out, 'vid-soft_00000.png'), ...pictureMiddle))[3], 'the middle stays solid').toBe(255);
 
     // A clip that is not in the library stops the render by name rather than drawing nothing.
     const missing = await render('pulp.test.video-layer', 'png-sequence', 'vid-missing', {

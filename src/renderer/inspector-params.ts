@@ -18,6 +18,7 @@ import {
   TRANSITION_DIRECTIONS, TRANSITION_LIMITS, type LayerSpan, type LayerTransition, type LayerTransitions,
   type LayerTransitionType, type TransitionDirection,
 } from '../core/layer-time';
+import { BLEND_MODES, DEFAULT_LOOK, hasShadow, isDefaultLook, LOOK_LIMITS, type BlendMode, type LayerLook } from '../core/layer-look';
 import { BUNDLED_FAMILIES, cssFontFamily, familyLabel, importedFamilies, type ImportedFont } from '../core/fonts';
 import { hasCards, labelRepeatsHeading, paramCards, type ParamCard } from '../core/param-cards';
 import {
@@ -583,6 +584,8 @@ function imageField(
     effects.append(button);
     return button;
   });
+  // A layer's shadow and glow are looks now (milestone 28), set with the rest of them under Look.
+  effects.hidden = !!options.layer;
   treat.append(segmented, tint, effects);
   const note = document.createElement('p');
   note.className = 'note image-note';
@@ -1112,7 +1115,7 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
       gone.textContent = `"${familyLabel(layer.family)}" is not on this computer, so the line is drawn in a fallback face. Import it, or choose another family.`;
       parts.push(gone);
     }
-    parts.push(motionControls(blockId, layer));
+    parts.push(motionControls(blockId, layer), lookControls(blockId, layer));
     return parts;
   }
   if (layer.type === 'video') {
@@ -1120,12 +1123,14 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
       clipField(layer.clip, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, clip: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }),
       imageLayerControls(blockId, layer),
       motionControls(blockId, layer),
+      lookControls(blockId, layer),
     ];
   }
   return [
     imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }, { layer: true }),
     imageLayerControls(blockId, layer),
     motionControls(blockId, layer),
+    lookControls(blockId, layer),
   ];
 }
 
@@ -1481,6 +1486,108 @@ function motionControls(blockId: string, layer: Layer): HTMLElement {
 /** The layer as it stands now, after an edit that did not rebuild the form. */
 function currentLayer(blockId: string, layerId: string): Layer | undefined {
   return currentLayers()[blockId]?.find((l) => l.id === layerId);
+}
+
+/** Which layers have their Look open, across rebuilds of the form; keyed block.layer. */
+const openLook = new Set<string>();
+
+const BLEND_LABELS: Record<BlendMode, string> = { normal: 'Normal', multiply: 'Multiply', screen: 'Screen', overlay: 'Overlay' };
+
+/** What the folded Look line says: which of its parts are in play, or nothing while the template's draw stands. */
+function lookSummary(look: LayerLook | undefined): string {
+  if (!look || isDefaultLook(look)) return 'Look';
+  const parts: string[] = [];
+  if (look.opacity !== 1) parts.push(`${Math.round(look.opacity * 100)}%`);
+  if (hasShadow(look)) parts.push('shadow');
+  if (look.glowSize > 0) parts.push('glow');
+  if (look.outlineWidth > 0) parts.push('outline');
+  if (look.blur > 0) parts.push('blur');
+  if (look.blend !== 'normal') parts.push(BLEND_LABELS[look.blend]);
+  if (look.brightness !== 0 || look.saturation !== 1 || look.tint) parts.push('colour');
+  if (look.corners > 0) parts.push('corners');
+  if (look.feather > 0) parts.push('soft edges');
+  return `Look · ${parts.join(', ')}`;
+}
+
+/**
+ * How a layer looks (milestone 28), folded away under Look: opacity, a shadow,
+ * a glow, an outline, a blur, a blend mode and a colour adjustment, and on a
+ * picture or a clip, rounded corners and soft edges. Set once and not animated;
+ * drawn by the host around the template's own draw, so the design stays the
+ * author's (src/core/layer-look.ts). Sizes are a percentage of the frame's
+ * short side, as a layer's own size is.
+ */
+function lookControls(blockId: string, layer: Layer): HTMLElement {
+  const key = `${blockId}.${layer.id}`;
+  const details = document.createElement('details');
+  details.className = 'layer-look';
+  details.open = openLook.has(key);
+  details.addEventListener('toggle', () => {
+    if (details.open) openLook.add(key);
+    else openLook.delete(key);
+  });
+  const summary = document.createElement('summary');
+  let current: LayerLook = { ...DEFAULT_LOOK, ...(layer.look ?? {}) };
+  summary.textContent = lookSummary(layer.look);
+  details.append(summary);
+  // Eighteen controls a layer, so the grid is built the first time the disclosure is opened; a
+  // tab with many layers stays light, and a look is rarely the thing being edited.
+  let built = false;
+  const build = () => {
+    if (built) return;
+    built = true;
+    details.append(buildLookGrid());
+  };
+  if (details.open) build();
+  else details.addEventListener('toggle', build, { once: true });
+  return details;
+
+  function buildLookGrid(): HTMLElement {
+  const put = (over: Partial<LayerLook>) => {
+    current = { ...current, ...over };
+    // The template's draw is no look at all, so a layer put back to it is stored as it was.
+    const stored = isDefaultLook(current) ? undefined : current;
+    editLayer(blockId, layer.id, (l) => ({ ...l, look: stored }) as Layer, false);
+    commitParams();
+    summary.textContent = lookSummary(stored);
+  };
+  const name = (what: string) => `${layer.label} ${what}`;
+  const pct = (label: string, k: keyof LayerLook, limit: { min: number; max: number }, step: number, scale: number) =>
+    typeField(label, numberOf(current[k] as number, limit, step, (v) => put({ [k]: v } as Partial<LayerLook>), name(label.toLowerCase()), scale));
+
+  const grid = document.createElement('div');
+  grid.className = 'type-grid';
+  grid.append(
+    pct('Opacity, %', 'opacity', LOOK_LIMITS.opacity, 1, 100),
+    typeField('Blend', selectOf(BLEND_MODES, BLEND_LABELS, current.blend, (v) => put({ blend: v }), name('blend'))),
+    typeField('Shadow colour', colorField(current.shadowColor, (hex) => put({ shadowColor: hex }))),
+    pct('Shadow distance, %', 'shadowDistance', LOOK_LIMITS.size, 0.1, 100),
+    pct('Shadow angle, °', 'shadowAngle', LOOK_LIMITS.angle, 1, 1),
+    pct('Shadow softness, %', 'shadowSoftness', LOOK_LIMITS.size, 0.1, 100),
+    typeField('Glow colour', colorField(current.glowColor, (hex) => put({ glowColor: hex }))),
+    pct('Glow size, %', 'glowSize', LOOK_LIMITS.size, 0.1, 100),
+    typeField('Outline colour', colorField(current.outlineColor, (hex) => put({ outlineColor: hex }))),
+    pct('Outline width, %', 'outlineWidth', LOOK_LIMITS.size, 0.05, 100),
+    pct('Blur, %', 'blur', LOOK_LIMITS.size, 0.1, 100),
+    pct('Brightness', 'brightness', LOOK_LIMITS.brightness, 0.05, 1),
+    pct('Saturation', 'saturation', LOOK_LIMITS.saturation, 0.05, 1),
+  );
+  // A tint is a colour or nothing: the switch says which, and the colour waits beside it.
+  const tintOn = checkOf(current.tint !== null, (on) => put({ tint: on ? tintColor : null }), name('tint on'));
+  let tintColor = current.tint ?? '#ffffff';
+  const tintField = colorField(tintColor, (hex) => { tintColor = hex; if (current.tint !== null) put({ tint: hex }); });
+  const tintWrap = document.createElement('div');
+  tintWrap.className = 'tint-field';
+  tintWrap.append(tintOn, tintField);
+  grid.append(typeField('Tint', tintWrap));
+  if (layer.type !== 'text') {
+    grid.append(
+      pct('Corners, %', 'corners', LOOK_LIMITS.size, 0.1, 100),
+      pct('Soft edges, %', 'feather', LOOK_LIMITS.size, 0.1, 100),
+    );
+  }
+  return grid;
+  }
 }
 
 /**

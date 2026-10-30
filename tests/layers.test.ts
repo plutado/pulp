@@ -327,6 +327,32 @@ describe('resolveLayers', () => {
     expect(legacy.values.strap![0]!.transition).toBeUndefined();
   });
 
+  it('carries a layer\'s look, and reads a picture\'s old shadow or glow as the look it always was (milestone 28)', () => {
+    const { values, issues } = resolveLayers(manifest(), { strap: [{ id: 'name', look: { opacity: 0.5, outlineWidth: 0.002, outlineColor: '#FF0000' } }] });
+    expect(issues).toEqual([]);
+    expect(values.strap![0]!.look).toMatchObject({ opacity: 0.5, outlineWidth: 0.002, outlineColor: '#ff0000', blend: 'normal' });
+    // The template's own draw is no look; a layer put back to it serializes as it always did.
+    const clean = resolveLayers(manifest(), { strap: [{ id: 'name', look: { opacity: 1 } }] });
+    expect('look' in clean.values.strap![0]!).toBe(false);
+    expect(resolveLayers(manifest(), { strap: [{ id: 'name', look: null }] }).values.strap![0]!.look).toBeUndefined();
+    const bad = resolveLayers(manifest(), { strap: [{ id: 'name', look: { blend: 'burn' } }] });
+    expect(bad.issues.map((i) => i.message).join(' ')).toContain('look.blend must be one of');
+
+    // A picture saved with milestone 22's shadow becomes a look against its own height, and the
+    // picture is left with no effect, so there is one place that says how it looks.
+    const id = 'abcdefabcdefabcdefabcdef';
+    const shadowed = resolveLayers(manifest(), { strap: [{ id: 'mark', image: { id, effect: 'shadow' }, size: 0.1 }] });
+    const mark = shadowed.values.strap!.find((l) => l.id === 'mark')!;
+    expect(mark.type === 'image' && mark.image?.effect).toBe('none');
+    expect(mark.look).toMatchObject({ shadowDistance: 0.004, shadowSoftness: 0.012, shadowAngle: 90, shadowColor: '#00000073' });
+    // A glow takes the tint when the picture is tinted, as it did.
+    const glowing = resolveLayers(manifest(), { strap: [{ id: 'mark', image: { id, effect: 'glow', treatment: 'tinted', tint: '#ff00ff' }, size: 0.2 }] });
+    expect(glowing.values.strap!.find((l) => l.id === 'mark')!.look).toMatchObject({ glowSize: 0.05, glowColor: '#ff00ff' });
+    // A look of the layer's own wins over the old effect.
+    const own = resolveLayers(manifest(), { strap: [{ id: 'mark', image: { id, effect: 'shadow' }, look: { glowSize: 0.01 } }] });
+    expect(own.values.strap!.find((l) => l.id === 'mark')!.look).toMatchObject({ glowSize: 0.01, shadowDistance: 0 });
+  });
+
   it('carries a layer\'s own start and end, and drops what says nothing (milestone 28)', () => {
     const { values, issues } = resolveLayers(manifest(), { strap: [{ id: 'name', span: { start: 2, end: 8 } }] });
     expect(issues).toEqual([]);

@@ -160,7 +160,7 @@ A block:
 | `typography` | object | no | What the block's text layers start from; any of the text properties below. Unnamed properties take the built-in defaults (Inter, 0.06, 400, white, wrap). |
 | `layers` | object[] | no | The template's own layers, in stack order. Default `[]`: a block the user fills. |
 
-A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text`, `image` or `video`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `transition` (how it arrives and how it leaves; see **A layer's own entrance and exit** below) and `span` (when it comes and goes; see **A layer's own start and end**). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
+A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text`, `image` or `video`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `transition` (how it arrives and how it leaves; see **A layer's own entrance and exit** below), `span` (when it comes and goes; see **A layer's own start and end**) and `look` (see **A layer's own look**). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
 
 | Property | Type | Description |
 |---|---|---|
@@ -275,6 +275,25 @@ Two rules hold a span to shortening a layer's time on screen rather than taking 
 - **A layer is always on screen for a moment.** A start past the end of the graphic, or an end at or before the start, is held back to leave 0.05 s — the same reasoning as the entrance always finishing inside the template, and as milestone 30's least hold. A layer that should not be there at all is **hidden**, which is a different thing and says so.
 
 The span is the last word: outside it the layer is not drawn, whether the movement for that frame was the template's own or the layer's. Both ends of the layer's own transition are timed against it — the entrance from the start, the exit into the end — so moving either moves them with it. The layout is untouched — a layer waiting its turn keeps the room the stack gave it — so a design does not reflow as layers come and go. A layer with no span serializes exactly as it always did, and `"span": null` in a stored stack puts it back to the whole graphic.
+
+#### A layer's own look
+
+A layer may carry a `look` (milestone 28): what is set once on it and not animated, in the Parameters tab under **Look**. Every size is a fraction of the frame's short side, as a layer's own `size` is, and the tab shows them as a percentage; colours are `#rrggbb` or `#rrggbbaa`, so a shadow carries its own strength.
+
+| Field | Type | Description |
+|---|---|---|
+| `opacity` | number | 0 to 1; default 1. Multiplied into whatever the frame already gave the layer. |
+| `shadowColor`, `shadowDistance`, `shadowAngle`, `shadowSoftness` | colour, number, number, number | A drop shadow, drawn when it has a distance or a softness. The angle is degrees clockwise, 0 to the right and 90 (the default) straight down. Defaults `#00000073`, 0, 90, 0. |
+| `glowColor`, `glowSize` | colour, number | An outer glow, drawn when it has a size. Defaults `#ffffffd9`, 0. |
+| `outlineColor`, `outlineWidth` | colour, number | An outline, drawn when it has a width: a stroke around type, a frame around a picture, along its corners. Defaults `#000000`, 0. |
+| `blur` | number | A blur of the layer itself; default 0. |
+| `blend` | `normal`, `multiply`, `screen`, `overlay` | How the layer meets what is under it; default `normal`. |
+| `brightness`, `saturation`, `tint` | number, number, colour or `null` | A colour adjustment: brightness -1 to 1 (default 0), saturation 0 to 2 (default 1), and a tint washed half way over the layer's own colour, or `null` for none. |
+| `corners`, `feather` | number, number | On an `image` or `video` layer only: rounded corners by this radius, and soft edges fading in by this much from the edge. Default 0. |
+
+The host draws it around the template's own draw of the layer, as it draws a placement and a transition, so **templates need no changes**. A layer with a look is painted on a scratch canvas and composited once, so its opacity and blend mode apply to the whole of it — a layer at half opacity drawn as a glow, a shadow and itself over each other would not be at half opacity. A look that comes to the defaults is no look at all and is not stored, and `"look": null` in a stored stack puts a layer back to the template's draw.
+
+Milestone 22's `effect` on an image **layer's** picture — `shadow` or `glow` — is read as the look it always drew as, against the picture's own height, and the picture is left with none; a layer with a shadow or glow of its own keeps that instead. (An image **slot**'s effect is the slot's own and is unchanged.)
 
 #### A layer's own placement
 

@@ -489,71 +489,203 @@ export const BRIDGE_SCRIPT = `(function () {
     if (!isFinite(left) || right <= left) return layer.box;
     return { x: left, y: layer.box.y, width: right - left, height: layer.box.height };
   }
-  /* Draws a block laid out by layoutBlock: each layer with the alpha, offset and scale the template gave it. */
+  /* How a layer looks (milestone 28). Mirrors lookPixels in src/core/layer-look.ts, the copy with
+     unit tests: change both or neither. Every size is a fraction of the frame's short side. */
+  var TINT_STRENGTH = 0.5;
+  function lookPixels(look, short) {
+    var px = function (f) { return Math.round(f * short * 100) / 100; };
+    var rad = look.shadowAngle * Math.PI / 180, distance = px(look.shadowDistance), parts = [];
+    if (look.blur > 0) parts.push('blur(' + px(look.blur) + 'px)');
+    if (look.brightness !== 0) parts.push('brightness(' + Math.round((1 + look.brightness) * 1000) / 1000 + ')');
+    if (look.saturation !== 1) parts.push('saturate(' + Math.round(look.saturation * 1000) / 1000 + ')');
+    return {
+      shadowBlur: px(look.shadowSoftness),
+      shadowOffsetX: Math.round(Math.cos(rad) * distance * 100) / 100,
+      shadowOffsetY: Math.round(Math.sin(rad) * distance * 100) / 100,
+      glowBlur: px(look.glowSize), outlineWidth: px(look.outlineWidth), corners: px(look.corners), feather: px(look.feather),
+      filter: parts.join(' '), composite: look.blend === 'normal' ? 'source-over' : look.blend,
+    };
+  }
+  function hasShadow(look) { return look.shadowDistance > 0 || look.shadowSoftness > 0; }
+  /* #rrggbb or #rrggbbaa to its channels; anything else is left to the canvas to refuse. */
+  function hexChannels(hex) {
+    var h = String(hex || '').replace('#', '');
+    if (h.length !== 6 && h.length !== 8) return null;
+    var n = parseInt(h.slice(0, 6), 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1 };
+  }
+  /* A colour washed part way toward another: how a tint lands on type, which has one fill. */
+  function mixHex(from, toward, t) {
+    var a = hexChannels(from), b = hexChannels(toward);
+    if (!a || !b) return from;
+    var ch = function (x, y) { return Math.round(x + (y - x) * t); };
+    return 'rgba(' + ch(a.r, b.r) + ',' + ch(a.g, b.g) + ',' + ch(a.b, b.b) + ',' + a.a + ')';
+  }
+  function roundedPath(ctx, x, y, w, h, r) {
+    var rr = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    if (rr <= 0) { ctx.rect(x, y, w, h); return; }
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+  /* One scratch canvas the size of the frame, for a layer with a look: its passes are painted here
+     and composited once, so an opacity and a blend mode apply to the whole layer rather than to
+     each pass over the last. */
+  var scratch = null;
+  function scratchFor(width, height) {
+    if (!scratch) scratch = document.createElement('canvas');
+    if (scratch.width !== width || scratch.height !== height) { scratch.width = width; scratch.height = height; }
+    return scratch;
+  }
+  /* The transforms a frame gave a layer: its offset, its scale and its angle about its own centre,
+     and the part of it a wipe has uncovered. Milestones 25, 29 and 28. */
+  function placeLayer(ctx, layer, d) {
+    var cx = layer.box.x + layer.box.width / 2, cy = layer.box.y + layer.box.height / 2;
+    ctx.translate((d.dx || 0), (d.dy || 0));
+    /* The scale and the angle are both about the layer's own centre (milestone 29), so they
+       compose in either order; the offset above has already moved that centre. */
+    if (d.scale !== undefined && d.scale !== 1) { ctx.translate(cx, cy); ctx.scale(d.scale, d.scale); ctx.translate(-cx, -cy); }
+    if (d.rotate) {
+      /* About what the layer draws, not the slot it sits in: a line aligned in a wide block
+         turns where it is rather than swinging about the middle of the block (milestone 29). */
+      var ink = inkBox(layer);
+      var ix = ink.x + ink.width / 2, iy = ink.y + ink.height / 2;
+      ctx.translate(ix, iy); ctx.rotate(d.rotate * Math.PI / 180); ctx.translate(-ix, -iy);
+    }
+    /* A wipe (milestone 28) uncovers the layer from one edge rather than fading it, so it reads
+       on any background. It is clipped to what the layer actually draws, not to the slot it sits
+       in, for the same reason a turn goes about the ink box. */
+    if (d.wipe && d.wipe.shown < 1) {
+      var w = inkBox(layer), shown = d.wipe.shown, edge = d.wipe.from;
+      ctx.beginPath();
+      if (edge === 'left') ctx.rect(w.x, w.y, w.width * shown, w.height);
+      else if (edge === 'right') ctx.rect(w.x + w.width * (1 - shown), w.y, w.width * shown, w.height);
+      else if (edge === 'top') ctx.rect(w.x, w.y, w.width, w.height * shown);
+      else ctx.rect(w.x, w.y + w.height * (1 - shown), w.width, w.height * shown);
+      ctx.clip();
+    }
+  }
+  /* A picture with its corners rounded, its edges softened or a tint washed over it, as a canvas
+     the size it is drawn at: the shadow and glow passes then fall from the softened shape. */
+  function dressedPicture(picture, at, look, px) {
+    var w = Math.max(1, Math.ceil(at.width)), h = Math.max(1, Math.ceil(at.height));
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var t = c.getContext('2d');
+    t.save();
+    if (px.corners > 0) { roundedPath(t, 0, 0, w, h, px.corners); t.clip(); }
+    t.drawImage(picture, 0, 0, w, h);
+    t.restore();
+    if (look.tint) {
+      t.save(); t.globalCompositeOperation = 'source-atop'; t.globalAlpha = TINT_STRENGTH; t.fillStyle = look.tint; t.fillRect(0, 0, w, h); t.restore();
+    }
+    if (px.feather > 0) {
+      /* Keep only what a blurred, inset copy of the shape covers: full in the middle, fading out
+         over the feather at the edge, and following the corners. */
+      var f = Math.min(px.feather, w / 2, h / 2);
+      t.save(); t.globalCompositeOperation = 'destination-in'; t.filter = 'blur(' + f + 'px)'; t.fillStyle = '#000';
+      roundedPath(t, f, f, w - 2 * f, h - 2 * f, Math.max(0, px.corners - f)); t.fill(); t.restore();
+    }
+    return c;
+  }
+  function withShadow(ctx, color, blur, dx, dy, paint) {
+    ctx.save();
+    ctx.shadowColor = color; ctx.shadowBlur = blur; ctx.shadowOffsetX = dx; ctx.shadowOffsetY = dy;
+    paint();
+    ctx.restore();
+  }
+  /* Paints one layer where it has been placed: plain, or with the passes its look asks for -- the
+     glow and the shadow under it, an outline, then the layer itself. */
+  function paintLayer(ctx, layer, look, px) {
+    if (px && px.filter) ctx.filter = px.filter;
+    if (layer.type === 'text') {
+      var fill = function () { drawTextLayer(ctx, layer, 'fill', look && look.tint ? mixHex(layer.color, look.tint, TINT_STRENGTH) : null); };
+      if (look) {
+        if (px.glowBlur > 0) withShadow(ctx, look.glowColor, px.glowBlur, 0, 0, fill);
+        if (hasShadow(look)) withShadow(ctx, look.shadowColor, px.shadowBlur, px.shadowOffsetX, px.shadowOffsetY, fill);
+        if (px.outlineWidth > 0) {
+          ctx.save(); ctx.lineWidth = px.outlineWidth * 2; ctx.lineJoin = 'round'; ctx.strokeStyle = look.outlineColor;
+          drawTextLayer(ctx, layer, 'stroke', null); ctx.restore();
+        }
+      }
+      fill();
+      return;
+    }
+    if (!layer.picture) return;
+    var at = fitBox(layer.box, layer.picture.width, layer.picture.height, 'contain', 'center', 0);
+    if (!look) { ctx.drawImage(layer.picture, at.x, at.y, at.width, at.height); return; }
+    var source = px.corners > 0 || px.feather > 0 || look.tint ? dressedPicture(layer.picture, at, look, px) : layer.picture;
+    var draw = function () { ctx.drawImage(source, at.x, at.y, at.width, at.height); };
+    if (px.glowBlur > 0) withShadow(ctx, look.glowColor, px.glowBlur, 0, 0, draw);
+    if (hasShadow(look)) withShadow(ctx, look.shadowColor, px.shadowBlur, px.shadowOffsetX, px.shadowOffsetY, draw);
+    if (px.outlineWidth > 0) {
+      /* A frame around the picture, along its corners, sitting on the edge: half in, half out. */
+      ctx.save(); ctx.lineWidth = px.outlineWidth; ctx.strokeStyle = look.outlineColor;
+      roundedPath(ctx, at.x, at.y, at.width, at.height, px.corners); ctx.stroke(); ctx.restore();
+    }
+    draw();
+  }
+  /* Draws a block laid out by layoutBlock: each layer with the alpha, offset and scale the template
+     gave it, placed, and painted with its look (milestone 28). */
   function drawBlock(ctx, laid) {
     if (!laid) return false;
+    var short = Math.min(ctx.canvas.width, ctx.canvas.height);
     for (var i = 0; i < laid.layers.length; i++) {
       var layer = laid.layers[i], d = layer.draw || {};
       if (!layer.box || layer.box.width <= 0 && layer.box.height <= 0) continue;
-      var alpha = d.alpha === undefined ? 1 : d.alpha;
-      if (alpha <= 0) continue;
+      var look = layer.look || null;
+      var alpha = (d.alpha === undefined ? 1 : d.alpha) * (look ? look.opacity : 1);
+      if (alpha <= 0 || (d.wipe && d.wipe.shown <= 0)) continue;
+      if (!look) {
+        ctx.save();
+        ctx.globalAlpha = ctx.globalAlpha * alpha;
+        placeLayer(ctx, layer, d);
+        paintLayer(ctx, layer, null, null);
+        ctx.restore();
+        continue;
+      }
+      /* With a look, the passes are painted on a scratch canvas under the same transform and then
+         composited once, with the opacity and the blend mode: a layer at half opacity drawn as
+         three passes over each other would not be at half opacity. */
+      var px = lookPixels(look, short);
+      var o = scratchFor(ctx.canvas.width, ctx.canvas.height).getContext('2d');
+      o.save();
+      o.setTransform(1, 0, 0, 1, 0, 0);
+      o.clearRect(0, 0, o.canvas.width, o.canvas.height);
+      o.setTransform(ctx.getTransform());
+      placeLayer(o, layer, d);
+      paintLayer(o, layer, look, px);
+      o.restore();
       ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.globalAlpha = ctx.globalAlpha * alpha;
-      var cx = layer.box.x + layer.box.width / 2, cy = layer.box.y + layer.box.height / 2;
-      ctx.translate((d.dx || 0), (d.dy || 0));
-      /* The scale and the angle are both about the layer's own centre (milestone 29), so they
-         compose in either order; the offset above has already moved that centre. */
-      if (d.scale !== undefined && d.scale !== 1) { ctx.translate(cx, cy); ctx.scale(d.scale, d.scale); ctx.translate(-cx, -cy); }
-      if (d.rotate) {
-        /* About what the layer draws, not the slot it sits in: a line aligned in a wide block
-           turns where it is rather than swinging about the middle of the block (milestone 29). */
-        var ink = inkBox(layer);
-        var ix = ink.x + ink.width / 2, iy = ink.y + ink.height / 2;
-        ctx.translate(ix, iy); ctx.rotate(d.rotate * Math.PI / 180); ctx.translate(-ix, -iy);
-      }
-      /* A wipe (milestone 28) uncovers the layer from one edge rather than fading it, so it reads
-         on any background. It is clipped to what the layer actually draws, not to the slot it sits
-         in, for the same reason a turn goes about the ink box. */
-      if (d.wipe && d.wipe.shown < 1) {
-        if (d.wipe.shown <= 0) { ctx.restore(); continue; }
-        var w = inkBox(layer), shown = d.wipe.shown, edge = d.wipe.from;
-        ctx.beginPath();
-        if (edge === 'left') ctx.rect(w.x, w.y, w.width * shown, w.height);
-        else if (edge === 'right') ctx.rect(w.x + w.width * (1 - shown), w.y, w.width * shown, w.height);
-        else if (edge === 'top') ctx.rect(w.x, w.y, w.width, w.height * shown);
-        else ctx.rect(w.x, w.y + w.height * (1 - shown), w.width, w.height * shown);
-        ctx.clip();
-      }
-      if (layer.type === 'text') drawTextLayer(ctx, layer);
-      else if (layer.picture) {
-        var at = fitBox(layer.box, layer.picture.width, layer.picture.height, 'contain', 'center', 0);
-        var effect = layer.image ? layer.image.effect : 'none';
-        if (effect === 'shadow') { ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = Math.max(2, at.height * 0.12); ctx.shadowOffsetY = Math.max(1, at.height * 0.04); }
-        else if (effect === 'glow') { ctx.shadowColor = layer.image && layer.image.treatment === 'tinted' ? layer.image.tint : 'rgba(255,255,255,0.85)'; ctx.shadowBlur = Math.max(4, at.height * 0.25); }
-        ctx.drawImage(layer.picture, at.x, at.y, at.width, at.height);
-      }
+      ctx.globalCompositeOperation = px.composite;
+      ctx.drawImage(o.canvas, 0, 0);
       ctx.restore();
     }
     return true;
   }
-  function drawTextLayer(ctx, layer) {
+  /* Type, filled or stroked (for an outline), with its letter spacing by hand so it behaves the
+     same in every Chromium version. A colour given replaces the layer's own fill, for a tint. */
+  function drawTextLayer(ctx, layer, mode, color) {
     var spacingEm = layer.draw && layer.draw.letterSpacing !== undefined ? layer.draw.letterSpacing : layer.letterSpacing;
     var spacing = spacingEm * layer.size;
+    var stroke = mode === 'stroke';
     ctx.font = layerFont(layer, layer.size);
-    ctx.fillStyle = layer.color;
+    ctx.fillStyle = color || layer.color;
     ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+    var put = function (text, x, y) { if (stroke) ctx.strokeText(text, x, y); else ctx.fillText(text, x, y); };
     for (var i = 0; i < layer.lines.length; i++) {
       var line = layer.lines[i];
-      if (spacing === 0 && layer.kerning) {
-        ctx.textAlign = 'left';
-        ctx.fillText(line.text, line.x, line.baseline);
-        continue;
-      }
-      /* Manual letter spacing, so it behaves the same in every Chromium version. */
-      ctx.textAlign = 'left';
+      if (spacing === 0 && layer.kerning) { put(line.text, line.x, line.baseline); continue; }
       var x = line.x;
       for (var c = 0; c < line.text.length; c++) {
-        ctx.fillText(line.text[c], x, line.baseline);
+        put(line.text[c], x, line.baseline);
         x += ctx.measureText(line.text[c]).width + spacing;
       }
     }

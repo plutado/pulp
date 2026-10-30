@@ -111,3 +111,41 @@ describe('planBatch', () => {
     expect(safeFileName('a'.repeat(100), 'x')).toHaveLength(80);
   });
 });
+
+describe('a layer\'s settings column (milestone 28)', () => {
+  const withBlock = (() => {
+    const r = validateManifest(
+      rawManifest({
+        blocks: [{ id: 'strap', label: 'Strap', box: { x: 0, y: 0, width: 1, height: 1 }, open: true, layers: [
+          { id: 'name', type: 'text', label: 'Name', text: 'Alex' },
+          { id: 'mark', type: 'image', label: 'Mark' },
+        ] }],
+      }),
+    );
+    if (!r.ok) throw new Error('fixture');
+    return r.manifest;
+  })();
+
+  it('carries a layer\'s span, transitions and look as JSON, beside its words', () => {
+    const csv = 'Name,Name settings,mark settings\nSam,"{""span"":{""start"":2,""end"":4},""look"":{""opacity"":0.5}}","{""look"":{""corners"":0.02}}"\nKim,,\n';
+    const plan = planBatch(withBlock, csv);
+    expect(plan.columns).toEqual([
+      { header: 'Name', paramId: 'name', layer: { block: 'strap', id: 'name', type: 'text' } },
+      { header: 'Name settings', paramId: 'name', layer: { block: 'strap', id: 'name', type: 'text', settings: true } },
+      { header: 'mark settings', paramId: 'mark', layer: { block: 'strap', id: 'mark', type: 'image', settings: true } },
+    ]);
+    expect(plan.warnings).toEqual([]);
+    const stacks = plan.rows.map((r) => (r.params['@layers'] as { strap: Record<string, unknown>[] }).strap);
+    expect(stacks[0]![0]).toMatchObject({ id: 'name', text: 'Sam', span: { start: 2, end: 4 }, look: { opacity: 0.5 } });
+    expect(stacks[0]![1]).toMatchObject({ id: 'mark', look: { corners: 0.02 } });
+    // An empty cell leaves the layer as the template has it; the words still name the row.
+    expect(stacks[1]![0]).not.toHaveProperty('span');
+    expect(plan.rows.map((r) => r.label)).toEqual(['Sam', 'Kim']);
+  });
+
+  it('says when a settings cell is not JSON, and leaves the layer alone', () => {
+    const plan = planBatch(withBlock, 'Name settings\nlater\n[1]\n');
+    expect(plan.warnings).toEqual(['Row 1: "name settings" is not a JSON object; ignored.', 'Row 2: "name settings" is not a JSON object; ignored.']);
+    expect(plan.rows.map((r) => r.params['@layers'])).toEqual([undefined, undefined]);
+  });
+});

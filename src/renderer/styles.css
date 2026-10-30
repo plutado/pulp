@@ -477,6 +477,34 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .sequence-rate label { color: var(--muted); font-size: var(--font-caption); }
 .sequence-rate input[type="number"] { width: 62px; }
 .length-handle:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+/* One bar per layer under the scrub bar (milestone 28): where it is on screen against the graphic's
+   length, lined up under the scrub bar's own scale, its entrance and exit shaded at the ends and its
+   ends draggable. The transport grows to make room; the bars themselves are positioned under the
+   range so they share its left and right edges, whatever sits beside it. */
+.transport.has-bars { padding-bottom: var(--layer-bars-height, 0px); }
+.layer-bars { position: absolute; left: 0; right: 0; top: calc(50% + 10px); display: grid; gap: 2px; pointer-events: none; }
+.layer-bars[hidden] { display: none; }
+.layer-bar { position: relative; height: 12px; }
+.layer-bar .bar-body {
+  position: absolute; top: 0; bottom: 0; min-width: 6px; border-radius: 3px; pointer-events: auto; cursor: pointer;
+  background: rgba(148, 163, 184, 0.35); overflow: visible;
+}
+.layer-bar.selected .bar-body { background: rgba(125, 211, 252, 0.55); }
+.layer-bar .bar-in, .layer-bar .bar-out { position: absolute; top: 0; bottom: 0; background: rgba(255, 255, 255, 0.22); }
+.layer-bar .bar-in { left: 0; border-radius: 3px 0 0 3px; }
+.layer-bar .bar-out { right: 0; border-radius: 0 3px 3px 0; }
+.layer-bar .bar-label {
+  position: absolute; left: 6px; right: 6px; top: 0; font-size: var(--font-caption); line-height: 12px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+}
+.layer-bar .bar-end {
+  position: absolute; top: -2px; width: 7px; height: 16px; margin: 0; padding: 0; border: 1px solid #0d1117; border-radius: 2px;
+  background: var(--muted); cursor: ew-resize; pointer-events: auto;
+}
+.layer-bar.selected .bar-end { background: var(--accent); }
+.layer-bar .bar-end.start { left: -3px; }
+.layer-bar .bar-end.end { right: -3px; }
+.layer-bar .bar-end:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .scrub-marks .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--accent); }
 .scrub-marks .mark[hidden] { display: none; }
 
@@ -657,11 +685,12 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* A text layer's type, folded under its words, and a layer's own motion folded under Advanced.
    The summary says how it is set; open, a two-column grid of small labelled controls, the family
    and the colour taking the whole width. */
-.layer-type summary, .layer-advanced summary { cursor: pointer; color: var(--muted); font-size: var(--font-caption); padding: 2px 0; list-style: none; display: flex; align-items: center; gap: var(--space-1); }
-.layer-type summary::-webkit-details-marker, .layer-advanced summary::-webkit-details-marker { display: none; }
-.layer-type summary::before, .layer-advanced summary::before { content: ''; width: 0; height: 0; border: 4px solid transparent; border-left: 5px solid var(--muted); margin-right: 2px; }
-.layer-type[open] summary::before, .layer-advanced[open] summary::before { transform: rotate(90deg); }
-.layer-type summary:hover, .layer-advanced summary:hover { color: var(--text); }
+.layer-type summary, .layer-advanced summary, .layer-look summary { cursor: pointer; color: var(--muted); font-size: var(--font-caption); padding: 2px 0; list-style: none; display: flex; align-items: center; gap: var(--space-1); }
+.layer-type summary::-webkit-details-marker, .layer-advanced summary::-webkit-details-marker, .layer-look summary::-webkit-details-marker { display: none; }
+.layer-type summary::before, .layer-advanced summary::before, .layer-look summary::before { content: ''; width: 0; height: 0; border: 4px solid transparent; border-left: 5px solid var(--muted); margin-right: 2px; }
+.layer-type[open] summary::before, .layer-advanced[open] summary::before, .layer-look[open] summary::before { transform: rotate(90deg); }
+.layer-type summary:hover, .layer-advanced summary:hover, .layer-look summary:hover { color: var(--text); }
+.tint-field { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1); align-items: start; }
 .image-layer-controls { padding-left: 0; }
 .type-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-1) var(--space-2); padding: var(--space-1) 0 var(--space-1) var(--space-3); }
 .type-field { display: grid; gap: 2px; min-width: 0; }

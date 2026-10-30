@@ -27,6 +27,7 @@ import { boxFor, fitImage, type ImageValue, type PxBox } from './image-slot';
 import {
   combineShapes, isTemplateMovement, spanAt, transitionsAt, type LayerSpan, type LayerTransitions, type TransitionShape, type WatchedAt,
 } from './layer-time';
+import type { LayerLook } from './layer-look';
 import { DEFAULT_MAX_LINES, IDENTITY_PLACEMENT, placementFor, type Block, type ImageLayer, type Layer, type LayerValues, type TextCase, type TextLayer, type VideoLayer } from './layers';
 import type { TemplateManifest } from './manifest';
 import { clipWindowIndexAt, type ClipSource, type ClipValue } from './video-layer';
@@ -58,6 +59,8 @@ interface LayerStateBase {
   placement: { dx: number; dy: number; scale: number; rotate: number };
   /** When it comes and goes, in seconds of the graphic as it is watched; absent is the whole of it (src/core/layer-time.ts). */
   span?: LayerSpan;
+  /** How it looks, for the draw; absent is as the template draws it (src/core/layer-look.ts). */
+  look?: LayerLook;
 }
 
 export interface TextLayerState extends LayerStateBase {
@@ -452,7 +455,7 @@ function layerState(layer: Layer, position: number, short: number, size: Size, c
   const placement = placed === IDENTITY_PLACEMENT
     ? { ...IDENTITY_PLACEMENT }
     : { dx: placed.dx * size.width, dy: placed.dy * size.height, scale: placed.scale, rotate: placed.rotate };
-  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', placement, ...(layer.transition ? { transition: layer.transition } : {}), ...(layer.span ? { span: layer.span } : {}) };
+  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', placement, ...(layer.transition ? { transition: layer.transition } : {}), ...(layer.span ? { span: layer.span } : {}), ...(layer.look ? { look: layer.look } : {}) };
   if (layer.type === 'text') {
     const text = layer as TextLayer;
     return {
