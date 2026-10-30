@@ -68,6 +68,7 @@ Milestones 1-6, 10-13, 15, 18, 19, 21-31, 33, 37 (renderer, alpha export, parame
 |---|---|---|
 | 34. A browse panel that says what things are | The browse tree opens on what you get — lower thirds, animated backgrounds, matching sets, overlays, transitions — with everyday names, posters that show what each item is, category cards with thumbnails, a line on each, and "For…" and "Look" as filters | 20-32 h |
 | 32. Stock library import | Open the licensed stock media you already own where it lies — folders, drives, disc images, zipped downloads — browsed as it was organised, with clip sets that stretch, layered music, and what can't be read said plainly | 27-46 h |
+| 38. A bigger stage | The inspector opens as a drawer from the transport row and the right column is gone (done); still to come: breathing room in the row with the scrub bar lined up one to one under the picture, theater mode, and the results kept clear of the tray | 11-19 h |
 | 36. A deeper library | Nothing in single digits: Lower thirds to 20, End cards, Animated backgrounds and Stock video to 12, every type to 10, held by the coverage test | 30-48 h |
 | 35. Lottie animations | Play, render and edit Lottie files — the animated vector format After Effects exports — like templates: text, colours and images as parameters, markers that stretch to any length, alpha export, and as a layer on the stage | 18-30 h |
 | 20. Social-ready export | Platform presets (aspect, resolution, frame rate, H.264/AAC, bitrate) with warnings when a render runs past a platform's length or file-size limit, a cover image, and handing the file to the system share sheet or the platform's upload page — no accounts, no posting through APIs | 9-14 h |
@@ -75,7 +76,7 @@ Milestones 1-6, 10-13, 15, 18, 19, 21-31, 33, 37 (renderer, alpha export, parame
 | 17. Unsigned builds and releases | electron-builder, an app icon of Pulp's own and the names and shortcuts each system shows, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 8-14 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 
-The milestones through 1.0 total **531-853 hours**, of which **115-191 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, audio with stems and paired effects, media slots, output presets per kind of asset, a `pulp` command, optional on-device semantic search) add 23-43 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **542-872 hours**, of which **110-183 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, audio with stems and paired effects, media slots, output presets per kind of asset, a `pulp` command, optional on-device semantic search) add 23-43 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 

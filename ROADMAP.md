@@ -43,7 +43,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 33. Layered graphics: Photoshop, Illustrator, SVG (**done**) | 19-33 h |
 | 15. Convert library media (**done**) | 8-12 h |
 | 37. The transport row: play and scrub at the bottom of the window (**done**) | 8-14 h |
-| 38. A bigger stage: the inspector opens from the bottom row (**done**) | 9-15 h |
+| 38. A bigger stage: the inspector opens from the bottom row (all but three items) | 11-19 h |
 | 36. A deeper library: nothing in single digits | 30-48 h |
 | 35. Lottie animations | 18-30 h |
 | 20. Social-ready export | 9-14 h |
@@ -53,9 +53,9 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
-| **Total through 1.0 (every milestone above not marked post-1.0)** | **540-868 h** |
-| **Still open through 1.0 (unticked items only)** | **107-177 h** |
-| **Total including post-1.0 items** | **563-911 h** |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **542-872 h** |
+| **Still open through 1.0 (unticked items only)** | **110-183 h** |
+| **Total including post-1.0 items** | **565-915 h** |
 
 ## 0. Foundation (done)
 
@@ -437,7 +437,7 @@ Decided 2026-10-30, first in the next task and before milestone 36; built the sa
 - [x] **Nothing chosen, or nothing that plays:** the row stays in place, disabled, so the layout never jumps; a still shows no scrub bar but keeps the row (1 h)
 - [x] **Everything that points at the controls follows:** the Playback menu and its shortcuts, the guided tour's steps, the keyboard focus order, the user guide's screenshots when milestone 8 writes them; the UI end-to-end tests find the controls in their new place. *The menu presses the same buttons by the same ids, so it followed unchanged; the tour gains a step for the row and the stage's step says what the stage is now; the README's screenshot waits for milestone 8* (1-2 h)
 
-## 38. A bigger stage: the inspector opens from the bottom row (9-15 h; GitHub issue #40) — done
+## 38. A bigger stage: the inspector opens from the bottom row (11-19 h; GitHub issue #40)
 
 Decided 2026-10-30, right after milestone 37; built the same day. The stage is too small to work in at nearly every window size: at the default 1280 × 788 the picture is about 450 × 250 px, with the inspector's column on the right and three rows of controls and a results strip around it. The picture's size is limited by the window's height before its width, so the stage wins by getting height: the inspector's Parameters, Output and Info, which are opened now and then rather than all the time, move into a drawer that opens from the transport row; the right column goes; the results become a strip under the stage that leans small; and the window is held to fit at every size. A full-width stage above every column was weighed and not taken: it gives a 16:9 picture no more room at common window sizes, wastes the width for 9:16, and squeezes the browse tree into a short strip.
 
@@ -445,7 +445,9 @@ Decided 2026-10-30, right after milestone 37; built the same day. The stage is t
 - [x] **The inspector as a drawer:** Parameters, Output and Info become three buttons in the transport row; choosing one opens a drawer that slides up from the row over the results, never over the stage, so the picture stays in view while a title is typed. Choosing it again or Esc closes it; its height and last tab are kept in `settings.json`; a pin keeps it open through a run of edits; a dot on Parameters and Output says the shown item has edits. *The drawer is anchored inside the results region, so covering only the results is a property of the markup; choosing another result closes it unless pinned, since browsing wants the results back*
 - [x] **The right column goes:** the stage and the results span from the browse panel's edge to the window's right edge
 - [x] **The stage is the picture:** the background toggle, the safe-area switch and Add to collection leave the rows under the picture for the transport row or a small overlay on the stage's corner, so the stage's box is all picture; the default split between stage and results leans to the stage, and one key shows or hides the results. *Background and safe areas overlay the stage's corner; Add to collection joins the row; the item strip moves into the drawer's head; `stageShare` defaults to 0.72; Results toggles beside the stage's own toggle and from the View menu*
-- [x] **The window fits at any size:** the results shrink and scroll inside their own pane, nothing draws over the tray, the transport row or the status bar, and the page itself never scrolls. A UI test at the default 1280 × 788 checks all of that and that the picture gets at least a set share of the window. *38% of the window's height; the regions are checked pairwise for overlap*
+- [ ] **The transport row breathes, and the scrub bar lines up with the picture:** the row gets padding above and below its controls (from the spacing scale in `docs/ui-style.md`), so nothing touches the border of the section above it or its own edges. The scrub bar takes a line of its own whose left and right ends sit exactly under the picture's left and right edges, one to one, as video players do: the playhead halfway along the bar is halfway along the picture, and the bar follows the picture as the window, the stage or the aspect changes. A tall 9:16 picture would make that bar short, so it keeps a minimum width, centred under the picture. The layer bars sit under the scrub bar at the same width and line up with it. The buttons go on a second line — play, step and loop on the left, in and out in the middle, volume and the Parameters, Output and Info buttons on the right. (1-2 h)
+- [ ] **Theater mode:** a button by the stage and the `T` key make the picture as big as the window allows without leaving the app: the browse panel folds to its icon rail, the results strip hides and the drawer closes, so the stage runs from the rail to the window's right edge and down to the transport row, which stays, its scrub bar still under the picture. Toggled off, everything comes back as it was — the panel's width, the results' height, an open drawer. Unlike full screen it keeps the window's chrome and the controls; a test at 1280 × 788 checks the picture grows (1-2 h)
+- [ ] **The window fits at any size:** the results shrink and scroll inside their own pane, nothing draws over the tray, the transport row or the status bar, and the page itself never scrolls. A UI test at the default 1280 × 788 checks all of that and that the picture gets at least a set share of the window. *38% of the window's height; the regions are checked pairwise for overlap* *Reopened 2026-10-30: measured at 1280 × 788 on `eda45d8`, the results pane (y 580–740) still runs under the collection tray (y 636–673) and the transport row, and the tray's buttons draw over the grid's second row; the page no longer scrolls and the picture grew to about 630 × 353* (1-2 h)
 - [x] **Everything that pointed at the column follows:** choosing a collection card opens the drawer on Parameters; Cmd/Ctrl+1 to 3 toggle the three tabs and the View menu lists them; the guided tour, the start screen and the UI end-to-end tests find the inspector in its new place. *The panels moved to the shifted digits: Browse ⇧1, Preview ⇧2, Results ⇧3, Collection Tray ⇧4; the shortcut list under Help reads off the menu, so it says so itself*
 
 ## 36. A deeper library: nothing in single digits (30-48 h; GitHub issue #38)
