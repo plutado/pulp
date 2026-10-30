@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { scanLibrary } from '../src/core/library';
 import { SAMPLE_MEDIA } from '../src/core/sample-media';
 import { normalizeTag } from '../src/core/tags';
+import { BROWSE_CATEGORIES } from '../src/core/categories';
 import { entryType, inferThemes, STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES, typeInfo } from '../src/core/taxonomy';
 
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
@@ -27,16 +28,20 @@ const TYPES_STILL_OPEN = new Set<string>([]);
 
 /**
  * Milestone 36's floors for the browse panel's top categories that read as empty at six: the
- * most used first. Counted the same way, over the templates and the catalogue together; these
- * only rise, and a category checked here never slips back under its floor.
+ * most used first. Keyed by the category (src/core/categories.ts), since a category may gather
+ * several types — Still backgrounds holds the still backgrounds and the textures — and counted
+ * the same way as everything here, over the templates and the catalogue together. These only
+ * rise, and a category checked here never slips back under its floor. The two background
+ * categories reached the decided 32 first (generated loops, stills and textures); the three
+ * template categories' floors rise with their batches.
  */
 export const CATEGORY_FLOORS: Record<string, number> = {
-  'lower-third': 20,
-  'end-card': 12,
-  'animated-loop': 12,
-  // Milestone 36's second batch raised stock video past its first floor: the twelve re-rendered
-  // backgrounds and eight footage scenes with subjects of their own.
-  'stock-footage': 20,
+  'lower-thirds': 20,
+  'end-cards': 12,
+  'animated-backgrounds': 32,
+  'still-backgrounds': 32,
+  // Raised past its first floor of twelve by the eight footage scenes with subjects of their own.
+  'stock-video': 20,
 };
 
 /**
@@ -110,9 +115,11 @@ describe(`every category is at least ${MINIMUM} deep`, () => {
     });
   }
 
-  it.each(Object.entries(CATEGORY_FLOORS))('the top category %s is at least %i deep (milestone 36)', (type, floor) => {
-    expect(typeInfo(type), type).toBeDefined();
-    expect(counts.types.get(type) ?? 0, `${typeInfo(type)?.label}: a top category that reads as empty at six`).toBeGreaterThanOrEqual(floor);
+  it.each(Object.entries(CATEGORY_FLOORS))('the top category %s is at least %i deep (milestone 36)', (id, floor) => {
+    const category = BROWSE_CATEGORIES.find((c) => c.id === id);
+    expect(category, `${id} is not a browse category`).toBeDefined();
+    const total = category!.types.reduce((sum, type) => sum + (counts.types.get(type) ?? 0), 0);
+    expect(total, `${category!.label}: a top category that reads as empty at six`).toBeGreaterThanOrEqual(floor);
   });
 
   const generated = [...TYPES.filter((t) => GENERATED_GROUPS.has(t.group)).map((t) => t.id), ...GENERATED_EXTRA_TYPES];
