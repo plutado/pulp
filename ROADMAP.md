@@ -36,20 +36,20 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 28. Per-layer timing, transitions and looks (**done**) | 24-36 h |
 | 27. Projects and the application menu (**done**) | 20-32 h |
 | 31. A start screen (**done**) | 14-22 h |
-| 34. A browse panel that says what things are | 19-31 h |
+| 34. A browse panel that says what things are | 20-32 h |
 | 32. Stock library import | 27-46 h |
 | 33. Layered Photoshop graphics | 10-18 h |
-| 20. Social-ready export | 8-13 h |
-| 8. 1.0 hardening and docs | 12-20 h |
+| 20. Social-ready export | 9-14 h |
+| 8. 1.0 hardening and docs | 14-23 h |
 | 17. Unsigned builds and releases | 8-14 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
 | 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
-| **Total through 1.0 (every milestone above not marked post-1.0)** | **454-729 h** |
-| **Still open through 1.0 (unticked items only)** | **93-156 h** |
-| **Total including post-1.0 items** | **485-784 h** |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **458-734 h** |
+| **Still open through 1.0 (unticked items only)** | **97-161 h** |
+| **Total including post-1.0 items** | **489-789 h** |
 
 ## 0. Foundation (done)
 
@@ -302,7 +302,7 @@ Right after milestone 25, whose drag and placement it builds on. Templates are d
 - [x] The Assets categories: a type group of its own (isolated elements on transparency, as distinct from Overlays, which cover the whole frame), beginning with the ten **Effects** categories — fire and flames, smoke and steam, sparks and embers, explosions and impacts, energy and magic, light and flares, weather effects, liquids and splashes, confetti and celebration, brush and ink strokes. The taxonomy version moves to 3; ids are permanent and the list only grows (ADR 0010) (1-2 h)
 - [x] Generated assets, the first examples: recipes in the sample generator that draw an isolated element on transparency over its own time, written as a transparent WebM (VP9 with alpha) for the moving one and a PNG for the still, seeded so every generation is identical, looping where that is natural and one-shot where it is not. Two in every Effects category to begin with; the end-to-end generator proves the alpha and the motion (3-4 h)
 - [x] Six or more in every asset category, and the themed **Objects** kind beside Effects — sports equipment, celebrations and life events, holidays, business, science and health, media, nature and space, travel and city, food and home, community and learning — each object tagged with the themes it fits, so every theme in the taxonomy gains at least three assets. The coverage test holds both. *Done as ten "objects" categories (Sports equipment, Celebration, Holiday, Business, Science, Media, Nature, Travel, Home and Community objects), named as plain noun phrases so that no part of a label becomes a folder alias a person's own "Business" or "Travel" folder would match; the theme subfolders carry the tags. Taxonomy version 4; 176 new assets, a third of them clips* (10-16 h)
-- [x] Asset libraries: folders of one's own assets, indexed like media today. Clips carrying transparency are detected (ProRes 4444, WebM VP9 with alpha, PNG sequences, HEVC with alpha on macOS) and wear the existing Alpha badge and filter; thumbnails and hover-scrub draw over the checkerboard. *ProRes 4444 and VP9 already read; HEVC needed its auxiliary layer read, since the pixel format says `yuv420p` as an opaque file does. A run of numbered frames is now one clip rather than a card per frame (`media-sequence.ts`), postered a tenth in and scrubbed across the run; playing one on the stage waits for Video layers, below* (4-6 h)
+- [x] Asset libraries: folders of one's own assets, indexed like media today. Clips carrying transparency are detected (ProRes 4444, WebM VP9 with alpha, PNG sequences, HEVC with alpha on macOS) and wear the existing Alpha badge and filter; thumbnails and hover-scrub draw over the checkerboard. *ProRes 4444 and VP9 already read; HEVC needed its auxiliary layer read, since the pixel format says `yuv420p` as an opaque file does. A run of numbered frames is now one clip rather than a card per frame (`media-sequence.ts`), postered a tenth in and scrubbed across the run; playing one on the stage came with Video layers, below, and milestone 30's frame sequences* (4-6 h)
 - [x] Video layers: "Add layer" offers Video beside Text and Image. A clip plays inside the frame, decoded frame-accurately for the template's time by the host, with in and out points, loop or play once, speed and a start delay; renders composite it exactly, and a template page sees only the clips chosen for it, by the same by-id grant as images. *`video-layer.ts` decides which clip frame belongs to a moment, for the preview and the render alike; the window a layer plays is decoded once at the size it is drawn and handed to the page as frames. Carried by presets, collections, `--param @layers`, a CSV column and the cache key* (6-9 h)
 - [x] Drop onto the stage: dragging an asset from the results onto the preview makes it a layer where it was dropped, then moved and resized with milestone 25's handles; dropping it on a layer card replaces that layer's picture or clip. "Logo" becomes "Image" where it means any picture. *A still becomes an image layer and a clip a video layer, in the first block that takes added layers; the drop point is kept until the page reports where the stack put the layer, and the placement that moves it there is part of the same undo step. The app's own wording never called a picture a logo — only templates' own slot labels do, which this item allows* (3-5 h)
 - [x] Rights and performance: assets stay where they are and are referenced in place, never copied into a pack or an export, and a pack export whose layers use one warns as it does for an imported font; decoded frames are cached and scrubbing uses lower-resolution proxies, so a long or 4K alpha clip stays responsive. *Clips decode at the smallest proxy step covering the layer's drawn height, so a resize does not redo the work; decoded windows are cached under a budget and keyed by the clip's stat signature; a window over 900 frames is refused with advice rather than held* (3-4 h)
@@ -365,7 +365,7 @@ After milestone 27, since it needs `.pulp` projects. Shown at launch and from Fi
 - [x] **Set up and status:** a first-run checklist (ffmpeg found, a library folder added, sample media made), each item a button that does it; the library at a glance (template and media counts, most-used categories, favourites); quick actions (add a library folder, import a pack, import a font). Milestone 14's "guided setup" can fold into the checklist. *Importing a font stays in the Parameters tab, where the family is chosen; the quick actions are add a folder, import a pack and make sample media* (3-5 h)
 - [x] **What are you making?** A handful of plain choices — an interview, a sports opener, a wedding, a social clip, a news package — each leading into the right browse categories and filters (milestone 34), so a first-time user starts from what they want to make rather than from how the library is sorted. *Until 34 lands, each choice folds the browse tree to the type or theme that serves it* (2-3 h)
 
-## 34. A browse panel that says what things are (19-31 h; GitHub issue #36)
+## 34. A browse panel that says what things are (20-32 h; GitHub issue #36)
 
 The browse panel's top level is five ways of sorting — Types, Themes, Styles, Packs, Folders — and a person has to learn what each means before they can find anything. Stock libraries people already know lead with what you get: animated lower thirds, animated backgrounds, matching sets, overlays, wipes and transitions, music. This milestone makes Pulp's panel read the same way, in this order.
 
@@ -375,6 +375,7 @@ The browse panel's top level is five ways of sorting — Types, Themes, Styles, 
 - [ ] **Category cards:** choosing a category with nothing searched shows its subcategories as cards, each with a representative thumbnail and a count, so a picture explains what a name might not (4-6 h)
 - [ ] **A one-line description for every category,** shown under its heading and on hover ("Lower thirds: name and title bars that sit at the bottom of the frame") (1-2 h)
 - [ ] **"For…" and "Look" as filters, not separate trees:** pick what in the tree, then narrow it with chips (Lower thirds › For: Wedding › Look: Elegant), so browsing is one path rather than five (3-5 h)
+- [ ] **"What are you making?" leads into the new panel:** the start screen's choices (milestone 31), which fold the old tree to a type or theme until now, open the matching category with its "For…" and "Look" chips set (Interview → Lower thirds › For: Interview), held by a test that every choice lands on a category that exists (1 h)
 - [ ] **Checked with people and held by a test:** a short card sort with three to five people on the new labels before they are final, and a unit test that every top-level category has a description and every category a thumbnail (1-2 h)
 
 ## 32. Stock library import: open the stock media you already own (27-46 h; GitHub issue #34)
@@ -405,24 +406,26 @@ Read a `.psd` as a stack of layers, so a layered still from a stock library can 
 - [ ] **Limits stated plainly:** layer effects, smart objects and adjustment layers Pulp can't reproduce are named rather than silently dropped; the flattened composite stored in the file is the fallback (1-2 h)
 - [ ] **Tests** on generated `.psd` fixtures only (1-2 h)
 
-## 20. Social-ready export (8-13 h)
+## 20. Social-ready export (9-14 h)
 
 After milestone 19, which it depends on: a platform preset is mostly an aspect, a resolution and a frame rate, and none of those are choices until templates stop declaring a pixel size.
 
 **The file, not the account.** Pulp makes something the right shape and size for where it is going and then hands it over. No accounts, no logins, no posting through anyone's API: nothing to store a token for, nothing to re-certify, and nothing that breaks when a platform changes its API or its terms.
 
 - [ ] Platform presets: a built-in, versioned list in a pure core module — for each, the aspect, resolution, frame rate, H.264 video with AAC audio, a bitrate target, and the platform's length and file-size limits. Choosing one in the Output tab sets the aspect, resolution, frame rate and encoder together. The list carries the date its limits were checked, and shows it, because this is data that ages; unit tests that every preset's resolution matches its aspect and that the list parses (3-5 h)
+- [ ] **New project by platform** on the start screen (milestone 31): each platform preset offered beside the shapes under Get going, setting the new project's aspect, size and frame rate the way choosing it in the Output tab does (1 h)
 - [ ] Length and file-size warnings: before a render, from the trim and the bitrate target; after it, from the file itself. Shown in the Output tab and on the finished job, and never blocking — a limit may have moved since the list was written, and the person rendering may know something it does not (1-2 h)
 - [ ] Cover image: a still from a frame picked on the scrub bar, written beside the video at the same aspect and resolution, for the thumbnail or cover a platform asks for separately (2-3 h)
 - [ ] Hand-off: "Share…" opens the system share sheet with the rendered file, and "Open upload page" opens the platform's own upload page in the browser with the file revealed in the file manager. An ADR records the choice of hand-off over integration, so the reasoning survives the first request for one-click posting (2-3 h)
 
-## 8. 1.0 hardening and docs (12-20 h)
+## 8. 1.0 hardening and docs (14-23 h)
 
 - [ ] A JSON Schema for the template manifest and `pack.json`, generated from or checked against the validator, and the compatibility rule stated where authors read it: fields are added rather than repurposed, and an incompatible change takes a new `formatVersion`. **No version freeze is planned.** This item used to be "freeze template format v1 here"; milestone 19 changes the format and later milestones may too, so the format stays versioned and documented rather than declared final (2-3 h)
 - [ ] Template authoring guide with a step-by-step walkthrough and a `pulp-template` starter folder (2-3 h)
 - [ ] Accessibility pass across every region: keyboard navigation for the browse tree and nodes, the grid, the player, the tray, the inspector tabs (arrow keys, roving tabindex), the filter chips and the scope chip; splitter keyboard resizing kept; focus states and screen reader labels throughout (2-3 h)
 - [ ] Crash and error reporting that stays local (log file, "copy diagnostics" in the status bar) (1-2 h)
-- [ ] User guide for the window: regions, keyboard shortcuts, search syntax; README and screenshots updated for the new layout (1-2 h)
+- [ ] User guide for the window: regions, keyboard shortcuts, search syntax; README and screenshots updated for the new layout. Opened from Help → User Guide and from the start screen's Learn section, the two places milestones 27 and 31 left waiting for it (1-2 h)
+- [ ] **A Settings window,** so the menu's Settings item (left out in milestone 27 because it had nothing to open) opens something: Pulp → Settings on macOS, Edit → Settings elsewhere. It holds what `settings.json` keeps with no other home today — show the start screen at launch, where FFmpeg is, the default render folder, the render cache's size and clearing it, audition on choosing audio — each control writing the same setting the rest of the window reads (2-3 h)
 - [ ] Third-party notices: a file covering Electron and Chromium, the npm dependencies, the bundled fonts and ffmpeg if it is ever bundled, shown in an "Acknowledgements" screen reached from About, and checked in CI so a new dependency cannot ship unlisted; required before any build is distributed (milestone 17) (2-4 h)
 - [ ] A release process: version numbers, release notes drawn from the changelog's Unreleased section, a tag per release (1-2 h)
 - [ ] Project basics: issue and pull request templates, a code of conduct, and a `SECURITY.md` saying how to report a vulnerability (1 h)
