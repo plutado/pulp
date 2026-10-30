@@ -1,0 +1,77 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.homework-end-card",
+  "name": "This Week",
+  "description": "A ruled notebook page with the week’s reading written line by line in a quick hand. Closes a lesson, a study-with-me or a course recap.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "notebook",
+    "homework"
+  ],
+  "themes": [
+    "education",
+    "kids"
+  ],
+  "styles": [
+    "hand-drawn"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Heading",
+      "default": "This week",
+      "maxLength": 24,
+      "element": "Page"
+    },
+    {
+      "id": "l1",
+      "type": "text",
+      "label": "Line one",
+      "default": "read chapters 4 and 5",
+      "maxLength": 36,
+      "element": "Page"
+    },
+    {
+      "id": "l2",
+      "type": "text",
+      "label": "Line two",
+      "default": "finish the volcano sketch",
+      "maxLength": 36,
+      "element": "Page"
+    },
+    {
+      "id": "paper",
+      "type": "color",
+      "label": "Paper",
+      "default": "#fdfcf5",
+      "element": "Page"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Ink",
+      "default": "#3b4a8f",
+      "element": "Page"
+    }
+  ]
+}

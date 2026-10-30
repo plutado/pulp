@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Save the Date</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Save the Date, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The day lands and its ring draws by 1.9 s; the leaf then holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 6.0) / 0.9));
+    ctx.fillStyle = p.back; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var come = easeOut(clamp01(t / 0.7));
+    var cw = Math.min(W * 0.3, 420 * u), ch = cw * 1.1;
+    var cx2 = W / 2 - cw / 2, cy2 = H * 0.4 - ch / 2 + (1 - come) * 24 * u;
+    ctx.globalAlpha = (1 - gone) * come;
+    ctx.fillStyle = 'rgba(0,0,0,0.14)';
+    rr(cx2 + 5 * u, cy2 + 9 * u, cw, ch, 14 * u); ctx.fill();
+    ctx.fillStyle = '#fffdf8';
+    rr(cx2, cy2, cw, ch, 14 * u); ctx.fill();
+    ctx.fillStyle = rgba(p.ring, 0.92);
+    ctx.beginPath();
+    ctx.moveTo(cx2, cy2 + 14 * u); ctx.arcTo(cx2, cy2, cx2 + 14 * u, cy2, 14 * u);
+    ctx.lineTo(cx2 + cw - 14 * u, cy2); ctx.arcTo(cx2 + cw, cy2, cx2 + cw, cy2 + 14 * u, 14 * u);
+    ctx.lineTo(cx2 + cw, cy2 + ch * 0.26); ctx.lineTo(cx2, cy2 + ch * 0.26); ctx.closePath(); ctx.fill();
+    // The two calendar rings at the top edge.
+    for (var hole = 0; hole < 2; hole++) {
+      var hx = cx2 + cw * (0.3 + hole * 0.4);
+      ctx.strokeStyle = '#8a8178'; ctx.lineWidth = 4 * u;
+      ctx.beginPath(); ctx.arc(hx, cy2 - 6 * u, 10 * u, Math.PI * 0.1, Math.PI * 1.2, true); ctx.stroke();
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#fffdf8';
+    ctx.font = '600 ' + Math.round(42 * u) + 'px Playfair';
+    ctx.fillText(p.month, cx2 + cw / 2, cy2 + ch * 0.18);
+    var stamp = overshoot(clamp01((t - 0.8) / 0.5));
+    if (t >= 0.8) {
+      ctx.save();
+      ctx.translate(cx2 + cw / 2, cy2 + ch * 0.62);
+      ctx.scale(Math.max(0.0001, stamp), Math.max(0.0001, stamp));
+      ctx.fillStyle = '#3f372e';
+      ctx.font = '700 ' + Math.round(150 * u) + 'px Playfair';
+      ctx.fillText(p.day, 0, 50 * u);
+      ctx.restore();
+    }
+    // The ring drawn around the day, a hand's circle rather than a compass's.
+    var ringDraw = easeInOut(clamp01((t - 1.3) / 0.6));
+    if (ringDraw > 0) {
+      ctx.strokeStyle = rgba(p.ring, 0.9); ctx.lineWidth = 5 * u; ctx.lineCap = 'round';
+      ctx.beginPath();
+      var steps = Math.max(2, Math.floor(30 * ringDraw));
+      for (var k = 0; k <= steps; k++) {
+        var a = -Math.PI * 0.6 + (k / 30) * Math.PI * 2.05;
+        var rx = cw * 0.3 * (1 + (at(k) - 0.5) * 0.08), ry = ch * 0.24 * (1 + (at(k + 9) - 0.5) * 0.08);
+        var x2 = cx2 + cw / 2 + Math.cos(a) * rx, y2 = cy2 + ch * 0.6 + Math.sin(a) * ry;
+        if (k === 0) ctx.moveTo(x2, y2); else ctx.lineTo(x2, y2);
+      }
+      ctx.stroke();
+    }
+    var wordsIn = easeOut(clamp01((t - 1.2) / 0.7));
+    ctx.globalAlpha = (1 - gone) * wordsIn;
+    ctx.fillStyle = '#5a4a3c';
+    ctx.font = '700 ' + Math.round(86 * u) + 'px "Dancing Script"';
+    ctx.fillText(p.names, W / 2, H * 0.74);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

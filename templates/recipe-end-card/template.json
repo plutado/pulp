@@ -1,0 +1,69 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.recipe-end-card",
+  "name": "Full Recipe",
+  "description": "A cream recipe card with crossed cutlery, the dish and where the full recipe lives. Closes a cooking video with the kitchen tidy.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "recipe",
+    "food"
+  ],
+  "themes": [
+    "food"
+  ],
+  "styles": [
+    "organic",
+    "elegant"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "dish",
+      "type": "text",
+      "label": "Dish",
+      "default": "Lemon ricotta pancakes",
+      "maxLength": 36,
+      "element": "Card"
+    },
+    {
+      "id": "where",
+      "type": "text",
+      "label": "Where",
+      "default": "full recipe at thesundaytable.example",
+      "maxLength": 48,
+      "element": "Card"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#2f3a33",
+      "element": "Scene"
+    },
+    {
+      "id": "card",
+      "type": "color",
+      "label": "Card",
+      "default": "#fdf8ee",
+      "element": "Card"
+    }
+  ]
+}

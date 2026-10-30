@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Follow Along</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Follow Along, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The third capsule lands at 1.8 s; the stack then holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 6.0) / 0.9));
+    ctx.fillStyle = p.back; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var headIn = easeOut(clamp01(t / 0.6));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.globalAlpha = (1 - gone) * headIn;
+    ctx.fillStyle = '#f9fafb';
+    ctx.font = '700 ' + Math.round(84 * u) + 'px Montserrat';
+    ctx.fillText(p.title, W / 2, H * 0.26);
+    var handles = [p.h1, p.h2, p.h3];
+    var glyphs = ['camera', 'play', 'globe'];
+    var capW = Math.min(W * 0.4, 560 * u), capH = 84 * u;
+    for (var i = 0; i < handles.length; i++) {
+      var pop = overshoot(clamp01((t - 0.5 - i * 0.35) / 0.45));
+      if (t < 0.5 + i * 0.35) continue;
+      var y = H * (0.38 + i * 0.13), x = W / 2 - capW / 2;
+      ctx.save();
+      ctx.globalAlpha = (1 - gone) * Math.min(1, pop);
+      ctx.translate(W / 2, y + capH / 2);
+      ctx.scale(Math.max(0.0001, 0.7 + 0.3 * pop), Math.max(0.0001, 0.7 + 0.3 * pop));
+      ctx.translate(-W / 2, -(y + capH / 2));
+      ctx.fillStyle = rgba(p.capsule, 1);
+      rr(x, y, capW, capH, capH / 2); ctx.fill();
+      // The glyph disc: a drawn mark, not a trademark.
+      var gx = x + capH / 2 + 6 * u, gy = y + capH / 2;
+      ctx.fillStyle = rgba(p.accent, 1);
+      ctx.beginPath(); ctx.arc(gx, gy, capH * 0.32, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = p.back; ctx.fillStyle = p.back; ctx.lineWidth = 3.5 * u;
+      if (glyphs[i] === 'camera') {
+        rr(gx - 11 * u, gy - 8 * u, 22 * u, 16 * u, 4 * u); ctx.stroke();
+        ctx.beginPath(); ctx.arc(gx, gy, 4.5 * u, 0, Math.PI * 2); ctx.stroke();
+      } else if (glyphs[i] === 'play') {
+        ctx.beginPath(); ctx.moveTo(gx - 6 * u, gy - 9 * u); ctx.lineTo(gx + 9 * u, gy); ctx.lineTo(gx - 6 * u, gy + 9 * u); ctx.closePath(); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.arc(gx, gy, 10 * u, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(gx, gy, 4.5 * u, 10 * u, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(gx - 10 * u, gy); ctx.lineTo(gx + 10 * u, gy); ctx.stroke();
+      }
+      ctx.fillStyle = '#e5e7eb';
+      ctx.textAlign = 'left';
+      ctx.font = '600 ' + Math.round(34 * u) + 'px Inter';
+      ctx.fillText(handles[i], gx + capH * 0.5, gy + 12 * u);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

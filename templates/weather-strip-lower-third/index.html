@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Weather Strip</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Weather Strip, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The strip settles by 1.2 s — the sun stops where it peeks from the cloud — and holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var come = easeOut(clamp01(t / 0.8)), gone = easeOut(clamp01((t - 5.2) / 0.8));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+    var b = state.blocks.words.box, pad = 24 * u, badge = 110 * u;
+    var sx = b.x - pad - badge, sy = b.y - pad, sw = b.width + pad * 2 + badge, sh = b.height + pad * 2;
+    ctx.globalAlpha = show;
+    ctx.save();
+    ctx.translate((1 - come) * -60 * u + gone * -60 * u, 0);
+    rr(sx, sy, sw, sh, 18 * u);
+    ctx.fillStyle = rgba(p.strip, 0.9); ctx.fill();
+    ctx.lineWidth = 2 * u; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.stroke();
+    // The badge: a sun that slides out from behind its cloud and stops by 1.2 s.
+    var cx = sx + badge * 0.52, cy = sy + sh / 2;
+    var peek = easeInOut(clamp01((t - 0.3) / 0.9));
+    ctx.fillStyle = rgba(p.sun, 1);
+    ctx.beginPath(); ctx.arc(cx + 10 * u - peek * 22 * u, cy - 8 * u - peek * 10 * u, 22 * u, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = rgba(p.sun, 0.9); ctx.lineWidth = 3 * u; ctx.lineCap = 'round';
+    for (var i = 0; i < 8; i++) {
+      var a = (i / 8) * Math.PI * 2;
+      var rx = cx + 10 * u - peek * 22 * u, ry = cy - 8 * u - peek * 10 * u;
+      ctx.beginPath();
+      ctx.moveTo(rx + Math.cos(a) * 28 * u, ry + Math.sin(a) * 28 * u);
+      ctx.lineTo(rx + Math.cos(a) * (28 + 8 * peek) * u, ry + Math.sin(a) * (28 + 8 * peek) * u);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#f8fafc';
+    for (var puff = 0; puff < 3; puff++) {
+      ctx.beginPath();
+      ctx.arc(cx - 14 * u + puff * 16 * u, cy + 10 * u + (puff === 1 ? -7 * u : 0), (15 - puff * 2) * u, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    var laid = window.pulpLayoutBlock(ctx, state, 'words', {
+      each: function (layer, position) {
+        var lineIn = easeOut(clamp01((t - 0.25 - position * 0.2) / 0.5));
+        return { alpha: lineIn, dy: (1 - lineIn) * 7 * u };
+      }
+    });
+    window.pulpDrawBlock(ctx, laid);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

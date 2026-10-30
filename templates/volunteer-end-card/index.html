@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Lend a Hand</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Lend a Hand, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The third tick lands at 1.9 s; the list then holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 6.0) / 0.9));
+    ctx.fillStyle = p.back; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var headIn = easeOut(clamp01(t / 0.6));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.globalAlpha = (1 - gone) * headIn;
+    ctx.fillStyle = '#273e2e';
+    ctx.font = '700 ' + Math.round(80 * u) + 'px Montserrat';
+    ctx.fillText(p.title, W / 2, H * 0.28);
+    var items = [p.i1, p.i2, p.i3];
+    var left = W / 2 - Math.min(W * 0.26, 340 * u);
+    for (var i = 0; i < items.length; i++) {
+      var rowIn = easeOut(clamp01((t - 0.5 - i * 0.35) / 0.5));
+      var tick = easeInOut(clamp01((t - 0.75 - i * 0.35) / 0.35));
+      var y = H * (0.4 + i * 0.12);
+      ctx.globalAlpha = (1 - gone) * rowIn;
+      ctx.strokeStyle = 'rgba(39,62,46,0.55)'; ctx.lineWidth = 3 * u;
+      rr(left, y - 20 * u, 40 * u, 40 * u, 8 * u); ctx.stroke();
+      if (tick > 0) {
+        ctx.strokeStyle = rgba(p.tick, 1); ctx.lineWidth = 6 * u; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(left + 9 * u, y + 2 * u);
+        var mid = Math.min(1, tick * 2), end = clamp01(tick * 2 - 1);
+        ctx.lineTo(left + 9 * u + 10 * u * mid, y + 2 * u + 9 * u * mid);
+        if (end > 0) ctx.lineTo(left + 19 * u + 16 * u * end, y + 11 * u - 24 * u * end);
+        ctx.stroke();
+      }
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#3d5245';
+      ctx.font = '500 ' + Math.round(38 * u) + 'px Inter';
+      ctx.fillText(items[i], left + 64 * u, y + 12 * u);
+      ctx.textAlign = 'center';
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

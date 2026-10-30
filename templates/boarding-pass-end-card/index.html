@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Next Stop</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Next Stop, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The pass slides in and the stamp lands by 1.8 s; the card then holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 6.0) / 0.9));
+    ctx.fillStyle = p.back; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var come = easeOut(clamp01(t / 0.8));
+    var pw = Math.min(W * 0.66, 980 * u), ph = pw * 0.36;
+    var px2 = W / 2 - pw / 2 + (1 - come) * W * 0.5, py2 = H / 2 - ph / 2;
+    ctx.save();
+    ctx.translate(px2 + pw / 2, py2 + ph / 2); ctx.rotate(-0.02); ctx.translate(-(px2 + pw / 2), -(py2 + ph / 2));
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    rr(px2 + 6 * u, py2 + 10 * u, pw, ph, 14 * u); ctx.fill();
+    ctx.fillStyle = rgba(p.pass2, 1);
+    rr(px2, py2, pw, ph, 14 * u); ctx.fill();
+    // The stub line with punched notches, as a pass has.
+    var stubX = px2 + pw * 0.68;
+    ctx.setLineDash([8 * u, 8 * u]);
+    ctx.strokeStyle = 'rgba(90,80,60,0.6)'; ctx.lineWidth = 2.5 * u;
+    ctx.beginPath(); ctx.moveTo(stubX, py2 + 6 * u); ctx.lineTo(stubX, py2 + ph - 6 * u); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = p.back;
+    ctx.beginPath(); ctx.arc(stubX, py2, 10 * u, 0, Math.PI * 2); ctx.arc(stubX, py2 + ph, 10 * u, 0, Math.PI * 2); ctx.fill();
+    // The barcode on the stub: fixed bars, drawn once.
+    for (var i = 0; i < 18; i++) {
+      ctx.fillStyle = 'rgba(40,36,28,0.85)';
+      var bx2 = stubX + 24 * u + i * ((pw - (stubX - px2) - 48 * u) / 18);
+      ctx.fillRect(bx2, py2 + ph * 0.2, (at(i) > 0.5 ? 5 : 2.5) * u, ph * 0.6);
+    }
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(90,80,60,0.9)';
+    ctx.font = '600 ' + Math.round(26 * u) + 'px "JetBrains Mono"';
+    ctx.fillText('NEXT STOP', px2 + 40 * u, py2 + ph * 0.3);
+    ctx.fillStyle = '#2b2416';
+    ctx.font = '700 ' + Math.round(84 * u) + 'px Oswald';
+    ctx.fillText(p.stop.toUpperCase(), px2 + 40 * u, py2 + ph * 0.66);
+    ctx.fillStyle = 'rgba(90,80,60,0.9)';
+    ctx.font = '500 ' + Math.round(24 * u) + 'px Inter';
+    ctx.fillText(p.line, px2 + 40 * u, py2 + ph * 0.84);
+    // The stamp, pressed on with an overshoot and a turn.
+    var stamp = overshoot(clamp01((t - 1.3) / 0.45));
+    if (t >= 1.3) {
+      ctx.save();
+      ctx.translate(px2 + pw * 0.56, py2 + ph * 0.42);
+      ctx.rotate(-0.3);
+      ctx.scale(Math.max(0.0001, 1.6 - 0.6 * stamp), Math.max(0.0001, 1.6 - 0.6 * stamp));
+      ctx.globalAlpha = (1 - gone) * Math.min(1, stamp) * 0.9;
+      ctx.strokeStyle = rgba(p.stamp, 1); ctx.lineWidth = 5 * u;
+      ctx.beginPath(); ctx.arc(0, 0, 64 * u, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, 52 * u, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = rgba(p.stamp, 1);
+      ctx.textAlign = 'center';
+      ctx.font = '700 ' + Math.round(26 * u) + 'px "JetBrains Mono"';
+      ctx.fillText('BOARDED', 0, 8 * u);
+      ctx.restore();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

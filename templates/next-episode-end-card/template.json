@@ -1,0 +1,66 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.next-episode-end-card",
+  "name": "Next Episode",
+  "description": "A dark card with the next episode’s title and a ring that keeps sweeping around a play mark. Closes a series episode or a serialized doc.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "next episode",
+    "series"
+  ],
+  "themes": [
+    "cinema",
+    "entertainment",
+    "media"
+  ],
+  "styles": [
+    "cinematic"
+  ],
+  "duration": 7,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "kicker",
+      "type": "text",
+      "label": "Kicker",
+      "default": "Next episode",
+      "maxLength": 24,
+      "element": "Words"
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "default": "The Long Way Home",
+      "maxLength": 40,
+      "element": "Words"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#0b0f14",
+      "element": "Scene"
+    },
+    {
+      "id": "ring",
+      "type": "color",
+      "label": "Ring",
+      "default": "#38bdf8",
+      "element": "Ring"
+    }
+  ]
+}

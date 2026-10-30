@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.rate-review-end-card",
+  "name": "Rate and Review",
+  "description": "Five stars that pop in one after another and hold full, with the ask beneath. Closes a podcast episode or an app walkthrough.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "stars",
+    "review"
+  ],
+  "themes": [
+    "podcast",
+    "social-media",
+    "technology"
+  ],
+  "styles": [
+    "playful",
+    "clean"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "ask",
+      "type": "text",
+      "label": "Ask",
+      "default": "Enjoying the show?",
+      "maxLength": 28,
+      "element": "Words"
+    },
+    {
+      "id": "where",
+      "type": "text",
+      "label": "Where",
+      "default": "rate and review wherever you listen",
+      "maxLength": 44,
+      "element": "Words"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#16121e",
+      "element": "Scene"
+    },
+    {
+      "id": "star",
+      "type": "color",
+      "label": "Stars",
+      "default": "#fbbf24",
+      "element": "Stars"
+    }
+  ]
+}

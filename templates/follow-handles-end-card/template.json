@@ -1,0 +1,93 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.follow-handles-end-card",
+  "name": "Follow Along",
+  "description": "Three handle capsules that pop in a beat apart, each with its own glyph disc. Closes a vlog or a brand piece with everywhere to find you.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "handles",
+    "social"
+  ],
+  "themes": [
+    "social-media",
+    "media"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Heading",
+      "default": "Follow along",
+      "maxLength": 24,
+      "element": "Words"
+    },
+    {
+      "id": "h1",
+      "type": "text",
+      "label": "Handle one",
+      "default": "@fern.films",
+      "maxLength": 28,
+      "element": "Capsules"
+    },
+    {
+      "id": "h2",
+      "type": "text",
+      "label": "Handle two",
+      "default": "@fernfilms.studio",
+      "maxLength": 28,
+      "element": "Capsules"
+    },
+    {
+      "id": "h3",
+      "type": "text",
+      "label": "Handle three",
+      "default": "fernfilms.example",
+      "maxLength": 28,
+      "element": "Capsules"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#111827",
+      "element": "Scene"
+    },
+    {
+      "id": "capsule",
+      "type": "color",
+      "label": "Capsules",
+      "default": "#1f2937",
+      "element": "Capsules"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#f472b6",
+      "element": "Capsules"
+    }
+  ]
+}

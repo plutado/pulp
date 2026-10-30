@@ -1,0 +1,106 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.ticker-lower-third",
+  "name": "News Ticker",
+  "description": "A name bar over a thin ticker whose headline scrolls past the whole way through. For bulletins, live blogs and election nights.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "ticker",
+    "news"
+  ],
+  "themes": [
+    "news",
+    "media",
+    "civic"
+  ],
+  "styles": [
+    "corporate"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.08,
+          "y": 0.68,
+          "width": 0.44,
+          "height": 0.12
+        },
+        "default": {
+          "x": 0.1,
+          "y": 0.62,
+          "width": 0.8,
+          "height": 0.2
+        }
+      },
+      "gap": 0.006,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Inter",
+        "size": 0.044,
+        "weight": 700,
+        "color": "#ffffff"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Priya Raman",
+          "required": true
+        },
+        {
+          "id": "what",
+          "type": "text",
+          "label": "Role",
+          "text": "Political correspondent",
+          "size": 0.025,
+          "weight": 500,
+          "color": "#cbd5e1",
+          "family": "Inter"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "headline",
+      "type": "text",
+      "label": "Ticker",
+      "default": "Council approves the riverfront plan · Storm clears by morning · Rail works finish early",
+      "maxLength": 140,
+      "element": "Ticker"
+    },
+    {
+      "id": "bar",
+      "type": "color",
+      "label": "Bar",
+      "default": "#0f172a",
+      "element": "Bar"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#dc2626",
+      "element": "Ticker"
+    }
+  ]
+}

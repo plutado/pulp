@@ -1,0 +1,70 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.year-review-end-card",
+  "name": "The Year in Review",
+  "description": "Giant year numerals that rise out of a masked band, the strapline beneath. Closes a year-end wrap for a channel, a club or a company.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "year",
+    "review"
+  ],
+  "themes": [
+    "new-year",
+    "media",
+    "business"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "year",
+      "type": "text",
+      "label": "Year",
+      "default": "2026",
+      "maxLength": 6,
+      "element": "Numerals"
+    },
+    {
+      "id": "strap",
+      "type": "text",
+      "label": "Strapline",
+      "default": "the year in review",
+      "maxLength": 32,
+      "element": "Words"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#18181b",
+      "element": "Scene"
+    },
+    {
+      "id": "numerals",
+      "type": "color",
+      "label": "Numerals",
+      "default": "#fde047",
+      "element": "Numerals"
+    }
+  ]
+}

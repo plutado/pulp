@@ -1,0 +1,102 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.chalkboard-lower-third",
+  "name": "Chalkboard",
+  "description": "A slate panel with a chalk underline drawn by hand, dust and all. For cafe specials, classroom explainers and market stalls.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "chalk",
+    "slate"
+  ],
+  "themes": [
+    "food",
+    "education",
+    "community"
+  ],
+  "styles": [
+    "hand-drawn"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.08,
+          "y": 0.7,
+          "width": 0.42,
+          "height": 0.17
+        },
+        "default": {
+          "x": 0.1,
+          "y": 0.62,
+          "width": 0.8,
+          "height": 0.2
+        }
+      },
+      "gap": 0.006,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Caveat",
+        "size": 0.062,
+        "weight": 700,
+        "color": "#fefce8"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Today's special",
+          "text": "Smoked tomato soup",
+          "required": true
+        },
+        {
+          "id": "what",
+          "type": "text",
+          "label": "Line two",
+          "text": "with grilled sourdough · 7.50",
+          "size": 0.034,
+          "weight": 500,
+          "color": "#fde68a",
+          "family": "Caveat"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "slate",
+      "type": "color",
+      "label": "Slate",
+      "default": "#1f2a24",
+      "element": "Panel"
+    },
+    {
+      "id": "chalk",
+      "type": "color",
+      "label": "Chalk",
+      "default": "#fef9c3",
+      "element": "Underline"
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.boarding-pass-end-card",
+  "name": "Next Stop",
+  "description": "A boarding pass that slides in with the next stop stamped on it, barcode and all. Closes a travel episode on where the series goes next.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "boarding pass",
+    "travel"
+  ],
+  "themes": [
+    "travel",
+    "city"
+  ],
+  "styles": [
+    "retro",
+    "clean"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "stop",
+      "type": "text",
+      "label": "Next stop",
+      "default": "Marrakesh",
+      "maxLength": 24,
+      "element": "Pass"
+    },
+    {
+      "id": "line",
+      "type": "text",
+      "label": "Line",
+      "default": "episode 7 · out next friday",
+      "maxLength": 36,
+      "element": "Pass"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#15324a",
+      "element": "Scene"
+    },
+    {
+      "id": "pass2",
+      "type": "color",
+      "label": "Pass",
+      "default": "#f7f1e3",
+      "element": "Pass"
+    },
+    {
+      "id": "stamp",
+      "type": "color",
+      "label": "Stamp",
+      "default": "#c2543e",
+      "element": "Pass"
+    }
+  ]
+}

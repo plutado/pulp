@@ -1,0 +1,69 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.launch-count-end-card",
+  "name": "Launching In",
+  "description": "A big day counter that lands on its number over a filling bar. Closes a teaser for a launch, a drop or an opening.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "countdown",
+    "launch"
+  ],
+  "themes": [
+    "technology",
+    "business"
+  ],
+  "styles": [
+    "tech"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "days",
+      "type": "text",
+      "label": "Days",
+      "default": "12",
+      "maxLength": 4,
+      "element": "Counter"
+    },
+    {
+      "id": "what",
+      "type": "text",
+      "label": "What",
+      "default": "The studio opens its doors",
+      "maxLength": 40,
+      "element": "Words"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#0a0e1a",
+      "element": "Scene"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#818cf8",
+      "element": "Counter"
+    }
+  ]
+}

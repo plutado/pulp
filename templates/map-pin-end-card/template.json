@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.map-pin-end-card",
+  "name": "See You There",
+  "description": "A dashed route that travels across a quiet map grid and drops a pin on the meeting place. Closes an event invite or a community announcement.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "map",
+    "pin"
+  ],
+  "themes": [
+    "community",
+    "travel",
+    "civic"
+  ],
+  "styles": [
+    "playful",
+    "clean"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Heading",
+      "default": "See you there",
+      "maxLength": 28,
+      "element": "Words"
+    },
+    {
+      "id": "place",
+      "type": "text",
+      "label": "Place",
+      "default": "Riverside Market · Saturday 9am",
+      "maxLength": 48,
+      "element": "Words"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#f0f9f4",
+      "element": "Scene"
+    },
+    {
+      "id": "pin",
+      "type": "color",
+      "label": "Pin",
+      "default": "#e2574c",
+      "element": "Pin"
+    }
+  ]
+}

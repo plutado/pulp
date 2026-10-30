@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>News Ticker</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // News Ticker, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The ticker scrolls the whole way through, so the length is fixed rather than declared as a hold.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var come = easeOut(clamp01(t / 0.7)), gone = easeOut(clamp01((t - (d - 0.8)) / 0.8));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+    var b = state.blocks.words.box, pad = 20 * u;
+    var sx = b.x - pad, sy = b.y - pad, sw = b.width + pad * 2, sh = b.height + pad * 2;
+    var slide = (1 - come) * -(sx + sw);
+    ctx.save();
+    ctx.globalAlpha = 1 - gone;
+    ctx.translate(slide, 0);
+    ctx.fillStyle = rgba(p.bar, 0.95);
+    ctx.fillRect(sx, sy, sw, sh);
+    ctx.fillStyle = rgba(p.accent, 1);
+    ctx.fillRect(sx, sy, 8 * u, sh);
+    var laid = window.pulpLayoutBlock(ctx, state, 'words', {
+      each: function (layer, position) {
+        var lineIn = easeOut(clamp01((t - 0.2 - position * 0.15) / 0.4));
+        return { alpha: lineIn, dy: (1 - lineIn) * 6 * u };
+      }
+    });
+    window.pulpDrawBlock(ctx, laid);
+    ctx.restore();
+    // The ticker strip under the bar: the headline rolls on its own clock, past both ends.
+    var th = 44 * u, ty = sy + sh + 6 * u;
+    ctx.globalAlpha = show;
+    ctx.fillStyle = rgba(p.bar, 0.85);
+    ctx.fillRect(sx, ty, sw, th);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(sx + 8 * u, ty, sw - 16 * u, th); ctx.clip();
+    ctx.font = '600 ' + Math.round(24 * u) + 'px Inter';
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#e2e8f0';
+    var line = p.headline + '   ·   ';
+    var lw = Math.max(1, ctx.measureText(line).width);
+    var off = (t * 150 * u) % lw;
+    for (var x = sx + 8 * u - off; x < sx + sw; x += lw) ctx.fillText(line, x, ty + th / 2);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

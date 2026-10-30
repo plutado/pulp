@@ -1,0 +1,96 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.dot-line-lower-third",
+  "name": "Dot and Line",
+  "description": "A dot that lands, draws a thin rule, and lets the words slide out from behind it. For corporate explainers, pitch decks and quiet intros.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "minimal",
+    "line"
+  ],
+  "themes": [
+    "corporate",
+    "business",
+    "technology"
+  ],
+  "styles": [
+    "clean",
+    "corporate"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.1,
+          "y": 0.74,
+          "width": 0.42,
+          "height": 0.13
+        },
+        "default": {
+          "x": 0.1,
+          "y": 0.62,
+          "width": 0.8,
+          "height": 0.2
+        }
+      },
+      "gap": 0.006,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Inter",
+        "size": 0.046,
+        "weight": 700,
+        "color": "#f8fafc"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Nadia Osei",
+          "required": true
+        },
+        {
+          "id": "what",
+          "type": "text",
+          "label": "Role",
+          "text": "Chief Operating Officer",
+          "size": 0.026,
+          "weight": 500,
+          "color": "#94a3b8",
+          "family": "Inter"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#38bdf8",
+      "element": "Rule"
+    }
+  ]
+}

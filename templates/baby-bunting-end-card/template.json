@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.baby-bunting-end-card",
+  "name": "Hello Little One",
+  "description": "Bunting that swags across the top while the name and the details settle beneath on soft dots. Closes an announcement or a first-birthday film.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "baby",
+    "bunting"
+  ],
+  "themes": [
+    "family",
+    "birthday",
+    "life-events"
+  ],
+  "styles": [
+    "playful",
+    "organic"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "name2",
+      "type": "text",
+      "label": "Name",
+      "default": "Noah James",
+      "maxLength": 26,
+      "element": "Words"
+    },
+    {
+      "id": "details",
+      "type": "text",
+      "label": "Details",
+      "default": "born 14 february · 3.4 kg",
+      "maxLength": 40,
+      "element": "Words"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#fdf6ef",
+      "element": "Scene"
+    },
+    {
+      "id": "flag",
+      "type": "color",
+      "label": "Bunting",
+      "default": "#93c5fd",
+      "element": "Bunting"
+    }
+  ]
+}

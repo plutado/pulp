@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Chalkboard</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Chalkboard, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The panel fades up and the chalk line draws itself by 1.2 s, wobble kept; then it holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var come = easeOut(clamp01(t / 0.7)), gone = easeOut(clamp01((t - 5.2) / 0.8));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+    var b = state.blocks.words.box, pad = 28 * u;
+    var sx = b.x - pad, sy = b.y - pad, sw = b.width + pad * 2, sh = b.height + pad * 2;
+    ctx.globalAlpha = show;
+    rr(sx, sy, sw, sh, 10 * u);
+    ctx.fillStyle = rgba(p.slate, 0.96); ctx.fill();
+    ctx.lineWidth = 5 * u; ctx.strokeStyle = 'rgba(120,86,54,0.9)'; ctx.stroke();
+    // Chalk dust in the corner, settled, not falling.
+    for (var i = 0; i < 14; i++) {
+      ctx.fillStyle = rgba(p.chalk, 0.1 + at(i) * 0.2);
+      ctx.fillRect(sx + sw - (10 + at(i) * 60) * u, sy + sh - (8 + at(i + 7) * 14) * u, 2.5 * u, 2.5 * u);
+    }
+    // The underline draws itself under the first line, keeping a hand's wobble.
+    var drawn = easeInOut(clamp01((t - 0.35) / 0.85));
+    var ly = b.y + b.height * 0.52;
+    ctx.strokeStyle = rgba(p.chalk, 0.85); ctx.lineWidth = 4 * u; ctx.lineCap = 'round';
+    ctx.beginPath();
+    var steps = Math.max(2, Math.floor(26 * drawn));
+    for (var k = 0; k <= steps; k++) {
+      var f = k / 26, x = b.x + b.width * 0.96 * f;
+      var y = ly + Math.sin(f * 9) * 2.5 * u + (at(k) - 0.5) * 3 * u;
+      if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    var laid = window.pulpLayoutBlock(ctx, state, 'words', {
+      each: function (layer, position) {
+        var lineIn = easeOut(clamp01((t - 0.15 - position * 0.25) / 0.5));
+        return { alpha: lineIn, dy: (1 - lineIn) * 6 * u };
+      }
+    });
+    window.pulpDrawBlock(ctx, laid);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.newsletter-end-card",
+  "name": "The Newsletter",
+  "description": "An envelope whose flap folds shut over a letter, sealed with a dot, and the address to subscribe at. Closes an essay video or a weekly update.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "newsletter",
+    "envelope"
+  ],
+  "themes": [
+    "media",
+    "business",
+    "education"
+  ],
+  "styles": [
+    "clean"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Heading",
+      "default": "One letter, every Sunday",
+      "maxLength": 34,
+      "element": "Words"
+    },
+    {
+      "id": "where",
+      "type": "text",
+      "label": "Address",
+      "default": "join at fieldnotes.example/letter",
+      "maxLength": 44,
+      "element": "Words"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#f5f2ea",
+      "element": "Scene"
+    },
+    {
+      "id": "envelope",
+      "type": "color",
+      "label": "Envelope",
+      "default": "#ffffff",
+      "element": "Envelope"
+    },
+    {
+      "id": "seal",
+      "type": "color",
+      "label": "Seal",
+      "default": "#dc6b4a",
+      "element": "Envelope"
+    }
+  ]
+}

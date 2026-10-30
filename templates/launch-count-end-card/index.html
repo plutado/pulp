@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Launching In</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Launching In, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The number rolls down and lands by 1.6 s; the bar fills with it and both hold.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 6.0) / 0.9));
+    ctx.fillStyle = p.back; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var target = parseInt(p.days, 10) || 0;
+    var roll = easeOut(clamp01(t / 1.5));
+    var now = Math.round(target + (1 - roll) * Math.min(30, target * 2 + 6));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    var headIn = easeOut(clamp01(t / 0.5));
+    ctx.globalAlpha = (1 - gone) * headIn;
+    ctx.fillStyle = rgba(p.accent, 0.9);
+    ctx.font = '600 ' + Math.round(34 * u) + 'px Inter';
+    ctx.fillText('L A U N C H I N G   I N', W / 2, H * 0.26);
+    ctx.fillStyle = '#eef2ff';
+    ctx.font = '700 ' + Math.round(260 * u) + 'px "Bebas Neue"';
+    ctx.fillText(String(now), W / 2, H * 0.55);
+    ctx.font = '600 ' + Math.round(40 * u) + 'px Oswald';
+    ctx.fillStyle = 'rgba(199,210,254,0.85)';
+    ctx.fillText(target === 1 ? 'DAY' : 'DAYS', W / 2, H * 0.61);
+    // The bar fills as the number settles, and holds full.
+    var bw = Math.min(W * 0.4, 560 * u), bx = W / 2 - bw / 2, by = H * 0.68;
+    ctx.fillStyle = 'rgba(129,140,248,0.2)';
+    rr(bx, by, bw, 10 * u, 5 * u); ctx.fill();
+    ctx.fillStyle = rgba(p.accent, 1);
+    rr(bx, by, bw * roll, 10 * u, 5 * u); ctx.fill();
+    ctx.fillStyle = '#c7d2fe';
+    ctx.font = '500 ' + Math.round(32 * u) + 'px Inter';
+    ctx.fillText(p.what, W / 2, H * 0.76);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

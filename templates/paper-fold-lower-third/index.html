@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Paper Fold</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Paper Fold, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The two panels unfold by 1.1 s (a cosine on each crease) and the banner holds flat.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 5.2) / 0.8));
+    var show = 1 - gone;
+    if (t > 0 && show <= 0.001) return;
+    var b = state.blocks.words.box, pad = 24 * u;
+    var sx = b.x - pad, sy = b.y - pad, sw = b.width + pad * 2, sh = b.height + pad * 2;
+    var third = sw / 3;
+    // Each panel unfolds about its crease: width scales with a cosine, shading says which way it faces.
+    var open1 = easeInOut(clamp01((t - 0.15) / 0.55));
+    var open2 = easeInOut(clamp01((t - 0.55) / 0.55));
+    ctx.globalAlpha = show * clamp01(t / 0.1);
+    function panel(x, w, shade) {
+      ctx.fillStyle = rgba(p.paper, 0.98);
+      ctx.fillRect(x, sy, w, sh);
+      if (shade > 0.01) { ctx.fillStyle = 'rgba(90,70,50,' + (shade * 0.22).toFixed(3) + ')'; ctx.fillRect(x, sy, w, sh); }
+    }
+    panel(sx, third, 0);
+    panel(sx + third, third * open1, 1 - open1);
+    if (open1 > 0.999) panel(sx + third * 2, third * open2, 1 - open2);
+    // The creases, kept faintly once open.
+    ctx.strokeStyle = rgba(p.crease, 0.8); ctx.lineWidth = 1.5 * u;
+    ctx.beginPath(); ctx.moveTo(sx + third, sy); ctx.lineTo(sx + third, sy + sh); ctx.stroke();
+    if (open1 > 0.999) { ctx.beginPath(); ctx.moveTo(sx + third * 2, sy); ctx.lineTo(sx + third * 2, sy + sh); ctx.stroke(); }
+    ctx.strokeStyle = rgba(p.crease, 0.9); ctx.lineWidth = 2 * u;
+    ctx.strokeRect(sx, sy, third + third * open1 + (open1 > 0.999 ? third * open2 : 0), sh);
+    var laid = window.pulpLayoutBlock(ctx, state, 'words', {
+      each: function (layer, position) {
+        var lineIn = easeOut(clamp01((t - 0.75 - position * 0.2) / 0.4));
+        return { alpha: lineIn, dy: (1 - lineIn) * 6 * u };
+      }
+    });
+    window.pulpDrawBlock(ctx, laid);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

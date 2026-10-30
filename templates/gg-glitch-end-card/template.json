@@ -1,0 +1,58 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.gg-glitch-end-card",
+  "name": "Good Game",
+  "description": "A huge GG that shivers with a colour-split glitch over scanlines, the next stream beneath. Closes a stream VOD or a match recap.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "gg",
+    "glitch"
+  ],
+  "themes": [
+    "gaming",
+    "technology"
+  ],
+  "styles": [
+    "tech",
+    "grunge"
+  ],
+  "duration": 7,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "line",
+      "type": "text",
+      "label": "Line",
+      "default": "next stream · friday 20:00",
+      "maxLength": 36,
+      "element": "Words"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#0c0a12",
+      "element": "Scene"
+    },
+    {
+      "id": "split",
+      "type": "color",
+      "label": "Split",
+      "default": "#22d3ee",
+      "element": "Letters"
+    }
+  ]
+}

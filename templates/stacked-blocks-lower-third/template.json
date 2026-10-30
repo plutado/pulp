@@ -1,0 +1,103 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.stacked-blocks-lower-third",
+  "name": "Stacked Blocks",
+  "description": "Two solid blocks that punch in from the left a beat apart, bold condensed type on each. For match hype, training montages and launch promos.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "blocks",
+    "bold"
+  ],
+  "themes": [
+    "sports",
+    "fitness",
+    "gaming"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.08,
+          "y": 0.7,
+          "width": 0.42,
+          "height": 0.17
+        },
+        "default": {
+          "x": 0.1,
+          "y": 0.62,
+          "width": 0.8,
+          "height": 0.2
+        }
+      },
+      "gap": 0.006,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Bebas Neue",
+        "size": 0.07,
+        "weight": 700,
+        "color": "#0a0a0a",
+        "case": "upper"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Top line",
+          "text": "Leg day",
+          "required": true
+        },
+        {
+          "id": "what",
+          "type": "text",
+          "label": "Bottom line",
+          "text": "No excuses · week 6",
+          "size": 0.034,
+          "weight": 500,
+          "color": "#fafafa",
+          "family": "Oswald"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "top",
+      "type": "color",
+      "label": "Top block",
+      "default": "#facc15",
+      "element": "Blocks"
+    },
+    {
+      "id": "bottom",
+      "type": "color",
+      "label": "Bottom block",
+      "default": "#111111",
+      "element": "Blocks"
+    }
+  ]
+}

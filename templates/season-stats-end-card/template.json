@@ -1,0 +1,93 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.season-stats-end-card",
+  "name": "Season Stats",
+  "description": "Three stat tiles whose numbers count up and lock, under a bold season heading. Closes a season recap or a matchday roundup.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "stats",
+    "season"
+  ],
+  "themes": [
+    "sports",
+    "football",
+    "basketball"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Heading",
+      "default": "Season in numbers",
+      "maxLength": 30,
+      "element": "Words"
+    },
+    {
+      "id": "s1",
+      "type": "text",
+      "label": "Stat one",
+      "default": "24|wins",
+      "maxLength": 16,
+      "element": "Tiles"
+    },
+    {
+      "id": "s2",
+      "type": "text",
+      "label": "Stat two",
+      "default": "71|goals",
+      "maxLength": 16,
+      "element": "Tiles"
+    },
+    {
+      "id": "s3",
+      "type": "text",
+      "label": "Stat three",
+      "default": "9|clean sheets",
+      "maxLength": 16,
+      "element": "Tiles"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#101418",
+      "element": "Scene"
+    },
+    {
+      "id": "tile",
+      "type": "color",
+      "label": "Tiles",
+      "default": "#1d2630",
+      "element": "Tiles"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#4ade80",
+      "element": "Tiles"
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.service-times-end-card",
+  "name": "Service Times",
+  "description": "An arched window of stained bands with the week’s gatherings listed beneath. Closes a sermon upload or a parish update.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "services",
+    "arch"
+  ],
+  "themes": [
+    "faith",
+    "community"
+  ],
+  "styles": [
+    "elegant",
+    "organic"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Heading",
+      "default": "Join us this week",
+      "maxLength": 28,
+      "element": "Words"
+    },
+    {
+      "id": "r1",
+      "type": "text",
+      "label": "Row one",
+      "default": "Sunday · 9.00 & 11.00",
+      "maxLength": 34,
+      "element": "Rows"
+    },
+    {
+      "id": "r2",
+      "type": "text",
+      "label": "Row two",
+      "default": "Wednesday prayer · 19.00",
+      "maxLength": 34,
+      "element": "Rows"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#1d1a24",
+      "element": "Scene"
+    },
+    {
+      "id": "glassA",
+      "type": "color",
+      "label": "Glass one",
+      "default": "#f59e0b",
+      "element": "Arch"
+    },
+    {
+      "id": "glassB",
+      "type": "color",
+      "label": "Glass two",
+      "default": "#7c3aed",
+      "element": "Arch"
+    }
+  ]
+}

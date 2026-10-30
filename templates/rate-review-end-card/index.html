@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Rate and Review</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Rate and Review, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The fifth star lands at 1.7 s and all five hold full.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 6.0) / 0.9));
+    ctx.fillStyle = p.back; ctx.fillRect(0, 0, W, H);
+    var g = ctx.createRadialGradient(W / 2, H * 0.4, 0, W / 2, H * 0.4, Math.max(W, H) * 0.6);
+    g.addColorStop(0, 'rgba(251,191,36,0.08)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    function star(cx, cy, r, fillAlpha) {
+      ctx.beginPath();
+      for (var i = 0; i < 10; i++) {
+        var a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+        var rr2 = i % 2 ? r * 0.45 : r;
+        ctx.lineTo(cx + Math.cos(a) * rr2, cy + Math.sin(a) * rr2);
+      }
+      ctx.closePath();
+      ctx.fillStyle = rgba(p.star, fillAlpha); ctx.fill();
+      ctx.strokeStyle = rgba(p.star, 0.9); ctx.lineWidth = 3 * u; ctx.stroke();
+    }
+    var r = Math.min(W, H) * 0.05, gap2 = r * 2.7;
+    for (var i = 0; i < 5; i++) {
+      var pop = overshoot(clamp01((t - 0.3 - i * 0.28) / 0.4));
+      if (t < 0.3 + i * 0.28) continue;
+      star(W / 2 + (i - 2) * gap2, H * 0.38, r * Math.max(0.0001, pop), 0.95);
+    }
+    var wordsIn = easeOut(clamp01((t - 0.6) / 0.7));
+    ctx.globalAlpha = (1 - gone) * wordsIn;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#faf5ff';
+    ctx.font = '700 ' + Math.round(76 * u) + 'px Montserrat';
+    ctx.fillText(p.ask, W / 2, H * 0.6);
+    ctx.fillStyle = '#c4b5fd';
+    ctx.font = '500 ' + Math.round(32 * u) + 'px Inter';
+    ctx.fillText(p.where, W / 2, H * 0.68);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

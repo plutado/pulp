@@ -1,0 +1,87 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.volunteer-end-card",
+  "name": "Lend a Hand",
+  "description": "A short checklist that ticks itself off, with the day and the place to show up. Closes a community appeal or a project update.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "checklist",
+    "volunteer"
+  ],
+  "themes": [
+    "nonprofit",
+    "community",
+    "civic"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Heading",
+      "default": "Lend a hand on Saturday",
+      "maxLength": 34,
+      "element": "Words"
+    },
+    {
+      "id": "i1",
+      "type": "text",
+      "label": "Item one",
+      "default": "Gloves provided",
+      "maxLength": 24,
+      "element": "List"
+    },
+    {
+      "id": "i2",
+      "type": "text",
+      "label": "Item two",
+      "default": "All ages welcome",
+      "maxLength": 24,
+      "element": "List"
+    },
+    {
+      "id": "i3",
+      "type": "text",
+      "label": "Item three",
+      "default": "Meet at the gate, 9am",
+      "maxLength": 28,
+      "element": "List"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#f4f7f2",
+      "element": "Scene"
+    },
+    {
+      "id": "tick",
+      "type": "color",
+      "label": "Ticks",
+      "default": "#16a34a",
+      "element": "List"
+    }
+  ]
+}

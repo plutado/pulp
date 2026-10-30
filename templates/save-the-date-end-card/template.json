@@ -1,0 +1,77 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.save-the-date-end-card",
+  "name": "Save the Date",
+  "description": "A calendar leaf whose day stamps in with a ring around it, the names beneath. Closes an engagement film or an invitation teaser.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "calendar",
+    "date"
+  ],
+  "themes": [
+    "wedding",
+    "life-events"
+  ],
+  "styles": [
+    "elegant"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "month",
+      "type": "text",
+      "label": "Month",
+      "default": "June",
+      "maxLength": 16,
+      "element": "Calendar"
+    },
+    {
+      "id": "day",
+      "type": "text",
+      "label": "Day",
+      "default": "21",
+      "maxLength": 4,
+      "element": "Calendar"
+    },
+    {
+      "id": "names",
+      "type": "text",
+      "label": "Names",
+      "default": "Imogen & Theo",
+      "maxLength": 30,
+      "element": "Words"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#f4ede4",
+      "element": "Scene"
+    },
+    {
+      "id": "ring",
+      "type": "color",
+      "label": "Ring",
+      "default": "#b05c4a",
+      "element": "Calendar"
+    }
+  ]
+}

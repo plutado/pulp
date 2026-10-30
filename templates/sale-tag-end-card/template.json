@@ -1,0 +1,66 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.sale-tag-end-card",
+  "name": "Sale Tag",
+  "description": "A price tag swinging gently on its string beside a dashed voucher with the code. Closes a haul, a lookbook or a shop update.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "sale",
+    "voucher"
+  ],
+  "themes": [
+    "fashion",
+    "business"
+  ],
+  "styles": [
+    "playful",
+    "retro"
+  ],
+  "duration": 7,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "offer",
+      "type": "text",
+      "label": "Offer",
+      "default": "20% off this week",
+      "maxLength": 28,
+      "element": "Words"
+    },
+    {
+      "id": "code",
+      "type": "text",
+      "label": "Code",
+      "default": "use code SUNROOM",
+      "maxLength": 24,
+      "element": "Voucher"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#fdf0e7",
+      "element": "Scene"
+    },
+    {
+      "id": "tag",
+      "type": "color",
+      "label": "Tag",
+      "default": "#e86a4a",
+      "element": "Tag"
+    }
+  ]
+}

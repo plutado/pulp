@@ -99,11 +99,13 @@ describe('bundled sample templates', async () => {
     // measuring where the graphic settles, or one dropped, shows up here first.
     // Milestone 36's first batch: ten lower thirds and three end cards hold; six backgrounds loop; the
     // four lower thirds and three end cards with ambient motion (a jitter, a sweep, a pulse, a trace,
-    // breathing bars, a roll, a blinking cursor) keep a fixed length.
-    expect(kinds.hold).toHaveLength(51);
+    // breathing bars, a roll, a blinking cursor) keep a fixed length. The 32-item batch adds ten
+    // holding lower thirds and seventeen holding end cards; the running gradient, the ticker, the
+    // sweeping ring, the swinging tag and the glitch keep fixed lengths.
+    expect(kinds.hold).toHaveLength(78);
     expect(kinds.loop).toHaveLength(29);
     expect(kinds.scale).toHaveLength(24);
-    expect(kinds.none).toHaveLength(46);
+    expect(kinds.none).toHaveLength(51);
   });
 
   it.each(dirs)('%s defines window.pulpRender and avoids wall-clock time', async (dir) => {

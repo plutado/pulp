@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Gradient Chip</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Gradient Chip, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The border gradient runs the whole way through, so the length is fixed rather than declared as a hold.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var come = easeOut(clamp01(t / 0.8)), gone = easeOut(clamp01((t - (d - 0.8)) / 0.8));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+    var b = state.blocks.words.box, pad = 24 * u;
+    var sx = b.x - pad, sy = b.y - pad, sw = b.width + pad * 2, sh = b.height + pad * 2;
+    var slide = (1 - come) * -40 * u + gone * 40 * u;
+    ctx.save();
+    ctx.translate(0, slide);
+    ctx.globalAlpha = show;
+    rr(sx, sy, sw, sh, sh / 2);
+    ctx.fillStyle = rgba(p.fill, 0.94); ctx.fill();
+    // The running border: a linear gradient whose ends circle the chip, remade each frame.
+    var a = t * 1.1;
+    var gx = Math.cos(a) * sw * 0.6, gy = Math.sin(a) * sh * 0.6;
+    var g = ctx.createLinearGradient(sx + sw / 2 - gx, sy + sh / 2 - gy, sx + sw / 2 + gx, sy + sh / 2 + gy);
+    g.addColorStop(0, rgba(p.a, 1)); g.addColorStop(1, rgba(p.b2, 1));
+    rr(sx, sy, sw, sh, sh / 2);
+    ctx.lineWidth = 5 * u; ctx.strokeStyle = g; ctx.stroke();
+    rr(sx - 5 * u, sy - 5 * u, sw + 10 * u, sh + 10 * u, (sh + 10 * u) / 2);
+    ctx.lineWidth = 10 * u; ctx.globalAlpha = show * 0.18; ctx.stroke();
+    ctx.globalAlpha = show;
+    var laid = window.pulpLayoutBlock(ctx, state, 'words', {
+      each: function (layer, position) {
+        var lineIn = easeOut(clamp01((t - 0.2 - position * 0.15) / 0.5));
+        return { alpha: lineIn, dy: (1 - lineIn) * 8 * u };
+      }
+    });
+    window.pulpDrawBlock(ctx, laid);
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.neon-underline-lower-third",
+  "name": "Neon Underline",
+  "description": "A neon tube that stutters alight under the name, then burns steady. For nightlife reels, DJ sets and late shows.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "neon",
+    "night"
+  ],
+  "themes": [
+    "concert",
+    "city",
+    "entertainment"
+  ],
+  "styles": [
+    "tech",
+    "retro"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.1,
+          "y": 0.72,
+          "width": 0.42,
+          "height": 0.15
+        },
+        "default": {
+          "x": 0.1,
+          "y": 0.62,
+          "width": 0.8,
+          "height": 0.2
+        }
+      },
+      "gap": 0.006,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Montserrat",
+        "size": 0.055,
+        "weight": 700,
+        "color": "#fdf4ff"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Casa Luz",
+          "required": true
+        },
+        {
+          "id": "what",
+          "type": "text",
+          "label": "Line two",
+          "text": "rooftop sessions · fridays",
+          "size": 0.027,
+          "weight": 500,
+          "color": "#e9d5ff",
+          "family": "Inter"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "tube",
+      "type": "color",
+      "label": "Tube",
+      "default": "#e879f9",
+      "element": "Underline"
+    }
+  ]
+}

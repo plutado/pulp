@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Service Times</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Service Times, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The arch glows up and the rows settle by 1.9 s; the card then holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 6.0) / 0.9));
+    ctx.fillStyle = p.back; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var glow = easeInOut(clamp01(t / 1.4));
+    var aw = Math.min(W * 0.26, 360 * u), ah = aw * 1.5;
+    var ax = W / 2 - aw / 2, ay = H * 0.4 - ah / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(ax, ay + ah); ctx.lineTo(ax, ay + aw / 2);
+    ctx.arc(ax + aw / 2, ay + aw / 2, aw / 2, Math.PI, 0);
+    ctx.lineTo(ax + aw, ay + ah); ctx.closePath();
+    ctx.clip();
+    var bands = 5;
+    for (var i = 0; i < bands; i++) {
+      var mix = i / (bands - 1);
+      var ca = p.glassA, cb = p.glassB;
+      var rC = Math.round(hex(ca, 1) + (hex(cb, 1) - hex(ca, 1)) * mix);
+      var gC = Math.round(hex(ca, 3) + (hex(cb, 3) - hex(ca, 3)) * mix);
+      var bC = Math.round(hex(ca, 5) + (hex(cb, 5) - hex(ca, 5)) * mix);
+      ctx.fillStyle = 'rgba(' + rC + ',' + gC + ',' + bC + ',' + (0.25 + glow * 0.65).toFixed(3) + ')';
+      ctx.fillRect(ax + (i / bands) * aw, ay, aw / bands + 1, ah);
+    }
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(230,220,200,0.8)'; ctx.lineWidth = 4 * u;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay + ah); ctx.lineTo(ax, ay + aw / 2);
+    ctx.arc(ax + aw / 2, ay + aw / 2, aw / 2, Math.PI, 0);
+    ctx.lineTo(ax + aw, ay + ah); ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ax + aw / 2, ay + 6 * u); ctx.lineTo(ax + aw / 2, ay + ah); ctx.stroke();
+    var rows = [p.title, p.r1, p.r2];
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    for (var r2 = 0; r2 < rows.length; r2++) {
+      var rowIn = easeOut(clamp01((t - 0.8 - r2 * 0.3) / 0.6));
+      ctx.globalAlpha = (1 - gone) * rowIn;
+      ctx.fillStyle = r2 === 0 ? '#f5f0e6' : '#c7bfae';
+      ctx.font = (r2 === 0 ? '700 ' + Math.round(64 * u) + 'px Playfair' : '500 ' + Math.round(34 * u) + 'px Inter');
+      ctx.fillText(rows[r2], W / 2, H * (0.66 + r2 * 0.07) + (1 - rowIn) * 10 * u);
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

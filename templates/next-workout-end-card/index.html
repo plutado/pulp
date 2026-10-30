@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Next Workout</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Next Workout, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The bars rise and lock by 1.8 s; the flagged bar keeps its outline without moving.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 6.0) / 0.9));
+    ctx.fillStyle = p.back; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var heights = [0.35, 0.55, 0.42, 0.7, 0.5, 0.82, 0.62];
+    var cw = Math.min(W * 0.5, 700 * u), ch = H * 0.3;
+    var left = W / 2 - cw / 2, base = H * 0.52, bw = cw / heights.length;
+    ctx.strokeStyle = 'rgba(148,163,184,0.3)'; ctx.lineWidth = 2 * u;
+    ctx.beginPath(); ctx.moveTo(left - 10 * u, base); ctx.lineTo(left + cw + 10 * u, base); ctx.stroke();
+    for (var i = 0; i < heights.length; i++) {
+      var rise = easeOut(clamp01((t - 0.2 - i * 0.18) / 0.6));
+      var h2 = ch * heights[i] * rise;
+      var x = left + i * bw + bw * 0.18;
+      var last = i === heights.length - 1;
+      ctx.fillStyle = rgba(p.bar, last ? 0.25 : 0.5 + heights[i] * 0.5);
+      rr(x, base - h2, bw * 0.64, h2, 6 * u);
+      ctx.fill();
+      if (last) { ctx.strokeStyle = rgba(p.bar, 0.95); ctx.lineWidth = 3 * u; ctx.setLineDash([8 * u, 6 * u]); ctx.stroke(); ctx.setLineDash([]); }
+    }
+    var wordsIn = easeOut(clamp01((t - 0.8) / 0.7));
+    ctx.globalAlpha = (1 - gone) * wordsIn;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#ecfdf5';
+    ctx.font = '700 ' + Math.round(80 * u) + 'px Oswald';
+    ctx.fillText(p.title.toUpperCase(), W / 2, H * 0.68);
+    ctx.fillStyle = '#86b9a6';
+    ctx.font = '500 ' + Math.round(32 * u) + 'px Inter';
+    ctx.fillText(p.line, W / 2, H * 0.75);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

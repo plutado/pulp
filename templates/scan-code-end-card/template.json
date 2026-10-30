@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.scan-code-end-card",
+  "name": "Scan for Tickets",
+  "description": "A code block that assembles cell by cell in a sweep, framed by corner marks, with the ask beside it. Closes a gig announcement or an event promo.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "code",
+    "tickets"
+  ],
+  "themes": [
+    "concert",
+    "entertainment",
+    "technology"
+  ],
+  "styles": [
+    "tech",
+    "clean"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "ask",
+      "type": "text",
+      "label": "Ask",
+      "default": "Scan for tickets",
+      "maxLength": 26,
+      "element": "Words"
+    },
+    {
+      "id": "event",
+      "type": "text",
+      "label": "Event",
+      "default": "Hollow Pines · 14 March · The Depot",
+      "maxLength": 48,
+      "element": "Words"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#101014",
+      "element": "Scene"
+    },
+    {
+      "id": "code",
+      "type": "color",
+      "label": "Code",
+      "default": "#fafafa",
+      "element": "Code"
+    }
+  ]
+}

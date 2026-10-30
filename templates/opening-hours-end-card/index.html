@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Find Us</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Find Us, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The rows slide in a beat apart and settle by 1.9 s; the board then holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 6.0) / 0.9));
+    ctx.fillStyle = p.back; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var come = easeOut(clamp01(t / 0.7));
+    var bw = Math.min(W * 0.56, 820 * u), bh = Math.min(H * 0.64, 640 * u);
+    var bx = W / 2 - bw / 2, by = H / 2 - bh / 2 + (1 - come) * 30 * u;
+    ctx.globalAlpha = (1 - gone) * come;
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    rr(bx + 6 * u, by + 10 * u, bw, bh, 16 * u); ctx.fill();
+    ctx.fillStyle = rgba(p.board, 1);
+    rr(bx, by, bw, bh, 16 * u); ctx.fill();
+    // The hanging string and its nail, so the board reads as hung.
+    ctx.strokeStyle = 'rgba(120,110,95,0.9)'; ctx.lineWidth = 3 * u;
+    ctx.beginPath(); ctx.moveTo(bx + bw * 0.3, by); ctx.lineTo(W / 2, by - 40 * u); ctx.lineTo(bx + bw * 0.7, by); ctx.stroke();
+    ctx.fillStyle = '#b9ac96';
+    ctx.beginPath(); ctx.arc(W / 2, by - 42 * u, 6 * u, 0, Math.PI * 2); ctx.fill();
+    var rows = [
+      { txt: p.name2, font: '700 ' + Math.round(84 * u) + 'px Playfair', c: '#f4efe4', y: 0.3 },
+      { txt: p.r1, font: '500 ' + Math.round(34 * u) + 'px Inter', c: '#c0ccbf', y: 0.5 },
+      { txt: p.r2, font: '500 ' + Math.round(34 * u) + 'px Inter', c: '#c0ccbf', y: 0.62 },
+    ];
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    for (var i = 0; i < rows.length; i++) {
+      var rowIn = easeOut(clamp01((t - 0.5 - i * 0.3) / 0.6));
+      ctx.globalAlpha = (1 - gone) * come * rowIn;
+      ctx.fillStyle = rows[i].c; ctx.font = rows[i].font;
+      ctx.fillText(rows[i].txt, W / 2 + (1 - rowIn) * 24 * u, by + bh * rows[i].y);
+    }
+    ctx.globalAlpha = (1 - gone) * come;
+    ctx.strokeStyle = 'rgba(192,204,191,0.4)'; ctx.lineWidth = 1.5 * u;
+    ctx.beginPath(); ctx.moveTo(bx + bw * 0.2, by + bh * 0.4); ctx.lineTo(bx + bw * 0.8, by + bh * 0.4); ctx.stroke();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

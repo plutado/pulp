@@ -1,0 +1,103 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.paper-fold-lower-third",
+  "name": "Paper Fold",
+  "description": "A paper banner that unfolds in two creased panels and settles flat. For wedding films, invitations and gentle announcements.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "paper",
+    "fold"
+  ],
+  "themes": [
+    "wedding",
+    "family",
+    "community"
+  ],
+  "styles": [
+    "organic",
+    "elegant"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.1,
+          "y": 0.73,
+          "width": 0.42,
+          "height": 0.14
+        },
+        "default": {
+          "x": 0.1,
+          "y": 0.62,
+          "width": 0.8,
+          "height": 0.2
+        }
+      },
+      "gap": 0.006,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Playfair",
+        "size": 0.05,
+        "weight": 700,
+        "color": "#44403c"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Names",
+          "text": "Amara & Tom",
+          "required": true
+        },
+        {
+          "id": "what",
+          "type": "text",
+          "label": "Line two",
+          "text": "welcome to the garden party",
+          "size": 0.027,
+          "weight": 500,
+          "color": "#78716c",
+          "family": "Inter"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "paper",
+      "type": "color",
+      "label": "Paper",
+      "default": "#fef7ed",
+      "element": "Banner"
+    },
+    {
+      "id": "crease",
+      "type": "color",
+      "label": "Crease",
+      "default": "#d6bfa3",
+      "element": "Banner"
+    }
+  ]
+}

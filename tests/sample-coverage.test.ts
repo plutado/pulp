@@ -36,8 +36,8 @@ const TYPES_STILL_OPEN = new Set<string>([]);
  * template categories' floors rise with their batches.
  */
 export const CATEGORY_FLOORS: Record<string, number> = {
-  'lower-thirds': 20,
-  'end-cards': 12,
+  'lower-thirds': 32,
+  'end-cards': 32,
   'animated-backgrounds': 32,
   'still-backgrounds': 32,
   // Raised past its first floor of twelve by the eight footage scenes with subjects of their own.

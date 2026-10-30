@@ -1,0 +1,95 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.split-flap-lower-third",
+  "name": "Split Flap",
+  "description": "A departures-board row of flap tiles that settle into the name, with the route line beneath. For travel episodes, station pieces and retro idents.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "split flap",
+    "departures"
+  ],
+  "themes": [
+    "travel",
+    "city",
+    "media"
+  ],
+  "styles": [
+    "retro"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.09,
+          "y": 0.72,
+          "width": 0.46,
+          "height": 0.14
+        },
+        "default": {
+          "x": 0.1,
+          "y": 0.62,
+          "width": 0.8,
+          "height": 0.2
+        }
+      },
+      "gap": 0.006,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "JetBrains Mono",
+        "size": 0.04,
+        "weight": 700,
+        "color": "#fbbf24"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Destination",
+          "text": "Night train to Vienna",
+          "required": true
+        },
+        {
+          "id": "what",
+          "type": "text",
+          "label": "Line two",
+          "text": "platform 9 · on time",
+          "size": 0.024,
+          "weight": 500,
+          "color": "#e7e5e4",
+          "family": "JetBrains Mono"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "board",
+      "type": "color",
+      "label": "Board",
+      "default": "#1c1917",
+      "element": "Board"
+    }
+  ]
+}

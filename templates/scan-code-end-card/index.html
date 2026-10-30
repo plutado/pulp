@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Scan for Tickets</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Scan for Tickets, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The cells land in a diagonal sweep done by 1.8 s; the block then holds. The pattern is drawn, not scannable.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 6.0) / 0.9));
+    ctx.fillStyle = p.back; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var n = 13, size = Math.min(W, H) * 0.34, cell = size / n;
+    var qx = W * 0.3 - size / 2, qy = H * 0.44 - size / 2;
+    rr(qx - 24 * u, qy - 24 * u, size + 48 * u, size + 48 * u, 12 * u);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fill();
+    // The cells land along a diagonal sweep; the pattern is a fixed hash, drawn and not scannable.
+    for (var row = 0; row < n; row++) {
+      for (var col = 0; col < n; col++) {
+        var corner = (row < 4 && col < 4) || (row < 4 && col > n - 5) || (row > n - 5 && col < 4);
+        var on = corner
+          ? (row === 0 || row === 3 || col === 0 || col === 3 || (row === 1 && col === 1) || (row === 2 && col === 2) ||
+             (row === 0 || row === 3 ? true : false) || false)
+          : at(row * 31 + col * 7) > 0.52;
+        if (corner) {
+          var rr2 = row % (n - 4), cc = col % (n - 4);
+          on = rr2 === 0 || rr2 === 3 || cc === 0 || cc === 3 || (rr2 >= 1 && rr2 <= 2 && cc >= 1 && cc <= 2);
+        }
+        if (!on) continue;
+        var landed = clamp01((t - (row + col) / (n * 2) * 1.5) / 0.25);
+        if (landed <= 0) continue;
+        ctx.fillStyle = rgba(p.code, landed);
+        ctx.fillRect(qx + col * cell, qy + row * cell, cell * 0.9, cell * 0.9);
+      }
+    }
+    var wordsIn = easeOut(clamp01((t - 0.5) / 0.7));
+    ctx.globalAlpha = (1 - gone) * wordsIn;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#f4f4f5';
+    ctx.font = '700 ' + Math.round(84 * u) + 'px Montserrat';
+    ctx.fillText(p.ask, W * 0.52, H * 0.42);
+    ctx.fillStyle = '#a1a1aa';
+    ctx.font = '500 ' + Math.round(34 * u) + 'px Inter';
+    ctx.fillText(p.event, W * 0.52, H * 0.5);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>
