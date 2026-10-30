@@ -1056,7 +1056,8 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(result.stdout).toContain('collection: 2 rendered, 0 failed');
     // Named and skipped, not silently dropped.
     expect(result.stderr).toContain('skipped Missing one: its template is not in the library');
-    expect(result.stderr).toContain('skipped Some clip: only templates render today');
+    // A media item renders itself now (milestone 15); this one names an id the library does not have.
+    expect(result.stderr).toContain('skipped Some clip: it is not in the library, or its folder is offline');
 
     const files = (await readdir(folder)).sort();
     expect(files).toEqual(['closing-strap_00100.png', 'opening-strap_00090.png']);

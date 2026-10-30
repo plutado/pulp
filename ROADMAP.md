@@ -39,7 +39,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 34. A browse panel that says what things are (all but the card sort) | 20-32 h |
 | 32. Stock library import | 27-46 h |
 | 33. Layered graphics: Photoshop (**done**), Illustrator, SVG | 19-33 h |
-| 15. Convert library media (Recolor after 1.0) | 7-10 h |
+| 15. Convert library media (Recolor after 1.0; **done**) | 7-10 h |
 | 35. Lottie animations | 18-30 h |
 | 20. Social-ready export | 9-14 h |
 | 8. 1.0 hardening and docs | 14-23 h |
@@ -412,13 +412,13 @@ Read layered stills as a stack of layers, so a layered graphic from a stock libr
 - [x] **More of the `.psd`:** ZIP-compressed layer data read with zlib, with and without prediction, at 8 and 16 bits (Photoshop's choice for some 16-bit files), and every blend mode a canvas draws natively — colour dodge and burn, hard and soft light, exclusion, hue, saturation, colour, luminosity join the first seven — so only the modes with no canvas name (vivid, linear and pin light, hard mix, linear burn and dodge, darker and lighter colour, subtract, divide, dissolve) stay named. *The stored composite keeps to raw and RLE, as the format does; a zipped one would still be named and composited from the layers* (2-3 h)
 - [ ] **Files Pulp does not read are named with the export that works,** not refused silently: Affinity's own files (export as PSD, SVG or PDF), GIMP `.xcf`, Sketch, Procreate and EPS (save as `.ai` or SVG); and the tests on generated fixtures for every format above — SVG, PDF with and without layers, `.ai`, `.ora` (1-2 h)
 
-## 15. Convert library media (7-10 h, plus 1-2 h after 1.0)
+## 15. Convert library media (7-10 h, plus 1-2 h after 1.0) — done
 
 Brought into 1.0 (2026-10-30): with assets (26), layered graphics (33) and stock library import (32), media is as central as templates, and a collection that says "not renderable yet" is a dead end. Before Lottie (35), which renders through the template path and does not need it, and before 32, so stock clips can be converted as soon as they can be imported.
 
-- [ ] Output tab for media items: transcode video, stills and audio with the same presets; audio-only options (sample rate, channels, bit depth); works in collections and Render all, so "not renderable yet" leaves the tray. A layered `.psd` renders as the picture it was collected as, its hidden layers left out (3-4 h)
-- [ ] Loop tools for loopable media: extend to any duration with a crossfade join; speed control (milestone 30 brought templates' loops forward; this is the same for clips) (2-3 h)
-- [ ] Matte pass: a separate alpha matte file next to the render, for codecs and editors without alpha (HEVC in Premiere Pro, WebM) (2-3 h)
+- [x] Output tab for media items: transcode video, stills and audio with the same presets; audio-only options (sample rate, channels, bit depth); works in collections and Render all, so "not renderable yet" leaves the tray. A layered `.psd` renders as the picture it was collected as, its hidden layers left out. *A pure planner (`src/core/media-render.ts`) turns the item and the same `RenderOptions` into ffmpeg stages; a sound renders with three audio presets of its own (WAV, AAC, MP3); the headless `--collection` renders media too* (3-4 h)
+- [x] Loop tools for loopable media: extend to any duration with a crossfade join; speed control (milestone 30 brought templates' loops forward; this is the same for clips). *The clip's last crossfade seconds fade into its first, making a seamless unit one crossfade shorter, written losslessly to a scratch file and stream-looped to length, so memory stays flat however long the result; a plain repeat and a held still need no scratch. Speed takes the sound with it* (2-3 h)
+- [x] Matte pass: a separate alpha matte file next to the render, for codecs and editors without alpha (HEVC in Premiere Pro, WebM). *`<name>-matte<ext>`, the alpha as grey in the preset's own codec, split from the same frames before any flattening; templates and media alike* (2-3 h)
 - [ ] Recolor, after 1.0: a tint at render time for stock media, next to template color parameters (1-2 h)
 
 ## 35. Lottie animations (18-30 h; GitHub issue #37)

@@ -60,8 +60,10 @@ export interface FfmpegInfo {
 }
 
 export interface RenderRequest {
-  /** Manifest id of the template to render. */
-  templateId: string;
+  /** Manifest id of the template to render; or none, with `mediaId`, for a library item rendered itself (milestone 15). */
+  templateId?: string;
+  /** Library id of the clip, still, layered file or sound to render. */
+  mediaId?: string;
   params: Record<string, unknown>;
   presetId: PresetId;
   /** Frame rate override, background for flattening, start/end trim. */

@@ -181,8 +181,9 @@ describe('resolving against the library', () => {
   it('renders the templates it can reach, and says what it is holding', () => {
     const c = gathered(strap, clip, wipe);
     const resolved = resolveCollection(c, index([strap, clip]));
-    expect(renderableItems(resolved).map((r) => r.item.name)).toEqual(['strap']);
-    expect(collectionSummary(resolved)).toBe('3 items · 1 missing · 1 not renderable yet');
+    // Media renders itself now (milestone 15), so a present clip counts; only what is gone is left out.
+    expect(renderableItems(resolved).map((r) => r.item.name).sort()).toEqual(['clip', 'strap'].sort());
+    expect(collectionSummary(resolved)).toBe('3 items · 1 missing');
     expect(collectionSummary([])).toBe('Nothing collected yet.');
     expect(collectionSummary(resolveCollection(gathered(strap), index([strap])))).toBe('1 item');
   });

@@ -14,6 +14,7 @@ import { editingItem, setCollection, setEditing } from '../core/app-state';
 import { moveItem, removeItem, resolveCollection, type ResolvedItem } from '../core/collection';
 import { durationLabel, frameRateLabel } from '../core/display';
 import { OUTPUT_PRESETS, type PresetId } from '../core/render-plan';
+import { AUDIO_PRESETS, isAudioPresetId } from '../core/media-render';
 import { formatTimecode } from '../core/timecode';
 import { Icon } from './icons';
 import { BUNDLED_FAMILIES, importedFamilies } from '../core/fonts';
@@ -30,7 +31,11 @@ const editingUid = computed(() => appState.value.editing);
 /** What a card says about its settings: only what differs from the template's own. */
 function settingsLine(r: ResolvedItem): string {
   const { options, presetId } = r.item;
-  const parts = [OUTPUT_PRESETS[presetId as PresetId]?.label ?? presetId];
+  const parts = [isAudioPresetId(presetId) ? AUDIO_PRESETS[presetId].label : OUTPUT_PRESETS[presetId as PresetId]?.label ?? presetId];
+  // What a media item renders with, beyond the preset (milestone 15).
+  if (options.length !== undefined) parts.push(`${options.length} s`);
+  if (options.speed !== undefined && options.speed !== 1) parts.push(`×${options.speed}`);
+  if (options.matte) parts.push('matte');
   const fps = options.fps;
   if (fps !== undefined) parts.push(frameRateLabel(fps));
   if (options.inFrame !== undefined || options.outFrame !== undefined) {
@@ -58,11 +63,6 @@ function problem(r: ResolvedItem): string {
   if (r.offline) return 'Its folder is offline';
   if (r.missingImages.length > 0) return `${r.missingImages.join(', ')}: the chosen image is not in the library`;
   if (r.missingFonts.length > 0) return `Set in ${r.missingFonts.join(' and ')}, which is not on this computer; it would render in a fallback face`;
-  if (r.item.kind === 'media') {
-    // A layered still still says what it was collected as: the conversion note is about rendering, not the picture.
-    const psd = collectedHide(r.item);
-    return `Converting media comes later${psd ? ` · ${psd.length} ${psd.length === 1 ? 'layer' : 'layers'} hidden` : ''}`;
-  }
   return '';
 }
 

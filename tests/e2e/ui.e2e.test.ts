@@ -2177,6 +2177,58 @@ describe.skipIf(!electron)('inspector UI', () => {
   });
 
   describe('render and drag', () => {
+    it('renders a media item itself into a draggable card, with a matte beside it (milestone 15)', async () => {
+      if (!haveVideo) {
+        console.info('ffmpeg not available; media render check skipped.');
+        return;
+      }
+      // A still, held for a moment: the Output tab shows the media fields, the template ones put away.
+      await clickResult('tiny');
+      await until(() => page.eval<boolean>(`!document.getElementById('media-options').hidden`), 'the media options');
+      expect(await page.eval<boolean>(`document.getElementById('batch').hidden`)).toBe(true);
+      expect(await page.eval<boolean>(`document.getElementById('opt-speed-field').hidden`), 'a still has no speed').toBe(true);
+      expect(await page.eval<boolean>(`document.getElementById('render').disabled`)).toBe(false);
+      await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'png-sequence'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`(() => { const l = document.getElementById('opt-length'); l.value = '0.1'; l.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await page.eval(`(() => { const m = document.getElementById('opt-matte'); m.checked = true; m.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(() => page.eval<boolean>(`document.getElementById('options-note').textContent.includes('3 frames at 30 fps')`), 'the note on the still');
+      expect(await page.eval<string>(`document.getElementById('options-note').textContent`)).toContain('with a matte file');
+
+      await page.eval(`document.getElementById('drag-prepare').click()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#queue .job-card[draggable="true"]')`), 'a draggable card for the still', 60_000);
+      const card = `document.querySelector('#queue .job-card[draggable="true"]')`;
+      const file = await page.eval<string>(`${card}.dataset.file`);
+      expect(file.split(/[\\/]/).pop()).toBe('tiny_00000.png');
+      expect(existsSync(file)).toBe(true);
+      // The matte is a sequence of its own beside it, grey.
+      expect(existsSync(file.replace('tiny_00000.png', 'tiny-matte_00000.png'))).toBe(true);
+      expect(await page.eval<string>(`${card}.querySelector('.job-name').textContent`)).toBe('tiny');
+      expect(await page.eval<string>(`${card}.querySelector('.job-status').textContent`)).toBe('Done · 3 frames');
+
+      // A clip looped past its length with a crossfade: two stages, one result, the frames asked for.
+      await clickResult('clip');
+      await until(() => page.eval<boolean>(`!document.getElementById('opt-speed-field').hidden`), 'a clip has speed');
+      await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'png-sequence'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`(() => { const l = document.getElementById('opt-length'); l.value = '3'; l.dispatchEvent(new Event('input', { bubbles: true })); const c = document.getElementById('opt-crossfade'); c.value = '0.5'; c.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await page.eval(`(() => { const i = document.getElementById('opt-in'); i.value = '26'; i.dispatchEvent(new Event('input', { bubbles: true })); const o = document.getElementById('opt-out'); o.value = '29'; o.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await until(() => page.eval<boolean>(`document.getElementById('options-note').textContent.includes('loops to 3 s with a 0.5 s crossfade')`), 'the loop in the note');
+      await page.eval(`(() => { const m = document.getElementById('opt-matte'); m.checked = false; m.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`document.getElementById('drag-prepare').click()`);
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#queue .job-card[draggable="true"]').length`)) >= 2, 'the looped clip rendered', 90_000);
+      const clipCard = `[...document.querySelectorAll('#queue .job-card[draggable="true"]')].find((c) => c.querySelector('.job-name').textContent === 'clip')`;
+      const clipFile = await page.eval<string>(`${clipCard}.dataset.file`);
+      expect(clipFile.split(/[\\/]/).pop()).toBe('clip_00026.png'); // numbered with the in point, past the clip's own two seconds
+      expect(existsSync(clipFile)).toBe(true);
+      // The clip has no alpha, and the alpha preset says so with a warning on the card.
+      expect(await page.eval<string>(`${clipCard}.querySelector('.job-status').textContent`)).toContain('Done · 4 frames');
+
+      await page.eval(`document.getElementById('cache-clear').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('cache-summary').textContent.includes('0 files')`), 'the cache cleared');
+      // The tray is left as it was found: no finished cards for the tests that follow to count.
+      await page.eval(`document.getElementById('clear-finished').click()`);
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#queue .job-card').length`)) === 0, 'the finished cards cleared');
+    }, 180_000);
+
     it('prepares a render into a draggable card, reuses the cache, and clears it', async () => {
       if (!haveVideo) {
         console.info('ffmpeg not available; render-and-drag check skipped.');
@@ -2313,22 +2365,23 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`document.getElementById('collection-render').disabled`)).toBe(false);
       expect(await page.eval<boolean>(`document.getElementById('collection-save').disabled`)).toBe(false);
 
-      // A collection of nothing but media cannot be rendered yet (converting media is milestone 15).
+      // An empty collection has nothing to render or save.
       await page.eval(`[...document.querySelectorAll('#collection .collection-card .job-actions button')].forEach((b) => b.click())`);
       await until(async () => (await names()).length === 0, 'an empty collection');
       expect(await page.eval<boolean>(`document.getElementById('collection-render').disabled`)).toBe(true);
       expect(await page.eval<boolean>(`document.getElementById('collection-save').disabled`)).toBe(true);
       expect(await page.eval<string>(`document.getElementById('tray-summary').textContent`)).toContain('Nothing collected yet.');
 
+      // A media item renders itself now (milestone 15): its card carries a preset like any other, and Render all takes it.
       await clickResult('tiny');
       await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button for a media item');
       await page.eval(`document.getElementById('add-to-collection').click()`);
       await until(async () => (await names()).length === 1, 'the media item');
-      expect(await page.eval<string>(`${card(0)}.querySelector('.job-status').textContent`)).toBe('Converting media comes later');
-      expect(await page.eval<boolean>(`document.getElementById('collection-render').disabled`)).toBe(true);
-      // It is still worth saving: a collection is also a record of what a project used.
+      // Its status is a preset, whichever the Output tab held, not a note that media cannot render.
+      expect(await page.eval<string>(`${card(0)}.querySelector('.job-status').textContent`)).toMatch(/ProRes|PNG sequence|H\.264|WebM|QuickTime|HEVC/);
+      expect(await page.eval<boolean>(`document.getElementById('collection-render').disabled`)).toBe(false);
       expect(await page.eval<boolean>(`document.getElementById('collection-save').disabled`)).toBe(false);
-      expect(await page.eval<string>(`document.getElementById('tray-summary').textContent`)).toContain('1 not renderable yet');
+      expect(await page.eval<string>(`document.getElementById('tray-summary').textContent`)).toBe('1 item');
 
       await page.eval(`${card(0)}.querySelector('.job-actions button').click()`);
       await until(async () => (await names()).length === 0, 'an empty collection again');

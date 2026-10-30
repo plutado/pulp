@@ -214,9 +214,76 @@ export interface RenderOptions {
   /**
    * Seconds the graphic is to run for (milestone 30). Only a template that
    * declares a structure can be stretched; for any other it is ignored, and
-   * the template's own duration stands.
+   * the template's own duration stands. For a media item (milestone 15) it is
+   * the length to loop a clip to, or how long a still is held.
    */
   length?: number;
+  /**
+   * A second file beside the render holding the alpha as grey (milestone 15),
+   * for codecs and editors without alpha: `<name>-matte<ext>`, encoded with the
+   * same codec. Templates and media alike.
+   */
+  matte?: boolean;
+  /** Media only (milestone 15): playback speed of a clip; 1 is as recorded. */
+  speed?: number;
+  /** Media only: seconds of crossfade at the join when a clip is looped past its own length. */
+  crossfade?: number;
+  /** Audio presets only: how the sound is written. */
+  audio?: AudioOptions;
+}
+
+/** How an audio render is written (milestone 15); each unset field keeps the source's. */
+export interface AudioOptions {
+  sampleRate?: number;
+  channels?: number;
+  bitDepth?: 16 | 24;
+}
+
+export const AUDIO_SAMPLE_RATES = [44100, 48000, 96000] as const;
+export const AUDIO_BIT_DEPTHS = [16, 24] as const;
+
+// ---------------------------------------------------------------- the matte pass (milestone 15)
+
+/** The matte's pixel format: the preset's own without its alpha, since a matte is grey. */
+export const MATTE_PIXEL_FORMATS: Record<PresetId, string> = {
+  'prores-4444': 'yuv444p10le',
+  'prores-422hq': 'yuv422p10le',
+  'png-sequence': 'rgb24',
+  'webm-vp9-alpha': 'yuv420p',
+  'h264-mp4': 'yuv420p',
+  'qt-animation': 'rgb24',
+  'hevc-alpha': 'yuv420p',
+};
+
+/** The preset's codec arguments with what only an alpha channel needs taken out. */
+export function matteCodecArgs(preset: OutputPreset): string[] {
+  const out: string[] = [];
+  const args = preset.codecArgs;
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === '-alpha_bits' || args[i] === '-alpha_quality') {
+      i += 1;
+      continue;
+    }
+    out.push(args[i]!);
+  }
+  return out;
+}
+
+/** Where the matte goes: beside the render, "-matte" before the extension; a sequence keeps its frame pattern. */
+export function matteOutputPath(output: string, preset: OutputPreset): string {
+  if (preset.sequence) {
+    const m = /^(.*?)(_%0?\d*d)?(\.[^.\\/]+)$/.exec(output);
+    if (m) return `${m[1]}-matte${m[2] ?? ''}${m[3]}`;
+  }
+  const dot = output.lastIndexOf('.');
+  const slash = Math.max(output.lastIndexOf('/'), output.lastIndexOf('\\'));
+  return dot > slash ? `${output.slice(0, dot)}-matte${output.slice(dot)}` : `${output}-matte`;
+}
+
+/** The filter steps that turn a straight-alpha picture into the grey matte in the preset's colour and format. */
+export function matteFilters(preset: OutputPreset): string {
+  const tags = preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [RGB_FULL_TAGS];
+  return ['format=rgba', 'alphaextract', ...tags, `format=${MATTE_PIXEL_FORMATS[preset.id]}`].join(',');
 }
 
 export interface RenderTiming {
@@ -298,6 +365,8 @@ export interface RenderPlan {
   aspect: string;
   width: number;
   height: number;
+  /** The grey matte written beside the render, when one was asked for (milestone 15). */
+  matteOutput?: string;
   warnings: string[];
 }
 
@@ -378,14 +447,21 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   const toOutput = preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [RGB_FULL_TAGS];
   toOutput.push(`format=${preset.pixelFormat}`);
 
+  const matte = input.options?.matte === true;
+  const matteOutput = matte ? matteOutputPath(output, preset) : undefined;
+  // With a matte, the prepared frames are split: one branch to the picture, one to the grey (milestone 15).
+  const prepared = prepare.length > 0 ? `[0:v]${prepare.join(',')}[src]` : '[0:v]null[src]';
+  const split = `${prepared};[src]split[pic][mat];[mat]${matteFilters(preset)}[matte]`;
   if (!preset.alpha && manifest.alpha) {
     // Composite in RGB so the background color and the template pixels share one conversion.
-    const foreground = prepare.length > 0 ? `[0:v]${prepare.join(',')}[fg];[bg][fg]` : '[bg][0:v]';
+    const foreground = matte ? `${split};[bg][pic]` : prepare.length > 0 ? `[0:v]${prepare.join(',')}[fg];[bg][fg]` : '[bg][0:v]';
     args.push(
       '-filter_complex',
       `color=c=${hexToFfmpegColor(background)}:s=${size}:r=${fps}[bg];${foreground}overlay=shortest=1:format=rgb,${toOutput.join(',')}[out]`,
       '-map', '[out]',
     );
+  } else if (matte) {
+    args.push('-filter_complex', `${split};[pic]${toOutput.join(',')}[out]`, '-map', '[out]');
   } else {
     args.push('-vf', [...prepare, ...toOutput].join(','));
   }
@@ -394,5 +470,10 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   // Sequence files are numbered with the frame indices they hold, so a render from frame 60 starts at _00060.
   if (preset.sequence) args.push('-start_number', String(timing.firstFrame));
   args.push('-frames:v', String(totalFrames), '-r', fps, output);
-  return { preset, frameFormat, args, output, fps: timing.fps, firstFrame: timing.firstFrame, totalFrames, length: timing.length, aspect: frameSize.aspect, width, height, warnings };
+  if (matte && matteOutput) {
+    args.push('-map', '[matte]', ...matteCodecArgs(preset));
+    if (preset.sequence) args.push('-start_number', String(timing.firstFrame));
+    args.push('-frames:v', String(totalFrames), '-r', fps, matteOutput);
+  }
+  return { preset, frameFormat, args, output, fps: timing.fps, firstFrame: timing.firstFrame, totalFrames, length: timing.length, aspect: frameSize.aspect, width, height, ...(matteOutput ? { matteOutput } : {}), warnings };
 }

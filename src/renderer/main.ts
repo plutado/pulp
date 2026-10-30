@@ -9,7 +9,7 @@ import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback 
 import { initShell } from './shell';
 import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
 import { chosenLibraryItems, currentLayers, currentRawParams, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
-import { currentOptions, currentPresetId, initInspectorOutput, outputSetFfmpeg, outputShow, setTemplateShower, updateRenderControls } from './inspector-output';
+import { currentOptions, currentPresetId, initInspectorOutput, outputClear, outputSetFfmpeg, outputShow, outputShowMedia, setTemplateShower, updateRenderControls } from './inspector-output';
 import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
@@ -120,6 +120,7 @@ function clearSelection(): void {
   stageClear();
   dispatch((s) => setShown(s, null));
   paramsClear();
+  outputClear();
   updateRenderControls();
 }
 
@@ -131,6 +132,8 @@ function selectMedia(entry: MediaEntry): void {
   showInspectorTab('info');
   void window.pulp.markItemUsed(entry.id);
   stageShowMedia(entry);
+  // A media item renders itself (milestone 15): the Output tab takes it as it takes a template.
+  outputShowMedia(entry);
   renderResults();
 }
 

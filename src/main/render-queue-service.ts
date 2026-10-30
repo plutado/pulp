@@ -21,23 +21,36 @@ import { clipIdsInLayers } from '../core/video-layer';
 import { splitLayers } from '../core/params';
 import { cacheFileForKey, dragFileFor, evictIfNeeded, isCachedFile } from './render-cache-service';
 import { existsSync } from 'node:fs';
-import { findTemplate, markItemRendered, markItemUsed } from './library-service';
+import { findTemplate, lookupMedia, markItemRendered, markItemUsed } from './library-service';
 import { renderTemplate } from './render';
+import { planMediaRender, renderMedia } from './media-render';
+import { AUDIO_PRESETS, isAudioPresetId } from '../core/media-render';
+import { mediaCacheKey } from '../core/render-cache';
+import type { MediaEntry } from '../core/library-types';
 
-/** Per-job inputs the UI does not need to see. */
-interface JobInputs {
-  template: TemplateEntry;
-  params: Record<string, unknown>;
-  options?: RenderOptions;
-  /** A render into the cache folder, for dragging. */
-  forCache?: boolean;
-}
+/** Per-job inputs the UI does not need to see: a template to step, or a media item to transcode (milestone 15). */
+type JobInputs =
+  | { template: TemplateEntry; media?: undefined; params: Record<string, unknown>; options?: RenderOptions; forCache?: boolean }
+  | { template?: undefined; media: MediaEntry; params: Record<string, unknown>; options?: RenderOptions; forCache?: boolean };
 
 /** Files that may be dragged: outputs of finished jobs (cache files are allowed by location). */
 const finishedOutputs = new Set<string>();
 
 export function allowedDragFiles(): ReadonlySet<string> {
   return finishedOutputs;
+}
+
+/** A preset's label and extension, whichever list it is in. */
+function presetFacts(presetId: string): { label: string; extension: string; sequence: boolean } | null {
+  if (isAudioPresetId(presetId)) return { label: AUDIO_PRESETS[presetId].label, extension: AUDIO_PRESETS[presetId].extension, sequence: false };
+  const preset = OUTPUT_PRESETS[presetId as PresetId];
+  return preset ? { label: preset.label, extension: preset.extension, sequence: preset.sequence } : null;
+}
+
+/** The media item a request or a collection item names, when the library has it and can reach it. */
+function mediaFor(id: string): MediaEntry | null {
+  const found = lookupMedia(id);
+  return found && found.online ? found.entry : null;
 }
 
 const queue = new RenderQueue(broadcast);
@@ -55,8 +68,39 @@ export function getRenderQueue(): RenderQueueSnapshot {
   return queue.snapshot();
 }
 
+/** Ask where to save, then queue a media item's own render (milestone 15). */
+async function enqueueMediaRender(request: RenderRequest & { mediaId: string }): Promise<EnqueueResult> {
+  const entry = mediaFor(request.mediaId);
+  if (!entry) return { ok: false, message: 'That item is not in the library, or its folder is offline.' };
+  const facts = presetFacts(request.presetId);
+  if (!facts) return { ok: false, message: `Unknown preset "${request.presetId}".` };
+  const planned = await planMediaRender(entry, request.presetId, request.options, request.params, join(homedir(), `render${facts.extension}`));
+  if (!planned.ok) return { ok: false, message: planned.message };
+  const save = await dialog.showSaveDialog({
+    title: `Render ${entry.name}`,
+    defaultPath: join(app.getPath('videos') || homedir(), `${slug(entry.name, 'render')}${facts.extension}`),
+    filters: [{ name: facts.label, extensions: [facts.extension.slice(1)] }],
+  });
+  if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: 'Render cancelled.' };
+  const job = queue.add({
+    templateId: '',
+    mediaId: entry.id,
+    templateName: entry.name,
+    presetId: request.presetId,
+    outputPath: save.filePath,
+    totalFrames: planned.plan.timing.totalFrames,
+    firstFrame: planned.plan.timing.firstFrame,
+  });
+  inputs.set(job.id, { media: entry, params: request.params, ...(request.options ? { options: request.options } : {}) });
+  markItemUsed(entry.id);
+  void pump();
+  return { ok: true, jobId: job.id };
+}
+
 /** Ask where to save, then queue the render. Resolves as soon as the job is queued. */
 export async function enqueueRender(request: RenderRequest): Promise<EnqueueResult> {
+  if (request.mediaId) return enqueueMediaRender({ ...request, mediaId: request.mediaId });
+  if (!request.templateId) return { ok: false, message: 'Nothing to render: the request names no template and no item.' };
   const template = await findTemplate(request.templateId);
   if (!template) return { ok: false, message: `Template "${request.templateId}" not found.` };
   const preset = OUTPUT_PRESETS[request.presetId as PresetId];
@@ -95,7 +139,35 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
  * Render into the cache for dragging, unless the same render is already
  * cached. Resolves at once with either the cached file or the queued job.
  */
+/** A media item rendered into the cache for dragging (milestone 15), or found there already. */
+async function prepareMediaDrag(request: RenderRequest & { mediaId: string }): Promise<PrepareDragResult> {
+  const entry = mediaFor(request.mediaId);
+  if (!entry) return { ok: false, message: 'That item is not in the library, or its folder is offline.' };
+  const facts = presetFacts(request.presetId);
+  if (!facts) return { ok: false, message: `Unknown preset "${request.presetId}".` };
+  const planned = await planMediaRender(entry, request.presetId, request.options, request.params, join(homedir(), `render${facts.extension}`));
+  if (!planned.ok) return { ok: false, message: planned.message };
+  const timing = planned.plan.timing;
+  const key = mediaCacheKey({ id: entry.id, size: entry.size, mtimeMs: entry.mtimeMs, presetId: request.presetId, options: request.options, params: request.params });
+  const { path: outputPath } = await cacheFileForKey(key, entry.name, facts.extension, facts.sequence);
+  const existing = dragFileFor(outputPath, timing.firstFrame);
+  const job = { templateId: '', mediaId: entry.id, templateName: entry.name, presetId: request.presetId, outputPath, totalFrames: timing.totalFrames, firstFrame: timing.firstFrame };
+  if (existsSync(existing) && (await isCachedFile(existing))) {
+    const cached = queue.addFinished(job, outputPath, timing.totalFrames);
+    finishedOutputs.add(existing);
+    markItemUsed(entry.id);
+    return { ok: true, cached: true, file: existing, jobId: cached.id };
+  }
+  const queued = queue.add(job);
+  inputs.set(queued.id, { media: entry, params: request.params, forCache: true, ...(request.options ? { options: request.options } : {}) });
+  markItemUsed(entry.id);
+  void pump();
+  return { ok: true, cached: false, jobId: queued.id };
+}
+
 export async function prepareDrag(request: RenderRequest): Promise<PrepareDragResult> {
+  if (request.mediaId) return prepareMediaDrag({ ...request, mediaId: request.mediaId });
+  if (!request.templateId) return { ok: false, message: 'Nothing to render: the request names no template and no item.' };
   const template = await findTemplate(request.templateId);
   if (!template) return { ok: false, message: `Template "${request.templateId}" not found.` };
   const preset = OUTPUT_PRESETS[request.presetId as PresetId];
@@ -164,6 +236,33 @@ export async function enqueueCollectionItems(items: readonly CollectionItem[], f
   const skipped: string[] = [];
   const used = new Map<string, number>();
   for (const item of items) {
+    // Two of the same item in one collection must not render over each other.
+    const fileNameFor = (): string => {
+      const base = slug(item.name, 'render');
+      const seen = (used.get(base) ?? 0) + 1;
+      used.set(base, seen);
+      return seen === 1 ? base : `${base}-${seen}`;
+    };
+    if (item.kind === 'media') {
+      // A media item renders itself (milestone 15), with the settings its card carries.
+      const entry = mediaFor(item.id);
+      const facts = presetFacts(item.presetId);
+      if (!entry || !facts) {
+        skipped.push(`${item.name}: ${entry ? `unknown preset "${item.presetId}"` : 'it is not in the library, or its folder is offline'}`);
+        continue;
+      }
+      const outputPath = join(folder, `${fileNameFor()}${facts.extension}`);
+      const planned = await planMediaRender(entry, item.presetId, item.options, item.params, outputPath);
+      if (!planned.ok) {
+        skipped.push(`${item.name}: ${planned.message}`);
+        continue;
+      }
+      const job = queue.add({ templateId: '', mediaId: entry.id, templateName: entry.name, label: item.name, presetId: item.presetId, outputPath, totalFrames: planned.plan.timing.totalFrames, firstFrame: planned.plan.timing.firstFrame });
+      inputs.set(job.id, { media: entry, params: item.params, ...(item.options ? { options: item.options } : {}) });
+      jobIds.push(job.id);
+      markItemUsed(entry.id);
+      continue;
+    }
     const template = item.templateId ? await findTemplate(item.templateId) : null;
     const preset = OUTPUT_PRESETS[item.presetId as PresetId];
     if (!template || !preset) {
@@ -177,17 +276,12 @@ export async function enqueueCollectionItems(items: readonly CollectionItem[], f
       skipped.push(`${item.name}: ${(err as Error).message}`);
       continue;
     }
-    // Two of the same item in one collection must not render over each other.
-    const base = slug(item.name, 'render');
-    const seen = (used.get(base) ?? 0) + 1;
-    used.set(base, seen);
-    const fileName = seen === 1 ? base : `${base}-${seen}`;
     const job = queue.add({
       templateId: template.manifest.id,
       templateName: template.manifest.name,
       label: item.name,
       presetId: preset.id,
-      outputPath: join(folder, `${fileName}${preset.extension}`),
+      outputPath: join(folder, `${fileNameFor()}${preset.extension}`),
       totalFrames: timing.totalFrames,
       firstFrame: timing.firstFrame,
     });
@@ -277,8 +371,7 @@ async function pump(): Promise<void> {
       }
       active = new AbortController();
       const id = job.id;
-      const result = await renderTemplate({
-        template: input.template,
+      const shared = {
         params: input.params,
         presetId: job.presetId,
         outputPath: job.outputPath,
@@ -286,16 +379,17 @@ async function pump(): Promise<void> {
         overwrite: true,
         signal: active.signal,
         ...(input.options ? { options: input.options } : {}),
-        onProgress: ({ frame }) => queue.progress(id, frame),
-      });
+        onProgress: ({ frame }: { frame: number }) => queue.progress(id, frame),
+      };
+      const result = input.media ? await renderMedia({ entry: input.media, ...shared }) : await renderTemplate({ template: input.template, ...shared });
       active = null;
       queue.finish(id, result);
       if (result.ok) {
-        markItemRendered(input.template.id);
+        markItemRendered(input.media ? input.media.id : input.template.id);
         // Finished outputs may be dragged into an editing app; sequences drag their first frame.
-        const plan = { output: result.output, firstFrame: 0 };
-        finishedOutputs.add(dragFileFor(plan.output, resolveTiming(input.template.manifest, input.options).firstFrame));
-        if (input.forCache) await evictIfNeeded(new Set([dragFileFor(plan.output, resolveTiming(input.template.manifest, input.options).firstFrame)]));
+        const dragged = dragFileFor(result.output, job.firstFrame ?? 0);
+        finishedOutputs.add(dragged);
+        if (input.forCache) await evictIfNeeded(new Set([dragged]));
       }
     }
   } finally {

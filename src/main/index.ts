@@ -3,6 +3,8 @@ import { SAMPLE_MEDIA_FOLDER_NAME } from '../core/sample-media';
 import { generateSampleMedia } from './sample-media-service';
 import { readSlotImages, resolveRowImages } from './image-grant';
 import { psdOutlineFor } from './psd-service';
+import { renderMedia } from './media-render';
+import { AUDIO_PRESETS, isAudioPresetId } from '../core/media-render';
 import { sanitizePsdChoice, type ImageGrantRequest } from '../core/image-slot';
 import { loadLayerClips } from './clip-grant';
 import { join, resolve } from 'node:path';
@@ -10,7 +12,7 @@ import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
 import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest } from '../shared/api';
-import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
+import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag, removeRender } from './render-queue-service';
@@ -637,8 +639,26 @@ async function runCliCollection(cli: CliRender): Promise<number> {
   let rendered = 0;
   let failed = 0;
   for (const item of items) {
-    if (item.kind !== 'template' || !item.templateId) {
-      console.warn(`skipped ${item.name}: only templates render today (converting media is milestone 15)`);
+    if (item.kind === 'media') {
+      // A media item renders itself (milestone 15), with the settings its card carries.
+      const found = lookupMedia(item.id);
+      const facts = isAudioPresetId(item.presetId) ? AUDIO_PRESETS[item.presetId] : OUTPUT_PRESETS[item.presetId as PresetId];
+      if (!found || !found.online || !facts) {
+        console.warn(`skipped ${item.name}: ${facts ? 'it is not in the library, or its folder is offline' : `unknown preset "${item.presetId}"`}`);
+        continue;
+      }
+      const result = await renderMedia({ entry: found.entry, params: item.params, presetId: item.presetId, outputPath: join(folder, `${slug(item.name, 'render')}${facts.extension}`), overwrite: true, options: item.options });
+      if (result.ok) {
+        rendered += 1;
+        console.log(`wrote ${result.output} (${item.name})`);
+      } else {
+        failed += 1;
+        console.error(`${item.name}: ${result.message}`);
+      }
+      continue;
+    }
+    if (!item.templateId) {
+      console.warn(`skipped ${item.name}: it names no template`);
       continue;
     }
     const template = await findTemplate(item.templateId);

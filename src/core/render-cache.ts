@@ -26,6 +26,13 @@ export interface CacheKeyInput {
 }
 
 /** Stable key for a render: same inputs, same key. 24 hex characters. */
+/** The key for a media item rendered itself (milestone 15): the file as it is, the preset, the options and the collected choice. */
+export function mediaCacheKey(input: { id: string; size: number; mtimeMs: number; presetId: string; options?: RenderOptions; params: Record<string, unknown> }): string {
+  const params = Object.fromEntries(Object.entries(input.params).sort(([a], [b]) => a.localeCompare(b)));
+  const payload = JSON.stringify({ media: input.id, size: input.size, mtime: input.mtimeMs, preset: input.presetId, o: input.options ?? {}, p: params });
+  return createHash('sha256').update(payload).digest('hex').slice(0, 24);
+}
+
 export function cacheKey(input: CacheKeyInput): string {
   const params = Object.fromEntries(Object.entries(input.params).sort(([a], [b]) => a.localeCompare(b)));
   const images = [...(input.images ?? [])].sort((a, b) => a.id.localeCompare(b.id));

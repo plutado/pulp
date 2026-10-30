@@ -226,9 +226,9 @@ export function resolveCollection(c: Collection, index: LibraryIndex | null, ava
   });
 }
 
-/** What a collection can render now: templates that are present and reachable. */
+/** What a collection can render now: items that are present and reachable — templates, and media rendered itself (milestone 15). */
 export function renderableItems(resolved: readonly ResolvedItem[]): ResolvedItem[] {
-  return resolved.filter((r) => !r.missing && !r.offline && r.missingImages.length === 0 && r.item.kind === 'template');
+  return resolved.filter((r) => !r.missing && !r.offline && r.missingImages.length === 0);
 }
 
 /** One line for the tray: "4 items · 1 missing", "3 items". */
@@ -237,10 +237,7 @@ export function collectionSummary(resolved: readonly ResolvedItem[]): string {
   const parts = [`${resolved.length} ${resolved.length === 1 ? 'item' : 'items'}`];
   const missing = resolved.filter((r) => r.missing).length;
   const offline = resolved.filter((r) => r.offline).length;
-  const media = resolved.filter((r) => !r.missing && r.item.kind === 'media').length;
   if (missing > 0) parts.push(`${missing} missing`);
   if (offline > 0) parts.push(`${offline} offline`);
-  // Converting media arrives with milestone 15; until then a collection holds it but cannot render it.
-  if (media > 0) parts.push(`${media} not renderable yet`);
   return parts.join(' · ');
 }

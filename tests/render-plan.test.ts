@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildRenderPlan,
   fpsToRational,
+  matteCodecArgs,
+  matteOutputPath,
   normalizeOutputPath,
   OUTPUT_PRESETS,
   PRESET_IDS,
@@ -375,5 +377,32 @@ describe('resolveTiming', () => {
     for (const length of [0, -2, Number.NaN]) {
       expect(() => resolveTiming(designed, { length }), String(length)).toThrow(/length must be a number of seconds greater than 0/);
     }
+  });
+});
+
+describe('the matte pass (milestone 15)', () => {
+  it('writes the alpha as grey beside the render, split from the same frames, with the codec minus its alpha', () => {
+    const plan = buildRenderPlan({ manifest: { ...timing(), alpha: true }, presetId: 'prores-4444', outputPath: '/out/clip.mov', options: { matte: true } });
+    expect(plan.matteOutput).toBe('/out/clip-matte.mov');
+    const graph = flag(plan.args, '-filter_complex')!;
+    expect(graph).toContain('[src]split[pic][mat]');
+    expect(graph).toContain('[mat]format=rgba,alphaextract,');
+    expect(graph).toContain('format=yuv444p10le[matte]');
+    expect(plan.args.filter((a) => a === '-map')).toHaveLength(2);
+    expect(plan.args[plan.args.length - 1]).toBe('/out/clip-matte.mov');
+    // The matte carries no alpha bits of its own.
+    const after = plan.args.slice(plan.args.lastIndexOf('[matte]'));
+    expect(after).not.toContain('-alpha_bits');
+    expect(matteCodecArgs(OUTPUT_PRESETS['hevc-alpha'])).not.toContain('-alpha_quality');
+    // A flattened render keeps its matte: the grey is taken before the overlay.
+    const flat = buildRenderPlan({ manifest: { ...timing(), alpha: true }, presetId: 'h264-mp4', outputPath: '/out/clip.mp4', options: { matte: true } });
+    expect(flag(flat.args, '-filter_complex')).toContain('[bg][pic]overlay');
+    expect(flat.matteOutput).toBe('/out/clip-matte.mp4');
+    // A sequence's matte is a sequence of its own.
+    expect(matteOutputPath('/out/clip_%05d.png', OUTPUT_PRESETS['png-sequence'])).toBe('/out/clip-matte_%05d.png');
+    // Without the option nothing changes: one output, the -vf path.
+    const plain = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/out/clip.mov' });
+    expect(plain.matteOutput).toBeUndefined();
+    expect(plain.args).toContain('-vf');
   });
 });

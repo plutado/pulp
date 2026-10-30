@@ -18,10 +18,13 @@ import { appState } from './store';
 
 const jobs = computed(() => appState.value.jobs.jobs);
 
-/** Poster of the template a job renders, so a card is recognizable at a glance. */
+/** Poster of the template a job renders — or of the media item rendered itself (milestone 15) — so a card is recognizable at a glance. */
 const thumbnails = computed(() => {
   const index = appState.value.index;
-  return new Map((index?.templates ?? []).map((t) => [t.manifest.id, t.thumbnail]));
+  return new Map([
+    ...(index?.templates ?? []).map((t) => [t.manifest.id, t.thumbnail] as const),
+    ...(index?.media ?? []).map((m) => [`media:${m.id}`, m.thumbnail] as const),
+  ]);
 });
 
 /** The card a native drag is running from, so it can show that it is the source. */
@@ -34,7 +37,7 @@ function startDrag(job: RenderQueueJob, card: QueueCard): void {
   if (!card.file) return;
   dragging.value = card.id;
   dragNotice.value = true;
-  void window.pulp.startDrag(card.file, job.templateId);
+  void window.pulp.startDrag(card.file, job.templateId || undefined);
   // The native drag takes over from here, so there is no dragend to wait for.
   const done = () => {
     dragging.value = null;
@@ -64,7 +67,7 @@ function Actions({ card }: { card: QueueCard }) {
 
 function Job({ job }: { job: RenderQueueJob }) {
   const card = queueCard(job);
-  const thumbnail = thumbnails.value.get(job.templateId);
+  const thumbnail = thumbnails.value.get(job.mediaId ? `media:${job.mediaId}` : job.templateId);
   return (
     <li
       class={`job-card ${card.status.kind}${dragging.value === card.id ? ' dragging' : ''}`}
