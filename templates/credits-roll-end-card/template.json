@@ -1,0 +1,58 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.credits-roll-end-card",
+  "name": "Credits Roll",
+  "description": "A roll of credits climbs the frame at a reading pace over a dark field, one line per role and name, and clears at the top. For short films and documentaries.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "credits",
+    "roll"
+  ],
+  "themes": [
+    "cinema",
+    "documentary"
+  ],
+  "styles": [
+    "cinematic"
+  ],
+  "duration": 10,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "lines",
+      "type": "text",
+      "label": "Credits",
+      "default": "Directed by \u2014 Sam Achebe\nCinematography \u2014 Lior Ben-David\nEdited by \u2014 Priya Natarajan\nMusic \u2014 The Harbour Trio\nThanks to everyone who came out",
+      "multiline": true,
+      "maxLength": 600,
+      "element": "Roll"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Type",
+      "default": "#f1f5f9",
+      "element": "Roll"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#050505",
+      "element": "Scene"
+    }
+  ]
+}

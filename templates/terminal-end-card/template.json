@@ -1,0 +1,66 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.terminal-end-card",
+  "name": "Terminal Out",
+  "description": "A closing line types itself in a monospaced face with a blinking cursor over a faint grid, then the prompt returns. For tech channels, dev logs and game devlogs.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "terminal",
+    "cursor"
+  ],
+  "themes": [
+    "technology",
+    "gaming",
+    "science"
+  ],
+  "styles": [
+    "tech"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "line",
+      "type": "text",
+      "label": "Line",
+      "default": "thanks for watching \u2014 see you in the next build",
+      "maxLength": 60,
+      "element": "Prompt"
+    },
+    {
+      "id": "prompt",
+      "type": "text",
+      "label": "Prompt",
+      "default": "~/pulp $",
+      "maxLength": 16,
+      "element": "Prompt"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Type",
+      "default": "#86efac",
+      "element": "Prompt"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#0a0f0a",
+      "element": "Scene"
+    }
+  ]
+}

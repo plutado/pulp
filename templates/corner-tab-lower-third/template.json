@@ -1,0 +1,103 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.corner-tab-lower-third",
+  "name": "Corner Tab",
+  "description": "A tab anchored to the left edge slides into view with a vertical accent stripe, then slides back. A quiet corporate strap for interviews and presentations.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "tab",
+    "corporate"
+  ],
+  "themes": [
+    "corporate",
+    "finance",
+    "legal"
+  ],
+  "styles": [
+    "corporate",
+    "clean"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.0,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.06,
+          "y": 0.7,
+          "width": 0.5,
+          "height": 0.18
+        },
+        "default": {
+          "x": 0.06,
+          "y": 0.62,
+          "width": 0.8,
+          "height": 0.24
+        }
+      },
+      "gap": 0.012,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Montserrat",
+        "size": 0.05,
+        "weight": 700,
+        "color": "#0f172a"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Priya Natarajan",
+          "required": true
+        },
+        {
+          "id": "role",
+          "type": "text",
+          "label": "Role",
+          "text": "Chief Financial Officer",
+          "size": 0.028,
+          "weight": 500,
+          "color": "#475569",
+          "family": "Inter"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "tab",
+      "type": "color",
+      "label": "Fill",
+      "default": "#f8fafc",
+      "element": "Tab"
+    },
+    {
+      "id": "stripe",
+      "type": "color",
+      "label": "Stripe",
+      "default": "#1d4ed8",
+      "element": "Tab"
+    }
+  ]
+}

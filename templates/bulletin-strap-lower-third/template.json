@@ -1,0 +1,111 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.bulletin-strap-lower-third",
+  "name": "Bulletin Strap",
+  "description": "A full-width two-tone strap rises from the bottom edge, a kicker word on a dark block at the left and the name beside it. For bulletins, briefings and council coverage.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "strap",
+    "bulletin"
+  ],
+  "themes": [
+    "news",
+    "civic",
+    "documentary"
+  ],
+  "styles": [
+    "high-energy",
+    "clean"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.0,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.2,
+          "y": 0.78,
+          "width": 0.7,
+          "height": 0.14
+        },
+        "default": {
+          "x": 0.06,
+          "y": 0.6,
+          "width": 0.88,
+          "height": 0.2
+        }
+      },
+      "gap": 0.006,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Oswald",
+        "size": 0.052,
+        "weight": 600,
+        "color": "#0b1020"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Tomas Reyes",
+          "required": true
+        },
+        {
+          "id": "role",
+          "type": "text",
+          "label": "Role",
+          "text": "City Hall correspondent",
+          "size": 0.026,
+          "weight": 400,
+          "color": "#334155",
+          "family": "Inter"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "kicker",
+      "type": "text",
+      "label": "Kicker",
+      "default": "LIVE",
+      "maxLength": 12,
+      "element": "Kicker block"
+    },
+    {
+      "id": "block",
+      "type": "color",
+      "label": "Fill",
+      "default": "#b91c1c",
+      "element": "Kicker block"
+    },
+    {
+      "id": "strap",
+      "type": "color",
+      "label": "Fill",
+      "default": "#f1f5f9",
+      "element": "Strap"
+    }
+  ]
+}

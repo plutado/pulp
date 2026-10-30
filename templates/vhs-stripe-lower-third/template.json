@@ -1,0 +1,106 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.vhs-stripe-lower-third",
+  "name": "VHS Stripe",
+  "description": "A chunky striped bar with a tracking jitter and a colour fringe that never quite sits still, in a tape-era palette. For retro recaps, summer edits and gig footage.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "vhs",
+    "retro"
+  ],
+  "themes": [
+    "concert",
+    "summer",
+    "travel"
+  ],
+  "styles": [
+    "retro"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.08,
+          "y": 0.7,
+          "width": 0.5,
+          "height": 0.17
+        },
+        "default": {
+          "x": 0.08,
+          "y": 0.62,
+          "width": 0.84,
+          "height": 0.22
+        }
+      },
+      "gap": 0.012,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Bebas Neue",
+        "size": 0.07,
+        "weight": 400,
+        "color": "#fef08a",
+        "letterSpacing": 0.06
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Summer Reel '89",
+          "required": true
+        },
+        {
+          "id": "role",
+          "type": "text",
+          "label": "Line",
+          "text": "Side B \u2014 recorded live",
+          "size": 0.028,
+          "weight": 500,
+          "color": "#f5d0fe",
+          "family": "Inter"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "a",
+      "type": "color",
+      "label": "Stripe one",
+      "default": "#db2777",
+      "element": "Stripes"
+    },
+    {
+      "id": "b2",
+      "type": "color",
+      "label": "Stripe two",
+      "default": "#0ea5e9",
+      "element": "Stripes"
+    },
+    {
+      "id": "c2",
+      "type": "color",
+      "label": "Stripe three",
+      "default": "#f59e0b",
+      "element": "Stripes"
+    }
+  ]
+}

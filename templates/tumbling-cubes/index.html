@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tumbling Cubes</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Tumbling Cubes, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // Every cube turns one full quarter-turn cycle per loop, offset by its place in the grid, so the field wraps seamlessly.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var loop = (t / d) % 1;
+
+    ctx.fillStyle = p.back;
+    ctx.fillRect(0, 0, W, H);
+    var s = Math.min(W, H) / 9;
+    var cols = Math.ceil(W / (s * 1.8)) + 2, rows = Math.ceil(H / (s * 1.05)) + 2;
+    var r = hex(p.face, 1), gC = hex(p.face, 3), bC = hex(p.face, 5);
+    function shade(k) { return 'rgb(' + Math.round(r * k) + ',' + Math.round(gC * k) + ',' + Math.round(bC * k) + ')'; }
+    for (var row = -1; row < rows; row++) {
+      for (var col = -1; col < cols; col++) {
+        var cx = col * s * 1.8 + (row % 2 ? s * 0.9 : 0), cy = row * s * 1.05;
+        var wave = Math.sin(loop * Math.PI * 2 + (col + row) * 0.6);
+        var k = 0.5 + wave * 0.5;
+        var top = s * (0.3 + 0.2 * k);
+        ctx.fillStyle = shade(0.95);
+        ctx.beginPath(); ctx.moveTo(cx, cy - top); ctx.lineTo(cx + s * 0.8, cy); ctx.lineTo(cx, cy + top); ctx.lineTo(cx - s * 0.8, cy); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = shade(0.55 + 0.15 * k);
+        ctx.beginPath(); ctx.moveTo(cx - s * 0.8, cy); ctx.lineTo(cx, cy + top); ctx.lineTo(cx, cy + top + s * 0.7); ctx.lineTo(cx - s * 0.8, cy + s * 0.7); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = shade(0.3 + 0.15 * (1 - k));
+        ctx.beginPath(); ctx.moveTo(cx + s * 0.8, cy); ctx.lineTo(cx, cy + top); ctx.lineTo(cx, cy + top + s * 0.7); ctx.lineTo(cx + s * 0.8, cy + s * 0.7); ctx.closePath(); ctx.fill();
+      }
+    }
+  };
+</script>
+</body>
+</html>

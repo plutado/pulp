@@ -1,0 +1,70 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.monogram-end-card",
+  "name": "Monogram",
+  "description": "Two names and a date inside a ring of drawn leaves that completes itself, in a soft blush palette. Closes a wedding film or a birthday reel.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "monogram",
+    "ring"
+  ],
+  "themes": [
+    "wedding",
+    "birthday",
+    "family"
+  ],
+  "styles": [
+    "elegant"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "names",
+      "type": "text",
+      "label": "Names",
+      "default": "Elena & Marcus",
+      "maxLength": 30,
+      "element": "Words"
+    },
+    {
+      "id": "date",
+      "type": "text",
+      "label": "Date",
+      "default": "12 \u00b7 06 \u00b7 2026",
+      "maxLength": 24,
+      "element": "Words"
+    },
+    {
+      "id": "leaf",
+      "type": "color",
+      "label": "Leaves",
+      "default": "#9f7a4a",
+      "element": "Ring"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#fdf2f8",
+      "element": "Scene"
+    }
+  ]
+}

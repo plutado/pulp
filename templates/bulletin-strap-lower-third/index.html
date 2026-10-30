@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Bulletin Strap</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Bulletin Strap, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The strap rises from the bottom edge; the kicker block sits at the left; the words land on it.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var inFor = 0.8, outFor = 0.8, outAt = d - outFor;
+    var come = easeOut(clamp01(t / inFor)), gone = easeOut(clamp01((t - outAt) / outFor));
+    var show = come * (1 - gone);
+    if (show <= 0.001) return;
+    var b = state.blocks.words.box;
+
+    var strapH = b.height + 24 * u, strapY = b.y - 12 * u;
+    var rise = (1 - come) * (H - strapY) + gone * (H - strapY);
+    ctx.save();
+    ctx.translate(0, rise);
+    ctx.fillStyle = p.strap;
+    ctx.fillRect(0, strapY, W, strapH);
+    var kickerW = Math.max(b.x - 16 * u, 0.12 * W);
+    ctx.fillStyle = p.block;
+    ctx.fillRect(0, strapY, kickerW, strapH);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 ' + Math.round(34 * u) + 'px Oswald';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(p.kicker).toUpperCase(), kickerW / 2, strapY + strapH / 2);
+
+    var laid = window.pulpLayoutBlock(ctx, state, 'words', {
+      each: function (layer, position) {
+        var lineIn = easeOut(clamp01((t - 0.15 - position * 0.15) / 0.5));
+        return { alpha: lineIn * (1 - gone), dy: (1 - lineIn) * 10 * u };
+      }
+    });
+    window.pulpDrawBlock(ctx, laid);
+
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

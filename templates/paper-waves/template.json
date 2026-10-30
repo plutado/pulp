@@ -1,0 +1,54 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.paper-waves",
+  "name": "Paper Waves",
+  "description": "Layered paper-cut wave bands bob gently against one another in bright flat colours, like a stage set. For kids, classroom and seaside pieces.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "animated-loop",
+  "tags": [
+    "background",
+    "loop",
+    "waves"
+  ],
+  "themes": [
+    "kids",
+    "education",
+    "ocean"
+  ],
+  "styles": [
+    "playful",
+    "hand-drawn"
+  ],
+  "duration": 6,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "sky",
+      "type": "color",
+      "label": "Sky",
+      "default": "#bae6fd",
+      "element": "Sky"
+    },
+    {
+      "id": "wave",
+      "type": "color",
+      "label": "Waves",
+      "default": "#0284c7",
+      "element": "Waves"
+    }
+  ]
+}

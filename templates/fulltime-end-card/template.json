@@ -1,0 +1,98 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.fulltime-end-card",
+  "name": "Full Time",
+  "description": "A final-score board: two team names with their scores on a split slab under a \"full time\" kicker, then it slides away. For match recaps and highlight packages.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "score",
+    "sports"
+  ],
+  "themes": [
+    "sports",
+    "soccer",
+    "football"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.3,
+    "holdTo": 5.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "home",
+      "type": "text",
+      "label": "Home",
+      "default": "Rovers",
+      "maxLength": 18,
+      "element": "Home"
+    },
+    {
+      "id": "homeScore",
+      "type": "number",
+      "label": "Score",
+      "default": 2,
+      "min": 0,
+      "max": 99,
+      "step": 1,
+      "element": "Home"
+    },
+    {
+      "id": "away",
+      "type": "text",
+      "label": "Away",
+      "default": "United",
+      "maxLength": 18,
+      "element": "Away"
+    },
+    {
+      "id": "awayScore",
+      "type": "number",
+      "label": "Score",
+      "default": 1,
+      "min": 0,
+      "max": 99,
+      "step": 1,
+      "element": "Away"
+    },
+    {
+      "id": "kicker",
+      "type": "text",
+      "label": "Kicker",
+      "default": "FULL TIME",
+      "maxLength": 16,
+      "element": "Kicker"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#facc15",
+      "element": "Kicker"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#0b1020",
+      "element": "Scene"
+    }
+  ]
+}

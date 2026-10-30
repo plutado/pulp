@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Monogram</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Monogram, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The ring of leaves draws round over two seconds and then holds; the words fade in with it.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var come = easeInOut(clamp01(t / 1.8)), gone = easeInOut(clamp01((t - 6.0) / 1.0));
+    ctx.fillStyle = p.back;
+    ctx.fillRect(0, 0, W, H);
+    var show = 1 - gone;
+    var cx = W / 2, cy = H / 2, r = Math.min(W, H) * 0.3;
+    ctx.globalAlpha = show;
+    var leaves = 36, drawn = Math.floor(come * leaves);
+    for (var i = 0; i < drawn; i++) {
+      var a = (i / leaves) * Math.PI * 2 - Math.PI / 2;
+      var lx = cx + Math.cos(a) * r, ly = cy + Math.sin(a) * r;
+      ctx.save();
+      ctx.translate(lx, ly);
+      ctx.rotate(a + Math.PI / 2 + (i % 2 ? 0.5 : -0.5));
+      var s = r * 0.085;
+      ctx.fillStyle = rgba(p.leaf, 0.75 + at(i) * 0.25);
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.quadraticCurveTo(s * 0.9, 0, 0, s);
+      ctx.quadraticCurveTo(-s * 0.9, 0, 0, -s);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha = show * come;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#3f1d2e';
+    ctx.font = '700 ' + Math.round(r * 0.3) + 'px "Dancing Script"';
+    ctx.fillText(p.names, cx, cy + r * 0.05);
+    ctx.fillStyle = p.leaf;
+    ctx.font = '500 ' + Math.round(r * 0.1) + 'px Playfair';
+    ctx.fillText(p.date, cx, cy + r * 0.3);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.handle-capsule-lower-third",
+  "name": "Handle Capsule",
+  "description": "A gradient capsule for a display name with an @handle beneath it and a row of platform dots, scaling in from a point. For creator content and stream intros.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "handle",
+    "creator"
+  ],
+  "themes": [
+    "social-media",
+    "gaming",
+    "fashion"
+  ],
+  "styles": [
+    "playful",
+    "high-energy"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.0,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.1,
+          "y": 0.7,
+          "width": 0.42,
+          "height": 0.17
+        },
+        "default": {
+          "x": 0.1,
+          "y": 0.62,
+          "width": 0.8,
+          "height": 0.22
+        }
+      },
+      "gap": 0.004,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Montserrat",
+        "size": 0.05,
+        "weight": 800,
+        "color": "#ffffff"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Zuri Makes",
+          "required": true
+        },
+        {
+          "id": "role",
+          "type": "text",
+          "label": "Handle",
+          "text": "@zurimakes \u00b7 every Friday",
+          "size": 0.028,
+          "weight": 600,
+          "color": "#fde68a",
+          "family": "Inter"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "from",
+      "type": "color",
+      "label": "Gradient start",
+      "default": "#ec4899",
+      "element": "Capsule"
+    },
+    {
+      "id": "to",
+      "type": "color",
+      "label": "Gradient end",
+      "default": "#8b5cf6",
+      "element": "Capsule"
+    }
+  ]
+}

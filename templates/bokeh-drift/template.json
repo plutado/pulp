@@ -1,0 +1,64 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.bokeh-drift",
+  "name": "Bokeh Drift",
+  "description": "Soft out-of-focus discs rise slowly through a warm dusk, each wrapping back to the bottom as it leaves the top. For weddings, concerts and anything that wants to glow.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "animated-loop",
+  "tags": [
+    "background",
+    "loop",
+    "bokeh"
+  ],
+  "themes": [
+    "wedding",
+    "concert",
+    "valentines"
+  ],
+  "styles": [
+    "cinematic",
+    "elegant"
+  ],
+  "duration": 6,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#2a1020",
+      "element": "Background"
+    },
+    {
+      "id": "disc",
+      "type": "color",
+      "label": "Discs",
+      "default": "#fbbf24",
+      "element": "Discs"
+    },
+    {
+      "id": "count",
+      "type": "number",
+      "label": "Discs",
+      "default": 18,
+      "min": 6,
+      "max": 40,
+      "step": 1,
+      "element": "Discs"
+    }
+  ]
+}

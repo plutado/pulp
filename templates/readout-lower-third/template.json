@@ -1,0 +1,102 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.readout-lower-third",
+  "name": "Readout",
+  "description": "Bracket corners draw out around a monospaced readout, the name typing in a terminal face over a dim grid. For tech explainers, science and space.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "monospace",
+    "brackets"
+  ],
+  "themes": [
+    "technology",
+    "science",
+    "space"
+  ],
+  "styles": [
+    "tech"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.0,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.08,
+          "y": 0.7,
+          "width": 0.52,
+          "height": 0.17
+        },
+        "default": {
+          "x": 0.08,
+          "y": 0.62,
+          "width": 0.84,
+          "height": 0.22
+        }
+      },
+      "gap": 0.012,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "JetBrains Mono",
+        "size": 0.048,
+        "weight": 700,
+        "color": "#a7f3d0"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "DR. YUSUF ADEYEMI",
+          "required": true
+        },
+        {
+          "id": "role",
+          "type": "text",
+          "label": "Role",
+          "text": "mission systems // propulsion",
+          "size": 0.026,
+          "weight": 400,
+          "color": "#6ee7b7",
+          "family": "JetBrains Mono"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Brackets",
+      "default": "#34d399",
+      "element": "Brackets"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Panel",
+      "default": "#052e16",
+      "element": "Panel"
+    }
+  ]
+}

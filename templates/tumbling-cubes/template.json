@@ -1,0 +1,53 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.tumbling-cubes",
+  "name": "Tumbling Cubes",
+  "description": "A grid of isometric cubes that tumble in a slow wave across a dark slate, each face lit from one side. For product, tech and gaming backdrops.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "animated-loop",
+  "tags": [
+    "background",
+    "loop",
+    "cubes"
+  ],
+  "themes": [
+    "technology",
+    "gaming",
+    "corporate"
+  ],
+  "styles": [
+    "tech"
+  ],
+  "duration": 6,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#0f172a",
+      "element": "Background"
+    },
+    {
+      "id": "face",
+      "type": "color",
+      "label": "Cubes",
+      "default": "#38bdf8",
+      "element": "Cubes"
+    }
+  ]
+}

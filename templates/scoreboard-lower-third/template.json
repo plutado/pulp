@@ -1,0 +1,114 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.scoreboard-lower-third",
+  "name": "Scoreboard Tag",
+  "description": "A chamfered slab slides in from the left with a number box at its head, for a player name and position. Built for highlights and post-match interviews.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "sports",
+    "player"
+  ],
+  "themes": [
+    "sports",
+    "basketball",
+    "football",
+    "hockey"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.0,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.17,
+          "y": 0.72,
+          "width": 0.46,
+          "height": 0.16
+        },
+        "default": {
+          "x": 0.2,
+          "y": 0.62,
+          "width": 0.7,
+          "height": 0.22
+        }
+      },
+      "gap": 0.004,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Bebas Neue",
+        "size": 0.062,
+        "weight": 400,
+        "color": "#ffffff",
+        "letterSpacing": 0.04
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Jordan Blake",
+          "required": true
+        },
+        {
+          "id": "role",
+          "type": "text",
+          "label": "Position",
+          "text": "Point guard \u00b7 24 pts",
+          "size": 0.028,
+          "weight": 500,
+          "color": "#fde68a",
+          "family": "Inter"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "number",
+      "type": "number",
+      "label": "Number",
+      "default": 23,
+      "min": 0,
+      "max": 99,
+      "step": 1,
+      "element": "Number box"
+    },
+    {
+      "id": "box",
+      "type": "color",
+      "label": "Fill",
+      "default": "#facc15",
+      "element": "Number box"
+    },
+    {
+      "id": "slab",
+      "type": "color",
+      "label": "Fill",
+      "default": "#111827",
+      "element": "Slab"
+    }
+  ]
+}

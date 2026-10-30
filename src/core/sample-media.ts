@@ -996,6 +996,18 @@ const CLIPS: SampleMediaItem[] = [
     note: 'The Cinematic Gradient background rendered to H.264 at 1280 × 720, four seconds.',
     recipe: { kind: 'clip', templateId: 'pulp.samples.cinematic-gradient', seconds: 4, width: 1280, height: 720 },
   },
+  // Milestone 36: six more, one from each new animated background, so stock video reaches twelve
+  // clips that each look like something else — aurora, bokeh, cubes, paper waves, stadium lights, confetti.
+  ...([
+    ['aurora-ribbons', 'Aurora Ribbons', 8], ['bokeh-drift', 'Bokeh Drift', 6], ['tumbling-cubes', 'Tumbling Cubes', 6],
+    ['paper-waves', 'Paper Waves', 6], ['stadium-sweep', 'Stadium Sweep', 5], ['confetti-rain', 'Confetti Rain', 6],
+  ] as const).map(([slug, name, seconds]): SampleMediaItem => ({
+    folder: ['Video clips', 'Stock footage'],
+    file: `${slug}-loop.mp4`,
+    type: 'stock-footage',
+    note: `The ${name} background rendered to H.264 at 1280 × 720, ${seconds === 5 ? 'five' : seconds === 6 ? 'six' : 'eight'} seconds — one whole loop.`,
+    recipe: { kind: 'clip', templateId: `pulp.samples.${slug}`, seconds, width: 1280, height: 720 },
+  })),
 ];
 
 // ---- Milestone 26: the Assets group. Every asset is drawn on transparency by the asset page

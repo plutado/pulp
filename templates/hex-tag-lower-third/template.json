@@ -1,0 +1,100 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.hex-tag-lower-third",
+  "name": "Hex Tag",
+  "description": "An angled hexagonal tag with an edge glow that pulses, for a gamertag and a rank. For stream overlays, esports recaps and tech channels.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "hexagon",
+    "gaming"
+  ],
+  "themes": [
+    "gaming",
+    "technology",
+    "social-media"
+  ],
+  "styles": [
+    "high-energy",
+    "tech"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.1,
+          "y": 0.72,
+          "width": 0.44,
+          "height": 0.15
+        },
+        "default": {
+          "x": 0.12,
+          "y": 0.62,
+          "width": 0.76,
+          "height": 0.2
+        }
+      },
+      "gap": 0.004,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Oswald",
+        "size": 0.055,
+        "weight": 700,
+        "color": "#f0f9ff",
+        "case": "upper"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Gamertag",
+          "text": "NightRaven",
+          "required": true
+        },
+        {
+          "id": "role",
+          "type": "text",
+          "label": "Rank",
+          "text": "Diamond II \u00b7 Support",
+          "size": 0.026,
+          "weight": 500,
+          "color": "#a5f3fc",
+          "family": "Inter"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "glow",
+      "type": "color",
+      "label": "Glow",
+      "default": "#22d3ee",
+      "element": "Tag"
+    },
+    {
+      "id": "fill",
+      "type": "color",
+      "label": "Fill",
+      "default": "#0b1324",
+      "element": "Tag"
+    }
+  ]
+}

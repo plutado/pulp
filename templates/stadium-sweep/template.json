@@ -1,0 +1,53 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.stadium-sweep",
+  "name": "Stadium Sweep",
+  "description": "Beams of stadium light sweep across a dark pitch-green field and back, with a haze along the ground. A high-energy backdrop for sports and concert graphics.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "animated-loop",
+  "tags": [
+    "background",
+    "loop",
+    "lights"
+  ],
+  "themes": [
+    "sports",
+    "concert",
+    "motorsport"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 5,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "field",
+      "type": "color",
+      "label": "Field",
+      "default": "#052e16",
+      "element": "Field"
+    },
+    {
+      "id": "beam",
+      "type": "color",
+      "label": "Beams",
+      "default": "#fef9c3",
+      "element": "Beams"
+    }
+  ]
+}

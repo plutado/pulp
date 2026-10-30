@@ -1,0 +1,102 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.arch-lower-third",
+  "name": "Arch",
+  "description": "A soft arch rises from below the frame in warm earth tones, the name and a line settling inside its curve. For services, charity appeals and community meetings.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "arch",
+    "warm"
+  ],
+  "themes": [
+    "faith",
+    "nonprofit",
+    "civic"
+  ],
+  "styles": [
+    "organic"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.0,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.1,
+          "y": 0.7,
+          "width": 0.42,
+          "height": 0.18
+        },
+        "default": {
+          "x": 0.12,
+          "y": 0.62,
+          "width": 0.76,
+          "height": 0.24
+        }
+      },
+      "gap": 0.012,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Source Serif 4",
+        "size": 0.052,
+        "weight": 600,
+        "color": "#fffbeb"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Rev. Grace Mbeki",
+          "required": true
+        },
+        {
+          "id": "role",
+          "type": "text",
+          "label": "Line",
+          "text": "Sunday gathering \u00b7 10 am",
+          "size": 0.028,
+          "weight": 400,
+          "color": "#fde68a",
+          "family": "Inter"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "arch",
+      "type": "color",
+      "label": "Fill",
+      "default": "#7c2d12",
+      "element": "Arch"
+    },
+    {
+      "id": "rim",
+      "type": "color",
+      "label": "Rim",
+      "default": "#fbbf24",
+      "element": "Arch"
+    }
+  ]
+}

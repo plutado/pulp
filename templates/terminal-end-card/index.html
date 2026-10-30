@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Terminal Out</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Terminal Out, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The cursor blinks the whole way through and the line types over the first seconds; no still hold, fixed length.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = p.back;
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = rgba(p.ink, 0.08);
+    ctx.lineWidth = 1;
+    for (var gx = 0; gx < W; gx += 40 * u) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
+    for (var gy = 0; gy < H; gy += 40 * u) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
+    var size = Math.round(Math.min(40 * u, W / 28));
+    ctx.font = '500 ' + size + 'px "JetBrains Mono"';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    var typed = Math.floor(clamp01((t - 0.5) / 3.0) * String(p.line).length);
+    var text = String(p.line).slice(0, typed);
+    var x = W * 0.08, y = H * 0.5;
+    ctx.fillStyle = rgba(p.ink, 0.6);
+    ctx.fillText(p.prompt, x, y);
+    var px = x + ctx.measureText(p.prompt + ' ').width;
+    ctx.fillStyle = p.ink;
+    ctx.fillText(text, px, y);
+    var cursorOn = Math.floor(t * 2.5) % 2 === 0;
+    if (cursorOn) {
+      var cx = px + ctx.measureText(text).width + 4 * u;
+      ctx.fillRect(cx, y - size * 0.55, size * 0.55, size * 1.1);
+    }
+    var ret = clamp01((t - 4.4) / 0.4);
+    if (ret > 0) {
+      ctx.globalAlpha = ret;
+      ctx.fillStyle = rgba(p.ink, 0.6);
+      ctx.fillText(p.prompt, x, y + size * 1.8);
+      ctx.globalAlpha = 1;
+    }
+  };
+</script>
+</body>
+</html>

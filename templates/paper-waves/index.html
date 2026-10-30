@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Paper Waves</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Paper Waves, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // Each band drifts sideways a whole wavelength per loop and bobs one full cycle, so it meets itself.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var loop = (t / d) % 1;
+
+    ctx.fillStyle = p.sky;
+    ctx.fillRect(0, 0, W, H);
+    var r = hex(p.wave, 1), gC = hex(p.wave, 3), bC = hex(p.wave, 5);
+    for (var band = 0; band < 5; band++) {
+      var k = 1 - band * 0.14;
+      ctx.fillStyle = 'rgb(' + Math.round(r + (255 - r) * (1 - k) * 0.9) + ',' + Math.round(gC + (255 - gC) * (1 - k) * 0.9) + ',' + Math.round(bC + (255 - bC) * (1 - k) * 0.9) + ')';
+      var baseY = H * (0.45 + band * 0.12) + Math.sin(loop * Math.PI * 2 + band) * H * 0.012;
+      var wl = W / (2 + band * 0.5);
+      var shift = (band % 2 ? 1 : -1) * loop * wl;
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      for (var x = -wl; x <= W + wl; x += 8) {
+        var y = baseY + Math.sin(((x + shift) / wl) * Math.PI * 2) * H * 0.03;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, H);
+      ctx.closePath();
+      ctx.fill();
+    }
+  };
+</script>
+</body>
+</html>

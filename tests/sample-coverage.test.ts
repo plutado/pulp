@@ -26,6 +26,18 @@ export const MINIMUM = 6;
 const TYPES_STILL_OPEN = new Set<string>([]);
 
 /**
+ * Milestone 36's floors for the browse panel's top categories that read as empty at six: the
+ * most used first. Counted the same way, over the templates and the catalogue together; these
+ * only rise, and a category checked here never slips back under its floor.
+ */
+export const CATEGORY_FLOORS: Record<string, number> = {
+  'lower-third': 20,
+  'end-card': 12,
+  'animated-loop': 12,
+  'stock-footage': 12,
+};
+
+/**
  * Milestone 26's rule for the Assets group: every theme in the taxonomy has at least this many
  * assets tagged with it, so that a theme's node has props and effects to drop on a frame and
  * not only templates. Assets are generated media, so their themes come from their folders.
@@ -85,6 +97,11 @@ describe(`every category is at least ${MINIMUM} deep`, () => {
       }
     });
   }
+
+  it.each(Object.entries(CATEGORY_FLOORS))('the top category %s is at least %i deep (milestone 36)', (type, floor) => {
+    expect(typeInfo(type), type).toBeDefined();
+    expect(counts.types.get(type) ?? 0, `${typeInfo(type)?.label}: a top category that reads as empty at six`).toBeGreaterThanOrEqual(floor);
+  });
 
   it('has no upper limit: a category may run as deep as it likes', () => {
     // Milestone 21 capped a type at five, which asked for a category to be split or trimmed just as

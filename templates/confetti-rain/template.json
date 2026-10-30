@@ -1,0 +1,56 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.confetti-rain",
+  "name": "Confetti Rain",
+  "description": "Flat confetti pieces in a bright palette tumble down a soft gradient, each wrapping back to the top on its own cycle. For birthdays, graduations and New Year.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "animated-loop",
+  "tags": [
+    "background",
+    "loop",
+    "confetti"
+  ],
+  "themes": [
+    "birthday",
+    "graduation",
+    "new-year"
+  ],
+  "styles": [
+    "playful"
+  ],
+  "duration": 6,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#1e1b4b",
+      "element": "Background"
+    },
+    {
+      "id": "count",
+      "type": "number",
+      "label": "Pieces",
+      "default": 60,
+      "min": 20,
+      "max": 160,
+      "step": 1,
+      "element": "Confetti"
+    }
+  ]
+}

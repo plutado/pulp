@@ -97,10 +97,13 @@ describe('bundled sample templates', async () => {
     }
     // Every template is accounted for, and the counts are a tripwire: a structure added without
     // measuring where the graphic settles, or one dropped, shows up here first.
-    expect(kinds.hold).toHaveLength(38);
-    expect(kinds.loop).toHaveLength(23);
+    // Milestone 36's first batch: ten lower thirds and three end cards hold; six backgrounds loop; the
+    // four lower thirds and three end cards with ambient motion (a jitter, a sweep, a pulse, a trace,
+    // breathing bars, a roll, a blinking cursor) keep a fixed length.
+    expect(kinds.hold).toHaveLength(51);
+    expect(kinds.loop).toHaveLength(29);
     expect(kinds.scale).toHaveLength(24);
-    expect(kinds.none).toHaveLength(39);
+    expect(kinds.none).toHaveLength(46);
   });
 
   it.each(dirs)('%s defines window.pulpRender and avoids wall-clock time', async (dir) => {
@@ -227,7 +230,10 @@ describe('the theme vocabulary in the samples', () => {
       const themes = entry.kind === 'template' ? entry.manifest.themes ?? [] : [];
       expect(themes.some((th) => sportsGroup.has(th)), `${entry.key} answers theme:sports`).toBe(true);
     }
-    // A specific child still means only itself.
-    expect(searchLibrary({ ...index, media: [] }, 'theme:football').length).toBe(matchday.length);
+    // A specific child still means only itself: every hit carries football, and every Matchday piece is one.
+    const football = searchLibrary({ ...index, media: [] }, 'theme:football').map((h) => h.entry);
+    expect(football.length).toBeGreaterThanOrEqual(matchday.length);
+    for (const entry of football) expect(entry.kind === 'template' && entry.manifest.themes?.includes('football'), `${entry.key} answers theme:football`).toBe(true);
+    for (const t of matchday) expect(football.some((e) => e.key === t.key), `${t.key} under theme:football`).toBe(true);
   });
 });

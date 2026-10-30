@@ -1,0 +1,95 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.marker-lower-third",
+  "name": "Marker Underline",
+  "description": "A hand-written name over a wobbly marker underline that draws itself out, with a second scribbled stroke for the role. For classroom video, kids and kitchen shows.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "hand-drawn",
+    "marker"
+  ],
+  "themes": [
+    "education",
+    "kids",
+    "food"
+  ],
+  "styles": [
+    "hand-drawn"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.0,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.08,
+          "y": 0.68,
+          "width": 0.5,
+          "height": 0.2
+        },
+        "default": {
+          "x": 0.08,
+          "y": 0.6,
+          "width": 0.84,
+          "height": 0.26
+        }
+      },
+      "gap": 0.02,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Caveat",
+        "size": 0.085,
+        "weight": 700,
+        "color": "#fffbeb"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Mr Okonkwo",
+          "required": true
+        },
+        {
+          "id": "role",
+          "type": "text",
+          "label": "Role",
+          "text": "Year 5 science",
+          "size": 0.04,
+          "weight": 500,
+          "color": "#fde68a",
+          "family": "Caveat"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "marker",
+      "type": "color",
+      "label": "Marker",
+      "default": "#f97316",
+      "element": "Underline"
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.glass-panel-lower-third",
+  "name": "Glass Panel",
+  "description": "A translucent rounded panel with a soft edge and a highlight that sweeps across it slowly, so it reads on any footage. For property walkthroughs, clinics and travel.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "glass",
+    "panel"
+  ],
+  "themes": [
+    "real-estate",
+    "medical",
+    "travel"
+  ],
+  "styles": [
+    "clean"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.08,
+          "y": 0.7,
+          "width": 0.46,
+          "height": 0.17
+        },
+        "default": {
+          "x": 0.08,
+          "y": 0.62,
+          "width": 0.84,
+          "height": 0.22
+        }
+      },
+      "gap": 0.012,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Inter",
+        "size": 0.05,
+        "weight": 600,
+        "color": "#ffffff"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Harbour View Residence",
+          "required": true
+        },
+        {
+          "id": "role",
+          "type": "text",
+          "label": "Line",
+          "text": "3 bed \u00b7 2 bath \u00b7 142 m\u00b2",
+          "size": 0.028,
+          "weight": 400,
+          "color": "#e2e8f0"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "tint",
+      "type": "color",
+      "label": "Tint",
+      "default": "#0f172a",
+      "element": "Panel"
+    }
+  ]
+}

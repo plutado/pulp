@@ -1,0 +1,80 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.give-end-card",
+  "name": "Give",
+  "description": "A giving close: a ring fills to the share raised, a heart at its centre, with the appeal line and where to give. Warm, round and unhurried.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "end-card",
+  "tags": [
+    "end card",
+    "donate",
+    "ring"
+  ],
+  "themes": [
+    "nonprofit",
+    "faith",
+    "civic"
+  ],
+  "styles": [
+    "organic"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.2,
+    "holdTo": 6.0
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "percent",
+      "type": "number",
+      "label": "Raised",
+      "default": 72,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "element": "Ring"
+    },
+    {
+      "id": "ring",
+      "type": "color",
+      "label": "Ring",
+      "default": "#f97316",
+      "element": "Ring"
+    },
+    {
+      "id": "line",
+      "type": "text",
+      "label": "Appeal",
+      "default": "Help us reach the goal",
+      "maxLength": 40,
+      "element": "Words"
+    },
+    {
+      "id": "where",
+      "type": "text",
+      "label": "Where to give",
+      "default": "riverside.org/give",
+      "maxLength": 40,
+      "element": "Words"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#2a1810",
+      "element": "Scene"
+    }
+  ]
+}

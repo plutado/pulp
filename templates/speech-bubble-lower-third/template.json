@@ -1,0 +1,102 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.speech-bubble-lower-third",
+  "name": "Speech Bubble",
+  "description": "A rounded speech bubble pops in with a tail toward the speaker, overshooting a touch before it settles. Playful enough for podcasts, kids and classroom video.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "tags": [
+    "lower third",
+    "bubble",
+    "speech"
+  ],
+  "themes": [
+    "podcast",
+    "kids",
+    "education"
+  ],
+  "styles": [
+    "playful"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.0,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "words",
+      "label": "Words",
+      "box": {
+        "16:9": {
+          "x": 0.1,
+          "y": 0.66,
+          "width": 0.44,
+          "height": 0.18
+        },
+        "default": {
+          "x": 0.1,
+          "y": 0.58,
+          "width": 0.78,
+          "height": 0.24
+        }
+      },
+      "gap": 0.012,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Noto Sans",
+        "size": 0.05,
+        "weight": 700,
+        "color": "#1e1b4b"
+      },
+      "layers": [
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Name",
+          "text": "Maya Okafor",
+          "required": true
+        },
+        {
+          "id": "role",
+          "type": "text",
+          "label": "Role",
+          "text": "Host, Big Questions",
+          "size": 0.028,
+          "weight": 500,
+          "color": "#4338ca",
+          "family": "Caveat"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "bubble",
+      "type": "color",
+      "label": "Fill",
+      "default": "#fef3c7",
+      "element": "Bubble"
+    },
+    {
+      "id": "outline",
+      "type": "color",
+      "label": "Outline",
+      "default": "#1e1b4b",
+      "element": "Bubble"
+    }
+  ]
+}

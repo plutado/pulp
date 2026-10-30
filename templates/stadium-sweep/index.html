@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stadium Sweep</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Stadium Sweep, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // Each beam swings through a full sine cycle per loop about a point above the frame.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var loop = (t / d) % 1;
+
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#000000');
+    g.addColorStop(1, p.field);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+    for (var i = 0; i < 4; i++) {
+      var ox = W * (0.2 + i * 0.2), oy = -H * 0.2;
+      var a = Math.PI / 2 + Math.sin(loop * Math.PI * 2 + i * 1.6) * 0.45;
+      var len = H * 1.6, half = 0.08;
+      var x1 = ox + Math.cos(a - half) * len, y1 = oy + Math.sin(a - half) * len;
+      var x2 = ox + Math.cos(a + half) * len, y2 = oy + Math.sin(a + half) * len;
+      var bg = ctx.createLinearGradient(ox, oy, ox, H);
+      bg.addColorStop(0, rgba(p.beam, 0.35));
+      bg.addColorStop(1, rgba(p.beam, 0.02));
+      ctx.fillStyle = bg;
+      ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(x1, y1); ctx.lineTo(x2, y2); ctx.closePath(); ctx.fill();
+    }
+    var haze = ctx.createLinearGradient(0, H * 0.7, 0, H);
+    haze.addColorStop(0, 'rgba(255,255,255,0)');
+    haze.addColorStop(1, 'rgba(255,255,255,0.12)');
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, H * 0.7, W, H * 0.3);
+    ctx.globalCompositeOperation = 'source-over';
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Bokeh Drift</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Bokeh Drift, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // Each disc climbs the frame once per loop (or twice, for the small ones) from a seeded start, so the wrap is invisible.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var loop = (t / d) % 1;
+
+    var g = ctx.createRadialGradient(W * 0.5, H * 0.7, 0, W * 0.5, H * 0.5, Math.max(W, H));
+    g.addColorStop(0, p.back);
+    g.addColorStop(1, '#05030a');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    var count = Math.round(p.count);
+    for (var i = 0; i < count; i++) {
+      var small = at(i + 7) > 0.5;
+      var cycles = small ? 2 : 1;
+      var f = (at(i) + loop * cycles) % 1;
+      var y = H * (1.15 - f * 1.3);
+      var x = W * at(i + 31) + Math.sin(loop * Math.PI * 2 + i) * W * 0.02;
+      var r = Math.min(W, H) * (small ? 0.025 : 0.06) * (0.6 + at(i + 61) * 0.6);
+      var rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+      var a = 0.25 + at(i + 91) * 0.35;
+      rg.addColorStop(0, rgba(p.disc, a));
+      rg.addColorStop(0.75, rgba(p.disc, a * 0.7));
+      rg.addColorStop(1, rgba(p.disc, 0));
+      ctx.fillStyle = rg;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+  };
+</script>
+</body>
+</html>

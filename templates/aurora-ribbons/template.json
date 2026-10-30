@@ -1,0 +1,61 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.aurora-ribbons",
+  "name": "Aurora Ribbons",
+  "description": "Translucent ribbons of light undulate across a deep sky, each on its own whole-number cycle so the loop is seamless. For night, space and weather pieces.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "animated-loop",
+  "tags": [
+    "background",
+    "loop",
+    "aurora"
+  ],
+  "themes": [
+    "nature",
+    "space",
+    "weather"
+  ],
+  "styles": [
+    "organic",
+    "cinematic"
+  ],
+  "duration": 8,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "sky",
+      "type": "color",
+      "label": "Sky",
+      "default": "#060b1f",
+      "element": "Sky"
+    },
+    {
+      "id": "a",
+      "type": "color",
+      "label": "Ribbon one",
+      "default": "#34d399",
+      "element": "Ribbons"
+    },
+    {
+      "id": "b2",
+      "type": "color",
+      "label": "Ribbon two",
+      "default": "#818cf8",
+      "element": "Ribbons"
+    }
+  ]
+}
