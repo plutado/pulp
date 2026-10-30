@@ -43,7 +43,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 33. Layered graphics: Photoshop, Illustrator, SVG (**done**) | 19-33 h |
 | 15. Convert library media (**done**) | 8-12 h |
 | 37. The transport row: play and scrub at the bottom of the window (**done**) | 8-14 h |
-| 38. A bigger stage: the inspector opens from the bottom row (all but three items) | 11-19 h |
+| 38. A bigger stage: the inspector opens from the bottom row (**done**) | 11-19 h |
 | 36. A deeper library: nothing in single digits | 30-48 h |
 | 35. Lottie animations | 18-30 h |
 | 20. Social-ready export | 9-14 h |
@@ -54,7 +54,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **542-872 h** |
-| **Still open through 1.0 (unticked items only)** | **110-183 h** |
+| **Still open through 1.0 (unticked items only)** | **107-177 h** |
 | **Total including post-1.0 items** | **565-915 h** |
 
 ## 0. Foundation (done)
@@ -437,7 +437,7 @@ Decided 2026-10-30, first in the next task and before milestone 36; built the sa
 - [x] **Nothing chosen, or nothing that plays:** the row stays in place, disabled, so the layout never jumps; a still shows no scrub bar but keeps the row (1 h)
 - [x] **Everything that points at the controls follows:** the Playback menu and its shortcuts, the guided tour's steps, the keyboard focus order, the user guide's screenshots when milestone 8 writes them; the UI end-to-end tests find the controls in their new place. *The menu presses the same buttons by the same ids, so it followed unchanged; the tour gains a step for the row and the stage's step says what the stage is now; the README's screenshot waits for milestone 8* (1-2 h)
 
-## 38. A bigger stage: the inspector opens from the bottom row (11-19 h; GitHub issue #40)
+## 38. A bigger stage: the inspector opens from the bottom row (11-19 h; GitHub issue #40) — done
 
 Decided 2026-10-30, right after milestone 37; built the same day. The stage is too small to work in at nearly every window size: at the default 1280 × 788 the picture is about 450 × 250 px, with the inspector's column on the right and three rows of controls and a results strip around it. The picture's size is limited by the window's height before its width, so the stage wins by getting height: the inspector's Parameters, Output and Info, which are opened now and then rather than all the time, move into a drawer that opens from the transport row; the right column goes; the results become a strip under the stage that leans small; and the window is held to fit at every size. A full-width stage above every column was weighed and not taken: it gives a 16:9 picture no more room at common window sizes, wastes the width for 9:16, and squeezes the browse tree into a short strip.
 

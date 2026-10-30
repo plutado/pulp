@@ -17,6 +17,10 @@ The order work is built in is `ROADMAP.md`'s planned order, which scheduling fol
 
 ## Known issues
 
+- **The transport row's Clear and the volume button overlap at 1280 px** (Desk, `d4ea802`, 2026-10-30): at the default 1280 × 788 window the button line under the scrub bar runs out of room, and the in-and-out cluster's Clear button draws over the Mute button. The three clusters need to give way — the middle one narrower, or the volume slider shorter — before they meet, with the 1280 × 788 UI test checking that no two controls in the row overlap.
+
+- **The results' heading sits over the first row when the list is scrolled** (Desk, `d4ea802`, 2026-10-30): with the list scrolled to the chosen card, the cards' names show through under "Results · 16 items". The heading wants a background of its own, or the list starting below it.
+
 - **A saved "Hold, seconds" is dropped, not carried into a length.** Milestone 30 removed the `inOut` parameter ("Hold, seconds") from eleven bundled templates — the citation callout, the city lights and civic openers, the donation, fitness and lap counters, the handle and profile cards, the poll strip, the hairline lower third and the kicker title — since the length is the control now. A preset, collection item, `.pulpcollection` file, CSV row or `--param` that still carries a value for it renders with the template's own hold, and the value is only reported as an unknown parameter (`resolveParams` in `src/core/params.ts`). Translate it instead: for those eleven, an old `inOut` becomes the matching `@length` (the declared entrance and exit plus the saved hold, within the length's limits) when no length is set, with a unit test per kind of saved work.
 
 - **Linux CI: 8K frames are clipped by one pixel** (CI run 40240858897 on `fb2b3a5`, `render-linux`): the virtual screen is exactly 7680 × 4320, and an offscreen window is kept inside it, so the 8K test captured 7679 × 4319. The CI virtual screen is now 8192 × 4608, larger than any render; the underlying clipping is the Linux issue above.
