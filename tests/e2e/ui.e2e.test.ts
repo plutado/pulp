@@ -1612,10 +1612,21 @@ describe.skipIf(!electron)('inspector UI', () => {
         // The window CI runs at, with the tray open: the geometry that once left the preview 2 px
         // tall and hidden, so a click had nothing to land on (docs/platform-notes.md). The picture
         // keeps a floor now and the stage's own chrome gives way, so the handles still work here.
+        // Classic scroll bars, as the short-window test forces them: Linux and Windows draw bars
+        // that take layout room where macOS overlays them, and with the platform's taller chrome
+        // the tray is capped harder there to keep the stage's floor.
+        await page.eval(`(() => { const st = document.createElement('style'); st.id = 'classic-scrollbars-stage';
+          st.textContent = '::-webkit-scrollbar{width:17px;height:17px}::-webkit-scrollbar-thumb{background:#666}';
+          document.head.append(st); return true; })()`);
         await page.send('Emulation.setDeviceMetricsOverride', { width: 1008, height: 655, deviceScaleFactor: 1, mobile: false });
         await clickResult('Title Card');
         await page.eval(`document.getElementById('add-to-collection').click()`);
-        await until(() => page.eval<boolean>(`document.getElementById('region-tray').clientHeight > 100`), 'the tray open, squeezing the stage');
+        // Open, with a body on screen: how tall is the layout's business — on Linux and Windows the
+        // taller chrome caps the tray under the 100 px this wait once asked for, which is the cap
+        // doing its job of keeping the stage's floor (docs/platform-notes.md).
+        await until(() => page.eval<boolean>(
+          `(() => { const app = document.getElementById('app'); return !app.classList.contains('tray-collapsed') && document.querySelector('.tray-body').getBoundingClientRect().height > 0; })()`,
+        ), 'the tray open, squeezing the stage');
         await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
         await scrubAndWait(110);
         expect(await page.eval<number>(`Math.round(document.querySelector('.preview-wrap').getBoundingClientRect().height)`), 'the picture keeps room even here').toBeGreaterThanOrEqual(96);
@@ -1739,6 +1750,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`document.querySelector('#params [aria-label="Reset ${ilabel} position"]').click()`);
         await until(async () => Math.abs((await logoDraw()).dx) < 0.5, 'Reset position putting the logo back');
       } finally {
+        await page.eval(`(() => { document.getElementById('classic-scrollbars-stage')?.remove(); return true; })()`);
         await page.send('Emulation.clearDeviceMetricsOverride', {});
         // Leave the collection as it was found: the tests below count what is in it.
         await page.eval(`(() => { const b = document.querySelector('#collection [aria-label="Remove from the collection"]'); if (b) b.click(); })()`);
@@ -3434,15 +3446,18 @@ describe.skipIf(!electron)('inspector UI', () => {
         console.info('ffmpeg not available; thumbnail check skipped.');
         return;
       }
-      // Posters and media frames arrive in the background, one at a time, in library order. Wait for
-      // the five items this test asserts on - not for any five: with the matched sample sets, more than
-      // a dozen posters are queued and a slow machine finishes five others first (Windows CI, October 2026).
+      // Posters and media frames arrive in the background, one at a time, in library order, and a
+      // template's poster captures several frames: on a slow machine the whole library's queue can
+      // outlast any wait for one late item (Windows CI, October 2026, twice). So each item is
+      // selected first — selection pulls its poster to the front of the queue, which is also what a
+      // person looking at an item gets — and then waited for specifically.
       const needed = ['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'clip', 'tiny'];
       // One read per check: the size is taken in the same step that sees the picture loaded, since a
       // poster can be replaced between two calls while the background queue is still at work.
       const read = '(li) => { const i = li.querySelector(".thumb img"); return i && i.complete && i.naturalWidth > 0 ? { src: i.src, w: i.naturalWidth, h: i.naturalHeight } : null; }';
       const byName: Record<string, { src: string; w: number; h: number }> = {};
       for (const name of needed) {
+        await clickResult(name);
         await until(async () => {
           const seen = await onResult<{ src: string; w: number; h: number } | null>(name, read);
           if (seen) byName[name] = seen;

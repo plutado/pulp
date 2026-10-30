@@ -284,7 +284,13 @@ async function generatePendingThumbnails(): Promise<void> {
     for (;;) {
       const pending = st.pendingThumbnails(10);
       if (pending.length === 0) break;
-      for (const entry of pending) {
+      // What the person selected comes first: posters are made one per heavy turn, in library
+      // order, and a template's takes several captured frames — on a slow machine a whole
+      // library's queue can outlast any sensible wait for the one poster being looked at
+      // (Windows CI, October 2026). Selection (markItemUsed) asks for that item's turn.
+      const ahead = thumbnailsFirst.length > 0 ? st.pendingThumbnails(2000).filter((e) => thumbnailsFirst.includes(e.id)) : [];
+      thumbnailsFirst.length = 0;
+      for (const entry of ahead.length > 0 ? ahead : pending) {
         const out = join(dir, thumbFileName(entry.id));
         let ok = false;
         try {
@@ -312,6 +318,8 @@ async function generatePendingThumbnails(): Promise<void> {
         }
         // Re-read the row: the item may have changed while we worked, in which case the next scan makes it pending again.
         st.setThumbnail(entry, ok ? out : null);
+        // A selection arriving mid-batch jumps ahead at the next item, not after the batch.
+        if (thumbnailsFirst.length > 0) break;
       }
       broadcast(st.toIndex());
     }
@@ -409,12 +417,19 @@ export function itemPath(id: string): string | undefined {
   return entry.kind === 'template' ? entry.dir : entry.path;
 }
 
+/** Selections waiting to jump the thumbnail queue, newest kept; see generatePendingThumbnails. */
+const thumbnailsFirst: string[] = [];
+
 /** Record use now and push the index, so `recent:` sorts on current times. */
 export function markItemUsed(id: string): void {
   const st = getStore();
   const key = st.keyForId(id);
   if (!key) return;
   st.setUserData(key, { lastUsed: new Date().toISOString() });
+  // The poster of what was just selected should not wait for the whole library's queue.
+  if (!thumbnailsFirst.includes(id)) thumbnailsFirst.push(id);
+  if (thumbnailsFirst.length > 16) thumbnailsFirst.shift();
+  void generatePendingThumbnails();
   broadcast(st.toIndex());
 }
 
