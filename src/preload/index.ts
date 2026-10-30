@@ -16,7 +16,8 @@ const api: PulpApi = {
   },
   addLibraryFolder: () => ipcRenderer.invoke('library:add-folder'),
   addSampleMedia: () => ipcRenderer.invoke('library:add-sample-media'),
-  loadSlotImages: (ids) => ipcRenderer.invoke('images:load', ids),
+  loadSlotImages: (requests) => ipcRenderer.invoke('images:load', requests),
+  psdOutline: (id) => ipcRenderer.invoke('psd:outline', id),
   loadLayerClips: (requests) => ipcRenderer.invoke('clips:load', requests),
   // The path never crosses from the page: the preload reads it off the File the picker handed over.
   importImage: (file) => ipcRenderer.invoke('images:import', webUtils.getPathForFile(file)),

@@ -21,7 +21,7 @@ import { once } from 'node:events';
 import { access, mkdir, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { templateDefaultSize, type Size } from '../core/aspect';
-import { chosenImageIds, imageRequests, imageSlots, MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
+import { chosenImageIds, imageGrantKey, imageGrantRequests, imageRequests, imageSlots, MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
 import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, layerTexts, type BlockState } from '../core/layer-layout';
 import { readClipFrames, resolveClipSource, type ClipFrameData } from './clip-grant';
 import { ffprobePathFor } from '../core/media-probe';
@@ -282,10 +282,11 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     }
     if (requests.length > 0 || clipData.length > 0) {
       try {
-        const handed = await readSlotImages(imageIds);
+        // One read per id and layered choice: a layered file with other layers hidden is other bytes.
+        const handed = await readSlotImages(imageGrantRequests(requests));
         if (handed.missing.length > 0) return { ok: false, message: `The image for "${slotLabel(manifest, slots, handed.missing[0]!)}" could not be read.` };
-        const srcById = new Map(handed.images.map((i) => [i.id, i.src]));
-        const withBytes = requests.map((r) => ({ ...r, src: srcById.get(r.id) }));
+        const srcByKey = new Map(handed.images.map((i) => [i.key, i.src]));
+        const withBytes = requests.map((r) => ({ ...r, src: srcByKey.get(imageGrantKey(r)) }));
         await withTimeout(
           win.webContents.executeJavaScript(`window.__pulp.prepare(${JSON.stringify([...withBytes, ...clipData])})`),
           loadTimeoutMs,

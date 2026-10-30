@@ -2,6 +2,8 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { SAMPLE_MEDIA_FOLDER_NAME } from '../core/sample-media';
 import { generateSampleMedia } from './sample-media-service';
 import { readSlotImages, resolveRowImages } from './image-grant';
+import { psdOutlineFor } from './psd-service';
+import { sanitizePsdChoice, type ImageGrantRequest } from '../core/image-slot';
 import { loadLayerClips } from './clip-grant';
 import { join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
@@ -43,6 +45,20 @@ import { sanitizePlayer } from '../core/player';
 import { loadSettings, updateSettings } from './settings';
 
 registerTemplateScheme();
+
+/** The window's image grant requests, read from untrusted input: ids, each with an optional layered choice (milestone 33). */
+function grantRequestsFrom(raw: unknown): ImageGrantRequest[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ImageGrantRequest[] = [];
+  for (const r of raw) {
+    if (typeof r === 'string') out.push({ id: r });
+    else if (r && typeof r === 'object' && typeof (r as { id?: unknown }).id === 'string') {
+      const psd = sanitizePsdChoice((r as { psd?: unknown }).psd);
+      out.push({ id: (r as { id: string }).id, ...(psd ? { psd } : {}) });
+    }
+  }
+  return out;
+}
 
 // Tests point this at a scratch folder so they never touch the user's settings.json.
 if (process.env.PULP_USER_DATA) app.setPath('userData', resolve(process.env.PULP_USER_DATA));
@@ -135,7 +151,8 @@ function registerIpc(): void {
   ipcMain.handle('library:set-favorite', (_event, id: string, favorite: boolean) => setItemFavorite(id, favorite === true));
   ipcMain.handle('library:set-sequence-fps', (_event, id: string, fps: unknown) => setItemSequenceFps(id, typeof fps === 'number' ? fps : undefined));
   ipcMain.handle('library:mark-used', (_event, id: string) => markItemUsed(id));
-  ipcMain.handle('images:load', (_event, ids: unknown) => readSlotImages(Array.isArray(ids) ? ids.map(String) : []));
+  ipcMain.handle('images:load', (_event, requests: unknown) => readSlotImages(grantRequestsFrom(requests)));
+  ipcMain.handle('psd:outline', (_event, id: unknown) => psdOutlineFor(String(id ?? '')));
   // The clips a video layer chose, read the same way and by the same rule (milestone 26).
   ipcMain.handle('clips:load', (_event, requests: unknown) => loadLayerClips(Array.isArray(requests) ? requests : []));
   ipcMain.handle('library:diagnostics', () => libraryDiagnostics());

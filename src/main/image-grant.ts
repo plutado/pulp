@@ -10,15 +10,18 @@
 
 import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
-import { MAX_IMAGE_FILE_BYTES, type ImageStamp } from '../core/image-slot';
+import { imageGrantKey, MAX_IMAGE_FILE_BYTES, type ImageGrantRequest, type ImageStamp } from '../core/image-slot';
 import { MEDIA_MIME } from '../core/media-serve';
 import { resolveImageCell, sanitizeImageValue } from '../core/image-slot';
 import type { TemplateManifest } from '../core/manifest';
 import { importedImages, lookupMedia } from './library-service';
+import { compositePng, isPsdPath, layerPng, readPsdFile } from './psd-service';
 
 /** One still, ready to be handed to a template page: a data URL the bridge decodes through an <img>. */
 export interface SlotImageData {
   id: string;
+  /** The grant key (src/core/image-slot.ts): the id, and for a layered file which of it. */
+  key: string;
   src: string;
 }
 
@@ -65,32 +68,56 @@ export function checkImages(ids: readonly string[]): { ok: string[]; missing: st
  * Read the chosen stills for a template page. A file that is too large, gone,
  * or not a still is reported as missing rather than read. The SVG and PNG a
  * user brings are only ever decoded by the page through an <img>, which runs
- * no script and loads nothing external.
+ * no script and loads nothing external. A layered Photoshop file is handed
+ * over composited — with the layers the value hides left out, or as the one
+ * layer the value names — as a PNG, since nothing in a page decodes a `.psd`
+ * (milestone 33).
  */
-export async function readSlotImages(ids: readonly string[]): Promise<{ images: SlotImageData[]; missing: string[] }> {
-  const { ok, missing } = checkImages(ids);
+export async function readSlotImages(requests: readonly (string | ImageGrantRequest)[]): Promise<{ images: SlotImageData[]; missing: string[] }> {
+  const wanted = requests.map((r) => (typeof r === 'string' ? { id: r } : r));
+  const { ok, missing } = checkImages(wanted.map((r) => r.id));
+  const okSet = new Set(ok);
   const images: SlotImageData[] = [];
-  for (const id of ok) {
-    const found = lookupMedia(id);
+  const done = new Set<string>();
+  for (const request of wanted) {
+    const key = imageGrantKey(request);
+    if (done.has(key) || !okSet.has(request.id)) continue;
+    done.add(key);
+    const found = lookupMedia(request.id);
     if (!found) {
-      missing.push(id);
+      missing.push(request.id);
       continue;
     }
-    const mime = MEDIA_MIME[extname(found.entry.path).toLowerCase()];
+    const ext = extname(found.entry.path).toLowerCase();
+    const mime = MEDIA_MIME[ext];
     if (!mime || !mime.startsWith('image/') || (found.entry.size ?? 0) > MAX_IMAGE_FILE_BYTES) {
-      missing.push(id);
+      missing.push(request.id);
       continue;
     }
     try {
-      const bytes = await readFile(found.entry.path);
-      if (bytes.length > MAX_IMAGE_FILE_BYTES) {
-        missing.push(id);
+      if (isPsdPath(found.entry.path)) {
+        const read = await readPsdFile(found.entry.path);
+        if (!read.ok) {
+          missing.push(request.id);
+          continue;
+        }
+        const png = request.psd?.layer ? layerPng(read.document, request.psd.layer) : compositePng(read.document, request.psd?.hide);
+        if (!png) {
+          missing.push(request.id);
+          continue;
+        }
+        images.push({ id: request.id, key, src: `data:image/png;base64,${png.toString('base64')}` });
         continue;
       }
-      images.push({ id, src: `data:${mime === 'image/svg+xml' ? mime : mime};base64,${bytes.toString('base64')}` });
+      const bytes = await readFile(found.entry.path);
+      if (bytes.length > MAX_IMAGE_FILE_BYTES) {
+        missing.push(request.id);
+        continue;
+      }
+      images.push({ id: request.id, key, src: `data:${mime};base64,${bytes.toString('base64')}` });
     } catch {
-      missing.push(id);
+      missing.push(request.id);
     }
   }
-  return { images, missing };
+  return { images, missing: [...new Set(missing)] };
 }

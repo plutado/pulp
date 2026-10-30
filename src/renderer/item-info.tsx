@@ -30,13 +30,15 @@ import { entryType, typeInfo } from '../core/taxonomy';
 import { appState, selectedTemplate, slotNotes } from './store';
 import { Icon, scopeIcon, TYPE_GROUP_ICONS, type IconName } from './icons';
 import { Thumb } from './item-preview';
+import { layersTopFirst, layerShown, psdLimitSummary } from '../core/psd';
+import { hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines, togglePsdLayer } from './psd-state';
 
 const shown = computed(() => shownEntry(appState.value));
 
 /** Which sections are open. Loaded from settings at start and written back as they are used. */
 const openSections = signal<Record<string, boolean>>({});
 /** Defaults: the facts people reach for first are open, the rest wait to be asked for. */
-const OPEN_BY_DEFAULT = new Set<string>(['about', 'format', 'categories', 'tags']);
+const OPEN_BY_DEFAULT = new Set<string>(['about', 'format', 'layers', 'categories', 'tags']);
 
 function isOpen(id: InfoSectionId): boolean {
   return openSections.value[id] ?? OPEN_BY_DEFAULT.has(id);
@@ -315,12 +317,59 @@ function Categories({ entry }: { entry: LibraryEntry }) {
   );
 }
 
+/**
+ * A layered file's layers (milestone 33), top first as Photoshop lists them:
+ * groups as groups, each with a box to show or hide it on the stage, its
+ * opacity and blend where they are not plain, and what of it Pulp does not
+ * reproduce. What is hidden here is what a picture placed from here starts with.
+ */
+function Layers({ entry }: { entry: LibraryEntry }) {
+  void psdOutlines.value;
+  const state = psdOutlineFor(entry.id);
+  if (state.ok === 'pending') return <p class="empty-note">Reading the layers…</p>;
+  if (!state.ok) return <p class="empty-note warn">This file could not be read as layers: {state.message}.</p>;
+  const { outline } = state;
+  const hidden = new Set(hiddenFor(entry.id, outline));
+  const summary = psdLimitSummary(outline);
+  return (
+    <>
+      {outline.layers.length === 0 ? (
+        <p class="empty-note">No layers: only the flattened picture.</p>
+      ) : (
+        <ul class="psd-layers" data-count={outline.layers.length}>
+          {layersTopFirst(outline.layers).map((layer) => {
+            const own = hidden.has(layer.id);
+            const shown = layerShown(outline.layers, layer.id, hidden);
+            const facts = [
+              layer.opacity < 1 ? `${Math.round(layer.opacity * 100)}%` : '',
+              layer.blend !== 'normal' ? layer.blend : '',
+            ].filter(Boolean).join(' · ');
+            return (
+              <li key={layer.id} class={`psd-layer${layer.kind === 'group' ? ' group' : ''}${shown ? '' : ' hidden'}`} style={{ paddingLeft: `${layer.depth * 16}px` }} data-layer={layer.id}>
+                <label>
+                  <input type="checkbox" checked={!own} onChange={() => togglePsdLayer(entry.id, outline, layer.id)} aria-label={`Show ${layer.name || 'layer'}`} />
+                  {layer.kind === 'group' && <Icon name="folder" />}
+                  <span class="name">{layer.name || (layer.kind === 'group' ? 'Group' : 'Layer')}</span>
+                  {facts && <span class="facts">{facts}</span>}
+                </label>
+                {layer.limits.length > 0 && <span class="limits" data-tip={layer.limits.join('; ')}>{layer.limits.length === 1 ? layer.limits[0] : `${layer.limits.length} things not reproduced`}</span>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {summary && <p class="note psd-limits">{summary}</p>}
+    </>
+  );
+}
+
 function Panel({ onSelect }: { onSelect: (e: LibraryEntry) => void }) {
   const entry = shown.value;
   if (!entry) return null;
   const sections: Partial<Record<InfoSectionId, preact.ComponentChildren>> = {
     about: <About entry={entry} />,
     format: <Rows rows={formatRows(entry)} />,
+    ...(isPsdEntry(entry) ? { layers: <Layers entry={entry} /> } : {}),
     categories: <Categories entry={entry} />,
     tags: (
       <Chips

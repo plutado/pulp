@@ -10,8 +10,8 @@
  */
 
 import { templateDefaultSize } from '../core/aspect';
-import { chosenImageIds, imageRequests, imageSlots } from '../core/image-slot';
-import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, type BlockState } from '../core/layer-layout';
+import { imageGrantKey, imageGrantRequests, imageRequestKey, imageRequests, imageSlots } from '../core/image-slot';
+import { blockStates, layerClipChoices, layerImageChoices, type BlockState } from '../core/layer-layout';
 import { clipProxySize, type ClipSource, type ClipValue } from '../core/video-layer';
 import type { LayerValues } from '../core/layers';
 import { effect } from '@preact/signals';
@@ -28,6 +28,8 @@ import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, st
 import { frameState } from '../core/runtime';
 import { formatTimecode } from '../core/timecode';
 import { mediaFrameUrlFor, mediaUrlFor, templateUrlFor } from '../shared/api';
+import { psdCompositeUrlFor } from '../core/media-url';
+import { isPsdEntry, psdHidden } from './psd-state';
 import { setIcon } from './icons';
 import { appState, frameSize, transport, trim } from './store';
 import { peaksFor, waveforms } from './waveforms';
@@ -117,6 +119,8 @@ const s = {
   player: DEFAULT_PLAYER as PlayerState,
   /** The audio item on the stage, so its waveform can be drawn again when the peaks land. */
   audio: null as MediaEntry | null,
+  /** The layered file on the stage (milestone 33), so its picture follows the layers shown or hidden. */
+  psd: null as MediaEntry | null,
 };
 
 /** Change a preference, apply it and store it. */
@@ -355,15 +359,14 @@ function syncImages(): void {
   const slots = imageSlots(s.manifest.parameters, s.params, size);
   // The slots' images and the ones chosen for image layers are handed over together.
   const blocks = blockStates(s.manifest, s.layers, size);
-  const layerIds = layerImageIds(blocks);
-  const requests = [...imageRequests(slots), ...layerImageChoices(blocks).map((c) => ({ id: c.id, treatment: c.treatment, tint: c.tint }))]
-    .filter((r, i, all) => all.findIndex((o) => o.id === r.id && o.treatment === r.treatment && o.tint === r.tint) === i);
+  const requests = [...imageRequests(slots), ...layerImageChoices(blocks).map((c) => ({ id: c.id, treatment: c.treatment, tint: c.tint, ...(c.psd ? { psd: c.psd } : {}) }))]
+    .filter((r, i, all) => all.findIndex((o) => imageRequestKey(o) === imageRequestKey(r)) === i);
   // The clips video layers chose, with how tall each is drawn here, so only that much is decoded.
   const clipRequests = layerClipChoices(blocks)
     .filter((c, i, all) => all.findIndex((o) => o.id === c.id) === i)
     .map((c) => ({ id: c.id, value: c as ClipValue, drawnHeight: clipDrawnHeight(blocks, c.id, size.height) }));
   const key = [
-    ...requests.map((r) => `${r.id}|${r.treatment}|${r.tint}`),
+    ...requests.map((r) => imageRequestKey(r)),
     // The proxy step, not the exact height: a window nudged a few pixels wider asks for the
     // same frames, so nothing is decoded again for it (milestone 26).
     ...clipRequests.map((c) => `clip:${c.id}|${c.value.inPoint}|${c.value.outPoint}|${clipProxySize(c.drawnHeight * 2)}`),
@@ -374,7 +377,7 @@ function syncImages(): void {
   const id = ++s.prepareId;
   // The main process reads exactly the chosen stills and clips, and the page gets their bytes (ADR 0013).
   void Promise.all([
-    window.pulp.loadSlotImages([...new Set([...chosenImageIds(slots), ...layerIds])]),
+    window.pulp.loadSlotImages(imageGrantRequests(requests)),
     clipRequests.length > 0 ? window.pulp.loadLayerClips(clipRequests) : Promise.resolve({ clips: [], sources: {}, missing: [] }),
   ]).then(([handed, clips]) => {
     if (id !== s.prepareId || !s.manifest || els.preview.contentWindow !== win) return;
@@ -386,11 +389,11 @@ function syncImages(): void {
       els.note.textContent = 'A clip chosen for a layer could not be read; that layer draws nothing.';
     }
     s.clipSources = clips.sources;
-    const srcById = new Map(handed.images.map((i) => [i.id, i.src]));
+    const srcByKey = new Map(handed.images.map((i) => [i.key, i.src]));
     win.postMessage({
       type: 'pulp:prepare',
       id,
-      requests: [...requests.filter((r) => srcById.has(r.id)).map((r) => ({ ...r, src: srcById.get(r.id) })), ...clips.clips],
+      requests: [...requests.filter((r) => srcByKey.has(imageGrantKey(r))).map((r) => ({ ...r, src: srcByKey.get(imageGrantKey(r)) })), ...clips.clips],
     }, '*');
   });
 }
@@ -568,6 +571,12 @@ export function stageShowMedia(entry: MediaEntry): void {
     els.mediaVideo.hidden = false;
     els.mediaVideo.onloadedmetadata = () => fit(els.mediaVideo.videoWidth, els.mediaVideo.videoHeight);
     els.mediaVideo.src = url;
+  } else if (isPsdEntry(entry)) {
+    // A layered file is shown composited by the main process, with the layers the Info tab hides left out.
+    els.mediaImage.hidden = false;
+    els.mediaImage.onload = () => fit(els.mediaImage.naturalWidth, els.mediaImage.naturalHeight);
+    s.psd = entry;
+    els.mediaImage.src = psdCompositeUrlFor(entry.id, psdHidden.peek()[entry.id] ?? []);
   } else if (entry.mediaKind === 'image') {
     els.mediaImage.hidden = false;
     els.mediaImage.onload = () => fit(els.mediaImage.naturalWidth, els.mediaImage.naturalHeight);
@@ -586,6 +595,7 @@ export function stageShowMedia(entry: MediaEntry): void {
 /** Empty stage: nothing selected. */
 export function stageClear(): void {
   s.manifest = null;
+  s.psd = null;
   s.previewReady = false;
   selectedLayer.value = null;
   stageLayersUpdate(null);
@@ -725,6 +735,12 @@ function step(delta: number): void {
 }
 
 export function initStage(): void {
+  // A layer of the layered file on the stage was shown or hidden: the picture follows (milestone 33).
+  effect(() => {
+    const hidden = psdHidden.value;
+    if (!s.psd) return;
+    els.mediaImage.src = psdCompositeUrlFor(s.psd.id, hidden[s.psd.id] ?? []);
+  });
   // The Output tab's aspect or resolution changed: reshape the box and draw the frame for the new canvas.
   effect(() => {
     void frameSize.value;

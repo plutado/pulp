@@ -152,6 +152,6 @@ describe('labels', () => {
   });
 
   it('has a section for every part of the panel, in reading order', () => {
-    expect(INFO_SECTIONS.map((s) => s.id)).toEqual(['about', 'format', 'categories', 'tags', 'set', 'file', 'images', 'credits', 'usage']);
+    expect(INFO_SECTIONS.map((s) => s.id)).toEqual(['about', 'format', 'layers', 'categories', 'tags', 'set', 'file', 'images', 'credits', 'usage']);
   });
 });

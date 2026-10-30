@@ -30,6 +30,7 @@ import { formatTimecode } from './timecode';
 export const INFO_SECTIONS = [
   { id: 'about', label: 'About' },
   { id: 'format', label: 'Format' },
+  { id: 'layers', label: 'Layers' },
   { id: 'categories', label: 'Categories' },
   { id: 'tags', label: 'Tags' },
   { id: 'set', label: 'Set' },

@@ -129,7 +129,9 @@ export const BRIDGE_SCRIPT = `(function () {
   /* A video layer's frames, by library id: the window the host handed over, in order. The page
      never learns the clip's own numbering, only which of these to draw (milestone 26). */
   var clips = {};
-  function requestKey(r) { return r.id + '|' + r.treatment + '|' + (r.treatment === 'tinted' ? r.tint : ''); }
+  /* Mirrors imageRequestKey and psdChoiceKey in src/core/image-slot.ts: a layered file drawn with other layers hidden, or one layer of it, is another picture. */
+  function psdKey(p) { if (!p) return ''; if (p.layer) return 'layer:' + p.layer; return p.hide && p.hide.length ? 'hide:' + p.hide.join('+') : ''; }
+  function requestKey(r) { return r.id + '|' + r.treatment + '|' + (r.treatment === 'tinted' ? r.tint : '') + '|' + psdKey(r.psd); }
   function loadPicture(r) {
     return new Promise(function (resolve, reject) {
       var img = new Image();

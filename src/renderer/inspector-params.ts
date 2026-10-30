@@ -45,7 +45,9 @@ import {
 import { addRecentColor } from '../core/recent-colors';
 import { lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
 import { dimensionsLabel } from '../core/display';
-import { IMAGE_TREATMENTS, sanitizeImageValue, type ImageValue } from '../core/image-slot';
+import { IMAGE_TREATMENTS, sanitizeImageValue, sanitizePsdChoice, type ImageValue } from '../core/image-slot';
+import { fileHiddenLayers, layersTopFirst, layerShown, placeableLayers, psdLimitSummary, type PsdOutline } from '../core/psd';
+import { hiddenDiffersFromFile, hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines } from './psd-state';
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue } from '../core/video-layer';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { setIcon, type IconName } from './icons';
@@ -488,11 +490,59 @@ function iconButton(icon: IconName, label: string, tip = label): HTMLButtonEleme
   return button;
 }
 
+/**
+ * What a layered file placed now starts with (milestone 33): the layers hidden
+ * while it was browsed in the Info tab, when that differs from the file's own
+ * visibility; nothing otherwise, and nothing for any other still.
+ */
+function browsedPsdChoice(id: string): { psd?: ImageValue['psd'] } {
+  const entry = appState.value.index?.media.find((m) => m.id === id);
+  if (!entry || !isPsdEntry(entry)) return {};
+  const state = psdOutlineFor(id);
+  if (state.ok !== true || !hiddenDiffersFromFile(id, state.outline)) return {};
+  const psd = sanitizePsdChoice({ hide: hiddenFor(id, state.outline) });
+  return psd ? { psd } : {};
+}
+
+/**
+ * Place a layered file as separate image layers (milestone 33): the one layer
+ * showing it becomes one image layer per shown layer, bottom first so the
+ * stack reads as the file does. Each draws its layer on the whole canvas and
+ * copies the original's size and placement, so every layer keeps its place —
+ * and from here each is moved and styled on its own (milestones 25 and 28).
+ */
+function splitPsdLayer(blockId: string, layerId: string, outline: PsdOutline): void {
+  const layers = currentLayers();
+  const stack = layers[blockId];
+  const at = stack?.findIndex((l) => l.id === layerId) ?? -1;
+  const original = stack?.[at];
+  if (!stack || !original || original.type !== 'image' || !original.image?.id) return;
+  const hidden = new Set(original.image.psd?.hide ?? fileHiddenLayers(outline.layers));
+  const parts = placeableLayers(outline, hidden);
+  if (parts.length < 2) return;
+  const taken = new Set(stack.map((l) => l.id));
+  const made = parts.map((part, i) => {
+    let n = i + 1;
+    let id = `${layerId}_${n}`;
+    while (taken.has(id)) id = `${layerId}_${++n}`;
+    taken.add(id);
+    const base = original.image!;
+    return { ...original, id, label: part.name || `Layer ${i + 1}`, required: false, image: { id: base.id, treatment: base.treatment, tint: base.tint, effect: base.effect, hidden: false, psd: { layer: part.id } } } as Layer;
+  });
+  setLayers({ ...layers, [blockId]: [...stack.slice(0, at), ...made, ...stack.slice(at + 1)] }, true);
+  selectedLayer.value = { block: blockId, id: made[0]!.id };
+}
+
 function imageField(
   initial: ImageValue | null,
   onChange: (v: ImageValue | null) => void,
   slot: { id: string; label: string },
-  options: { /** A layer's picture: the layer hides as a whole, and an empty one takes no room rather than showing a fallback. */ layer?: boolean } = {},
+  options: {
+    /** A layer's picture: the layer hides as a whole, and an empty one takes no room rather than showing a fallback. */
+    layer?: boolean;
+    /** For a layer showing a layered file: place its layers as separate image layers (milestone 33). */
+    onSplit?: () => void;
+  } = {},
 ): HTMLElement {
   let value = initial;
   const wrap = document.createElement('div');
@@ -589,12 +639,110 @@ function imageField(
   treat.append(segmented, tint, effects);
   const note = document.createElement('p');
   note.className = 'note image-note';
-  wrap.append(well, meta, picker, treat, note);
+  // A layered file's layers (milestone 33): boxes to show or hide each in this picture, or which one layer this is.
+  const psdBox = document.createElement('div');
+  psdBox.className = 'psd-box';
+  psdBox.hidden = true;
+  wrap.append(well, meta, picker, treat, psdBox, note);
 
   const entryFor = (id: string) => appState.value.index?.media.find((m) => m.id === id);
+  let stopWaiting: (() => void) | null = null;
+  const renderPsd = (entry: MediaEntry | undefined) => {
+    psdBox.replaceChildren();
+    psdBox.hidden = true;
+    if (!value?.id || !entry || !isPsdEntry(entry) || value.hidden) return;
+    const layeredEntry: MediaEntry = entry;
+    const state = psdOutlineFor(entry.id);
+    if (state.ok === 'pending') {
+      // Drawn again once the structure lands; one wait per field, dropped when it is answered.
+      if (!stopWaiting) {
+        stopWaiting = psdOutlines.subscribe(() => {
+          if (psdOutlineFor(entry.id).ok === 'pending') return;
+          stopWaiting?.();
+          stopWaiting = null;
+          show();
+        });
+      }
+      return;
+    }
+    psdBox.hidden = false;
+    if (!state.ok) {
+      const p = document.createElement('p');
+      p.className = 'note';
+      p.textContent = `This file could not be read as layers: ${state.message}. Its stored picture is used.`;
+      psdBox.append(p);
+      return;
+    }
+    const { outline } = state;
+    if (value.psd?.layer) {
+      const which = document.createElement('p');
+      which.className = 'psd-which';
+      const layer = outline.layers.find((l) => l.id === value!.psd!.layer);
+      which.textContent = layer ? `Layer “${layer.name}” of ${layeredEntry.name}` : `A layer ${layeredEntry.name} no longer has`;
+      psdBox.append(which);
+      return;
+    }
+    const hidden = new Set(value.psd?.hide ?? fileHiddenLayers(outline.layers));
+    const list = document.createElement('ul');
+    list.className = 'psd-layers';
+    for (const layer of layersTopFirst(outline.layers)) {
+      const li = document.createElement('li');
+      li.className = `psd-layer${layer.kind === 'group' ? ' group' : ''}${layerShown(outline.layers, layer.id, hidden) ? '' : ' hidden'}`;
+      li.style.paddingLeft = `${layer.depth * 16}px`;
+      li.dataset.layer = layer.id;
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = !hidden.has(layer.id);
+      box.setAttribute('aria-label', `Show ${layer.name || 'layer'}`);
+      box.addEventListener('change', () => {
+        const next = new Set(hidden);
+        if (box.checked) next.delete(layer.id);
+        else next.add(layer.id);
+        const psd = sanitizePsdChoice({ hide: [...next] });
+        // The file's own visibility is no choice at all, so it is not stored.
+        const own = fileHiddenLayers(outline.layers).join('+');
+        const same = (psd?.hide ?? []).join('+') === own;
+        if (value) set({ ...value, ...(psd && !same ? { psd } : { psd: undefined }) });
+      });
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = layer.name || (layer.kind === 'group' ? 'Group' : 'Layer');
+      label.append(box, name);
+      if (layer.limits.length > 0) {
+        const limits = document.createElement('span');
+        limits.className = 'limits';
+        limits.textContent = layer.limits.length === 1 ? layer.limits[0]! : `${layer.limits.length} things not reproduced`;
+        limits.dataset.tip = layer.limits.join('; ');
+        li.append(label, limits);
+      } else li.append(label);
+      list.append(li);
+    }
+    psdBox.append(list);
+    const summary = psdLimitSummary(outline);
+    if (summary) {
+      const p = document.createElement('p');
+      p.className = 'note psd-limits';
+      p.textContent = summary;
+      psdBox.append(p);
+    }
+    const placeable = placeableLayers(outline, hidden);
+    if (options.onSplit && placeable.length > 1) {
+      const actions = document.createElement('div');
+      actions.className = 'psd-actions';
+      const split = document.createElement('button');
+      split.type = 'button';
+      split.textContent = `Split into ${placeable.length} layers`;
+      split.dataset.tip = 'One image layer per shown layer, each keeping its place, to be moved and styled on their own';
+      split.addEventListener('click', () => options.onSplit?.());
+      actions.append(split);
+      psdBox.append(actions);
+    }
+  };
   const show = () => {
     const entry = value?.id ? entryFor(value.id) : undefined;
     const isHidden = value?.hidden === true;
+    renderPsd(entry);
     well.replaceChildren();
     well.classList.toggle('empty', !entry);
     well.classList.toggle('hidden-slot', isHidden);
@@ -648,7 +796,7 @@ function imageField(
     onChange(next);
     commitParams();
   };
-  const pick = (id: string) => set({ id, treatment: value?.treatment ?? 'original', tint: value?.tint ?? '#ffffff', effect: value?.effect ?? 'none', hidden: value?.hidden ?? false });
+  const pick = (id: string) => set({ id, treatment: value?.treatment ?? 'original', tint: value?.tint ?? '#ffffff', effect: value?.effect ?? 'none', hidden: value?.hidden ?? false, ...browsedPsdChoice(id) });
   const listChoices = () => {
     choices.replaceChildren();
     const stills = libraryStills(search.value);
@@ -1127,7 +1275,14 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
     ];
   }
   return [
-    imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }, { layer: true }),
+    imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }, {
+      layer: true,
+      onSplit: () => {
+        const id = layer.image?.id;
+        const state = id ? psdOutlineFor(id) : null;
+        if (state && state.ok === true) splitPsdLayer(blockId, layer.id, state.outline);
+      },
+    }),
     imageLayerControls(blockId, layer),
     motionControls(blockId, layer),
     lookControls(blockId, layer),
@@ -2039,7 +2194,7 @@ function acceptItemDrop(section: HTMLElement, block: string, layer: ImageLayer |
     editLayer(block, layer.id, (l) =>
       l.type === 'video'
         ? { ...l, clip: { ...EMPTY_CLIP, id } }
-        : { ...l, image: { id, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false } },
+        : { ...l, image: { id, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false, ...browsedPsdChoice(id) } },
     true);
     commitParams();
     // The card shows what the layer holds, so it is rebuilt: the field's own display was made
@@ -2288,7 +2443,7 @@ export function initInspectorParams(): void {
       const fresh = newLayer(type, block, id, label);
       const layer = type === 'video'
         ? { ...fresh, clip: { ...EMPTY_CLIP, id: itemId } }
-        : { ...fresh, image: { id: itemId, treatment: 'original' as const, tint: '#ffffff', effect: 'none' as const, hidden: false } };
+        : { ...fresh, image: { id: itemId, treatment: 'original' as const, tint: '#ffffff', effect: 'none' as const, hidden: false, ...browsedPsdChoice(itemId) } };
       setLayers({ ...layers, [block.id]: [...stack, layer as Layer] }, true);
       return { block: block.id, id };
     },

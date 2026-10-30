@@ -1057,3 +1057,21 @@ progress { width: 100%; margin: 2px 0; }
 .results .card[data-alpha="true"][data-category="objects"] { --poster-backdrop: #26302a; }
 .results .card[data-alpha="true"][data-category="animated-backgrounds"],
 .results .card[data-alpha="true"][data-category="still-backgrounds"] { --poster-backdrop: #232a33; }
+
+/* ---------------------------------------------------------------- layered Photoshop files (milestone 33) */
+
+.psd-layers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.psd-layer { display: flex; align-items: center; gap: var(--space-2); min-height: 22px; }
+.psd-layer label { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; flex: 1; cursor: pointer; }
+.psd-layer input { margin: 0; }
+.psd-layer .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.psd-layer.group .name { font-weight: 600; }
+.psd-layer.hidden .name { color: var(--muted); }
+.psd-layer .facts { color: var(--muted); font-size: var(--font-caption); white-space: nowrap; }
+.psd-layer .limits { color: var(--accent); font-size: var(--font-caption); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.psd-limits { margin: var(--space-2) 0 0; }
+.empty-note.warn { color: var(--danger); }
+/* The same list under an image field, with its split button after it. */
+.image-field .psd-layers { padding: var(--space-1) 0; }
+.image-field .psd-actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.image-field .psd-which { color: var(--muted); font-size: var(--font-caption); }

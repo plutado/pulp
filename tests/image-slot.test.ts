@@ -4,11 +4,16 @@ import {
   boxFor,
   chosenImageIds,
   fitImage,
+  imageGrantKey,
+  imageGrantRequests,
   imageIdsIn,
+  imageRequestKey,
   imageRequests,
   imageSlots,
   isSlotBox,
+  psdChoiceKey,
   sanitizeImageValue,
+  sanitizePsdChoice,
   type ImageSlotParam,
 } from '../src/core/image-slot';
 
@@ -135,5 +140,42 @@ describe('image values and slot state', () => {
     ]);
     expect(chosenImageIds(slots)).toEqual([id, other]);
     expect(chosenImageIds(imageSlots(two, {}, { width: 100, height: 100 }))).toEqual([]);
+  });
+});
+
+describe('a layered file in an image value (milestone 33)', () => {
+  it('reads which layers are hidden, or which one layer the value is, and nothing else', () => {
+    expect(sanitizePsdChoice({ hide: ['L3', 'L1', 'L1', 'nope', 7] })).toEqual({ hide: ['L1', 'L3'] });
+    expect(sanitizePsdChoice({ layer: 'L2' })).toEqual({ layer: 'L2' });
+    // One layer alone has no hidden list: the layer is the whole picture.
+    expect(sanitizePsdChoice({ layer: 'L2', hide: ['L1'] })).toEqual({ layer: 'L2' });
+    expect(sanitizePsdChoice({ hide: [] })).toBeUndefined();
+    expect(sanitizePsdChoice('L2')).toBeUndefined();
+    expect(sanitizeImageValue({ id, psd: { hide: ['L4'] } })).toMatchObject({ id, psd: { hide: ['L4'] } });
+    expect(sanitizeImageValue({ id, psd: { layer: 'bogus' } })).not.toHaveProperty('psd');
+    expect(sanitizeImageValue(JSON.stringify({ id, psd: { layer: 'L0' } }))).toMatchObject({ psd: { layer: 'L0' } });
+  });
+
+  it('keys a request by the layered choice too, so other layers hidden is another picture', () => {
+    expect(psdChoiceKey(undefined)).toBe('');
+    expect(psdChoiceKey({ hide: ['L1', 'L3'] })).toBe('hide:L1+L3');
+    expect(psdChoiceKey({ layer: 'L2' })).toBe('layer:L2');
+    const plain = imageRequestKey({ id, treatment: 'original', tint: '#ffffff' });
+    const hidden = imageRequestKey({ id, treatment: 'original', tint: '#ffffff', psd: { hide: ['L1'] } });
+    expect(hidden).not.toBe(plain);
+    expect(imageGrantKey({ id })).toBe(id);
+    expect(imageGrantKey({ id, psd: { layer: 'L2' } })).toBe(`${id}|layer:L2`);
+    const requests = imageGrantRequests([{ id }, { id, psd: { hide: ['L1'] } }, { id, psd: { hide: ['L1'] } }, { id: other }, { id: null }]);
+    expect(requests).toEqual([{ id }, { id, psd: { hide: ['L1'] } }, { id: other }]);
+  });
+
+  it('carries the choice into the slot state and its requests', () => {
+    const param: ImageSlotParam = { id: 'logo', type: 'image', box: { x: 0, y: 0, width: 0.2, height: 0.2 }, fit: 'contain', align: 'center', margin: 0 };
+    const slots = imageSlots([param], { logo: { id, psd: { hide: ['L2'] } } }, { width: 1920, height: 1080 });
+    expect(slots.logo!.psd).toEqual({ hide: ['L2'] });
+    expect(imageRequests(slots)[0]).toMatchObject({ id, psd: { hide: ['L2'] } });
+    // A hidden slot hands nothing over, layered or not.
+    const hidden = imageSlots([param], { logo: { id, hidden: true, psd: { hide: ['L2'] } } }, { width: 1920, height: 1080 });
+    expect(hidden.logo!.psd).toBeUndefined();
   });
 });

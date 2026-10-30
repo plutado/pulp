@@ -10,6 +10,7 @@ import { STRIP_SCHEME } from '../core/hover-scrub';
 import { injectBridge, TEMPLATE_CSP } from '../core/runtime';
 import { TEMPLATE_SCHEME } from '../shared/api';
 import { bundledFontsDir, findTemplate, lookupMedia, lookupStrip, lookupThumbnail, thumbnailDir } from './library-service';
+import { compositePng, hiddenFromQuery, isPsdPath, layerPng, readPsdFile } from './psd-service';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -159,8 +160,43 @@ export function handleThumbProtocol(): void {
  * referrer check in serveMedia refuses any that gets through. Image slots do
  * not go through here: their stills are handed to the page as bytes (ADR 0013).
  */
+/**
+ * A layered Photoshop file served to the app window (milestone 33): nothing in
+ * a browser decodes a `.psd`, so `/composite` (optionally `?hide=L1+L4`) and
+ * `/layer/L3` answer PNGs made from the file, and the bare item URL answers the
+ * composite as the file shows it. The same rule as every media request: the
+ * app window only, never a template page.
+ */
+async function servePsd(request: Request): Promise<Response | null> {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return null;
+  const referrer = request.referrer || request.headers.get('referer');
+  if (referrer && referrer.startsWith('pulp-template://')) return null;
+  let url: URL;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return null;
+  }
+  const found = lookupMedia(url.hostname);
+  if (!found || !found.online || !isPsdPath(found.entry.path)) return null;
+  const path = url.pathname.replace(/^\/+|\/+$/g, '');
+  const read = await readPsdFile(found.entry.path);
+  if (!read.ok) return new Response('unreadable', { status: 404, headers: { 'Cache-Control': 'no-store' } });
+  let png: Buffer | null = null;
+  const layer = /^layer\/(L\d+)$/.exec(path);
+  if (layer) png = layerPng(read.document, layer[1]!);
+  else if (path === '' || path === 'composite') png = compositePng(read.document, hiddenFromQuery(url.searchParams.get('hide')));
+  if (!png) return new Response('not found', { status: 404, headers: { 'Cache-Control': 'no-store' } });
+  return new Response(request.method === 'HEAD' ? null : new Uint8Array(png), {
+    status: 200,
+    headers: { 'Content-Type': 'image/png', 'Content-Length': String(png.length), 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+  });
+}
+
 export function handleMediaProtocol(): void {
   protocol.handle(MEDIA_SCHEME, async (request) => {
+    const layered = await servePsd(request);
+    if (layered) return layered;
     const result = await serveMedia(
       {
         method: request.method,

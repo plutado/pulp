@@ -23,6 +23,10 @@ export type { Collection, CollectionItem } from '../core/collection';
 export type { Project } from '../core/project';
 export type { MenuCommand, MenuSection, MenuState } from '../core/menu';
 export type { RecentProjectRow } from '../core/start-screen';
+import type { ImageGrantRequest } from '../core/image-slot';
+import type { PsdOutline } from '../core/psd';
+export type { PsdOutline } from '../core/psd';
+export type PsdOutlineResult = { ok: true; outline: PsdOutline } | { ok: false; message: string };
 import type { RecentProjectRow } from '../core/start-screen';
 
 /** The start screen's remembered switches (milestone 31). */
@@ -226,7 +230,9 @@ export interface PulpApi {
    * Image slots (ADR 0013): the bytes of exactly these library stills, as data URLs for the preview
    * to hand to the template page; ids that are not online stills come back as missing.
    */
-  loadSlotImages(ids: string[]): Promise<{ images: { id: string; src: string }[]; missing: string[] }>;
+  loadSlotImages(requests: ImageGrantRequest[]): Promise<{ images: { id: string; key: string; src: string }[]; missing: string[] }>;
+  /** A layered Photoshop file's structure (milestone 33): its layers without pixels, and what is not reproduced. */
+  psdOutline(id: string): Promise<PsdOutlineResult>;
   /** The clips chosen for video layers: their frames, and what was measured about each (milestone 26). */
   loadLayerClips(requests: { id: string; value: ClipValue; drawnHeight: number }[]): Promise<{
     clips: { id: string; kind: 'clip'; srcs: string[] }[];

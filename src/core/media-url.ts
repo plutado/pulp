@@ -15,3 +15,18 @@ export function mediaUrlFor(id: string): string {
 export function mediaFrameUrlFor(id: string, frame: number): string {
   return `${MEDIA_SCHEME}://${id}/${Math.max(0, Math.floor(frame))}`;
 }
+
+/**
+ * pulp-media://<item-id>/composite?hide=L1+L4 — a layered file drawn as one
+ * picture with some of its layers hidden (milestone 33); with no `hide`, as
+ * the file shows it. The handler composites and answers a PNG.
+ */
+export function psdCompositeUrlFor(id: string, hidden: readonly string[] = []): string {
+  const hide = hidden.length > 0 ? `?hide=${hidden.join('+')}` : '';
+  return `${MEDIA_SCHEME}://${id}/composite${hide}`;
+}
+
+/** pulp-media://<item-id>/layer/L3 — one layer of a layered file alone, on the whole canvas. */
+export function psdLayerUrlFor(id: string, layer: string): string {
+  return `${MEDIA_SCHEME}://${id}/layer/${layer}`;
+}

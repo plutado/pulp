@@ -6,7 +6,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 **Milestone 27, projects and the application menu, is done:** a session saves as a `.pulp` project — guarded, recovered and relinked — and Pulp has its own menu on every platform. Milestone 28 is done before it — a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar — and milestone 30 before that — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
-What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come stock library import (32) and layered Photoshop graphics (33); the start screen (31) and the browse panel that says what things are (34) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
+What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those comes stock library import (32); the start screen (31), the browse panel that says what things are (34) and layered Photoshop graphics (33) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
 
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. A decision is written here as soon as it is made — a new milestone, or items in an existing one — even when it is low priority and may never be built, so everything decided is visible in one place; `docs/ideas.md` keeps only ideas not yet decided and known issues. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
@@ -38,7 +38,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 31. A start screen (**done**) | 14-22 h |
 | 34. A browse panel that says what things are (all but the card sort) | 20-32 h |
 | 32. Stock library import | 27-46 h |
-| 33. Layered Photoshop graphics | 10-18 h |
+| 33. Layered Photoshop graphics (**done**) | 10-18 h |
 | 20. Social-ready export | 9-14 h |
 | 8. 1.0 hardening and docs | 14-23 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -395,16 +395,16 @@ Built after 30 and 28, whose in, hold and out parts and per-layer looks it uses.
 - [ ] **What is out of scope is said, not hidden:** a format Pulp cannot read — a motion-graphics project file, a disc only the original browser could convert — is listed with its preview where one exists and a plain note of what it needs, rather than skipped (1-2 h)
 - [ ] **Rights:** the media stays the person's, referenced in place; Pulp never sends it anywhere, never copies it into packs, exports or the repository, and tests use generated fixtures only (1-2 h)
 
-## 33. Layered Photoshop graphics (10-18 h; GitHub issue #35)
+## 33. Layered Photoshop graphics (10-18 h; GitHub issue #35) — done
 
 Read a `.psd` as a stack of layers, so a layered still from a stock library can be browsed and used without flattening it first.
 
-- [ ] **Reading:** layers, their names, order, visibility, opacity and blend modes where the file has them; groups shown as groups. Reading only, no editing of the file in Pulp (3-5 h)
-- [ ] **Browsing:** a flattened preview for the grid and the stage, with the layer list shown in the Info tab (1-2 h)
-- [ ] **Showing and hiding layers** in the preview, kept with the item like any other edit (presets, collections, undo, the render cache key) (2-3 h)
-- [ ] **Placing:** as one picture, or as separate image layers that keep their positions, then moved and styled with milestones 25 and 28 (2-4 h)
-- [ ] **Limits stated plainly:** layer effects, smart objects and adjustment layers Pulp can't reproduce are named rather than silently dropped; the flattened composite stored in the file is the fallback (1-2 h)
-- [ ] **Tests** on generated `.psd` fixtures only (1-2 h)
+- [x] **Reading:** layers, their names, order, visibility, opacity and blend modes where the file has them; groups shown as groups. Reading only, no editing of the file in Pulp. *Pulp's own reader (`src/core/psd.ts`): version 1 files, RGB or grayscale, 8 or 16 bits, raw or RLE; normal, multiply, screen, overlay, darken, lighten and difference are drawn, the rest named* (3-5 h)
+- [x] **Browsing:** a flattened preview for the grid and the stage, with the layer list shown in the Info tab. *The stage and the grant are served a PNG composited by the main process, since nothing in a page decodes a `.psd`* (1-2 h)
+- [x] **Showing and hiding layers** in the preview, kept with the item like any other edit (presets, collections, undo, the render cache key). *Browsed, the hidden list is the session's and shows on the stage; placed, it lives in the image value's `psd.hide`, which every store of parameters already carries* (2-3 h)
+- [x] **Placing:** as one picture, or as separate image layers that keep their positions, then moved and styled with milestones 25 and 28. *Each split layer draws its layer on the file's whole canvas, so the layers keep their places by construction and the one picture's size and placement are simply copied* (2-4 h)
+- [x] **Limits stated plainly:** layer effects, smart objects and adjustment layers Pulp can't reproduce are named rather than silently dropped; the flattened composite stored in the file is the fallback (1-2 h)
+- [x] **Tests** on generated `.psd` fixtures only (1-2 h)
 
 ## 20. Social-ready export (9-14 h)
 

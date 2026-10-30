@@ -25,7 +25,16 @@ import { SEQUENCE_FPS, sequenceFrameName, sequenceMetadata, sequencePatternName,
 import { encodePeaks, peaksFromPcm, wantsWaveform, waveformArgs } from '../core/waveform';
 import { captureTemplateFrames } from './render';
 import { templateDefaultSize } from '../core/aspect';
+import { compositePng, isPsdPath, readPsdFile } from './psd-service';
+
+/** A layered file's size and transparency, read from the file itself: ffprobe is not asked (milestone 33). */
+async function psdMetadata(path: string): Promise<MediaMetadata | null> {
+  const read = await readPsdFile(path);
+  if (!read.ok) return null;
+  return { width: read.document.width, height: read.document.height, codec: 'psd', alpha: true };
+}
 import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
+import type { MediaMetadata } from '../core/media-meta';
 import type { HoverStripResult, WaveformResult } from '../shared/api';
 import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
@@ -240,7 +249,7 @@ async function probePendingMetadata(): Promise<void> {
         await Promise.all(
           pending.slice(i, i + PROBE_CONCURRENCY).map(async (entry) => {
             // A sequence is probed through its first frame; the run says how long it runs for.
-            const probed = await probeMedia(ffprobe!, entry.path, nodeRunner);
+            const probed = isPsdPath(entry.path) ? await psdMetadata(entry.path) : await probeMedia(ffprobe!, entry.path, nodeRunner);
             const meta = entry.sequence ? sequenceMetadata(probed, entry.sequence) : probed;
             st.setMetadata(entry, meta);
           }),
@@ -281,6 +290,13 @@ async function generatePendingThumbnails(): Promise<void> {
         try {
           // A turn per item, not for the whole queue, so a hover-scrub strip can get in between.
           ok = await heavyWork(async () => {
+            if (entry.kind === 'media' && isPsdPath(entry.path)) {
+              // A layered file's thumbnail is its composite as the file shows it, shrunk like a poster (milestone 33).
+              const read = await readPsdFile(entry.path);
+              if (!read.ok) return false;
+              const scaled = await runWithInput(ffmpegPath!, posterFromFrameArgs(out, null), compositePng(read.document));
+              return scaled.code === 0 && existsSync(out);
+            }
             if (entry.kind === 'media') {
               // A sequence posters from the frame a tenth in, as a clip is sampled a tenth in;
               // that frame is a still image, so nothing is sought within it.

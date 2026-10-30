@@ -67,6 +67,8 @@ export const MEDIA_MIME: Record<string, string> = {
   '.bmp': 'image/bmp',
   '.dpx': 'image/x-dpx',
   '.svg': 'image/svg+xml',
+  // Nothing in a browser decodes a .psd: the handler serves a PNG composite instead (src/main/psd-service.ts).
+  '.psd': 'image/vnd.adobe.photoshop',
   '.wav': 'audio/wav',
   '.aif': 'audio/aiff',
   '.aiff': 'audio/aiff',

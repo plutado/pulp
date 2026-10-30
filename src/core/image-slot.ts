@@ -54,9 +54,43 @@ export interface ImageValue {
   effect: ImageEffect;
   /** Kept, but not drawn: the slot stays empty and its fallback is not shown either. */
   hidden: boolean;
+  /**
+   * For a layered Photoshop file (milestone 33): which of its layers are hidden
+   * when it is drawn as one picture, or the one layer this value is — a file
+   * placed as separate layers names one per layer. Absent for any other still,
+   * and for a layered file drawn as the file has it.
+   */
+  psd?: PsdChoice;
+}
+
+/** What of a layered file a value draws: the whole with some layers hidden, or one layer alone. Layer ids are the file's "L<n>". */
+export interface PsdChoice {
+  hide?: string[];
+  layer?: string;
 }
 
 const ID_PATTERN = /^[0-9a-f]{24}$/;
+const PSD_LAYER_PATTERN = /^L\d+$/;
+
+/** Read a psd choice from untrusted input: layer ids only, sorted and unique; nothing when there is nothing in it. */
+export function sanitizePsdChoice(input: unknown): PsdChoice | undefined {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return undefined;
+  const r = input as Record<string, unknown>;
+  const out: PsdChoice = {};
+  if (typeof r.layer === 'string' && PSD_LAYER_PATTERN.test(r.layer)) out.layer = r.layer;
+  if (Array.isArray(r.hide)) {
+    const hide = [...new Set(r.hide.filter((h): h is string => typeof h === 'string' && PSD_LAYER_PATTERN.test(h)))].sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
+    if (hide.length > 0 && !out.layer) out.hide = hide;
+  }
+  return out.layer || out.hide ? out : undefined;
+}
+
+/** The part of a request key a psd choice contributes; empty for a plain still. Mirrored in the bridge (src/core/runtime.ts). */
+export function psdChoiceKey(psd: PsdChoice | undefined): string {
+  if (!psd) return '';
+  if (psd.layer) return `layer:${psd.layer}`;
+  return psd.hide && psd.hide.length > 0 ? `hide:${psd.hide.join('+')}` : '';
+}
 export const DEFAULT_TINT = '#ffffff';
 
 export function isSlotBox(value: unknown): value is SlotBox {
@@ -116,7 +150,8 @@ export function sanitizeImageValue(input: unknown): ImageValue | null | undefine
   const treatment = (IMAGE_TREATMENTS as readonly string[]).includes(r.treatment as string) ? (r.treatment as ImageTreatment) : 'original';
   const tint = isValidColor(r.tint) ? r.tint.slice(0, 7).toLowerCase() : DEFAULT_TINT;
   const effect = (IMAGE_EFFECTS as readonly string[]).includes(r.effect as string) ? (r.effect as ImageEffect) : 'none';
-  return { id, treatment, tint, effect, hidden };
+  const psd = sanitizePsdChoice(r.psd);
+  return { id, treatment, tint, effect, hidden, ...(psd ? { psd } : {}) };
 }
 
 /** The slot's box for a frame shape: the per-aspect one, the "default", or the single box. */
@@ -168,6 +203,8 @@ export interface ImageSlotState {
   fallback: string | null;
   /** The slot is kept but not drawn: no image, no fallback, and the design closes the space up. */
   hidden: boolean;
+  /** A layered file's hidden layers or single layer (milestone 33). */
+  psd?: PsdChoice;
 }
 
 /** The manifest fields this module reads, so it can take a validated parameter without importing the manifest types. */
@@ -212,16 +249,18 @@ export function imageSlots(
       box: { x: frac.x * size.width, y: frac.y * size.height, width: frac.width * size.width, height: frac.height * size.height },
       fallback: typeof fallbackRaw === 'string' ? fallbackRaw : null,
       hidden,
+      ...(value?.psd && !hidden ? { psd: value.psd } : {}),
     };
   }
   return slots;
 }
 
-/** The images a frame set needs decoded: one per distinct id and treatment, which is what the bridge caches by. */
+/** The images a frame set needs decoded: one per distinct id, treatment and layered choice, which is what the bridge caches by. */
 export interface ImageRequest {
   id: string;
   treatment: ImageTreatment;
   tint: string;
+  psd?: PsdChoice;
 }
 
 export function imageRequests(slots: Record<string, ImageSlotState>): ImageRequest[] {
@@ -229,13 +268,40 @@ export function imageRequests(slots: Record<string, ImageSlotState>): ImageReque
   for (const slot of Object.values(slots)) {
     if (!slot.id) continue;
     const key = imageRequestKey(slot);
-    if (!out.has(key)) out.set(key, { id: slot.id, treatment: slot.treatment, tint: slot.tint });
+    if (!out.has(key)) out.set(key, { id: slot.id, treatment: slot.treatment, tint: slot.tint, ...(slot.psd ? { psd: slot.psd } : {}) });
   }
   return [...out.values()];
 }
 
-export function imageRequestKey(r: { id: string | null; treatment: ImageTreatment; tint: string }): string {
-  return `${r.id ?? ''}|${r.treatment}|${r.treatment === 'tinted' ? r.tint : ''}`;
+export function imageRequestKey(r: { id: string | null; treatment: ImageTreatment; tint: string; psd?: PsdChoice }): string {
+  return `${r.id ?? ''}|${r.treatment}|${r.treatment === 'tinted' ? r.tint : ''}|${psdChoiceKey(r.psd)}`;
+}
+
+/**
+ * What the main process is asked to read for a template (ADR 0013): a library
+ * id, and for a layered file which of it — the bytes differ with the layers
+ * hidden, so the grant is keyed by both. A plain still's key is its id.
+ */
+export interface ImageGrantRequest {
+  id: string;
+  psd?: PsdChoice;
+}
+
+export function imageGrantKey(r: ImageGrantRequest): string {
+  const psd = psdChoiceKey(r.psd);
+  return psd ? `${r.id}|${psd}` : r.id;
+}
+
+/** One grant request per distinct id and layered choice among slots and layer images. */
+export function imageGrantRequests(wanted: readonly { id: string | null; psd?: PsdChoice }[]): ImageGrantRequest[] {
+  const out = new Map<string, ImageGrantRequest>();
+  for (const w of wanted) {
+    if (!w.id) continue;
+    const request: ImageGrantRequest = { id: w.id, ...(w.psd ? { psd: w.psd } : {}) };
+    const key = imageGrantKey(request);
+    if (!out.has(key)) out.set(key, request);
+  }
+  return [...out.values()];
 }
 
 /** The library ids a set of slots needs access to: what the grant covers. */

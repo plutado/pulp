@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { solid, writePsd } from '../psd-fixture';
 import { detectFfmpeg } from '../../src/core/ffmpeg';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
@@ -345,6 +346,18 @@ describe.skipIf(!electron)('inspector UI', () => {
       '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent}canvas{display:block;width:100%;height:100%}</style></head><body><canvas id="c"></canvas><script>var c=document.getElementById("c"),x=c.getContext("2d");window.pulpRender=function(s){if(c.width!==s.width||c.height!==s.height){c.width=s.width;c.height=s.height;}x.clearRect(0,0,s.width,s.height);x.fillStyle="#4f7cac";x.fillRect(s.width*0.1,s.height*0.6,s.width*0.5,s.height*0.2);};</script></body></html>',
     );
     await writeFile(join(mediaDir, 'silence.wav'), await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'silence.wav')));
+    // A layered Photoshop file (milestone 33), generated: a red backdrop and a group holding a shown blue mark and a hidden green one.
+    await writeFile(join(mediaDir, 'layered.psd'), writePsd({
+      width: 8, height: 6,
+      layers: [
+        { name: 'Backdrop', left: 0, top: 0, width: 8, height: 6, rgba: solid(8, 6, [255, 0, 0, 255]) },
+        { group: 'Marks', layers: [
+          { name: 'Blue mark', left: 0, top: 0, width: 4, height: 3, rgba: solid(4, 3, [0, 0, 255, 255]) },
+          { name: 'Green mark', left: 4, top: 3, width: 4, height: 3, rgba: solid(4, 3, [0, 255, 0, 255]), visible: false },
+        ] },
+      ],
+      composite: solid(8, 6, [255, 0, 0, 255]),
+    }));
     const ffmpeg = await detectFfmpeg();
     if (ffmpeg.ok) {
       const wide = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'clip.mp4')]), { timeoutMs: 60_000 });
@@ -2822,6 +2835,40 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(src).not.toContain('tiny');
       expect(await page.eval<number>(`document.getElementById('media-image').naturalWidth`)).toBe(2);
       expect(await page.eval<boolean>(`document.getElementById('preview').hasAttribute('src')`)).toBe(false);
+    }, 60_000);
+
+    it('shows a layered Photoshop file as its composite, lists its layers, and follows a layer being hidden (milestone 33)', async () => {
+      await selectMedia('layered');
+      const image = () => page.eval<{ src: string; width: number; loaded: boolean }>(`(() => { const i = document.getElementById('media-image'); return { src: i.src, width: i.naturalWidth, loaded: !i.hidden && i.complete && i.naturalWidth > 0 }; })()`);
+      await until(async () => (await image()).loaded, 'the composite to load');
+      const first = await image();
+      // Served as a PNG made from the file, by id, never by path.
+      expect(first.src).toMatch(/^pulp-media:\/\/[0-9a-f]{24}\/composite$/);
+      expect(first.width).toBe(8);
+
+      // The Info tab lists the layers, top first, groups as groups, the file's own visibility as the boxes.
+      await page.eval(`document.getElementById('tab-info').click()`);
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#info-item [data-section=layers] .psd-layer').length`)) === 4, 'the layer list');
+      const rows = await page.eval<{ id: string; name: string; group: boolean; checked: boolean }[]>(
+        `[...document.querySelectorAll('#info-item [data-section=layers] .psd-layer')].map((li) => ({ id: li.dataset.layer, name: li.querySelector('.name').textContent, group: li.classList.contains('group'), checked: li.querySelector('input').checked }))`,
+      );
+      expect(rows).toEqual([
+        { id: 'L3', name: 'Green mark', group: false, checked: false },
+        { id: 'L2', name: 'Blue mark', group: false, checked: true },
+        { id: 'L1', name: 'Marks', group: true, checked: true },
+        { id: 'L0', name: 'Backdrop', group: false, checked: true },
+      ]);
+
+      // Hiding the backdrop: the stage asks for the picture with that layer left out.
+      await page.eval(`document.querySelector('#info-item [data-section=layers] .psd-layer[data-layer="L0"] input').click()`);
+      await until(async () => (await image()).src.includes('hide='), 'the stage to follow');
+      const hidden = await image();
+      expect(hidden.src).toMatch(/\/composite\?hide=L0\+L3$/);
+      await until(async () => (await image()).loaded, 'the new composite to load');
+      // Showing it again goes back to the file's own picture.
+      await page.eval(`document.querySelector('#info-item [data-section=layers] .psd-layer[data-layer="L0"] input').click()`);
+      await until(async () => /\/composite\?hide=L3$/.test((await image()).src), 'the file\'s own hidden list again');
+      await page.eval(`document.getElementById('tab-parameters').click()`);
     }, 60_000);
 
     it('plays and seeks a video, which needs byte ranges', async () => {
