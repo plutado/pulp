@@ -10,6 +10,7 @@ import type { RenderQueueSnapshot } from '../core/render-queue';
 import type { PlayerState } from '../core/player';
 import type { ResultsViewState } from '../core/results-view';
 import type { Collection, CollectionItem } from '../core/collection';
+import type { Project } from '../core/project';
 import type { ImportedFont } from '../core/fonts';
 import type { CollisionChoice, PackManifest, PackPreview } from '../core/pack';
 
@@ -18,6 +19,7 @@ export type { LibraryIndex } from '../core/library-types';
 export type { CollisionChoice, PackManifest, PackPreview, PackTemplatePreview } from '../core/pack';
 export type { RenderOptions } from '../core/render-plan';
 export type { Collection, CollectionItem } from '../core/collection';
+export type { Project } from '../core/project';
 
 export interface FfmpegInfo {
   ok: boolean;
@@ -71,6 +73,32 @@ export interface WaveformResult {
 /** Saving or opening a collection file. */
 export type CollectionFileResult =
   | { ok: true; path: string; name: string; collection?: Collection }
+  | { ok: false; cancelled?: boolean; message: string };
+
+/**
+ * Saving or opening a project (milestone 27). `project` comes back from
+ * opening one, as a collection's does; saving answers with where it went.
+ * `fromCollection` marks a
+ * `.pulpcollection` read as a project, so the window can offer to save it on
+ * as one; `missing` marks a file that is not there any more, which is what a
+ * recent entry deserves to be told about.
+ */
+export type ProjectFileResult =
+  | { ok: true; path: string; name: string; recent: string[]; project?: Project; fromCollection?: true }
+  | { ok: false; cancelled?: boolean; missing?: true; message: string };
+
+/** A project left behind by a session that did not end cleanly. */
+export interface ProjectRecovery {
+  project: Project;
+  /** The file the unsaved changes belong to, or null for a project never saved anywhere. */
+  path: string | null;
+  name: string;
+  savedAt: string;
+}
+
+/** Relinking media that moved: the items rebound, and the library as it is now. */
+export type RelinkResult =
+  | { ok: true; relinked: { uid: string; id: string; path: string }[]; index: LibraryIndex }
   | { ok: false; cancelled?: boolean; message: string };
 
 /** Render all: the jobs queued, and anything that could not be. */
@@ -220,6 +248,36 @@ export interface PulpApi {
   saveCollection(collection: Collection, suggestedName: string): Promise<CollectionFileResult>;
   /** Open dialog, then read a collection back. */
   openCollection(): Promise<CollectionFileResult>;
+  /**
+   * Write the project (milestone 27). With a path it saves in place; without
+   * one it asks, which is Save As and the first Save of a new project. A path
+   * ending `.pulpcollection` writes a collection instead, for an older build.
+   */
+  saveProject(project: Project, path: string | null, suggestedName: string): Promise<ProjectFileResult>;
+  /** Open dialog, then read a project or a collection back as a project. */
+  openProject(): Promise<ProjectFileResult>;
+  /** The same by path, for Open Recent and for scripting. */
+  openProjectPath(path: string): Promise<ProjectFileResult>;
+  /** Recently opened projects, newest first; `forgetProject` takes one off. */
+  recentProjects(): Promise<string[]>;
+  forgetProject(path: string): Promise<string[]>;
+  /** Write the recovery copy while there are unsaved changes, and clear it when there are none. */
+  autosaveProject(project: Project, path: string | null): Promise<void>;
+  clearRecovery(): Promise<void>;
+  /** A recovery copy left by a session that did not end cleanly, offered once at launch. */
+  pendingRecovery(): Promise<ProjectRecovery | null>;
+  /** Ask where a missing item is now, bring its folder in, and rebind it and everything that moved with it. */
+  relinkItem(target: { uid: string; path: string; kind: 'template' | 'media'; name: string }, others: { uid: string; path: string }[], answer?: string): Promise<RelinkResult>;
+  /** Which of a project's library folders this computer does not have. */
+  missingLibraryFolders(folders: string[]): Promise<string[]>;
+  /** The window is closing and there are unsaved changes: the renderer asks, then allows or does not. */
+  onCloseRequested(listener: () => void): () => void;
+  /** Let the close that was held go ahead; the recovery copy is cleared with it. */
+  allowClose(): Promise<void>;
+  /** The close was cancelled: the next one asks again. */
+  cancelClose(): Promise<void>;
+  /** The project's name and whether it has unsaved changes, for the window title. */
+  setProjectTitle(name: string, dirty: boolean): Promise<void>;
   /** Ask for one folder, then queue a render for every item. */
   renderCollection(items: CollectionItem[], name: string): Promise<RenderCollectionResult>;
   /** Take one finished card off the tray. */

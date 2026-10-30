@@ -5,11 +5,12 @@
  */
 
 import { effect } from '@preact/signals';
-import { hasFinishedJobs, setCollection, setEditing } from '../core/app-state';
-import { applyToAll, COLLECTION_DRAG_TYPE, renderableItems, resolveCollection } from '../core/collection';
+import { hasFinishedJobs, setCollection } from '../core/app-state';
+import { applyToAll, COLLECTION_DRAG_TYPE, renderableItems } from '../core/collection';
 import { noteAfterChange, noteFades, NOTE_MS, NO_NOTE, sayNote, type TrayNote } from '../core/tray-note';
 import { appState, dispatch } from './store';
 import { editing, mountCollection, resolved } from './collection';
+import { openProjectFrom, rememberRenderFolder } from './project';
 import { dragNotice, mountQueue } from './queue';
 import { setCacheSummary } from './status-bar';
 
@@ -49,6 +50,17 @@ function initDragNotice(): void {
   });
 }
 
+/**
+ * The tray's status line, once the tray is mounted. The project's messages go
+ * here too — saved, opened, relinked — since it is the one line in the window
+ * that already says what became of a file.
+ */
+let trayNote: (text: string, isError?: boolean) => void = () => {};
+
+export function sayInTray(text: string, isError = false): void {
+  trayNote(text, isError);
+}
+
 /** The collection's own actions: Render all, Apply to all, Open and Save. */
 export function initCollection(): void {
   mountCollection($('collection'));
@@ -69,6 +81,9 @@ export function initCollection(): void {
     noteFor = appState.value.collection;
     paint(sayNote(text, bad));
   };
+  // The project's messages land on the same line: it is the one place in the window that already
+  // says what happened to a file (milestone 27).
+  trayNote = say;
 
   effect(() => {
     const collection = appState.value.collection;
@@ -100,11 +115,13 @@ export function initCollection(): void {
     void (async () => {
       const items = renderableItems(resolved.value).map((r) => r.item);
       say('');
-      const result = await window.pulp.renderCollection(items, appState.value.collectionName);
+      const result = await window.pulp.renderCollection(items, appState.value.project.name);
       if (!result.ok) {
         if (!result.cancelled) say(result.message, true);
         return;
       }
+      // Where this project's renders go, kept with it so a reopened project knows.
+      rememberRenderFolder(result.folder);
       const skipped = result.skipped.length > 0 ? ` Skipped: ${result.skipped.join('; ')}.` : '';
       say(`Rendering ${result.jobIds.length} ${result.jobIds.length === 1 ? 'item' : 'items'}.${skipped}`);
     })();
@@ -119,7 +136,7 @@ export function initCollection(): void {
 
   $('collection-save').addEventListener('click', () => {
     void (async () => {
-      const result = await window.pulp.saveCollection(appState.value.collection, appState.value.collectionName || 'collection');
+      const result = await window.pulp.saveCollection(appState.value.collection, appState.value.project.name || 'collection');
       if (!result.ok) {
         if (!result.cancelled) say(result.message, true);
         return;
@@ -129,19 +146,10 @@ export function initCollection(): void {
     })();
   });
 
+  // Opening goes through the project (milestone 27), so the same door takes a .pulp and a
+  // .pulpcollection and the unsaved changes of whatever is open are asked about first.
   $('collection-open').addEventListener('click', () => {
-    void (async () => {
-      const result = await window.pulp.openCollection();
-      if (!result.ok) {
-        if (!result.cancelled) say(result.message, true);
-        return;
-      }
-      dispatch((s) => setEditing(setCollection(s, result.collection ?? s.collection, result.name), null));
-      // What the library can no longer answer for is on the cards; this is the count.
-      const list = resolveCollection(result.collection ?? { items: [] }, appState.value.index);
-      const lost = list.filter((r) => r.missing || r.offline).length;
-      say(lost > 0 ? `Opened ${result.name}. ${lost} ${lost === 1 ? 'item is' : 'items are'} not available here.` : `Opened ${result.name}.`);
-    })();
+    void openProjectFrom(null);
   });
 }
 

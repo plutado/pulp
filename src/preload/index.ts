@@ -51,6 +51,24 @@ const api: PulpApi = {
   removeRender: (id) => ipcRenderer.invoke('queue:remove', id),
   saveCollection: (collection, suggestedName) => ipcRenderer.invoke('collection:save', collection, suggestedName),
   openCollection: () => ipcRenderer.invoke('collection:open'),
+  saveProject: (project, path, suggestedName) => ipcRenderer.invoke('project:save', project, path, suggestedName),
+  openProject: () => ipcRenderer.invoke('project:open'),
+  openProjectPath: (path) => ipcRenderer.invoke('project:open-path', path),
+  recentProjects: () => ipcRenderer.invoke('project:recent'),
+  forgetProject: (path) => ipcRenderer.invoke('project:forget', path),
+  autosaveProject: (project, path) => ipcRenderer.invoke('project:autosave', project, path),
+  clearRecovery: () => ipcRenderer.invoke('project:clear-recovery'),
+  pendingRecovery: () => ipcRenderer.invoke('project:recovery'),
+  relinkItem: (target, others, answer) => ipcRenderer.invoke('project:relink', target, others, answer),
+  missingLibraryFolders: (folders) => ipcRenderer.invoke('project:missing-folders', folders),
+  onCloseRequested: (listener) => {
+    const handler = () => listener();
+    ipcRenderer.on('project:close-requested', handler);
+    return () => ipcRenderer.removeListener('project:close-requested', handler);
+  },
+  allowClose: () => ipcRenderer.invoke('project:allow-close'),
+  cancelClose: () => ipcRenderer.invoke('project:cancel-close'),
+  setProjectTitle: (name, dirty) => ipcRenderer.invoke('project:title', name, dirty),
   renderCollection: (items, name) => ipcRenderer.invoke('collection:render', items, name),
   revealFile: (path) => ipcRenderer.invoke('file:reveal', path),
   revealItem: (id) => ipcRenderer.invoke('item:reveal', id),

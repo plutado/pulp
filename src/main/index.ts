@@ -16,6 +16,11 @@ import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit
 import { sanitizeCacheMaxMB } from '../core/render-cache';
 import { deletePreset, listPresets, savePreset } from './preset-service';
 import { openCollectionFile, readCollectionFile, renderCollection, saveCollectionTo } from './collection-service';
+import {
+  clearRecovery, forgetProject, missingLibraryFolders, openProjectDialog, readProjectFile, readRecovery,
+  recentProjects, relinkProjectItem, saveProjectTo, writeRecovery,
+} from './project-service';
+import type { Project } from '../core/project';
 import type { Collection, CollectionItem } from '../core/collection';
 import { chooseExportFile, choosePackFile, exportPackTo, installPack, listInstalledPacks, previewPack } from './pack-service';
 import type { CollisionChoice } from '../core/pack';
@@ -64,10 +69,25 @@ function createWindow(): void {
     },
   });
 
-  // The page's own <title> would replace it the moment the document loads.
+  // The page's own <title> would replace it the moment the document loads. The window names the
+  // project instead (milestone 27), with a mark while it has unsaved changes.
   mainWindow.on('page-title-updated', (event) => {
     event.preventDefault();
-    mainWindow?.setTitle(title);
+    mainWindow?.setTitle(windowTitleNow());
+  });
+
+  /**
+   * A window with unsaved changes is not closed under the person's feet: the close is held and
+   * the window asked, and it closes when the window says so (`project:allow-close`). Cancelling
+   * re-arms the question, so the next close asks again; a close while the question is already up
+   * does nothing rather than stacking a second one.
+   */
+  mainWindow.on('close', (event) => {
+    if (!projectDirty || closeAllowed) return;
+    event.preventDefault();
+    if (closeAsked) return;
+    closeAsked = true;
+    mainWindow?.webContents.send('project:close-requested');
   });
 
   // Never navigate the app window away or open new windows inside the app.
@@ -85,6 +105,21 @@ function createWindow(): void {
     mainWindow = null;
   });
 }
+
+/** What the title bar says: the app (and, run from source, the checkout), then the project. */
+function windowTitleNow(): string {
+  const base = windowTitle(app.getAppPath(), app.isPackaged);
+  if (!projectTitle) return base;
+  return `${projectDirty ? '• ' : ''}${projectTitle} — ${base}`;
+}
+
+/** The project's name and whether it has unsaved changes; the window tells us as they change. */
+let projectTitle = '';
+let projectDirty = false;
+/** Set when the window has said the close may go ahead, so the second close is not held too. */
+let closeAllowed = false;
+/** Set while the window is asking about unsaved changes, so one close makes one question. */
+let closeAsked = false;
 
 function registerIpc(): void {
   ipcMain.handle('library:get', () => getLibrary());
@@ -157,6 +192,39 @@ function registerIpc(): void {
   ipcMain.handle('collection:save', (_event, collection: Collection, name: unknown) => saveCollectionTo(collection, String(name ?? '')));
   ipcMain.handle('collection:open', () => openCollectionFile());
   ipcMain.handle('collection:render', (_event, items: CollectionItem[], name: unknown) => renderCollection(items, String(name ?? '')));
+  // Projects (milestone 27).
+  ipcMain.handle('project:save', (_event, project: Project, path: unknown, name: unknown) =>
+    saveProjectTo(project, typeof path === 'string' && path ? path : null, String(name ?? '')));
+  ipcMain.handle('project:open', () => openProjectDialog());
+  ipcMain.handle('project:open-path', (_event, path: unknown) =>
+    typeof path === 'string' && path ? readProjectFile(path) : { ok: false as const, message: 'No project was chosen.' });
+  ipcMain.handle('project:recent', () => recentProjects());
+  ipcMain.handle('project:forget', (_event, path: unknown) => forgetProject(String(path ?? '')));
+  ipcMain.handle('project:autosave', (_event, project: Project, path: unknown) =>
+    writeRecovery(project, typeof path === 'string' && path ? path : null));
+  ipcMain.handle('project:clear-recovery', () => clearRecovery());
+  ipcMain.handle('project:recovery', () => readRecovery());
+  ipcMain.handle('project:relink', (_event, target: { uid: string; path: string; kind: 'template' | 'media'; name: string }, others: { uid: string; path: string }[], answer: unknown) =>
+    relinkProjectItem(target, Array.isArray(others) ? others : [], typeof answer === 'string' && answer ? answer : undefined));
+  ipcMain.handle('project:missing-folders', (_event, folders: unknown) =>
+    missingLibraryFolders(Array.isArray(folders) ? folders.map(String) : []));
+  ipcMain.handle('project:title', (_event, name: unknown, dirty: unknown) => {
+    projectTitle = String(name ?? '');
+    projectDirty = dirty === true;
+    // A window with nothing unsaved may close freely again.
+    if (!projectDirty) closeAllowed = false;
+    mainWindow?.setTitle(windowTitleNow());
+  });
+  ipcMain.handle('project:allow-close', async () => {
+    closeAllowed = true;
+    projectDirty = false;
+    await clearRecovery();
+    mainWindow?.close();
+  });
+  // Cancelled: the window stays, and the next close asks again rather than going straight through.
+  ipcMain.handle('project:cancel-close', () => {
+    closeAsked = false;
+  });
   // The window sends an item id, never a path: the main process looks the path up,
   // so there is nothing to allow-list and nothing for the window to get wrong.
   ipcMain.handle('item:reveal', (_event, id: unknown) => {

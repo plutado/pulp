@@ -64,7 +64,28 @@ export interface AppState {
   editing: string | null;
   /** Name of the collection file this came from, for the window title and the next save. */
   collectionName: string;
+  /**
+   * The project this session is (milestone 27): where it was saved, what it is
+   * called, and the library folders and render folder it carries. A project
+   * that has never been saved has no path and is called "Untitled".
+   */
+  project: ProjectState;
 }
+
+/** The part of a project that is not the collection; the collection is `collection` above. */
+export interface ProjectState {
+  /** Where it was last saved, or null for one that never has been. */
+  path: string | null;
+  name: string;
+  /** Library folders the project draws from, as the file records them. */
+  libraryFolders: string[];
+  /** Where Render all last wrote for this project. */
+  renderFolder?: string;
+}
+
+export const UNTITLED_PROJECT = 'Untitled';
+
+export const initialProjectState: ProjectState = { path: null, name: UNTITLED_PROJECT, libraryFolders: [] };
 
 export const initialAppState: AppState = {
   index: null,
@@ -78,6 +99,7 @@ export const initialAppState: AppState = {
   collection: emptyCollection,
   editing: null,
   collectionName: '',
+  project: initialProjectState,
 };
 
 // Actions. Each returns the same object when nothing changes, so an unchanged
@@ -85,6 +107,20 @@ export const initialAppState: AppState = {
 
 export function setIndex(s: AppState, index: LibraryIndex | null): AppState {
   return s.index === index ? s : { ...s, index };
+}
+
+/** Where the project is and what it carries; the collection is set separately. */
+export function setProject(s: AppState, project: ProjectState): AppState {
+  const same = s.project.path === project.path && s.project.name === project.name
+    && s.project.renderFolder === project.renderFolder
+    && s.project.libraryFolders.length === project.libraryFolders.length
+    && s.project.libraryFolders.every((f, i) => f === project.libraryFolders[i]);
+  return same ? s : { ...s, project };
+}
+
+/** The whole project at once: the collection it holds and everything else about it. */
+export function openProject(s: AppState, collection: Collection, project: ProjectState): AppState {
+  return setEditing(setProject(setCollection(s, collection, project.name), project), null);
 }
 
 export function setQuery(s: AppState, query: string): AppState {

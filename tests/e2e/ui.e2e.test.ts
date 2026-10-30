@@ -2319,6 +2319,171 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await names()).length === 0, 'an empty collection again');
     }, 90_000);
 
+    it('saves the session as a project, opens one back, and never loses changes quietly (milestone 27)', async () => {
+      const projectFile = join(userData, 'Evening News.pulp');
+      const label = () => page.eval<string>(`document.getElementById('project-button').querySelector('.label').textContent`);
+      const dirty = () => page.eval<boolean>(`document.getElementById('project-button').classList.contains('dirty')`);
+      const note = () => page.eval<string>(`document.getElementById('collection-note').textContent`);
+
+      // A session nobody has saved is Untitled, and collecting something is an unsaved change.
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button');
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      await until(async () => (await names()).length === 1, 'one collected item');
+      expect(await label()).toBe('Untitled');
+      await until(dirty, 'the unsaved mark once something is collected');
+
+      // Saved: the mark clears, the project takes the file's name, and the file holds the session.
+      expect(await page.eval<boolean>(`window.pulpSaveProject(${JSON.stringify(projectFile)})`)).toBe(true);
+      await until(async () => (await label()) === 'Evening News', 'the project named after its file');
+      expect(await dirty()).toBe(false);
+      const written = JSON.parse(await readFile(projectFile, 'utf8')) as { formatVersion: number; items: { name: string; path?: string }[]; libraryFolders: string[] };
+      expect(written.formatVersion).toBe(1);
+      expect(written.items.map((i) => i.name)).toEqual(['Lower Third Bar']);
+      // It records where its items were and which folders it drew from, so a project opened
+      // elsewhere can say what it is missing and where to look for it.
+      expect(written.items[0]!.path).toBeTruthy();
+      expect(written.libraryFolders).toContain(mediaDir);
+
+      // Changed again, then opened back. Opening asks about the unsaved change first — the whole
+      // point of the mark — so the question is answered before the file arrives.
+      await page.eval(`${card(0)}.querySelector('.job-actions button[aria-label="Remove from the collection"]').click()`);
+      await until(async () => (await names()).length === 0, 'the item removed');
+      await until(dirty, 'the unsaved mark after removing it');
+      // Started, not awaited: the call does not settle until the question below is answered.
+      await page.eval(`(() => { window.__opened = window.pulpOpenProject(${JSON.stringify(projectFile)}); return true; })()`);
+      await until(() => page.eval<boolean>(`document.getElementById('unsaved-dialog').open`), 'the question before opening another project');
+      await page.eval(`document.getElementById('unsaved-discard').click()`);
+      expect(await page.eval<boolean>(`window.__opened`)).toBe(true);
+      await until(async () => (await names()).length === 1, 'the item back from the file');
+      expect(await dirty()).toBe(false);
+      expect(await note()).toContain('Opened Evening News.');
+
+      // It is on the recent list, by name, and can be opened from there.
+      await page.eval(`document.getElementById('project-button').click()`);
+      await until(() => page.eval<number>(`document.querySelectorAll('#project-recent li').length`).then((n) => n >= 1), 'the recent list');
+      expect(await page.eval<string[]>(`[...document.querySelectorAll('#project-recent .recent-open')].map((b) => b.textContent)`)).toContain('Evening News');
+      await page.eval(`document.getElementById('project-close').click()`);
+
+      // A collection file still opens, as a project holding its items and nothing else.
+      const collectionFile = join(userData, 'Old Set.pulpcollection');
+      await writeFile(collectionFile, JSON.stringify({ formatVersion: 1, items: [{ uid: 'c1', id: 'deadbeefdeadbeefdeadbeef', kind: 'template', name: 'Gone Away', templateId: 'gone.away', presetId: 'png-sequence', options: {}, params: {} }] }));
+      expect(await page.eval<boolean>(`window.pulpOpenProject(${JSON.stringify(collectionFile)})`)).toBe(true);
+      await until(async () => (await names()).join() === 'Gone Away', 'the collection opened as a project');
+      expect(await note()).toContain('Saving will write a project');
+      expect(await label()).toBe('Old Set');
+
+      // An item the library cannot answer for is flagged rather than dropped, and — because the
+      // project remembers where it was — offers to be relinked. This one never recorded a path,
+      // so there is nothing to relink from and no button, which the card says instead.
+      expect(await page.eval<string>(`${card(0)}.querySelector('.job-status').textContent`)).toBe('Not in the library any more');
+      expect(await page.eval<boolean>(`!!${card(0)}.querySelector('button[aria-label^="Relink"]')`)).toBe(false);
+
+      // Unsaved changes are asked about before they can be lost: Cancel keeps everything.
+      await page.eval(`${card(0)}.querySelector('.job-actions button[aria-label="Remove from the collection"]').click()`);
+      await until(dirty, 'something unsaved to be asked about');
+      await page.eval(`document.getElementById('project-button').click()`);
+      await page.eval(`document.getElementById('project-new').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('unsaved-dialog').open`), 'the unsaved-changes question');
+      expect(await page.eval<string>(`document.getElementById('unsaved-text').textContent`)).toContain('"Old Set"');
+      await page.eval(`document.getElementById('unsaved-cancel').click()`);
+      await until(async () => !(await page.eval<boolean>(`document.getElementById('unsaved-dialog').open`)), 'the question answered');
+      expect(await label(), 'cancelling leaves the project exactly as it was').toBe('Old Set');
+      expect(await dirty()).toBe(true);
+
+      // Discard goes ahead: a new project, empty and clean.
+      await page.eval(`document.getElementById('project-button').click()`);
+      await page.eval(`document.getElementById('project-new').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('unsaved-dialog').open`), 'the question again');
+      await page.eval(`document.getElementById('unsaved-discard').click()`);
+      await until(async () => (await label()) === 'Untitled', 'a new project');
+      expect(await dirty()).toBe(false);
+      expect(await names()).toEqual([]);
+    }, 120_000);
+
+    it('relinks media that moved, and everything that moved with it (milestone 27)', async () => {
+      // A project off a drive that is not here any more: two items under one folder, recorded by
+      // an id this library has never heard of and by where they were.
+      const moved = join(userData, 'moved');
+      await mkdir(join(moved, 'Assets'), { recursive: true });
+      await writeFile(join(moved, 'Assets', 'one.png'), TINY_PNG);
+      await writeFile(join(moved, 'Assets', 'two.png'), solidPng([0, 255, 0]));
+      const item = (uid: string, name: string, file: string) => ({
+        uid, id: `${uid}${'0'.repeat(24 - uid.length)}`, kind: 'media', name,
+        path: `/Volumes/Gone/Assets/${file}`, presetId: 'png-sequence', options: {}, params: {},
+      });
+      const projectFile = join(userData, 'Moved.pulp');
+      await writeFile(projectFile, JSON.stringify({
+        formatVersion: 1,
+        items: [item('m1', 'one', 'one.png'), item('m2', 'two', 'two.png')],
+        libraryFolders: ['/Volumes/Gone'],
+      }));
+
+      await page.eval(`(() => { window.__opened = window.pulpOpenProject(${JSON.stringify(projectFile)}); return true; })()`);
+      // Whatever was open before has unsaved changes or not; answer the question if it is asked.
+      await page.eval(`(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) document.getElementById('unsaved-discard').click(); return true; })()`);
+      expect(await page.eval<boolean>(`window.__opened`)).toBe(true);
+      await until(async () => (await names()).join() === 'one,two', 'the two items from the project');
+      // Both are flagged rather than dropped, both offer to be relinked, and the project says
+      // which of its folders this computer does not have.
+      expect(await page.eval<string>(`${card(0)}.querySelector('.job-status').textContent`)).toBe('Not in the library any more; relink it to where it is now');
+      expect(await page.eval<number>(`document.querySelectorAll('#collection button[aria-label^="Relink"]').length`)).toBe(2);
+      expect(await page.eval<string>(`document.getElementById('collection-note').textContent`)).toContain('/Volumes/Gone');
+
+      // Found again under another folder: the one chosen is rebound, and the other moved the same
+      // way, so a project off a remounted drive is not relinked item by item.
+      await page.eval(`window.pulpRelink('m1', ${JSON.stringify(join(moved, 'Assets', 'one.png'))})`);
+      await until(() => page.eval<number>(`document.querySelectorAll('#collection button[aria-label^="Relink"]').length`).then((n) => n === 0), 'both items relinked');
+      expect(await page.eval<string>(`document.getElementById('collection-note').textContent`)).toContain('and 1 more that moved with it');
+      expect(await page.eval<string>(`${card(0)}.querySelector('.job-status').textContent`)).not.toContain('Not in the library');
+
+      // The folder the files were found in is in the library now, and saving records it.
+      const after = join(userData, 'Moved Again.pulp');
+      expect(await page.eval<boolean>(`window.pulpSaveProject(${JSON.stringify(after)})`)).toBe(true);
+      const written = JSON.parse(await readFile(after, 'utf8')) as { items: { path: string }[]; libraryFolders: string[] };
+      expect(written.libraryFolders).toContain(moved);
+      expect(written.items.map((i) => i.path)).toEqual([join(moved, 'Assets', 'one.png'), join(moved, 'Assets', 'two.png')]);
+
+      await page.eval(`[...document.querySelectorAll('#collection .collection-card .job-actions button[aria-label="Remove from the collection"]')].forEach((b) => b.click())`);
+      await until(async () => (await names()).length === 0, 'an empty collection again');
+      expect(await page.eval<boolean>(`window.pulpSaveProject(${JSON.stringify(after)})`)).toBe(true);
+    }, 120_000);
+
+    it('writes a recovery copy while there are unsaved changes, and clears it when there are none (milestone 27)', async () => {
+      const recovery = join(userData, 'recovery.pulp');
+      const base = join(userData, 'Recovery Base.pulp');
+      const exists = async () => {
+        try {
+          await readFile(recovery, 'utf8');
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      // From a saved project: nothing unsaved, so nothing to recover.
+      expect(await page.eval<boolean>(`window.pulpSaveProject(${JSON.stringify(base)})`)).toBe(true);
+      await until(async () => !(await exists()), 'no recovery copy for a saved project');
+
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button');
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      await until(async () => (await names()).length === 1, 'one collected item');
+      // Written a moment after the change settles, not on every edit.
+      await until(exists, 'the recovery copy', 20_000);
+      const saved = JSON.parse(await readFile(recovery, 'utf8')) as { items: { name: string }[]; recoveredFrom: string; savedAt: string };
+      expect(saved.items.map((i) => i.name)).toEqual(['Lower Third Bar']);
+      // It says which file the changes belong to, and when they were taken.
+      expect(saved.recoveredFrom).toBe(base);
+      expect(Number.isNaN(Date.parse(saved.savedAt))).toBe(false);
+
+      // Saving leaves nothing to recover.
+      expect(await page.eval<boolean>(`window.pulpSaveProject(${JSON.stringify(base)})`)).toBe(true);
+      await until(async () => !(await exists()), 'the recovery copy cleared by saving');
+      await page.eval(`[...document.querySelectorAll('#collection .collection-card .job-actions button[aria-label="Remove from the collection"]')].forEach((b) => b.click())`);
+      await until(async () => (await names()).length === 0, 'an empty collection again');
+      expect(await page.eval<boolean>(`window.pulpSaveProject(${JSON.stringify(base)})`)).toBe(true);
+    }, 120_000);
+
     it('keeps the results readable on a short window: the stage yields and the tray is capped', async () => {
       // The tray is open from the tests above. Windows CI runs on a small display, where the tray
       // and the stage's share once left the results list a few pixels tall (docs/platform-notes.md).

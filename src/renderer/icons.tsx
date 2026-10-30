@@ -24,6 +24,8 @@ import eye from '@phosphor-icons/core/assets/regular/eye.svg?raw';
 import eyeSlash from '@phosphor-icons/core/assets/regular/eye-slash.svg?raw';
 import filmStrip from '@phosphor-icons/core/assets/regular/film-strip.svg?raw';
 import folder from '@phosphor-icons/core/assets/regular/folder.svg?raw';
+import folderOpen from '@phosphor-icons/core/assets/regular/folder-open.svg?raw';
+import link from '@phosphor-icons/core/assets/regular/link.svg?raw';
 import frameCorners from '@phosphor-icons/core/assets/regular/frame-corners.svg?raw';
 import folderPlus from '@phosphor-icons/core/assets/regular/folder-plus.svg?raw';
 import sparkle from '@phosphor-icons/core/assets/regular/sparkle.svg?raw';
@@ -80,7 +82,9 @@ const ICONS = {
   'eye-slash': eyeSlash,
   'film-strip': filmStrip,
   folder,
+  'folder-open': folderOpen,
   'folder-plus': folderPlus,
+  link,
   'frame-corners': frameCorners,
   'hard-drive': hardDrive,
   image,

@@ -3,12 +3,13 @@
  * settings, saved and loaded as a file and rendered in one go (ROADMAP
  * milestone 13). Pure — the tray renders this, the main process writes it.
  *
- * An item is recorded twice over: by **library id**, which is a hash of where
- * the file sits and so survives a rescan but not another machine, and — for a
- * template — by its **manifest id**, which is the author's own and travels.
- * Loading tries the first, falls back to the second, and flags what it cannot
- * find rather than dropping it, so a collection is also a record of what a
- * project used.
+ * An item is recorded three ways over: by **library id**, which is a hash of
+ * where the file sits and so survives a rescan but not another machine; for a
+ * template, by its **manifest id**, which is the author's own and travels; and
+ * by the **path** it was at, which is the only one that survives the file
+ * moving. Loading tries them in that order, and flags what it cannot find
+ * rather than dropping it, so a collection is also a record of what a project
+ * used — and the path is what a missing item is relinked from (milestone 27).
  */
 
 import type { LibraryEntry, LibraryIndex } from './library-types';
@@ -30,6 +31,13 @@ export interface CollectionItem {
   name: string;
   /** Templates only: the manifest id, which travels between libraries. */
   templateId?: string;
+  /**
+   * Where the item's file was when it was collected (milestone 27). A third
+   * way to name it, after the library id and the manifest id, and the only one
+   * that survives the file moving: an item the library cannot answer for can
+   * still say where it used to be, and be relinked from there.
+   */
+  path?: string;
   presetId: string;
   options: RenderOptions;
   /** Templates only: the parameter values this item renders with. */
@@ -50,6 +58,11 @@ export function newUid(): string {
   return `c${Date.now().toString(36)}${counter.toString(36)}`;
 }
 
+/** Where an entry's file is: a media file itself, a template's folder. */
+export function entryPath(entry: LibraryEntry): string {
+  return entry.kind === 'template' ? entry.dir : entry.path;
+}
+
 /** What an entry becomes when it is added, before any settings are changed. */
 export function itemFor(entry: LibraryEntry, presetId: string, options: RenderOptions = {}, params: Record<string, unknown> = {}): CollectionItem {
   return {
@@ -58,6 +71,7 @@ export function itemFor(entry: LibraryEntry, presetId: string, options: RenderOp
     kind: entry.kind,
     name: entry.kind === 'template' ? entry.manifest.name : entry.name,
     ...(entry.kind === 'template' ? { templateId: entry.manifest.id } : {}),
+    ...(entryPath(entry) ? { path: entryPath(entry) } : {}),
     presetId,
     options,
     params,
@@ -139,6 +153,7 @@ export function parseCollection(text: string): ParsedCollection {
       kind: i.kind === 'media' ? 'media' : 'template',
       name: typeof i.name === 'string' ? i.name : i.id,
       ...(typeof i.templateId === 'string' ? { templateId: i.templateId } : {}),
+      ...(typeof i.path === 'string' && i.path ? { path: i.path } : {}),
       presetId: i.presetId,
       options: i.options && typeof i.options === 'object' ? (i.options as RenderOptions) : {},
       params: i.params && typeof i.params === 'object' ? (i.params as Record<string, unknown>) : {},

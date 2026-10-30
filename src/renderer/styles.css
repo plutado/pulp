@@ -292,6 +292,20 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .status-bar .status-item > .icon { color: var(--muted); }
 .status-bar #ffmpeg-status.error > .icon { color: var(--danger); }
 .status-bar .status-spacer { flex: 1; }
+/* The project (milestone 27): its name in the status bar, with a dot while there are unsaved
+   changes, opening the project actions. The application menu is its proper home and arrives next;
+   until then this is the one place they live. */
+.project-button { border: 0; background: none; padding: 0 2px; color: var(--muted); cursor: pointer; font: inherit; font-size: var(--font-caption); }
+.project-button:hover { color: var(--text); }
+.project-button.dirty { color: var(--text); }
+.project-button.dirty .label::before { content: '• '; color: var(--accent); }
+.project-dialog .project-actions { justify-content: flex-start; }
+.project-recent-head { font-size: var(--font-secondary); margin: var(--space-2) 0 var(--space-1); }
+.project-recent { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 220px; overflow: auto; }
+.project-recent li { display: flex; align-items: center; gap: var(--space-1); }
+.project-recent .recent-open { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-recent .recent-path { color: var(--muted); font-size: var(--font-caption); }
+.unsaved-dialog { max-width: 420px; }
 .status-bar .summary { border-top: 0; padding: 0; display: flex; gap: 12px; flex-wrap: wrap; min-width: 0; }
 
 .pack-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-surface); padding: var(--space-4); width: min(560px, 90vw); }

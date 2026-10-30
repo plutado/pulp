@@ -18,6 +18,7 @@ import { formatTimecode } from '../core/timecode';
 import { Icon } from './icons';
 import { BUNDLED_FAMILIES, importedFamilies } from '../core/fonts';
 import { appState, dispatch, importedFonts } from './store';
+import { relinkMissing } from './project';
 
 /** Each item paired with what the library has for it now. */
 export const resolved = computed(() => resolveCollection(appState.value.collection, appState.value.index, [...BUNDLED_FAMILIES, ...importedFamilies(importedFonts.value)]));
@@ -42,7 +43,7 @@ function settingsLine(r: ResolvedItem): string {
 
 /** Why a card cannot render, in a few words, or an empty string when it can. */
 function problem(r: ResolvedItem): string {
-  if (r.missing) return 'Not in the library any more';
+  if (r.missing) return r.item.path ? 'Not in the library any more; relink it to where it is now' : 'Not in the library any more';
   if (r.offline) return 'Its folder is offline';
   if (r.missingImages.length > 0) return `${r.missingImages.join(', ')}: the chosen image is not in the library`;
   if (r.missingFonts.length > 0) return `Set in ${r.missingFonts.join(' and ')}, which is not on this computer; it would render in a fallback face`;
@@ -80,6 +81,20 @@ function Item({ r, first, last }: { r: ResolvedItem; first: boolean; last: boole
         <span class={`job-status ${trouble ? 'failed' : 'done'}`}>{trouble || settingsLine(r)}</span>
       </span>
       <span class="job-actions">
+        {r.missing && item.path && (
+          <button
+            type="button"
+            class="icon-button"
+            aria-label={`Relink ${item.name}`}
+            data-tip={`It was at ${item.path}. Choose it where it is now; anything that moved with it follows.`}
+            onClick={(e: MouseEvent) => {
+              e.stopPropagation();
+              void relinkMissing(item.uid);
+            }}
+          >
+            <Icon name="link" />
+          </button>
+        )}
         <button
           type="button"
           class="icon-button"

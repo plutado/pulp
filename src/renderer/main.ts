@@ -12,7 +12,9 @@ import { currentOptions, currentPresetId, initInspectorOutput, outputSetFfmpeg, 
 import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
-import { initTray } from './tray';
+import { initTray, sayInTray } from './tray';
+import { initProject } from './project';
+import { askAboutRecovery, initProjectUi } from './project-ui';
 import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
 import { importedFonts } from './store';
 import { mountIcons } from './icons';
@@ -87,6 +89,9 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
   if (!index) return;
   const first = appState.value.index === null;
   dispatch((s) => setIndex(s, index));
+  // A session that ended suddenly is offered back once the library is in, since the items it
+  // holds mean nothing without one.
+  if (first) void askAboutRecovery();
   // The panel opens on where you are rather than on everything at once: the first time there is a
   // tree to fold, it folds to the active category's path, or to Quick access alone.
   if (first) browseFoldToActive();
@@ -362,6 +367,9 @@ initTray((id) => {
   const entry = [...(index?.templates ?? []), ...(index?.media ?? [])].find((e) => e.id === id);
   if (entry) dispatch((s) => setCollection(s, addItem(s.collection, itemFor(entry, currentPresetId(), currentOptions(), entry.kind === 'template' ? currentRawParams() : {}))));
 });
+// The project (milestone 27): the session as a file, with its unsaved changes guarded.
+initProject(sayInTray);
+initProjectUi();
 mountBrowse($('browse-find'), $('browse-tree'));
 void window.pulp.getBrowseAccordion().then((on) => (browseAccordion.value = on));
 mountResults(els.results, { onSelect: select, onStop: stopPlayback });

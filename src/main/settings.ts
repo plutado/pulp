@@ -17,6 +17,8 @@ export interface Settings {
   recentColors: string[];
   /** The last committed searches, most recent first. */
   recentSearches: string[];
+  /** Recently opened project files, newest first, by path (milestone 27). */
+  recentProjects: string[];
   /** Folder for renders made for dragging; default render-cache in user data. */
   renderCacheDir?: string;
   /** Size limit of that folder in MiB; the oldest files are removed first. */
@@ -39,6 +41,7 @@ const DEFAULTS: Settings = {
   libraryFolders: [],
   recentColors: [],
   recentSearches: [],
+  recentProjects: [],
   renderCacheMaxMB: DEFAULT_CACHE_MAX_MB,
   layout: DEFAULT_LAYOUT,
   resultsView: DEFAULT_RESULTS_VIEW,
@@ -68,6 +71,8 @@ function sanitize(raw: Partial<Settings>): Settings {
     libraryFolders: Array.isArray(raw.libraryFolders) ? raw.libraryFolders.filter((f): f is string => typeof f === 'string') : [],
     recentColors: sanitizeRecentColors(raw.recentColors),
     recentSearches: sanitizeRecentSearches(raw.recentSearches),
+    // Paths, kept as they were written: a file that has gone is said when it is opened, not dropped here.
+    recentProjects: Array.isArray(raw.recentProjects) ? raw.recentProjects.filter((p): p is string => typeof p === 'string' && p.trim() !== '').slice(0, 20) : [],
     renderCacheMaxMB: sanitizeCacheMaxMB(raw.renderCacheMaxMB),
     layout: sanitizeLayout(raw.layout),
     resultsView: sanitizeResultsView(raw.resultsView),
