@@ -140,6 +140,13 @@ export function initShell(): void {
   // The saved layout arrives after first paint; starting from the defaults avoids a flash of nothing.
   void window.pulp.getLayout().then((saved) => set(app, saved, false));
 
+  // The center column's floor is a sum the stylesheet keeps (--center-min-h), and the search bar's
+  // height is the one term that is not a constant: its chips wrap on a narrow window. Measured here
+  // rather than guessed, so the stage keeps its floor at every width (docs/platform-notes.md).
+  const searchHeight = () => app.style.setProperty('--search-h', `${Math.ceil(searchBar.getBoundingClientRect().height)}px`);
+  new ResizeObserver(searchHeight).observe(searchBar);
+  searchHeight();
+
   // Clamp the browse width back into view when the window shrinks below it.
   window.addEventListener('resize', () => {
     const max = Math.max(LAYOUT_LIMITS.browseWidth.min, Math.floor(window.innerWidth * 0.35));

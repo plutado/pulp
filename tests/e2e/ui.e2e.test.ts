@@ -2589,17 +2589,22 @@ describe.skipIf(!electron)('inspector UI', () => {
         page.eval<{ inner: number; results: number; stage: number; tray: number; search: number }>(
           `({ inner: window.innerHeight, results: document.getElementById('results').clientHeight, stage: document.getElementById('region-stage').clientHeight, tray: document.getElementById('region-tray').clientHeight, search: document.getElementById('region-search').clientHeight })`,
         );
-      expect(await page.eval<boolean>(`document.getElementById('app').classList.contains('tray-collapsed')`)).toBe(false);
+      // The tray must be open for the squeeze; the collection tests above leave it so, and a run of
+      // this test alone opens it itself.
+      await page.eval(`(() => { if (document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); return true; })()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray open');
       const own = await metrics();
       try {
-        for (const height of [697, 600]) {
-          await page.send('Emulation.setDeviceMetricsOverride', { width: 1024, height, deviceScaleFactor: 1, mobile: false });
+        // The narrowest window Pulp allows is last: there the search bar's chips wrap to a second
+        // line, which once took the stage under its floor while the floors' budget guessed the bar's height.
+        for (const [width, height] of [[1024, 697], [1024, 600], [960, 600]] as [number, number][]) {
+          await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
           // The floors are polled, not read once: flex settles a few frames after the window does.
           let m = await metrics();
           await until(async () => {
             m = await metrics();
             return m.inner === height && m.results >= 160 && m.stage >= 150 && m.search + m.stage + m.results <= height;
-          }, `the floors at ${height} px (last: ${JSON.stringify(m)})`);
+          }, `the floors at ${width} × ${height} px (last: ${JSON.stringify(m)})`);
           // And the sweep still reaches the last item at this size.
           const last = (await resultNames()).at(-1)!;
           expect(await sweepTo(last)).toBe(true);
@@ -2830,6 +2835,37 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(lines.playX, 'play on the left').toBeLessThan(200);
         expect(lines.marksX, 'the marks in the middle').toBeGreaterThan(400);
         expect(lines.tabsX, 'the tabs on the right').toBeGreaterThan(lines.rowRight - 40);
+
+        // No two controls in the row draw over one another, and none leaves the row: at 1280 px the
+        // in-and-out cluster's Clear once sat on Mute (docs/ideas.md, 2026-10-30).
+        const controls = await page.eval<{ id: string; left: number; right: number; top: number; bottom: number }[]>(
+          `[...document.querySelectorAll('#region-transport .buttons-line button, #region-transport .buttons-line input, #region-transport .buttons-line #timecode')]
+             .filter((el) => el.getBoundingClientRect().width > 0)
+             .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id || el.className, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; })`,
+        );
+        expect(controls.length).toBeGreaterThan(10);
+        const rowBox = (await boxes(['region-transport']))[0]!;
+        for (const c of controls) {
+          expect(c.left, `${c.id} inside the row`).toBeGreaterThanOrEqual(rowBox.left - 0.5);
+          expect(c.right, `${c.id} inside the row`).toBeLessThanOrEqual(rowBox.right + 0.5);
+        }
+        for (let i = 0; i < controls.length; i++) {
+          for (let j = i + 1; j < controls.length; j++) {
+            expect(overlap(controls[i] as Box, controls[j] as Box), `${controls[i]!.id} does not overlap ${controls[j]!.id}`).toBe(0);
+          }
+        }
+
+        // Scrolled to a chosen card, the heading stays on top: what is painted at the heading is the
+        // heading, not a card's name showing through (docs/ideas.md, 2026-10-30).
+        await page.eval(`(() => { const r = document.getElementById('results'); r.scrollTop = Math.max(0, Math.min(r.scrollHeight - r.clientHeight, 300)); })()`);
+        await until(() => page.eval<number>(`document.getElementById('results').scrollTop`).then((t) => t > 0), 'the list scrolled');
+        const atHeading = await page.eval<{ onHeading: boolean; listTop: number; headBottom: number }>(
+          `(() => { const h = document.getElementById('results-label').getBoundingClientRect(); const hit = document.elementFromPoint(h.left + h.width / 2, h.top + h.height / 2);
+            return { onHeading: !!hit && !!hit.closest('.results-head'), listTop: document.getElementById('results').getBoundingClientRect().top, headBottom: document.querySelector('#region-results .results-head').getBoundingClientRect().bottom }; })()`,
+        );
+        expect(atHeading.onHeading, 'the heading is what is painted at the heading').toBe(true);
+        expect(atHeading.listTop, 'the list starts below the heading').toBeGreaterThanOrEqual(atHeading.headBottom - 0.5);
+        await page.eval(`document.getElementById('results').scrollTop = 0`);
 
         // A tall picture would make the bar too short to scrub: it keeps its floor, centred under it.
         await clickResult('Boardroom opener');
