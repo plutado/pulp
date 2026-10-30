@@ -14,7 +14,7 @@ Each move is a commit, so the history shows when an idea was decided and where i
 
 ## Suggested order
 
-The maintainer's intended sequence for what is decided here and what is already on the roadmap (milestones 23, 24, 25, 26, 28, 29 and 30 are done). Scheduling follows it unless a request says otherwise.
+The maintainer's intended sequence for what is decided here and what is already on the roadmap (milestones 23 to 30 are done). Scheduling follows it unless a request says otherwise.
 
 Every milestone decided here now has its number and its GitHub issue, so the two cannot drift: **27** projects and the application menu (#30), **28** per-layer timing, transitions and looks (#29), **29** rotate layers on the stage (#31), **30** timing: any length, set while editing (#32), **31** a start screen (#33), **32** stock library import (#34), **33** layered Photoshop graphics (#35). The numbers are the order they were decided in, not the order they are built in — the list below is the order, as `ROADMAP.md`'s is (CONTRIBUTING.md).
 
@@ -24,7 +24,7 @@ Every milestone decided here now has its number and its GitHub issue, so the two
 4. **Milestone 29: rotate layers on the stage** — *done* (GitHub issue #31), and in `ROADMAP.md`. It finished milestone 25's placement: a layer can now be moved, resized and turned.
 5. **Milestone 30: timing — any length, set while editing** — *done* (GitHub issue #32), and in `ROADMAP.md`. It also gives a frame sequence somewhere to say what rate it plays at, which milestone 26 had to state rather than ask.
 6. **Milestone 28: per-layer timing, transitions and looks** — *done* (GitHub issue #29), and in `ROADMAP.md`. After 30, whose length and structure a layer's own start and end are set within, and before 27, which has to save all of it.
-7. **Milestone 27: projects and the application menu** — *in progress,* now in `ROADMAP.md` (GitHub issue #30).
+7. **Milestone 27: projects and the application menu** — *done* (GitHub issue #30), and in `ROADMAP.md`.
 8. **Milestone 31: a start screen** — examples, recent projects, a tour and a dashboard (Decided item 4; GitHub issue #33).
 9. **Milestone 32: stock library import** (Decided item 5; GitHub issue #34).
 10. **Milestone 33: layered Photoshop graphics** (Decided item 6; GitHub issue #35).

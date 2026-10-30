@@ -29,7 +29,7 @@ import { frameState } from '../core/runtime';
 import { formatTimecode } from '../core/timecode';
 import { mediaFrameUrlFor, mediaUrlFor, templateUrlFor } from '../shared/api';
 import { setIcon } from './icons';
-import { appState, frameSize, trim } from './store';
+import { appState, frameSize, transport, trim } from './store';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
 
@@ -148,6 +148,7 @@ function applyPlayer(): void {
     el.title = area.label;
   }
   applyZones();
+  publishTransport();
   els.volume.value = String(Math.round(p.volume * 100));
   els.mute.setAttribute('aria-pressed', String(p.muted));
   els.mute.setAttribute('aria-label', p.muted ? 'Unmute' : 'Mute');
@@ -262,6 +263,19 @@ function updateTransport(): void {
   els.markIn.disabled = !s.manifest;
   els.markOut.disabled = !s.manifest;
   applyTrim();
+  publishTransport();
+}
+
+/**
+ * What the transport can do, for anyone outside the stage who follows it — the
+ * application menu's Playback items. A preview becoming ready changes nothing
+ * else in the window, so without saying so here nothing would know it had.
+ */
+function publishTransport(): void {
+  const next = { canPlay: !els.play.disabled, playing: s.playing, loop: s.player.loop };
+  const now = transport.value;
+  if (now.canPlay === next.canPlay && now.playing === next.playing && now.loop === next.loop) return;
+  transport.value = next;
 }
 
 function clearNote(): void {
@@ -444,6 +458,7 @@ function play(): void {
   playStartFrame = s.frame;
   setIcon(els.play, 'pause', 24);
   els.play.setAttribute('aria-label', 'Pause');
+  publishTransport();
   rafId = requestAnimationFrame(tick);
 }
 
@@ -458,6 +473,7 @@ export function stageStop(): void {
   cancelAnimationFrame(rafId);
   setIcon(els.play, 'play', 24);
   els.play.setAttribute('aria-label', 'Play');
+  publishTransport();
 }
 
 function clearMediaPreview(): void {

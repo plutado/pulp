@@ -99,6 +99,7 @@ Each of these is a checklist item in the milestone named.
 - Everything works offline. There are no previews of content the user does not have, no content installs, no online updates; a marketplace stays a non-goal (`docs/system-design.md`).
 - Pane sizes, collapsed panes, view mode and thumbnail size are per user in `settings.json`, written atomically like the rest.
 - Keyboard: every region is reachable and operable without a pointer by milestone 8.
+- **The application menu is a second way in, never a second behaviour** (milestone 27). A menu item does what the button for the same thing does — in most cases by pressing that button — and is enabled only when that button is. The menu's state is read off the window's own controls, so the two cannot disagree, and the keyboard-shortcut list under Help is read off the menu, so it cannot drift from the keys. Accelerators are registered by the menu and therefore shadow the window, which rules out the bare transport keys a video tool would like: Space inside a text field has to type a space. Undo and Redo are shown without being registered, because inside a text field the field's own undo must win.
 
 ## Decisions on the open layout questions (David, 2026-10-23)
 

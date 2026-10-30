@@ -2513,6 +2513,126 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 60_000);
   });
 
+  describe('the window shell', () => {
+    it('has Pulp\'s own application menu, offering only what can act (milestone 27)', async () => {
+      // The menu is built in the main process, so it is read back from there; what it offers is
+      // decided by the state the window pushes, which is read off the window's own controls.
+      type Item = { label?: string; command?: string; role?: string; accelerator?: string; enabled?: boolean; checked?: boolean; submenu?: Item[] };
+      const sections = () => page.eval<{ label: string; items: Item[] }[]>(`window.pulp.menuSections()`);
+      const item = async (section: string, label: string): Promise<Item> => {
+        const found = (await sections()).find((s) => s.label === section)?.items.find((i) => i.label === label);
+        if (!found) throw new Error(`no ${section} > ${label}`);
+        return found;
+      };
+
+      const labels = (await sections()).map((s) => s.label);
+      expect(labels).toEqual(expect.arrayContaining(['File', 'Edit', 'View', 'Playback', 'Window', 'Help']));
+      // On macOS the app's own menu comes first; elsewhere File does.
+      expect(labels[0]).toBe(process.platform === 'darwin' ? 'Pulp' : 'File');
+
+      // Nothing is offered that could not act. The Playback menu waits for a preview, so the
+      // stage has to be showing for there to be a timeline at all.
+      await page.eval(`(() => { if (document.getElementById('app').classList.contains('stage-collapsed')) document.getElementById('stage-toggle').click(); return true; })()`);
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('render').disabled`), 'a template that can be rendered');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview ready to play');
+      await until(async () => (await item('File', 'Render…')).enabled === true, 'Render offered once a template can be');
+      await until(async () => (await item('Playback', 'Play')).enabled === true, 'Playback offered once there is a timeline');
+      // A menu item and the button for the same thing are never enabled differently: that is what
+      // reading the state off the window's own controls buys.
+      const pairs: [string, string, string][] = [
+        ['File', 'Render…', 'render'], ['File', 'Render All', 'collection-render'], ['File', 'Export Pack…', 'export-pack'],
+        ['Edit', 'Undo', 'undo'], ['Edit', 'Redo', 'redo'], ['Playback', 'Play', 'play'],
+      ];
+      for (const [section, label, id] of pairs) {
+        const button = await page.eval<boolean>(`document.getElementById(${JSON.stringify(id)}).disabled`);
+        expect((await item(section, label)).enabled, `${section} > ${label} against #${id}`).toBe(!button);
+      }
+
+      // A menu item does what its button does: New Project through the menu empties the session,
+      // after asking about the change collecting something made.
+      const collected = () => page.eval<number>(`document.querySelectorAll('#collection .collection-card').length`);
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      await until(async () => (await collected()) === 1, 'something collected');
+      await until(async () => (await item('File', 'Render All')).enabled === true, 'Render All offered once there is something to render');
+      await page.eval(`window.pulpMenuCommand('project.new')`);
+      await until(() => page.eval<boolean>(`document.getElementById('unsaved-dialog').open`), 'the unsaved question from the menu');
+      await page.eval(`document.getElementById('unsaved-discard').click()`);
+      await until(async () => (await collected()) === 0, 'a new project from the menu');
+      await until(async () => (await item('File', 'Render All')).enabled === false, 'and Render All dim again');
+
+      // A region toggle, and the menu ticks the region as it now is.
+      const collapsed = () => page.eval<boolean>(`document.getElementById('app').classList.contains('tray-collapsed')`);
+      const before = await collapsed();
+      expect((await item('View', 'Collection Tray')).checked).toBe(!before);
+      await page.eval(`window.pulpMenuCommand('view.tray')`);
+      await until(async () => (await collapsed()) !== before, 'the tray toggled from the menu');
+      await until(async () => (await item('View', 'Collection Tray')).checked === before, 'and the tick followed it');
+      await page.eval(`window.pulpMenuCommand('view.tray')`);
+      await until(async () => (await collapsed()) === before, 'and back');
+
+      // Find Category puts the cursor in the browse panel's find field.
+      await page.eval(`window.pulpMenuCommand('browse.find')`);
+      expect(await page.eval<boolean>(`document.activeElement === document.querySelector('#browse-find input')`)).toBe(true);
+      await page.eval(`document.activeElement.blur()`);
+
+      // Undo and Redo are shown with their keys but not registered, since inside a text field the
+      // field's own undo has to win; everything else the menu registers is a modified key.
+      const undo = await item('Edit', 'Undo');
+      expect(undo.accelerator).toBe('CmdOrCtrl+Z');
+      for (const section of await sections()) {
+        for (const i of section.items) {
+          if (!i.accelerator || i.label === 'Undo' || i.label === 'Redo') continue;
+          expect(i.accelerator, `${section.label} > ${i.label ?? i.role}`).toMatch(/^(CmdOrCtrl|Alt|Shift|F\d)/);
+        }
+      }
+
+      // Help > Keyboard Shortcuts lists the menu's own keys, so the list cannot drift from them.
+      await page.eval(`window.pulpMenuCommand('help.shortcuts')`);
+      await until(() => page.eval<boolean>(`document.getElementById('shortcuts-dialog').open`), 'the shortcut list');
+      const rows = await page.eval<string[]>(`[...document.querySelectorAll('#shortcuts-list dt')].map((d) => d.textContent)`);
+      expect(rows).toContain('New Project');
+      expect(rows).toContain('Play or pause');
+      expect(await page.eval<number>(`document.querySelectorAll('#shortcuts-list dd').length`)).toBe(rows.length);
+      await page.eval(`document.getElementById('shortcuts-close').click()`);
+
+      // Help > Copy Diagnostics says what Pulp knows about itself, on the clipboard.
+      await page.eval(`window.pulpMenuCommand('help.diagnostics')`);
+      await until(() => page.eval<boolean>(`!document.getElementById('shortcuts-copied').hidden`), 'the diagnostics confirmation');
+      expect(await page.eval<string>(`document.getElementById('shortcuts-copied').textContent`)).toContain('copied');
+    }, 90_000);
+
+    it('keeps the tray\'s resize bar inside the tray, and lines the status bar up', async () => {
+      // The bar only exists while the tray is open, which is where it can be dragged.
+      await page.eval(`(() => { if (document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); return true; })()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray open');
+
+      // The bar that resizes the tray is the tray's own edge: it used to be given a negative
+      // margin to cancel a padding that is on the tray's body rather than on the tray, so it hung
+      // a dozen pixels past either side and sat over the regions beside it.
+      type Box = { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      const bars = await page.eval<{ tray: Box; splitter: Box }>(
+        `(() => { const r = (el) => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width, height: b.height }; };
+          return { tray: r(document.getElementById('region-tray')), splitter: r(document.getElementById('split-tray')) }; })()`,
+      );
+      expect(bars.splitter.left, 'the bar does not reach past the tray on the left').toBeGreaterThanOrEqual(bars.tray.left);
+      expect(bars.splitter.right, 'nor on the right').toBeLessThanOrEqual(bars.tray.right);
+      expect(bars.splitter.width, 'and it still spans the tray').toBeCloseTo(bars.tray.width, 0);
+
+      // The status bar's items are a button, a paragraph, a flex summary and three spans, some
+      // with icons: aligned on their baselines they sat at different heights, which reads as a
+      // row of things that do not belong together.
+      const items = await page.eval<{ id: string; centre: number; height: number }[]>(
+        `[...document.querySelectorAll('#region-status > *')].filter((el) => el.offsetParent !== null && el.getBoundingClientRect().height > 0)
+           .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id || el.className, centre: b.top + b.height / 2, height: b.height }; })`,
+      );
+      expect(items.length, 'the status bar has items to line up').toBeGreaterThan(3);
+      const centres = items.map((i) => i.centre);
+      const spread = Math.max(...centres) - Math.min(...centres);
+      expect(spread, `the items sit on one line (${JSON.stringify(items)})`).toBeLessThan(1.5);
+    }, 60_000);
+  });
+
   describe('template packs', () => {
     const html = Buffer.from('<!doctype html><html><head><meta charset="utf-8"></head><body><canvas id="c" width="320" height="180"></canvas><script>window.pulpRender=function(){};</script></body></html>');
     const tpl = (over: Record<string, unknown>) => Buffer.from(JSON.stringify(rawManifest({ width: 320, height: 180, ...over })));

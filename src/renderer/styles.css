@@ -284,9 +284,15 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 }
 /* The collection and the renders scroll together, with the cache pinned below them. */
 .tray-lists { flex: 1; min-height: 0; overflow-y: auto; }
-.tray .splitter.h { margin: 0 -12px; }
+/* The bar that resizes the tray is the tray's own top edge, so it spans the tray and no further.
+   It used to carry a negative margin to cancel a padding that lives on the tray's body rather
+   than on the tray itself, which left it hanging 12 px over the regions on either side. */
+.tray .splitter.h { margin: 0; }
 
-.status-bar { display: flex; align-items: baseline; gap: 16px; border-top: 1px solid var(--border); padding: 3px 12px; min-height: 22px; }
+/* One row of small things of different kinds — a button, a paragraph, a flex summary, spans with
+   icons. Aligned on their baselines they sat at different heights, since a baseline depends on
+   what is inside each one; centred, they line up whatever they hold. */
+.status-bar { display: flex; align-items: center; gap: 16px; border-top: 1px solid var(--border); padding: 3px 12px; min-height: 22px; }
 .status-bar .note { margin: 0; font-size: var(--font-caption); }
 .status-bar .status-item { display: inline-flex; align-items: center; gap: 4px; }
 .status-bar .status-item > .icon { color: var(--muted); }
@@ -306,6 +312,13 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .project-recent .recent-open { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-recent .recent-path { color: var(--muted); font-size: var(--font-caption); }
 .unsaved-dialog { max-width: 420px; }
+/* The keyboard shortcuts, grouped by the menu they are on: a name and its keys to the right,
+   the keys in a monospaced face so they line up down the column. */
+.shortcuts-list { max-height: 52vh; overflow: auto; }
+.shortcuts-list h3 { font-size: var(--font-secondary); color: var(--muted); margin: var(--space-2) 0 var(--space-1); }
+.shortcut-rows { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--space-3); margin: 0; }
+.shortcut-rows dt { font-size: var(--font-secondary); }
+.shortcut-rows dd { margin: 0; font-family: Menlo, Consolas, monospace; font-size: var(--font-caption); color: var(--muted); white-space: nowrap; }
 .status-bar .summary { border-top: 0; padding: 0; display: flex; gap: 12px; flex-wrap: wrap; min-width: 0; }
 
 .pack-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-surface); padding: var(--space-4); width: min(560px, 90vw); }

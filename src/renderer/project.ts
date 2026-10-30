@@ -17,6 +17,7 @@ import { resolveCollection } from '../core/collection';
 import { initialProjectState, openProject as openProjectState, setProject, UNTITLED_PROJECT, type ProjectState } from '../core/app-state';
 import { emptyProject, hasUnsavedChanges, missingPaths, relinkItem, type Project } from '../core/project';
 import { appState, dispatch } from './store';
+import { menuRecentChanged } from './menu';
 import { setCollection } from '../core/app-state';
 
 /** How long after the last change the recovery copy is written. */
@@ -106,6 +107,8 @@ export async function saveProject(options: { saveAs?: boolean; path?: string } =
   }
   dispatch((state) => setProject(state, { ...state.project, path: result.path, name: result.name }));
   markSaved(project);
+  // Open Recent follows a save and an open, rather than being read again when the menu is opened.
+  menuRecentChanged(result.recent);
   say(`Saved as ${result.name}.`);
   return true;
 }
@@ -147,6 +150,7 @@ export async function openProjectFrom(path: string | null): Promise<boolean> {
     return false;
   }
   const project = result.project ?? emptyProject;
+  menuRecentChanged(result.recent);
   adopt(project, { path: result.path, name: result.name });
   // A collection opened as a project is not yet a project file: saving should ask where to put one.
   if (result.fromCollection) dispatch((s) => setProject(s, { ...s.project, path: null }));

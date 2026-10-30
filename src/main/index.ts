@@ -21,6 +21,8 @@ import {
   recentProjects, relinkProjectItem, saveProjectTo, writeRecovery,
 } from './project-service';
 import type { Project } from '../core/project';
+import { initMenu, menuSections, setMenuState } from './menu-service';
+import type { MenuState } from '../core/menu';
 import type { Collection, CollectionItem } from '../core/collection';
 import { chooseExportFile, choosePackFile, exportPackTo, installPack, listInstalledPacks, previewPack } from './pack-service';
 import type { CollisionChoice } from '../core/pack';
@@ -96,6 +98,9 @@ function createWindow(): void {
     return { action: 'deny' };
   });
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault());
+
+  // Pulp's own menu goes up before the page loads, so there is never a moment of Electron's.
+  initMenu(mainWindow);
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (!app.isPackaged && devUrl) void mainWindow.loadURL(devUrl);
@@ -224,6 +229,17 @@ function registerIpc(): void {
   // Cancelled: the window stays, and the next close asks again rather than going straight through.
   ipcMain.handle('project:cancel-close', () => {
     closeAsked = false;
+  });
+  // The application menu (milestone 27): the window says what it can do, and reads back the
+  // shortcuts to list them, so the list cannot drift from the keys.
+  ipcMain.handle('menu:state', (_event, state: MenuState) => setMenuState(state));
+  ipcMain.handle('menu:sections', () => menuSections());
+  // Help -> Copy Diagnostics. Named for its one purpose and bounded, rather than a way for the
+  // window to put anything at all on the clipboard.
+  ipcMain.handle('diagnostics:copy', (_event, text: unknown) => {
+    if (typeof text !== 'string' || text.length > 8000) return false;
+    clipboard.writeText(text);
+    return true;
   });
   // The window sends an item id, never a path: the main process looks the path up,
   // so there is nothing to allow-list and nothing for the window to get wrong.

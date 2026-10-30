@@ -69,6 +69,14 @@ const api: PulpApi = {
   allowClose: () => ipcRenderer.invoke('project:allow-close'),
   cancelClose: () => ipcRenderer.invoke('project:cancel-close'),
   setProjectTitle: (name, dirty) => ipcRenderer.invoke('project:title', name, dirty),
+  setMenuState: (state) => ipcRenderer.invoke('menu:state', state),
+  menuSections: () => ipcRenderer.invoke('menu:sections'),
+  copyDiagnostics: (text) => ipcRenderer.invoke('diagnostics:copy', text),
+  onMenuCommand: (listener) => {
+    const handler = (_event: unknown, command: string, arg: string | null) => listener(command as never, arg);
+    ipcRenderer.on('menu:command', handler);
+    return () => ipcRenderer.removeListener('menu:command', handler);
+  },
   renderCollection: (items, name) => ipcRenderer.invoke('collection:render', items, name),
   revealFile: (path) => ipcRenderer.invoke('file:reveal', path),
   revealItem: (id) => ipcRenderer.invoke('item:reveal', id),

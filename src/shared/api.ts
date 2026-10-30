@@ -11,6 +11,7 @@ import type { PlayerState } from '../core/player';
 import type { ResultsViewState } from '../core/results-view';
 import type { Collection, CollectionItem } from '../core/collection';
 import type { Project } from '../core/project';
+import type { MenuCommand, MenuSection, MenuState } from '../core/menu';
 import type { ImportedFont } from '../core/fonts';
 import type { CollisionChoice, PackManifest, PackPreview } from '../core/pack';
 
@@ -20,6 +21,7 @@ export type { CollisionChoice, PackManifest, PackPreview, PackTemplatePreview } 
 export type { RenderOptions } from '../core/render-plan';
 export type { Collection, CollectionItem } from '../core/collection';
 export type { Project } from '../core/project';
+export type { MenuCommand, MenuSection, MenuState } from '../core/menu';
 
 export interface FfmpegInfo {
   ok: boolean;
@@ -278,6 +280,14 @@ export interface PulpApi {
   cancelClose(): Promise<void>;
   /** The project's name and whether it has unsaved changes, for the window title. */
   setProjectTitle(name: string, dirty: boolean): Promise<void>;
+  /** What the window can do now, so the application menu offers only what can act (milestone 27). */
+  setMenuState(state: MenuState): Promise<void>;
+  /** The menu as it stands, for the keyboard-shortcut list. */
+  menuSections(): Promise<MenuSection[]>;
+  /** A menu item was chosen: the id, and what it is about (a recent project's path). */
+  onMenuCommand(listener: (command: MenuCommand, arg: string | null) => void): () => void;
+  /** Put the diagnostics text on the clipboard; bounded, and only ever this text. */
+  copyDiagnostics(text: string): Promise<boolean>;
   /** Ask for one folder, then queue a render for every item. */
   renderCollection(items: CollectionItem[], name: string): Promise<RenderCollectionResult>;
   /** Take one finished card off the tray. */

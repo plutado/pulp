@@ -52,6 +52,15 @@ export const trim = signal<{ inFrame: number | null; outFrame: number | null }>(
 /** True while the Render button is blocked (no template, no ffmpeg, bad options); the tray's Prepare button follows it. */
 export const renderBlocked = signal(true);
 
+/**
+ * What the stage's transport can do, for anyone outside the stage who has to
+ * follow it — the application menu's Playback items (milestone 27). The stage
+ * owns these facts and publishes them here as it owns `renderBlocked`: a
+ * preview becoming ready changes no other state, so without this nothing else
+ * would know it had.
+ */
+export const transport = signal<{ canPlay: boolean; playing: boolean; loop: boolean }>({ canPlay: false, playing: false, loop: true });
+
 /** The selected template (media items are shown, not selected); regions read this instead of each other. */
 export const selectedTemplate = signal<TemplateEntry | null>(null);
 

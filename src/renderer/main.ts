@@ -15,6 +15,7 @@ import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
 import { initTray, sayInTray } from './tray';
 import { initProject } from './project';
 import { askAboutRecovery, initProjectUi } from './project-ui';
+import { initMenu } from './menu';
 import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
 import { importedFonts } from './store';
 import { mountIcons } from './icons';
@@ -370,6 +371,8 @@ initTray((id) => {
 // The project (milestone 27): the session as a file, with its unsaved changes guarded.
 initProject(sayInTray);
 initProjectUi();
+// Pulp's own application menu (milestone 27): it does what the window's own buttons do.
+initMenu();
 mountBrowse($('browse-find'), $('browse-tree'));
 void window.pulp.getBrowseAccordion().then((on) => (browseAccordion.value = on));
 mountResults(els.results, { onSelect: select, onStop: stopPlayback });
