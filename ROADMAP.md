@@ -6,7 +6,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 **Milestone 27, projects and the application menu, is done:** a session saves as a `.pulp` project — guarded, recovered and relinked — and Pulp has its own menu on every platform. Milestone 28 is done before it — a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar — and milestone 30 before that — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
-What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come stock library import (32), the rest of layered graphics — Illustrator, SVG, layered PDF and OpenRaster (33) — and Lottie animations (35); the start screen (31), the browse panel that says what things are (34, all but its card sort) and the `.psd` part of 33 are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
+What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come stock library import (32), the rest of layered graphics — Illustrator, SVG, layered PDF and OpenRaster (33) — converting library media (15) and Lottie animations (35); the start screen (31), the browse panel that says what things are (34, all but its card sort) and the `.psd` part of 33 are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
 
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. A decision is written here as soon as it is made — a new milestone, or items in an existing one — even when it is low priority and may never be built, so everything decided is visible in one place; `docs/ideas.md` keeps only ideas not yet decided and known issues. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
@@ -39,17 +39,17 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 34. A browse panel that says what things are (all but the card sort) | 20-32 h |
 | 32. Stock library import | 27-46 h |
 | 33. Layered graphics: Photoshop (**done**), Illustrator, SVG | 19-33 h |
+| 15. Convert library media (Recolor after 1.0) | 7-10 h |
 | 35. Lottie animations | 18-30 h |
 | 20. Social-ready export | 9-14 h |
 | 8. 1.0 hardening and docs | 14-23 h |
 | 17. Unsigned builds and releases | 8-14 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
 | 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
-| 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
-| **Total through 1.0 (every milestone above not marked post-1.0)** | **485-779 h** |
-| **Still open through 1.0 (unticked items only)** | **95-158 h** |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **492-789 h** |
+| **Still open through 1.0 (unticked items only)** | **100-165 h** |
 | **Total including post-1.0 items** | **516-834 h** |
 
 ## 0. Foundation (done)
@@ -412,6 +412,15 @@ Read layered stills as a stack of layers, so a layered graphic from a stock libr
 - [x] **More of the `.psd`:** ZIP-compressed layer data read with zlib, with and without prediction, at 8 and 16 bits (Photoshop's choice for some 16-bit files), and every blend mode a canvas draws natively — colour dodge and burn, hard and soft light, exclusion, hue, saturation, colour, luminosity join the first seven — so only the modes with no canvas name (vivid, linear and pin light, hard mix, linear burn and dodge, darker and lighter colour, subtract, divide, dissolve) stay named. *The stored composite keeps to raw and RLE, as the format does; a zipped one would still be named and composited from the layers* (2-3 h)
 - [ ] **Files Pulp does not read are named with the export that works,** not refused silently: Affinity's own files (export as PSD, SVG or PDF), GIMP `.xcf`, Sketch, Procreate and EPS (save as `.ai` or SVG); and the tests on generated fixtures for every format above — SVG, PDF with and without layers, `.ai`, `.ora` (1-2 h)
 
+## 15. Convert library media (7-10 h, plus 1-2 h after 1.0)
+
+Brought into 1.0 (2026-10-30): with assets (26), layered graphics (33) and stock library import (32), media is as central as templates, and a collection that says "not renderable yet" is a dead end. Before Lottie (35), which renders through the template path and does not need it, and before 32, so stock clips can be converted as soon as they can be imported.
+
+- [ ] Output tab for media items: transcode video, stills and audio with the same presets; audio-only options (sample rate, channels, bit depth); works in collections and Render all, so "not renderable yet" leaves the tray. A layered `.psd` renders as the picture it was collected as, its hidden layers left out (3-4 h)
+- [ ] Loop tools for loopable media: extend to any duration with a crossfade join; speed control (milestone 30 brought templates' loops forward; this is the same for clips) (2-3 h)
+- [ ] Matte pass: a separate alpha matte file next to the render, for codecs and editors without alpha (HEVC in Premiere Pro, WebM) (2-3 h)
+- [ ] Recolor, after 1.0: a tint at render time for stock media, next to template color parameters (1-2 h)
+
 ## 35. Lottie animations (18-30 h; GitHub issue #37)
 
 After milestone 33. Lottie is the animated vector format After Effects exports through Bodymovin and many apps and sites use: a JSON file (or a zipped `.lottie`) that describes shapes, text, images and their keyframes. It is motion graphics already made, so Pulp reads it as an item that plays, renders and is edited like a template, rather than as a picture.
@@ -474,13 +483,6 @@ After milestone 19, which it depends on: a platform preset is mostly an aspect, 
 - [ ] "Save as default for this type" in the Output tab; new items of that type (a template type, video, image or audio) start from it (2-3 h)
 - [ ] Guided setup: a modal with numbered steps (what it is for, size and frame rate, format and alpha, audio, where to save), a live preview over a checkerboard, a settings summary, a save-as-default checkbox, and Add to collection at the end (4-7 h)
 - [ ] Output presets per kind of asset: one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen, alongside "Save as default for this type" and the guided setup (2-3 h)
-
-## 15. Convert library media (8-12 h, after 1.0)
-
-- [ ] Output tab for media items: transcode video, stills and audio with the same presets; audio-only options (sample rate, channels, bit depth); works in collections and Render all (3-4 h)
-- [ ] Loop tools for loopable backgrounds: extend to any duration with a crossfade join; speed control (2-3 h)
-- [ ] Matte pass: a separate alpha matte file next to the render, for codecs and editors without alpha (HEVC in Premiere Pro, WebM) (2-3 h)
-- [ ] Recolor: a tint at render time for stock media, next to template color parameters (1-2 h)
 
 ## 16. Audio: stems, variants and pairing (8-14 h, after 1.0)
 
