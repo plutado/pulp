@@ -290,10 +290,18 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .tray .splitter.h { margin: 0; }
 
 /* One row of small things of different kinds — a button, a paragraph, a flex summary, spans with
-   icons. Aligned on their baselines they sat at different heights, since a baseline depends on
-   what is inside each one; centred, they line up whatever they hold. */
-.status-bar { display: flex; align-items: center; gap: 16px; border-top: 1px solid var(--border); padding: 3px 12px; min-height: 22px; }
-.status-bar .note { margin: 0; font-size: var(--font-caption); }
+   icons. Two things used to make it read as three kinds of text rather than one row: they were
+   aligned on their baselines, and a baseline depends on what is inside each one, so an item that
+   starts with an icon took its baseline from the icon; and each kind brought its own size and
+   line height. The bar now sets the text once and centres them, and every item inherits it. */
+.status-bar {
+  display: flex; align-items: center; gap: 16px; border-top: 1px solid var(--border);
+  padding: 3px 12px; min-height: 22px; font-size: var(--font-caption); line-height: 1.4; color: var(--muted);
+}
+/* Named rather than left to `> *`: `.note` and `.summary` set a size of their own elsewhere, and
+   a two-class selector is what takes it back without reaching for the id. */
+.status-bar .note, .status-bar .summary { font-size: inherit; line-height: inherit; }
+.status-bar .note { margin: 0; }
 .status-bar .status-item { display: inline-flex; align-items: center; gap: 4px; }
 .status-bar .status-item > .icon { color: var(--muted); }
 .status-bar #ffmpeg-status.error > .icon { color: var(--danger); }
@@ -301,7 +309,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* The project (milestone 27): its name in the status bar, with a dot while there are unsaved
    changes, opening the project actions. The application menu is its proper home and arrives next;
    until then this is the one place they live. */
-.project-button { border: 0; background: none; padding: 0 2px; color: var(--muted); cursor: pointer; font: inherit; font-size: var(--font-caption); }
+.project-button { border: 0; background: none; padding: 0 2px; color: inherit; cursor: pointer; font: inherit; }
 .project-button:hover { color: var(--text); }
 .project-button.dirty { color: var(--text); }
 .project-button.dirty .label::before { content: '• '; color: var(--accent); }

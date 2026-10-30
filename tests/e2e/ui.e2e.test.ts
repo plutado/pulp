@@ -2630,6 +2630,16 @@ describe.skipIf(!electron)('inspector UI', () => {
       const centres = items.map((i) => i.centre);
       const spread = Math.max(...centres) - Math.min(...centres);
       expect(spread, `the items sit on one line (${JSON.stringify(items)})`).toBeLessThan(1.5);
+
+      // And they are one size: the bar used to mix 11 px notes with a button that inherited the
+      // body's size and line height, so the row read as three kinds of text rather than one.
+      const text = await page.eval<{ id: string; size: string; lineHeight: string; family: string }[]>(
+        `[...document.querySelectorAll('#region-status > *')].filter((el) => el.offsetParent !== null && el.textContent.trim() !== '')
+           .map((el) => { const c = getComputedStyle(el); return { id: el.id || el.className, size: c.fontSize, lineHeight: c.lineHeight, family: c.fontFamily }; })`,
+      );
+      expect(new Set(text.map((t) => t.size)), `one text size (${JSON.stringify(text)})`).toHaveProperty('size', 1);
+      expect(new Set(text.map((t) => t.lineHeight)), `one line height (${JSON.stringify(text)})`).toHaveProperty('size', 1);
+      expect(new Set(text.map((t) => t.family)), `one family (${JSON.stringify(text)})`).toHaveProperty('size', 1);
     }, 60_000);
   });
 
