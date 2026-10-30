@@ -13,7 +13,7 @@ import {
 } from '../src/core/categories';
 import { searchLibrary } from '../src/core/search';
 import { TYPES } from '../src/core/taxonomy';
-import type { LibraryIndex, MediaEntry, TemplateEntry } from '../src/core/library-types';
+import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../src/core/library-types';
 import { validManifest } from './fixtures';
 
 const ROOT = join(__dirname, '..');
@@ -71,8 +71,8 @@ describe('the categories', () => {
       media: [], problems: [], builtAt: '2026-10-30T00:00:00Z',
     };
     expect(searchLibrary(index, transitions.filter!).map((h) => h.entry.key).sort()).toEqual(['g', 'w']);
-    // Matching sets gathers packs rather than types, so it has no scope of its own.
-    expect(categoryScope(BROWSE_CATEGORIES.find((c) => c.id === 'matching-sets')!)).toBeNull();
+    // Matching sets gathers packs rather than types: its scope is anything from any pack.
+    expect(categoryScope(BROWSE_CATEGORIES.find((c) => c.id === 'matching-sets')!)).toEqual({ label: 'Matching sets', filter: 'pack:any', kind: 'category', group: 'matching-sets' });
     // A type's scope carries its category, which is how the icon and the description are found from it.
     expect(typeScope('glitch')).toEqual({ label: 'Glitch', filter: 'type:glitch', kind: 'type', group: 'transitions-wipes' });
     expect(scopeCategory(typeScope('glitch'))?.label).toBe('Transitions and wipes');
@@ -120,6 +120,58 @@ describe('the categories', () => {
     const entries = [template('a', { styles: ['elegant', 'clean'] }), template('b', { styles: ['elegant'] }), media('c')];
     expect(lookOptions(entries)).toEqual([{ id: 'clean', label: 'Clean / minimal', count: 1 }, { id: 'elegant', label: 'Elegant', count: 2 }]);
     expect(lookOptions([], 'retro')).toEqual([{ id: 'retro', label: 'Retro / vintage', count: 0 }]);
+  });
+
+  // Milestone 34's closing test (its card sort with people stays open): every top-level category
+  // describes itself, and every category card has a picture — a representative thumbnail wherever
+  // its entries can carry one, the category's own icon for sound, which has nothing to show.
+  it('gives every top-level category a description and every category a thumbnail, over the full catalogue', async () => {
+    const { scanLibrary } = await import('../src/core/library');
+    const { SAMPLE_MEDIA } = await import('../src/core/sample-media');
+    const { mediaKindForPath } = await import('../src/core/library-scan');
+    const { wantsThumbnail } = await import('../src/core/thumbnails');
+
+    // The full catalogue: the bundled templates, plus one media entry per type the sample-media
+    // folder would make — stills, clips and sounds the bundled templates cannot be.
+    const index = await scanLibrary([join(ROOT, 'templates')]);
+    const mediaTypes = new Map<string, string>();
+    for (const item of SAMPLE_MEDIA) {
+      if (item.type && !mediaTypes.has(item.type)) mediaTypes.set(item.type, item.file);
+    }
+    const entries: LibraryEntry[] = [
+      ...index.templates,
+      ...[...mediaTypes.entries()].map(([type, file], i): MediaEntry => ({
+        kind: 'media', key: `sample-${type}`, id: `id-${i}`, path: `/samples/${file}`, root: '/samples', name: file,
+        mediaKind: mediaKindForPath(file) ?? 'image', ext: file.slice(file.lastIndexOf('.')), size: 1, mtimeMs: 0, tags: [], type,
+      })),
+    ];
+    // Thumbnails as the library would have them, once made: every entry that gets one, pictured.
+    const pictured = entries.map((e) => (wantsThumbnail(e) ? { ...e, thumbnail: `pulp-thumb://${e.id}/` } : e));
+
+    // Every category is in the catalogue and makes a top-level card.
+    const top = categoryCards(pictured, null)!;
+    expect(top.map((c) => c.id).sort()).toEqual(BROWSE_CATEGORIES.map((c) => `category:${c.id}`).sort());
+    for (const card of top) {
+      expect(card.description.length, `${card.id} describes itself`).toBeGreaterThan(12);
+      expect(card.icon.length, card.id).toBeGreaterThan(0);
+      const category = BROWSE_CATEGORIES.find((c) => `category:${c.id}` === card.id)!;
+      const soundOnly = ['music', 'sound-effects'].includes(category.id);
+      if (soundOnly) continue; // sound has no picture; the card's icon is its thumbnail
+      expect(card.sample, `${card.id} has a representative thumbnail`).not.toBeNull();
+      expect(card.sample!.thumbnail).toMatch(/^pulp-thumb:/);
+    }
+
+    // And inside every category of several types, each subcategory card has one too.
+    for (const category of BROWSE_CATEGORIES) {
+      if (category.types.length < 2) continue;
+      const inside = categoryCards(pictured, categoryScope(category))!;
+      expect(inside.length, `${category.id} opens on cards`).toBeGreaterThan(0);
+      const soundOnly = ['music', 'sound-effects'].includes(category.id);
+      for (const card of inside) {
+        if (soundOnly) continue;
+        expect(card.sample, `${category.id} › ${card.id}`).not.toBeNull();
+      }
+    }
   });
 
   it('every bundled template lands in a category', async () => {

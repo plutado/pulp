@@ -30,6 +30,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- The category cards show Matching sets. The top-level card row skipped it — it gathers packs rather than types, so it had no scope to open on — caught by milestone 34's closing unit test (every top-level category a description, every category a thumbnail). Choosing its card or its browse row now shows everything that came from any set, through a new `pack:any` search term.
+
 - The bar that resizes the collection tray no longer reaches past it. It carried a negative margin to cancel a padding that lives on the tray's body rather than on the tray itself, so it hung twelve pixels past either side, over the browse panel's splitter on one side and the window's edge on the other.
 
 - The status bar's items line up and are one size. A button, a paragraph, a flex summary and three spans, some carrying icons, were aligned on their baselines — and a baseline depends on what is inside each one, so an item starting with an icon took its baseline from the icon — while each kind also brought its own text size and line height. The bar sets the text once and centres them now, and every item inherits it.

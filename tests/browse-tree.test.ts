@@ -64,7 +64,7 @@ describe('buildBrowseTree (milestone 34: what things are, at the top)', () => {
       undefined,
     );
     const sets = find(packed, 'category:matching-sets')!;
-    expect(sets).toMatchObject({ label: 'Matching sets', count: 3, scope: null, iconKind: 'pack' });
+    expect(sets).toMatchObject({ label: 'Matching sets', count: 3, scope: { filter: 'pack:any', kind: 'category' }, iconKind: 'pack' });
     expect(sets.children.map((n) => [n.label, n.count])).toEqual([['Holiday', 1], ['News Pack', 2]]);
     expect(find(packed, 'pack:news-pack')?.scope).toEqual({ label: 'News Pack', filter: 'pack:news-pack', kind: 'pack' });
     expect(find(tree, 'category:matching-sets')).toBeUndefined();

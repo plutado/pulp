@@ -189,6 +189,8 @@ describe('searchLibrary taxonomy filters', () => {
     const index = await scanLibrary([root]);
     expect(names(index, 'pack:holiday-pack')).toEqual(['Card']);
     expect(names(index, 'pack:other')).toEqual([]);
+    // pack:any is everything from a matching set, whichever one — the Matching sets card's scope (milestone 34).
+    expect(names(index, 'pack:any')).toEqual(['Card']);
   });
 
   it('free text finds types and themes by their ids', async () => {

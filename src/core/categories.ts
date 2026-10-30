@@ -71,10 +71,14 @@ export function categoryOfEntry(entry: LibraryEntry): BrowseCategory | undefined
 /**
  * A category's scope: its types as alternatives (`type:a type:b`), which the
  * search already reads that way. A category of one type scopes exactly as the
- * type does, so it is the same place with the plainer name.
+ * type does, so it is the same place with the plainer name; Matching sets,
+ * which gathers packs rather than types, scopes to anything from any pack.
  */
 export function categoryScope(category: BrowseCategory): Scope | null {
-  if (category.types.length === 0) return null;
+  if (category.types.length === 0) {
+    if (category.id !== MATCHING_SETS) return null;
+    return { label: category.label, filter: 'pack:any', kind: 'category', group: category.id };
+  }
   return { label: category.label, filter: category.types.map((t) => `type:${t}`).join(' '), kind: 'category', group: category.id };
 }
 

@@ -8,7 +8,7 @@
  *                        or type group (type:sfx), or untyped; several type: terms are alternatives
  *   theme:news           entry carries this theme (built-in id or a custom word; all theme: terms must match)
  *   style:grunge         template declares this style (templates only; all style: terms must match)
- *   pack:news-pack       template installed from or found under this pack (its folder slug)
+ *   pack:news-pack       template installed from or found under this pack (its folder slug); pack:any for any pack
  *   category:title       template category
  *   "breaking news"      phrase matched as one term
  *   duration:>5          seconds; also <, >=, <=, =, and ranges such as 5-10
@@ -208,7 +208,8 @@ export function searchLibrary(index: LibraryIndex, query: string): SearchHit[] {
     if (!q.tags.every((t) => entry.tags.includes(t))) continue;
     if (q.themes.length > 0 && !q.themes.every((t) => matchesTheme(entry, t))) continue;
     if (q.styles.length > 0 && (entry.kind !== 'template' || !q.styles.every((s) => entry.manifest.styles?.includes(s)))) continue;
-    if (q.packs.length > 0 && (entry.kind !== 'template' || !q.packs.includes(entry.pack?.slug ?? ''))) continue;
+    // `pack:any` is everything that came from a matching set, whichever one (milestone 34's card).
+    if (q.packs.length > 0 && (entry.kind !== 'template' || !q.packs.some((p) => p === entry.pack?.slug || (p === 'any' && entry.pack !== undefined)))) continue;
     if (q.favorite !== undefined && (entry.favorite === true) !== q.favorite) continue;
     if (q.recent !== undefined && !entry.lastUsed) continue;
     if (q.numeric.length > 0 || q.resolutions.length > 0 || q.codecs.length > 0 || q.alpha !== undefined || q.orientation !== undefined) {

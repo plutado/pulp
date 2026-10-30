@@ -76,7 +76,8 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
         label: category.label,
         description: category.description,
         count: packs.reduce((n, [, p]) => n + p.count, 0),
-        scope: null,
+        // Selectable itself (milestone 34's card test): everything from any set, `pack:any`.
+        scope: categoryScope(category),
         iconKind: 'pack',
         children: packs.map(([slug, p]) => ({ id: `pack:${slug}`, label: p.name, count: p.count, scope: { label: p.name, filter: `pack:${slug}`, kind: 'pack' as const }, children: [] })),
       });
