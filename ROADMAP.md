@@ -8,7 +8,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 **Milestone 27, projects and the application menu, is done:** a session saves as a `.pulp` project — guarded, recovered and relinked — and Pulp has its own menu on every platform. Milestone 28 is done before it — a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar — and milestone 30 before that — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
-What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come stock library import (32) and Lottie animations (35); the start screen (31), the browse panel that says what things are (34, all but its card sort), layered graphics (33) and converting library media (15) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
+What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come a deeper library (36), stock library import (32) and Lottie animations (35); the start screen (31), the browse panel that says what things are (34, all but its card sort), layered graphics (33) and converting library media (15) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
 
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. A decision is written here as soon as it is made — a new milestone, or items in an existing one — even when it is low priority and may never be built, so everything decided is visible in one place; `docs/ideas.md` keeps only ideas not yet decided and known issues. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
@@ -42,6 +42,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 32. Stock library import | 27-46 h |
 | 33. Layered graphics: Photoshop, Illustrator, SVG (**done**) | 19-33 h |
 | 15. Convert library media (**done**) | 8-12 h |
+| 36. A deeper library: nothing in single digits | 30-48 h |
 | 35. Lottie animations | 18-30 h |
 | 20. Social-ready export | 9-14 h |
 | 8. 1.0 hardening and docs | 14-23 h |
@@ -50,9 +51,9 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
-| **Total through 1.0 (every milestone above not marked post-1.0)** | **493-791 h** |
-| **Still open through 1.0 (unticked items only)** | **94-157 h** |
-| **Total including post-1.0 items** | **516-834 h** |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **523-839 h** |
+| **Still open through 1.0 (unticked items only)** | **115-189 h** |
+| **Total including post-1.0 items** | **546-882 h** |
 
 ## 0. Foundation (done)
 
@@ -423,6 +424,15 @@ Brought into 1.0 (2026-10-30): with assets (26), layered graphics (33) and stock
 - [x] Matte pass: a separate alpha matte file next to the render, for codecs and editors without alpha (HEVC in Premiere Pro, WebM). *`<name>-matte<ext>`, the alpha as grey in the preset's own codec, split from the same frames before any flattening; templates and media alike* (2-3 h)
 - [x] Recolor: a tint at render time for media, next to template color parameters, built while the media render path is fresh (brought forward from after 1.0, 2026-10-30). *The picture's luminance in one colour, alpha kept, applied before the size fit and inside a loop's unit so every repeat matches* (1-2 h)
 
+## 36. A deeper library: nothing in single digits (30-48 h; GitHub issue #38)
+
+Decided 2026-10-30. Milestone 24 set the floor at six examples per type, and nearly every type stopped there: four of the browse panel's top categories (Lower thirds, End cards, Animated backgrounds, Stock video) hold six items each, and about 50 of the 66 types are below ten. A category with six things in it reads as empty. Counted over the bundled templates and the sample-media catalogue, as `tests/sample-coverage.test.ts` counts them. All CC0 and made for Pulp, as before.
+
+- [ ] **The thin top categories first:** Lower thirds to at least 20, as the most used, and End cards, Animated backgrounds and Stock video to at least 12 each, each new item different in look and use from the ones beside it rather than a recolour (8-12 h)
+- [ ] **Every template type to ten:** titles, openers, callouts, social, logo reveals, overlays, frames, logo bugs, vignettes, wipes, reveals, flashes, glitches, counters, countdowns, infographics, shapes and arrows — about 110 new templates across several turns, spread across themes and styles so the "For…" and "Look" chips have something in each (14-22 h)
+- [ ] **Every generated type to ten:** still backgrounds, textures, photos, illustrations, layered graphics, effects, objects, music and sound effects — about 80 new catalogue entries (6-10 h)
+- [ ] **Held by a test:** the coverage test's floor goes from six to ten for every type, and the four top categories above are checked at their own floors, so nothing slips back; a new type starts on the still-open list until it reaches ten (2-4 h)
+
 ## 35. Lottie animations (18-30 h; GitHub issue #37)
 
 After milestone 33. Lottie is the animated vector format After Effects exports through Bodymovin and many apps and sites use: a JSON file (or a zipped `.lottie`) that describes shapes, text, images and their keyframes. It is motion graphics already made, so Pulp reads it as an item that plays, renders and is edited like a template, rather than as a picture.
@@ -456,7 +466,7 @@ After milestone 19, which it depends on: a platform preset is mostly an aspect, 
 - [ ] Crash and error reporting that stays local (log file, "copy diagnostics" in the status bar) (1-2 h)
 - [ ] User guide for the window: regions, keyboard shortcuts, search syntax; README and screenshots updated for the new layout. Opened from Help → User Guide and from the start screen's Learn section, the two places milestones 27 and 31 left waiting for it (1-2 h)
 - [ ] **A Settings window,** so the menu's Settings item (left out in milestone 27 because it had nothing to open) opens something: Pulp → Settings on macOS, Edit → Settings elsewhere. It holds what `settings.json` keeps with no other home today — show the start screen at launch, where FFmpeg is, the default render folder, the render cache's size and clearing it, audition on choosing audio — each control writing the same setting the rest of the window reads (2-3 h)
-- [ ] Third-party notices: a file covering Electron and Chromium, the npm dependencies, the bundled fonts and ffmpeg if it is ever bundled, shown in an "Acknowledgements" screen reached from About, and checked in CI so a new dependency cannot ship unlisted; required before any build is distributed (milestone 17) (2-4 h)
+- [ ] Third-party notices: a file covering Electron and Chromium, the npm dependencies (pdf.js, `pdfjs-dist`, Apache-2.0, since milestone 33), the bundled fonts and ffmpeg if it is ever bundled, shown in an "Acknowledgements" screen reached from About, and checked in CI so a new dependency cannot ship unlisted; required before any build is distributed (milestone 17) (2-4 h)
 - [ ] A release process: version numbers, release notes drawn from the changelog's Unreleased section, a tag per release (1-2 h)
 - [ ] Project basics: issue and pull request templates, a code of conduct, and a `SECURITY.md` saying how to report a vulnerability (1 h)
 
@@ -464,7 +474,7 @@ After milestone 19, which it depends on: a platform preset is mostly an aspect, 
 
 **Packaging is the last step of the project**, which is why this milestone and signing come after hardening: what is packaged should be the finished thing, and every change before this one would otherwise be packaged twice. The buildable half of the old "Packaging and signing" milestone; signing is milestone 7, blocked on account decisions. Unsigned artifacts also make the hardware-blocked verification sessions in milestones 2 and 5 easier to run when a machine is available.
 
-- [ ] electron-builder config; bundled templates in `resources/templates` and bundled fonts in `resources/fonts`, labeled "Built-in templates" in the library (2-3 h)
+- [ ] electron-builder config; bundled templates in `resources/templates` and bundled fonts in `resources/fonts`, labeled "Built-in templates" in the library. pdf.js's build files (`pdfjs-dist/legacy/build/pdf.min.js` and its worker), which milestone 33's rasterizer reads from `node_modules` at run time, ship with the app and are found there (2-3 h)
 - [ ] An app icon of its own: an original mark for Pulp, owing nothing to any other product's, drawn at the sizes each platform wants and exported as `.icns` (macOS), `.ico` (Windows) and the PNG sizes Linux asks for (16 to 512). The app is "Pulp" wherever the system names it — the macOS Dock and About panel, the Windows Start menu and task bar — and the Windows installer offers desktop and Start menu shortcuts. A Linux `.desktop` entry puts it in the application menu with its icon and categories (2-3 h)
 - [ ] macOS: universal build with hardened runtime, unsigned (1-2 h)
 - [ ] Windows: NSIS installer, unsigned (1-2 h)
