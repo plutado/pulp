@@ -53,7 +53,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **531-853 h** |
-| **Still open through 1.0 (unticked items only)** | **123-203 h** |
+| **Still open through 1.0 (unticked items only)** | **115-191 h** |
 | **Total including post-1.0 items** | **554-896 h** |
 
 ## 0. Foundation (done)
