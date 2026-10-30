@@ -24,10 +24,10 @@ Every milestone decided here now has its number and its GitHub issue, so the two
 4. **Milestone 29: rotate layers on the stage** — *done* (GitHub issue #31), and in `ROADMAP.md`. It finished milestone 25's placement: a layer can now be moved, resized and turned.
 5. **Milestone 30: timing — any length, set while editing** — *done* (GitHub issue #32), and in `ROADMAP.md`. It also gives a frame sequence somewhere to say what rate it plays at, which milestone 26 had to state rather than ask.
 6. **Milestone 28: per-layer timing, transitions and looks** — *done* (GitHub issue #29), and in `ROADMAP.md`. After 30, whose length and structure a layer's own start and end are set within, and before 27, which has to save all of it.
-7. **Milestone 27: projects and the application menu** (Decided item 3; GitHub issue #30).
-8. **Milestone 31: a start screen** — examples, recent projects, a tour and a dashboard (Decided item 5; GitHub issue #33).
-9. **Milestone 32: stock library import** (Decided item 6; GitHub issue #34).
-10. **Milestone 33: layered Photoshop graphics** (Decided item 7; GitHub issue #35).
+7. **Milestone 27: projects and the application menu** — *in progress,* now in `ROADMAP.md` (GitHub issue #30).
+8. **Milestone 31: a start screen** — examples, recent projects, a tour and a dashboard (Decided item 4; GitHub issue #33).
+9. **Milestone 32: stock library import** (Decided item 5; GitHub issue #34).
+10. **Milestone 33: layered Photoshop graphics** (Decided item 6; GitHub issue #35).
 11. **Milestone 20:** social-ready export.
 12. **Milestone 8:** 1.0 hardening and docs, taking in third-party notices and the release basics, and whichever of the settings window, reliability, security review and template versions in saved work have been decided by then.
 13. **Last:** milestone 17 (unsigned builds and the app icon), then milestone 7 (signing and auto-update).
@@ -38,27 +38,15 @@ Every milestone decided here now has its number and its GitHub issue, so the two
 
 2. **Milestone 9's "command-line interface as a separate entry point": redefine it.** Pulp already renders without its window through `--render`, `--param` (including `@layers`), `--collection` and CSV batch. Redefine the item as packaging those as a proper `pulp` command (its own entry point, `pulp render …` and `pulp collection …`, help text, exit codes, documented in the README) rather than building a second interface, and re-estimate it.
 
-3. **Projects and the application menu.** Milestone **27** (GitHub issue #30), built after 28, since a project has to save per-layer timing and looks as well as placed layers and assets. Today there is no menu code: macOS shows Electron's default menu, named "Electron", and Windows a bare default bar; nothing in them is Pulp's. And a `.pulpcollection` file can be saved and opened, but nothing saves a session as a whole.
-   - **The `.pulp` project file**, a superset of the collection file: the collection with every item's parameters, layers, stage positions (milestone 25) and placed assets (milestone 26), the output settings, the render folder, and which library folders it draws from. New, Open, Save, Save As and Open Recent; the window title shows the project's name with a mark for unsaved changes, and closing asks before discarding them. Autosave with recovery after a crash. Media that moved or went missing is flagged, not failed (references by library id and by path, as collections keep them), with a way to relink it. Existing `.pulpcollection` files still open and can be saved as `.pulp`. Written atomically like every other file; versioned with a compatibility rule like the template format.
-   - **The application menu**, Pulp's own on every platform (the macOS menu bar; a menu bar in the window on Windows and Linux):
-     - **Pulp** (macOS): About Pulp, Settings, Hide, Quit.
-     - **File:** New project, Open…, Open Recent, Save, Save As, Close; Add library folder…, Add sample media, Import font…; Render, Render all; Export pack….
-     - **Edit:** Undo and Redo wired to Pulp's own history; Cut, Copy, Paste, Select All; Find category.
-     - **View:** show or hide the browse panel, stage, inspector and tray; grid or rows; card size; full screen. Developer tools only in development builds.
-     - **Playback:** play/pause, step a frame, set in, set out, loop.
-     - **Window** and **Help:** the keyboard shortcut list, the user guide (milestone 8), copy diagnostics.
-     - Every item has its keyboard shortcut, the same as the buttons that do the same thing, and is enabled only when it can act.
-   - Opening a `.pulp` file by double-clicking it needs the packaged app, so the file association lands with milestone 17.
+3. **Third-party notices, release process and project basics.** A third-party notices file covering Electron and Chromium, the npm dependencies, the bundled fonts and ffmpeg if it is ever bundled, shown in an "Acknowledgements" screen reached from About, and checked in CI so a new dependency cannot ship unlisted; required before any build is distributed (milestone 17). A release process: version numbers, release notes drawn from the changelog's Unreleased section, a tag per release. Issue and pull request templates, a code of conduct, and a `SECURITY.md` saying how to report a vulnerability.
 
-4. **Third-party notices, release process and project basics.** A third-party notices file covering Electron and Chromium, the npm dependencies, the bundled fonts and ffmpeg if it is ever bundled, shown in an "Acknowledgements" screen reached from About, and checked in CI so a new dependency cannot ship unlisted; required before any build is distributed (milestone 17). A release process: version numbers, release notes drawn from the changelog's Unreleased section, a tag per release. Issue and pull request templates, a code of conduct, and a `SECURITY.md` saying how to report a vulnerability.
-
-5. **A start screen: examples, recent projects, a tour and a dashboard.** Milestone **31** (GitHub issue #33), built after 27 (it needs `.pulp` projects). Shown at launch and from File → Home, with a "Show at startup" switch.
+4. **A start screen: examples, recent projects, a tour and a dashboard.** Milestone **31** (GitHub issue #33), built after 27 (it needs `.pulp` projects). Shown at launch and from File → Home, with a "Show at startup" switch.
    - **Get going:** New project, blank or by shape (16:9, 9:16, 1:1, 4:5), and by platform once milestone 20 exists. **Example projects:** a handful of ready-made `.pulp` files built from the bundled samples, each showing something Pulp does well (an interview with a lower third and a logo, a sports-highlight opener, a vertical social clip, a wedding title, a news package with ticker and bug, a product launch with layers and motion); opening one opens a copy, so the example stays as it was.
    - **Recent projects** with thumbnails, last-opened dates and pinning; a missing file shows as missing, with a way to relink it.
    - **Learn:** "Take the tour", a short guided walkthrough of the window (browse panel, stage, Parameters tab, collection tray) with highlights and Next / Skip, offered on first launch and replayable from Help; "What's new" from the changelog's latest release; keyboard shortcuts and the user guide (milestone 8).
    - **Set up and status:** a first-run checklist (ffmpeg found, a library folder added, sample media made), each item a button that does it; the library at a glance (template and media counts, most-used categories, favourites); quick actions (add a library folder, import a pack, import a font). Milestone 14's "guided setup" can fold into the checklist.
 
-6. **Stock library import.** Milestone **32** (GitHub issue #34), built after 30 and 28, whose in, hold and out parts and per-layer looks it uses. Large collections of stock graphics, clips and music, hundreds of gigabytes on external drives or in archives, often delivered as sets of files that belong together and with an index of their own, brought in as they were organised. Milestone 26's asset libraries already read plain media where it lies; this makes a whole collection browsable at once and keeps its structure.
+5. **Stock library import.** Milestone **32** (GitHub issue #34), built after 30 and 28, whose in, hold and out parts and per-layer looks it uses. Large collections of stock graphics, clips and music, hundreds of gigabytes on external drives or in archives, often delivered as sets of files that belong together and with an index of their own, brought in as they were organised. Milestone 26's asset libraries already read plain media where it lies; this makes a whole collection browsable at once and keeps its structure.
    - **Previews before full media:** a very large library is indexed from small previews and thumbnails first, so it can be browsed and searched straight away; the full-quality file is read only when an item is placed or rendered. The index records where each full file lives and says plainly when its drive or archive is not available.
    - **Known as well as owned:** a library can list everything a catalog or index says exists, with items whose files are not on this computer shown greyed out, so a person sees the whole collection and what is missing from it.
    - **Importing an existing catalog's organisation:** when a library comes with its own index (names, categories, keywords, thumbnails), Pulp reads it so the imported items browse and search the way they were organised, mapped onto Pulp's taxonomy, rather than only by folder names.
@@ -66,7 +54,7 @@ Every milestone decided here now has its number and its GitHub issue, so the two
    - **Several layers in one clip set:** a set can carry more than one layer that moves together (a main graphic and a flare, say), each with its own entry, loop and exit, placed and timed as one item while each layer keeps its own look (milestone 28).
    - **Rights:** imported media stays where it is, referenced in place, never copied into packs, exports or the repository; tests use generated fixtures only.
 
-7. **Layered Photoshop graphics.** Milestone **33** (GitHub issue #35): read a `.psd` as a stack of layers, so a layered still from a stock library can be browsed and used without flattening it first.
+6. **Layered Photoshop graphics.** Milestone **33** (GitHub issue #35): read a `.psd` as a stack of layers, so a layered still from a stock library can be browsed and used without flattening it first.
    - **Reading:** layers, their names, order, visibility, opacity and blend modes where the file has them; groups shown as groups. Reading only, no editing of the file in Pulp.
    - **Browsing:** a flattened preview for the grid and the stage, with the layer list shown in the Info tab.
    - **Showing and hiding layers** in the preview, kept with the item like any other edit (presets, collections, undo, the render cache key).
@@ -74,7 +62,7 @@ Every milestone decided here now has its number and its GitHub issue, so the two
    - **Limits stated plainly:** layer effects, smart objects and adjustment layers Pulp can't reproduce are named rather than silently dropped; the flattened composite stored in the file is the fallback.
    - **Tests** on generated `.psd` fixtures only.
 
-8. **Output presets per kind of asset:** an item for milestone 14, defaults per type and guided setup (GitHub issue #14): one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen, alongside "Save as default for this type" and the guided setup.
+7. **Output presets per kind of asset:** an item for milestone 14, defaults per type and guided setup (GitHub issue #14): one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen, alongside "Save as default for this type" and the guided setup.
 
 ## Known issues
 

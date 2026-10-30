@@ -4,9 +4,9 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 ## Where things stand
 
-**Milestone 28, per-layer timing, transitions and looks, is done:** a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar. Milestone 30 is done before it — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
+**Milestone 27, projects and the application menu, is the one in progress.** Milestone 28 is done before it — a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar — and milestone 30 before that — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 124 bundled CC0 templates, a 481-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every category at least six deep and every theme with at least three assets of its own.
 
-What is left: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Milestones 27 (projects and the application menu, next in the suggested order), 31, 32 and 33 are decided but not yet scheduled. Four verification items wait on hardware: two need the test Mac, two a Windows machine (see `docs/ideas.md`, Decided item 1, which replaces "hardware-blocked" with a Windows VM). Known issues and anything not yet scheduled are in `docs/ideas.md`.
+What is left after 27: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Milestones 31, 32 and 33 are decided but not yet scheduled. Four verification items wait on hardware: two need the test Mac, two a Windows machine (see `docs/ideas.md`, Decided item 1, which replaces "hardware-blocked" with a Windows VM). Known issues and anything not yet scheduled are in `docs/ideas.md`.
 
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. Ideas, decisions not yet scheduled and known issues wait in `docs/ideas.md` until a milestone takes them. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
@@ -34,6 +34,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 29. Rotate layers on the stage (**done**) | 5-8 h |
 | 30. Timing: any length, set while editing (**done**) | 18-28 h |
 | 28. Per-layer timing, transitions and looks (**done**) | 24-36 h |
+| 27. Projects and the application menu (**in progress**) | 20-32 h |
 | 20. Social-ready export | 8-13 h |
 | 8. 1.0 hardening and docs | 8-13 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -42,9 +43,9 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 15. Convert library media (post-1.0) | 8-12 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-17 h |
-| **Total through 1.0 (every milestone above not marked post-1.0)** | **360-573 h** |
-| **Still open through 1.0 (unticked items only)** | **33-54 h** |
-| **Total including post-1.0 items** | **389-626 h** |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **380-605 h** |
+| **Still open through 1.0 (unticked items only)** | **53-86 h** |
+| **Total including post-1.0 items** | **409-658 h** |
 
 ## 0. Foundation (done)
 
@@ -336,6 +337,19 @@ After milestone 30, whose length a layer's own start and end are set within, and
 - [x] **Everything carries it:** saved presets, collection items, `.pulpcollection` files, `--param @layers` on the command line, a CSV batch column per layer, the render cache key and undo; an end-to-end render proves a layer is absent before its start and after its end, that an exit transition plays, and that a look changes the pixels where it should. *A span, a transition and a look are fields of the layer, and a layer rides in the parameters, so every path that carried a layer carries them with no second channel. The one that could not say them was CSV, whose cell for a layer is its words: a `<layer> settings` column now takes the rest as JSON. End-to-end renders cover the span at two lengths, a wipe, a shadow and an opacity on type, and corners and soft edges on a clip* (3-5 h)
 
 Left out on purpose: inner glow, scribble, roughen, twist, warp and 3D — shape effects that suit vector drawings but not the clips and photographs these layers hold.
+
+## 27. Projects and the application menu (20-32 h; GitHub issue #30)
+
+After milestone 28, since a project has to save per-layer timing and looks as well as placed layers and assets. A `.pulpcollection` file saves what was gathered and how each item renders, but nothing saves a session as a whole; and there is no menu code at all, so macOS shows Electron's default menu, named "Electron", and Windows a bare default bar.
+
+- [ ] **The `.pulp` project file,** a superset of the collection file: the collection with every item's parameters, layers, stage positions and placed assets, the output settings, the render folder, and which library folders it draws from. A pure core module with unit tests, written atomically like every other file, and versioned with the same compatibility rule as the template format — fields are added rather than repurposed (4-6 h)
+- [ ] **New, Open, Save, Save As and Open Recent,** with the recent list kept in settings and a missing file said rather than silently dropped. Existing `.pulpcollection` files still open, and can be saved as `.pulp`; a project can still be saved back out as a collection for anyone on an older build (4-6 h)
+- [ ] **Unsaved changes are visible and cannot be lost by accident:** the window title shows the project's name with a mark while there are any, and closing the window, opening another project or starting a new one asks first — Save, Discard or Cancel (2-3 h)
+- [ ] **Autosave with recovery after a crash:** the project is written to a recovery file beside the settings while it has unsaved changes, cleared on a clean save or quit, and offered back on the next launch when one is found (2-4 h)
+- [ ] **Media that moved or went missing is flagged, not failed:** an item records where it was as well as its library id, so a missing one can be named and **relinked** — choosing the file again adds its folder to the library and rebinds the item, and the rest of the items that moved the same way follow (3-5 h)
+- [ ] **The application menu,** Pulp's own on every platform: **Pulp** (macOS) with About, Settings, Hide and Quit; **File** with the project actions, Add library folder…, Add sample media, Import font…, Render, Render all and Export pack…; **Edit** with Undo and Redo wired to Pulp's own history, Cut, Copy, Paste, Select All and Find category; **View** for the regions, grid or rows, card size and full screen, with developer tools only in a development build; **Playback** for play/pause, step, set in, set out and loop; **Window** and **Help** with the shortcut list, the user guide (milestone 8) and copy diagnostics. Every item carries the same keyboard shortcut as the button that does the same thing, and is enabled only when it can act (5-8 h)
+
+Opening a `.pulp` file by double-clicking it needs the packaged app, so the file association lands with milestone 17.
 
 ## 20. Social-ready export (8-13 h)
 
