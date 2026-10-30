@@ -5,7 +5,7 @@
  * possible through the renderBlocked signal, which the tray's Prepare button follows.
  */
 
-import { effect } from '@preact/signals';
+import { effect, signal } from '@preact/signals';
 import { AspectError, aspectById, defaultAspect, orientationOf, resolutionsFor, resolveRenderSize, templateDefaultSize, type Size } from '../core/aspect';
 import { planBatch, type BatchPlan } from '../core/batch-csv';
 import { dimensionsLabel } from '../core/display';
@@ -372,7 +372,23 @@ function showTrim(): void {
 }
 
 /** Say what the options amount to (frames and rate), or why the planner would refuse them. */
+/** The shown item has edits behind the Output tab: the dot on the transport row's button (milestone 38). */
+export const outputEdited = signal(false);
+
+/** Anything set beyond the item's own: a trim, a rate, a custom size, the media extras, a matte or a tint. */
+function noteEdits(): void {
+  const text = [els.optIn, els.optOut, els.optWidth, els.optHeight, els.optLength, els.optCrossfade, els.optSampleRate, els.optChannels];
+  outputEdited.value =
+    text.some((el) => el.value.trim() !== '') ||
+    els.optFps.value !== '' ||
+    (els.optSpeed.value.trim() !== '' && els.optSpeed.value.trim() !== '1') ||
+    els.optMatte.checked ||
+    els.optTintOn.checked ||
+    els.optBitDepth.value === '24';
+}
+
 function updateOptionsNote(): void {
+  noteEdits();
   const m = selectedTemplate.value?.manifest;
   if (!m && o.media) {
     updateMediaOptionsNote(o.media);

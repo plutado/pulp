@@ -79,8 +79,9 @@ Search syntax is the exception by design: what you type in the search field (`ta
 | Browse toolbar | Folder-plus (Add folder), arrow-clockwise (Rescan), download (Import pack…), upload (Export…) |
 | Search bar | Magnifier in the field; sort icon on the sort control; chips with icon + short label; the scope chip carries its node's icon |
 | Results | Type icon as the empty-thumbnail placeholder; badges as small icons with tooltips (alpha, loop, audio) |
-| Stage | Background toggle and safe areas as icon buttons; star outline/fill for favorite |
-| Transport row | Play/pause, loop, frame step, mute and audition as icon buttons (play at 24, the rest at 20); Set in, Set out and Clear as text buttons; the timecode in monospace |
+| Stage | Background toggle and safe areas as icon buttons, a quiet overlay on the stage's corner |
+| Transport row | Play/pause, loop, frame step, mute, audition and Add to collection as icon buttons (play at 24, the rest at 20); Set in, Set out and Clear as text buttons; the timecode in monospace; the inspector's three tabs at the row's end, an accent dot when the shown item has edits |
+| Inspector drawer | Pin and close as icon buttons at 16 in the drawer's head; star outline/fill for favorite in the head's item strip |
 | Inspector tabs | Sliders (Parameters), export (Output), info circle (Info) — icon plus label |
 | Tray | State icons on jobs (queued, running, done, failed); drag dots on the handle; trash on Clear finished |
 | Status bar | Check or warning for ffmpeg, hard drive for the cache, spinner while scanning or rendering |

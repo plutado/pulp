@@ -7,9 +7,9 @@ import { mountCategoryCards } from './category-cards';
 import { mountItemInfo } from './item-info';
 import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback } from './stage';
 import { initShell } from './shell';
-import { initInspectorTabs, showInspectorTab } from './inspector-tabs';
-import { chosenLibraryItems, currentLayers, currentRawParams, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
-import { currentOptions, currentPresetId, initInspectorOutput, outputClear, outputSetFfmpeg, outputShow, outputShowMedia, setTemplateShower, updateRenderControls } from './inspector-output';
+import { closeInspectorUnlessPinned, initInspectorTabs, openInspector, showInspectorTab } from './inspector-tabs';
+import { chosenLibraryItems, currentLayers, currentRawParams, initInspectorParams, paramsClear, paramsEdited, paramsShow } from './inspector-params';
+import { currentOptions, currentPresetId, initInspectorOutput, outputClear, outputEdited, outputSetFfmpeg, outputShow, outputShowMedia, setTemplateShower, updateRenderControls } from './inspector-output';
 import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
@@ -406,7 +406,33 @@ void window.pulp.getStartScreenPrefs().then((prefs) => {
 });
 mountBrowse($('browse-find'), $('browse-tree'));
 void window.pulp.getBrowseAccordion().then((on) => (browseAccordion.value = on));
-mountResults(els.results, { onSelect: select, onStop: stopPlayback });
+mountResults(els.results, {
+  // Choosing in the results is going back to browsing, so the drawer closes — unless it is pinned
+  // for a run of edits (milestone 38).
+  onSelect: (entry) => {
+    closeInspectorUnlessPinned();
+    select(entry);
+  },
+  onStop: stopPlayback,
+});
+
+// The dots on Parameters and Output: the shown item has edits behind that tab (milestone 38).
+effect(() => {
+  $('tab-parameters').classList.toggle('edited', paramsEdited.value);
+});
+effect(() => {
+  $('tab-output').classList.toggle('edited', outputEdited.value);
+});
+
+// Choosing a collection card is choosing to edit it: the drawer opens on Parameters (milestone 38).
+{
+  let lastEditing: string | null = null;
+  effect(() => {
+    const uid = appState.value.editing;
+    if (uid !== null && uid !== lastEditing) openInspector('parameters');
+    lastEditing = uid;
+  });
+}
 // What a chosen category holds, as pictures (milestone 34).
 mountCategoryCards($('category-cards'));
 

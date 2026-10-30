@@ -262,6 +262,13 @@ describe.skipIf(!electron)('inspector UI', () => {
 
   const clickResult = (name: string) => onResult(name, '(li) => li.click()');
 
+  /** Open the inspector drawer on a tab (milestone 38). The row's buttons toggle, so a bare
+   * click on the already-open tab would close it; this clicks only when that moves forward. */
+  const openTab = (tab: 'parameters' | 'output' | 'info') =>
+    page.eval(
+      "(() => { const b = document.getElementById('tab-" + tab + "');" +
+      " if (b.getAttribute('aria-selected') !== 'true' || !document.getElementById('app').classList.contains('inspector-open')) b.click(); })()",
+    );
   /**
    * Bring a category into view whatever the tree is folded to: typing in the find field filters
    * the tree to the matches and opens every section holding one. `clearFindField` puts the tree
@@ -904,6 +911,8 @@ describe.skipIf(!electron)('inspector UI', () => {
 
     it('picks a still from the library, treats it, keeps it in a preset by id, and clears', async () => {
       await clickResult('Lower Third Bar');
+      // The well's size is measured below, and a closed drawer has no boxes (milestone 38).
+      await openTab('parameters');
       await until(() => page.eval<boolean>(`!!${field}`), 'the logo slot field');
       // Empty slot: a dashed well the width of the field, inviting a choice or a drop; no Clear, no treatment.
       expect(await page.eval<boolean>(`${field}.querySelector('.image-well').classList.contains('empty')`)).toBe(true);
@@ -1155,6 +1164,8 @@ describe.skipIf(!electron)('inspector UI', () => {
     it('sets a layer\'s type: the family in its own face from the bundled set, and every other property, undoably', async () => {
       const title = `document.querySelector('#params .layer-row[data-layer=title]')`;
       const summary = () => page.eval<string>(`${title}.querySelector('.layer-type summary').textContent`);
+      // A face loads only where text is drawn with it, and a closed drawer draws nothing (milestone 38).
+      await openTab('parameters');
       try {
       // The type is folded under the words, summed up in one line.
       expect(await page.eval<boolean>(`${title}.querySelector('.layer-type').open`)).toBe(false);
@@ -1225,6 +1236,7 @@ describe.skipIf(!electron)('inspector UI', () => {
 
     it('offers an imported font with its licence note, declares its face, and ends the list with Import font…', async () => {
       const title = `document.querySelector('#params .layer-row[data-layer=title]')`;
+      await openTab('parameters');
       try {
         // The managed folder was seeded with one font; the app window declares its face from the index.
         expect(await page.eval<string>(`document.querySelector('style[data-pulp-imported-fonts]').textContent`)).toContain('"Pulp Test Face"');
@@ -2072,10 +2084,10 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(shaded.exit!.left + shaded.exit!.width).toBeCloseTo(1, 1);
 
       // The Output tab says the length too, since that is where a render is set up.
-      await page.eval(`document.getElementById('tab-output').click()`);
+      await openTab('output');
       await until(() => page.eval<string>(`document.getElementById('options-note').textContent`).then((t) => t.includes('10 s long')), 'the Output tab naming the length');
       expect(await page.eval<string>(`document.getElementById('options-note').textContent`)).toContain('designed at 2 s');
-      await page.eval(`document.getElementById('tab-parameters').click()`);
+      await openTab('parameters');
 
       // The handle on the scrub bar sets it by hand: a slider, so the arrows move it.
       const handle = `document.getElementById('length-handle')`;
@@ -2728,14 +2740,162 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(new Set(text.map((t) => t.family)), `one family (${JSON.stringify(text)})`).toHaveProperty('size', 1);
     }, 60_000);
 
+    it('fits at the default 1280 × 788: nothing overlaps, the page never scrolls, the picture gets its share (milestone 38)', async () => {
+      type Box = { id: string; left: number; right: number; top: number; bottom: number };
+      const boxes = (ids: string[]) =>
+        page.eval<Box[]>(
+          `(${JSON.stringify(ids)}).map((id) => { const b = document.getElementById(id).getBoundingClientRect(); return { id, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; })`,
+        );
+      // Two boxes may share an edge (borders, splitters); any real shared area is an overlap.
+      const overlap = (a: Box, b: Box) =>
+        Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+      const regions = ['region-browse', 'region-search', 'region-stage', 'region-results', 'region-tray', 'region-transport', 'region-status'];
+      try {
+        await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 788, deviceScaleFactor: 1, mobile: false });
+        await until(() => page.eval<boolean>(`window.innerHeight === 788 && window.innerWidth === 1280`), 'the default window size');
+        // The default window has the tray collapsed to its summary line; the test before this one opened it.
+        await page.eval(`(() => { if (!document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); return true; })()`);
+        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray collapsed');
+        await clickResult('Lower Third Bar');
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
+
+        // The page itself never scrolls: every region scrolls inside its own pane.
+        const doc = await page.eval<{ sw: number; sh: number; ow: string }>(
+          `({ sw: document.documentElement.scrollWidth, sh: document.documentElement.scrollHeight, ow: getComputedStyle(document.body).overflow })`,
+        );
+        expect(doc.ow).toBe('hidden');
+        expect(doc.sw).toBeLessThanOrEqual(1280);
+        expect(doc.sh).toBeLessThanOrEqual(788);
+
+        // No region draws over another, and every one is inside the window.
+        let all = await boxes(regions);
+        for (const b of all) {
+          expect(b.left, `${b.id} inside the window`).toBeGreaterThanOrEqual(-1);
+          expect(b.right, b.id).toBeLessThanOrEqual(1281);
+          expect(b.top, b.id).toBeGreaterThanOrEqual(-1);
+          expect(b.bottom, b.id).toBeLessThanOrEqual(789);
+        }
+        for (let i = 0; i < all.length; i++) {
+          for (let j = i + 1; j < all.length; j++) {
+            expect(overlap(all[i]!, all[j]!), `${all[i]!.id} does not overlap ${all[j]!.id}`).toBeLessThanOrEqual(all.length);
+          }
+        }
+
+        // The right column is gone: the stage and the results reach the window's right edge.
+        const [stage, results] = await boxes(['region-stage', 'region-results']);
+        expect(stage!.right).toBeGreaterThan(1280 - 2);
+        expect(results!.right).toBeGreaterThan(1280 - 2);
+
+        // The stage is all picture — its box holds the preview and nothing else takes a row from it —
+        // and the picture gets at least its share of the window.
+        const picture = await page.eval<{ h: number; stageH: number }>(
+          `(() => { const w = document.querySelector('#region-stage .preview-wrap').getBoundingClientRect(); const s = document.getElementById('region-stage').getBoundingClientRect(); return { h: w.height, stageH: s.height }; })()`,
+        );
+        expect(picture.stageH - picture.h, 'nothing but padding around the picture').toBeLessThanOrEqual(26);
+        expect(picture.h, 'the picture gets its share of the window').toBeGreaterThanOrEqual(788 * 0.38);
+
+        // One key gives the stage everything: the results fold away and the stage takes their room.
+        await page.eval(`document.getElementById('results-toggle').click()`);
+        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('results-collapsed')`), 'the results folded');
+        const grown = await page.eval<number>(`document.querySelector('#region-stage .preview-wrap').getBoundingClientRect().height`);
+        expect(grown).toBeGreaterThan(picture.h + 100);
+        await page.eval(`document.getElementById('results-toggle').click()`);
+        await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('results-collapsed')`), 'the results back');
+
+        // The drawer rises over the results and only the results: the stage keeps its box.
+        await openTab('output');
+        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('inspector-open')`), 'the drawer open');
+        all = await boxes(['region-stage', 'region-results', 'region-inspector', 'region-transport']);
+        const [stage2, results2, drawer, row] = all;
+        expect(overlap(drawer!, stage2!), 'the drawer never covers the stage').toBe(0);
+        expect(overlap(drawer!, row!), 'nor the transport row').toBe(0);
+        expect(drawer!.left).toBeGreaterThanOrEqual(results2!.left - 1);
+        expect(drawer!.right).toBeLessThanOrEqual(results2!.right + 1);
+        expect(drawer!.bottom).toBeLessThanOrEqual(results2!.bottom + 1);
+        await page.eval(`document.getElementById('inspector-close').click()`);
+      } finally {
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
+      }
+    }, 90_000);
+
+    it('opens the inspector as a drawer from the transport row: tabs, Esc, the pin and the dots (milestone 38)', async () => {
+      const open = () => page.eval<boolean>(`document.getElementById('app').classList.contains('inspector-open')`);
+      const selected = (tab: string) => page.eval<string>("document.getElementById('tab-" + tab + "').getAttribute('aria-selected')");
+      await clickResult('Lower Third Bar');
+      expect(await open(), 'choosing a result does not open the drawer').toBe(false);
+
+      // A tab opens the drawer; the same tab again closes it; another switches without closing.
+      await page.eval(`document.getElementById('tab-output').click()`);
+      await until(open, 'the drawer open on Output');
+      expect(await selected('output')).toBe('true');
+      await page.eval(`document.getElementById('tab-parameters').click()`);
+      expect(await open()).toBe(true);
+      expect(await selected('parameters')).toBe('true');
+      await page.eval(`document.getElementById('tab-parameters').click()`);
+      await until(async () => !(await open()), 'the same tab again closing it');
+
+      // The last tab is remembered in settings.json; the height is a pane size like the others.
+      await until(async () => {
+        try {
+          return (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { layout?: { inspectorTab?: string } }).layout?.inspectorTab === 'parameters';
+        } catch {
+          return false;
+        }
+      }, 'the last tab in settings.json');
+
+      // Esc closes it too.
+      await openTab('info');
+      await until(open, 'the drawer open on Info');
+      await page.eval(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+      await until(async () => !(await open()), 'Esc closing the drawer');
+
+      // Choosing another item closes an unpinned drawer; the pin holds it through a run of edits.
+      await openTab('parameters');
+      await clickResult('Title Card');
+      await until(async () => !(await open()), 'choosing an item closing the unpinned drawer');
+      await openTab('parameters');
+      await page.eval(`document.getElementById('inspector-pin').click()`);
+      await clickResult('Lower Third Bar');
+      await sleep(300);
+      expect(await open(), 'the pin holding the drawer open').toBe(true);
+      await page.eval(`document.getElementById('inspector-pin').click()`);
+      await page.eval(`document.getElementById('inspector-close').click()`);
+
+      // A dot on Parameters says the shown item has edits; Output's says the options differ.
+      const dotted = (tab: string) => page.eval<boolean>("document.getElementById('tab-" + tab + "').classList.contains('edited')");
+      expect(await dotted('parameters')).toBe(false);
+      await page.eval(`(() => { const el = document.querySelector('#params input[type="text"]'); el.value = 'Edited for the dot'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(() => dotted('parameters'), 'the dot on Parameters after an edit');
+      expect(await dotted('output')).toBe(false);
+      await fire('#opt-in', '00:00:01:00', 'input');
+      await until(() => dotted('output'), 'the dot on Output after a trim');
+      await fire('#opt-in', '', 'input');
+      await until(async () => !(await dotted('output')), 'the dot gone with the trim');
+      // Put the parameter back so later tests see the template's own words.
+      await page.eval(`(() => { const reset = document.querySelector('#params .field-reset:not([hidden])'); if (reset) reset.click(); })()`);
+
+      // Choosing a collection card is choosing to edit it: the drawer opens on Parameters.
+      await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button');
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      await until(() => page.eval<number>(`document.querySelectorAll('#collection .collection-card').length`).then((n) => n > 0), 'the card in the collection');
+      await page.eval(`document.querySelector('#collection .collection-card').click()`);
+      await until(open, 'the drawer open from the collection card');
+      expect(await selected('parameters')).toBe('true');
+      await page.eval(`document.getElementById('inspector-close').click()`);
+      // Leave the collection as it was found.
+      await page.eval(`document.querySelector('#collection .collection-card button[aria-label="Remove from the collection"]').click()`);
+      await until(() => page.eval<number>(`document.querySelectorAll('#collection .collection-card').length`).then((n) => n === 0), 'the collection empty again');
+    }, 90_000);
+
     it('puts the transport row across the bottom of the window, above the status bar, resizable and remembered (milestone 37)', async () => {
       type Box = { left: number; right: number; top: number; bottom: number; width: number; height: number };
       const box = (id: string) =>
         page.eval<Box>(`(() => { const b = document.getElementById(${JSON.stringify(id)}).getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width, height: b.height }; })()`);
 
-      // What plays or moves through time is in the row; what views the picture stays on the stage.
-      const inRow = ['play', 'step-back', 'step-forward', 'loop', 'scrub', 'timecode', 'mark-in', 'mark-out', 'mark-clear', 'volume', 'mute', 'audition', 'layer-bars', 'length-handle', 'sequence-rate'];
-      const onStage = ['preview-frame', 'bg-checker', 'bg-black', 'bg-white', 'bg-custom', 'safe-toggle', 'add-to-collection'];
+      // What plays or moves through time is in the row — with Add to collection and the inspector's
+      // tabs (milestone 38); what views the picture is an overlay on the stage's corner.
+      const inRow = ['play', 'step-back', 'step-forward', 'loop', 'scrub', 'timecode', 'mark-in', 'mark-out', 'mark-clear', 'volume', 'mute', 'audition', 'layer-bars', 'length-handle', 'sequence-rate', 'add-to-collection', 'tab-parameters', 'tab-output', 'tab-info'];
+      const onStage = ['preview-frame', 'bg-checker', 'bg-black', 'bg-white', 'bg-custom', 'safe-toggle'];
       const where = await page.eval<Record<string, string>>(
         `(() => { const out = {}; for (const id of ${JSON.stringify([...inRow, ...onStage])}) { const el = document.getElementById(id); out[id] = !el ? 'missing' : el.closest('#region-transport') ? 'transport' : el.closest('#region-stage') ? 'stage' : 'elsewhere'; } return out; })()`,
       );
@@ -2988,7 +3148,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(first.width).toBe(8);
 
       // The Info tab lists the layers, top first, groups as groups, the file's own visibility as the boxes.
-      await page.eval(`document.getElementById('tab-info').click()`);
+      await openTab('info');
       await until(async () => (await page.eval<number>(`document.querySelectorAll('#info-item [data-section=layers] .psd-layer').length`)) === 4, 'the layer list');
       const rows = await page.eval<{ id: string; name: string; group: boolean; checked: boolean }[]>(
         `[...document.querySelectorAll('#info-item [data-section=layers] .psd-layer')].map((li) => ({ id: li.dataset.layer, name: li.querySelector('.name').textContent, group: li.classList.contains('group'), checked: li.querySelector('input').checked }))`,
@@ -3030,7 +3190,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => /\/composite\?hide=L3$/.test((await image()).src), 'the file\'s own picture again');
       await page.eval(`${card}.querySelector('button[aria-label="Remove from the collection"]').click()`);
       await until(() => page.eval<boolean>(`!${card}`), 'the card removed');
-      await page.eval(`document.getElementById('tab-parameters').click()`);
+      await openTab('parameters');
     }, 60_000);
 
     it('reads OpenRaster, SVG and PDF as layers too, and names what it cannot read (milestone 33)', async () => {
@@ -3044,7 +3204,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await image()).loaded, 'the SVG composite, rasterized by the renderer');
       expect((await image()).src).toMatch(/\/composite$/);
       expect((await image()).width).toBe(80);
-      await page.eval(`document.getElementById('tab-info').click()`);
+      await openTab('info');
       await until(async () => (await layerRows()).length === 2, 'the SVG layer list');
       expect(await layerRows()).toEqual([
         { id: 'L1', name: 'Badge', checked: false, disabled: false },
@@ -3078,7 +3238,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       // A Sketch file in the folder is named with the export that works, not skipped silently.
       const problems = await page.eval<string[]>(`[...document.querySelectorAll('#library-summary .problem')].map((p) => p.textContent)`);
       expect(problems.some((p) => p.includes('Sketch') && p.includes('export'))).toBe(true);
-      await page.eval(`document.getElementById('tab-parameters').click()`);
+      await openTab('parameters');
     }, 180_000);
 
         it('plays and seeks a video, which needs byte ranges', async () => {
@@ -3122,7 +3282,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(badges).toEqual(['2 s', '36p']);
       // The whole of what ffprobe read is in the Info tab.
       await selectMedia('clip');
-      await page.eval(`document.getElementById('tab-info').click()`);
+      await openTab('info');
       await until(() => page.eval<boolean>(`document.querySelector('#info-item [data-section=format]')?.textContent.includes('64 × 36') === true`), 'the probed facts in the Info tab');
       const facts = await page.eval<string>(`document.querySelector('#info-item [data-section=format]').textContent`);
       expect(facts).toContain('00:00:02:00');
@@ -3326,7 +3486,7 @@ describe.skipIf(!electron)('inspector UI', () => {
 
     it('shows the item as a property panel, with the path only in the tooltip and behind the actions', async () => {
       await clickResult('Boardroom lower third');
-      await page.eval(`document.getElementById('tab-info').click()`);
+      await openTab('info');
       await until(() => page.eval<boolean>(`document.getElementById('info-name')?.textContent === 'Boardroom lower third'`), 'the header card');
 
       // The header names the item and its type; the star sits beside the name.

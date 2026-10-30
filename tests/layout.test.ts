@@ -6,14 +6,20 @@ describe('sanitizeLayout', () => {
     expect(sanitizeLayout(undefined)).toEqual(DEFAULT_LAYOUT);
     // A settings file from before the transport row (milestone 37) has no height for it: the default serves.
     expect(sanitizeLayout({ browseWidth: 200 }).transportHeight).toBe(DEFAULT_LAYOUT.transportHeight);
+    // And one from before the drawer (milestone 38): the old inspectorWidth is ignored, the drawer takes its defaults.
+    const old = sanitizeLayout({ inspectorWidth: 350, inspectorTab: 'sideways' });
+    expect(old.inspectorHeight).toBe(DEFAULT_LAYOUT.inspectorHeight);
+    expect(old.inspectorTab).toBe('parameters');
+    expect(old.resultsCollapsed).toBe(false);
     expect(sanitizeLayout('nope')).toEqual(DEFAULT_LAYOUT);
     expect(sanitizeLayout({ browseWidth: 'wide', stageShare: NaN, trayCollapsed: 1 })).toEqual(DEFAULT_LAYOUT);
   });
 
   it('clamps sizes to the limits and keeps valid values', () => {
-    const l = sanitizeLayout({ browseWidth: 5000, inspectorWidth: 10, stageShare: 0.5, trayHeight: 300, transportHeight: 1000, browseCollapsed: true, trayCollapsed: false });
+    const l = sanitizeLayout({ browseWidth: 5000, inspectorHeight: 10, inspectorTab: 'output', stageShare: 0.5, trayHeight: 300, transportHeight: 1000, browseCollapsed: true, trayCollapsed: false });
     expect(l.browseWidth).toBe(LAYOUT_LIMITS.browseWidth.max);
-    expect(l.inspectorWidth).toBe(LAYOUT_LIMITS.inspectorWidth.min);
+    expect(l.inspectorHeight).toBe(LAYOUT_LIMITS.inspectorHeight.min);
+    expect(l.inspectorTab).toBe('output');
     expect(l.stageShare).toBe(0.5);
     expect(l.trayHeight).toBe(300);
     expect(l.transportHeight).toBe(LAYOUT_LIMITS.transportHeight.max);
@@ -30,6 +36,9 @@ describe('withPaneSize and withCollapsed', () => {
     expect(withPaneSize(l, 'browseWidth', l.browseWidth)).toBe(l);
     expect(withPaneSize(l, 'trayHeight', NaN)).toBe(l);
     expect(withPaneSize(l, 'transportHeight', 10).transportHeight).toBe(LAYOUT_LIMITS.transportHeight.min);
+    expect(withPaneSize(l, 'inspectorHeight', 9999).inspectorHeight).toBe(LAYOUT_LIMITS.inspectorHeight.max);
+    expect(withCollapsed(l, 'results', true).resultsCollapsed).toBe(true);
+    expect(withCollapsed(l, 'results', false)).toBe(l);
     expect(withCollapsed(l, 'tray', true)).toBe(l);
     expect(withCollapsed(l, 'tray', false).trayCollapsed).toBe(false);
   });
@@ -39,7 +48,7 @@ describe('layoutCssVariables', () => {
   it('maps sizes to custom properties', () => {
     expect(layoutCssVariables({ ...DEFAULT_LAYOUT, browseWidth: 200, stageShare: 0.625 })).toEqual({
       '--browse-w': '200px',
-      '--inspector-w': '350px',
+      '--inspector-h': '320px',
       '--stage-share': '62.5%',
       '--tray-h': '220px',
       '--transport-h': '92px',

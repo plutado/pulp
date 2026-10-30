@@ -58,7 +58,7 @@ import { outputRefreshOptions } from './inspector-output';
 import { appState, frameSize, importedFonts, selectedTemplate, slotNotes } from './store';
 import { aspectOf } from '../core/aspect';
 import { registerLayerEditor, selectedLayer } from './layer-edit';
-import { effect } from '@preact/signals';
+import { effect, signal } from '@preact/signals';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -245,12 +245,16 @@ function resetAll(): void {
   applySnapshot({}, true);
 }
 
+/** The shown item has edits behind the Parameters tab: the dot on the transport row's button (milestone 38). */
+export const paramsEdited = signal(false);
+
 function updateHistoryButtons(): void {
   const selected = selectedTemplate.value;
   const editor = selected ? editorFor(selected.manifest.id) : null;
   els.undo.disabled = !editor?.history.canUndo;
   els.redo.disabled = !editor?.history.canRedo;
   els.resetAll.disabled = !selected || Object.keys(p.raw).length === 0;
+  paramsEdited.value = Boolean(selected) && Object.keys(p.raw).length > 0;
 }
 
 /** Show the per-field reset only where the value differs from the default. */

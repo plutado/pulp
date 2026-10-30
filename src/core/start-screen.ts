@@ -215,8 +215,8 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     target: 'tab-parameters',
-    title: 'Parameters tab',
-    body: 'The selected template’s own settings: its words, colors and layout. The Output tab beside it chooses the format, size and trim of a render.',
+    title: 'Inspector',
+    body: 'Parameters, Output and Info open as a drawer over the results, so the picture stays in view while you edit. Choose a tab again, or press Esc, to close it; the pin keeps it open.',
   },
   {
     target: 'region-tray',

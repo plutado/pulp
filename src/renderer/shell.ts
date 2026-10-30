@@ -28,11 +28,25 @@ const $ = (id: string): HTMLElement => {
 
 let layout: LayoutState = DEFAULT_LAYOUT;
 
+/** Followers told whenever the layout is applied: the drawer reads its tab from it (milestone 38). */
+const followers: ((l: LayoutState) => void)[] = [];
+export function onLayoutApplied(cb: (l: LayoutState) => void): void {
+  followers.push(cb);
+}
+
+/** The one in-memory layout: another module's change (the drawer's tab) merges here, so a later pane drag cannot revert it. */
+export function patchLayout(patch: Partial<LayoutState>): void {
+  const app = document.getElementById('app');
+  if (!app) return;
+  set(app, { ...layout, ...patch }, true);
+}
+
 function apply(app: HTMLElement): void {
   for (const [name, value] of Object.entries(layoutCssVariables(layout))) app.style.setProperty(name, value);
   app.classList.toggle('browse-collapsed', layout.browseCollapsed);
   app.classList.toggle('stage-collapsed', layout.stageCollapsed);
   app.classList.toggle('tray-collapsed', layout.trayCollapsed);
+  app.classList.toggle('results-collapsed', layout.resultsCollapsed);
   $('browse-expand').hidden = !layout.browseCollapsed;
   $('browse-toggle').setAttribute('aria-expanded', String(!layout.browseCollapsed));
   const stage = $('stage-toggle');
@@ -42,6 +56,11 @@ function apply(app: HTMLElement): void {
   const tray = $('tray-toggle');
   tray.setAttribute('aria-expanded', String(!layout.trayCollapsed));
   setIcon(tray, layout.trayCollapsed ? 'caret-up' : 'caret-down');
+  const results = $('results-toggle');
+  results.setAttribute('aria-expanded', String(!layout.resultsCollapsed));
+  results.setAttribute('aria-label', layout.resultsCollapsed ? 'Show the results' : 'Hide the results');
+  setIcon(results, layout.resultsCollapsed ? 'caret-up' : 'caret-down');
+  for (const follow of followers) follow(layout);
 }
 
 function set(app: HTMLElement, next: LayoutState, save: boolean): void {
@@ -89,7 +108,8 @@ export function initShell(): void {
   const center = document.querySelector('.center') as HTMLElement;
   const searchBar = $('region-search');
   wireSplitter(app, $('split-browse'), 'browseWidth', (e) => e.clientX - app.getBoundingClientRect().left);
-  wireSplitter(app, $('split-inspector'), 'inspectorWidth', (e) => app.getBoundingClientRect().right - e.clientX);
+  // The drawer resizes from its top edge, as the tray and the transport row do (milestone 38).
+  wireSplitter(app, $('split-inspector'), 'inspectorHeight', (e) => $('region-inspector').getBoundingClientRect().bottom - e.clientY);
   wireSplitter(app, $('split-stage'), 'stageShare', (e) => {
     const c = center.getBoundingClientRect();
     const top = c.top + searchBar.getBoundingClientRect().height;
@@ -103,6 +123,7 @@ export function initShell(): void {
   wireToggle(app, $('browse-expand'), 'browse');
   wireToggle(app, $('stage-toggle'), 'stage');
   wireToggle(app, $('tray-toggle'), 'tray');
+  wireToggle(app, $('results-toggle'), 'results');
 
   // The one-line summary, and the drawer opening itself when the first job arrives.
   const summary = $('tray-summary');
@@ -119,10 +140,9 @@ export function initShell(): void {
   // The saved layout arrives after first paint; starting from the defaults avoids a flash of nothing.
   void window.pulp.getLayout().then((saved) => set(app, saved, false));
 
-  // Clamp the pane widths back into view when the window shrinks below them.
+  // Clamp the browse width back into view when the window shrinks below it.
   window.addEventListener('resize', () => {
     const max = Math.max(LAYOUT_LIMITS.browseWidth.min, Math.floor(window.innerWidth * 0.35));
     if (layout.browseWidth > max) set(app, withPaneSize(layout, 'browseWidth', max), true);
-    if (layout.inspectorWidth > max) set(app, withPaneSize(layout, 'inspectorWidth', max), true);
   });
 }

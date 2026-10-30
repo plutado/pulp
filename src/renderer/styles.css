@@ -40,7 +40,8 @@
 * { box-sizing: border-box; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 html, body { margin: 0; height: 100%; }
-body { background: var(--bg); }
+/* The page itself never scrolls (milestone 38): every region scrolls inside its own pane. */
+body { background: var(--bg); overflow: hidden; }
 
 button, input, select, textarea {
   font: inherit;
@@ -61,7 +62,9 @@ input[type="checkbox"] { width: auto; }
    without losing its stored size. */
 .app {
   display: grid;
-  grid-template-columns: var(--browse-w, 220px) 6px minmax(0, 1fr) 6px var(--inspector-w, 350px);
+  /* The browse panel and the center; the right column went with milestone 38, so the stage
+     and the results span from the browse panel's edge to the window's right edge. */
+  grid-template-columns: var(--browse-w, 220px) 6px minmax(0, 1fr);
   /* Rows: the regions, the collection tray, the transport row, the status bar (milestone 37). */
   grid-template-rows: minmax(0, 1fr) auto auto auto;
   height: 100vh;
@@ -69,11 +72,9 @@ input[type="checkbox"] { width: auto; }
 .sidebar { grid-column: 1; grid-row: 1 / 3; }
 #split-browse { grid-column: 2; grid-row: 1 / 3; }
 .center { grid-column: 3; grid-row: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-#split-inspector { grid-column: 4; grid-row: 1; }
-.inspector { grid-column: 5; grid-row: 1; }
-.tray { grid-column: 3 / 6; grid-row: 2; }
-.transport-row { grid-column: 1 / 6; grid-row: 3; }
-.status-bar { grid-column: 1 / 6; grid-row: 4; }
+.tray { grid-column: 3; grid-row: 2; }
+.transport-row { grid-column: 1 / 4; grid-row: 3; }
+.status-bar { grid-column: 1 / 4; grid-row: 4; }
 
 .sidebar, .inspector {
   background: var(--panel);
@@ -81,7 +82,29 @@ input[type="checkbox"] { width: auto; }
   flex-direction: column;
   min-height: 0;
 }
-.inspector { padding: 12px; overflow-y: auto; }
+/* The drawer (milestone 38): it rises from the transport row over the results — anchored inside
+   the results region, so it can cover the results and nothing else — opened by the row's three tab
+   buttons, closed by its own button, the active tab again, or Esc. Its height is a pane size from
+   settings.json (--inspector-h), dragged at its top edge; taller than the results area it simply
+   fills it, which is the promise that the stage stays in view while a title is typed. */
+.inspector {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: min(var(--inspector-h, 320px), 100%);
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 3;
+}
+.app:not(.inspector-open) #region-inspector { display: none; }
+.inspector > .splitter.h { position: absolute; left: 0; right: 0; top: -1px; margin: 0; }
+.inspector-head { display: flex; align-items: center; gap: var(--space-2); padding: 6px 0; }
+.inspector-head-spacer { flex: 1; }
+.inspector-head .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
+.inspector-head .icon-button:hover { color: var(--text); }
+.inspector-head .icon-button[aria-pressed="true"] { color: var(--accent); }
+/* The panes scroll inside the drawer; the head and the drawer itself never do. */
+.inspector .tab-pane { flex: 1; min-height: 0; overflow-y: auto; }
 .inspector h2 { font-size: var(--font-title); font-weight: 600; color: var(--text); margin: 8px 0 10px; }
 
 .sidebar-head { padding: 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--border); }
@@ -157,7 +180,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .tooltip[hidden] { display: none; }
 
 /* Collapsed states. The browse panel becomes an icon rail: the same nodes and tools, labels in tooltips. */
-.app.browse-collapsed { grid-template-columns: 44px 0 minmax(0, 1fr) 6px var(--inspector-w, 350px); }
+.app.browse-collapsed { grid-template-columns: 44px 0 minmax(0, 1fr); }
 .app.browse-collapsed #split-browse, .app.browse-collapsed .region-head, .app.browse-collapsed .sidebar .label { display: none; }
 .app.browse-collapsed .sidebar-head { padding: 8px 4px; }
 .app.browse-collapsed .sidebar-actions { flex-direction: column; align-items: center; }
@@ -267,7 +290,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 
 /* The results keep a readable height however short the window: the stage above shrinks first
    (flex-shrink below), and the tray body is capped so the center column keeps room for both. */
-.results-region { flex: 1; min-height: calc(var(--results-min-h) + 24px); display: flex; flex-direction: column; }
+.results-region { position: relative; flex: 1; min-height: calc(var(--results-min-h) + 24px); display: flex; flex-direction: column; }
 /* The region says what it holds, always: a count is a fact worth having when the list is long,
    and the only thing naming the region when it is empty. */
 .results-head { flex: 0 0 auto; display: flex; align-items: baseline; padding: var(--space-1) var(--space-3) 0; }
@@ -433,7 +456,10 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .summary .problem { color: var(--danger); }
 
 /* flex-shrink 1 and overflow hidden: on a short window the stage gives way to the results (.results-region) and clips rather than paints over them. */
-.stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; padding: 12px 16px; gap: 12px; flex: 0 1 var(--stage-share, 60%); }
+.stage { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; padding: 12px 16px; flex: 0 1 var(--stage-share, 72%); }
+/* One key gives the stage everything (milestone 38): the results fold away and the stage takes the room. */
+.app.results-collapsed #region-results, .app.results-collapsed #split-stage { display: none; }
+.app.results-collapsed .stage { flex: 1 1 auto; }
 /* The wrap is a size container so the box below can be sized from it: the largest box of the
    picture's own ratio that fits, pillarboxed or letterboxed by whatever room is left around it.
    A clamped width or height alone would change the shape and stretch the iframe or media inside;
@@ -443,7 +469,6 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
    and leaving the preview 2 px tall and hidden, which is a stage nobody can click on
    (docs/platform-notes.md). They shrink and clip; the picture stays. */
 .preview-wrap { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 96px; container-type: size; }
-.stage > .stage-tools, .stage > .item-row { min-height: 0; overflow: hidden; }
 /* And when even that floor cannot be met, the stage says so rather than showing nothing. */
 .preview-no-room { display: none; color: var(--muted); font-size: var(--font-caption); text-align: center; padding: 0 var(--space-2); }
 @container (max-height: 48px) {
@@ -516,6 +541,19 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .transport-buttons { grid-row: 1; grid-column: 1; display: flex; align-items: center; gap: var(--space-1); }
 .transport-row .scrub-wrap { grid-row: 1; grid-column: 2; }
 .transport-tools { grid-row: 1; grid-column: 3; display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); }
+/* The drawer's tabs, at the row's end: open, switch, or choose again to close (milestone 38). */
+.transport-tabs { display: inline-flex; align-items: center; gap: 4px; margin-left: var(--space-2); padding-left: var(--space-3); border-left: 1px solid var(--border); }
+.transport-tabs .tab { position: relative; display: inline-flex; align-items: center; font-size: var(--font-secondary); padding: 3px 10px; color: var(--muted); background: none; border-color: transparent; }
+.transport-tabs .tab:hover { color: var(--text); }
+.transport-tabs .tab[aria-selected="true"] { color: var(--text); background: var(--panel-2); border-color: var(--border); }
+.app.inspector-open .transport-tabs .tab[aria-selected="true"] { color: var(--accent); border-color: var(--accent); }
+/* The dot: the shown item has edits behind this tab (milestone 38). */
+.transport-tabs .tab.edited::after { content: ''; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+/* On a narrow window the tabs fold to their icons, so the scrub bar keeps its width;
+   the labels stay in the markup for assistive tech and the tooltips. */
+@media (max-width: 1100px) {
+  .transport-tabs .tab .label { display: none; }
+}
 /* The lanes clip what scrolls out of them, and a bar's end handles reach 3 px past its ends, so the
    lanes are widened by a padding they take back as margin: the bars' own box stays the scrub bar's. */
 .transport-lanes { grid-row: 2; grid-column: 2; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 4px; margin: 0 -4px; }
@@ -588,19 +626,22 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .scrub-marks .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--accent); }
 .scrub-marks .mark[hidden] { display: none; }
 
-/* Preview tools: how the picture is viewed — background and safe areas — one quiet row. */
-.stage-tools { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; font-size: var(--font-secondary); }
-.stage-tools .tool-group { display: inline-flex; align-items: center; gap: var(--space-1); }
-.stage-tools button { font-size: var(--font-secondary); padding: 3px 8px; }
-.stage-tools .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
-.stage-tools .icon-button:hover { color: var(--text); }
-.stage-tools .icon-button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--panel-2); }
-.stage-tools .swatch { width: 22px; height: 22px; padding: 0; border-radius: var(--radius-control); border: 1px solid var(--border); }
-.stage-tools .swatch.black { background: #000000; }
-.stage-tools .swatch.white { background: #ffffff; }
-.stage-tools .swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.stage-tools #bg-custom { width: 26px; height: 22px; padding: 1px; }
-.stage-tools #bg-custom.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* How the picture is viewed — background and safe areas — a quiet overlay on the stage's corner
+   (milestone 38), so the stage's box is all picture. Over the letterbox dead space at most sizes;
+   above the layer overlay, so its buttons stay clickable. */
+.stage-view { position: absolute; top: 8px; right: 12px; z-index: 2; display: flex; align-items: center; gap: var(--space-2); }
+.stage-view .tool-group { display: inline-flex; align-items: center; gap: var(--space-1); }
+.stage-view .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
+.stage-view .icon-button:hover { color: var(--text); }
+.stage-view .icon-button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--panel-2); }
+.stage-view .swatch { width: 22px; height: 22px; padding: 0; border-radius: var(--radius-control); border: 1px solid var(--border); }
+.stage-view .swatch.black { background: #000000; }
+.stage-view .swatch.white { background: #ffffff; }
+.stage-view .swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.stage-view #bg-custom { width: 26px; height: 22px; padding: 1px; }
+.stage-view #bg-custom.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* A note about the picture lies over its foot rather than taking a row from it. */
+.stage > .note { position: absolute; left: 16px; right: 16px; bottom: 8px; z-index: 2; margin: 0; }
 
 /* Safe areas: fractions of the frame (src/core/player.ts), over everything in the preview. */
 .safe-overlay { position: absolute; inset: 0; pointer-events: none; }
@@ -677,10 +718,6 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .set-piece .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .set-piece .label { font-size: var(--font-caption); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 
-.tabs { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-.tabs .tab { display: inline-flex; align-items: center; font-size: var(--font-secondary); padding: 3px 10px; color: var(--muted); background: none; border-color: transparent; }
-.tabs .tab:hover { color: var(--text); }
-.tabs .tab[aria-selected="true"] { color: var(--text); background: var(--panel-2); border-color: var(--border); }
 .tab-pane[hidden] { display: none; }
 
 .params-head { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 8px 0 10px; }
@@ -927,8 +964,6 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .note.editing { display: flex; align-items: center; gap: var(--space-2); border: 1px solid var(--accent); border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); }
 .note.editing[hidden] { display: none; }
 .note.editing button { font-size: var(--font-secondary); padding: 2px 8px; margin-left: auto; }
-.item-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.item-row #add-to-collection { display: inline-flex; align-items: center; font-size: var(--font-secondary); padding: 3px 8px; white-space: nowrap; }
 .tray-head .primary { font-size: var(--font-secondary); padding: 3px 10px; }
 .tray-progress { width: 120px; height: 4px; }
 .tray-progress[hidden] { display: none; }

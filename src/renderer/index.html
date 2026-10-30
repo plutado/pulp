@@ -60,6 +60,7 @@
             <input id="thumb-size" type="range" min="0" max="3" step="1" value="1" aria-label="Thumbnail size" data-tip="Thumbnail size">
           </span>
           <button id="stage-toggle" type="button" class="region-toggle icon-button" data-icon="caret-up" aria-label="Hide the preview" aria-expanded="true"></button>
+          <button id="results-toggle" type="button" class="region-toggle icon-button" data-icon="caret-down" aria-label="Hide the results" aria-expanded="true"></button>
         </div>
         <div class="filter-chips" role="group" aria-label="Filters">
           <button id="chip-templates" class="chip" type="button" data-chip="templates" data-icon="shapes" aria-pressed="false"><span class="label">Templates</span></button>
@@ -99,7 +100,7 @@
             <div id="preview-empty" class="preview-empty">Select a template</div>
           </div>
         </div>
-        <div class="stage-tools" role="toolbar" aria-label="Preview tools">
+        <div class="stage-view" role="toolbar" aria-label="Preview tools">
           <span class="tool-group backgrounds" role="group" aria-label="Preview background">
             <button id="bg-checker" type="button" class="icon-button" data-icon="checkerboard" data-icon-size="20" aria-pressed="true" aria-label="Checkerboard background"></button>
             <button id="bg-black" type="button" class="swatch black" aria-pressed="false" aria-label="Black background"></button>
@@ -107,10 +108,6 @@
             <input id="bg-custom" type="color" value="#808080" aria-label="Custom background color" data-tip="Custom background color">
           </span>
           <button id="safe-toggle" type="button" class="icon-button" data-icon="frame-corners" data-icon-size="20" aria-pressed="false" aria-label="Title-safe and action-safe areas"></button>
-        </div>
-        <div class="item-row">
-          <button id="add-to-collection" type="button" disabled data-icon="stack" data-tip="Add this item to the collection in the tray"><span class="label">Add to collection</span></button>
-          <div id="item-tools" class="item-tools" hidden></div>
         </div>
         <p id="stage-note" class="note error" hidden></p>
       </section>
@@ -122,16 +119,14 @@
         </div>
         <div id="category-cards" class="category-cards" hidden></div>
         <ul id="results" class="results grid" role="listbox" aria-label="Library"></ul>
-      </section>
-    </main>
-
-    <div id="split-inspector" class="splitter v" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize the inspector"></div>
-    <section id="region-inspector" class="inspector" aria-label="Inspector">
-      <div class="tabs" role="tablist" aria-label="Inspector sections">
-        <button id="tab-parameters" class="tab" type="button" role="tab" aria-selected="true" aria-controls="pane-parameters" data-icon="sliders-horizontal"><span class="label">Parameters</span></button>
-        <button id="tab-output" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-output" data-icon="export"><span class="label">Output</span></button>
-        <button id="tab-info" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-info" data-icon="info"><span class="label">Info</span></button>
-      </div>
+      <section id="region-inspector" class="inspector" aria-label="Inspector">
+        <div id="split-inspector" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the inspector"></div>
+        <div class="inspector-head">
+          <div id="item-tools" class="item-tools" hidden></div>
+          <span class="inspector-head-spacer"></span>
+          <button id="inspector-pin" type="button" class="icon-button" data-icon="push-pin" data-icon-size="16" aria-pressed="false" aria-label="Keep the drawer open" data-tip="Keep the drawer open while choosing other items"></button>
+          <button id="inspector-close" type="button" class="icon-button" data-icon="x" data-icon-size="16" aria-label="Close the inspector" data-tip="Close (Esc)"></button>
+        </div>
       <div id="pane-parameters" class="tab-pane" role="tabpanel" aria-labelledby="tab-parameters">
       <div class="params-head">
         <div class="params-actions">
@@ -259,8 +254,9 @@
       <div id="pane-info" class="tab-pane info-pane" role="tabpanel" aria-labelledby="tab-info" hidden>
         <div id="info-item" hidden></div>
       </div>
-    </section>
-
+      </section>
+      </section>
+    </main>
     <div id="region-tray" class="tray" aria-label="Render tray">
       <div id="split-tray" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the tray"></div>
       <div class="tray-head">
@@ -339,6 +335,12 @@
           <input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">
         </span>
         <button id="audition" type="button" class="icon-button" data-icon="play-circle" data-icon-size="20" aria-pressed="false" aria-label="Audition mode" data-tip="Audition: choosing a sound plays it, and the arrow keys move through the results"></button>
+        <button id="add-to-collection" type="button" class="icon-button" disabled data-icon="stack" data-icon-size="20" aria-label="Add to collection" data-tip="Add this item to the collection in the tray"></button>
+        <span class="transport-tabs" role="tablist" aria-label="Inspector sections">
+          <button id="tab-parameters" class="tab" type="button" role="tab" aria-selected="true" aria-controls="pane-parameters" data-icon="sliders-horizontal" data-tip="The template's own settings; choosing again closes the drawer"><span class="label">Parameters</span></button>
+          <button id="tab-output" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-output" data-icon="export" data-tip="Format, size and trim of a render; choosing again closes the drawer"><span class="label">Output</span></button>
+          <button id="tab-info" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-info" data-icon="info" data-tip="What the item is; choosing again closes the drawer"><span class="label">Info</span></button>
+        </span>
       </div>
       <div class="transport-lanes">
         <div id="layer-bars" class="layer-bars" role="group" aria-label="When each layer is on screen" hidden></div>

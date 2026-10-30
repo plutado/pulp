@@ -49,10 +49,15 @@ describe('the application menu (milestone 27)', () => {
 
   it('shows the regions and the view as they are, and says what pressing will do next', () => {
     const view = section(menu(), 'View');
-    const shown = state({ browseVisible: true, stageVisible: false, trayVisible: true, grid: false });
+    const shown = state({ browseVisible: true, stageVisible: false, trayVisible: true, grid: false, resultsVisible: true, outputOpen: true });
     expect(itemChecked(byLabel(view, 'Browse Panel')!, shown)).toBe(true);
     expect(itemChecked(byLabel(view, 'Preview')!, shown)).toBe(false);
     expect(itemChecked(byLabel(view, 'Collection Tray')!, shown)).toBe(true);
+    expect(itemChecked(byLabel(view, 'Results')!, shown)).toBe(true);
+    // The inspector drawer's tabs (milestone 38): at most one ticked, none when it is closed.
+    expect(itemChecked(byLabel(view, 'Output')!, shown)).toBe(true);
+    expect(itemChecked(byLabel(view, 'Parameters')!, shown)).toBe(false);
+    expect(itemChecked(byLabel(view, 'Parameters')!, state())).toBe(false);
     // Grid and list are two sides of one setting, so exactly one is ever ticked.
     expect(itemChecked(byLabel(view, 'Grid of Cards')!, shown)).toBe(false);
     expect(itemChecked(byLabel(view, 'List of Rows')!, shown)).toBe(true);

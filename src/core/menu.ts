@@ -39,7 +39,11 @@ export type MenuCommand =
   | 'browse.find'
   | 'view.browse'
   | 'view.stage'
+  | 'view.results'
   | 'view.tray'
+  | 'view.parameters'
+  | 'view.output'
+  | 'view.info'
   | 'view.grid'
   | 'view.list'
   | 'view.bigger'
@@ -76,7 +80,12 @@ export interface MenuState {
   loop: boolean;
   browseVisible: boolean;
   stageVisible: boolean;
+  resultsVisible: boolean;
   trayVisible: boolean;
+  /** The inspector drawer (milestone 38): open on this tab. At most one is true; all false is closed. */
+  parametersOpen: boolean;
+  outputOpen: boolean;
+  infoOpen: boolean;
   /** The results are a grid of cards rather than a list of rows. */
   grid: boolean;
   /** Recently opened projects, newest first; the Open Recent submenu. */
@@ -94,7 +103,11 @@ export const EMPTY_MENU_STATE: MenuState = {
   loop: true,
   browseVisible: true,
   stageVisible: true,
+  resultsVisible: true,
   trayVisible: false,
+  parametersOpen: false,
+  outputOpen: false,
+  infoOpen: false,
   grid: true,
   recent: [],
 };
@@ -237,9 +250,16 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
   sections.push({
     label: 'View',
     items: [
-      { command: 'view.browse', label: 'Browse Panel', accelerator: 'CmdOrCtrl+1', type: 'checkbox', checkedBy: 'browseVisible' },
-      { command: 'view.stage', label: 'Preview', accelerator: 'CmdOrCtrl+2', type: 'checkbox', checkedBy: 'stageVisible' },
-      { command: 'view.tray', label: 'Collection Tray', accelerator: 'CmdOrCtrl+3', type: 'checkbox', checkedBy: 'trayVisible' },
+      // The drawer's tabs first, on the plain digits (milestone 38): they are the keys reached for
+      // while editing, so the panels move to the shifted ones.
+      { command: 'view.parameters', label: 'Parameters', accelerator: 'CmdOrCtrl+1', type: 'checkbox', checkedBy: 'parametersOpen' },
+      { command: 'view.output', label: 'Output', accelerator: 'CmdOrCtrl+2', type: 'checkbox', checkedBy: 'outputOpen' },
+      { command: 'view.info', label: 'Info', accelerator: 'CmdOrCtrl+3', type: 'checkbox', checkedBy: 'infoOpen' },
+      sep,
+      { command: 'view.browse', label: 'Browse Panel', accelerator: 'CmdOrCtrl+Shift+1', type: 'checkbox', checkedBy: 'browseVisible' },
+      { command: 'view.stage', label: 'Preview', accelerator: 'CmdOrCtrl+Shift+2', type: 'checkbox', checkedBy: 'stageVisible' },
+      { command: 'view.results', label: 'Results', accelerator: 'CmdOrCtrl+Shift+3', type: 'checkbox', checkedBy: 'resultsVisible' },
+      { command: 'view.tray', label: 'Collection Tray', accelerator: 'CmdOrCtrl+Shift+4', type: 'checkbox', checkedBy: 'trayVisible' },
       sep,
       // Two sides of one setting, so they are a pair of radios rather than two ticks.
       { command: 'view.grid', label: 'Grid of Cards', type: 'radio', checkedBy: 'grid' },

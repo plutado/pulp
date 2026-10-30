@@ -69,7 +69,12 @@ function run(command: MenuCommand, arg: string | null): void {
     }
     case 'view.browse': press('browse-toggle'); return;
     case 'view.stage': press('stage-toggle'); return;
+    case 'view.results': press('results-toggle'); return;
     case 'view.tray': press('tray-toggle'); return;
+    // The drawer's tabs are the buttons in the transport row: open, switch, or close (milestone 38).
+    case 'view.parameters': press('tab-parameters'); return;
+    case 'view.output': press('tab-output'); return;
+    case 'view.info': press('tab-info'); return;
     case 'view.grid': press('view-grid'); return;
     case 'view.list': press('view-list'); return;
     case 'view.bigger': stepCardSize(1); return;
@@ -97,8 +102,13 @@ function pressed(id: string): boolean {
   return document.getElementById(id)?.getAttribute('aria-pressed') === 'true';
 }
 
-function visible(region: 'browse' | 'stage' | 'tray'): boolean {
+function visible(region: 'browse' | 'stage' | 'tray' | 'results'): boolean {
   return !$('app').classList.contains(`${region}-collapsed`);
+}
+
+/** The drawer is open on this tab: read off the window's own controls, as every flag is. */
+function tabOpen(tab: 'parameters' | 'output' | 'info'): boolean {
+  return $('app').classList.contains('inspector-open') && document.getElementById(`tab-${tab}`)?.getAttribute('aria-selected') === 'true';
 }
 
 function readState(recent: string[]): MenuState {
@@ -116,7 +126,11 @@ function readState(recent: string[]): MenuState {
     loop: t.loop,
     browseVisible: visible('browse'),
     stageVisible: visible('stage'),
+    resultsVisible: visible('results'),
     trayVisible: visible('tray'),
+    parametersOpen: tabOpen('parameters'),
+    outputOpen: tabOpen('output'),
+    infoOpen: tabOpen('info'),
     grid: pressed('view-grid'),
     recent,
   };
