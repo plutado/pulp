@@ -909,6 +909,35 @@ describe.skipIf(!electron)('inspector UI', () => {
   describe('image slots (milestone 22)', () => {
     const field = `document.querySelector('#params [data-param="logo"] .image-field')`;
 
+    it('searches the library in a chooser the way the search bar does (milestone 40)', async () => {
+      await clickResult('Lower Third Bar');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${field}`), 'the logo slot field');
+      const type = (q: string) =>
+        page.eval(`(() => { const s = ${field}.querySelector('.image-picker input[type=search]'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      const listed = () => page.eval<string[]>(`[...${field}.querySelectorAll('.image-choice .name')].map((n) => n.textContent)`);
+      if (await page.eval<boolean>(`${field}.querySelector('.image-picker').hidden`)) await page.eval(`${field}.querySelector('.image-well').click()`);
+      await until(() => page.eval<boolean>(`!!${field}.querySelector('.image-choice')`), 'stills in the chooser');
+
+      // The whole query language, which the chooser's own substring match could never read: a
+      // `key:value` term was looked for as a word, so it found nothing whatever the library held.
+      const all = await listed();
+      expect(all, 'the fixture stills').toContain('tiny');
+      await type('type:image');
+      expect(await listed(), 'a filter that keeps them all').toEqual(all);
+      await type('type:video');
+      expect(await listed(), 'a filter that keeps none of them').toEqual([]);
+      await type('duration:>9999');
+      expect(await listed(), 'a filter nothing can satisfy empties the list').toEqual([]);
+      expect(await page.eval<string>(`${field}.querySelector('.image-choices .note').textContent`)).toBe('No stills match.');
+
+      // And the ranking: a still whose whole name is the term comes before one it merely starts.
+      await type('mark');
+      expect((await listed())[0]).toBe('mark');
+      await type('');
+      await page.eval(`${field}.querySelector('.image-picker').hidden = true`);
+    }, 120_000);
+
     it('picks a still from the library, treats it, keeps it in a preset by id, and clears', async () => {
       await clickResult('Lower Third Bar');
       // The well's size is measured below, and a closed drawer has no boxes (milestone 38).

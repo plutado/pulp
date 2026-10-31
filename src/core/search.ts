@@ -26,7 +26,7 @@
  */
 
 import { ORIENTATIONS, orientationOf, templateDefaultSize, templateOrientations, type Orientation } from './aspect';
-import type { LibraryEntry, LibraryIndex } from './library-types';
+import type { LibraryEntry, LibraryIndex, MediaEntry, MediaKind } from './library-types';
 import { RESOLUTION_ALIASES, resolutionLabel } from './media-meta';
 import { normalizeTag } from './tags';
 import { entryType, isThemeGroup, normalizeTheme, themesInGroup, typeInfo } from './taxonomy';
@@ -241,6 +241,44 @@ export function searchLibrary(index: LibraryIndex, query: string): SearchHit[] {
   }
   hits.sort((a, b) => b.score - a.score || entryName(a.entry).localeCompare(entryName(b.entry)));
   return hits;
+}
+
+/**
+ * What may be chosen from the library here (milestone 40): media of certain
+ * kinds that answers a query, best first.
+ *
+ * The one way anything in the window asks the library for media to choose —
+ * the picture and clip choosers in the Parameters tab, the stage's Add Asset
+ * list. It is the same `searchLibrary` the results use, over the media of
+ * those kinds, so the query language and the ranking a person has learned in
+ * the search bar hold wherever they type: `logo` ranks an exact name above a
+ * tag above a word that starts with it, and `alpha:yes` or `duration:<5`
+ * narrow a chooser exactly as they narrow the results. Before this each
+ * chooser had a plain substring match of its own.
+ */
+/** Choices a chooser lists at once: enough to scroll through, few enough to build on a keystroke. */
+export const PICKER_LIMIT = 60;
+
+export interface MediaSearch {
+  /** Which kinds may be chosen; every kind when it is not said. */
+  kinds?: readonly MediaKind[];
+  /** The query, in the language the search bar takes. */
+  query?: string;
+  /** Put what was used most recently first, keeping the query's ranking within. */
+  recentFirst?: boolean;
+  /** Most to hand back. */
+  limit?: number;
+}
+
+export function searchMedia(index: LibraryIndex | null | undefined, options: MediaSearch = {}): MediaEntry[] {
+  if (!index) return [];
+  const { kinds, recentFirst, limit } = options;
+  // An item whose folder is offline cannot be loaded, so it is never offered.
+  const media = index.media.filter((m) => !m.offline && (!kinds || kinds.includes(m.mediaKind)));
+  const found = searchLibrary({ ...index, templates: [], media }, options.query ?? '').map((h) => h.entry as MediaEntry);
+  // A stable sort, so items used equally long ago keep the order the search put them in.
+  const ordered = recentFirst ? [...found].sort((a, b) => (b.lastUsed ?? '').localeCompare(a.lastUsed ?? '')) : found;
+  return limit === undefined ? ordered : ordered.slice(0, limit);
 }
 
 /** Tag counts across the index, most used first. */

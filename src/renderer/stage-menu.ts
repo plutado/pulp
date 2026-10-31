@@ -18,6 +18,7 @@ import { computed, signal } from '@preact/signals';
 import type { LayerLook } from '../core/layer-look';
 import type { Layer } from '../core/layers';
 import type { MenuCommand } from '../core/menu';
+import { searchMedia } from '../core/search';
 import { framePointIn } from '../core/stage-place';
 import {
   copiedLook,
@@ -121,13 +122,14 @@ export function currentLayerFacts(): LayerMenuFacts {
   });
 }
 
-/** The library's pictures and clips, most recently used first: what Add Asset Here offers. */
+/**
+ * The library's pictures and clips, most recently used first: what Add Asset
+ * Here offers. Through the one `searchMedia` the choosers use (milestone 40),
+ * so what is offered here and what a chooser lists are the same library asked
+ * the same way.
+ */
 function stageAssets(): StageAsset[] {
-  const media = appState.value.index?.media ?? [];
-  return media
-    .filter((m) => !m.offline && (m.mediaKind === 'image' || m.mediaKind === 'video'))
-    .sort((a, b) => (b.lastUsed ?? '').localeCompare(a.lastUsed ?? '') || a.name.localeCompare(b.name))
-    .slice(0, STAGE_MENU_ASSETS)
+  return searchMedia(appState.value.index, { kinds: ['image', 'video'], recentFirst: true, limit: STAGE_MENU_ASSETS })
     .map((m) => ({ id: m.id, name: m.name, kind: m.mediaKind === 'video' ? 'video' : 'image' }));
 }
 

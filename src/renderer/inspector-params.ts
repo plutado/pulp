@@ -58,6 +58,7 @@ import { appState, frameSize, importedFonts, paramsEdited, selectedTemplate, slo
 import { aspectOf } from '../core/aspect';
 import { registerLayerEditor, selectedLayer } from './layer-edit';
 import { openInspector } from './inspector-tabs';
+import { mediaPicker } from './media-picker';
 import { addedLayer } from '../core/stage-menu';
 import { effect } from '@preact/signals';
 
@@ -443,13 +444,6 @@ function inputFor(param: TemplateParameter): HTMLElement {
 
 // ---------------------------------------------------------------- image slots (milestone 22)
 
-/** The library's stills that can fill a slot, newest name order; what the picker lists. */
-function libraryStills(query: string): MediaEntry[] {
-  const q = query.trim().toLowerCase();
-  const stills = (appState.value.index?.media ?? []).filter((m) => m.mediaKind === 'image' && !m.offline);
-  return stills.filter((m) => !q || m.name.toLowerCase().includes(q) || m.tags.some((t) => t.includes(q))).slice(0, 60);
-}
-
 /** Short enough for a segmented control; the long form is the button's tooltip. */
 const TREATMENT_LABELS: Record<ImageValue['treatment'], string> = { original: 'Original', tinted: 'Tinted', white: 'White', black: 'Black' };
 const TREATMENT_TIPS: Record<ImageValue['treatment'], string> = {
@@ -578,15 +572,6 @@ function imageField(
   buttons.append(...(options.layer ? [replace, clear] : [hide, replace, clear]));
   meta.append(caption, dims, buttons);
 
-  const picker = document.createElement('div');
-  picker.className = 'image-picker';
-  picker.hidden = true;
-  const pickerHead = document.createElement('div');
-  pickerHead.className = 'picker-head';
-  const search = document.createElement('input');
-  search.type = 'search';
-  search.placeholder = 'Search stills';
-  search.setAttribute('aria-label', 'Search stills');
   const fromFile = document.createElement('button');
   fromFile.type = 'button';
   fromFile.className = 'from-file';
@@ -596,10 +581,17 @@ function imageField(
   fileInput.type = 'file';
   fileInput.accept = 'image/*,.svg';
   fileInput.hidden = true;
-  pickerHead.append(search, fromFile, fileInput);
-  const choices = document.createElement('ul');
-  choices.className = 'image-choices';
-  picker.append(pickerHead, choices);
+  // The one chooser (milestone 40), so this searches the library the way the search bar does.
+  const chooser = mediaPicker({
+    kinds: ['image'],
+    noun: 'stills',
+    label: slot.label,
+    emptyLibrary: 'No stills in the library yet. Add a folder with images, or use File….',
+    chosen: () => value?.id ?? undefined,
+    onPick: (entry) => pick(entry.id),
+    head: [fromFile, fileInput],
+  });
+  const picker = chooser.el;
 
   const treat = document.createElement('div');
   treat.className = 'image-treatment';
@@ -800,48 +792,7 @@ function imageField(
     commitParams();
   };
   const pick = (id: string) => set({ id, treatment: value?.treatment ?? 'original', tint: value?.tint ?? '#ffffff', effect: value?.effect ?? 'none', hidden: value?.hidden ?? false, ...browsedPsdChoice(id) });
-  const listChoices = () => {
-    choices.replaceChildren();
-    const stills = libraryStills(search.value);
-    if (stills.length === 0) {
-      const li = document.createElement('li');
-      li.className = 'note';
-      li.textContent = search.value.trim() ? 'No stills match.' : 'No stills in the library yet. Add a folder with images, or use File….';
-      choices.append(li);
-      return;
-    }
-    for (const m of stills) {
-      const li = document.createElement('li');
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'image-choice';
-      button.dataset.id = m.id;
-      button.setAttribute('aria-pressed', String(value?.id === m.id));
-      const t = document.createElement('span');
-      t.className = 'thumb checker';
-      const i = document.createElement('img');
-      i.alt = '';
-      i.src = m.thumbnail ?? mediaUrlFor(m.id);
-      t.append(i);
-      const name = document.createElement('span');
-      name.className = 'name';
-      name.textContent = m.name;
-      button.append(t, name);
-      button.addEventListener('click', () => {
-        pick(m.id);
-        picker.hidden = true;
-      });
-      li.append(button);
-      choices.append(li);
-    }
-  };
-  const togglePicker = () => {
-    picker.hidden = !picker.hidden;
-    if (!picker.hidden) {
-      listChoices();
-      search.focus();
-    }
-  };
+  const togglePicker = () => chooser.toggle();
   /** A file from the picker's File… button or dropped on the well: the same import either way. */
   const importFile = (file: File) => {
     fromFile.disabled = true;
@@ -854,7 +805,7 @@ function imageField(
           return;
         }
         pick(result.id);
-        picker.hidden = true;
+        chooser.close();
       })
       .finally(() => {
         fromFile.disabled = false;
@@ -876,7 +827,6 @@ function imageField(
     e.preventDefault();
     importFile(file);
   });
-  search.addEventListener('input', listChoices);
   fromFile.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => {
     const file = fileInput.files?.[0];
@@ -1284,13 +1234,6 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
   ];
 }
 
-/** Library clips a video layer may use: anything that plays, including a folder of frames. */
-function libraryClips(query: string): MediaEntry[] {
-  const q = query.trim().toLowerCase();
-  const clips = (appState.value.index?.media ?? []).filter((m) => m.mediaKind === 'video' && !m.offline);
-  return clips.filter((m) => !q || m.name.toLowerCase().includes(q) || m.tags.some((t) => t.includes(q))).slice(0, 60);
-}
-
 const ENDING_LABELS: Record<ClipEnding, string> = { loop: 'Loop', once: 'Play once' };
 
 /** What the Add layer buttons say, and what a new layer of each type is called. */
@@ -1333,16 +1276,18 @@ function clipField(
   actions.append(choose, hide, clear);
   meta.append(caption, dims, actions);
 
-  const picker = document.createElement('div');
-  picker.className = 'image-picker';
-  picker.hidden = true;
-  const search = document.createElement('input');
-  search.type = 'search';
-  search.placeholder = 'Search clips';
-  search.setAttribute('aria-label', `Search clips for ${slot.label}`);
-  const choices = document.createElement('ul');
-  choices.className = 'image-choices';
-  picker.append(search, choices);
+  // The one chooser (milestone 40), the same the picture well opens: a clip is searched for the
+  // way a still is, and the way everything is in the search bar.
+  const chooser = mediaPicker({
+    kinds: ['video'],
+    noun: 'clips',
+    label: slot.label,
+    emptyLibrary: 'No clips in the library yet. Add a folder with video, or make the sample media.',
+    chosen: () => value?.id ?? undefined,
+    // A new clip starts from the whole of it: in and out points of the one before mean nothing here.
+    onPick: (entry) => set({ ...EMPTY_CLIP, id: entry.id, ending: value?.ending ?? 'loop', speed: value?.speed ?? 1, delay: value?.delay ?? 0 }),
+  });
+  const picker = chooser.el;
 
   const settings = document.createElement('div');
   settings.className = 'type-grid clip-settings';
@@ -1425,50 +1370,7 @@ function clipField(
     publishSlotNotes();
   }
 
-  const listChoices = () => {
-    choices.replaceChildren();
-    const clips = libraryClips(search.value);
-    if (clips.length === 0) {
-      const li = document.createElement('li');
-      li.className = 'note';
-      li.textContent = search.value.trim() ? 'No clips match.' : 'No clips in the library yet. Add a folder with video, or make the sample media.';
-      choices.append(li);
-      return;
-    }
-    for (const m of clips) {
-      const li = document.createElement('li');
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'image-choice';
-      button.dataset.id = m.id;
-      button.setAttribute('aria-pressed', String(value?.id === m.id));
-      const t = document.createElement('span');
-      t.className = 'thumb checker';
-      const i = document.createElement('img');
-      i.alt = '';
-      if (m.thumbnail) i.src = m.thumbnail;
-      t.append(i);
-      const name = document.createElement('span');
-      name.className = 'name';
-      name.textContent = m.name;
-      button.append(t, name);
-      button.addEventListener('click', () => {
-        // A new clip starts from the whole of it: in and out points of the one before mean nothing here.
-        set({ ...EMPTY_CLIP, id: m.id, ending: value?.ending ?? 'loop', speed: value?.speed ?? 1, delay: value?.delay ?? 0 });
-        picker.hidden = true;
-      });
-      li.append(button);
-      choices.append(li);
-    }
-  };
-  choose.addEventListener('click', () => {
-    picker.hidden = !picker.hidden;
-    if (!picker.hidden) {
-      listChoices();
-      search.focus();
-    }
-  });
-  search.addEventListener('input', listChoices);
+  choose.addEventListener('click', () => chooser.toggle());
   hide.addEventListener('click', () => set({ ...(value ?? EMPTY_CLIP), hidden: !(value?.hidden === true) }));
   clear.addEventListener('click', () => set(null));
   show();
