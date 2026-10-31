@@ -1572,3 +1572,32 @@ export function sampleMediaReadme(): string {
   }
   return `${lines.join('\n')}\n`;
 }
+
+/** The catalogue's items for a set of taxonomy types, in catalogue order (milestone 34). */
+export function samplesForTypes(types: readonly string[]): readonly SampleMediaItem[] {
+  const wanted = new Set(types);
+  return wanted.size === 0 ? [] : SAMPLE_MEDIA.filter((item) => wanted.has(item.type));
+}
+
+/** How many catalogue files each type has, so a count can be read without the catalogue itself. */
+export function sampleCountsByType(items: readonly SampleMediaItem[] = SAMPLE_MEDIA): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of items) counts[item.type] = (counts[item.type] ?? 0) + 1;
+  return counts;
+}
+
+/**
+ * How many catalogue files each type still lacks, asking `made` about each one
+ * (milestone 34): the count the results' hint reads. A type with nothing left
+ * is left out, so a missing key reads as "all made" rather than as zero that
+ * has to be told apart from one. The caller says what "made" means — the main
+ * process looks in the sample-media folder — so the arithmetic stays pure.
+ */
+export function unmadeSampleCounts(made: (item: SampleMediaItem) => boolean): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of SAMPLE_MEDIA) {
+    if (made(item)) continue;
+    counts[item.type] = (counts[item.type] ?? 0) + 1;
+  }
+  return counts;
+}

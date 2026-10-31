@@ -1,17 +1,18 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron';
 import { SAMPLE_MEDIA_FOLDER_NAME } from '../core/sample-media';
-import { generateSampleMedia } from './sample-media-service';
+import { generateSampleMedia, samplesToMake, unmadeSamplesByType } from './sample-media-service';
 import { readSlotImages, resolveRowImages } from './image-grant';
 import { layeredOutlineFor } from './layered-service';
 import { renderMedia } from './media-render';
 import { AUDIO_PRESETS, isAudioPresetId } from '../core/media-render';
 import { sanitizePsdChoice, type ImageGrantRequest } from '../core/image-slot';
 import { loadLayerClips } from './clip-grant';
-import { join, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { basename, join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
 import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
-import type { BatchRequest, FfmpegInfo, RenderRequest } from '../shared/api';
+import type { BatchRequest, FfmpegInfo, RenderRequest, SampleMediaOutcome } from '../shared/api';
 import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
@@ -163,19 +164,51 @@ function registerIpc(): void {
   ipcMain.handle('fonts:choose', () => chooseFontFile());
   ipcMain.handle('fonts:import', (_event, path: unknown, note: unknown) =>
     typeof path === 'string' && path ? importFontFile(path, typeof note === 'string' ? note : '') : { error: 'No file was chosen.' });
-  ipcMain.handle('library:add-sample-media', async () => {
+  /**
+   * Where the sample media lives: the folder a run was made in, or — for a folder made before that
+   * was recorded — a library folder named like the one the generator makes. Null when there is none
+   * yet, which the hint reads as "nothing made" and a run turns into a question of where to put it.
+   */
+  const sampleMediaRoot = async (): Promise<string | null> => {
+    const settings = await loadSettings();
+    if (settings.sampleMediaRoot && existsSync(settings.sampleMediaRoot)) return settings.sampleMediaRoot;
+    const named = settings.libraryFolders.find((f) => basename(f) === SAMPLE_MEDIA_FOLDER_NAME && existsSync(f));
+    return named ?? null;
+  };
+
+  /** Make the catalogue, or the part of it `types` names, into `folder`, and put it in the library. */
+  const makeSampleMedia = async (folder: string, types?: readonly string[]): Promise<SampleMediaOutcome> => {
+    const items = types ? samplesToMake(types) : undefined;
+    const report = await generateSampleMedia(folder, undefined, items);
+    for (const f of report.failed) console.warn(`sample media: ${f.file || folder}: ${f.reason}`);
+    await updateSettings((s) => ({ ...s, sampleMediaRoot: folder }));
+    const index = await addLibraryFolder(folder);
+    return { index, written: report.written.length, skipped: report.skipped.length, failed: report.failed.map((f) => f.reason) };
+  };
+
+  /** Ask where the folder should go; null when the question is dismissed. */
+  const askForSampleFolder = async (): Promise<string | null> => {
     const result = await dialog.showOpenDialog({
       title: `Choose where to make the "${SAMPLE_MEDIA_FOLDER_NAME}" folder`,
       buttonLabel: 'Make sample media here',
       properties: ['openDirectory', 'createDirectory'],
     });
     const parent = result.filePaths[0];
-    if (result.canceled || !parent) return null;
-    const folder = join(parent, SAMPLE_MEDIA_FOLDER_NAME);
-    const report = await generateSampleMedia(folder);
-    for (const f of report.failed) console.warn(`sample media: ${f.file || folder}: ${f.reason}`);
-    const index = await addLibraryFolder(folder);
-    return { index, written: report.written.length, skipped: report.skipped.length, failed: report.failed.map((f) => f.reason) };
+    return result.canceled || !parent ? null : join(parent, SAMPLE_MEDIA_FOLDER_NAME);
+  };
+
+  ipcMain.handle('library:add-sample-media', async () => {
+    const folder = await askForSampleFolder();
+    return folder === null ? null : makeSampleMedia(folder);
+  });
+  // What the results' hint counts from (milestone 34): how many catalogue files each type still lacks.
+  ipcMain.handle('library:sample-media-status', async () => ({ unmade: unmadeSamplesByType(await sampleMediaRoot()) }));
+  // And the button beside it: just these types, into the folder the rest is in — or a new one, asked for once.
+  ipcMain.handle('library:make-sample-media', async (_event, types: unknown) => {
+    const wanted = Array.isArray(types) ? types.filter((t): t is string => typeof t === 'string') : [];
+    if (wanted.length === 0) return null;
+    const folder = (await sampleMediaRoot()) ?? (await askForSampleFolder());
+    return folder === null ? null : makeSampleMedia(folder, wanted);
   });
   ipcMain.handle('library:add-folder', async () => {
     const result = await dialog.showOpenDialog({
@@ -388,7 +421,7 @@ function registerIpc(): void {
  *     [--aspect 16:9|9:16|1:1|4:5] [--size <width>x<height>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
  *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
- *   electron . --sample-media <folder>
+ *   electron . --sample-media <folder> [--types <type,type>]
  *   electron . --visual-hashes <file> [--check]
  * `--sample-media` writes the sample-media catalogue (src/core/sample-media.ts) into the folder:
  * original CC0 sounds, music, stills and clips, at least six per media type, skipping files
@@ -418,6 +451,8 @@ interface CliRender {
   batch?: string;
   collection?: string;
   sampleMedia?: string;
+  /** --types: fill only these taxonomy types, as the results' own hint does (milestone 34). */
+  sampleTypes?: string[];
   /** `--visual-hashes <file>`: write or check the visual references. */
   visualHashes?: { file: string; check: boolean };
   options: RenderOptions;
@@ -509,6 +544,7 @@ function parseCliRender(argv: string[]): CliRender | null {
   const batch = get('--batch');
   const collection = get('--collection');
   const sampleMedia = get('--sample-media');
+  const sampleTypes = get('--types');
   const visualHashes = get('--visual-hashes');
   return {
     templateId: argv[i + 1] ?? '',
@@ -523,6 +559,7 @@ function parseCliRender(argv: string[]): CliRender | null {
     ...(batch !== undefined ? { batch: resolve(batch) } : {}),
     ...(collection !== undefined ? { collection: resolve(collection) } : {}),
     ...(sampleMedia !== undefined ? { sampleMedia: resolve(sampleMedia) } : {}),
+    ...(sampleTypes !== undefined ? { sampleTypes: sampleTypes.split(',').map((t) => t.trim()).filter(Boolean) } : {}),
     ...(visualHashes !== undefined ? { visualHashes: { file: resolve(visualHashes), check: argv.includes('--check') } } : {}),
     ...(outPoint !== undefined ? { outPoint } : {}),
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
@@ -532,7 +569,7 @@ function parseCliRender(argv: string[]): CliRender | null {
 
 async function runCliRender(cli: CliRender): Promise<number> {
   if (cli.libraries.length > 0) await rescan(cli.libraries);
-  if (cli.sampleMedia !== undefined) return runCliSampleMedia(cli.sampleMedia);
+  if (cli.sampleMedia !== undefined) return runCliSampleMedia(cli.sampleMedia, cli.sampleTypes);
   if (cli.visualHashes !== undefined) return runVisualHashes(cli.visualHashes.file, cli.visualHashes.check);
   if (cli.collection !== undefined) return runCliCollection(cli);
   const template = await findTemplate(cli.templateId);
@@ -607,14 +644,26 @@ async function runCliRender(cli: CliRender): Promise<number> {
   return 0;
 }
 
-/** --sample-media: fill a folder with the sample-media catalogue and say what happened to each file. */
-async function runCliSampleMedia(folder: string): Promise<number> {
+/**
+ * --sample-media: fill a folder with the sample-media catalogue and say what happened to each file.
+ * With --types, only those taxonomy types are made — the command-line form of the results' own
+ * "N more with sample media" button (milestone 34), and quicker than the whole catalogue.
+ */
+async function runCliSampleMedia(folder: string, types?: readonly string[]): Promise<number> {
   if (!folder) {
     console.error('Missing --sample-media <folder>.');
     return 2;
   }
+  let items;
+  if (types !== undefined) {
+    items = samplesToMake(types);
+    if (items.length === 0) {
+      console.error(`No sample media for --types ${types.join(',')}.`);
+      return 2;
+    }
+  }
   const started = Date.now();
-  const report = await generateSampleMedia(folder, ({ done, total, file, outcome }) => console.log(`${done}/${total} ${outcome} ${file}`));
+  const report = await generateSampleMedia(folder, ({ done, total, file, outcome }) => console.log(`${done}/${total} ${outcome} ${file}`), items);
   for (const f of report.failed) console.error(`failed: ${f.file || folder}: ${f.reason}`);
   const seconds = (Date.now() - started) / 1000;
   console.log(`sample media in ${folder}: ${report.written.length} written, ${report.skipped.length} already there, ${report.failed.length} failed (${seconds.toFixed(1)} s)`);

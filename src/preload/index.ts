@@ -16,6 +16,8 @@ const api: PulpApi = {
   },
   addLibraryFolder: () => ipcRenderer.invoke('library:add-folder'),
   addSampleMedia: () => ipcRenderer.invoke('library:add-sample-media'),
+  sampleMediaStatus: () => ipcRenderer.invoke('library:sample-media-status'),
+  makeSampleMedia: (types) => ipcRenderer.invoke('library:make-sample-media', types),
   loadSlotImages: (requests) => ipcRenderer.invoke('images:load', requests),
   psdOutline: (id) => ipcRenderer.invoke('psd:outline', id),
   loadLayerClips: (requests) => ipcRenderer.invoke('clips:load', requests),

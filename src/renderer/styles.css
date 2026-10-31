@@ -40,6 +40,8 @@
   /* The row above the stage went with milestone 41: the centre is the stage, the splitter and the results. */
   /* The results' heading holds the sort and view controls (milestone 41): 40 px, not a caption line's 24. */
   --results-head-h: 40px;
+  /* The line under the results that says what sample media would add (milestone 34). */
+  --results-foot-h: 34px;
   --center-min-h: calc(6px + var(--results-min-h) + var(--results-head-h) + var(--stage-min-h));
   /* The floor holds the row's two lines — the scrub bar and the buttons — with no lanes. */
   --transport-min-h: 80px;
@@ -550,8 +552,10 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .app:is(.results-collapsed, .results-empty) #split-stage, .app:is(.results-collapsed, .results-empty) #results, .app:is(.results-collapsed, .results-empty) #category-cards { display: none; }
 .app:is(.results-collapsed, .results-empty) .results-region { flex: 0 0 auto; min-height: 0; }
 .app:is(.results-collapsed, .results-empty) .stage { flex: 1 1 auto; }
-/* Folded, the centre's floor is the stage and the heading: the list's floor is not owed. */
+/* Folded, the centre's floor is the stage and the heading: the list's floor is not owed — plus the
+   line under the results when one is shown (milestone 34), which stays through the fold. */
 .app:is(.results-collapsed, .results-empty) { --center-min-h: calc(var(--results-head-h) + var(--stage-min-h)); }
+.app.sample-hint:is(.results-collapsed, .results-empty) { --center-min-h: calc(var(--results-head-h) + var(--results-foot-h) + var(--stage-min-h)); }
 .app.theater.results-collapsed #region-results { display: none; }
 /* The message in the heading: the one line that says what is going on, its detail as a tooltip,
    and each way out as a small button beside it. */
@@ -560,6 +564,22 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results-empty-note .empty-title { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: inherit; color: inherit; }
 .results-empty-note .empty-actions { margin: 0; display: inline-flex; gap: var(--space-1); flex: 0 0 auto; }
 .results-empty-note .empty-actions button { font-size: var(--font-caption); padding: 2px 8px; }
+
+/* "N more with sample media" (milestone 34): under the results, saying that a thin-looking category
+   is thin because nothing has been generated yet, with a button that makes just this category's
+   files. It stays when the results fold to their heading — a category with nothing made at all is
+   exactly where it is worth reading — and goes when the person hid the results themselves, or in
+   theater, where the picture is wanted alone. */
+.results-hint {
+  flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-2);
+  min-height: var(--results-foot-h); padding: var(--space-1) var(--space-3);
+  border-top: 1px solid var(--border); background: var(--panel);
+  color: var(--text-secondary); font-size: var(--font-secondary);
+}
+.results-hint[hidden], .app:is(.results-collapsed, .theater) .results-hint { display: none; }
+.results-hint .hint-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.results-hint .hint-make { flex: 0 0 auto; font-size: var(--font-caption); padding: 3px 10px; }
+.results-hint .hint-make[aria-busy="true"] { color: var(--muted); }
 /* The wrap is a size container so the box below can be sized from it: the largest box of the
    picture's own ratio that fits, pillarboxed or letterboxed by whatever room is left around it.
    A clamped width or height alone would change the shape and stretch the iframe or media inside;

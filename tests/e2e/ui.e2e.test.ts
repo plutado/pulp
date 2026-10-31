@@ -22,6 +22,8 @@ import { encodePng } from '../../src/core/png';
 import { detectFfmpeg } from '../../src/core/ffmpeg';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
+import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
+import { categoryInfo } from '../../src/core/categories';
 import { ffmpegArgs, killTree, runBounded } from './process';
 
 const ROOT = join(__dirname, '..', '..');
@@ -176,6 +178,8 @@ describe.skipIf(!electron)('inspector UI', () => {
   let page: Session;
   /** Scratch userData folder, so the app under test never reads or writes the real settings.json. */
   let userData = '';
+  /** Where the sample-media hint would write; empty, so everything in the catalogue is still to make. */
+  let sampleRoot = '';
   /** The app window's own target, so the preview iframe can be told from a background render's window. */
   let appTargetId = '';
   /** A library folder with a tiny PNG and, when ffmpeg is available, a 2 s MP4. */
@@ -408,7 +412,12 @@ describe.skipIf(!electron)('inspector UI', () => {
     }
     // The start screen stays out of the way: this suite drives the window underneath it,
     // and the screen has its own test, which shows it through File → Home.
-    await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir], showStartScreen: false }));
+    // Where sample media would go (milestone 34): the folder exists and is empty, so the results'
+    // hint counts the whole catalogue as still to make and its button writes here rather than
+    // opening a folder dialog, which cannot be driven from the protocol.
+    sampleRoot = join(userData, 'Sample media');
+    await mkdir(sampleRoot, { recursive: true });
+    await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir], showStartScreen: false, sampleMediaRoot: sampleRoot }));
     // A font already imported: a real TTF in the managed folder under a family of its own, with a
     // licence note, as fonts:import would leave it. The import dialog itself cannot be driven here.
     await mkdir(join(userData, 'fonts'), { recursive: true });
@@ -4588,6 +4597,82 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.getElementById('scope-chip-clear').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('scope-chip').hidden`), 'the scope cleared');
     }, 60_000);
+
+    it('says what sample media would add to the category being browsed, and makes just those (milestone 34)', async () => {
+      const hint = () =>
+        page.eval<{ shown: boolean; text: string; button: boolean; tip: string; busy: string | null }>(
+          `(() => { const h = document.getElementById('results-hint'); const b = document.getElementById('results-hint-make');
+            return { shown: !h.hidden && h.getBoundingClientRect().height > 0, text: document.getElementById('results-hint-text').textContent,
+              button: !b.hidden && b.getBoundingClientRect().height > 0, tip: b.dataset.tip || '', busy: b.getAttribute('aria-busy') }; })()`,
+        );
+      /** How many items the region says it holds, which is the count the heading keeps. */
+      const held = () => page.eval<string>(`document.getElementById('results-label').textContent`).then((t) => Number(/(\d+)/.exec(t)?.[1] ?? -1));
+      const openNode = async (label: string) => {
+        await findCategory(label);
+        await until(() => page.eval<boolean>(
+          `[...document.querySelectorAll('#browse-tree .browse-node')].some((b) => b.textContent.includes(${JSON.stringify(label)}))`,
+        ), `${label} in the filtered tree`);
+        await page.eval(`[...document.querySelectorAll('#browse-tree .browse-node')].find((b) => b.textContent.includes(${JSON.stringify(label)})).click()`);
+        await until(() => page.eval<string>(`document.getElementById('scope-chip-label').textContent`).then((t) => t.includes(label)), `the scope on ${label}`);
+        await clearFindField();
+      };
+      await clearSearch();
+      const samplesFor = (id: string) => samplesForTypes(categoryInfo(id)!.types).length;
+
+      // Nothing has been made, so a category the catalogue fills says how many it would add —
+      // counted for that category, not for the whole 625-file catalogue.
+      await openNode('Overlays and frames');
+      await until(async () => (await hint()).shown, 'the line under the results');
+      const overlays = await hint();
+      expect(overlays.text).toBe(`${samplesFor('overlays-frames')} more with sample media`);
+      expect(overlays.button, 'with a button beside it').toBe(true);
+      expect(overlays.tip).toContain('Overlays and frames');
+      expect(overlays.tip).toContain('not the whole catalogue');
+      // It is the category's own count, not the catalogue's, and not another category's.
+      await openNode('Design elements');
+      await until(async () => (await hint()).text === `${samplesFor('design-elements')} more with sample media`, 'the count for the category in view');
+
+      // A category the catalogue has nothing for is offered nothing.
+      await openNode('Lower thirds');
+      expect((await hint()).shown, 'nothing to add to a template-only category').toBe(false);
+
+      // Hidden results want the room: the line goes with them and comes back.
+      await openNode('Overlays and frames');
+      await until(async () => (await hint()).shown, 'the line back on a category with samples');
+      await page.eval(`document.getElementById('results-toggle').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('results-collapsed')`), 'the results hidden');
+      expect((await hint()).shown, 'no line while the results are hidden').toBe(false);
+      await page.eval(`document.getElementById('results-toggle').click()`);
+      await until(async () => (await hint()).shown, 'the line back with the results');
+
+      // The button makes just what is in view. Vignettes are three stills, a second's work; the
+      // whole catalogue is 625 files, which is why the count and the button are per category.
+      await openNode('Vignette');
+      await until(async () => (await hint()).text === '3 more with sample media', 'the count for one type');
+      const before = await held();
+      await page.eval(`document.getElementById('results-hint-make').click()`);
+      await until(async () => (await hint()).busy === 'true', 'the button saying it is working');
+      await until(async () => (await hint()).text === 'Made 3 files.', 'the three made', 240_000);
+      // Nothing left for this type: the button goes, so nobody is offered more than there is.
+      expect((await hint()).button, 'the button goes once nothing is left').toBe(false);
+      await until(async () => (await held()) === before + 3, 'the three in the library');
+      // On disk under the sample-media root, and only those three.
+      for (const item of samplesForTypes(['vignette'])) expect(existsSync(join(sampleRoot, ...sampleMediaPath(item))), item.file).toBe(true);
+      expect(existsSync(join(sampleRoot, ...sampleMediaPath(samplesForTypes(['whoosh'])[0]!))), 'and nothing from another type').toBe(false);
+
+      // Browsing away and back: nothing is said where nothing is left, and the category that held
+      // the type counts what remains rather than what it started with.
+      await openNode('Frame / border');
+      await until(async () => (await hint()).text === '3 more with sample media', 'the next type along, untouched');
+      await openNode('Vignette');
+      expect((await hint()).shown, 'nothing left for the type that was made').toBe(false);
+      await openNode('Overlays and frames');
+      await until(async () => (await hint()).text === `${samplesFor('overlays-frames') - 3} more with sample media`, 'the category less the three made');
+
+      await page.eval(`document.getElementById('scope-chip-clear').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('scope-chip').hidden`), 'the scope cleared');
+      expect((await hint()).shown, 'nothing offered with nothing scoped').toBe(false);
+    }, 300_000);
   });
 
   describe('the start screen (milestone 31)', () => {

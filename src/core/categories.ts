@@ -88,6 +88,20 @@ export function typeScope(typeId: string): Scope {
   return { label: typeLabel(typeId), filter: `type:${typeId}`, kind: 'type', ...(category ? { group: category.id } : {}) };
 }
 
+/**
+ * The taxonomy types a scope covers: a category's own, or the one type of a
+ * type node, read back out of the filter `typeScope` wrote. Empty for a scope
+ * that is not a place in the taxonomy — a folder, Favorites, Matching sets —
+ * which is what tells the sample-media hint there is nothing to count
+ * (src/core/sample-hint.ts).
+ */
+export function scopeTypes(scope: Scope | null): readonly string[] {
+  if (!scope) return [];
+  if (scope.kind === 'category') return categoryById.get(scope.group ?? '')?.types ?? [];
+  if (scope.kind === 'type' && scope.filter?.startsWith('type:')) return [scope.filter.slice('type:'.length)];
+  return [];
+}
+
 /** The category a scope is in, if it is a category's own or one of its types'. */
 export function scopeCategory(scope: Scope | null): BrowseCategory | undefined {
   if (!scope || !scope.group) return undefined;

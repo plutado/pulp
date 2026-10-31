@@ -228,6 +228,10 @@ export interface PulpApi {
   addLibraryFolder(): Promise<LibraryIndex | null>;
   /** Make the sample-media folder inside a chosen folder, add it to the library, and say what was written. Null when cancelled. */
   addSampleMedia(): Promise<SampleMediaOutcome | null>;
+  /** How many catalogue files each taxonomy type still lacks (milestone 34); a type with none left is absent. */
+  sampleMediaStatus(): Promise<{ unmade: Record<string, number> }>;
+  /** Make just these types' sample media, into the folder the rest is in or one chosen now. Null when cancelled. */
+  makeSampleMedia(types: readonly string[]): Promise<SampleMediaOutcome | null>;
   /**
    * Image slots (ADR 0013): the bytes of exactly these library stills, as data URLs for the preview
    * to hand to the template page; ids that are not online stills come back as missing.

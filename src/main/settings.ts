@@ -21,6 +21,8 @@ export interface Settings {
   recentProjects: string[];
   /** Folder for renders made for dragging; default render-cache in user data. */
   renderCacheDir?: string;
+  /** Where the sample-media folder was made, so the results' hint knows what is left to make (milestone 34). */
+  sampleMediaRoot?: string;
   /** Size limit of that folder in MiB; the oldest files are removed first. */
   renderCacheMaxMB: number;
   /** Shell pane sizes and collapsed state (src/core/layout.ts). */
@@ -110,6 +112,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     pinnedProjects: Array.isArray(raw.pinnedProjects) ? raw.pinnedProjects.filter((p): p is string => typeof p === 'string' && recentProjects.includes(p)) : [],
     recentProjectTimes: sanitizeRecentTimes(raw.recentProjectTimes, recentProjects),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
+    ...(typeof raw.sampleMediaRoot === 'string' && raw.sampleMediaRoot.trim() ? { sampleMediaRoot: raw.sampleMediaRoot } : {}),
   };
 }
 

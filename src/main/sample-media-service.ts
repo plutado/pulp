@@ -21,7 +21,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
 import { detectFfmpeg, nodeRunner, runWithInput } from '../core/ffmpeg';
-import { SAMPLE_MEDIA, SAMPLE_MEDIA_LICENSE, sampleAssetArgs, sampleAudioArgs, sampleJpegArgs, sampleMediaPath, sampleMediaReadme, type SampleMediaItem } from '../core/sample-media';
+import { SAMPLE_MEDIA, SAMPLE_MEDIA_LICENSE, sampleAssetArgs, sampleAudioArgs, sampleJpegArgs, sampleMediaPath, sampleMediaReadme, samplesForTypes, unmadeSampleCounts, type SampleMediaItem } from '../core/sample-media';
 import { stillPageUrl } from '../core/sample-stills';
 import { findTemplate } from './library-service';
 import { openCapturePage, renderTemplate, type CapturePage } from './render';
@@ -131,10 +131,19 @@ interface ItemOutcome {
  * license and the README. Files that exist are skipped, so running it again
  * only fills gaps. One failure does not stop the rest.
  *
+ * `items` is the catalogue by default, and a part of it when one category is
+ * being filled from the results' own hint (milestone 34): the folder, license
+ * and README are still the whole folder's, since they describe what the
+ * generator makes rather than what this run happened to write.
+ *
  * The report lists files in catalogue order however the work was interleaved,
  * and `onProgress` counts every item once, in the order they finish.
  */
-export async function generateSampleMedia(root: string, onProgress?: (p: SampleMediaProgress) => void): Promise<SampleMediaReport> {
+export async function generateSampleMedia(
+  root: string,
+  onProgress?: (p: SampleMediaProgress) => void,
+  items: readonly SampleMediaItem[] = SAMPLE_MEDIA,
+): Promise<SampleMediaReport> {
   const report: SampleMediaReport = { root, written: [], skipped: [], failed: [] };
   const ffmpeg = await detectFfmpeg();
   if (!ffmpeg.ok) {
@@ -145,12 +154,12 @@ export async function generateSampleMedia(root: string, onProgress?: (p: SampleM
   await writeFile(join(root, 'LICENSE-CC0.txt'), SAMPLE_MEDIA_LICENSE);
   await writeFile(join(root, 'README.md'), sampleMediaReadme());
 
-  const total = SAMPLE_MEDIA.length;
+  const total = items.length;
   const outcomes = new Array<ItemOutcome | undefined>(total);
   let done = 0;
 
   const runItem = async (index: number): Promise<void> => {
-    const item = SAMPLE_MEDIA[index]!;
+    const item = items[index]!;
     const rel = sampleMediaPath(item);
     const file = rel.join('/');
     const out = join(root, ...rel);
@@ -184,8 +193,8 @@ export async function generateSampleMedia(root: string, onProgress?: (p: SampleM
     await Promise.all(Array.from({ length: Math.min(lanes, queue.length) }, next));
   };
 
-  const sounds = SAMPLE_MEDIA.map((item, i) => ({ item, i })).filter((e) => e.item.recipe.kind === 'audio').map((e) => e.i);
-  const drawn = SAMPLE_MEDIA.map((item, i) => ({ item, i })).filter((e) => e.item.recipe.kind !== 'audio').map((e) => e.i);
+  const sounds = items.map((item, i) => ({ item, i })).filter((e) => e.item.recipe.kind === 'audio').map((e) => e.i);
+  const drawn = items.map((item, i) => ({ item, i })).filter((e) => e.item.recipe.kind !== 'audio').map((e) => e.i);
   try {
     await Promise.all([drain(sounds, audioLanes()), drain(drawn, 1)]);
   } finally {
@@ -199,4 +208,20 @@ export async function generateSampleMedia(root: string, onProgress?: (p: SampleM
     else report.failed.push({ file: result.file, reason: result.reason ?? 'nothing was written' });
   }
   return report;
+}
+
+/**
+ * How many catalogue files are still to make, per taxonomy type (milestone 34),
+ * which is what the results' hint counts from. A root that is not there yet —
+ * nobody has made any sample media — leaves every file to make, so a first run
+ * is offered the same way a partial one is. The counting is `unmadeSampleCounts`;
+ * what is here is the one thing only this side knows, whether the file exists.
+ */
+export function unmadeSamplesByType(root: string | null): Record<string, number> {
+  return unmadeSampleCounts((item) => root !== null && existsSync(join(root, ...sampleMediaPath(item))));
+}
+
+/** The catalogue's items for these types, for a run that fills one category rather than everything. */
+export function samplesToMake(types: readonly string[]): readonly SampleMediaItem[] {
+  return samplesForTypes(types);
 }

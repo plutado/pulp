@@ -14,6 +14,7 @@ import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
 import { initTray, sayInTray } from './tray';
+import { initSampleHint, refreshSampleHint } from './sample-hint';
 import { initProject } from './project';
 import { askAboutRecovery, initProjectUi } from './project-ui';
 import { initMenu } from './menu';
@@ -352,6 +353,8 @@ els.addSampleMedia.addEventListener('click', () => {
   ).finally(() => {
       els.addSampleMedia.disabled = false;
       els.addSampleMedia.removeAttribute('aria-busy');
+      // Whatever that made, the line under the results stops offering (milestone 34).
+      void refreshSampleHint();
     });
 });
 els.rescan.addEventListener('click', () => void loadLibrary(window.pulp.rescanLibrary()));
@@ -396,6 +399,9 @@ setTemplateShower((templateId) => {
 initInspectorOutput();
 initSearchBar();
 initStatusBar();
+// The line under the results that says what sample media would add (milestone 34); a run of it
+// hands back a bigger library, which goes in the same way a folder added by hand does.
+initSampleHint({ onIndex: (index) => void loadLibrary(Promise.resolve(index)) });
 initTray((id) => {
   const index = appState.value.index;
   const entry = [...(index?.templates ?? []), ...(index?.media ?? [])].find((e) => e.id === id);

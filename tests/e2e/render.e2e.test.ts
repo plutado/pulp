@@ -20,7 +20,7 @@ import { sequenceStripArgs } from '../../src/core/hover-scrub';
 import { itemId } from '../../src/core/library-scan';
 import { mediaUrlFor } from '../../src/core/media-url';
 import { scanLibrary } from '../../src/core/library';
-import { SAMPLE_MEDIA, sampleMediaPath } from '../../src/core/sample-media';
+import { SAMPLE_MEDIA, sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { ffmpegArgs, runBounded, runBoundedBuffer } from './process';
 import { lottieManifestId } from '../../src/core/lottie';
 import { dotLottieFixture, lottieFixture } from '../lottie-fixture';
@@ -231,6 +231,34 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(malformed.stderr).toContain('--size 1080');
     expect((await readdir(out)).filter((f) => f.startsWith('aspect-wrong_') || f.startsWith('aspect-bad_'))).toEqual([]);
   }, 120_000);
+
+  it('makes just one category\'s sample media, and leaves the rest of the catalogue alone (milestone 34)', async () => {
+    // What the results' "N more with sample media" button asks for: the types in view, not the
+    // whole 625-file catalogue. Vignettes are three stills from one page, so this stays quick.
+    const folder = join(out, 'Sample media by type');
+    const r = await runBounded(electron, ['.', '--sample-media', folder, '--types', 'vignette'], { cwd: ROOT, timeoutMs: 180_000 });
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.stdout).toMatch(/3 written, 0 already there, 0 failed/);
+    const wanted = samplesForTypes(['vignette']);
+    expect(wanted).toHaveLength(3);
+    for (const item of wanted) expect(existsSync(join(folder, ...sampleMediaPath(item))), sampleMediaPath(item).join('/')).toBe(true);
+    // And nothing else: every other catalogue file is still to make.
+    for (const item of SAMPLE_MEDIA) {
+      if (item.type === 'vignette') continue;
+      expect(existsSync(join(folder, ...sampleMediaPath(item))), sampleMediaPath(item).join('/')).toBe(false);
+    }
+    // The library gives them the type the catalogue meant, so the hint's count falls by three.
+    const index = await scanLibrary([folder]);
+    expect(index.problems).toEqual([]);
+    expect(index.media.map((m) => m.type).filter(Boolean)).toEqual(['vignette', 'vignette', 'vignette']);
+    // A second run has nothing left to do, which is what makes the line go.
+    const again = await runBounded(electron, ['.', '--sample-media', folder, '--types', 'vignette'], { cwd: ROOT, timeoutMs: 180_000 });
+    expect(again.stdout).toMatch(/0 written, 3 already there, 0 failed/);
+    // A type with no sample media is said, not quietly taken as the whole catalogue.
+    const none = await runBounded(electron, ['.', '--sample-media', folder, '--types', 'lower-third'], { cwd: ROOT, timeoutMs: 60_000 });
+    expect(none.code).toBe(2);
+    expect(none.stderr).toContain('No sample media for --types lower-third');
+  }, 300_000);
 
   it('makes the whole sample-media folder, and every file lands with the type its folder means', async () => {
     const folder = join(out, 'Sample media');
