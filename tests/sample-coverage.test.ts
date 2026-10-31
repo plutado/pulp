@@ -40,6 +40,7 @@ export const CATEGORY_FLOORS: Record<string, number> = {
   'end-cards': 32,
   'animated-backgrounds': 32,
   'still-backgrounds': 32,
+  'overlays-frames': 32,
   // Raised past its first floor of twelve by the eight footage scenes with subjects of their own.
   'stock-video': 20,
 };

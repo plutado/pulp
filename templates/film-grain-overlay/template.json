@@ -1,0 +1,55 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.film-grain-overlay",
+  "name": "Film Grain",
+  "description": "Animated grain with a breath of flicker, over the whole picture. Lays a shot of film over anything flat.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "film-grunge",
+  "tags": [
+    "overlay",
+    "grain",
+    "film"
+  ],
+  "themes": [
+    "cinema",
+    "documentary"
+  ],
+  "styles": [
+    "cinematic",
+    "grunge"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "amount",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "element": "Grain"
+    },
+    {
+      "id": "tint",
+      "type": "color",
+      "label": "Tint",
+      "default": "#ffffff",
+      "element": "Grain"
+    }
+  ]
+}

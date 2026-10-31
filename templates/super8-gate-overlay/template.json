@@ -1,0 +1,46 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.super8-gate-overlay",
+  "name": "Super 8 Gate",
+  "description": "A rounded film gate with a soft jitter and a warm edge glow, as a projected super 8 frame sits. Puts home footage back in its gate.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "frame",
+  "tags": [
+    "overlay",
+    "gate",
+    "super 8"
+  ],
+  "themes": [
+    "family",
+    "memorial",
+    "cinema"
+  ],
+  "styles": [
+    "retro"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "edge",
+      "type": "color",
+      "label": "Edge glow",
+      "default": "#f2b36b",
+      "element": "Gate"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.light-leak-pulse-overlay",
+  "name": "Light Leak",
+  "description": "Warm leaks breathing in from two corners, as light through a cracked camera seal. Softens cuts and warms flat footage.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "overlay",
+  "tags": [
+    "overlay",
+    "light leak",
+    "warm"
+  ],
+  "themes": [
+    "wedding",
+    "summer",
+    "fashion"
+  ],
+  "styles": [
+    "cinematic",
+    "organic"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "warm",
+      "type": "color",
+      "label": "Leak",
+      "default": "#ffb36b",
+      "element": "Leaks"
+    },
+    {
+      "id": "cool",
+      "type": "color",
+      "label": "Counter leak",
+      "default": "#ff6b9d",
+      "element": "Leaks"
+    }
+  ]
+}

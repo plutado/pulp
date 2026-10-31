@@ -1,0 +1,56 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.dust-motes-overlay",
+  "name": "Dust Motes",
+  "description": "Soft motes drifting up through a shaft of air, caught by the light. Warms interviews, kitchens and afternoon rooms.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "light-particles",
+  "tags": [
+    "overlay",
+    "dust",
+    "motes"
+  ],
+  "themes": [
+    "documentary",
+    "family",
+    "faith"
+  ],
+  "styles": [
+    "cinematic",
+    "organic"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "mote",
+      "type": "color",
+      "label": "Motes",
+      "default": "#ffe9c4",
+      "element": "Motes"
+    },
+    {
+      "id": "density",
+      "type": "number",
+      "label": "Density",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1,
+      "element": "Motes"
+    }
+  ]
+}

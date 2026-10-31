@@ -101,9 +101,11 @@ describe('bundled sample templates', async () => {
     // four lower thirds and three end cards with ambient motion (a jitter, a sweep, a pulse, a trace,
     // breathing bars, a roll, a blinking cursor) keep a fixed length. The 32-item batch adds ten
     // holding lower thirds and seventeen holding end cards; the running gradient, the ticker, the
-    // sweeping ring, the swinging tag and the glitch keep fixed lengths.
-    expect(kinds.hold).toHaveLength(78);
-    expect(kinds.loop).toHaveLength(29);
+    // sweeping ring, the swinging tag and the glitch keep fixed lengths. The overlays batch adds
+    // ten looping plates (grain, scratches, a gate, motes, fireflies, tracking, leaks, a bug and
+    // two vignettes) and the ornate frame, which draws on and holds.
+    expect(kinds.hold).toHaveLength(79);
+    expect(kinds.loop).toHaveLength(39);
     expect(kinds.scale).toHaveLength(24);
     expect(kinds.none).toHaveLength(51);
   });

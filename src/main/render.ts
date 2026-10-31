@@ -628,7 +628,24 @@ export async function captureTemplateFrames(
  * the call goes straight to the function, then two animation frames and a
  * paint settle the capture the same way as a template frame.
  */
-export async function captureStillPage(url: string, size: Size, params: Record<string, unknown>, timeoutMs = DEFAULT_LOAD_TIMEOUT_MS): Promise<{ ok: true; png: Buffer } | { ok: false; message: string }> {
+/**
+ * A capture page held open: the window, loaded and drained once, that many
+ * stills or clips can be taken through in turn. The sample-media generator
+ * makes hundreds of drawn files from a handful of pages, and a window per
+ * file paid the load and its drain every time — most of the macOS runner's
+ * minutes (docs/platform-notes.md). Reuse changes none of the ordering the
+ * capture relies on: every draw after the first follows the same
+ * invalidate-and-wait path a multi-frame clip's later frames always took,
+ * and only the first capture after the load needs the blank-frame check.
+ * One page is used at a time, as the drawn lane always was.
+ */
+export interface CapturePage {
+  still(params: Record<string, unknown>): Promise<{ ok: true; png: Buffer } | { ok: false; message: string }>;
+  frames(params: Record<string, unknown>, clip: { seconds: number; fps: number }): Promise<{ ok: true; frames: Buffer[] } | { ok: false; message: string }>;
+  close(): void;
+}
+
+export async function openCapturePage(url: string, size: Size, timeoutMs = DEFAULT_LOAD_TIMEOUT_MS): Promise<{ ok: true; page: CapturePage } | { ok: false; message: string }> {
   const win = new BrowserWindow({
     show: false,
     width: size.width,
@@ -639,11 +656,19 @@ export async function captureStillPage(url: string, size: Size, params: Record<s
     backgroundColor: '#00000000',
     webPreferences: { offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() }, sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
   });
+  let first = true;
   try {
     win.setContentSize(size.width, size.height);
-    const state = { frame: 0, time: 0, progress: 0, fps: 1, duration: 1, totalFrames: 1, width: size.width, height: size.height, params };
+    // The render path's cadence (docs/platform-notes.md): the waits around each draw run at the
+    // window's begin-frame rate, and 60 Hz costs two intervals per frame.
+    win.webContents.setFrameRate(240);
     await withTimeout(win.loadURL(url), timeoutMs, `the page did not load within ${Math.round(timeoutMs / 1000)} s`);
     await drainPaints(win);
+  } catch (err) {
+    win.destroy();
+    return { ok: false, message: (err as Error).message };
+  }
+  const draw = async (state: Record<string, unknown>): Promise<Electron.NativeImage> => {
     await withTimeout(
       win.webContents.executeJavaScript(
         `Promise.resolve(window.pulpRender(${JSON.stringify(state)})).then(function () { return new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); }); })`,
@@ -651,17 +676,51 @@ export async function captureStillPage(url: string, size: Size, params: Record<s
       timeoutMs,
       `the page did not draw within ${Math.round(timeoutMs / 1000)} s`,
     );
-    // The only capture this makes is a first capture, so it is checked.
-    const image = await captureSettled(win, true);
+    const image = await captureSettled(win, first);
+    first = false;
     const got = image.getSize();
     if (got.width !== size.width || got.height !== size.height) {
-      return { ok: false, message: `captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}` };
+      throw new Error(`captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}`);
     }
-    return { ok: true, png: image.toPNG() };
-  } catch (err) {
-    return { ok: false, message: (err as Error).message };
+    return image;
+  };
+  const page: CapturePage = {
+    async still(params) {
+      try {
+        const image = await draw({ frame: 0, time: 0, progress: 0, fps: 1, duration: 1, totalFrames: 1, width: size.width, height: size.height, params });
+        return { ok: true, png: image.toPNG() };
+      } catch (err) {
+        return { ok: false, message: (err as Error).message };
+      }
+    },
+    async frames(params, clip) {
+      const total = Math.max(1, Math.round(clip.seconds * clip.fps));
+      try {
+        const frames: Buffer[] = [];
+        for (let frame = 0; frame < total; frame++) {
+          const time = frame / clip.fps;
+          const image = await draw({ frame, time, progress: time / clip.seconds, fps: clip.fps, duration: clip.seconds, totalFrames: total, width: size.width, height: size.height, params });
+          frames.push(image.toPNG());
+        }
+        return { ok: true, frames };
+      } catch (err) {
+        return { ok: false, message: (err as Error).message };
+      }
+    },
+    close() {
+      if (!win.isDestroyed()) win.destroy();
+    },
+  };
+  return { ok: true, page };
+}
+
+export async function captureStillPage(url: string, size: Size, params: Record<string, unknown>, timeoutMs = DEFAULT_LOAD_TIMEOUT_MS): Promise<{ ok: true; png: Buffer } | { ok: false; message: string }> {
+  const opened = await openCapturePage(url, size, timeoutMs);
+  if (!opened.ok) return opened;
+  try {
+    return await opened.page.still(params);
   } finally {
-    win.destroy();
+    opened.page.close();
   }
 }
 
@@ -679,44 +738,12 @@ export async function captureAssetFrames(
   clip: { seconds: number; fps: number },
   timeoutMs = DEFAULT_LOAD_TIMEOUT_MS,
 ): Promise<{ ok: true; frames: Buffer[] } | { ok: false; message: string }> {
-  const total = Math.max(1, Math.round(clip.seconds * clip.fps));
-  const win = new BrowserWindow({
-    show: false,
-    width: size.width,
-    height: size.height,
-    useContentSize: true,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    webPreferences: { offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() }, sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
-  });
+  const opened = await openCapturePage(url, size, timeoutMs);
+  if (!opened.ok) return opened;
   try {
-    win.setContentSize(size.width, size.height);
-    await withTimeout(win.loadURL(url), timeoutMs, `the page did not load within ${Math.round(timeoutMs / 1000)} s`);
-    await drainPaints(win);
-    const frames: Buffer[] = [];
-    for (let frame = 0; frame < total; frame++) {
-      const time = frame / clip.fps;
-      const state = { frame, time, progress: time / clip.seconds, fps: clip.fps, duration: clip.seconds, totalFrames: total, width: size.width, height: size.height, params };
-      await withTimeout(
-        win.webContents.executeJavaScript(
-          `Promise.resolve(window.pulpRender(${JSON.stringify(state)})).then(function () { return new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); }); })`,
-        ),
-        timeoutMs,
-        `the page did not draw frame ${frame} within ${Math.round(timeoutMs / 1000)} s`,
-      );
-      const image = await captureSettled(win, frame === 0);
-      const got = image.getSize();
-      if (got.width !== size.width || got.height !== size.height) {
-        return { ok: false, message: `captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}` };
-      }
-      frames.push(image.toPNG());
-    }
-    return { ok: true, frames };
-  } catch (err) {
-    return { ok: false, message: (err as Error).message };
+    return await opened.page.frames(params, clip);
   } finally {
-    if (!win.isDestroyed()) win.destroy();
+    opened.page.close();
   }
 }
 

@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Projector Vignette</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Projector Vignette, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The flutter pattern cycles over the clip, so the loop is seamless.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var frames = Math.floor(d * 30);
+    var step = Math.floor(t * 30) % frames;
+    // The lamp flutter: a fixed per-frame brightness pattern cycling with the clip.
+    var flutter = 1 - (at(step) * 0.08 + at(step + 99) * 0.05) * p.wear2;
+    var g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.75);
+    g.addColorStop(0, 'rgba(255,246,224,' + (0.1 * flutter).toFixed(4) + ')');
+    g.addColorStop(0.45, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(10,6,2,' + (0.5 + 0.25 * p.wear2).toFixed(4) + ')');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // The gate edge: corners heavier than the sides, as a round lamp against a square gate.
+    for (var c = 0; c < 4; c++) {
+      var cx2 = c % 2 ? W : 0, cy2 = c < 2 ? 0 : H;
+      var cg = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, Math.min(W, H) * 0.4);
+      cg.addColorStop(0, 'rgba(5,3,1,' + (0.35 * p.wear2).toFixed(4) + ')');
+      cg.addColorStop(1, 'rgba(5,3,1,0)');
+      ctx.fillStyle = cg; ctx.fillRect(0, 0, W, H);
+    }
+  };
+</script>
+</body>
+</html>

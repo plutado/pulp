@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.projector-vignette-overlay",
+  "name": "Projector Vignette",
+  "description": "A hot centre and heavy corners with the slow flutter of a projector lamp. Finishes anything meant for a screening.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "vignette",
+  "tags": [
+    "overlay",
+    "projector",
+    "lamp"
+  ],
+  "themes": [
+    "cinema",
+    "memorial",
+    "entertainment"
+  ],
+  "styles": [
+    "retro",
+    "cinematic"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "wear2",
+      "type": "number",
+      "label": "Lamp wear",
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "element": "Lamp"
+    }
+  ]
+}

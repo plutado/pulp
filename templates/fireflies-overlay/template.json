@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.fireflies-overlay",
+  "name": "Fireflies",
+  "description": "Fireflies wandering the lower half of the frame, each blinking on its own beat. For dusk scenes, campfires and summer montages.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "light-particles",
+  "tags": [
+    "overlay",
+    "fireflies",
+    "dusk"
+  ],
+  "themes": [
+    "nature",
+    "summer",
+    "kids"
+  ],
+  "styles": [
+    "organic",
+    "playful"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "glow",
+      "type": "color",
+      "label": "Glow",
+      "default": "#d9f99d",
+      "element": "Fireflies"
+    }
+  ]
+}

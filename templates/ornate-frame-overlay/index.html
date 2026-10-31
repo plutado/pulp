@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Ornate Frame</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Ornate Frame, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The rules draw on and settle by 1.1 s, flourishes bloomed; the frame then holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var come = easeInOut(clamp01(t / 1.1)), gone = easeOut(clamp01((t - 5.2) / 0.8));
+    var show = 1 - gone;
+    if (t > 0.05 && show <= 0.001) return;
+    var inset = Math.min(W, H) * 0.06, gap = Math.min(W, H) * 0.012;
+    ctx.globalAlpha = show;
+    ctx.strokeStyle = rgba(p.line, 0.95);
+    ctx.lineWidth = 3 * u;
+    // The two rules draw from the top centre, outward both ways, meeting at the bottom.
+    function border(i2, lw) {
+      var x = inset + i2, y = inset + i2, w2 = W - (inset + i2) * 2, h2 = H - (inset + i2) * 2;
+      var per = (w2 + h2) * 2;
+      var run = per * come / 2;
+      ctx.lineWidth = lw;
+      for (var dir = -1; dir <= 1; dir += 2) {
+        ctx.beginPath();
+        var walked = 0, px2 = x + w2 / 2, py2 = y;
+        ctx.moveTo(px2, py2);
+        var legs = dir === 1
+          ? [[x + w2, y], [x + w2, y + h2], [x + w2 / 2, y + h2]]
+          : [[x, y], [x, y + h2], [x + w2 / 2, y + h2]];
+        for (var l = 0; l < legs.length && walked < run; l++) {
+          var dx2 = legs[l][0] - px2, dy2 = legs[l][1] - py2;
+          var len = Math.abs(dx2) + Math.abs(dy2);
+          var take = Math.min(len, run - walked);
+          ctx.lineTo(px2 + dx2 * (take / len), py2 + dy2 * (take / len));
+          px2 = legs[l][0]; py2 = legs[l][1]; walked += len;
+        }
+        ctx.stroke();
+      }
+    }
+    border(0, 3 * u);
+    border(gap, 1.5 * u);
+    // The corner flourishes bloom once the rules have passed them.
+    var bloom = easeOut(clamp01((t - 0.75) / 0.45));
+    if (bloom > 0) {
+      ctx.lineWidth = 2.5 * u;
+      for (var cx2 = 0; cx2 < 2; cx2++) {
+        for (var cy2 = 0; cy2 < 2; cy2++) {
+          var fx = cx2 ? W - inset - gap : inset + gap, fy = cy2 ? H - inset - gap : inset + gap;
+          var sx2 = cx2 ? -1 : 1, sy2 = cy2 ? -1 : 1;
+          ctx.save(); ctx.translate(fx, fy); ctx.scale(sx2 * bloom, sy2 * bloom);
+          ctx.beginPath();
+          ctx.moveTo(0, 26 * u); ctx.quadraticCurveTo(10 * u, 6 * u, 30 * u, 2 * u);
+          ctx.moveTo(26 * u, 0); ctx.quadraticCurveTo(6 * u, 10 * u, 2 * u, 30 * u);
+          ctx.stroke();
+          ctx.beginPath(); ctx.arc(14 * u, 14 * u, 3.5 * u, 0, Math.PI * 2); ctx.fillStyle = rgba(p.line, 0.95); ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

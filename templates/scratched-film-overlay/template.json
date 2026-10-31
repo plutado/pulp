@@ -1,0 +1,46 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.scratched-film-overlay",
+  "name": "Scratched Film",
+  "description": "Wandering vertical scratches and settled blotches, as a worn print has. Ages a shot without hiding it.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "film-grunge",
+  "tags": [
+    "overlay",
+    "scratches",
+    "film"
+  ],
+  "themes": [
+    "cinema",
+    "memorial"
+  ],
+  "styles": [
+    "grunge",
+    "retro"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "mark",
+      "type": "color",
+      "label": "Marks",
+      "default": "#e8e4da",
+      "element": "Scratches"
+    }
+  ]
+}

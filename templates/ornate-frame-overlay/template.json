@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.ornate-frame-overlay",
+  "name": "Ornate Frame",
+  "description": "A double border with corner flourishes that draws itself on and holds. Dresses a toast, a certificate moment or a title.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "frame",
+  "tags": [
+    "overlay",
+    "border",
+    "flourish"
+  ],
+  "themes": [
+    "wedding",
+    "graduation",
+    "holiday"
+  ],
+  "styles": [
+    "elegant"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "line",
+      "type": "color",
+      "label": "Lines",
+      "default": "#d9b96a",
+      "element": "Frame"
+    }
+  ]
+}

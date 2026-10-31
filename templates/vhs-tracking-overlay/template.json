@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.vhs-tracking-overlay",
+  "name": "VHS Tracking",
+  "description": "Scanlines, a colour fringe at the edges, and a tracking band that rolls through on a cycle. Puts any shot on a worn tape.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "overlay",
+  "tags": [
+    "overlay",
+    "vhs",
+    "tracking"
+  ],
+  "themes": [
+    "gaming",
+    "media",
+    "entertainment"
+  ],
+  "styles": [
+    "retro",
+    "grunge"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "wear",
+      "type": "number",
+      "label": "Wear",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1,
+      "element": "Tape"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.live-bug-overlay",
+  "name": "Live Bug",
+  "description": "A corner pill that says live, its dot pulsing on a steady beat. Marks streams, premieres and event coverage.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "logo-bug",
+  "tags": [
+    "overlay",
+    "live",
+    "bug"
+  ],
+  "themes": [
+    "news",
+    "gaming",
+    "concert"
+  ],
+  "styles": [
+    "tech",
+    "corporate"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "word",
+      "type": "text",
+      "label": "Word",
+      "default": "LIVE",
+      "maxLength": 10,
+      "element": "Bug"
+    },
+    {
+      "id": "pill",
+      "type": "color",
+      "label": "Pill",
+      "default": "#16181d",
+      "element": "Bug"
+    },
+    {
+      "id": "dot",
+      "type": "color",
+      "label": "Dot",
+      "default": "#ef4444",
+      "element": "Bug"
+    }
+  ]
+}
