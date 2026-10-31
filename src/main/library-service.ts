@@ -663,6 +663,32 @@ export function lookupMedia(id: string): MediaLookup | undefined {
   return getStore().findMediaById(id);
 }
 
+/**
+ * What a layer may play, by library id (milestone 35): a clip from the media,
+ * or a Lottie animation, which is a template read from one file and plays like
+ * a clip. One lookup, so everything a video layer does — timing, in and out,
+ * loop or once, speed, delay, the render cache key — works for either without
+ * knowing which it has.
+ */
+export type ClipLookup =
+  | { kind: 'media'; entry: MediaEntry; size: number; mtimeMs: number }
+  | { kind: 'lottie'; entry: TemplateEntry; size: number; mtimeMs: number };
+
+export function lookupClipItem(id: string): ClipLookup | undefined {
+  const media = getStore().findMediaById(id);
+  if (media) {
+    if (!media.online || media.entry.mediaKind !== 'video') return undefined;
+    return { kind: 'media', entry: media.entry, size: media.entry.size, mtimeMs: media.entry.mtimeMs };
+  }
+  // A template, and only one read from a Lottie file: a written template has a page of its own
+  // and is not something a layer can play. Its root must be reachable, which is a fact about the
+  // root rather than the row, so it is asked for here.
+  const found = getStore().findTemplateById(id);
+  if (!found || !found.online || !found.entry.lottie) return undefined;
+  const { entry } = found;
+  return { kind: 'lottie', entry, size: entry.size ?? 0, mtimeMs: entry.mtimeMs ?? 0 };
+}
+
 export async function findTemplate(id: string): Promise<TemplateEntry | undefined> {
   await (firstScan ?? rescan());
   return getStore()

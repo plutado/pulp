@@ -13,14 +13,13 @@
  * searches it: the same query language, the same ranking.
  */
 
-import type { MediaEntry, MediaKind } from '../core/library-types';
-import { PICKER_LIMIT, searchMedia } from '../core/search';
+import { PICKER_LIMIT, searchPlaceable, type PlaceableItem } from '../core/search';
 import { mediaUrlFor } from '../shared/api';
 import { appState } from './store';
 
 export interface MediaPickerOptions {
-  /** What may be chosen here. */
-  kinds: readonly MediaKind[];
+  /** Which kind of layer may be made here; a clip chooser takes Lotties too (milestone 35). */
+  layers: readonly ('image' | 'video')[];
   /** What these are called, for the search box and the empty lines: "stills", "clips". */
   noun: string;
   /** What the chooser is for, for the search box's accessible name: "Logo". */
@@ -30,7 +29,7 @@ export interface MediaPickerOptions {
   /** The id chosen now, so the list can mark it. */
   chosen: () => string | undefined;
   /** Chosen. The picker closes itself first, so this is free to rebuild the card around it. */
-  onPick: (entry: MediaEntry) => void;
+  onPick: (entry: PlaceableItem) => void;
   /** Anything else that belongs beside the search box (the stills chooser's File…). */
   head?: readonly HTMLElement[];
 }
@@ -64,7 +63,7 @@ export function mediaPicker(options: MediaPickerOptions): MediaPicker {
 
   function list(): void {
     choices.replaceChildren();
-    const found = searchMedia(appState.value.index, { kinds: options.kinds, query: search.value, limit: PICKER_LIMIT });
+    const found = searchPlaceable(appState.value.index, { layers: options.layers, query: search.value, limit: PICKER_LIMIT });
     if (found.length === 0) {
       const li = document.createElement('li');
       li.className = 'note';
@@ -85,14 +84,22 @@ export function mediaPicker(options: MediaPickerOptions): MediaPicker {
       const img = document.createElement('img');
       img.alt = '';
       // A clip has no picture of its own to show, only the poster the library took of it:
-      // a <video> here would decode a whole clip for one thumbnail.
+      // a <video> here would decode a whole clip for one thumbnail. A Lottie's poster is
+      // likewise drawn, so it is never the file.
       if (entry.thumbnail) img.src = entry.thumbnail;
-      else if (entry.mediaKind === 'image') img.src = mediaUrlFor(entry.id);
+      else if (entry.layer === 'image' && !entry.lottie) img.src = mediaUrlFor(entry.id);
       thumb.append(img);
       const name = document.createElement('span');
       name.className = 'name';
       name.textContent = entry.name;
       button.append(thumb, name);
+      // The one word that says this is an animation rather than a clip from a file.
+      if (entry.lottie) {
+        const badge = document.createElement('span');
+        badge.className = 'choice-badge';
+        badge.textContent = 'Lottie';
+        button.append(badge);
+      }
       button.addEventListener('click', () => {
         close();
         options.onPick(entry);

@@ -583,7 +583,7 @@ function imageField(
   fileInput.hidden = true;
   // The one chooser (milestone 40), so this searches the library the way the search bar does.
   const chooser = mediaPicker({
-    kinds: ['image'],
+    layers: ['image'],
     noun: 'stills',
     label: slot.label,
     emptyLibrary: 'No stills in the library yet. Add a folder with images, or use File….',
@@ -1279,10 +1279,10 @@ function clipField(
   // The one chooser (milestone 40), the same the picture well opens: a clip is searched for the
   // way a still is, and the way everything is in the search bar.
   const chooser = mediaPicker({
-    kinds: ['video'],
+    layers: ['video'],
     noun: 'clips',
     label: slot.label,
-    emptyLibrary: 'No clips in the library yet. Add a folder with video, or make the sample media.',
+    emptyLibrary: 'No clips or animations in the library yet. Add a folder with video, or make the sample media.',
     chosen: () => value?.id ?? undefined,
     // A new clip starts from the whole of it: in and out points of the one before mean nothing here.
     onPick: (entry) => set({ ...EMPTY_CLIP, id: entry.id, ending: value?.ending ?? 'loop', speed: value?.speed ?? 1, delay: value?.delay ?? 0 }),

@@ -485,6 +485,22 @@ connect-src 'none'; frame-src 'none'; form-action 'none'
 </html>
 ```
 
+## Lottie animations
+
+A `.json` Lottie (told from other JSON by its shape) or a `.lottie` archive in a library folder is read as a template made from one file: its own size becomes the default resolution, its rate and length the timing, every built-in aspect is declared so it can be fitted, filled or centred in any frame, and its static text layers and distinct colours become parameters. It is not a folder and has no `template.json`; the manifest is made from the file (`src/core/lottie.ts`).
+
+Two things the Lottie format has no field for, Pulp reads from an optional top-level `x-pulp` object, under the same `x-` rule a manifest's own extensions follow — every other tool ignores it:
+
+```json
+{ "x-pulp": { "license": "CC0-1.0", "author": "Pulp" }, "v": "5.12.2", "fr": 30, "...": "..." }
+```
+
+Without it the licence is "not stated", which is the truth about most files; the Info tab says so rather than guessing. The author also comes from Bodymovin's own `meta.a`, or a `.lottie` archive's manifest, where either has one.
+
+**Markers set what may stretch.** A marker named `intro`, `in`, `entrance` or `start`, one named `outro`, `out`, `exit` or `end`, and one named `loop`, `hold` or `idle` map onto the `structure` a template declares (above): the hold between the intro and the outro stretches, and a `loop` marker covering the whole animation makes it repeat. An animation whose markers say nothing keeps the length it was drawn at.
+
+**It is placed as a layer** wherever a clip is: it plays, so a video layer takes it, with the in and out points, loop or once, speed and delay a clip has.
+
 ## Licensing templates
 
 The `license` field describes the template, not Pulp. When you share templates, include any font or image licenses they depend on in the folder. Pulp shows the license in the UI; it does not enforce it.

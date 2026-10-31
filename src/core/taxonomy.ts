@@ -411,8 +411,13 @@ export function inferMediaType(kind: MediaKind, folderSegments: readonly string[
   return undefined;
 }
 
-/** The groups a template may belong to: what a graphic on a frame is, not footage, stills or sound. */
-const TEMPLATE_GROUPS: readonly string[] = ['titles', 'backgrounds', 'transitions', 'overlays', 'elements'];
+/**
+ * The groups a template may belong to: what a graphic on a frame is, not
+ * footage, stills or sound. Assets are among them — an animation of confetti
+ * or a spark is an isolated element on transparency, which is what the Assets
+ * group means, and a Lottie placed as a layer is exactly that use (milestone 35).
+ */
+const TEMPLATE_GROUPS: readonly string[] = ['titles', 'backgrounds', 'transitions', 'overlays', 'elements', 'assets'];
 
 /**
  * A template's type from its folders alone (milestone 35), for a file read as a

@@ -18,7 +18,7 @@ import { computed, signal } from '@preact/signals';
 import type { LayerLook } from '../core/layer-look';
 import type { Layer } from '../core/layers';
 import type { MenuCommand } from '../core/menu';
-import { searchMedia } from '../core/search';
+import { searchPlaceable } from '../core/search';
 import { framePointIn } from '../core/stage-place';
 import {
   copiedLook,
@@ -129,8 +129,8 @@ export function currentLayerFacts(): LayerMenuFacts {
  * the same way.
  */
 function stageAssets(): StageAsset[] {
-  return searchMedia(appState.value.index, { kinds: ['image', 'video'], recentFirst: true, limit: STAGE_MENU_ASSETS })
-    .map((m) => ({ id: m.id, name: m.name, kind: m.mediaKind === 'video' ? 'video' : 'image' }));
+  return searchPlaceable(appState.value.index, { recentFirst: true, limit: STAGE_MENU_ASSETS })
+    .map((m) => ({ id: m.id, name: m.name, kind: m.layer }));
 }
 
 // ---------------------------------------------------------------- the commands
@@ -196,8 +196,9 @@ export function runLayerCommand(command: MenuCommand, arg: string | null): void 
     case 'layer.addImage': case 'layer.addVideo': {
       const type = command === 'layer.addVideo' ? 'video' : 'image';
       // With a library item it shows that item, named after it; with none it is a blank layer,
-      // as the Parameters tab's own Add buttons make one.
-      const entry = arg ? appState.value.index?.media.find((m) => m.id === arg) : undefined;
+      // as the Parameters tab's own Add buttons make one. A Lottie is found here too, since it
+      // is a template rather than media and plays as a clip (milestone 35).
+      const entry = arg ? searchPlaceable(appState.value.index).find((m) => m.id === arg) : undefined;
       if (arg && !entry) return;
       landed(entry ? editor.addLayer(type, entry.name, entry.id) : editor.addLayer(type));
       return;

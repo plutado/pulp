@@ -12,12 +12,20 @@ import { THEME_GROUPS } from '../src/core/taxonomy';
 
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
 
-/** Top-level template folders, plus the templates inside bundled packs (folders with a pack.json). */
+/** Where the Lottie starter set lives (milestone 35): one file each, not template folders. */
+const STARTER_DIR = 'animated';
+
+/**
+ * Top-level template folders, plus the templates inside bundled packs (folders
+ * with a pack.json). The Lottie starter set is not among them: it is twenty
+ * single files whose manifests are made from the files themselves, so it has
+ * rules of its own (below) rather than a folder's.
+ */
 async function collect(): Promise<{ templates: string[]; packs: string[] }> {
   const templates: string[] = [];
   const packs: string[] = [];
   for (const d of await readdir(TEMPLATES_DIR, { withFileTypes: true })) {
-    if (!d.isDirectory()) continue;
+    if (!d.isDirectory() || d.name === STARTER_DIR) continue;
     const names = await readdir(join(TEMPLATES_DIR, d.name));
     if (names.includes(PACK_FILENAME)) {
       packs.push(d.name);
@@ -80,11 +88,15 @@ describe('bundled sample templates', async () => {
   // for a unit test; what is checked here is the shape of the answer across the whole library.
   it('says what may stretch, each in the way its kind of graphic stretches', async () => {
     const index = await scanLibrary([TEMPLATES_DIR]);
+    // The written templates only: a Lottie's structure comes from its markers and its category
+    // from its type, so the rules below — which are about how a hand-drawn graphic is designed —
+    // do not describe it. The starter set is held to its own rules further down.
+    const written = index.templates.filter((t) => t.lottie === undefined);
     const kinds: Record<string, string[]> = { hold: [], loop: [], scale: [], none: [] };
-    for (const t of index.templates) kinds[t.manifest.structure?.kind ?? 'none']!.push(t.manifest.id);
+    for (const t of written) kinds[t.manifest.structure?.kind ?? 'none']!.push(t.manifest.id);
     // A loop is what a background or an overlay does, a scale what a transition does, and a hold
     // belongs to a graphic that says something and waits — never to a transition.
-    for (const t of index.templates) {
+    for (const t of written) {
       const { structure, category, id } = t.manifest;
       if (structure?.kind === 'loop') expect(['background', 'overlay'], id).toContain(category);
       if (structure?.kind === 'scale') expect(category, id).toBe('transition');
@@ -166,7 +178,7 @@ describe('bundled sample templates', async () => {
   it('all samples index cleanly, get the pack defaults, and can be planned for every preset', async () => {
     const index = await scanLibrary([TEMPLATES_DIR]);
     expect(index.problems).toEqual([]);
-    expect(index.templates).toHaveLength(dirs.length);
+    expect(index.templates.filter((t) => t.lottie === undefined)).toHaveLength(dirs.length);
     for (const t of index.templates) {
       for (const presetId of PRESET_IDS) {
         expect(() => buildRenderPlan({ manifest: t.manifest, presetId, outputPath: `/tmp/${t.manifest.id}` })).not.toThrow();

@@ -21,6 +21,7 @@
  */
 
 import { ASPECT_IDS, aspectOf, MAX_DIMENSION, MIN_DIMENSION } from './aspect';
+import { STRUCTURE_LIMITS, type TemplateStructure } from './timing';
 import type { LottieBinding, LottieDocumentMeta, LottieFormat, LottieInfo, LottieMarker, LottiePath, LottieTarget } from './lottie-types';
 import { LOTTIE_FIT_PARAM } from './lottie-types';
 import { validateManifest, type TemplateParameter, type ValidationResult } from './manifest';
@@ -48,6 +49,33 @@ export function sniffLottieJson(head: string): boolean {
 }
 
 export type LottieData = Record<string, unknown>;
+
+/**
+ * What a Lottie file may say about itself that the format has no field for.
+ * Lottie carries no licence and no reliable author, so a file that wants to
+ * state them does it under a key of its own — the same `x-` rule the template
+ * manifest gives its extensions (docs/template-format.md). Every other tool
+ * ignores it, and a file without one is read exactly as before: the licence is
+ * "not stated", which is the truth about most of them.
+ *
+ * Pulp's own starter set (src/core/lottie-starter.ts) writes it, which is how
+ * twenty bundled animations say they are CC0.
+ */
+export interface LottieExtras {
+  license?: string;
+  author?: string;
+}
+
+const EXTRAS_KEY = 'x-pulp';
+
+export function lottieExtras(data: LottieData): LottieExtras {
+  const raw = data[EXTRAS_KEY];
+  if (!isRecord(raw)) return {};
+  const text = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined);
+  // Bodymovin's own `meta.a` is the nearest thing the format has to an author, so it stands in.
+  const meta = isRecord(data.meta) ? data.meta : {};
+  return { ...(text(raw.license) ? { license: text(raw.license) } : {}), ...(text(raw.author) ?? text(meta.a) ? { author: text(raw.author) ?? text(meta.a) } : {}) };
+}
 
 export interface LottieDocument extends LottieDocumentMeta {
   data: LottieData;
@@ -485,6 +513,72 @@ export function lottieAssetPaths(data: LottieData): string[] {
   return out;
 }
 
+// ---------------------------------------------------------------- timing from markers
+
+/**
+ * What a marker's name says it is. Bodymovin carries whatever the animator
+ * typed in the composition, so the names are matched forgivingly — case and
+ * surrounding space never matter, and the words people actually use for each
+ * part are all accepted.
+ */
+const MARKER_WORDS: Record<'intro' | 'loop' | 'outro', readonly string[]> = {
+  intro: ['intro', 'in', 'entrance', 'enter', 'start', 'begin'],
+  loop: ['loop', 'hold', 'middle', 'idle', 'sustain'],
+  outro: ['outro', 'out', 'exit', 'leave', 'end', 'finish'],
+};
+
+/** Which part a marker names, or null when it names something else. */
+export function markerPart(name: string): 'intro' | 'loop' | 'outro' | null {
+  const word = name.trim().toLowerCase().replace(/[^a-z]+/g, '');
+  for (const [part, words] of Object.entries(MARKER_WORDS) as ['intro' | 'loop' | 'outro', readonly string[]][]) {
+    if (words.includes(word)) return part;
+  }
+  return null;
+}
+
+/**
+ * The structure a Lottie's markers describe (milestone 35), in milestone 30's
+ * terms, so an animation stretches to any length the way a template does.
+ *
+ * A marker for the loop or hold says it outright: the entrance runs to where
+ * it starts, the exit from where it ends. Markers for the intro and the outro
+ * say the same thing from the other side. A lone loop marker spanning the
+ * whole animation — or one named loop with no duration at all — says the
+ * graphic repeats rather than holds. Anything else is no structure: the
+ * animation plays at its own length, which is what every Lottie did before.
+ *
+ * Returns null rather than a problem: a file's markers are the animator's
+ * business, and ones Pulp cannot read are simply not a structure.
+ */
+export function lottieStructure(markers: readonly LottieMarker[], duration: number): TemplateStructure | null {
+  if (duration <= 0) return null;
+  const named = markers.map((m) => ({ ...m, part: markerPart(m.name) }));
+  const loop = named.find((m) => m.part === 'loop');
+  const intro = named.find((m) => m.part === 'intro');
+  const outro = named.find((m) => m.part === 'outro');
+
+  // A loop marker that covers the whole animation says it repeats; so does one with no span,
+  // which is how a point marker names a graphic that simply goes round.
+  if (loop && !intro && !outro) {
+    const covers = loop.duration <= 0 || loop.time <= TIMING_SLACK && loop.time + loop.duration >= duration - TIMING_SLACK;
+    if (covers) return { kind: 'loop' };
+  }
+
+  // Where the hold begins and ends, from whichever markers said so.
+  const holdFrom = loop && loop.duration > 0 ? loop.time : intro ? intro.time + intro.duration : null;
+  const holdTo = loop && loop.duration > 0 ? loop.time + loop.duration : outro ? outro.time : null;
+  if (holdFrom === null || holdTo === null) return null;
+  const from = Math.max(0, Math.min(duration, round3(holdFrom)));
+  const to = Math.max(0, Math.min(duration, round3(holdTo)));
+  // The parts must be in order and leave a hold worth stretching; markers that do not are
+  // the animator's own business and simply do not make a structure.
+  if (to - from < STRUCTURE_LIMITS.minHold) return null;
+  return { kind: 'hold', holdFrom: from, holdTo: to };
+}
+
+/** How near an edge counts as being at it: a marker is placed by hand, to the frame at best. */
+const TIMING_SLACK = 0.05;
+
 // ---------------------------------------------------------------- the manifest
 
 export interface LottieManifestInput {
@@ -497,6 +591,8 @@ export interface LottieManifestInput {
   themes?: string[];
   tags?: string[];
   author?: string;
+  /** What the file said about itself under its own key, where it said anything (`lottieExtras`). */
+  extras?: LottieExtras;
   editables: LottieEditables;
   limits: string[];
 }
@@ -516,6 +612,13 @@ export function categoryForType(type: string | undefined): string {
   if (group === 'transitions') return 'transition';
   if (group === 'overlays') return 'overlay';
   return 'other';
+}
+
+/** A structure as a manifest writes it, for the validator to read back (src/core/timing.ts). */
+function structureManifest(structure: TemplateStructure): Record<string, unknown> {
+  if (structure.kind === 'loop') return { loop: true };
+  if (structure.kind === 'scale') return { scale: true };
+  return { holdFrom: structure.holdFrom, holdTo: structure.holdTo };
 }
 
 const even = (n: number): number => (n % 2 === 0 ? n : n + 1);
@@ -539,25 +642,33 @@ export function lottieManifest(doc: LottieDocumentMeta, input: LottieManifestInp
   const height = even(doc.height);
   const own = aspectOf(width, height);
   const frames = doc.outPoint - doc.inPoint;
+  const stretches = lottieStructure(doc.markers, round3(frames / doc.fps));
   const description = [
     `${input.format === 'lottie' ? 'A dotLottie archive' : 'A Lottie animation'}: ${doc.width} × ${doc.height}, ${frames} frames at ${doc.fps} fps.`,
     ...(doc.markers.length > 0 ? [`Markers: ${doc.markers.map((m) => m.name).join(', ')}.`] : []),
+    ...(stretches ? [stretches.kind === 'loop' ? 'Its markers say it loops, so it stretches to any length.' : 'Its markers hold between the intro and the outro, so it stretches to any length.'] : []),
     ...(input.limits.length > 0 ? [`Not drawn: ${input.limits.join('; ')}.`] : []),
   ].join(' ');
+  // What its markers say may stretch (milestone 35), in milestone 30's terms: an icon with an
+  // intro and an outro holds between them, a seamless one loops, and one that says nothing keeps
+  // the length it was drawn at.
+  const structure = lottieStructure(doc.markers, round3(frames / doc.fps));
   const raw: Record<string, unknown> = {
     formatVersion: 1,
     id: lottieManifestId(input.id),
     name: input.name,
     description,
     version: doc.version && /^\d+\.\d+\.\d+$/.test(doc.version) ? doc.version : '1.0.0',
-    ...(input.author ? { author: input.author } : {}),
-    // A Lottie file carries no licence of its own; the Info tab says so rather than guessing.
-    license: 'not stated',
+    ...(input.extras?.author ?? input.author ? { author: input.extras?.author ?? input.author } : {}),
+    // The format carries no licence, so a file that does not say under its own key is "not
+    // stated" — the truth, which the Info tab shows rather than a guess.
+    license: input.extras?.license ?? 'not stated',
     category: categoryForType(input.type),
     ...(input.type ? { type: input.type } : {}),
     ...(input.themes && input.themes.length > 0 ? { themes: input.themes } : {}),
     tags: [...new Set(['lottie', ...(input.tags ?? [])])],
     duration: round3(frames / doc.fps),
+    ...(structure ? { structure: structureManifest(structure) } : {}),
     fps: doc.fps,
     width,
     height,

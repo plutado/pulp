@@ -993,7 +993,9 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .image-field .image-choice { display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left; padding: 2px 4px; background: none; border-color: transparent; }
 .image-field .image-choice:hover, .image-field .image-choice[aria-pressed="true"] { background: var(--panel-2); }
 .image-field .image-choice .thumb { width: 40px; height: 24px; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
-.image-field .image-choice .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.image-field .image-choice .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+/* The one word that says a choice is an animation rather than a clip from a file (milestone 35). */
+.image-field .image-choice .choice-badge { flex: 0 0 auto; font-size: var(--font-caption); color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 0 5px; }
 /* Treatment, its tint and the effects on one line, wrapping to a second in a narrow inspector. */
 .image-field .image-treatment { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .image-field .image-treatment[hidden] { display: none; }

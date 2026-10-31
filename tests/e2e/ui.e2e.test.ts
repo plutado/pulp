@@ -2310,7 +2310,8 @@ describe.skipIf(!electron)('inspector UI', () => {
         await choose('Add Asset Here');
         await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the asset submenu');
         // A plain PNG by name: a layered file or a PDF draws through the rasterizer and would
-        // make this test about that instead.
+        // make this test about that instead. It is in the list because the person's own things
+        // come before the bundled animations (milestone 35).
         const picked = await page.eval<boolean>(
           `(() => { const b = [...document.querySelectorAll('.context-menu.submenu > button[data-command="layer.addImage"]')].find((x) => x.textContent === 'mark');
             if (!b) return false; b.click(); return true; })()`,

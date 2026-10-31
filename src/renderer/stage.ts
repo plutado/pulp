@@ -39,6 +39,7 @@ import { psdCompositeUrlFor } from '../core/media-url';
 import { isPsdEntry, psdHidden } from './psd-state';
 import { setIcon } from './icons';
 import { onLayoutApplied } from './shell';
+import { searchPlaceable } from '../core/search';
 import { appState, frameSize, transport, trim } from './store';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
@@ -974,10 +975,12 @@ export function initStage(): void {
     els.previewFrame,
     { frameSize: () => previewSize() },
     (id) => {
+      // A still, a clip, or a Lottie animation, which becomes a clip layer (milestone 35);
+      // anything else — a sound, a template — is refused with a word about why.
+      const found = searchPlaceable(appState.value.index).find((m) => m.id === id);
+      if (found) return { kind: found.layer, name: found.name };
       const entry = appState.value.index?.media.find((m) => m.id === id);
-      if (!entry || entry.offline) return null;
-      const kind = entry.mediaKind === 'image' ? 'image' : entry.mediaKind === 'video' ? 'video' : 'other';
-      return { kind, name: entry.name };
+      return entry ? { kind: 'other', name: entry.name } : null;
     },
     (text) => {
       els.note.hidden = false;

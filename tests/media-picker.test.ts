@@ -6,8 +6,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { LibraryIndex, MediaEntry } from '../src/core/library-types';
-import { PICKER_LIMIT, searchLibrary, searchMedia } from '../src/core/search';
+import type { LibraryIndex, MediaEntry, TemplateEntry } from '../src/core/library-types';
+import { PICKER_LIMIT, searchLibrary, searchMedia, searchPlaceable } from '../src/core/search';
+import { validManifest } from './fixtures';
 
 function media(name: string, over: Partial<MediaEntry> = {}): MediaEntry {
   return {
@@ -101,6 +102,59 @@ describe('the query language a person already knows', () => {
       const bar = searchLibrary(lib, query).map((h) => h.entry).filter((e) => e.kind === 'media' && e.mediaKind === 'video').map((e) => (e as MediaEntry).name);
       expect(names(searchMedia(lib, { kinds: ['video'], query })), query).toEqual(bar);
     }
+  });
+});
+
+describe('a Lottie is offered where a clip is (milestone 35)', () => {
+  const lottie = (name: string, over: Partial<TemplateEntry> = {}): TemplateEntry => ({
+    kind: 'template', key: `k-${name}`, id: `id-${name}`, dir: '/lib', root: '/lib', tags: [], warnings: [],
+    manifest: validManifest({ id: `lottie.${name.toLowerCase()}`, name }),
+    lottie: { path: `/lib/${name}.json`, format: 'json', width: 512, height: 512, fps: 30, inPoint: 0, outPoint: 45, markers: [], limits: [], bindings: [] },
+    ...over,
+  });
+  const lib: LibraryIndex = {
+    roots: ['/lib'], problems: [], builtAt: 'x',
+    templates: [lottie('Spinner'), { ...lottie('Written'), lottie: undefined } as TemplateEntry],
+    media: [media('still'), media('clip', { mediaKind: 'video' }), media('sound', { mediaKind: 'audio' })],
+  };
+
+  it('plays like a clip, so it becomes a video layer and is listed with the clips', () => {
+    const clips = searchPlaceable(lib, { layers: ['video'] });
+    expect(clips.map((p) => p.name).sort()).toEqual(['Spinner', 'clip']);
+    expect(clips.find((p) => p.name === 'Spinner')).toMatchObject({ layer: 'video', lottie: true });
+    expect(clips.find((p) => p.name === 'clip')).toMatchObject({ layer: 'video', lottie: false });
+  });
+
+  it('is never offered where a still is wanted, and a written template is never offered at all', () => {
+    expect(searchPlaceable(lib, { layers: ['image'] }).map((p) => p.name)).toEqual(['still']);
+    // A template with a page of its own is not something a layer can play.
+    expect(searchPlaceable(lib).map((p) => p.name)).not.toContain('Written');
+    // Nor is a sound.
+    expect(searchPlaceable(lib).map((p) => p.name)).not.toContain('sound');
+  });
+
+  it('answers the search bar\'s language, as everything placeable does', () => {
+    expect(searchPlaceable(lib, { query: 'spin' }).map((p) => p.name)).toEqual(['Spinner']);
+    expect(searchPlaceable(lib, { query: 'type:template' }).map((p) => p.name)).toEqual(['Spinner']);
+  });
+
+  it('puts the person\'s own things before what came with Pulp, where the list is cut short', () => {
+    const bundled: LibraryIndex = {
+      ...lib, builtInRoot: '/built-in',
+      templates: [{ ...lottie('Spinner'), root: '/built-in' } as TemplateEntry],
+      media: [media('mine', { mediaKind: 'video' })],
+    };
+    // Nothing has been used, so what decides it is whose it is: twenty bundled animations must
+    // not bury the clips someone added themselves.
+    expect(searchPlaceable(bundled, { recentFirst: true }).map((p) => p.name)).toEqual(['mine', 'Spinner']);
+    // Reaching for one still puts it first, whoever it came from.
+    const used: LibraryIndex = { ...bundled, templates: [{ ...lottie('Spinner'), root: '/built-in', lastUsed: '2026-10-31T10:00:00Z' } as TemplateEntry] };
+    expect(searchPlaceable(used, { recentFirst: true }).map((p) => p.name)).toEqual(['Spinner', 'mine']);
+  });
+
+  it('is not offered while its folder is away', () => {
+    const away: LibraryIndex = { ...lib, templates: [lottie('Spinner', { offline: true })] };
+    expect(searchPlaceable(away).map((p) => p.name)).not.toContain('Spinner');
   });
 });
 

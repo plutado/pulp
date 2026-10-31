@@ -281,6 +281,68 @@ export function searchMedia(index: LibraryIndex | null | undefined, options: Med
   return limit === undefined ? ordered : ordered.slice(0, limit);
 }
 
+/**
+ * A library item that can be placed on the stage as a layer (milestone 35): a
+ * still, a clip, or a **Lottie animation** — which is a template read from one
+ * file and plays like a clip, so it becomes a video layer and is timed, looped
+ * and trimmed by everything a clip already is.
+ *
+ * One list, so the stage's Add Asset submenu, the clip chooser and a drop on
+ * the picture all offer the same things in the same order.
+ */
+export interface PlaceableItem {
+  id: string;
+  name: string;
+  /** The kind of layer it becomes. */
+  layer: 'image' | 'video';
+  /** A Lottie, which the card and the Info tab say so of. */
+  lottie: boolean;
+  /** It came with Pulp rather than from a folder the person added. */
+  builtIn: boolean;
+  thumbnail?: string;
+  lastUsed?: string;
+}
+
+export interface PlaceableSearch {
+  /** Which layers may be made here; both when it is not said. */
+  layers?: readonly ('image' | 'video')[];
+  query?: string;
+  recentFirst?: boolean;
+  limit?: number;
+}
+
+function placeableOf(entry: LibraryEntry, builtInRoot: string | undefined): PlaceableItem | null {
+  const builtIn = builtInRoot !== undefined && entry.root === builtInRoot;
+  const shared = { builtIn, ...(entry.thumbnail ? { thumbnail: entry.thumbnail } : {}), ...(entry.lastUsed ? { lastUsed: entry.lastUsed } : {}) };
+  if (entry.kind === 'template') {
+    if (!entry.lottie) return null;
+    return { id: entry.id, name: entry.manifest.name, layer: 'video', lottie: true, ...shared };
+  }
+  if (entry.mediaKind === 'audio') return null;
+  return { id: entry.id, name: entry.name, layer: entry.mediaKind === 'video' ? 'video' : 'image', lottie: false, ...shared };
+}
+
+export function searchPlaceable(index: LibraryIndex | null | undefined, options: PlaceableSearch = {}): PlaceableItem[] {
+  if (!index) return [];
+  const { layers, recentFirst, limit } = options;
+  const wants = (layer: 'image' | 'video') => !layers || layers.includes(layer);
+  // An item whose folder is offline cannot be loaded, so it is never offered.
+  const media = index.media.filter((m) => !m.offline && m.mediaKind !== 'audio' && wants(m.mediaKind === 'video' ? 'video' : 'image'));
+  // A Lottie plays, so it belongs with the clips.
+  const templates = wants('video') ? index.templates.filter((t) => t.lottie !== undefined && !t.offline) : [];
+  const found = searchLibrary({ ...index, templates, media }, options.query ?? '')
+    .map((h) => placeableOf(h.entry, index.builtInRoot))
+    .filter((p): p is PlaceableItem => p !== null);
+  // What was reached for last, then the person's own things, then what came with Pulp — which
+  // matters where the list is cut short (the stage's Add Asset submenu): twenty bundled
+  // animations must not bury the pictures someone added themselves. A stable sort throughout, so
+  // items equal on both keep the order the search put them in.
+  const ordered = recentFirst
+    ? [...found].sort((a, b) => (b.lastUsed ?? '').localeCompare(a.lastUsed ?? '') || Number(a.builtIn) - Number(b.builtIn))
+    : found;
+  return limit === undefined ? ordered : ordered.slice(0, limit);
+}
+
 /** Tag counts across the index, most used first. */
 export function tagCounts(index: LibraryIndex): { tag: string; count: number }[] {
   const counts = new Map<string, number>();

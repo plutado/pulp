@@ -689,6 +689,20 @@ export class LibraryStore {
    * than the whole index. Probed metadata is merged in, as the index does and
    * for the same reason: only while its stat signature still matches.
    */
+  /**
+   * A template by library id, with whether its root is reachable — the answer
+   * `findEntryById` cannot give, because the offline flag belongs to the root
+   * and is put on the index as it is built rather than stored on the row.
+   * What a Lottie placed as a layer is looked up through (milestone 35).
+   */
+  findTemplateById(id: string): { entry: TemplateEntry; online: boolean } | undefined {
+    const row = this.db
+      .prepare("SELECT items.entry AS entry, roots.online AS online FROM items JOIN roots ON roots.path = items.root WHERE items.id = ? AND items.kind = 'template'")
+      .get(id) as { entry: string; online: number } | undefined;
+    if (!row) return undefined;
+    return { entry: JSON.parse(row.entry) as TemplateEntry, online: row.online === 1 };
+  }
+
   findEntryById(id: string): LibraryEntry | undefined {
     const row = this.db.prepare('SELECT key, size, mtime_ms, entry FROM items WHERE id = ?').get(id) as
       | { key: string; size: number; mtime_ms: number; entry: string }

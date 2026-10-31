@@ -9,7 +9,7 @@ import { basename, dirname, extname, join, relative, sep } from 'node:path';
 import { type TemplateManifest, MANIFEST_FILENAME, parseManifest } from './manifest';
 import type { LibraryProblem, MediaKind, TemplateEntry } from './library-types';
 import { normalizeTag } from './tags';
-import { humanizeFileName, lottieEditables, lottieInfo, lottieLimits, lottieManifest, parseLottie, readDotLottie, sniffLottieJson, type LottieDocument } from './lottie';
+import { humanizeFileName, lottieEditables, lottieExtras, lottieInfo, lottieLimits, lottieManifest, parseLottie, readDotLottie, sniffLottieJson, type LottieDocument } from './lottie';
 import type { LottieFormat } from './lottie-types';
 import { inferTemplateType, inferThemes } from './taxonomy';
 
@@ -200,6 +200,7 @@ export async function loadLottie(path: string, root: string, folderSegments: rea
   } catch (err) {
     return { path, message: `could not read the Lottie animation: ${(err as Error).message}` };
   }
+  const extras = lottieExtras(document.data);
   const editables = lottieEditables(document.data);
   limits.push(...lottieLimits(document.data), ...editables.limits);
   const key = `lottie:${path}`;
@@ -214,6 +215,7 @@ export async function loadLottie(path: string, root: string, folderSegments: rea
     themes,
     tags: [...folderSegments],
     ...(author ? { author } : {}),
+    extras,
     editables,
     limits,
   });

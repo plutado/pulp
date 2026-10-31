@@ -19,8 +19,9 @@ import { detectFfmpeg, nodeRunner, runForBuffer } from '../core/ffmpeg';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { sequencePatternName, SEQUENCE_FPS } from '../core/media-sequence';
 import { clipProxySize, clipWindow, sanitizeClipValue, type ClipSource, type ClipValue } from '../core/video-layer';
-import type { MediaEntry } from '../core/library-types';
-import { lookupMedia } from './library-service';
+import type { MediaEntry, TemplateEntry } from '../core/library-types';
+import { lookupClipItem } from './library-service';
+import { templateDefaultSize } from '../core/aspect';
 
 /** One clip, ready for a template page: its frames in window order, as data URLs. */
 export interface ClipFrameData {
@@ -46,11 +47,17 @@ function sourceFromEntry(entry: MediaEntry, meta = entry.meta): ClipSource | nul
   return { frames: Math.max(1, Math.round(meta.duration * meta.fps)), fps: meta.fps };
 }
 
+/** A Lottie's own timing, straight from the manifest its file was read into (milestone 35). */
+function sourceFromLottie(entry: TemplateEntry): ClipSource {
+  const { duration, fps } = entry.manifest;
+  return { frames: Math.max(1, Math.round(duration * fps)), fps };
+}
+
 /** What the library knows about a clip's own timing, or null when it cannot be used as one or has not been read. */
 export function clipSourceFor(id: string): ClipSource | null {
-  const found = lookupMedia(id);
-  if (!found || !found.online || found.entry.kind !== 'media' || found.entry.mediaKind !== 'video') return null;
-  return sourceFromEntry(found.entry);
+  const found = lookupClipItem(id);
+  if (!found) return null;
+  return found.kind === 'lottie' ? sourceFromLottie(found.entry) : sourceFromEntry(found.entry);
 }
 
 /**
@@ -62,8 +69,10 @@ export function clipSourceFor(id: string): ClipSource | null {
  * the library's own pass fills its cache in its own time.
  */
 export async function resolveClipSource(ffprobePath: string, id: string): Promise<ClipSource | null> {
-  const found = lookupMedia(id);
-  if (!found || !found.online || found.entry.kind !== 'media' || found.entry.mediaKind !== 'video') return null;
+  const found = lookupClipItem(id);
+  if (!found) return null;
+  // A Lottie states its own rate and length in the manifest its file was read into: nothing to probe.
+  if (found.kind === 'lottie') return sourceFromLottie(found.entry);
   const known = sourceFromEntry(found.entry);
   if (known) return known;
   const meta = await probeMedia(ffprobePath, found.entry.path, nodeRunner);
@@ -130,8 +139,8 @@ export function clearClipFrameCache(): void {
 /** The size and modification time of each chosen clip, for the render cache key; unknown ids stamp as zero. */
 export function clipStamps(ids: readonly string[]): { id: string; size: number; mtimeMs: number }[] {
   return ids.map((id) => {
-    const found = lookupMedia(id);
-    return { id, size: found?.entry.size ?? 0, mtimeMs: found?.entry.mtimeMs ?? 0 };
+    const found = lookupClipItem(id);
+    return { id, size: found?.size ?? 0, mtimeMs: found?.mtimeMs ?? 0 };
   });
 }
 
@@ -185,7 +194,7 @@ export async function readClipFrames(
   source: ClipSource,
   drawnHeight: number,
 ): Promise<{ ok: true; data: ClipFrameData } | { ok: false; message: string }> {
-  const found = lookupMedia(id);
+  const found = lookupClipItem(id);
   if (!found) return { ok: false, message: 'is not a clip in the library' };
   const window = clipWindow(value, source);
   if (window.frames === 0) return { ok: false, message: 'has no frames' };
@@ -196,17 +205,47 @@ export async function readClipFrames(
   // Twice the drawn height, rounded up to a proxy step: sharp enough for a scaled or rotated
   // layer, and stable while a window is resized, so nothing is decoded twice for a few pixels.
   const side = clipProxySize(drawnHeight * 2);
-  const key = `${id}|${found.entry.size}|${found.entry.mtimeMs}|${window.first}|${window.frames}|${side}`;
+  const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}`;
   const cached = cacheTake(key);
   if (cached) return { ok: true, data: cached };
-  const args = clipFramesArgs(found.entry, source, window, side);
-  const result = await runForBuffer(ffmpegPath, args);
-  if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
-  const frames = splitPngStream(result.stdout);
-  if (frames.length === 0) return { ok: false, message: 'ffmpeg decoded no frames from it' };
-  const data: ClipFrameData = { id, kind: 'clip', srcs: frames.map((f) => `data:image/png;base64,${f.toString('base64')}`) };
+  const frames = found.kind === 'lottie'
+    ? await lottieClipFrames(found.entry, window, side)
+    : await ffmpegClipFrames(ffmpegPath, found.entry, source, window, side);
+  if (!frames.ok) return frames;
+  const data: ClipFrameData = { id, kind: 'clip', srcs: frames.pngs.map((f) => `data:image/png;base64,${f.toString('base64')}`) };
   cachePut(key, data);
   return { ok: true, data };
+}
+
+type FramesRead = { ok: true; pngs: Buffer[] } | { ok: false; message: string };
+
+async function ffmpegClipFrames(ffmpegPath: string, entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, side: number): Promise<FramesRead> {
+  const result = await runForBuffer(ffmpegPath, clipFramesArgs(entry, source, window, side));
+  if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
+  const pngs = splitPngStream(result.stdout);
+  if (pngs.length === 0) return { ok: false, message: 'ffmpeg decoded no frames from it' };
+  return { ok: true, pngs };
+}
+
+/**
+ * A Lottie's window, drawn rather than decoded (milestone 35): it has no file
+ * of pixels for ffmpeg to read, so its frames are captured through the same
+ * offscreen window its poster and its hover strip come from, at the size the
+ * layer is drawn — which is also why a vector animation placed small costs
+ * little. Its own shape is kept, inside the box the proxy step allows.
+ */
+async function lottieClipFrames(entry: TemplateEntry, window: { first: number; frames: number }, side: number): Promise<FramesRead> {
+  const own = templateDefaultSize(entry.manifest);
+  const scale = Math.min(1, side / Math.max(own.width, own.height));
+  const size = { width: Math.max(16, Math.round(own.width * scale)), height: Math.max(16, Math.round(own.height * scale)) };
+  const wanted = Array.from({ length: window.frames }, (_, i) => window.first + i);
+  // Imported here, not at the top: the render module reads clips from this one, and this is the
+  // only call going the other way.
+  const { captureTemplateFrames } = await import('./render');
+  const shot = await captureTemplateFrames(entry, wanted, { size, frameTimeoutMs: 10_000 });
+  if (!shot.ok) return { ok: false, message: shot.message };
+  if (shot.frames.length === 0) return { ok: false, message: 'drew no frames' };
+  return { ok: true, pngs: shot.frames };
 }
 
 /** What the window asks for: a layer's clip and how tall it is drawn in the preview. */
@@ -229,18 +268,24 @@ export async function loadLayerClips(
   const clips: ClipFrameData[] = [];
   const sources: Record<string, ClipSource> = {};
   const missing: string[] = [];
-  if (!ffmpeg.ok) return { clips, sources, missing: requests.map((r) => String((r as ClipRequest)?.id ?? '')) };
   for (const raw of requests) {
     const request = raw as Partial<ClipRequest>;
     const value = sanitizeClipValue(request?.value);
     const id = typeof request?.id === 'string' ? request.id : '';
     if (!id || !value?.id || sources[id]) continue;
-    const source = await resolveClipSource(ffprobePathFor(ffmpeg.path), id);
+    // A Lottie is drawn, not decoded, so it plays as a layer on a machine with no ffmpeg;
+    // a clip from a file cannot be read without one.
+    const isLottie = lookupClipItem(id)?.kind === 'lottie';
+    if (!ffmpeg.ok && !isLottie) {
+      missing.push(id);
+      continue;
+    }
+    const source = await resolveClipSource(ffmpeg.ok ? ffprobePathFor(ffmpeg.path) : '', id);
     if (!source) {
       missing.push(id);
       continue;
     }
-    const read = await readClipFrames(ffmpeg.path, id, value, source, Math.max(16, Number(request?.drawnHeight) || 120));
+    const read = await readClipFrames(ffmpeg.ok ? ffmpeg.path : '', id, value, source, Math.max(16, Number(request?.drawnHeight) || 120));
     if (!read.ok) {
       missing.push(id);
       continue;

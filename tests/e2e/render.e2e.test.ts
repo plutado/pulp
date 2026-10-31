@@ -1368,6 +1368,87 @@ describe.skipIf(!available)('end-to-end render', () => {
       expect(await rowDrawn(first!, 200, 160, 400)).toBe(false);
     }, 180_000);
 
+    it('stretches to a new length where its markers say it may, and keeps its own where they do not', async () => {
+      // The fixture's markers name an intro, a loop and an end, so the loop between them holds:
+      // milestone 30's structure, read from the file (milestone 35). Asked for twice its own
+      // length, it renders twice the frames, and the entrance still plays at its designed speed.
+      const stretched = await render(jsonId, 'png-sequence', 'lottie-long', { extra: ['--library', lib, '--length', '2'] });
+      expect(stretched.code, stretched.stderr).toBe(0);
+      const frames = await frameFiles('lottie-long');
+      expect(frames, 'twice the length is twice the frames').toHaveLength(20);
+
+      // The square crosses the frame from x = 100 to x = 900 over the animation's own second.
+      // The entrance runs to 0.2 s as designed, so frame 2 is where it always was; the hold
+      // between 0.2 s and 0.7 s is stretched over the middle, so at frame 10 — one second in —
+      // the square is only about a third of the way across rather than at the far side.
+      const centreX = async (file: string) => {
+        const row = await pixels(file, 0, 540, 1920);
+        let first = -1;
+        let last = -1;
+        for (let x = 0; x < 1920; x++) {
+          if (row[x * 4 + 3]! > 128) {
+            if (first < 0) first = x;
+            last = x;
+          }
+        }
+        return first < 0 ? null : (first + last) / 2;
+      };
+      expect(await centreX(frames[2]!), 'the entrance plays as designed').toBeCloseTo(260, -2);
+      const middle = await centreX(frames[10]!);
+      expect(middle, 'the hold is stretched, not played through').toBeGreaterThan(380);
+      expect(middle, 'and nowhere near the end it would have reached unstretched').toBeLessThan(640);
+
+      // The same animation with its markers taken out has nothing to stretch, so asking for a
+      // length is refused in the same words a template without a structure is refused in — not
+      // quietly ignored — and it renders at its own length.
+      const plainPath = join(lib, 'no-markers.json');
+      await writeFile(plainPath, JSON.stringify({ ...lottieFixture({ fps: 10, frames: 10 }), markers: [] }));
+      const plainId = lottieManifestId(itemId(`lottie:${plainPath}`));
+      const asked = await render(plainId, 'png-sequence', 'lottie-fixed', { extra: ['--library', lib, '--length', '2'] });
+      expect(asked.code).toBe(1);
+      expect(asked.stderr).toContain('its length is fixed');
+      const own = await render(plainId, 'png-sequence', 'lottie-own', { extra: ['--library', lib] });
+      expect(own.code, own.stderr).toBe(0);
+      expect(await frameFiles('lottie-own'), 'no markers, its own length').toHaveLength(10);
+    }, 180_000);
+
+    it('is placed on a template as a layer, timed and looped like any clip', async () => {
+      // A Lottie is a template read from one file, so it is not media — but it plays, so a layer
+      // takes it exactly as it takes a clip (milestone 35): the id in a video layer's `clip`.
+      const lottieItemId = itemId(`lottie:${join(lib, 'Lower thirds', 'box.json')}`);
+      const stack = JSON.stringify({
+        strap: [{ id: 'name', text: 'Ada Lovelace' }, { type: 'video', size: 0.3, clip: { id: lottieItemId, ending: 'loop' } }],
+      });
+      const result = await render('pulp.samples.lower-third-bar', 'png-sequence', 'lottie-layer', {
+        extra: ['--library', lib, '--param', `@layers=${stack}`, '--param', 'panel=#ffffffd9', '--in-point', '90', '--out-point', '90'],
+      });
+      expect(result.code, result.stderr).toBe(0);
+      const file = join(out, 'lottie-layer_00090.png');
+      expect(await probe(file)).toMatchObject({ width: 1920, height: 1080 });
+
+      // The animation's own red square is drawn into the graphic: a row the template alone leaves
+      // clear now holds the layer, and the layer is the Lottie's colour rather than the panel's.
+      const row = await pixels(file, 0, 820, 1920);
+      let found: number[] | null = null;
+      for (let x = 0; x < 1920; x++) {
+        const [r, g, b, a] = [row[x * 4]!, row[x * 4 + 1]!, row[x * 4 + 2]!, row[x * 4 + 3]!];
+        if (a > 200 && r > 150 && g < 90 && b < 90) {
+          found = [r, g, b, a];
+          break;
+        }
+      }
+      expect(found, 'the animation drawn as a layer on the lower third').not.toBeNull();
+
+      // And a layer naming something that is not in the library is refused before anything is
+      // written, as a missing clip is.
+      const gone = await render('pulp.samples.lower-third-bar', 'png-sequence', 'lottie-gone', {
+        extra: ['--library', lib, '--param', '@layers={"strap":[{"type":"video","clip":{"id":"0123456789abcdef01234567"}}]}'],
+      });
+      expect(gone.code).toBe(1);
+      expect(gone.stderr).toMatch(/clip chosen for a layer/);
+      expect(existsSync(join(out, 'lottie-gone_00000.png'))).toBe(false);
+    }, 180_000);
+
     it('renders a .lottie archive fitted into another aspect', async () => {
       const result = await render(dotId, 'png-sequence', 'lottie-dot', { extra: ['--library', lib, '--aspect', '1:1', '--out-point', '0'] });
       expect(result.code, result.stderr).toBe(0);
