@@ -8,7 +8,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 **Milestone 41, search and browse in the left panel, is done:** the row above the stage is gone — Search and Browse are two sections of the left panel, how the results are shown sits in the results' heading, the stage starts at the window's top edge, and Cmd/Ctrl+F or the rail's search icon puts the caret in the field from anywhere (ADR 0018). **Milestone 40, one search wherever you search, is done before it:** every chooser asks the library through the one `searchMedia`, so the search bar's query language and ranking hold in a picture or clip chooser and in the stage's asset list, and the two choosers are one. **Milestone 39, a right-click menu on the stage, is done before it:** the common layer edits — cut, copy, paste, duplicate, delete, layer order, copy and paste look, reset, start or end at the playhead, edit a line's words, replace a picture or a clip — adding text or an asset where you click, and the stage's own background (now with mid-grey), theater and add-to-collection over bare picture, opened by the pointer or by Shift+F10 and the Menu key, all built from the application menu's own command list and held to it by a test (ADR 0017). **Milestone 38, a bigger stage, is done before it:** the inspector's Parameters, Output and Info are three buttons in the transport row that open a drawer over the results — never over the stage — the right column is gone, so the stage and the results span from the browse panel's edge to the window's right edge, the view controls are a quiet overlay on the stage's corner, and the window fits at every size: the page never scrolls, nothing overlaps, and the picture gets its share, held by a UI test at the default 1280 × 788. Milestone 37, the transport row, is done before it: the player's controls sit in one row across the bottom of the window, above the status bar, the scrub bar and the bars per layer at the window's width, and the stage is only the picture. Milestone 27, projects and the application menu, is done before it: a session saves as a `.pulp` project — guarded, recovered and relinked — and Pulp has its own menu on every platform. Milestone 28 is done before it — a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar — and milestone 30 before that — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 235 bundled CC0 templates, a 625-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every type at least ten deep, every theme at least six with three assets of its own.
 
-What is left for 1.0: social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come stock library import (32) and the rest of Lottie animations (35, whose reading, frame-accurate rendering and text-and-colour parameters are in; fonts and images inside, timing from markers, placing on the stage, samples and the limits item remain); a deeper library (36), the transport row (37), the stage's right-click menu (39), the start screen (31), the browse panel that says what things are (34, all but its card sort), layered graphics (33) and converting library media (15) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
+What is left for 1.0: nothing empty taking room from the stage (42), social-ready export (20), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those come stock library import (32) and the rest of Lottie animations (35, whose reading, frame-accurate rendering and text-and-colour parameters are in; fonts and images inside, timing from markers, placing on the stage, samples and the limits item remain); a deeper library (36), the transport row (37), the stage's right-click menu (39), one search in every chooser (40), search and browse in the left panel (41), the start screen (31), the browse panel that says what things are (34, all but its card sort), layered graphics (33) and converting library media (15) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
 
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. A decision is written here as soon as it is made — a new milestone, or items in an existing one — even when it is low priority and may never be built, so everything decided is visible in one place; `docs/ideas.md` keeps only ideas not yet decided and known issues. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
@@ -49,6 +49,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 39. A right-click menu on the stage (**done**) | 9-16 h |
 | 40. One search, wherever you search (**done**) | 4-8 h |
 | 41. Search and browse in the left panel: the row above the stage goes (**done**) | 4-7 h |
+| 42. Nothing empty takes room from the stage | 6-10 h |
 | 20. Social-ready export | 9-14 h |
 | 8. 1.0 hardening and docs | 14-23 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -56,9 +57,9 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
-| **Total through 1.0 (every milestone above not marked post-1.0)** | **576-932 h** |
-| **Still open through 1.0 (unticked items only)** | **79-132 h** |
-| **Total including post-1.0 items** | **602-980 h** |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **582-942 h** |
+| **Still open through 1.0 (unticked items only)** | **81-135 h** |
+| **Total including post-1.0 items** | **608-990 h** |
 
 ## 0. Foundation (done)
 
@@ -473,6 +474,18 @@ Decided 2026-10-31, straight after milestone 39; built the same day. The window 
 - [x] **Tests:** the kinds, offline items, limits, every kind of filter, the ranking, recently-used ordering, and the sameness guarantee; end to end, a chooser narrowed by `type:` and emptied by `duration:>9999`, and its list unchanged by a filter that keeps everything (1-2 h)
 
 *Left alone on purpose: the browse panel's find field. It searches the category tree, not the library's items — a different corpus with a different job (navigate, not choose), which the module and `docs/ui-layout.md` already say. Merging its label ranking into the item scoring would have forced two unlike things into one shape.*
+
+## 42. Nothing empty takes room from the stage (6-10 h; GitHub issue #44)
+
+Decided 2026-10-31, straight after milestone 41. The stage should be as big as it can be by default, and an empty collection tray or an empty results area often sits there taking height from it. Nothing empty keeps room, and a few fixed rows give some of theirs back.
+
+- [ ] **An empty collection tray takes no space at all:** no drawer and no summary line; it appears with the first item and goes with the last (1-2 h)
+- [ ] **Empty results fold to their heading:** with nothing to show, the results collapse to milestone 41's heading bar and the stage takes the height (1 h)
+- [ ] **A saved layout does not reopen empty:** a tray or results area saved open comes back open only when it has something in it (0.5-1 h)
+- [ ] **The status bar joins the transport row:** its messages and counts sit at the row's end, so the window loses one fixed row (1-2 h)
+- [ ] **The transport row is one line in short windows:** below a height where two lines cost the picture, its controls share one line (1-2 h)
+- [ ] **The left panel starts folded to its rail on small windows:** under a width where it would squeeze the stage, it opens folded, with the rail's search icon and Cmd/Ctrl+F one step from Search (0.5-1 h)
+- [ ] **Tests:** at 1280 × 788 and a short window, an empty tray and empty results give their height to the stage, the status bar's content is in the transport row, and nothing overlaps (1 h)
 
 ## 41. Search and browse in the left panel: the row above the stage goes (4-7 h; GitHub issue #43) — done
 
