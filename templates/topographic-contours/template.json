@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.topographic-contours",
+  "name": "Topographic contours",
+  "description": "Contour lines of an imagined terrain, nested wobbling rings around three peaks; the scale sets the spacing and the angle turns the map.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "themes": [
+    "travel",
+    "nature"
+  ],
+  "styles": [
+    "organic",
+    "clean"
+  ],
+  "tags": [
+    "still",
+    "topographic",
+    "contours"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Map color",
+      "default": "#0f3d3e",
+      "element": "Colors"
+    },
+    {
+      "id": "line",
+      "type": "color",
+      "label": "Contour color",
+      "default": "#9fd3c7",
+      "element": "Colors"
+    },
+    {
+      "id": "peak",
+      "type": "color",
+      "label": "Peak color",
+      "default": "#e0f2f1",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.1,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

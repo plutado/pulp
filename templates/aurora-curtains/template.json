@@ -1,0 +1,96 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.aurora-curtains",
+  "name": "Aurora curtains",
+  "description": "Curtains of green and violet light hanging in a night sky, drawn as soft ribbons; the angle leans them and the scale widens them.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "themes": [
+    "space",
+    "nature"
+  ],
+  "styles": [
+    "cinematic"
+  ],
+  "tags": [
+    "still",
+    "aurora",
+    "night"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "sky",
+      "type": "color",
+      "label": "Sky color",
+      "default": "#050a18",
+      "element": "Colors"
+    },
+    {
+      "id": "c1",
+      "type": "color",
+      "label": "Curtain color",
+      "default": "#2ee6a6",
+      "element": "Colors"
+    },
+    {
+      "id": "c2",
+      "type": "color",
+      "label": "Fringe color",
+      "default": "#8a5cf6",
+      "element": "Colors"
+    },
+    {
+      "id": "star",
+      "type": "color",
+      "label": "Star color",
+      "default": "#ffffff",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.1,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

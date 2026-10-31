@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.isometric-cubes",
+  "name": "Isometric cubes",
+  "description": "A field of isometric cubes in three face tones, the classic tumbling-blocks tiling; the scale sets the cube size and the angle turns the field.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "themes": [
+    "technology",
+    "gaming"
+  ],
+  "styles": [
+    "tech",
+    "playful"
+  ],
+  "tags": [
+    "still",
+    "geometric",
+    "isometric"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "top",
+      "type": "color",
+      "label": "Top face",
+      "default": "#f8fafc",
+      "element": "Colors"
+    },
+    {
+      "id": "left",
+      "type": "color",
+      "label": "Left face",
+      "default": "#94a3b8",
+      "element": "Colors"
+    },
+    {
+      "id": "right",
+      "type": "color",
+      "label": "Right face",
+      "default": "#475569",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.05,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

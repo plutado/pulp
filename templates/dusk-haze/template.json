@@ -1,0 +1,96 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.dusk-haze",
+  "name": "Dusk haze",
+  "description": "A sky after sunset in three bands with haze and a low sun; the angle moves the sun along the horizon and the scale sets its size.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "themes": [
+    "nature",
+    "documentary"
+  ],
+  "styles": [
+    "cinematic"
+  ],
+  "tags": [
+    "still",
+    "sky",
+    "dusk"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "top",
+      "type": "color",
+      "label": "Sky color",
+      "default": "#1b1f3b",
+      "element": "Colors"
+    },
+    {
+      "id": "mid",
+      "type": "color",
+      "label": "Horizon color",
+      "default": "#c2577e",
+      "element": "Colors"
+    },
+    {
+      "id": "low",
+      "type": "color",
+      "label": "Ground color",
+      "default": "#2a1a2e",
+      "element": "Colors"
+    },
+    {
+      "id": "sun",
+      "type": "color",
+      "label": "Sun color",
+      "default": "#ffd59e",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.15,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

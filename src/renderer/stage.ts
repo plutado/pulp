@@ -41,7 +41,7 @@ import { setIcon } from './icons';
 import { onLayoutApplied } from './shell';
 import { onStageWindow } from './stage-window';
 import { searchPlaceable } from '../core/search';
-import { appState, frameSize, transport, trim } from './store';
+import { appState, frameSize, playheadSeconds, transport, trim } from './store';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
 
@@ -329,6 +329,7 @@ function updateTimecode(frame: number): void {
   }
   els.scrub.value = String(frame);
   els.timecode.textContent = `${formatTimecode(frame, previewFps())} · ${frame + 1}/${previewFrames()}`;
+  playheadSeconds.value = frame / Math.max(1, previewFps());
 }
 
 /**

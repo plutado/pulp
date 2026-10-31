@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { scanLibrary } from '../src/core/library';
 import { SAMPLE_MEDIA } from '../src/core/sample-media';
 import { normalizeTag } from '../src/core/tags';
-import { BROWSE_CATEGORIES } from '../src/core/categories';
+import { BROWSE_CATEGORIES, categoryInfo, categoryOfEntry } from '../src/core/categories';
 import { entryType, inferThemes, STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES, typeInfo } from '../src/core/taxonomy';
 
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
@@ -48,6 +48,15 @@ export const CATEGORY_FLOORS: Record<string, number> = {
   'overlays-frames': 32,
   // Raised past its first floor of twelve by the eight footage scenes with subjects of their own.
   'stock-video': 20,
+};
+
+/**
+ * Milestone 44: Still backgrounds is at least this deep out of the box — bundled templates alone,
+ * with no sample media made — so the one large category that was in single digits at first launch
+ * is not. Counted over the templates only; the category floor above counts the catalogue too.
+ */
+export const BUNDLED_CATEGORY_FLOORS: Record<string, number> = {
+  'still-backgrounds': 32,
 };
 
 /**
@@ -120,6 +129,12 @@ describe('every category is at least its floor deep', () => {
       }
     });
   }
+
+  it.each(Object.entries(BUNDLED_CATEGORY_FLOORS))('the top category %s is at least %i deep with bundled templates alone (milestone 44)', (id, floor) => {
+    const category = categoryInfo(id)!;
+    const bundled = index.templates.filter((t) => categoryOfEntry(t)?.id === category.id);
+    expect(bundled.length, `${category.label}: ${bundled.length} bundled templates`).toBeGreaterThanOrEqual(floor);
+  });
 
   it.each(Object.entries(CATEGORY_FLOORS))('the top category %s is at least %i deep (milestone 36)', (id, floor) => {
     const category = BROWSE_CATEGORIES.find((c) => c.id === id);

@@ -20,7 +20,7 @@ import { currentRawParams } from './inspector-params';
 import { lengthIn } from '../core/params';
 import { lengthFrameCount, resolveLength } from '../core/timing';
 import { stageStop } from './stage';
-import { appState, dispatch, frameSize, preferredAspect, renderBlocked, selectedTemplate, trim } from './store';
+import { appState, dispatch, frameSize, playheadSeconds, preferredAspect, renderBlocked, selectedTemplate, trim } from './store';
 import { setCollection, setEditing } from '../core/app-state';
 import { updateItem } from '../core/collection';
 import { editing } from './collection';
@@ -314,6 +314,10 @@ export function readRenderOptions(): RenderOptions {
   if (inFrame !== undefined) options.inFrame = inFrame;
   if (outFrame !== undefined) options.outFrame = outFrame;
   const preset = OUTPUT_PRESETS[els.preset.value as PresetId];
+  // A still image (milestone 44) is the frame at the playhead unless an in point says otherwise:
+  // what is on the stage is what is written. Counted at the output rate; the planner holds it
+  // within the timeline should the rounding land a frame past the end.
+  if (preset?.still && inFrame === undefined && fps !== undefined) options.inFrame = Math.max(0, Math.round(playheadSeconds.peek() * fps));
   if (preset && !preset.alpha) options.background = els.optBackground.value;
   Object.assign(options, readSizeChoice());
   if (preset && !els.optMatteField.hidden && els.optMatte.checked) options.matte = true;

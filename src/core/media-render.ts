@@ -165,7 +165,7 @@ export interface MediaTiming {
  * Output tab says about a media render and everything the stages encode comes
  * from here, so the two cannot disagree.
  */
-export function resolveMediaTiming(source: MediaSource, options: RenderOptions = {}): MediaTiming {
+export function resolveMediaTiming(source: MediaSource, options: RenderOptions = {}, shape: { still?: boolean } = {}): MediaTiming {
   const isStill = source.kind === 'image';
   const isAudio = source.kind === 'audio';
   if (options.fps !== undefined && !isStandardFrameRate(options.fps)) {
@@ -195,8 +195,12 @@ export function resolveMediaTiming(source: MediaSource, options: RenderOptions =
   const repeats = loops ? Math.max(0, Math.ceil(length / unitSeconds) - 1) : 0;
   const lastFrame = Math.max(1, Math.round(length * fps)) - 1;
   const inFrame = options.inFrame ?? 0;
-  const outFrame = options.outFrame ?? lastFrame;
   if (!Number.isInteger(inFrame) || inFrame < 0) throw new RenderPlanError(`in point must be a frame number of 0 or more, got ${String(options.inFrame)}`);
+  // A still image output (milestone 44): the one frame at the in point, held within the length.
+  if (shape.still) {
+    return { fps, speed, natural, length, loops, crossfade, unitSeconds, repeats, firstFrame: Math.min(inFrame, lastFrame), totalFrames: 1 };
+  }
+  const outFrame = options.outFrame ?? lastFrame;
   if (!Number.isInteger(outFrame) || outFrame > lastFrame) throw new RenderPlanError(`out point must be at most the last frame (${lastFrame} at ${fps} fps), got ${String(options.outFrame)}`);
   if (outFrame < inFrame) throw new RenderPlanError(`out point (frame ${outFrame}) must not be before the in point (frame ${inFrame})`);
   return { fps, speed, natural, length, loops, crossfade, unitSeconds, repeats, firstFrame: inFrame, totalFrames: outFrame - inFrame + 1 };
@@ -339,7 +343,7 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
   const { source } = input;
   const options = input.options ?? {};
   if (source.kind === 'audio') throw new RenderPlanError(`a sound renders with an audio preset, not ${preset.label}`);
-  const timing = resolveMediaTiming(source, options);
+  const timing = resolveMediaTiming(source, options, { still: preset.still === true });
   const fps = fpsToRational(timing.fps);
   const background = options.background ?? '#000000';
   if (!isValidColor(background)) throw new RenderPlanError(`background must be #RRGGBB, got "${background}"`);

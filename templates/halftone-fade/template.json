@@ -1,0 +1,83 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.halftone-fade",
+  "name": "Halftone fade",
+  "description": "Halftone dots that grow from nothing to a solid fill along one direction, as a screened gradient; the angle sets the direction and the scale the dot pitch.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "themes": [
+    "news",
+    "social-media"
+  ],
+  "styles": [
+    "retro",
+    "clean"
+  ],
+  "tags": [
+    "still",
+    "halftone",
+    "dots"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#f4f1ea",
+      "element": "Colors"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#1d1d1b",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 180,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.1,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

@@ -34,7 +34,7 @@ import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './time
 
 export { fpsToRational } from './timecode';
 
-export type PresetId = 'prores-4444' | 'prores-422hq' | 'png-sequence' | 'webm-vp9-alpha' | 'h264-mp4' | 'qt-animation' | 'hevc-alpha';
+export type PresetId = 'prores-4444' | 'prores-422hq' | 'png-sequence' | 'png-still' | 'webm-vp9-alpha' | 'h264-mp4' | 'qt-animation' | 'hevc-alpha';
 
 /** How captured frames are handed to ffmpeg: raw BGRA pixels or PNG images. */
 export type FrameFormat = 'raw' | 'png';
@@ -67,6 +67,8 @@ export interface OutputPreset {
   alpha: boolean;
   /** True if the output is a numbered image sequence rather than one file. */
   sequence: boolean;
+  /** True for a still image (milestone 44): one frame, the in point's — the playhead's, as the Output tab fills it — whatever the out point says. */
+  still?: boolean;
   /** True if the pixel format needs even width and height (chroma subsampling). */
   requiresEvenDimensions: boolean;
   /** ffmpeg encoder that must be present (checked against `ffmpeg -encoders`). */
@@ -132,6 +134,21 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
     color: 'rgb',
     // -start_number is added by buildRenderPlan: the files carry the frame indices of the render.
     codecArgs: ['-c:v', 'png', '-f', 'image2'],
+  },
+  'png-still': {
+    id: 'png-still',
+    label: 'Still image (PNG, alpha)',
+    description: 'One RGBA PNG of the frame at the playhead, or at the in point when one is set: a still background, a poster or a thumbnail as a picture rather than a clip.',
+    extension: '.png',
+    alpha: true,
+    sequence: false,
+    still: true,
+    requiresEvenDimensions: false,
+    encoder: 'png',
+    pixelFormat: 'rgba',
+    color: 'rgb',
+    // -update 1: one file, written once, rather than image2's numbered pattern.
+    codecArgs: ['-c:v', 'png', '-f', 'image2', '-update', '1'],
   },
   'webm-vp9-alpha': {
     id: 'webm-vp9-alpha',
@@ -251,6 +268,7 @@ export const MATTE_PIXEL_FORMATS: Record<PresetId, string> = {
   'prores-4444': 'yuv444p10le',
   'prores-422hq': 'yuv422p10le',
   'png-sequence': 'rgb24',
+  'png-still': 'rgb24',
   'webm-vp9-alpha': 'yuv420p',
   'h264-mp4': 'yuv420p',
   'qt-animation': 'rgb24',
@@ -304,7 +322,7 @@ export interface RenderTiming {
  * template timeline, so a trimmed render shows the same picture at a given
  * second as a full one, and the output numbering can carry the same indices.
  */
-export function resolveTiming(manifest: Pick<TemplateManifest, 'fps' | 'duration'> & { structure?: TemplateStructure }, options: RenderOptions = {}): RenderTiming {
+export function resolveTiming(manifest: Pick<TemplateManifest, 'fps' | 'duration'> & { structure?: TemplateStructure }, options: RenderOptions = {}, shape: { still?: boolean } = {}): RenderTiming {
   const fps = options.fps ?? manifest.fps;
   if (options.fps !== undefined && !isStandardFrameRate(options.fps)) {
     throw new RenderPlanError(
@@ -323,8 +341,14 @@ export function resolveTiming(manifest: Pick<TemplateManifest, 'fps' | 'duration
   // Like frameCount: a template shorter than one frame still has one frame.
   const lastFrame = Math.max(1, Math.round(length * fps)) - 1;
   const inFrame = options.inFrame ?? 0;
-  const outFrame = options.outFrame ?? lastFrame;
   if (!Number.isInteger(inFrame) || inFrame < 0) throw new RenderPlanError(`in point must be a frame number of 0 or more, got ${String(options.inFrame)}`);
+  // A still (milestone 44) is the one frame at the in point, held within the timeline: a playhead
+  // read at another rate can round a frame past the end, and the end is what was meant.
+  if (shape.still) {
+    const at = Math.min(inFrame, lastFrame);
+    return { fps, firstFrame: at, totalFrames: 1, length };
+  }
+  const outFrame = options.outFrame ?? lastFrame;
   if (!Number.isInteger(outFrame) || outFrame > lastFrame) {
     throw new RenderPlanError(`out point must be at most the last frame (${lastFrame} at ${fps} fps), got ${String(options.outFrame)}`);
   }
@@ -423,7 +447,7 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   const background = input.options?.background ?? '#000000';
   if (!isValidColor(background)) throw new RenderPlanError(`background must be #RRGGBB, got "${background}"`);
 
-  const timing = resolveTiming(manifest, input.options);
+  const timing = resolveTiming(manifest, input.options, { still: preset.still === true });
   const fps = fpsToRational(timing.fps);
   const totalFrames = timing.totalFrames;
   const output = normalizeOutputPath(input.outputPath, preset);

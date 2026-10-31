@@ -1,0 +1,89 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.hexagon-tiles",
+  "name": "Hexagon tiles",
+  "description": "A honeycomb of outlined hexagons with a scatter of filled cells, the standard tech backdrop; the scale sets the cell size and the angle turns the comb.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "themes": [
+    "technology",
+    "science"
+  ],
+  "styles": [
+    "tech"
+  ],
+  "tags": [
+    "still",
+    "hexagon",
+    "grid"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Base color",
+      "default": "#0b1220",
+      "element": "Colors"
+    },
+    {
+      "id": "line",
+      "type": "color",
+      "label": "Line color",
+      "default": "#1e3a5f",
+      "element": "Colors"
+    },
+    {
+      "id": "fill",
+      "type": "color",
+      "label": "Filled cell color",
+      "default": "#2563eb",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.1,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

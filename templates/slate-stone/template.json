@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.slate-stone",
+  "name": "Slate stone",
+  "description": "Dark slate: a fine speckle of lighter and darker flecks with faint diagonal cleavage lines; the angle turns the lines.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "texture",
+  "themes": [
+    "cinema",
+    "documentary"
+  ],
+  "styles": [
+    "cinematic",
+    "grunge"
+  ],
+  "tags": [
+    "still",
+    "stone",
+    "slate"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Slate color",
+      "default": "#2b2f33",
+      "element": "Colors"
+    },
+    {
+      "id": "fleck",
+      "type": "color",
+      "label": "Fleck color",
+      "default": "#555c62",
+      "element": "Colors"
+    },
+    {
+      "id": "vein",
+      "type": "color",
+      "label": "Vein color",
+      "default": "#1a1d20",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

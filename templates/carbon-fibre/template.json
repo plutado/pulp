@@ -1,0 +1,83 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.carbon-fibre",
+  "name": "Carbon fibre",
+  "description": "A carbon-fibre twill: small woven tows alternating in two directions, each with its own sheen; the scale sets the tow width and the angle turns the weave.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "texture",
+  "themes": [
+    "motorsport",
+    "gaming"
+  ],
+  "styles": [
+    "tech",
+    "high-energy"
+  ],
+  "tags": [
+    "still",
+    "carbon",
+    "weave"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "dark",
+      "type": "color",
+      "label": "Fibre color",
+      "default": "#101214",
+      "element": "Colors"
+    },
+    {
+      "id": "light",
+      "type": "color",
+      "label": "Sheen color",
+      "default": "#4a5058",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.15,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

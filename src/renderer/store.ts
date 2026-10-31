@@ -64,6 +64,9 @@ export const renderBlocked = signal(true);
  */
 export const transport = signal<{ canPlay: boolean; playing: boolean; loop: boolean }>({ canPlay: false, playing: false, loop: true });
 
+/** Where the playhead is, in seconds of the chosen length: what a still image output is taken at (milestone 44). */
+export const playheadSeconds = signal(0);
+
 /** The selected template (media items are shown, not selected); regions read this instead of each other. */
 export const selectedTemplate = signal<TemplateEntry | null>(null);
 

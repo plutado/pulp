@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.bokeh-field",
+  "name": "Bokeh field",
+  "description": "Out-of-focus lights over a two-tone gradient, each disc a soft-edged circle; the scale sets their size and the angle the gradient.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "themes": [
+    "concert",
+    "wedding"
+  ],
+  "styles": [
+    "cinematic",
+    "elegant"
+  ],
+  "tags": [
+    "still",
+    "bokeh",
+    "lights"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "c1",
+      "type": "color",
+      "label": "Top color",
+      "default": "#1a0b2e",
+      "element": "Colors"
+    },
+    {
+      "id": "c2",
+      "type": "color",
+      "label": "Bottom color",
+      "default": "#3b1d5a",
+      "element": "Colors"
+    },
+    {
+      "id": "light",
+      "type": "color",
+      "label": "Light color",
+      "default": "#ffd166",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.15,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

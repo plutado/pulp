@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.paper-fibre",
+  "name": "Paper fibre",
+  "description": "Warm handmade paper with fine fibres and a soft vignette; the scale sets the fibre length and the grain its tooth.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "texture",
+  "themes": [
+    "education",
+    "wedding"
+  ],
+  "styles": [
+    "organic",
+    "hand-drawn"
+  ],
+  "tags": [
+    "still",
+    "paper",
+    "texture"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#efe6d2",
+      "element": "Colors"
+    },
+    {
+      "id": "fibre",
+      "type": "color",
+      "label": "Fibre color",
+      "default": "#9c8a66",
+      "element": "Colors"
+    },
+    {
+      "id": "shade",
+      "type": "color",
+      "label": "Shade color",
+      "default": "#c9b893",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

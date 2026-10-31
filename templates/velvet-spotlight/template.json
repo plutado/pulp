@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.velvet-spotlight",
+  "name": "Velvet spotlight",
+  "description": "Deep velvet under a single soft spotlight, with the faint sheen of folded cloth; the angle places the light and the scale its spread.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "themes": [
+    "cinema",
+    "concert"
+  ],
+  "styles": [
+    "elegant",
+    "cinematic"
+  ],
+  "tags": [
+    "still",
+    "velvet",
+    "spotlight"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Velvet color",
+      "default": "#3b0a1a",
+      "element": "Colors"
+    },
+    {
+      "id": "light",
+      "type": "color",
+      "label": "Light color",
+      "default": "#f5d0c5",
+      "element": "Colors"
+    },
+    {
+      "id": "fold",
+      "type": "color",
+      "label": "Fold color",
+      "default": "#7a1f3d",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.2,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

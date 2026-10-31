@@ -211,3 +211,16 @@ describe('a sound through an audio preset', () => {
     expect(parseProgressLine('speed=2x')).toEqual({});
   });
 });
+
+describe('a still image output of a media item (milestone 44)', () => {
+  it('writes one frame of a still, and one frame of a clip at the in point', () => {
+    const one = buildMediaRenderPlan({ source: still, presetId: 'png-still', outputPath: '/out/logo' });
+    expect(one.output).toBe('/out/logo.png');
+    expect(one.timing.totalFrames).toBe(1);
+    expect(one.stages.some((s) => s.args.includes('-frames:v') && s.args[s.args.indexOf('-frames:v') + 1] === '1')).toBe(true);
+    const clip: MediaSource = { kind: 'video', input: { path: '/lib/clip.mp4' }, width: 1920, height: 1080, duration: 4, fps: 25, alpha: false, hasAudio: false };
+    const frame = buildMediaRenderPlan({ source: clip, presetId: 'png-still', outputPath: '/out/frame', options: { inFrame: 30, outFrame: 90 } });
+    expect(frame.timing.firstFrame).toBe(30);
+    expect(frame.timing.totalFrames).toBe(1);
+  });
+});

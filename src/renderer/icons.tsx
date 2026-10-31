@@ -37,7 +37,7 @@ import folderOpen from '@phosphor-icons/core/assets/regular/folder-open.svg?raw'
 import link from '@phosphor-icons/core/assets/regular/link.svg?raw';
 import frameCorners from '@phosphor-icons/core/assets/regular/frame-corners.svg?raw';
 import folderPlus from '@phosphor-icons/core/assets/regular/folder-plus.svg?raw';
-import sparkle from '@phosphor-icons/core/assets/regular/sparkle.svg?raw';
+import images from '@phosphor-icons/core/assets/regular/images.svg?raw';
 import hardDrive from '@phosphor-icons/core/assets/regular/hard-drive.svg?raw';
 import image from '@phosphor-icons/core/assets/regular/image.svg?raw';
 import imageSquare from '@phosphor-icons/core/assets/regular/image-square.svg?raw';
@@ -132,7 +132,7 @@ const ICONS = {
   'sliders-horizontal': slidersHorizontal,
   'sort-ascending': sortAscending,
   'funnel-simple': funnelSimple,
-  sparkle,
+  images,
   'speaker-high': speakerHigh,
   'speaker-slash': speakerSlash,
   spinner,

@@ -232,6 +232,30 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await readdir(out)).filter((f) => f.startsWith('aspect-wrong_') || f.startsWith('aspect-bad_'))).toEqual([]);
   }, 120_000);
 
+  it('writes a still image: one RGBA PNG of the frame at the in point, the same frame the sequence would write (milestone 44)', async () => {
+    // A background that holds still renders as a picture rather than a clip, and any template gives
+    // a frame at the playhead — a poster or a thumbnail — which the CLI names with --in-point.
+    const still = await render('pulp.samples.lower-third-bar', 'png-still', 'strap-still', { extra: ['--in-point', '2.0s'] });
+    expect(still.code, still.stderr).toBe(0);
+    const file = join(out, 'strap-still.png');
+    expect(existsSync(file), 'one file, not a numbered sequence').toBe(true);
+    expect(existsSync(join(out, 'strap-still_00060.png'))).toBe(false);
+    expect(await probe(file)).toMatchObject({ codec_name: 'png', width: 1920, height: 1080, pix_fmt: 'rgba' });
+    // Transparent where the graphic draws nothing: the top-left corner of a lower third.
+    expect((await pixels(file, 4, 4))[3], 'alpha survives').toBe(0);
+    // The frame is the in point's: the sequence's frame 60 at 30 fps, byte for byte.
+    const seq = await render('pulp.samples.lower-third-bar', 'png-sequence', 'strap-seq', { extra: ['--in-point', '2.0s', '--out-point', '2.0s'] });
+    expect(seq.code, seq.stderr).toBe(0);
+    const frame = (await readdir(out)).find((f) => f.startsWith('strap-seq_') && f.endsWith('.png'));
+    expect(frame).toBeDefined();
+    expect((await readFile(file)).equals(await readFile(join(out, frame!))), 'the still is the sequence\'s frame').toBe(true);
+    // A background holds still: its still output is the picture at its default size.
+    const bg = await render('pulp.samples.mesh-gradient', 'png-still', 'mesh-still');
+    expect(bg.code, bg.stderr).toBe(0);
+    expect(await probe(join(out, 'mesh-still.png'))).toMatchObject({ width: 1920, height: 1080 });
+    expect((await pixels(join(out, 'mesh-still.png'), 960, 540))[3], 'a background is opaque').toBe(255);
+  }, 240_000);
+
   it('makes just one category\'s sample media, and leaves the rest of the catalogue alone (milestone 34)', async () => {
     // What the results' "N more with sample media" button asks for: the types in view, not the
     // whole 625-file catalogue. Vignettes are three stills from one page, so this stays quick.

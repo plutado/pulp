@@ -70,13 +70,14 @@ Search syntax is the exception by design: what you type in the search field (`ta
 - Every icon-only button has an `aria-label` and a tooltip that also appears on keyboard focus after a short delay, with the shortcut when there is one.
 - Labels may shrink or hide where the icon is unambiguous; the collapsed browse panel becomes an icon rail with labels as tooltips.
 - The Unicode stand-ins (`⟨`, `⌃`, `⌄`, `×`, `★`, `☆`, `T`, `♫`) are replaced by icons.
+- **Sparkles mean AI, and nothing else.** The sparkle has become the mark for a generative feature across the industry, so on anything that is not one it makes a promise Pulp does not make. Add sample media drew tones, gradients and the bundled templates with a sparkle on it and read as "generate with AI"; it carries the images icon now. Use a sparkle only on a feature that really does call a model, if one ever lands.
 
 **Icon map** (first pass; milestone 10's type groups each get one):
 
 | Region | Icons |
 |---|---|
 | Browse panel | Star (Favorites), clock (Recently used), package (Built-in templates), folder (user folders); one per type group when the tree lands |
-| Browse toolbar | Folder-plus (Add folder), arrow-clockwise (Rescan), download (Import pack…), upload (Export…) |
+| Browse toolbar | Folder-plus (Add folder), images (Add sample media…), arrow-clockwise (Rescan), download (Import pack…), upload (Export…) |
 | Left panel, Search | Magnifier in the field (and on the folded rail); chips icon-only at the default width, icon + short label when the panel is wider; the scope chip carries its node's icon |
 | Left panel, Browse | A funnel in the heading opens the category filter; lit while a filter is in force |
 | Results heading | Sort icon on the sort control; squares-four and rows for grid or list; carets for the stage and results toggles |

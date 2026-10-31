@@ -32,7 +32,8 @@ describe('buildRenderPlan', () => {
         '-hide_banner', '-loglevel', 'error', '-n',
         '-f', 'rawvideo', '-pixel_format', 'bgra', '-video_size', '1920x1080', '-framerate', '30', '-i', 'pipe:0',
       ]);
-      expect(flag(plan.args, '-frames:v')).toBe('60');
+      // A still (milestone 44) is the one frame; everything else is the whole two seconds.
+      expect(flag(plan.args, '-frames:v')).toBe(presetId === 'png-still' ? '1' : '60');
     }
   });
 
@@ -175,7 +176,7 @@ describe('buildRenderPlan', () => {
           // Conversion comes after the background composite, so both go through it the same way.
           if (chain.includes('overlay')) expect(chain.indexOf('overlay')).toBeLessThan(chain.indexOf(REC709_CONVERT));
         } else {
-          expect(['png-sequence', 'qt-animation']).toContain(presetId);
+          expect(['png-sequence', 'png-still', 'qt-animation']).toContain(presetId);
           expect(chain).not.toContain(REC709_CONVERT);
           expect(chain).toContain(`${RGB_FULL_TAGS},format=`); // full-range RGB, declared
           expect(chain).toMatch(/format=(rgba|argb)$/);
@@ -404,5 +405,28 @@ describe('the matte pass (milestone 15)', () => {
     const plain = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/out/clip.mov' });
     expect(plain.matteOutput).toBeUndefined();
     expect(plain.args).toContain('-vf');
+  });
+});
+
+describe('a still image output (milestone 44)', () => {
+  const timing = () => ({ fps: 30, duration: 2, alpha: true, aspects: ['16:9'] as string[] });
+  it('is one PNG of the frame at the in point, whatever the out point says', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'png-still', outputPath: '/out/poster', options: { inFrame: 17, outFrame: 50 } });
+    expect(plan.output).toBe('/out/poster.png');
+    expect(plan.output).not.toContain('%');
+    expect(plan.firstFrame).toBe(17);
+    expect(plan.totalFrames).toBe(1);
+    expect(plan.args).toContain('-update');
+    expect(plan.args.includes('-start_number')).toBe(false);
+    expect(plan.args[plan.args.indexOf('-frames:v') + 1]).toBe('1');
+    expect(plan.preset.alpha).toBe(true);
+  });
+
+  it('takes the last frame for an in point past the end, since a playhead read at another rate can round past it', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'png-still', outputPath: '/out/poster.png', options: { inFrame: 200 } });
+    expect(plan.firstFrame).toBe(59);
+    expect(plan.totalFrames).toBe(1);
+    // The sequence and the clips still refuse what they always refused.
+    expect(() => buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/out/seq', options: { inFrame: 200 } })).toThrow(/out point/);
   });
 });

@@ -122,7 +122,7 @@ describe('bundled sample templates', async () => {
     // looping overlay plates, and ten ambient fixed lengths (turning rings, drifting stripes, a pulse
     // grid, a running light, marching chevrons, a stopwatch and the four countdowns).
     expect(kinds.hold).toHaveLength(110);
-    expect(kinds.loop).toHaveLength(47);
+    expect(kinds.loop).toHaveLength(75);
     expect(kinds.scale).toHaveLength(40);
     expect(kinds.none).toHaveLength(64);
   });

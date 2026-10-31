@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.pegboard-dots",
+  "name": "Pegboard dots",
+  "description": "A grid of round holes each with a soft shadow, like a pegboard; the scale sets the hole pitch and the angle turns the board.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "themes": [
+    "education",
+    "kids"
+  ],
+  "styles": [
+    "playful",
+    "clean"
+  ],
+  "tags": [
+    "still",
+    "dots",
+    "grid"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Board color",
+      "default": "#fef3c7",
+      "element": "Colors"
+    },
+    {
+      "id": "hole",
+      "type": "color",
+      "label": "Hole color",
+      "default": "#78350f",
+      "element": "Colors"
+    },
+    {
+      "id": "shadow",
+      "type": "color",
+      "label": "Shadow color",
+      "default": "#b45309",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.15,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

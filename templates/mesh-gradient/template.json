@@ -1,0 +1,104 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.mesh-gradient",
+  "name": "Mesh gradient",
+  "description": "Four soft colour blooms blended over a base, the modern mesh gradient; turn them about the centre and scale their spread.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "still-background",
+  "themes": [
+    "technology",
+    "social-media"
+  ],
+  "styles": [
+    "clean",
+    "tech"
+  ],
+  "tags": [
+    "still",
+    "gradient",
+    "mesh"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "base",
+      "type": "color",
+      "label": "Base color",
+      "default": "#1b1e3a",
+      "element": "Colors"
+    },
+    {
+      "id": "c1",
+      "type": "color",
+      "label": "Bloom 1",
+      "default": "#6c5ce7",
+      "element": "Colors"
+    },
+    {
+      "id": "c2",
+      "type": "color",
+      "label": "Bloom 2",
+      "default": "#00b894",
+      "element": "Colors"
+    },
+    {
+      "id": "c3",
+      "type": "color",
+      "label": "Bloom 3",
+      "default": "#fd79a8",
+      "element": "Colors"
+    },
+    {
+      "id": "c4",
+      "type": "color",
+      "label": "Bloom 4",
+      "default": "#0984e3",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 20,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.1,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}

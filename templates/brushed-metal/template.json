@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.brushed-metal",
+  "name": "Brushed metal",
+  "description": "Brushed aluminium: a cool gradient with thousands of fine streaks along the brushing direction and a soft highlight band; the angle sets the brushing.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "background",
+  "type": "texture",
+  "themes": [
+    "technology",
+    "motorsport"
+  ],
+  "styles": [
+    "tech",
+    "clean"
+  ],
+  "tags": [
+    "still",
+    "metal",
+    "brushed"
+  ],
+  "duration": 10,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "c1",
+      "type": "color",
+      "label": "Metal color",
+      "default": "#9aa3ad",
+      "element": "Colors"
+    },
+    {
+      "id": "c2",
+      "type": "color",
+      "label": "Shadow color",
+      "default": "#5c656f",
+      "element": "Colors"
+    },
+    {
+      "id": "sheen",
+      "type": "color",
+      "label": "Highlight color",
+      "default": "#e6ebf0",
+      "element": "Colors"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle (degrees)",
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "element": "Pattern"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Pattern scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 3,
+      "step": 0.05,
+      "element": "Pattern"
+    },
+    {
+      "id": "grain",
+      "type": "number",
+      "label": "Grain",
+      "default": 0.2,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Grain"
+    }
+  ]
+}
