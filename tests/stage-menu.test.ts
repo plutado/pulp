@@ -132,9 +132,12 @@ describe('the menu itself', () => {
     const picture = stageMenu(context({ layerLabel: 'Logo', facts: facts({ ...everything, canReplaceImage: true }), assets }));
     expect(labels(picture)[0]).toBe('Replace Image…');
     expect(labels(picture)).not.toContain('Edit Text');
-    // A clip has neither: the item is left out rather than shown dead, since nothing would turn it on.
-    expect(labels(onLayer)).not.toContain('Edit Text');
-    expect(labels(onLayer)).not.toContain('Replace Image…');
+    const clip = stageMenu(context({ layerLabel: 'Plate', facts: facts({ ...everything, canReplaceClip: true }), assets }));
+    expect(labels(clip)[0]).toBe('Replace Clip…');
+    expect(labels(clip)).not.toContain('Replace Image…');
+    // A layer with none of the three: the items are left out rather than shown dead, since
+    // nothing about that layer could ever turn them on.
+    for (const label of ['Edit Text', 'Replace Image…', 'Replace Clip…']) expect(labels(onLayer)).not.toContain(label);
   });
 
   it('offers what can be added over bare picture, and what the stage is doing with the picture itself', () => {
@@ -214,8 +217,8 @@ describe('one command list with the application menu', () => {
     const found = new Set<string>();
     for (const layerLabel of ['Title', null]) {
       const all = { canAddLayer: true, canEditLayer: true, canDeleteLayer: true, canLayerForward: true, canLayerBackward: true, canPasteLayer: true, canPasteLook: true, canResetLayer: true };
-      // Both kinds of layer, since each offers an item the other does not.
-      for (const f of [NO_LAYER_FACTS, facts({ ...all, canEditText: true }), facts({ ...all, canReplaceImage: true })]) {
+      // Every kind of layer, since each offers an item the others do not.
+      for (const f of [NO_LAYER_FACTS, facts({ ...all, canEditText: true }), facts({ ...all, canReplaceImage: true }), facts({ ...all, canReplaceClip: true })]) {
         const assets: StageAsset[] = [{ id: 'i1', name: 'Logo', kind: 'image' }, { id: 'v1', name: 'Fire', kind: 'video' }];
         for (const c of stageMenuCommands(stageMenu(context({ layerLabel, facts: f, assets })))) found.add(c);
       }

@@ -554,7 +554,7 @@ function imageField(
   // centred, so a square mark, a wide badge and a tall crest all sit in the same box.
   const well = document.createElement('button');
   well.type = 'button';
-  well.className = 'image-well checker';
+  well.className = 'image-well checker picker-toggle';
   well.setAttribute('aria-label', `${slot.label}: choose an image`);
   const emptyLabel = document.createElement('span');
   emptyLabel.className = 'empty-label';
@@ -1325,8 +1325,9 @@ function clipField(
   actions.className = 'image-actions';
   const choose = document.createElement('button');
   choose.type = 'button';
-  choose.className = 'ghost';
+  choose.className = 'ghost picker-toggle';
   choose.textContent = 'Choose…';
+  choose.setAttribute('aria-label', `${slot.label}: choose a clip`);
   const hide = iconButton('eye', `Hide ${slot.label}`);
   const clear = iconButton('trash', `Clear ${slot.label}`);
   actions.append(choose, hide, clear);
@@ -2476,11 +2477,12 @@ export function initInspectorParams(): void {
       // The words are there to be typed over, so they arrive selected.
       field.select();
     }),
-    replaceImage: (block, id) => openLayerCard(block, id, (card) => {
-      const well = card.querySelector<HTMLButtonElement>('.image-well');
-      // The well toggles its chooser, so an already-open one is left alone rather than shut.
-      if (card.querySelector<HTMLElement>('.image-picker')?.hidden) well?.click();
-      well?.focus();
+    choosePicture: (block, id) => openLayerCard(block, id, (card) => {
+      // Whatever opens this layer's chooser: the picture's own well, the clip's Choose button.
+      const opener = card.querySelector<HTMLButtonElement>('.picker-toggle');
+      // It toggles, so an already-open chooser is left alone rather than shut.
+      if (card.querySelector<HTMLElement>('.image-picker')?.hidden) opener?.click();
+      opener?.focus();
     }),
     stack: (block) => currentLayers()[block],
     blocks: () => (selectedTemplate.value?.manifest.blocks ?? []).map((b) => ({ id: b.id, label: b.label, open: b.open })),

@@ -2275,6 +2275,35 @@ describe.skipIf(!electron)('inspector UI', () => {
         );
       }, 120_000);
 
+      it('offers Replace Clip… on a video layer, as Replace Image… on a picture', async () => {
+        // The fixture clips are made with ffmpeg, so without it there is no clip to choose.
+        // Asked in the body, not with skipIf: that is read when the test is collected, before
+        // beforeAll has found out whether ffmpeg is here, so it would skip always.
+        if (!haveVideo) return;
+        // A clip layer from the menu's own asset list, then its own chooser from the menu.
+        const before = await layerIds();
+        await rightClick(40, 40);
+        await choose('Add Asset Here');
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the asset submenu');
+        const picked = await page.eval<boolean>(
+          `(() => { const b = document.querySelector('.context-menu.submenu > button[data-command="layer.addVideo"]');
+            if (!b) return false; b.click(); return true; })()`,
+        );
+        expect(picked, 'the asset submenu offers a clip').toBe(true);
+        await until(async () => (await layerIds()).length === before.length + 1, 'the clip layer');
+        const clip = (await layerIds()).find((id) => !before.includes(id))!;
+        // A clip layer draws its poster, so it can be pointed at like any other.
+        await rightClickLayer(clip);
+        expect(await labels()).toContain('Replace Clip…');
+        expect(await labels()).not.toContain('Replace Image…');
+        expect(await labels()).not.toContain('Edit Text');
+        await choose('Replace Clip…');
+        await until(
+          () => page.eval<boolean>(`!document.querySelector('#params .param-card[data-layer="${clip}"] .image-picker').hidden`),
+          'the clip chooser open on that layer',
+        );
+      }, 120_000);
+
       it('offers the stage\'s own background, theater and collection over bare picture', async () => {
         await rightClick(40, 40);
         expect(await labels()).toEqual(['Add Text Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);

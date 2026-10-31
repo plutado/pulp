@@ -25,13 +25,14 @@ import { backgroundSubmenu, itemChecked, itemEnabled, SHARED_COMMAND_FLAGS, type
 export type LayerMenuFacts = Pick<
   MenuState,
   | 'canAddLayer' | 'canEditLayer' | 'canDeleteLayer' | 'canLayerForward' | 'canLayerBackward'
-  | 'canPasteLayer' | 'canPasteLook' | 'canResetLayer' | 'canEditText' | 'canReplaceImage'
+  | 'canPasteLayer' | 'canPasteLook' | 'canResetLayer' | 'canEditText' | 'canReplaceImage' | 'canReplaceClip'
 >;
 
 export const NO_LAYER_FACTS: LayerMenuFacts = {
   canAddLayer: false,
   canEditText: false,
   canReplaceImage: false,
+  canReplaceClip: false,
   canEditLayer: false,
   canDeleteLayer: false,
   canLayerForward: false,
@@ -72,9 +73,10 @@ export function layerMenuFacts(input: LayerMenuInput): LayerMenuFacts {
     canPasteLayer: input.hasCopiedLayer && input.canAdd,
     canPasteLook: input.hasCopiedLook && layer !== null,
     canResetLayer: layer !== null && hasOwnTreatment(layer),
-    // What the layer itself holds: words to edit, or a picture to choose another for.
+    // What the layer itself holds: words to edit, or a picture or a clip to choose another for.
     canEditText: layer?.type === 'text',
     canReplaceImage: layer?.type === 'image',
+    canReplaceClip: layer?.type === 'video',
   };
 }
 
@@ -153,7 +155,8 @@ export function stageMenu(context: StageMenuContext): MenuItemSpec[] {
       // What this layer itself holds comes first: the words in a line, the picture in a picture.
       ...(state.canEditText ? [item('layer.editText', 'Edit Text', state)] : []),
       ...(state.canReplaceImage ? [item('layer.replaceImage', 'Replace Image…', state)] : []),
-      ...(state.canEditText || state.canReplaceImage ? [sep] : []),
+      ...(state.canReplaceClip ? [item('layer.replaceClip', 'Replace Clip…', state)] : []),
+      ...(state.canEditText || state.canReplaceImage || state.canReplaceClip ? [sep] : []),
       item('layer.cut', 'Cut', state),
       item('layer.copy', 'Copy', state),
       item('layer.paste', 'Paste', state),

@@ -67,7 +67,7 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'edit.redo': press('redo'); return;
     // The layer edits (milestone 39) are the same commands the stage's right-click menu names,
     // and they run here, in the one dispatcher, whichever menu asked.
-    case 'layer.editText': case 'layer.replaceImage':
+    case 'layer.editText': case 'layer.replaceImage': case 'layer.replaceClip':
     case 'layer.addText': case 'layer.addImage': case 'layer.addVideo':
     case 'layer.cut': case 'layer.copy': case 'layer.paste': case 'layer.duplicate': case 'layer.delete':
     case 'layer.forward': case 'layer.backward': case 'layer.front': case 'layer.back':

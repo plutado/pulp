@@ -111,7 +111,7 @@ describe('the application menu (milestone 27)', () => {
     expect(edit.map((i) => i.role).filter(Boolean)).toEqual(['cut', 'copy', 'paste', 'selectAll']);
     const layer = byLabel(edit, 'Layer')!.submenu!;
     expect(layer.filter((i) => i.type !== 'separator').map((i) => i.label)).toEqual([
-      'Edit Text', 'Replace Image…',
+      'Edit Text', 'Replace Image…', 'Replace Clip…',
       'Add Text Layer', 'Add Image Layer', 'Add Video Layer',
       'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete',
       'Bring Forward', 'Send Backward', 'Bring to Front', 'Send to Back',

@@ -43,6 +43,7 @@ export type MenuCommand =
   // tests/stage-menu.test.ts holds them to it.
   | 'layer.editText'
   | 'layer.replaceImage'
+  | 'layer.replaceClip'
   | 'layer.addText'
   | 'layer.addImage'
   | 'layer.addVideo'
@@ -128,6 +129,8 @@ export interface MenuState {
   canEditText: boolean;
   /** The selected layer shows a picture, so another can be chosen for it. */
   canReplaceImage: boolean;
+  /** The selected layer plays a clip, so another can be chosen for it. */
+  canReplaceClip: boolean;
   /** A layer is selected: there is something to copy, duplicate, time or reset. */
   canEditLayer: boolean;
   /** The selected layer is not one the template marks required, so it can go. */
@@ -172,6 +175,7 @@ export const EMPTY_MENU_STATE: MenuState = {
   canAddLayer: false,
   canEditText: false,
   canReplaceImage: false,
+  canReplaceClip: false,
   canEditLayer: false,
   canDeleteLayer: false,
   canLayerForward: false,
@@ -265,6 +269,7 @@ export function layerSubmenu(): MenuItemSpec[] {
     // What the selected layer itself holds, before what can be added beside it.
     { command: 'layer.editText', label: 'Edit Text', enabledBy: 'canEditText' },
     { command: 'layer.replaceImage', label: 'Replace Image…', enabledBy: 'canReplaceImage' },
+    { command: 'layer.replaceClip', label: 'Replace Clip…', enabledBy: 'canReplaceClip' },
     sep,
     { command: 'layer.addText', label: 'Add Text Layer', enabledBy: 'canAddLayer' },
     // Both take a library item as their argument, as Open Recent takes a path: with one they add
@@ -302,6 +307,7 @@ export function layerSubmenu(): MenuItemSpec[] {
 export const SHARED_COMMAND_FLAGS: Readonly<Partial<Record<MenuCommand, Flag>>> = {
   'layer.editText': 'canEditText',
   'layer.replaceImage': 'canReplaceImage',
+  'layer.replaceClip': 'canReplaceClip',
   'collection.add': 'canAddToCollection',
   'layer.addText': 'canAddLayer',
   'layer.addImage': 'canAddLayer',

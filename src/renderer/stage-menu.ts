@@ -250,9 +250,10 @@ export function runLayerCommand(command: MenuCommand, arg: string | null): void 
       if (it?.layer.type === 'text') editor.editText(it.block, it.id);
       return;
     }
-    case 'layer.replaceImage': {
+    case 'layer.replaceImage': case 'layer.replaceClip': {
       const it = chosen();
-      if (it?.layer.type === 'image') editor.replaceImage(it.block, it.id);
+      const wants = command === 'layer.replaceClip' ? 'video' : 'image';
+      if (it?.layer.type === wants) editor.choosePicture(it.block, it.id);
       return;
     }
     case 'layer.startHere': endAtPlayhead('start'); return;
