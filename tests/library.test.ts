@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { folderTags, mediaKindForPath, normalizeTag, scanLibrary } from '../src/core/library';
+import { folderTags, itemId, itemKey, mediaKindForPath, normalizeTag, scanLibrary } from '../src/core/library';
 import { compare, parseComparison, parseQuery, searchLibrary, tagCounts } from '../src/core/search';
 import { rawManifest } from './fixtures';
 
@@ -45,6 +45,28 @@ describe('helpers', () => {
     expect(mediaKindForPath('still.tif')).toBe('image');
     expect(mediaKindForPath('vo.wav')).toBe('audio');
     expect(mediaKindForPath('notes.txt')).toBeNull();
+  });
+});
+
+describe('itemKey: the bundled library is keyed by its path inside the app (milestone 44)', () => {
+  it('keys a bundled item by where it sits in the app, and anything else by its path on the disk', () => {
+    expect(itemKey('lottie', '/Apps/Pulp.app/templates/lottie/tick-draw.json', '/Apps/Pulp.app/templates')).toBe('lottie:@bundled/lottie/tick-draw.json');
+    expect(itemKey('template', '/checkout/templates/mesh-gradient', '/checkout/templates')).toBe('template:@bundled/mesh-gradient');
+    // A person's own folder is where they put it: the absolute path, as before.
+    expect(itemKey('media', '/Users/ada/Clips/b-roll.mp4', '/checkout/templates')).toBe('media:/Users/ada/Clips/b-roll.mp4');
+    // No bundled root named at all (a plain scan of someone's folder).
+    expect(itemKey('media', '/Users/ada/Clips/b-roll.mp4')).toBe('media:/Users/ada/Clips/b-roll.mp4');
+    // The root itself is not an item in it, and a sibling folder whose name merely starts the same is outside.
+    expect(itemKey('template', '/checkout/templates', '/checkout/templates')).toBe('template:/checkout/templates');
+    expect(itemKey('template', '/checkout/templates-old/x', '/checkout/templates')).toBe('template:/checkout/templates-old/x');
+  });
+
+  it('gives the same id to the same bundled item in another checkout, another install', () => {
+    const inCheckout = itemId(itemKey('lottie', join('/home/ada/src/pulp/templates', 'lottie', 'tick-draw.json'), '/home/ada/src/pulp/templates'));
+    const installed = itemId(itemKey('lottie', join('/Applications/Pulp.app/Contents/Resources/templates', 'lottie', 'tick-draw.json'), '/Applications/Pulp.app/Contents/Resources/templates'));
+    expect(installed, 'the promise: visual references, collections and projects match across installs').toBe(inCheckout);
+    // And a different file in the bundled library is still a different item.
+    expect(itemId(itemKey('lottie', '/home/ada/src/pulp/templates/lottie/heart.json', '/home/ada/src/pulp/templates'))).not.toBe(inCheckout);
   });
 });
 

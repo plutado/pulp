@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { itemId } from '../src/core/library-scan';
@@ -322,6 +322,45 @@ describe('LibraryStore incremental scans', () => {
       expect(stats).toMatchObject({ kept: 2, loaded: 0 });
     } finally {
       second.close();
+    }
+  });
+});
+
+describe('the bundled library keyed by its place in the app (milestone 44)', () => {
+  it('carries a person\'s tags and favorites over to the new key, once', () => {
+    const store = new LibraryStore(':memory:');
+    try {
+      const root = resolve('/Apps/Pulp/templates');
+      // Marked when the key was the path on the disk.
+      store.setUserData(`template:${join(root, 'mesh-gradient')}`, { favorite: true, tags: ['keep'] });
+      store.setUserData(`lottie:${join(root, 'lottie', 'tick.json')}`, { tags: ['tick'] });
+      // A folder of the person's own is theirs, and stays where it is.
+      store.setUserData('media:/Users/ada/Clips/b-roll.mp4', { favorite: true });
+
+      store.setBuiltInRoot(root);
+      expect(store.getUserData('template:@bundled/mesh-gradient')).toMatchObject({ favorite: true, tags: ['keep'] });
+      expect(store.getUserData('lottie:@bundled/lottie/tick.json').tags).toEqual(['tick']);
+      expect(store.getUserData(`template:${join(root, 'mesh-gradient')}`)).toMatchObject({ favorite: false, tags: [] });
+      expect(store.getUserData('media:/Users/ada/Clips/b-roll.mp4').favorite).toBe(true);
+
+      // Again is a no-op: nothing is left under an absolute bundled key to move.
+      store.setBuiltInRoot(root);
+      expect(store.getUserData('template:@bundled/mesh-gradient')).toMatchObject({ favorite: true, tags: ['keep'] });
+    } finally {
+      store.close();
+    }
+  });
+
+  it('keeps what is already under the new key when both exist', () => {
+    const store = new LibraryStore(':memory:');
+    try {
+      const root = resolve('/Apps/Pulp/templates');
+      store.setUserData(`template:${join(root, 'mesh-gradient')}`, { tags: ['old'] });
+      store.setUserData('template:@bundled/mesh-gradient', { tags: ['new'] });
+      store.setBuiltInRoot(root);
+      expect(store.getUserData('template:@bundled/mesh-gradient').tags).toEqual(['new']);
+    } finally {
+      store.close();
     }
   });
 });

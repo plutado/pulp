@@ -5,7 +5,7 @@
 
 import { createHash } from 'node:crypto';
 import { open, readdir, readFile, stat } from 'node:fs/promises';
-import { basename, dirname, extname, join, relative, sep } from 'node:path';
+import { basename, dirname, extname, isAbsolute, join, relative, sep } from 'node:path';
 import { type TemplateManifest, MANIFEST_FILENAME, parseManifest } from './manifest';
 import type { LibraryProblem, MediaKind, TemplateEntry } from './library-types';
 import { normalizeTag } from './tags';
@@ -32,6 +32,40 @@ export const SKIP_DIRECTORIES = new Set(['node_modules', '.git', '__MACOSX', '$R
 /** Library id for an item key: stable, opaque (a hash, not the path), 24 hex characters. */
 export function itemId(key: string): string {
   return createHash('sha256').update(key).digest('hex').slice(0, 24);
+}
+
+/**
+ * What stands for the bundled library in an item's key, in place of wherever
+ * the app happens to be installed or checked out.
+ */
+export const BUNDLED_KEY_ROOT = '@bundled';
+
+/**
+ * The key an item is known by, which its library id is the hash of.
+ *
+ * For anything in a person's own folders that is the absolute path: the file
+ * is where they put it, and a project that outlives a move is relinked by
+ * path (`src/main/project-service.ts`). For the **bundled library** it is the
+ * path *inside the app* — `@bundled/lottie/tick-draw.json` — because that
+ * folder sits at a different absolute path in every checkout and every
+ * install, while the item in it is the same item. Keyed by the absolute path,
+ * a bundled item took a new id on every machine, which the visual references
+ * felt first: a Lottie has no manifest id of its own, so its manifest id is
+ * made from its library id (`lottieManifestId`), and the references written
+ * in one checkout matched nothing in another. Collections and saved projects
+ * carry the same ids and would have missed the same way.
+ *
+ * The separators are `/` on every platform, so the id a Windows runner makes
+ * is the id a macOS one makes (docs/platform-notes.md).
+ */
+export function itemKey(kind: 'template' | 'lottie' | 'media', path: string, builtInRoot?: string): string {
+  if (builtInRoot !== undefined) {
+    const rel = relative(builtInRoot, path);
+    if (rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)) {
+      return `${kind}:${BUNDLED_KEY_ROOT}/${rel.split(sep).join('/')}`;
+    }
+  }
+  return `${kind}:${path}`;
 }
 
 export function mediaKindForPath(path: string): MediaKind | null {
@@ -108,7 +142,7 @@ async function folderBytes(dir: string, depth = 0): Promise<{ size: number; mtim
   return { size, mtimeMs };
 }
 
-export async function loadTemplate(dir: string, root: string, pack?: PackContext): Promise<TemplateEntry | LibraryProblem> {
+export async function loadTemplate(dir: string, root: string, pack?: PackContext, builtInRoot?: string): Promise<TemplateEntry | LibraryProblem> {
   const manifestPath = join(dir, MANIFEST_FILENAME);
   let text: string;
   try {
@@ -129,7 +163,7 @@ export async function loadTemplate(dir: string, root: string, pack?: PackContext
   const onDisk = await folderBytes(dir);
   // A template folder's own name is not a useful tag; only its parents are.
   const tags = unique([...result.manifest.tags, ...folderTags(root, join(dir, '..'))]);
-  const key = `template:${dir}`;
+  const key = itemKey('template', dir, builtInRoot);
   return {
     kind: 'template',
     key,
@@ -175,7 +209,7 @@ export async function sniffLottieFile(path: string): Promise<boolean> {
  * parameters, its type and themes from its folders as a clip's would be.
  * Problems are returned, not thrown, as `loadTemplate` returns them.
  */
-export async function loadLottie(path: string, root: string, folderSegments: readonly string[]): Promise<TemplateEntry | LibraryProblem> {
+export async function loadLottie(path: string, root: string, folderSegments: readonly string[], builtInRoot?: string): Promise<TemplateEntry | LibraryProblem> {
   let info;
   try {
     info = await stat(path);
@@ -203,7 +237,7 @@ export async function loadLottie(path: string, root: string, folderSegments: rea
   const extras = lottieExtras(document.data);
   const editables = lottieEditables(document.data);
   limits.push(...lottieLimits(document.data), ...editables.limits);
-  const key = `lottie:${path}`;
+  const key = itemKey('lottie', path, builtInRoot);
   const id = itemId(key);
   const type = inferTemplateType(folderSegments);
   const themes = inferThemes(folderSegments);

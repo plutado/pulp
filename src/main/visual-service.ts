@@ -81,7 +81,9 @@ async function hashTemplate(entry: TemplateEntry, aspect: string): Promise<Visua
 
 /** Hash every bundled template at every aspect it declares. */
 export async function hashLibrary(templatesDir: string, onProgress?: (done: number, total: number, what: string) => void): Promise<{ results: VisualResult[]; failed: { what: string; error: string }[] }> {
-  const index = await scanLibrary([templatesDir]);
+  // Named as the bundled root, so every item is keyed by its path inside the app and the hashes
+  // written here match in another checkout, on another platform (src/core/library-scan.ts).
+  const index = await scanLibrary([templatesDir], { builtInRoot: templatesDir });
   const jobs: { entry: TemplateEntry; aspect: string }[] = [];
   for (const entry of index.templates) {
     const aspects = entry.manifest.aspects.length > 0 ? entry.manifest.aspects : [''];

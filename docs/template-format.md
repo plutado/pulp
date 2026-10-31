@@ -487,6 +487,8 @@ connect-src 'none'; frame-src 'none'; form-action 'none'
 
 ## Lottie animations
 
+A Lottie carries no manifest of its own, so Pulp makes one: its id is `lottie-` and the item's library id, which for the bundled animations comes from the file's path inside the app rather than on the disk, so it is the same id in every checkout and every install (`itemKey` in `src/core/library-scan.ts`).
+
 A `.json` Lottie (told from other JSON by its shape) or a `.lottie` archive in a library folder is read as a template made from one file: its own size becomes the default resolution, its rate and length the timing, every built-in aspect is declared so it can be fitted, filled or centred in any frame, and its static text layers and distinct colours become parameters. It is not a folder and has no `template.json`; the manifest is made from the file (`src/core/lottie.ts`).
 
 Two things the Lottie format has no field for, Pulp reads from an optional top-level `x-pulp` object, under the same `x-` rule a manifest's own extensions follow — every other tool ignores it:

@@ -14,11 +14,11 @@
  */
 
 import { readdir, stat, readFile } from 'node:fs/promises';
-import { basename, extname, join, resolve } from 'node:path';
+import { basename, extname, isAbsolute, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
-import { folderTags, itemId, loadLottie, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES, sniffLottieFile, type PackContext } from './library-scan';
+import { folderTags, itemId, itemKey, loadLottie, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES, sniffLottieFile, type PackContext } from './library-scan';
 import { isLottieCandidate } from './lottie';
 import { unreadableDesignNote } from './layered';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
@@ -31,6 +31,12 @@ import { thumbUrlFor, wantsThumbnail } from './thumbnails';
 export interface ScanOptions {
   /** Maximum directory depth below each root. Default 12. */
   maxDepth?: number;
+  /**
+   * Which root is the bundled library, whose items are keyed by their path
+   * inside the app rather than on the disk (`itemKey`). The app sets it on the
+   * store itself; a one-off scan — the visual references, a test — says so here.
+   */
+  builtInRoot?: string;
   /** Stop after this many files across all roots, to keep a mis-chosen root (e.g. a whole disk) bounded. Default 100000. */
   maxFiles?: number;
 }
@@ -143,15 +149,54 @@ CREATE TABLE IF NOT EXISTS user_items (
 );
 `;
 
-export const SCHEMA_VERSION = 5; // 4: templates re-read so pack defaults apply; 5: re-read so manifests carry aspects
+// 4: templates re-read so pack defaults apply; 5: re-read so manifests carry aspects;
+// 6: the bundled library is keyed by its path inside the app, so every bundled item has a new id.
+export const SCHEMA_VERSION = 6;
 
 export class LibraryStore {
   private readonly db: DatabaseSync;
   private builtInRoot: string | undefined;
 
-  /** Which root is the bundled samples, so the index can label it. */
+  /** Which root is the bundled samples, so the index can label it and its items are keyed by their place in it. */
   setBuiltInRoot(root: string | undefined): void {
-    this.builtInRoot = root;
+    this.builtInRoot = root === undefined ? undefined : resolve(root);
+    if (this.builtInRoot !== undefined) this.rekeyBundledUserItems(this.builtInRoot);
+  }
+
+  /**
+   * Tags, favorites, themes and use counts are kept by item key, and the
+   * bundled library's keys became its paths inside the app (`itemKey`), so
+   * what someone marked on a bundled item is carried across rather than
+   * orphaned by the change. Idempotent: once moved there is nothing left to
+   * move, and an item that already has a row under the new key keeps it.
+   */
+  private rekeyBundledUserItems(root: string): void {
+    const rows = this.db.prepare('SELECT key FROM user_items').all() as unknown as { key: string }[];
+    const moves: { from: string; to: string }[] = [];
+    for (const { key } of rows) {
+      // The first colon only: a Windows path carries one of its own ("C:\\…").
+      const at = key.indexOf(':');
+      const kind = key.slice(0, at);
+      const path = key.slice(at + 1);
+      if (kind !== 'template' && kind !== 'lottie' && kind !== 'media') continue;
+      if (!isAbsolute(path)) continue;
+      const moved = itemKey(kind, path, root);
+      if (moved !== key) moves.push({ from: key, to: moved });
+    }
+    if (moves.length === 0) return;
+    const taken = new Set(rows.map((r) => r.key));
+    this.db.exec('BEGIN');
+    try {
+      const move = this.db.prepare('UPDATE user_items SET key = ? WHERE key = ?');
+      const drop = this.db.prepare('DELETE FROM user_items WHERE key = ?');
+      for (const { from, to } of moves) {
+        if (taken.has(to)) drop.run(from);
+        else move.run(to, from);
+      }
+      this.db.exec('COMMIT');
+    } catch {
+      this.db.exec('ROLLBACK');
+    }
   }
 
   constructor(readonly file: string = ':memory:') {
@@ -215,6 +260,8 @@ export class LibraryStore {
     const maxDepth = options.maxDepth ?? 12;
     const maxFiles = options.maxFiles ?? 100_000;
     const stats: ScanStats = { roots: 0, visited: 0, kept: 0, loaded: 0, removed: 0, ms: 0 };
+    // A one-off scan may name the bundled root here rather than on the store (ScanOptions).
+    if (options.builtInRoot !== undefined) this.builtInRoot = resolve(options.builtInRoot);
     let fileCount = 0;
 
     for (const rootPath of [...new Set(roots.map((r) => resolve(r)))]) {
@@ -266,7 +313,7 @@ export class LibraryStore {
         if (entries.some((e) => e.isFile() && e.name === MANIFEST_FILENAME)) {
           // A template folder is one item, keyed by its folder; its assets are not library media.
           stats.visited += 1;
-          const key = `template:${dir}`;
+          const key = itemKey('template', dir, this.builtInRoot);
           seen.add(key);
           let info;
           try {
@@ -281,7 +328,7 @@ export class LibraryStore {
             return;
           }
           stats.loaded += 1;
-          const loaded = await loadTemplate(dir, rootPath, pack);
+          const loaded = await loadTemplate(dir, rootPath, pack, this.builtInRoot);
           if ('kind' in loaded) upserts.push({ key, kind: 'template', size: info.size, mtimeMs: info.mtimeMs, entry: loaded });
           else {
             problems.push(loaded);
@@ -311,7 +358,7 @@ export class LibraryStore {
           // A sequence counts as the files it holds, so a folder of them cannot slip past the cap.
           fileCount += seq.count;
           stats.visited += 1;
-          const key = `media:${join(dir, sequenceKeyName(seq))}`;
+          const key = itemKey('media', join(dir, sequenceKeyName(seq)), this.builtInRoot);
           seen.add(key);
           const first = join(dir, sequenceFrameName(seq, 0));
           const last = join(dir, sequenceFrameName(seq, seq.count - 1));
@@ -382,7 +429,7 @@ export class LibraryStore {
                 problems.push({ path: full, message: `could not stat file: ${(err as Error).message}` });
                 continue;
               }
-              const key = `lottie:${full}`;
+              const key = itemKey('lottie', full, this.builtInRoot);
               const stored = existing.get(key);
               if (stored && stored.size === info.size && stored.mtime_ms === info.mtimeMs) {
                 seen.add(key);
@@ -400,7 +447,7 @@ export class LibraryStore {
               fileCount += 1;
               stats.visited += 1;
               stats.loaded += 1;
-              const loaded = await loadLottie(full, rootPath, folderTags(rootPath, dir));
+              const loaded = await loadLottie(full, rootPath, folderTags(rootPath, dir), this.builtInRoot);
               if ('kind' in loaded) {
                 seen.add(key);
                 upserts.push({ key, kind: 'template', size: info.size, mtimeMs: info.mtimeMs, entry: loaded });
@@ -419,7 +466,7 @@ export class LibraryStore {
           }
           fileCount += 1;
           stats.visited += 1;
-          const key = `media:${full}`;
+          const key = itemKey('media', full, this.builtInRoot);
           seen.add(key);
           let info;
           try {

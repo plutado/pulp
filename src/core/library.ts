@@ -13,13 +13,14 @@ import { normalizeTag } from './tags';
 
 export { normalizeTag };
 export type * from './library-types';
-export { MEDIA_EXTENSIONS, folderTags, itemId, loadTemplate, mediaKindForPath } from './library-scan';
+export { BUNDLED_KEY_ROOT, MEDIA_EXTENSIONS, folderTags, itemId, itemKey, loadTemplate, mediaKindForPath } from './library-scan';
 export type { ScanOptions } from './library-store';
 
 /** Scan the given roots and build a library index. Missing roots are reported as problems, not thrown. */
 export async function scanLibrary(roots: string[], options: ScanOptions = {}): Promise<LibraryIndex> {
   const store = new LibraryStore(':memory:');
   try {
+    if (options.builtInRoot !== undefined) store.setBuiltInRoot(options.builtInRoot);
     store.setRoots(roots);
     await store.scanRoots(roots, options);
     return store.toIndex();

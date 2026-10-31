@@ -6,6 +6,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Fixed
+
+- **A bundled item's library id no longer depends on where Pulp is installed.** An item's id is a hash of its key, and the key was its absolute path — so every bundled template, media file and Lottie took a different id in every checkout and every install, and on Windows a different one again for the separator. The bundled library is keyed by the item's path *inside* the app now, with `/` separators on every platform, so the id is the same everywhere. The twenty bundled Lottie animations felt it first: a Lottie has no manifest id of its own, so its manifest id is made from its library id, and the approved visual references matched nothing on another machine. Saved projects and collections that name a bundled item keep matching across machines for the same reason. The library cache is re-read once on first launch, since every bundled item has a new id.
+
 ### Added
 
 - Still backgrounds to 34, and a still image output (milestone 44). Still backgrounds was the one large category in single digits out of the box: six bundled templates, the rest only after Add sample media. Twenty-eight new CC0 templates fill it — mesh, conic, aurora and dusk gradients, diagonal bands and sunburst rays; paper, linen, concrete, slate, brushed metal, carbon fibre, marble, terrazzo and kraft textures; isometric cubes, hexagon tiles, argyle, chevrons, pegboard, halftone, blueprint and contour patterns; bokeh, a studio sweep, a watercolour wash, confetti and a velvet spotlight — each with its colours, angle, pattern scale and grain as parameters, at every aspect. And Pulp has a still image output: **Still image (PNG, alpha)** in the Output tab writes one RGBA PNG of the frame at the playhead, or at the in point when one is set — a background as a picture rather than a clip, a poster or a thumbnail of any template, a frame of a clip — and `--preset png-still` does the same from the command line. The Add sample media button carries the images icon rather than a sparkle, which the style guide now reserves for AI.
