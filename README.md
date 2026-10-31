@@ -75,7 +75,7 @@ Milestones 1-6, 10-13, 15, 18, 19, 21-31, 33, 36-42 (renderer, alpha export, par
 | 17. Unsigned builds and releases | electron-builder, an app icon of Pulp's own and the names and shortcuts each system shows, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 8-14 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 
-The milestones through 1.0 total **593-960 hours**, of which **78-129 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, audio with stems and paired effects, media slots, output presets per kind of asset, a `pulp` command, optional on-device semantic search) add 26-48 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **605-980 hours**, of which **90-149 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, audio with stems and paired effects, media slots, output presets per kind of asset, a `pulp` command, optional on-device semantic search) add 26-48 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
