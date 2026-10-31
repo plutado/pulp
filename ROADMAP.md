@@ -62,7 +62,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **631-1022 h** |
-| **Still open through 1.0 (unticked items only)** | **107-176 h** |
+| **Still open through 1.0 (unticked items only)** | **93-153 h** |
 | **Total including post-1.0 items** | **657-1070 h** |
 
 ## 0. Foundation (done)
@@ -509,7 +509,7 @@ Decided 2026-10-31. Still backgrounds is the one large category in single digits
 
 ## 43. Pop out the stage (10-16 h; GitHub issue #45)
 
-Decided 2026-10-31. As in Adobe's apps, the stage can leave the main window and float free on any monitor: a second screen for the picture, the main one for browsing. The stage moves rather than mirrors — it is in one place at a time, so everything that edits on it keeps working in the floating window; a view-only copy would only suit a client watching.
+Decided 2026-10-31. As in professional editing apps, the stage can leave the main window and float free on any monitor: a second screen for the picture, the main one for browsing. The stage moves rather than mirrors — it is in one place at a time, so everything that edits on it keeps working in the floating window; a view-only copy would only suit a client watching.
 
 - [x] **Pop out and back:** a button on the stage's corner overlay and View → Pop Out Stage move the stage — its layers, the right-click menu, the scrub bar and theater — into a window of its own that can be moved to any display and resized; closing that window, or the same button, puts it back (4-6 h) *Built 2026-10-31. The stage moves by moving its elements: the renderer opens an `about:blank` child window, which shares the page's origin and script, and appends the stage region and the transport row's first line — the scrub bar with the lanes — to it, so every listener and signal wired to them stays wired (ADR 0019). What belongs to a window rather than an element — resize, the template page's messages, tooltips, the menu's closing, the `T` key — is re-homed through one notification. Theater with the stage out is that window filling its display. The main process holds the window's close until the stage is back, and a script close is caught at pagehide, so the picture is never lost with its window. Cmd/Ctrl+Shift+P.*
 - [x] **The main window takes the room:** with the stage out, the results fill its space, so the main monitor becomes a large browsing view (1-2 h) *`stage-out` on `#app`: the results take the centre, the transport row is its buttons line, and the toggle for a stage that is not there goes.*
