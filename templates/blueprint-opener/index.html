@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Blueprint</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Blueprint, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The grid, the border and the stamp are all in by 1.4 s; the sheet then holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 5.2) / 0.8));
+    ctx.fillStyle = rgba(p.paper, 1); ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var grid = easeInOut(clamp01(t / 0.9));
+    var step = Math.min(W, H) / 18;
+    ctx.strokeStyle = rgba(p.line, 0.18); ctx.lineWidth = 1;
+    for (var x = 0; x <= W * grid; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (var y = 0; y <= H * grid; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    // The sheet's border and its corner ticks draw after the grid.
+    var border = easeInOut(clamp01((t - 0.5) / 0.6));
+    ctx.strokeStyle = rgba(p.line, 0.85); ctx.lineWidth = 2 * u;
+    var inX = step, inY = step;
+    ctx.strokeRect(inX, inY, (W - inX * 2) * border, (H - inY * 2));
+    for (var c = 0; c < 4; c++) {
+      if (border < 0.9) break;
+      var cx = c % 2 ? W - inX * 2 : inX * 2, cy = c < 2 ? inY * 2 : H - inY * 2;
+      ctx.beginPath(); ctx.moveTo(cx - step * 0.4, cy); ctx.lineTo(cx + step * 0.4, cy);
+      ctx.moveTo(cx, cy - step * 0.4); ctx.lineTo(cx, cy + step * 0.4); ctx.stroke();
+    }
+    var stamp = overshoot(clamp01((t - 1.0) / 0.4));
+    if (t >= 1.0) {
+      ctx.save();
+      ctx.translate(W / 2, H * 0.5);
+      ctx.scale(Math.max(0.0001, 1.5 - 0.5 * stamp), Math.max(0.0001, 1.5 - 0.5 * stamp));
+      ctx.globalAlpha = (1 - gone) * Math.min(1, stamp);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#eaf3fc';
+      ctx.font = '700 ' + Math.round(100 * u) + 'px "JetBrains Mono"';
+      ctx.fillText(String(p.title).toUpperCase(), 0, 0);
+      ctx.restore();
+      ctx.globalAlpha = (1 - gone);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = rgba(p.line, 0.75);
+      ctx.font = '500 ' + Math.round(24 * u) + 'px "JetBrains Mono"';
+      ctx.fillText('REV A · SCALE 1:1', W / 2, H * 0.6);
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

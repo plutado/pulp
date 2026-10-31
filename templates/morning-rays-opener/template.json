@@ -1,0 +1,65 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.morning-rays-opener",
+  "name": "Morning Rays",
+  "description": "A playful daybreak of turning rays behind a bouncing title ribbon. Opens kids segments, breakfast shows and good-news roundups.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "opener",
+  "tags": [
+    "opener",
+    "rays",
+    "morning"
+  ],
+  "themes": [
+    "kids",
+    "family",
+    "food"
+  ],
+  "styles": [
+    "playful"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "default": "Rise & Shine",
+      "maxLength": 26,
+      "element": "Words"
+    },
+    {
+      "id": "sky",
+      "type": "color",
+      "label": "Sky",
+      "default": "#ffe8b0",
+      "element": "Scene"
+    },
+    {
+      "id": "ray",
+      "type": "color",
+      "label": "Rays",
+      "default": "#ffc23e",
+      "element": "Rays"
+    },
+    {
+      "id": "ribbon",
+      "type": "color",
+      "label": "Ribbon",
+      "default": "#e2574c",
+      "element": "Ribbon"
+    }
+  ]
+}

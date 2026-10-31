@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.editorial-title",
+  "name": "Editorial Title",
+  "description": "A serif title over a kicker and a thin rule, set like a magazine spread. Opens chapters in documentaries and essays.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": [
+    "title",
+    "serif",
+    "editorial"
+  ],
+  "themes": [
+    "documentary",
+    "media",
+    "education"
+  ],
+  "styles": [
+    "elegant",
+    "cinematic"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "kicker",
+      "type": "text",
+      "label": "Kicker",
+      "default": "Chapter Three",
+      "maxLength": 26,
+      "element": "Words"
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "default": "The Quiet Years",
+      "maxLength": 34,
+      "element": "Words"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Ink",
+      "default": "#f5f2ea",
+      "element": "Words"
+    },
+    {
+      "id": "rule",
+      "type": "color",
+      "label": "Rule",
+      "default": "#b4934a",
+      "element": "Rule"
+    }
+  ]
+}

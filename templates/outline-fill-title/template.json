@@ -1,0 +1,62 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.outline-fill-title",
+  "name": "Outline Fill",
+  "description": "A huge outlined word that floods with colour from the left and locks. Punches open highlight reels and drops.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": [
+    "title",
+    "outline",
+    "bold"
+  ],
+  "themes": [
+    "sports",
+    "fitness",
+    "gaming"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "word",
+      "type": "text",
+      "label": "Word",
+      "default": "UNSTOPPABLE",
+      "maxLength": 18,
+      "element": "Word"
+    },
+    {
+      "id": "fill",
+      "type": "color",
+      "label": "Fill",
+      "default": "#f59e0b",
+      "element": "Word"
+    },
+    {
+      "id": "line",
+      "type": "color",
+      "label": "Outline",
+      "default": "#fafafa",
+      "element": "Word"
+    }
+  ]
+}

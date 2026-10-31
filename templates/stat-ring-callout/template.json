@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.stat-ring-callout",
+  "name": "Stat Ring",
+  "description": "A ring that fills to its share with the figure counting inside it. Points at one number worth keeping on screen.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "callout",
+  "tags": [
+    "callout",
+    "stat",
+    "ring"
+  ],
+  "themes": [
+    "business",
+    "finance",
+    "science"
+  ],
+  "styles": [
+    "clean",
+    "corporate"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.4,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "value",
+      "type": "number",
+      "label": "Percent",
+      "default": 68,
+      "min": 0,
+      "max": 100,
+      "element": "Ring"
+    },
+    {
+      "id": "label",
+      "type": "text",
+      "label": "Label",
+      "default": "say they would switch",
+      "maxLength": 30,
+      "element": "Ring"
+    },
+    {
+      "id": "ring",
+      "type": "color",
+      "label": "Ring",
+      "default": "#2dd4bf",
+      "element": "Ring"
+    },
+    {
+      "id": "track",
+      "type": "color",
+      "label": "Track",
+      "default": "#1f2937",
+      "element": "Ring"
+    },
+    {
+      "id": "x",
+      "type": "number",
+      "label": "Across",
+      "default": 0.26,
+      "min": 0.12,
+      "max": 0.88,
+      "element": "Ring"
+    },
+    {
+      "id": "y",
+      "type": "number",
+      "label": "Down",
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "element": "Ring"
+    }
+  ]
+}

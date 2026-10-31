@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.milestone-social",
+  "name": "Milestone",
+  "description": "The big number lands with one burst of confetti that falls and clears, thanks beneath. Marks a follower or download milestone.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "social",
+  "tags": [
+    "social",
+    "milestone",
+    "confetti"
+  ],
+  "themes": [
+    "social-media",
+    "podcast",
+    "gaming"
+  ],
+  "styles": [
+    "playful",
+    "high-energy"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 2.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "figure",
+      "type": "text",
+      "label": "Figure",
+      "default": "100K",
+      "maxLength": 12,
+      "element": "Number"
+    },
+    {
+      "id": "thanks",
+      "type": "text",
+      "label": "Line",
+      "default": "thank you, truly",
+      "maxLength": 30,
+      "element": "Words"
+    },
+    {
+      "id": "number2",
+      "type": "color",
+      "label": "Number",
+      "default": "#fbbf24",
+      "element": "Number"
+    },
+    {
+      "id": "back",
+      "type": "color",
+      "label": "Background",
+      "default": "#1c1430",
+      "element": "Scene"
+    }
+  ]
+}

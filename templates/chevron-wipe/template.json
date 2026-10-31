@@ -1,0 +1,60 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.chevron-wipe",
+  "name": "Chevron Wipe",
+  "description": "Three staggered chevrons that sweep across and clear, points leading. Cuts between plays, rounds and reps.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "wipe",
+  "tags": [
+    "transition",
+    "wipe",
+    "chevron"
+  ],
+  "themes": [
+    "sports",
+    "fitness",
+    "gaming"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 1.4,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "a",
+      "type": "color",
+      "label": "First",
+      "default": "#f59e0b",
+      "element": "Chevrons"
+    },
+    {
+      "id": "b2",
+      "type": "color",
+      "label": "Second",
+      "default": "#111827",
+      "element": "Chevrons"
+    },
+    {
+      "id": "c",
+      "type": "color",
+      "label": "Third",
+      "default": "#f8fafc",
+      "element": "Chevrons"
+    }
+  ]
+}

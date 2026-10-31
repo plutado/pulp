@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.storm-flash",
+  "name": "Storm Flash",
+  "description": "Two stuttered blue-white strikes with a darkened sky between them. Cuts storm footage, thrillers and reveals with teeth.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "flash",
+  "tags": [
+    "transition",
+    "flash",
+    "lightning"
+  ],
+  "themes": [
+    "weather",
+    "cinema",
+    "documentary"
+  ],
+  "styles": [
+    "cinematic",
+    "high-energy"
+  ],
+  "duration": 1.4,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "strike",
+      "type": "color",
+      "label": "Strike",
+      "default": "#dbe9ff",
+      "element": "Strikes"
+    }
+  ]
+}

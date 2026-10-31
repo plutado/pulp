@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.orbit-logo-reveal",
+  "name": "Orbit Ident",
+  "description": "Dots that orbit in, flatten into an underline, and seat the name above it. Signs off product channels, studios and apps.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "logo-reveal",
+  "tags": [
+    "logo",
+    "orbit",
+    "ident"
+  ],
+  "themes": [
+    "technology",
+    "business",
+    "science"
+  ],
+  "styles": [
+    "tech",
+    "clean"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.5,
+    "holdTo": 4.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "name",
+      "type": "text",
+      "label": "Name",
+      "default": "northbeam",
+      "maxLength": 20,
+      "element": "Ident"
+    },
+    {
+      "id": "tagline",
+      "type": "text",
+      "label": "Tagline",
+      "default": "tools for quiet work",
+      "maxLength": 34,
+      "element": "Ident"
+    },
+    {
+      "id": "dot",
+      "type": "color",
+      "label": "Dots",
+      "default": "#818cf8",
+      "element": "Ident"
+    },
+    {
+      "id": "ground",
+      "type": "color",
+      "label": "Background",
+      "default": "#0b0e1a",
+      "element": "Scene"
+    }
+  ]
+}

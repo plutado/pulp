@@ -1,0 +1,79 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.notification-stack-social",
+  "name": "Notification Stack",
+  "description": "Three toasts that slide in and stack, newest on top. Marks milestones, replies and go-live moments.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "social",
+  "tags": [
+    "social",
+    "notifications",
+    "stack"
+  ],
+  "themes": [
+    "social-media",
+    "technology",
+    "business"
+  ],
+  "styles": [
+    "clean",
+    "tech"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.3,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "n1",
+      "type": "text",
+      "label": "First",
+      "default": "New subscriber · 2,000!",
+      "maxLength": 36,
+      "element": "Toasts"
+    },
+    {
+      "id": "n2",
+      "type": "text",
+      "label": "Second",
+      "default": "mika replied to your poll",
+      "maxLength": 36,
+      "element": "Toasts"
+    },
+    {
+      "id": "n3",
+      "type": "text",
+      "label": "Third",
+      "default": "Your short passed 1M plays",
+      "maxLength": 36,
+      "element": "Toasts"
+    },
+    {
+      "id": "toast",
+      "type": "color",
+      "label": "Toasts",
+      "default": "#111827",
+      "element": "Toasts"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#22d3ee",
+      "element": "Toasts"
+    }
+  ]
+}

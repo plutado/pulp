@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Milestone</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Milestone, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The number lands, the burst clears by 2.2 s, and the card holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 5.2) / 0.8));
+    ctx.fillStyle = rgba(p.back, 1); ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var land = overshoot(clamp01(t / 0.6));
+    // One confetti burst at the landing; every piece is down and gone by 2.2 s.
+    var cols = ['244,96,120', '250,200,70', '90,200,160', '120,160,250'];
+    for (var i = 0; i < 70; i++) {
+      var f = clamp01((t - 0.5) / 1.7);
+      if (f <= 0 || f >= 1) break;
+      var a = (at(i) - 0.5) * Math.PI * 1.6 - Math.PI / 2;
+      var sp = Math.min(W, H) * (0.3 + at(i + 9) * 0.5);
+      var px2 = W / 2 + Math.cos(a) * sp * f;
+      var py2 = H * 0.45 + Math.sin(a) * sp * f + H * 0.8 * f * f;
+      ctx.save(); ctx.translate(px2, py2); ctx.rotate(f * 9 + i);
+      ctx.fillStyle = 'rgba(' + cols[i % 4] + ',' + (1 - f).toFixed(3) + ')';
+      ctx.fillRect(-5 * u, -8 * u, 10 * u, 16 * u);
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.translate(W / 2, H * 0.45);
+    ctx.scale(Math.max(0.0001, land), Math.max(0.0001, land));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = rgba(p.number2, 1);
+    ctx.font = '700 ' + Math.round(260 * u) + 'px "Bebas Neue"';
+    ctx.fillText(String(p.figure), 0, 0);
+    ctx.restore();
+    var thanksIn = easeOut(clamp01((t - 0.9) / 0.6));
+    ctx.globalAlpha = (1 - gone) * thanksIn;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#e9d5ff';
+    ctx.font = '600 ' + Math.round(44 * u) + 'px "Caveat"';
+    ctx.fillText(String(p.thanks), W / 2, H * 0.66);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

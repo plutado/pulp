@@ -1,0 +1,53 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.slice-shuffle-glitch",
+  "name": "Slice Shuffle",
+  "description": "The frame cut into horizontal slices that shear apart and snap back. Cuts gameplay, tech reviews and anything that just broke.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "glitch",
+  "tags": [
+    "transition",
+    "glitch",
+    "slices"
+  ],
+  "themes": [
+    "gaming",
+    "technology"
+  ],
+  "styles": [
+    "tech",
+    "grunge"
+  ],
+  "duration": 1.2,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "veil",
+      "type": "color",
+      "label": "Veil",
+      "default": "#0b0e14",
+      "element": "Slices"
+    },
+    {
+      "id": "edge",
+      "type": "color",
+      "label": "Fringe",
+      "default": "#22d3ee",
+      "element": "Slices"
+    }
+  ]
+}

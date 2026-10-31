@@ -1,0 +1,54 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.bokeh-reveal",
+  "name": "Bokeh Reveal",
+  "description": "Discs of light that grow until they fill the frame, then thin out to nothing. Reveals dreamier cuts — nights out, city evenings, slow dances.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "reveal",
+  "tags": [
+    "transition",
+    "reveal",
+    "bokeh"
+  ],
+  "themes": [
+    "concert",
+    "city",
+    "wedding"
+  ],
+  "styles": [
+    "cinematic",
+    "organic"
+  ],
+  "duration": 1.6,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "warm",
+      "type": "color",
+      "label": "Warm discs",
+      "default": "#ffb36b",
+      "element": "Discs"
+    },
+    {
+      "id": "cool",
+      "type": "color",
+      "label": "Cool discs",
+      "default": "#7dd3fc",
+      "element": "Discs"
+    }
+  ]
+}

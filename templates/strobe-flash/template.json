@@ -1,0 +1,55 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.strobe-flash",
+  "name": "Strobe",
+  "description": "Three hard pops of light with dark beats between them. Cuts drops, reveals and fight scenes.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "flash",
+  "tags": [
+    "transition",
+    "flash",
+    "strobe"
+  ],
+  "themes": [
+    "concert",
+    "gaming",
+    "sports"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 1.2,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "pop",
+      "type": "color",
+      "label": "Light",
+      "default": "#ffffff",
+      "element": "Strobe"
+    },
+    {
+      "id": "darkness",
+      "type": "number",
+      "label": "Darkness between",
+      "default": 0.7,
+      "min": 0.2,
+      "max": 1,
+      "element": "Strobe"
+    }
+  ]
+}

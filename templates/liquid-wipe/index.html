@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Liquid Wipe</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Liquid Wipe, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // Stretching the length only slows the pour, which is what scale means.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var f = t / d;
+    var fill2 = easeInOut(clamp01(f * 2));
+    var drain = easeInOut(clamp01(f * 2 - 1));
+    ctx.fillStyle = rgba(p.pour, 1);
+    ctx.beginPath();
+    // The leading edge rolls as it falls; the draining edge chases it with its own waves.
+    var top = -H * 0.2 + drain * H * 1.4;
+    var bottom = -H * 0.2 + fill2 * H * 1.4;
+    ctx.moveTo(0, top + Math.sin(f * 7) * H * 0.03);
+    for (var x = 0; x <= W; x += W / 40) {
+      ctx.lineTo(x, top + Math.sin(x / W * Math.PI * 4 + f * 9) * H * 0.045);
+    }
+    for (var x2 = W; x2 >= 0; x2 -= W / 40) {
+      ctx.lineTo(x2, bottom + Math.sin(x2 / W * Math.PI * 5 - f * 7) * H * 0.05);
+    }
+    ctx.closePath(); ctx.fill();
+    // Drips hanging from the leading edge while it falls.
+    if (fill2 < 1) {
+      for (var i2 = 0; i2 < 9; i2++) {
+        var dx2 = W * (0.06 + i2 * 0.11);
+        var hang = (0.5 + at(i2) * 0.8) * H * 0.06 * Math.sin(Math.min(1, fill2 * 1.2) * Math.PI);
+        ctx.beginPath();
+        ctx.ellipse(dx2, bottom + Math.sin(dx2 / W * Math.PI * 5 - f * 7) * H * 0.05 + hang, W * 0.012, hang * 0.5 + W * 0.012, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  };
+</script>
+</body>
+</html>

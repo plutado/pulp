@@ -1,0 +1,63 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.neon-logo-reveal",
+  "name": "Neon Ident",
+  "description": "The name as a neon sign that stutters alight over its reflection, then burns steady. Signs off nightlife edits, bars and late shows.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "logo-reveal",
+  "tags": [
+    "logo",
+    "neon",
+    "ident"
+  ],
+  "themes": [
+    "city",
+    "concert",
+    "entertainment"
+  ],
+  "styles": [
+    "retro",
+    "tech"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.1,
+    "holdTo": 4.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "name",
+      "type": "text",
+      "label": "Name",
+      "default": "Blue Door",
+      "maxLength": 20,
+      "element": "Sign"
+    },
+    {
+      "id": "tube",
+      "type": "color",
+      "label": "Tube",
+      "default": "#4cc9f0",
+      "element": "Sign"
+    },
+    {
+      "id": "wall",
+      "type": "color",
+      "label": "Wall",
+      "default": "#120e16",
+      "element": "Scene"
+    }
+  ]
+}

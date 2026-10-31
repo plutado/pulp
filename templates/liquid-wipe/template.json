@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.liquid-wipe",
+  "name": "Liquid Wipe",
+  "description": "A pour with a rolling, dripping edge that floods down and drains away. Softens cuts in food, craft and beauty pieces.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "wipe",
+  "tags": [
+    "transition",
+    "wipe",
+    "liquid"
+  ],
+  "themes": [
+    "food",
+    "fashion",
+    "kids"
+  ],
+  "styles": [
+    "organic",
+    "playful"
+  ],
+  "duration": 1.6,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "pour",
+      "type": "color",
+      "label": "Liquid",
+      "default": "#7c3aed",
+      "element": "Liquid"
+    }
+  ]
+}

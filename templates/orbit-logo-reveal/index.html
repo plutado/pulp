@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Orbit Ident</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Orbit Ident, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The dots seat and the line joins by 1.4 s; the ident then holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 4.2) / 0.8));
+    ctx.fillStyle = rgba(p.ground, 1); ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1 - gone;
+    var cx = W / 2, cy = H * 0.46;
+    var settle = easeInOut(clamp01((t - 0.4) / 0.7));
+    var lineHalf = Math.min(W, H) * 0.22;
+    for (var i = 0; i < 9; i++) {
+      // Each dot orbits in from wide, then its orbit flattens onto the underline.
+      var a = t * (2.2 + at(i) * 1.2) + i * 0.8;
+      var rx = Math.min(W, H) * (0.34 - settle * 0.34) + lineHalf * settle;
+      var ry = Math.min(W, H) * (0.2) * (1 - settle);
+      var x = cx + Math.cos(a) * (settle < 1 ? rx : lineHalf);
+      var y = cy + Math.sin(a) * ry + settle * Math.min(W, H) * 0.08;
+      // Once flattened, the dots stop on the line, spaced out along it.
+      if (settle >= 1) {
+        x = cx + ((i / 8) * 2 - 1) * lineHalf;
+        y = cy + Math.min(W, H) * 0.08;
+      }
+      ctx.fillStyle = rgba(p.dot, 0.95);
+      ctx.beginPath(); ctx.arc(x, y, Math.min(W, H) * 0.008, 0, Math.PI * 2); ctx.fill();
+    }
+    // The underline joins the seated dots.
+    var joined = easeInOut(clamp01((t - 1.0) / 0.4));
+    if (joined > 0) {
+      ctx.strokeStyle = rgba(p.dot, 0.9); ctx.lineWidth = 3 * u; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx - lineHalf * joined, cy + Math.min(W, H) * 0.08);
+      ctx.lineTo(cx + lineHalf * joined, cy + Math.min(W, H) * 0.08);
+      ctx.stroke();
+    }
+    var nameIn = easeOut(clamp01((t - 0.7) / 0.6));
+    ctx.globalAlpha = (1 - gone) * nameIn;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#eef2ff';
+    ctx.font = '600 ' + Math.round(96 * u) + 'px Inter';
+    ctx.fillText(String(p.name), cx, cy + 20 * u);
+    ctx.fillStyle = 'rgba(165,180,252,0.8)';
+    ctx.font = '500 ' + Math.round(30 * u) + 'px Inter';
+    ctx.fillText(String(p.tagline), cx, cy + Math.min(W, H) * 0.08 + 56 * u);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

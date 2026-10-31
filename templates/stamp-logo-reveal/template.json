@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.stamp-logo-reveal",
+  "name": "Stamp Ident",
+  "description": "The name slams down like a rubber stamp inside a rough ring, dust kicking out once. Signs off maker videos, markets and small-batch brands.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "logo-reveal",
+  "tags": [
+    "logo",
+    "stamp",
+    "ident"
+  ],
+  "themes": [
+    "business",
+    "food",
+    "community"
+  ],
+  "styles": [
+    "hand-drawn",
+    "retro"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.1,
+    "holdTo": 4.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "name",
+      "type": "text",
+      "label": "Name",
+      "default": "HANDMADE CO.",
+      "maxLength": 22,
+      "element": "Stamp"
+    },
+    {
+      "id": "tagline",
+      "type": "text",
+      "label": "Tagline",
+      "default": "est. 2019 · small batches",
+      "maxLength": 34,
+      "element": "Stamp"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Ink",
+      "default": "#8a2f26",
+      "element": "Stamp"
+    },
+    {
+      "id": "paper",
+      "type": "color",
+      "label": "Background",
+      "default": "#f3ead9",
+      "element": "Scene"
+    }
+  ]
+}

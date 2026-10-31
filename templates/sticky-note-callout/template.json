@@ -1,0 +1,74 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.sticky-note-callout",
+  "name": "Sticky Note",
+  "description": "A square note that slaps onto the frame at a tilt, a marker line on it. Points at details in vlogs, tutorials and study videos.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "callout",
+  "tags": [
+    "callout",
+    "note",
+    "marker"
+  ],
+  "themes": [
+    "education",
+    "family",
+    "business"
+  ],
+  "styles": [
+    "hand-drawn",
+    "playful"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "note",
+      "type": "text",
+      "label": "Note",
+      "default": "don't skip this bit",
+      "maxLength": 30,
+      "element": "Note"
+    },
+    {
+      "id": "paper",
+      "type": "color",
+      "label": "Paper",
+      "default": "#fff176",
+      "element": "Note"
+    },
+    {
+      "id": "x",
+      "type": "number",
+      "label": "Across",
+      "default": 0.72,
+      "min": 0.1,
+      "max": 0.9,
+      "element": "Note"
+    },
+    {
+      "id": "y",
+      "type": "number",
+      "label": "Down",
+      "default": 0.3,
+      "min": 0.1,
+      "max": 0.9,
+      "element": "Note"
+    }
+  ]
+}

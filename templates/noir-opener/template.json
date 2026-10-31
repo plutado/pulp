@@ -1,0 +1,63 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.noir-opener",
+  "name": "Noir Blinds",
+  "description": "Venetian-blind shadows that slide across a smoky room until the title sits in the light between slats. Opens mysteries and period pieces.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "opener",
+  "tags": [
+    "opener",
+    "noir",
+    "blinds"
+  ],
+  "themes": [
+    "cinema",
+    "documentary",
+    "city"
+  ],
+  "styles": [
+    "cinematic",
+    "retro"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.5,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "default": "The Marlowe File",
+      "maxLength": 30,
+      "element": "Words"
+    },
+    {
+      "id": "smoke",
+      "type": "color",
+      "label": "Room",
+      "default": "#15130f",
+      "element": "Scene"
+    },
+    {
+      "id": "lightC",
+      "type": "color",
+      "label": "Light",
+      "default": "#d9c9a0",
+      "element": "Light"
+    }
+  ]
+}

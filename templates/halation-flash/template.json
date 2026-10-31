@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.halation-flash",
+  "name": "Halation",
+  "description": "A warm film flash that blooms from the top edge, halos, and falls away. Softens cuts in weddings and golden-hour reels.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "flash",
+  "tags": [
+    "transition",
+    "flash",
+    "film"
+  ],
+  "themes": [
+    "wedding",
+    "family",
+    "summer"
+  ],
+  "styles": [
+    "cinematic",
+    "organic"
+  ],
+  "duration": 1.6,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "warm",
+      "type": "color",
+      "label": "Bloom",
+      "default": "#ffcf9e",
+      "element": "Bloom"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.pixel-sort-glitch",
+  "name": "Pixel Sort",
+  "description": "Columns that smear downward like sorted pixels, swallow the frame, and let go. Cuts synthwave edits and datamosh-flavoured montages.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "glitch",
+  "tags": [
+    "transition",
+    "glitch",
+    "smear"
+  ],
+  "themes": [
+    "technology",
+    "gaming",
+    "concert"
+  ],
+  "styles": [
+    "tech",
+    "retro"
+  ],
+  "duration": 1.5,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "smear",
+      "type": "color",
+      "label": "Smear",
+      "default": "#a21caf",
+      "element": "Columns"
+    },
+    {
+      "id": "smear2",
+      "type": "color",
+      "label": "Counter smear",
+      "default": "#06b6d4",
+      "element": "Columns"
+    }
+  ]
+}

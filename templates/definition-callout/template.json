@@ -1,0 +1,79 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.definition-callout",
+  "name": "Definition",
+  "description": "A dictionary entry — the word, how it is said, and what it means — typeset on a quiet card. Points at the term a video keeps using.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "callout",
+  "tags": [
+    "callout",
+    "definition",
+    "dictionary"
+  ],
+  "themes": [
+    "education",
+    "documentary",
+    "podcast"
+  ],
+  "styles": [
+    "elegant",
+    "clean"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.4,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "word",
+      "type": "text",
+      "label": "Word",
+      "default": "petrichor",
+      "maxLength": 24,
+      "element": "Entry"
+    },
+    {
+      "id": "said",
+      "type": "text",
+      "label": "Pronunciation",
+      "default": "/ˈpɛtrɪkɔː/ · noun",
+      "maxLength": 28,
+      "element": "Entry"
+    },
+    {
+      "id": "means",
+      "type": "text",
+      "label": "Meaning",
+      "default": "the smell of earth after rain",
+      "maxLength": 48,
+      "element": "Entry"
+    },
+    {
+      "id": "card",
+      "type": "color",
+      "label": "Card",
+      "default": "#fbf8f1",
+      "element": "Card"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#9a6a3f",
+      "element": "Entry"
+    }
+  ]
+}

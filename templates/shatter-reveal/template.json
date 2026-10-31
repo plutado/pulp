@@ -1,0 +1,54 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.shatter-reveal",
+  "name": "Shatter",
+  "description": "The frame darkens behind spreading cracks, then the shards fly out and clear. Reveals rebrands, trailers and anything broken open.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "reveal",
+  "tags": [
+    "transition",
+    "reveal",
+    "shatter"
+  ],
+  "themes": [
+    "gaming",
+    "cinema",
+    "sports"
+  ],
+  "styles": [
+    "high-energy",
+    "cinematic"
+  ],
+  "duration": 1.5,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "shard",
+      "type": "color",
+      "label": "Shards",
+      "default": "#1c2430",
+      "element": "Shards"
+    },
+    {
+      "id": "crack",
+      "type": "color",
+      "label": "Cracks",
+      "default": "#e2e8f0",
+      "element": "Cracks"
+    }
+  ]
+}

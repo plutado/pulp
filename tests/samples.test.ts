@@ -103,11 +103,13 @@ describe('bundled sample templates', async () => {
     // holding lower thirds and seventeen holding end cards; the running gradient, the ticker, the
     // sweeping ring, the swinging tag and the glitch keep fixed lengths. The overlays batch adds
     // ten looping plates (grain, scratches, a gate, motes, fireflies, tracking, leaks, a bug and
-    // two vignettes) and the ornate frame, which draws on and holds.
-    expect(kinds.hold).toHaveLength(79);
+    // two vignettes) and the ornate frame, which draws on and holds. The nine-types batch adds
+    // sixteen holds, sixteen scaling transitions, and three ambient fixed lengths (the typewriter's
+    // cursor, the turning rays, the hashtag carousel).
+    expect(kinds.hold).toHaveLength(95);
     expect(kinds.loop).toHaveLength(39);
-    expect(kinds.scale).toHaveLength(24);
-    expect(kinds.none).toHaveLength(51);
+    expect(kinds.scale).toHaveLength(40);
+    expect(kinds.none).toHaveLength(54);
   });
 
   it.each(dirs)('%s defines window.pulpRender and avoids wall-clock time', async (dir) => {

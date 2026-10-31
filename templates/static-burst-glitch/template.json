@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.static-burst-glitch",
+  "name": "Static Burst",
+  "description": "A burst of analogue snow with a sync bar rolling through it. Cuts found footage, horror stingers and channel hops.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "glitch",
+  "tags": [
+    "transition",
+    "glitch",
+    "static"
+  ],
+  "themes": [
+    "cinema",
+    "entertainment",
+    "media"
+  ],
+  "styles": [
+    "grunge",
+    "retro"
+  ],
+  "duration": 1.2,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "grit",
+      "type": "number",
+      "label": "Grit",
+      "default": 0.8,
+      "min": 0.3,
+      "max": 1,
+      "element": "Static"
+    }
+  ]
+}

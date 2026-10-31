@@ -1,0 +1,70 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.split-screen-title",
+  "name": "Split Screen",
+  "description": "Two colour panels that part along the middle and let the title stand in the seam. Opens comparisons, debates and versus cuts.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": [
+    "title",
+    "split",
+    "panels"
+  ],
+  "themes": [
+    "business",
+    "sports",
+    "news"
+  ],
+  "styles": [
+    "corporate",
+    "high-energy"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "default": "Before & After",
+      "maxLength": 28,
+      "element": "Words"
+    },
+    {
+      "id": "left",
+      "type": "color",
+      "label": "Left panel",
+      "default": "#1d4ed8",
+      "element": "Panels"
+    },
+    {
+      "id": "right",
+      "type": "color",
+      "label": "Right panel",
+      "default": "#b91c1c",
+      "element": "Panels"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Title ink",
+      "default": "#fafafa",
+      "element": "Words"
+    }
+  ]
+}

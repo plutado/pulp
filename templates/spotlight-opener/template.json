@@ -1,0 +1,63 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.spotlight-opener",
+  "name": "Spotlight",
+  "description": "A dark stage where two spotlights swing in, cross, and pin the title between them. Opens shows, recitals and award nights.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "opener",
+  "tags": [
+    "opener",
+    "spotlight",
+    "stage"
+  ],
+  "themes": [
+    "concert",
+    "entertainment",
+    "cinema"
+  ],
+  "styles": [
+    "cinematic",
+    "elegant"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.4,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "default": "Opening Night",
+      "maxLength": 28,
+      "element": "Words"
+    },
+    {
+      "id": "beam",
+      "type": "color",
+      "label": "Beams",
+      "default": "#ffe9b0",
+      "element": "Lights"
+    },
+    {
+      "id": "floor",
+      "type": "color",
+      "label": "Stage",
+      "default": "#17121c",
+      "element": "Scene"
+    }
+  ]
+}

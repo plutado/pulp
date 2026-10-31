@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.shutter-flash",
+  "name": "Shutter",
+  "description": "Aperture blades that close to a white click and open again. Cuts photo montages and behind-the-shoot pieces.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "flash",
+  "tags": [
+    "transition",
+    "flash",
+    "shutter"
+  ],
+  "themes": [
+    "fashion",
+    "media",
+    "travel"
+  ],
+  "styles": [
+    "clean",
+    "cinematic"
+  ],
+  "duration": 1.3,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "blade",
+      "type": "color",
+      "label": "Blades",
+      "default": "#101014",
+      "element": "Shutter"
+    }
+  ]
+}

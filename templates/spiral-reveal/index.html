@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Spiral</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Spiral, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // Stretching the length only slows the winding, which is what scale means.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var f = t / d;
+    var wind = easeInOut(clamp01(f * 2));
+    var unwind = easeInOut(clamp01(f * 2 - 1));
+    var turns = 3.2;
+    var rMax = Math.sqrt(W * W + H * H) * 0.55;
+    var bandW = rMax / turns * 0.62;
+    ctx.strokeStyle = rgba(p.band, 1);
+    ctx.lineWidth = bandW * 1.7;
+    ctx.lineCap = 'round';
+    // The spiral is drawn from the outside in; winding extends its tip, unwinding eats its tail.
+    var head = wind * turns * Math.PI * 2;
+    var tail = unwind * turns * Math.PI * 2;
+    if (head > tail) {
+      ctx.beginPath();
+      var steps = 220;
+      var started = false;
+      for (var s2 = 0; s2 <= steps; s2++) {
+        var a = tail + (head - tail) * (s2 / steps);
+        var r = rMax * (1 - a / (turns * Math.PI * 2));
+        var x = W / 2 + Math.cos(a * 1.9) * r;
+        var y = H / 2 + Math.sin(a * 1.9) * r;
+        if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.comment-pop-social",
+  "name": "Comment Pop",
+  "description": "A chat bubble with an avatar dot that pops in, a heart ticking on after it. Reads out a comment worth answering.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "social",
+  "tags": [
+    "social",
+    "comment",
+    "bubble"
+  ],
+  "themes": [
+    "social-media",
+    "gaming",
+    "media"
+  ],
+  "styles": [
+    "playful",
+    "clean"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.3,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "user2",
+      "type": "text",
+      "label": "User",
+      "default": "@maya.k",
+      "maxLength": 24,
+      "element": "Bubble"
+    },
+    {
+      "id": "comment",
+      "type": "text",
+      "label": "Comment",
+      "default": "wait, the plant was real??",
+      "maxLength": 60,
+      "element": "Bubble"
+    },
+    {
+      "id": "bubble",
+      "type": "color",
+      "label": "Bubble",
+      "default": "#ffffff",
+      "element": "Bubble"
+    },
+    {
+      "id": "heart",
+      "type": "color",
+      "label": "Heart",
+      "default": "#f43f5e",
+      "element": "Bubble"
+    }
+  ]
+}

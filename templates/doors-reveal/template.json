@@ -1,0 +1,54 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.doors-reveal",
+  "name": "Doors",
+  "description": "Two tall panels that swing shut like doors and swing back open. Reveals venue pieces, episode flips and before-and-afters.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "reveal",
+  "tags": [
+    "transition",
+    "reveal",
+    "doors"
+  ],
+  "themes": [
+    "entertainment",
+    "business",
+    "travel"
+  ],
+  "styles": [
+    "cinematic",
+    "corporate"
+  ],
+  "duration": 1.6,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "door",
+      "type": "color",
+      "label": "Doors",
+      "default": "#2a2118",
+      "element": "Doors"
+    },
+    {
+      "id": "seam",
+      "type": "color",
+      "label": "Seam light",
+      "default": "#f3e3b8",
+      "element": "Doors"
+    }
+  ]
+}

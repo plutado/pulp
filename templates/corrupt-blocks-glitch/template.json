@@ -1,0 +1,46 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.corrupt-blocks-glitch",
+  "name": "Corrupt Blocks",
+  "description": "Rectangles of the picture going wrong — shifted, inverted, striped — denser mid-cut, then clean. Cuts transmission scenes and ARG-flavoured edits.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "glitch",
+  "tags": [
+    "transition",
+    "glitch",
+    "blocks"
+  ],
+  "themes": [
+    "technology",
+    "gaming",
+    "science"
+  ],
+  "styles": [
+    "tech"
+  ],
+  "duration": 1.3,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "block",
+      "type": "color",
+      "label": "Blocks",
+      "default": "#16a34a",
+      "element": "Blocks"
+    }
+  ]
+}

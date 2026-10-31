@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sticky Note</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Sticky Note, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The note slaps on by 0.45 s and the line is written by 1.05 s; it then holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 5.2) / 0.8));
+    var slap = overshoot(clamp01(t / 0.45));
+    if (t > 0.05 && (1 - gone) <= 0.001) return;
+    var s2 = Math.min(W, H) * 0.24;
+    var cx = W * p.x, cy = H * p.y;
+    ctx.save();
+    ctx.globalAlpha = (1 - gone) * clamp01(t / 0.1);
+    ctx.translate(cx, cy);
+    ctx.rotate(-0.07 + (1 - slap) * 0.25);
+    ctx.scale(Math.max(0.0001, 1.5 - 0.5 * slap), Math.max(0.0001, 1.5 - 0.5 * slap));
+    ctx.fillStyle = 'rgba(60,50,20,0.2)';
+    ctx.fillRect(-s2 / 2 + 5 * u, -s2 / 2 + 8 * u, s2, s2);
+    ctx.fillStyle = rgba(p.paper, 0.98);
+    ctx.fillRect(-s2 / 2, -s2 / 2, s2, s2);
+    // The lifted corner, a shade darker, folded up at the bottom right.
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.beginPath();
+    ctx.moveTo(s2 / 2, s2 / 2 - s2 * 0.18);
+    ctx.lineTo(s2 / 2, s2 / 2);
+    ctx.lineTo(s2 / 2 - s2 * 0.18, s2 / 2);
+    ctx.closePath(); ctx.fill();
+    var wrote = easeInOut(clamp01((t - 0.45) / 0.6));
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-s2 / 2, -s2 / 2, s2 * wrote, s2); ctx.clip();
+    ctx.fillStyle = '#403515';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '600 ' + Math.round(s2 * 0.16) + 'px Caveat';
+    var words = String(p.note).split(' ');
+    var lines = [''];
+    for (var w2 = 0; w2 < words.length; w2++) {
+      var tryLine = (lines[lines.length - 1] + ' ' + words[w2]).trim();
+      if (ctx.measureText(tryLine).width > s2 * 0.82 && lines[lines.length - 1] !== '') lines.push(words[w2]);
+      else lines[lines.length - 1] = tryLine;
+    }
+    for (var l = 0; l < lines.length; l++) ctx.fillText(lines[l], 0, (l - (lines.length - 1) / 2) * s2 * 0.2);
+    ctx.restore();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

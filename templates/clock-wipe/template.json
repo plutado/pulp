@@ -1,0 +1,54 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.clock-wipe",
+  "name": "Clock Wipe",
+  "description": "A radial hand that sweeps the frame covered and a second that sweeps it clear. Moves a story forward an hour at a time.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "wipe",
+  "tags": [
+    "transition",
+    "wipe",
+    "clock"
+  ],
+  "themes": [
+    "documentary",
+    "business",
+    "media"
+  ],
+  "styles": [
+    "retro",
+    "clean"
+  ],
+  "duration": 1.6,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "face",
+      "type": "color",
+      "label": "Face",
+      "default": "#1f2430",
+      "element": "Sweep"
+    },
+    {
+      "id": "hand",
+      "type": "color",
+      "label": "Edge",
+      "default": "#f1f5f9",
+      "element": "Sweep"
+    }
+  ]
+}

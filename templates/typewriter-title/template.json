@@ -1,0 +1,52 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.typewriter-title",
+  "name": "Typewriter",
+  "description": "A monospaced line typed out under a blinking cursor, on paper-dark. Opens true-crime notes, devlogs and letters home.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": [
+    "title",
+    "typewriter",
+    "mono"
+  ],
+  "themes": [
+    "documentary",
+    "technology",
+    "media"
+  ],
+  "styles": [
+    "retro",
+    "tech"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "line",
+      "type": "text",
+      "label": "Line",
+      "default": "Day 47. Still no answer.",
+      "maxLength": 40,
+      "element": "Words"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Ink",
+      "default": "#e7e5e4",
+      "element": "Words"
+    }
+  ]
+}

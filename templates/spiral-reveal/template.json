@@ -1,0 +1,46 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.spiral-reveal",
+  "name": "Spiral",
+  "description": "A band that winds in to cover the frame in one turn and unwinds out of the next shot. Reveals playful cuts in kids and craft pieces.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "reveal",
+  "tags": [
+    "transition",
+    "reveal",
+    "spiral"
+  ],
+  "themes": [
+    "kids",
+    "family",
+    "entertainment"
+  ],
+  "styles": [
+    "playful"
+  ],
+  "duration": 1.6,
+  "structure": {
+    "scale": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "band",
+      "type": "color",
+      "label": "Band",
+      "default": "#f97316",
+      "element": "Spiral"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.hashtag-carousel-social",
+  "name": "Hashtag Carousel",
+  "description": "A tag chip whose words roll over on a steady carousel, the hash fixed at its head. Keeps campaign tags moving under an episode.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "social",
+  "tags": [
+    "social",
+    "hashtag",
+    "carousel"
+  ],
+  "themes": [
+    "social-media",
+    "fashion",
+    "concert"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "t1",
+      "type": "text",
+      "label": "Tag one",
+      "default": "springhaul",
+      "maxLength": 20,
+      "element": "Chip"
+    },
+    {
+      "id": "t2",
+      "type": "text",
+      "label": "Tag two",
+      "default": "fit check",
+      "maxLength": 20,
+      "element": "Chip"
+    },
+    {
+      "id": "t3",
+      "type": "text",
+      "label": "Tag three",
+      "default": "ootd",
+      "maxLength": 20,
+      "element": "Chip"
+    },
+    {
+      "id": "chip",
+      "type": "color",
+      "label": "Chip",
+      "default": "#0f172a",
+      "element": "Chip"
+    },
+    {
+      "id": "hash",
+      "type": "color",
+      "label": "Hash",
+      "default": "#f472b6",
+      "element": "Chip"
+    }
+  ]
+}
