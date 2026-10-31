@@ -38,7 +38,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 28. Per-layer timing, transitions and looks (**done**) | 24-36 h |
 | 27. Projects and the application menu (**done**) | 20-32 h |
 | 31. A start screen (**done**) | 14-22 h |
-| 34. A browse panel that says what things are (all but the card sort and the sample-media hint) | 21-34 h |
+| 34. A browse panel that says what things are (all but the card sort and the sample-media line) | 21-34 h |
 | 32. Stock library import | 27-46 h |
 | 33. Layered graphics: Photoshop, Illustrator, SVG (**done**) | 19-33 h |
 | 15. Convert library media (**done**) | 8-12 h |
@@ -388,7 +388,7 @@ The browse panel's top level is five ways of sorting — Types, Themes, Styles, 
 - [x] **A one-line description for every category,** shown under its heading and on hover ("Lower thirds: name and title bars that sit at the bottom of the frame") (1-2 h)
 - [x] **"For…" and "Look" as filters, not separate trees:** pick what in the tree, then narrow it with chips (Lower thirds › For: Wedding › Look: Elegant), so browsing is one path rather than five (3-5 h)
 - [x] **"What are you making?" leads into the new panel:** the start screen's choices (milestone 31), which fold the old tree to a type or theme until now, open the matching category with its "For…" and "Look" chips set (Interview → Lower thirds › For: Interview), held by a test that every choice lands on a category that exists. *The chip is set only when the category has something carrying the theme, so a first choice never opens on nothing* (1 h)
-- [ ] **A thin category says what sample media would add:** with the sample media not made, a category whose catalogue holds more shows "26 more with sample media" under its items, with the Make Sample Media button beside it, so a new library does not look sparse without saying why; the count comes from the sample catalogue for that category (1-2 h) *Decided 2026-10-31: making the samples on first run was turned down, since it writes hundreds of files nobody asked for and the clips need ffmpeg.*
+- [ ] **A category says what its sample media would add:** while a category's sample media is not all made, it shows "N more with sample media" under its results — N counted from the sample catalogue for that category — with a button that makes just that category's samples, quicker than the whole set; once nothing is left to make, the line and the button go, so nobody is offered more than there is (1-2 h) *Decided 2026-10-31: making the samples on first run was turned down, since it writes hundreds of files nobody asked for and the clips need ffmpeg; the count is per category rather than a fixed number; generating more without limit (seeded variations, or AI later) is a separate idea, not this item.*
 - [ ] **Checked with people and held by a test:** a short card sort with three to five people on the new labels before they are final, and a unit test that every top-level category has a description and every category a thumbnail. *The unit test is in (2026-10-30), over the bundled templates plus one entry per sample-media type: every category makes a card with a description and a representative thumbnail — sound's cards carry the category's icon, having no picture — and it caught Matching sets missing from the card row, which now scopes to `pack:any`. The card sort with people stays open* (1-2 h)
 
 ## 32. Stock library import: open the stock media you already own (27-46 h; GitHub issue #34)
