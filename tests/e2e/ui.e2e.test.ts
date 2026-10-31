@@ -55,7 +55,7 @@ interface Ws {
 }
 const WebSocketCtor = (globalThis as unknown as { WebSocket: new (url: string) => Ws }).WebSocket;
 
-interface Target { id: string; parentId?: string; type: string; url: string; webSocketDebuggerUrl: string }
+interface Target { id: string; parentId?: string; type: string; url: string; title?: string; webSocketDebuggerUrl: string }
 interface Context { id: number; origin?: string }
 
 class Session {
@@ -3617,6 +3617,98 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.querySelector('#collection .collection-card button[aria-label="Remove from the collection"]').click()`);
       await until(() => page.eval<number>(`document.querySelectorAll('#collection .collection-card').length`).then((n) => n === 0), 'the collection empty again');
     }, 90_000);
+
+    it('pops the stage out into a window of its own, still driven from the main window, and brings it back (milestone 43)', async () => {
+      type Box = { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      const boxIn = (session: Session, selector: string) =>
+        session.eval<Box | null>(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null; const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width, height: b.height }; })()`);
+      // By its title: the app's own offscreen windows (thumbnails, posters) are pages too, and an idle
+      // one sits at about:blank just as the stage's window does.
+      const stageTarget = async () => (await targets()).find((t) => t.type === 'page' && t.id !== appTargetId && t.title === 'Stage');
+      const settings = async () => (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { stageWindow?: { open: boolean; bounds: Box | null } }).stageWindow;
+      let stage: Session | null = null;
+      try {
+        await clickResult('Lower Third Bar');
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
+
+        // The button on the stage's corner: the stage leaves for a window of its own.
+        await page.eval(`document.getElementById('stage-popout').click()`);
+        let target: Target | undefined;
+        await until(async () => {
+          target = await stageTarget();
+          return target !== undefined;
+        }, 'the stage window');
+        stage = await Session.connect(target!.webSocketDebuggerUrl);
+        await stage.send('Runtime.enable');
+        await until(() => stage!.eval<boolean>(`!!document.getElementById('region-stage') && !!document.getElementById('scrub') && !!document.getElementById('layer-bars')`), 'the stage, the scrub bar and the layer bars in the stage window');
+        // Moved, not copied: the main window has none of them, and says the stage is out.
+        expect(await page.eval<boolean>(`!document.getElementById('region-stage') && !document.getElementById('scrub')`), 'the main window has no second stage').toBe(true);
+        expect(await page.eval<boolean>(`document.getElementById('app').classList.contains('stage-out')`)).toBe(true);
+        // The stylesheet reached the window: the body is laid out as the picture over its timeline.
+        await until(() => stage!.eval<boolean>(`getComputedStyle(document.body).display === 'flex' && document.querySelector('.stage-timeline') !== null`), 'the stage window styled');
+
+        // The main window takes the room: the results fill the centre, and the transport row is its
+        // buttons line, with the toggle for a stage that is not here gone.
+        const centre = (await boxIn(page, '.center'))!;
+        const results = (await boxIn(page, '#region-results'))!;
+        expect(results.top, 'the results start where the stage was').toBeLessThanOrEqual(centre.top + 1);
+        expect(results.bottom).toBeGreaterThanOrEqual(centre.bottom - 1);
+        expect((await boxIn(page, '#region-transport'))!.height, 'the row is one line').toBeLessThan(60);
+        expect(await page.eval<string>(`getComputedStyle(document.getElementById('stage-toggle')).display`)).toBe('none');
+
+        // Still driven from the main window: the picture reloads in its new window and plays; a card
+        // chosen here shows there; the scrub bar there sits one to one under the picture.
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview ready again in its window');
+        await clickResult('Title Card');
+        await until(() => stage!.eval<boolean>(`document.getElementById('preview').src.includes('title-card')`), 'the chosen card on the popped-out stage');
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the new preview ready');
+        await until(async () => {
+          const pic = await boxIn(stage!, '#preview-frame');
+          const scrub = await boxIn(stage!, '.scrub-wrap');
+          return !!pic && !!scrub && pic.width > 100 && Math.abs(scrub.left - pic.left) <= 1 && Math.abs(scrub.right - pic.right) <= 1;
+        }, 'the scrub bar lined up under the picture in the stage window');
+        const frameBefore = await stage.eval<string>(`document.getElementById('preview-frame').dataset.frame`);
+        await page.eval(`document.getElementById('step-forward').click()`);
+        await until(async () => (await stage!.eval<string>(`document.getElementById('preview-frame').dataset.frame`)) !== frameBefore, 'a step from the main window moving the popped-out picture');
+        // The menu reads the stage's controls where they are: Pop Out Stage is ticked.
+        type Item = { label?: string; checked?: boolean; submenu?: Item[] };
+        const popOutItem = async () => (await page.eval<{ label: string; items: Item[] }[]>(`window.pulp.menuSections()`)).find((s) => s.label === 'View')?.items.find((i) => i.label === 'Pop Out Stage');
+        await until(async () => (await popOutItem())?.checked === true, 'the menu ticking Pop Out Stage');
+        // Remembered: out, and where.
+        await until(async () => (await settings())?.open === true && !!(await settings())?.bounds, 'the stage window remembered as out, with its place');
+
+        // The window's own close puts the stage back first — nothing is lost with the window — and
+        // the setting says it is in.
+        await stage.eval(`window.close()`);
+        await until(() => page.eval<boolean>(`!!document.getElementById('region-stage') && !!document.getElementById('scrub') && !document.getElementById('app').classList.contains('stage-out')`), 'the stage back in the main window');
+        await until(async () => (await stageTarget()) === undefined, 'the stage window gone');
+        stage = null;
+        await until(async () => (await settings())?.open === false, 'remembered as in');
+        expect(await page.eval<boolean>(`document.getElementById('scrub-line').nextElementSibling.id === 'transport-lanes' && document.getElementById('transport-lanes').nextElementSibling.classList.contains('buttons-line')`), 'the row\'s first line back above its buttons').toBe(true);
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview ready again at home');
+        expect(await page.eval<string>(`getComputedStyle(document.getElementById('stage-toggle')).display`)).not.toBe('none');
+
+        // Out again from the menu, and back by the same button where it now is: in the stage window.
+        await page.eval(`window.pulpMenuCommand('view.popOut')`);
+        await until(async () => (await stageTarget()) !== undefined, 'the stage window from the menu');
+        stage = await Session.connect((await stageTarget())!.webSocketDebuggerUrl);
+        await stage.send('Runtime.enable');
+        await until(() => stage!.eval<boolean>(`!!document.getElementById('stage-popout')`), 'the button in the stage window');
+        expect(await stage.eval<string>(`document.getElementById('stage-popout').getAttribute('aria-label')`)).toBe('Bring the stage back');
+        await stage.eval(`document.getElementById('stage-popout').click()`);
+        await until(() => page.eval<boolean>(`!!document.getElementById('region-stage') && !document.getElementById('app').classList.contains('stage-out')`), 'the stage back by its button');
+        await until(async () => (await stageTarget()) === undefined, 'the stage window gone again');
+        stage = null;
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview ready once more');
+        await clickResult('Lower Third Bar');
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview the tests after this expect');
+      } finally {
+        stage?.close();
+        // Whatever happened, the tests after this want the stage at home.
+        await page.eval(`(() => { if (document.getElementById('app').classList.contains('stage-out')) window.pulpMenuCommand('view.popOut'); })()`);
+        await until(() => page.eval<boolean>(`!!document.getElementById('region-stage')`), 'the stage at home');
+      }
+    }, 120_000);
 
     it('puts the transport row across the bottom of the window, above the status bar, resizable and remembered (milestone 37)', async () => {
       type Box = { left: number; right: number; top: number; bottom: number; width: number; height: number };

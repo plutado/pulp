@@ -66,6 +66,8 @@ interface Host {
 }
 
 let host: Host | null = null;
+/** The picture the menu is mounted on: its document is the one the menu opens in (milestone 43). */
+let anchor: HTMLElement | null = null;
 
 /**
  * What was cut or copied. A signal, so the menus follow it the moment it
@@ -274,8 +276,11 @@ export function runLayerCommand(command: MenuCommand, arg: string | null): void 
 
 /** What the window is doing with the stage, for the items that belong to the picture as a whole. */
 function viewFacts(): { theater: boolean; background: StageBackground; canAddToCollection: boolean } {
-  const pressed = (id: string) => document.getElementById(id)?.getAttribute('aria-pressed') === 'true';
-  const custom = document.getElementById('bg-custom')?.classList.contains('active');
+  // The stage's controls are read where the stage is: in its own window when it is popped out
+  // (milestone 43), which is the document the menu itself is about to open in.
+  const doc = anchor?.ownerDocument ?? document;
+  const pressed = (id: string) => doc.getElementById(id)?.getAttribute('aria-pressed') === 'true';
+  const custom = doc.getElementById('bg-custom')?.classList.contains('active');
   return {
     theater: pressed('theater'),
     background: custom ? 'custom' : (STAGE_BACKGROUNDS.find((b) => pressed(`bg-${b.id}`))?.id ?? DEFAULT_PLAYER.background),
@@ -306,6 +311,8 @@ function openAt(client: { x: number; y: number }, point: { x: number; y: number 
     x: client.x,
     y: client.y,
     items,
+    // Drawn in the window the picture is in, which is the one the pointer is in.
+    doc: anchor?.ownerDocument ?? document,
     // Through the window's one dispatcher, so a command does here exactly what the application
     // menu's item for it does. The point belongs to this menu and to nothing else: it is in hand
     // while the command runs and gone again afterwards, so the Edit menu's Add still adds to the
@@ -361,6 +368,7 @@ function isMenuKey(e: KeyboardEvent): boolean {
 }
 
 export function mountStageMenu(el: HTMLElement, stageHost: Host): void {
+  anchor = el;
   host = stageHost;
   el.addEventListener('contextmenu', (e) => onContextMenu(el, e));
   // On the picture rather than on the window: the keys belong to the stage, and a text field

@@ -228,6 +228,21 @@ export interface PulpApi {
   addLibraryFolder(): Promise<LibraryIndex | null>;
   /** Make the sample-media folder inside a chosen folder, add it to the library, and say what was written. Null when cancelled. */
   addSampleMedia(): Promise<SampleMediaOutcome | null>;
+  /**
+   * The popped-out stage (milestone 43). The renderer moves the stage's own elements into a child
+   * window it opens itself; the main process places that window, remembers where it goes, and
+   * holds its close until the stage has been put back.
+   */
+  /** Whether the stage should start out, as it was left — unless its display has gone. */
+  stageWindowState(): Promise<{ open: boolean }>;
+  /** The stage is back in the main window: close its window and remember it as closed. */
+  closeStageWindow(): Promise<void>;
+  /** Fill the stage window's display with it, or come back from that. */
+  setStageWindowFullScreen(on: boolean): Promise<void>;
+  /** The stage window is being closed by its own button: put the stage back, then closeStageWindow. */
+  onStageWindowCloseRequested(listener: () => void): () => void;
+  /** The stage window went full screen or came back, by any means, so the theater button can follow. */
+  onStageWindowFullScreen(listener: (on: boolean) => void): () => void;
   /** How many catalogue files each taxonomy type still lacks (milestone 34); a type with none left is absent. */
   sampleMediaStatus(): Promise<{ unmade: Record<string, number> }>;
   /** Make just these types' sample media, into the folder the rest is in or one chosen now. Null when cancelled. */

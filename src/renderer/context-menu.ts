@@ -23,12 +23,18 @@ let root: HTMLDivElement | null = null;
 let onChoose: ((command: MenuCommand, arg: string | null) => void) | null = null;
 let returnFocus: HTMLElement | null = null;
 
-function element(): HTMLDivElement {
-  if (root) return root;
-  root = document.createElement('div');
-  root.className = 'context-menu-layer';
-  root.hidden = true;
-  document.body.append(root);
+/**
+ * The one layer the menus draw in, in the document that asked (milestone 43):
+ * the stage's menu opens in the stage's own window when the stage is out, so
+ * the layer moves to whichever document the pointer is in.
+ */
+function element(doc: Document = document): HTMLDivElement {
+  if (!root) {
+    root = doc.createElement('div');
+    root.className = 'context-menu-layer';
+    root.hidden = true;
+  }
+  if (root.ownerDocument !== doc || !root.isConnected) doc.body.append(root);
   return root;
 }
 
@@ -64,7 +70,7 @@ function itemsOf(panel: HTMLElement): HTMLButtonElement[] {
 function moveFocus(panel: HTMLElement, delta: number): void {
   const items = itemsOf(panel);
   if (items.length === 0) return;
-  const at = items.findIndex((el) => el === document.activeElement);
+  const at = items.findIndex((el) => el === panel.ownerDocument.activeElement);
   const next = at < 0 ? (delta > 0 ? 0 : items.length - 1) : (at + delta + items.length) % items.length;
   items[next]!.focus();
 }
@@ -74,13 +80,15 @@ function place(panel: HTMLElement, x: number, y: number, flipFrom?: { left: numb
   panel.style.left = '0px';
   panel.style.top = '0px';
   const box = panel.getBoundingClientRect();
+  // The window the panel is drawn in, which is where its edges are.
+  const view = panel.ownerDocument.defaultView ?? window;
   let left = x;
-  if (left + box.width > window.innerWidth - EDGE_MARGIN_PX) {
+  if (left + box.width > view.innerWidth - EDGE_MARGIN_PX) {
     // A submenu flips to the other side of its parent; a root menu simply slides back in.
-    left = flipFrom ? flipFrom.left - box.width + SUBMENU_OVERLAP_PX : window.innerWidth - box.width - EDGE_MARGIN_PX;
+    left = flipFrom ? flipFrom.left - box.width + SUBMENU_OVERLAP_PX : view.innerWidth - box.width - EDGE_MARGIN_PX;
   }
   let top = y;
-  if (top + box.height > window.innerHeight - EDGE_MARGIN_PX) top = Math.max(EDGE_MARGIN_PX, window.innerHeight - box.height - EDGE_MARGIN_PX);
+  if (top + box.height > view.innerHeight - EDGE_MARGIN_PX) top = Math.max(EDGE_MARGIN_PX, view.innerHeight - box.height - EDGE_MARGIN_PX);
   panel.style.left = `${Math.max(EDGE_MARGIN_PX, left)}px`;
   panel.style.top = `${Math.max(EDGE_MARGIN_PX, top)}px`;
 }
@@ -187,15 +195,18 @@ export interface ContextMenuOptions {
   run: (command: MenuCommand, arg: string | null) => void;
   /** Where the keyboard goes when the menu closes: the element the menu was opened from. */
   focusBack?: HTMLElement | null;
+  /** The document to draw in: the one the pointer is in, which is the stage's own window when the stage is out. */
+  doc?: Document;
 }
 
 /** Open a menu at a point. An empty list opens nothing, so there is never an empty box. */
 export function openContextMenu(options: ContextMenuOptions): boolean {
   closeContextMenu();
   if (options.items.length === 0) return false;
-  const layer = element();
+  const doc = options.doc ?? document;
+  const layer = element(doc);
   onChoose = options.run;
-  returnFocus = options.focusBack ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  returnFocus = options.focusBack ?? (doc.activeElement instanceof HTMLElement ? doc.activeElement : null);
   const panel = buildPanel(options.items, 0);
   layer.replaceChildren(panel);
   layer.hidden = false;
@@ -205,22 +216,32 @@ export function openContextMenu(options: ContextMenuOptions): boolean {
   return true;
 }
 
-export function initContextMenu(): void {
-  // Anything that moves the window out from under the menu closes it.
+/**
+ * Watch a document for what closes an open menu: anything that moves the
+ * window out from under it. The main document at startup; the stage's own
+ * window when the stage pops out (milestone 43), whose pointer and keys never
+ * reach the main document.
+ */
+export function watchContextMenuIn(doc: Document): void {
   for (const type of ['pointerdown', 'wheel'] as const) {
-    document.addEventListener(type, (e) => {
+    doc.addEventListener(type, (e) => {
       if (!contextMenuOpen()) return;
       if (e.target instanceof Node && root!.contains(e.target)) return;
       closeContextMenu();
     }, true);
   }
-  window.addEventListener('resize', closeContextMenu);
-  window.addEventListener('blur', closeContextMenu);
-  document.addEventListener('keydown', (e) => {
+  const view = doc.defaultView;
+  view?.addEventListener('resize', closeContextMenu);
+  view?.addEventListener('blur', closeContextMenu);
+  doc.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && contextMenuOpen()) {
       e.preventDefault();
       e.stopPropagation();
       closeContextMenu();
     }
   }, true);
+}
+
+export function initContextMenu(): void {
+  watchContextMenuIn(document);
 }

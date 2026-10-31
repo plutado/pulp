@@ -7,6 +7,8 @@
  */
 
 import arrowClockwise from '@phosphor-icons/core/assets/regular/arrow-clockwise.svg?raw';
+import arrowSquareIn from '@phosphor-icons/core/assets/regular/arrow-square-in.svg?raw';
+import arrowSquareOut from '@phosphor-icons/core/assets/regular/arrow-square-out.svg?raw';
 import arrowsLeftRight from '@phosphor-icons/core/assets/regular/arrows-left-right.svg?raw';
 import caretDown from '@phosphor-icons/core/assets/regular/caret-down.svg?raw';
 import caretLeft from '@phosphor-icons/core/assets/regular/caret-left.svg?raw';
@@ -86,6 +88,8 @@ const ICONS = {
   'caret-up': caretUp,
   'corners-in': cornersIn,
   'corners-out': cornersOut,
+  'arrow-square-in': arrowSquareIn,
+  'arrow-square-out': arrowSquareOut,
   'check-circle': checkCircle,
   checkerboard,
   circle,

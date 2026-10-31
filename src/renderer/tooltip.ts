@@ -2,14 +2,17 @@
  * Tooltips for icon-only controls (docs/ui-style.md): the control's aria-label, or
  * its data-tip when the tooltip should say more (a shortcut, say), shown after a
  * short delay on hover and on keyboard focus, hidden on leave, blur or Escape.
- * One tooltip element serves the whole window; native title attributes are not
- * used on these controls, so nothing shows twice.
+ * One tooltip element serves a whole window; native title attributes are not
+ * used on these controls, so nothing shows twice. The stage's own window
+ * (milestone 43) is given one of its own, since nothing in it reaches the
+ * main document.
  */
 
 const DELAY_MS = 500;
 const SELECTOR = '[data-tip], button[aria-label]';
 
-export function initTooltips(): void {
+export function initTooltips(document: Document = window.document): void {
+  const view = document.defaultView ?? window;
   const tip = document.createElement('div');
   tip.className = 'tooltip';
   tip.setAttribute('role', 'tooltip');
@@ -24,9 +27,9 @@ export function initTooltips(): void {
   const position = (el: HTMLElement): void => {
     const r = el.getBoundingClientRect();
     const t = tip.getBoundingClientRect();
-    const left = Math.min(Math.max(8, r.left + r.width / 2 - t.width / 2), window.innerWidth - t.width - 8);
+    const left = Math.min(Math.max(8, r.left + r.width / 2 - t.width / 2), view.innerWidth - t.width - 8);
     // Below the control; above it when there is no room.
-    const top = r.bottom + 6 + t.height > window.innerHeight ? r.top - t.height - 6 : r.bottom + 6;
+    const top = r.bottom + 6 + t.height > view.innerHeight ? r.top - t.height - 6 : r.bottom + 6;
     tip.style.left = `${left}px`;
     tip.style.top = `${top}px`;
   };

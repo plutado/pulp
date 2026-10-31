@@ -39,6 +39,7 @@ import { psdCompositeUrlFor } from '../core/media-url';
 import { isPsdEntry, psdHidden } from './psd-state';
 import { setIcon } from './icons';
 import { onLayoutApplied } from './shell';
+import { onStageWindow } from './stage-window';
 import { searchPlaceable } from '../core/search';
 import { appState, frameSize, transport, trim } from './store';
 import { peaksFor, waveforms } from './waveforms';
@@ -54,6 +55,9 @@ const $ = <T extends Element>(id: string): T => {
 const els = {
   /** The transport row (milestone 37): told what kind of thing is shown, so a still can hide the scrub bar. */
   row: $<HTMLElement>('region-transport'),
+  /** The row's first line and the lanes under it, which leave with the stage when it pops out (milestone 43). */
+  scrubLine: $<HTMLDivElement>('scrub-line'),
+  lanes: $<HTMLDivElement>('transport-lanes'),
   previewFrame: $<HTMLDivElement>('preview-frame'),
   preview: $<HTMLIFrameElement>('preview'),
   previewEmpty: $<HTMLDivElement>('preview-empty'),
@@ -295,6 +299,7 @@ function updateTransport(): void {
   els.markOut.disabled = !hasTimeline();
   // Nothing chosen, or nothing that plays: the row stays in place, disabled; a still shows no scrub bar.
   els.row.classList.toggle('still', s.still);
+  timelineHost().classList.toggle('still', s.still);
   if (!hasTimeline()) updateTimecode(0);
   applyTrim();
   publishTransport();
@@ -849,19 +854,34 @@ function step(delta: number): void {
  */
 const SCRUB_MIN_WIDTH = 320;
 
+/**
+ * What the scrub line sits in and is placed against: the transport row, or —
+ * with the stage popped out (milestone 43) — the timeline under the picture in
+ * the stage's own window. Both span their window, so the picture's viewport
+ * coordinates line up with theirs.
+ */
+function timelineHost(): HTMLElement {
+  return els.scrubLine.parentElement ?? els.row;
+}
+
 function placeScrubLine(): void {
-  const row = els.row;
-  const rowWidth = row.clientWidth;
+  const host = timelineHost();
+  const rowWidth = host.clientWidth;
   if (rowWidth < 1) return;
   const frame = els.previewFrame.getBoundingClientRect();
   let left = frame.left;
   let width = frame.width;
   if (width < 1) {
-    // No picture to line up under (the stage collapsed): the centre column stands in.
-    const column = document.querySelector('.center')?.getBoundingClientRect();
-    if (!column) return;
-    left = column.left + 16;
-    width = column.width - 32;
+    // No picture to line up under (the stage collapsed): the centre column stands in; in the
+    // stage's own window, the window does.
+    const column = host === els.row ? document.querySelector('.center')?.getBoundingClientRect() : null;
+    if (column) {
+      left = column.left + 16;
+      width = column.width - 32;
+    } else {
+      left = 16;
+      width = rowWidth - 32;
+    }
   }
   if (width < SCRUB_MIN_WIDTH) {
     left += (width - SCRUB_MIN_WIDTH) / 2;
@@ -870,20 +890,62 @@ function placeScrubLine(): void {
   width = Math.min(width, rowWidth - 24);
   left = Math.max(12, Math.min(left, rowWidth - width - 12));
   // Sub-pixel, not rounded: the picture's box is fractional, and one-to-one means one to one.
-  row.style.setProperty('--scrub-left', `${left}px`);
-  row.style.setProperty('--scrub-w', `${width}px`);
+  host.style.setProperty('--scrub-left', `${left}px`);
+  host.style.setProperty('--scrub-w', `${width}px`);
+}
+
+/** The window the picture is in: the main window, or the stage's own when it is popped out. */
+let hostWindow: Window = window;
+let follow: ResizeObserver | null = null;
+
+/**
+ * Follow the picture's box from wherever it is: the window's resize, and a
+ * ResizeObserver of the window's own on the picture and on the scrub line's
+ * host (the centre column, when that is where the row is).
+ */
+function followPicture(win: Window): void {
+  follow?.disconnect();
+  // The window's own observer: one from another window stops reporting on elements that left it.
+  const Observer = (win as unknown as typeof globalThis).ResizeObserver;
+  const next = new Observer(() => placeScrubLine());
+  next.observe(els.previewFrame);
+  const host = timelineHost();
+  next.observe(host === els.row ? (document.querySelector('.center') ?? host) : host);
+  follow = next;
+  hostWindow.removeEventListener('resize', placeScrubLine);
+  win.addEventListener('resize', placeScrubLine);
+}
+
+/**
+ * The stage's elements have moved to another window (milestone 43) — out to
+ * one of its own, or back. Everything wired to the elements came with them;
+ * what is wired to a window is moved here: the picture's resize following,
+ * and the template page's messages, which reach the window the iframe is in.
+ * Moving an iframe reloads its page, so the preview starts again from ready,
+ * and the stills and clips it had been handed are handed over again.
+ */
+function stageRehome(win: Window): void {
+  hostWindow.removeEventListener('message', onPreviewMessage);
+  win.addEventListener('message', onPreviewMessage);
+  followPicture(win);
+  hostWindow = win;
+  s.previewReady = false;
+  s.inFlight = false;
+  s.pendingFrame = null;
+  clearReplyWatchdog();
+  s.imagesKey = '';
+  placeScrubLine();
+  updateTransport();
 }
 
 export function initStage(): void {
   // The picture's box changes with the window, the stage split, the browse panel and the
   // aspect: the splits resize the centre column, the rest resize the picture itself, so
   // observing both covers them all; the pane toggles arrive through the layout.
-  const column = document.querySelector('.center');
-  const follow = new ResizeObserver(() => placeScrubLine());
-  follow.observe(els.previewFrame);
-  if (column) follow.observe(column);
-  window.addEventListener('resize', placeScrubLine);
+  followPicture(window);
   onLayoutApplied(placeScrubLine);
+  // The stage's elements leaving for a window of their own, or coming back (milestone 43).
+  onStageWindow((doc) => stageRehome(doc?.defaultView ?? window));
   placeScrubLine();
 
   // A layer of the layered file on the stage was shown or hidden: the picture follows (milestone 33).
@@ -1002,7 +1064,12 @@ export function initStage(): void {
     applyPlayer();
   });
 
-  window.addEventListener('message', (event) => {
+  window.addEventListener('message', onPreviewMessage);
+  updateTransport();
+}
+
+/** What the template page says, from whichever window the iframe is in. */
+function onPreviewMessage(event: MessageEvent): void {
     if (event.source !== els.preview.contentWindow) return;
     const data = event.data as { type?: string; message?: string };
     if (data?.type === 'pulp:ready') {
@@ -1038,6 +1105,4 @@ export function initStage(): void {
         postFrame(next);
       }
     }
-  });
-  updateTransport();
 }

@@ -27,6 +27,8 @@ import { showShortcuts } from './shortcuts';
 import { showStartScreen } from './start-screen';
 import { showWhatsNew } from './whats-new';
 import { startTour } from './tour';
+import { findControl, stageIsOut, toggleStagePopOut } from './stage-window';
+import { theaterOn } from './theater';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -34,9 +36,13 @@ const $ = <T extends HTMLElement>(id: string): T => {
   return el as T;
 };
 
-/** Press the button that does this thing; a button that cannot act does nothing, as in the window. */
+/**
+ * Press the button that does this thing; a button that cannot act does nothing, as in the window.
+ * The button is looked for wherever the stage is (milestone 43): the stage's own controls go with
+ * it to its window, and are still the one place their state lives.
+ */
 function press(id: string): void {
-  const el = document.getElementById(id) as HTMLButtonElement | null;
+  const el = findControl(id) as HTMLButtonElement | null;
   if (el && !el.disabled) el.click();
 }
 
@@ -94,6 +100,8 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'view.grid': press('view-grid'); return;
     case 'view.list': press('view-list'); return;
     case 'view.theater': press('theater'); return;
+    // Not a press: the stage's own button is in whichever window the stage is in.
+    case 'view.popOut': toggleStagePopOut(); return;
     // One command for the four choices, with the chosen one as its argument — checked against
     // the four, so the argument can only ever name one of the stage's own buttons.
     case 'view.background': if (STAGE_BACKGROUNDS.some((b) => b.id === arg)) press(`bg-${arg}`); return;
@@ -115,17 +123,17 @@ function run(command: MenuCommand, arg: string | null): void {
 
 /** True when the element is there and not disabled: the same question the menu asks. */
 function usable(id: string): boolean {
-  const el = document.getElementById(id) as HTMLButtonElement | null;
+  const el = findControl(id) as HTMLButtonElement | null;
   return el !== null && el.disabled === false;
 }
 
 function pressed(id: string): boolean {
-  return document.getElementById(id)?.getAttribute('aria-pressed') === 'true';
+  return findControl(id)?.getAttribute('aria-pressed') === 'true';
 }
 
 /** What the stage draws behind a transparent graphic, read off its own controls. */
 function stageBackground(): StageBackground {
-  if (document.getElementById('bg-custom')?.classList.contains('active')) return 'custom';
+  if (findControl('bg-custom')?.classList.contains('active')) return 'custom';
   return (STAGE_BACKGROUNDS.find((b) => pressed(`bg-${b.id}`))?.id ?? DEFAULT_PLAYER.background);
 }
 
@@ -159,7 +167,8 @@ function readState(recent: string[]): MenuState {
     outputOpen: tabOpen('output'),
     infoOpen: tabOpen('info'),
     grid: pressed('view-grid'),
-    theater: pressed('theater'),
+    stageOut: stageIsOut(),
+    theater: theaterOn(),
     background: stageBackground(),
     canAddToCollection: usable('add-to-collection'),
     // What can be done to a layer, worked out once and read by both menus (milestone 39).

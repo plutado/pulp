@@ -101,6 +101,7 @@
             <input id="bg-custom" type="color" value="#808080" aria-label="Custom background color" data-tip="Custom background color">
           </span>
           <button id="safe-toggle" type="button" class="icon-button" data-icon="frame-corners" data-icon-size="20" aria-pressed="false" aria-label="Title-safe and action-safe areas"></button>
+          <button id="stage-popout" type="button" class="icon-button" data-icon="arrow-square-out" data-icon-size="20" aria-pressed="false" aria-label="Pop out the stage" data-tip="Pop out the stage into a window of its own, for any display"></button>
           <button id="theater" type="button" class="icon-button" data-icon="corners-out" data-icon-size="20" aria-pressed="false" aria-label="Theater: hide the results" data-tip="Theater: the stage takes the window (T)"></button>
         </div>
         <p id="stage-note" class="note error" hidden></p>
@@ -305,7 +306,7 @@
 
     <section id="region-transport" class="transport-row" aria-label="Transport">
       <div id="split-transport" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the transport row"></div>
-      <div class="scrub-line">
+      <div id="scrub-line" class="scrub-line">
         <span class="scrub-wrap">
           <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
           <span id="scrub-marks" class="scrub-marks" aria-hidden="true">
@@ -322,7 +323,7 @@
                   data-tip="Drag to set how long the graphic runs; only the hold stretches"></button>
         </span>
       </div>
-      <div class="transport-lanes">
+      <div id="transport-lanes" class="transport-lanes">
         <div id="layer-bars" class="layer-bars" role="group" aria-label="When each layer is on screen" hidden></div>
       </div>
       <div class="buttons-line">

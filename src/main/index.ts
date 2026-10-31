@@ -46,6 +46,8 @@ import { sanitizeLayout } from '../core/layout';
 import { sanitizeResultsView } from '../core/results-view';
 import { sanitizePlayer } from '../core/player';
 import { loadSettings, updateSettings } from './settings';
+import { adoptStageWindow, destroyStageWindow, loadStageWindowSetting, registerStageWindowIpc, stageWindowOptions } from './stage-window-service';
+import { STAGE_WINDOW_NAME } from '../core/stage-window';
 
 registerTemplateScheme();
 
@@ -112,10 +114,17 @@ function createWindow(): void {
     mainWindow?.webContents.send('project:close-requested');
   });
 
-  // Never navigate the app window away or open new windows inside the app.
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  // Never navigate the app window away or open new windows inside the app — but for the one the
+  // stage pops out into (milestone 43), which the renderer opens under a known name and the stage
+  // window service places and watches.
+  mainWindow.webContents.setWindowOpenHandler(({ url, frameName }) => {
+    const stage = stageWindowOptions(frameName);
+    if (stage) return { action: 'allow', overrideBrowserWindowOptions: stage };
     if (url.startsWith('https://')) void shell.openExternal(url);
     return { action: 'deny' };
+  });
+  mainWindow.webContents.on('did-create-window', (win, details) => {
+    if (details.frameName === STAGE_WINDOW_NAME && mainWindow) adoptStageWindow(win, mainWindow);
   });
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault());
 
@@ -128,6 +137,8 @@ function createWindow(): void {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    // The stage's window has no life of its own; it is remembered as it was for the next launch.
+    destroyStageWindow();
   });
 }
 
@@ -807,6 +818,8 @@ app.whenReady().then(async () => {
     return;
   }
   registerIpc();
+  registerStageWindowIpc();
+  await loadStageWindowSetting();
   createWindow();
   startLibraryMonitor();
   // Coming back to the app after working in a file manager: pick up what changed.

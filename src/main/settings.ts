@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
 import { DEFAULT_LAYOUT, sanitizeLayout, type LayoutState } from '../core/layout';
+import { DEFAULT_STAGE_WINDOW, sanitizeStageWindow, type StageWindowState } from '../core/stage-window';
 import { INFO_SECTIONS } from '../core/item-info';
 import { DEFAULT_PLAYER, sanitizePlayer, type PlayerState } from '../core/player';
 import { DEFAULT_RESULTS_VIEW, sanitizeResultsView, type ResultsViewState } from '../core/results-view';
@@ -27,6 +28,8 @@ export interface Settings {
   renderCacheMaxMB: number;
   /** Shell pane sizes and collapsed state (src/core/layout.ts). */
   layout: LayoutState;
+  /** The popped-out stage (milestone 43): whether it was out, and where its window was. */
+  stageWindow: StageWindowState;
   /** Grid or list per kind and the thumbnail size (src/core/results-view.ts). */
   resultsView: ResultsViewState;
   /** Stage player preferences: loop, background, safe areas, volume (src/core/player.ts). */
@@ -54,6 +57,7 @@ const DEFAULTS: Settings = {
   recentProjects: [],
   renderCacheMaxMB: DEFAULT_CACHE_MAX_MB,
   layout: DEFAULT_LAYOUT,
+  stageWindow: DEFAULT_STAGE_WINDOW,
   resultsView: DEFAULT_RESULTS_VIEW,
   player: DEFAULT_PLAYER,
   browseAccordion: true,
@@ -101,6 +105,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     recentProjects,
     renderCacheMaxMB: sanitizeCacheMaxMB(raw.renderCacheMaxMB),
     layout: sanitizeLayout(raw.layout),
+    stageWindow: sanitizeStageWindow(raw.stageWindow),
     resultsView: sanitizeResultsView(raw.resultsView),
     player: sanitizePlayer(raw.player),
     browseAccordion: raw.browseAccordion !== false,

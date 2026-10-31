@@ -71,6 +71,7 @@ export type MenuCommand =
   | 'view.output'
   | 'view.info'
   | 'view.theater'
+  | 'view.popOut'
   | 'view.background'
   | 'collection.add'
   | 'view.grid'
@@ -117,6 +118,8 @@ export interface MenuState {
   infoOpen: boolean;
   /** The results are a grid of cards rather than a list of rows. */
   grid: boolean;
+  /** The stage is in a window of its own (milestone 43). */
+  stageOut: boolean;
   /**
    * What can be done to a layer right now (milestone 39). Every one is a
    * question about the stack on the stage, worked out in one place
@@ -173,6 +176,7 @@ export const EMPTY_MENU_STATE: MenuState = {
   outputOpen: false,
   infoOpen: false,
   grid: true,
+  stageOut: false,
   canAddLayer: false,
   canEditText: false,
   canReplaceImage: false,
@@ -445,6 +449,8 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       // `T` is the window's, not the menu's: a bare key registered here would fire inside a text
       // field (see the note at the top), so it is shown and left to src/renderer/theater.ts.
       { command: 'view.theater', label: 'Theater', accelerator: 'T', displayOnly: true, type: 'checkbox', checkedBy: 'theater' },
+      // The stage in a window of its own, on any display (milestone 43); again to bring it back.
+      { command: 'view.popOut', label: 'Pop Out Stage', accelerator: 'CmdOrCtrl+Shift+P', type: 'checkbox', checkedBy: 'stageOut' },
       sep,
       ...(development
         ? [

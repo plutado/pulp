@@ -759,8 +759,26 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .transport-middle .icon-button, .transport-tools .icon-button { padding: 3px 5px; }
 .transport-tools #volume { width: 72px; padding: 0; background: none; border: 0; accent-color: var(--accent); }
 .timecode { font-family: Menlo, Consolas, monospace; color: var(--muted); min-width: 160px; text-align: right; font-size: var(--font-secondary); white-space: nowrap; }
-/* A still has no time, so the row shows no scrub bar — and keeps its place (milestone 37). */
-.transport-row.still .scrub-wrap { visibility: hidden; }
+/* A still has no time, so the row shows no scrub bar — and keeps its place (milestone 37). The
+   stage's own window carries the same mark on its timeline (milestone 43). */
+.transport-row.still .scrub-wrap, .stage-timeline.still .scrub-wrap { visibility: hidden; }
+
+/* The stage popped out (milestone 43, ADR 0019): its region and the row's first line — the scrub bar
+   and the lanes under it — have left for a window of their own, and the main window takes the room:
+   the results fill the centre, the transport row is its buttons line, and the toggle that would hide
+   a stage that is not here goes. */
+.app.stage-out #split-stage, .app.stage-out #split-transport, .app.stage-out #stage-toggle { display: none; }
+.app.stage-out .results-region { flex: 1 1 auto; }
+.app.stage-out { --center-min-h: calc(var(--results-min-h) + var(--results-head-h)); }
+.app.stage-out .transport-row { display: flex; height: auto; min-height: 0; }
+
+/* The stage's own window: the same stylesheet, a body that is the picture over its timeline. The
+   timeline is the transport row's first line in a host of its own, placed against the picture the
+   same way (--scrub-left and --scrub-w, set on it by src/renderer/stage.ts). */
+body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); color: var(--text); }
+.stage-window .stage { flex: 1 1 auto; min-height: 0; }
+.stage-timeline { flex: 0 0 auto; position: relative; display: flex; flex-direction: column; min-width: 0; padding: var(--space-2) 0; background: var(--panel); border-top: 1px solid var(--border); }
+.stage-timeline .transport-lanes { flex: 0 1 auto; max-height: 84px; }
 
 /* The scrub bar with the render's in and out marks over it: what a render would
    drop is dimmed, and each mark is a thin accent line where it sits. */

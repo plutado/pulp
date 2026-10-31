@@ -16,6 +16,19 @@ const api: PulpApi = {
   },
   addLibraryFolder: () => ipcRenderer.invoke('library:add-folder'),
   addSampleMedia: () => ipcRenderer.invoke('library:add-sample-media'),
+  stageWindowState: () => ipcRenderer.invoke('stage-window:state'),
+  closeStageWindow: () => ipcRenderer.invoke('stage-window:close'),
+  setStageWindowFullScreen: (on) => ipcRenderer.invoke('stage-window:full-screen', on),
+  onStageWindowCloseRequested: (listener) => {
+    const handler = () => listener();
+    ipcRenderer.on('stage-window:close-requested', handler);
+    return () => ipcRenderer.removeListener('stage-window:close-requested', handler);
+  },
+  onStageWindowFullScreen: (listener) => {
+    const handler = (_event: IpcRendererEvent, on: boolean) => listener(on);
+    ipcRenderer.on('stage-window:full-screen-changed', handler);
+    return () => ipcRenderer.removeListener('stage-window:full-screen-changed', handler);
+  },
   sampleMediaStatus: () => ipcRenderer.invoke('library:sample-media-status'),
   makeSampleMedia: (types) => ipcRenderer.invoke('library:make-sample-media', types),
   loadSlotImages: (requests) => ipcRenderer.invoke('images:load', requests),
