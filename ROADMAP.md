@@ -48,6 +48,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 35. Lottie animations (plus 3-5 h after 1.0) | 17-29 h |
 | 39. A right-click menu on the stage (**done**) | 9-16 h |
 | 40. One search, wherever you search (**done**) | 4-8 h |
+| 41. Search and browse in the left panel: the row above the stage goes | 4-7 h |
 | 20. Social-ready export | 9-14 h |
 | 8. 1.0 hardening and docs | 14-23 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -55,9 +56,9 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
-| **Total through 1.0 (every milestone above not marked post-1.0)** | **568-917 h** |
-| **Still open through 1.0 (unticked items only)** | **76-127 h** |
-| **Total including post-1.0 items** | **594-965 h** |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **576-932 h** |
+| **Still open through 1.0 (unticked items only)** | **79-132 h** |
+| **Total including post-1.0 items** | **602-980 h** |
 
 ## 0. Foundation (done)
 
@@ -472,6 +473,17 @@ Decided 2026-10-31, straight after milestone 39; built the same day. The window 
 - [x] **Tests:** the kinds, offline items, limits, every kind of filter, the ranking, recently-used ordering, and the sameness guarantee; end to end, a chooser narrowed by `type:` and emptied by `duration:>9999`, and its list unchanged by a filter that keeps everything (1-2 h)
 
 *Left alone on purpose: the browse panel's find field. It searches the category tree, not the library's items — a different corpus with a different job (navigate, not choose), which the module and `docs/ui-layout.md` already say. Merging its label ranking into the item scoring would have forced two unlike things into one shape.*
+
+## 41. Search and browse in the left panel: the row above the stage goes (4-7 h; GitHub issue #43)
+
+Decided 2026-10-30 as milestone 40, revised and renumbered 41 on 2026-10-31 after milestone 40 became one search engine for every chooser (b39109d). The search bar is a whole row above the stage, and its field looks like the browse panel's "Find a category", so a person cannot tell which to use. Everything in that row moves into the left panel, as two clearly different tools — **Search** finds items, **Browse** narrows the list of categories — and the row above the stage goes, so its height is the stage's. Merging the two fields into one was tried and not taken: they do different jobs, and one field doing both hides which is happening.
+
+- [ ] **The plan written first:** `docs/ui-layout.md` loses the search bar region and the left panel gains a Search section above a Browse section, with a short ADR including the merge that was turned down (1 h)
+- [ ] **Search, at the top of the left panel:** the field that finds items — a magnifier, "Search templates and media", today's syntax (`type:`, `duration:>5` and the rest) and recent searches — with the scope chip under it ("in: Lower thirds × "), then the filter chips (Templates, Video, Images, Audio, Vertical, Alpha, Favorites) as one compact wrapping row and the For… and Look selects beside each other. What it changes is the results (1-2 h)
+- [ ] **Browse, below it, under its own heading:** the category tree, with "Find a category" turned into a small filter in the Browse heading — a funnel icon that opens an inline "Filter categories" field over the tree — so it reads as narrowing the list below rather than searching the library. What it changes is the tree (1 h)
+- [ ] **How the results are shown goes with the results:** sort, grid or list and thumbnail size move into the results' own heading row (1 h)
+- [ ] **The row above the stage goes:** the stage starts at the window's top edge and the space budget counts without the search bar; with the left panel folded to its rail, a search icon unfolds it with the Search field focused, and Cmd/Ctrl+F does the same from anywhere (1 h)
+- [ ] **Everything that pointed at the search bar follows:** the start screen's "What are you making?", the guided tour, the Help shortcut list, saved settings and the UI end-to-end tests; a test at 1280 × 788 that the stage starts at the top and nothing overlaps (1 h)
 
 ## 39. A right-click menu on the stage (9-16 h; GitHub issue #41) — done
 
