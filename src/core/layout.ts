@@ -40,8 +40,9 @@ export const LAYOUT_LIMITS = {
 } as const;
 
 export const DEFAULT_LAYOUT: LayoutState = {
-  // Browse stays narrow until milestone 10 fills it with the tree.
-  browseWidth: 220,
+  // Wide enough for the Search section's seven filter chips on one row (milestone 41), with the
+  // tree under them; it was 220 while the panel held the tree alone.
+  browseWidth: 260,
   inspectorHeight: 320,
   inspectorTab: 'parameters',
   // The split leans to the stage (milestone 38): the picture is why the window is open,

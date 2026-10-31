@@ -109,7 +109,21 @@ function initNarrowingChips(): void {
   });
 }
 
+/**
+ * Put the caret in the Search field (milestone 41): Cmd/Ctrl+F, and the search
+ * icon on the folded rail. A folded panel is unfolded first, since the field
+ * lives in it; the text is selected, so a new search types over the old.
+ */
+export function focusSearch(): void {
+  const app = $('app');
+  if (app.classList.contains('browse-collapsed')) $('browse-expand').click();
+  const search = $('search') as HTMLInputElement;
+  search.focus();
+  search.select();
+}
+
 export function initSearchBar(): void {
+  $('rail-search').addEventListener('click', focusSearch);
   const chip = $('scope-chip');
   const chipLabel = $('scope-chip-label');
   const description = $('results-description');

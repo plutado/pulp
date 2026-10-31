@@ -275,10 +275,14 @@ describe.skipIf(!electron)('inspector UI', () => {
    * back. Tests that need a particular node use these rather than assuming the tree is open,
    * which it no longer is (the panel shows only where you are).
    */
+  // The field sits under the funnel in the Browse heading (milestone 41): opened before typing,
+  // and the funnel pressed again to put it away, which also clears it.
   const findCategory = (text: string) =>
-    page.eval(`(() => { const f = document.querySelector('#browse-find input'); f.value = ${JSON.stringify(text)}; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    page.eval(`(() => { if (document.getElementById('browse-find').hidden) document.getElementById('browse-filter-toggle').click();
+      const f = document.querySelector('#browse-find input'); f.value = ${JSON.stringify(text)}; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   const clearFindField = () =>
-    page.eval(`(() => { const f = document.querySelector('#browse-find input'); f.value = ''; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    page.eval(`(() => { if (!document.getElementById('browse-find').hidden) document.getElementById('browse-filter-toggle').click();
+      else { const f = document.querySelector('#browse-find input'); f.value = ''; f.dispatchEvent(new Event('input', { bubbles: true })); } })()`);
 
   /**
    * Every result name, in list order, collected by scrolling through the window.
@@ -3023,15 +3027,15 @@ describe.skipIf(!electron)('inspector UI', () => {
         document.head.append(st); return true; })()`);
       const own = await metrics();
       try {
-        // The narrowest window Pulp allows is last: there the search bar's chips wrap to a second
-        // line, which once took the stage under its floor while the floors' budget guessed the bar's height.
+        // The narrowest window Pulp allows is last. (The search bar's chips once wrapped to a second
+        // line here and took the stage under its floor; the bar lives in the left panel now, milestone 41.)
         for (const [width, height] of [[1024, 697], [1024, 600], [960, 600]] as [number, number][]) {
           await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
           // The floors are polled, not read once: flex settles a few frames after the window does.
           let m = await metrics();
           await until(async () => {
             m = await metrics();
-            return m.inner === height && m.results >= 160 && m.stage >= 150 && m.search + m.stage + m.results <= height;
+            return m.inner === height && m.results >= 160 && m.stage >= 150 && m.stage + m.results <= height;
           }, `the floors at ${width} × ${height} px (last: ${JSON.stringify(m)})`);
           // And the sweep still reaches the last item at this size.
           const last = (await resultNames()).at(-1)!;
@@ -3103,10 +3107,24 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`window.pulpMenuCommand('view.tray')`);
       await until(async () => (await collapsed()) === before, 'and back');
 
-      // Find Category puts the cursor in the browse panel's find field.
-      await page.eval(`window.pulpMenuCommand('browse.find')`);
-      expect(await page.eval<boolean>(`document.activeElement === document.querySelector('#browse-find input')`)).toBe(true);
+      // Search (Cmd/Ctrl+F) puts the caret in the Search field, in the left panel (milestone 41) — and
+      // unfolds the panel first when it is on its rail, since the field lives in it.
+      await page.eval(`window.pulpMenuCommand('search.focus')`);
+      expect(await page.eval<boolean>(`document.activeElement === document.getElementById('search')`)).toBe(true);
       await page.eval(`document.activeElement.blur()`);
+      await page.eval(`document.getElementById('browse-toggle').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('browse-collapsed')`), 'the panel on its rail');
+      expect(await page.eval<boolean>(`getComputedStyle(document.getElementById('rail-search')).display !== 'none'`), 'the search icon on the rail').toBe(true);
+      await page.eval(`window.pulpMenuCommand('search.focus')`);
+      await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('browse-collapsed')`), 'the panel unfolded by Search');
+      expect(await page.eval<boolean>(`document.activeElement === document.getElementById('search')`)).toBe(true);
+      await page.eval(`document.activeElement.blur()`);
+      // Filter Categories opens the funnel's field over the tree.
+      await page.eval(`window.pulpMenuCommand('browse.filter')`);
+      await until(() => page.eval<boolean>(`!document.getElementById('browse-find').hidden`), 'the category filter open');
+      expect(await page.eval<boolean>(`document.activeElement === document.querySelector('#browse-find input')`)).toBe(true);
+      await page.eval(`document.getElementById('browse-filter-toggle').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('browse-find').hidden`), 'and closed again');
 
       // A few keys belong to the window rather than to the menu, and are shown without being
       // registered: inside a text field the field's own undo has to win, and a bare T would stop
@@ -3191,7 +3209,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       // Two boxes may share an edge (borders, splitters); any real shared area is an overlap.
       const overlap = (a: Box, b: Box) =>
         Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
-      const regions = ['region-browse', 'region-search', 'region-stage', 'region-results', 'region-tray', 'region-transport', 'region-status'];
+      const regions = ['region-browse', 'region-stage', 'region-results', 'region-tray', 'region-transport', 'region-status'];
       try {
         await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 788, deviceScaleFactor: 1, mobile: false });
         await until(() => page.eval<boolean>(`window.innerHeight === 788 && window.innerWidth === 1280`), 'the default window size');
@@ -3245,6 +3263,34 @@ describe.skipIf(!electron)('inspector UI', () => {
         const [stage, results] = await boxes(['region-stage', 'region-results']);
         expect(stage!.right).toBeGreaterThan(1280 - 2);
         expect(results!.right).toBeGreaterThan(1280 - 2);
+
+        // The row above the stage is gone too (milestone 41): the stage starts at the window's top
+        // edge, and everything that row held is in the left panel or the results' heading.
+        expect(stage!.top, 'the stage starts at the top').toBeLessThanOrEqual(1);
+        const [browse, search] = await boxes(['region-browse', 'region-search']);
+        expect(search!.left, 'Search inside the browse panel').toBeGreaterThanOrEqual(browse!.left - 0.5);
+        expect(search!.right, 'Search inside the browse panel').toBeLessThanOrEqual(browse!.right + 0.5);
+        expect(search!.top).toBeGreaterThanOrEqual(browse!.top - 0.5);
+        const panel = await page.eval<{ searchBottom: number; browseTop: number; chipsOneLine: boolean; forLookBelow: boolean }>(
+          `(() => { const r = (el) => el.getBoundingClientRect(); const chips = [...document.querySelectorAll('#region-search .filter-chips .chip')].map(r);
+            return { searchBottom: r(document.getElementById('region-search')).bottom, browseTop: r(document.querySelector('.browse-section')).top,
+              chipsOneLine: new Set(chips.map((c) => Math.round(c.top))).size === 1, forLookBelow: r(document.querySelector('.narrow-chips')).top >= Math.max(...chips.map((c) => c.bottom)) - 0.5 }; })()`,
+        );
+        expect(panel.browseTop, 'Browse below Search').toBeGreaterThanOrEqual(panel.searchBottom - 0.5);
+        expect(panel.chipsOneLine, 'the filter chips in one compact row').toBe(true);
+        expect(panel.forLookBelow, 'For… and Look under the chips').toBe(true);
+        // Sort, grid or list and the thumbnail size are in the results' heading, inside it and apart.
+        const heading = await page.eval<{ id: string; left: number; right: number; top: number; bottom: number }[]>(
+          `[...document.querySelectorAll('#region-results .results-head #sort, #region-results .results-head #view-grid, #region-results .results-head #view-list, #region-results .results-head #thumb-size, #region-results .results-head #stage-toggle, #region-results .results-head #results-toggle')]
+            .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; })`,
+        );
+        expect(heading.map((h) => h.id)).toEqual(['sort', 'view-grid', 'view-list', 'thumb-size', 'stage-toggle', 'results-toggle']);
+        const headBox = await page.eval<Box>(`(() => { const b = document.querySelector('#region-results .results-head').getBoundingClientRect(); return { id: 'head', left: b.left, right: b.right, top: b.top, bottom: b.bottom }; })()`);
+        for (const h of heading) {
+          expect(h.right, `${h.id} inside the heading`).toBeLessThanOrEqual(headBox.right + 0.5);
+          expect(h.bottom, `${h.id} inside the heading`).toBeLessThanOrEqual(headBox.bottom + 0.5);
+        }
+        for (let i = 0; i < heading.length; i++) for (let j = i + 1; j < heading.length; j++) expect(overlap(heading[i] as Box, heading[j] as Box), `${heading[i]!.id} apart from ${heading[j]!.id}`).toBe(0);
 
         // The stage is all picture — its box holds the preview and nothing else takes a row from it —
         // and the picture gets at least its share of the window.
@@ -4162,6 +4208,18 @@ describe.skipIf(!electron)('inspector UI', () => {
     it('filters the tree as a category is typed, lights what matched, and chooses from it', async () => {
       await clearSearch();
       const input = `document.querySelector('#browse-find input')`;
+      const funnel = `document.getElementById('browse-filter-toggle')`;
+      // The field is behind the funnel in the Browse heading (milestone 41): closed until asked for,
+      // open with the caret in it when pressed, lit while a filter is in force. Put away first, in
+      // case a test before this one left it open.
+      await page.eval(`(() => { if (!document.getElementById('browse-find').hidden) ${funnel}.click(); })()`);
+      await until(() => page.eval<boolean>(`document.getElementById('browse-find').hidden`), 'the filter field closed to begin with');
+      expect(await page.eval<string>(`${funnel}.getAttribute('aria-expanded')`)).toBe('false');
+      await page.eval(`${funnel}.click()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('browse-find').hidden`), 'the filter field open');
+      expect(await page.eval<string>(`${funnel}.getAttribute('aria-expanded')`)).toBe('true');
+      expect(await page.eval<boolean>(`document.activeElement === ${input}`)).toBe(true);
+      expect(await page.eval<string>(`${input}.placeholder`)).toBe('Filter categories');
       const type = (text: string) => page.eval(`(() => { const f = ${input}; f.value = ${JSON.stringify(text)}; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       const press = (key: string) => page.eval(`${input}.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(key)}, bubbles: true, cancelable: true }))`);
       const rows = () => page.eval<string[]>(`[...document.querySelectorAll('#browse-tree .browse-node')].map((b) => b.dataset.node)`);
@@ -4179,6 +4237,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       // is plain where each lives, and it sits at the top with nothing to scroll.
       await type('glitch');
       await until(async () => (await rows()).includes('type:glitch'), 'the type that matches');
+      expect(await page.eval<string>(`${funnel}.getAttribute('aria-pressed')`), 'the funnel lit while a filter is in force').toBe('true');
       const left = await rows();
       expect(left).not.toContain('favorites');
       expect(left.filter((r) => r.startsWith('type:'))).toEqual(['type:glitch']);
@@ -4211,8 +4270,11 @@ describe.skipIf(!electron)('inspector UI', () => {
       const scoped = await names();
       expect(scoped).toContain('Lower Third Bar');
       expect(scoped).not.toContain('Diagonal Wipe');
-      // The field is clear and the tree is whole again, folded to where the choice lives.
+      // The filter, having been answered, is cleared and put away; the tree is whole again, folded
+      // to where the choice lives, and the funnel is no longer lit.
       expect(await page.eval<string>(`${input}.value`)).toBe('');
+      await until(() => page.eval<boolean>(`document.getElementById('browse-find').hidden`), 'the filter field put away by the choice');
+      expect(await page.eval<string>(`${funnel}.getAttribute('aria-pressed')`)).toBe('false');
       await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .browse-node[data-filter="type:lower-third"].active')`), 'the chosen category active in the tree');
       await page.eval(`document.getElementById('scope-chip-clear').click()`);
       await until(async () => (await names()).includes('Diagonal Wipe'), 'the full library again');

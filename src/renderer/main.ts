@@ -408,7 +408,7 @@ initStartScreen();
 void window.pulp.getStartScreenPrefs().then((prefs) => {
   if (prefs.showAtStartup) showStartScreen();
 });
-mountBrowse($('browse-find'), $('browse-tree'));
+mountBrowse($('browse-find'), $('browse-tree'), $<HTMLButtonElement>('browse-filter-toggle'));
 void window.pulp.getBrowseAccordion().then((on) => (browseAccordion.value = on));
 mountResults(els.results, {
   // Choosing in the results is going back to browsing, so the drawer closes — unless it is pinned

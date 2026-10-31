@@ -91,6 +91,17 @@ describe('the application menu (milestone 27)', () => {
     expect([itemEnabled(add, state()), itemEnabled(add, state({ canAddToCollection: true }))]).toEqual([false, true]);
   });
 
+  it('puts Cmd/Ctrl+F on Search, and leaves the category filter without a key (milestone 41)', () => {
+    const edit = section(menu(), 'Edit');
+    expect(byLabel(edit, 'Search')).toMatchObject({ command: 'search.focus', accelerator: 'CmdOrCtrl+F' });
+    expect(byLabel(edit, 'Filter Categories')).toMatchObject({ command: 'browse.filter' });
+    expect(byLabel(edit, 'Filter Categories')!.accelerator).toBeUndefined();
+    expect(byLabel(edit, 'Find Category')).toBeUndefined();
+    // Both can always act: the field is always there, folded panel or not.
+    expect(itemEnabled(byLabel(edit, 'Search')!, state())).toBe(true);
+    expect(itemEnabled(byLabel(edit, 'Filter Categories')!, state())).toBe(true);
+  });
+
   it('lists the recently opened projects, and says so plainly when there are none', () => {
     const none = byLabel(section(menu(), 'File'), 'Open Recent')!.submenu!;
     expect(none).toHaveLength(1);

@@ -25,7 +25,7 @@
  */
 
 import { render } from 'preact';
-import { computed, signal } from '@preact/signals';
+import { computed, effect, signal } from '@preact/signals';
 import { sameScope, setScope } from '../core/app-state';
 import { filterTree, labelPieces, matchedNodes, type FilteredNode } from '../core/browse-filter';
 import { foldAllExcept, nodePath, toggleFolded } from '../core/browse-fold';
@@ -72,7 +72,9 @@ function setFindQuery(value: string): void {
 function chooseNode(id: string, scope: NonNullable<TreeNode['scope']>): void {
   dispatch((s) => setScope(s, scope));
   showOnly(id);
-  setFindQuery('');
+  // The filter, having been answered, is done with: cleared and put away, so the tree comes back
+  // whole under the chosen category. The keyboard stays where the choice was made.
+  hideBrowseFilter();
 }
 
 /** Fold everything but the path to a node; free folding leaves the folds alone. */
@@ -99,6 +101,9 @@ export function browseFoldToActive(): void {
 function onFindKeyDown(e: KeyboardEvent): void {
   if (e.key === 'Escape' && findQuery.value !== '') {
     setFindQuery('');
+  } else if (e.key === 'Escape') {
+    // An empty field has nothing left to clear: Escape puts the field away and the keyboard back on the funnel.
+    closeBrowseFilter();
   } else if (e.key === 'Enter') {
     // Enter takes the first category that actually answered — not the section or group kept
     // above it to say where it lives.
@@ -122,8 +127,8 @@ function Find() {
     <div class="find-field">
       <input
         type="text"
-        placeholder="Find a category"
-        aria-label="Find a category"
+        placeholder="Filter categories"
+        aria-label="Filter categories"
         aria-controls="browse-tree"
         value={findQuery.value}
         onInput={(e) => setFindQuery((e.currentTarget as HTMLInputElement).value)}
@@ -310,8 +315,51 @@ function onKeyDown(e: KeyboardEvent): void {
   }
 }
 
-export function mountBrowse(find: HTMLElement, container: HTMLElement): void {
+/** The field's box and the funnel that opens it; set once the panel is mounted. */
+let findBox: HTMLElement | null = null;
+let funnel: HTMLButtonElement | null = null;
+
+/** Put the funnel's own state on it: open while the field shows, lit while a filter is in force. */
+function paintFunnel(): void {
+  if (!funnel || !findBox) return;
+  funnel.setAttribute('aria-expanded', String(!findBox.hidden));
+  funnel.setAttribute('aria-pressed', String(searching.value));
+}
+
+/**
+ * Filter categories (milestone 41): "Find a category" became a funnel in the
+ * Browse heading, so it reads as narrowing the list below rather than as a
+ * second search. Opening shows the field over the tree with the caret in it;
+ * closing clears whatever it held, so the tree comes back whole.
+ */
+export function openBrowseFilter(): void {
+  if (!findBox) return;
+  findBox.hidden = false;
+  paintFunnel();
+  findBox.querySelector<HTMLInputElement>('input')?.focus();
+}
+
+/** Clear the filter and put the field away, leaving the keyboard where it is. */
+function hideBrowseFilter(): void {
+  setFindQuery('');
+  if (!findBox) return;
+  findBox.hidden = true;
+  paintFunnel();
+}
+
+/** Put the field away and give the keyboard back to the funnel: Escape on an empty field, or the funnel pressed again. */
+export function closeBrowseFilter(): void {
+  hideBrowseFilter();
+  funnel?.focus();
+}
+
+export function mountBrowse(find: HTMLElement, container: HTMLElement, toggle?: HTMLButtonElement): void {
+  findBox = find;
+  funnel = toggle ?? null;
   render(<Find />, find);
   container.addEventListener('keydown', onKeyDown);
   render(<Tree />, container);
+  funnel?.addEventListener('click', () => (find.hidden ? openBrowseFilter() : closeBrowseFilter()));
+  // A filter that answers by choosing a category clears itself (chooseNode); the funnel follows.
+  effect(paintFunnel);
 }

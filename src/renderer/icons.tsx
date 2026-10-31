@@ -58,6 +58,7 @@ import playCircle from '@phosphor-icons/core/assets/regular/play-circle.svg?raw'
 import shapes from '@phosphor-icons/core/assets/regular/shapes.svg?raw';
 import slidersHorizontal from '@phosphor-icons/core/assets/regular/sliders-horizontal.svg?raw';
 import sortAscending from '@phosphor-icons/core/assets/regular/sort-ascending.svg?raw';
+import funnelSimple from '@phosphor-icons/core/assets/regular/funnel-simple.svg?raw';
 import speakerHigh from '@phosphor-icons/core/assets/regular/speaker-high.svg?raw';
 import speakerSlash from '@phosphor-icons/core/assets/regular/speaker-slash.svg?raw';
 import spinner from '@phosphor-icons/core/assets/regular/spinner.svg?raw';
@@ -126,6 +127,7 @@ const ICONS = {
   shapes,
   'sliders-horizontal': slidersHorizontal,
   'sort-ascending': sortAscending,
+  'funnel-simple': funnelSimple,
   sparkle,
   'speaker-high': speakerHigh,
   'speaker-slash': speakerSlash,

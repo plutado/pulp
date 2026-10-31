@@ -27,9 +27,7 @@
   --radius-surface: 8px;
   /* The center column on a short window keeps its floors: the results list never collapses below
      --results-min-h, the stage never below --stage-min-h (150 px, the promise the UI tests hold, plus
-     a few pixels), and the search bar's height is measured (--search-h, set by the shell) rather than
-     guessed, since its chips wrap on a narrow window and a guess of 94 px once let the stage fall under
-     its floor. --center-min-h is the sum, and the two rows below the center give way to it in order:
+     a few pixels). --center-min-h is the sum, and the two rows below the center give way to it in order:
      the transport row's lanes first (it is capped by what is left once the tray has its setting), then
      the tray's body (capped by what is left once the row has its real height). Below --transport-min-h
      the transport row cannot go (LAYOUT_LIMITS.transportHeight.min). The chrome between them — the
@@ -38,7 +36,10 @@
      constant budgeted from one platform let the stage fall under its floor on the others. */
   --results-min-h: 160px;
   --stage-min-h: 158px;
-  --center-min-h: calc(var(--search-h, 94px) + 6px + var(--results-min-h) + 24px + var(--stage-min-h));
+  /* The row above the stage went with milestone 41: the centre is the stage, the splitter and the results. */
+  /* The results' heading holds the sort and view controls (milestone 41): 40 px, not a caption line's 24. */
+  --results-head-h: 40px;
+  --center-min-h: calc(6px + var(--results-min-h) + var(--results-head-h) + var(--stage-min-h));
   /* The floor holds the row's two lines — the scrub bar and the buttons — with no lanes. */
   --transport-min-h: 80px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -75,7 +76,7 @@ input[type="checkbox"] { width: auto; }
   display: grid;
   /* The browse panel and the center; the right column went with milestone 38, so the stage
      and the results span from the browse panel's edge to the window's right edge. */
-  grid-template-columns: var(--browse-w, 220px) 6px minmax(0, 1fr);
+  grid-template-columns: var(--browse-w, 260px) 6px minmax(0, 1fr);
   /* Rows: the regions, the collection tray, the transport row, the status bar (milestone 37). */
   grid-template-rows: minmax(0, 1fr) auto auto auto;
   height: 100vh;
@@ -126,12 +127,25 @@ input[type="checkbox"] { width: auto; }
 .sidebar-actions { display: flex; gap: 6px; }
 .sidebar-actions .label { display: none; }
 .sidebar-actions .icon-button { padding: 6px 8px; }
-.browse-body { flex: 1; min-height: 0; overflow-y: auto; }
+/* The left panel's two sections (milestone 41, ADR 0018): Search finds items, Browse narrows the
+   categories. Each has a small heading in the supporting-text role, as the tree's own section
+   headings do — the panel's one region title is "Library" above them. Search keeps its height;
+   Browse takes the rest and its tree scrolls inside it. */
+.panel-section { display: flex; flex-direction: column; min-height: 0; }
+.search-section { flex: 0 0 auto; gap: 6px; padding: 10px 12px 10px; border-bottom: 1px solid var(--border); container-type: inline-size; }
+.browse-section { flex: 1; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); }
+.browse-section .section-head { padding: var(--space-2) var(--space-2) 0 var(--space-3); }
+.section-title { color: var(--muted); font-size: var(--font-secondary); font-weight: 600; }
+.section-head .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
+.section-head .icon-button:hover { color: var(--text); }
+/* The funnel lights while the field is open or a filter is in force, so a shortened tree says why. */
+.section-head .icon-button[aria-expanded="true"], .section-head .icon-button[aria-pressed="true"] { color: var(--accent); }
+.browse-tree { flex: 1; min-height: 0; overflow-y: auto; }
 
-/* Find a category as you type (milestone 24): a combobox over the tree's own nodes.
-   The list overlays the tree below the field; each answer names the section it lives in. */
+/* Filter categories (milestone 24, moved under the funnel in 41): the field filters the tree below. */
 .browse-find { padding: var(--space-2) var(--space-2) 0; }
-.app.browse-collapsed .browse-find { display: none; }
+.browse-find[hidden], .app.browse-collapsed .browse-find { display: none; }
 .find-field { position: relative; }
 .find-field input { width: 100%; min-width: 0; }
 /* The query filters the tree below, so there is no list beside it: only the field, and a line
@@ -234,17 +248,21 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .app.browse-collapsed .browse-tree .node-row { padding-left: 0; }
 .app.browse-collapsed .browse-tree .browse-node { justify-content: center; padding: 6px; }
 .app.browse-collapsed .region-expand { margin: 4px auto 0; order: -1; }
+/* The search icon on the rail (milestone 41): unfolds the panel with the field focused. */
+.rail-search[hidden] { display: none; }
+.app.browse-collapsed .rail-search { display: inline-flex; order: -1; margin-top: 0; }
+.app.browse-collapsed .panel-section .section-head, .app.browse-collapsed .search-section { display: none; }
+.app.browse-collapsed .browse-section { padding: 0; }
 .app.stage-collapsed #region-stage, .app.stage-collapsed #split-stage { display: none; }
 .app.tray-collapsed .tray-body, .app.tray-collapsed #split-tray { display: none; }
 
-.search-bar { display: grid; gap: 6px; padding: 10px 16px 0; flex: 0 0 auto; }
-.search-row { display: flex; gap: 8px; align-items: center; }
 .search-field { position: relative; flex: 1; display: flex; min-width: 0; }
 .search-field input { flex: 1; min-width: 0; padding-left: 28px; }
 .search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); display: inline-flex; pointer-events: none; }
 .sort-wrap { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
 .sort-wrap select { max-width: 150px; }
-.scope-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 10px; padding: 2px 6px 2px 10px; font-size: var(--font-secondary); white-space: nowrap; }
+.scope-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 10px; padding: 2px 6px 2px 10px; font-size: var(--font-secondary); white-space: nowrap; align-self: flex-start; max-width: 100%; }
+.scope-chip #scope-chip-label { overflow: hidden; text-overflow: ellipsis; }
 .scope-chip[hidden] { display: none; }
 .scope-chip { gap: 6px; }
 .scope-chip .icon-slot { display: inline-flex; color: var(--muted); }
@@ -256,9 +274,22 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .view-controls .icon-button[aria-pressed="true"] { color: var(--text); background: var(--panel-2); border-color: var(--accent); }
 .view-controls #thumb-size { width: 72px; padding: 0; margin-left: var(--space-1); background: none; border: 0; accent-color: var(--accent); }
 .view-controls #thumb-size:disabled { opacity: 0.4; }
+/* The filter chips in one compact row (milestone 41): icon-only in a narrow panel, each named by
+   its tooltip; the labels come back when the panel is wide enough to hold them on a line. */
 .filter-chips { display: flex; gap: 4px; flex-wrap: wrap; }
-.filter-chips .chip { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-caption); padding: 2px 9px 2px 7px; border-radius: 10px; color: var(--muted); }
+.filter-chips { gap: 3px; }
+.filter-chips .chip { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-caption); padding: 3px 6px; border-radius: 10px; color: var(--muted); }
 .filter-chips .chip > .icon + .label { margin-left: 0; }
+.filter-chips .chip .label { display: none; }
+/* Seven labelled chips take about 420 px; the labels come back only where they still fit one row. */
+@container (min-width: 430px) {
+  .filter-chips .chip { padding: 2px 9px 2px 7px; }
+  .filter-chips .chip .label { display: inline; }
+}
+/* For… and Look under the chips, each taking half the row. */
+.narrow-chips { display: flex; gap: 4px; }
+.narrow-chips .chip-select { flex: 1; min-width: 0; }
+.narrow-chips .chip-select select.chip { flex: 1; width: 0; min-width: 0; max-width: none; text-overflow: ellipsis; }
 .filter-chips .chip:hover { color: var(--text); }
 .filter-chips .chip[aria-pressed="true"] { color: var(--text); border-color: var(--accent); background: var(--panel-2); }
 
@@ -331,12 +362,16 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* The region clips (milestone 38): its own floor can be less than its children's — the cards and the
    list's floor — and without clipping the list ran under the collection tray (GitHub issue #40). A size
    container, so the cards below can yield to the region's own room rather than the window's. */
-.results-region { position: relative; flex: 1; min-height: calc(var(--results-min-h) + 24px); display: flex; flex-direction: column; overflow: clip; container-type: size; }
+.results-region { position: relative; flex: 1; min-height: calc(var(--results-min-h) + var(--results-head-h)); display: flex; flex-direction: column; overflow: clip; container-type: size; }
 /* The region says what it holds, always: a count is a fact worth having when the list is long,
    and the only thing naming the region when it is empty. */
 /* A background of its own and a layer above the list: scrolled to a chosen card, the cards' names
    showed through under the heading (docs/ideas.md, 2026-10-30). */
-.results-head { flex: 0 0 auto; display: flex; align-items: baseline; padding: var(--space-1) var(--space-3) 0; position: relative; z-index: 1; background: var(--bg); }
+.results-head { flex: 0 0 auto; display: flex; align-items: center; padding: var(--space-1) var(--space-3) 0; position: relative; z-index: 1; background: var(--bg); }
+/* How the results are shown sits with the results (milestone 41): sort, grid or list and the
+   thumbnail size at the heading's right, and the two region toggles after them. */
+.results-tools { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-2); flex: 0 0 auto; }
+.results-tools .region-toggle { padding: 2px 5px; }
 .region-count { color: var(--muted); font-size: var(--font-caption); font-variant-numeric: tabular-nums; }
 
 .tray { background: var(--panel); border-top: 1px solid var(--border); display: flex; flex-direction: column; }
@@ -505,8 +540,12 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* flex-shrink 1 and overflow hidden: on a short window the stage gives way to the results (.results-region) and clips rather than paints over them. */
 .stage { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; padding: 8px 16px; flex: 0 1 var(--stage-share, 72%); }
 /* One key gives the stage everything (milestone 38): the results fold away and the stage takes the room. */
-.app.results-collapsed #region-results, .app.results-collapsed #split-stage { display: none; }
+/* The results collapse to their heading (milestone 41): the toggles live in it now, so it stays as
+   the way back, a thin bar under the stage. Theater wants the picture alone, and hides it too. */
+.app.results-collapsed #split-stage, .app.results-collapsed #results, .app.results-collapsed #category-cards { display: none; }
+.app.results-collapsed .results-region { flex: 0 0 auto; min-height: 0; }
 .app.results-collapsed .stage { flex: 1 1 auto; }
+.app.theater.results-collapsed #region-results { display: none; }
 /* The wrap is a size container so the box below can be sized from it: the largest box of the
    picture's own ratio that fits, pillarboxed or letterboxed by whatever room is left around it.
    A clamped width or height alone would change the shape and stretch the iframe or media inside;
@@ -1163,15 +1202,15 @@ progress { width: 100%; margin: 2px 0; }
 .browse-tree .tree-section + .tree-section.tree-top { border-top: 0; }
 
 /* For… and Look: a select dressed as a chip, so narrowing by theme or look sits with the other chips. */
-.filter-chips .chip-select { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 0 4px 0 7px; background: var(--panel-2); }
-.filter-chips .chip-select:hover { color: var(--text); }
-.filter-chips .chip-select.set { color: var(--text); border-color: var(--accent); }
-.filter-chips .chip-select select.chip { border: 0; background: transparent; padding: 2px 2px 2px 0; font-size: var(--font-caption); color: inherit; max-width: 160px; }
-.filter-chips .chip-select select.chip:focus-visible { outline-offset: 0; }
+.filter-chips .chip-select, .narrow-chips .chip-select { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 0 4px 0 7px; background: var(--panel-2); }
+.filter-chips .chip-select:hover, .narrow-chips .chip-select:hover { color: var(--text); }
+.filter-chips .chip-select.set, .narrow-chips .chip-select.set { color: var(--text); border-color: var(--accent); }
+.filter-chips .chip-select select.chip, .narrow-chips .chip-select select.chip { border: 0; background: transparent; padding: 2px 2px 2px 0; font-size: var(--font-caption); color: inherit; max-width: 160px; }
+.filter-chips .chip-select select.chip:focus-visible, .narrow-chips .chip-select select.chip:focus-visible { outline-offset: 0; }
 
 /* One line under the results heading on what the chosen category holds. */
-.results-head { gap: var(--space-2); flex-wrap: wrap; }
-.results-description { color: var(--muted); font-size: var(--font-caption); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.results-head { gap: var(--space-2); flex-wrap: nowrap; min-height: 32px; }
+.results-description { color: var(--muted); font-size: var(--font-caption); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
 .results-description:empty { display: none; }
 
 /* Category cards: the subcategories of what is chosen, or the categories themselves, as a row of

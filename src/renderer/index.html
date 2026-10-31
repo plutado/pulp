@@ -24,52 +24,30 @@
           <button id="export-pack" type="button" class="icon-button" disabled data-icon="upload-simple" data-icon-size="20" aria-label="Export pack" data-tip="Export… (the listed templates as a pack)"><span class="label">Export…</span></button>
         </div>
       </div>
-      <div class="browse-body">
-        <div id="browse-find" class="browse-find"></div>
-        <div id="browse-tree" class="browse-tree" role="tree" aria-label="Browse"></div>
-      </div>
-      <button id="browse-expand" type="button" class="region-expand icon-button" data-icon="caret-right" aria-label="Show the browse panel" hidden></button>
-    </aside>
-    <div id="split-browse" class="splitter v" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize the browse panel"></div>
-
-    <main class="center">
-      <div id="region-search" class="search-bar">
-        <div class="search-row">
-          <span id="scope-chip" class="scope-chip" hidden>
-            <span id="scope-chip-icon" class="icon-slot" aria-hidden="true"></span>
-            <span id="scope-chip-label"></span>
-            <button id="scope-chip-clear" type="button" class="icon-button" data-icon="x" aria-label="Clear the search scope" data-tip="Search the whole library again"></button>
-          </span>
-          <span class="search-field">
-            <span class="search-icon" data-icon="magnifying-glass" aria-hidden="true"></span>
-            <input id="search" type="search" list="search-history" placeholder="Search the library" aria-label="Search the library" autocomplete="off" spellcheck="false" data-tip="Free text, or a filter: tag: type: theme: style: category: pack: duration: width: height: fps: res: codec: alpha: orientation: favorite: recent: — for example type:wipe theme:news duration:>5">
-            <datalist id="search-history"></datalist>
-          </span>
-          <span class="sort-wrap">
-            <span data-icon="sort-ascending" aria-hidden="true"></span>
-            <select id="sort" aria-label="Sort results">
-              <option value="relevance">Relevance</option>
-              <option value="name">Name</option>
-              <option value="recent">Recently used</option>
-              <option value="duration">Duration</option>
-            </select>
-          </span>
-          <span class="view-controls" role="group" aria-label="Result view">
-            <button id="view-grid" type="button" class="icon-button" data-icon="squares-four" data-icon-size="20" aria-pressed="false" aria-label="Grid of cards"></button>
-            <button id="view-list" type="button" class="icon-button" data-icon="rows" data-icon-size="20" aria-pressed="false" aria-label="List of rows"></button>
-            <input id="thumb-size" type="range" min="0" max="3" step="1" value="1" aria-label="Thumbnail size" data-tip="Thumbnail size">
-          </span>
-          <button id="stage-toggle" type="button" class="region-toggle icon-button" data-icon="caret-up" aria-label="Hide the preview" aria-expanded="true"></button>
-          <button id="results-toggle" type="button" class="region-toggle icon-button" data-icon="caret-down" aria-label="Hide the results" aria-expanded="true"></button>
+      <section id="region-search" class="panel-section search-section" aria-label="Search">
+        <div class="section-head">
+          <span class="section-title">Search</span>
         </div>
+        <span class="search-field">
+          <span class="search-icon" data-icon="magnifying-glass" aria-hidden="true"></span>
+          <input id="search" type="search" list="search-history" placeholder="Search templates and media" aria-label="Search templates and media" autocomplete="off" spellcheck="false" data-tip="Free text, or a filter: tag: type: theme: style: category: pack: duration: width: height: fps: res: codec: alpha: orientation: favorite: recent: — for example type:wipe theme:news duration:>5">
+          <datalist id="search-history"></datalist>
+        </span>
+        <span id="scope-chip" class="scope-chip" hidden>
+          <span id="scope-chip-icon" class="icon-slot" aria-hidden="true"></span>
+          <span id="scope-chip-label"></span>
+          <button id="scope-chip-clear" type="button" class="icon-button" data-icon="x" aria-label="Clear the search scope" data-tip="Search the whole library again"></button>
+        </span>
         <div class="filter-chips" role="group" aria-label="Filters">
-          <button id="chip-templates" class="chip" type="button" data-chip="templates" data-icon="shapes" aria-pressed="false"><span class="label">Templates</span></button>
-          <button id="chip-video" class="chip" type="button" data-chip="video" data-icon="film-strip" aria-pressed="false"><span class="label">Video</span></button>
-          <button id="chip-image" class="chip" type="button" data-chip="image" data-icon="image" aria-pressed="false"><span class="label">Images</span></button>
-          <button id="chip-audio" class="chip" type="button" data-chip="audio" data-icon="music-notes" aria-pressed="false"><span class="label">Audio</span></button>
-          <button id="chip-vertical" class="chip" type="button" data-chip="vertical" data-icon="device-mobile" aria-pressed="false" data-tip="Portrait items, and templates that draw tall"><span class="label">Vertical</span></button>
-          <button id="chip-alpha" class="chip" type="button" data-chip="alpha" data-icon="checkerboard" aria-pressed="false"><span class="label">Alpha</span></button>
-          <button id="chip-favorites" class="chip" type="button" data-chip="favorites" data-icon="star" aria-pressed="false"><span class="label">Favorites</span></button>
+          <button id="chip-templates" class="chip" type="button" data-chip="templates" data-icon="shapes" aria-pressed="false" aria-label="Templates" data-tip="Templates only"><span class="label">Templates</span></button>
+          <button id="chip-video" class="chip" type="button" data-chip="video" data-icon="film-strip" aria-pressed="false" aria-label="Video" data-tip="Video only"><span class="label">Video</span></button>
+          <button id="chip-image" class="chip" type="button" data-chip="image" data-icon="image" aria-pressed="false" aria-label="Images" data-tip="Images only"><span class="label">Images</span></button>
+          <button id="chip-audio" class="chip" type="button" data-chip="audio" data-icon="music-notes" aria-pressed="false" aria-label="Audio" data-tip="Audio only"><span class="label">Audio</span></button>
+          <button id="chip-vertical" class="chip" type="button" data-chip="vertical" data-icon="device-mobile" aria-pressed="false" aria-label="Vertical" data-tip="Vertical: portrait items, and templates that draw tall"><span class="label">Vertical</span></button>
+          <button id="chip-alpha" class="chip" type="button" data-chip="alpha" data-icon="checkerboard" aria-pressed="false" aria-label="Alpha" data-tip="Alpha: transparent items only"><span class="label">Alpha</span></button>
+          <button id="chip-favorites" class="chip" type="button" data-chip="favorites" data-icon="star" aria-pressed="false" aria-label="Favorites" data-tip="Favorites only"><span class="label">Favorites</span></button>
+        </div>
+        <div class="narrow-chips" role="group" aria-label="Narrow by theme and look">
           <span class="chip-select" data-icon="tag" data-tip="Narrow the results to what they are for: a wedding, sports, news…">
             <select id="for-select" class="chip" aria-label="For"><option value="">For…</option></select>
           </span>
@@ -77,7 +55,21 @@
             <select id="look-select" class="chip" aria-label="Look"><option value="">Look</option></select>
           </span>
         </div>
-      </div>
+      </section>
+      <section class="panel-section browse-section" aria-label="Browse">
+        <div class="section-head">
+          <span class="section-title">Browse</span>
+          <button id="browse-filter-toggle" type="button" class="icon-button" data-icon="funnel-simple" aria-expanded="false" aria-pressed="false" aria-label="Filter categories" data-tip="Filter the categories below as you type"></button>
+        </div>
+        <div id="browse-find" class="browse-find" hidden></div>
+        <div id="browse-tree" class="browse-tree" role="tree" aria-label="Browse"></div>
+      </section>
+      <button id="browse-expand" type="button" class="region-expand icon-button" data-icon="caret-right" aria-label="Show the browse panel" hidden></button>
+      <button id="rail-search" type="button" class="region-expand rail-search icon-button" data-icon="magnifying-glass" data-icon-size="20" aria-label="Search" data-tip="Search templates and media (Ctrl+F or ⌘F)" hidden></button>
+    </aside>
+    <div id="split-browse" class="splitter v" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize the browse panel"></div>
+
+    <main class="center">
       <section id="region-stage" class="stage" aria-label="Stage">
         <div class="preview-wrap">
           <p class="preview-no-room" role="status">No room for the preview. Make the window taller, or collapse the collection tray.</p>
@@ -118,6 +110,24 @@
         <div class="results-head">
           <span id="results-label" class="region-count">Results</span>
           <span id="results-description" class="results-description"></span>
+          <span class="results-tools">
+            <span class="sort-wrap">
+              <span data-icon="sort-ascending" aria-hidden="true"></span>
+              <select id="sort" aria-label="Sort results">
+                <option value="relevance">Relevance</option>
+                <option value="name">Name</option>
+                <option value="recent">Recently used</option>
+                <option value="duration">Duration</option>
+              </select>
+            </span>
+            <span class="view-controls" role="group" aria-label="Result view">
+              <button id="view-grid" type="button" class="icon-button" data-icon="squares-four" data-icon-size="20" aria-pressed="false" aria-label="Grid of cards"></button>
+              <button id="view-list" type="button" class="icon-button" data-icon="rows" data-icon-size="20" aria-pressed="false" aria-label="List of rows"></button>
+              <input id="thumb-size" type="range" min="0" max="3" step="1" value="1" aria-label="Thumbnail size" data-tip="Thumbnail size">
+            </span>
+            <button id="stage-toggle" type="button" class="region-toggle icon-button" data-icon="caret-up" aria-label="Hide the preview" aria-expanded="true"></button>
+            <button id="results-toggle" type="button" class="region-toggle icon-button" data-icon="caret-down" aria-label="Hide the results" aria-expanded="true"></button>
+          </span>
         </div>
         <div id="category-cards" class="category-cards" hidden></div>
         <ul id="results" class="results grid" role="listbox" aria-label="Library"></ul>
@@ -402,7 +412,7 @@
             <button id="start-whats-new" type="button">What&#8217;s new</button>
             <button id="start-shortcuts" type="button">Keyboard shortcuts</button>
           </div>
-          <p id="start-tour-hint" class="note" hidden>New here? The tour shows the window in five short steps.</p>
+          <p id="start-tour-hint" class="note" hidden>New here? The tour shows the window in seven short steps.</p>
           <h2>Set up</h2>
           <ul id="start-checklist" class="start-checklist"></ul>
           <p id="start-glance" class="note"></p>

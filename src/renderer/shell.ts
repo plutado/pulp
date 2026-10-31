@@ -106,14 +106,13 @@ export function initShell(): void {
   apply(app);
 
   const center = document.querySelector('.center') as HTMLElement;
-  const searchBar = $('region-search');
   wireSplitter(app, $('split-browse'), 'browseWidth', (e) => e.clientX - app.getBoundingClientRect().left);
   // The drawer resizes from its top edge, as the tray and the transport row do (milestone 38).
   wireSplitter(app, $('split-inspector'), 'inspectorHeight', (e) => $('region-inspector').getBoundingClientRect().bottom - e.clientY);
+  // The stage starts at the centre's top edge (milestone 41): nothing sits above it any more.
   wireSplitter(app, $('split-stage'), 'stageShare', (e) => {
     const c = center.getBoundingClientRect();
-    const top = c.top + searchBar.getBoundingClientRect().height;
-    return (e.clientY - top) / Math.max(1, c.height - searchBar.getBoundingClientRect().height);
+    return (e.clientY - c.top) / Math.max(1, c.height);
   });
   wireSplitter(app, $('split-tray'), 'trayHeight', (e) => $('region-tray').getBoundingClientRect().bottom - e.clientY);
   // The transport row (milestone 37) resizes from its top edge, as the tray does: up is more room for the layer bars.
@@ -140,24 +139,23 @@ export function initShell(): void {
   // The saved layout arrives after first paint; starting from the defaults avoids a flash of nothing.
   void window.pulp.getLayout().then((saved) => set(app, saved, false));
 
-  // The center column's floor is a sum the stylesheet keeps (--center-min-h), and two of its terms
-  // are not constants: the search bar's height, whose chips wrap on a narrow window, and the chrome
-  // under the center — the status bar and the tray's head — which classic scroll bars and platform
-  // font metrics make taller on Linux and Windows than on macOS. Both are measured here rather than
-  // guessed, so the stage keeps its floor on every platform and at every width
+  // The center column's floor is a sum the stylesheet keeps (--center-min-h), and one of its terms
+  // is not a constant: the chrome under the center — the status bar and the tray's head — which
+  // classic scroll bars and platform font metrics make taller on Linux and Windows than on macOS.
+  // It is measured here rather than guessed, so the stage keeps its floor on every platform
   // (docs/platform-notes.md). The tray's head, splitter and border are read as the tray minus its
   // body, which also holds collapsed, when the body and the splitter are gone; the difference does
-  // not change when a cap resizes the body, so the observers settle.
+  // not change when a cap resizes the body, so the observers settle. (The search bar's height was
+  // the other term until milestone 41 moved the bar into the left panel.)
   const tray = $('region-tray');
   const trayBody = document.querySelector('.tray-body') as HTMLElement;
   const status = $('region-status');
   const floors = () => {
-    app.style.setProperty('--search-h', `${Math.ceil(searchBar.getBoundingClientRect().height)}px`);
     const trayChrome = tray.getBoundingClientRect().height - trayBody.getBoundingClientRect().height;
     app.style.setProperty('--chrome-h', `${Math.ceil(status.getBoundingClientRect().height + trayChrome)}px`);
   };
   const measure = new ResizeObserver(floors);
-  for (const el of [searchBar, status, tray]) measure.observe(el);
+  for (const el of [status, tray]) measure.observe(el);
   floors();
 
   // Clamp the browse width back into view when the window shrinks below it.

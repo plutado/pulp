@@ -20,6 +20,8 @@ import { appState, paramsEdited, renderBlocked, results, resultsView, transport 
 import { selectedLayer } from './layer-edit';
 import { currentLayerFacts, runLayerCommand, stageClipboard } from './stage-menu';
 import { registerCommandRunner } from './commands';
+import { focusSearch } from './search-bar';
+import { openBrowseFilter } from './browse';
 import { newProject, openProjectFrom, saveProject } from './project';
 import { showShortcuts } from './shortcuts';
 import { showStartScreen } from './start-screen';
@@ -74,10 +76,11 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'layer.copyLook': case 'layer.pasteLook': case 'layer.startHere': case 'layer.endHere': case 'layer.reset':
       runLayerCommand(command, arg);
       return;
-    case 'browse.find': {
-      const find = document.querySelector('#browse-find input') as HTMLInputElement | null;
-      find?.focus();
-      find?.select();
+    case 'search.focus': focusSearch(); return;
+    case 'browse.filter': {
+      // The panel must be out for the field to be seen; the rail has no room for it.
+      if (document.getElementById('app')?.classList.contains('browse-collapsed')) press('browse-expand');
+      openBrowseFilter();
       return;
     }
     case 'view.browse': press('browse-toggle'); return;

@@ -27,6 +27,9 @@ let before: { browseCollapsed: boolean; resultsCollapsed: boolean; drawerOpen: b
 
 function apply(): void {
   const on = before !== null;
+  // Said on the window too (milestone 41): the results' heading stays as a thin bar when the
+  // results are collapsed, so the way back stays with it — but theater wants the picture alone.
+  $('app').classList.toggle('theater', on);
   const button = $('theater');
   button.setAttribute('aria-pressed', String(on));
   button.setAttribute('aria-label', on ? 'Theater off: bring the panels back' : 'Theater: the stage takes the window');

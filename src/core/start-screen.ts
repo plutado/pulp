@@ -194,9 +194,14 @@ export interface TourStep {
 
 export const TOUR_STEPS: readonly TourStep[] = [
   {
-    target: 'region-browse',
-    title: 'Browse panel',
-    body: 'The library, sorted by type, theme, style, pack and folder. Choose a category to narrow the results; the search box above the results narrows them further.',
+    target: 'region-search',
+    title: 'Search',
+    body: 'Find templates and media by name, tag or a filter such as type:wipe or duration:>5; the chips narrow by kind, shape, transparency and favourites, and For… and Look by theme and style. Ctrl+F or ⌘F puts the caret here from anywhere.',
+  },
+  {
+    target: 'browse-tree',
+    title: 'Browse',
+    body: 'The library by what things are: lower thirds, titles, backgrounds, overlays, stock video and the rest. Choose a category to narrow the results to it; the funnel in the heading filters the categories as you type.',
   },
   {
     target: 'region-results',

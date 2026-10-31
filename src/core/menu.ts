@@ -61,7 +61,8 @@ export type MenuCommand =
   | 'layer.startHere'
   | 'layer.endHere'
   | 'layer.reset'
-  | 'browse.find'
+  | 'search.focus'
+  | 'browse.filter'
   | 'view.browse'
   | 'view.stage'
   | 'view.results'
@@ -411,7 +412,10 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       // accelerator is registered and would fire inside a text field (see the note at the top).
       { label: 'Layer', submenu: layerSubmenu() },
       sep,
-      { command: 'browse.find', label: 'Find Category', accelerator: 'CmdOrCtrl+F' },
+      // Cmd/Ctrl+F is the Search field (milestone 41), wherever the panel is; the category filter
+      // is reached from the funnel in the Browse heading, and has no key of its own.
+      { command: 'search.focus', label: 'Search', accelerator: 'CmdOrCtrl+F' },
+      { command: 'browse.filter', label: 'Filter Categories' },
     ],
   });
 

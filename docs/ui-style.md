@@ -77,7 +77,9 @@ Search syntax is the exception by design: what you type in the search field (`ta
 |---|---|
 | Browse panel | Star (Favorites), clock (Recently used), package (Built-in templates), folder (user folders); one per type group when the tree lands |
 | Browse toolbar | Folder-plus (Add folder), arrow-clockwise (Rescan), download (Import pack…), upload (Export…) |
-| Search bar | Magnifier in the field; sort icon on the sort control; chips with icon + short label; the scope chip carries its node's icon |
+| Left panel, Search | Magnifier in the field (and on the folded rail); chips icon-only at the default width, icon + short label when the panel is wider; the scope chip carries its node's icon |
+| Left panel, Browse | A funnel in the heading opens the category filter; lit while a filter is in force |
+| Results heading | Sort icon on the sort control; squares-four and rows for grid or list; carets for the stage and results toggles |
 | Results | Type icon as the empty-thumbnail placeholder; badges as small icons with tooltips (alpha, loop, audio) |
 | Stage | Background toggle, safe areas and theater (corners-out, corners-in when on) as icon buttons, a quiet overlay on the stage's corner |
 | Transport row | Two lines: the scrub bar alone on the first, one to one under the picture; the buttons on the second in three clusters. Play/pause, loop, frame step, mute, audition and Add to collection as icon buttons (play at 24, the rest at 20); Set in, Set out and Clear as text buttons; the timecode in monospace; the inspector's three tabs at the row's end, an accent dot when the shown item has edits |
