@@ -36,6 +36,12 @@ Concretely:
   command.
 - `src/core/stage-menu.ts` (pure) arranges those same commands for a pointer
   and reads their enabling from that same table.
+- Both surfaces run their commands through one function, registered into
+  `src/renderer/commands.ts` by `src/renderer/menu.ts`. The popup called only
+  the layer commands at first, and the stage's background and theater items
+  silently did nothing until an end-to-end test caught it; routing both through
+  the one dispatcher is what makes "the same command" true rather than
+  intended.
 - A unit test fails if the stage names a command the application menu does not
   offer, if the two enable a command by different flags, or if an item reaches
   the Edit menu with no way to it from the stage.

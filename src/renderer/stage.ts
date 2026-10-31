@@ -26,12 +26,12 @@ import { mediaDefaultFps } from '../core/media-render';
 import { SEQUENCE_FPS } from '../core/media-sequence';
 import { lengthFrameCount, lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
 import type { ResolvedParams } from '../core/params';
-import { layerAtPoint, mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
+import { layerAtPoint, layerCentre, mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
 import { mountStageMenu } from './stage-menu';
 import { layerBarsUpdate, mountLayerBars } from './stage-bars';
 import { layerEditor, selectedLayer } from './layer-edit';
 import type { LaidReport } from '../core/stage-place';
-import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor, type PlayerState, type StageBackground } from '../core/player';
+import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, STAGE_BACKGROUND_COLORS, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor, type PlayerState, type StageBackground } from '../core/player';
 import { frameState } from '../core/runtime';
 import { formatTimecode } from '../core/timecode';
 import { mediaFrameUrlFor, mediaUrlFor, templateUrlFor } from '../shared/api';
@@ -97,6 +97,7 @@ const BACKGROUND_BUTTONS: Record<Exclude<StageBackground, 'custom'>, HTMLButtonE
   checker: $<HTMLButtonElement>('bg-checker'),
   black: $<HTMLButtonElement>('bg-black'),
   white: $<HTMLButtonElement>('bg-white'),
+  gray: $<HTMLButtonElement>('bg-gray'),
 };
 
 const s = {
@@ -160,7 +161,7 @@ function applyPlayer(): void {
   els.bgCustom.classList.toggle('active', p.background === 'custom');
   // The checkerboard is a class so it keeps the stylesheet's pattern; the rest is one colour.
   els.previewFrame.classList.toggle('checker', p.background === 'checker');
-  const solid = { checker: '', black: '#000000', white: '#ffffff', custom: p.customBackground }[p.background];
+  const solid = p.background === 'checker' ? '' : p.background === 'custom' ? p.customBackground : STAGE_BACKGROUND_COLORS[p.background];
   els.previewFrame.style.backgroundColor = solid;
   els.audition.setAttribute('aria-pressed', String(p.audition));
   els.safeToggle.setAttribute('aria-pressed', String(p.safeAreas));
@@ -956,7 +957,11 @@ export function initStage(): void {
     playheadSeconds: () => s.frame / Math.max(1, previewFps()),
     lengthSeconds: () => previewFrames() / Math.max(1, previewFps()),
     layerAt: (point) => layerAtPoint(point),
+    layerCentre: (block, id) => layerCentre(block, id),
     hasTemplate: () => s.manifest !== null,
+    // A clip, a still or a sound has no layers, but the stage's own items — the background,
+    // theater, adding it to the collection — are about whatever is shown.
+    hasItem: () => s.manifest !== null || s.sequence !== null || s.media !== null || s.still || s.psd !== null,
     note: (text) => {
       els.note.hidden = false;
       els.note.textContent = text;

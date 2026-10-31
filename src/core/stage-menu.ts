@@ -4,7 +4,7 @@
  *
  * It is **the application menu's command list, arranged for a pointer**. Every
  * item names a `MenuCommand` from src/core/menu.ts and is enabled by the same
- * `MenuState` flag the Edit menu's Layer submenu uses (`LAYER_COMMAND_FLAGS`),
+ * `MenuState` flag the Edit and View menus use (`SHARED_COMMAND_FLAGS`),
  * so nothing can be offered here and refused there; the window runs both
  * through one dispatcher (src/renderer/menu.ts). A unit test holds the two
  * surfaces to that.
@@ -17,18 +17,21 @@
 import type { LayerLook } from './layer-look';
 import { isWholeGraphic, MIN_ON_SCREEN, roundSeconds, spanWindow, type LayerSpan } from './layer-time';
 import { newLayer, type Block, type Layer, type LayerType } from './layers';
-import { itemEnabled, LAYER_COMMAND_FLAGS, type MenuItemSpec, type MenuState } from './menu';
+import { backgroundSubmenu, itemChecked, itemEnabled, SHARED_COMMAND_FLAGS, type MenuCommand, type MenuItemSpec, type MenuState } from './menu';
 
 // ---------------------------------------------------------------- what can be done
 
 /** The slice of `MenuState` that says what can be done to a layer; both menus read exactly these. */
 export type LayerMenuFacts = Pick<
   MenuState,
-  'canAddLayer' | 'canEditLayer' | 'canDeleteLayer' | 'canLayerForward' | 'canLayerBackward' | 'canPasteLayer' | 'canPasteLook' | 'canResetLayer'
+  | 'canAddLayer' | 'canEditLayer' | 'canDeleteLayer' | 'canLayerForward' | 'canLayerBackward'
+  | 'canPasteLayer' | 'canPasteLook' | 'canResetLayer' | 'canEditText' | 'canReplaceImage'
 >;
 
 export const NO_LAYER_FACTS: LayerMenuFacts = {
   canAddLayer: false,
+  canEditText: false,
+  canReplaceImage: false,
   canEditLayer: false,
   canDeleteLayer: false,
   canLayerForward: false,
@@ -69,6 +72,9 @@ export function layerMenuFacts(input: LayerMenuInput): LayerMenuFacts {
     canPasteLayer: input.hasCopiedLayer && input.canAdd,
     canPasteLook: input.hasCopiedLook && layer !== null,
     canResetLayer: layer !== null && hasOwnTreatment(layer),
+    // What the layer itself holds: words to edit, or a picture to choose another for.
+    canEditText: layer?.type === 'text',
+    canReplaceImage: layer?.type === 'image',
   };
 }
 
@@ -90,22 +96,32 @@ export interface StageAsset {
 export const STAGE_MENU_ASSETS = 8;
 
 export interface StageMenuContext {
-  /** A template is on the stage. Nothing else has a stack, so nothing else has a menu. */
+  /** Something is on the stage. Nothing shown, nothing to offer. */
+  item: boolean;
+  /** What is shown is a template: only a template has a stack to edit or add to. */
   template: boolean;
   /** The label of the layer under the pointer, which the edits act on; null for bare picture. */
   layerLabel: string | null;
   facts: LayerMenuFacts;
   /** Library pictures and clips, most recently used first; the Add submenu shows the first few. */
   assets: readonly StageAsset[];
+  /**
+   * What the window is doing with the stage, for the view items on bare
+   * picture: the whole `MenuState` is not needed, only what they show.
+   */
+  view: Pick<MenuState, 'theater' | 'background' | 'canAddToCollection'>;
 }
 
 const sep: MenuItemSpec = { type: 'separator' };
 
-/** An item for a layer command, enabled by the one flag that command is always enabled by. */
-function layerItem(command: string, label: string, state: MenuState): MenuItemSpec {
-  const flag = LAYER_COMMAND_FLAGS[command]!;
-  const item: MenuItemSpec = { command: command as MenuItemSpec['command'], label, enabledBy: flag };
-  return { ...item, enabled: itemEnabled(item, state) };
+/**
+ * An item for a command both menus offer, enabled by the one flag that command
+ * is always enabled by — or always, where it has none.
+ */
+function item(command: MenuCommand, label: string, state: MenuState): MenuItemSpec {
+  const flag = SHARED_COMMAND_FLAGS[command];
+  const spec: MenuItemSpec = { command, label, ...(flag ? { enabledBy: flag } : {}) };
+  return { ...spec, enabled: itemEnabled(spec, state) };
 }
 
 /** The pictures and clips to add, or one line saying there are none — as Open Recent says it. */
@@ -115,7 +131,7 @@ function assetSubmenu(assets: readonly StageAsset[], state: MenuState): MenuItem
   // A picture and a clip are different layers, so the asset says which; the id rides as the
   // command's argument, the way a recent project's path does.
   return offered.map((a) => ({
-    ...layerItem(a.kind === 'video' ? 'layer.addVideo' : 'layer.addImage', a.name, state),
+    ...item(a.kind === 'video' ? 'layer.addVideo' : 'layer.addImage', a.name, state),
     arg: a.id,
   }));
 }
@@ -127,46 +143,69 @@ function assetSubmenu(assets: readonly StageAsset[], state: MenuState): MenuItem
  * window then shows no menu rather than an empty box.
  */
 export function stageMenu(context: StageMenuContext): MenuItemSpec[] {
-  if (!context.template) return [];
-  // `itemEnabled` reads one flag per item, so the facts stand in for the whole state.
-  const state = context.facts as MenuState;
+  if (!context.item) return [];
+  // `itemEnabled` and `itemChecked` read one field per item, so the facts and the view stand in
+  // for the whole state; nothing here asks it for anything else.
+  const state = { ...context.facts, ...context.view } as MenuState;
   const items: MenuItemSpec[] = [];
-  if (context.layerLabel !== null) {
+  if (context.template && context.layerLabel !== null) {
     items.push(
-      layerItem('layer.cut', 'Cut', state),
-      layerItem('layer.copy', 'Copy', state),
-      layerItem('layer.paste', 'Paste', state),
-      layerItem('layer.duplicate', 'Duplicate', state),
-      layerItem('layer.delete', 'Delete', state),
+      // What this layer itself holds comes first: the words in a line, the picture in a picture.
+      ...(state.canEditText ? [item('layer.editText', 'Edit Text', state)] : []),
+      ...(state.canReplaceImage ? [item('layer.replaceImage', 'Replace Image…', state)] : []),
+      ...(state.canEditText || state.canReplaceImage ? [sep] : []),
+      item('layer.cut', 'Cut', state),
+      item('layer.copy', 'Copy', state),
+      item('layer.paste', 'Paste', state),
+      item('layer.duplicate', 'Duplicate', state),
+      item('layer.delete', 'Delete', state),
       sep,
       {
         label: 'Order',
         enabled: state.canLayerForward || state.canLayerBackward,
         submenu: [
-          layerItem('layer.forward', 'Bring Forward', state),
-          layerItem('layer.backward', 'Send Backward', state),
+          item('layer.forward', 'Bring Forward', state),
+          item('layer.backward', 'Send Backward', state),
           sep,
-          layerItem('layer.front', 'Bring to Front', state),
-          layerItem('layer.back', 'Send to Back', state),
+          item('layer.front', 'Bring to Front', state),
+          item('layer.back', 'Send to Back', state),
         ],
       },
       sep,
-      layerItem('layer.copyLook', 'Copy Look', state),
-      layerItem('layer.pasteLook', 'Paste Look', state),
+      item('layer.copyLook', 'Copy Look', state),
+      item('layer.pasteLook', 'Paste Look', state),
       sep,
-      layerItem('layer.startHere', 'Start at Playhead', state),
-      layerItem('layer.endHere', 'End at Playhead', state),
+      item('layer.startHere', 'Start at Playhead', state),
+      item('layer.endHere', 'End at Playhead', state),
       sep,
-      layerItem('layer.reset', 'Reset Layer', state),
+      item('layer.reset', 'Reset Layer', state),
       sep,
     );
   }
-  items.push(
-    layerItem('layer.addText', 'Add Text Here', state),
-    { label: 'Add Asset Here', enabled: state.canAddLayer, submenu: assetSubmenu(context.assets, state) },
-  );
-  // With no layer under the pointer, Paste is the only edit that still means something.
-  if (context.layerLabel === null) items.push(sep, layerItem('layer.paste', 'Paste', state));
+  if (context.template) {
+    items.push(
+      item('layer.addText', 'Add Text Here', state),
+      { label: 'Add Asset Here', enabled: state.canAddLayer, submenu: assetSubmenu(context.assets, state) },
+    );
+    // With no layer under the pointer, Paste is the only edit that still means something.
+    if (context.layerLabel === null) items.push(item('layer.paste', 'Paste', state));
+  }
+  // What the stage is doing with whatever is shown, offered over bare picture only: on a layer
+  // the menu is already about that layer, and these belong to the picture as a whole. They are
+  // here for a clip or a still too, which have no layers and so are all bare picture.
+  if (context.layerLabel === null) {
+    if (items.length > 0) items.push(sep);
+    items.push(
+      item('collection.add', 'Add to Collection', state),
+      sep,
+      {
+        label: 'Background',
+        enabled: true,
+        submenu: backgroundSubmenu().map((b) => ({ ...b, enabled: true, checked: itemChecked(b, state) })),
+      },
+      { ...item('view.theater', 'Theater', state), type: 'checkbox', checked: state.theater },
+    );
+  }
   return items;
 }
 

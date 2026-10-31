@@ -2104,6 +2104,16 @@ describe.skipIf(!electron)('inspector UI', () => {
        * read before one is a point some other layer may be sitting at by the time it is clicked;
        * the click is taken again until the layer it was aimed at is the one that came up selected.
        */
+      /**
+       * The menu for whatever is selected, opened the way the keyboard opens it. Deterministic
+       * where a pointer is not: it acts on the selection rather than on what sits under a point.
+       */
+      const menuForSelected = async () => {
+        await page.eval(`(() => { const o = document.getElementById('layer-overlay'); o.focus();
+          o.dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true, cancelable: true })); })()`);
+        await until(open, 'the menu for the selected layer');
+      };
+
       const rightClickLayer = async (id: string) => {
         await until(async () => {
           const centre = await inkCentre(id).catch(() => null);
@@ -2131,6 +2141,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         // Right-clicking a layer selects it, exactly as a left-click would.
         await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected[data-layer=title]')`), 'the title selected by the right-click');
         expect(await labels()).toEqual([
+          'Edit Text',
           'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete',
           'Order',
           'Copy Look', 'Paste Look',
@@ -2149,7 +2160,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         // Over bare picture: the selection is dropped and only what can be added is offered.
         await rightClick(40, 40);
         expect(await page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected')`)).toBe(false);
-        expect(await labels()).toEqual(['Add Text Here', 'Add Asset Here', 'Paste']);
+        expect(await labels()).toEqual(['Add Text Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
         // Escape puts it away and gives the keyboard back to the stage.
         await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
         await until(async () => !(await open()), 'the menu closing on Escape');
@@ -2168,8 +2179,11 @@ describe.skipIf(!electron)('inspector UI', () => {
         // And it carries the original's words, so it is a copy and not a blank line.
         expect(await page.eval<string>(`document.querySelector('#params .param-card[data-layer="${copy}"] .layer-text').value`)).toBe('Episode 1: Early Light');
 
-        // Order moves it along the stack; the submenu opens from its parent item.
-        await rightClickLayer(copy);
+        // Order moves it along the stack; the submenu opens from its parent item. The copy is
+        // already the selection, so the menu is opened from the keyboard: a copy of a line sits
+        // right beside the line it came from, and aiming a pointer between the two is a coin toss.
+        await menuForSelected();
+        await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected[data-layer="${copy}"]')`), 'the copy selected');
         await choose('Order');
         await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the Order submenu');
         await choose('Send to Back');
@@ -2180,7 +2194,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(async () => (await layerIds()).join() === ['title', 'subtitle', copy].join(), 'undo putting the order back');
 
         // Delete takes the copy out; the required title cannot be deleted at all.
-        await rightClickLayer(copy);
+        await menuForSelected();
         await choose('Delete');
         await until(async () => (await layerIds()).join() === before.join(), 'the copy deleted');
       }, 120_000);
@@ -2220,6 +2234,117 @@ describe.skipIf(!electron)('inspector UI', () => {
         // Its own card says so too: one edit, seen everywhere.
         await page.eval(`document.getElementById('undo').click()`);
         await until(async () => Number(await page.eval<string>(`${barStart}.getAttribute('aria-valuenow')`)) < 0.2, 'undo putting the start back');
+      }, 120_000);
+
+      it('edits a line\'s words and replaces a picture from the menu, each on its own kind of layer', async () => {
+        // A line of type: Edit Text brings the tab forward with the caret in its words, selected.
+        await rightClickLayer('title');
+        expect(await labels()).toContain('Edit Text');
+        expect(await labels()).not.toContain('Replace Image…');
+        await choose('Edit Text');
+        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('inspector-open')`), 'the Parameters drawer');
+        await until(
+          () => page.eval<boolean>(`document.activeElement === document.querySelector('#params .param-card[data-layer=title] .layer-text')`),
+          'the caret in the title\'s words',
+        );
+        // Selected, so typing replaces them rather than appending.
+        expect(await page.eval<number>(`document.activeElement.selectionEnd - document.activeElement.selectionStart`))
+          .toBe(await page.eval<number>(`document.activeElement.value.length`));
+
+        // A picture layer, added through the menu's own asset list: Replace Image… opens its chooser.
+        const before = await layerIds();
+        await rightClick(40, 40);
+        await choose('Add Asset Here');
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the asset submenu');
+        // A plain PNG by name: a layered file or a PDF draws through the rasterizer and would
+        // make this test about that instead.
+        const picked = await page.eval<boolean>(
+          `(() => { const b = [...document.querySelectorAll('.context-menu.submenu > button[data-command="layer.addImage"]')].find((x) => x.textContent === 'mark');
+            if (!b) return false; b.click(); return true; })()`,
+        );
+        expect(picked, 'the asset submenu offers the library\'s plain PNG').toBe(true);
+        await until(async () => (await layerIds()).length === before.length + 1, 'the picture layer');
+        const picture = (await layerIds()).find((id) => !before.includes(id))!;
+        await rightClickLayer(picture);
+        expect(await labels()).toContain('Replace Image…');
+        expect(await labels()).not.toContain('Edit Text');
+        await choose('Replace Image…');
+        await until(
+          () => page.eval<boolean>(`!document.querySelector('#params .param-card[data-layer="${picture}"] .image-picker').hidden`),
+          'the picture chooser open on that layer',
+        );
+      }, 120_000);
+
+      it('offers the stage\'s own background, theater and collection over bare picture', async () => {
+        await rightClick(40, 40);
+        expect(await labels()).toEqual(['Add Text Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
+
+        // Grey is the new fourth choice, and choosing it really paints the stage.
+        await choose('Background');
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the Background submenu');
+        expect(await page.eval<string[]>(`[...document.querySelectorAll('.context-menu.submenu > button')].map((b) => b.textContent)`))
+          .toEqual(['Checkerboard', 'Black', 'White', 'Grey']);
+        await choose('Grey');
+        await until(
+          () => page.eval<boolean>(`document.getElementById('preview-frame').style.backgroundColor === 'rgb(128, 128, 128)'`),
+          'the stage painted grey',
+        );
+        expect(await page.eval<string>(`document.getElementById('bg-gray').getAttribute('aria-pressed')`)).toBe('true');
+        // Re-opened, the menu ticks the one that is on and only that one.
+        await rightClick(40, 40);
+        await choose('Background');
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the submenu again');
+        expect(await page.eval<string[]>(`[...document.querySelectorAll('.context-menu.submenu > button[aria-checked="true"]')].map((b) => b.textContent)`))
+          .toEqual(['Grey']);
+        await choose('Checkerboard');
+        await until(() => page.eval<boolean>(`document.getElementById('bg-checker').getAttribute('aria-pressed') === 'true'`), 'the checkerboard back');
+
+        // Theater toggles the window the way its own button does, and the menu says which it is.
+        await rightClick(40, 40);
+        expect(await page.eval<string>(`[...document.querySelectorAll('.context-menu > button')].find((b) => b.textContent === 'Theater').getAttribute('aria-checked')`)).toBe('false');
+        await choose('Theater');
+        await until(() => page.eval<boolean>(`document.getElementById('theater').getAttribute('aria-pressed') === 'true'`), 'theater on');
+        await rightClick(40, 40);
+        expect(await page.eval<string>(`[...document.querySelectorAll('.context-menu > button')].find((b) => b.textContent === 'Theater').getAttribute('aria-checked')`)).toBe('true');
+        await choose('Theater');
+        await until(() => page.eval<boolean>(`document.getElementById('theater').getAttribute('aria-pressed') === 'false'`), 'theater off again');
+      }, 120_000);
+
+      it('opens from the keyboard on the selected layer, with Shift+F10 and the Menu key', async () => {
+        // The overlay takes the keyboard when a layer is chosen on the stage, which is how it
+        // hears the key at all; a synthetic event alone would not move focus there.
+        const overlayKey = async (key: string, shift: boolean) =>
+          page.eval(`(() => { const o = document.getElementById('layer-overlay'); o.focus();
+            o.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(key)}, shiftKey: ${shift}, bubbles: true, cancelable: true })); })()`);
+
+        // With a layer selected, the menu is that layer's, wherever the pointer happens to be.
+        await rightClickLayer('subtitle');
+        await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+        await until(async () => !(await open()), 'the menu closed again');
+        await overlayKey('F10', true);
+        await until(open, 'the menu from Shift+F10');
+        expect(await labels()).toContain('Duplicate');
+        expect(await labels()).not.toContain('Theater');
+        await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+        await until(async () => !(await open()), 'closed');
+
+        // The dedicated Menu key does the same.
+        await overlayKey('ContextMenu', false);
+        await until(open, 'the menu from the Menu key');
+        expect(await labels()).toContain('Duplicate');
+        // The first item takes the keyboard, so the menu can be walked without a pointer.
+        expect(await page.eval<boolean>(`document.activeElement.closest('.context-menu') !== null`)).toBe(true);
+        await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+        await until(async () => !(await open()), 'closed again');
+        // And the keyboard goes back to the stage, so the arrows still nudge the layer.
+        expect(await page.eval<string>(`document.activeElement.id`)).toBe('layer-overlay');
+
+        // With nothing selected it is the bare-picture menu, at the middle of the picture.
+        await page.eval(`document.getElementById('layer-overlay').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+        await until(() => page.eval<boolean>(`!document.querySelector('#params .param-card.stage-selected')`), 'nothing selected');
+        await overlayKey('F10', true);
+        await until(open, 'the bare-picture menu from the keyboard');
+        expect(await labels()).toEqual(['Add Text Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
       }, 120_000);
 
       it('adds a line of text where the pointer was, and it lands there', async () => {
@@ -2842,7 +2967,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     it('has Pulp\'s own application menu, offering only what can act (milestone 27)', async () => {
       // The menu is built in the main process, so it is read back from there; what it offers is
       // decided by the state the window pushes, which is read off the window's own controls.
-      type Item = { label?: string; command?: string; role?: string; accelerator?: string; enabled?: boolean; checked?: boolean; submenu?: Item[] };
+      type Item = { label?: string; command?: string; role?: string; accelerator?: string; displayOnly?: boolean; enabled?: boolean; checked?: boolean; submenu?: Item[] };
       const sections = () => page.eval<{ label: string; items: Item[] }[]>(`window.pulp.menuSections()`);
       const item = async (section: string, label: string): Promise<Item> => {
         const found = (await sections()).find((s) => s.label === section)?.items.find((i) => i.label === label);
@@ -2901,16 +3026,24 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`document.activeElement === document.querySelector('#browse-find input')`)).toBe(true);
       await page.eval(`document.activeElement.blur()`);
 
-      // Undo and Redo are shown with their keys but not registered, since inside a text field the
-      // field's own undo has to win; everything else the menu registers is a modified key.
+      // A few keys belong to the window rather than to the menu, and are shown without being
+      // registered: inside a text field the field's own undo has to win, and a bare T would stop
+      // anyone typing one. Everything the menu really registers is a modified or function key.
       const undo = await item('Edit', 'Undo');
       expect(undo.accelerator).toBe('CmdOrCtrl+Z');
+      expect(undo.displayOnly).toBe(true);
+      const shown: string[] = [];
       for (const section of await sections()) {
         for (const i of section.items) {
-          if (!i.accelerator || i.label === 'Undo' || i.label === 'Redo') continue;
+          if (!i.accelerator) continue;
+          if (i.displayOnly) {
+            shown.push(i.label ?? i.role ?? '?');
+            continue;
+          }
           expect(i.accelerator, `${section.label} > ${i.label ?? i.role}`).toMatch(/^(CmdOrCtrl|Alt|Shift|F\d)/);
         }
       }
+      expect(shown, 'the keys the window owns, not the menu').toEqual(['Undo', 'Redo', 'Theater']);
 
       // Help > Keyboard Shortcuts lists the menu's own keys, so the list cannot drift from them.
       await page.eval(`window.pulpMenuCommand('help.shortcuts')`);

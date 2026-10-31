@@ -21,6 +21,8 @@
  * must win, so those are shown without being registered (`displayOnly`).
  */
 
+import { DEFAULT_PLAYER, STAGE_BACKGROUNDS, type StageBackground } from './player';
+
 export type MenuCommand =
   | 'app.home'
   | 'project.new'
@@ -39,6 +41,8 @@ export type MenuCommand =
   // What can be done to a layer (milestone 39). The stage's right-click menu names exactly these,
   // so the two surfaces offer one list of things, enabled by one set of flags; the test in
   // tests/stage-menu.test.ts holds them to it.
+  | 'layer.editText'
+  | 'layer.replaceImage'
   | 'layer.addText'
   | 'layer.addImage'
   | 'layer.addVideo'
@@ -64,6 +68,9 @@ export type MenuCommand =
   | 'view.parameters'
   | 'view.output'
   | 'view.info'
+  | 'view.theater'
+  | 'view.background'
+  | 'collection.add'
   | 'view.grid'
   | 'view.list'
   | 'view.bigger'
@@ -117,6 +124,10 @@ export interface MenuState {
    */
   /** A template with a block that takes added layers is on the stage. */
   canAddLayer: boolean;
+  /** The selected layer is a line of type, so there are words to edit. */
+  canEditText: boolean;
+  /** The selected layer shows a picture, so another can be chosen for it. */
+  canReplaceImage: boolean;
   /** A layer is selected: there is something to copy, duplicate, time or reset. */
   canEditLayer: boolean;
   /** The selected layer is not one the template marks required, so it can go. */
@@ -131,6 +142,12 @@ export interface MenuState {
   canPasteLook: boolean;
   /** The selected layer has been placed, timed, given a look or an entrance of its own: something to undo. */
   canResetLayer: boolean;
+  /** The stage has taken the window (milestone 38). */
+  theater: boolean;
+  /** What is drawn behind a transparent graphic, so the background choices show which is on. */
+  background: StageBackground;
+  /** There is an item on the stage that the collection tray will take. */
+  canAddToCollection: boolean;
   /** Recently opened projects, newest first; the Open Recent submenu. */
   recent: string[];
 }
@@ -153,6 +170,8 @@ export const EMPTY_MENU_STATE: MenuState = {
   infoOpen: false,
   grid: true,
   canAddLayer: false,
+  canEditText: false,
+  canReplaceImage: false,
   canEditLayer: false,
   canDeleteLayer: false,
   canLayerForward: false,
@@ -160,6 +179,9 @@ export const EMPTY_MENU_STATE: MenuState = {
   canPasteLayer: false,
   canPasteLook: false,
   canResetLayer: false,
+  theater: false,
+  background: DEFAULT_PLAYER.background,
+  canAddToCollection: false,
   recent: [],
 };
 
@@ -185,6 +207,8 @@ export interface MenuItemSpec {
   arg?: string;
   /** The flag a checkbox reflects. */
   checkedBy?: Flag;
+  /** A radio that is on when the state's background is this one; the only value-valued choice there is. */
+  checkedWhenBackground?: StageBackground;
   /** True when the item is the opposite of its flag — Play shows Pause while playing. */
   altLabel?: { whenFlag: Flag; label: string };
   /** Built only in a development build. */
@@ -238,6 +262,10 @@ export function recentLabel(path: string): string {
  */
 export function layerSubmenu(): MenuItemSpec[] {
   return [
+    // What the selected layer itself holds, before what can be added beside it.
+    { command: 'layer.editText', label: 'Edit Text', enabledBy: 'canEditText' },
+    { command: 'layer.replaceImage', label: 'Replace Image…', enabledBy: 'canReplaceImage' },
+    sep,
     { command: 'layer.addText', label: 'Add Text Layer', enabledBy: 'canAddLayer' },
     // Both take a library item as their argument, as Open Recent takes a path: with one they add
     // a layer showing it (the stage's Add Asset Here), with none a blank layer to be filled in.
@@ -266,11 +294,15 @@ export function layerSubmenu(): MenuItemSpec[] {
 }
 
 /**
- * Which flag decides each layer command. One table, read by the Edit menu
- * above and by the stage's right-click menu (src/core/stage-menu.ts), so the
- * same command is never offered on one surface and refused on the other.
+ * Which flag decides each command the application menu and the stage's
+ * right-click menu both offer. One table, read by the Edit and View menus here
+ * and by src/core/stage-menu.ts, so the same command is never offered on one
+ * surface and refused on the other. A command with no entry is always offered.
  */
-export const LAYER_COMMAND_FLAGS: Readonly<Record<string, Flag>> = {
+export const SHARED_COMMAND_FLAGS: Readonly<Partial<Record<MenuCommand, Flag>>> = {
+  'layer.editText': 'canEditText',
+  'layer.replaceImage': 'canReplaceImage',
+  'collection.add': 'canAddToCollection',
   'layer.addText': 'canAddLayer',
   'layer.addImage': 'canAddLayer',
   'layer.addVideo': 'canAddLayer',
@@ -289,6 +321,18 @@ export const LAYER_COMMAND_FLAGS: Readonly<Record<string, Flag>> = {
   'layer.endHere': 'canEditLayer',
   'layer.reset': 'canResetLayer',
 };
+
+/** What is drawn behind a transparent graphic: one radio per choice, ticked for the one that is on. */
+export function backgroundSubmenu(): MenuItemSpec[] {
+  return STAGE_BACKGROUNDS.map((b) => ({
+    command: 'view.background' as const,
+    label: b.label,
+    // One command for all four, with the choice as its argument, as Open Recent carries a path.
+    arg: b.id,
+    type: 'radio' as const,
+    checkedWhenBackground: b.id,
+  }));
+}
 
 /**
  * The whole menu for this platform and this state. The order is the one people
@@ -332,6 +376,8 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       sep,
       { command: 'pack.import', label: 'Import Pack…' },
       { command: 'pack.export', label: 'Export Pack…', enabledBy: 'canExportPack' },
+      sep,
+      { command: 'collection.add', label: 'Add to Collection', enabledBy: 'canAddToCollection' },
       sep,
       { command: 'render.one', label: 'Render…', accelerator: 'CmdOrCtrl+R', enabledBy: 'canRender' },
       { command: 'render.all', label: 'Render All', accelerator: 'CmdOrCtrl+Shift+R', enabledBy: 'canRenderAll' },
@@ -383,6 +429,12 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       sep,
       { command: 'view.bigger', label: 'Bigger Cards', accelerator: 'CmdOrCtrl+]' },
       { command: 'view.smaller', label: 'Smaller Cards', accelerator: 'CmdOrCtrl+[' },
+      sep,
+      // The stage's own two (milestone 39), offered here as well as on the picture itself.
+      { label: 'Stage Background', submenu: backgroundSubmenu() },
+      // `T` is the window's, not the menu's: a bare key registered here would fire inside a text
+      // field (see the note at the top), so it is shown and left to src/renderer/theater.ts.
+      { command: 'view.theater', label: 'Theater', accelerator: 'T', displayOnly: true, type: 'checkbox', checkedBy: 'theater' },
       sep,
       ...(development
         ? [
@@ -445,6 +497,7 @@ export function itemEnabled(item: MenuItemSpec, state: MenuState): boolean {
 
 /** What a checkbox shows, given the state. */
 export function itemChecked(item: MenuItemSpec, state: MenuState): boolean {
+  if (item.checkedWhenBackground !== undefined) return state.background === item.checkedWhenBackground;
   if (item.checkedBy !== undefined) return state[item.checkedBy];
   // "List of Rows" is the other side of "Grid of Cards" rather than a flag of its own.
   return item.command === 'view.list' ? !state.grid : false;

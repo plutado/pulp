@@ -69,6 +69,28 @@ describe('the application menu (milestone 27)', () => {
     expect(itemLabel(play, state({ playing: true }))).toBe('Pause');
   });
 
+  it('offers the stage\'s own background and theater, and says which is on (milestone 39)', () => {
+    const view = section(menu(), 'View');
+    const backgrounds = byLabel(view, 'Stage Background')!.submenu!;
+    // One command for the four, each carrying its own choice, as Open Recent carries a path.
+    expect(backgrounds.map((i) => [i.label, i.command, i.arg])).toEqual([
+      ['Checkerboard', 'view.background', 'checker'],
+      ['Black', 'view.background', 'black'],
+      ['White', 'view.background', 'white'],
+      ['Grey', 'view.background', 'gray'],
+    ]);
+    const grey = state({ background: 'gray' });
+    expect(backgrounds.filter((i) => itemChecked(i, grey)).map((i) => i.label)).toEqual(['Grey']);
+    expect(backgrounds.filter((i) => itemChecked(i, state({ background: 'custom' })))).toEqual([]);
+    // Every one of them can always act: there is always a background.
+    expect(backgrounds.every((i) => itemEnabled(i, state()))).toBe(true);
+    const theater = byLabel(view, 'Theater')!;
+    expect([itemChecked(theater, state({ theater: true })), itemChecked(theater, state())]).toEqual([true, false]);
+    // Add to Collection waits for something the tray will take.
+    const add = byLabel(section(menu(), 'File'), 'Add to Collection')!;
+    expect([itemEnabled(add, state()), itemEnabled(add, state({ canAddToCollection: true }))]).toEqual([false, true]);
+  });
+
   it('lists the recently opened projects, and says so plainly when there are none', () => {
     const none = byLabel(section(menu(), 'File'), 'Open Recent')!.submenu!;
     expect(none).toHaveLength(1);
@@ -89,6 +111,7 @@ describe('the application menu (milestone 27)', () => {
     expect(edit.map((i) => i.role).filter(Boolean)).toEqual(['cut', 'copy', 'paste', 'selectAll']);
     const layer = byLabel(edit, 'Layer')!.submenu!;
     expect(layer.filter((i) => i.type !== 'separator').map((i) => i.label)).toEqual([
+      'Edit Text', 'Replace Image…',
       'Add Text Layer', 'Add Image Layer', 'Add Video Layer',
       'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete',
       'Bring Forward', 'Send Backward', 'Bring to Front', 'Send to Back',
@@ -118,9 +141,9 @@ describe('the application menu (milestone 27)', () => {
   it('registers every accelerator but the two the window has to keep', () => {
     const items = every(menu({ development: true }));
     const shown = items.filter((i) => i.displayOnly);
-    // Undo and Redo only: inside a text field the field's own undo must win, and a registered
-    // accelerator would fire there too.
-    expect(shown.map((i) => i.label)).toEqual(['Undo', 'Redo']);
+    // The keys the *window* owns, shown so a reader can find them but never registered: inside a
+    // text field the field's own undo must win, and a bare T would stop anyone typing one.
+    expect(shown.map((i) => i.label)).toEqual(['Undo', 'Redo', 'Theater']);
     // Nothing else is a bare key, for the same reason: a registered accelerator shadows typing.
     for (const item of items) {
       if (!item.accelerator || item.displayOnly) continue;

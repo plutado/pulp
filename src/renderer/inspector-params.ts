@@ -57,6 +57,7 @@ import { outputRefreshOptions } from './inspector-output';
 import { appState, frameSize, importedFonts, paramsEdited, selectedTemplate, slotNotes } from './store';
 import { aspectOf } from '../core/aspect';
 import { registerLayerEditor, selectedLayer } from './layer-edit';
+import { openInspector } from './inspector-tabs';
 import { addedLayer } from '../core/stage-menu';
 import { effect } from '@preact/signals';
 
@@ -2198,6 +2199,32 @@ function acceptItemDrop(section: HTMLElement, block: string, layer: ImageLayer |
   });
 }
 
+/** A layer's card in the tab, by the ids the stack carries; escaped, so the selector is only ever a lookup. */
+function layerCardEl(block: string, id: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`#params .param-card[data-block="${CSS.escape(block)}"][data-layer="${CSS.escape(id)}"]`);
+}
+
+/**
+ * Open a layer's card for the stage (milestone 39): the drawer forward on
+ * Parameters, the layer selected, the card unfolded if it was folded and
+ * brought into view, then `then` with the card to finish the job. The form is
+ * rebuilt on every change, so this waits a frame and looks the card up again
+ * rather than holding an element that may be gone by then.
+ */
+function openLayerCard(block: string, id: string, then: (card: HTMLElement) => void): void {
+  selectedLayer.value = { block, id };
+  openInspector('parameters');
+  requestAnimationFrame(() => {
+    const card = layerCardEl(block, id);
+    if (!card) return;
+    const body = card.querySelector<HTMLElement>('.card-body');
+    // A folded card has nothing to reach into: open it the way pressing its heading would.
+    if (body?.hidden) card.querySelector<HTMLButtonElement>('.card-toggle')?.click();
+    card.scrollIntoView({ block: 'nearest' });
+    then(card);
+  });
+}
+
 /**
  * One part of the graphic, folded or open: its name, what can be done to it
  * when it is a layer, and every setting that belongs to it.
@@ -2442,6 +2469,19 @@ export function initInspectorParams(): void {
       setLayers({ ...layers, [block.id]: [...stack, layer as Layer] }, true);
       return { block: block.id, id: fresh.id };
     },
+    editText: (block, id) => openLayerCard(block, id, (card) => {
+      const field = card.querySelector<HTMLInputElement>('.layer-text');
+      if (!field) return;
+      field.focus();
+      // The words are there to be typed over, so they arrive selected.
+      field.select();
+    }),
+    replaceImage: (block, id) => openLayerCard(block, id, (card) => {
+      const well = card.querySelector<HTMLButtonElement>('.image-well');
+      // The well toggles its chooser, so an already-open one is left alone rather than shut.
+      if (card.querySelector<HTMLElement>('.image-picker')?.hidden) well?.click();
+      well?.focus();
+    }),
     stack: (block) => currentLayers()[block],
     blocks: () => (selectedTemplate.value?.manifest.blocks ?? []).map((b) => ({ id: b.id, label: b.label, open: b.open })),
     setStack: (block, layers) => {
@@ -2455,7 +2495,7 @@ export function initInspectorParams(): void {
     const chosen = selectedLayer.value;
     document.querySelectorAll('#params .param-card.stage-selected').forEach((el) => el.classList.remove('stage-selected'));
     if (!chosen) return;
-    const card = document.querySelector(`#params .param-card[data-block="${chosen.block}"][data-layer="${chosen.id}"]`);
+    const card = layerCardEl(chosen.block, chosen.id);
     if (card) {
       card.classList.add('stage-selected');
       card.scrollIntoView({ block: 'nearest' });

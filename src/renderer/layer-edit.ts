@@ -36,6 +36,14 @@ export interface LayerEditor {
   /** Replace one block's stack as one undo step (milestone 39: cut, paste, duplicate, order). */
   setStack(block: string, layers: readonly Layer[]): void;
   /**
+   * Bring the Parameters tab forward on this layer's card and put the caret in
+   * its words (milestone 39's Edit Text). The tab owns its own elements, so the
+   * stage asks for this rather than reaching for the field itself.
+   */
+  editText(block: string, id: string): void;
+  /** The same for a picture layer: the card forward with its chooser open (Replace Image…). */
+  replaceImage(block: string, id: string): void;
+  /**
    * Set how long the graphic runs for (milestone 30), as the handle on the
    * scrub bar does; `undefined` is the length the template was designed at.
    * `commit` makes it one undo step, false is a live drag.

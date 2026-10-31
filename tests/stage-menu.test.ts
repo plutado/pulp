@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LOOK, type LayerLook } from '../src/core/layer-look';
 import { DEFAULT_TYPOGRAPHY, newLayer, type Block, type Layer } from '../src/core/layers';
-import { buildMenu, EMPTY_MENU_STATE, itemEnabled, LAYER_COMMAND_FLAGS, layerSubmenu, type MenuItemSpec, type MenuState } from '../src/core/menu';
+import { buildMenu, EMPTY_MENU_STATE, itemEnabled, layerSubmenu, SHARED_COMMAND_FLAGS, type MenuItemSpec, type MenuState } from '../src/core/menu';
+import { DEFAULT_PLAYER } from '../src/core/player';
 import {
   addedLayer,
   copiedLook,
@@ -25,6 +26,7 @@ import {
   STAGE_MENU_ASSETS,
   type LayerMenuFacts,
   type StageAsset,
+  type StageMenuContext,
 } from '../src/core/stage-menu';
 
 const BLOCK: Pick<Block, 'typography' | 'align'> = { typography: DEFAULT_TYPOGRAPHY, align: 'center' };
@@ -37,6 +39,20 @@ const stackOf = (...ids: string[]): Layer[] => ids.map((id) => text(id));
 
 const facts = (over: Partial<LayerMenuFacts> = {}): LayerMenuFacts => ({ ...NO_LAYER_FACTS, ...over });
 
+type View = StageMenuContext['view'];
+const view = (over: Partial<View> = {}): View => ({ theater: false, background: DEFAULT_PLAYER.background, canAddToCollection: false, ...over });
+
+/** A context with the defaults a test does not care about filled in. */
+const context = (over: Partial<StageMenuContext> = {}): StageMenuContext => ({
+  item: true,
+  template: true,
+  layerLabel: null,
+  facts: facts(),
+  assets: [],
+  view: view(),
+  ...over,
+});
+
 /** Every item of a menu, submenus flattened in. */
 function every(items: readonly MenuItemSpec[]): MenuItemSpec[] {
   return items.flatMap((i) => [i, ...every(i.submenu ?? [])]);
@@ -48,7 +64,8 @@ describe('what can be done to a layer', () => {
   it('answers from the stack as it stands', () => {
     const stack = stackOf('a', 'b', 'c');
     const middle = layerMenuFacts({ stack, selected: 'b', canAdd: true, hasCopiedLayer: false, hasCopiedLook: false });
-    expect(middle).toEqual(facts({ canAddLayer: true, canEditLayer: true, canDeleteLayer: true, canLayerForward: true, canLayerBackward: true }));
+    // The fixture's layers are lines of type, so there are words to edit as well.
+    expect(middle).toEqual(facts({ canAddLayer: true, canEditLayer: true, canDeleteLayer: true, canLayerForward: true, canLayerBackward: true, canEditText: true }));
     // The stack draws bottom first, so the last is at the front and cannot go further.
     expect(layerMenuFacts({ stack, selected: 'c', canAdd: true, hasCopiedLayer: false, hasCopiedLook: false })).toMatchObject({ canLayerForward: false, canLayerBackward: true });
     expect(layerMenuFacts({ stack, selected: 'a', canAdd: true, hasCopiedLayer: false, hasCopiedLook: false })).toMatchObject({ canLayerForward: true, canLayerBackward: false });
@@ -90,12 +107,11 @@ describe('the menu itself', () => {
     { id: 'i1', name: 'Logo', kind: 'image' },
     { id: 'v1', name: 'Fire', kind: 'video' },
   ];
-  const onLayer = stageMenu({
-    template: true,
-    layerLabel: 'Title',
-    facts: facts({ canAddLayer: true, canEditLayer: true, canDeleteLayer: true, canLayerForward: true, canLayerBackward: true, canResetLayer: true }),
-    assets,
+  const everything = facts({
+    canAddLayer: true, canEditLayer: true, canDeleteLayer: true, canLayerForward: true,
+    canLayerBackward: true, canResetLayer: true,
   });
+  const onLayer = stageMenu(context({ layerLabel: 'Title', facts: everything, assets }));
 
   it('offers the layer\'s own edits first, then what can be added where the pointer is', () => {
     expect(labels(onLayer)).toEqual([
@@ -109,23 +125,56 @@ describe('the menu itself', () => {
     expect(labels(byLabel(onLayer, 'Order')!.submenu!)).toEqual(['Bring Forward', 'Send Backward', 'Bring to Front', 'Send to Back']);
   });
 
-  it('offers only what can be added over bare picture, with Paste the one edit that still means something', () => {
-    const empty = stageMenu({ template: true, layerLabel: null, facts: facts({ canAddLayer: true, canPasteLayer: true }), assets });
-    expect(labels(empty)).toEqual(['Add Text Here', 'Add Asset Here', 'Paste']);
-    expect(byLabel(empty, 'Paste')!.enabled).toBe(true);
+  it('puts what the layer itself holds at the top: words on a line, a picture on a picture', () => {
+    const text = stageMenu(context({ layerLabel: 'Title', facts: facts({ ...everything, canEditText: true }), assets }));
+    expect(labels(text)[0]).toBe('Edit Text');
+    expect(labels(text)).not.toContain('Replace Image…');
+    const picture = stageMenu(context({ layerLabel: 'Logo', facts: facts({ ...everything, canReplaceImage: true }), assets }));
+    expect(labels(picture)[0]).toBe('Replace Image…');
+    expect(labels(picture)).not.toContain('Edit Text');
+    // A clip has neither: the item is left out rather than shown dead, since nothing would turn it on.
+    expect(labels(onLayer)).not.toContain('Edit Text');
+    expect(labels(onLayer)).not.toContain('Replace Image…');
   });
 
-  it('shows nothing at all when the stage holds no template', () => {
-    expect(stageMenu({ template: false, layerLabel: 'Title', facts: facts({ canEditLayer: true }), assets })).toEqual([]);
+  it('offers what can be added over bare picture, and what the stage is doing with the picture itself', () => {
+    const empty = stageMenu(context({ facts: facts({ canAddLayer: true, canPasteLayer: true }), assets, view: view({ canAddToCollection: true }) }));
+    expect(labels(empty)).toEqual(['Add Text Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
+    expect(byLabel(empty, 'Paste')!.enabled).toBe(true);
+    expect(byLabel(empty, 'Add to Collection')!.enabled).toBe(true);
+    // Those belong to the picture as a whole, so a layer's menu does not repeat them.
+    for (const label of ['Add to Collection', 'Background', 'Theater']) expect(labels(onLayer)).not.toContain(label);
+  });
+
+  it('shows the four backgrounds with the one that is on ticked, and says whether theater is', () => {
+    const grey = stageMenu(context({ view: view({ background: 'gray', theater: true }) }));
+    const backgrounds = byLabel(grey, 'Background')!.submenu!;
+    expect(backgrounds.map((i) => [i.label, i.arg])).toEqual([
+      ['Checkerboard', 'checker'], ['Black', 'black'], ['White', 'white'], ['Grey', 'gray'],
+    ]);
+    expect(backgrounds.filter((i) => i.checked).map((i) => i.label)).toEqual(['Grey']);
+    expect(byLabel(grey, 'Theater')!.checked).toBe(true);
+    const plain = stageMenu(context({ view: view({ background: 'checker' }) }));
+    expect(byLabel(plain, 'Background')!.submenu!.filter((i) => i.checked).map((i) => i.label)).toEqual(['Checkerboard']);
+    expect(byLabel(plain, 'Theater')!.checked).toBe(false);
+    // A background the person mixed themselves is none of the four, so none is ticked.
+    const own = stageMenu(context({ view: view({ background: 'custom' }) }));
+    expect(byLabel(own, 'Background')!.submenu!.filter((i) => i.checked)).toEqual([]);
+  });
+
+  it('offers the stage\'s own items for a clip or a still too, which have no layers at all', () => {
+    const media = stageMenu(context({ template: false, view: view({ canAddToCollection: true }) }));
+    expect(labels(media)).toEqual(['Add to Collection', 'Background', 'Theater']);
+    // Nothing to add to and nothing to edit: a clip has no stack.
+    expect(labels(media)).not.toContain('Add Text Here');
+  });
+
+  it('shows nothing at all when the stage holds nothing', () => {
+    expect(stageMenu(context({ item: false, template: false, layerLabel: 'Title', facts: facts({ canEditLayer: true }) }))).toEqual([]);
   });
 
   it('greys out exactly what cannot act', () => {
-    const atTheFront = stageMenu({
-      template: true,
-      layerLabel: 'Title',
-      facts: facts({ canAddLayer: true, canEditLayer: true, canLayerBackward: true }),
-      assets,
-    });
+    const atTheFront = stageMenu(context({ layerLabel: 'Title', facts: facts({ canAddLayer: true, canEditLayer: true, canLayerBackward: true }), assets }));
     // A required layer at the front of its stack: it can be copied, not cut, and not sent forward.
     expect(byLabel(atTheFront, 'Copy')!.enabled).toBe(true);
     expect(byLabel(atTheFront, 'Cut')!.enabled).toBe(false);
@@ -136,8 +185,10 @@ describe('the menu itself', () => {
     expect(byLabel(atTheFront, 'Paste Look')!.enabled).toBe(false);
     // The Order submenu itself is dead only when neither way is open.
     expect(byLabel(atTheFront, 'Order')!.enabled).toBe(true);
-    const stuck = stageMenu({ template: true, layerLabel: 'Only', facts: facts({ canEditLayer: true }), assets });
+    const stuck = stageMenu(context({ layerLabel: 'Only', facts: facts({ canEditLayer: true }), assets }));
     expect(byLabel(stuck, 'Order')!.enabled).toBe(false);
+    // Nothing on the stage the tray will take: the item is there, and dead.
+    expect(byLabel(stageMenu(context()), 'Add to Collection')!.enabled).toBe(false);
   });
 
   it('lists the assets it is given, each carrying its own library id, and says plainly when there are none', () => {
@@ -147,27 +198,29 @@ describe('the menu itself', () => {
       ['Logo', 'layer.addImage', 'i1'],
       ['Fire', 'layer.addVideo', 'v1'],
     ]);
-    const none = stageMenu({ template: true, layerLabel: null, facts: facts({ canAddLayer: true }), assets: [] });
+    const none = stageMenu(context({ facts: facts({ canAddLayer: true }) }));
     const empty = byLabel(none, 'Add Asset Here')!.submenu!;
     expect(empty).toHaveLength(1);
     expect(empty[0]).toMatchObject({ label: 'No pictures or clips in your library', enabled: false });
     // However many the library holds, the submenu stays readable.
     const many = Array.from({ length: 30 }, (_, i) => ({ id: `i${i}`, name: `Still ${i}`, kind: 'image' as const }));
-    const capped = stageMenu({ template: true, layerLabel: null, facts: facts({ canAddLayer: true }), assets: many });
+    const capped = stageMenu(context({ facts: facts({ canAddLayer: true }), assets: many }));
     expect(byLabel(capped, 'Add Asset Here')!.submenu).toHaveLength(STAGE_MENU_ASSETS);
   });
 });
 
 describe('one command list with the application menu', () => {
   const everyStageCommand = () => {
-    const all = new Set<string>();
+    const found = new Set<string>();
     for (const layerLabel of ['Title', null]) {
-      for (const f of [NO_LAYER_FACTS, facts({ canAddLayer: true, canEditLayer: true, canDeleteLayer: true, canLayerForward: true, canLayerBackward: true, canPasteLayer: true, canPasteLook: true, canResetLayer: true })]) {
+      const all = { canAddLayer: true, canEditLayer: true, canDeleteLayer: true, canLayerForward: true, canLayerBackward: true, canPasteLayer: true, canPasteLook: true, canResetLayer: true };
+      // Both kinds of layer, since each offers an item the other does not.
+      for (const f of [NO_LAYER_FACTS, facts({ ...all, canEditText: true }), facts({ ...all, canReplaceImage: true })]) {
         const assets: StageAsset[] = [{ id: 'i1', name: 'Logo', kind: 'image' }, { id: 'v1', name: 'Fire', kind: 'video' }];
-        for (const c of stageMenuCommands(stageMenu({ template: true, layerLabel, facts: f, assets }))) all.add(c);
+        for (const c of stageMenuCommands(stageMenu(context({ layerLabel, facts: f, assets })))) found.add(c);
       }
     }
-    return [...all];
+    return [...found];
   };
 
   it('names only commands the application menu also offers', () => {
@@ -186,11 +239,11 @@ describe('one command list with the application menu', () => {
     const submenu = every(layerSubmenu());
     for (const item of submenu) {
       if (!item.command) continue;
-      expect(item.enabledBy, `${item.command} in the Edit menu`).toBe(LAYER_COMMAND_FLAGS[item.command]);
+      expect(item.enabledBy, `${item.command} in the Edit menu`).toBe(SHARED_COMMAND_FLAGS[item.command]);
     }
     // And the stage's items were built from the same table, so the two agree item by item.
     const on: MenuState = { ...EMPTY_MENU_STATE, canAddLayer: true, canEditLayer: true, canDeleteLayer: true, canLayerForward: true, canPasteLayer: true };
-    const stage = every(stageMenu({ template: true, layerLabel: 'Title', facts: on, assets: [] }));
+    const stage = every(stageMenu(context({ template: true, layerLabel: 'Title', facts: on, assets: [] })));
     for (const item of stage) {
       if (!item.command) continue;
       const inApp = submenu.find((i) => i.command === item.command);

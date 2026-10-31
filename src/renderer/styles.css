@@ -21,6 +21,9 @@
   --space-4: 16px;
   --space-5: 24px;
   --radius-control: 4px;
+  /* The tick a chosen item wears in the right-click menu (milestone 39), drawn rather than
+     fetched: an icon file would be one more thing for a menu that must appear instantly. */
+  --check-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M13.5 4.5 6.5 11.5 2.5 7.5" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
   --radius-surface: 8px;
   /* The center column on a short window keeps its floors: the results list never collapses below
      --results-min-h, the stage never below --stage-min-h (150 px, the promise the UI tests hold, plus
@@ -202,6 +205,14 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .context-menu > button.has-submenu::after { content: ''; width: 5px; height: 5px; margin-right: 2px; border-right: 1px solid currentColor;
   border-top: 1px solid currentColor; transform: rotate(45deg); flex: 0 0 auto; }
 .context-menu > button.has-submenu:disabled::after { opacity: 0.5; }
+/* A choice that is on carries a tick in a gutter of its own, so the labels of a group line up
+   whether or not any of them is ticked. */
+.context-menu > button[role="menuitemradio"], .context-menu > button[role="menuitemcheckbox"] { padding-left: var(--space-1); }
+.context-menu > button[role="menuitemradio"]::before, .context-menu > button[role="menuitemcheckbox"]::before {
+  content: ''; flex: 0 0 auto; width: 14px; height: 14px; margin-right: 2px; background: currentColor; opacity: 0;
+  -webkit-mask: var(--check-mask) center / contain no-repeat; mask: var(--check-mask) center / contain no-repeat;
+}
+.context-menu > button.checked::before { opacity: 1; }
 .context-sep { height: 1px; margin: var(--space-1) var(--space-2); background: var(--border); }
 .tooltip { position: fixed; z-index: 1000; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: var(--font-secondary); pointer-events: none; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); max-width: 320px; }
 .tooltip[hidden] { display: none; }
@@ -699,6 +710,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .stage-view .swatch { width: 22px; height: 22px; padding: 0; border-radius: var(--radius-control); border: 1px solid var(--border); }
 .stage-view .swatch.black { background: #000000; }
 .stage-view .swatch.white { background: #ffffff; }
+.stage-view .swatch.gray { background: #808080; }
 .stage-view .swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .stage-view #bg-custom { width: 26px; height: 22px; padding: 1px; }
 .stage-view #bg-custom.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }

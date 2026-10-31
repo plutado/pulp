@@ -111,7 +111,14 @@ function buildPanel(items: readonly MenuItemSpec[], depth: number): HTMLDivEleme
     }
     const button = document.createElement('button');
     button.type = 'button';
-    button.setAttribute('role', item.submenu ? 'menuitem' : 'menuitem');
+    // A choice says what kind it is and whether it is on, for the eye and for a screen reader
+    // alike; `checked` is filled in by whoever built the list, as the application menu's is.
+    const kind = item.type === 'radio' ? 'menuitemradio' : item.type === 'checkbox' ? 'menuitemcheckbox' : 'menuitem';
+    button.setAttribute('role', kind);
+    if (kind !== 'menuitem') {
+      button.setAttribute('aria-checked', String(item.checked === true));
+      button.classList.toggle('checked', item.checked === true);
+    }
     button.textContent = item.label ?? '';
     if (item.command) button.dataset.command = item.command;
     if (item.arg !== undefined) button.dataset.arg = item.arg;

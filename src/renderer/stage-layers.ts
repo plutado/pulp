@@ -369,6 +369,12 @@ export function mountStageDrop(el: HTMLElement, stageHost: Host, lookup: (id: st
   });
 }
 
+/** The middle of what a layer draws, in frame pixels; where a menu opened from the keyboard appears. */
+export function layerCentre(block: string, id: string): { x: number; y: number } | null {
+  const report = laidLayer(block, id);
+  return report && report.box.width > 0 ? placedCentre(report) : null;
+}
+
 /** The layer at a point on the frame, with the same reach a click has; what the right-click menu acts on. */
 export function layerAtPoint(point: { x: number; y: number }): { block: string; id: string } | null {
   if (!overlay || !host) return null;

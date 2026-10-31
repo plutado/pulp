@@ -37,10 +37,12 @@ import {
   type LayerOrder,
   type StageAsset,
 } from '../core/stage-menu';
+import { runCommand } from './commands';
 import { closeContextMenu, openContextMenu } from './context-menu';
 import { openInspector } from './inspector-tabs';
 import { layerEditor, selectedLayer } from './layer-edit';
 import { placeLayerAt } from './stage-layers';
+import { DEFAULT_PLAYER, STAGE_BACKGROUNDS, type StageBackground } from '../core/player';
 import { appState } from './store';
 
 interface Host {
@@ -54,6 +56,10 @@ interface Host {
   layerAt(point: { x: number; y: number }): { block: string; id: string } | null;
   /** A template, rather than a clip or a still, is on the stage. */
   hasTemplate(): boolean;
+  /** Anything at all is on the stage; nothing shown, nothing to offer. */
+  hasItem(): boolean;
+  /** Where a layer sits on the frame, for a menu opened from the keyboard rather than a pointer. */
+  layerCentre(block: string, id: string): { x: number; y: number } | null;
   /** Say something to the person, in the stage's own note. */
   note(text: string): void;
 }
@@ -239,6 +245,16 @@ export function runLayerCommand(command: MenuCommand, arg: string | null): void 
       editor.edit(it.block, it.id, (l) => layerWithLook(l, held.look), true);
       return;
     }
+    case 'layer.editText': {
+      const it = chosen();
+      if (it?.layer.type === 'text') editor.editText(it.block, it.id);
+      return;
+    }
+    case 'layer.replaceImage': {
+      const it = chosen();
+      if (it?.layer.type === 'image') editor.replaceImage(it.block, it.id);
+      return;
+    }
     case 'layer.startHere': endAtPlayhead('start'); return;
     case 'layer.endHere': endAtPlayhead('end'); return;
     case 'layer.reset': {
@@ -252,36 +268,48 @@ export function runLayerCommand(command: MenuCommand, arg: string | null): void 
 
 // ---------------------------------------------------------------- opening it
 
+/** What the window is doing with the stage, for the items that belong to the picture as a whole. */
+function viewFacts(): { theater: boolean; background: StageBackground; canAddToCollection: boolean } {
+  const pressed = (id: string) => document.getElementById(id)?.getAttribute('aria-pressed') === 'true';
+  const custom = document.getElementById('bg-custom')?.classList.contains('active');
+  return {
+    theater: pressed('theater'),
+    background: custom ? 'custom' : (STAGE_BACKGROUNDS.find((b) => pressed(`bg-${b.id}`))?.id ?? DEFAULT_PLAYER.background),
+    canAddToCollection: (document.getElementById('add-to-collection') as HTMLButtonElement | null)?.disabled === false,
+  };
+}
+
 /**
- * Right-clicking the picture opens the menu where the pointer is. The layer
- * under the pointer is selected first, exactly as a left-click would select
- * it, so the menu's edits act on what was pointed at; right-clicking bare
- * picture clears the selection, and the menu then offers only what can be
- * added there.
+ * Open the menu at a point on screen, for the layer at `point` on the frame.
+ * The layer there is selected first, exactly as a left-click would select it,
+ * so the menu's edits act on what was pointed at; nothing there clears the
+ * selection, and the menu then offers what can be added and what the stage is
+ * doing with the picture as a whole.
  */
-function onContextMenu(el: HTMLElement, e: MouseEvent): void {
+function openAt(client: { x: number; y: number }, point: { x: number; y: number } | null, hit: { block: string; id: string } | null): void {
   if (!host) return;
-  e.preventDefault();
-  if (!host.hasTemplate()) {
-    closeContextMenu();
-    return;
-  }
-  const point = framePointIn(el.getBoundingClientRect(), host.frameSize(), { x: e.clientX, y: e.clientY });
-  const hit = host.layerAt(point);
   selectedLayer.value = hit;
-  const facts = currentLayerFacts();
   const label = hit ? (layerEditor()?.get(hit.block, hit.id)?.label ?? null) : null;
-  const items = stageMenu({ template: true, layerLabel: label, facts, assets: stageAssets() });
+  const items = stageMenu({
+    item: host.hasItem(),
+    template: host.hasTemplate(),
+    layerLabel: label,
+    facts: currentLayerFacts(),
+    assets: stageAssets(),
+    view: viewFacts(),
+  });
   openContextMenu({
-    x: e.clientX,
-    y: e.clientY,
+    x: client.x,
+    y: client.y,
     items,
-    // The point belongs to this menu and to nothing else: it is in hand while the command
-    // runs and gone again afterwards, so the Edit menu's Add still adds to the stack.
+    // Through the window's one dispatcher, so a command does here exactly what the application
+    // menu's item for it does. The point belongs to this menu and to nothing else: it is in hand
+    // while the command runs and gone again afterwards, so the Edit menu's Add still adds to the
+    // stack rather than to wherever the stage was last right-clicked.
     run: (command, arg) => {
       openedAt = point;
       try {
-        runLayerCommand(command, arg);
+        runCommand(command, arg);
       } finally {
         openedAt = null;
       }
@@ -289,7 +317,53 @@ function onContextMenu(el: HTMLElement, e: MouseEvent): void {
   });
 }
 
+function onContextMenu(el: HTMLElement, e: MouseEvent): void {
+  if (!host) return;
+  e.preventDefault();
+  if (!host.hasItem()) {
+    closeContextMenu();
+    return;
+  }
+  const point = framePointIn(el.getBoundingClientRect(), host.frameSize(), { x: e.clientX, y: e.clientY });
+  openAt({ x: e.clientX, y: e.clientY }, point, host.hasTemplate() ? host.layerAt(point) : null);
+}
+
+/**
+ * The menu from the keyboard (milestone 39): Shift+F10 and the Menu key, which
+ * is what every platform's own menus answer to. It opens on the **selected**
+ * layer — at the middle of what that layer draws, so the menu appears beside
+ * the thing it is about — or at the middle of the picture when nothing is
+ * selected, which is the menu for bare picture.
+ */
+function onMenuKey(el: HTMLElement): void {
+  if (!host || !host.hasItem()) return;
+  const box = el.getBoundingClientRect();
+  if (box.width < 1) return;
+  const size = host.frameSize();
+  const chosen = host.hasTemplate() ? selectedLayer.value : null;
+  // Where the layer is drawn, when the frame in hand says; the middle of the picture otherwise —
+  // a layer not drawn at this moment is still the selected layer, and the menu is still its own.
+  const centre = chosen ? host.layerCentre(chosen.block, chosen.id) : null;
+  const point = centre ?? { x: size.width / 2, y: size.height / 2 };
+  // The frame point back to the screen, through the picture's own box.
+  const client = { x: box.left + (point.x / size.width) * box.width, y: box.top + (point.y / size.height) * box.height };
+  openAt(client, point, chosen);
+}
+
+/** Is this the key that asks for a context menu? Shift+F10 everywhere, and the key named for it. */
+function isMenuKey(e: KeyboardEvent): boolean {
+  if (e.key === 'ContextMenu') return true;
+  return e.key === 'F10' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey;
+}
+
 export function mountStageMenu(el: HTMLElement, stageHost: Host): void {
   host = stageHost;
   el.addEventListener('contextmenu', (e) => onContextMenu(el, e));
+  // On the picture rather than on the window: the keys belong to the stage, and a text field
+  // elsewhere with the caret in it must keep its own menu key.
+  el.addEventListener('keydown', (e) => {
+    if (!isMenuKey(e)) return;
+    e.preventDefault();
+    onMenuKey(el);
+  });
 }

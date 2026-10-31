@@ -14,10 +14,12 @@
 
 import { effect } from '@preact/signals';
 import type { MenuCommand, MenuState } from '../core/menu';
+import { DEFAULT_PLAYER, STAGE_BACKGROUNDS, type StageBackground } from '../core/player';
 import { THUMB_SIZES } from '../core/results-view';
 import { appState, paramsEdited, renderBlocked, results, resultsView, transport } from './store';
 import { selectedLayer } from './layer-edit';
 import { currentLayerFacts, runLayerCommand, stageClipboard } from './stage-menu';
+import { registerCommandRunner } from './commands';
 import { newProject, openProjectFrom, saveProject } from './project';
 import { showShortcuts } from './shortcuts';
 import { showStartScreen } from './start-screen';
@@ -65,6 +67,7 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'edit.redo': press('redo'); return;
     // The layer edits (milestone 39) are the same commands the stage's right-click menu names,
     // and they run here, in the one dispatcher, whichever menu asked.
+    case 'layer.editText': case 'layer.replaceImage':
     case 'layer.addText': case 'layer.addImage': case 'layer.addVideo':
     case 'layer.cut': case 'layer.copy': case 'layer.paste': case 'layer.duplicate': case 'layer.delete':
     case 'layer.forward': case 'layer.backward': case 'layer.front': case 'layer.back':
@@ -87,6 +90,11 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'view.info': press('tab-info'); return;
     case 'view.grid': press('view-grid'); return;
     case 'view.list': press('view-list'); return;
+    case 'view.theater': press('theater'); return;
+    // One command for the four choices, with the chosen one as its argument — checked against
+    // the four, so the argument can only ever name one of the stage's own buttons.
+    case 'view.background': if (STAGE_BACKGROUNDS.some((b) => b.id === arg)) press(`bg-${arg}`); return;
+    case 'collection.add': press('add-to-collection'); return;
     case 'view.bigger': stepCardSize(1); return;
     case 'view.smaller': stepCardSize(-1); return;
     case 'play.toggle': press('play'); return;
@@ -110,6 +118,12 @@ function usable(id: string): boolean {
 
 function pressed(id: string): boolean {
   return document.getElementById(id)?.getAttribute('aria-pressed') === 'true';
+}
+
+/** What the stage draws behind a transparent graphic, read off its own controls. */
+function stageBackground(): StageBackground {
+  if (document.getElementById('bg-custom')?.classList.contains('active')) return 'custom';
+  return (STAGE_BACKGROUNDS.find((b) => pressed(`bg-${b.id}`))?.id ?? DEFAULT_PLAYER.background);
 }
 
 function visible(region: 'browse' | 'stage' | 'tray' | 'results'): boolean {
@@ -142,6 +156,9 @@ function readState(recent: string[]): MenuState {
     outputOpen: tabOpen('output'),
     infoOpen: tabOpen('info'),
     grid: pressed('view-grid'),
+    theater: pressed('theater'),
+    background: stageBackground(),
+    canAddToCollection: usable('add-to-collection'),
     // What can be done to a layer, worked out once and read by both menus (milestone 39).
     ...currentLayerFacts(),
     recent,
@@ -220,6 +237,9 @@ export function menuRecentChanged(paths: readonly string[]): void {
 
 export function initMenu(): void {
   window.pulp.onMenuCommand((command, arg) => run(command, arg));
+  // The stage's right-click menu names the same commands and runs them through here
+  // (milestone 39), so a command cannot mean one thing on one menu and another on the other.
+  registerCommandRunner(run);
   // For tests and scripting: run a menu item without the menu, which cannot be clicked from here.
   (window as unknown as { pulpMenuCommand?: (command: MenuCommand, arg?: string) => void }).pulpMenuCommand =
     (command, arg) => run(command, arg ?? null);

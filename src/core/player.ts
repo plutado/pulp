@@ -7,9 +7,29 @@
  */
 
 /** What shows behind a preview with transparency. */
-export type StageBackground = 'checker' | 'black' | 'white' | 'custom';
+export type StageBackground = 'checker' | 'black' | 'white' | 'gray' | 'custom';
 
-const BACKGROUNDS: StageBackground[] = ['checker', 'black', 'white', 'custom'];
+const BACKGROUNDS: StageBackground[] = ['checker', 'black', 'white', 'gray', 'custom'];
+
+/**
+ * The flat colours the stage draws behind a transparent graphic; the
+ * checkerboard is a pattern and the custom one is the person's own. Mid-grey
+ * joined them in milestone 39: black flatters a bright edge and white a dark
+ * one, and grey is the neutral a soft edge or a key is really judged against.
+ */
+export const STAGE_BACKGROUND_COLORS: Record<Exclude<StageBackground, 'checker' | 'custom'>, string> = {
+  black: '#000000',
+  white: '#ffffff',
+  gray: '#808080',
+};
+
+/** The backgrounds offered as a set of choices, in the order they are shown. */
+export const STAGE_BACKGROUNDS: readonly { id: StageBackground; label: string }[] = [
+  { id: 'checker', label: 'Checkerboard' },
+  { id: 'black', label: 'Black' },
+  { id: 'white', label: 'White' },
+  { id: 'gray', label: 'Grey' },
+];
 
 export interface PlayerState {
   /** Playback returns to the start at the end instead of stopping on the last frame. */
