@@ -119,6 +119,10 @@ Four jobs run on every push and pull request: `check` (Ubuntu: dependency audit,
 - **Linux** runs under a virtual display (`xvfb-run`, 8192 × 4608: larger than any render, since Linux keeps an offscreen window inside the screen) and a D-Bus session (`dbus-run-session`). It uses a pinned static ffmpeg 9.0 (BtbN/FFmpeg-Builds, checksum-verified) rather than Ubuntu's 6.1, which rounds the colour conversion a step differently and failed the exact colour checks. The runner's kernel blocks unprivileged user namespaces, which Chromium's sandbox needs, so the job gives Electron's setuid `chrome-sandbox` helper root ownership and mode 4755, the supported alternative to turning the sandbox off.
 - **The dependency audit** counts development dependencies too: Electron is one, and it is the runtime Pulp ships.
 
+### A layer added from the stage menu is placed on the next frame report (fixed, October 2026)
+
+The Linux runner failed the right-click menu's "replace a picture" test where macOS and Windows passed: the menu that opened belonged to the title, while the selection check said the new picture layer was selected. A layer added from the stage's menu is placed where the click was, and selected, only when the page's *next* frame report arrives (`placeLayerAt` in `src/renderer/stage-layers.ts`). On the slow runner that report landed after the test had right-clicked where the picture would be — opening whatever layer was there already — and then flipped the selection to the picture, so a check on the selection alone passed for someone else's menu. The tests now wait for an added layer to be placed *and* selected, then open the menu for the selection from the keyboard (`addedLayerReady`, `menuForSelected` in `tests/e2e/ui.e2e.test.ts`). The same cure as the earlier duplicate test: a pointer aimed at a layer that sits beside its sibling, or that is still landing, is a coin toss; the selection is not.
+
 ## Windows CI
 
 ### The job

@@ -2143,6 +2143,22 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(open, 'the menu for the selected layer');
       };
 
+      /**
+       * A layer added from the menu lands where it was asked for, and is selected, only when the
+       * page's *next* frame report arrives (placeLayerAt). Acting on it before then is a race the
+       * Linux runner lost: a right-click aimed at where it would be opened the menu of whatever
+       * was there already, and the late placement then flipped the selection to the new layer,
+       * so a check on the selection alone passed for a menu that was somebody else's. Wait for
+       * both, then ask for the selection's own menu.
+       */
+      const addedLayerReady = (id: string) =>
+        until(
+          async () =>
+            (await page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected[data-layer="${id}"]')`)) &&
+            (await inkCentre(id).catch(() => null)) !== null,
+          `the added layer ${id} placed and selected`,
+        );
+
       const rightClickLayer = async (id: string) => {
         await until(async () => {
           const centre = await inkCentre(id).catch(() => null);
@@ -2281,8 +2297,12 @@ describe.skipIf(!electron)('inspector UI', () => {
           .toBe(await page.eval<number>(`document.activeElement.value.length`));
 
         // A picture layer, added through the menu's own asset list: Replace Image… opens its chooser.
+        // Asked for well away from the lines, so it does not land on one of them.
         const before = await layerIds();
-        await rightClick(40, 40);
+        const frame = await page.eval<{ width: number; height: number }>(
+          `(() => { const [w, h] = (document.getElementById('preview-frame').style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`,
+        );
+        await rightClick(frame.width * 0.8, frame.height * 0.8);
         await choose('Add Asset Here');
         await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the asset submenu');
         // A plain PNG by name: a layered file or a PDF draws through the rasterizer and would
@@ -2294,7 +2314,8 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(picked, 'the asset submenu offers the library\'s plain PNG').toBe(true);
         await until(async () => (await layerIds()).length === before.length + 1, 'the picture layer');
         const picture = (await layerIds()).find((id) => !before.includes(id))!;
-        await rightClickLayer(picture);
+        await addedLayerReady(picture);
+        await menuForSelected();
         expect(await labels()).toContain('Replace Image…');
         expect(await labels()).not.toContain('Edit Text');
         await choose('Replace Image…');
@@ -2311,7 +2332,10 @@ describe.skipIf(!electron)('inspector UI', () => {
         if (!haveVideo) return;
         // A clip layer from the menu's own asset list, then its own chooser from the menu.
         const before = await layerIds();
-        await rightClick(40, 40);
+        const frame = await page.eval<{ width: number; height: number }>(
+          `(() => { const [w, h] = (document.getElementById('preview-frame').style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`,
+        );
+        await rightClick(frame.width * 0.8, frame.height * 0.8);
         await choose('Add Asset Here');
         await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the asset submenu');
         const picked = await page.eval<boolean>(
@@ -2321,8 +2345,8 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(picked, 'the asset submenu offers a clip').toBe(true);
         await until(async () => (await layerIds()).length === before.length + 1, 'the clip layer');
         const clip = (await layerIds()).find((id) => !before.includes(id))!;
-        // A clip layer draws its poster, so it can be pointed at like any other.
-        await rightClickLayer(clip);
+        await addedLayerReady(clip);
+        await menuForSelected();
         expect(await labels()).toContain('Replace Clip…');
         expect(await labels()).not.toContain('Replace Image…');
         expect(await labels()).not.toContain('Edit Text');
