@@ -18,7 +18,8 @@ import { basename, extname, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
-import { folderTags, itemId, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES, type PackContext } from './library-scan';
+import { folderTags, itemId, loadLottie, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES, sniffLottieFile, type PackContext } from './library-scan';
+import { isLottieCandidate } from './lottie';
 import { unreadableDesignNote } from './layered';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
 import { PACK_FILENAME, parsePackManifest, slug } from './pack';
@@ -370,6 +371,42 @@ export class LibraryStore {
           if (!entry.isFile()) continue;
           const kind = mediaKindForPath(entry.name);
           if (!kind) {
+            // A Lottie animation is a template read from one file (milestone 35): a `.lottie` by its
+            // extension, a `.json` by its shape. An unchanged one is kept without being read; a `.json`
+            // not seen before is sniffed first, so a settings file is never parsed whole.
+            if (isLottieCandidate(entry.name)) {
+              let info;
+              try {
+                info = await stat(full);
+              } catch (err) {
+                problems.push({ path: full, message: `could not stat file: ${(err as Error).message}` });
+                continue;
+              }
+              const key = `lottie:${full}`;
+              const stored = existing.get(key);
+              if (stored && stored.size === info.size && stored.mtime_ms === info.mtimeMs) {
+                seen.add(key);
+                fileCount += 1;
+                stats.visited += 1;
+                stats.kept += 1;
+                continue;
+              }
+              if (extname(entry.name).toLowerCase() === '.json' && !(await sniffLottieFile(full))) continue;
+              if (fileCount >= maxFiles) {
+                if (!truncated) problems.push({ path: rootPath, message: `stopped after ${maxFiles} files` });
+                truncated = true;
+                return;
+              }
+              fileCount += 1;
+              stats.visited += 1;
+              stats.loaded += 1;
+              const loaded = await loadLottie(full, rootPath, folderTags(rootPath, dir));
+              if ('kind' in loaded) {
+                seen.add(key);
+                upserts.push({ key, kind: 'template', size: info.size, mtimeMs: info.mtimeMs, entry: loaded });
+              } else problems.push(loaded);
+              continue;
+            }
             // A design file Pulp does not read is named with the export that works, not skipped silently (milestone 33).
             const note = unreadableDesignNote(entry.name, extname(entry.name));
             if (note) problems.push({ path: full, message: note });

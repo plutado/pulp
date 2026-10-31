@@ -22,9 +22,11 @@ import {
 } from './display';
 import { templateDefaultSize } from './aspect';
 import type { LibraryEntry } from './library-types';
+import type { LottieInfo } from './lottie-types';
 import { licenseWarning } from './pack';
 import { entryType } from './taxonomy';
 import { formatTimecode } from './timecode';
+import { lottieFormatLabel } from './lottie-types';
 
 /** The sections of the panel, in the order they are shown. */
 export const INFO_SECTIONS = [
@@ -77,6 +79,7 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
     rows.push({ label: 'Frame rate', value: frameRateLabel(m.fps) });
     rows.push({ label: 'Alpha', value: m.alpha ? 'Transparent background' : 'Opaque', ...(m.alpha ? { icon: 'alpha' as const } : {}) });
     if (entryType(entry) === 'animated-loop') rows.push({ label: 'Loop', value: 'Made to loop seamlessly', icon: 'loop' });
+    if (entry.lottie) rows.push(...lottieRows(entry.lottie));
     return rows;
   }
   const meta = entry.meta;
@@ -96,6 +99,28 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
   if (meta?.audioCodec) rows.push({ label: 'Audio', value: audioLabel(meta.audioCodec, meta.channels, meta.sampleRate) });
   return rows;
 }
+
+/**
+ * What a Lottie animation says of itself beyond its manifest (milestone 35):
+ * the file it was read from, its own size where the manifest rounded it, its
+ * markers, what of it is editable, and what the player cannot draw.
+ */
+export function lottieRows(info: LottieInfo): InfoRow[] {
+  const rows: InfoRow[] = [{ label: 'Source', value: lottieFormatLabel(info.format) }];
+  if (info.width % 2 !== 0 || info.height % 2 !== 0) rows.push({ label: 'Own size', value: `${dimensionsLabel(info.width, info.height)} · rendered a pixel wider or taller, as encoders need` });
+  if (info.animations && info.animations.length > 1) rows.push({ label: 'Animations', value: `${info.animations.length} · showing ${info.animations[0]}` });
+  if (info.markers.length > 0) {
+    rows.push({ label: 'Markers', value: info.markers.map((m) => (m.duration > 0 ? `${m.name} ${trimSeconds(m.time)}–${trimSeconds(m.time + m.duration)} s` : `${m.name} at ${trimSeconds(m.time)} s`)).join(' · ') });
+  }
+  const texts = info.bindings.filter((b) => b.type === 'text').length;
+  const colours = info.bindings.filter((b) => b.type === 'color').length;
+  const editable = [...(texts > 0 ? [`${texts} ${texts === 1 ? 'text' : 'texts'}`] : []), ...(colours > 0 ? [`${colours} ${colours === 1 ? 'colour' : 'colours'}`] : [])];
+  rows.push({ label: 'Editable', value: editable.length > 0 ? editable.join(', ') : 'Nothing the file exposes; only how it fits the frame' });
+  if (info.limits.length > 0) rows.push({ label: 'Not drawn', value: info.limits.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join('. ') + '.', tone: 'warn' });
+  return rows;
+}
+
+const trimSeconds = (s: number): string => String(Math.round(s * 100) / 100);
 
 /** "16:9", "9:16", "1:1" where it is one of the common shapes; the ratio otherwise. */
 export function aspectLabel(width: number | undefined, height: number | undefined): string {
@@ -125,7 +150,8 @@ function gcd(a: number, b: number): number {
 /** File: where it is and what the filesystem says about it. The location is a tooltip, never a card's text. */
 export function fileRows(entry: LibraryEntry): InfoRow[] {
   const rows: InfoRow[] = [];
-  const where = entry.kind === 'template' ? entry.dir : entry.path;
+  // A Lottie animation is one file, not a folder (milestone 35), so its location is the file.
+  const where = entry.kind === 'template' ? (entry.lottie?.path ?? entry.dir) : entry.path;
   // The value is a breadcrumb inside the library folder, not a path: it reads
   // "boardroom/lower-third" on every platform, while the tooltip keeps the
   // native path (with backslashes on Windows) for anyone who wants the real thing.

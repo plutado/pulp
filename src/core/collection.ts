@@ -63,9 +63,9 @@ export function newUid(): string {
   return `c${Date.now().toString(36)}${counter.toString(36)}`;
 }
 
-/** Where an entry's file is: a media file itself, a template's folder. */
+/** Where an entry's file is: a media file itself, a template's folder — or a Lottie animation's file (milestone 35). */
 export function entryPath(entry: LibraryEntry): string {
-  return entry.kind === 'template' ? entry.dir : entry.path;
+  return entry.kind === 'template' ? (entry.lottie?.path ?? entry.dir) : entry.path;
 }
 
 /** What an entry becomes when it is added, before any settings are changed. */

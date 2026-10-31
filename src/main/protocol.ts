@@ -9,9 +9,12 @@ import { THUMB_SCHEME } from '../core/thumbnails';
 import { STRIP_SCHEME } from '../core/hover-scrub';
 import { injectBridge, TEMPLATE_CSP } from '../core/runtime';
 import { TEMPLATE_SCHEME } from '../shared/api';
+import type { TemplateEntry } from '../core/library-types';
 import { bundledFontsDir, findTemplate, lookupMedia, lookupStrip, lookupThumbnail, thumbnailDir } from './library-service';
 import { hiddenFromQuery } from './psd-service';
 import { isLayeredPath, layeredFileFor } from './layered-service';
+import { lottieFileFor, lottiePlayerFile } from './lottie-service';
+import { LOTTIE_PLAYER_PATH } from '../core/lottie-types';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -240,6 +243,7 @@ export function handleTemplateProtocol(): void {
     }
     const template = await findTemplate(url.hostname);
     if (!template) return new Response('template not found', { status: 404 });
+    if (template.lottie) return serveLottieTemplate(template, relPath, request.method);
 
     const entryPath = relPath || template.manifest.entry;
     const root = resolve(template.dir);
@@ -266,4 +270,35 @@ export function handleTemplateProtocol(): void {
     }
     return new Response(new Uint8Array(body), { headers });
   });
+}
+
+/**
+ * A Lottie animation read as a template (milestone 35) has no folder to serve:
+ * its entry is a page made for it with the animation inlined, the player comes
+ * from a reserved path, and the only other files it can ask for are the
+ * pictures the animation names — beside a `.json`, inside a `.lottie`. Same
+ * CSP as every template page; anything else is a 404.
+ */
+async function serveLottieTemplate(template: TemplateEntry, relPath: string, method: string): Promise<Response> {
+  const refuse = (status = 404) => new Response(null, { status, headers: { 'Cache-Control': 'no-store' } });
+  if (method !== 'GET' && method !== 'HEAD') return refuse(405);
+  const headers = (type: string) => new Headers({ 'Content-Type': type, 'Content-Security-Policy': TEMPLATE_CSP, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+  if (relPath === LOTTIE_PLAYER_PATH) {
+    let body: Buffer;
+    try {
+      body = await readFile(lottiePlayerFile());
+    } catch {
+      return new Response('the Lottie player is not installed (lottie-web)', { status: 404, headers: headers('text/plain; charset=utf-8') });
+    }
+    return new Response(method === 'HEAD' ? null : new Uint8Array(body), { headers: headers(MIME['.js']!) });
+  }
+  const read = await lottieFileFor(template);
+  if (!read.ok) return new Response(`the Lottie animation could not be read: ${read.message}`, { status: 404, headers: headers('text/plain; charset=utf-8') });
+  if (relPath === '' || relPath === template.manifest.entry) {
+    const page = injectBridge(read.handle.html, importedFontFaceCss(await listImportedFonts(), `/${TEMPLATE_FONTS_PATH}/`));
+    return new Response(method === 'HEAD' ? null : page, { headers: headers(MIME['.html']!) });
+  }
+  const asset = await read.handle.asset(relPath);
+  if (!asset) return refuse();
+  return new Response(method === 'HEAD' ? null : new Uint8Array(asset.bytes), { headers: headers(asset.mime) });
 }

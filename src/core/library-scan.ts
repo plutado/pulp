@@ -4,11 +4,14 @@
  */
 
 import { createHash } from 'node:crypto';
-import { readdir, readFile, stat } from 'node:fs/promises';
-import { extname, join, relative, sep } from 'node:path';
+import { open, readdir, readFile, stat } from 'node:fs/promises';
+import { basename, dirname, extname, join, relative, sep } from 'node:path';
 import { type TemplateManifest, MANIFEST_FILENAME, parseManifest } from './manifest';
 import type { LibraryProblem, MediaKind, TemplateEntry } from './library-types';
 import { normalizeTag } from './tags';
+import { humanizeFileName, lottieEditables, lottieInfo, lottieLimits, lottieManifest, parseLottie, readDotLottie, sniffLottieJson, type LottieDocument } from './lottie';
+import type { LottieFormat } from './lottie-types';
+import { inferTemplateType, inferThemes } from './taxonomy';
 
 export const MEDIA_EXTENSIONS: Record<MediaKind, readonly string[]> = {
   video: ['.mov', '.mp4', '.m4v', '.mkv', '.webm', '.mxf', '.avi'],
@@ -139,5 +142,93 @@ export async function loadTemplate(dir: string, root: string, pack?: PackContext
     manifest: applyPackDefaults(result.manifest, pack),
     tags,
     warnings: result.warnings,
+  };
+}
+
+// ---------------------------------------------------------------- Lottie animations (milestone 35)
+
+/** How much of a `.json` is read to tell a Lottie from any other JSON: Bodymovin's header keys come first. */
+const LOTTIE_SNIFF_BYTES = 4096;
+
+/** Does this `.json` look like a Lottie? Reads only its head; the whole file is parsed when it is loaded. */
+export async function sniffLottieFile(path: string): Promise<boolean> {
+  let handle;
+  try {
+    handle = await open(path, 'r');
+  } catch {
+    return false;
+  }
+  try {
+    const buffer = Buffer.alloc(LOTTIE_SNIFF_BYTES);
+    const { bytesRead } = await handle.read(buffer, 0, LOTTIE_SNIFF_BYTES, 0);
+    return sniffLottieJson(buffer.toString('utf8', 0, bytesRead));
+  } catch {
+    return false;
+  } finally {
+    await handle.close();
+  }
+}
+
+/**
+ * Read a Lottie file — a `.json` or a `.lottie` archive — as a template entry:
+ * the manifest made from the file, its editable text and colours as
+ * parameters, its type and themes from its folders as a clip's would be.
+ * Problems are returned, not thrown, as `loadTemplate` returns them.
+ */
+export async function loadLottie(path: string, root: string, folderSegments: readonly string[]): Promise<TemplateEntry | LibraryProblem> {
+  let info;
+  try {
+    info = await stat(path);
+  } catch (err) {
+    return { path, message: `could not read the file: ${(err as Error).message}` };
+  }
+  const format: LottieFormat = extname(path).toLowerCase() === '.lottie' ? 'lottie' : 'json';
+  let document: LottieDocument;
+  let animations: string[] | undefined;
+  let author: string | undefined;
+  const limits: string[] = [];
+  try {
+    if (format === 'lottie') {
+      const archive = readDotLottie(await readFile(path));
+      document = archive.document;
+      animations = archive.animations;
+      author = archive.author;
+      limits.push(...archive.limits);
+    } else {
+      document = parseLottie(await readFile(path, 'utf8'));
+    }
+  } catch (err) {
+    return { path, message: `could not read the Lottie animation: ${(err as Error).message}` };
+  }
+  const editables = lottieEditables(document.data);
+  limits.push(...lottieLimits(document.data), ...editables.limits);
+  const key = `lottie:${path}`;
+  const id = itemId(key);
+  const type = inferTemplateType(folderSegments);
+  const themes = inferThemes(folderSegments);
+  const result = lottieManifest(document, {
+    id,
+    name: humanizeFileName(basename(path)),
+    format,
+    ...(type ? { type } : {}),
+    themes,
+    tags: [...folderSegments],
+    ...(author ? { author } : {}),
+    editables,
+    limits,
+  });
+  if (!result.ok) return { path, message: 'the Lottie animation could not be read as a template', issues: result.errors };
+  return {
+    kind: 'template',
+    key,
+    id,
+    dir: dirname(path),
+    root,
+    size: info.size,
+    mtimeMs: info.mtimeMs,
+    manifest: result.manifest,
+    tags: unique([...result.manifest.tags, ...folderSegments]),
+    warnings: result.warnings,
+    lottie: lottieInfo(document, path, format, editables.bindings, limits, animations),
   };
 }

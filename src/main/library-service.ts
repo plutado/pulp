@@ -414,7 +414,7 @@ export function markItemRendered(id: string): void {
 export function itemPath(id: string): string | undefined {
   const entry = getStore().findEntryById(id);
   if (!entry) return undefined;
-  return entry.kind === 'template' ? entry.dir : entry.path;
+  return entry.kind === 'template' ? (entry.lottie?.path ?? entry.dir) : entry.path;
 }
 
 /** Selections waiting to jump the thumbnail queue, newest kept; see generatePendingThumbnails. */

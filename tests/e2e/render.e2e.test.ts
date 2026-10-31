@@ -22,6 +22,8 @@ import { mediaUrlFor } from '../../src/core/media-url';
 import { scanLibrary } from '../../src/core/library';
 import { SAMPLE_MEDIA, sampleMediaPath } from '../../src/core/sample-media';
 import { ffmpegArgs, runBounded, runBoundedBuffer } from './process';
+import { lottieManifestId } from '../../src/core/lottie';
+import { dotLottieFixture, lottieFixture } from '../lottie-fixture';
 
 const ROOT = join(__dirname, '..', '..');
 const FIXTURES = join(__dirname, 'templates');
@@ -1299,4 +1301,82 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(Date.now() - started).toBeLessThan(30_000);
     expect((await readdir(out)).filter((f) => basename(f).startsWith('hangs_'))).toEqual([]);
   }, 120_000);
+
+  /**
+   * Lottie animations (milestone 35): a `.json` and a `.lottie` written by the test are indexed
+   * as templates and rendered through the same path, stepped frame by frame by the player. The
+   * fixture's square crosses the frame on linear keyframes, so where it is on a given frame is
+   * known exactly; its text and colours are the parameters the file exposes.
+   */
+  describe('Lottie animations', () => {
+    let lib = '';
+    let jsonId = '';
+    let dotId = '';
+    const frameFiles = async (prefix: string) => (await readdir(out)).filter((f) => f.startsWith(`${prefix}_`)).sort().map((f) => join(out, f));
+    const alphaAt = async (file: string, x: number, y: number) => (await pixels(file, x, y))[3];
+    /** Whether any pixel of a row is drawn with more than half alpha. */
+    const rowDrawn = async (file: string, x: number, y: number, count: number) => {
+      const row = await pixels(file, x, y, count);
+      return row.some((_, i) => i % 4 === 3 && row[i]! > 128);
+    };
+
+    beforeAll(async () => {
+      lib = await mkdtemp(join(tmpdir(), 'pulp-lottie-e2e-'));
+      await mkdir(join(lib, 'Lower thirds'), { recursive: true });
+      const jsonPath = join(lib, 'Lower thirds', 'box.json');
+      await writeFile(jsonPath, JSON.stringify(lottieFixture({ fps: 10, frames: 10 })));
+      const dotPath = join(lib, 'box.lottie');
+      await writeFile(dotPath, dotLottieFixture({ box: lottieFixture({ fps: 10, frames: 10, fill: [0, 1, 0] }) }));
+      jsonId = lottieManifestId(itemId(`lottie:${jsonPath}`));
+      dotId = lottieManifestId(itemId(`lottie:${dotPath}`));
+    });
+
+    afterAll(async () => {
+      if (lib) await rm(lib, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    });
+
+    it('renders a .json frame-accurately with alpha: the square is where its keyframes put it on every frame', async () => {
+      const result = await render(jsonId, 'png-sequence', 'lottie-json', { extra: ['--library', lib] });
+      expect(result.code, result.stderr).toBe(0);
+      const frames = await frameFiles('lottie-json');
+      expect(frames).toHaveLength(10);
+      const [first] = frames;
+      const sixth = frames[5]!;
+      expect(await probe(first!)).toMatchObject({ width: 1920, height: 1080, pix_fmt: 'rgba' });
+      // Frame 0: the 200 px square is centred at x = 100; frame 5, halfway along 100 → 900, at x = 500.
+      expect(await pixels(first!, 100, 540)).toEqual([255, 0, 0, 255]);
+      expect(await alphaAt(first!, 500, 540)).toBe(0);
+      expect(await pixels(sixth, 500, 540)).toEqual([255, 0, 0, 255]);
+      expect(await alphaAt(sixth, 390, 540)).toBe(0);
+      expect(await pixels(sixth, 410, 540)).toEqual([255, 0, 0, 255]);
+      expect(await alphaAt(sixth, 610, 540)).toBe(0);
+      // The solid in the corner, and the text drawn along its row; everything else transparent.
+      expect(await pixels(first!, 100, 1060)).toEqual([0, 0, 255, 255]);
+      expect(await rowDrawn(first!, 200, 160, 400)).toBe(true);
+      const [min, max] = await alphaRange(first!, 0);
+      expect([min, max]).toEqual([0, 255]);
+    }, 180_000);
+
+    it('takes its text and colours as parameters', async () => {
+      const result = await render(jsonId, 'png-sequence', 'lottie-edit', {
+        extra: ['--library', lib, '--out-point', '0', '--param', 'text1=', '--param', 'color2=#00ff00', '--param', 'color3=#ffff00'],
+      });
+      expect(result.code, result.stderr).toBe(0);
+      const [first] = await frameFiles('lottie-edit');
+      expect(await pixels(first!, 100, 540)).toEqual([0, 255, 0, 255]);
+      expect(await pixels(first!, 100, 1060)).toEqual([255, 255, 0, 255]);
+      expect(await rowDrawn(first!, 200, 160, 400)).toBe(false);
+    }, 180_000);
+
+    it('renders a .lottie archive fitted into another aspect', async () => {
+      const result = await render(dotId, 'png-sequence', 'lottie-dot', { extra: ['--library', lib, '--aspect', '1:1', '--out-point', '0'] });
+      expect(result.code, result.stderr).toBe(0);
+      const [first] = await frameFiles('lottie-dot');
+      expect(await probe(first!)).toMatchObject({ width: 1080, height: 1080 });
+      // A 16:9 animation fitted into a square scales by 1080 / 1920 and sits in the middle: the square's
+      // centre lands at (56, 540), and the letterbox above it is transparent.
+      expect(await pixels(first!, 56, 540)).toEqual([0, 255, 0, 255]);
+      expect(await alphaAt(first!, 540, 100)).toBe(0);
+    }, 180_000);
+  });
 });

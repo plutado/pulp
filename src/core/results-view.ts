@@ -283,6 +283,6 @@ export function listRow(entry: LibraryEntry): ListRow {
     // An untyped media file still says what kind it is; an untyped template says nothing rather than guessing.
     type: type ? typeLabel(type) : entry.kind === 'media' ? mediaKindLabel(entry.mediaKind) : '',
     themes: (entry.themes ?? []).map(themeLabel).join(', '),
-    file: entry.kind === 'media' ? baseName(entry.path) : baseName(entry.dir),
+    file: entry.kind === 'media' ? baseName(entry.path) : baseName(entry.lottie?.path ?? entry.dir),
   };
 }

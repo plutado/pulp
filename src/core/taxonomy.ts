@@ -411,6 +411,27 @@ export function inferMediaType(kind: MediaKind, folderSegments: readonly string[
   return undefined;
 }
 
+/** The groups a template may belong to: what a graphic on a frame is, not footage, stills or sound. */
+const TEMPLATE_GROUPS: readonly string[] = ['titles', 'backgrounds', 'transitions', 'overlays', 'elements'];
+
+/**
+ * A template's type from its folders alone (milestone 35), for a file read as a
+ * template that declares none — a Lottie animation: the deepest folder that
+ * names a template type wins, and a folder that names a group gives the
+ * group's plain type, as a clip's folders do.
+ */
+export function inferTemplateType(folderSegments: readonly string[]): string | undefined {
+  for (let i = folderSegments.length - 1; i >= 0; i--) {
+    const segment = folderSegments[i]!;
+    const type = typeByAlias.get(segment);
+    if (type && TEMPLATE_GROUPS.includes(typeById.get(type)!.group)) return type;
+    const group = groupByAlias.get(segment);
+    const fallback = group && TEMPLATE_GROUPS.includes(group) ? GROUP_DEFAULT_TYPE[group]?.video : undefined;
+    if (fallback) return fallback;
+  }
+  return undefined;
+}
+
 /** Built-in themes named by folders, in path order ("Sports/Hockey/…" → sports, hockey). */
 export function inferThemes(folderSegments: readonly string[]): string[] {
   const themes: string[] = [];

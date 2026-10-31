@@ -306,8 +306,12 @@ function registerIpc(): void {
   ipcMain.handle('packs:export', async (_event, templateIds: string[], meta: { name: string; author?: string; license: string; description?: string }) => {
     const index = await getLibrary();
     const ids = new Set(Array.isArray(templateIds) ? templateIds.map(String) : []);
-    const templates = index.templates.filter((t) => ids.has(t.manifest.id) && !t.offline);
-    if (templates.length === 0) return { ok: false, message: 'No templates to export.' };
+    // A Lottie animation is one file in a folder of other things, not a template folder (milestone 35):
+    // a pack cannot carry it, and zipping its folder would carry everything beside it.
+    const chosen = index.templates.filter((t) => ids.has(t.manifest.id) && !t.offline);
+    const templates = chosen.filter((t) => !t.lottie);
+    const lottieSkipped = chosen.filter((t) => t.lottie).map((t) => `${t.manifest.name} is a Lottie animation, which a pack cannot carry; share the .json or .lottie file itself.`);
+    if (templates.length === 0) return { ok: false, message: lottieSkipped[0] ?? 'No templates to export.' };
     const destination = await chooseExportFile(meta?.name || templates[0]!.manifest.name);
     if (!destination) return { ok: false, cancelled: true, message: 'Export cancelled.' };
     try {
@@ -319,7 +323,7 @@ function registerIpc(): void {
         .map((t) => ({ name: t.manifest.name, fonts: familiesUsedBy(t.manifest.blocks).filter((f) => imported.has(f)) }))
         .filter((t) => t.fonts.length > 0)
         .map((t) => `${t.name} is set in ${t.fonts.join(' and ')}, an imported font that is not in the pack; whoever installs it needs that font.`);
-      return { ok: true, path: destination, bytes: out.bytes, warnings };
+      return { ok: true, path: destination, bytes: out.bytes, warnings: [...lottieSkipped, ...warnings] };
     } catch (err) {
       return { ok: false, message: (err as Error).message };
     }

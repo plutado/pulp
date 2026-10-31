@@ -269,7 +269,7 @@ export async function readRecovery(): Promise<ProjectRecovery | null> {
 /** Every path the library can currently answer for, to the id it answers with. */
 function idsByPath(index: LibraryIndex): Map<string, string> {
   const out = new Map<string, string>();
-  for (const t of index.templates) out.set(t.dir, t.id);
+  for (const t of index.templates) out.set(t.lottie?.path ?? t.dir, t.id);
   for (const m of index.media) out.set(m.path, m.id);
   return out;
 }

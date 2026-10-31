@@ -3,6 +3,7 @@
 import type { TemplateManifest, ValidationIssue } from './manifest';
 import type { MediaMetadata } from './media-meta';
 import type { MediaSequence } from './media-sequence';
+import type { LottieInfo } from './lottie-types';
 
 export type { MediaMetadata } from './media-meta';
 
@@ -39,6 +40,12 @@ export interface TemplateEntry {
   /** Manifest tags plus folder-derived tags. */
   tags: string[];
   warnings: ValidationIssue[];
+  /**
+   * Set when the item is a Lottie animation read as a template (milestone 35):
+   * a single `.json` or `.lottie` file, with no folder of its own. `dir` is then
+   * the folder it sits in and `manifest.entry` is answered by a generated page.
+   */
+  lottie?: LottieInfo;
 }
 
 export interface MediaEntry {
