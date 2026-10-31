@@ -1,14 +1,14 @@
 import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
 import { formatBytes, setCollection, setIndex, setJobs, setQuery, setSelection, setShown, shownEntry } from '../core/app-state';
 import { addItem, itemFor } from '../core/collection';
-import { appState, dispatch, results, selectedTemplate } from './store';
+import { appState, dispatch, paramsEdited, results, selectedTemplate } from './store';
 import { mountResults } from './results';
 import { mountCategoryCards } from './category-cards';
 import { mountItemInfo } from './item-info';
 import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback } from './stage';
 import { initShell } from './shell';
 import { closeInspectorUnlessPinned, initInspectorTabs, openInspector, showInspectorTab } from './inspector-tabs';
-import { chosenLibraryItems, currentLayers, currentRawParams, initInspectorParams, paramsClear, paramsEdited, paramsShow } from './inspector-params';
+import { chosenLibraryItems, currentLayers, currentRawParams, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
 import { currentOptions, currentPresetId, initInspectorOutput, outputClear, outputEdited, outputSetFfmpeg, outputShow, outputShowMedia, setTemplateShower, updateRenderControls } from './inspector-output';
 import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
@@ -17,6 +17,7 @@ import { initTray, sayInTray } from './tray';
 import { initProject } from './project';
 import { askAboutRecovery, initProjectUi } from './project-ui';
 import { initMenu } from './menu';
+import { initContextMenu } from './context-menu';
 import { hideStartScreen, initStartScreen, showStartScreen } from './start-screen';
 import { browsedHiddenChoice } from './psd-state';
 import { initTheater } from './theater';
@@ -399,6 +400,7 @@ initProject(sayInTray);
 initProjectUi();
 // Pulp's own application menu (milestone 27): it does what the window's own buttons do.
 initMenu();
+initContextMenu();
 // The start screen, tour and What's new (milestone 31); File → Home brings the screen back.
 initTour();
 initWhatsNew();

@@ -9,7 +9,7 @@
  */
 
 import { signal } from '@preact/signals';
-import type { Layer, LayerType } from '../core/layers';
+import type { Block, Layer, LayerType } from '../core/layers';
 
 /** The selected layer, shared by the stage and the Parameters tab; null is nothing selected. */
 export const selectedLayer = signal<{ block: string; id: string } | null>(null);
@@ -22,12 +22,19 @@ export interface LayerEditor {
   /** Commit whatever live edits are pending as one undo step. */
   commit(): void;
   /**
-   * Add a layer showing a library item, as a drop on the stage does
-   * (milestone 26): the tab picks a block that takes more layers, makes the
-   * layer and gives it the picture or clip. Returns where it landed, or null
-   * with a reason when nothing can hold it.
+   * Add a layer, as a drop on the stage does (milestone 26) and as the stage's
+   * right-click menu does (milestone 39): the tab picks a block that takes more
+   * layers and makes the layer there. With `itemId` it is a picture or a clip
+   * showing that library item; without one it is a blank layer of that type.
+   * Returns where it landed, or a reason when nothing can hold it.
    */
-  addForItem(type: LayerType, itemId: string, label: string): { block: string; id: string } | { refused: string };
+  addLayer(type: LayerType, label?: string, itemId?: string): { block: string; id: string } | { refused: string };
+  /** One block's layers as they stand, for an edit that acts on the stack rather than on one layer. */
+  stack(block: string): Layer[] | undefined;
+  /** The template's blocks, with whether each takes added layers; the first open one is where things land. */
+  blocks(): Pick<Block, 'id' | 'label' | 'open'>[];
+  /** Replace one block's stack as one undo step (milestone 39: cut, paste, duplicate, order). */
+  setStack(block: string, layers: readonly Layer[]): void;
   /**
    * Set how long the graphic runs for (milestone 30), as the handle on the
    * scrub bar does; `undefined` is the length the template was designed at.

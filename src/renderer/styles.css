@@ -187,6 +187,22 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .icon-button { display: inline-flex; align-items: center; justify-content: center; padding: 4px 6px; line-height: 1; }
 .icon.spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* The right-click menu (milestone 39, ADR 0017): one panel of commands at the pointer, with
+   submenus beside it. Above everything but the tooltip, which never covers anything pressable. */
+.context-menu-layer[hidden] { display: none; }
+.context-menu { position: fixed; z-index: 900; min-width: 180px; max-width: 280px; padding: var(--space-1); margin: 0; list-style: none;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-control);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+.context-menu > button { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%;
+  padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control); background: none; color: inherit;
+  font: inherit; font-size: var(--font-body); text-align: left; cursor: default; }
+.context-menu > button:hover:not(:disabled), .context-menu > button:focus-visible { background: var(--panel-2); outline: none; }
+.context-menu > button:disabled { color: var(--muted); }
+/* The one caret that says a submenu opens here; drawn rather than an icon, as the tree's twisty is. */
+.context-menu > button.has-submenu::after { content: ''; width: 5px; height: 5px; margin-right: 2px; border-right: 1px solid currentColor;
+  border-top: 1px solid currentColor; transform: rotate(45deg); flex: 0 0 auto; }
+.context-menu > button.has-submenu:disabled::after { opacity: 0.5; }
+.context-sep { height: 1px; margin: var(--space-1) var(--space-2); background: var(--border); }
 .tooltip { position: fixed; z-index: 1000; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: var(--font-secondary); pointer-events: none; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); max-width: 320px; }
 .tooltip[hidden] { display: none; }
 
@@ -512,6 +528,12 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent;
   /* Must match the template document's color scheme, or Chromium paints an opaque backdrop behind it. */
   color-scheme: normal;
+  /* The template page is a picture, never something to interact with: every click, drag and
+     right-click on the stage belongs to the frame and the layer overlay over it. Without this a
+     pointer event over the picture goes to the iframe's own document instead and is lost —
+     which is exactly where a drop, or a right-click on a template with no layers yet (the
+     overlay stands aside then), would land. Milestone 39. */
+  pointer-events: none;
 }
 .preview .media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; }
 .preview .media[hidden] { display: none; }

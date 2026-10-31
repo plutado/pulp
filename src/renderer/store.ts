@@ -78,6 +78,14 @@ export const frameSize = signal<Size | null>(null);
 export const slotNotes = signal<{ label: string; note: string }[]>([]);
 
 /**
+ * The shown template has parameter or layer edits: the dot on the Parameters
+ * tab (milestone 38), and what tells the menus a layer may have something to
+ * reset (milestone 39). Here rather than in the tab itself, so reading it does
+ * not drag the whole inspector — and the stage with it — into whatever asks.
+ */
+export const paramsEdited = signal(false);
+
+/**
  * The shape the session leans to (milestone 31): the start screen's "New 9:16
  * project" makes every template open at that shape until it is changed by
  * hand. Only a lean — a template that does not draw the shape keeps its own

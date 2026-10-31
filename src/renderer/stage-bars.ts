@@ -15,7 +15,8 @@
  */
 
 import { effect } from '@preact/signals';
-import { isWholeGraphic, MIN_ON_SCREEN, spanWindow, transitionSeconds, type LayerSpan } from '../core/layer-time';
+import { MIN_ON_SCREEN, spanWindow, transitionSeconds } from '../core/layer-time';
+import { layerWithSpan, spanWithEnd } from '../core/stage-menu';
 import type { Layer, LayerValues } from '../core/layers';
 import type { TemplateManifest } from '../core/manifest';
 import { resolveLength } from '../core/timing';
@@ -154,19 +155,10 @@ function setEnd(block: string, id: string, which: 'start' | 'end', seconds: numb
   const editor = layerEditor();
   const layer = editor?.get(block, id);
   if (!editor || !layer) return;
-  const length = current.length;
-  const window = spanWindow(layer.span, length);
-  const wanted = Math.round(seconds * 10) / 10;
-  let { from, to } = window;
-  if (which === 'start') from = Math.min(Math.max(0, wanted), Math.max(0, to - MIN_ON_SCREEN));
-  else to = Math.max(Math.min(length, wanted), Math.min(length, from + MIN_ON_SCREEN));
-  const span: LayerSpan = { start: tidy(from), end: to >= length ? null : tidy(to) };
-  editor.edit(block, id, (l) => {
-    const next = { ...l };
-    if (isWholeGraphic(span)) delete next.span;
-    else next.span = span;
-    return next;
-  }, commit);
+  // The same rule the menu's Start and End at Playhead use (src/core/stage-menu.ts): one place
+  // decides where an end may sit, so a dragged handle and a menu item cannot disagree.
+  const span = spanWithEnd(layer.span, which, seconds, current.length);
+  editor.edit(block, id, (l) => layerWithSpan(l, span), commit);
 }
 
 let drag: { pointerId: number; block: string; id: string; which: 'start' | 'end'; from: number; startX: number; secondsPerPx: number; handle: HTMLButtonElement } | null = null;

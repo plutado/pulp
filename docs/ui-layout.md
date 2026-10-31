@@ -97,6 +97,7 @@ Each of these is a checklist item in the milestone named.
 | Platform presets in the Output tab, with length and file-size warnings; a cover image from a chosen frame; Share and Open upload page on a finished render | 20 |
 | The transport row: the player's controls and the scrub bar with the bars per layer, across the window's width above the status bar, resizable and remembered; the stage keeps only the picture and how it is viewed | 37 |
 | The inspector as a drawer from the transport row, over the results only; the right column removed; the view controls on the stage's corner; the results fold away on one key; the window fits at any size, nothing overlaps, the page never scrolls | 38 |
+| A right-click menu on the stage: add text or an asset where you click, and on a layer cut, copy, paste, duplicate, delete, order, copy and paste look, reset, start or end at the playhead — the application menu's own commands, arranged for a pointer (ADR 0017) | 39 |
 | Stems with mute and solo; paired sound effects with variants | 16 |
 
 ## What stays true throughout

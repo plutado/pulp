@@ -27,7 +27,6 @@ import {
   LAYER_LIMITS,
   isIdentityPlacement,
   LAYER_TYPES,
-  newLayer,
   normalizeAngle,
   placementFor,
   resolveLayers,
@@ -55,10 +54,11 @@ import type { MediaEntry } from '../core/library-types';
 import { mediaUrlFor } from '../core/media-url';
 import { stageSetParams } from './stage';
 import { outputRefreshOptions } from './inspector-output';
-import { appState, frameSize, importedFonts, selectedTemplate, slotNotes } from './store';
+import { appState, frameSize, importedFonts, paramsEdited, selectedTemplate, slotNotes } from './store';
 import { aspectOf } from '../core/aspect';
 import { registerLayerEditor, selectedLayer } from './layer-edit';
-import { effect, signal } from '@preact/signals';
+import { addedLayer } from '../core/stage-menu';
+import { effect } from '@preact/signals';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -244,9 +244,6 @@ function resetAll(): void {
   commitParams();
   applySnapshot({}, true);
 }
-
-/** The shown item has edits behind the Parameters tab: the dot on the transport row's button (milestone 38). */
-export const paramsEdited = signal(false);
 
 function updateHistoryButtons(): void {
   const selected = selectedTemplate.value;
@@ -1072,21 +1069,13 @@ function editLayer(blockId: string, layerId: string, change: (layer: Layer) => L
   setLayers({ ...layers, [blockId]: stack.map((l) => (l.id === layerId ? change(l) : l)) }, rebuild);
 }
 
-/** A layer id that is free in this block, for one being added. */
-function freeLayerId(stack: readonly Layer[], type: LayerType): string {
-  for (let n = stack.length + 1; ; n++) {
-    const id = `${type}_${n}`;
-    if (!stack.some((l) => l.id === id)) return id;
-  }
-}
-
 function addLayer(blockId: string, type: LayerType): void {
   const selected = selectedTemplate.value;
   const block = selected?.manifest.blocks.find((b) => b.id === blockId);
   if (!block) return;
   const layers = currentLayers();
   const stack = layers[blockId] ?? [];
-  const layer = newLayer(type, block, freeLayerId(stack, type), `${ADD_LAYER_LABELS[type] === 'Text' ? 'Line' : ADD_LAYER_LABELS[type]} ${stack.length + 1}`);
+  const layer = addedLayer(type, block, stack);
   setLayers({ ...layers, [blockId]: [...stack, layer] }, true);
 }
 
@@ -2435,7 +2424,7 @@ export function initInspectorParams(): void {
       if (selected) buildParamForm(selected.manifest);
     },
     setLength: (length, commit) => setLength(length, commit),
-    addForItem: (type, itemId, label) => {
+    addLayer: (type, label, itemId) => {
       const selected = selectedTemplate.value;
       if (!selected) return { refused: 'No template is open.' };
       // The first block that takes added layers. A template whose blocks are all closed has
@@ -2444,13 +2433,20 @@ export function initInspectorParams(): void {
       if (!block) return { refused: 'This template does not take added layers.' };
       const layers = currentLayers();
       const stack = layers[block.id] ?? [];
-      const id = freeLayerId(stack, type);
-      const fresh = newLayer(type, block, id, label);
-      const layer = type === 'video'
-        ? { ...fresh, clip: { ...EMPTY_CLIP, id: itemId } }
-        : { ...fresh, image: { id: itemId, treatment: 'original' as const, tint: '#ffffff', effect: 'none' as const, hidden: false, ...browsedPsdChoice(itemId) } };
+      const fresh = addedLayer(type, block, stack, label);
+      const layer = itemId === undefined
+        ? fresh
+        : type === 'video'
+          ? { ...fresh, clip: { ...EMPTY_CLIP, id: itemId } }
+          : { ...fresh, image: { id: itemId, treatment: 'original' as const, tint: '#ffffff', effect: 'none' as const, hidden: false, ...browsedPsdChoice(itemId) } };
       setLayers({ ...layers, [block.id]: [...stack, layer as Layer] }, true);
-      return { block: block.id, id };
+      return { block: block.id, id: fresh.id };
+    },
+    stack: (block) => currentLayers()[block],
+    blocks: () => (selectedTemplate.value?.manifest.blocks ?? []).map((b) => ({ id: b.id, label: b.label, open: b.open })),
+    setStack: (block, layers) => {
+      setLayers({ ...currentLayers(), [block]: [...layers] }, true);
+      commitParams();
     },
   });
 

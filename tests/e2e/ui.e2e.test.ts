@@ -15,7 +15,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { solid, writePsd } from '../psd-fixture';
 import { writePdf } from '../pdf-fixture';
 import { encodePng } from '../../src/core/png';
@@ -2040,6 +2040,208 @@ describe.skipIf(!electron)('inspector UI', () => {
       await fire('#opt-aspect', '16:9', 'change');
       await until(async () => (await shape()) === 'landscape', 'the wide preview again');
     }, 90_000);
+
+    /**
+     * The stage's right-click menu (milestone 39). It is the application menu's command list
+     * arranged for a pointer, so these tests drive the real popup over the real picture: the
+     * layer under the pointer is selected and edited, and a layer added lands where the click was.
+     */
+    describe('the right-click menu (milestone 39)', () => {
+      const menu = `document.querySelector('.context-menu-layer .context-menu:not(.submenu)')`;
+      const items = `[...document.querySelectorAll('.context-menu-layer .context-menu:not(.submenu) > button')]`;
+      const overlay = `document.getElementById('layer-overlay')`;
+      const open = () => page.eval<boolean>(`!!${menu}`);
+      const labels = () => page.eval<string[]>(`${items}.map((b) => b.textContent)`);
+      const enabled = (label: string) =>
+        page.eval<boolean>(`!${items}.find((b) => b.textContent === ${JSON.stringify(label)}).disabled`);
+      const choose = (label: string) =>
+        page.eval(`[...document.querySelectorAll('.context-menu-layer .context-menu > button')].find((b) => b.textContent === ${JSON.stringify(label)}).click()`);
+
+      /** Where a point of the frame sits on screen, through the picture's own box. */
+      const client = async (fx: number, fy: number) => {
+        const box = await page.eval<{ left: number; top: number; width: number; height: number }>(
+          `(() => { const r = document.getElementById('preview-frame').getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`,
+        );
+        const size = await page.eval<{ width: number; height: number }>(
+          `(() => { const [w, h] = (document.getElementById('preview-frame').style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`,
+        );
+        return { x: box.left + (fx / size.width) * box.width, y: box.top + (fy / size.height) * box.height };
+      };
+
+      /**
+       * Right-click a point of the frame, as a pointer does: on whatever is really on top at that
+       * point, not on the frame itself. The picture is an `<iframe>`, and an event aimed straight
+       * at the frame would pass a test that a real right-click fails — the iframe would swallow it.
+       */
+      const rightClick = async (fx: number, fy: number) => {
+        const at = await client(fx, fy);
+        const landedOn = await page.eval<string>(
+          `(() => { const el = document.elementFromPoint(${at.x}, ${at.y});
+            if (!el) return 'nothing';
+            el.dispatchEvent(new MouseEvent('contextmenu', { clientX: ${at.x}, clientY: ${at.y}, button: 2, bubbles: true, cancelable: true }));
+            return el.id || el.className || el.tagName; })()`,
+        );
+        // The picture must never be the iframe's: nothing on the stage would hear the click.
+        expect(landedOn, 'the right-click landed on something that reaches the stage').not.toBe('preview');
+        await until(open, `the right-click menu (the click landed on "${landedOn}")`);
+      };
+
+      /** What the page last laid out, so a test reads where a layer really is rather than guessing. */
+      type Laid = { blocks: Record<string, { layers: { id: string; box: { x: number; y: number; width: number; height: number }; ink?: { x: number; y: number; width: number; height: number }; draw: { dx: number; dy: number } }[] }> };
+      const laid = () => inTemplate<Laid>(`window.__pulp.laid`, CARD);
+      const laidLayer = async (id: string) => (await laid()).blocks.card?.layers.find((l) => l.id === id) ?? null;
+      const overlayReady = (frame: number) => until(() => page.eval<boolean>(`${overlay}.dataset.laidFrame === '${frame}'`), `the overlay holding frame ${frame}`);
+      /** The middle of what a layer draws, in frame pixels. */
+      const inkCentre = async (id: string) => {
+        const l = await laidLayer(id);
+        if (!l || l.box.width <= 0) return null;
+        const ink = l.ink ?? l.box;
+        return { x: ink.x + ink.width / 2 + l.draw.dx, y: ink.y + ink.height / 2 + l.draw.dy };
+      };
+
+      /**
+       * Right-click a layer where it is drawn **now**. Every edit re-lays the stack, so a point
+       * read before one is a point some other layer may be sitting at by the time it is clicked;
+       * the click is taken again until the layer it was aimed at is the one that came up selected.
+       */
+      const rightClickLayer = async (id: string) => {
+        await until(async () => {
+          const centre = await inkCentre(id).catch(() => null);
+          if (!centre) return false;
+          await rightClick(centre.x, centre.y);
+          return page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected[data-layer="${id}"]')`);
+        }, `the right-click menu on ${id}`);
+      };
+
+      beforeEach(async () => {
+        await clickResult('Title Card');
+        await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+        await scrubAndWait(110);
+        await overlayReady(110);
+      });
+
+      afterEach(async () => {
+        await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+        await restoreLayers();
+      });
+
+      it('offers the layer under the pointer its own edits, and bare picture only what can be added', async () => {
+        const at = (await inkCentre('title'))!;
+        await rightClick(at.x, at.y);
+        // Right-clicking a layer selects it, exactly as a left-click would.
+        await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected[data-layer=title]')`), 'the title selected by the right-click');
+        expect(await labels()).toEqual([
+          'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete',
+          'Order',
+          'Copy Look', 'Paste Look',
+          'Start at Playhead', 'End at Playhead',
+          'Reset Layer',
+          'Add Text Here', 'Add Asset Here',
+        ]);
+        // The title is the template's own required layer, so it cannot be cut or deleted — and
+        // nothing has been given it, so there is nothing to reset.
+        expect(await enabled('Copy')).toBe(true);
+        expect(await enabled('Cut')).toBe(false);
+        expect(await enabled('Delete')).toBe(false);
+        expect(await enabled('Reset Layer')).toBe(false);
+        expect(await enabled('Paste Look')).toBe(false);
+
+        // Over bare picture: the selection is dropped and only what can be added is offered.
+        await rightClick(40, 40);
+        expect(await page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected')`)).toBe(false);
+        expect(await labels()).toEqual(['Add Text Here', 'Add Asset Here', 'Paste']);
+        // Escape puts it away and gives the keyboard back to the stage.
+        await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+        await until(async () => !(await open()), 'the menu closing on Escape');
+      }, 120_000);
+
+      it('duplicates, reorders and deletes a layer, each one undo step', async () => {
+        const before = await layerIds();
+        await rightClickLayer('subtitle');
+        await choose('Duplicate');
+        await until(async () => (await layerIds()).length === before.length + 1, 'the duplicate');
+        const ids = await layerIds();
+        const copy = ids.find((id) => !before.includes(id))!;
+        // It sits right above the original rather than at the end of the stack, and wears a name of its own.
+        expect(ids).toEqual(['title', 'subtitle', copy]);
+        expect(await page.eval<string>(`document.querySelector('#params .param-card[data-layer="${copy}"] .layer-label').textContent`)).toBe('Subtitle 2');
+        // And it carries the original's words, so it is a copy and not a blank line.
+        expect(await page.eval<string>(`document.querySelector('#params .param-card[data-layer="${copy}"] .layer-text').value`)).toBe('Episode 1: Early Light');
+
+        // Order moves it along the stack; the submenu opens from its parent item.
+        await rightClickLayer(copy);
+        await choose('Order');
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the Order submenu');
+        await choose('Send to Back');
+        await until(async () => (await layerIds()).join() === [copy, 'title', 'subtitle'].join(), 'the copy sent to the back');
+
+        // Undo steps back through each, so the menu's edits are edits like any other.
+        await page.eval(`document.getElementById('undo').click()`);
+        await until(async () => (await layerIds()).join() === ['title', 'subtitle', copy].join(), 'undo putting the order back');
+
+        // Delete takes the copy out; the required title cannot be deleted at all.
+        await rightClickLayer(copy);
+        await choose('Delete');
+        await until(async () => (await layerIds()).join() === before.join(), 'the copy deleted');
+      }, 120_000);
+
+      it('cuts a layer and pastes it back, and copies a look from one layer onto another', async () => {
+        const before = await layerIds();
+        await rightClickLayer('subtitle');
+        expect(await enabled('Copy Look')).toBe(true);
+        await choose('Copy Look');
+        // Pasting the subtitle's own look — the template's own drawing — onto the title is allowed
+        // now: "as the template draws it" is a look worth carrying, and only nothing copied is not.
+        await rightClickLayer('title');
+        expect(await enabled('Paste Look')).toBe(true);
+        await choose('Paste Look');
+
+        // Cut takes the subtitle out and holds it; Paste puts it back into the same block.
+        await rightClickLayer('subtitle');
+        await choose('Cut');
+        await until(async () => !(await layerIds()).includes('subtitle'), 'the subtitle cut');
+        await rightClick(40, 40);
+        expect(await enabled('Paste')).toBe(true);
+        await choose('Paste');
+        await until(async () => (await layerIds()).length === before.length, 'the subtitle pasted back');
+        const ids = await layerIds();
+        const back = ids.find((id) => !['title'].includes(id))!;
+        expect(await page.eval<string>(`document.querySelector('#params .param-card[data-layer="${back}"] .layer-text').value`)).toBe('Episode 1: Early Light');
+      }, 120_000);
+
+      it('starts and ends a layer at the playhead, which is what the bar under the scrub bar shows', async () => {
+        // 2 s into the graphic: the playhead is where the layer should start.
+        await scrubAndWait(60);
+        await overlayReady(60);
+        await rightClickLayer('subtitle');
+        await choose('Start at Playhead');
+        const barStart = `document.querySelector('.layer-bar[data-layer=subtitle] .bar-end.start')`;
+        await until(async () => Math.abs(Number(await page.eval<string>(`${barStart}.getAttribute('aria-valuenow')`)) - 2) < 0.2, 'the bar showing the layer starting at the playhead');
+        // Its own card says so too: one edit, seen everywhere.
+        await page.eval(`document.getElementById('undo').click()`);
+        await until(async () => Number(await page.eval<string>(`${barStart}.getAttribute('aria-valuenow')`)) < 0.2, 'undo putting the start back');
+      }, 120_000);
+
+      it('adds a line of text where the pointer was, and it lands there', async () => {
+        const before = await layerIds();
+        // A quarter across and a third down: nowhere the stack would ever put a new line by itself.
+        const frame = await page.eval<{ width: number; height: number }>(
+          `(() => { const [w, h] = (document.getElementById('preview-frame').style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`,
+        );
+        await rightClick(frame.width * 0.25, frame.height * 0.33);
+        await choose('Add Text Here');
+        await until(async () => (await layerIds()).length === before.length + 1, 'the line added');
+        const added = (await layerIds()).find((id) => !before.includes(id))!;
+        // It arrives with words in it, so there is something on the stage to take hold of.
+        expect(await page.eval<string>(`document.querySelector('#params .param-card[data-layer="${added}"] .layer-text').value`)).toBe('Text');
+        // The Parameters tab comes forward on the new layer, ready to be typed over.
+        expect(await page.eval<boolean>(`document.getElementById('app').classList.contains('inspector-open')`)).toBe(true);
+        await until(async () => {
+          const centre = await inkCentre(added).catch(() => null);
+          return centre !== null && Math.abs(centre.x - frame.width * 0.25) < frame.width * 0.08 && Math.abs(centre.y - frame.height * 0.33) < frame.height * 0.08;
+        }, 'the line sitting where it was asked for');
+      }, 120_000);
+    });
   });
 
   describe('length (milestone 30)', () => {

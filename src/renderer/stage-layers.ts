@@ -10,7 +10,7 @@
 
 import { effect } from '@preact/signals';
 import { aspectOf } from '../core/aspect';
-import { angleFromDrag, clampPlacement, clampScale, EMPTY_LAID, hitLayer, nudgeFraction, placedAngle, placedBounds, placedBox, placedCentre, scaleFromDrag, snapMove, type LaidReport, type SnapGuide } from '../core/stage-place';
+import { angleFromDrag, clampPlacement, clampScale, EMPTY_LAID, framePointIn, hitLayer, nudgeFraction, placedAngle, placedBounds, placedBox, placedCentre, scaleFromDrag, snapMove, type LaidReport, type SnapGuide } from '../core/stage-place';
 import { isIdentityPlacement, placementFor, type Layer, type LayerPlacement, type LayerPlacements } from '../core/layers';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { layerEditor, selectedLayer } from './layer-edit';
@@ -63,9 +63,7 @@ function capture(pointerId: number): void {
 
 /** The frame-pixel point of a pointer event, mapped through the overlay's box. */
 function framePoint(e: PointerEvent): { x: number; y: number } {
-  const box = overlay!.getBoundingClientRect();
-  const size = host!.frameSize();
-  return { x: ((e.clientX - box.left) / box.width) * size.width, y: ((e.clientY - box.top) / box.height) * size.height };
+  return framePointIn(overlay!.getBoundingClientRect(), host!.frameSize(), { x: e.clientX, y: e.clientY });
 }
 
 /** Frame pixels to overlay percent, for positioning the chrome. */
@@ -195,6 +193,7 @@ export function stageLayersUpdate(report: LaidReport | null): void {
 }
 
 function onPointerDown(e: PointerEvent): void {
+  // A right-click is the menu's (milestone 39), and a left-click under an open menu closes it first.
   if (!overlay || !host || e.button !== 0) return;
   const target = e.target as HTMLElement;
   const point = framePoint(e);
@@ -293,6 +292,17 @@ function onKeyDown(e: KeyboardEvent): void {
  */
 let pendingDrop: { block: string; id: string; point: { x: number; y: number } } | null = null;
 
+/**
+ * Put a layer that has just been added at a point on the frame, once the page
+ * has said where its stack put it: a drop from the results (milestone 26), and
+ * Add Text Here or Add Asset Here from the right-click menu (milestone 39).
+ */
+export function placeLayerAt(block: string, id: string, point: { x: number; y: number }): void {
+  // Held until the *next* report: the one in hand was laid before this layer existed, and an id
+  // freed by a layer just removed could otherwise be matched against where that one sat.
+  pendingDrop = { block, id, point };
+}
+
 /** Place a freshly dropped layer under the pointer, once the page has said where it landed. */
 function placePendingDrop(): void {
   if (!pendingDrop || !host) return;
@@ -318,12 +328,7 @@ function placePendingDrop(): void {
 
 /** The frame point a drag event is over, for a drop. */
 function dropPoint(e: DragEvent, el: HTMLElement): { x: number; y: number } {
-  const box = el.getBoundingClientRect();
-  const size = host!.frameSize();
-  return {
-    x: Math.max(0, Math.min(size.width, ((e.clientX - box.left) / Math.max(1, box.width)) * size.width)),
-    y: Math.max(0, Math.min(size.height, ((e.clientY - box.top) / Math.max(1, box.height)) * size.height)),
-  };
+  return framePointIn(el.getBoundingClientRect(), host!.frameSize(), { x: e.clientX, y: e.clientY });
 }
 
 /**
@@ -355,13 +360,21 @@ export function mountStageDrop(el: HTMLElement, stageHost: Host, lookup: (id: st
     }
     const editor = layerEditor();
     if (!editor) return;
-    const added = editor.addForItem(found.kind === 'video' ? 'video' : 'image', itemId, found.name);
+    const added = editor.addLayer(found.kind === 'video' ? 'video' : 'image', found.name, itemId);
     if ('refused' in added) {
       note(added.refused);
       return;
     }
-    pendingDrop = { ...added, point: dropPoint(e, el) };
+    placeLayerAt(added.block, added.id, dropPoint(e, el));
   });
+}
+
+/** The layer at a point on the frame, with the same reach a click has; what the right-click menu acts on. */
+export function layerAtPoint(point: { x: number; y: number }): { block: string; id: string } | null {
+  if (!overlay || !host) return null;
+  const width = Math.max(1, overlay.getBoundingClientRect().width);
+  const grab = (GRAB_SCREEN_PX / width) * host.frameSize().width;
+  return hitLayer(laid, point.x, point.y, grab);
 }
 
 export function mountStageLayers(el: HTMLElement, stageHost: Host): void {

@@ -147,6 +147,22 @@ export function hitLayer(laid: LaidReport, x: number, y: number, tolerance = 0):
   return hit;
 }
 
+/**
+ * Where a point on screen falls on the frame, in frame pixels: the picture's
+ * box on screen and the pixels it stands for. The overlay's clicks and drags,
+ * a drop from the results and the right-click menu all ask this, so the
+ * arithmetic lives once. Points outside the box are held to its edges, since a
+ * drop that started inside still belongs on the frame.
+ */
+export function framePointIn(box: { left: number; top: number; width: number; height: number }, size: { width: number; height: number }, client: Point): Point {
+  const across = box.width > 0 ? (client.x - box.left) / box.width : 0;
+  const down = box.height > 0 ? (client.y - box.top) / box.height : 0;
+  return {
+    x: Math.max(0, Math.min(size.width, across * size.width)),
+    y: Math.max(0, Math.min(size.height, down * size.height)),
+  };
+}
+
 export interface SnapGuide {
   axis: 'x' | 'y';
   /** Where the guide lies, in pixels of the frame. */

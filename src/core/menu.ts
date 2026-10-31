@@ -36,6 +36,26 @@ export type MenuCommand =
   | 'render.all'
   | 'edit.undo'
   | 'edit.redo'
+  // What can be done to a layer (milestone 39). The stage's right-click menu names exactly these,
+  // so the two surfaces offer one list of things, enabled by one set of flags; the test in
+  // tests/stage-menu.test.ts holds them to it.
+  | 'layer.addText'
+  | 'layer.addImage'
+  | 'layer.addVideo'
+  | 'layer.cut'
+  | 'layer.copy'
+  | 'layer.paste'
+  | 'layer.duplicate'
+  | 'layer.delete'
+  | 'layer.forward'
+  | 'layer.backward'
+  | 'layer.front'
+  | 'layer.back'
+  | 'layer.copyLook'
+  | 'layer.pasteLook'
+  | 'layer.startHere'
+  | 'layer.endHere'
+  | 'layer.reset'
   | 'browse.find'
   | 'view.browse'
   | 'view.stage'
@@ -88,6 +108,29 @@ export interface MenuState {
   infoOpen: boolean;
   /** The results are a grid of cards rather than a list of rows. */
   grid: boolean;
+  /**
+   * What can be done to a layer right now (milestone 39). Every one is a
+   * question about the stack on the stage, worked out in one place
+   * (`layerMenuFacts` in src/core/stage-menu.ts) and read by the application
+   * menu and by the stage's right-click menu alike, so an item cannot be
+   * offered on one and refused on the other.
+   */
+  /** A template with a block that takes added layers is on the stage. */
+  canAddLayer: boolean;
+  /** A layer is selected: there is something to copy, duplicate, time or reset. */
+  canEditLayer: boolean;
+  /** The selected layer is not one the template marks required, so it can go. */
+  canDeleteLayer: boolean;
+  /** It is not already at the front of its stack. */
+  canLayerForward: boolean;
+  /** It is not already at the back. */
+  canLayerBackward: boolean;
+  /** A layer has been cut or copied, and a block will take it. */
+  canPasteLayer: boolean;
+  /** A look has been copied, and a layer is selected to put it on. */
+  canPasteLook: boolean;
+  /** The selected layer has been placed, timed, given a look or an entrance of its own: something to undo. */
+  canResetLayer: boolean;
   /** Recently opened projects, newest first; the Open Recent submenu. */
   recent: string[];
 }
@@ -109,6 +152,14 @@ export const EMPTY_MENU_STATE: MenuState = {
   outputOpen: false,
   infoOpen: false,
   grid: true,
+  canAddLayer: false,
+  canEditLayer: false,
+  canDeleteLayer: false,
+  canLayerForward: false,
+  canLayerBackward: false,
+  canPasteLayer: false,
+  canPasteLook: false,
+  canResetLayer: false,
   recent: [],
 };
 
@@ -180,6 +231,66 @@ export function recentLabel(path: string): string {
 }
 
 /**
+ * What can be done to a layer, as the Edit menu offers it (milestone 39). The
+ * stage's right-click menu names the same commands with the same flags, in the
+ * order a pointer menu wants them; this is the keyboard-reachable, discoverable
+ * copy, and `LAYER_COMMAND_FLAGS` below is what holds the two in step.
+ */
+export function layerSubmenu(): MenuItemSpec[] {
+  return [
+    { command: 'layer.addText', label: 'Add Text Layer', enabledBy: 'canAddLayer' },
+    // Both take a library item as their argument, as Open Recent takes a path: with one they add
+    // a layer showing it (the stage's Add Asset Here), with none a blank layer to be filled in.
+    { command: 'layer.addImage', label: 'Add Image Layer', enabledBy: 'canAddLayer' },
+    { command: 'layer.addVideo', label: 'Add Video Layer', enabledBy: 'canAddLayer' },
+    sep,
+    { command: 'layer.cut', label: 'Cut', enabledBy: 'canDeleteLayer' },
+    { command: 'layer.copy', label: 'Copy', enabledBy: 'canEditLayer' },
+    { command: 'layer.paste', label: 'Paste', enabledBy: 'canPasteLayer' },
+    { command: 'layer.duplicate', label: 'Duplicate', enabledBy: 'canEditLayer' },
+    { command: 'layer.delete', label: 'Delete', enabledBy: 'canDeleteLayer' },
+    sep,
+    { command: 'layer.forward', label: 'Bring Forward', enabledBy: 'canLayerForward' },
+    { command: 'layer.backward', label: 'Send Backward', enabledBy: 'canLayerBackward' },
+    { command: 'layer.front', label: 'Bring to Front', enabledBy: 'canLayerForward' },
+    { command: 'layer.back', label: 'Send to Back', enabledBy: 'canLayerBackward' },
+    sep,
+    { command: 'layer.copyLook', label: 'Copy Look', enabledBy: 'canEditLayer' },
+    { command: 'layer.pasteLook', label: 'Paste Look', enabledBy: 'canPasteLook' },
+    sep,
+    { command: 'layer.startHere', label: 'Start at Playhead', enabledBy: 'canEditLayer' },
+    { command: 'layer.endHere', label: 'End at Playhead', enabledBy: 'canEditLayer' },
+    sep,
+    { command: 'layer.reset', label: 'Reset Layer', enabledBy: 'canResetLayer' },
+  ];
+}
+
+/**
+ * Which flag decides each layer command. One table, read by the Edit menu
+ * above and by the stage's right-click menu (src/core/stage-menu.ts), so the
+ * same command is never offered on one surface and refused on the other.
+ */
+export const LAYER_COMMAND_FLAGS: Readonly<Record<string, Flag>> = {
+  'layer.addText': 'canAddLayer',
+  'layer.addImage': 'canAddLayer',
+  'layer.addVideo': 'canAddLayer',
+  'layer.cut': 'canDeleteLayer',
+  'layer.copy': 'canEditLayer',
+  'layer.paste': 'canPasteLayer',
+  'layer.duplicate': 'canEditLayer',
+  'layer.delete': 'canDeleteLayer',
+  'layer.forward': 'canLayerForward',
+  'layer.backward': 'canLayerBackward',
+  'layer.front': 'canLayerForward',
+  'layer.back': 'canLayerBackward',
+  'layer.copyLook': 'canEditLayer',
+  'layer.pasteLook': 'canPasteLook',
+  'layer.startHere': 'canEditLayer',
+  'layer.endHere': 'canEditLayer',
+  'layer.reset': 'canResetLayer',
+};
+
+/**
  * The whole menu for this platform and this state. The order is the one people
  * expect from the platform: the app's own menu first on macOS, File, Edit,
  * View, then what this app adds, then Window and Help.
@@ -242,6 +353,11 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       { role: 'copy' },
       { role: 'paste' },
       { role: 'selectAll' },
+      sep,
+      // The layer edits (milestone 39), in a submenu of their own so the four roles above keep
+      // Cut, Copy and Paste for whatever text field has the caret. None takes a key: an
+      // accelerator is registered and would fire inside a text field (see the note at the top).
+      { label: 'Layer', submenu: layerSubmenu() },
       sep,
       { command: 'browse.find', label: 'Find Category', accelerator: 'CmdOrCtrl+F' },
     ],

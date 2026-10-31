@@ -83,6 +83,28 @@ describe('the application menu (milestone 27)', () => {
     expect(some.map((i) => [i.command, i.arg])).toEqual([['project.openRecent', '/a/One.pulp'], ['project.openRecent', '/b/Two.pulp']]);
   });
 
+  it('offers the layer edits in a submenu of their own, so the roles keep Cut, Copy and Paste (milestone 39)', () => {
+    const edit = section(menu(), 'Edit');
+    // The four roles are what a text field needs; the layer edits sit under their own heading.
+    expect(edit.map((i) => i.role).filter(Boolean)).toEqual(['cut', 'copy', 'paste', 'selectAll']);
+    const layer = byLabel(edit, 'Layer')!.submenu!;
+    expect(layer.filter((i) => i.type !== 'separator').map((i) => i.label)).toEqual([
+      'Add Text Layer', 'Add Image Layer', 'Add Video Layer',
+      'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete',
+      'Bring Forward', 'Send Backward', 'Bring to Front', 'Send to Back',
+      'Copy Look', 'Paste Look',
+      'Start at Playhead', 'End at Playhead',
+      'Reset Layer',
+    ]);
+    // None takes a key: an accelerator is registered and would fire inside a text field.
+    expect(layer.every((i) => i.accelerator === undefined)).toBe(true);
+    // Each waits on the one flag that says it can act, and with nothing on the stage none can.
+    for (const item of layer.filter((i) => i.command)) {
+      expect(itemEnabled(item, state()), item.label).toBe(false);
+      expect(itemEnabled(item, state({ ...item.enabledBy ? { [item.enabledBy]: true } : {} })), item.label).toBe(true);
+    }
+  });
+
   it('keeps the developer items out of a packaged build', () => {
     const packaged = section(menu({ development: false }), 'View').map((i) => i.role);
     expect(packaged).not.toContain('toggleDevTools');

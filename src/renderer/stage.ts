@@ -26,7 +26,8 @@ import { mediaDefaultFps } from '../core/media-render';
 import { SEQUENCE_FPS } from '../core/media-sequence';
 import { lengthFrameCount, lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
 import type { ResolvedParams } from '../core/params';
-import { mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
+import { layerAtPoint, mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
+import { mountStageMenu } from './stage-menu';
 import { layerBarsUpdate, mountLayerBars } from './stage-bars';
 import { layerEditor, selectedLayer } from './layer-edit';
 import type { LaidReport } from '../core/stage-place';
@@ -948,6 +949,19 @@ export function initStage(): void {
   els.bgCustom.addEventListener('input', () => setPlayer({ background: 'custom', customBackground: els.bgCustom.value }));
   els.safeToggle.addEventListener('click', () => setPlayer({ safeAreas: !s.player.safeAreas }));
   mountStageLayers(els.layerOverlay, { frameSize: () => previewSize() });
+  // The right-click menu (milestone 39) is mounted on the picture, not the overlay: the overlay
+  // stands aside when a template has no layers yet, which is exactly when adding one is wanted.
+  mountStageMenu(els.previewFrame, {
+    frameSize: () => previewSize(),
+    playheadSeconds: () => s.frame / Math.max(1, previewFps()),
+    lengthSeconds: () => previewFrames() / Math.max(1, previewFps()),
+    layerAt: (point) => layerAtPoint(point),
+    hasTemplate: () => s.manifest !== null,
+    note: (text) => {
+      els.note.hidden = false;
+      els.note.textContent = text;
+    },
+  });
   // Dropping a picture or a clip from the results makes it a layer where it was dropped
   // (milestone 26). The preview frame takes the drop, not the overlay, which stands aside
   // when a template has no layers yet — which is exactly when a first drop is likely.

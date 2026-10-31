@@ -15,7 +15,9 @@
 import { effect } from '@preact/signals';
 import type { MenuCommand, MenuState } from '../core/menu';
 import { THUMB_SIZES } from '../core/results-view';
-import { appState, renderBlocked, results, resultsView, transport } from './store';
+import { appState, paramsEdited, renderBlocked, results, resultsView, transport } from './store';
+import { selectedLayer } from './layer-edit';
+import { currentLayerFacts, runLayerCommand, stageClipboard } from './stage-menu';
 import { newProject, openProjectFrom, saveProject } from './project';
 import { showShortcuts } from './shortcuts';
 import { showStartScreen } from './start-screen';
@@ -61,6 +63,14 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'render.all': press('collection-render'); return;
     case 'edit.undo': press('undo'); return;
     case 'edit.redo': press('redo'); return;
+    // The layer edits (milestone 39) are the same commands the stage's right-click menu names,
+    // and they run here, in the one dispatcher, whichever menu asked.
+    case 'layer.addText': case 'layer.addImage': case 'layer.addVideo':
+    case 'layer.cut': case 'layer.copy': case 'layer.paste': case 'layer.duplicate': case 'layer.delete':
+    case 'layer.forward': case 'layer.backward': case 'layer.front': case 'layer.back':
+    case 'layer.copyLook': case 'layer.pasteLook': case 'layer.startHere': case 'layer.endHere': case 'layer.reset':
+      runLayerCommand(command, arg);
+      return;
     case 'browse.find': {
       const find = document.querySelector('#browse-find input') as HTMLInputElement | null;
       find?.focus();
@@ -132,6 +142,8 @@ function readState(recent: string[]): MenuState {
     outputOpen: tabOpen('output'),
     infoOpen: tabOpen('info'),
     grid: pressed('view-grid'),
+    // What can be done to a layer, worked out once and read by both menus (milestone 39).
+    ...currentLayerFacts(),
     recent,
   };
 }
@@ -220,6 +232,10 @@ export function initMenu(): void {
     void results.value;
     void renderBlocked.value;
     void transport.value;
+    // The layer edits follow the selection on the stage and the edits made to it (milestone 39).
+    void selectedLayer.value;
+    void paramsEdited.value;
+    void stageClipboard.value;
     refresh();
   });
   // A region toggle, the transport and the view buttons change what the menu may offer without
