@@ -1,0 +1,56 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.polaroid-frame-overlay",
+  "name": "Instant Frame",
+  "description": "An instant-photo frame with its thick bottom border that slides in and settles a little crooked, a caption on the border. Frames a memory.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "frame",
+  "tags": [
+    "overlay",
+    "frame",
+    "instant"
+  ],
+  "themes": [
+    "family",
+    "travel",
+    "wedding"
+  ],
+  "styles": [
+    "retro",
+    "playful"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "caption",
+      "type": "text",
+      "label": "Caption",
+      "default": "summer, somewhere",
+      "maxLength": 28,
+      "element": "Border"
+    },
+    {
+      "id": "paper",
+      "type": "color",
+      "label": "Paper",
+      "default": "#fbf7f0",
+      "element": "Frame"
+    }
+  ]
+}

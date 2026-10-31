@@ -1,0 +1,55 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.crt-bezel-overlay",
+  "name": "CRT Bezel",
+  "description": "A rounded television bezel with a curved-glass gleam and a small brand plate, fading up to hold. Frames archive clips and retro segments.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "frame",
+  "tags": [
+    "overlay",
+    "frame",
+    "television"
+  ],
+  "themes": [
+    "media",
+    "gaming",
+    "entertainment"
+  ],
+  "styles": [
+    "retro"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "brand",
+      "type": "text",
+      "label": "Plate",
+      "default": "TELEVISOR",
+      "maxLength": 14,
+      "element": "Bezel"
+    },
+    {
+      "id": "shell",
+      "type": "color",
+      "label": "Shell",
+      "default": "#3b3330",
+      "element": "Bezel"
+    }
+  ]
+}

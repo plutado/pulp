@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.pollen-drift-overlay",
+  "name": "Pollen Drift",
+  "description": "Pale seeds and pollen drifting sideways on a slow breeze, catching the light. Softens meadows, gardens and golden-hour walks.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "light-particles",
+  "tags": [
+    "overlay",
+    "pollen",
+    "breeze"
+  ],
+  "themes": [
+    "nature",
+    "summer",
+    "wedding"
+  ],
+  "styles": [
+    "organic",
+    "cinematic"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "seed",
+      "type": "color",
+      "label": "Seeds",
+      "default": "#fff8e1",
+      "element": "Seeds"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Donut Chart</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Donut Chart, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The third segment lands at 1.9 s and the chart holds.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var gone = easeOut(clamp01((t - 5.6) / 0.8));
+    if (t > 0.05 && (1 - gone) <= 0.001) return;
+    var vals = [p.v1, p.v2, p.v3], labels = [p.l1, p.l2, p.l3], tones = [p.c1, p.c2, p.c3];
+    var sum = vals[0] + vals[1] + vals[2];
+    var cx = W * 0.36, cy = H * 0.54, r = Math.min(W, H) * 0.22;
+    ctx.globalAlpha = 1 - gone;
+    ctx.lineWidth = r * 0.34; ctx.lineCap = 'butt';
+    var a = -Math.PI / 2;
+    for (var i = 0; i < 3; i++) {
+      // Each segment draws in its turn, the next starting as the last lands.
+      var span = (vals[i] / sum) * Math.PI * 2;
+      var drawn = easeInOut(clamp01((t - 0.2 - i * 0.55) / 0.6));
+      ctx.strokeStyle = rgba(tones[i], 1);
+      ctx.beginPath(); ctx.arc(cx, cy, r, a, a + span * drawn); ctx.stroke();
+      a += span;
+      var rowIn = easeOut(clamp01((t - 0.4 - i * 0.55) / 0.5));
+      ctx.globalAlpha = (1 - gone) * rowIn;
+      var ly = H * (0.42 + i * 0.12), lx = W * 0.62;
+      ctx.fillStyle = rgba(tones[i], 1);
+      ctx.fillRect(lx, ly - 14 * u, 28 * u, 28 * u);
+      ctx.fillStyle = '#f8fafc';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.font = '600 ' + Math.round(34 * u) + 'px Inter';
+      ctx.fillText(String(labels[i]), lx + 48 * u, ly);
+      ctx.fillStyle = 'rgba(203,213,225,0.95)';
+      ctx.font = '500 ' + Math.round(30 * u) + 'px Inter';
+      ctx.fillText(Math.round(vals[i] / sum * 100) + '%', lx + 48 * u + ctx.measureText(String(labels[i])).width + 90 * u, ly);
+      ctx.globalAlpha = 1 - gone;
+    }
+    var headIn = easeOut(clamp01(t / 0.6));
+    ctx.globalAlpha = (1 - gone) * headIn;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '700 ' + Math.round(r * 0.36) + 'px Montserrat';
+    ctx.fillText(Math.round(vals[0] / sum * 100) + '%', cx, cy);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.font = '700 ' + Math.round(44 * u) + 'px Inter';
+    ctx.fillText(String(p.title), W * 0.62, H * 0.3);
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

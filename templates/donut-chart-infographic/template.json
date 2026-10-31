@@ -1,0 +1,121 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.donut-chart-infographic",
+  "name": "Donut Chart",
+  "description": "Three segments that draw round a ring in turn, each labelled, with the headline figure in the hole. Shows a split in one glance.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "infographic",
+  "tags": [
+    "infographic",
+    "donut",
+    "chart"
+  ],
+  "themes": [
+    "business",
+    "finance",
+    "news"
+  ],
+  "styles": [
+    "clean",
+    "corporate"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 5.6
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "default": "Where the budget went",
+      "maxLength": 32,
+      "element": "Chart"
+    },
+    {
+      "id": "l1",
+      "type": "text",
+      "label": "Segment one",
+      "default": "Staff",
+      "maxLength": 16,
+      "element": "Chart"
+    },
+    {
+      "id": "v1",
+      "type": "number",
+      "label": "Value one",
+      "default": 52,
+      "min": 1,
+      "max": 100,
+      "element": "Chart"
+    },
+    {
+      "id": "l2",
+      "type": "text",
+      "label": "Segment two",
+      "default": "Venue",
+      "maxLength": 16,
+      "element": "Chart"
+    },
+    {
+      "id": "v2",
+      "type": "number",
+      "label": "Value two",
+      "default": 31,
+      "min": 1,
+      "max": 100,
+      "element": "Chart"
+    },
+    {
+      "id": "l3",
+      "type": "text",
+      "label": "Segment three",
+      "default": "Other",
+      "maxLength": 16,
+      "element": "Chart"
+    },
+    {
+      "id": "v3",
+      "type": "number",
+      "label": "Value three",
+      "default": 17,
+      "min": 1,
+      "max": 100,
+      "element": "Chart"
+    },
+    {
+      "id": "c1",
+      "type": "color",
+      "label": "Colour one",
+      "default": "#2563eb",
+      "element": "Chart"
+    },
+    {
+      "id": "c2",
+      "type": "color",
+      "label": "Colour two",
+      "default": "#f59e0b",
+      "element": "Chart"
+    },
+    {
+      "id": "c3",
+      "type": "color",
+      "label": "Colour three",
+      "default": "#10b981",
+      "element": "Chart"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.caustics-overlay",
+  "name": "Water Caustics",
+  "description": "Rippling light as through water, laid over the whole picture. Puts a scene underwater or beside a pool.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "overlay",
+  "tags": [
+    "overlay",
+    "caustics",
+    "water"
+  ],
+  "themes": [
+    "ocean",
+    "summer",
+    "nature"
+  ],
+  "styles": [
+    "organic",
+    "cinematic"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "light",
+      "type": "color",
+      "label": "Light",
+      "default": "#cfeeff",
+      "element": "Caustics"
+    },
+    {
+      "id": "amount",
+      "type": "number",
+      "label": "Amount",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1,
+      "element": "Caustics"
+    }
+  ]
+}

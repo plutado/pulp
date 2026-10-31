@@ -1,0 +1,53 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.pulse-grid-shapes",
+  "name": "Pulse Grid",
+  "description": "A grid of dots whose size pulses in waves rolling corner to corner. A quiet, technical ground for data pieces.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "shapes",
+  "tags": [
+    "shapes",
+    "grid",
+    "dots"
+  ],
+  "themes": [
+    "technology",
+    "science",
+    "finance"
+  ],
+  "styles": [
+    "tech",
+    "clean"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "dot",
+      "type": "color",
+      "label": "Dots",
+      "default": "#a5b4fc",
+      "element": "Grid"
+    },
+    {
+      "id": "spacing",
+      "type": "number",
+      "label": "Spacing",
+      "default": 14,
+      "min": 8,
+      "max": 24,
+      "element": "Grid"
+    }
+  ]
+}

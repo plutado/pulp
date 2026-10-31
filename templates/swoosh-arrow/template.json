@@ -1,0 +1,66 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.swoosh-arrow",
+  "name": "Swoosh Arrow",
+  "description": "A bold filled swoosh that sweeps up and lands on its point with a bounce. Points the eye at the thing that matters, loudly.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "arrows",
+  "tags": [
+    "arrows",
+    "swoosh",
+    "bold"
+  ],
+  "themes": [
+    "sports",
+    "business",
+    "social-media"
+  ],
+  "styles": [
+    "high-energy",
+    "playful"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "fill",
+      "type": "color",
+      "label": "Fill",
+      "default": "#f97316",
+      "element": "Arrow"
+    },
+    {
+      "id": "x",
+      "type": "number",
+      "label": "Point across",
+      "default": 0.68,
+      "min": 0.2,
+      "max": 0.95,
+      "element": "Arrow"
+    },
+    {
+      "id": "y",
+      "type": "number",
+      "label": "Point down",
+      "default": 0.3,
+      "min": 0.1,
+      "max": 0.9,
+      "element": "Arrow"
+    }
+  ]
+}

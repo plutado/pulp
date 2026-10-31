@@ -1,0 +1,80 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.odometer-counter",
+  "name": "Odometer",
+  "description": "Digit drums that roll up to the target and lock, with a prefix and a label. Counts members, miles or money with a satisfying stop.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "counter",
+  "tags": [
+    "counter",
+    "odometer",
+    "drums"
+  ],
+  "themes": [
+    "business",
+    "fitness",
+    "nonprofit"
+  ],
+  "styles": [
+    "retro",
+    "clean"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 2.3,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "target",
+      "type": "number",
+      "label": "Target",
+      "default": 48250,
+      "min": 0,
+      "max": 99999999,
+      "element": "Drums"
+    },
+    {
+      "id": "prefix",
+      "type": "text",
+      "label": "Prefix",
+      "default": "",
+      "maxLength": 4,
+      "element": "Drums"
+    },
+    {
+      "id": "label",
+      "type": "text",
+      "label": "Label",
+      "default": "miles logged",
+      "maxLength": 30,
+      "element": "Drums"
+    },
+    {
+      "id": "drum",
+      "type": "color",
+      "label": "Drums",
+      "default": "#1c1917",
+      "element": "Drums"
+    },
+    {
+      "id": "digit",
+      "type": "color",
+      "label": "Digits",
+      "default": "#fafaf9",
+      "element": "Drums"
+    }
+  ]
+}

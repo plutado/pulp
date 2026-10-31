@@ -1,0 +1,60 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.stopwatch-counter",
+  "name": "Stopwatch",
+  "description": "A running stopwatch with hundredths, its hand sweeping a dial. Runs the whole way through for timed challenges and lap pieces.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "counter",
+  "tags": [
+    "counter",
+    "stopwatch",
+    "timer"
+  ],
+  "themes": [
+    "sports",
+    "fitness",
+    "gaming"
+  ],
+  "styles": [
+    "high-energy",
+    "tech"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "from",
+      "type": "number",
+      "label": "Start seconds",
+      "default": 0,
+      "min": 0,
+      "max": 3599,
+      "element": "Dial"
+    },
+    {
+      "id": "hand",
+      "type": "color",
+      "label": "Hand",
+      "default": "#22c55e",
+      "element": "Dial"
+    },
+    {
+      "id": "face",
+      "type": "color",
+      "label": "Face",
+      "default": "#0f172a",
+      "element": "Dial"
+    }
+  ]
+}

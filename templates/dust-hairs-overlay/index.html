@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dust and Hairs</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Dust and Hairs, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // Specks and hairs step on a cycle that divides the clip, so the loop is seamless.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var frames = Math.floor(d * 24);
+    var step = Math.floor(t * 24) % frames;
+    var specks = Math.floor(30 * p.amount);
+    for (var i = 0; i < specks; i++) {
+      var seed = i * 17 + step * 389;
+      if (at(seed) > 0.55) continue;
+      ctx.fillStyle = 'rgba(245,240,230,' + (0.3 + at(seed + 1) * 0.5).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(at(seed + 2) * W, at(seed + 3) * H, (1 + at(seed + 4) * 3) * u, 0, Math.PI * 2); ctx.fill();
+    }
+    // A hair now and then: a short wobbly curve at a frame's edge for a few steps.
+    var hairStep = Math.floor(step / 5);
+    if (at(hairStep * 7 + 3) > 0.6) {
+      var hx = at(hairStep * 7 + 4) * W, hy = at(hairStep * 7 + 5) * H * 0.3 + (at(hairStep) > 0.5 ? H * 0.7 : 0);
+      ctx.strokeStyle = 'rgba(240,236,226,0.65)'; ctx.lineWidth = 1.5 * u; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(hx, hy);
+      ctx.bezierCurveTo(hx + 30 * u, hy + 60 * u, hx - 20 * u, hy + 100 * u, hx + 10 * u, hy + 150 * u);
+      ctx.stroke();
+    }
+  };
+</script>
+</body>
+</html>

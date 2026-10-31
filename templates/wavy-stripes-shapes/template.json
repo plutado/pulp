@@ -1,0 +1,67 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.wavy-stripes-shapes",
+  "name": "Wavy Stripes",
+  "description": "Soft horizontal bands that undulate and drift, in three tones. A gentle ground for quotes and chapter cards.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "shapes",
+  "tags": [
+    "shapes",
+    "stripes",
+    "waves"
+  ],
+  "themes": [
+    "kids",
+    "summer",
+    "fashion"
+  ],
+  "styles": [
+    "organic",
+    "playful"
+  ],
+  "duration": 8,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "a",
+      "type": "color",
+      "label": "Tone one",
+      "default": "#fcd5ce",
+      "element": "Stripes"
+    },
+    {
+      "id": "b2",
+      "type": "color",
+      "label": "Tone two",
+      "default": "#f8edeb",
+      "element": "Stripes"
+    },
+    {
+      "id": "c",
+      "type": "color",
+      "label": "Tone three",
+      "default": "#b8e0d2",
+      "element": "Stripes"
+    },
+    {
+      "id": "bands",
+      "type": "number",
+      "label": "Bands",
+      "default": 7,
+      "min": 3,
+      "max": 12,
+      "element": "Stripes"
+    }
+  ]
+}

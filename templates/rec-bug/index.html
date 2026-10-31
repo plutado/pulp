@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Recording</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Recording, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The dot blinks four times a clip and the counter wraps with it, so the loop is seamless.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var margin = Math.min(W, H) * 0.05;
+    var on = ((t / d) * 4) % 1 < 0.5;
+    ctx.fillStyle = rgba(p.dot, on ? 1 : 0.25);
+    ctx.beginPath(); ctx.arc(margin + 16 * u, margin + 18 * u, 12 * u, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = '700 ' + Math.round(30 * u) + 'px "JetBrains Mono"';
+    ctx.fillText('REC', margin + 40 * u, margin + 18 * u);
+    // The frame counter runs the clip's frames and wraps with it.
+    var frames = Math.floor(d * 24), frame = Math.floor(t * 24) % frames;
+    var pad2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    var secs = Math.floor(frame / 24), ff = frame % 24;
+    ctx.font = '500 ' + Math.round(24 * u) + 'px "JetBrains Mono"';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillText('00:00:' + pad2(secs) + ':' + pad2(ff), margin + 40 * u, margin + 52 * u);
+    // Corner brackets, as a viewfinder draws them.
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 3 * u;
+    var inset = margin * 0.6, len = Math.min(W, H) * 0.05;
+    var cs = [[inset, inset, 1, 1], [W - inset, inset, -1, 1], [inset, H - inset, 1, -1], [W - inset, H - inset, -1, -1]];
+    for (var i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(cs[i][0], cs[i][1] + cs[i][3] * len); ctx.lineTo(cs[i][0], cs[i][1]); ctx.lineTo(cs[i][0] + cs[i][2] * len, cs[i][1]);
+      ctx.stroke();
+    }
+  };
+</script>
+</body>
+</html>

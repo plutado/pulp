@@ -1,0 +1,53 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.segment-countdown",
+  "name": "Segment Display",
+  "description": "A seven-segment readout counting down in red on black, unlit segments ghosted behind. Counts in launches, races and arcade starts.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "countdown",
+  "tags": [
+    "countdown",
+    "segments",
+    "led"
+  ],
+  "themes": [
+    "technology",
+    "motorsport",
+    "gaming"
+  ],
+  "styles": [
+    "tech",
+    "retro"
+  ],
+  "duration": 7,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "from",
+      "type": "number",
+      "label": "Count from",
+      "default": 9,
+      "min": 1,
+      "max": 99,
+      "element": "Display"
+    },
+    {
+      "id": "lit",
+      "type": "color",
+      "label": "Lit",
+      "default": "#ef4444",
+      "element": "Display"
+    }
+  ]
+}

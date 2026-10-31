@@ -1,0 +1,88 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.corner-badge-bug",
+  "name": "Corner Badge",
+  "description": "A rounded badge in a corner with a word on it, fading up and sitting still. Marks an episode as new, a preview, or a rerun.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "logo-bug",
+  "tags": [
+    "overlay",
+    "bug",
+    "badge"
+  ],
+  "themes": [
+    "media",
+    "entertainment",
+    "business"
+  ],
+  "styles": [
+    "clean",
+    "corporate"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "word",
+      "type": "text",
+      "label": "Word",
+      "default": "NEW",
+      "maxLength": 12,
+      "element": "Badge"
+    },
+    {
+      "id": "badge",
+      "type": "color",
+      "label": "Badge",
+      "default": "#2563eb",
+      "element": "Badge"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Ink",
+      "default": "#ffffff",
+      "element": "Badge"
+    },
+    {
+      "id": "corner",
+      "type": "select",
+      "label": "Corner",
+      "default": "top-right",
+      "options": [
+        {
+          "value": "top-left",
+          "label": "Top left"
+        },
+        {
+          "value": "top-right",
+          "label": "Top right"
+        },
+        {
+          "value": "bottom-left",
+          "label": "Bottom left"
+        },
+        {
+          "value": "bottom-right",
+          "label": "Bottom right"
+        }
+      ],
+      "element": "Badge"
+    }
+  ]
+}

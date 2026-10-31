@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Heat Shimmer</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Heat Shimmer, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // The bands rise a whole cycle per clip and wobble on whole cycles, so the loop is seamless.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var cycle = t / d;
+    for (var i = 0; i < 18; i++) {
+      var f = ((at(i) + cycle) % 1);
+      var y = H * (1 - f * 0.9);
+      var a = p.amount * 0.1 * (1 - f) * Math.min(1, f * 6);
+      // A band is a ribbon of brightness that wobbles as it rises.
+      var g = ctx.createLinearGradient(0, y - H * 0.03, 0, y + H * 0.03);
+      g.addColorStop(0, 'rgba(255,245,225,0)'); g.addColorStop(0.5, 'rgba(255,245,225,' + a.toFixed(4) + ')'); g.addColorStop(1, 'rgba(255,245,225,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      for (var x = 0; x <= W; x += W / 40) {
+        var wy = y + Math.sin(x / W * Math.PI * 7 + cycle * Math.PI * 2 * 2 + i) * H * 0.012;
+        if (x === 0) ctx.moveTo(x, wy - H * 0.03); else ctx.lineTo(x, wy - H * 0.03);
+      }
+      for (var x2 = W; x2 >= 0; x2 -= W / 40) {
+        var wy2 = y + Math.sin(x2 / W * Math.PI * 7 + cycle * Math.PI * 2 * 2 + i) * H * 0.012;
+        ctx.lineTo(x2, wy2 + H * 0.03);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+  };
+</script>
+</body>
+</html>

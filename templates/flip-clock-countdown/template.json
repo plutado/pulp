@@ -1,0 +1,60 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.flip-clock-countdown",
+  "name": "Flip Clock",
+  "description": "Split-flap cards that flip down one count at a time to zero. Counts in a reveal, a stream start or a new year.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "countdown",
+  "tags": [
+    "countdown",
+    "flip",
+    "clock"
+  ],
+  "themes": [
+    "new-year",
+    "entertainment",
+    "technology"
+  ],
+  "styles": [
+    "retro",
+    "clean"
+  ],
+  "duration": 7,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "from",
+      "type": "number",
+      "label": "Count from",
+      "default": 5,
+      "min": 1,
+      "max": 99,
+      "element": "Cards"
+    },
+    {
+      "id": "card",
+      "type": "color",
+      "label": "Cards",
+      "default": "#1c1917",
+      "element": "Cards"
+    },
+    {
+      "id": "digit",
+      "type": "color",
+      "label": "Digits",
+      "default": "#fafaf9",
+      "element": "Cards"
+    }
+  ]
+}

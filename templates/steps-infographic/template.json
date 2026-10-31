@@ -1,0 +1,87 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.steps-infographic",
+  "name": "Four Steps",
+  "description": "Four numbered steps joined by a line that fills from one to the next. Lays out a process, a recipe or a plan.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "infographic",
+  "tags": [
+    "infographic",
+    "steps",
+    "process"
+  ],
+  "themes": [
+    "education",
+    "business",
+    "technology"
+  ],
+  "styles": [
+    "clean",
+    "corporate"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 5.6
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "s1",
+      "type": "text",
+      "label": "Step one",
+      "default": "Plan",
+      "maxLength": 14,
+      "element": "Steps"
+    },
+    {
+      "id": "s2",
+      "type": "text",
+      "label": "Step two",
+      "default": "Draft",
+      "maxLength": 14,
+      "element": "Steps"
+    },
+    {
+      "id": "s3",
+      "type": "text",
+      "label": "Step three",
+      "default": "Review",
+      "maxLength": 14,
+      "element": "Steps"
+    },
+    {
+      "id": "s4",
+      "type": "text",
+      "label": "Step four",
+      "default": "Ship",
+      "maxLength": 14,
+      "element": "Steps"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#14b8a6",
+      "element": "Steps"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Ink",
+      "default": "#f1f5f9",
+      "element": "Steps"
+    }
+  ]
+}

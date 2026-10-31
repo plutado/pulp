@@ -1,0 +1,58 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.watermark-bug",
+  "name": "Watermark",
+  "description": "A faint repeated name set diagonally across the picture, for previews and screeners. Says whose the footage is without covering it.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "logo-bug",
+  "tags": [
+    "overlay",
+    "bug",
+    "watermark"
+  ],
+  "themes": [
+    "business",
+    "media",
+    "cinema"
+  ],
+  "styles": [
+    "clean",
+    "corporate"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "name",
+      "type": "text",
+      "label": "Name",
+      "default": "PREVIEW · STUDIO NORTH",
+      "maxLength": 30,
+      "element": "Watermark"
+    },
+    {
+      "id": "strength",
+      "type": "number",
+      "label": "Strength",
+      "default": 0.14,
+      "min": 0.05,
+      "max": 0.4,
+      "element": "Watermark"
+    }
+  ]
+}

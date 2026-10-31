@@ -4,10 +4,13 @@
  * catalogue, and no upper limit — a category people reach for may go as deep
  * as it likes. (Milestone 21's band was three to five; the upper bound was
  * never the point, and this milestone removed it and raised the floor.)
+ * Milestone 36 raised the floor for **types** to **ten**: a type with six
+ * things in it reads as empty. Themes keep six here (six of the sports and
+ * holiday themes sit at nine) and have their own rule for assets below.
  *
  * The still-open lists below are empty since the milestone landed: a new
  * type, theme or style goes on its list until its examples do, and comes off
- * the moment it reaches six.
+ * the moment it reaches its floor.
  */
 
 import { join } from 'node:path';
@@ -20,8 +23,10 @@ import { entryType, inferThemes, STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES, typeI
 
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
 
-/** What every category is worked towards (milestone 24). */
+/** What every theme and style is worked towards (milestone 24). */
 export const MINIMUM = 6;
+/** What every type is worked towards (milestone 36): nothing in single digits. */
+export const TYPE_MINIMUM = 10;
 
 /** Types not yet six deep (ROADMAP.md, milestone 24). Only shrinks. */
 const TYPES_STILL_OPEN = new Set<string>([]);
@@ -94,24 +99,24 @@ function tally(): { types: Map<string, number>; themes: Map<string, number>; sty
 const counts = tally();
 const ALL_THEMES = THEME_GROUPS.flatMap((g) => g.themes);
 
-describe(`every category is at least ${MINIMUM} deep`, () => {
-  const cases: [axis: string, ids: { id: string; label: string }[], counted: Map<string, number>, open: Set<string>][] = [
-    ['type', TYPES.map((t) => ({ id: t.id, label: t.label })), counts.types, TYPES_STILL_OPEN],
-    ['theme', ALL_THEMES.map((t) => ({ id: t.id, label: t.label })), counts.themes, THEMES_STILL_OPEN],
-    ['style', STYLES.map((s) => ({ id: s.id, label: s.label })), counts.styles, STYLES_STILL_OPEN],
+describe('every category is at least its floor deep', () => {
+  const cases: [axis: string, floor: number, ids: { id: string; label: string }[], counted: Map<string, number>, open: Set<string>][] = [
+    ['type', TYPE_MINIMUM, TYPES.map((t) => ({ id: t.id, label: t.label })), counts.types, TYPES_STILL_OPEN],
+    ['theme', MINIMUM, ALL_THEMES.map((t) => ({ id: t.id, label: t.label })), counts.themes, THEMES_STILL_OPEN],
+    ['style', MINIMUM, STYLES.map((s) => ({ id: s.id, label: s.label })), counts.styles, STYLES_STILL_OPEN],
   ];
 
-  for (const [axis, ids, counted, open] of cases) {
+  for (const [axis, floor, ids, counted, open] of cases) {
     const ready = ids.filter((i) => !open.has(i.id));
-    it.each(ready.map((i) => [i.id, i.label] as const))(`${axis} %s has ${MINIMUM} or more`, (id, label) => {
-      expect(counted.get(id) ?? 0, `${label}: a category worth browsing is at least ${MINIMUM} deep`).toBeGreaterThanOrEqual(MINIMUM);
+    it.each(ready.map((i) => [i.id, i.label] as const))(`${axis} %s has ${floor} or more`, (id, label) => {
+      expect(counted.get(id) ?? 0, `${label}: a category worth browsing is at least ${floor} deep`).toBeGreaterThanOrEqual(floor);
     });
 
     it(`names only ${axis}s that are really still short, and none outside the taxonomy`, () => {
       const known = new Set(ids.map((i) => i.id));
       for (const id of open) {
         expect(known.has(id), `${id} is not a ${axis} in the taxonomy`).toBe(true);
-        expect(counted.get(id) ?? 0, `${id} has reached ${MINIMUM}: take it off the still-open list`).toBeLessThan(MINIMUM);
+        expect(counted.get(id) ?? 0, `${id} has reached ${floor}: take it off the still-open list`).toBeLessThan(floor);
       }
     });
   }
@@ -133,14 +138,14 @@ describe(`every category is at least ${MINIMUM} deep`, () => {
     // Milestone 21 capped a type at five, which asked for a category to be split or trimmed just as
     // it became useful. Nothing here fails for being deep; the largest is simply reported.
     const deepest = [...counts.types.entries()].sort((a, b) => b[1] - a[1])[0];
-    expect(deepest?.[1] ?? 0).toBeGreaterThanOrEqual(MINIMUM);
+    expect(deepest?.[1] ?? 0).toBeGreaterThanOrEqual(TYPE_MINIMUM);
   });
 
   it('leaves no type group empty, once a group has any type that is not still open', () => {
     for (const group of TYPE_GROUPS) {
       const types = TYPES.filter((t) => t.group === group.id);
       if (types.every((t) => TYPES_STILL_OPEN.has(t.id))) continue;
-      const filled = types.filter((t) => (counts.types.get(t.id) ?? 0) >= MINIMUM);
+      const filled = types.filter((t) => (counts.types.get(t.id) ?? 0) >= TYPE_MINIMUM);
       expect(filled.length, group.label).toBeGreaterThan(0);
     }
   });

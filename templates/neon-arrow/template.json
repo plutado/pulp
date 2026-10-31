@@ -1,0 +1,57 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.neon-arrow",
+  "name": "Neon Arrow",
+  "description": "A neon-tube arrow that stutters alight and then burns steady, with its wall glow. Points at a door, a drop or a special.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "arrows",
+  "tags": [
+    "arrows",
+    "neon",
+    "sign"
+  ],
+  "themes": [
+    "city",
+    "food",
+    "concert"
+  ],
+  "styles": [
+    "retro",
+    "tech"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "tube",
+      "type": "color",
+      "label": "Tube",
+      "default": "#f472b6",
+      "element": "Arrow"
+    },
+    {
+      "id": "angle",
+      "type": "number",
+      "label": "Angle",
+      "default": 0,
+      "min": -180,
+      "max": 180,
+      "element": "Arrow"
+    }
+  ]
+}

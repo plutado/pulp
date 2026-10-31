@@ -105,11 +105,14 @@ describe('bundled sample templates', async () => {
     // ten looping plates (grain, scratches, a gate, motes, fireflies, tracking, leaks, a bug and
     // two vignettes) and the ornate frame, which draws on and holds. The nine-types batch adds
     // sixteen holds, sixteen scaling transitions, and three ambient fixed lengths (the typewriter's
-    // cursor, the turning rays, the hashtag carousel).
-    expect(kinds.hold).toHaveLength(95);
-    expect(kinds.loop).toHaveLength(39);
+    // cursor, the turning rays, the hashtag carousel). The last batch to ten adds fifteen holds
+    // (counters and infographics that count and lock, settled shapes and arrows, still plates), eight
+    // looping overlay plates, and ten ambient fixed lengths (turning rings, drifting stripes, a pulse
+    // grid, a running light, marching chevrons, a stopwatch and the four countdowns).
+    expect(kinds.hold).toHaveLength(110);
+    expect(kinds.loop).toHaveLength(47);
     expect(kinds.scale).toHaveLength(40);
-    expect(kinds.none).toHaveLength(54);
+    expect(kinds.none).toHaveLength(64);
   });
 
   it.each(dirs)('%s defines window.pulpRender and avoids wall-clock time', async (dir) => {

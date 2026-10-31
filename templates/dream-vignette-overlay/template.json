@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.dream-vignette-overlay",
+  "name": "Dream Vignette",
+  "description": "A soft white vignette that breathes in and out, edges bloomed. Marks a flashback, a dream or a memory.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "vignette",
+  "tags": [
+    "overlay",
+    "vignette",
+    "dream"
+  ],
+  "themes": [
+    "cinema",
+    "wedding",
+    "family"
+  ],
+  "styles": [
+    "organic",
+    "cinematic"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "depth",
+      "type": "number",
+      "label": "Depth",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1,
+      "element": "Vignette"
+    }
+  ]
+}

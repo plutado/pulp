@@ -1,0 +1,97 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.versus-bars-infographic",
+  "name": "Versus Bars",
+  "description": "Two horizontal bars racing out from the middle, one each way, with their values. Puts two sides against each other.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "infographic",
+  "tags": [
+    "infographic",
+    "versus",
+    "bars"
+  ],
+  "themes": [
+    "sports",
+    "news",
+    "finance"
+  ],
+  "styles": [
+    "high-energy",
+    "clean"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 1.6,
+    "holdTo": 5.6
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "la",
+      "type": "text",
+      "label": "Left label",
+      "default": "Home",
+      "maxLength": 16,
+      "element": "Bars"
+    },
+    {
+      "id": "va",
+      "type": "number",
+      "label": "Left value",
+      "default": 58,
+      "min": 0,
+      "max": 100,
+      "element": "Bars"
+    },
+    {
+      "id": "lb",
+      "type": "text",
+      "label": "Right label",
+      "default": "Away",
+      "maxLength": 16,
+      "element": "Bars"
+    },
+    {
+      "id": "vb",
+      "type": "number",
+      "label": "Right value",
+      "default": 42,
+      "min": 0,
+      "max": 100,
+      "element": "Bars"
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "default": "Possession",
+      "maxLength": 24,
+      "element": "Bars"
+    },
+    {
+      "id": "ca",
+      "type": "color",
+      "label": "Left colour",
+      "default": "#ef4444",
+      "element": "Bars"
+    },
+    {
+      "id": "cb",
+      "type": "color",
+      "label": "Right colour",
+      "default": "#3b82f6",
+      "element": "Bars"
+    }
+  ]
+}

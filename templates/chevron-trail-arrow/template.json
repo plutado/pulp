@@ -1,0 +1,62 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.chevron-trail-arrow",
+  "name": "Chevron Trail",
+  "description": "A trail of chevrons marching in one direction, fading toward the tail. Shows the way across a screen without a stem.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "arrows",
+  "tags": [
+    "arrows",
+    "chevrons",
+    "march"
+  ],
+  "themes": [
+    "sports",
+    "fitness",
+    "gaming"
+  ],
+  "styles": [
+    "high-energy",
+    "tech"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "chev",
+      "type": "color",
+      "label": "Chevrons",
+      "default": "#facc15",
+      "element": "Trail"
+    },
+    {
+      "id": "count",
+      "type": "number",
+      "label": "Chevrons",
+      "default": 5,
+      "min": 3,
+      "max": 9,
+      "element": "Trail"
+    },
+    {
+      "id": "y",
+      "type": "number",
+      "label": "Down",
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "element": "Trail"
+    }
+  ]
+}

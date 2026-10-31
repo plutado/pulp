@@ -1,0 +1,62 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.ring-stack-shapes",
+  "name": "Ring Stack",
+  "description": "Concentric rings turning at different speeds, each broken in a different place. A moving mark to sit behind a title or in a corner.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "shapes",
+  "tags": [
+    "shapes",
+    "rings",
+    "turning"
+  ],
+  "themes": [
+    "technology",
+    "science",
+    "business"
+  ],
+  "styles": [
+    "tech",
+    "clean"
+  ],
+  "duration": 6,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "ring",
+      "type": "color",
+      "label": "Rings",
+      "default": "#60a5fa",
+      "element": "Rings"
+    },
+    {
+      "id": "count",
+      "type": "number",
+      "label": "Rings",
+      "default": 5,
+      "min": 2,
+      "max": 8,
+      "element": "Rings"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 0.3,
+      "min": 0.1,
+      "max": 0.5,
+      "element": "Rings"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.ring-countdown",
+  "name": "Ring Countdown",
+  "description": "A ring that empties around the number as it counts to zero, with a soft pulse on each beat. Counts in a go-live or a quiz answer.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "countdown",
+  "tags": [
+    "countdown",
+    "ring",
+    "timer"
+  ],
+  "themes": [
+    "gaming",
+    "education",
+    "social-media"
+  ],
+  "styles": [
+    "tech",
+    "clean"
+  ],
+  "duration": 7,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "from",
+      "type": "number",
+      "label": "Count from",
+      "default": 10,
+      "min": 1,
+      "max": 99,
+      "element": "Ring"
+    },
+    {
+      "id": "ring",
+      "type": "color",
+      "label": "Ring",
+      "default": "#f472b6",
+      "element": "Ring"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Number",
+      "default": "#fdf2f8",
+      "element": "Ring"
+    }
+  ]
+}

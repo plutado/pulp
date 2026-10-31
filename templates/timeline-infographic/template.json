@@ -1,0 +1,119 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.timeline-infographic",
+  "name": "Timeline",
+  "description": "A horizontal timeline whose dated points pop in along a drawn line, labels alternating above and below. Walks through a history in four beats.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "infographic",
+  "tags": [
+    "infographic",
+    "timeline",
+    "history"
+  ],
+  "themes": [
+    "documentary",
+    "business",
+    "education"
+  ],
+  "styles": [
+    "clean",
+    "elegant"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.0,
+    "holdTo": 5.6
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "d1",
+      "type": "text",
+      "label": "Date one",
+      "default": "1998",
+      "maxLength": 12,
+      "element": "Points"
+    },
+    {
+      "id": "e1",
+      "type": "text",
+      "label": "Event one",
+      "default": "Founded",
+      "maxLength": 20,
+      "element": "Points"
+    },
+    {
+      "id": "d2",
+      "type": "text",
+      "label": "Date two",
+      "default": "2006",
+      "maxLength": 12,
+      "element": "Points"
+    },
+    {
+      "id": "e2",
+      "type": "text",
+      "label": "Event two",
+      "default": "First store",
+      "maxLength": 20,
+      "element": "Points"
+    },
+    {
+      "id": "d3",
+      "type": "text",
+      "label": "Date three",
+      "default": "2015",
+      "maxLength": 12,
+      "element": "Points"
+    },
+    {
+      "id": "e3",
+      "type": "text",
+      "label": "Event three",
+      "default": "Went global",
+      "maxLength": 20,
+      "element": "Points"
+    },
+    {
+      "id": "d4",
+      "type": "text",
+      "label": "Date four",
+      "default": "2026",
+      "maxLength": 12,
+      "element": "Points"
+    },
+    {
+      "id": "e4",
+      "type": "text",
+      "label": "Event four",
+      "default": "Today",
+      "maxLength": 20,
+      "element": "Points"
+    },
+    {
+      "id": "line",
+      "type": "color",
+      "label": "Line",
+      "default": "#cbd5e1",
+      "element": "Line"
+    },
+    {
+      "id": "dot",
+      "type": "color",
+      "label": "Points",
+      "default": "#f59e0b",
+      "element": "Points"
+    }
+  ]
+}

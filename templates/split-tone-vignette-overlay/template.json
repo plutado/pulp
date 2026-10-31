@@ -1,0 +1,63 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.split-tone-vignette-overlay",
+  "name": "Split-Tone Vignette",
+  "description": "Cool edges that fall away into a warm centre, held still. Grades a flat shot toward cinema in one layer.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "vignette",
+  "tags": [
+    "overlay",
+    "vignette",
+    "split tone"
+  ],
+  "themes": [
+    "cinema",
+    "fashion",
+    "documentary"
+  ],
+  "styles": [
+    "cinematic"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "edge",
+      "type": "color",
+      "label": "Edges",
+      "default": "#1b2a44",
+      "element": "Vignette"
+    },
+    {
+      "id": "centre",
+      "type": "color",
+      "label": "Centre",
+      "default": "#ffb877",
+      "element": "Vignette"
+    },
+    {
+      "id": "depth",
+      "type": "number",
+      "label": "Depth",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1,
+      "element": "Vignette"
+    }
+  ]
+}

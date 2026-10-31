@@ -1,0 +1,69 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.paper-cutout-shapes",
+  "name": "Paper Cutouts",
+  "description": "Cut-paper circles, triangles and arcs that drop in, overshoot and settle in a layered pile. A craft-table ground for kids and DIY pieces.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "shapes",
+  "tags": [
+    "shapes",
+    "paper",
+    "cutouts"
+  ],
+  "themes": [
+    "kids",
+    "education",
+    "family"
+  ],
+  "styles": [
+    "playful",
+    "hand-drawn"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.5,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "a",
+      "type": "color",
+      "label": "Paper one",
+      "default": "#ff8fab",
+      "element": "Cutouts"
+    },
+    {
+      "id": "b2",
+      "type": "color",
+      "label": "Paper two",
+      "default": "#ffd166",
+      "element": "Cutouts"
+    },
+    {
+      "id": "c",
+      "type": "color",
+      "label": "Paper three",
+      "default": "#06d6a0",
+      "element": "Cutouts"
+    },
+    {
+      "id": "dd",
+      "type": "color",
+      "label": "Paper four",
+      "default": "#118ab2",
+      "element": "Cutouts"
+    }
+  ]
+}

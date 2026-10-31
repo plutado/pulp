@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.rec-bug",
+  "name": "Recording",
+  "description": "A corner REC with a blinking red dot and a running frame counter. Marks found-footage, behind-the-scenes and camcorder looks.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "logo-bug",
+  "tags": [
+    "overlay",
+    "bug",
+    "rec"
+  ],
+  "themes": [
+    "cinema",
+    "family",
+    "gaming"
+  ],
+  "styles": [
+    "retro",
+    "grunge"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "dot",
+      "type": "color",
+      "label": "Dot",
+      "default": "#ef4444",
+      "element": "Bug"
+    }
+  ]
+}

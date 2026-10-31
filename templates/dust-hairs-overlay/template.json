@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.dust-hairs-overlay",
+  "name": "Dust and Hairs",
+  "description": "Specks of dust and the odd hair that appear for a frame or two and vanish, as on a projected print. Ages footage lightly.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "film-grunge",
+  "tags": [
+    "overlay",
+    "dust",
+    "hairs"
+  ],
+  "themes": [
+    "cinema",
+    "family",
+    "memorial"
+  ],
+  "styles": [
+    "grunge",
+    "retro"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "amount",
+      "type": "number",
+      "label": "Amount",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1,
+      "element": "Specks"
+    }
+  ]
+}

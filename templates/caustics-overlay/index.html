@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Water Caustics</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Water Caustics, a sample for Pulp (milestone 36). CC0-1.0: no rights reserved.
+  // Both fields run whole cycles over the clip, so the loop is seamless.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function overshoot(x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function at(i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  window.pulpRender = function (state) {
+    var p = state.params;
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, t = state.time, d = state.duration;
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+    var ph = (t / d) * Math.PI * 2;
+    ctx.lineWidth = Math.max(1, 3 * u); ctx.lineCap = 'round';
+    for (var i = 0; i < 26; i++) {
+      // Two sine fields beating against each other make the net; both run whole cycles.
+      var y0 = (i / 26) * H;
+      ctx.strokeStyle = rgba(p.light, p.amount * (0.1 + 0.2 * at(i)));
+      ctx.beginPath();
+      for (var x = 0; x <= W; x += W / 60) {
+        var y = y0 + Math.sin(x / W * Math.PI * 6 + ph + i) * H * 0.02 + Math.sin(x / W * Math.PI * 3 - ph * 2 + i * 0.5) * H * 0.015;
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    for (var k = 0; k < 14; k++) {
+      var kx = W * at(k * 3 + 1), ky = H * at(k * 3 + 2);
+      var kb = 0.5 + 0.5 * Math.sin(ph * 2 + k);
+      var g = ctx.createRadialGradient(kx, ky, 0, kx, ky, Math.min(W, H) * 0.12);
+      g.addColorStop(0, rgba(p.light, p.amount * 0.14 * kb)); g.addColorStop(1, rgba(p.light, 0));
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
+  };
+</script>
+</body>
+</html>

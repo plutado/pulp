@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.burn-edges-overlay",
+  "name": "Burning Edges",
+  "description": "Film burn creeping in from the frame edges and receding, orange at the lip. Ends a scene like a reel running out.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "film-grunge",
+  "tags": [
+    "overlay",
+    "burn",
+    "film"
+  ],
+  "themes": [
+    "cinema",
+    "memorial",
+    "documentary"
+  ],
+  "styles": [
+    "grunge",
+    "cinematic"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "ember",
+      "type": "color",
+      "label": "Burn",
+      "default": "#ff8a3c",
+      "element": "Burn"
+    }
+  ]
+}

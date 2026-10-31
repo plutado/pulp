@@ -1,0 +1,56 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.sparkle-dust-overlay",
+  "name": "Sparkle Dust",
+  "description": "Four-point sparkles that wink in and out across the frame. Scatters a little magic over reveals and unboxings.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "light-particles",
+  "tags": [
+    "overlay",
+    "sparkles",
+    "glitter"
+  ],
+  "themes": [
+    "birthday",
+    "holiday",
+    "fashion"
+  ],
+  "styles": [
+    "playful",
+    "elegant"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "spark",
+      "type": "color",
+      "label": "Sparkles",
+      "default": "#fff1b8",
+      "element": "Sparkles"
+    },
+    {
+      "id": "density",
+      "type": "number",
+      "label": "Density",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1,
+      "element": "Sparkles"
+    }
+  ]
+}

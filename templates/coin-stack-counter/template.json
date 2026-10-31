@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.coin-stack-counter",
+  "name": "Coin Stack",
+  "description": "Coins that drop onto a stack as the amount counts up, the total above. Counts savings, tips and pocket money for kids and money pieces.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "other",
+  "type": "counter",
+  "tags": [
+    "counter",
+    "coins",
+    "savings"
+  ],
+  "themes": [
+    "kids",
+    "finance",
+    "nonprofit"
+  ],
+  "styles": [
+    "playful"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 2.1,
+    "holdTo": 5.2
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "target",
+      "type": "number",
+      "label": "Amount",
+      "default": 240,
+      "min": 0,
+      "max": 99999,
+      "element": "Stack"
+    },
+    {
+      "id": "prefix",
+      "type": "text",
+      "label": "Currency",
+      "default": "$",
+      "maxLength": 3,
+      "element": "Stack"
+    },
+    {
+      "id": "coin",
+      "type": "color",
+      "label": "Coins",
+      "default": "#f5c542",
+      "element": "Stack"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Figure",
+      "default": "#3b2f1a",
+      "element": "Stack"
+    }
+  ]
+}
