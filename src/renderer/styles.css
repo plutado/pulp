@@ -30,8 +30,9 @@
      a few pixels). --center-min-h is the sum, and the two rows below the center give way to it in order:
      the transport row's lanes first (it is capped by what is left once the tray has its setting), then
      the tray's body (capped by what is left once the row has its real height). Below --transport-min-h
-     the transport row cannot go (LAYOUT_LIMITS.transportHeight.min). The chrome between them — the
-     status bar and the tray's own head — is measured too (--chrome-h, set by the shell): classic
+     the transport row cannot go (LAYOUT_LIMITS.transportHeight.min; a short window puts the row on
+     one line and lowers the floor, below). The chrome between them — the tray's own head, when the
+     tray has something in it (milestone 42) — is measured too (--chrome-h, set by the shell): classic
      scroll bars and platform font metrics make it taller on Linux and Windows than on macOS, and a
      constant budgeted from one platform let the stage fall under its floor on the others. */
   --results-min-h: 160px;
@@ -77,8 +78,9 @@ input[type="checkbox"] { width: auto; }
   /* The browse panel and the center; the right column went with milestone 38, so the stage
      and the results span from the browse panel's edge to the window's right edge. */
   grid-template-columns: var(--browse-w, 260px) 6px minmax(0, 1fr);
-  /* Rows: the regions, the collection tray, the transport row, the status bar (milestone 37). */
-  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  /* Rows: the regions, the collection tray, the transport row (milestone 37). The status bar was a
+     fourth row until milestone 42 put its items at the end of the transport row. */
+  grid-template-rows: minmax(0, 1fr) auto auto;
   height: 100vh;
 }
 .sidebar { grid-column: 1; grid-row: 1 / 3; }
@@ -87,9 +89,12 @@ input[type="checkbox"] { width: auto; }
 .tray { grid-column: 3; grid-row: 2; }
 /* The room the tray's body claims, for the transport row's cap: its setting while open, nothing collapsed. */
 .app { --tray-room: var(--tray-h, 220px); }
-.app.tray-collapsed { --tray-room: 0px; }
+.app.tray-collapsed, .app.tray-empty { --tray-room: 0px; }
+/* An empty tray takes no space at all (milestone 42): no drawer and no summary line. It appears
+   with the first item collected or queued and goes with the last; the shell sets the class from
+   what the tray holds, never from the saved layout, so a tray saved open cannot reopen empty. */
+.app.tray-empty .tray { display: none; }
 .transport-row { grid-column: 1 / 4; grid-row: 3; }
-.status-bar { grid-column: 1 / 4; grid-row: 4; }
 
 .sidebar, .inspector {
   background: var(--panel);
@@ -381,10 +386,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .tray-head .region-toggle { display: inline-flex; align-items: center; }
 .tray-body {
   height: var(--tray-h, 220px);
-  /* The status bar and the tray's own head sit outside the center column, at their measured height
-     (--chrome-h), as the transport row does — at the height it really has, which on a short window is
-     less than its setting. */
-  max-height: calc(100vh - var(--center-min-h) - var(--chrome-h, 60px) - clamp(var(--transport-min-h), var(--transport-h, 124px), calc(100vh - var(--center-min-h) - var(--chrome-h, 60px) - var(--tray-room))));
+  /* The tray's own head sits outside the center column, at its measured height (--chrome-h; the
+     status bar was part of it until milestone 42 moved its items into the transport row), as the
+     transport row does — at the height it really has, which on a short window is less than its
+     setting. */
+  max-height: calc(100vh - var(--center-min-h) - var(--chrome-h, 0px) - clamp(var(--transport-min-h), var(--transport-h, 124px), calc(100vh - var(--center-min-h) - var(--chrome-h, 0px) - var(--tray-room))));
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -400,27 +406,37 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
    than on the tray itself, which left it hanging 12 px over the regions on either side. */
 .tray .splitter.h { margin: 0; }
 
-/* One row of small things of different kinds — a button, a paragraph, a flex summary, spans with
-   icons. Two things used to make it read as three kinds of text rather than one row: they were
-   aligned on their baselines, and a baseline depends on what is inside each one, so an item that
-   starts with an icon took its baseline from the icon; and each kind brought its own size and
-   line height. The bar now sets the text once and centres them, and every item inherits it. */
-.status-bar {
-  display: flex; align-items: center; gap: 16px; border-top: 1px solid var(--border);
-  padding: 3px 12px; min-height: 22px; font-size: var(--font-caption); line-height: 1.4; color: var(--muted);
+/* The status, at the end of the transport row (milestone 42): the project, ffmpeg, the library's
+   counts, scanning and rendering as they happen, and the cache — what was a fixed row across the
+   bottom of the window, so the window has one row fewer and the stage has its height. One row of
+   small things of different kinds — a button, a paragraph, a flex summary, spans with icons — set
+   to one size and centred, so it reads as one row rather than three kinds of text. It is the one
+   part of the line that yields: when the window is narrow the counts and the cache shorten to
+   their ellipses and the icons, and the project's name and a warning about ffmpeg stay whole. */
+.transport-status {
+  display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+  flex: 0 1 auto; min-width: 0; overflow: hidden;
+  font-size: var(--font-caption); line-height: 1.4; color: var(--muted);
 }
 /* Named rather than left to `> *`: `.note` and `.summary` set a size of their own elsewhere, and
    a two-class selector is what takes it back without reaching for the id. */
-.status-bar .note, .status-bar .summary { font-size: inherit; line-height: inherit; }
-.status-bar .note { margin: 0; }
-.status-bar .status-item { display: inline-flex; align-items: center; gap: 4px; }
-.status-bar .status-item > .icon { color: var(--muted); }
-.status-bar #ffmpeg-status.error > .icon { color: var(--danger); }
-.status-bar .status-spacer { flex: 1; }
+.transport-status .note, .transport-status .summary { font-size: inherit; line-height: inherit; }
+.transport-status .note { margin: 0; }
+.transport-status .status-item { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; white-space: nowrap; }
+.transport-status .status-item > .icon { color: var(--muted); flex: 0 0 auto; }
+.transport-status #ffmpeg-status.error > .icon { color: var(--danger); }
+/* The cache is its icon: a button that opens the Render cache dialog, the summary as its tooltip. */
+.transport-status #status-cache { padding: 2px 4px; }
+.transport-status #status-cache .label { display: none; }
+/* The counts yield before the rest. */
+.transport-status .summary { flex: 0 1 auto; min-width: 0; }
+/* An item with nothing to say takes no room, not even its gap. */
+.transport-status .status-item:not(#project-button):not(:has(.label:not(:empty))) { display: none; }
+.transport-status #ffmpeg-status:not(.error) .label { display: none; }
 /* The project (milestone 27): its name in the status bar, with a dot while there are unsaved
    changes, opening the project actions. The application menu is its proper home and arrives next;
    until then this is the one place they live. */
-.project-button { border: 0; background: none; padding: 0 2px; color: inherit; cursor: pointer; font: inherit; }
+.project-button { border: 0; background: none; padding: 0 2px; color: inherit; cursor: pointer; font: inherit; border-radius: 0; }
 .project-button:hover { color: var(--text); }
 .project-button.dirty { color: var(--text); }
 .project-button.dirty .label::before { content: '• '; color: var(--accent); }
@@ -439,10 +455,13 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .shortcut-rows dt { font-size: var(--font-secondary); }
 .shortcut-rows dd { margin: 0; font-family: Menlo, Consolas, monospace; font-size: var(--font-caption); color: var(--muted); white-space: nowrap; }
 /* One line, always: a library problem joins the row truncated (its full text is the tooltip)
-   rather than wrapping the bar taller — a taller bar would eat the stage's floor on a short window. */
-.status-bar .summary { border-top: 0; padding: 0; display: flex; gap: 12px; flex-wrap: nowrap; min-width: 0; overflow: hidden; }
-.status-bar .summary > div { white-space: nowrap; }
-.status-bar .summary .problem { overflow: hidden; text-overflow: ellipsis; max-width: 240px; flex: 0 1 auto; }
+   rather than wrapping the row taller — a taller row would eat the stage's floor on a short window. */
+.transport-status .summary { border-top: 0; padding: 0; display: flex; gap: 12px; flex-wrap: nowrap; flex: 0 1 auto; min-width: 0; overflow: hidden; }
+.transport-status .summary:empty { display: none; }
+.transport-status .summary > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+/* The counts stay whole; a problem is what shortens. */
+.transport-status .summary > div:first-child { flex: 0 0 auto; }
+.transport-status .summary .problem { max-width: 240px; }
 
 .pack-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-surface); padding: var(--space-4); width: min(560px, 90vw); }
 .pack-dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
@@ -470,15 +489,6 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results .meta.empty { grid-column: 1 / -1; padding: var(--space-2) var(--space-3); color: var(--muted); font-size: var(--font-caption); }
 /* Nothing here: outlines where cards would be, and the reason over them. The outlines are a hint
    of a grid, not a thing to look at — a hairline, no fill, nothing that moves. */
-/* Pinned to the region and clipped: the outlines fill what is on screen without making an empty
-   region scroll, and the last row simply runs out at the edge. */
-.results .ghosts {
-  position: absolute; inset: 0; overflow: hidden;
-  display: grid; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr)); grid-auto-rows: min-content;
-  align-content: start; gap: var(--space-1); padding: var(--space-1);
-}
-.results.list .ghosts { grid-template-columns: minmax(0, 1fr); }
-.ghost { border: 1px solid var(--border); border-radius: var(--radius-control); opacity: 0.35; }
 /* The same hint of a slot, inline after the last card: the cells left in its row and the rows
    below it, so a part-filled grid reads as a grid with room rather than one that stopped. */
 .results .slot { border: 1px solid var(--border); border-radius: var(--radius-control); opacity: 0.35; margin: var(--space-1); pointer-events: none; }
@@ -486,14 +496,6 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* A picture that has not been drawn yet is the same hint, not a filled box, so a loading grid
    reads as slots waiting to fill rather than as a wall of empty panels. */
 .results .thumb.empty { background-image: none; background-color: transparent; opacity: 0.55; }
-.results .empty-state {
-  grid-column: 1 / -1; position: absolute; left: 0; right: 0; top: 0; bottom: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2);
-  padding: var(--space-4); text-align: center; pointer-events: none;
-}
-.empty-title { margin: 0; color: var(--text-secondary); font-size: var(--font-title); }
-.empty-detail { margin: 0; max-width: 42ch; color: var(--muted); font-size: var(--font-secondary); }
-.empty-actions { margin: 0; display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: center; pointer-events: auto; }
 
 .results .thumb { position: relative; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--muted); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
 /* Hover-scrub: one frame of the cached strip, over the poster so the checkerboard shows through alpha. */
@@ -542,10 +544,22 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* One key gives the stage everything (milestone 38): the results fold away and the stage takes the room. */
 /* The results collapse to their heading (milestone 41): the toggles live in it now, so it stays as
    the way back, a thin bar under the stage. Theater wants the picture alone, and hides it too. */
-.app.results-collapsed #split-stage, .app.results-collapsed #results, .app.results-collapsed #category-cards { display: none; }
-.app.results-collapsed .results-region { flex: 0 0 auto; min-height: 0; }
-.app.results-collapsed .stage { flex: 1 1 auto; }
+/* Empty results fold to the same heading (milestone 42): with nothing to show, the list, the
+   cards and the splitter go and the stage takes the height; the heading says why it is empty and
+   offers the way out (src/core/results-empty.ts). The class comes from what there is to show. */
+.app:is(.results-collapsed, .results-empty) #split-stage, .app:is(.results-collapsed, .results-empty) #results, .app:is(.results-collapsed, .results-empty) #category-cards { display: none; }
+.app:is(.results-collapsed, .results-empty) .results-region { flex: 0 0 auto; min-height: 0; }
+.app:is(.results-collapsed, .results-empty) .stage { flex: 1 1 auto; }
+/* Folded, the centre's floor is the stage and the heading: the list's floor is not owed. */
+.app:is(.results-collapsed, .results-empty) { --center-min-h: calc(var(--results-head-h) + var(--stage-min-h)); }
 .app.theater.results-collapsed #region-results { display: none; }
+/* The message in the heading: the one line that says what is going on, its detail as a tooltip,
+   and each way out as a small button beside it. */
+.results-empty-note { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; margin-left: var(--space-2); color: var(--text-secondary); font-size: var(--font-secondary); }
+.results-empty-note[hidden] { display: none; }
+.results-empty-note .empty-title { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: inherit; color: inherit; }
+.results-empty-note .empty-actions { margin: 0; display: inline-flex; gap: var(--space-1); flex: 0 0 auto; }
+.results-empty-note .empty-actions button { font-size: var(--font-caption); padding: 2px 8px; }
 /* The wrap is a size container so the box below can be sized from it: the largest box of the
    picture's own ratio that fits, pillarboxed or letterboxed by whatever room is left around it.
    A clamped width or height alone would change the shape and stretch the iframe or media inside;
@@ -623,7 +637,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
      the tray or the stage have to, since the bars per layer are the first thing to spare. The cap is
      what the window leaves once the center has its floors, the tray its setting (--tray-room), and the
      chrome — the status bar and the tray's head — its measured height. */
-  height: clamp(var(--transport-min-h), var(--transport-h, 124px), calc(100vh - var(--center-min-h) - var(--chrome-h, 60px) - var(--tray-room)));
+  height: clamp(var(--transport-min-h), var(--transport-h, 124px), calc(100vh - var(--center-min-h) - var(--chrome-h, 0px) - var(--tray-room)));
   padding: var(--space-2) 0;
   background: var(--panel);
   border-top: 1px solid var(--border);
@@ -642,10 +656,13 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* Three clusters sized to their contents and spread across the line, so none can draw over another:
    with the outer two on equal fr tracks the right cluster outgrew its track at 1280 px and Clear sat
    on Mute (docs/ideas.md, 2026-10-30). The middle sits in the middle of what is left. */
-.buttons-line { flex: 0 0 auto; display: grid; grid-template-columns: auto auto auto; justify-content: space-between; align-items: center; column-gap: var(--space-4); padding: 6px var(--space-3) 0; min-width: 0; }
-.transport-buttons { justify-self: start; display: flex; align-items: center; gap: var(--space-1); }
-.transport-middle { display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); min-width: 0; }
-.transport-tools { justify-self: end; display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); min-width: 0; }
+/* A flex row since milestone 42, with the status as a fourth cluster at the end: the three clusters
+   keep their size, the middle one centres itself in what is left (its auto margins), and only the
+   status yields when the line is short. */
+.buttons-line { flex: 0 0 auto; display: flex; align-items: center; column-gap: var(--space-4); padding: 6px var(--space-3) 0; min-width: 0; }
+.transport-buttons { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-1); }
+.transport-middle { flex: 0 0 auto; margin: 0 auto; display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); min-width: 0; }
+.transport-tools { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); min-width: 0; }
 /* The drawer's tabs, at the row's end: open, switch, or choose again to close (milestone 38). */
 .transport-tabs { display: inline-flex; align-items: center; gap: 4px; margin-left: var(--space-2); padding-left: var(--space-3); border-left: 1px solid var(--border); }
 .transport-tabs .tab { position: relative; display: inline-flex; align-items: center; font-size: var(--font-secondary); padding: 3px 10px; color: var(--muted); background: none; border-color: transparent; }
@@ -654,9 +671,53 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .app.inspector-open .transport-tabs .tab[aria-selected="true"] { color: var(--accent); border-color: var(--accent); }
 /* The dot: the shown item has edits behind this tab (milestone 38). */
 .transport-tabs .tab.edited::after { content: ''; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
-/* On a narrow window the tabs fold to their icons, so the scrub bar keeps its width;
-   the labels stay in the markup for assistive tech and the tooltips. */
-@media (max-width: 1100px) {
+/* On a narrower window the tabs fold to their icons, so the line keeps room for the status at its
+   end (milestone 42; the labels went under 1100 px before the status joined the line); the labels
+   stay in the markup for assistive tech and the tooltips. Narrower still, the library's counts leave
+   the line — the project's name, a warning about ffmpeg and the cache's button, the one door to the
+   Render cache dialog while the tray is empty, are what must stay. */
+@media (max-width: 1230px) {
+  .transport-tabs .tab .label { display: none; }
+  .transport-tools #volume { width: 56px; }
+}
+@media (max-width: 1040px) {
+  .transport-status #library-summary { display: none; }
+}
+/* One line in a short window (milestone 42): below a height where two lines cost the picture, and
+   where one line fits — the clusters at their icon-only widths, with the status down to the project,
+   ffmpeg and the cache, need about 1050 px, and the bar wants room left over; narrower than 1200 px
+   the two lines stay — the scrub bar sits
+   between the playback buttons and the tools, with the lanes for the bars per layer under it in its
+   own column — lined up with it by construction, as before. The row's floor drops to the one line,
+   and its setting is read a line shorter, so the height the second line took goes to the stage. The
+   bar is no longer one to one under the picture here; it has the room between the clusters, and the
+   picture has the height. */
+@media (max-height: 720px) and (min-width: 1200px) {
+  :root { --transport-min-h: 44px; }
+  .transport-row {
+    display: grid;
+    /* The clusters at their content's width — max-content, since auto tracks would share the free
+       space between them and leave the scrub bar its floor — and the scrub bar takes what is left. */
+    grid-template-columns: max-content minmax(120px, 1fr) max-content max-content max-content;
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-1) var(--space-3);
+    height: clamp(var(--transport-min-h), calc(var(--transport-h, 124px) - 36px), calc(100vh - var(--center-min-h) - var(--chrome-h, 0px) - var(--tray-room)));
+  }
+  .buttons-line { display: contents; }
+  .transport-buttons { grid-row: 1; grid-column: 1; }
+  .scrub-line { grid-row: 1; grid-column: 2; padding: 0; min-width: 0; }
+  .scrub-line .scrub-wrap { margin-left: 0; width: auto; }
+  .transport-middle { grid-row: 1; grid-column: 3; margin: 0; }
+  .transport-tools { grid-row: 1; grid-column: 4; }
+  /* The status down to what must stay — the project, a warning about ffmpeg, the cache — since the
+     line's room is the scrub bar's; the library's counts and its problems are back on two lines. Capped
+     too, so a transient "Scanning…" cannot widen the column past the room there is. */
+  .transport-status { grid-row: 1; grid-column: 5; max-width: 200px; justify-content: flex-start; }
+  .transport-status #library-summary { display: none; }
+  /* Named with the row: the lanes' own rule, below, would otherwise win by coming later. */
+  .transport-row .transport-lanes { grid-row: 2; grid-column: 2; margin: 0 -4px; width: auto; align-self: stretch; }
   .transport-tabs .tab .label { display: none; }
   .transport-tools #volume { width: 56px; }
 }
@@ -844,9 +905,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .confirm[hidden] { display: none; }
 .confirm button { font-size: var(--font-caption); padding: 2px 7px; }
-.cache { margin-top: var(--space-2); }
-.cache summary { cursor: pointer; color: var(--muted); font-size: var(--font-secondary); }
-.cache .field.inline input { width: 90px; }
+/* The render cache's own dialog (milestone 42), opened from the status item and the tray's foot. */
+.cache-dialog { max-width: 480px; }
+.cache-dialog .field.inline input { width: 90px; }
+.cache-dialog .render-actions { align-items: center; flex-wrap: wrap; }
+.dialog-spacer { flex: 1; }
 .batch { margin-top: 10px; }
 .batch summary { cursor: pointer; color: var(--muted); font-size: var(--font-secondary); }
 .batch textarea { width: 100%; font-family: Menlo, Consolas, monospace; font-size: var(--font-caption); margin-top: 6px; }
@@ -1089,7 +1152,8 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .tray-head button { white-space: nowrap; }
 
 .tray-foot { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) 0; border-top: 1px solid var(--border); }
-.tray-foot .cache { margin-top: 0; flex: 1; }
+.tray-foot .cache-open { color: var(--muted); font-size: var(--font-secondary); background: none; border-color: transparent; padding: 2px 6px; }
+.tray-foot .cache-open:hover { color: var(--text); }
 .tray-foot .icon-slot { color: var(--muted); display: inline-flex; padding-top: 2px; }
 .tray-foot .icon-slot:hover { color: var(--text); }
 .note.notice { display: flex; align-items: center; gap: var(--space-2); background: var(--panel-2); border: 1px solid var(--accent); border-radius: var(--radius-control); padding: var(--space-2); margin: 0 0 var(--space-2); }

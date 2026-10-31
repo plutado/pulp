@@ -11,13 +11,16 @@ import {
   DEFAULT_LAYOUT,
   LAYOUT_LIMITS,
   layoutCssVariables,
+  shownPanes,
+  startupLayout,
   withCollapsed,
   withPaneSize,
   type CollapsiblePane,
   type LayoutState,
   type SizedPane,
 } from '../core/layout';
-import { appState } from './store';
+import { appState, hasIndex, results } from './store';
+import { categoryCardCount } from './category-cards';
 import { setIcon } from './icons';
 
 const $ = (id: string): HTMLElement => {
@@ -136,26 +139,44 @@ export function initShell(): void {
     lastCount = count;
   });
 
+  // Nothing empty takes room from the stage (milestone 42): what the tray and the results hold
+  // decides whether they are in the window at all, not the saved layout — an empty tray is gone,
+  // summary line and all, and empty results are their heading. Read off the content, so a tray
+  // or results area saved open comes back open only when it has something in it; the saved state
+  // is kept untouched for when it does. The results count as empty only once the library is
+  // read: while it is being read there is nothing to show either, but folding and unfolding
+  // around the first paint would be a flash for nothing.
+  effect(() => {
+    const s = appState.value;
+    const panes = shownPanes(layout, {
+      trayItems: s.jobs.jobs.length + s.collection.items.length,
+      resultItems: hasIndex.value ? results.value.entries.length + categoryCardCount.value : 1,
+    });
+    app.classList.toggle('tray-empty', !panes.trayShown);
+    app.classList.toggle('results-empty', panes.resultsFolded);
+  });
+
   // The saved layout arrives after first paint; starting from the defaults avoids a flash of nothing.
-  void window.pulp.getLayout().then((saved) => set(app, saved, false));
+  // On a window small enough that the browse panel would squeeze the stage, it opens folded to its
+  // rail (milestone 42) — not saved, so the setting stays the person's own.
+  void window.pulp.getLayout().then((saved) => set(app, startupLayout(saved, { width: window.innerWidth, height: window.innerHeight }), false));
 
   // The center column's floor is a sum the stylesheet keeps (--center-min-h), and one of its terms
-  // is not a constant: the chrome under the center — the status bar and the tray's head — which
-  // classic scroll bars and platform font metrics make taller on Linux and Windows than on macOS.
-  // It is measured here rather than guessed, so the stage keeps its floor on every platform
-  // (docs/platform-notes.md). The tray's head, splitter and border are read as the tray minus its
-  // body, which also holds collapsed, when the body and the splitter are gone; the difference does
-  // not change when a cap resizes the body, so the observers settle. (The search bar's height was
-  // the other term until milestone 41 moved the bar into the left panel.)
+  // is not a constant: the chrome under the center — the tray's head — which classic scroll bars
+  // and platform font metrics make taller on Linux and Windows than on macOS. It is measured here
+  // rather than guessed, so the stage keeps its floor on every platform (docs/platform-notes.md).
+  // The tray's head, splitter and border are read as the tray minus its body, which also holds
+  // collapsed, when the body and the splitter are gone, and empty, when the whole tray is gone
+  // (milestone 42); the difference does not change when a cap resizes the body, so the observer
+  // settles. (The status bar was the other term until milestone 42 put its items in the transport
+  // row, and the search bar's height before that, until milestone 41 moved the bar into the left panel.)
   const tray = $('region-tray');
   const trayBody = document.querySelector('.tray-body') as HTMLElement;
-  const status = $('region-status');
   const floors = () => {
     const trayChrome = tray.getBoundingClientRect().height - trayBody.getBoundingClientRect().height;
-    app.style.setProperty('--chrome-h', `${Math.ceil(status.getBoundingClientRect().height + trayChrome)}px`);
+    app.style.setProperty('--chrome-h', `${Math.ceil(trayChrome)}px`);
   };
-  const measure = new ResizeObserver(floors);
-  for (const el of [status, tray]) measure.observe(el);
+  new ResizeObserver(floors).observe(tray);
   floors();
 
   // Clamp the browse width back into view when the window shrinks below it.

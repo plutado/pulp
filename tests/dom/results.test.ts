@@ -78,6 +78,11 @@ beforeAll(async () => {
   const label = document.createElement('span');
   label.id = 'results-label';
   document.body.append(label);
+  // The heading's slot for the empty message (milestone 42): the list folds away when it has nothing.
+  const emptySlot = document.createElement('span');
+  emptySlot.id = 'results-empty';
+  emptySlot.hidden = true;
+  document.body.append(emptySlot);
   fixSize(container, WIDTH, HEIGHT);
   document.body.append(container);
   appState.value = setIndex(initialAppState, index);
@@ -268,7 +273,9 @@ describe('the windowed results region', () => {
     appState.value = setQuery(appState.value, 'nothing matches this');
     await settle();
     expect(rendered()).toHaveLength(0);
-    expect(container.textContent).toContain('No matches for “nothing matches this”');
+    // The message is in the heading, not the list: the list folds away when it has nothing (milestone 42).
+    expect(container.textContent).not.toContain('No matches');
+    expect(document.getElementById('results-empty')!.textContent).toContain('No matches for “nothing matches this”');
 
     appState.value = setQuery(appState.value, '');
     await settle();
@@ -276,10 +283,12 @@ describe('the windowed results region', () => {
 });
 
 describe('the empty region', () => {
-  const title = () => container.querySelector('.empty-title')?.textContent;
-  const detail = () => container.querySelector('.empty-detail')?.textContent;
-  const actions = () => [...container.querySelectorAll<HTMLButtonElement>('.empty-actions button')].map((b) => b.dataset.emptyAction);
-  const ghosts = () => [...container.querySelectorAll<HTMLElement>('.ghost')];
+  // Empty results fold to their heading (milestone 42): the reason and the way out sit in the
+  // heading's slot, the detail sentence as its tooltip, and the list holds nothing at all.
+  const slot = () => document.getElementById('results-empty')!;
+  const title = () => slot().querySelector('.empty-title')?.textContent;
+  const detail = () => slot().querySelector<HTMLElement>('.empty-title')?.dataset.tip;
+  const actions = () => [...slot().querySelectorAll<HTMLButtonElement>('.empty-actions button')].map((b) => b.dataset.emptyAction);
   const empty: LibraryIndex = { roots: ['/lib'], templates: [], media: [], problems: [], builtAt: '2026-10-25T00:00:00Z' };
   const scope: Scope = { label: 'Lower third', filter: 'type:lower-third', kind: 'type' };
 
@@ -291,12 +300,20 @@ describe('the empty region', () => {
   it('a search that matches nothing: the reason, and a way to undo what narrowed it', async () => {
     appState.value = { ...setQuery(appState.value, 'nothing matches this'), filters: ['alpha'] };
     await settle();
+    expect(slot().hidden, 'the heading shows the message').toBe(false);
+    expect(container.children.length, 'and the list holds nothing, not even decoration').toBe(0);
     expect(title()).toBe('No matches for “nothing matches this”');
     expect(actions()).toEqual(['clear-search', 'clear-filters']);
     // Pressing it clears the search, and the results come back.
-    container.querySelector<HTMLButtonElement>('[data-empty-action=clear-search]')!.click();
+    slot().querySelector<HTMLButtonElement>('[data-empty-action=clear-search]')!.click();
     await settle();
     expect(appState.value.query).toBe('');
+    // The filter still narrows it to nothing; undoing that too brings the list back and the message goes.
+    expect(actions()).toEqual(['clear-filters']);
+    slot().querySelector<HTMLButtonElement>('[data-empty-action=clear-filters]')!.click();
+    await settle();
+    expect(slot().hidden, 'the message goes with the reason').toBe(true);
+    expect(rendered().length).toBeGreaterThan(0);
   });
 
   it('an empty corner of the library says which corner, and offers the whole library', async () => {
@@ -305,7 +322,7 @@ describe('the empty region', () => {
     expect(title()).toBe('Nothing in Lower third yet');
     expect(detail()).toContain('carries it');
     expect(actions()).toEqual(['clear-scope']);
-    container.querySelector<HTMLButtonElement>('[data-empty-action=clear-scope]')!.click();
+    slot().querySelector<HTMLButtonElement>('[data-empty-action=clear-scope]')!.click();
     await settle();
     expect(appState.value.scope).toBeNull();
   });
@@ -315,24 +332,6 @@ describe('the empty region', () => {
     await settle();
     expect(title()).toBe('Nothing in the library yet');
     expect(actions()).toEqual(['add-folder', 'add-sample-media']);
-  });
-
-  it('draws ghost slots in the current view, decoration only', async () => {
-    appState.value = setIndex(appState.value, empty);
-    await settle();
-    const grid = ghosts();
-    expect(grid.length).toBeGreaterThan(COLUMNS); // more than one row of them
-    expect(container.querySelector('.ghosts')!.getAttribute('aria-hidden')).toBe('true');
-    expect(container.querySelector('.ghosts')!.getAttribute('role')).toBe('presentation');
-    expect(grid.some((g) => g.tabIndex > 0)).toBe(false);
-    // Rows rather than cards: as many ghosts as rows fit, each a row tall.
-    resultsView.value = { ...GRID, mode: { visual: 'list', audio: 'list' } };
-    await settle();
-    const rows = ghosts();
-    expect(rows[0]!.style.height).toBe(`${LIST_ROW_HEIGHT - 4}px`);
-    expect(rows.length).toBeLessThan(grid.length);
-    resultsView.value = GRID;
-    await settle();
   });
 
   it('says what the region holds, whether or not it holds anything', async () => {

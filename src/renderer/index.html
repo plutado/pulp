@@ -110,6 +110,7 @@
         <div class="results-head">
           <span id="results-label" class="region-count">Results</span>
           <span id="results-description" class="results-description"></span>
+          <span id="results-empty" class="results-empty-note" role="status" hidden></span>
           <span class="results-tools">
             <span class="sort-wrap">
               <span data-icon="sort-ascending" aria-hidden="true"></span>
@@ -293,15 +294,7 @@
         </div>
         <div class="tray-foot">
           <span id="link-info" class="icon-slot" tabindex="0" role="img" data-icon="info" data-icon-size="16" aria-label="How editors use a dragged file" data-tip="An editor links to the file rather than copying it. Keep a render while a project uses it: clearing the cache, or the cache dropping its oldest files, takes those clips offline in the editor."></span>
-          <details class="cache">
-            <summary>Render cache</summary>
-            <p id="cache-summary" class="note"></p>
-            <div class="render-actions">
-              <button id="cache-clear" type="button">Clear cache</button>
-              <button id="cache-dir" type="button">Change folder…</button>
-              <label class="field inline"><span>Limit (MB)</span><input id="cache-limit" type="number" min="64" step="64"></label>
-            </div>
-          </details>
+          <button id="cache-open" type="button" class="ghost cache-open" aria-haspopup="dialog" data-tip="The render cache: how full it is, clear it, move it, set its limit">Render cache…</button>
         </div>
       </div>
     </div>
@@ -362,19 +355,18 @@
             <button id="tab-info" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-info" data-icon="info" data-tip="What the item is; choosing again closes the drawer"><span class="label">Info</span></button>
           </span>
         </div>
+        <div id="region-status" class="transport-status" aria-label="Status">
+          <button id="project-button" type="button" class="note status-item project-button" data-icon="folder-open" data-icon-size="14"
+                  aria-haspopup="dialog" data-tip="The project: New, Open, Save, Save As"><span class="label">Untitled</span></button>
+          <p id="ffmpeg-status" class="note status-item"><span class="label"></span></p>
+          <div id="library-summary" class="summary"></div>
+          <span id="status-scan" class="note status-item" role="status"><span class="label"></span></span>
+          <span id="status-renders" class="note status-item" role="status"><span class="label"></span></span>
+          <button id="status-cache" type="button" class="note status-item icon-button" data-icon="hard-drive" data-icon-size="14" aria-haspopup="dialog" aria-label="Render cache"><span class="label"></span></button>
+        </div>
       </div>
     </section>
 
-    <footer id="region-status" class="status-bar" aria-label="Status">
-      <button id="project-button" type="button" class="note status-item project-button" data-icon="folder-open" data-icon-size="14"
-              aria-haspopup="dialog" data-tip="The project: New, Open, Save, Save As"><span class="label">Untitled</span></button>
-      <p id="ffmpeg-status" class="note status-item"><span class="label"></span></p>
-      <div id="library-summary" class="summary"></div>
-      <span class="status-spacer"></span>
-      <span id="status-scan" class="note status-item" role="status"><span class="label"></span></span>
-      <span id="status-renders" class="note status-item" role="status"><span class="label"></span></span>
-      <span id="status-cache" class="note status-item" data-icon="hard-drive"><span class="label"></span></span>
-    </footer>
   </div>
   <section id="start-screen" class="start-screen" aria-label="Home" hidden>
     <div class="start-inner">
@@ -462,6 +454,20 @@
       <p id="project-recent-empty" class="note">Nothing opened yet.</p>
       <div class="render-actions">
         <button id="project-close" type="button">Close</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="cache-dialog" class="pack-dialog cache-dialog" aria-labelledby="cache-title">
+    <form method="dialog">
+      <h2 id="cache-title">Render cache</h2>
+      <p class="note">Renders prepared for dragging into an editor are kept here. An editor links to the file rather than copying it, so clearing the cache, or the cache dropping its oldest files, takes those clips offline there.</p>
+      <p id="cache-summary" class="note"></p>
+      <div class="render-actions">
+        <button id="cache-clear" type="button">Clear cache</button>
+        <button id="cache-dir" type="button">Change folder…</button>
+        <label class="field inline"><span>Limit (MB)</span><input id="cache-limit" type="number" min="64" step="64"></label>
+        <span class="dialog-spacer"></span>
+        <button id="cache-close" type="button">Close</button>
       </div>
     </form>
   </dialog>

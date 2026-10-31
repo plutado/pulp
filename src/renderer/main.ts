@@ -71,11 +71,10 @@ function renderResults(): void {
   if (!index) return;
   const counts = document.createElement('div');
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-  counts.textContent = [
-    plural(index.templates.length, 'template'),
-    plural(index.media.length, 'media file'),
-    plural(index.roots.length, 'folder'),
-  ].join(' · ');
+  // Short, since the counts share the transport row's line with the controls (milestone 42):
+  // the items, with the templates, the media files and the folders told apart in the tooltip.
+  counts.textContent = plural(index.templates.length + index.media.length, 'item');
+  counts.dataset.tip = [plural(index.templates.length, 'template'), plural(index.media.length, 'media file'), plural(index.roots.length, 'folder')].join(' · ');
   els.summary.append(counts);
   for (const p of index.problems.slice(0, 5)) {
     const div = document.createElement('div');
@@ -323,6 +322,13 @@ function showExportDialog(): void {
 // ---------------------------------------------------------------- wiring
 
 els.search.addEventListener('input', renderResults);
+// And the other way: a query cleared from the results' heading (Clear search, milestone 42) or set
+// anywhere but the field itself shows in the field, so the two cannot disagree and a later redraw
+// cannot put the stale text back.
+effect(() => {
+  const q = appState.value.query;
+  if (els.search.value !== q) els.search.value = q;
+});
 els.importPack.addEventListener('click', () => {
   void window.pulp.choosePackFile().then((path) => {
     if (path) void showPackPreview(path);

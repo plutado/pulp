@@ -207,6 +207,18 @@ export function initTray(onDropItem: (id: string) => void): void {
     });
   });
 
+  // The cache's controls are a dialog (milestone 42): the tray is in the window only while it has
+  // something in it, and the cache outlives any one session's renders, so the dialog opens from the
+  // status item in the transport row as well as from the tray's foot.
+  const cacheDialog = $<HTMLDialogElement>('cache-dialog');
+  const openCache = () => {
+    void refreshCacheStats();
+    if (!cacheDialog.open) cacheDialog.showModal();
+  };
+  $('cache-open').addEventListener('click', openCache);
+  $('status-cache').addEventListener('click', openCache);
+  $('cache-close').addEventListener('click', () => cacheDialog.close());
+
   void refreshCacheStats();
   // A render that just finished may have gone into the cache. Counting finished jobs
   // rather than watching the snapshot keeps this off the per-frame progress ticks.

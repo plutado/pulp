@@ -21,6 +21,9 @@ const cards = computed(() => {
   return categoryCards(facets.value, appState.value.scope);
 });
 
+/** How many cards are over the results: with the list, what the results region has to show (milestone 42). */
+export const categoryCardCount = computed(() => cards.value?.length ?? 0);
+
 function Cards() {
   const list = cards.value;
   if (!list || list.length === 0) return null;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LAYOUT, LAYOUT_LIMITS, layoutCssVariables, sanitizeLayout, withCollapsed, withPaneSize } from '../src/core/layout';
+import { browseSqueezesStage, DEFAULT_LAYOUT, LAYOUT_LIMITS, layoutCssVariables, sanitizeLayout, shownPanes, startupLayout, withCollapsed, withPaneSize } from '../src/core/layout';
 
 describe('sanitizeLayout', () => {
   it('falls back to the defaults for garbage', () => {
@@ -53,5 +53,39 @@ describe('layoutCssVariables', () => {
       '--tray-h': '220px',
       '--transport-h': '124px',
     });
+  });
+});
+
+describe('shownPanes: nothing empty takes room from the stage (milestone 42)', () => {
+  it('shows the tray only when it has something, and opens it only then', () => {
+    const open = { ...DEFAULT_LAYOUT, trayCollapsed: false };
+    expect(shownPanes(open, { trayItems: 0, resultItems: 5 })).toMatchObject({ trayShown: false, trayOpen: false });
+    // A tray saved open does not reopen empty; it comes back open with the first item.
+    expect(shownPanes(open, { trayItems: 1, resultItems: 5 })).toMatchObject({ trayShown: true, trayOpen: true });
+    expect(shownPanes(DEFAULT_LAYOUT, { trayItems: 1, resultItems: 5 })).toMatchObject({ trayShown: true, trayOpen: false });
+  });
+
+  it('folds empty results to their heading whatever was saved', () => {
+    expect(shownPanes(DEFAULT_LAYOUT, { trayItems: 0, resultItems: 0 })).toMatchObject({ resultsFolded: true, resultsOpen: false });
+    expect(shownPanes(DEFAULT_LAYOUT, { trayItems: 0, resultItems: 3 })).toMatchObject({ resultsFolded: false, resultsOpen: true });
+    expect(shownPanes({ ...DEFAULT_LAYOUT, resultsCollapsed: true }, { trayItems: 0, resultItems: 3 })).toMatchObject({ resultsFolded: false, resultsOpen: false });
+  });
+});
+
+describe('startupLayout: the left panel starts folded on a small window (milestone 42)', () => {
+  it('folds the browse panel where it would squeeze the stage, and leaves it where it would not', () => {
+    // The default window: the picture is bounded by its height, so the panel costs it nothing.
+    expect(browseSqueezesStage(DEFAULT_LAYOUT, { width: 1280, height: 788 })).toBe(false);
+    expect(startupLayout(DEFAULT_LAYOUT, { width: 1280, height: 788 })).toBe(DEFAULT_LAYOUT);
+    // The window CI runs at: short as well as narrow, so the picture still fits beside the panel.
+    expect(browseSqueezesStage(DEFAULT_LAYOUT, { width: 1008, height: 655 })).toBe(false);
+    // Tall and narrow: the panel takes width the picture wants.
+    expect(browseSqueezesStage(DEFAULT_LAYOUT, { width: 1000, height: 788 })).toBe(true);
+    expect(startupLayout(DEFAULT_LAYOUT, { width: 1000, height: 788 }).browseCollapsed).toBe(true);
+    // A wider panel squeezes sooner.
+    expect(browseSqueezesStage({ ...DEFAULT_LAYOUT, browseWidth: 480 }, { width: 1280, height: 788 })).toBe(true);
+    // Already folded: the same object, nothing to change.
+    const folded = { ...DEFAULT_LAYOUT, browseCollapsed: true };
+    expect(startupLayout(folded, { width: 960, height: 788 })).toBe(folded);
   });
 });

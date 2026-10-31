@@ -111,3 +111,73 @@ export function layoutCssVariables(l: LayoutState): Record<string, string> {
     '--transport-h': `${l.transportHeight}px`,
   };
 }
+
+/**
+ * Nothing empty takes room from the stage (milestone 42). What the window
+ * holds decides what is shown, not what was saved: an empty collection tray
+ * takes no space at all — no drawer and no summary line — and empty results
+ * fold to their heading. So a tray or a results area saved open comes back
+ * open only when it has something in it; the saved state waits for the first
+ * item and is honoured then.
+ */
+export interface WindowContents {
+  /** Items in the collection plus render jobs: what the tray would show. */
+  trayItems: number;
+  /** Items in the results list plus category cards over them: what the results would show. */
+  resultItems: number;
+}
+
+export interface ShownPanes {
+  /** The tray is in the window at all: it appears with the first item and goes with the last. */
+  trayShown: boolean;
+  /** The tray's body is open: saved open, and with something in it. */
+  trayOpen: boolean;
+  /** The results are only their heading: nothing to show, whatever the saved state. */
+  resultsFolded: boolean;
+  /** The results list is open: saved open, and with something in it. */
+  resultsOpen: boolean;
+}
+
+export function shownPanes(l: LayoutState, c: WindowContents): ShownPanes {
+  const trayShown = c.trayItems > 0;
+  const resultsFolded = c.resultItems === 0;
+  return {
+    trayShown,
+    trayOpen: trayShown && !l.trayCollapsed,
+    resultsFolded,
+    resultsOpen: !resultsFolded && !l.resultsCollapsed,
+  };
+}
+
+/** The stage's padding and the splitter beside the browse panel, as the stylesheet draws them. */
+const STAGE_SIDE_PADDING = 32;
+const BROWSE_SPLITTER = 6;
+const STAGE_TOP_BOTTOM_PADDING = 16;
+/** The picture's shape until something is shown: the window is judged on a 16:9 picture. */
+const DEFAULT_PICTURE_RATIO = 16 / 9;
+
+/**
+ * Whether the browse panel, open at its saved width, would squeeze the stage
+ * in a window of this size: the picture is as tall as the stage's share of the
+ * centre column allows, and it is squeezed when the column beside the open
+ * panel is narrower than a 16:9 picture of that height — a tall, narrow
+ * window. On a wide one the picture is bounded by its height, and folding the
+ * panel would give it nothing.
+ */
+export function browseSqueezesStage(l: LayoutState, window: { width: number; height: number }): boolean {
+  const stageHeight = Math.max(0, (window.height - l.transportHeight) * l.stageShare - STAGE_TOP_BOTTOM_PADDING);
+  const pictureWidth = stageHeight * DEFAULT_PICTURE_RATIO;
+  const centreWidth = window.width - l.browseWidth - BROWSE_SPLITTER - STAGE_SIDE_PADDING;
+  return centreWidth < pictureWidth;
+}
+
+/**
+ * The layout the window opens with: the saved one, with the browse panel
+ * folded to its rail when the window is small enough that it would squeeze
+ * the stage. The fold is not saved — the setting is the person's own — so a
+ * wider window next time opens the panel as it was left; the rail's search
+ * icon and Cmd/Ctrl+F are one step from Search either way.
+ */
+export function startupLayout(saved: LayoutState, window: { width: number; height: number }): LayoutState {
+  return browseSqueezesStage(saved, window) ? withCollapsed(saved, 'browse', true) : saved;
+}

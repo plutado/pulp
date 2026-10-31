@@ -435,6 +435,10 @@ describe.skipIf(!electron)('inspector UI', () => {
     page = await Session.connect(target!.webSocketDebuggerUrl);
     await page.send('Runtime.enable');
     await until(() => page.eval<boolean>(`document.querySelectorAll('#results li[data-id]').length > 0`), 'the library list');
+    // On a display small enough that the browse panel would squeeze the stage, the window opens with
+    // the panel folded to its rail (milestone 42); the tests drive the panel, so they want it open.
+    await page.eval(`(() => { if (document.getElementById('app').classList.contains('browse-collapsed')) document.getElementById('browse-expand').click(); return true; })()`);
+    await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('browse-collapsed')`), 'the browse panel open');
     await clickResult('Lower Third Bar');
     await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview to be ready');
   }, 120_000);
@@ -1384,13 +1388,16 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`${startHandle}.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: ${100 + px(1)}, bubbles: true }))`);
         await page.eval(`${startHandle}.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, clientX: ${100 + px(1)}, bubbles: true }))`);
         await until(() => page.eval<string>(`${startHandle}.getAttribute('aria-valuenow')`).then((v) => v === '1'), 'the start a second in');
-        expect(await page.eval<string>(`${bar}.querySelector('.bar-body').style.left`)).toBe('20%');
-        expect(await page.eval<string>(`${bar}.querySelector('.bar-body').style.width`)).toBe('60%');
+        // A whole pixel's worth of a second: the bar's width need not divide by five, so the span is
+        // read to the tenth of a percent rather than to the digit (it was exact while the picture, and
+        // so the bar, happened to be a width it did).
+        expect(parseFloat(await page.eval<string>(`${bar}.querySelector('.bar-body').style.left`))).toBeCloseTo(20, 1);
+        expect(parseFloat(await page.eval<string>(`${bar}.querySelector('.bar-body').style.width`))).toBeCloseTo(60, 1);
 
         // An entrance shades the start of the bar for the time it takes.
         await fire('[data-layer=subtitle] select[aria-label="Subtitle entrance"]', 'fade', 'change');
         await fire('[data-layer=subtitle] input[aria-label="Subtitle entrance seconds"]', '1.5', 'change');
-        await until(() => page.eval<string>(`${bar}.querySelector('.bar-in').style.width`).then((w) => w === '50%'), 'the entrance shaded over half the bar');
+        await until(() => page.eval<string>(`${bar}.querySelector('.bar-in').style.width`).then((w) => Math.abs(parseFloat(w) - 50) < 0.1), 'the entrance shaded over half the bar');
 
         // Undo takes it all back, a step at a time, and the bar follows.
         for (let i = 0; i < 4; i++) await page.eval(`document.getElementById('undo').click()`);
@@ -3015,8 +3022,12 @@ describe.skipIf(!electron)('inspector UI', () => {
         page.eval<{ inner: number; results: number; stage: number; tray: number; search: number; transport: number; status: number; center: number }>(
           `({ inner: window.innerHeight, results: document.getElementById('results').clientHeight, stage: document.getElementById('region-stage').clientHeight, tray: document.getElementById('region-tray').clientHeight, search: document.getElementById('region-search').clientHeight, transport: document.getElementById('region-transport').getBoundingClientRect().height, status: document.getElementById('region-status').getBoundingClientRect().height, center: document.querySelector('.center').getBoundingClientRect().height })`,
         );
-      // The tray must be open for the squeeze; the collection tests above leave it so, and a run of
-      // this test alone opens it itself.
+      // The tray must be open for the squeeze, and in the window at all it is only with something
+      // in it (milestone 42): collect the shown item, open the tray, and take the item out at the end.
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button');
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-empty')`), 'the tray in the window');
       await page.eval(`(() => { if (document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); return true; })()`);
       await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray open');
       // Classic scroll bars, on every platform: Linux and Windows draw bars that take layout room
@@ -3045,6 +3056,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       } finally {
         await page.eval(`(() => { document.getElementById('classic-scrollbars')?.remove(); return true; })()`);
         await page.send('Emulation.clearDeviceMetricsOverride', {});
+        await page.eval(`[...document.querySelectorAll('#collection .collection-card button[aria-label="Remove from the collection"]')].forEach((b) => b.click())`);
       }
       await until(async () => (await metrics()).inner === own.inner, `the window back at its own ${own.inner} px`);
     }, 60_000);
@@ -3161,8 +3173,13 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<string>(`document.getElementById('shortcuts-copied').textContent`)).toContain('copied');
     }, 90_000);
 
-    it('keeps the tray\'s resize bar inside the tray, and lines the status bar up', async () => {
-      // The bar only exists while the tray is open, which is where it can be dragged.
+    it('keeps the tray\'s resize bar inside the tray, and lines the status items up in the transport row', async () => {
+      // The tray is in the window only while it has something (milestone 42), and the bar only
+      // exists while the tray is open, which is where it can be dragged.
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button');
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-empty')`), 'the tray in the window');
       await page.eval(`(() => { if (document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); return true; })()`);
       await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray open');
 
@@ -3177,10 +3194,14 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(bars.splitter.left, 'the bar does not reach past the tray on the left').toBeGreaterThanOrEqual(bars.tray.left);
       expect(bars.splitter.right, 'nor on the right').toBeLessThanOrEqual(bars.tray.right);
       expect(bars.splitter.width, 'and it still spans the tray').toBeCloseTo(bars.tray.width, 0);
+      // Leave the collection as it was found: the tray goes with its last item (milestone 42).
+      await page.eval(`document.querySelector('#collection .collection-card button[aria-label="Remove from the collection"]').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('tray-empty')`), 'the tray gone with its last item');
 
-      // The status bar's items are a button, a paragraph, a flex summary and three spans, some
-      // with icons: aligned on their baselines they sat at different heights, which reads as a
-      // row of things that do not belong together.
+      // The status items — a button, a paragraph, a flex summary and three spans, some with icons —
+      // sit at the end of the transport row (milestone 42). Aligned on their baselines they once sat
+      // at different heights, which reads as a row of things that do not belong together.
+      expect(await page.eval<boolean>(`!!document.getElementById('region-status').closest('#region-transport')`), 'the status in the transport row').toBe(true);
       const items = await page.eval<{ id: string; centre: number; height: number }[]>(
         `[...document.querySelectorAll('#region-status > *')].filter((el) => el.offsetParent !== null && el.getBoundingClientRect().height > 0)
            .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id || el.className, centre: b.top + b.height / 2, height: b.height }; })`,
@@ -3201,7 +3222,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(new Set(text.map((t) => t.family)), `one family (${JSON.stringify(text)})`).toHaveProperty('size', 1);
     }, 60_000);
 
-    it('fits at the default 1280 × 788: nothing overlaps, the page never scrolls, the picture gets its share (milestone 38)', async () => {
+    it('fits at the default 1280 × 788: nothing overlaps, the page never scrolls, the picture gets its share, and nothing empty takes room from the stage (milestones 38 and 42)', async () => {
       type Box = { id: string; left: number; right: number; top: number; bottom: number };
       const boxes = (ids: string[]) =>
         page.eval<Box[]>(
@@ -3210,26 +3231,34 @@ describe.skipIf(!electron)('inspector UI', () => {
       // Two boxes may share an edge (borders, splitters); any real shared area is an overlap.
       const overlap = (a: Box, b: Box) =>
         Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
-      const regions = ['region-browse', 'region-stage', 'region-results', 'region-tray', 'region-transport', 'region-status'];
+      // The status is inside the transport row now (milestone 42), so it is not a region of its own here.
+      const regions = ['region-browse', 'region-stage', 'region-results', 'region-tray', 'region-transport'];
+      const removeCollected = () => page.eval(`[...document.querySelectorAll('#collection .collection-card button[aria-label="Remove from the collection"]')].forEach((b) => b.click())`);
       try {
         await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 788, deviceScaleFactor: 1, mobile: false });
         await until(() => page.eval<boolean>(`window.innerHeight === 788 && window.innerWidth === 1280`), 'the default window size');
-        // The default window has the tray collapsed to its summary line; the test before this one opened it.
-        await page.eval(`(() => { if (!document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); return true; })()`);
-        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray collapsed');
+        // Nothing collected: the tray is not in the window at all (milestone 42), and the results
+        // reach down to the transport row.
+        await removeCollected();
+        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('tray-empty')`), 'the tray gone, with nothing in it');
+        expect(await page.eval<string>(`getComputedStyle(document.getElementById('region-tray')).display`), 'no drawer and no summary line').toBe('none');
+        const [resultsAtRest, rowAtRest] = await boxes(['region-results', 'region-transport']);
+        expect(resultsAtRest!.bottom, 'the results reach the transport row').toBeCloseTo(rowAtRest!.top, 0);
 
-        // The results and the category cards stay inside their region, and the region clear of the
-        // tray — measured on the elements, not the regions: on eda45d8 the list itself ran under the
+        // The results and the category cards stay inside their region, and the region clear of
+        // whatever is under it — the tray when it has something, the transport row otherwise —
+        // measured on the elements, not the regions: on eda45d8 the list itself ran under the
         // tray's buttons while every region box looked right (GitHub issue #40).
         const contained = async (when: string) => {
           const m = await page.eval<{ region: number[]; list: number[]; cards: number[] | null; trayTop: number }>(
             `(() => { const b = (el) => el ? [el.getBoundingClientRect().top, el.getBoundingClientRect().bottom] : null;
               const cards = document.getElementById('category-cards');
+              const tray = document.getElementById('region-tray').getBoundingClientRect();
               return { region: b(document.getElementById('region-results')), list: b(document.getElementById('results')),
                 cards: cards.hidden || cards.getBoundingClientRect().height === 0 ? null : b(cards),
-                trayTop: document.getElementById('region-tray').getBoundingClientRect().top }; })()`,
+                trayTop: tray.height > 0 ? tray.top : document.getElementById('region-transport').getBoundingClientRect().top }; })()`,
           );
-          expect(m.region[1], `the region clear of the tray ${when}`).toBeLessThanOrEqual(m.trayTop + 1);
+          expect(m.region[1], `the region clear of what is under it ${when}`).toBeLessThanOrEqual(m.trayTop + 1);
           expect(m.list[1], `the list inside its region ${when}`).toBeLessThanOrEqual(m.region[1]! + 1);
           expect(m.list[1]! - m.list[0]!, `the list at its floor ${when}`).toBeGreaterThanOrEqual(120);
           if (m.cards) expect(m.cards[1], `the cards inside the region ${when}`).toBeLessThanOrEqual(m.region[1]! + 1);
@@ -3317,27 +3346,76 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(lines.scrub[1], 'and ends at its right edge').toBeCloseTo(lines.pic[1]!, 0);
         expect(lines.buttonsTop, 'the buttons on a second line below the scrub bar').toBeGreaterThan(lines.scrubTop + 10);
         expect(lines.playX, 'play on the left').toBeLessThan(200);
-        expect(lines.marksX, 'the marks in the middle').toBeGreaterThan(400);
-        expect(lines.tabsX, 'the tabs on the right').toBeGreaterThan(lines.rowRight - 40);
+        // The marks sit between the playback buttons and the tools: in the middle of what is left,
+        // which at 1280 px, with the status at the row's end (milestone 42), is little.
+        expect(lines.marksX, 'the marks after the playback buttons').toBeGreaterThan(300);
+        expect(lines.marksX, 'and before the tools').toBeLessThan(640);
+        expect(lines.tabsX, 'the tabs on the right').toBeGreaterThan(lines.rowRight - 300);
 
         // No two controls in the row draw over one another, and none leaves the row: at 1280 px the
-        // in-and-out cluster's Clear once sat on Mute (docs/ideas.md, 2026-10-30).
-        const controls = await page.eval<{ id: string; left: number; right: number; top: number; bottom: number }[]>(
-          `[...document.querySelectorAll('#region-transport .buttons-line button, #region-transport .buttons-line input, #region-transport .buttons-line #timecode')]
-             .filter((el) => el.getBoundingClientRect().width > 0)
-             .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id || el.className, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; })`,
-        );
-        expect(controls.length).toBeGreaterThan(10);
-        const rowBox = (await boxes(['region-transport']))[0]!;
-        for (const c of controls) {
-          expect(c.left, `${c.id} inside the row`).toBeGreaterThanOrEqual(rowBox.left - 0.5);
-          expect(c.right, `${c.id} inside the row`).toBeLessThanOrEqual(rowBox.right + 0.5);
-        }
-        for (let i = 0; i < controls.length; i++) {
-          for (let j = i + 1; j < controls.length; j++) {
-            expect(overlap(controls[i] as Box, controls[j] as Box), `${controls[i]!.id} does not overlap ${controls[j]!.id}`).toBe(0);
+        // in-and-out cluster's Clear once sat on Mute (docs/ideas.md, 2026-10-30). The status items at
+        // the row's end (milestone 42) are controls of the line too, and are held to the same.
+        const rowControls = () =>
+          page.eval<{ id: string; left: number; right: number; top: number; bottom: number }[]>(
+            `[...document.querySelectorAll('#region-transport .buttons-line button, #region-transport .buttons-line input, #region-transport .buttons-line #timecode, #region-status > *')]
+               .filter((el) => el.getBoundingClientRect().width > 0)
+               .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id || el.className, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; })`,
+          );
+        const heldApart = async (when: string) => {
+          const controls = await rowControls();
+          expect(controls.length, when).toBeGreaterThan(10);
+          const rowBox = (await boxes(['region-transport']))[0]!;
+          for (const c of controls) {
+            expect(c.left, `${c.id} inside the row ${when}`).toBeGreaterThanOrEqual(rowBox.left - 0.5);
+            expect(c.right, `${c.id} inside the row ${when}`).toBeLessThanOrEqual(rowBox.right + 0.5);
+            expect(c.top, `${c.id} inside the row ${when}`).toBeGreaterThanOrEqual(rowBox.top - 0.5);
+            expect(c.bottom, `${c.id} inside the row ${when}`).toBeLessThanOrEqual(rowBox.bottom + 0.5);
           }
-        }
+          for (let i = 0; i < controls.length; i++) {
+            for (let j = i + 1; j < controls.length; j++) {
+              expect(overlap(controls[i] as Box, controls[j] as Box), `${controls[i]!.id} does not overlap ${controls[j]!.id} ${when}`).toBe(0);
+            }
+          }
+        };
+        await heldApart('on two lines');
+        // The status is in the row, at its end, where the status bar's row used to be below it.
+        const [statusBox] = await boxes(['region-status']);
+        expect(await page.eval<boolean>(`!!document.getElementById('region-status').closest('#region-transport .buttons-line')`), 'the status on the buttons line').toBe(true);
+        expect(statusBox!.right, 'at the row\'s end').toBeGreaterThan(lines.rowRight - 24);
+        expect(statusBox!.left, 'after the tabs').toBeGreaterThanOrEqual(lines.tabsX - 0.5);
+        expect(await page.eval<string>(`document.querySelector('#region-status #library-summary > div:first-child').textContent`), 'the counts in it').toMatch(/^\d+ items?$/);
+        expect(await page.eval<string>(`document.querySelector('#region-status #library-summary > div:first-child').dataset.tip`), 'told apart in the tooltip').toMatch(/\d+ templates? · \d+ media files? · \d+ folders?/);
+        // The library's counts are whole, not cut: the status is the cluster that yields, and at the default window it does not have to.
+        const summaryBox = await page.eval<{ w: number; sw: number }>(`(() => { const el = document.querySelector('#region-status #library-summary > div:first-child'); return { w: el.clientWidth, sw: el.scrollWidth }; })()`);
+        expect(summaryBox.sw, 'the counts whole').toBeLessThanOrEqual(summaryBox.w + 1);
+        // The cache is a button on the row that opens the Render cache dialog, which the tray's foot opens too.
+        await page.eval(`document.getElementById('status-cache').click()`);
+        await until(() => page.eval<boolean>(`document.getElementById('cache-dialog').open`), 'the render cache dialog');
+        expect(await page.eval<string>(`document.getElementById('cache-summary').textContent`)).toMatch(/files?/);
+        await page.eval(`document.getElementById('cache-close').click()`);
+        await until(() => page.eval<boolean>(`!document.getElementById('cache-dialog').open`), 'the dialog closed');
+
+        // Empty results fold to their heading (milestone 42): a search that matches nothing leaves the
+        // heading bar — with the reason and the way out in it — and the stage takes the height.
+        const stageAtRest = (await boxes(['region-stage']))[0]!;
+        await fire('#search', 'nothing matches this at all', 'input');
+        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('results-empty')`), 'the results folded');
+        const folded = await page.eval<{ region: Box; head: Box; stage: Box; list: string; message: string; actions: string[] }>(
+          `(() => { const r = (el) => { const b = el.getBoundingClientRect(); return { id: el.id, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; };
+            return { region: r(document.getElementById('region-results')), head: r(document.querySelector('#region-results .results-head')), stage: r(document.getElementById('region-stage')),
+              list: getComputedStyle(document.getElementById('results')).display, message: document.getElementById('results-empty').textContent,
+              actions: [...document.querySelectorAll('#results-empty [data-empty-action]')].map((b) => b.dataset.emptyAction) }; })()`,
+        );
+        expect(folded.list, 'the list gone').toBe('none');
+        expect(folded.region.bottom - folded.region.top, 'the region is its heading').toBeLessThanOrEqual(folded.head.bottom - folded.head.top + 1);
+        expect(folded.stage.bottom - folded.stage.top, 'the stage took the height').toBeGreaterThan(stageAtRest.bottom - stageAtRest.top + 100);
+        expect(folded.stage.bottom, 'the stage reaches the heading').toBeCloseTo(folded.region.top, 0);
+        expect(folded.message).toContain('No matches for “nothing matches this at all”');
+        expect(folded.actions).toEqual(['clear-search']);
+        await page.eval(`document.querySelector('#results-empty [data-empty-action=clear-search]').click()`);
+        await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('results-empty') && document.getElementById('search').value === ''`), 'the results back');
+        const stageBack = (await boxes(['region-stage']))[0]!;
+        expect(stageBack.bottom - stageBack.top).toBeCloseTo(stageAtRest.bottom - stageAtRest.top, 0);
 
         // Scrolled to a chosen card, the heading stays on top: what is painted at the heading is the
         // heading, not a card's name showing through (docs/ideas.md, 2026-10-30).
@@ -3404,8 +3482,11 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(drawer!.bottom).toBeLessThanOrEqual(results2!.bottom + 1);
         await page.eval(`document.getElementById('inspector-close').click()`);
 
-        // With the collection tray open, the results keep their floor and stay clear of it —
-        // the list and the cards themselves, not just the region's box.
+        // The tray appears with the first item (milestone 42) and, open, the results keep their floor
+        // and stay clear of it — the list and the cards themselves, not just the region's box.
+        await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button');
+        await page.eval(`document.getElementById('add-to-collection').click()`);
+        await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-empty')`), 'the tray in the window with its first item');
         await page.eval(`(() => { if (document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); return true; })()`);
         await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray open');
         await until(async () => {
@@ -3415,12 +3496,49 @@ describe.skipIf(!electron)('inspector UI', () => {
           return m.regionH >= 184 && m.sh <= 788;
         }, 'the region at its floor with the tray open, nothing to scroll');
         await contained('with the tray open');
+        all = await boxes(regions);
+        for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) expect(overlap(all[i]!, all[j]!), `${all[i]!.id} does not overlap ${all[j]!.id} with the tray open`).toBeLessThanOrEqual(all.length);
+        // And it goes with the last item, the results taking the height back; the open state is kept
+        // for the next time it has something, not shown empty.
+        await removeCollected();
+        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('tray-empty')`), 'the tray gone with its last item');
+        expect(await page.eval<boolean>(`document.getElementById('app').classList.contains('tray-collapsed')`), 'the saved state untouched').toBe(false);
+        const [resultsAgain, rowAgain] = await boxes(['region-results', 'region-transport']);
+        expect(resultsAgain!.bottom).toBeCloseTo(rowAgain!.top, 0);
         await page.eval(`document.getElementById('tray-toggle').click()`);
-        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray back to its summary line');
+        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray back to its default, collapsed');
+
+        // A short window (milestone 42): the transport row's controls share one line, so the height the
+        // second line took is the stage's — the scrub bar between the playback buttons and the tools,
+        // the lanes under it in its column, the status still at the end, and nothing overlapping.
+        await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 700, deviceScaleFactor: 1, mobile: false });
+        await until(() => page.eval<boolean>(`window.innerHeight === 700`), 'the short window');
+        await until(async () => (await scrubAgainstPicture()).buttonsTop < (await scrubAgainstPicture()).scrubTop + 10, 'the row on one line');
+        const oneLine = await page.eval<{ row: number; scrub: Box; play: Box; tabs: Box; lanes: number[]; status: Box }>(
+          `(() => { const r = (el) => { const b = el.getBoundingClientRect(); return { id: el.id, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; };
+            const c = (el) => { const b = el.getBoundingClientRect(); const s = getComputedStyle(el); return [b.left + parseFloat(s.paddingLeft), b.right - parseFloat(s.paddingRight)]; };
+            return { row: document.getElementById('region-transport').getBoundingClientRect().height, scrub: r(document.querySelector('#region-transport .scrub-wrap')),
+              play: r(document.getElementById('play')), tabs: r(document.getElementById('tab-info')), lanes: c(document.querySelector('#region-transport .transport-lanes')), status: r(document.getElementById('region-status')) }; })()`,
+        );
+        // The row keeps its lanes' room and gives up the line: its setting read 36 px shorter.
+        expect(oneLine.row, 'the row a line shorter than on two lines').toBeLessThanOrEqual(rowAtRest!.bottom - rowAtRest!.top - 30);
+        expect(oneLine.scrub.left, 'the scrub bar after the playback buttons').toBeGreaterThan(oneLine.play.right);
+        expect(oneLine.scrub.right, 'and before the tools').toBeLessThan(oneLine.tabs.left);
+        expect(oneLine.lanes[0], 'the lanes under the scrub bar').toBeCloseTo(oneLine.scrub.left, 0);
+        expect(oneLine.lanes[1]).toBeCloseTo(oneLine.scrub.right, 0);
+        expect(oneLine.status.right, 'the status at the row\'s end').toBeGreaterThan(1280 - 24);
+        expect(oneLine.scrub.right - oneLine.scrub.left, 'the scrub bar with room to scrub').toBeGreaterThanOrEqual(200);
+        await heldApart('on one line');
+        const shortDoc = await page.eval<{ sh: number; stage: number }>(`({ sh: document.documentElement.scrollHeight, stage: document.querySelector('#region-stage .preview-wrap').getBoundingClientRect().height })`);
+        expect(shortDoc.sh, 'nothing to scroll').toBeLessThanOrEqual(700);
+        expect(shortDoc.stage, 'the picture keeps its share').toBeGreaterThanOrEqual(700 * 0.38);
+        await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 788, deviceScaleFactor: 1, mobile: false });
+        await until(async () => (await scrubAgainstPicture()).buttonsTop > (await scrubAgainstPicture()).scrubTop + 10, 'the row back on two lines');
       } finally {
+        await removeCollected();
         await page.send('Emulation.clearDeviceMetricsOverride', {});
       }
-    }, 90_000);
+    }, 120_000);
 
     it('opens the inspector as a drawer from the transport row: tabs, Esc, the pin and the dots (milestone 38)', async () => {
       const open = () => page.eval<boolean>(`document.getElementById('app').classList.contains('inspector-open')`);
@@ -3506,10 +3624,14 @@ describe.skipIf(!electron)('inspector UI', () => {
       for (const id of inRow) expect(where[id], `#${id}`).toBe('transport');
       for (const id of onStage) expect(where[id], `#${id}`).toBe('stage');
 
-      // From the top, the bottom of the window reads: the tray, the transport row, the status bar — and the row spans the window.
+      // From the top, the bottom of the window reads: the tray (when it has something in it), then the
+      // transport row, with the status items at the row's end (milestone 42) — and the row spans the window.
       const [app, tray, row, status] = await Promise.all([box('app'), box('region-tray'), box('region-transport'), box('region-status')]);
       expect(row.top, 'the row is under the tray').toBeGreaterThanOrEqual(tray.bottom - 1);
-      expect(row.bottom, 'and over the status bar').toBeLessThanOrEqual(status.top + 1);
+      expect(row.bottom, 'and at the window\'s bottom edge').toBeCloseTo(app.bottom, 0);
+      expect(status.top, 'the status inside the row').toBeGreaterThanOrEqual(row.top - 0.5);
+      expect(status.bottom).toBeLessThanOrEqual(row.bottom + 0.5);
+      expect(status.right, 'at the row\'s end').toBeGreaterThan(row.right - 24);
       expect(row.left, 'spanning the window').toBeCloseTo(app.left, 0);
       expect(row.right).toBeCloseTo(app.right, 0);
 

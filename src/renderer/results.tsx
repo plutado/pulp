@@ -166,45 +166,29 @@ function takeAction(id: EmptyActionId): void {
 }
 
 /**
- * Outlines of cards where cards would be: a hairline each, no fill and no
- * movement, in the view and size the region is set to, filling the room there
- * is. It says "a grid with nothing in it" without competing with the message,
- * and it is decoration — out of the tab order and out of a screen reader's way.
+ * Why there is nothing here, and what to do about it — in the results' heading
+ * (milestone 42): with nothing to show the list folds away and the stage takes
+ * its height, so the one line that says what is going on, and the way out, sit
+ * in the heading bar that is left. The detail sentence rides as the tooltip.
  */
-function GhostSlots({ entries }: { entries: readonly LibraryEntry[] }) {
-  const { grid, columns, rowHeight } = geometry(entries);
-  const rows = Math.max(1, Math.ceil((viewport.value.height || rowHeight * 3) / rowHeight));
-  const count = Math.min(60, rows * (grid ? columns : 1));
-  return (
-    <li class="ghosts" role="presentation" aria-hidden="true">
-      {Array.from({ length: count }, (_, i) => (
-        <span key={i} class="ghost" style={{ height: `${rowHeight - (grid ? 8 : 4)}px` }} />
-      ))}
-    </li>
-  );
-}
-
-/** Why there is nothing here, and what to do about it, over the ghost slots. */
-function Empty({ entries }: { entries: readonly LibraryEntry[] }) {
+function Empty() {
   const s = appState.value;
-  const empty = emptyResults({ index: s.index, query: s.query, scope: s.scope, filters: s.filters, forTheme: s.forTheme, look: s.look });
+  const empty = hasIndex.value && results.value.entries.length === 0
+    ? emptyResults({ index: s.index, query: s.query, scope: s.scope, filters: s.filters, forTheme: s.forTheme, look: s.look })
+    : null;
   if (!empty) return null;
   return (
     <>
-      <GhostSlots entries={entries} />
-      <li class="empty-state" role="status">
-        <p class="empty-title">{empty.title}</p>
-        {empty.detail && <p class="empty-detail">{empty.detail}</p>}
-        {empty.actions.length > 0 && (
-          <p class="empty-actions">
-            {empty.actions.map((action) => (
-              <button key={action.id} type="button" data-empty-action={action.id} onClick={() => takeAction(action.id)}>
-                {action.label}
-              </button>
-            ))}
-          </p>
-        )}
-      </li>
+      <p class="empty-title" data-tip={empty.detail}>{empty.title}</p>
+      {empty.actions.length > 0 && (
+        <p class="empty-actions">
+          {empty.actions.map((action) => (
+            <button key={action.id} type="button" data-empty-action={action.id} onClick={() => takeAction(action.id)}>
+              {action.label}
+            </button>
+          ))}
+        </p>
+      )}
     </>
   );
 }
@@ -212,7 +196,7 @@ function Empty({ entries }: { entries: readonly LibraryEntry[] }) {
 function Results({ onSelect }: { onSelect: (entry: LibraryEntry) => void }) {
   if (!hasIndex.value) return null;
   const { entries } = results.value;
-  if (entries.length === 0) return <Empty entries={entries} />;
+  if (entries.length === 0) return null;
   const { grid, ratio, columns, rowHeight } = geometry(entries);
   const win = virtualWindow({ total: entries.length, columns, rowHeight, viewportHeight: viewport.value.height, scrollTop: scrollTop.value });
   const selected = selectedKey.value;
@@ -296,9 +280,15 @@ export function mountResults(container: HTMLElement, actions: ResultsActions): v
     if (container.scrollTop > max) container.scrollTop = max;
   });
 
-  // The region says what it holds, whether or not it holds anything.
+  // The region says what it holds, whether or not it holds anything — and when it holds nothing,
+  // why, in the heading that is all that is left of it (milestone 42).
   const label = document.getElementById('results-label');
   if (label) effect(() => { label.textContent = hasIndex.value ? resultsLabel(results.value.entries.length) : 'Results'; });
+  const emptySlot = document.getElementById('results-empty');
+  if (emptySlot) {
+    render(<Empty />, emptySlot);
+    effect(() => { emptySlot.hidden = !hasIndex.value || results.value.entries.length > 0; });
+  }
 
   // A new search starts at the top. A rescan or a thumbnail arriving in the background
   // changes the results too, and must not pull the list out from under the pointer.

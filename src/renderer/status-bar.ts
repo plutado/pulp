@@ -1,5 +1,7 @@
-/** The status bar region. The ffmpeg line and library counts are written by main.ts
- * (they already carry ids here); this module owns the scan, render and cache spans. */
+/** The status items, at the end of the transport row since milestone 42 (a bar of their own
+ * across the bottom of the window before that). The ffmpeg item and the library counts are
+ * written by main.ts (they already carry ids here); this module owns the scan, render and
+ * cache spans. */
 
 import { effect } from '@preact/signals';
 import { appState } from './store';
@@ -26,8 +28,12 @@ export function setScanning(on: boolean): void {
   setStatus($('status-scan'), 'spinner', on ? 'Scanning…' : '', true);
 }
 
+/** The cache on the row is its icon, a button that opens the Render cache dialog; the summary is its tooltip and its label. */
 export function setCacheSummary(text: string): void {
-  setStatus($('status-cache'), 'hard-drive', text ? `Cache: ${text}` : '');
+  const el = $('status-cache');
+  setStatus(el, 'hard-drive', text ? `Cache: ${text}` : '');
+  if (text) el.dataset.tip = `Render cache: ${text}`;
+  else delete el.dataset.tip;
 }
 
 export function initStatusBar(): void {
@@ -46,7 +52,8 @@ export function setFfmpeg(info: { ok: boolean; version?: string; path?: string; 
   el.classList.toggle('error', !info.ok);
   const message = info.message ?? 'FFmpeg not found';
   setStatus(el, info.ok ? 'check-circle' : 'warning', info.ok ? `FFmpeg ${info.version}` : message.charAt(0).toUpperCase() + message.slice(1));
-  // The executable path matters when the wrong ffmpeg is found; it lives in the tooltip.
-  if (info.ok && info.path) el.dataset.tip = info.path;
+  // Found, the item is its tick alone on the row (the stylesheet hides the label), so the version
+  // and the path — which matters when the wrong ffmpeg is found — live in the tooltip.
+  if (info.ok) el.dataset.tip = [`FFmpeg ${info.version}`, info.path].filter(Boolean).join(' · ');
   else delete el.dataset.tip;
 }

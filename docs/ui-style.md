@@ -86,7 +86,7 @@ Search syntax is the exception by design: what you type in the search field (`ta
 | Inspector drawer | Pin and close as icon buttons at 16 in the drawer's head; star outline/fill for favorite in the head's item strip |
 | Inspector tabs | Sliders (Parameters), export (Output), info circle (Info) — icon plus label |
 | Tray | State icons on jobs (queued, running, done, failed); drag dots on the handle; trash on Clear finished |
-| Status bar | Check or warning for ffmpeg, hard drive for the cache, spinner while scanning or rendering |
+| Status, at the end of the transport row | Check (alone, when found) or warning for ffmpeg, hard drive for the cache, spinner while scanning or rendering |
 
 ## Cards that carry a file
 
