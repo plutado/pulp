@@ -27,7 +27,7 @@ import { showShortcuts } from './shortcuts';
 import { showStartScreen } from './start-screen';
 import { showWhatsNew } from './whats-new';
 import { startTour } from './tour';
-import { findControl, stageIsOut, toggleStagePopOut } from './stage-window';
+import { findControl, stageIsOut, stageOnDisplay, toggleStagePopOut } from './stage-window';
 import { theaterOn } from './theater';
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -102,6 +102,7 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'view.theater': press('theater'); return;
     // Not a press: the stage's own button is in whichever window the stage is in.
     case 'view.popOut': toggleStagePopOut(); return;
+    case 'view.stageOnDisplay': stageOnDisplay(Number(arg)); return;
     // One command for the four choices, with the chosen one as its argument — checked against
     // the four, so the argument can only ever name one of the stage's own buttons.
     case 'view.background': if (STAGE_BACKGROUNDS.some((b) => b.id === arg)) press(`bg-${arg}`); return;
@@ -168,6 +169,8 @@ function readState(recent: string[]): MenuState {
     infoOpen: tabOpen('info'),
     grid: pressed('view-grid'),
     stageOut: stageIsOut(),
+    // The main process fills these in, since the screen is its to see.
+    displays: [],
     theater: theaterOn(),
     background: stageBackground(),
     canAddToCollection: usable('add-to-collection'),

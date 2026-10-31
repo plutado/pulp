@@ -173,6 +173,13 @@ export function toggleStagePopOut(): void {
   else popOutStage();
 }
 
+/** View → Stage on Display: the stage in its own window, filling that display with the picture alone. */
+export function stageOnDisplay(id: number): void {
+  if (!Number.isFinite(id)) return;
+  if (!out && !popOutStage()) return;
+  void window.pulp.stageWindowOnDisplay(id);
+}
+
 export function initStageWindow(): void {
   $('stage-popout').addEventListener('click', toggleStagePopOut);
   // The window's own close button: the stage comes back first, then the window goes.

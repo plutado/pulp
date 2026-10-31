@@ -239,6 +239,8 @@ export interface PulpApi {
   closeStageWindow(): Promise<void>;
   /** Fill the stage window's display with it, or come back from that. */
   setStageWindowFullScreen(on: boolean): Promise<void>;
+  /** Move the stage's window to this display and fill it (View → Stage on Display); false when there is no such display or no window. */
+  stageWindowOnDisplay(id: number): Promise<boolean>;
   /** The stage window is being closed by its own button: put the stage back, then closeStageWindow. */
   onStageWindowCloseRequested(listener: () => void): () => void;
   /** The stage window went full screen or came back, by any means, so the theater button can follow. */

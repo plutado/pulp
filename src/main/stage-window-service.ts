@@ -105,6 +105,15 @@ export function adoptStageWindow(win: BrowserWindow, main: BrowserWindow): void 
   });
 }
 
+/** The stage's window, waiting a moment for one that is being opened right now. */
+async function stageWindowSoon(): Promise<BrowserWindow | null> {
+  for (let tries = 0; tries < 30; tries++) {
+    if (stageWindow && !stageWindow.isDestroyed()) return stageWindow;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return null;
+}
+
 /** The main window is going: its stage window goes with it, remembered as it was. */
 export function destroyStageWindow(): void {
   if (!stageWindow || stageWindow.isDestroyed()) return;
@@ -135,5 +144,31 @@ export function registerStageWindowIpc(): void {
   });
   ipcMain.handle('stage-window:full-screen', (_event, on: unknown) => {
     if (stageWindow && !stageWindow.isDestroyed()) stageWindow.setFullScreen(on === true);
+  });
+  // View → Stage on Display (milestone 43): the stage's window moves to the chosen display and
+  // fills it. The renderer has just popped the stage out if it was not; the window it opened is
+  // adopted within the same turn, but it is waited for rather than assumed.
+  ipcMain.handle('stage-window:on-display', async (_event, id: unknown) => {
+    const display = screen.getAllDisplays().find((d) => d.id === id);
+    if (!display) return false;
+    const win = await stageWindowSoon();
+    if (!win) return false;
+    const fill = () => {
+      if (win.isDestroyed()) return;
+      // Inside the display first, so full screen takes that display and no other.
+      const area = display.workArea;
+      const width = Math.min(win.getBounds().width, area.width - 40);
+      const height = Math.min(win.getBounds().height, area.height - 40);
+      win.setBounds({ x: area.x + Math.round((area.width - width) / 2), y: area.y + Math.round((area.height - height) / 2), width, height });
+      win.setFullScreen(true);
+    };
+    if (win.isFullScreen()) {
+      // Out of one display's full screen before into another's: the two cannot be asked at once.
+      win.once('leave-full-screen', fill);
+      win.setFullScreen(false);
+    } else {
+      fill();
+    }
+    return true;
   });
 }

@@ -104,3 +104,25 @@ export function stageWindowPlacement(saved: StageWindowState, displays: readonly
   if (onADisplay(bounds, displays)) return { ...bounds };
   return { width: bounds.width, height: bounds.height };
 }
+
+/** A connected display as the menu offers it (milestone 43): View → Stage on Display. */
+export interface MenuDisplay {
+  id: number;
+  label: string;
+}
+
+/**
+ * How a display reads in the menu: the name the platform gives it, or its
+ * number when there is none, with its size and which one is the main display,
+ * so two of the same model can be told apart.
+ */
+export function displayMenuLabel(d: { label?: string; width: number; height: number; primary: boolean; index: number }): string {
+  const name = d.label?.trim() || `Display ${d.index + 1}`;
+  return `${name} · ${Math.round(d.width)} × ${Math.round(d.height)}${d.primary ? ' (main)' : ''}`;
+}
+
+/** The connected displays as the menu lists them, the main one first. */
+export function menuDisplays(displays: readonly { id: number; label?: string; width: number; height: number }[], primaryId: number): MenuDisplay[] {
+  const ordered = [...displays].sort((a, b) => Number(b.id === primaryId) - Number(a.id === primaryId));
+  return ordered.map((d, index) => ({ id: d.id, label: displayMenuLabel({ ...d, primary: d.id === primaryId, index }) }));
+}

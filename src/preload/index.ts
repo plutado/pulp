@@ -19,6 +19,7 @@ const api: PulpApi = {
   stageWindowState: () => ipcRenderer.invoke('stage-window:state'),
   closeStageWindow: () => ipcRenderer.invoke('stage-window:close'),
   setStageWindowFullScreen: (on) => ipcRenderer.invoke('stage-window:full-screen', on),
+  stageWindowOnDisplay: (id) => ipcRenderer.invoke('stage-window:on-display', id),
   onStageWindowCloseRequested: (listener) => {
     const handler = () => listener();
     ipcRenderer.on('stage-window:close-requested', handler);

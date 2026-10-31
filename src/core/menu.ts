@@ -22,6 +22,7 @@
  */
 
 import { DEFAULT_PLAYER, STAGE_BACKGROUNDS, type StageBackground } from './player';
+import type { MenuDisplay } from './stage-window';
 
 export type MenuCommand =
   | 'app.home'
@@ -72,6 +73,7 @@ export type MenuCommand =
   | 'view.info'
   | 'view.theater'
   | 'view.popOut'
+  | 'view.stageOnDisplay'
   | 'view.background'
   | 'collection.add'
   | 'view.grid'
@@ -120,6 +122,8 @@ export interface MenuState {
   grid: boolean;
   /** The stage is in a window of its own (milestone 43). */
   stageOut: boolean;
+  /** The connected displays, for View → Stage on Display; filled by the main process, which is where the screen is. */
+  displays: MenuDisplay[];
   /**
    * What can be done to a layer right now (milestone 39). Every one is a
    * question about the stack on the stage, worked out in one place
@@ -177,6 +181,7 @@ export const EMPTY_MENU_STATE: MenuState = {
   infoOpen: false,
   grid: true,
   stageOut: false,
+  displays: [],
   canAddLayer: false,
   canEditText: false,
   canReplaceImage: false,
@@ -243,6 +248,12 @@ export interface MenuOptions {
 }
 
 const sep: MenuItemSpec = { type: 'separator' };
+
+/** The connected displays as a submenu (milestone 43), or one disabled line while none is known. */
+function displaysSubmenu(displays: readonly MenuDisplay[]): MenuItemSpec[] {
+  if (displays.length === 0) return [{ label: 'No display found', disabled: true }];
+  return displays.map((d) => ({ command: 'view.stageOnDisplay' as const, label: d.label, arg: String(d.id) }));
+}
 
 /** The recently-opened projects as a submenu, or one disabled line saying there are none. */
 function recentSubmenu(recent: readonly string[]): MenuItemSpec[] {
@@ -451,6 +462,8 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       { command: 'view.theater', label: 'Theater', accelerator: 'T', displayOnly: true, type: 'checkbox', checkedBy: 'theater' },
       // The stage in a window of its own, on any display (milestone 43); again to bring it back.
       { command: 'view.popOut', label: 'Pop Out Stage', accelerator: 'CmdOrCtrl+Shift+P', type: 'checkbox', checkedBy: 'stageOut' },
+      // One item per connected display: the stage fills that one with the picture alone.
+      { label: 'Stage on Display', submenu: displaysSubmenu(state.displays) },
       sep,
       ...(development
         ? [

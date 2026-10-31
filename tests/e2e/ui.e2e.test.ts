@@ -1397,16 +1397,17 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`${startHandle}.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: ${100 + px(1)}, bubbles: true }))`);
         await page.eval(`${startHandle}.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, clientX: ${100 + px(1)}, bubbles: true }))`);
         await until(() => page.eval<string>(`${startHandle}.getAttribute('aria-valuenow')`).then((v) => v === '1'), 'the start a second in');
-        // A whole pixel's worth of a second: the bar's width need not divide by five, so the span is
-        // read to the tenth of a percent rather than to the digit (it was exact while the picture, and
-        // so the bar, happened to be a width it did).
-        expect(parseFloat(await page.eval<string>(`${bar}.querySelector('.bar-body').style.left`))).toBeCloseTo(20, 1);
-        expect(parseFloat(await page.eval<string>(`${bar}.querySelector('.bar-body').style.width`))).toBeCloseTo(60, 1);
+        // A whole pixel's worth of a second: the bar's width need not divide by five, so the drag lands
+        // within a pixel of the second rather than on it, and a pixel of a bar this wide is a quarter of
+        // a percent (it was exact while the picture, and so the bar, happened to be a width it divided).
+        expect(parseFloat(await page.eval<string>(`${bar}.querySelector('.bar-body').style.left`))).toBeCloseTo(20, 0);
+        expect(parseFloat(await page.eval<string>(`${bar}.querySelector('.bar-body').style.width`))).toBeCloseTo(60, 0);
 
         // An entrance shades the start of the bar for the time it takes.
         await fire('[data-layer=subtitle] select[aria-label="Subtitle entrance"]', 'fade', 'change');
         await fire('[data-layer=subtitle] input[aria-label="Subtitle entrance seconds"]', '1.5', 'change');
-        await until(() => page.eval<string>(`${bar}.querySelector('.bar-in').style.width`).then((w) => Math.abs(parseFloat(w) - 50) < 0.1), 'the entrance shaded over half the bar');
+        // Half of a window whose start the drag put within a pixel of the second: within half a percent of half.
+        await until(() => page.eval<string>(`${bar}.querySelector('.bar-in').style.width`).then((w) => Math.abs(parseFloat(w) - 50) < 0.5), 'the entrance shaded over half the bar');
 
         // Undo takes it all back, a step at a time, and the bar follows.
         for (let i = 0; i < 4; i++) await page.eval(`document.getElementById('undo').click()`);
@@ -3215,7 +3216,9 @@ describe.skipIf(!electron)('inspector UI', () => {
         `[...document.querySelectorAll('#region-status > *')].filter((el) => el.offsetParent !== null && el.getBoundingClientRect().height > 0)
            .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id || el.className, centre: b.top + b.height / 2, height: b.height }; })`,
       );
-      expect(items.length, 'the status bar has items to line up').toBeGreaterThan(3);
+      // The project, ffmpeg and the cache are always on the line; the library's counts leave it
+      // under 1040 px (milestone 42), which is narrower than the window CI runs at.
+      expect(items.length, 'the status has items to line up').toBeGreaterThanOrEqual(3);
       const centres = items.map((i) => i.centre);
       const spread = Math.max(...centres) - Math.min(...centres);
       expect(spread, `the items sit on one line (${JSON.stringify(items)})`).toBeLessThan(1.5);
@@ -3687,6 +3690,31 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(await page.eval<boolean>(`document.getElementById('scrub-line').nextElementSibling.id === 'transport-lanes' && document.getElementById('transport-lanes').nextElementSibling.classList.contains('buttons-line')`), 'the row\'s first line back above its buttons').toBe(true);
         await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview ready again at home');
         expect(await page.eval<string>(`getComputedStyle(document.getElementById('stage-toggle')).display`)).not.toBe('none');
+
+        // View → Stage on Display lists the connected displays, and choosing one pops the stage out and
+        // fills that display with it: the theater button in the stage window says so. Under Linux's
+        // virtual display there is no window manager to grant full screen, so only the pop-out is held
+        // to there.
+        const displayItems = async () => (await page.eval<{ label: string; items: Item[] }[]>(`window.pulp.menuSections()`)).find((s) => s.label === 'View')?.items.find((i) => i.label === 'Stage on Display')?.submenu ?? [];
+        const displays = await displayItems();
+        expect(displays.length, 'one item per connected display').toBeGreaterThanOrEqual(1);
+        const first = displays[0] as Item & { arg?: string };
+        expect(first.label).toMatch(/\d+ × \d+/);
+        expect(Number(first.arg)).not.toBeNaN();
+        await page.eval(`window.pulpMenuCommand('view.stageOnDisplay', ${JSON.stringify(first.arg)})`);
+        await until(async () => (await stageTarget()) !== undefined, 'the stage out for the chosen display');
+        stage = await Session.connect((await stageTarget())!.webSocketDebuggerUrl);
+        await stage.send('Runtime.enable');
+        if (process.platform !== 'linux') {
+          await until(() => stage!.eval<boolean>(`document.getElementById('theater')?.getAttribute('aria-pressed') === 'true'`), 'the stage window full screen on the chosen display');
+          // Theater off is the way back from full screen, by the same key the main window uses.
+          await page.eval(`window.pulpMenuCommand('view.theater')`);
+          await until(() => stage!.eval<boolean>(`document.getElementById('theater')?.getAttribute('aria-pressed') === 'false'`), 'the stage window back from full screen');
+        }
+        await page.eval(`window.pulpMenuCommand('view.popOut')`);
+        await until(() => page.eval<boolean>(`!!document.getElementById('region-stage') && !document.getElementById('app').classList.contains('stage-out')`), 'the stage back from the chosen display');
+        await until(async () => (await stageTarget()) === undefined, 'that window gone');
+        stage = null;
 
         // Out again from the menu, and back by the same button where it now is: in the stage window.
         await page.eval(`window.pulpMenuCommand('view.popOut')`);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_STAGE_WINDOW,
+  displayMenuLabel,
+  menuDisplays,
   onADisplay,
   sanitizeStageWindow,
   STAGE_WINDOW_DEFAULT_SIZE,
@@ -69,5 +71,30 @@ describe('stageWindowPlacement', () => {
     expect(stageWindowPlacement({ open: true, bounds: onSecond }, [laptop, second])).toEqual(onSecond);
     expect(stageWindowPlacement({ open: true, bounds: onSecond }, [laptop])).toEqual({ width: 960, height: 600 });
     expect(stageWindowPlacement(DEFAULT_STAGE_WINDOW, [laptop])).toEqual(STAGE_WINDOW_DEFAULT_SIZE);
+  });
+});
+
+describe('the displays in the View menu', () => {
+  it('names a display by the platform\'s label, its size and whether it is the main one', () => {
+    expect(displayMenuLabel({ label: 'Built-in Retina Display', width: 1440, height: 900, primary: true, index: 0 })).toBe('Built-in Retina Display · 1440 × 900 (main)');
+    expect(displayMenuLabel({ label: 'DELL U2723QE', width: 2560, height: 1440, primary: false, index: 1 })).toBe('DELL U2723QE · 2560 × 1440');
+    // No label from the platform: numbered, so two of the same model are still told apart.
+    expect(displayMenuLabel({ label: '', width: 1920, height: 1080, primary: false, index: 2 })).toBe('Display 3 · 1920 × 1080');
+    expect(displayMenuLabel({ width: 1920.4, height: 1079.6, primary: false, index: 0 })).toBe('Display 1 · 1920 × 1080');
+  });
+
+  it('lists the main display first, keeping the rest in order', () => {
+    const list = menuDisplays(
+      [
+        { id: 7, label: 'Left', width: 1920, height: 1080 },
+        { id: 2, label: 'Laptop', width: 1440, height: 900 },
+        { id: 9, label: '', width: 1920, height: 1080 },
+      ],
+      2,
+    );
+    expect(list.map((d) => d.id)).toEqual([2, 7, 9]);
+    expect(list[0]!.label).toBe('Laptop · 1440 × 900 (main)');
+    expect(list[2]!.label).toBe('Display 3 · 1920 × 1080');
+    expect(menuDisplays([], 0)).toEqual([]);
   });
 });

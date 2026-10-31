@@ -142,6 +142,11 @@ function createWindow(): void {
   });
 }
 
+/** Everything written to stdout and stderr handed to the pipe, so an exit straight after loses none of it. */
+function flushStdio(): Promise<void> {
+  return Promise.all([process.stdout, process.stderr].map((stream) => new Promise<void>((resolve) => stream.write('', () => resolve())))).then(() => undefined);
+}
+
 /** What the title bar says: the app (and, run from source, the checkout), then the project. */
 function windowTitleNow(): string {
   const base = windowTitle(app.getAppPath(), app.isPackaged);
@@ -814,6 +819,10 @@ app.whenReady().then(async () => {
     app.dock?.hide();
     useInMemoryLibrary();
     const code = await runCliRender(cli);
+    // What was printed reaches the pipe first: a run that prints hundreds of lines in a burst — the
+    // sample-media generator skipping a folder that is already made — leaves them queued, and
+    // app.exit drops the queue, so the run's own summary line never arrived on the Linux runner.
+    await flushStdio();
     app.exit(code);
     return;
   }

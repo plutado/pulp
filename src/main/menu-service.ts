@@ -10,8 +10,9 @@
  * it differs from the last one it sent, so a rebuild means something moved.
  */
 
-import { app, Menu, type BrowserWindow, type MenuItemConstructorOptions } from 'electron';
+import { app, Menu, screen, type BrowserWindow, type MenuItemConstructorOptions } from 'electron';
 import { APP_NAME } from '../core/display';
+import { menuDisplays } from '../core/stage-window';
 import {
   buildMenu, EMPTY_MENU_STATE, itemChecked, itemEnabled, itemLabel, resolveMenu,
   type MenuCommand, type MenuItemSpec, type MenuSection, type MenuState,
@@ -49,7 +50,14 @@ function toElectron(items: readonly MenuItemSpec[], state: MenuState): MenuItemC
   });
 }
 
-function install(state: MenuState): void {
+/** The connected displays, the main one first, as the menu lists them under Stage on Display (milestone 43). */
+function withDisplays(state: MenuState): MenuState {
+  const displays = screen.getAllDisplays().map((d) => ({ id: d.id, label: d.label, width: d.bounds.width, height: d.bounds.height }));
+  return { ...state, displays: menuDisplays(displays, screen.getPrimaryDisplay().id) };
+}
+
+function install(pushed: MenuState): void {
+  const state = withDisplays(pushed);
   const sections = buildMenu({
     mac: process.platform === 'darwin',
     development: !app.isPackaged,
@@ -64,6 +72,11 @@ function install(state: MenuState): void {
 export function initMenu(window: BrowserWindow): void {
   target = window;
   install(current);
+  // A display plugged in or unplugged is a different list to offer.
+  const refresh = () => install(current);
+  screen.on('display-added', refresh);
+  screen.on('display-removed', refresh);
+  screen.on('display-metrics-changed', refresh);
 }
 
 /** The window says what it can do now; the menu follows. */
@@ -74,6 +87,7 @@ export function setMenuState(state: MenuState): void {
 
 /** The menu as it stands — labels, enabled, checked — for the window's shortcut list. */
 export function menuSections(): MenuSection[] {
-  const sections = buildMenu({ mac: process.platform === 'darwin', development: !app.isPackaged, appName: APP_NAME, state: current });
-  return resolveMenu(sections, current);
+  const state = withDisplays(current);
+  const sections = buildMenu({ mac: process.platform === 'darwin', development: !app.isPackaged, appName: APP_NAME, state });
+  return resolveMenu(sections, state);
 }
