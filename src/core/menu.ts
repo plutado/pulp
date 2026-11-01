@@ -68,6 +68,12 @@ export type MenuCommand =
   | 'key.copy'
   | 'key.paste'
   | 'key.delete'
+  // A cut on the track (milestone 49), run by the lane's own menu for the same reason.
+  | 'cut.transition'
+  | 'cut.transitionSeconds'
+  | 'cut.sound'
+  | 'cut.silences'
+  | 'cut.delete'
   | 'search.focus'
   | 'browse.filter'
   | 'view.browse'

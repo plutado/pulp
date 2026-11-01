@@ -259,6 +259,12 @@ export interface PulpApi {
    * frame. A cut that cannot be read is null; ids only, never paths (ADR 0013).
    */
   trackFrames(request: { cuts: { id: string; from: number; to: number }[]; height: number }): Promise<{ cuts: ({ srcs: string[]; fps: number; first: number } | null)[] }>;
+  /**
+   * The cut track's quiet stretches (milestone 49): ffmpeg's silence detection
+   * over each cut's sound at a threshold and a minimum length, mapped onto
+   * the timeline — shown on the lane before anything is cut.
+   */
+  trackSilences(request: { cuts: { id: string; from: number; to: number }[]; thresholdDb: number; minSeconds: number }): Promise<{ ranges: { start: number; end: number }[] }>;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */

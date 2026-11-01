@@ -29,6 +29,45 @@ export const CUT_TRACK_LIMITS = {
   seconds: { min: 0, max: 86_400 },
 } as const;
 
+/** What a transition between two cuts may be: a dissolve, a dip to a colour, or a bundled wipe template. */
+export const CUT_TRANSITIONS = ['dissolve', 'dip', 'wipe'] as const;
+export type CutTransitionType = (typeof CUT_TRANSITIONS)[number];
+
+export const TRANSITION_LIMITS = { seconds: { min: 0.1, max: 5 } } as const;
+export const DEFAULT_TRANSITION_SECONDS = 0.5;
+
+/**
+ * A transition on a cut (milestone 49): between this cut and the next, its
+ * duration taken from both sides — half before the boundary, half after, with
+ * neither side asked for more than it has. A dissolve blends across it, a dip
+ * fades to its colour and back, and a wipe plays a bundled wipe template over
+ * it, scaled to the duration. On the last cut it means nothing and is kept.
+ */
+export interface CutTransition {
+  type: CutTransitionType;
+  /** Seconds the transition takes, half from each side. */
+  seconds: number;
+  /** The dip's colour, #RRGGBB; black when it does not say. */
+  color?: string;
+  /** The wipe's template, a library template id of a bundled wipe. */
+  template?: string;
+}
+
+/**
+ * A cut's sound unlinked from its picture (milestone 49): `lead` starts it
+ * earlier — material before `from`, heard under the previous shot, a J cut —
+ * and `tail` runs it on after `to` under the next, an L cut; `muted` silences
+ * it with the numbers kept. Absent is linked: the sound is the picture's own
+ * window, exactly where it is.
+ */
+export interface CutSound {
+  lead?: number;
+  tail?: number;
+  muted?: true;
+}
+
+export const CUT_SOUND_LIMITS = { seconds: { min: 0, max: 10 } } as const;
+
 /** One shot: a window of a library clip, in seconds of the file. */
 export interface Cut {
   /** The library clip it plays. */
@@ -37,6 +76,10 @@ export interface Cut {
   from: number;
   /** Seconds into the file it plays to; always at least MIN_CUT_SECONDS past `from`. */
   to: number;
+  /** The transition into the next cut; absent is a straight cut. */
+  transition?: CutTransition;
+  /** The sound unlinked from the picture; absent is linked. */
+  sound?: CutSound;
 }
 
 /** The track: its cuts in timeline order. An object, so a transition on a cut has a home to come. */
@@ -162,10 +205,113 @@ export function trackSourceAt(track: CutTrack, time: number): { id: string; inde
  */
 export function trackAudio(track: CutTrack): { value: SoundValue; span: LayerSpan }[] {
   const windows = cutWindows(track);
-  return track.cuts.map((cut, index) => ({
-    value: { ...EMPTY_SOUND, id: cut.id, inPoint: cut.from, outPoint: cut.to, ending: 'once' as const, delay: windows[index]!.start },
-    span: { start: windows[index]!.start, end: windows[index]!.end },
-  }));
+  const out: { value: SoundValue; span: LayerSpan }[] = [];
+  track.cuts.forEach((cut, index) => {
+    if (cut.sound?.muted) return;
+    // Unlinked sound (a J or an L cut): the lead starts it earlier — material before `from`,
+    // bounded by what the file has before it — and the tail runs it on after `to`, bounded at
+    // use by the file's end, as any out point is. The delay and the span move with it, so it is
+    // heard under the neighbouring shots exactly where it reaches.
+    const lead = Math.min(cut.sound?.lead ?? 0, cut.from, windows[index]!.start);
+    const tail = cut.sound?.tail ?? 0;
+    out.push({
+      value: { ...EMPTY_SOUND, id: cut.id, inPoint: ms(cut.from - lead), outPoint: ms(cut.to + tail), ending: 'once' as const, delay: ms(windows[index]!.start - lead) },
+      span: { start: ms(windows[index]!.start - lead), end: ms(windows[index]!.end + tail) },
+    });
+  });
+  return out;
+}
+
+/**
+ * The transition leaving a cut, as it will play (milestone 49): between cut
+ * `index` and the next, centred on their boundary, its duration taken from
+ * both sides — and neither side asked for more than it has, so a short shot
+ * shortens the transition rather than being swallowed by it. Null on the last
+ * cut, where there is no next shot to go to, and where there is none.
+ */
+export function transitionAt(track: CutTrack, index: number): { type: CutTransitionType; seconds: number; at: number; color: string; template?: string } | null {
+  const cut = track.cuts[index];
+  const next = track.cuts[index + 1];
+  const transition = cut?.transition;
+  if (!cut || !next || !transition) return null;
+  const half = Math.min(transition.seconds / 2, cutSeconds(cut) / 2, cutSeconds(next) / 2);
+  const seconds = ms(Math.max(TRANSITION_LIMITS.seconds.min, half * 2));
+  return {
+    type: transition.type,
+    seconds,
+    at: ms(cutWindows(track)[index]!.end),
+    color: transition.color ?? '#000000',
+    ...(transition.template ? { template: transition.template } : {}),
+  };
+}
+
+/** The cut at `index` with this transition into the next, or none; unchanged when there is no such cut. */
+export function withCutTransition(track: CutTrack, index: number, transition: CutTransition | null): CutTrack {
+  if (!track.cuts[index]) return track;
+  return {
+    cuts: track.cuts.map((c, i) => {
+      if (i !== index) return c;
+      const rest = { ...c };
+      delete rest.transition;
+      return transition ? { ...rest, transition } : rest;
+    }),
+  };
+}
+
+/** The cut at `index` with its sound linked, muted or offset; unchanged when there is no such cut. */
+export function withCutSound(track: CutTrack, index: number, sound: CutSound | null): CutTrack {
+  if (!track.cuts[index]) return track;
+  return {
+    cuts: track.cuts.map((c, i) => {
+      if (i !== index) return c;
+      const rest = { ...c };
+      delete rest.sound;
+      return sound && (sound.lead || sound.tail || sound.muted) ? { ...rest, sound } : rest;
+    }),
+  };
+}
+
+/**
+ * The track with quiet stretches cut out (milestone 49): each range is a
+ * stretch of the timeline, as the silence scan maps them; a cut it covers
+ * whole goes, a cut it covers partly is split around it, and everything
+ * ripples by construction. Pieces shorter than a minimum go with the silence
+ * rather than surviving as slivers; the first piece of a cut keeps its sound,
+ * the last keeps its transition. One call, so one undo step.
+ */
+export function withSilencesCut(track: CutTrack, ranges: readonly { start: number; end: number }[]): CutTrack {
+  if (ranges.length === 0) return track;
+  const windows = cutWindows(track);
+  const cuts: Cut[] = [];
+  track.cuts.forEach((cut, index) => {
+    const { start, end } = windows[index]!;
+    // The stretches of this cut that stay: its window minus every range, in file seconds.
+    let kept: { from: number; to: number }[] = [{ from: cut.from, to: cut.to }];
+    for (const range of ranges) {
+      const cutFrom = cut.from + Math.max(0, Math.min(end, range.start) - start);
+      const cutTo = cut.from + Math.max(0, Math.min(end, range.end) - start);
+      if (cutTo <= cutFrom) continue;
+      kept = kept.flatMap((piece) => {
+        const out: { from: number; to: number }[] = [];
+        if (cutFrom > piece.from) out.push({ from: piece.from, to: Math.min(piece.to, cutFrom) });
+        if (cutTo < piece.to) out.push({ from: Math.max(piece.from, cutTo), to: piece.to });
+        return out;
+      });
+    }
+    const pieces = kept.filter((piece) => piece.to - piece.from >= MIN_CUT_SECONDS);
+    pieces.forEach((piece, i) => {
+      const first = i === 0;
+      const last = i === pieces.length - 1;
+      cuts.push({
+        id: cut.id,
+        from: ms(piece.from),
+        to: ms(piece.to),
+        ...(first && cut.sound ? { sound: cut.sound } : {}),
+        ...(last && cut.transition ? { transition: cut.transition } : {}),
+      });
+    });
+  });
+  return { cuts };
 }
 
 /**
@@ -207,7 +353,31 @@ export function sanitizeCutTrack(input: unknown): CutTrack | null {
     const from = second(r.from);
     const to = second(r.to);
     if (from === null || to === null || to - from < MIN_CUT_SECONDS) continue;
-    cuts.push({ id: r.id.trim(), from, to });
+    const cut: Cut = { id: r.id.trim(), from, to };
+    const t = r.transition as Record<string, unknown> | undefined;
+    if (typeof t === 'object' && t !== null && (CUT_TRANSITIONS as readonly string[]).includes(t.type as string)) {
+      const seconds = typeof t.seconds === 'number' && Number.isFinite(t.seconds)
+        ? ms(Math.min(TRANSITION_LIMITS.seconds.max, Math.max(TRANSITION_LIMITS.seconds.min, t.seconds)))
+        : DEFAULT_TRANSITION_SECONDS;
+      const color = typeof t.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(t.color) ? t.color.toLowerCase() : undefined;
+      const template = typeof t.template === 'string' && t.template.trim() !== '' ? t.template.trim() : undefined;
+      if ((t.type as CutTransitionType) !== 'wipe' || template) {
+        cut.transition = { type: t.type as CutTransitionType, seconds, ...(color ? { color } : {}), ...(template ? { template } : {}) };
+      }
+    }
+    const sd = r.sound as Record<string, unknown> | undefined;
+    if (typeof sd === 'object' && sd !== null) {
+      const offset = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0
+        ? ms(Math.min(CUT_SOUND_LIMITS.seconds.max, Math.max(CUT_SOUND_LIMITS.seconds.min, v)))
+        : undefined);
+      const lead = offset(sd.lead);
+      const tail = offset(sd.tail);
+      const muted = sd.muted === true;
+      if (lead !== undefined || tail !== undefined || muted) {
+        cut.sound = { ...(lead !== undefined ? { lead } : {}), ...(tail !== undefined ? { tail } : {}), ...(muted ? { muted: true } : {}) };
+      }
+    }
+    cuts.push(cut);
     if (cuts.length === CUT_TRACK_LIMITS.count) break;
   }
   return cuts.length > 0 ? { cuts } : null;

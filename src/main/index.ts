@@ -18,6 +18,7 @@ import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, i
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { mixLoudness } from './mix-loudness';
+import { trackSilences } from './track-silence';
 import { voicePreview } from './voice-service';
 import { chromaKeyClip, chromaKeyPreview, splitScenes } from './cleanup-service';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag, removeRender } from './render-queue-service';
@@ -452,6 +453,8 @@ function registerIpc(): void {
   ipcMain.handle('audio:voice-preview', (_event, request: unknown) => voicePreview(request));
   // The cut track's frames for the preview (milestone 49): proxy windows per cut.
   ipcMain.handle('track:frames', (_event, request: unknown) => loadTrackFrames(request));
+  // The track's quiet stretches (milestone 49), shown before anything is cut.
+  ipcMain.handle('track:silences', (_event, request: unknown) => trackSilences(request));
 
   ipcMain.handle('drag-notice:get', async () => (await loadSettings()).dragNoticeSeen);
   ipcMain.handle('drag-notice:seen', async () => {

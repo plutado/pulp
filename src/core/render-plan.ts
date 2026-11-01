@@ -444,7 +444,17 @@ export interface RenderPlanInput {
    * The cuts are read as inputs, scaled and padded to the output's own frame,
    * joined end to end, and the graphic is composited over them.
    */
-  track?: { cuts: { path: string; from: number; to: number }[] };
+  track?: {
+    cuts: {
+      path: string;
+      from: number;
+      to: number;
+      /** The transition into the next cut, already clamped by the caller (transitionAt). A wipe rides in `wipes`. */
+      transition?: { type: 'dissolve' | 'dip'; seconds: number; color?: string };
+    }[];
+    /** Bundled wipes over the joins, captured by the caller as numbered RGBA frames at the output's own rate. */
+    wipes?: { pattern: string; at: number; seconds: number }[];
+  };
 }
 
 export interface RenderPlan {
@@ -571,27 +581,77 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   if (track) {
     // The cut track under the graphic (milestone 49): each cut is its own input, sought to its
     // window (`-ss`/`-t` before `-i`: fast to the keyframe, exact from there), brought to the
-    // output's clock and frame — scaled inside it, padded to it, square pixels — then joined end
-    // to end. The join is padded on in time, so a track shorter than the graphic shows the pad
-    // rather than ending the render, and trimmed to the rendered range exactly as the audio mix
-    // is. The graphic is composited over it in RGB, as the flatten branch composites, so one
-    // conversion serves both; a flattening render's chosen background is the pad, since that is
-    // the colour the graphic would have met. The matte stays the graphic's own alpha — the
-    // graphics over the footage are exactly what an editing app wants a matte of.
+    // output's clock and frame — scaled inside it, padded to it, square pixels, one pixel format
+    // so a dissolve can cross-fade them — then joined boundary by boundary. The join is padded on
+    // in time, so a track shorter than the graphic shows the pad rather than ending the render,
+    // and trimmed to the rendered range exactly as the audio mix is. The graphic is composited
+    // over it in RGB, as the flatten branch composites, so one conversion serves both; a
+    // flattening render's chosen background is the pad, since that is the colour the graphic
+    // would have met. The matte stays the graphic's own alpha — the graphics over the footage are
+    // exactly what an editing app wants a matte of.
+    //
+    // Transitions take their duration from both sides, half each, without moving the timeline: a
+    // **dip** fades the earlier segment out to its colour and the later one in from it, inside the
+    // segments themselves; a **dissolve** clone-pads each side by half the duration — the held
+    // edge frame, exactly what the preview holds — and cross-fades over the pad, so the join's
+    // length is the two cuts' lengths to the frame; a **wipe** is a bundled wipe template the
+    // caller captured as frames with alpha, overlaid across the boundary after the join.
     const sec = (v: number) => String(Math.round(v * 1e6) / 1e6);
     const pad = !preset.alpha && manifest.alpha ? hexToFfmpegColor(background) : 'black';
     track.cuts.forEach((cut) => args.push('-ss', sec(cut.from), '-t', sec(Math.max(0.001, cut.to - cut.from)), '-i', cut.path));
-    const segments = track.cuts.map((_, i) =>
-      `[${i + 1}:v]fps=${fps},scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:-1:-1:color=${pad},setsar=1,setpts=PTS-STARTPTS[t${i}]`);
-    const joined = track.cuts.length > 1
-      ? `${track.cuts.map((_, i) => `[t${i}]`).join('')}concat=n=${track.cuts.length}:v=1:a=0[tcat]`
-      : '[t0]null[tcat]';
-    const placed = `[tcat]tpad=stop=-1:stop_mode=add:color=${pad},trim=start=${sec(timing.firstFrame / timing.fps)},setpts=PTS-STARTPTS[trk]`;
+    const wipes = track.wipes ?? [];
+    wipes.forEach((wipe) => args.push('-framerate', fps, '-start_number', '0', '-i', wipe.pattern));
+    const chains: string[] = [];
+    const segments = track.cuts.map((cut, i) => {
+      const steps = [`fps=${fps}`, `scale=${width}:${height}:force_original_aspect_ratio=decrease`, `pad=${width}:${height}:-1:-1:color=${pad}`, 'setsar=1', 'format=yuv420p', 'setpts=PTS-STARTPTS'];
+      const seconds = Math.max(0.001, cut.to - cut.from);
+      const into = i > 0 ? track.cuts[i - 1]!.transition : undefined;
+      if (into?.type === 'dip') steps.push(`fade=t=in:st=0:d=${sec(into.seconds / 2)}:color=${hexToFfmpegColor(into.color ?? '#000000')}`);
+      if (cut.transition?.type === 'dip' && i < track.cuts.length - 1) {
+        steps.push(`fade=t=out:st=${sec(seconds - cut.transition.seconds / 2)}:d=${sec(cut.transition.seconds / 2)}:color=${hexToFfmpegColor(cut.transition.color ?? '#000000')}`);
+      }
+      return `[${i + 1}:v]${steps.join(',')}[t${i}]`;
+    });
+    chains.push(...segments);
+    // Fold the segments together one boundary at a time: a straight cut concats, a dissolve
+    // clone-pads both sides and cross-fades — the running length never moves.
+    let run = 't0';
+    let runLength = Math.max(0.001, track.cuts[0]!.to - track.cuts[0]!.from);
+    track.cuts.slice(1).forEach((cut, i) => {
+      const earlier = track.cuts[i]!.transition;
+      const seconds = Math.max(0.001, cut.to - cut.from);
+      const joined = `j${i}`;
+      if (earlier?.type === 'dissolve') {
+        const half = sec(earlier.seconds / 2);
+        chains.push(`[${run}]tpad=stop_mode=clone:stop_duration=${half}[a${i}]`);
+        chains.push(`[t${i + 1}]tpad=start_mode=clone:start_duration=${half}[b${i}]`);
+        chains.push(`[a${i}][b${i}]xfade=transition=fade:duration=${sec(earlier.seconds)}:offset=${sec(runLength - earlier.seconds / 2)}[${joined}]`);
+      } else {
+        chains.push(`[${run}][t${i + 1}]concat=n=2:v=1:a=0[${joined}]`);
+      }
+      run = joined;
+      runLength += seconds;
+    });
+    chains.push(`[${run}]null[tcat]`);
+    // The wipes play over the joins: each captured sequence, with its alpha, padded in time to its
+    // place on the timeline and overlaid; the base carries on past it (the pipe ends the render).
+    let base = 'tcat';
+    wipes.forEach((wipe, k) => {
+      const index = 1 + track.cuts.length + k;
+      const start = Math.max(0, wipe.at - wipe.seconds / 2);
+      chains.push(
+        `[${index}:v]format=rgba,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:-1:-1:color=0x00000000,setsar=1,setpts=PTS-STARTPTS,` +
+        `tpad=start_mode=add:start_duration=${sec(start)}:color=0x00000000[w${k}]`,
+      );
+      chains.push(`[${base}][w${k}]overlay=eof_action=pass[wb${k}]`);
+      base = `wb${k}`;
+    });
+    chains.push(`[${base}]tpad=stop=-1:stop_mode=add:color=${pad},trim=start=${sec(timing.firstFrame / timing.fps)},setpts=PTS-STARTPTS[trk]`);
     const graphic = matte ? split : prepared;
     const over = matte ? '[pic]' : '[src]';
     args.push(
       '-filter_complex',
-      `${segments.join(';')};${joined};${placed};${graphic};[trk]${over}overlay=shortest=1:format=rgb,${toOutput.join(',')}[out]`,
+      `${chains.join(';')};${graphic};[trk]${over}overlay=shortest=1:format=rgb,${toOutput.join(',')}[out]`,
       '-map', '[out]',
     );
   } else if (!preset.alpha && manifest.alpha) {

@@ -51,8 +51,8 @@ describe('the cut track under the graphic (milestone 49)', () => {
     expect(text).toContain('-ss 0 -t 1 -i /lib/b.mov');
     const graph = plan.args[plan.args.indexOf('-filter_complex') + 1]!;
     // Inputs 1 and 2 (the pipe is 0), each brought to the output's clock, frame and square pixels.
-    expect(graph).toContain('[1:v]fps=30,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:-1:-1:color=black,setsar=1');
-    expect(graph).toContain('[t0][t1]concat=n=2:v=1:a=0[tcat]');
+    expect(graph).toContain('[1:v]fps=30,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:-1:-1:color=black,setsar=1,format=yuv420p');
+    expect(graph).toContain('[t0][t1]concat=n=2:v=1:a=0[j0]');
     // Padded on in time and trimmed to the rendered range, so a short track pads rather than ending the file.
     expect(graph).toContain('[tcat]tpad=stop=-1:stop_mode=add:color=black,trim=start=0,setpts=PTS-STARTPTS[trk]');
     expect(graph).toContain('[trk][src]overlay=shortest=1:format=rgb');
@@ -80,6 +80,43 @@ describe('the cut track under the graphic (milestone 49)', () => {
     expect(graph).toContain('[src]split[pic][mat]');
     expect(graph).toContain('[trk][pic]overlay=shortest=1:format=rgb');
     expect(graph).toContain('[matte]');
+  });
+
+  it('cross-fades a dissolve over clone-padded halves, so the join\'s length is the two cuts\' to the frame', () => {
+    const plan = buildRenderPlan({
+      manifest: timing(), presetId: 'png-sequence', outputPath: '/o/t',
+      track: { cuts: [{ ...track.cuts[0]!, transition: { type: 'dissolve', seconds: 1 } }, track.cuts[1]!] },
+    });
+    const graph = plan.args[plan.args.indexOf('-filter_complex') + 1]!;
+    expect(graph).toContain('[t0]tpad=stop_mode=clone:stop_duration=0.5[a0]');
+    expect(graph).toContain('[t1]tpad=start_mode=clone:start_duration=0.5[b0]');
+    // The first cut is two seconds, so the fade starts half a second before its end.
+    expect(graph).toContain('[a0][b0]xfade=transition=fade:duration=1:offset=1.5[j0]');
+    expect(graph).not.toContain('concat');
+  });
+
+  it('dips to the colour inside the segments, out of the earlier and into the later', () => {
+    const plan = buildRenderPlan({
+      manifest: timing(), presetId: 'png-sequence', outputPath: '/o/t',
+      track: { cuts: [{ ...track.cuts[0]!, transition: { type: 'dip', seconds: 0.5, color: '#00ff00' } }, track.cuts[1]!] },
+    });
+    const graph = plan.args[plan.args.indexOf('-filter_complex') + 1]!;
+    expect(graph).toContain('fade=t=out:st=1.75:d=0.25:color=0x00ff00');
+    expect(graph).toContain('fade=t=in:st=0:d=0.25:color=0x00ff00');
+    expect(graph, 'a dip does not move the timeline').toContain('concat=n=2');
+  });
+
+  it('plays a captured wipe over the join, with its alpha, padded to its place in time', () => {
+    const plan = buildRenderPlan({
+      manifest: timing(), presetId: 'png-sequence', outputPath: '/o/t',
+      track: { cuts: track.cuts, wipes: [{ pattern: '/tmp/wipe/w%05d.png', at: 2, seconds: 0.5 }] },
+    });
+    const text = plan.args.join(' ');
+    expect(text).toContain('-framerate 30 -start_number 0 -i /tmp/wipe/w%05d.png');
+    const graph = plan.args[plan.args.indexOf('-filter_complex') + 1]!;
+    expect(graph).toContain('color=0x00000000,setsar=1,setpts=PTS-STARTPTS,tpad=start_mode=add:start_duration=1.75:color=0x00000000[w0]');
+    expect(graph).toContain('[tcat][w0]overlay=eof_action=pass[wb0]');
+    expect(graph).toContain('[wb0]tpad=stop=-1');
   });
 
   it('is one cut just the same, and no track is the plan as it always was', () => {

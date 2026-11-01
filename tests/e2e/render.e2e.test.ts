@@ -1382,6 +1382,88 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(await level(1.6, 1.9), 'and silence once the track has ended').toBeLessThan(-50);
   }, 300_000);
 
+  it('plays transitions on a cut — a dissolve, a dip to a colour, a bundled wipe — and an unlinked sound for a J cut (milestone 49)', async () => {
+    const lib = join(out, 'transition-library');
+    await mkdir(lib, { recursive: true });
+    const clip = async (file: string, color: string, tone?: number) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs([
+        '-v', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${color}:s=160x160:d=1:r=30`,
+        ...(tone ? ['-f', 'lavfi', '-i', `sine=frequency=${tone}:duration=1`, '-c:a', 'aac'] : []),
+        '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-shortest', '-movflags', '+faststart', join(lib, file),
+      ]), { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(r.code, r.stderr).toBe(0);
+      return itemId(`media:${join(lib, file)}`);
+    };
+    const redId = await clip('t-red.mp4', 'red', 440);
+    const blueId = await clip('t-blue.mp4', 'blue', 880);
+    const muteId = await clip('t-mute.mp4', 'gray');
+    const common = ['--library', FIXTURES, '--library', lib];
+    const middle = [160, 90] as const;
+    const trackArg = (first: Record<string, unknown>, second: Record<string, unknown> = {}) =>
+      ['--param', `@track=${JSON.stringify({ cuts: [{ id: redId, from: 0, to: 1, ...first }, { id: blueId, from: 0, to: 1, ...second }] })}`];
+    const at = async (name: string, frame: number) => pixels(join(out, `${name}_${String(frame).padStart(5, '0')}.png`), ...middle);
+
+    // A dissolve: pure red before it, pure blue after, and both shots in the frame at the boundary.
+    const dissolved = await render('pulp.test.video-layer', 'png-sequence', 'join-dissolve', {
+      extra: [...common, ...trackArg({ transition: { type: 'dissolve', seconds: 0.5 } })],
+    });
+    expect(dissolved.code, dissolved.stderr).toBe(0);
+    expect((await at('join-dissolve', 10))[0], 'red before the transition').toBeGreaterThan(180);
+    expect((await at('join-dissolve', 50))[2], 'blue after it').toBeGreaterThan(180);
+    const blended = await at('join-dissolve', 30);
+    expect(blended[0]!, `at the boundary both shots show: ${blended.join(',')}`).toBeGreaterThan(60);
+    expect(blended[2]!).toBeGreaterThan(60);
+    expect(blended[0]!).toBeLessThan(200);
+
+    // A dip to a colour: at the boundary the frame is the colour, with the shots whole either side.
+    const dipped = await render('pulp.test.video-layer', 'png-sequence', 'join-dip', {
+      extra: [...common, ...trackArg({ transition: { type: 'dip', seconds: 0.5, color: '#00ff00' } })],
+    });
+    expect(dipped.code, dipped.stderr).toBe(0);
+    const dip = await at('join-dip', 30);
+    expect(dip[1]!, `the dip's colour at the boundary: ${dip.join(',')}`).toBeGreaterThan(180);
+    expect(dip[0]!).toBeLessThan(70);
+    expect((await at('join-dip', 10))[0]).toBeGreaterThan(180);
+    expect((await at('join-dip', 50))[2]).toBeGreaterThan(180);
+
+    // A bundled wipe: the wipe fixture covers the frame at the boundary, and the shots stand either side.
+    const wiped = await render('pulp.test.video-layer', 'png-sequence', 'join-wipe', {
+      extra: [...common, ...trackArg({ transition: { type: 'wipe', seconds: 0.5, template: 'pulp.test.wipe' } })],
+    });
+    expect(wiped.code, wiped.stderr).toBe(0);
+    const wipe = await at('join-wipe', 30);
+    expect(wipe[0]!, `the wipe over the boundary: ${wipe.join(',')}`).toBeGreaterThan(180);
+    expect(wipe[2]!).toBeGreaterThan(180);
+    expect(wipe[1]!).toBeLessThan(70);
+    expect((await at('join-wipe', 10))[0]).toBeGreaterThan(180);
+    expect((await at('join-wipe', 50))[2]).toBeGreaterThan(180);
+
+    // An unlinked sound: the second cut's tone leads under the silent first shot — a J cut — and a
+    // muted cut's sound is out of the mix with its numbers kept.
+    const level = async (name: string, from: number, to: number) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs(['-i', join(out, name), '-af', `atrim=start=${from}:end=${to},asetpts=PTS-STARTPTS,volumedetect`, '-f', 'null', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
+      const m = /max_volume:\s*(-?[\d.]+) dB/.exec(r.stderr);
+      expect(m, r.stderr.slice(-1500)).not.toBeNull();
+      return Number(m![1]);
+    };
+    // The second cut's picture is trimmed in by 0.4 s, and its sound leads by that much: the lead
+    // plays the material before the picture's in point, under the end of the silent first shot.
+    const led = await render('pulp.test.video-layer', 'h264-mp4', 'join-lead', {
+      extra: [...common, '--param', `@track=${JSON.stringify({ cuts: [{ id: muteId, from: 0, to: 1 }, { id: blueId, from: 0.4, to: 1, sound: { lead: 0.4 } }] })}`],
+    });
+    expect(led.code, led.stderr).toBe(0);
+    expect(await level('join-lead.mp4', 0.1, 0.5), 'quiet before the lead reaches').toBeLessThan(-45);
+    expect(await level('join-lead.mp4', 0.7, 0.95), 'the next shot heard under the silent one').toBeGreaterThan(-30);
+    expect(await level('join-lead.mp4', 1.1, 1.5), 'and on through its own shot').toBeGreaterThan(-30);
+    const mutedCut = await render('pulp.test.video-layer', 'h264-mp4', 'join-muted', {
+      extra: [...common, '--param', `@track=${JSON.stringify({ cuts: [{ id: muteId, from: 0, to: 1 }, { id: blueId, from: 0, to: 1, sound: { muted: true } }] })}`],
+    });
+    expect(mutedCut.code, mutedCut.stderr).toBe(0);
+    // With the only sound muted the project is silent, and a silent project carries no audio stream at all.
+    const probed = await runBounded(ffprobe, ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name', '-of', 'json', join(out, 'join-muted.mp4')], { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(((JSON.parse(probed.stdout || '{}') as { streams?: unknown[] }).streams ?? []).length, 'a muted cut adds nothing to the mix').toBe(0);
+  }, 300_000);
+
   it('plays a clip inside a graphic, on the template\'s own time (milestone 26)', async () => {
     // A transparent clip whose red square moves left to right over its 30 frames, so which frame
     // was drawn can be read off the rendered picture. The library sees it by path, as any clip.

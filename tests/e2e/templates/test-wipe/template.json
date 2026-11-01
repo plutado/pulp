@@ -1,0 +1,18 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.wipe",
+  "name": "Test Wipe",
+  "description": "A solid magenta frame for the whole of its run, so a render can check that a wipe plays over a cut (milestone 49).",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "transition",
+  "type": "wipe",
+  "tags": ["test", "wipe"],
+  "duration": 1,
+  "structure": { "scale": true },
+  "fps": 30,
+  "width": 320,
+  "height": 180,
+  "alpha": true,
+  "parameters": []
+}

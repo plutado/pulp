@@ -401,6 +401,13 @@ describe.skipIf(!electron)('inspector UI', () => {
         '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2',
         '-t', '2', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(mediaDir, 'noisy.mp4'),
       ]), { timeoutMs: 60_000 });
+      // A clip whose sound goes quiet after 0.8 s (milestone 49), for the silence removal flow —
+      // named to sort after everything else, like the clean-up fixtures, so the stage menu's
+      // first eight assets stay what they were.
+      await runBounded(ffmpeg.path, ffmpegArgs([
+        '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-f', 'lavfi', '-i', 'sine=frequency=660:duration=2',
+        '-af', "volume=enable='gte(t,0.8)':volume=0", '-t', '2', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(mediaDir, 'zz-gappy.mp4'),
+      ]), { timeoutMs: 60_000 });
       // A green-screen take and footage with two hard cuts (milestone 52) — mpeg4, so the codec
       // searches keep counting only what they counted, and named to sort after everything else,
       // so the stage menu's first eight assets stay what they were.
@@ -1435,6 +1442,8 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(async () => (await count()) === 2, 'the second cut, after the first');
         expect(await labels()).toEqual(['clip', 'tall']);
         expect(await ends()).toEqual(['2', '4']);
+        // The project's length follows the track: two two-second shots are a four-second piece.
+        expect(await page.eval<string>(`document.getElementById('scrub').max`)).toBe('119');
 
         // Split at the playhead (Cmd/Ctrl+B): the cut under one second becomes two meeting there.
         await scrub(30);
@@ -1448,25 +1457,32 @@ describe.skipIf(!electron)('inspector UI', () => {
         await splitKey();
         expect(await count()).toBe(3);
 
-        // Trim the last cut's end by a second: everything is a ripple on an end-to-end track.
+        // Trim the last cut's end by a second: everything is a ripple on an end-to-end track. The
+        // lane's scale is the length, and the length follows the track, so it is read fresh per drag.
         const width = await page.eval<number>(`${lane}.getBoundingClientRect().width`);
-        const px = (seconds: number) => Math.round((seconds / 5) * width);
+        const px = async (seconds: number) => {
+          const max = Number(await page.eval<string>(`document.getElementById('scrub').max`));
+          return Math.round((seconds / ((max + 1) / 30)) * width);
+        };
         const drag = async (target: string, dx: number) => {
           await page.eval(`${target}.dispatchEvent(new PointerEvent('pointerdown', { button: 0, pointerId: 7, clientX: 400, bubbles: true }))`);
           await page.eval(`${target}.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: ${400 + dx}, bubbles: true }))`);
           await page.eval(`${target}.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, clientX: ${400 + dx}, bubbles: true }))`);
         };
-        await drag(`${cut(2)}.querySelector('.cut-trim.end')`, -px(1));
+        await drag(`${cut(2)}.querySelector('.cut-trim.end')`, -(await px(1)));
         await until(async () => Math.abs(parseFloat((await ends())[2]!) - 3) < 0.05, 'the end a second earlier');
+        // The length follows the trim too, held to the template's own floor: its entrance, its
+        // exit and the sliver of hold a stretched card keeps (3.57 s at 30 fps).
+        expect(await page.eval<string>(`document.getElementById('scrub').max`)).toBe('106');
 
         // And a trim snaps: dragged to within a few pixels of the playhead, it lands exactly on it.
         await scrub(75);
         await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) === 75), 'the playhead at 2.5 s');
-        await drag(`${cut(2)}.querySelector('.cut-trim.end')`, -px(0.47));
+        await drag(`${cut(2)}.querySelector('.cut-trim.end')`, -(await px(0.47)));
         await until(async () => (await ends())[2] === '2.5', 'the end snapped to the playhead');
 
         // Move the last cut to the front by its body: it lands at the nearest boundary.
-        await drag(`${cut(2)}.querySelector('.cut-body')`, -px(2.3));
+        await drag(`${cut(2)}.querySelector('.cut-body')`, -(await px(2.3)));
         await until(async () => (await labels()).join() === 'tall,clip,clip', 'the cut moved to the front');
 
         // Ripple delete: the middle goes and the one after closes up.
@@ -1562,6 +1578,92 @@ describe.skipIf(!electron)('inspector UI', () => {
           'the waveform on the cut',
           30_000,
         );
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
+    it('finishes a cut: transitions from the menu or a wipe dropped on the join, the sound unlinked, and silences shown before they are cut (milestone 49)', async () => {
+      await clickResult('Title Card');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const cut = (i: number) => `document.querySelectorAll('#cut-track .cut')[${i}]`;
+      const count = () => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`);
+      const ends = () => page.eval<string[]>(`[...document.querySelectorAll('#cut-track .cut .cut-trim.end')].map((h) => h.getAttribute('aria-valuenow'))`);
+      const sounds = `(window.pulpLayerSounds ? window.pulpLayerSounds() : []).filter((s) => s.key.startsWith('@track.'))`;
+      const clipId = await onResult<string>('clip', '(li) => li.dataset.id');
+      const gappyId = await onResult<string>('zz-gappy', '(li) => li.dataset.id');
+      const wipeId = await onResult<string>('Diagonal Wipe', '(li) => li.dataset.id');
+      const dropOn = (fx: number, id: string) =>
+        page.eval<boolean>(
+          `(() => {
+            const el = document.getElementById('transport-lanes');
+            const r = el.getBoundingClientRect();
+            const dt = new DataTransfer();
+            dt.setData('application/x-pulp-item', ${JSON.stringify(id)});
+            const at = { clientX: r.left + r.width * ${fx}, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true };
+            el.dispatchEvent(new DragEvent('dragover', at));
+            el.dispatchEvent(new DragEvent('drop', at));
+            return true;
+          })()`,
+        );
+      const menuOn = async (i: number) => {
+        await page.eval(`${cut(i)}.querySelector('.cut-body').dispatchEvent(new MouseEvent('contextmenu', { clientX: 320, clientY: 320, bubbles: true, cancelable: true }))`);
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu')`), 'the cut\'s menu');
+      };
+      const openSub = async (label: string) => {
+        await page.eval(`[...document.querySelectorAll('.context-menu > button')].find((b) => b.textContent === ${JSON.stringify(label)}).click()`);
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), `the ${label} submenu`);
+      };
+      const chooseArg = (command: string, arg: string) =>
+        page.eval(`document.querySelector('.context-menu.submenu button[data-command="${command}"][data-arg="${arg}"]').click()`);
+      try {
+        await dropOn(0.5, clipId!);
+        await until(async () => (await count()) === 1, 'the silent shot');
+        await dropOn(0.9, gappyId!);
+        await until(async () => (await count()) === 2, 'the shot that goes quiet');
+
+        // A dissolve from the cut's own menu, marked on the join.
+        await menuOn(0);
+        await openSub('Transition');
+        await chooseArg('cut.transition', 'dissolve');
+        await until(() => page.eval<boolean>(`(() => { const j = ${cut(0)}.querySelector('.cut-join'); return !!j && !j.hidden; })()`), 'the join marked');
+        expect(await page.eval<string>(`${cut(0)}.querySelector('.cut-join').title`)).toBe('Dissolve over 0.5 s');
+
+        // Any bundled wipe, dropped from the results onto the join it should play over.
+        await dropOn(0.5, wipeId!);
+        await until(() => page.eval<string>(`${cut(0)}.querySelector('.cut-join')?.title || ''`).then((t) => t === 'Wipe over 0.5 s'), 'the wipe on the join');
+
+        // The cut's sound unlinked: muted it leaves the mix, linked again it returns.
+        await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 1), 'the quiet shot\'s sound in the mix', 30_000);
+        await menuOn(1);
+        await openSub('Sound');
+        await chooseArg('cut.sound', 'muted');
+        await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 0), 'muted out of the mix');
+        await menuOn(1);
+        await openSub('Sound');
+        await chooseArg('cut.sound', 'linked');
+        await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 1), 'and linked back in');
+
+        // Silence removal: the quiet stretch found and shaded on the track before anything is cut,
+        // then cut in one undo step.
+        await menuOn(1);
+        await page.eval(`[...document.querySelectorAll('.context-menu button')].find((b) => b.textContent === 'Remove Silences…').click()`);
+        await until(() => page.eval<boolean>(`document.getElementById('silence-dialog').open`), 'the silence dialog');
+        await page.eval(`document.getElementById('silence-find').click()`);
+        await until(() => page.eval<number>(`document.querySelectorAll('#cut-track .cut-silence').length`).then((n) => n === 1), 'the quiet stretch shaded', 30_000);
+        expect(await page.eval<string>(`document.getElementById('silence-found').textContent`)).toContain('1 quiet stretch');
+        expect(await count(), 'nothing cut yet: it is shown first').toBe(2);
+        await page.eval(`document.getElementById('silence-cut').click()`);
+        // Within a few hundredths of the gap: the codec pads the exact moment the tone stops.
+        await until(async () => {
+          const end = parseFloat((await ends())[1] ?? '0');
+          return end > 2.7 && end < 2.95;
+        }, 'the quiet tail cut away');
+        expect(await page.eval<number>(`document.querySelectorAll('#cut-track .cut-silence').length`), 'the shading went with the dialog').toBe(0);
+        // One undo step for the whole of it.
+        await page.eval(`document.getElementById('undo').click()`);
+        await until(async () => (await ends())[1] === '4', 'undo brings the quiet tail back');
       } finally {
         await restoreLayers();
       }

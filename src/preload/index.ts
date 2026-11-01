@@ -126,6 +126,7 @@ const api: PulpApi = {
   mixLoudness: (request) => ipcRenderer.invoke('audio:mix-loudness', request),
   voicePreview: (request) => ipcRenderer.invoke('audio:voice-preview', request),
   trackFrames: (request) => ipcRenderer.invoke('track:frames', request),
+  trackSilences: (request) => ipcRenderer.invoke('track:silences', request),
   chromaKeyPreview: (id, settings, atSeconds) => ipcRenderer.invoke('cleanup:key-preview', id, settings, atSeconds),
   chromaKeyClip: (id, settings) => ipcRenderer.invoke('cleanup:key', id, settings),
   splitScenes: (id) => ipcRenderer.invoke('cleanup:split-scenes', id),

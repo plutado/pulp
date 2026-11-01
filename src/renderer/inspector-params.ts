@@ -49,7 +49,7 @@ import { IMAGE_TREATMENTS, sanitizeImageValue, sanitizePsdChoice, type ImageValu
 import { fileHiddenLayers, layersTopFirst, layerShown, placeableLayers, psdLimitSummary, type PsdOutline } from '../core/psd';
 import { hiddenDiffersFromFile, hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines } from './psd-state';
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue } from '../core/video-layer';
-import { type CutTrack } from '../core/cut-track';
+import { trackDuration, type CutTrack } from '../core/cut-track';
 import { DEFAULT_VOICE_AMOUNT, VOICE_DESCRIPTIONS, VOICE_LABELS, VOICE_LIMITS, VOICE_TREATMENTS, type VoiceValue } from '../core/voice-treatment';
 import { EMPTY_SOUND, SOUND_ENDINGS, SOUND_LIMITS, type SoundEnding, type SoundValue } from '../core/sound-layer';
 import { DEFAULT_CURVE, DEFAULT_KEY_EASING, KEY_EASINGS, keyedPoseAt, sanitizeKeys, withKeyAt, type KeyEasing, type LayerKey } from '../core/layer-keys';
@@ -1193,9 +1193,18 @@ function setTrack(track: CutTrack | null, commit: boolean): void {
   const selected = selectedTemplate.value;
   if (!selected) return;
   p.raw = withTrack(p.raw, track);
+  // The project's length follows the track (milestone 49), as far as the template stretches
+  // (resolveLength clamps to its structure): the shots are how long the piece is. With the last
+  // cut gone the template's own length stands again, as it did before the track.
+  p.raw = withLength(p.raw, track ? Math.round(trackDuration(track) * 1000) / 1000 : undefined);
   editorFor(selected.manifest.id).current = p.raw;
   stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack());
-  if (commit) commitParams();
+  // The Output tab trims within the length, so what it shows follows it (as setLength does).
+  outputRefreshOptions();
+  if (commit) {
+    commitParams();
+    buildParamForm(selected.manifest);
+  }
 }
 
 /** One block's layers: the stack, what can be done to each, and how to add one. */

@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CUT_TRACK_LIMITS, cutFromClip, cutIndexAt, cutWindows, MIN_CUT_SECONDS, sanitizeCutTrack, snapTime,
-  splitAt, trackAudio, trackDuration, trackSourceAt, withCutInserted, withCutMoved, withCutRemoved, withCutWindow, type CutTrack,
+  splitAt, trackAudio, trackDuration, trackSourceAt, transitionAt, withCutInserted, withCutSound, withCutTransition, withSilencesCut, withCutMoved, withCutRemoved, withCutWindow, type CutTrack,
 } from '../src/core/cut-track';
 
 const id = (n: number) => String(n).repeat(24);
@@ -118,6 +118,75 @@ describe('what the track plays (milestone 49)', () => {
     expect(audio[1]!.value).toMatchObject({ id: id(2), inPoint: 1, outPoint: 2.5, ending: 'once', delay: 2, volume: 1, muted: false });
     expect(audio[1]!.span).toEqual({ start: 2, end: 3.5 });
     expect(audio[0]!.value).toMatchObject({ inPoint: 0, outPoint: 2, delay: 0 });
+  });
+});
+
+describe('transitions on a cut (milestone 49)', () => {
+  it('plays between a cut and the next, centred on their boundary, no more than either side has', () => {
+    const t = withCutTransition(track(), 0, { type: 'dissolve', seconds: 1 });
+    expect(transitionAt(t, 0)).toEqual({ type: 'dissolve', seconds: 1, at: 2, color: '#000000' });
+    // A short neighbour shortens it: the third cut is one second, so a 5 s dip plays over 1 s... no —
+    // both sides bound it: half from each, the smaller side ruling both halves.
+    const short = withCutTransition(track(), 1, { type: 'dip', seconds: 5, color: '#00ff00' });
+    expect(transitionAt(short, 1)).toMatchObject({ type: 'dip', seconds: 1, at: 3.5, color: '#00ff00' });
+    // On the last cut there is no next shot to go to; absent is a straight cut.
+    expect(transitionAt(withCutTransition(track(), 2, { type: 'dissolve', seconds: 1 }), 2)).toBeNull();
+    expect(transitionAt(track(), 0)).toBeNull();
+  });
+
+  it('is set and cleared on the cut, and a wipe must name its template', () => {
+    const wiped = withCutTransition(track(), 0, { type: 'wipe', seconds: 0.5, template: 'pulp.samples.diagonal-wipe' });
+    expect(wiped.cuts[0]!.transition).toMatchObject({ type: 'wipe', template: 'pulp.samples.diagonal-wipe' });
+    expect(withCutTransition(wiped, 0, null).cuts[0]!.transition).toBeUndefined();
+    const stored = sanitizeCutTrack({ cuts: [
+      { id: 'a', from: 0, to: 2, transition: { type: 'dip', seconds: 99, color: '#ABCdef' } },
+      { id: 'b', from: 0, to: 2, transition: { type: 'wipe', seconds: 1 } },
+      { id: 'c', from: 0, to: 2, transition: { type: 'reverb', seconds: 1 } },
+    ] })!;
+    expect(stored.cuts[0]!.transition).toEqual({ type: 'dip', seconds: 5, color: '#abcdef' });
+    expect(stored.cuts[1]!.transition, 'a wipe with no template is no wipe').toBeUndefined();
+    expect(stored.cuts[2]!.transition).toBeUndefined();
+  });
+});
+
+describe('a cut\'s sound unlinked (milestone 49)', () => {
+  it('leads under the previous shot and trails under the next: J and L cuts', () => {
+    // The second cut plays file seconds 1-2.5 at timeline 2-3.5; its sound leads by 0.5 and trails by 0.4.
+    const t = withCutSound(track(), 1, { lead: 0.5, tail: 0.4 });
+    const audio = trackAudio(t)[1]!;
+    expect(audio.value).toMatchObject({ inPoint: 0.5, outPoint: 2.9, delay: 1.5 });
+    expect(audio.span).toEqual({ start: 1.5, end: 3.9 });
+    // The lead is bounded by what the file has before the in point, and by the timeline's own start.
+    const early = withCutSound(track(), 0, { lead: 5 });
+    expect(trackAudio(early)[0]!.value).toMatchObject({ inPoint: 0, delay: 0 });
+    // Muted is silence with the numbers kept; linked again is the picture's own window.
+    expect(trackAudio(withCutSound(t, 1, { muted: true }))).toHaveLength(2);
+    expect(withCutSound(t, 1, null).cuts[1]!.sound).toBeUndefined();
+    expect(sanitizeCutTrack({ cuts: [{ id: 'a', from: 1, to: 2, sound: { lead: 99, muted: true } }] })!.cuts[0]!.sound).toEqual({ lead: 10, muted: true });
+  });
+});
+
+describe('silence removal (milestone 49)', () => {
+  it('cuts the quiet stretches out: a covered cut goes, a straddled one splits, and the rest ripple', () => {
+    // Quiet across 1.5-2.6 of the timeline: the tail of cut 1 and the head of cut 2.
+    const cut = withSilencesCut(track(), [{ start: 1.5, end: 2.6 }]);
+    expect(cut.cuts).toEqual([
+      { id: id(1), from: 0, to: 1.5 },
+      { id: id(2), from: 1.6, to: 2.5 },
+      { id: id(3), from: 0.5, to: 1.5 },
+    ]);
+    // A range over a whole cut removes it; slivers go with the silence rather than surviving.
+    const gone = withSilencesCut(track(), [{ start: 1.99, end: 4.5 }]);
+    expect(gone.cuts).toEqual([{ id: id(1), from: 0, to: 1.99 }]);
+    const t = track();
+    expect(withSilencesCut(t, []), 'nothing found is the track untouched').toBe(t);
+  });
+
+  it('keeps the first piece\'s sound and the last piece\'s transition across a split', () => {
+    const dressed: CutTrack = { cuts: [{ id: id(1), from: 0, to: 2, sound: { lead: 0.5 }, transition: { type: 'dissolve', seconds: 0.5 } }, { id: id(2), from: 0, to: 1 }] };
+    const cut = withSilencesCut(dressed, [{ start: 0.8, end: 1.2 }]);
+    expect(cut.cuts[0]).toEqual({ id: id(1), from: 0, to: 0.8, sound: { lead: 0.5 } });
+    expect(cut.cuts[1]).toEqual({ id: id(1), from: 1.2, to: 2, transition: { type: 'dissolve', seconds: 0.5 } });
   });
 });
 

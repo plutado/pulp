@@ -18,8 +18,9 @@
 import { BrowserWindow } from 'electron';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { access, mkdir, rm } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { templateDefaultSize, type Size } from '../core/aspect';
 import { chosenImageIds, imageGrantKey, imageGrantRequests, imageRequests, imageSlots, MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
 import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, layerSoundChoices, layerTexts, type BlockState } from '../core/layer-layout';
@@ -28,7 +29,7 @@ import { ffprobePathFor } from '../core/media-probe';
 import type { ClipSource } from '../core/video-layer';
 import { resolveLayers } from '../core/layers';
 import { checkImages, readSlotImages } from './image-grant';
-import { lookupClipItem, lookupMedia } from './library-service';
+import { findTemplate, lookupClipItem, lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg, runForBuffer, runWithInput } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan } from '../core/render-plan';
@@ -38,7 +39,7 @@ import { soundAudible } from '../core/sound-layer';
 import { resolveSoundSource } from './sound-grant';
 import { finishedFileWarnings } from './platform-check';
 import { platformPreset } from '../core/platform-presets';
-import { trackAudio } from '../core/cut-track';
+import { trackAudio, transitionAt } from '../core/cut-track';
 import { lengthIn, resolveParams, splitLayers, trackIn } from '../core/params';
 import {
   captureBytesMessage,
@@ -188,17 +189,29 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   // render from wherever they came — the form, a preset, a collection card, a CSV row. An explicit
   // option wins, which is what `--length` on the command line is.
   const chosenLength = job.options?.length ?? lengthIn(job.params);
+  /** Temporary folders the render made (a wipe's captured frames); gone once ffmpeg has read them. */
+  const cleanupDirs: string[] = [];
+  const cleanTemp = async () => {
+    for (const dir of cleanupDirs.splice(0)) await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+  };
   // The cut track rides in the same bag (milestone 49): resolve each cut's clip to its file here,
   // so the plan is pure over paths. A cut whose clip cannot answer stops the render by name — a
   // shot silently dropped from a delivery is worse than being told.
   const track = trackIn(job.params);
-  const trackCuts: { path: string; from: number; to: number }[] = [];
-  for (const cut of track?.cuts ?? []) {
+  const trackCuts: { path: string; from: number; to: number; transition?: { type: 'dissolve' | 'dip'; seconds: number; color?: string } }[] = [];
+  const trackWipes: { template: string; at: number; seconds: number }[] = [];
+  for (const [index, cut] of (track?.cuts ?? []).entries()) {
     const found = lookupClipItem(cut.id);
     if (!found || found.kind !== 'media' || found.entry.sequence) {
       return { ok: false, message: 'A clip on the cut track is not in the library, is offline, or is not a file ffmpeg can read.' };
     }
-    trackCuts.push({ path: found.entry.path, from: cut.from, to: cut.to });
+    // The transition leaving this cut, as it will play: clamped by both sides (src/core/cut-track.ts).
+    const transition = track ? transitionAt(track, index) : null;
+    if (transition?.type === 'wipe' && transition.template) trackWipes.push({ template: transition.template, at: transition.at, seconds: transition.seconds });
+    trackCuts.push({
+      path: found.entry.path, from: cut.from, to: cut.to,
+      ...(transition && transition.type !== 'wipe' ? { transition: { type: transition.type, seconds: transition.seconds, color: transition.color } } : {}),
+    });
   }
   let plan;
   try {
@@ -213,8 +226,27 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
         ? { options: { ...(job.options ?? {}), ...(chosenLength !== undefined ? { length: chosenLength } : {}) } }
         : {}),
       ...(probe?.format ? { rawInput: probe.format } : {}),
-      ...(trackCuts.length > 0 ? { track: { cuts: trackCuts } } : {}),
     });
+    if (trackCuts.length > 0) {
+      // The wipes are drawn at the output's own size and rate, which the plan knows: a first plan
+      // without the track answers both, and the real plan then takes the track and the captures.
+      const wipeDirs: string[] = [];
+      const wipes = await captureTrackWipes(trackWipes, { width: plan.width, height: plan.height }, plan.fps, wipeDirs, warnings);
+      cleanupDirs.push(...wipeDirs);
+      plan = buildRenderPlan({
+        manifest,
+        presetId: job.presetId,
+        outputPath: job.outputPath,
+        overwrite: job.overwrite ?? false,
+        frameFormat,
+        tagAlphaMode: ffmpeg.alphaModeAware,
+        ...(job.options || chosenLength !== undefined
+          ? { options: { ...(job.options ?? {}), ...(chosenLength !== undefined ? { length: chosenLength } : {}) } }
+          : {}),
+        ...(probe?.format ? { rawInput: probe.format } : {}),
+        track: { cuts: trackCuts, ...(wipes.length > 0 ? { wipes } : {}) },
+      });
+    }
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }
@@ -307,6 +339,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
 
   /** Stop ffmpeg and remove whatever it wrote, then report the failure. */
   const fail = async (result: Extract<RenderResult, { ok: false }>): Promise<RenderResult> => {
+    await cleanTemp();
     if (child && exited) {
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
       await exited;
@@ -430,6 +463,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
 
     child.stdin?.end();
     const [code] = await exited;
+    await cleanTemp();
     if (code !== 0) {
       return await fail({ ok: false, message: `ffmpeg exited with code ${code}: ${stderr.trim() || 'no error output'}` });
     }
@@ -684,6 +718,44 @@ async function captureFrame(
  * on a quieter machine instead of writing the item off.
  */
 export type CaptureFramesResult = { ok: true; frames: Buffer[] } | { ok: false; message: string; timedOut?: boolean };
+
+/**
+ * Capture each wipe on the cut track (milestone 49) as numbered RGBA frames in
+ * a temporary folder, at the output's own size — the template's timeline
+ * spread across the transition's duration, which is what a wipe's `scale`
+ * structure means. A wipe that cannot be drawn is a warning and a straight
+ * cut, not a failed render; the folders land in `dirs` for the caller to
+ * clean once ffmpeg has read them.
+ */
+async function captureTrackWipes(
+  wipes: readonly { template: string; at: number; seconds: number }[],
+  size: Size,
+  fps: number,
+  dirs: string[],
+  warnings: string[],
+): Promise<{ pattern: string; at: number; seconds: number }[]> {
+  const out: { pattern: string; at: number; seconds: number }[] = [];
+  for (const wipe of wipes) {
+    const entry = await findTemplate(wipe.template);
+    if (!entry) {
+      warnings.push('A wipe on the cut track is not in the library and plays as a straight cut.');
+      continue;
+    }
+    const frames = Math.max(2, Math.round(wipe.seconds * fps));
+    const own = Math.max(1, Math.round(entry.manifest.duration * entry.manifest.fps));
+    const wanted = Array.from({ length: frames }, (_, k) => Math.round((k / (frames - 1)) * (own - 1)));
+    const shot = await captureTemplateFrames(entry, wanted, { size, frameTimeoutMs: 20_000 });
+    if (!shot.ok) {
+      warnings.push(`The wipe "${entry.manifest.name}" could not be drawn and plays as a straight cut: ${shot.message}`);
+      continue;
+    }
+    const dir = await mkdtemp(join(tmpdir(), 'pulp-wipe-'));
+    dirs.push(dir);
+    await Promise.all(shot.frames.map((png, k) => writeFile(join(dir, `w${String(k).padStart(5, '0')}.png`), png)));
+    out.push({ pattern: join(dir, 'w%05d.png'), at: wipe.at, seconds: wipe.seconds });
+  }
+  return out;
+}
 
 /**
  * Capture named frames of a template as PNGs through **one** offscreen window.

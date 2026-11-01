@@ -511,6 +511,22 @@
       </div>
     </form>
   </dialog>
+  <dialog id="silence-dialog" class="pack-dialog silence-dialog" aria-labelledby="silence-title">
+    <form method="dialog">
+      <h2 id="silence-title">Remove silences</h2>
+      <p class="note">The quiet stretches of the track's sound, found before anything is cut: they shade on the track below, and one edit cuts them all — one undo step.</p>
+      <div class="key-controls">
+        <label>Quieter than, dB <input id="silence-threshold" type="number" min="-90" max="-6" step="1" value="-40"></label>
+        <label>At least, s <input id="silence-min" type="number" min="0.1" max="30" step="0.1" value="0.5"></label>
+        <button id="silence-find" type="button">Find</button>
+        <span id="silence-found" class="note" role="status"></span>
+      </div>
+      <div class="dialog-actions render-actions">
+        <button id="silence-cut" type="button" disabled>Cut them</button>
+        <button id="silence-close" value="cancel">Close</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="key-dialog" class="pack-dialog key-dialog" aria-labelledby="key-title">
     <form method="dialog">
       <h2 id="key-title">Key out a colour</h2>

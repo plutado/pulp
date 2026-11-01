@@ -937,6 +937,14 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .cut .cut-trim.start { left: -3px; }
 .cut .cut-trim.end { right: -3px; }
 .cut .cut-trim:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+/* A transition into the next cut (milestone 49): an hourglass of two triangles on the boundary. */
+.cut .cut-join { position: absolute; right: -5px; top: 3px; width: 10px; height: 10px; pointer-events: none; z-index: 1;
+  background: var(--accent); clip-path: polygon(0 0, 50% 50%, 0 100%, 100% 100%, 50% 50%, 100% 0); }
+.cut .cut-join[hidden] { display: none; }
+/* A quiet stretch the silence scan found (milestone 49), shaded where the cut will fall. */
+.cut-track .cut-silence { position: absolute; top: -2px; bottom: -2px; background: rgba(239, 68, 68, 0.35); border: 1px solid rgba(239, 68, 68, 0.8); border-radius: 2px; pointer-events: none; z-index: 2; }
+.silence-dialog .key-controls label { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--font-secondary); }
+.silence-dialog input[type="number"] { width: 72px; }
 /* A clip dragged from the results over the lanes: the strip says it will take the drop. */
 .transport-lanes.drop-target { outline: 1px dashed var(--accent); outline-offset: -1px; border-radius: 3px; }
 

@@ -21,9 +21,12 @@
 import { effect } from '@preact/signals';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import {
-  cutIndexAt, cutSeconds, cutFromClip, cutWindows, snapTime, splitAt, trackAudio, trackDuration,
-  withCutInserted, withCutMoved, withCutRemoved, withCutWindow, type CutTrack,
+  cutIndexAt, cutSeconds, cutFromClip, cutWindows, DEFAULT_TRANSITION_SECONDS, snapTime, splitAt, trackAudio,
+  trackDuration, transitionAt, withCutInserted, withCutMoved, withCutRemoved, withCutSound, withCutTransition,
+  withCutWindow, withSilencesCut, type CutSound, type CutTransition, type CutTrack,
 } from '../core/cut-track';
+import type { MenuCommand, MenuItemSpec } from '../core/menu';
+import { openContextMenu } from './context-menu';
 import { layerBarPeaks } from '../core/layer-audio';
 import { WAVEFORM_BUCKETS, waveformPath } from '../core/waveform';
 import { requestWaveform, waveforms } from './waveforms';
@@ -40,6 +43,8 @@ interface CutEl {
   label: HTMLSpanElement;
   start: HTMLButtonElement;
   end: HTMLButtonElement;
+  /** The transition into the next cut, marked at the boundary (milestone 49); hidden on a straight cut. */
+  join: HTMLSpanElement;
   /** The cut's sound, drawn inside the body (milestone 49); empty while it has none. */
   wave: SVGSVGElement;
   wavePath: SVGPathElement;
@@ -104,10 +109,20 @@ export function cutTrackUpdate(track: CutTrack | null, manifest: TemplateManifes
       handle.setAttribute('aria-valuetext', `${tidy(value)} seconds`);
     }
   });
+  cuts.forEach((cut, index) => {
+    const el = cutEls[index]!;
+    const transition = track ? transitionAt(track, index) : null;
+    el.join.toggleAttribute('hidden', !transition);
+    if (transition) el.join.title = `${TRANSITION_LABELS[transition.type]} over ${transition.seconds} s`;
+  });
+  // The shaded silences were found for the track as it stood; an edit makes them stale.
+  if (silences.length > 0 && JSON.stringify(track?.cuts ?? []) !== silenceKey) clearSilences();
   if (selected !== null && selected >= cuts.length) selected = null;
   paintSelection();
   paintWaves();
 }
+
+const TRANSITION_LABELS: Record<CutTransition['type'], string> = { dissolve: 'Dissolve', dip: 'Dip', wipe: 'Wipe' };
 
 /**
  * Each cut's sound on its own stretch of the lane (milestone 49): the peaks
@@ -175,19 +190,23 @@ function makeCut(): CutEl {
   body.append(wave, label);
   const start = trimHandle('start');
   const end = trimHandle('end');
-  root.append(body, start, end);
+  const join = document.createElement('span');
+  join.className = 'cut-join';
+  join.toggleAttribute('hidden', true);
+  root.append(body, start, end, join);
   body.addEventListener('pointerdown', onMovePointerDown);
   body.addEventListener('pointermove', onMovePointerMove);
   body.addEventListener('pointerup', onMovePointerUp);
   body.addEventListener('pointercancel', onMovePointerUp);
   body.addEventListener('keydown', onCutKeyDown);
+  body.addEventListener('contextmenu', onCutContextMenu);
   for (const [which, handle] of [['start', start], ['end', end]] as const) {
     handle.addEventListener('pointerdown', (e) => onTrimPointerDown(e, which));
     handle.addEventListener('pointermove', onTrimPointerMove);
     handle.addEventListener('pointerup', onTrimPointerUp);
     handle.addEventListener('pointercancel', onTrimPointerUp);
   }
-  return { root, body, label, start, end, wave, wavePath };
+  return { root, body, label, start, end, join, wave, wavePath };
 }
 
 function trimHandle(which: 'start' | 'end'): HTMLButtonElement {
@@ -390,6 +409,190 @@ function onSplitKey(e: KeyboardEvent): void {
   e.preventDefault();
 }
 
+// ---------------------------------------------------------------- the cut's own menu (milestone 49)
+
+/** A template a wipe transition may play: typed a wipe, or an older bundled one tagged as one. */
+function isWipeTemplate(manifest: { type?: string; tags?: string[] }): boolean {
+  return manifest.type === 'wipe' || (manifest.tags ?? []).includes('wipe');
+}
+
+/** The bundled wipes a transition may play, by name. */
+function wipeChoices(): { id: string; name: string }[] {
+  return (appState.value.index?.templates ?? [])
+    .filter((t) => isWipeTemplate(t.manifest))
+    .map((t) => ({ id: t.id, name: t.manifest.name }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 12);
+}
+
+/** What the menu offers a cut: its transition, its sound unlinked, the track's silences, and the ripple. */
+function cutMenuItems(track: CutTrack, index: number): MenuItemSpec[] {
+  const cut = track.cuts[index]!;
+  const last = index === track.cuts.length - 1;
+  const t = cut.transition;
+  const radio = (label: string, arg: string, checked: boolean): MenuItemSpec =>
+    ({ command: 'cut.transition', label, arg, type: 'radio', checked });
+  const transition: MenuItemSpec[] = [
+    radio('None', 'none', !t),
+    radio('Dissolve', 'dissolve', t?.type === 'dissolve'),
+    radio('Dip to black', 'dip:#000000', t?.type === 'dip' && (t.color ?? '#000000') === '#000000'),
+    radio('Dip to white', 'dip:#ffffff', t?.type === 'dip' && t.color === '#ffffff'),
+    ...wipeChoices().map((w) => radio(w.name, `wipe:${w.id}`, t?.type === 'wipe' && t.template === w.id)),
+    { type: 'separator' },
+    ...[0.25, 0.5, 1, 2].map((seconds): MenuItemSpec => ({
+      command: 'cut.transitionSeconds', label: `Over ${seconds} s`, arg: String(seconds), type: 'radio',
+      checked: (t?.seconds ?? DEFAULT_TRANSITION_SECONDS) === seconds, enabled: Boolean(t),
+    })),
+  ];
+  const soundRadio = (label: string, arg: string, checked: boolean): MenuItemSpec =>
+    ({ command: 'cut.sound', label, arg, type: 'radio', checked });
+  const sd = cut.sound;
+  const sound: MenuItemSpec[] = [
+    soundRadio('Linked', 'linked', !sd),
+    soundRadio('Muted', 'muted', sd?.muted === true),
+    { type: 'separator' },
+    ...[0.25, 0.5, 1].map((v) => soundRadio(`Leads ${v} s (J cut)`, `lead:${v}`, sd?.lead === v && !sd?.muted)),
+    ...[0.25, 0.5, 1].map((v) => soundRadio(`Trails ${v} s (L cut)`, `tail:${v}`, sd?.tail === v && !sd?.muted)),
+  ];
+  return [
+    ...(last ? [] : [{ label: 'Transition', submenu: transition } satisfies MenuItemSpec]),
+    { label: 'Sound', submenu: sound },
+    { type: 'separator' },
+    { command: 'cut.silences', label: 'Remove Silences…' },
+    { command: 'cut.delete', label: 'Ripple Delete' },
+  ];
+}
+
+function onCutContextMenu(e: MouseEvent): void {
+  const index = indexOfEl(e.currentTarget);
+  const track = current.track;
+  if (!track || !track.cuts[index]) return;
+  e.preventDefault();
+  e.stopPropagation();
+  selected = index;
+  paintSelection();
+  openContextMenu({
+    x: e.clientX,
+    y: e.clientY,
+    doc: (e.currentTarget as HTMLElement).ownerDocument,
+    items: cutMenuItems(track, index),
+    run: (command: MenuCommand, arg: string | null) => runCutCommand(command, arg, index),
+  });
+}
+
+function runCutCommand(command: string, arg: string | null, index: number): void {
+  const editor = layerEditor();
+  const track = editor?.track();
+  const cut = track?.cuts[index];
+  if (!editor || !track || !cut) return;
+  if (command === 'cut.delete') {
+    selected = null;
+    setTrack(withCutRemoved(track, index), true);
+    return;
+  }
+  if (command === 'cut.silences') {
+    openSilenceDialog();
+    return;
+  }
+  if (command === 'cut.transition') {
+    const seconds = cut.transition?.seconds ?? DEFAULT_TRANSITION_SECONDS;
+    let transition: CutTransition | null = null;
+    if (arg === 'dissolve') transition = { type: 'dissolve', seconds };
+    else if (arg?.startsWith('dip:')) transition = { type: 'dip', seconds, color: arg.slice(4) };
+    else if (arg?.startsWith('wipe:')) transition = { type: 'wipe', seconds, template: arg.slice(5) };
+    setTrack(withCutTransition(track, index, transition), true);
+    return;
+  }
+  if (command === 'cut.transitionSeconds' && cut.transition) {
+    setTrack(withCutTransition(track, index, { ...cut.transition, seconds: Number(arg) || DEFAULT_TRANSITION_SECONDS }), true);
+    return;
+  }
+  if (command === 'cut.sound') {
+    let sound: CutSound | null = null;
+    if (arg === 'muted') sound = { ...cut.sound, muted: true };
+    else if (arg?.startsWith('lead:')) sound = { ...cut.sound, lead: Number(arg.slice(5)) };
+    else if (arg?.startsWith('tail:')) sound = { ...cut.sound, tail: Number(arg.slice(5)) };
+    if (sound?.muted !== true && sound) delete sound.muted;
+    setTrack(withCutSound(track, index, sound), true);
+  }
+}
+
+// ---------------------------------------------------------------- silence removal (milestone 49)
+
+/** The quiet stretches last found, on the timeline, and the cuts they were found for. */
+let silences: { start: number; end: number }[] = [];
+let silenceKey = '';
+const shades: HTMLSpanElement[] = [];
+
+function clearSilences(): void {
+  silences = [];
+  silenceKey = '';
+  for (const shade of shades.splice(0)) shade.remove();
+  const cutButton = document.getElementById('silence-cut') as HTMLButtonElement | null;
+  if (cutButton) cutButton.disabled = true;
+  const found = document.getElementById('silence-found');
+  if (found) found.textContent = '';
+}
+
+/** Shade the found stretches on the lane, where the cut will fall. */
+function paintSilences(): void {
+  for (const shade of shades.splice(0)) shade.remove();
+  if (!host || current.length <= 0) return;
+  for (const range of silences) {
+    const shade = document.createElement('span');
+    shade.className = 'cut-silence';
+    shade.style.left = `${(range.start / current.length) * 100}%`;
+    shade.style.width = `${((range.end - range.start) / current.length) * 100}%`;
+    shade.title = `Quiet: ${Math.round(range.start * 100) / 100}-${Math.round(range.end * 100) / 100} s`;
+    host.append(shade);
+    shades.push(shade);
+  }
+}
+
+function openSilenceDialog(): void {
+  (document.getElementById('silence-dialog') as HTMLDialogElement | null)?.showModal();
+}
+
+function wireSilenceDialog(): void {
+  const dialog = document.getElementById('silence-dialog') as HTMLDialogElement | null;
+  if (!dialog) return;
+  const threshold = document.getElementById('silence-threshold') as HTMLInputElement;
+  const minimum = document.getElementById('silence-min') as HTMLInputElement;
+  const find = document.getElementById('silence-find') as HTMLButtonElement;
+  const found = document.getElementById('silence-found') as HTMLElement;
+  const cutButton = document.getElementById('silence-cut') as HTMLButtonElement;
+  find.addEventListener('click', () => {
+    const track = layerEditor()?.track();
+    if (!track) return;
+    found.textContent = 'Listening…';
+    const asked = JSON.stringify(track.cuts);
+    void window.pulp.trackSilences({ cuts: track.cuts.map((c) => ({ id: c.id, from: c.from, to: c.to })), thresholdDb: Number(threshold.value), minSeconds: Number(minimum.value) })
+      .then(({ ranges }) => {
+        if (JSON.stringify(layerEditor()?.track()?.cuts ?? []) !== asked) return;
+        silences = ranges;
+        silenceKey = asked;
+        paintSilences();
+        const total = Math.round(ranges.reduce((sum, r) => sum + (r.end - r.start), 0) * 10) / 10;
+        found.textContent = ranges.length === 0 ? 'Nothing that quiet for that long.' : `${ranges.length} quiet ${ranges.length === 1 ? 'stretch' : 'stretches'}, ${total} s, shaded on the track.`;
+        cutButton.disabled = ranges.length === 0;
+      });
+  });
+  cutButton.addEventListener('click', () => {
+    const editor = layerEditor();
+    const track = editor?.track();
+    if (!editor || !track || silences.length === 0) return;
+    // One call, one undo step: every quiet stretch goes together.
+    const cut = withSilencesCut(track, silences);
+    clearSilences();
+    editor.setTrack(cut.cuts.length > 0 ? cut : null, true);
+    dialog.close();
+  });
+  dialog.addEventListener('close', () => {
+    // The shading belongs to the conversation the dialog held; closed, the lane is itself again.
+    clearSilences();
+  });
+}
+
 // ---------------------------------------------------------------- the drop from the results
 
 /** Where on the track a pointer is, in seconds, by the lane's own scale. */
@@ -409,6 +612,25 @@ function onDrop(e: DragEvent): void {
   }
   const entry = mediaFor(itemId);
   if (!entry || entry.mediaKind !== 'video' || entry.sequence) {
+    // A bundled wipe dropped on the track lands on the join nearest the hand (milestone 49).
+    const wipe = (appState.value.index?.templates ?? []).find((t) => t.id === itemId && isWipeTemplate(t.manifest));
+    const track = current.track;
+    if (wipe && track && track.cuts.length > 1) {
+      const time = timeAt(e.clientX);
+      const ends = cutWindows(track).slice(0, -1).map((w) => w.end);
+      let boundary = 0;
+      ends.forEach((end, i) => {
+        if (Math.abs(end - time) < Math.abs(ends[boundary]! - time)) boundary = i;
+      });
+      const seconds = track.cuts[boundary]!.transition?.seconds ?? DEFAULT_TRANSITION_SECONDS;
+      selected = boundary;
+      setTrack(withCutTransition(track, boundary, { type: 'wipe', seconds, template: wipe.id }), true);
+      return;
+    }
+    if (wipe) {
+      say('A wipe goes between two cuts: the track needs at least two.');
+      return;
+    }
     say('Only a clip can join the cut track.');
     return;
   }
@@ -447,6 +669,7 @@ export function mountCutTrack(el: HTMLDivElement, lanesEl: HTMLDivElement, note:
   }
   lanes.addEventListener('drop', onDrop);
   window.addEventListener('keydown', onSplitKey);
+  wireSilenceDialog();
   // Peaks arrive in the background: the cuts catch up when they land.
   effect(() => {
     void waveforms.value;
