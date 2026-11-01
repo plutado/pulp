@@ -81,7 +81,7 @@ Milestones 1-6, 10-13, 15, 18-31, 33, 35-48, 51-53 (renderer, alpha export, para
 |---|---|---|
 | 34. A browse panel that says what things are | Built, but for one item: a short card sort with three to five people on the new category labels before they are final | 1-2 h |
 | 32. Stock library import | Open the licensed stock media you already own where it lies — folders, drives, disc images, zipped downloads — browsed as it was organised, with clip sets that stretch, layered music, and what can't be read said plainly | 27-46 h |
-| 49. A cut track | Clips cut end to end under the layers — split, trim, ripple, transitions, silence removal — rendered as one file or exported as an edit for an editing app with the graphics as alpha renders | 32-48 h |
+| 49. A cut track | Clips cut end to end under the layers — split, trim, ripple, transitions, silence removal — rendered as one file or exported as an edit for an editing app with the graphics as alpha renders | 13-19 h |
 | 50. Captions from speech | On-device transcription into a captions layer, caption styles with the spoken word highlighted, burned in or as an alpha track, and SRT and WebVTT | 20-32 h |
 | 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide with a starter folder, an accessibility pass across every region, a user guide, a Settings window, third-party notices, a release process and project basics (local crash reporting is done) | 13-21 h |
 | 17. Unsigned builds and releases | electron-builder, an app icon of Pulp's own and the names and shortcuts each system shows, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 8-14 h |
