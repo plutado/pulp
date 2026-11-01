@@ -57,7 +57,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 47. One Add menu in the browse header (**done**) | 3-5 h |
 | 20. Social-ready export (**done**) | 9-14 h |
 | 48. Sound in a project (**done**) | 19-30 h |
-| 49. A cut track | 40-60 h |
+| 49. A cut track (**done**) | 40-60 h |
 | 50. Captions from speech | 20-32 h |
 | 51. Keyframes on layers (**done**) | 12-20 h |
 | 52. Clip clean-up for compositing (**done**) | 10-16 h |
@@ -69,7 +69,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **741-1195 h** |
-| **Still open through 1.0 (unticked items only)** | **90-146 h** |
+| **Still open through 1.0 (unticked items only)** | **77-127 h** |
 | **Total including post-1.0 items** | **767-1243 h** |
 
 ## 0. Foundation (done)
