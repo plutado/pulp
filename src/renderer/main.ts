@@ -9,7 +9,7 @@ import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback 
 import { initCleanup } from './cleanup';
 import { initShell } from './shell';
 import { closeInspectorUnlessPinned, initInspectorTabs, openInspector, showInspectorTab } from './inspector-tabs';
-import { chosenLibraryItems, currentLayers, currentRawParams, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
+import { chosenLibraryItems, currentLayers, currentRawParams, currentTrack, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
 import { currentOptions, currentPresetId, initInspectorOutput, outputClear, outputEdited, outputSetFfmpeg, outputShow, outputShowMedia, setTemplateShower, updateRenderControls } from './inspector-output';
 import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
@@ -150,7 +150,7 @@ function select(entry: LibraryEntry): void {
   showInspectorTab('parameters');
   void window.pulp.markItemUsed(entry.id);
   selectedTemplate.value = entry;
-  stageShowTemplate(entry, paramsShow(entry), currentLayers());
+  stageShowTemplate(entry, paramsShow(entry), currentLayers(), currentTrack());
   outputShow(entry);
   renderResults();
 }

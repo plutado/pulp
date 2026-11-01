@@ -38,6 +38,12 @@ describe('parameter presets', () => {
     expect(applyPreset(manifest, { '@layers': stacks, nonsense: 1 })).toEqual({ '@layers': stacks });
   });
 
+  it('keeps the cut track, since it rides with the parameters (milestone 49)', () => {
+    const track = { cuts: [{ id: 'clip1', from: 0, to: 2.5 }, { id: 'clip2', from: 1, to: 3 }] };
+    expect(diffFromDefaults(manifest, { '@track': track })['@track']).toEqual(track);
+    expect(applyPreset(manifest, { '@track': track, nonsense: 1 })).toEqual({ '@track': track });
+  });
+
   it('keeps a layer\'s keyframes, since they ride on the layer (milestone 51)', () => {
     const stacks = { strap: [{ id: 'title', type: 'text', keys: [{ at: 0, dx: -0.2, dy: 0, scale: 1, rotate: 0, opacity: 1, easing: 'linear' }, { at: 2, dx: 0.2, dy: 0, scale: 2, rotate: 90, opacity: 0.5, easing: 'hold' }] }] };
     expect(diffFromDefaults(manifest, { '@layers': stacks })['@layers']).toEqual(stacks);

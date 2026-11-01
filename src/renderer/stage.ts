@@ -28,6 +28,8 @@ import { lengthFrameCount, lengthParts, MAX_LENGTH_SECONDS, minimumLength, resol
 import type { ResolvedParams } from '../core/params';
 import { layerAtPoint, layerCentre, mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
 import { mountStageMenu } from './stage-menu';
+import type { CutTrack } from '../core/cut-track';
+import { cutTrackUpdate, mountCutTrack } from './cut-track';
 import { layerBarsUpdate, mountLayerBars } from './stage-bars';
 import { layerEditor, selectedLayer } from './layer-edit';
 import type { LaidReport } from '../core/stage-place';
@@ -128,6 +130,8 @@ const s = {
   clipSources: {} as Record<string, ClipSource>,
   /** Seconds the graphic runs for, when a length has been chosen (milestone 30). */
   length: undefined as number | undefined,
+  /** The project's cut track (milestone 49), or none: the shots under the layers. */
+  track: null as CutTrack | null,
   /**
    * A frame sequence being previewed on its own (milestone 30): a folder of
    * numbered frames has no video element to play it, so the stage steps it
@@ -316,6 +320,8 @@ function applyTrim(): void {
 /** The bars under the scrub bar (milestone 28): the layers of the template being previewed, at its length. */
 function applyLayerBars(): void {
   layerBarsUpdate(s.manifest, s.layers, s.length, Boolean(s.manifest) && !s.sequence);
+  // And the cut track's lane under them (milestone 49), on the same scale.
+  cutTrackUpdate(s.track, s.manifest, s.length, Boolean(s.manifest) && !s.sequence);
 }
 
 function updateTransport(): void {
@@ -640,7 +646,7 @@ function drawWaveform(entry: MediaEntry): void {
 }
 
 /** Load a template and show the frame at mid-progress, the frame the thumbnails use. */
-export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, layers: LayerValues = {}): void {
+export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, layers: LayerValues = {}, track: CutTrack | null = null): void {
   stageStop();
   clearMediaPreview();
   // A different template is a different mix: the sounds go with the stack they played for, and
@@ -654,6 +660,7 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
   s.manifest = m;
   s.params = params;
   s.layers = layers;
+  s.track = track;
   s.frame = Math.floor(previewFrames() / 2);
   s.previewReady = false;
   s.inFlight = false;
@@ -867,9 +874,10 @@ function onLengthKeyDown(e: KeyboardEvent): void {
 }
 
 /** New parameter values (edit, undo, preset): redraw the current frame with them. */
-export function stageSetParams(params: ResolvedParams, layers: LayerValues = {}, length?: number): void {
+export function stageSetParams(params: ResolvedParams, layers: LayerValues = {}, length?: number, track: CutTrack | null = null): void {
   s.params = params;
   s.layers = layers;
+  s.track = track;
   // A changed volume, mute or clip takes effect mid-play (milestone 48); new clips join when their sources land.
   layerSoundsSync(s.layers, s.clipSources, mediaEntryFor);
   layerSoundsUpdate(soundTime(), s.playing, soundMaster(), soundLength());
@@ -1026,6 +1034,12 @@ export function initStage(): void {
   });
   els.sequenceFpsReset.addEventListener('click', () => setSequenceFps(undefined));
   mountLayerBars($<HTMLDivElement>('layer-bars'), els.row);
+  // The cut track's lane, with the stage's own fps for the split's frame step and the stage's
+  // note for a refused drop (milestone 49).
+  mountCutTrack($<HTMLDivElement>('cut-track'), $<HTMLDivElement>('transport-lanes'), (text) => {
+    els.note.hidden = false;
+    els.note.textContent = text;
+  });
   els.lengthHandle.addEventListener('pointerdown', onLengthPointerDown);
   els.lengthHandle.addEventListener('pointermove', onLengthPointerMove);
   els.lengthHandle.addEventListener('pointerup', onLengthPointerUp);

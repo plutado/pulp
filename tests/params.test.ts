@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateManifest, type TemplateManifest } from '../src/core/manifest';
-import { defaultParams, resolveParams } from '../src/core/params';
+import { defaultParams, resolveParams, splitLayers, trackIn, withTrack } from '../src/core/params';
 import { rawManifest } from './fixtures';
 
 function manifest(): TemplateManifest {
@@ -105,6 +105,23 @@ describe('resolveParams', () => {
     const { values, issues } = resolveParams(manifest(), { nope: 1 });
     expect(values).not.toHaveProperty('nope');
     expect(issues).toEqual([{ id: 'nope', message: 'unknown parameter; ignored' }]);
+  });
+
+  it('lets the passengers ride without a report: a parameter id can never start with "@"', () => {
+    const bag = { '@length': 8, '@layers': {}, '@track': { cuts: [] } };
+    expect(resolveParams(manifest(), bag).issues).toEqual([]);
+  });
+
+  it('carries the cut track in the bag and splits it out before resolution (milestone 49)', () => {
+    const cuts = [{ id: 'a'.repeat(24), from: 0, to: 2 }];
+    const bag = withTrack({ title: 'Hi' }, { cuts });
+    expect(trackIn(bag)).toEqual({ cuts });
+    expect(splitLayers(bag).params).toEqual({ title: 'Hi' });
+    // None is none: the key leaves the bag, so a project nobody has cut serializes as it always did.
+    expect(withTrack(bag, null)).toEqual({ title: 'Hi' });
+    expect(trackIn({ title: 'Hi' })).toBeNull();
+    // What rides is read back sanitized, not trusted.
+    expect(trackIn({ '@track': { cuts: [{ id: '', from: 0, to: 1 }] } })).toBeNull();
   });
 
   it('does not treat inherited object properties as input', () => {

@@ -1395,6 +1395,106 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+    it('builds the cut track: clips end to end from drops, split at the playhead, trimmed with snapping, rippled out and moved, one undo step each (milestone 49)', async () => {
+      await clickResult('Title Card');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const lane = `document.getElementById('cut-track')`;
+      const cut = (i: number) => `document.querySelectorAll('#cut-track .cut')[${i}]`;
+      const count = () => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`);
+      const labels = () => page.eval<string[]>(`[...document.querySelectorAll('#cut-track .cut .cut-label')].map((l) => l.textContent)`);
+      const ends = () => page.eval<string[]>(`[...document.querySelectorAll('#cut-track .cut .cut-trim.end')].map((h) => h.getAttribute('aria-valuenow'))`);
+      const clipId = await onResult<string>('clip', '(li) => li.dataset.id');
+      const tallId = await onResult<string>('tall', '(li) => li.dataset.id');
+      /** A drag over and a drop at a fraction across the lanes, as a real drag from a result card sends them. */
+      const dropOn = (fx: number, id: string) =>
+        page.eval<boolean>(
+          `(() => {
+            const el = document.getElementById('transport-lanes');
+            const r = el.getBoundingClientRect();
+            const dt = new DataTransfer();
+            dt.setData('application/x-pulp-item', ${JSON.stringify(id)});
+            const at = { clientX: r.left + r.width * ${fx}, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true };
+            el.dispatchEvent(new DragEvent('dragover', at));
+            el.dispatchEvent(new DragEvent('drop', at));
+            return true;
+          })()`,
+        );
+      const scrub = (frame: number) => page.eval(`(() => { const s = document.getElementById('scrub'); s.value = '${frame}'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      const splitKey = () => page.eval(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, cancelable: true }))`);
+      try {
+        // No track, no lane: a project without one works as now.
+        expect(await page.eval<boolean>(`${lane}.hidden`)).toBe(true);
+
+        // Two clips dropped from the results land end to end, each drop one step. The card is
+        // 5 s; the two-second fixtures sit at 0-2 and 2-4 on the scrub bar's own scale.
+        await dropOn(0.5, clipId!);
+        await until(async () => (await count()) === 1, 'the first cut');
+        expect(await page.eval<boolean>(`${lane}.hidden`)).toBe(false);
+        await dropOn(0.9, tallId!);
+        await until(async () => (await count()) === 2, 'the second cut, after the first');
+        expect(await labels()).toEqual(['clip', 'tall']);
+        expect(await ends()).toEqual(['2', '4']);
+
+        // Split at the playhead (Cmd/Ctrl+B): the cut under one second becomes two meeting there.
+        await scrub(30);
+        await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) === 30), 'the playhead at one second');
+        await splitKey();
+        await until(async () => (await count()) === 3, 'the split');
+        expect(await ends()).toEqual(['1', '2', '4']);
+        // At a boundary there is nothing to split: no third piece, and no undo step to pay later.
+        await scrub(60);
+        await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) === 60), 'the playhead on the cut');
+        await splitKey();
+        expect(await count()).toBe(3);
+
+        // Trim the last cut's end by a second: everything is a ripple on an end-to-end track.
+        const width = await page.eval<number>(`${lane}.getBoundingClientRect().width`);
+        const px = (seconds: number) => Math.round((seconds / 5) * width);
+        const drag = async (target: string, dx: number) => {
+          await page.eval(`${target}.dispatchEvent(new PointerEvent('pointerdown', { button: 0, pointerId: 7, clientX: 400, bubbles: true }))`);
+          await page.eval(`${target}.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: ${400 + dx}, bubbles: true }))`);
+          await page.eval(`${target}.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, clientX: ${400 + dx}, bubbles: true }))`);
+        };
+        await drag(`${cut(2)}.querySelector('.cut-trim.end')`, -px(1));
+        await until(async () => Math.abs(parseFloat((await ends())[2]!) - 3) < 0.05, 'the end a second earlier');
+
+        // And a trim snaps: dragged to within a few pixels of the playhead, it lands exactly on it.
+        await scrub(75);
+        await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) === 75), 'the playhead at 2.5 s');
+        await drag(`${cut(2)}.querySelector('.cut-trim.end')`, -px(0.47));
+        await until(async () => (await ends())[2] === '2.5', 'the end snapped to the playhead');
+
+        // Move the last cut to the front by its body: it lands at the nearest boundary.
+        await drag(`${cut(2)}.querySelector('.cut-body')`, -px(2.3));
+        await until(async () => (await labels()).join() === 'tall,clip,clip', 'the cut moved to the front');
+
+        // Ripple delete: the middle goes and the one after closes up.
+        await page.eval(`${cut(1)}.querySelector('.cut-body').dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }))`);
+        await until(async () => (await count()) === 2, 'the middle rippled out');
+        expect(await ends()).toEqual(['0.5', '1.5']);
+
+        // Every gesture was one undo step, including the boundary split that wrote none.
+        const undo = () => page.eval(`document.getElementById('undo').click()`);
+        await undo();
+        await until(async () => (await count()) === 3, 'undo brings the deleted cut back');
+        await undo();
+        await until(async () => (await labels()).join() === 'clip,clip,tall', 'undo puts the move back');
+        await undo();
+        await until(async () => (await ends())[2] === '3', 'undo takes the snapped trim back');
+        await undo();
+        await until(async () => (await ends())[2] === '4', 'undo takes the trim back');
+        await undo();
+        await until(async () => (await count()) === 2, 'undo heals the split');
+        await undo();
+        await until(async () => (await count()) === 1, 'undo takes the second drop back');
+        await undo();
+        await until(() => page.eval<boolean>(`${lane}.hidden`), 'undo takes the track away entirely');
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
     it('keys a layer at the playhead, eases each key its own way, and keyframing writes a key from an edit (milestone 51)', async () => {
       await clickResult('Title Card');
       await openTab('parameters');

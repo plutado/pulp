@@ -7,6 +7,7 @@
  * default and is reported as an issue rather than throwing.
  */
 
+import { sanitizeCutTrack, type CutTrack } from './cut-track';
 import { sanitizeImageValue, type ImageValue } from './image-slot';
 import type { LayerValues } from './layers';
 import { isValidColor, type TemplateManifest, type TemplateParameter } from './manifest';
@@ -31,13 +32,30 @@ export const LAYERS_KEY = '@layers';
  */
 export const LENGTH_KEY = '@length';
 
+/** Where the cut track rides (milestone 49): the project's shots, no more a parameter than the layers are. */
+export const TRACK_KEY = '@track';
+
 /** Raw values split into the parameters and the layer stacks that rode with them. */
 export function splitLayers(raw: Record<string, unknown>): { params: Record<string, unknown>; layers: LayerValues } {
   const { [LAYERS_KEY]: layers, ...rest } = raw;
-  // The length rides here too, and is read with `lengthIn`; it is no more a parameter than the
-  // layers are, so it does not travel on into parameter resolution.
+  // The length and the cut track ride here too, and are read with `lengthIn` and `trackIn`; they
+  // are no more parameters than the layers are, so they do not travel on into resolution.
   delete rest[LENGTH_KEY];
+  delete rest[TRACK_KEY];
   return { params: rest, layers: (layers ?? {}) as LayerValues };
+}
+
+/** The cut track riding with a bag of raw values, sanitized, or null when the project has none. */
+export function trackIn(raw: Record<string, unknown>): CutTrack | null {
+  return sanitizeCutTrack(raw[TRACK_KEY]);
+}
+
+/** The raw values with a cut track put in, or with it taken out when there is none. */
+export function withTrack(params: Record<string, unknown>, track: CutTrack | null): Record<string, unknown> {
+  const out = { ...params };
+  if (track === null || track.cuts.length === 0) delete out[TRACK_KEY];
+  else out[TRACK_KEY] = track;
+  return out;
 }
 
 /** The length riding with a bag of raw values, or undefined when none was chosen. */
@@ -152,7 +170,9 @@ export function resolveParams(
       : param.default;
   }
   for (const key of Object.keys(input)) {
-    if (key === LAYERS_KEY) continue; // the layer stacks ride in the same bag; they are not a parameter
+    // The layers, the length and the cut track ride in the same bag; a parameter id can never
+    // start with "@", so everything that does is a passenger rather than an unknown.
+    if (key.startsWith('@')) continue;
     if (!known.has(key)) issues.push({ id: key, message: 'unknown parameter; ignored' });
   }
   return { values, issues };

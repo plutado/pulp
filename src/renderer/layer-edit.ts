@@ -9,6 +9,7 @@
  */
 
 import { signal } from '@preact/signals';
+import type { CutTrack } from '../core/cut-track';
 import type { Block, Layer, LayerType } from '../core/layers';
 
 /** The selected layer, shared by the stage and the Parameters tab; null is nothing selected. */
@@ -54,6 +55,14 @@ export interface LayerEditor {
    * `commit` makes it one undo step, false is a live drag.
    */
   setLength(length: number | undefined, commit: boolean): void;
+  /** The cut track as it stands (milestone 49); null when the project has none. */
+  track(): CutTrack | null;
+  /**
+   * Replace the cut track, as the lane's gestures do (src/renderer/cut-track.ts);
+   * null removes it. `commit` makes it one undo step — a drop, a split, a
+   * delete, the end of a trim or a move — false is a live drag.
+   */
+  setTrack(track: CutTrack | null, commit: boolean): void;
 }
 
 let editor: LayerEditor | null = null;

@@ -914,6 +914,24 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .scrub-marks .mark.cover { background: var(--text); }
 .scrub-marks .mark.cover::before { content: ''; position: absolute; top: -4px; left: -3px; width: 8px; height: 5px; border-radius: 1px; background: var(--text); }
 
+/* The cut track (milestone 49): the project's shots end to end under the layer bars, on the scrub
+   bar's scale. A cut reads as footage rather than a layer — a touch of green against the bars'
+   slate — and its trim handles and selection wear the bars' own shapes, so one hand serves both. */
+.cut-track { position: relative; height: 16px; margin-top: 3px; flex: 0 0 auto; }
+.cut-track[hidden] { display: none; }
+.cut { position: absolute; top: 0; bottom: 0; min-width: 6px; }
+.cut .cut-body { position: absolute; inset: 0; width: 100%; margin: 0; padding: 0 6px; border: 1px solid #0d1117; border-radius: 3px; background: rgba(134, 180, 148, 0.35); cursor: grab; overflow: hidden; text-align: left; }
+.cut.selected .cut-body { background: rgba(134, 213, 166, 0.55); }
+.cut .cut-body:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+.cut .cut-label { display: block; font-size: var(--font-caption); line-height: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.cut .cut-trim { position: absolute; top: -1px; width: 7px; height: 18px; margin: 0; padding: 0; border: 1px solid #0d1117; border-radius: 2px; background: var(--muted); cursor: ew-resize; }
+.cut.selected .cut-trim { background: var(--accent); }
+.cut .cut-trim.start { left: -3px; }
+.cut .cut-trim.end { right: -3px; }
+.cut .cut-trim:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+/* A clip dragged from the results over the lanes: the strip says it will take the drop. */
+.transport-lanes.drop-target { outline: 1px dashed var(--accent); outline-offset: -1px; border-radius: 3px; }
+
 /* The cover's own row under its checkbox: the frame, and a button that takes the playhead's. */
 .cover-row { display: flex; align-items: flex-end; gap: var(--space-2); margin: var(--space-1) 0 0 var(--space-4); }
 .cover-row[hidden] { display: none; }

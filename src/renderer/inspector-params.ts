@@ -12,7 +12,7 @@ import type { TemplateEntry } from '../core/library-types';
 import type { TemplateManifest, TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
-import { LAYERS_KEY, lengthIn, resolveParams, withLength, type ResolvedParams } from '../core/params';
+import { LAYERS_KEY, lengthIn, resolveParams, trackIn, withLength, withTrack, type ResolvedParams } from '../core/params';
 import {
   DEFAULT_TRANSITION, isTemplateMovement, isWholeGraphic, LAYER_TRANSITIONS, roundSeconds, spanWindow,
   TRANSITION_DIRECTIONS, TRANSITION_LIMITS, type LayerSpan, type LayerTransition, type LayerTransitions,
@@ -49,6 +49,7 @@ import { IMAGE_TREATMENTS, sanitizeImageValue, sanitizePsdChoice, type ImageValu
 import { fileHiddenLayers, layersTopFirst, layerShown, placeableLayers, psdLimitSummary, type PsdOutline } from '../core/psd';
 import { hiddenDiffersFromFile, hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines } from './psd-state';
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue } from '../core/video-layer';
+import { type CutTrack } from '../core/cut-track';
 import { DEFAULT_VOICE_AMOUNT, VOICE_DESCRIPTIONS, VOICE_LABELS, VOICE_LIMITS, VOICE_TREATMENTS, type VoiceValue } from '../core/voice-treatment';
 import { EMPTY_SOUND, SOUND_ENDINGS, SOUND_LIMITS, type SoundEnding, type SoundValue } from '../core/sound-layer';
 import { DEFAULT_CURVE, DEFAULT_KEY_EASING, KEY_EASINGS, keyedPoseAt, sanitizeKeys, withKeyAt, type KeyEasing, type LayerKey } from '../core/layer-keys';
@@ -198,7 +199,7 @@ function setParam(id: string, value: unknown): void {
   p.raw[id] = value;
   editorFor(selected.manifest.id).current = p.raw;
   p.values = resolveParams(selected.manifest, p.raw).values;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw));
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack());
   scheduleCommit();
   updateResetButtons();
 }
@@ -218,7 +219,7 @@ function applySnapshot(snapshot: Snapshot, record: boolean): void {
   editor.committed = { ...p.raw };
   p.values = resolveParams(selected.manifest, p.raw).values;
   buildParamForm(selected.manifest);
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw));
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack());
   updateHistoryButtons();
 }
 
@@ -1008,7 +1009,7 @@ function setLayers(next: LayerValues, rebuild: boolean): void {
   if (sameLayers(next, defaultLayers(selected.manifest))) delete p.raw[LAYERS_KEY];
   else p.raw[LAYERS_KEY] = next;
   editorFor(selected.manifest.id).current = p.raw;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw));
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack());
   if (rebuild) {
     buildParamForm(selected.manifest);
     commitParams();
@@ -1170,12 +1171,31 @@ function setLength(length: number | undefined, commit = true): void {
   // then one history step. The form is rebuilt because the note and the reset button follow it.
   p.raw = withLength(p.raw, length);
   editorFor(selected.manifest.id).current = p.raw;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw));
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack());
   // The Output tab trims within the length, so what it shows follows it.
   outputRefreshOptions();
   if (!commit) return;
   commitParams();
   buildParamForm(selected.manifest);
+}
+
+/** The cut track as the raw values hold it (milestone 49), for the lane and the stage. */
+export function currentTrack(): CutTrack | null {
+  return trackIn(p.raw);
+}
+
+/**
+ * Replace the cut track (milestone 49); null removes it. The same path a
+ * length takes: the raw values, the editor's own copy, the preview, then one
+ * history step when the gesture ends.
+ */
+function setTrack(track: CutTrack | null, commit: boolean): void {
+  const selected = selectedTemplate.value;
+  if (!selected) return;
+  p.raw = withTrack(p.raw, track);
+  editorFor(selected.manifest.id).current = p.raw;
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack());
+  if (commit) commitParams();
 }
 
 /** One block's layers: the stack, what can be done to each, and how to add one. */
@@ -2747,6 +2767,17 @@ export function initInspectorParams(): void {
       if (selected) buildParamForm(selected.manifest);
     },
     setLength: (length, commit) => setLength(length, commit),
+    track: () => currentTrack(),
+    setTrack: (track, commit) => {
+      // The same gesture rules as edit(): a live drag never leaves the typing timer armed, and a
+      // typed edit still waiting on it becomes its own step before the gesture's live edits begin.
+      if (!commit && commitTimer !== undefined) commitParams();
+      setTrack(track, commit);
+      if (!commit) {
+        clearTimeout(commitTimer);
+        commitTimer = undefined;
+      }
+    },
     addLayer: (type, label, itemId) => {
       const selected = selectedTemplate.value;
       if (!selected) return { refused: 'No template is open.' };
