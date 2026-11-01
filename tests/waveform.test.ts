@@ -25,9 +25,12 @@ function pcm(samples: number[]): Uint8Array {
 }
 
 describe('what gets a waveform', () => {
-  it('is audio that is reachable', () => {
+  it('is audio that is reachable — and a clip whose file carries sound, for its layer\'s bar (milestone 48)', () => {
     expect(wantsWaveform(media())).toBe(true);
     expect(wantsWaveform(media({ mediaKind: 'video' }))).toBe(false);
+    expect(wantsWaveform(media({ mediaKind: 'video', meta: { audioCodec: 'aac' } }))).toBe(true);
+    expect(wantsWaveform(media({ mediaKind: 'video', meta: { fps: 30 } })), 'probed and found silent').toBe(false);
+    expect(wantsWaveform(media({ mediaKind: 'video', meta: { audioCodec: 'aac' }, sequence: { dir: '/lib', stem: 'f_', ext: '.png', digits: 4, start: 0, count: 10 } })), 'a folder of frames has no sound').toBe(false);
     expect(wantsWaveform(media({ offline: true }))).toBe(false);
     const template: TemplateEntry = { kind: 'template', key: 't', id: 'idt', dir: '/lib/t', root: '/lib', manifest: validManifest(), tags: [], warnings: [] };
     expect(wantsWaveform(template)).toBe(false);

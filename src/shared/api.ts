@@ -230,6 +230,14 @@ export interface PulpApi {
   hoverStrip(id: string): Promise<HoverStripResult>;
   /** An audio file's waveform peaks, computed on first ask and cached. */
   waveform(id: string): Promise<WaveformResult>;
+  /**
+   * What the project's mix measures (milestone 52): integrated loudness and
+   * true peak by EBU R128, for the transport row's meter — the same
+   * measurement a levelled render's first pass runs. Layers travel as ids and
+   * settings; the main process resolves the files (ADR 0013). Null when there
+   * is nothing to measure.
+   */
+  mixLoudness(request: { layers: { kind: 'clip' | 'sound'; value: unknown; span?: { start: number; end: number | null } }[]; fps: number; length: number }): Promise<{ lufs: number | null; truePeakDb: number | null }>;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */

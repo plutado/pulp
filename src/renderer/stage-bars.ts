@@ -15,12 +15,17 @@
  */
 
 import { effect } from '@preact/signals';
+import { layerBarPeaks, type AudioLayer } from '../core/layer-audio';
 import { MIN_ON_SCREEN, spanWindow, transitionSeconds } from '../core/layer-time';
 import { layerWithSpan, spanWithEnd } from '../core/stage-menu';
 import type { Layer, LayerValues } from '../core/layers';
+import type { MediaEntry } from '../core/library-types';
 import type { TemplateManifest } from '../core/manifest';
 import { resolveLength } from '../core/timing';
+import { WAVEFORM_BUCKETS, waveformPath } from '../core/waveform';
 import { layerEditor, selectedLayer } from './layer-edit';
+import { appState } from './store';
+import { requestWaveform, waveforms } from './waveforms';
 
 /** The bar for a layer, kept across updates so a drag keeps its element. */
 interface Bar {
@@ -31,6 +36,11 @@ interface Bar {
   label: HTMLSpanElement;
   start: HTMLButtonElement;
   end: HTMLButtonElement;
+  /** The layer's sound, drawn inside the body (milestone 48); empty while it has none. */
+  wave: SVGSVGElement;
+  wavePath: SVGPathElement;
+  /** The layer as last placed, so the waveform can be redrawn when its peaks arrive. */
+  layer: Layer | null;
 }
 
 let host: HTMLDivElement | null = null;
@@ -90,7 +100,15 @@ function makeBar(block: string, id: string): Bar {
   label.className = 'bar-label';
   const start = endHandle('start');
   const end = endHandle('end');
-  body.append(enter, leave, label, start, end);
+  // The sound first, so the shades, the label and the handles draw over it.
+  const wave = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  wave.setAttribute('class', 'bar-wave');
+  wave.setAttribute('preserveAspectRatio', 'none');
+  wave.setAttribute('aria-hidden', 'true');
+  const wavePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  wave.append(wavePath);
+  wave.toggleAttribute('hidden', true);
+  body.append(wave, enter, leave, label, start, end);
   root.append(body);
   body.addEventListener('pointerdown', (e) => {
     if ((e.target as HTMLElement).classList.contains('bar-end')) return;
@@ -103,7 +121,7 @@ function makeBar(block: string, id: string): Bar {
     handle.addEventListener('pointercancel', onEndPointerUp);
     handle.addEventListener('keydown', (e) => onEndKeyDown(e, block, id, which));
   }
-  return { root, body, enter, leave, label, start, end };
+  return { root, body, enter, leave, label, start, end, wave, wavePath, layer: null };
 }
 
 function endHandle(which: 'start' | 'end'): HTMLButtonElement {
@@ -134,6 +152,62 @@ function placeBar(bar: Bar, layer: Layer, length: number): void {
     handle.setAttribute('aria-valuenow', String(tidy(value)));
     handle.setAttribute('aria-valuetext', `${tidy(value)} seconds`);
   }
+  bar.layer = layer;
+  paintWave(bar, layer, length);
+}
+
+// ---------------------------------------------------------------- the sound on the bar (milestone 48)
+
+/** The library entry behind a sound or a clip id; a drawn template has no file and is not here. */
+function mediaFor(id: string): MediaEntry | undefined {
+  return appState.value.index?.media.find((m) => m.id === id);
+}
+
+/**
+ * The layer's sound, if it has one with a file the library has measured: what
+ * the waveform is resampled through. Mute and volume are left out on purpose —
+ * the bar is about time, and a muted layer still shows what it holds.
+ */
+function barSound(layer: Layer): { audio: AudioLayer; entry: MediaEntry } | null {
+  const span = layer.span ? { span: layer.span } : {};
+  if (layer.type === 'audio' && layer.sound?.id && !layer.sound.hidden) {
+    const entry = mediaFor(layer.sound.id);
+    const duration = entry?.meta?.duration;
+    if (!entry || !duration || duration <= 0) return null;
+    return { audio: { kind: 'sound', path: '', value: layer.sound, source: { duration }, ...span }, entry };
+  }
+  if (layer.type === 'video' && layer.clip?.id && !layer.clip.hidden) {
+    const entry = mediaFor(layer.clip.id);
+    const meta = entry?.meta;
+    if (!entry || entry.sequence || !meta?.audioCodec || !meta.duration || !meta.fps) return null;
+    return { audio: { kind: 'clip', path: '', value: layer.clip, source: { frames: Math.max(1, Math.round(meta.duration * meta.fps)), fps: meta.fps }, ...span }, entry };
+  }
+  return null;
+}
+
+/**
+ * Draw the layer's sound inside its bar, at the project's time: the peaks
+ * milestone 12 caches, resampled so a beat sits on the bar where it will be
+ * heard — through the in point, the loop, a clip's speed, the delay and the
+ * fades. Peaks arrive in the background; until they do the bar is plain, and
+ * the `waveforms` signal repaints it when they land.
+ */
+function paintWave(bar: Bar, layer: Layer, length: number): void {
+  const sound = barSound(layer);
+  const peaks = sound ? waveforms.value.get(sound.entry.id) : undefined;
+  if (!sound || !peaks || peaks.length === 0) {
+    if (sound && peaks === undefined) requestWaveform(sound.entry);
+    bar.wave.toggleAttribute('hidden', true);
+    bar.wavePath.removeAttribute('d');
+    return;
+  }
+  const window = spanWindow(layer.span, length);
+  // Columns in step with the stored resolution: a bar over half the graphic gets half the buckets.
+  const columns = Math.max(16, Math.round(((window.to - window.from) / Math.max(0.001, length)) * WAVEFORM_BUCKETS));
+  const drawn = layerBarPeaks(sound.audio, peaks, length, columns);
+  bar.wave.setAttribute('viewBox', `0 0 ${columns} 12`);
+  bar.wavePath.setAttribute('d', waveformPath(drawn, columns, 12));
+  bar.wave.toggleAttribute('hidden', false);
 }
 
 function tidy(seconds: number): number {
@@ -215,5 +289,10 @@ export function mountLayerBars(el: HTMLDivElement, transportEl: HTMLElement): vo
   effect(() => {
     void selectedLayer.value;
     paintSelection();
+  });
+  // Peaks arrive in the background, and the library's metadata with them: the bars catch up.
+  effect(() => {
+    void waveforms.value;
+    for (const bar of bars.values()) if (bar.layer) paintWave(bar, bar.layer, current.length);
   });
 }

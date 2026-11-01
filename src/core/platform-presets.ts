@@ -59,6 +59,15 @@ export interface PlatformPreset {
    * process opens it by the preset's id, never a URL the window sends.
    */
   uploadUrl: string;
+  /**
+   * The integrated loudness the platform plays everything back at, LUFS (EBU
+   * R128): what a render aimed here has its mix levelled to (milestone 52).
+   * The platforms normalise on playback anyway; levelling first means what is
+   * uploaded is what is heard, with no surprise gain on their side.
+   */
+  loudnessLufs: number;
+  /** The true-peak ceiling the levelling holds the mix under, dBTP. */
+  truePeakDb: number;
 }
 
 /**
@@ -73,48 +82,56 @@ export const PLATFORM_PRESETS: readonly PlatformPreset[] = [
     aspect: '9:16', width: 1080, height: 1920, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 600, maxFileMB: 287,
     uploadUrl: 'https://www.tiktok.com/upload',
+    loudnessLufs: -14, truePeakDb: -1,
   },
   {
     id: 'instagram-reels', label: 'Instagram Reels', hint: 'Vertical, up to 3 min',
     aspect: '9:16', width: 1080, height: 1920, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 180, maxFileMB: 4096,
     uploadUrl: 'https://www.instagram.com/',
+    loudnessLufs: -14, truePeakDb: -1,
   },
   {
     id: 'instagram-feed', label: 'Instagram feed', hint: 'Tall 4:5, up to 60 min',
     aspect: '4:5', width: 1080, height: 1350, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 3600, maxFileMB: 4096,
     uploadUrl: 'https://www.instagram.com/',
+    loudnessLufs: -14, truePeakDb: -1,
   },
   {
     id: 'youtube-shorts', label: 'YouTube Shorts', hint: 'Vertical, up to 3 min',
     aspect: '9:16', width: 1080, height: 1920, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 180, maxFileMB: 262_144,
     uploadUrl: 'https://www.youtube.com/upload',
+    loudnessLufs: -14, truePeakDb: -1,
   },
   {
     id: 'youtube', label: 'YouTube', hint: 'Widescreen 1080p',
     aspect: '16:9', width: 1920, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 43_200, maxFileMB: 262_144,
     uploadUrl: 'https://www.youtube.com/upload',
+    loudnessLufs: -14, truePeakDb: -1,
   },
   {
     id: 'x', label: 'X', hint: 'Widescreen, up to 2:20',
     aspect: '16:9', width: 1920, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 140, maxFileMB: 512,
     uploadUrl: 'https://x.com/compose/post',
+    loudnessLufs: -14, truePeakDb: -1,
   },
   {
     id: 'linkedin', label: 'LinkedIn', hint: 'Widescreen, up to 10 min',
     aspect: '16:9', width: 1920, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 600, maxFileMB: 5120,
     uploadUrl: 'https://www.linkedin.com/feed/?shareActive=true',
+    loudnessLufs: -14, truePeakDb: -1,
   },
   {
     id: 'facebook-feed', label: 'Facebook feed', hint: 'Square, up to 2 h',
     aspect: '1:1', width: 1080, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 7200, maxFileMB: 10_240,
     uploadUrl: 'https://www.facebook.com/',
+    loudnessLufs: -14, truePeakDb: -1,
   },
 ];
 
@@ -132,9 +149,9 @@ export function limitsCheckedLabel(checked: string = PLATFORM_LIMITS_CHECKED): s
   return `checked ${Number(m[3])} ${months[Number(m[2]) - 1]} ${m[1]}`;
 }
 
-/** What a preset amounts to, under the chooser: "9:16 · 1080 × 1920 · 30 fps · H.264 MP4". */
+/** What a preset amounts to, under the chooser: "9:16 · 1080 × 1920 · 30 fps · H.264 MP4 · levelled to -14 LUFS". */
 export function platformSummary(preset: PlatformPreset): string {
-  return `${preset.aspect} · ${preset.width} × ${preset.height} · ${preset.fps} fps · ${OUTPUT_PRESETS[preset.presetId].label}`;
+  return `${preset.aspect} · ${preset.width} × ${preset.height} · ${preset.fps} fps · ${OUTPUT_PRESETS[preset.presetId].label} · levelled to ${preset.loudnessLufs} LUFS`;
 }
 
 /** What the platform takes, in words: "up to 10:00 and 287 MB (limits checked 1 November 2026)". */
@@ -224,6 +241,9 @@ export function platformPresetProblems(presets: readonly PlatformPreset[] = PLAT
     }
     // The hand-off opens this in the browser, so nothing but https may ever be typed in here.
     if (!/^https:\/\/[^\s]+$/.test(p.uploadUrl)) problems.push(`${where}: the upload page must be an https URL`);
+    // Loudness targets live in the range the platforms and broadcasters actually use; a typo outside it would crush or blast a mix.
+    if (!Number.isFinite(p.loudnessLufs) || p.loudnessLufs < -36 || p.loudnessLufs > -6) problems.push(`${where}: the loudness target must be between -36 and -6 LUFS`);
+    if (!Number.isFinite(p.truePeakDb) || p.truePeakDb > 0 || p.truePeakDb < -9) problems.push(`${where}: the true-peak ceiling must be between -9 and 0 dBTP`);
   }
   return problems;
 }

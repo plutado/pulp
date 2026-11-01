@@ -45,6 +45,9 @@ MB
 KB
 kHz
 fps
+LUFS
+dBTP
+EBU
 SPDX
 ```
 

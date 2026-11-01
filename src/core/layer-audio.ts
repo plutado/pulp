@@ -143,6 +143,30 @@ export function layerHeard(layer: AudioLayer, length: number): { from: number; t
   return { from, to: Math.min(span.to, ownEnd, length) };
 }
 
+/** Where in its own file a layer's sound is at a moment of the graphic, or null while it is silent. */
+export function layerSourceTimeAt(layer: AudioLayer, time: number): number | null {
+  return layer.kind === 'sound'
+    ? soundTimeAt(time, layer.value, layer.source)
+    : clipMediaTimeAt(time, layer.value, layer.source);
+}
+
+/**
+ * The shape of a layer's sound at a moment, 0 to 1, before its volume and
+ * mute: the gate to what it is heard over, and its fades. The gain is this
+ * times the volume; the waveform on its bar is the material times this, so a
+ * fade is read off the bar and a muted layer still shows what it holds.
+ */
+export function layerFadeAt(layer: AudioLayer, time: number, length: number): number {
+  if (layerSourceTimeAt(layer, time) === null) return 0;
+  const { from, to } = layerHeard(layer, length);
+  if (time < from - 1e-9 || time > to + 1e-9) return 0;
+  const { fadeIn, fadeOut } = settings(layer);
+  let shape = 1;
+  if (fadeIn > 0 && time < from + fadeIn) shape *= Math.max(0, (time - from) / fadeIn);
+  if (fadeOut > 0 && time > to - fadeOut) shape *= Math.max(0, (to - time) / fadeOut);
+  return Math.min(1, Math.max(0, shape));
+}
+
 /**
  * How loud the layer is at a moment of the graphic, 0 to 1: its volume with
  * its fades, silent outside what it is heard over. What the preview sets on
@@ -151,17 +175,39 @@ export function layerHeard(layer: AudioLayer, length: number): { from: number; t
 export function layerGainAt(layer: AudioLayer, time: number, length: number): number {
   const audible = layer.kind === 'sound' ? soundAudible(layer.value) : clipAudible(layer.value);
   if (!audible) return 0;
-  const at = layer.kind === 'sound'
-    ? soundTimeAt(time, layer.value, layer.source)
-    : clipMediaTimeAt(time, layer.value, layer.source);
-  if (at === null) return 0;
-  const { from, to } = layerHeard(layer, length);
-  if (time < from - 1e-9 || time > to + 1e-9) return 0;
-  const { volume, fadeIn, fadeOut } = settings(layer);
-  let gain = volume;
-  if (fadeIn > 0 && time < from + fadeIn) gain *= Math.max(0, (time - from) / fadeIn);
-  if (fadeOut > 0 && time > to - fadeOut) gain *= Math.max(0, (to - time) / fadeOut);
-  return Math.min(1, Math.max(0, gain));
+  const { volume } = settings(layer);
+  return Math.min(1, Math.max(0, volume * layerFadeAt(layer, time, length)));
+}
+
+/** Seconds the layer's whole file runs for, which its waveform's peaks are spread over. */
+function sourceSeconds(layer: AudioLayer): number {
+  return layer.kind === 'sound' ? layer.source.duration : layer.source.frames / Math.max(1, layer.source.fps);
+}
+
+/**
+ * The peaks drawn on a layer's bar under the scrub bar (milestone 48):
+ * `columns` samples across the bar's own window, each the material's peak at
+ * the file moment that plays then — so an in point shifts the shape, a loop
+ * repeats it, a speed squeezes it, and a beat on the bar is the beat that will
+ * be heard there. Shaped by the fades and the span's gate but **not** by the
+ * volume or the mute: the bar is about time, and a muted layer still shows
+ * what it holds.
+ */
+export function layerBarPeaks(layer: AudioLayer, peaks: ArrayLike<number>, length: number, columns: number): Uint8Array {
+  const out = new Uint8Array(Math.max(0, Math.floor(columns)));
+  const window = spanWindow(layer.span, length);
+  const file = sourceSeconds(layer);
+  if (out.length === 0 || peaks.length === 0 || file <= 0 || window.to <= window.from) return out;
+  for (let column = 0; column < out.length; column++) {
+    const time = window.from + ((column + 0.5) / out.length) * (window.to - window.from);
+    const at = layerSourceTimeAt(layer, time);
+    if (at === null) continue;
+    const shape = layerFadeAt(layer, time, length);
+    if (shape <= 0) continue;
+    const bucket = Math.min(peaks.length - 1, Math.max(0, Math.floor((at / file) * peaks.length)));
+    out[column] = Math.round((peaks[bucket] ?? 0) * shape);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- the render's graph
@@ -240,6 +286,8 @@ export function layerAudioFilter(
   layers: readonly AudioLayer[],
   timing: { fps: number; firstFrame: number; totalFrames: number; length: number },
   firstInputIndex: number,
+  /** A levelling stage after the cut (milestone 52), so what is levelled is exactly what is written. */
+  level?: string,
 ): string {
   const fps = Math.max(1, timing.fps);
   const start = s(timing.firstFrame / fps);
@@ -248,9 +296,93 @@ export function layerAudioFilter(
     `anullsrc=r=${LAYER_AUDIO_RATE}:cl=stereo:d=${s(Math.max(timing.length, start + seconds))}[abase]`,
     ...layers.map((layer, i) => layerAudioChain(firstInputIndex + i, layer, `la${i}`, timing.length)),
     `[abase]${layers.map((_, i) => `[la${i}]`).join('')}amix=inputs=${layers.length + 1}:normalize=0[amix]`,
-    `[amix]atrim=start=${start}:end=${s(start + seconds)},asetpts=PTS-STARTPTS,apad=whole_dur=${seconds}[aout]`,
+    `[amix]atrim=start=${start}:end=${s(start + seconds)},asetpts=PTS-STARTPTS,apad=whole_dur=${seconds}${level ? `,${level}` : ''}[aout]`,
   ];
   return chains.join(';');
+}
+
+// ---------------------------------------------------------------- loudness (milestone 52)
+
+/** What a mix is levelled to: integrated loudness and the true-peak ceiling, as a platform preset sets them. */
+export interface LoudnessTarget {
+  /** Integrated loudness, LUFS (EBU R128). */
+  lufs: number;
+  /** True peak ceiling, dBTP. */
+  truePeakDb: number;
+}
+
+/** The loudness range `loudnorm` aims the mix's dynamics at; the EBU default. */
+export const LOUDNESS_RANGE_LU = 11;
+
+/** What EBU R128 measured about a mix: exactly what `loudnorm`'s second, linear pass is given back. */
+export interface MixLoudness {
+  /** Integrated loudness, LUFS. -70 is the meter's floor: silence. */
+  inputI: number;
+  /** True peak, dBTP. */
+  inputTp: number;
+  /** Loudness range, LU. */
+  inputLra: number;
+  /** The gating threshold the measurement used, LUFS. */
+  inputThresh: number;
+}
+
+/**
+ * The `loudnorm` stage that levels the mix. With the first pass's measurement
+ * it is **linear** — one gain over the whole mix, transparent — which is the
+ * two-pass form EBU R128 normalising is meant to run as; without it the
+ * filter levels dynamically as it goes, which is the fallback when the mix
+ * could not be measured. `loudnorm` resamples to 192 kHz inside, so the mix
+ * is brought back to the one rate everything else runs at.
+ */
+export function loudnormFilter(target: LoudnessTarget, measured?: MixLoudness): string {
+  const base = `loudnorm=I=${s(target.lufs)}:TP=${s(target.truePeakDb)}:LRA=${LOUDNESS_RANGE_LU}`;
+  const second = measured
+    ? `:measured_I=${s(measured.inputI)}:measured_TP=${s(measured.inputTp)}:measured_LRA=${s(measured.inputLra)}:measured_thresh=${s(measured.inputThresh)}:linear=true`
+    : '';
+  return `${base}${second},aresample=${LAYER_AUDIO_RATE}`;
+}
+
+/**
+ * ffmpeg arguments that run the mix to nowhere and print what EBU R128
+ * measured of it, as JSON on stderr: `loudnorm`'s first pass. The transport
+ * row's meter and a levelled render's second pass both read it, so the meter
+ * shows the loudness the render will start from.
+ */
+export function measureMixArgs(layers: readonly AudioLayer[], timing: { fps: number; firstFrame: number; totalFrames: number; length: number }): string[] {
+  const filter = `${layerAudioFilter(layers, timing, 0)};[aout]loudnorm=I=-14:TP=-1:LRA=${LOUDNESS_RANGE_LU}:print_format=json[mout]`;
+  return [
+    '-hide_banner', '-nostats', '-nostdin',
+    ...layers.flatMap((l) => ['-i', l.path]),
+    '-filter_complex', filter,
+    '-map', '[mout]', '-f', 'null', '-',
+  ];
+}
+
+/** Read what `loudnorm` printed: the measurement, or null when there is none to read (silence reads as the meter's -70 floor). */
+export function parseMixLoudness(stderr: string): MixLoudness | null {
+  const at = stderr.lastIndexOf('{');
+  const end = stderr.indexOf('}', at);
+  if (at < 0 || end < 0) return null;
+  let raw: Record<string, unknown>;
+  try {
+    raw = JSON.parse(stderr.slice(at, end + 1)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  // loudnorm prints numbers as strings, and silence as "-inf": the meter's floor stands in for it.
+  const read = (key: string, floor: number): number | null => {
+    const value = raw[key];
+    if (typeof value !== 'string' && typeof value !== 'number') return null;
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+    return String(value).includes('-inf') ? floor : null;
+  };
+  const inputI = read('input_i', -70);
+  const inputTp = read('input_tp', -70);
+  const inputLra = read('input_lra', 0);
+  const inputThresh = read('input_thresh', -80);
+  if (inputI === null || inputTp === null || inputLra === null || inputThresh === null) return null;
+  return { inputI, inputTp, inputLra, inputThresh };
 }
 
 /** The layers that will actually be heard: something chosen, not muted, not silent, with a file to read and a window to play. */
@@ -273,7 +405,12 @@ export function audibleLayers(layers: readonly AudioLayer[], length: number): Au
  * when nothing is audible, so a silent project renders exactly as it always
  * has: no audio stream and no file beside it.
  */
-export function applyLayerAudio(plan: RenderPlan, layers: readonly AudioLayer[]): RenderPlan {
+export function applyLayerAudio(
+  plan: RenderPlan,
+  layers: readonly AudioLayer[],
+  /** Level the mix to a platform's target (milestone 52); `measured` makes the pass linear. */
+  loudness?: { target: LoudnessTarget; measured?: MixLoudness },
+): RenderPlan {
   const audible = audibleLayers(layers, plan.length);
   if (audible.length === 0) return plan;
 
@@ -281,7 +418,7 @@ export function applyLayerAudio(plan: RenderPlan, layers: readonly AudioLayer[])
   const pipeAt = args.indexOf('pipe:0');
   if (pipeAt < 0 || args.indexOf(plan.output) < 0) return plan;
 
-  const filter = layerAudioFilter(audible, plan, 1);
+  const filter = layerAudioFilter(audible, plan, 1, loudness ? loudnormFilter(loudness.target, loudness.measured) : undefined);
   const vfAt = args.indexOf('-vf');
   const complexAt = args.indexOf('-filter_complex');
   if (complexAt >= 0) {

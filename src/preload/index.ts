@@ -123,6 +123,7 @@ const api: PulpApi = {
   saveLayout: (layout) => ipcRenderer.invoke('layout:save', layout),
   hoverStrip: (id) => ipcRenderer.invoke('library:hover-strip', id),
   waveform: (id) => ipcRenderer.invoke('library:waveform', id),
+  mixLoudness: (request) => ipcRenderer.invoke('audio:mix-loudness', request),
   getDragNoticeSeen: () => ipcRenderer.invoke('drag-notice:get'),
   setDragNoticeSeen: () => ipcRenderer.invoke('drag-notice:seen'),
   getInfoSections: () => ipcRenderer.invoke('info-sections:get'),

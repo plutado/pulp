@@ -43,6 +43,7 @@ import { onStageWindow } from './stage-window';
 import { searchPlaceable } from '../core/search';
 import { appState, coverFrame, frameSize, playheadSeconds, transport, trim } from './store';
 import { layerSoundsClear, layerSoundsDebug, layerSoundsStop, layerSoundsSync, layerSoundsUpdate } from './stage-audio';
+import { initLoudness, loudnessClear, loudnessUpdate } from './loudness';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
 
@@ -674,6 +675,7 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
   els.scrub.value = String(s.frame);
   // An audio layer needs no clip sources and no page: its sound can play the moment it is shown.
   layerSoundsSync(s.layers, s.clipSources, mediaEntryFor);
+  loudnessUpdate(s.layers, previewFps(), soundLength());
   updateTransport();
   applyLayerBars();
 }
@@ -681,6 +683,7 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
 /** Show a media item, served by id through pulp-media://. */
 export function stageShowMedia(entry: MediaEntry): void {
   layerSoundsClear();
+  loudnessClear();
   // Volume and mute are the player's, not each file's.
   applyPlayer();
   if (entry.offline) {
@@ -870,6 +873,8 @@ export function stageSetParams(params: ResolvedParams, layers: LayerValues = {},
   // A changed volume, mute or clip takes effect mid-play (milestone 48); new clips join when their sources land.
   layerSoundsSync(s.layers, s.clipSources, mediaEntryFor);
   layerSoundsUpdate(soundTime(), s.playing, soundMaster(), soundLength());
+  // And the meter measures the mix afresh, after the edits settle (milestone 52).
+  loudnessUpdate(s.layers, previewFps(), soundLength());
   // A new length changes how many frames there are, so the scrub bar and the playhead follow it.
   if (length !== s.length) {
     s.length = length;
@@ -988,6 +993,7 @@ function stageRehome(win: Window): void {
 export function initStage(): void {
   // For the UI test: the layer sounds, which have no elements on the page to read.
   (window as unknown as { pulpLayerSounds?: typeof layerSoundsDebug }).pulpLayerSounds = layerSoundsDebug;
+  initLoudness();
   // The picture's box changes with the window, the stage split, the browse panel and the
   // aspect: the splits resize the centre column, the rest resize the picture itself, so
   // observing both covers them all; the pane toggles arrive through the layout.

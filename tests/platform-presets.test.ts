@@ -62,6 +62,16 @@ describe('the built-in list', () => {
     for (const p of PLATFORM_PRESETS) expect(p.uploadUrl, p.id).toMatch(/^https:\/\//);
   });
 
+  it('sets the loudness a render aimed there is levelled to (milestone 52)', () => {
+    for (const p of PLATFORM_PRESETS) {
+      expect(p.loudnessLufs, p.id).toBeLessThanOrEqual(-6);
+      expect(p.loudnessLufs, p.id).toBeGreaterThanOrEqual(-36);
+      expect(p.truePeakDb, p.id).toBeLessThanOrEqual(0);
+    }
+    expect(platformPresetProblems([{ ...PLATFORM_PRESETS[0]!, id: 'sample', loudnessLufs: -2 }])).toContain('sample: the loudness target must be between -36 and -6 LUFS');
+    expect(platformPresetProblems([{ ...PLATFORM_PRESETS[0]!, id: 'sample', truePeakDb: 1 }])).toContain('sample: the true-peak ceiling must be between -9 and 0 dBTP');
+  });
+
   it('carries the date its limits were checked, and says it in words', () => {
     expect(PLATFORM_LIMITS_CHECKED).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(limitsCheckedLabel('2026-11-01')).toBe('checked 1 November 2026');
@@ -74,7 +84,7 @@ describe('the built-in list', () => {
 describe('the check on the list', () => {
   const sound: PlatformPreset = {
     id: 'sample', label: 'Sample', hint: 'A hint', aspect: '9:16', width: 1080, height: 1920, fps: 30,
-    presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 60, maxFileMB: 100, uploadUrl: 'https://example.com/upload',
+    presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 60, maxFileMB: 100, uploadUrl: 'https://example.com/upload', loudnessLufs: -14, truePeakDb: -1,
   };
 
   it('passes a sound entry', () => {
@@ -102,8 +112,8 @@ describe('the check on the list', () => {
 });
 
 describe('what a preset says in the window', () => {
-  it('sums up the four things it sets', () => {
-    expect(platformSummary(tiktok)).toBe('9:16 · 1080 × 1920 · 30 fps · H.264 MP4');
+  it('sums up what it sets, the levelling included', () => {
+    expect(platformSummary(tiktok)).toBe('9:16 · 1080 × 1920 · 30 fps · H.264 MP4 · levelled to -14 LUFS');
   });
 
   it('says what the platform takes, with the date it was read', () => {

@@ -358,6 +358,9 @@
             <button id="mark-out" type="button" disabled data-tip="Set the out point of the render to this frame"><span class="label">Set out</span></button>
             <button id="mark-clear" type="button" disabled data-tip="Render the whole thing again"><span class="label">Clear</span></button>
           </span>
+          <span id="loudness" class="tool-group loudness" role="img" hidden>
+            <span class="loudness-bar" aria-hidden="true"><span id="loudness-fill"></span><span id="loudness-target" hidden></span></span>
+          </span>
           <span id="sequence-rate" class="tool-group sequence-rate" hidden>
             <label for="sequence-fps">Frames per second</label>
             <input id="sequence-fps" type="number" min="1" max="240" step="1" value="30"

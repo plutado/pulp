@@ -1133,6 +1133,44 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(missing.stderr).toContain('the sound chosen for "music"');
   }, 300_000);
 
+  it('levels the mix to the platform preset\'s loudness target, and leaves a render aimed nowhere as mixed (milestone 52)', async () => {
+    // A tone under the whole graphic, well off the -14 LUFS target, so levelling is legible.
+    const lib = join(out, 'loudness-library');
+    await mkdir(lib, { recursive: true });
+    const bed = join(lib, 'quiet-bed.wav');
+    const made = await runBounded(ffmpeg, ffmpegArgs([
+      '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=330:duration=2', '-af', 'volume=0.5', '-c:a', 'pcm_s16le', bed,
+    ]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(made.code, made.stderr).toBe(0);
+    const bedId = itemId(`media:${bed}`);
+    const common = ['--library', FIXTURES, '--library', lib];
+    const audio = ['--param', `@layers=${JSON.stringify({ stack: [{ id: 'music', type: 'audio', sound: { id: bedId, ending: 'loop' } }] })}`];
+
+    /** Integrated loudness of a file, LUFS, read with ffmpeg's own EBU R128 meter. */
+    const integrated = async (file: string): Promise<number> => {
+      const r = await runBounded(ffmpeg, ffmpegArgs(['-i', file, '-af', 'ebur128', '-f', 'null', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
+      const m = /I:\s*(-?[\d.]+) LUFS/.exec(r.stderr.slice(r.stderr.lastIndexOf('Summary:')));
+      expect(m, r.stderr.slice(-1500)).not.toBeNull();
+      return Number(m![1]);
+    };
+
+    // Aimed nowhere, the mix is written as mixed: nowhere near the target.
+    const plain = await render('pulp.test.video-layer', 'h264-mp4', 'level-plain', { extra: [...common, ...audio] });
+    expect(plain.code, plain.stderr).toBe(0);
+    const unlevelled = await integrated(join(out, 'level-plain.mp4'));
+    expect(Math.abs(unlevelled - -14), `as mixed it measures ${unlevelled} LUFS`).toBeGreaterThan(3);
+
+    // Aimed at a platform, it is measured and levelled to the platform's target — on the file itself.
+    const aimed = await runBounded(
+      electron,
+      ['.', '--render', 'pulp.test.video-layer', '--platform', 'x', '--out', join(out, 'level-aimed'), ...common, ...audio],
+      { cwd: ROOT, timeoutMs: 180_000 },
+    );
+    expect(aimed.code, aimed.stderr).toBe(0);
+    const levelled = await integrated(join(out, 'level-aimed.mp4'));
+    expect(Math.abs(levelled - -14), `levelled it measures ${levelled} LUFS`).toBeLessThan(1.5);
+  }, 300_000);
+
   it('plays a clip inside a graphic, on the template\'s own time (milestone 26)', async () => {
     // A transparent clip whose red square moves left to right over its 30 frames, so which frame
     // was drawn can be read off the rendered picture. The library sees it by path, as any clip.

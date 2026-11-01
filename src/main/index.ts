@@ -17,6 +17,7 @@ import type { BatchRequest, FfmpegInfo, RenderRequest, SampleMediaOutcome } from
 import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
+import { mixLoudness } from './mix-loudness';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag, removeRender } from './render-queue-service';
 import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
 import { sanitizeCacheMaxMB } from '../core/render-cache';
@@ -434,6 +435,8 @@ function registerIpc(): void {
 
   ipcMain.handle('library:hover-strip', (_event, id: string) => hoverStrip(String(id)));
   ipcMain.handle('library:waveform', (_event, id: string) => waveform(String(id)));
+  // The mix's loudness for the transport row's meter (milestone 52): ids and settings in, LUFS out.
+  ipcMain.handle('audio:mix-loudness', (_event, request: unknown) => mixLoudness(request));
 
   ipcMain.handle('drag-notice:get', async () => (await loadSettings()).dragNoticeSeen);
   ipcMain.handle('drag-notice:seen', async () => {

@@ -21,9 +21,18 @@ export const WAVEFORM_BUCKETS = 400;
  */
 export const WAVEFORM_RATE = 8_000;
 
-/** Audio files get a waveform; anything with a picture shows the picture instead. */
+/**
+ * Audio files get a waveform; anything with a picture shows the picture
+ * instead — except that a clip whose file carries sound gets one too
+ * (milestone 48), for the bar under the scrub bar, where its sound is what
+ * the bar is lining up. Rows are unaffected: a clip has a thumbnail, and the
+ * thumbnail wins. A clip the library has not probed yet is not asked, since
+ * no one can say whether there is sound to draw.
+ */
 export function wantsWaveform(entry: LibraryEntry): boolean {
-  return entry.kind === 'media' && entry.mediaKind === 'audio' && entry.offline !== true;
+  if (entry.kind !== 'media' || entry.offline === true || entry.sequence) return false;
+  if (entry.mediaKind === 'audio') return true;
+  return entry.mediaKind === 'video' && Boolean(entry.meta?.audioCodec);
 }
 
 /** ffmpeg: the whole file as mono 16-bit samples on stdout, for peaks to be taken from. */

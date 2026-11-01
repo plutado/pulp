@@ -29,14 +29,15 @@ import type { ClipSource } from '../core/video-layer';
 import { resolveLayers } from '../core/layers';
 import { checkImages, readSlotImages } from './image-grant';
 import { lookupMedia } from './library-service';
-import { checkPresetSupport, detectFfmpeg, runWithInput } from '../core/ffmpeg';
+import { checkPresetSupport, detectFfmpeg, runForBuffer, runWithInput } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan } from '../core/render-plan';
-import { applyLayerAudio, type AudioLayer } from '../core/layer-audio';
+import { applyLayerAudio, audibleLayers, measureMixArgs, parseMixLoudness, type AudioLayer, type LoudnessTarget, type MixLoudness } from '../core/layer-audio';
 import { clipAudible } from '../core/video-layer';
 import { soundAudible } from '../core/sound-layer';
 import { resolveSoundSource } from './sound-grant';
 import { finishedFileWarnings } from './platform-check';
+import { platformPreset } from '../core/platform-presets';
 import { lengthIn, resolveParams, splitLayers } from '../core/params';
 import {
   captureBytesMessage,
@@ -128,6 +129,37 @@ function detectCaptureFormat(): Promise<CaptureProbe> {
     }
   })();
   return captureProbe;
+}
+
+/**
+ * How a render aimed at a platform is levelled (milestone 52): the mix is run
+ * once to nowhere and measured (EBU R128, `loudnorm`'s first pass), and the
+ * measurement makes the render's own pass linear — one gain over the whole
+ * mix rather than a limiter chasing it. A mix that cannot be measured is
+ * still levelled, dynamically, with a warning saying so; a render aimed
+ * nowhere is left exactly as mixed.
+ */
+async function mixLoudnessFor(
+  ffmpegPath: string,
+  plan: RenderPlan,
+  layers: readonly AudioLayer[],
+  platform: string | undefined,
+  warnings: string[],
+): Promise<{ target: LoudnessTarget; measured?: MixLoudness } | undefined> {
+  const preset = platformPreset(platform);
+  if (!preset) return undefined;
+  const target: LoudnessTarget = { lufs: preset.loudnessLufs, truePeakDb: preset.truePeakDb };
+  const audible = audibleLayers(layers, plan.length);
+  if (audible.length === 0) return undefined;
+  try {
+    const run = await runForBuffer(ffmpegPath, measureMixArgs(audible, plan));
+    const measured = run.code === 0 ? parseMixLoudness(run.stderr) : null;
+    if (measured) return { target, measured };
+    warnings.push(`The mix could not be measured for levelling (${run.code === 0 ? 'nothing to read' : `ffmpeg exited with ${run.code}`}); it is levelled to ${target.lufs} LUFS in one pass instead.`);
+  } catch (err) {
+    warnings.push(`The mix could not be measured for levelling (${(err as Error).message}); it is levelled to ${target.lufs} LUFS in one pass instead.`);
+  }
+  return { target };
 }
 
 export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
@@ -222,7 +254,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     if (!found) return { ok: false, message: `Template "${manifest.name}": the sound chosen for "${choice.layer}" is not in the library, is offline, or could not be read.` };
     audioLayers.push({ kind: 'sound', path: found.path, value: choice, source: found.source, ...(choice.span ? { span: choice.span } : {}) });
   }
-  if (audioLayers.length > 0) plan = applyLayerAudio(plan, audioLayers);
+  if (audioLayers.length > 0) plan = applyLayerAudio(plan, audioLayers, await mixLoudnessFor(ffmpeg.path, plan, audioLayers, job.options?.platform, warnings));
 
   // The frame size is the plan's, not the manifest's: a template draws for a shape and the
   // size is chosen per render (ADR 0012). The window, the capture check and ffmpeg agree on it.

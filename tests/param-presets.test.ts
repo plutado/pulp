@@ -30,6 +30,14 @@ describe('parameter presets', () => {
     expect(diffFromDefaults(manifest, {})['@length']).toBeUndefined();
   });
 
+  it('keeps the layer stacks, an audio layer\'s sound among them (milestone 48)', () => {
+    // Layers ride with the parameters, so a preset keeps the music the person placed.
+    const stacks = { strap: [{ id: 'music', type: 'audio', sound: { id: 'snd1', ending: 'loop', volume: 0.4, fadeOut: 2 } }] };
+    const stored = diffFromDefaults(manifest, { '@layers': stacks });
+    expect(stored['@layers']).toEqual(stacks);
+    expect(applyPreset(manifest, { '@layers': stacks, nonsense: 1 })).toEqual({ '@layers': stacks });
+  });
+
   it('sanitizes a preset file', () => {
     expect(sanitizePresetFile(null, 't')).toEqual({ templateId: 't', presets: {} });
     expect(sanitizePresetFile({ presets: { ' Show A ': { title: 'A' }, '': { title: 'x' }, bad: 3, list: [1] } }, 't')).toEqual({

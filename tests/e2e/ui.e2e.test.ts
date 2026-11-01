@@ -1219,6 +1219,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       const before = await layerIds();
       const sounds = `(window.pulpLayerSounds ? window.pulpLayerSounds() : [])`;
       try {
+
         // Audio sits beside Text, Image and Video under Add layer.
         expect(await page.eval<string[]>(`[...${section}.querySelectorAll('.layer-add button[data-add]')].map((b) => b.textContent)`))
           .toEqual(['Text', 'Image', 'Video', 'Audio']);
@@ -1254,6 +1255,36 @@ describe.skipIf(!electron)('inspector UI', () => {
         // Paused is silent: a held frame makes no sound.
         expect(await page.eval<boolean>(`${sounds}.every((s) => !s.playing)`)).toBe(true);
 
+        // Its waveform is on its bar under the scrub bar, from milestone 12's peaks (milestone 48).
+        const wave = `document.querySelector('#transport-lanes .layer-bar[data-layer="${layer}"] .bar-wave')`;
+        await until(
+          () => page.eval<boolean>(`(() => { const w = ${wave}; return !!w && !w.hidden && !!w.querySelector('path')?.getAttribute('d'); })()`),
+          'the waveform on the layer\'s bar',
+          30_000,
+        );
+
+        // The loudness meter in the transport row measures the mix (milestone 52).
+        await until(
+          () => page.eval<boolean>(`(() => { const m = document.getElementById('loudness'); return !m.hidden && /LUFS/.test(m.getAttribute('aria-label') || '') && /LUFS/.test(m.dataset.tip || ''); })()`),
+          'the loudness meter on the mix',
+          30_000,
+        );
+        // And with the meter showing, the row's controls still keep apart at the default width —
+        // the same rule the 1280 × 788 layout test holds the row to with the meter away.
+        const rowBoxes = await page.eval<{ id: string; left: number; right: number; top: number; bottom: number }[]>(
+          `[...document.querySelectorAll('#region-transport .buttons-line button, #region-transport .buttons-line input, #region-transport .buttons-line #timecode, #region-transport .buttons-line #loudness, #region-status > *')]
+             .filter((el) => el.getBoundingClientRect().width > 0)
+             .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id || el.className, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; })`,
+        );
+        for (let i = 0; i < rowBoxes.length; i++) {
+          for (let j = i + 1; j < rowBoxes.length; j++) {
+            const a = rowBoxes[i]!;
+            const b = rowBoxes[j]!;
+            const met = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+            expect(met, `${a.id} does not overlap ${b.id} with the meter showing`).toBe(0);
+          }
+        }
+
         // The playhead goes to the top, where the sound starts: how loud a layer is is a question
         // about a moment, and the preview answers it for the moment on the stage.
         await page.eval(`(() => { const s = document.getElementById('scrub'); s.value = '0'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
@@ -1266,9 +1297,12 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`(() => { const f = ${field('fade in')}; f.value = '2'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
         await until(() => page.eval<number>(`${sounds}[0] ? ${sounds}[0].volume : -1`).then((v) => v === 0), 'silent at the start of its fade in');
 
-        // Muted asks for nothing to be heard, so the element goes; unmuting brings it back.
+        // Muted asks for nothing to be heard, so the element goes and the meter has nothing to
+        // measure — but the bar still shows what the layer holds, since the bar is about time.
         await page.eval(`(() => { const m = ${field('muted')}; m.checked = true; m.dispatchEvent(new Event('change', { bubbles: true })); })()`);
         await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 0), 'muted means nothing to hear');
+        await until(() => page.eval<boolean>(`document.getElementById('loudness').hidden`), 'and nothing on the meter', 30_000);
+        expect(await page.eval<boolean>(`(() => { const w = ${wave}; return !!w && !w.hidden; })()`), 'the waveform stays while muted').toBe(true);
         await page.eval(`(() => { const m = ${field('muted')}; m.checked = false; m.dispatchEvent(new Event('change', { bubbles: true })); })()`);
         await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 1), 'and back when unmuted');
 

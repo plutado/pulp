@@ -445,6 +445,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* The project (milestone 27): its name in the status bar, with a dot while there are unsaved
    changes, opening the project actions. The application menu is its proper home and arrives next;
    until then this is the one place they live. */
+/* The name yields with an ellipsis before it can spill over the row's tabs — a long name, or the
+   unsaved dot widening it, once reached out of the status region's own box. The whole name is in
+   the dialog the button opens. */
+.transport-status #project-button { flex: 0 1 auto; min-width: 0; }
+.transport-status #project-button .label { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .project-button { border: 0; background: none; padding: 0 2px; color: inherit; cursor: pointer; font: inherit; border-radius: 0; }
 .project-button:hover { color: var(--text); }
 .project-button.dirty { color: var(--text); }
@@ -689,6 +694,15 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .buttons-line { flex: 0 0 auto; display: flex; align-items: center; column-gap: var(--space-4); padding: 6px var(--space-3) 0; min-width: 0; }
 .transport-buttons { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-1); }
 .transport-middle { flex: 0 0 auto; margin: 0 auto; display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); min-width: 0; }
+/* The mix's loudness against the platform's target (milestone 52). */
+.loudness { display: inline-flex; align-items: center; gap: 6px; }
+/* Outweighs .buttons-line .tool-group, which would otherwise keep an empty meter's room. */
+.buttons-line .tool-group.loudness[hidden], .loudness[hidden] { display: none; }
+.loudness-bar { position: relative; width: 56px; height: 6px; border-radius: 3px; background: rgba(148, 163, 184, 0.28); overflow: hidden; }
+#loudness-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+#loudness-target { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: var(--text); }
+#loudness-target[hidden] { display: none; }
+
 .transport-tools { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); min-width: 0; }
 /* The drawer's tabs, at the row's end: open, switch, or choose again to close (milestone 38). */
 .transport-tabs { display: inline-flex; align-items: center; gap: 4px; margin-left: var(--space-2); padding-left: var(--space-3); border-left: 1px solid var(--border); }
@@ -737,7 +751,15 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   .scrub-line { grid-row: 1; grid-column: 2; padding: 0; min-width: 0; }
   .scrub-line .scrub-wrap { margin-left: 0; width: auto; }
   .transport-middle { grid-row: 1; grid-column: 3; margin: 0; }
-  .transport-tools { grid-row: 1; grid-column: 4; }
+  /* The mix's loudness against the platform's target (milestone 52). */
+.loudness { display: inline-flex; align-items: center; gap: 6px; }
+.loudness[hidden] { display: none; }
+.loudness-bar { position: relative; width: 56px; height: 6px; border-radius: 3px; background: rgba(148, 163, 184, 0.28); overflow: hidden; }
+#loudness-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+#loudness-target { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: var(--text); }
+#loudness-target[hidden] { display: none; }
+
+.transport-tools { grid-row: 1; grid-column: 4; }
   /* The status down to what must stay — the project, a warning about ffmpeg, the cache — since the
      line's room is the scrub bar's; the library's counts and its problems are back on two lines, and
      Copy diagnostics with them — it is in the Help menu too, and the bar is what the line is for.
@@ -827,6 +849,10 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
   background: rgba(148, 163, 184, 0.35); overflow: visible;
 }
 .layer-bar.selected .bar-body { background: rgba(125, 211, 252, 0.55); }
+/* The layer's own sound, drawn under the shades and the label (milestone 48). */
+.layer-bar .bar-wave { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.layer-bar .bar-wave[hidden] { display: none; }
+.layer-bar .bar-wave path { stroke: rgba(255, 255, 255, 0.65); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .layer-bar .bar-in, .layer-bar .bar-out { position: absolute; top: 0; bottom: 0; background: rgba(255, 255, 255, 0.22); }
 .layer-bar .bar-in { left: 0; border-radius: 3px 0 0 3px; }
 .layer-bar .bar-out { right: 0; border-radius: 0 3px 3px 0; }

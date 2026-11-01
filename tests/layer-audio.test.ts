@@ -10,8 +10,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyLayerAudio, atempoChain, audibleLayers, audioOutputPath, GATE_SECONDS, LAYER_AUDIO_RATE,
-  layerAudioChain, layerAudioFilter, layerGainAt, layerHeard, presetAudioArgs,
-  type ClipAudioLayer, type SoundAudioLayer,
+  layerAudioChain, layerAudioFilter, layerBarPeaks, layerGainAt, layerHeard, loudnormFilter,
+  measureMixArgs, parseMixLoudness, presetAudioArgs,
+  type ClipAudioLayer, type MixLoudness, type SoundAudioLayer,
 } from '../src/core/layer-audio';
 import { buildRenderPlan, PRESET_IDS, type RenderPlan } from '../src/core/render-plan';
 import { EMPTY_SOUND, type SoundValue } from '../src/core/sound-layer';
@@ -123,6 +124,92 @@ describe('how loud a layer is at a moment', () => {
     expect(layerGainAt(layer({ ending: 'once' }), 1.5, 10)).toBe(0);
     expect(layerGainAt({ ...layer(), span: { start: 2, end: 4 } }, 1, 10)).toBe(0);
     expect(layerGainAt({ ...layer(), span: { start: 2, end: 4 } }, 3, 10)).toBe(1);
+  });
+});
+
+describe('the waveform on a layer\'s bar (milestone 48)', () => {
+  // Peaks that rise across the file: bucket i holds i, so where a column read from is legible.
+  const ramp = Uint8Array.from({ length: 200 }, (_, i) => i);
+
+  it('draws the material at the project\'s time: the in point shifts it and a loop repeats it', () => {
+    // The whole four-second file across a four-second bar: the shape is the ramp.
+    const whole = layerBarPeaks(music({ ending: 'loop' }), ramp, 4, 40);
+    expect(whole[0]).toBeLessThan(20);
+    expect(whole[39]).toBeGreaterThan(180);
+    // From two seconds in, the first column reads from the middle of the file.
+    const shifted = layerBarPeaks(music({ inPoint: 2, ending: 'loop' }), ramp, 4, 40);
+    expect(shifted[0]).toBeGreaterThanOrEqual(99);
+    // A one-second window looping over four seconds comes round: the shape repeats.
+    const looped = layerBarPeaks(music({ inPoint: 0, outPoint: 1, ending: 'loop' }), ramp, 4, 40);
+    expect(looped[10]!, 'the second pass starts over').toBeLessThan(looped[9]!);
+  });
+
+  it('is silent before the delay, shaped by the fades, and drawn for a muted layer all the same', () => {
+    const delayed = layerBarPeaks(music({ delay: 2, ending: 'loop' }), ramp, 4, 40);
+    expect(Array.from(delayed.slice(0, 19)).every((p) => p === 0), 'nothing before the delay').toBe(true);
+    expect(delayed[30]).toBeGreaterThan(0);
+    // A fade in scales the start down; the bar shows the fade that will be heard.
+    const faded = layerBarPeaks(music({ inPoint: 2, ending: 'loop', fadeIn: 2 }), ramp, 4, 40);
+    expect(faded[1]!).toBeLessThan(layerBarPeaks(music({ inPoint: 2, ending: 'loop' }), ramp, 4, 40)[1]!);
+    // Muted and quiet layers still show what they hold: the bar is about time, not level.
+    expect(layerBarPeaks(music({ muted: true, ending: 'loop' }), ramp, 4, 40)).toEqual(whole40());
+    expect(layerBarPeaks(music({ volume: 0.1, ending: 'loop' }), ramp, 4, 40)).toEqual(whole40());
+    function whole40(): Uint8Array {
+      return layerBarPeaks(music({ ending: 'loop' }), ramp, 4, 40);
+    }
+  });
+
+  it('draws inside the span\'s own window, which is what the bar covers', () => {
+    // The bar covers 1..3 s; the sound starts at its delay of 2 s, so the first half is empty.
+    const spanned = layerBarPeaks({ ...music({ delay: 2, ending: 'loop' }), span: { start: 1, end: 3 } }, ramp, 4, 40);
+    expect(Array.from(spanned.slice(0, 19)).every((p) => p === 0)).toBe(true);
+    expect(spanned[30]).toBeGreaterThan(0);
+  });
+
+  it('draws nothing without peaks, a length or columns', () => {
+    expect(layerBarPeaks(music(), new Uint8Array(), 4, 40)).toEqual(new Uint8Array(40));
+    expect(layerBarPeaks(music(), ramp, 4, 0)).toEqual(new Uint8Array(0));
+    expect(layerBarPeaks(music({}, ''), ramp, 0, 4)).toEqual(new Uint8Array(4));
+  });
+});
+
+describe('levelling the mix (milestone 52)', () => {
+  const target = { lufs: -14, truePeakDb: -1 };
+  const measured: MixLoudness = { inputI: -22.3, inputTp: -3.1, inputLra: 6.4, inputThresh: -32.9 };
+
+  it('levels dynamically with the target alone, and linearly once the mix is measured', () => {
+    expect(loudnormFilter(target)).toBe(`loudnorm=I=-14:TP=-1:LRA=11,aresample=${LAYER_AUDIO_RATE}`);
+    expect(loudnormFilter(target, measured)).toBe(
+      `loudnorm=I=-14:TP=-1:LRA=11:measured_I=-22.3:measured_TP=-3.1:measured_LRA=6.4:measured_thresh=-32.9:linear=true,aresample=${LAYER_AUDIO_RATE}`,
+    );
+  });
+
+  it('measures the mix to nowhere: the same graph, the files as the only inputs, the report on stderr', () => {
+    const args = measureMixArgs([music()], { fps: 30, firstFrame: 0, totalFrames: 60, length: 2 });
+    expect(args.slice(0, 3)).toEqual(['-hide_banner', '-nostats', '-nostdin']);
+    expect(args.slice(3, 5)).toEqual(['-i', '/lib/music.wav']);
+    const graph = args[args.indexOf('-filter_complex') + 1]!;
+    expect(graph).toContain('[0:a]aresample');
+    expect(graph).toContain('[aout]loudnorm=I=-14:TP=-1:LRA=11:print_format=json[mout]');
+    expect(args.slice(-5)).toEqual(['-map', '[mout]', '-f', 'null', '-']);
+  });
+
+  it('reads what loudnorm printed, silence as the meter\'s floor, and garbage as nothing', () => {
+    const stderr = 'noise before\n{\n"input_i" : "-22.30",\n"input_tp" : "-3.10",\n"input_lra" : "6.40",\n"input_thresh" : "-32.90",\n"output_i" : "-14.01"\n}';
+    expect(parseMixLoudness(stderr)).toEqual({ inputI: -22.3, inputTp: -3.1, inputLra: 6.4, inputThresh: -32.9 });
+    const silent = '{"input_i" : "-inf", "input_tp" : "-inf", "input_lra" : "0.00", "input_thresh" : "-inf"}';
+    expect(parseMixLoudness(silent)).toEqual({ inputI: -70, inputTp: -70, inputLra: 0, inputThresh: -80 });
+    expect(parseMixLoudness('nothing here')).toBeNull();
+    expect(parseMixLoudness('{"input_i": "what"}')).toBeNull();
+  });
+
+  it('joins the plan after the cut, so what is levelled is exactly what is written — and only when asked', () => {
+    const plain = applyLayerAudio(plan('h264-mp4'), [music()]);
+    expect(plain.args.join(' ')).not.toContain('loudnorm');
+    const levelled = applyLayerAudio(plan('h264-mp4'), [music()], { target, measured });
+    const graph = levelled.args[levelled.args.indexOf('-filter_complex') + 1]!;
+    expect(graph).toContain(`apad=whole_dur=2,loudnorm=I=-14:TP=-1:LRA=11:measured_I=-22.3`);
+    expect(graph).toContain('linear=true,aresample=48000[aout]');
   });
 });
 
