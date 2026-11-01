@@ -5076,9 +5076,10 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.getElementById('results-hint-make').click()`);
       await until(async () => (await hint()).busy === 'true', 'the button saying it is working');
       await until(async () => (await hint()).text === 'Made 3 files.', 'the three made', 240_000);
-      // Nothing left for this type: the button goes, so nobody is offered more than there is.
-      expect((await hint()).button, 'the button goes once nothing is left').toBe(false);
+      // Nothing left for this type: the button goes, so nobody is offered more than there is. The
+      // line can say "Made" before the library has counted the three, so both are waited for.
       await until(async () => (await held()) === before + 3, 'the three in the library');
+      await until(async () => !(await hint()).button, 'the button goes once nothing is left');
       // On disk under the sample-media root, and only those three.
       for (const item of samplesForTypes(['vignette'])) expect(existsSync(join(sampleRoot, ...sampleMediaPath(item))), item.file).toBe(true);
       expect(existsSync(join(sampleRoot, ...sampleMediaPath(samplesForTypes(['whoosh'])[0]!))), 'and nothing from another type').toBe(false);
