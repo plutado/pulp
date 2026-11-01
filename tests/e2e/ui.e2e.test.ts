@@ -1720,6 +1720,9 @@ describe.skipIf(!electron)('inspector UI', () => {
         // guide draws while it holds, which is the "say it while it snaps" of the item.
         await pointer('pointermove', at0.x + 2, at0.y + 1);
         await until(() => page.eval<boolean>(`!!${overlay}.querySelector('.stage-guide.x')`), 'the centre guide while snapped');
+        // A hand pauses mid-drag; the gesture is still one undo step however long it holds. Past
+        // the typing commit's 400 ms delay is what split it on a slow runner before.
+        await sleep(600);
 
         // Drag it right and down; the placement lands as frame fractions, snap tolerance allowed.
         const b = await box();

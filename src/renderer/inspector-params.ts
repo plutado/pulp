@@ -2344,8 +2344,16 @@ export function initInspectorParams(): void {
   // path, the same commit, so a drag is one undo step and every redraw goes one way.
   registerLayerEditor({
     edit: (block, id, change, commit) => {
+      // A live edit is part of a gesture that commits at its end. The typing timer would split a
+      // drag that pauses longer than its delay into two undo steps, so a gesture never leaves it
+      // armed; a typed edit still waiting on it becomes its own step first.
+      if (!commit && commitTimer !== undefined) commitParams();
       editLayer(block, id, change, commit);
       if (commit) commitParams();
+      else {
+        clearTimeout(commitTimer);
+        commitTimer = undefined;
+      }
     },
     get: (block, id) => currentLayers()[block]?.find((l) => l.id === id),
     commit: () => {
