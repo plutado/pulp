@@ -12,6 +12,7 @@
  */
 
 import type { MediaSequence } from './media-sequence';
+import { sanitizeVoice, voiceFromText, voiceToText, type VoiceValue } from './voice-treatment';
 
 /** How the clip plays when it reaches its out point. */
 export const CLIP_ENDINGS = ['loop', 'once'] as const;
@@ -56,6 +57,8 @@ export interface ClipValue {
   volume: number;
   /** Sound off, volume kept, like a mixer's mute. */
   muted: boolean;
+  /** A voice treatment on the clip's own track (milestone 53, src/core/voice-treatment.ts); absent is as recorded. */
+  voice?: VoiceValue;
 }
 
 export const EMPTY_CLIP: ClipValue = {
@@ -214,7 +217,8 @@ export function sanitizeClipValue(input: unknown): ClipValue | null | undefined 
   const volume = Math.min(1, Math.max(0, Math.round(rawVolume * 100) / 100));
   // Only a .cube may ride here: the host hands the path to ffmpeg, and anything else is noise.
   const lut = typeof r.lut === 'string' && /\.cube$/i.test(r.lut.trim()) ? r.lut.trim() : undefined;
-  return { id, inPoint, outPoint, ending, speed, delay, hidden: r.hidden === true, volume, muted: r.muted === true, ...(lut ? { lut } : {}) };
+  const voice = sanitizeVoice(r.voice);
+  return { id, inPoint, outPoint, ending, speed, delay, hidden: r.hidden === true, volume, muted: r.muted === true, ...(lut ? { lut } : {}), ...(voice ? { voice } : {}) };
 }
 
 /**
@@ -233,6 +237,7 @@ export function clipValueToText(value: ClipValue | null): string {
   if (value.speed !== DEFAULT_CLIP_SPEED) parts.push(`speed=${value.speed}`);
   if (value.delay !== 0) parts.push(`delay=${value.delay}`);
   if (value.volume !== 1) parts.push(`volume=${value.volume}`);
+  if (value.voice) parts.push(`voice=${voiceToText(value.voice)}`);
   if (value.muted) parts.push('muted');
   if (value.hidden) parts.push('hidden');
   return parts.join(' ');
@@ -259,9 +264,15 @@ export function clipValueFromText(text: string): ClipValue | null {
     }
     const at = part.indexOf('=');
     if (at <= 0) continue;
-    const field = TEXT_KEYS[part.slice(0, at).toLowerCase()];
-    if (!field) continue;
+    const name = part.slice(0, at).toLowerCase();
     const raw = part.slice(at + 1);
+    if (name === 'voice') {
+      const voice = voiceFromText(raw);
+      if (voice) fields.voice = voice;
+      continue;
+    }
+    const field = TEXT_KEYS[name];
+    if (!field) continue;
     if (field === 'ending') fields.ending = raw;
     else if (raw.trim() !== '' && Number.isFinite(Number(raw))) fields[field] = Number(raw);
   }

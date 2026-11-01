@@ -269,6 +269,13 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${NOISE}*gt(random(1),0.97)*min(1,t*2)*min(1,max(0,(4.5-t)))*0.9`, 4.5), 4.5, 'bandpass=f=1600:width_type=o:w=2,volume=1.2'),
   },
   { folder: ['Sound effects', 'Crowd'], file: 'cheer.wav', type: 'crowd', note: 'A crowd swell.', recipe: audio(evalSrc(`${NOISE}*${bell(1.4, 1)}*0.7`, 3), 3, 'bandpass=f=900:width_type=o:w=1.5,volume=1.1') },
+  {
+    // A deliberately noisy "voice memo" for trying the voice treatments (milestone 53): voice-like
+    // phrases over a steady hiss, with the last stretch hiss alone so a noise floor can be read
+    // there — which is exactly what the end-to-end test does to prove Reduce noise lowers it.
+    folder: ['Sound effects', 'Crowd'], file: 'noisy-voice-memo.wav', type: 'crowd', note: 'A voice-like phrase over a hissy room, left noisy on purpose for the voice treatments.',
+    recipe: audio(evalSrc(`${tone(135, 6)}*(0.85+0.15*sin(2*PI*5.2*t))*(${env(0.3, 1.1, 0.04, 1.2)}+${env(1.7, 0.9, 0.04, 1.2)}+${env(2.9, 1.3, 0.04, 1)})*0.28+${NOISE}*0.06`, 6), 6),
+  },
   // Foley / household.
   {
     folder: ['Sound effects', 'Foley'], file: 'knock.wav', type: 'foley', note: 'Three knocks on a door.',

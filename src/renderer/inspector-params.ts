@@ -49,6 +49,7 @@ import { IMAGE_TREATMENTS, sanitizeImageValue, sanitizePsdChoice, type ImageValu
 import { fileHiddenLayers, layersTopFirst, layerShown, placeableLayers, psdLimitSummary, type PsdOutline } from '../core/psd';
 import { hiddenDiffersFromFile, hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines } from './psd-state';
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue } from '../core/video-layer';
+import { DEFAULT_VOICE_AMOUNT, VOICE_DESCRIPTIONS, VOICE_LABELS, VOICE_LIMITS, VOICE_TREATMENTS, type VoiceValue } from '../core/voice-treatment';
 import { EMPTY_SOUND, SOUND_ENDINGS, SOUND_LIMITS, type SoundEnding, type SoundValue } from '../core/sound-layer';
 import { DEFAULT_CURVE, DEFAULT_KEY_EASING, KEY_EASINGS, keyedPoseAt, sanitizeKeys, withKeyAt, type KeyEasing, type LayerKey } from '../core/layer-keys';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
@@ -1309,6 +1310,32 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
 
 const ENDING_LABELS: Record<ClipEnding, string> = { loop: 'Loop', once: 'Play once' };
 
+/** 'none' beside the treatments: the choice a voice select offers, and what clears it. */
+const VOICE_CHOICES = ['none', ...VOICE_TREATMENTS] as const;
+const VOICE_CHOICE_LABELS: Record<(typeof VOICE_CHOICES)[number], string> = { none: 'As recorded', ...VOICE_LABELS };
+
+/**
+ * A voice treatment on a layer's sound (milestone 53): the treatment, said in
+ * one line where it is chosen, and how much of it is heard — the same recipe
+ * in the preview and the render, applied before the loudness levelling so the
+ * platform's target still holds. Shared by an audio layer's sound and a
+ * clip's own track, which is every layer with sound.
+ */
+function voiceControls(current: VoiceValue | undefined, onChange: (voice: VoiceValue | undefined) => void, label: string): HTMLElement[] {
+  const chosen = selectOf(VOICE_CHOICES, VOICE_CHOICE_LABELS, current?.treatment ?? 'none', (v) => {
+    onChange(v === 'none' ? undefined : { treatment: v, amount: current?.amount ?? DEFAULT_VOICE_AMOUNT });
+  }, `${label} voice treatment`);
+  const out: HTMLElement[] = [typeField('Voice', chosen)];
+  if (current) {
+    out.push(typeField('Amount, %', numberOf(current.amount, VOICE_LIMITS.amount, 5, (v) => onChange({ ...current, amount: v }), `${label} voice amount`, 100)));
+    const said = document.createElement('p');
+    said.className = 'note voice-note';
+    said.textContent = VOICE_DESCRIPTIONS[current.treatment];
+    out.push(said);
+  }
+  return out;
+}
+
 /** What the Add layer buttons say, and what a new layer of each type is called. */
 const ADD_LAYER_LABELS: Record<LayerType, string> = { text: 'Text', image: 'Image', video: 'Video', audio: 'Audio' };
 
@@ -1358,7 +1385,7 @@ function clipField(
     emptyLibrary: 'No clips or animations in the library yet. Add a folder with video, or make the sample media.',
     chosen: () => value?.id ?? undefined,
     // A new clip starts from the whole of it: in and out points of the one before mean nothing here.
-    onPick: (entry) => set({ ...EMPTY_CLIP, id: entry.id, ending: value?.ending ?? 'loop', speed: value?.speed ?? 1, delay: value?.delay ?? 0 }),
+    onPick: (entry) => set({ ...EMPTY_CLIP, id: entry.id, ending: value?.ending ?? 'loop', speed: value?.speed ?? 1, delay: value?.delay ?? 0, ...(value?.voice ? { voice: value.voice } : {}) }),
   });
   const picker = chooser.el;
 
@@ -1433,6 +1460,7 @@ function clipField(
       settings.append(
         typeField('Volume, %', numberOf(value.volume, { min: 0, max: 1 }, 5, (v) => patch({ volume: v }), `${slot.label} volume`, 100)),
         typeField('Muted', checkOf(value.muted, (v) => patch({ muted: v }), `${slot.label} muted`)),
+        ...voiceControls(value.voice, (voice) => patch({ voice }), slot.label),
       );
     }
     if (frames === 0) {
@@ -1535,7 +1563,7 @@ function soundField(
     emptyLibrary: 'No sounds or music in the library yet. Add a folder with audio, or make the sample media.',
     chosen: () => value?.id ?? undefined,
     // A new sound starts from the whole of it: in and out points of the one before mean nothing here.
-    onPick: (entry) => set({ ...EMPTY_SOUND, id: entry.id, ending: value?.ending ?? EMPTY_SOUND.ending, delay: value?.delay ?? 0, volume: value?.volume ?? 1 }),
+    onPick: (entry) => set({ ...EMPTY_SOUND, id: entry.id, ending: value?.ending ?? EMPTY_SOUND.ending, delay: value?.delay ?? 0, volume: value?.volume ?? 1, ...(value?.voice ? { voice: value.voice } : {}) }),
   });
 
   const settings = document.createElement('div');
@@ -1571,6 +1599,7 @@ function soundField(
       typeField('Muted', checkOf(value.muted, (v) => patch({ muted: v }), `${slot.label} muted`)),
       typeField('Fade in, s', numberOf(value.fadeIn, SOUND_LIMITS.fade, 0.1, (v) => patch({ fadeIn: v }), `${slot.label} fade in`)),
       typeField('Fade out, s', numberOf(value.fadeOut, SOUND_LIMITS.fade, 0.1, (v) => patch({ fadeOut: v }), `${slot.label} fade out`)),
+      ...voiceControls(value.voice, (voice) => patch({ voice }), slot.label),
     );
     if (duration === 0) {
       const waiting = document.createElement('p');

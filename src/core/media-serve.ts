@@ -148,6 +148,11 @@ export async function serveMedia(req: ServeRequest, lookup: (id: string) => Medi
   const wantKind = seq ? 'image' : found.entry.mediaKind;
   if (mediaKindForPath(real) !== wantKind || !(ext in MEDIA_MIME)) return notFound();
 
+  return serveFile(real, req.method, req.range, MEDIA_MIME[ext]!);
+}
+
+/** One local file streamed with byte ranges honoured, so audio and video can seek. */
+async function serveFile(real: string, method: string, rangeHeader: string | null | undefined, mime: string): Promise<ServeResult> {
   let size: number;
   try {
     const info = await stat(real);
@@ -158,12 +163,12 @@ export async function serveMedia(req: ServeRequest, lookup: (id: string) => Medi
   }
 
   const headers: Record<string, string> = {
-    'Content-Type': MEDIA_MIME[ext]!,
+    'Content-Type': mime,
     'Accept-Ranges': 'bytes',
     'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
   };
-  const range = parseRange(req.range, size);
+  const range = parseRange(rangeHeader, size);
   if (range === 'unsatisfiable') {
     return { status: 416, headers: { ...headers, 'Content-Range': `bytes */${size}` } };
   }
@@ -172,6 +177,46 @@ export async function serveMedia(req: ServeRequest, lookup: (id: string) => Medi
   headers['Content-Length'] = String(end - start + 1);
   if (range) headers['Content-Range'] = `bytes ${start}-${end}/${size}`;
   const status = range ? 206 : 200;
-  if (req.method === 'HEAD') return { status, headers };
+  if (method === 'HEAD') return { status, headers };
   return { status, headers, body: createReadStream(real, { start, end }) };
+}
+
+// ---------------------------------------------------------------- treated voice previews (milestone 53)
+
+/** The host a treated voice preview is served under; a library id is a 24-hex hash and can never be this. */
+export const VOICE_PREVIEW_HOST = 'voice';
+
+/** The file names the voice cache writes and the only shape the handler serves. */
+export const VOICE_PREVIEW_FILE = /^[a-f0-9]{40}\.m4a$/;
+
+/** pulp-media://voice/<hash>.m4a — a file the voice service wrote into its own cache folder. */
+export function voicePreviewUrlFor(file: string): string {
+  return `${MEDIA_SCHEME}://${VOICE_PREVIEW_HOST}/${file}`;
+}
+
+/**
+ * Serve a treated voice preview, or nothing: the name is held to exactly a hex
+ * hash and the extension the cache writes, so no part of a request reaches the
+ * file system as anything but a name the voice service made up. Same rules as
+ * the library's media otherwise — GET and HEAD, no template pages, ranges
+ * honoured so the element can seek.
+ */
+export async function serveVoicePreview(req: ServeRequest, dir: string): Promise<ServeResult | null> {
+  let url: URL;
+  try {
+    url = new URL(req.url);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== `${MEDIA_SCHEME}:` || url.hostname !== VOICE_PREVIEW_HOST) return null;
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return { status: 405, headers: { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' } };
+  }
+  if (req.referrer && req.referrer.startsWith('pulp-template://')) {
+    return { status: 403, headers: { 'Cache-Control': 'no-store' } };
+  }
+  if (url.search || url.username || url.password) return notFound();
+  const name = url.pathname.replace(/^\/+/, '');
+  if (!VOICE_PREVIEW_FILE.test(name)) return notFound();
+  return serveFile(join(dir, name), req.method, req.range, MEDIA_MIME['.m4a']!);
 }

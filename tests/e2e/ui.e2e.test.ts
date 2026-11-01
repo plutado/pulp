@@ -1264,7 +1264,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         // Its settings are all there, in seconds, and the preview holds a sound for the layer.
         const labels = () => page.eval<string[]>(`[...${card}.querySelectorAll('.sound-settings > .type-field > span')].map((s) => s.textContent)`);
         await until(async () => (await labels()).length >= 8, 'the sound settings');
-        expect(await labels()).toEqual(['In point, s', 'Out point, s', 'At the end', 'Start delay, s', 'Volume, %', 'Muted', 'Fade in, s', 'Fade out, s']);
+        expect(await labels()).toEqual(['In point, s', 'Out point, s', 'At the end', 'Start delay, s', 'Volume, %', 'Muted', 'Fade in, s', 'Fade out, s', 'Voice']);
         await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 1), 'the layer heard in the preview');
         expect(await page.eval<string>(`${sounds}[0].kind`)).toBe('sound');
         // Paused is silent: a held frame makes no sound.
@@ -1342,6 +1342,54 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 0), 'and nothing left to hear');
         await page.eval(`document.getElementById('undo').click()`);
         await until(async () => (await layerIds()).length === before.length + 1, 'undo bringing it back');
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
+    it('treats a voice on a layer with sound, with an amount, and the preview plays the treated file (milestone 53)', async () => {
+      await clickResult('Title Card');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const before = await layerIds();
+      const sounds = `(window.pulpLayerSounds ? window.pulpLayerSounds() : [])`;
+      try {
+        // An audio layer with the fixture sound, as milestone 48's test places one.
+        await page.eval(`${section}.querySelector('.layer-add button[data-add=audio]').click()`);
+        await until(async () => (await layerIds()).length === before.length + 1, 'the audio layer');
+        const layer = (await layerIds()).find((id) => !before.includes(id))!;
+        const card = `document.querySelector('#params .param-card[data-layer="${layer}"]')`;
+        await page.eval(`${card}.querySelector('.sound-field .picker-toggle').click()`);
+        await until(
+          () => page.eval<boolean>(
+            `(() => { const b = [...${card}.querySelectorAll('.image-picker .image-choice')].find((x) => (x.textContent || '').startsWith('silence'));
+              if (!b) return false; b.click(); return true; })()`,
+          ),
+          'the sound chosen from the chooser',
+        );
+        await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 1), 'the layer heard in the preview');
+
+        // The Voice select offers the six treatments beside "As recorded", with no amount yet.
+        const voice = `${card}.querySelector('select[aria-label$="voice treatment"]')`;
+        await until(() => page.eval<boolean>(`!!${voice}`), 'the voice select');
+        expect(await page.eval<string[]>(`[...${voice}.options].map((o) => o.textContent)`))
+          .toEqual(['As recorded', 'Clean voice', 'Podcast', 'Reduce noise', 'Phone', 'Radio', 'Warm']);
+        expect(await page.eval<boolean>(`!!${card}.querySelector('input[aria-label$="voice amount"]')`)).toBe(false);
+
+        // Choosing one brings its amount and its one-line description, and the preview's element
+        // swaps to the treated file once the main process has rendered it.
+        await page.eval(`(() => { const s = ${voice}; s.value = 'reduce-noise'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`${card}.querySelector('input[aria-label$="voice amount"]')?.value || ''`).then((v) => v === '100'), 'the amount at its full');
+        expect(await page.eval<string>(`${card}.querySelector('.voice-note').textContent`)).toContain('Noise reduction alone');
+        await until(() => page.eval<string>(`${sounds}[0] ? ${sounds}[0].voice : ''`).then((v) => v === 'reduce-noise|1'), 'the treated file in the preview', 30_000);
+
+        // The amount travels: half of it is half the recipe, re-rendered.
+        await page.eval(`(() => { const a = ${card}.querySelector('input[aria-label$="voice amount"]'); a.value = '50'; a.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`${sounds}[0] ? ${sounds}[0].voice : ''`).then((v) => v === 'reduce-noise|0.5'), 'the preview at half the treatment', 30_000);
+
+        // Back to "As recorded": the element plays the file as it was, straight away.
+        await page.eval(`(() => { const s = ${voice}; s.value = 'none'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`${sounds}[0] ? ${sounds}[0].voice : 'gone'`).then((v) => v === ''), 'the sound as recorded again');
       } finally {
         await restoreLayers();
       }

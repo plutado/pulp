@@ -20,7 +20,7 @@ import { sequenceStripArgs } from '../../src/core/hover-scrub';
 import { itemId } from '../../src/core/library-scan';
 import { mediaUrlFor } from '../../src/core/media-url';
 import { scanLibrary } from '../../src/core/library';
-import { SAMPLE_MEDIA, sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
+import { SAMPLE_MEDIA, sampleAudioArgs, sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { ffmpegArgs, runBounded, runBoundedBuffer } from './process';
 import { lottieManifestId } from '../../src/core/lottie';
 import { dotLottieFixture, lottieFixture } from '../lottie-fixture';
@@ -1169,6 +1169,45 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(aimed.code, aimed.stderr).toBe(0);
     const levelled = await integrated(join(out, 'level-aimed.mp4'));
     expect(Math.abs(levelled - -14), `levelled it measures ${levelled} LUFS`).toBeLessThan(1.5);
+  }, 300_000);
+
+  it('treats a voice on a layer with sound: Reduce noise lowers the bundled noisy sample\'s noise floor (milestone 53)', async () => {
+    // The bundled noisy sample, written by its own recipe into a test library: voice-like phrases
+    // over a steady hiss, with the last stretch hiss alone — where a noise floor can be read.
+    const lib = join(out, 'voice-library');
+    await mkdir(lib, { recursive: true });
+    const noisy = SAMPLE_MEDIA.find((i) => i.file === 'noisy-voice-memo.wav');
+    expect(noisy, 'the bundled noisy sample').toBeTruthy();
+    const file = join(lib, 'noisy-voice-memo.wav');
+    const made = await runBounded(ffmpeg, ffmpegArgs(sampleAudioArgs(noisy!.recipe as Parameters<typeof sampleAudioArgs>[0], file)), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(made.code, made.stderr).toBe(0);
+    const noisyId = itemId(`media:${file}`);
+    const common = ['--library', FIXTURES, '--library', lib];
+    // In from 4.5 s: the graphic's two seconds hold hiss alone, so the floor is legible in the file.
+    const voiced = (voice?: unknown) =>
+      ['--param', `@layers=${JSON.stringify({ stack: [{ id: 'memo', type: 'audio', sound: { id: noisyId, inPoint: 4.5, ...(voice ? { voice } : {}) } }] })}`];
+    const maxVolume = async (name: string): Promise<number> => {
+      const r = await runBounded(ffmpeg, ffmpegArgs(['-i', join(out, name), '-af', 'atrim=start=0.3:end=1.3,asetpts=PTS-STARTPTS,volumedetect', '-f', 'null', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
+      const m = /max_volume:\s*(-?[\d.]+) dB/.exec(r.stderr);
+      expect(m, r.stderr.slice(-2000)).not.toBeNull();
+      return Number(m![1]);
+    };
+
+    const plain = await render('pulp.test.video-layer', 'h264-mp4', 'voice-plain', { extra: [...common, ...voiced()] });
+    expect(plain.code, plain.stderr).toBe(0);
+    const floor = await maxVolume('voice-plain.mp4');
+    expect(floor, 'the hiss is there to remove').toBeGreaterThan(-45);
+
+    // Reduce noise at full amount drops the floor by a margin no drift can fake.
+    const treated = await render('pulp.test.video-layer', 'h264-mp4', 'voice-treated', { extra: [...common, ...voiced({ treatment: 'reduce-noise', amount: 1 })] });
+    expect(treated.code, treated.stderr).toBe(0);
+    const lowered = await maxVolume('voice-treated.mp4');
+    expect(lowered, `the floor fell from ${floor} to ${lowered} dB`).toBeLessThan(floor - 8);
+
+    // An amount of nothing is the sound as recorded.
+    const none = await render('pulp.test.video-layer', 'h264-mp4', 'voice-none', { extra: [...common, ...voiced({ treatment: 'reduce-noise', amount: 0 })] });
+    expect(none.code, none.stderr).toBe(0);
+    expect(Math.abs((await maxVolume('voice-none.mp4')) - floor), 'amount 0 leaves the floor alone').toBeLessThan(1);
   }, 300_000);
 
   it('grades the whole render through a .cube LUT, named on the command line (milestone 52)', async () => {

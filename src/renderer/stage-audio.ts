@@ -32,6 +32,10 @@ interface LayerSound {
   el: HTMLAudioElement;
   /** What the layer is and how it plays; the one place that decides when it is heard. */
   layer: AudioLayer;
+  /** The treatment the element's src is treated for (milestone 53); '' is the file as recorded. */
+  voiceKey: string;
+  /** The ask for a treated file, waiting for the settings to settle. */
+  voiceTimer?: ReturnType<typeof setTimeout>;
 }
 
 /** One element per audible layer, keyed block.layer. */
@@ -89,8 +93,10 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
       // The same file with new settings keeps its element and the sound it has already buffered.
       sound.layer = next;
       wanted.delete(key);
+      bindVoice(key, sound);
       continue;
     }
+    clearTimeout(sound.voiceTimer);
     sound.el.pause();
     sound.el.removeAttribute('src');
     sound.el.load();
@@ -100,8 +106,64 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
     const el = document.createElement('audio');
     el.preload = 'auto';
     el.src = mediaUrlFor(sourceId(layer));
-    sounds.set(key, { el, layer });
+    const sound: LayerSound = { el, layer, voiceKey: '' };
+    sounds.set(key, sound);
+    bindVoice(key, sound);
   }
+}
+
+// ---------------------------------------------------------------- voice treatments (milestone 53)
+
+/** A slider settles faster than a long file treats: one ask after the burst answers for all of it. */
+const VOICE_DEBOUNCE_MS = 350;
+
+/** What the element should be treated for: the treatment and its amount, or '' for the file as recorded. */
+function voiceKeyOf(layer: AudioLayer): string {
+  const voice = layer.value.voice;
+  return voice && voice.amount > 0 ? `${voice.treatment}|${voice.amount}` : '';
+}
+
+/**
+ * Bring the element's source in line with the layer's treatment: the file as
+ * recorded straight away when the treatment goes, and the treated file once
+ * the main process has rendered it — through the recipe the render mixes by,
+ * so the preview is the mix (src/main/voice-service.ts). Until it lands, or
+ * when it cannot be made, the element keeps playing the sound as recorded.
+ */
+function bindVoice(key: string, sound: LayerSound): void {
+  const want = voiceKeyOf(sound.layer);
+  if (want === sound.voiceKey) return;
+  clearTimeout(sound.voiceTimer);
+  if (want === '') {
+    sound.voiceKey = '';
+    swapSrc(sound.el, mediaUrlFor(sourceId(sound.layer)));
+    return;
+  }
+  const id = sourceId(sound.layer);
+  const voice = sound.layer.value.voice;
+  const kind = sound.layer.kind;
+  sound.voiceTimer = setTimeout(() => {
+    void window.pulp.voicePreview({ kind, id, voice }).then(({ url }) => {
+      // The layer may have moved on, or gone, while the treatment rendered.
+      if (sounds.get(key) !== sound || voiceKeyOf(sound.layer) !== want || sourceId(sound.layer) !== id) return;
+      if (!url) return;
+      sound.voiceKey = want;
+      swapSrc(sound.el, url);
+    });
+  }, VOICE_DEBOUNCE_MS);
+}
+
+/** A new source for a playing element, kept where it was: the drift seek tidies the rest. */
+function swapSrc(el: HTMLAudioElement, url: string): void {
+  const at = el.currentTime;
+  const playing = !el.paused;
+  el.src = url;
+  try {
+    el.currentTime = at;
+  } catch {
+    // Not seekable yet; the next tick's drift seek lands it.
+  }
+  if (playing) void el.play().catch(() => undefined);
 }
 
 /**
@@ -147,9 +209,9 @@ export function layerSoundsClear(): void {
   layerSoundsSync({}, {}, () => undefined);
 }
 
-/** For the UI test: which layers have a sound element, and whether each is audibly playing. */
-export function layerSoundsDebug(): { key: string; kind: string; playing: boolean; muted: boolean; volume: number; time: number }[] {
+/** For the UI test: which layers have a sound element, whether each is audibly playing, and what it is treated for. */
+export function layerSoundsDebug(): { key: string; kind: string; playing: boolean; muted: boolean; volume: number; time: number; voice: string }[] {
   return [...sounds.entries()].map(([key, s]) => ({
-    key, kind: s.layer.kind, playing: !s.el.paused, muted: s.el.muted, volume: Math.round(s.el.volume * 1000) / 1000, time: s.el.currentTime,
+    key, kind: s.layer.kind, playing: !s.el.paused, muted: s.el.muted, volume: Math.round(s.el.volume * 1000) / 1000, time: s.el.currentTime, voice: s.voiceKey,
   }));
 }

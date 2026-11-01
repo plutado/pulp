@@ -170,6 +170,15 @@ describe('reading and writing a clip value', () => {
     expect(sanitizeClipValue({ id: 'x', volume: 'loud', muted: 'yes' })).toMatchObject({ volume: 1, muted: false });
   });
 
+  it('keeps a voice treatment on the clip\'s own track (milestone 53)', () => {
+    expect(sanitizeClipValue({ id: 'x', voice: { treatment: 'podcast', amount: 0.7 } })?.voice).toEqual({ treatment: 'podcast', amount: 0.7 });
+    expect(sanitizeClipValue({ id: 'x', voice: 'reverb' })?.voice).toBeUndefined();
+    expect(sanitizeClipValue({ id: 'x' })?.voice).toBeUndefined();
+    const treated = clip({ voice: { treatment: 'podcast', amount: 0.7 } });
+    expect(clipValueToText(treated)).toBe('abc voice=podcast:0.7');
+    expect(clipValueFromText(clipValueToText(treated))).toEqual(treated);
+  });
+
   it('says whether a layer asks for its sound at all (milestone 48)', () => {
     expect(clipAudible(clip())).toBe(true);
     expect(clipAudible(null)).toBe(false);

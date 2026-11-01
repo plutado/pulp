@@ -1,7 +1,7 @@
 /**
  * "N more with sample media" (milestone 34): while a category being browsed
  * has catalogue files that have not been made, the results say how many and
- * offer to make just those — quicker than the whole 625-file catalogue, and
+ * offer to make just those — quicker than the whole 626-file catalogue, and
  * the only hint anywhere that a thin-looking category is thin because nothing
  * has been generated yet, not because Pulp has nothing to offer there.
  *

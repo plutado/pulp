@@ -4,7 +4,8 @@ import { extname, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { bundledFontFile, FONT_SCHEME, fontMimeType, IMPORTED_FONTS_SLUG, importedFontFaceCss, TEMPLATE_FONTS_PATH } from '../core/fonts';
 import { importedFontPath, listImportedFonts } from './font-service';
-import { MEDIA_SCHEME, serveMedia } from '../core/media-serve';
+import { MEDIA_SCHEME, serveMedia, serveVoicePreview } from '../core/media-serve';
+import { voicePreviewDir } from './voice-service';
 import { THUMB_SCHEME } from '../core/thumbnails';
 import { STRIP_SCHEME } from '../core/hover-scrub';
 import { injectBridge, TEMPLATE_CSP } from '../core/runtime';
@@ -206,15 +207,15 @@ export function handleMediaProtocol(): void {
   protocol.handle(MEDIA_SCHEME, async (request) => {
     const layered = await serveLayered(request);
     if (layered) return layered;
-    const result = await serveMedia(
-      {
-        method: request.method,
-        url: request.url,
-        range: request.headers.get('range'),
-        referrer: request.referrer || request.headers.get('referer'),
-      },
-      lookupMedia,
-    );
+    const serveRequest = {
+      method: request.method,
+      url: request.url,
+      range: request.headers.get('range'),
+      referrer: request.referrer || request.headers.get('referer'),
+    };
+    // A treated voice preview (milestone 53) is served from the voice cache, by the name the
+    // service made up; everything else is a library item by id.
+    const result = (await serveVoicePreview(serveRequest, voicePreviewDir())) ?? (await serveMedia(serveRequest, lookupMedia));
     const body = result.body ? (Readable.toWeb(result.body) as ReadableStream) : null;
     return new Response(body, { status: result.status, headers: result.headers });
   });

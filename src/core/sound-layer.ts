@@ -17,6 +17,8 @@
  * written.
  */
 
+import { sanitizeVoice, voiceFromText, voiceToText, type VoiceValue } from './voice-treatment';
+
 /** How the sound behaves when it reaches its out point. */
 export const SOUND_ENDINGS = ['loop', 'once'] as const;
 export type SoundEnding = (typeof SOUND_ENDINGS)[number];
@@ -54,6 +56,8 @@ export interface SoundValue {
   fadeOut: number;
   /** Chosen but not heard, and taking no room, like a hidden picture. */
   hidden: boolean;
+  /** A voice treatment with its amount (milestone 53, src/core/voice-treatment.ts); absent is as recorded. */
+  voice?: VoiceValue;
 }
 
 export const EMPTY_SOUND: SoundValue = {
@@ -141,6 +145,7 @@ export function sanitizeSoundValue(input: unknown): SoundValue | null | undefine
   const outPoint = typeof r.outPoint === 'number' && Number.isFinite(r.outPoint) && r.outPoint < 0 ? -1 : seconds(r.outPoint, -1, SOUND_LIMITS.point);
   const ending = (SOUND_ENDINGS as readonly string[]).includes(r.ending as string) ? (r.ending as SoundEnding) : EMPTY_SOUND.ending;
   const volume = typeof r.volume === 'number' && Number.isFinite(r.volume) ? Math.min(1, Math.max(0, Math.round(r.volume * 100) / 100)) : 1;
+  const voice = sanitizeVoice(r.voice);
   return {
     id,
     inPoint,
@@ -152,6 +157,7 @@ export function sanitizeSoundValue(input: unknown): SoundValue | null | undefine
     fadeIn: seconds(r.fadeIn, 0, SOUND_LIMITS.fade),
     fadeOut: seconds(r.fadeOut, 0, SOUND_LIMITS.fade),
     hidden: r.hidden === true,
+    ...(voice ? { voice } : {}),
   };
 }
 
@@ -167,6 +173,7 @@ export function soundValueToText(value: SoundValue | null): string {
   if (value.volume !== 1) parts.push(`volume=${value.volume}`);
   if (value.fadeIn !== 0) parts.push(`fadein=${value.fadeIn}`);
   if (value.fadeOut !== 0) parts.push(`fadeout=${value.fadeOut}`);
+  if (value.voice) parts.push(`voice=${voiceToText(value.voice)}`);
   if (value.muted) parts.push('muted');
   if (value.hidden) parts.push('hidden');
   return parts.join(' ');
@@ -192,9 +199,15 @@ export function soundValueFromText(text: string): SoundValue | null {
     }
     const at = part.indexOf('=');
     if (at <= 0) continue;
-    const field = TEXT_KEYS[part.slice(0, at).toLowerCase()];
-    if (!field) continue;
+    const name = part.slice(0, at).toLowerCase();
     const raw = part.slice(at + 1);
+    if (name === 'voice') {
+      const voice = voiceFromText(raw);
+      if (voice) fields.voice = voice;
+      continue;
+    }
+    const field = TEXT_KEYS[name];
+    if (!field) continue;
     if (field === 'ending') fields.ending = raw;
     else if (raw.trim() !== '' && Number.isFinite(Number(raw))) fields[field] = Number(raw);
   }

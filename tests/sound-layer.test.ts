@@ -105,6 +105,8 @@ describe('reading a value from anything at all', () => {
       sound({ ending: 'loop', delay: 1.5, volume: 0.4 }),
       sound({ fadeIn: 2, fadeOut: 3 }),
       sound({ muted: true }),
+      sound({ voice: { treatment: 'clean-voice', amount: 1 } }),
+      sound({ voice: { treatment: 'reduce-noise', amount: 0.4 } }),
       { ...EMPTY_SOUND, hidden: true },
     ];
     for (const value of cases) {
@@ -113,6 +115,10 @@ describe('reading a value from anything at all', () => {
     // Defaults are left out, so the common case stays readable in a CSV cell.
     expect(soundValueToText(sound())).toBe('abc');
     expect(soundValueToText(sound({ ending: 'loop', fadeOut: 2 }))).toBe('abc ending=loop fadeout=2');
+    // A treatment travels too (milestone 53), its amount only when it is not the whole of it.
+    expect(soundValueToText(sound({ voice: { treatment: 'phone', amount: 0.6 } }))).toBe('abc voice=phone:0.6');
+    expect(sanitizeSoundValue({ id: 'x', voice: { treatment: 'warm', amount: 0.5 } })?.voice).toEqual({ treatment: 'warm', amount: 0.5 });
+    expect(sanitizeSoundValue({ id: 'x', voice: 'reverb' })?.voice).toBeUndefined();
     expect(soundValueToText(null)).toBe('');
     expect(soundValueFromText('')).toBeNull();
     // Junk between the fields is ignored rather than failing the row.

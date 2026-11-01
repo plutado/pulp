@@ -776,7 +776,7 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
     let sound = base.sound;
     if (raw.sound !== undefined) {
       const value = sanitizeSoundValue(raw.sound);
-      if (value === undefined) issue('sound', 'must be a library id with optional in, out, ending, delay, volume and fades, or null');
+      if (value === undefined) issue('sound', 'must be a library id with optional in, out, ending, delay, volume, fades and voice, or null');
       else sound = value;
     }
     void block;
@@ -791,7 +791,7 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
   let clip = base.type === 'video' ? base.clip : null;
   if (base.type === 'video' && raw.clip !== undefined) {
     const value = sanitizeClipValue(raw.clip);
-    if (value === undefined) issue('clip', 'must be a library id with optional in, out, ending, speed and delay, or null');
+    if (value === undefined) issue('clip', 'must be a library id with optional in, out, ending, speed, delay, volume and voice, or null');
     else clip = value;
   }
   let size = base.size;

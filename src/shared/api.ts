@@ -246,6 +246,13 @@ export interface PulpApi {
    * is nothing to measure.
    */
   mixLoudness(request: { layers: { kind: 'clip' | 'sound'; value: unknown; span?: { start: number; end: number | null } }[]; fps: number; length: number }): Promise<{ lufs: number | null; truePeakDb: number | null }>;
+  /**
+   * A treated voice preview (milestone 53): the layer's sound rendered once
+   * through its treatment's own recipe, answered as a pulp-media URL for the
+   * preview's element — or null when there is nothing to treat or no ffmpeg.
+   * The item travels as an id; the main process resolves the file (ADR 0013).
+   */
+  voicePreview(request: { kind: 'clip' | 'sound'; id: string; voice: unknown }): Promise<{ url: string | null }>;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */

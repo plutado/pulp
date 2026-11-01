@@ -37,6 +37,7 @@ import { spanWindow, type LayerSpan } from './layer-time';
 import type { RenderPlan } from './render-plan';
 import { soundAudible, soundTimeAt, soundWindow, type SoundSource, type SoundValue } from './sound-layer';
 import { CLIP_LIMITS, clipAudible, clipMediaTimeAt, clipWindow, DEFAULT_CLIP_SPEED, type ClipSource, type ClipValue } from './video-layer';
+import { voiceSteps } from './voice-treatment';
 
 /** Every layer's sound is brought to one rate before measuring or mixing. */
 export const LAYER_AUDIO_RATE = 48000;
@@ -242,13 +243,17 @@ function s(value: number): number {
 export function layerAudioChain(inputIndex: number, layer: AudioLayer, label: string, length: number): string {
   const steps: string[] = [`aresample=${LAYER_AUDIO_RATE}`];
   const { delay, volume, ending, fadeIn, fadeOut } = settings(layer);
+  // The voice treatment (milestone 53) runs on the file's own clock, straight after the trim:
+  // before a clip's speed, as the preview hears it, before the loop so one pass is treated once,
+  // before the volume so the compressor sees the level as recorded — and so before milestone 52's
+  // loudness levelling, which measures the treated mix and still lands the target.
   if (layer.kind === 'sound') {
     const { from, to } = soundWindow(layer.value, layer.source);
-    steps.push(`atrim=start=${s(from)}:end=${s(to)}`, 'asetpts=PTS-STARTPTS');
+    steps.push(`atrim=start=${s(from)}:end=${s(to)}`, 'asetpts=PTS-STARTPTS', ...voiceSteps(layer.value.voice));
   } else {
     const fps = Math.max(1, layer.source.fps);
     const { first, last } = clipWindow(layer.value, layer.source);
-    steps.push(`atrim=start=${s(first / fps)}:end=${s((last + 1) / fps)}`, 'asetpts=PTS-STARTPTS', ...atempoChain(layer.value.speed));
+    steps.push(`atrim=start=${s(first / fps)}:end=${s((last + 1) / fps)}`, 'asetpts=PTS-STARTPTS', ...voiceSteps(layer.value.voice), ...atempoChain(layer.value.speed));
   }
   if (ending === 'loop') {
     // Loop for as long as the render runs; the mix's own trim ends it. The size is one pass with

@@ -249,6 +249,21 @@ describe('one layer\'s chain', () => {
     expect(chain).toContain(`afade=t=in:st=2:d=${GATE_SECONDS}`);
     expect(chain).toContain(`afade=t=out:st=${6 - GATE_SECONDS}:d=${GATE_SECONDS}`);
   });
+
+  it('treats a voice straight after the trim (milestone 53): before the speed, the loop and the volume', () => {
+    // A sound: the recipe sits between the retime and everything on the graphic's clock.
+    const treated = layerAudioChain(1, music({ ending: 'once', voice: { treatment: 'reduce-noise', amount: 1 } }), 'la0', 4);
+    expect(treated).toContain('asetpts=PTS-STARTPTS,highpass=f=60,afftdn=nr=30:nf=-25[la0]');
+    // A clip: the recipe runs on the file's own clock, before atempo, as the preview hears it.
+    const sped = layerAudioChain(1, layer({ speed: 2, voice: { treatment: 'phone', amount: 1 } }), 'la0', 2);
+    expect(sped).toContain('asetpts=PTS-STARTPTS,highpass=f=310,lowpass=f=3400,acompressor=threshold=0.0625:ratio=4:attack=10:release=150:makeup=1.8,atempo=2');
+    // The mix's measurement runs the same chains, so the meter and the levelling hear the treatment too.
+    const measured = measureMixArgs([music({ voice: { treatment: 'reduce-noise', amount: 0.5 } })], { fps: 30, firstFrame: 0, totalFrames: 120, length: 4 });
+    expect(measured.join(' ')).toContain('afftdn=nr=15');
+    // No treatment, or none of it, is the chain as it always was.
+    expect(layerAudioChain(1, music({ ending: 'once' }), 'la0', 4)).not.toContain('afftdn');
+    expect(layerAudioChain(1, music({ ending: 'once', voice: { treatment: 'reduce-noise', amount: 0 } }), 'la0', 4)).not.toContain('afftdn');
+  });
 });
 
 describe('the mix', () => {

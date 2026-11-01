@@ -18,6 +18,7 @@ import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, i
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { mixLoudness } from './mix-loudness';
+import { voicePreview } from './voice-service';
 import { chromaKeyClip, chromaKeyPreview, splitScenes } from './cleanup-service';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag, removeRender } from './render-queue-service';
 import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
@@ -446,6 +447,8 @@ function registerIpc(): void {
   });
   // The mix's loudness for the transport row's meter (milestone 52): ids and settings in, LUFS out.
   ipcMain.handle('audio:mix-loudness', (_event, request: unknown) => mixLoudness(request));
+  // A treated voice preview (milestone 53): an id and a treatment in, a cache URL out.
+  ipcMain.handle('audio:voice-preview', (_event, request: unknown) => voicePreview(request));
 
   ipcMain.handle('drag-notice:get', async () => (await loadSettings()).dragNoticeSeen);
   ipcMain.handle('drag-notice:seen', async () => {
