@@ -1391,6 +1391,67 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+    it('shows keyframes as marks on the layer\'s bar: dragged in time, copied, pasted and deleted (milestone 51)', async () => {
+      await clickResult('Title Card');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const card = `document.querySelector('#params .param-card[data-layer="title"]')`;
+      const mark = (i: number) => `document.querySelectorAll('#layer-bars .layer-bar[data-layer=title] .bar-key')[${i}]`;
+      const markCount = () => page.eval<number>(`document.querySelectorAll('#layer-bars .layer-bar[data-layer=title] .bar-key').length`);
+      const at = (i: number) => page.eval<string>(`${mark(i)}?.getAttribute('aria-valuenow') || ''`);
+      const scrub = (frame: number) => page.eval(`(() => { const s = document.getElementById('scrub'); s.value = '${frame}'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      try {
+        // A key written in the Animate card appears as a mark on the bar, at its moment.
+        await until(() => page.eval<boolean>(`!!${card}`), 'the title\'s card');
+        await page.eval(`(() => { const c = ${card}; const b = c.querySelector('.card-body'); if (b && b.hidden) c.querySelector('.card-toggle').click(); })()`);
+        await page.eval(`(() => { const a = ${card}.querySelector('.layer-animate'); if (a && !a.open) a.querySelector('summary').click(); })()`);
+        await scrub(0);
+        await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) === 0), 'the playhead at the top');
+        await page.eval(`${card}.querySelector('.add-key').click()`);
+        await until(async () => (await markCount()) === 1, 'the key\'s mark on the bar');
+        expect(await at(0)).toBe('0');
+        expect(await page.eval<string>(`${mark(0)}.style.left`)).toBe('0%');
+
+        // Dragged in time: the bar's scale when the drag began sets how far a pixel goes.
+        const width = await page.eval<number>(`document.getElementById('layer-bars').getBoundingClientRect().width`);
+        const px = (seconds: number) => Math.round((seconds / 5) * width);
+        await page.eval(`${mark(0)}.dispatchEvent(new PointerEvent('pointerdown', { button: 0, pointerId: 7, clientX: 200, bubbles: true }))`);
+        await page.eval(`${mark(0)}.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: ${200 + px(2)}, bubbles: true }))`);
+        await page.eval(`${mark(0)}.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, clientX: ${200 + px(2)}, bubbles: true }))`);
+        // Within a pixel of two seconds: the bar's width need not divide by five.
+        await until(async () => Math.abs(parseFloat(await at(0)) - 2) < 0.05, 'the mark dragged to two seconds');
+        // The Animate card agrees: the mark and the key row are two views of one key.
+        expect(parseFloat(await page.eval<string>(`${card}.querySelector('.key-at').textContent`))).toBeCloseTo(2, 1);
+
+        // Copied, and pasted at the playhead on the same bar.
+        await page.eval(`${mark(0)}.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true }))`);
+        await scrub(120);
+        await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) === 120), 'the playhead at four seconds');
+        await page.eval(`${mark(0)}.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }))`);
+        await until(async () => (await markCount()) === 2, 'the pasted key\'s mark');
+        expect(await at(1)).toBe('4');
+
+        // The arrow keys move a mark by a tenth of a second, a second with Shift, one undo step each.
+        await page.eval(`${mark(1)}.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', shiftKey: true, bubbles: true, cancelable: true }))`);
+        await until(async () => (await at(1)) === '3', 'the mark a second earlier');
+
+        // Deleted from its own right-click menu…
+        await page.eval(`${mark(1)}.dispatchEvent(new MouseEvent('contextmenu', { clientX: 300, clientY: 300, bubbles: true, cancelable: true }))`);
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu button[data-command="key.delete"]')`), 'the mark\'s menu');
+        expect(await page.eval<boolean>(`document.querySelector('.context-menu button[data-command="key.paste"]').disabled`), 'paste offered while a key is copied').toBe(false);
+        await page.eval(`document.querySelector('.context-menu button[data-command="key.delete"]').click()`);
+        await until(async () => (await markCount()) === 1, 'the key gone with its mark');
+
+        // …and with the keyboard; undo brings each one back, a gesture at a time.
+        await page.eval(`${mark(0)}.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }))`);
+        await until(async () => (await markCount()) === 0, 'the last key gone');
+        await page.eval(`document.getElementById('undo').click()`);
+        await until(async () => (await markCount()) === 1, 'the deleted key back');
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
     it('sets a layer\'s type: the family in its own face from the bundled set, and every other property, undoably', async () => {
       const title = `document.querySelector('#params .layer-row[data-layer=title]')`;
       const summary = () => page.eval<string>(`${title}.querySelector('.layer-type summary').textContent`);

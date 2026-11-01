@@ -325,6 +325,25 @@ describe('a keyed layer (milestone 51)', () => {
     expect(layoutBlock(placedOnly, measure, noImages, { watched: { elapsed: 0, length: 4 } }).layers[0]!.draw.dx).toBe(10);
   });
 
+  it('composes with an entrance, an exit and a span of the layer\'s own', () => {
+    const fades: LayerTransitions = { in: { ...DEFAULT_TRANSITION, type: 'fade', seconds: 1 }, out: { ...DEFAULT_TRANSITION, type: 'fade', seconds: 1 } };
+    const b = block([text({ keys, transition: fades, span: { start: 1, end: 3 } })]);
+    const at = (elapsed: number) => layoutBlock(b, measure, noImages, { each: () => ({ alpha: 1 }), watched: { elapsed, length: 4 } }).layers[0]!.draw;
+    // Outside its span it is not there at all, however loud the keys.
+    expect(at(0.5).alpha).toBe(0);
+    expect(at(3.5).alpha).toBe(0);
+    // Half way through the fade in: the keys' pose at 1.5 s, at half the entrance's alpha times the keyed opacity.
+    const arriving = at(1.5);
+    expect(arriving.dx).toBeCloseTo(50, 6);
+    expect(arriving.scale).toBeCloseTo(1.75, 6);
+    expect(arriving.rotate).toBeCloseTo(67.5, 6);
+    expect(arriving.alpha).toBeCloseTo(0.5 * 0.625, 6);
+    // Half way through the fade out: the last key's pose, at half the exit times its opacity.
+    const leaving = at(2.5);
+    expect(leaving.dx).toBeCloseTo(100, 6);
+    expect(leaving.alpha).toBeCloseTo(0.5 * 0.5, 6);
+  });
+
   it('scales a key\'s offsets to this frame\'s pixels, as a placement\'s are', () => {
     const manifest = { blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, open: true, typography: DEFAULT_TYPOGRAPHY, direction: 'column' as const, gap: 0, align: 'left' as const, verticalAlign: 'top' as const, layers: [] }] };
     const layer = { id: 't', label: 'T', required: false, hidden: false, spaceBefore: 0, type: 'text' as const, ...DEFAULT_TYPOGRAPHY, text: 'x', maxLines: 3, keys: [{ at: 0, dx: 0.5, dy: 0.5, scale: 1, rotate: 0, opacity: 1, easing: 'linear' as const }] };

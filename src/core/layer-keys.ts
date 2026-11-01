@@ -149,6 +149,19 @@ export function withKeyAt(keys: readonly LayerKey[], key: LayerKey): LayerKey[] 
 }
 
 /**
+ * The key at `index` moved to a moment, its pose and easing unchanged: taken
+ * out, then written back by `withKeyAt`'s own rule — so dragging a mark onto
+ * another key replaces it, exactly as writing a key there would. What a drag
+ * on a bar's mark does (src/renderer/stage-bars.ts), always from the list as
+ * it stood when the drag began.
+ */
+export function keyMovedTo(keys: readonly LayerKey[], index: number, at: number): LayerKey[] {
+  const key = keys[index];
+  if (!key) return [...keys];
+  return withKeyAt(keys.filter((_, i) => i !== index), { ...key, at: Math.max(0, at) });
+}
+
+/**
  * Keys with every field in range, from anything at all: sorted, deduplicated
  * by time, counted. `undefined` when the input is not a list; an empty list is
  * no keys at all, so a layer nobody has keyed serializes as it always did.

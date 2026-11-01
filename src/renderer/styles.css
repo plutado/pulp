@@ -900,6 +900,13 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .layer-bar .bar-end.start { left: -3px; }
 .layer-bar .bar-end.end { right: -3px; }
 .layer-bar .bar-end:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+/* A keyframe's mark (milestone 51): a diamond on the row at the key's moment, dragged in time,
+   with copy, paste and delete on its own right-click menu. On the row rather than in the body:
+   a key sits in the graphic's time and can sit outside the layer's span, still holding the pose
+   at its edge, so its mark must not move with the body. */
+.layer-bar .bar-key { position: absolute; top: 2px; width: 8px; height: 8px; margin: 0 0 0 -4px; padding: 0; border: 1px solid #0d1117; border-radius: 2px; background: var(--muted); transform: rotate(45deg); cursor: ew-resize; }
+.layer-bar.selected .bar-key { background: var(--accent); }
+.layer-bar .bar-key:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .scrub-marks .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--accent); }
 .scrub-marks .mark[hidden] { display: none; }
 /* Where the cover is taken (milestone 20): a mark of its own on the scrub bar, told from the in and

@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  cubicBezier, DEFAULT_KEY_EASING, easeKey, IDENTITY_KEY, KEY_LIMITS, keyedPoseAt, sanitizeKeys, withKeyAt,
+  cubicBezier, DEFAULT_KEY_EASING, easeKey, IDENTITY_KEY, KEY_LIMITS, keyedPoseAt, keyMovedTo, sanitizeKeys, withKeyAt,
   type LayerKey,
 } from '../src/core/layer-keys';
 
@@ -66,6 +66,22 @@ describe('writing and reading keys', () => {
     const replaced = withKeyAt(keys, key(0.004, { dx: 0.5 }));
     expect(replaced).toHaveLength(2);
     expect(replaced[0]!.dx).toBe(0.5);
+  });
+
+  it('moves a key in time with its pose and easing, back into order (milestone 51)', () => {
+    const keys = [key(0, { dx: 0.1, easing: 'hold' }), key(2, { dx: 0.2 })];
+    const moved = keyMovedTo(keys, 0, 3);
+    expect(moved.map((k) => k.at)).toEqual([2, 3]);
+    expect(moved[1]).toMatchObject({ dx: 0.1, easing: 'hold' });
+  });
+
+  it('replaces a key a move lands on, as writing one there would, and never goes below zero', () => {
+    const keys = [key(0, { dx: 0.1 }), key(2, { dx: 0.2 })];
+    const landed = keyMovedTo(keys, 0, 2.004);
+    expect(landed).toHaveLength(1);
+    expect(landed[0]).toMatchObject({ at: 2.004, dx: 0.1 });
+    expect(keyMovedTo(keys, 0, -5)[0]!.at).toBe(0);
+    expect(keyMovedTo(keys, 7, 1), 'a missing index moves nothing').toEqual(keys);
   });
 
   it('keeps every field in range, sorted and counted', () => {

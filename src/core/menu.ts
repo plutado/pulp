@@ -62,6 +62,12 @@ export type MenuCommand =
   | 'layer.startHere'
   | 'layer.endHere'
   | 'layer.reset'
+  // A keyframe's mark on a layer's bar (milestone 51). Named here so the bar's right-click menu
+  // speaks the one command type, but run by the bars themselves rather than the dispatcher: the
+  // application menu has no "the mark under the pointer" to act on.
+  | 'key.copy'
+  | 'key.paste'
+  | 'key.delete'
   | 'search.focus'
   | 'browse.filter'
   | 'view.browse'

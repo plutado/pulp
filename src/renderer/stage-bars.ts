@@ -16,6 +16,7 @@
 
 import { effect } from '@preact/signals';
 import { layerBarPeaks, type AudioLayer } from '../core/layer-audio';
+import { keyMovedTo, sanitizeKeys, withKeyAt, type LayerKey } from '../core/layer-keys';
 import { MIN_ON_SCREEN, spanWindow, transitionSeconds } from '../core/layer-time';
 import { layerWithSpan, spanWithEnd } from '../core/stage-menu';
 import type { Layer, LayerValues } from '../core/layers';
@@ -23,8 +24,9 @@ import type { MediaEntry } from '../core/library-types';
 import type { TemplateManifest } from '../core/manifest';
 import { resolveLength } from '../core/timing';
 import { WAVEFORM_BUCKETS, waveformPath } from '../core/waveform';
+import { openContextMenu } from './context-menu';
 import { layerEditor, selectedLayer } from './layer-edit';
-import { appState } from './store';
+import { appState, playheadSeconds } from './store';
 import { requestWaveform, waveforms } from './waveforms';
 
 /** The bar for a layer, kept across updates so a drag keeps its element. */
@@ -39,6 +41,8 @@ interface Bar {
   /** The layer's sound, drawn inside the body (milestone 48); empty while it has none. */
   wave: SVGSVGElement;
   wavePath: SVGPathElement;
+  /** One mark per keyframe (milestone 51), kept across updates so a dragged mark keeps its pointer. */
+  marks: HTMLButtonElement[];
   /** The layer as last placed, so the waveform can be redrawn when its peaks arrive. */
   layer: Layer | null;
 }
@@ -114,6 +118,20 @@ function makeBar(block: string, id: string): Bar {
     if ((e.target as HTMLElement).classList.contains('bar-end')) return;
     selectedLayer.value = { block, id };
   });
+  // A copied key can land on any bar, so the body offers the paste where there is no mark to ask.
+  body.addEventListener('contextmenu', (e) => {
+    if (copiedKey === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    selectedLayer.value = { block, id };
+    openContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      doc: body.ownerDocument,
+      items: [{ command: 'key.paste', label: 'Paste Key at Playhead' }],
+      run: () => pasteKey(block, id),
+    });
+  });
   for (const [which, handle] of [['start', start], ['end', end]] as const) {
     handle.addEventListener('pointerdown', (e) => onEndPointerDown(e, block, id, which));
     handle.addEventListener('pointermove', onEndPointerMove);
@@ -121,7 +139,7 @@ function makeBar(block: string, id: string): Bar {
     handle.addEventListener('pointercancel', onEndPointerUp);
     handle.addEventListener('keydown', (e) => onEndKeyDown(e, block, id, which));
   }
-  return { root, body, enter, leave, label, start, end, wave, wavePath, layer: null };
+  return { root, body, enter, leave, label, start, end, wave, wavePath, marks: [], layer: null };
 }
 
 function endHandle(which: 'start' | 'end'): HTMLButtonElement {
@@ -154,6 +172,206 @@ function placeBar(bar: Bar, layer: Layer, length: number): void {
   }
   bar.layer = layer;
   paintWave(bar, layer, length);
+  placeKeys(bar, layer, length);
+}
+
+// ---------------------------------------------------------------- the keys on the bar (milestone 51)
+
+/**
+ * The one copied key — its pose and easing, never its moment, since pasting
+ * writes it at the playhead. In memory like a copied layer (src/renderer/
+ * stage-menu.ts): a key means nothing to any other program.
+ */
+let copiedKey: Omit<LayerKey, 'at'> | null = null;
+
+/** A moment held inside the graphic, where every mark must sit. */
+function clampTime(seconds: number): number {
+  return Math.min(current.length, Math.max(0, seconds));
+}
+
+/**
+ * One mark per key, updated in place like the bars themselves: a key's moment
+ * is a fraction of the graphic, and the row spans the graphic, so the mark
+ * sits on the row — a key can sit outside the layer's span and still hold the
+ * pose at its edge, and its mark stays reachable.
+ */
+function placeKeys(bar: Bar, layer: Layer, length: number): void {
+  const keys = layer.keys ?? [];
+  while (bar.marks.length > keys.length) {
+    // Never the mark a pointer holds: removing it would end its capture and strand the drag.
+    const last = bar.marks[bar.marks.length - 1]!;
+    const victim = last === keyDrag?.handle && bar.marks.length > 1 ? bar.marks.splice(bar.marks.length - 2, 1)[0]! : bar.marks.pop()!;
+    victim.remove();
+  }
+  while (bar.marks.length < keys.length) {
+    const mark = keyMark(bar.root.dataset.block!, bar.root.dataset.layer!);
+    bar.marks.push(mark);
+    bar.root.append(mark);
+  }
+  keys.forEach((key, index) => {
+    const mark = bar.marks[index]!;
+    mark.dataset.index = String(index);
+    mark.style.left = `${Math.min(100, (key.at / Math.max(0.001, length)) * 100)}%`;
+    mark.setAttribute('aria-label', `${layer.label} key at ${key.at} s`);
+    mark.setAttribute('aria-valuemin', '0');
+    mark.setAttribute('aria-valuemax', String(tidy(length)));
+    mark.setAttribute('aria-valuenow', String(key.at));
+    mark.setAttribute('aria-valuetext', `${key.at} seconds`);
+    mark.title = `${layer.label} key at ${key.at} s`;
+  });
+}
+
+function keyMark(block: string, id: string): HTMLButtonElement {
+  const mark = document.createElement('button');
+  mark.type = 'button';
+  mark.className = 'bar-key';
+  mark.setAttribute('role', 'slider');
+  mark.addEventListener('pointerdown', (e) => onKeyPointerDown(e, block, id));
+  mark.addEventListener('pointermove', onKeyPointerMove);
+  mark.addEventListener('pointerup', onKeyPointerUp);
+  mark.addEventListener('pointercancel', onKeyPointerUp);
+  mark.addEventListener('keydown', (e) => onKeyKeyDown(e, block, id));
+  mark.addEventListener('contextmenu', (e) => onKeyContextMenu(e, block, id));
+  return mark;
+}
+
+/**
+ * Write a layer's keys, by the Animate card's own rule (src/renderer/
+ * inspector-params.ts): sanitized, and an empty list is no keys at all.
+ * `commit` makes it one undo step, false is a live drag.
+ */
+function setLayerKeys(block: string, id: string, next: LayerKey[], commit: boolean): void {
+  const editor = layerEditor();
+  if (!editor) return;
+  editor.edit(block, id, (l) => {
+    const out: Layer = { ...l, keys: sanitizeKeys(next) ?? [] };
+    if ((out.keys?.length ?? 0) === 0) delete out.keys;
+    return out;
+  }, commit);
+}
+
+/** The key under a mark as the layer stands now, by the index the mark was last placed at. */
+function markKey(mark: HTMLElement, block: string, id: string): { layer: Layer; keys: LayerKey[]; index: number; key: LayerKey } | null {
+  const layer = layerEditor()?.get(block, id);
+  const keys = layer?.keys;
+  const index = Number(mark.dataset.index);
+  const key = keys?.[index];
+  if (!layer || !keys || !key) return null;
+  return { layer, keys, index, key };
+}
+
+function copyKey(key: LayerKey): void {
+  const pose: Omit<LayerKey, 'at'> & { at?: number } = { ...key };
+  delete pose.at;
+  copiedKey = pose;
+}
+
+/**
+ * The copied key written at the playhead, as Add key at the playhead writes
+ * one: the first key takes the look's opacity with it, since an animated
+ * opacity lives in the keys alone (the Animate card's rule).
+ */
+function pasteKey(block: string, id: string): void {
+  const editor = layerEditor();
+  const pose = copiedKey;
+  if (!editor || !pose) return;
+  const at = clampTime(Math.max(0, playheadSeconds.peek()));
+  editor.edit(block, id, (l) => {
+    const first = (l.keys?.length ?? 0) === 0;
+    const out: Layer = { ...l, keys: sanitizeKeys(withKeyAt(l.keys ?? [], { ...pose, at })) ?? [] };
+    if (first && out.look && (l.look?.opacity ?? 1) !== 1) out.look = { ...out.look, opacity: 1 };
+    return out;
+  }, true);
+}
+
+let keyDrag: { pointerId: number; block: string; id: string; index: number; from: LayerKey[]; startX: number; secondsPerPx: number; handle: HTMLButtonElement } | null = null;
+
+function onKeyPointerDown(e: PointerEvent, block: string, id: string): void {
+  if (e.button !== 0 || !host) return;
+  const mark = e.currentTarget as HTMLButtonElement;
+  const found = markKey(mark, block, id);
+  if (!found) return;
+  const width = host.getBoundingClientRect().width;
+  // The bar's scale when the drag began sets how far a pixel goes, as an end handle's does. The
+  // keys as they stood are kept too: every move is computed from them, so a drag that crosses
+  // another key swallows it only while it is there, and gives it back when dragged away.
+  keyDrag = { pointerId: e.pointerId, block, id, index: found.index, from: found.keys, startX: e.clientX, secondsPerPx: current.length / Math.max(1, width), handle: mark };
+  selectedLayer.value = { block, id };
+  try {
+    mark.setPointerCapture(e.pointerId);
+  } catch {
+    // Not a capturable pointer (a test's synthetic one): the drag still works over the mark.
+  }
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+function onKeyPointerMove(e: PointerEvent): void {
+  if (!keyDrag || e.pointerId !== keyDrag.pointerId) return;
+  const at = clampTime(keyDrag.from[keyDrag.index]!.at + (e.clientX - keyDrag.startX) * keyDrag.secondsPerPx);
+  setLayerKeys(keyDrag.block, keyDrag.id, keyMovedTo(keyDrag.from, keyDrag.index, at), false);
+}
+
+function onKeyPointerUp(e: PointerEvent): void {
+  if (!keyDrag || e.pointerId !== keyDrag.pointerId) return;
+  const finished = keyDrag;
+  keyDrag = null;
+  // One undo step for the gesture, whatever it passed through on the way.
+  const at = clampTime(finished.from[finished.index]!.at + (e.clientX - finished.startX) * finished.secondsPerPx);
+  setLayerKeys(finished.block, finished.id, keyMovedTo(finished.from, finished.index, at), true);
+}
+
+/** A mark is a slider too: arrows move it in time, and the clipboard keys act on the key itself. */
+function onKeyKeyDown(e: KeyboardEvent, block: string, id: string): void {
+  const found = markKey(e.currentTarget as HTMLElement, block, id);
+  if (!found) return;
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    setLayerKeys(block, id, found.keys.filter((_, i) => i !== found.index), true);
+    e.preventDefault();
+    return;
+  }
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && (e.key === 'c' || e.key === 'C')) {
+    copyKey(found.key);
+    e.preventDefault();
+    return;
+  }
+  if (mod && (e.key === 'v' || e.key === 'V')) {
+    pasteKey(block, id);
+    e.preventDefault();
+    return;
+  }
+  const step = e.shiftKey ? 1 : 0.1;
+  const moves: Record<string, number> = { ArrowRight: step, ArrowUp: step, ArrowLeft: -step, ArrowDown: -step };
+  const move = moves[e.key];
+  if (move === undefined) return;
+  setLayerKeys(block, id, keyMovedTo(found.keys, found.index, clampTime(found.key.at + move)), true);
+  e.preventDefault();
+}
+
+function onKeyContextMenu(e: MouseEvent, block: string, id: string): void {
+  const mark = e.currentTarget as HTMLButtonElement;
+  e.preventDefault();
+  e.stopPropagation();
+  selectedLayer.value = { block, id };
+  openContextMenu({
+    x: e.clientX,
+    y: e.clientY,
+    doc: mark.ownerDocument,
+    focusBack: mark,
+    items: [
+      { command: 'key.copy', label: 'Copy Key' },
+      { command: 'key.paste', label: 'Paste Key at Playhead', enabled: copiedKey !== null },
+      { type: 'separator' },
+      { command: 'key.delete', label: 'Delete Key' },
+    ],
+    run: (command) => {
+      const found = markKey(mark, block, id);
+      if (command === 'key.copy' && found) copyKey(found.key);
+      else if (command === 'key.paste') pasteKey(block, id);
+      else if (command === 'key.delete' && found) setLayerKeys(block, id, found.keys.filter((_, i) => i !== found.index), true);
+    },
+  });
 }
 
 // ---------------------------------------------------------------- the sound on the bar (milestone 48)

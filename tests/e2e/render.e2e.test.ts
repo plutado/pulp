@@ -1252,6 +1252,37 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(late, 'faded by the end').toBeGreaterThan(60);
     expect(late).toBeLessThan(160);
     expect((await pixels(join(out, 'keys-pose_00059.png'), ...corner))[3], 'and grown past its old edge').toBeGreaterThan(0);
+
+    // Together with the rest (milestone 51): the keys compose with the layer's own entrance,
+    // exit and span — the span gates it, the fades multiply the keyed opacity, and the keyed
+    // travel goes on underneath, read off the same pixels the preview's arithmetic answers for.
+    const together = await render('pulp.test.video-layer', 'png-sequence', 'keys-together', {
+      extra: [...common, '--param', `@layers=${JSON.stringify({
+        stack: [{
+          id: 'plate', clip: solidId,
+          keys: [{ at: 0, dx: -0.25, easing: 'linear' }, { at: 2, dx: 0.25 }],
+          transition: { in: { type: 'fade', seconds: 0.5 }, out: { type: 'fade', seconds: 0.5 } },
+          span: { start: 0.5, end: 1.5 },
+        }],
+      })}`],
+    });
+    expect(together.code, together.stderr).toBe(0);
+    // Before its span the layer is not there at all, however loud the keys.
+    expect((await pixels(join(out, 'keys-together_00000.png'), ...middle))[3]).toBe(0);
+    expect((await pixels(join(out, 'keys-together_00000.png'), ...left))[3]).toBe(0);
+    // Inside the fade in, part way up, at the keys' position for that moment (which covers the middle).
+    const arriving = (await pixels(join(out, 'keys-together_00022.png'), ...middle))[3]!;
+    expect(arriving, 'part way through its own fade in').toBeGreaterThan(40);
+    expect(arriving).toBeLessThan(220);
+    // Between the fades it is whole, half way along its keyed travel.
+    expect((await pixels(join(out, 'keys-together_00030.png'), ...middle))[3], 'whole between the fades').toBeGreaterThan(240);
+    // Inside the fade out, part way down again.
+    const leaving = (await pixels(join(out, 'keys-together_00040.png'), ...middle))[3]!;
+    expect(leaving, 'part way through its own fade out').toBeGreaterThan(40);
+    expect(leaving).toBeLessThan(220);
+    // And past its span it is gone, wherever the keys would have put it.
+    expect((await pixels(join(out, 'keys-together_00055.png'), ...middle))[3]).toBe(0);
+    expect((await pixels(join(out, 'keys-together_00055.png'), ...right))[3]).toBe(0);
   }, 300_000);
 
   it('plays a clip inside a graphic, on the template\'s own time (milestone 26)', async () => {
