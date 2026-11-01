@@ -403,10 +403,11 @@ describe.skipIf(!electron)('inspector UI', () => {
       ]), { timeoutMs: 60_000 });
       // A clip whose sound goes quiet after 0.8 s (milestone 49), for the silence removal flow —
       // named to sort after everything else, like the clean-up fixtures, so the stage menu's
-      // first eight assets stay what they were.
+      // first eight assets stay what they were, and mpeg4 like them, so the codec searches keep
+      // counting only what they counted.
       await runBounded(ffmpeg.path, ffmpegArgs([
         '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-f', 'lavfi', '-i', 'sine=frequency=660:duration=2',
-        '-af', "volume=enable='gte(t,0.8)':volume=0", '-t', '2', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(mediaDir, 'zz-gappy.mp4'),
+        '-af', "volume=enable='gte(t,0.8)':volume=0", '-t', '2', '-c:v', 'mpeg4', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(mediaDir, 'zz-gappy.mp4'),
       ]), { timeoutMs: 60_000 });
       // A green-screen take and footage with two hard cuts (milestone 52) — mpeg4, so the codec
       // searches keep counting only what they counted, and named to sort after everything else,
