@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.microphone",
+  "name": "Microphone",
+  "description": "A studio microphone on its stand with a mesh grille, rising into place.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "media-objects",
+  "themes": [
+    "podcast",
+    "concert"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "tags": [
+    "object",
+    "prop",
+    "media"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "mic",
+      "type": "color",
+      "label": "Microphone color",
+      "default": "#374151",
+      "element": "Colors"
+    },
+    {
+      "id": "grille",
+      "type": "color",
+      "label": "Grille color",
+      "default": "#d1d5db",
+      "element": "Colors"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#ef4444",
+      "element": "Colors"
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "rise",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}

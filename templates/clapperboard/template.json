@@ -1,0 +1,83 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.clapperboard",
+  "name": "Clapperboard",
+  "description": "A film clapperboard with its striped arm, dropping in.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "media-objects",
+  "themes": [
+    "cinema",
+    "documentary"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "tags": [
+    "object",
+    "prop",
+    "media"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "board",
+      "type": "color",
+      "label": "Board color",
+      "default": "#111827",
+      "element": "Colors"
+    },
+    {
+      "id": "stripes",
+      "type": "color",
+      "label": "Stripe color",
+      "default": "#f9fafb",
+      "element": "Colors"
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "drop",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}

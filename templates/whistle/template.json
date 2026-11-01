@@ -1,0 +1,83 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.whistle",
+  "name": "Whistle",
+  "description": "A referee’s whistle with its ring and mouthpiece, popping in.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "sports-objects",
+  "themes": [
+    "sports",
+    "football"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "tags": [
+    "object",
+    "prop",
+    "sports"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "body",
+      "type": "color",
+      "label": "Whistle color",
+      "default": "#c0c7d1",
+      "element": "Colors"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Trim color",
+      "default": "#2c3440",
+      "element": "Colors"
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "pop",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}

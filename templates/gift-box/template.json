@@ -1,0 +1,83 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.gift-box",
+  "name": "Gift box",
+  "description": "A wrapped gift with a ribbon and bow, popping in.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "celebration-objects",
+  "themes": [
+    "birthday",
+    "christmas"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "tags": [
+    "object",
+    "prop",
+    "celebration"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "wrap",
+      "type": "color",
+      "label": "Wrap color",
+      "default": "#e63946",
+      "element": "Colors"
+    },
+    {
+      "id": "ribbon",
+      "type": "color",
+      "label": "Ribbon color",
+      "default": "#f9d65c",
+      "element": "Colors"
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "pop",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}

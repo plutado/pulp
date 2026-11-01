@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.camera",
+  "name": "Camera",
+  "description": "A compact camera with a lens, grip and flash, popping in.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "media-objects",
+  "themes": [
+    "podcast",
+    "social-media"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "tags": [
+    "object",
+    "prop",
+    "media"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "body",
+      "type": "color",
+      "label": "Body color",
+      "default": "#1f2937",
+      "element": "Colors"
+    },
+    {
+      "id": "lens",
+      "type": "color",
+      "label": "Lens color",
+      "default": "#38bdf8",
+      "element": "Colors"
+    },
+    {
+      "id": "trim",
+      "type": "color",
+      "label": "Trim color",
+      "default": "#9ca3af",
+      "element": "Colors"
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "pop",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}

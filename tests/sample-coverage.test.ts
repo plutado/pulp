@@ -60,6 +60,8 @@ export const BUNDLED_CATEGORY_FLOORS: Record<string, number> = {
   'still-backgrounds': 32,
   // Milestone 45: Effects opened on nothing but three Lottie animations out of the box.
   effects: 32,
+  // Milestone 46: Objects opened on nothing at all.
+  objects: 32,
 };
 
 /**
@@ -70,6 +72,9 @@ export const BUNDLED_CATEGORY_FLOORS: Record<string, number> = {
 export const BUNDLED_SUBTYPE_FLOORS: Record<string, number> = {
   fire: 3, smoke: 3, sparks: 3, 'explosion-asset': 3, energy: 3,
   'light-asset': 3, 'weather-asset': 3, liquid: 3, confetti: 3, brush: 3,
+  // Milestone 46: every kind of object as well.
+  'sports-objects': 3, 'celebration-objects': 3, 'holiday-objects': 3, 'business-objects': 3, 'science-objects': 3,
+  'media-objects': 3, 'nature-objects': 3, 'travel-objects': 3, 'home-objects': 3, 'community-objects': 3,
 };
 
 /**
@@ -149,9 +154,26 @@ describe('every category is at least its floor deep', () => {
     expect(bundled.length, `${category.label}: ${bundled.length} bundled templates`).toBeGreaterThanOrEqual(floor);
   });
 
-  it.each(Object.entries(BUNDLED_SUBTYPE_FLOORS))('the effect kind %s has %i or more bundled templates (milestone 45)', (id, floor) => {
+  it.each(Object.entries(BUNDLED_SUBTYPE_FLOORS))('the asset kind %s has %i or more bundled templates (milestones 45 and 46)', (id, floor) => {
     const bundled = index.templates.filter((t) => entryType(t) === id);
     expect(bundled.length, `${typeInfo(id)?.label ?? id}: ${bundled.length} bundled templates`).toBeGreaterThanOrEqual(floor);
+  });
+
+  it('gives every bundled object its colours and a light entrance, draws it on transparency, and lets it be placed as a layer (milestone 46)', () => {
+    const objects = index.templates.filter((t) => categoryInfo('objects')!.types.includes(entryType(t) ?? ''));
+    expect(objects.length).toBeGreaterThanOrEqual(32);
+    for (const t of objects) {
+      const params = t.manifest.parameters;
+      expect(params.filter((p) => p.type === 'color').length, `${t.manifest.id} has a colour to change`).toBeGreaterThanOrEqual(1);
+      const entrance = params.find((p) => p.id === 'entrance');
+      expect(entrance?.type, `${t.manifest.id} has an entrance`).toBe('select');
+      const choices = (entrance as { options?: { value: string }[] } | undefined)?.options?.map((o) => o.value) ?? [];
+      expect(choices, t.manifest.id).toEqual(expect.arrayContaining(['pop', 'drop', 'draw']));
+      // It comes in, holds, and goes: a hold structure, so its length is the control.
+      expect(t.manifest.structure && 'holdFrom' in t.manifest.structure, `${t.manifest.id} declares a hold`).toBe(true);
+      expect(t.manifest.alpha, `${t.manifest.id} draws on transparency`).toBe(true);
+      expect(placeableTemplate(t), `${t.manifest.id} can be placed as a layer`).toBe(true);
+    }
   });
 
   it('gives every bundled effect its colour, speed, density and size, and alpha to lay it over anything (milestone 45)', () => {

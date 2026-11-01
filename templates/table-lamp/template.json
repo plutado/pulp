@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.table-lamp",
+  "name": "Table lamp",
+  "description": "A table lamp with a shade and a warm glow, rising into place.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "home-objects",
+  "themes": [
+    "home",
+    "real-estate"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "tags": [
+    "object",
+    "prop",
+    "home"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "shade",
+      "type": "color",
+      "label": "Shade color",
+      "default": "#f4a261",
+      "element": "Colors"
+    },
+    {
+      "id": "stand",
+      "type": "color",
+      "label": "Stand color",
+      "default": "#2b2d42",
+      "element": "Colors"
+    },
+    {
+      "id": "glow",
+      "type": "color",
+      "label": "Light color",
+      "default": "#ffe8b0",
+      "element": "Colors"
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "rise",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}

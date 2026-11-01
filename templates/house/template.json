@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.house",
+  "name": "House",
+  "description": "A small house with a roof, door, window and chimney, popping in.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "home-objects",
+  "themes": [
+    "real-estate",
+    "home"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "tags": [
+    "object",
+    "prop",
+    "home"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "walls",
+      "type": "color",
+      "label": "Wall color",
+      "default": "#f8f4e3",
+      "element": "Colors"
+    },
+    {
+      "id": "roof",
+      "type": "color",
+      "label": "Roof color",
+      "default": "#b23a48",
+      "element": "Colors"
+    },
+    {
+      "id": "door",
+      "type": "color",
+      "label": "Door color",
+      "default": "#3a506b",
+      "element": "Colors"
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "pop",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}

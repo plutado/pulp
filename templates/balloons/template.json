@@ -1,0 +1,90 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.balloons",
+  "name": "Balloons",
+  "description": "Three balloons on strings in a bunch, rising into the frame.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "celebration-objects",
+  "themes": [
+    "birthday",
+    "graduation"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "tags": [
+    "object",
+    "prop",
+    "celebration"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "one",
+      "type": "color",
+      "label": "First balloon",
+      "default": "#ff6b6b",
+      "element": "Colors"
+    },
+    {
+      "id": "two",
+      "type": "color",
+      "label": "Second balloon",
+      "default": "#4dabf7",
+      "element": "Colors"
+    },
+    {
+      "id": "three",
+      "type": "color",
+      "label": "Third balloon",
+      "default": "#ffd43b",
+      "element": "Colors"
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "rise",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}
