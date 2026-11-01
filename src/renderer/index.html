@@ -246,6 +246,19 @@
           <input id="opt-matte" type="checkbox">
           <span>Matte file beside the render</span>
         </label>
+        <div class="cover-field" id="opt-cover-field">
+          <label class="field inline" data-tip="A still of one frame beside the render, at the same size, for the thumbnail a platform asks for separately">
+            <input id="opt-cover" type="checkbox">
+            <span>Cover image beside the render</span>
+          </label>
+          <div id="opt-cover-row" class="cover-row" hidden>
+            <label class="field">
+              <span>Cover frame</span>
+              <input id="opt-cover-at" type="text" inputmode="numeric" spellcheck="false" placeholder="00:00:00:00" title="Timecode HH:MM:SS:FF, a frame number, or seconds such as 2.5s">
+            </label>
+            <button id="opt-cover-here" type="button" data-tip="Take the cover at the frame the playhead is on">At the playhead</button>
+          </div>
+        </div>
         <p id="options-note" class="note"></p>
       </div>
       <div class="render-actions">
@@ -315,6 +328,7 @@
             <span id="trim-after" class="trimmed"></span>
             <span id="mark-in-flag" class="mark in" hidden></span>
             <span id="mark-out-flag" class="mark out" hidden></span>
+            <span id="cover-flag" class="mark cover" hidden></span>
           </span>
           <button id="length-handle" class="length-handle" type="button" hidden
                   role="slider" aria-label="Graphic length, seconds" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"

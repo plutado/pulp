@@ -63,7 +63,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **634-1027 h** |
-| **Still open through 1.0 (unticked items only)** | **66-109 h** |
+| **Still open through 1.0 (unticked items only)** | **64-106 h** |
 | **Total including post-1.0 items** | **660-1075 h** |
 
 ## 0. Foundation (done)
@@ -588,7 +588,7 @@ After milestone 19, which it depends on: a platform preset is mostly an aspect, 
 - [ ] Platform presets: a built-in, versioned list in a pure core module — for each, the aspect, resolution, frame rate, H.264 video with AAC audio, a bitrate target, and the platform's length and file-size limits. Choosing one in the Output tab sets the aspect, resolution, frame rate and encoder together. The list carries the date its limits were checked, and shows it, because this is data that ages; unit tests that every preset's resolution matches its aspect and that the list parses (3-5 h)
 - [ ] **New project by platform** on the start screen (milestone 31): each platform preset offered beside the shapes under Get going, setting the new project's aspect, size and frame rate the way choosing it in the Output tab does (1 h)
 - [ ] Length and file-size warnings: before a render, from the trim and the bitrate target; after it, from the file itself. Shown in the Output tab and on the finished job, and never blocking — a limit may have moved since the list was written, and the person rendering may know something it does not (1-2 h)
-- [ ] Cover image: a still from a frame picked on the scrub bar, written beside the video at the same aspect and resolution, for the thumbnail or cover a platform asks for separately (2-3 h)
+- [x] Cover image: a still from a frame picked on the scrub bar, written beside the video at the same aspect and resolution, for the thumbnail or cover a platform asks for separately (2-3 h) *Built 2026-10-31. A checkbox in the Output tab opens a row with the frame, filled from the playhead when it is ticked and editable after, with "At the playhead" to take it again after a scrub; the frame is marked on the scrub bar in its own colour beside the in and out marks. Written as `<name>-cover.png` beside the render at the render's own size. For a template it is one more frame captured from the page that just drew the video, so it can be **any** frame of the graphic rather than only one inside the trim — a cover is often the moment the title has landed, which a trimmed render may not include; for a clip it goes through the still-image preset of milestone 44. It keeps its alpha where the render has alpha and is flattened over the same background where it has none, so the thumbnail matches the picture it stands for. A cover that cannot be written is a warning on the job rather than a failed render: the video is what was asked for. `--cover-at <tc|frame>` on the command line.*
 - [ ] Hand-off: "Share…" opens the system share sheet with the rendered file, and "Open upload page" opens the platform's own upload page in the browser with the file revealed in the file manager. An ADR records the choice of hand-off over integration, so the reasoning survives the first request for one-click posting (2-3 h)
 
 ## 8. 1.0 hardening and docs (14-23 h)

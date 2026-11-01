@@ -52,6 +52,12 @@ export const importedFonts = signal<ImportedFont[]>([]);
  */
 export const trim = signal<{ inFrame: number | null; outFrame: number | null }>({ inFrame: null, outFrame: null });
 
+/**
+ * The frame the cover image is taken at (milestone 20), or null for no cover.
+ * The Output tab owns it and the scrub bar marks it, as the two do for the trim.
+ */
+export const coverFrame = signal<number | null>(null);
+
 /** True while the Render button is blocked (no template, no ffmpeg, bad options); the tray's Prepare button follows it. */
 export const renderBlocked = signal(true);
 

@@ -441,6 +441,7 @@ function registerIpc(): void {
  *
  * A parameter may be a layer stack: `--param '@layers={"strap":[{"id":"name","text":"Ada Lovelace"}]}'`.
  *     [--fps <rate>] [--length <seconds|tc>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
+ *     [--cover-at <tc|frame>]
  *     [--aspect 16:9|9:16|1:1|4:5] [--size <width>x<height>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
  *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
@@ -476,6 +477,8 @@ interface CliRender {
   sampleMedia?: string;
   /** --types: fill only these taxonomy types, as the results' own hint does (milestone 34). */
   sampleTypes?: string[];
+  /** --cover-at: the frame a cover image is taken at, beside the render (milestone 20). */
+  coverAt?: string;
   /** `--visual-hashes <file>`: write or check the visual references. */
   visualHashes?: { file: string; check: boolean };
   options: RenderOptions;
@@ -563,6 +566,7 @@ function parseCliRender(argv: string[]): CliRender | null {
   }
   const inPoint = get('--in-point');
   const outPoint = get('--out-point');
+  const coverAt = get('--cover-at');
   const length = get('--length');
   const batch = get('--batch');
   const collection = get('--collection');
@@ -583,6 +587,7 @@ function parseCliRender(argv: string[]): CliRender | null {
     ...(collection !== undefined ? { collection: resolve(collection) } : {}),
     ...(sampleMedia !== undefined ? { sampleMedia: resolve(sampleMedia) } : {}),
     ...(sampleTypes !== undefined ? { sampleTypes: sampleTypes.split(',').map((t) => t.trim()).filter(Boolean) } : {}),
+    ...(coverAt !== undefined ? { coverAt } : {}),
     ...(visualHashes !== undefined ? { visualHashes: { file: resolve(visualHashes), check: argv.includes('--check') } } : {}),
     ...(outPoint !== undefined ? { outPoint } : {}),
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
@@ -626,9 +631,15 @@ async function runCliRender(cli: CliRender): Promise<number> {
     }
     if (cli.inPoint !== undefined) cli.options.inFrame = parseTimecode(cli.inPoint, fps);
     if (cli.outPoint !== undefined) cli.options.outFrame = parseTimecode(cli.outPoint, fps);
+    if (cli.coverAt !== undefined) cli.options.coverFrame = parseTimecode(cli.coverAt, fps);
   } catch (err) {
     if (!(err instanceof TimecodeError)) throw err;
-    console.error(`${cli.inPoint !== undefined && err.message.startsWith(`"${cli.inPoint}"`) ? '--in-point' : '--out-point'}: ${err.message}`);
+    const named = [
+      ['--in-point', cli.inPoint],
+      ['--out-point', cli.outPoint],
+      ['--cover-at', cli.coverAt],
+    ].find(([, value]) => value !== undefined && err.message.startsWith(`"${value}"`))?.[0];
+    console.error(`${named ?? '--out-point'}: ${err.message}`);
     return 2;
   }
   // Layers given as JSON (milestone 23): parsed against this template, so a typo is named rather than ignored.

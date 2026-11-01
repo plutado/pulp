@@ -29,9 +29,9 @@ import type { ClipSource } from '../core/video-layer';
 import { resolveLayers } from '../core/layers';
 import { checkImages, readSlotImages } from './image-grant';
 import { lookupMedia } from './library-service';
-import { checkPresetSupport, detectFfmpeg } from '../core/ffmpeg';
+import { checkPresetSupport, detectFfmpeg, runWithInput } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
-import { buildRenderPlan, type FrameFormat, type RenderOptions } from '../core/render-plan';
+import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan } from '../core/render-plan';
 import { lengthIn, resolveParams, splitLayers } from '../core/params';
 import {
   captureBytesMessage,
@@ -352,11 +352,61 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     if (code !== 0) {
       return await fail({ ok: false, message: `ffmpeg exited with code ${code}: ${stderr.trim() || 'no error output'}` });
     }
-    return { ok: true, output: plan.output, frames: plan.totalFrames, warnings, transport };
+
+    // The cover image (milestone 20): one more frame from the page that just drew the render, so
+    // it is the same picture at the same size, and it can be any frame of the graphic rather than
+    // only one inside the trim. A cover that cannot be written is said and the render still stands:
+    // the video is what was asked for, and a missing thumbnail is not worth throwing it away.
+    let cover: string | undefined;
+    if (plan.coverOutput !== undefined && plan.coverFrame !== undefined) {
+      const written = await writeCover({
+        win,
+        ffmpegPath: ffmpeg.path,
+        plan,
+        state: frameState(timeline, plan.coverFrame, values, frameSize, layers, clipSources, plan.length),
+        frameSize,
+        frameTimeoutMs,
+        background: job.options?.background ?? '#000000',
+      });
+      if (written.ok) cover = plan.coverOutput;
+      else warnings.push(`The cover image could not be written: ${written.message}`);
+    }
+    return { ok: true, output: plan.output, frames: plan.totalFrames, warnings, transport, ...(cover ? { cover } : {}) };
   } catch (err) {
     return await fail({ ok: false, message: `Render failed: ${(err as Error).message}` });
   } finally {
     win.destroy();
+  }
+}
+
+/**
+ * The cover image (milestone 20): the page draws the chosen frame as a PNG,
+ * which ffmpeg writes out — keeping its alpha where the render has alpha, and
+ * flattening it over the same background where the render has none, so the
+ * thumbnail looks like the video it stands beside.
+ */
+async function writeCover(input: {
+  win: BrowserWindow;
+  ffmpegPath: string;
+  plan: RenderPlan;
+  state: ReturnType<typeof frameState>;
+  frameSize: { name: string; width: number; height: number };
+  frameTimeoutMs: number;
+  background: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { win, plan, frameSize } = input;
+  try {
+    const png = await withTimeout(
+      captureFrame(win, input.state, frameSize, 'png', { first: false }),
+      input.frameTimeoutMs,
+      `the cover frame did not draw within ${Math.round(input.frameTimeoutMs / 1000)} s`,
+    );
+    const args = coverArgs(plan.preset, { width: plan.width, height: plan.height }, input.background, plan.coverOutput!);
+    const result = await runWithInput(input.ffmpegPath, args, png);
+    if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
   }
 }
 

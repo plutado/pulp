@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildRenderPlan,
+  coverArgs,
+  coverFrameWithin,
+  coverOutputPath,
   fpsToRational,
   matteCodecArgs,
   matteOutputPath,
@@ -428,5 +431,55 @@ describe('a still image output (milestone 44)', () => {
     expect(plan.totalFrames).toBe(1);
     // The sequence and the clips still refuse what they always refused.
     expect(() => buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/out/seq', options: { inFrame: 200 } })).toThrow(/out point/);
+  });
+});
+
+describe('a cover image beside the render (milestone 20)', () => {
+  const timing = () => ({ fps: 30, duration: 2, alpha: true, aspects: ['16:9'] as string[] });
+
+  it('goes beside the render as a PNG, whatever the render is', () => {
+    expect(coverOutputPath('/out/clip.mov')).toBe('/out/clip-cover.png');
+    expect(coverOutputPath('/out/clip.mp4')).toBe('/out/clip-cover.png');
+    // A sequence is many files; its cover is one, so the frame pattern goes.
+    expect(coverOutputPath('/out/clip_%05d.png')).toBe('/out/clip-cover.png');
+    expect(coverOutputPath('/out/no-extension')).toBe('/out/no-extension-cover.png');
+    expect(coverOutputPath('C:\\renders\\clip.mov')).toBe('C:\\renders\\clip-cover.png');
+  });
+
+  it('is the frame that was asked for, held inside the graphic', () => {
+    expect(coverFrameWithin(17, 30, 2)).toBe(17);
+    expect(coverFrameWithin(0, 30, 2)).toBe(0);
+    // A playhead read at one rate and a render at another can land past the end; the end is meant.
+    expect(coverFrameWithin(200, 30, 2)).toBe(59);
+    expect(coverFrameWithin(-5, 30, 2)).toBe(0);
+    expect(coverFrameWithin(Number.NaN, 30, 2)).toBe(0);
+  });
+
+  it('is planned beside the render, and is not one of its outputs', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'h264-mp4', outputPath: '/out/clip', options: { coverFrame: 17 } });
+    expect(plan.coverOutput).toBe('/out/clip-cover.png');
+    expect(plan.coverFrame).toBe(17);
+    // The video command is untouched: the cover is one more frame from the page, not a second output.
+    expect(plan.args.join(' ')).not.toContain('cover');
+    const without = buildRenderPlan({ manifest: timing(), presetId: 'h264-mp4', outputPath: '/out/clip' });
+    expect(without.coverOutput).toBeUndefined();
+  });
+
+  it('can be a frame the trim leaves out: a cover is often the moment a title has landed', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'h264-mp4', outputPath: '/out/clip', options: { inFrame: 40, outFrame: 50, coverFrame: 5 } });
+    expect(plan.firstFrame).toBe(40);
+    expect(plan.coverFrame, 'outside the trim and kept').toBe(5);
+  });
+
+  it('keeps alpha where the render has it, and is flattened over the same background where it has none', () => {
+    const size = { width: 1920, height: 1080 };
+    const alpha = coverArgs(OUTPUT_PRESETS['prores-4444'], size, '#000000', '/out/c.png');
+    expect(alpha).toContain('rgba');
+    expect(alpha.join(' ')).not.toContain('overlay');
+    const opaque = coverArgs(OUTPUT_PRESETS['h264-mp4'], size, '#1e90ff', '/out/c.png');
+    expect(opaque.join(' ')).toContain('color=c=0x1e90ff:s=1920x1080');
+    expect(opaque.join(' ')).toContain('overlay');
+    expect(opaque.join(' ')).toContain('format=rgb24');
+    expect(opaque[opaque.length - 1]).toBe('/out/c.png');
   });
 });

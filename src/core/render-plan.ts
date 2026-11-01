@@ -241,6 +241,15 @@ export interface RenderOptions {
    * same codec. Templates and media alike.
    */
   matte?: boolean;
+  /**
+   * A cover image beside the render (milestone 20): a still of this frame,
+   * written as `<name>-cover.png` at the render's own size, for the thumbnail
+   * a platform asks for separately. The frame is on the graphic's own
+   * timeline at the output rate, picked on the scrub bar, and need not be
+   * inside the trim — a cover is often the moment the title has landed, which
+   * a trimmed render may not include.
+   */
+  coverFrame?: number;
   /** Media only (milestone 15): playback speed of a clip; 1 is as recorded. */
   speed?: number;
   /** Media only: recolor the picture at render time — its luminance in this colour (`#rrggbb`), alpha kept. */
@@ -298,6 +307,48 @@ export function matteOutputPath(output: string, preset: OutputPreset): string {
   const dot = output.lastIndexOf('.');
   const slash = Math.max(output.lastIndexOf('/'), output.lastIndexOf('\\'));
   return dot > slash ? `${output.slice(0, dot)}-matte${output.slice(dot)}` : `${output}-matte`;
+}
+
+// ---------------------------------------------------------------- the cover image (milestone 20)
+
+/** Where the cover goes: beside the render, "-cover.png"; a sequence's frame pattern is dropped. */
+export function coverOutputPath(output: string): string {
+  const slash = Math.max(output.lastIndexOf('/'), output.lastIndexOf('\\'));
+  const dir = output.slice(0, slash + 1);
+  let file = output.slice(slash + 1);
+  // A sequence is written as `name_%05d.png`; its cover is one file, so the pattern goes.
+  file = file.replace(/_%0?\d*d(?=\.[^.]*$|$)/, '');
+  const dot = file.lastIndexOf('.');
+  return `${dir}${dot > 0 ? file.slice(0, dot) : file}-cover.png`;
+}
+
+/**
+ * Which frame the cover is taken at: what was asked for, held inside the
+ * graphic's own length. A playhead read at one rate and a render at another
+ * can land a frame past the end, and the end is what was meant.
+ */
+export function coverFrameWithin(asked: number, fps: number, length: number): number {
+  const lastFrame = Math.max(1, Math.round(length * fps)) - 1;
+  if (!Number.isFinite(asked)) return 0;
+  return Math.max(0, Math.min(Math.round(asked), lastFrame));
+}
+
+/**
+ * ffmpeg arguments that turn one captured PNG on stdin into the cover file.
+ * An alpha preset keeps its transparency, since the render it sits beside
+ * has it too; a preset without alpha is flattened over the same background
+ * the video was, so the thumbnail matches the picture it stands for.
+ */
+export function coverArgs(preset: OutputPreset, size: { width: number; height: number }, background: string, out: string): string[] {
+  const base = ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'image2pipe', '-c:v', 'png', '-i', 'pipe:0'];
+  if (preset.alpha) return [...base, '-frames:v', '1', '-c:v', 'png', '-pix_fmt', 'rgba', out];
+  const colour = `0x${background.replace('#', '').slice(0, 6)}`;
+  return [
+    ...base,
+    '-f', 'lavfi', '-i', `color=c=${colour}:s=${size.width}x${size.height}`,
+    '-filter_complex', '[1:v][0:v]overlay=shortest=1,format=rgb24[cover]',
+    '-map', '[cover]', '-frames:v', '1', '-c:v', 'png', out,
+  ];
 }
 
 /** The filter steps that turn a straight-alpha picture into the grey matte in the preset's colour and format. */
@@ -393,6 +444,9 @@ export interface RenderPlan {
   height: number;
   /** The grey matte written beside the render, when one was asked for (milestone 15). */
   matteOutput?: string;
+  /** The cover image beside the render, and the frame it is taken at (milestone 20). */
+  coverOutput?: string;
+  coverFrame?: number;
   warnings: string[];
 }
 
@@ -475,6 +529,12 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
 
   const matte = input.options?.matte === true;
   const matteOutput = matte ? matteOutputPath(output, preset) : undefined;
+  // The cover is not an output of this command: it is one more frame captured from the same page
+  // once the video is written, so it can be any frame of the graphic rather than only one inside
+  // the trim (src/main/render.ts).
+  const askedCover = input.options?.coverFrame;
+  const coverFrame = askedCover === undefined ? undefined : coverFrameWithin(askedCover, timing.fps, timing.length);
+  const coverOutput = coverFrame === undefined ? undefined : coverOutputPath(output);
   // With a matte, the prepared frames are split: one branch to the picture, one to the grey (milestone 15).
   const prepared = prepare.length > 0 ? `[0:v]${prepare.join(',')}[src]` : '[0:v]null[src]';
   const split = `${prepared};[src]split[pic][mat];[mat]${matteFilters(preset)}[matte]`;
@@ -501,5 +561,11 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
     if (preset.sequence) args.push('-start_number', String(timing.firstFrame));
     args.push('-frames:v', String(totalFrames), '-r', fps, matteOutput);
   }
-  return { preset, frameFormat, args, output, fps: timing.fps, firstFrame: timing.firstFrame, totalFrames, length: timing.length, aspect: frameSize.aspect, width, height, ...(matteOutput ? { matteOutput } : {}), warnings };
+  return {
+    preset, frameFormat, args, output, fps: timing.fps, firstFrame: timing.firstFrame, totalFrames, length: timing.length,
+    aspect: frameSize.aspect, width, height,
+    ...(matteOutput ? { matteOutput } : {}),
+    ...(coverOutput !== undefined && coverFrame !== undefined ? { coverOutput, coverFrame } : {}),
+    warnings,
+  };
 }

@@ -3187,6 +3187,50 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<string>(`document.querySelector('#status-diagnostics .label').textContent`).then((t) => t === 'Diagnostics copied'), 'the diagnostics confirmation');
     }, 90_000);
 
+    it('picks the cover frame on the scrub bar and marks it (milestone 20)', async () => {
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
+      await openTab('output');
+      const mark = () => page.eval<{ hidden: boolean; left: string }>(
+        `(() => { const m = document.getElementById('cover-flag'); return { hidden: m.hidden, left: m.style.left }; })()`,
+      );
+      try {
+        // Off to begin with: no cover, no mark, and no row of its own.
+        expect(await page.eval<boolean>(`document.getElementById('opt-cover').checked`)).toBe(false);
+        expect((await mark()).hidden, 'no mark until a cover is asked for').toBe(true);
+        expect(await page.eval<boolean>(`document.getElementById('opt-cover-row').hidden`)).toBe(true);
+
+        // Scrub somewhere, then tick the box: the frame is taken from the playhead.
+        await page.eval(`(() => { const s = document.getElementById('scrub'); s.value = String(Math.round(Number(s.max) * 0.4)); s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) > 0), 'the playhead moved');
+        const playhead = Number(await page.eval<string>(`document.getElementById('scrub').value`));
+        await page.eval(`(() => { const c = document.getElementById('opt-cover'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(async () => !(await mark()).hidden, 'the cover marked on the scrub bar');
+        expect(await page.eval<boolean>(`document.getElementById('opt-cover-row').hidden`), 'its row opens with it').toBe(false);
+        expect(await page.eval<string>(`document.getElementById('opt-cover-at').value`), 'filled from the playhead').not.toBe('');
+        // The mark sits where the playhead was, as a share of the graphic.
+        const total = Number(await page.eval<string>(`document.getElementById('scrub').max`)) + 1;
+        expect(parseFloat((await mark()).left)).toBeCloseTo((playhead / Math.max(1, total - 1)) * 100, 0);
+
+        // Typing another frame moves the mark; it is the frame, not the playhead, that decides.
+        await fire('#opt-cover-at', '00:00:00:00', 'input');
+        await until(async () => parseFloat((await mark()).left) === 0, 'the mark following the field');
+        expect(await page.eval<string>(`document.getElementById('scrub').value`), 'the playhead stays where it was').toBe(String(playhead));
+
+        // At the playhead brings it back, and the render says a cover is coming.
+        await page.eval(`document.getElementById('opt-cover-here').click()`);
+        await until(async () => parseFloat((await mark()).left) > 0, 'the playhead\'s frame again');
+        expect(await page.eval<string>(`document.getElementById('options-note').textContent`)).toContain('cover image');
+
+        // Unticking takes the mark away again.
+        await page.eval(`(() => { const c = document.getElementById('opt-cover'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(async () => (await mark()).hidden, 'the mark gone with the cover');
+      } finally {
+        await page.eval(`(() => { const c = document.getElementById('opt-cover'); if (c.checked) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); } })()`);
+        await openTab('parameters');
+      }
+    }, 90_000);
+
     it('writes what went wrong to a local log, and copies diagnostics from the status items (milestone 8)', async () => {
       const logFile = join(userData, 'logs', 'pulp.log');
       // The log is there from the start: the main process writes a line as it comes up.

@@ -844,6 +844,16 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .layer-bar .bar-end:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .scrub-marks .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--accent); }
 .scrub-marks .mark[hidden] { display: none; }
+/* Where the cover is taken (milestone 20): a mark of its own on the scrub bar, told from the in and
+   out points by its colour and the tab at its head, since it says something else about the frame. */
+.scrub-marks .mark.cover { background: var(--text); }
+.scrub-marks .mark.cover::before { content: ''; position: absolute; top: -4px; left: -3px; width: 8px; height: 5px; border-radius: 1px; background: var(--text); }
+
+/* The cover's own row under its checkbox: the frame, and a button that takes the playhead's. */
+.cover-row { display: flex; align-items: flex-end; gap: var(--space-2); margin: var(--space-1) 0 0 var(--space-4); }
+.cover-row[hidden] { display: none; }
+.cover-row .field { flex: 0 1 auto; }
+.cover-row button { flex: 0 0 auto; }
 
 /* How the picture is viewed — background and safe areas — a quiet overlay on the stage's corner
    (milestone 38), so the stage's box is all picture. Over the letterbox dead space at most sizes;

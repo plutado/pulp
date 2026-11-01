@@ -232,6 +232,43 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await readdir(out)).filter((f) => f.startsWith('aspect-wrong_') || f.startsWith('aspect-bad_'))).toEqual([]);
   }, 120_000);
 
+  it('writes a cover image beside the render, at the same size, from the frame that was picked (milestone 20)', async () => {
+    // A thumbnail a platform asks for separately: one still beside the video, the same size, taken
+    // at a frame of the graphic — which need not be inside the trim.
+    const result = await render('pulp.samples.lower-third-bar', 'h264-mp4', 'with-cover', { extra: ['--cover-at', '2.0s'] });
+    expect(result.code, result.stderr).toBe(0);
+    const video = join(out, 'with-cover.mp4');
+    const cover = join(out, 'with-cover-cover.png');
+    expect(existsSync(video), 'the video').toBe(true);
+    expect(existsSync(cover), 'the cover beside it').toBe(true);
+    const shot = await probe(cover);
+    expect(shot).toMatchObject({ codec_name: 'png', width: 1920, height: 1080 });
+    // H.264 has no alpha, so the cover is flattened over the same background the video was: opaque.
+    expect((await pixels(cover, 4, 4))[3], 'opaque beside an opaque render').toBe(255);
+    // It is the frame that was picked: the same frame the still-image preset writes at that point.
+    const still = await render('pulp.samples.lower-third-bar', 'png-still', 'cover-check', { extra: ['--in-point', '2.0s'] });
+    expect(still.code, still.stderr).toBe(0);
+    // The still keeps its alpha where the cover was flattened, so the two are compared on the
+    // picture rather than byte for byte: the strap's own colour, where the graphic is drawn.
+    const at = { x: 300, y: 900 };
+    const [cr, cg, cb] = await pixels(cover, at.x, at.y);
+    const [sr, sg, sb, sa] = await pixels(join(out, 'cover-check.png'), at.x, at.y);
+    expect(sa, 'the graphic is drawn there at that frame').toBeGreaterThan(200);
+    for (const [c, s2, name] of [[cr, sr, 'red'], [cg, sg, 'green'], [cb, sb, 'blue']] as const) {
+      expect(Math.abs(c! - s2!), `the cover shows the picked frame (${name})`).toBeLessThanOrEqual(2);
+    }
+
+    // An alpha render keeps its alpha in the cover too.
+    const alpha = await render('pulp.samples.lower-third-bar', 'prores-4444', 'alpha-cover', { extra: ['--cover-at', '2.0s'] });
+    expect(alpha.code, alpha.stderr).toBe(0);
+    expect((await pixels(join(out, 'alpha-cover-cover.png'), 4, 4))[3], 'transparent where the graphic draws nothing').toBe(0);
+
+    // Without the option there is no cover beside the render.
+    const plain = await render('pulp.samples.lower-third-bar', 'h264-mp4', 'no-cover');
+    expect(plain.code, plain.stderr).toBe(0);
+    expect(existsSync(join(out, 'no-cover-cover.png'))).toBe(false);
+  }, 240_000);
+
   it('writes a still image: one RGBA PNG of the frame at the in point, the same frame the sequence would write (milestone 44)', async () => {
     // A background that holds still renders as a picture rather than a clip, and any template gives
     // a frame at the playhead — a poster or a thumbnail — which the CLI names with --in-point.

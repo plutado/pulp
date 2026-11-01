@@ -41,7 +41,7 @@ import { setIcon } from './icons';
 import { onLayoutApplied } from './shell';
 import { onStageWindow } from './stage-window';
 import { searchPlaceable } from '../core/search';
-import { appState, frameSize, playheadSeconds, transport, trim } from './store';
+import { appState, coverFrame, frameSize, playheadSeconds, transport, trim } from './store';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
 
@@ -83,6 +83,7 @@ const els = {
   trimAfter: $<HTMLSpanElement>('trim-after'),
   markInFlag: $<HTMLSpanElement>('mark-in-flag'),
   markOutFlag: $<HTMLSpanElement>('mark-out-flag'),
+  coverFlag: $<HTMLSpanElement>('cover-flag'),
   markIn: $<HTMLButtonElement>('mark-in'),
   markOut: $<HTMLButtonElement>('mark-out'),
   markClear: $<HTMLButtonElement>('mark-clear'),
@@ -276,6 +277,10 @@ function applyTrim(): void {
   els.markOutFlag.hidden = outFrame === null;
   if (inFrame !== null) els.markInFlag.style.left = `${markPercent(inFrame, total)}%`;
   if (outFrame !== null) els.markOutFlag.style.left = `${markPercent(outFrame, total)}%`;
+  // Where the cover is taken (milestone 20), on the same scale as the in and out marks.
+  const cover = coverFrame.value;
+  els.coverFlag.hidden = cover === null || !hasTimeline();
+  if (cover !== null) els.coverFlag.style.left = `${markPercent(cover, total)}%`;
   els.markClear.disabled = !hasTimeline() || (inFrame === null && outFrame === null);
   applyParts();
   applySequenceRate();
@@ -995,6 +1000,7 @@ export function initStage(): void {
   });
   effect(() => {
     void trim.value;
+    void coverFrame.value;
     applyTrim();
   });
 

@@ -78,6 +78,8 @@ export type RenderResult =
       warnings: string[];
       /** How frames reached ffmpeg, for example "raw (bgra, premultiplied alpha)" or "png". */
       transport: string;
+      /** The cover image written beside the render, when one was asked for (milestone 20). */
+      cover?: string;
     }
   | { ok: false; cancelled?: boolean; message: string };
 

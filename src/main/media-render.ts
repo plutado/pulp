@@ -22,7 +22,7 @@ import type { MediaEntry } from '../core/library-types';
 import { AUDIO_PRESETS, buildMediaRenderPlan, isAudioPresetId, parseProgressLine, sourceFromEntry, type MediaRenderPlan, type MediaSource } from '../core/media-render';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { sequenceMetadata, sequencePatternName } from '../core/media-sequence';
-import { OUTPUT_PRESETS, RenderPlanError, type PresetId, type RenderOptions } from '../core/render-plan';
+import { coverOutputPath, OUTPUT_PRESETS, RenderPlanError, type PresetId, type RenderOptions } from '../core/render-plan';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { nodeRunner } from '../core/ffmpeg';
 import type { RenderProgress, RenderResult } from '../shared/api';
@@ -146,10 +146,58 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
       if (code !== 0) return { ok: false, message: `ffmpeg exited with code ${code}${last ? '' : ' while making the loop unit'}: ${stderr.trim() || 'no error output'}` };
     }
     job.onProgress?.({ frame: total, totalFrames: total });
-    return { ok: true, output: plan.output, frames: total, warnings: plan.warnings, transport: plan.stages.length > 1 ? 'ffmpeg (loop unit, then stream loop)' : 'ffmpeg' };
+
+    // The cover image (milestone 20): one frame of the clip beside the render, at the same size,
+    // written through the still-image preset. A cover that cannot be written is said rather than
+    // throwing the render away with it.
+    const warnings = [...plan.warnings];
+    let cover: string | undefined;
+    if (job.options?.coverFrame !== undefined) {
+      const written = await writeMediaCover(ffmpeg.path, source, job, plan.output);
+      if (written.ok) cover = written.output;
+      else warnings.push(`The cover image could not be written: ${written.message}`);
+    }
+    return {
+      ok: true, output: plan.output, frames: total, warnings,
+      transport: plan.stages.length > 1 ? 'ffmpeg (loop unit, then stream loop)' : 'ffmpeg',
+      ...(cover ? { cover } : {}),
+    };
   } catch (err) {
     return { ok: false, message: err instanceof RenderPlanError ? err.message : `Render failed: ${(err as Error).message}` };
   } finally {
     await rm(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
+}
+
+/**
+ * One frame of a clip beside its render (milestone 20): the still-image preset
+ * at the cover's frame and the render's own size, so the thumbnail matches the
+ * picture it stands for. The matte and the trim are left behind — a cover is
+ * one frame, and which one is the cover's own setting.
+ */
+async function writeMediaCover(
+  ffmpegPath: string,
+  source: MediaSource,
+  job: MediaRenderJob,
+  output: string,
+): Promise<{ ok: true; output: string } | { ok: false; message: string }> {
+  try {
+    const { matte, outFrame, ...rest } = job.options ?? {};
+    void matte;
+    void outFrame;
+    const plan = buildMediaRenderPlan({
+      source,
+      presetId: 'png-still',
+      outputPath: coverOutputPath(output),
+      options: { ...rest, inFrame: job.options?.coverFrame },
+      overwrite: true,
+    });
+    for (const stage of plan.stages) {
+      const result = await nodeRunner(ffmpegPath, stage.args);
+      if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
+    }
+    return { ok: true, output: plan.output };
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
   }
 }

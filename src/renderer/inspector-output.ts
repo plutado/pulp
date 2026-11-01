@@ -10,7 +10,7 @@ import { AspectError, aspectById, defaultAspect, orientationOf, resolutionsFor, 
 import { planBatch, type BatchPlan } from '../core/batch-csv';
 import { dimensionsLabel } from '../core/display';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
-import { OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type AudioOptions, type PresetId, type RenderOptions } from '../core/render-plan';
+import { coverFrameWithin, OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type AudioOptions, type PresetId, type RenderOptions } from '../core/render-plan';
 import { AUDIO_PRESET_IDS, AUDIO_PRESETS, DEFAULT_STILL_SECONDS, isAudioPresetId, mediaDefaultFps, NOT_MEASURED, resolveMediaTiming, sourceFromEntry } from '../core/media-render';
 import type { MediaEntry } from '../core/library-types';
 import { browsedHiddenChoice } from './psd-state';
@@ -20,7 +20,7 @@ import { currentRawParams } from './inspector-params';
 import { lengthIn } from '../core/params';
 import { lengthFrameCount, resolveLength } from '../core/timing';
 import { stageStop } from './stage';
-import { appState, dispatch, frameSize, playheadSeconds, preferredAspect, renderBlocked, selectedTemplate, trim } from './store';
+import { appState, coverFrame, dispatch, frameSize, playheadSeconds, preferredAspect, renderBlocked, selectedTemplate, trim } from './store';
 import { setCollection, setEditing } from '../core/app-state';
 import { updateItem } from '../core/collection';
 import { editing } from './collection';
@@ -62,6 +62,11 @@ const els = {
   optTintOn: $<HTMLInputElement>('opt-tint-on'),
   optTint: $<HTMLInputElement>('opt-tint'),
   optMatte: $<HTMLInputElement>('opt-matte'),
+  optCoverField: $<HTMLDivElement>('opt-cover-field'),
+  optCover: $<HTMLInputElement>('opt-cover'),
+  optCoverRow: $<HTMLDivElement>('opt-cover-row'),
+  optCoverAt: $<HTMLInputElement>('opt-cover-at'),
+  optCoverHere: $<HTMLButtonElement>('opt-cover-here'),
   audioOptions: $<HTMLDivElement>('audio-options'),
   optSampleRate: $<HTMLSelectElement>('opt-sample-rate'),
   optChannels: $<HTMLSelectElement>('opt-channels'),
@@ -321,6 +326,12 @@ export function readRenderOptions(): RenderOptions {
   if (preset && !preset.alpha) options.background = els.optBackground.value;
   Object.assign(options, readSizeChoice());
   if (preset && !els.optMatteField.hidden && els.optMatte.checked) options.matte = true;
+  // The cover image (milestone 20): a still of one frame beside the render. The frame is whatever
+  // the field holds — filled from the playhead when the box is ticked, and editable after.
+  if (preset && !els.optCoverField.hidden && els.optCover.checked) {
+    const at = point(els.optCoverAt, 'Cover frame');
+    options.coverFrame = at ?? Math.max(0, Math.round(playheadSeconds.peek() * (fps ?? 30)));
+  }
   if (o.media) {
     // What a media item renders with beyond a template's options (milestone 15). A blank field is "as it is".
     const number = (el: HTMLInputElement): number | undefined => (el.value.trim() === '' ? undefined : Number(el.value));
@@ -357,6 +368,26 @@ function trimField(el: HTMLInputElement): number | null {
 function publishTrim(): void {
   const next = { inFrame: trimField(els.optIn), outFrame: trimField(els.optOut) };
   if (next.inFrame !== trim.value.inFrame || next.outFrame !== trim.value.outFrame) trim.value = next;
+}
+
+/**
+ * The cover's own row and its mark on the scrub bar (milestone 20). Ticking
+ * the box fills the frame from the playhead, so the picture on the stage is
+ * the cover unless another frame is typed; the mark follows the field.
+ */
+function publishCover(): void {
+  const on = els.optCover.checked && !els.optCoverField.hidden;
+  els.optCoverRow.hidden = !on;
+  if (!on) {
+    if (coverFrame.value !== null) coverFrame.value = null;
+    return;
+  }
+  const fps = chosenFps();
+  if (els.optCoverAt.value.trim() === '' && fps !== undefined) {
+    els.optCoverAt.value = formatTimecode(Math.max(0, Math.round(playheadSeconds.peek() * fps)), fps);
+  }
+  const at = trimField(els.optCoverAt);
+  if (coverFrame.value !== at) coverFrame.value = at;
 }
 
 /** Take a trim set from the stage into the fields, in the chosen rate's timecode form. */
@@ -427,6 +458,8 @@ function updateOptionsNote(): void {
       const last = t.firstFrame + t.totalFrames - 1;
       parts.push(`${t.totalFrames} frames at ${t.fps} fps (${seconds.toFixed(2)} s), ${formatTimecode(t.firstFrame, t.fps)} to ${formatTimecode(last, t.fps)}`);
     }
+    // The cover beside it, and which frame it is taken at (milestone 20).
+    if (options.coverFrame !== undefined) parts.push(`with a cover image at ${formatTimecode(coverFrameWithin(options.coverFrame, t.fps, t.length), t.fps)}`);
     els.optionsNote.classList.remove('error');
     els.optionsNote.textContent = parts.join(' · ');
     o.optionsValid = true;
@@ -469,6 +502,7 @@ function updateMediaOptionsNote(entry: MediaEntry): void {
     }
     if (options.tint) parts.push(`recoloured ${options.tint}`);
     if (options.matte) parts.push('with a matte file');
+    if (options.coverFrame !== undefined) parts.push('with a cover image');
     els.optionsNote.classList.remove('error');
     els.optionsNote.textContent = parts.join(' · ');
     o.optionsValid = true;
@@ -659,14 +693,19 @@ function showMediaFields(entry: MediaEntry | null): void {
   els.optAspectField.hidden = entry !== null || els.optAspectField.hidden;
   if (!entry) {
     els.optMatteField.hidden = false;
+    els.optCoverField.hidden = false;
+    publishCover();
     return;
   }
   const kind = entry.sequence ? 'video' : entry.mediaKind;
   els.optSpeedField.hidden = kind === 'image';
   els.optCrossfadeField.hidden = kind === 'image';
   els.audioOptions.hidden = kind !== 'audio';
-  // A sound has no picture to flatten, fit, matte or recolour.
+  // A sound has no picture to flatten, fit, matte, recolour or take a cover from; a still is its
+  // own cover already, so only a clip is offered one (milestone 20).
   els.optMatteField.hidden = kind === 'audio';
+  els.optCoverField.hidden = kind !== 'video';
+  publishCover();
   els.optTintField.hidden = kind === 'audio';
   els.optResolution.parentElement!.hidden = kind === 'audio';
   els.optBackgroundField.hidden = kind === 'audio' || els.optBackgroundField.hidden;
@@ -800,6 +839,10 @@ function initCollectionEditing(): void {
       const fps = item.options.fps ?? selectedTemplate.value?.manifest.fps ?? 25;
       els.optIn.value = item.options.inFrame === undefined ? '' : formatTimecode(item.options.inFrame, fps);
       els.optOut.value = item.options.outFrame === undefined ? '' : formatTimecode(item.options.outFrame, fps);
+      // The cover a card was collected with, and its mark (milestone 20).
+      els.optCover.checked = item.options.coverFrame !== undefined;
+      els.optCoverAt.value = item.options.coverFrame === undefined ? '' : formatTimecode(item.options.coverFrame, fps);
+      publishCover();
       if (item.options.background !== undefined) els.optBackground.value = item.options.background;
       if (selectedTemplate.value && item.templateId === selectedTemplate.value.manifest.id) showSizeChoice(selectedTemplate.value.manifest, item.options);
       updateOptionsNote();
@@ -842,10 +885,31 @@ export function initInspectorOutput(): void {
       saveToEditedCard();
     });
   }
+  // The cover image (milestone 20): the box opens its row and takes the playhead's frame, the
+  // field moves the mark, and the button brings the playhead back after a scrub.
+  els.optCover.addEventListener('change', () => {
+    publishCover();
+    updateOptionsNote();
+    saveToEditedCard();
+  });
+  els.optCoverAt.addEventListener('input', () => {
+    publishCover();
+    updateOptionsNote();
+    saveToEditedCard();
+  });
+  els.optCoverHere.addEventListener('click', () => {
+    const fps = chosenFps();
+    if (fps === undefined) return;
+    els.optCoverAt.value = formatTimecode(Math.max(0, Math.round(playheadSeconds.peek() * fps)), fps);
+    publishCover();
+    updateOptionsNote();
+    saveToEditedCard();
+  });
   els.optFps.addEventListener('change', () => {
     updateOptionsNote();
     // The same text means a different frame at another rate.
     publishTrim();
+    publishCover();
     saveToEditedCard();
   });
   effect(() => {
