@@ -52,6 +52,13 @@ export interface PlatformPreset {
   maxSeconds: number;
   /** The largest file the platform takes, in MB (1024 × 1024 bytes). */
   maxFileMB: number;
+  /**
+   * The platform's own upload page (milestone 20, hand-off): where "Open
+   * upload page" sends the browser while the file manager shows the file.
+   * Always https, and only ever one of these built-in values — the main
+   * process opens it by the preset's id, never a URL the window sends.
+   */
+  uploadUrl: string;
 }
 
 /**
@@ -65,41 +72,49 @@ export const PLATFORM_PRESETS: readonly PlatformPreset[] = [
     id: 'tiktok', label: 'TikTok', hint: 'Vertical, up to 10 min',
     aspect: '9:16', width: 1080, height: 1920, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 600, maxFileMB: 287,
+    uploadUrl: 'https://www.tiktok.com/upload',
   },
   {
     id: 'instagram-reels', label: 'Instagram Reels', hint: 'Vertical, up to 3 min',
     aspect: '9:16', width: 1080, height: 1920, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 180, maxFileMB: 4096,
+    uploadUrl: 'https://www.instagram.com/',
   },
   {
     id: 'instagram-feed', label: 'Instagram feed', hint: 'Tall 4:5, up to 60 min',
     aspect: '4:5', width: 1080, height: 1350, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 3600, maxFileMB: 4096,
+    uploadUrl: 'https://www.instagram.com/',
   },
   {
     id: 'youtube-shorts', label: 'YouTube Shorts', hint: 'Vertical, up to 3 min',
     aspect: '9:16', width: 1080, height: 1920, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 180, maxFileMB: 262_144,
+    uploadUrl: 'https://www.youtube.com/upload',
   },
   {
     id: 'youtube', label: 'YouTube', hint: 'Widescreen 1080p',
     aspect: '16:9', width: 1920, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 43_200, maxFileMB: 262_144,
+    uploadUrl: 'https://www.youtube.com/upload',
   },
   {
     id: 'x', label: 'X', hint: 'Widescreen, up to 2:20',
     aspect: '16:9', width: 1920, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 140, maxFileMB: 512,
+    uploadUrl: 'https://x.com/compose/post',
   },
   {
     id: 'linkedin', label: 'LinkedIn', hint: 'Widescreen, up to 10 min',
     aspect: '16:9', width: 1920, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 600, maxFileMB: 5120,
+    uploadUrl: 'https://www.linkedin.com/feed/?shareActive=true',
   },
   {
     id: 'facebook-feed', label: 'Facebook feed', hint: 'Square, up to 2 h',
     aspect: '1:1', width: 1080, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 7200, maxFileMB: 10_240,
+    uploadUrl: 'https://www.facebook.com/',
   },
 ];
 
@@ -207,6 +222,8 @@ export function platformPresetProblems(presets: readonly PlatformPreset[] = PLAT
     for (const [name, value] of [['bitrate', p.bitrateMbps], ['length limit', p.maxSeconds], ['file-size limit', p.maxFileMB]] as const) {
       if (!Number.isFinite(value) || value <= 0) problems.push(`${where}: the ${name} must be more than 0`);
     }
+    // The hand-off opens this in the browser, so nothing but https may ever be typed in here.
+    if (!/^https:\/\/[^\s]+$/.test(p.uploadUrl)) problems.push(`${where}: the upload page must be an https URL`);
   }
   return problems;
 }

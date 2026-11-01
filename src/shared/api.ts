@@ -378,6 +378,15 @@ export interface PulpApi {
   revealFile(path: string): Promise<boolean>;
   /** Put a rendered file's path on the clipboard, under the same rule. */
   copyFilePath(path: string): Promise<boolean>;
+  /** Open the system share sheet on a finished render (milestone 20). macOS only; false elsewhere, and under the same path rule. */
+  shareFile(path: string): Promise<boolean>;
+  /**
+   * Hand a finished render to its platform (milestone 20): the platform's own
+   * upload page in the browser and the file shown in the file manager, ready
+   * to drop. The platform is a preset id; the main process holds the only list
+   * of pages it will open, so no URL ever travels over this call.
+   */
+  openUploadPage(path: string, platform: string): Promise<boolean>;
   /** Show a library item in the file manager. The main process looks its path up from the id. */
   revealItem(id: string): Promise<boolean>;
   /** Put a library item's path on the clipboard, looked up the same way. */

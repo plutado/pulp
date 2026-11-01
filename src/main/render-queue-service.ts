@@ -14,6 +14,7 @@ import type { BatchRequest, EnqueueBatchResult, EnqueueResult, PrepareDragResult
 import type { CollectionItem } from '../core/collection';
 import { slug } from '../core/pack';
 import { cacheKey } from '../core/render-cache';
+import { platformPreset } from '../core/platform-presets';
 import { imageIdsIn } from '../core/image-slot';
 import { imageStamps, resolveRowImages } from './image-grant';
 import { clipStamps } from './clip-grant';
@@ -53,6 +54,11 @@ function mediaFor(id: string): MediaEntry | null {
   return found && found.online ? found.entry : null;
 }
 
+/** The platform a render was aimed at, when it is one Pulp knows: the finished card offers its upload page (milestone 20). */
+function platformOf(options: RenderOptions | undefined): { platform: string } {
+  return (platformPreset(options?.platform) ? { platform: options!.platform! } : {}) as { platform: string };
+}
+
 const queue = new RenderQueue(broadcast);
 const inputs = new Map<number, JobInputs>();
 let active: AbortController | null = null;
@@ -90,6 +96,7 @@ async function enqueueMediaRender(request: RenderRequest & { mediaId: string }):
     outputPath: save.filePath,
     totalFrames: planned.plan.timing.totalFrames,
     firstFrame: planned.plan.timing.firstFrame,
+    ...platformOf(request.options),
   });
   inputs.set(job.id, { media: entry, params: request.params, ...(request.options ? { options: request.options } : {}) });
   markItemUsed(entry.id);
@@ -128,6 +135,7 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
     outputPath: save.filePath,
     totalFrames: timing.totalFrames,
     firstFrame: timing.firstFrame,
+    ...platformOf(request.options),
   });
   inputs.set(job.id, { template, params: request.params, ...(request.options ? { options: request.options } : {}) });
   markItemUsed(template.id);
@@ -151,7 +159,7 @@ async function prepareMediaDrag(request: RenderRequest & { mediaId: string }): P
   const key = mediaCacheKey({ id: entry.id, size: entry.size, mtimeMs: entry.mtimeMs, presetId: request.presetId, options: request.options, params: request.params });
   const { path: outputPath } = await cacheFileForKey(key, entry.name, facts.extension, facts.sequence);
   const existing = dragFileFor(outputPath, timing.firstFrame);
-  const job = { templateId: '', mediaId: entry.id, templateName: entry.name, presetId: request.presetId, outputPath, totalFrames: timing.totalFrames, firstFrame: timing.firstFrame };
+  const job = { templateId: '', mediaId: entry.id, templateName: entry.name, presetId: request.presetId, outputPath, totalFrames: timing.totalFrames, firstFrame: timing.firstFrame, ...platformOf(request.options) };
   if (existsSync(existing) && (await isCachedFile(existing))) {
     const cached = queue.addFinished(job, outputPath, timing.totalFrames);
     finishedOutputs.add(existing);
@@ -203,6 +211,7 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
         outputPath,
         totalFrames: timing.totalFrames,
         firstFrame: timing.firstFrame,
+        ...platformOf(request.options),
       },
       outputPath,
       timing.totalFrames,
@@ -219,6 +228,7 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
     outputPath,
     totalFrames: timing.totalFrames,
     firstFrame: timing.firstFrame,
+    ...platformOf(request.options),
   });
   inputs.set(job.id, { template, params: request.params, forCache: true, ...(request.options ? { options: request.options } : {}) });
   markItemUsed(template.id);
@@ -257,7 +267,7 @@ export async function enqueueCollectionItems(items: readonly CollectionItem[], f
         skipped.push(`${item.name}: ${planned.message}`);
         continue;
       }
-      const job = queue.add({ templateId: '', mediaId: entry.id, templateName: entry.name, label: item.name, presetId: item.presetId, outputPath, totalFrames: planned.plan.timing.totalFrames, firstFrame: planned.plan.timing.firstFrame });
+      const job = queue.add({ templateId: '', mediaId: entry.id, templateName: entry.name, label: item.name, presetId: item.presetId, outputPath, totalFrames: planned.plan.timing.totalFrames, firstFrame: planned.plan.timing.firstFrame, ...platformOf(item.options) });
       inputs.set(job.id, { media: entry, params: item.params, ...(item.options ? { options: item.options } : {}) });
       jobIds.push(job.id);
       markItemUsed(entry.id);
@@ -284,6 +294,7 @@ export async function enqueueCollectionItems(items: readonly CollectionItem[], f
       outputPath: join(folder, `${fileNameFor()}${preset.extension}`),
       totalFrames: timing.totalFrames,
       firstFrame: timing.firstFrame,
+      ...platformOf(item.options),
     });
     inputs.set(job.id, { template, params: item.params, ...(item.options ? { options: item.options } : {}) });
     jobIds.push(job.id);
@@ -332,6 +343,7 @@ export async function enqueueBatch(request: BatchRequest): Promise<EnqueueBatchR
       outputPath: join(folder, `${row.fileName}${preset.extension}`),
       totalFrames: timing.totalFrames,
       firstFrame: timing.firstFrame,
+      ...platformOf(request.options),
     });
     inputs.set(job.id, { template, params: images.params, ...(request.options ? { options: request.options } : {}) });
     jobIds.push(job.id);

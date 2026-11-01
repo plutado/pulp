@@ -31,6 +31,15 @@ describe('what a card shows', () => {
     expect(queueCard(job({ label: 'Lower Third Bar · Alex' })).name).toBe('Lower Third Bar · Alex');
   });
 
+  it('offers the hand-off once a render aimed at a platform is done, by the preset id and nothing else (milestone 20)', () => {
+    // The card sends the id back; the main process holds the only list of pages it will open.
+    expect(queueCard(job({ platform: 'tiktok' })).handOff).toEqual({ platform: 'tiktok', label: 'TikTok' });
+    // Not before it is done, not without a platform, and not for an id Pulp does not know.
+    expect(queueCard(job({ platform: 'tiktok', status: 'running', frame: 10 })).handOff).toBeUndefined();
+    expect(queueCard(job()).handOff).toBeUndefined();
+    expect(queueCard(job({ platform: 'myspace' })).handOff).toBeUndefined();
+  });
+
   it('says where a render has got to', () => {
     expect(queueCard(job({ status: 'queued', frame: 0 })).status).toEqual({ kind: 'queued', text: 'Queued · 180 frames' });
     expect(queueCard(job({ status: 'running', frame: 90 })).status).toEqual({ kind: 'running', text: 'Frame 90 of 180', progress: 0.5 });

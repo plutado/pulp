@@ -58,6 +58,10 @@ describe('the built-in list', () => {
     expect(platformPreset(undefined)).toBeUndefined();
   });
 
+  it('names an https upload page for every platform, for the hand-off (ADR 0020)', () => {
+    for (const p of PLATFORM_PRESETS) expect(p.uploadUrl, p.id).toMatch(/^https:\/\//);
+  });
+
   it('carries the date its limits were checked, and says it in words', () => {
     expect(PLATFORM_LIMITS_CHECKED).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(limitsCheckedLabel('2026-11-01')).toBe('checked 1 November 2026');
@@ -70,7 +74,7 @@ describe('the built-in list', () => {
 describe('the check on the list', () => {
   const sound: PlatformPreset = {
     id: 'sample', label: 'Sample', hint: 'A hint', aspect: '9:16', width: 1080, height: 1920, fps: 30,
-    presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 60, maxFileMB: 100,
+    presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 60, maxFileMB: 100, uploadUrl: 'https://example.com/upload',
   };
 
   it('passes a sound entry', () => {
@@ -92,6 +96,7 @@ describe('the check on the list', () => {
     expect(platformPresetProblems([sound, sound])).toContain('sample: the id is used twice');
     expect(platformPresetProblems([])).toContain('the list is empty');
     expect(platformPresetProblems([{ ...sound, maxFileMB: 0 }])).toContain('sample: the file-size limit must be more than 0');
+    expect(platformPresetProblems([{ ...sound, uploadUrl: 'http://example.com/up' }])).toContain('sample: the upload page must be an https URL');
     expect(platformPresetProblems([sound], '1 November')).toContain('the checked date "1 November" is not YYYY-MM-DD');
   });
 });

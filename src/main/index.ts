@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, ShareMenu, shell } from 'electron';
 import { SAMPLE_MEDIA_FOLDER_NAME } from '../core/sample-media';
 import { generateSampleMedia, samplesToMake, unmadeSamplesByType } from './sample-media-service';
 import { readSlotImages, resolveRowImages } from './image-grant';
@@ -268,6 +268,27 @@ function registerIpc(): void {
     const file = String(path);
     if (!allowedDragFiles().has(file)) return false;
     clipboard.writeText(file);
+    return true;
+  });
+  // The hand-off (milestone 20, ADR 0020): the file, not the account. Share… is the system's own
+  // sheet — macOS's, the one place Electron has one; the card offers it only there.
+  ipcMain.handle('file:share', (event, path: unknown) => {
+    const file = String(path);
+    if (process.platform !== 'darwin' || !allowedDragFiles().has(file)) return false;
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return false;
+    new ShareMenu({ filePaths: [file] }).popup({ window: win });
+    return true;
+  });
+  // Open upload page: the platform's page in the browser and the file shown in the file manager,
+  // ready to drop. The page comes off the built-in preset by its id — never a URL from the window —
+  // and the file is held to the same allow-list as the drag.
+  ipcMain.handle('file:open-upload', (_event, path: unknown, platform: unknown) => {
+    const file = String(path);
+    const preset = platformPreset(typeof platform === 'string' ? platform : undefined);
+    if (!preset || !allowedDragFiles().has(file)) return false;
+    shell.showItemInFolder(file);
+    void shell.openExternal(preset.uploadUrl);
     return true;
   });
   ipcMain.handle('collection:save', (_event, collection: Collection, name: unknown) => saveCollectionTo(collection, String(name ?? '')));

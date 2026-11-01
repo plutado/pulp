@@ -110,6 +110,8 @@ const api: PulpApi = {
   revealItem: (id) => ipcRenderer.invoke('item:reveal', id),
   copyItemPath: (id) => ipcRenderer.invoke('item:copy-path', id),
   copyFilePath: (path) => ipcRenderer.invoke('file:copy-path', path),
+  shareFile: (path) => ipcRenderer.invoke('file:share', path),
+  openUploadPage: (path, platform) => ipcRenderer.invoke('file:open-upload', path, platform),
   platform: process.platform,
   appVersion: () => ipcRenderer.invoke('app:version'),
   getRenderQueue: () => ipcRenderer.invoke('queue:get'),

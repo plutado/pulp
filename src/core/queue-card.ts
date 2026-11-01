@@ -8,6 +8,7 @@
  * Pure, so the rule can be tested rather than hoped for.
  */
 
+import { platformPreset } from './platform-presets';
 import { OUTPUT_PRESETS, type PresetId } from './render-plan';
 import type { RenderJobStatus, RenderQueueJob } from './render-queue';
 
@@ -31,6 +32,12 @@ export interface QueueCard {
   /** Where the file is and anything else the card leaves out, for the tooltip. */
   tip: string;
   draggable: boolean;
+  /**
+   * The hand-off (milestone 20): offered once the render is done, when it was
+   * aimed at a platform Pulp knows. The card sends the preset's id back, never
+   * a URL — the main process holds the only list of pages it will open.
+   */
+  handOff?: { platform: string; label: string };
 }
 
 /** "180 frames", "1 frame". */
@@ -75,6 +82,7 @@ export function queueCard(job: RenderQueueJob): QueueCard {
   const done = job.status === 'done';
   const file = done ? dragFileFor(job) : undefined;
   const preset = OUTPUT_PRESETS[job.presetId as PresetId]?.label ?? job.presetId;
+  const aimedAt = done ? platformPreset(job.platform) : undefined;
   return {
     id: job.id,
     name: job.label ?? job.templateName,
@@ -83,5 +91,6 @@ export function queueCard(job: RenderQueueJob): QueueCard {
     ...(file ? { file } : {}),
     tip: [file ?? job.outputPath, ...job.warnings].join('\n'),
     draggable: done,
+    ...(aimedAt ? { handOff: { platform: aimedAt.id, label: aimedAt.label } } : {}),
   };
 }

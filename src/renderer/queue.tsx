@@ -50,8 +50,28 @@ function startDrag(job: RenderQueueJob, card: QueueCard): void {
 function Actions({ card }: { card: QueueCard }) {
   if (!card.file) return null;
   const file = card.file;
+  // The hand-off (milestone 20, ADR 0020): the file goes to where it was made for, by the system's
+  // own doors. Share… is the macOS share sheet, the one place there is one; Open upload page shows
+  // the file in the file manager and opens the platform's page in the browser, ready to drop.
+  const handOff = card.handOff;
   return (
     <span class="job-actions">
+      {handOff && (
+        <button
+          type="button"
+          class="icon-button"
+          aria-label={`Open the ${handOff.label} upload page`}
+          data-tip={`Open the ${handOff.label} upload page in the browser and show the file, ready to drop`}
+          onClick={() => void window.pulp.openUploadPage(file, handOff.platform)}
+        >
+          <Icon name="upload-simple" />
+        </button>
+      )}
+      {window.pulp.platform === 'darwin' && (
+        <button type="button" class="icon-button" aria-label="Share…" onClick={() => void window.pulp.shareFile(file)}>
+          <Icon name="share-network" />
+        </button>
+      )}
       <button type="button" class="icon-button" aria-label={revealLabel(window.pulp.platform)} onClick={() => void window.pulp.revealFile(file)}>
         <Icon name="folder" />
       </button>

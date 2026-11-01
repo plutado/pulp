@@ -69,6 +69,7 @@ import square from '@phosphor-icons/core/assets/regular/square.svg?raw';
 import stack from '@phosphor-icons/core/assets/regular/stack.svg?raw';
 import subtitles from '@phosphor-icons/core/assets/regular/subtitles.svg?raw';
 import swap from '@phosphor-icons/core/assets/regular/swap.svg?raw';
+import shareNetwork from '@phosphor-icons/core/assets/regular/share-network.svg?raw';
 import star from '@phosphor-icons/core/assets/regular/star.svg?raw';
 import starFill from '@phosphor-icons/core/assets/fill/star-fill.svg?raw';
 import textAa from '@phosphor-icons/core/assets/regular/text-aa.svg?raw';
@@ -149,6 +150,7 @@ const ICONS = {
   'text-aa': textAa,
   'text-t': textT,
   trash,
+  'share-network': shareNetwork,
   'upload-simple': uploadSimple,
   warning,
   x,

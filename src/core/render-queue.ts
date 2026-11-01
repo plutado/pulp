@@ -26,6 +26,8 @@ export interface RenderQueueJob {
   output?: string;
   /** Why the job failed or was cancelled. */
   message?: string;
+  /** The platform preset the render was aimed at (milestone 20): what the finished card's hand-off opens. */
+  platform?: string;
   warnings: string[];
 }
 
@@ -38,7 +40,7 @@ export type RenderOutcome =
   | { ok: true; output: string; frames: number; warnings: string[] }
   | { ok: false; cancelled?: boolean; message: string };
 
-export type NewRenderJob = Pick<RenderQueueJob, 'templateId' | 'templateName' | 'presetId' | 'outputPath' | 'totalFrames'> & Pick<RenderQueueJob, 'label' | 'firstFrame' | 'mediaId'>;
+export type NewRenderJob = Pick<RenderQueueJob, 'templateId' | 'templateName' | 'presetId' | 'outputPath' | 'totalFrames'> & Pick<RenderQueueJob, 'label' | 'firstFrame' | 'mediaId' | 'platform'>;
 
 export const FINISHED_STATUSES: readonly RenderJobStatus[] = ['done', 'failed', 'cancelled'];
 
