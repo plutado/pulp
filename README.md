@@ -65,7 +65,7 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Everything stays on your machine, and says so: what goes wrong is written to a log beside the settings — an uncaught error in any of Pulp's processes, a window that goes, whatever the page itself catches — bounded so it cannot grow without end, and **Copy diagnostics** in the status items puts the facts and the log's last lines on the clipboard for a bug report. Nothing is sent anywhere: no reporting service, no network call, no identifier, and your home directory reads as `~` in every path it carries.
 - A headless command-line render mode (below).
 
-Not yet: stock library import, the rest of sound in a project, a cut track, captions from speech, keyframes on layers, clip clean-up for compositing, the rest of 1.0 hardening and docs, installers and signed builds, and verification on Windows. These are on the [roadmap](ROADMAP.md).
+Not yet: stock library import, the rest of sound in a project, a cut track, captions from speech, keyframes on layers, clip clean-up for compositing, voice treatments, the rest of 1.0 hardening and docs, installers and signed builds, and verification on Windows. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
@@ -81,11 +81,12 @@ Milestones 1-6, 10-13, 15, 18-31, 33, 35-48 (renderer, alpha export, parameter e
 | 50. Captions from speech | On-device transcription into a captions layer, caption styles with the spoken word highlighted, burned in or as an alpha track, and SRT and WebVTT | 20-32 h |
 | 51. Keyframes on layers | Position, scale, rotation and opacity over time, with easing, on each layer's bar | 12-20 h |
 | 52. Clip clean-up for compositing | Chroma key to alpha, a LUT, footage split at its cuts (the mix levelled to the platform's loudness target, with a meter in the transport row, is done) | 8-12 h |
+| 53. Voice treatments | One-click treatments for a recorded voice — Clean voice, Podcast, Reduce noise, Phone, Radio, Warm — with an amount, run locally, in the preview and the render | 6-10 h |
 | 8. 1.0 hardening and docs | A JSON Schema for the template and pack formats with a stated compatibility rule (no version freeze), an authoring guide with a starter folder, an accessibility pass across every region, a user guide, a Settings window, third-party notices, a release process and project basics (local crash reporting is done) | 13-21 h |
 | 17. Unsigned builds and releases | electron-builder, an app icon of Pulp's own and the names and shortcuts each system shows, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 8-14 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 
-The milestones through 1.0 total **735-1185 hours**, of which **137-219 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, audio with stems and paired effects, media slots, output presets per kind of asset, a `pulp` command, optional on-device semantic search) add 26-48 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **741-1195 hours**, of which **143-229 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, audio with stems and paired effects, media slots, output presets per kind of asset, a `pulp` command, optional on-device semantic search) add 26-48 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
