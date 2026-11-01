@@ -97,6 +97,9 @@ const api: PulpApi = {
   setMenuState: (state) => ipcRenderer.invoke('menu:state', state),
   menuSections: () => ipcRenderer.invoke('menu:sections'),
   copyDiagnostics: (text) => ipcRenderer.invoke('diagnostics:copy', text),
+  recordLog: (level, source, message, detail) => ipcRenderer.invoke('log:record', level, source, message, detail),
+  logTail: (lines) => ipcRenderer.invoke('log:tail', lines),
+  revealLog: () => ipcRenderer.invoke('log:reveal'),
   onMenuCommand: (listener) => {
     const handler = (_event: unknown, command: string, arg: string | null) => listener(command as never, arg);
     ipcRenderer.on('menu:command', handler);
@@ -108,6 +111,7 @@ const api: PulpApi = {
   copyItemPath: (id) => ipcRenderer.invoke('item:copy-path', id),
   copyFilePath: (path) => ipcRenderer.invoke('file:copy-path', path),
   platform: process.platform,
+  appVersion: () => ipcRenderer.invoke('app:version'),
   getRenderQueue: () => ipcRenderer.invoke('queue:get'),
   getRecentColors: () => ipcRenderer.invoke('colors:recent-get'),
   addRecentColor: (hex) => ipcRenderer.invoke('colors:recent-add', hex),

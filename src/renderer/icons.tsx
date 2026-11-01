@@ -34,6 +34,7 @@ import filmStrip from '@phosphor-icons/core/assets/regular/film-strip.svg?raw';
 import fire from '@phosphor-icons/core/assets/regular/fire.svg?raw';
 import folder from '@phosphor-icons/core/assets/regular/folder.svg?raw';
 import folderOpen from '@phosphor-icons/core/assets/regular/folder-open.svg?raw';
+import lifebuoy from '@phosphor-icons/core/assets/regular/lifebuoy.svg?raw';
 import link from '@phosphor-icons/core/assets/regular/link.svg?raw';
 import frameCorners from '@phosphor-icons/core/assets/regular/frame-corners.svg?raw';
 import folderPlus from '@phosphor-icons/core/assets/regular/folder-plus.svg?raw';
@@ -109,6 +110,7 @@ const ICONS = {
   folder,
   'folder-open': folderOpen,
   'folder-plus': folderPlus,
+  lifebuoy,
   link,
   'frame-corners': frameCorners,
   'hard-drive': hardDrive,

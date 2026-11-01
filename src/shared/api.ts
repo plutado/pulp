@@ -360,6 +360,12 @@ export interface PulpApi {
   menuSections(): Promise<MenuSection[]>;
   /** A menu item was chosen: the id, and what it is about (a recent project's path). */
   onMenuCommand(listener: (command: MenuCommand, arg: string | null) => void): () => void;
+  /** Record what the window caught in the local log (milestone 8); nothing leaves the machine. */
+  recordLog(level: 'crash' | 'error' | 'warn' | 'info', source: string, message: string, detail?: string): Promise<void>;
+  /** The log file's place and its last lines, for the diagnostics text. */
+  logTail(lines?: number): Promise<{ path: string; lines: string[] }>;
+  /** Show the log file in the file manager. */
+  revealLog(): Promise<boolean>;
   /** Put the diagnostics text on the clipboard; bounded, and only ever this text. */
   copyDiagnostics(text: string): Promise<boolean>;
   /** Ask for one folder, then queue a render for every item. */
@@ -376,6 +382,8 @@ export interface PulpApi {
   copyItemPath(id: string): Promise<boolean>;
   /** What this machine is, so the Reveal action can use the file manager's own name. */
   platform: string;
+  /** Pulp's version, which only the main process can answer for. */
+  appVersion(): Promise<string>;
   getRenderQueue(): Promise<RenderQueueSnapshot>;
   /** The last committed searches, most recent first. */
   getRecentSearches(): Promise<string[]>;

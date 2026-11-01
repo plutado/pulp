@@ -20,6 +20,7 @@ import { appState, paramsEdited, renderBlocked, results, resultsView, transport 
 import { selectedLayer } from './layer-edit';
 import { currentLayerFacts, runLayerCommand, stageClipboard } from './stage-menu';
 import { registerCommandRunner } from './commands';
+import { diagnosticsText } from '../core/log';
 import { focusSearch } from './search-bar';
 import { openBrowseFilter } from './browse';
 import { newProject, openProjectFrom, saveProject } from './project';
@@ -121,7 +122,8 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'help.tour': startTour(); return;
     case 'help.whatsNew': showWhatsNew(); return;
     case 'help.shortcuts': void showShortcuts(); return;
-    case 'help.diagnostics': void copyDiagnostics(); return;
+    // The status item is the button for it, so the menu presses that rather than keeping a second way.
+    case 'help.diagnostics': press('status-diagnostics'); return;
   }
 }
 
@@ -189,33 +191,51 @@ function readState(recent: string[]): MenuState {
 
 /**
  * What Pulp knows about itself, on the clipboard: enough for someone to say
- * what went wrong without being asked three questions first. No paths beyond
- * the library roots the person chose themselves.
+ * what went wrong without being asked three questions first, now with the
+ * last of the local log (milestone 8). The words are `diagnosticsText` in
+ * src/core/log.ts; what is gathered for them is here.
+ *
+ * It is said where it was asked for: the status item itself, which is on
+ * screen wherever the command came from. It used to be said in the shortcut
+ * dialog's own line, which nobody saw unless that dialog happened to be open.
  */
-async function copyDiagnostics(): Promise<void> {
-  const [ffmpeg, diagnostics, cache] = await Promise.all([
+export async function copyDiagnostics(): Promise<void> {
+  const [ffmpeg, diagnostics, cache, log, version] = await Promise.all([
     window.pulp.ffmpegStatus(),
     window.pulp.libraryDiagnostics(),
     window.pulp.renderCacheStats(),
+    window.pulp.logTail(),
+    window.pulp.appVersion(),
   ]);
   const index = appState.value.index;
-  const lines = [
-    `Pulp diagnostics — ${new Date().toISOString()}`,
-    `Platform: ${window.pulp.platform}`,
-    `ffmpeg: ${ffmpeg.ok ? `${ffmpeg.version ?? 'found'} at ${ffmpeg.path ?? 'unknown'}` : `not found (${ffmpeg.message ?? 'no reason given'})`}`,
-    `Library: ${index ? `${index.templates.length} templates, ${index.media.length} media, ${index.problems.length} problems` : 'not scanned yet'}`,
-    `Roots: ${diagnostics.roots.map((r) => `${r.path}${r.online ? '' : ' (offline)'}`).join(', ') || 'none'}`,
-    `Background: ${diagnostics.pendingThumbnails} thumbnails, ${diagnostics.pendingMetadata} probes, ${diagnostics.heavyWaiting} waiting`,
-    `Render cache: ${cache.summary}`,
-    `Project: ${appState.value.project.name}${appState.value.project.path ? ` (${appState.value.project.path})` : ' (not saved)'}`,
-    `Renders this session: ${appState.value.jobs.jobs.length}`,
-  ];
-  const ok = await window.pulp.copyDiagnostics(lines.join('\n'));
-  const said = $('shortcuts-copied');
-  said.textContent = ok ? 'Diagnostics copied to the clipboard.' : 'Could not reach the clipboard.';
-  said.hidden = false;
-  setTimeout(() => { said.hidden = true; }, 4000);
+  const text = diagnosticsText({
+    at: new Date().toISOString(),
+    platform: window.pulp.platform,
+    version,
+    ffmpeg: ffmpeg.ok ? `${ffmpeg.version ?? 'found'} at ${ffmpeg.path ?? 'unknown'}` : `not found (${ffmpeg.message ?? 'no reason given'})`,
+    library: index ? `${index.templates.length} templates, ${index.media.length} media, ${index.problems.length} problems` : 'not scanned yet',
+    roots: diagnostics.roots.map((r) => `${r.path}${r.online ? '' : ' (offline)'}`),
+    background: `${diagnostics.pendingThumbnails} thumbnails, ${diagnostics.pendingMetadata} probes, ${diagnostics.heavyWaiting} waiting`,
+    renderCache: cache.summary,
+    project: `${appState.value.project.name}${appState.value.project.path ? ` (${appState.value.project.path})` : ' (not saved)'}`,
+    renders: appState.value.jobs.jobs.length,
+    logPath: log.path,
+    logTail: log.lines,
+  });
+  const ok = await window.pulp.copyDiagnostics(text);
+  sayInStatus(ok ? 'Diagnostics copied' : 'Could not reach the clipboard');
 }
+
+/** The status item says what just happened, then goes back to being a button. */
+function sayInStatus(words: string): void {
+  const button = document.getElementById('status-diagnostics');
+  const label = button?.querySelector('.label');
+  if (!button || !label) return;
+  label.textContent = words;
+  clearTimeout(sayTimer);
+  sayTimer = setTimeout(() => { label.textContent = ''; }, 4000);
+}
+let sayTimer: ReturnType<typeof setTimeout> | undefined;
 
 // ---------------------------------------------------------------- wiring
 
@@ -255,6 +275,8 @@ export function menuRecentChanged(paths: readonly string[]): void {
 }
 
 export function initMenu(): void {
+  // Copy diagnostics is a button in the status items (milestone 8); Help's item presses it.
+  document.getElementById('status-diagnostics')?.addEventListener('click', () => void copyDiagnostics());
   window.pulp.onMenuCommand((command, arg) => run(command, arg));
   // The stage's right-click menu names the same commands and runs them through here
   // (milestone 39), so a command cannot mean one thing on one menu and another on the other.

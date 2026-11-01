@@ -432,13 +432,15 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .transport-status .status-item { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; white-space: nowrap; }
 .transport-status .status-item > .icon { color: var(--muted); flex: 0 0 auto; }
 .transport-status #ffmpeg-status.error > .icon { color: var(--danger); }
-/* The cache is its icon: a button that opens the Render cache dialog, the summary as its tooltip. */
-.transport-status #status-cache { padding: 2px 4px; }
+/* The cache and Copy diagnostics are their icons: the cache's summary and what diagnostics just
+   did are tooltips and a passing label rather than standing text. */
+.transport-status #status-cache, .transport-status #status-diagnostics { padding: 2px 4px; }
 .transport-status #status-cache .label { display: none; }
 /* The counts yield before the rest. */
 .transport-status .summary { flex: 0 1 auto; min-width: 0; }
-/* An item with nothing to say takes no room, not even its gap. */
-.transport-status .status-item:not(#project-button):not(:has(.label:not(:empty))) { display: none; }
+/* An item with nothing to say takes no room, not even its gap — but the two that are buttons
+   rather than readouts stay, since a button with nothing to report is still a button. */
+.transport-status .status-item:not(#project-button):not(#status-diagnostics):not(:has(.label:not(:empty))) { display: none; }
 .transport-status #ffmpeg-status:not(.error) .label { display: none; }
 /* The project (milestone 27): its name in the status bar, with a dot while there are unsaved
    changes, opening the project actions. The application menu is its proper home and arrives next;
@@ -737,10 +739,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   .transport-middle { grid-row: 1; grid-column: 3; margin: 0; }
   .transport-tools { grid-row: 1; grid-column: 4; }
   /* The status down to what must stay — the project, a warning about ffmpeg, the cache — since the
-     line's room is the scrub bar's; the library's counts and its problems are back on two lines. Capped
-     too, so a transient "Scanning…" cannot widen the column past the room there is. */
+     line's room is the scrub bar's; the library's counts and its problems are back on two lines, and
+     Copy diagnostics with them — it is in the Help menu too, and the bar is what the line is for.
+     Capped too, so a transient "Scanning…" cannot widen the column past the room there is. */
   .transport-status { grid-row: 1; grid-column: 5; max-width: 200px; justify-content: flex-start; }
-  .transport-status #library-summary { display: none; }
+  .transport-status #library-summary, .transport-status #status-diagnostics { display: none; }
   /* Named with the row: the lanes' own rule, below, would otherwise win by coming later. */
   .transport-row .transport-lanes { grid-row: 2; grid-column: 2; margin: 0 -4px; width: auto; align-self: stretch; }
   .transport-tabs .tab .label { display: none; }

@@ -47,6 +47,8 @@ import { sanitizeResultsView } from '../core/results-view';
 import { sanitizePlayer } from '../core/player';
 import { loadSettings, updateSettings } from './settings';
 import { adoptStageWindow, destroyStageWindow, loadStageWindowSetting, registerStageWindowIpc, stageWindowOptions } from './stage-window-service';
+import { initCrashLog, registerLogIpc } from './log-service';
+import { DIAGNOSTICS_MAX_CHARS } from '../core/log';
 import { STAGE_WINDOW_NAME } from '../core/stage-window';
 
 registerTemplateScheme();
@@ -67,6 +69,10 @@ function grantRequestsFrom(raw: unknown): ImageGrantRequest[] {
 
 // Tests point this at a scratch folder so they never touch the user's settings.json.
 if (process.env.PULP_USER_DATA) app.setPath('userData', resolve(process.env.PULP_USER_DATA));
+
+// Before anything else runs (milestone 8): a failure while the app is still coming up is written
+// to the log like any other, rather than disappearing with the process.
+initCrashLog();
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -322,8 +328,9 @@ function registerIpc(): void {
   ipcMain.handle('menu:sections', () => menuSections());
   // Help -> Copy Diagnostics. Named for its one purpose and bounded, rather than a way for the
   // window to put anything at all on the clipboard.
+  ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('diagnostics:copy', (_event, text: unknown) => {
-    if (typeof text !== 'string' || text.length > 8000) return false;
+    if (typeof text !== 'string' || text.length > DIAGNOSTICS_MAX_CHARS) return false;
     clipboard.writeText(text);
     return true;
   });
@@ -827,6 +834,7 @@ app.whenReady().then(async () => {
     return;
   }
   registerIpc();
+  registerLogIpc();
   registerStageWindowIpc();
   await loadStageWindowSetting();
   createWindow();

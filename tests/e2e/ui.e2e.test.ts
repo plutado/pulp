@@ -3180,11 +3180,41 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<number>(`document.querySelectorAll('#shortcuts-list dd').length`)).toBe(rows.length);
       await page.eval(`document.getElementById('shortcuts-close').click()`);
 
-      // Help > Copy Diagnostics says what Pulp knows about itself, on the clipboard.
+      // Help > Copy Diagnostics says what Pulp knows about itself, on the clipboard. It presses the
+      // status item, which is where it says it copied (milestone 8) — the shortcut dialog's own line
+      // said it where nobody could see it unless that dialog happened to be open.
       await page.eval(`window.pulpMenuCommand('help.diagnostics')`);
-      await until(() => page.eval<boolean>(`!document.getElementById('shortcuts-copied').hidden`), 'the diagnostics confirmation');
-      expect(await page.eval<string>(`document.getElementById('shortcuts-copied').textContent`)).toContain('copied');
+      await until(() => page.eval<string>(`document.querySelector('#status-diagnostics .label').textContent`).then((t) => t === 'Diagnostics copied'), 'the diagnostics confirmation');
     }, 90_000);
+
+    it('writes what went wrong to a local log, and copies diagnostics from the status items (milestone 8)', async () => {
+      const logFile = join(userData, 'logs', 'pulp.log');
+      // The log is there from the start: the main process writes a line as it comes up.
+      await until(() => Promise.resolve(existsSync(logFile)), 'the log file');
+      expect(await readFile(logFile, 'utf8')).toMatch(/INFO \[main\] Pulp .* started on /);
+
+      // An error nobody handled in the window reaches it, on one line, with its stack.
+      await page.eval(`setTimeout(() => { throw new Error('a test error nobody caught'); }, 0), true`);
+      await until(async () => (await readFile(logFile, 'utf8')).includes('a test error nobody caught'), 'the window\'s error in the log');
+      const recorded = (await readFile(logFile, 'utf8')).split('\n').filter((l) => l.includes('a test error nobody caught'));
+      expect(recorded, 'said once, on one line').toHaveLength(1);
+      expect(recorded[0]).toMatch(/ERROR \[window\] /);
+
+      // Copy diagnostics is a button in the status items, and the menu's item presses that one.
+      expect(await page.eval<boolean>(`!!document.querySelector('#region-status #status-diagnostics')`), 'the status item').toBe(true);
+      await page.eval(`window.pulpMenuCommand('help.diagnostics')`);
+      await until(() => page.eval<string>(`document.querySelector('#status-diagnostics .label').textContent`).then((t) => t === 'Diagnostics copied'), 'the status item saying it copied');
+      // What it copied from: the log's own place, and the error just recorded.
+      const text = await page.eval<string>(
+        `(async () => { const log = await window.pulp.logTail(); return JSON.stringify({ path: log.path, lines: log.lines.length, last: log.lines[log.lines.length - 1] }); })()`,
+      );
+      const tail = JSON.parse(text) as { path: string; lines: number; last: string };
+      expect(tail.path.endsWith('pulp.log')).toBe(true);
+      expect(tail.lines).toBeGreaterThan(0);
+      expect(tail.last).toContain('a test error nobody caught');
+      // The label goes back to nothing, so the row is a row of controls again.
+      await until(() => page.eval<string>(`document.querySelector('#status-diagnostics .label').textContent`).then((t) => t === ''), 'the status item quiet again');
+    }, 60_000);
 
     it('keeps the tray\'s resize bar inside the tray, and lines the status items up in the transport row', async () => {
       // The tray is in the window only while it has something (milestone 42), and the bar only

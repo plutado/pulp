@@ -24,6 +24,7 @@ import { hideStartScreen, initStartScreen, showStartScreen } from './start-scree
 import { browsedHiddenChoice } from './psd-state';
 import { initTheater } from './theater';
 import { initStageWindow } from './stage-window';
+import { initCrashLog } from './crash-log';
 import { initTour } from './tour';
 import { initWhatsNew } from './whats-new';
 import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
@@ -413,6 +414,8 @@ initProjectUi();
 // Pulp's own application menu (milestone 27): it does what the window's own buttons do.
 initMenu();
 initContextMenu();
+// What the window catches goes to Pulp's own log, which never leaves the machine (milestone 8).
+initCrashLog();
 // The stage in a window of its own (milestone 43): after the stage, the theater and the menus it
 // moves with, and out again at launch if it was left out.
 initStageWindow();

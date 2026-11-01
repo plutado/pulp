@@ -38,7 +38,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 28. Per-layer timing, transitions and looks (**done**) | 24-36 h |
 | 27. Projects and the application menu (**done**) | 20-32 h |
 | 31. A start screen (**done**) | 14-22 h |
-| 34. A browse panel that says what things are (all but the card sort and the sample-media line) | 21-34 h |
+| 34. A browse panel that says what things are (all but the card sort) | 21-34 h |
 | 32. Stock library import | 27-46 h |
 | 33. Layered graphics: Photoshop, Illustrator, SVG (**done**) | 19-33 h |
 | 15. Convert library media (**done**) | 8-12 h |
@@ -63,7 +63,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **634-1027 h** |
-| **Still open through 1.0 (unticked items only)** | **67-111 h** |
+| **Still open through 1.0 (unticked items only)** | **66-109 h** |
 | **Total including post-1.0 items** | **660-1075 h** |
 
 ## 0. Foundation (done)
@@ -596,7 +596,7 @@ After milestone 19, which it depends on: a platform preset is mostly an aspect, 
 - [ ] A JSON Schema for the template manifest and `pack.json`, generated from or checked against the validator, and the compatibility rule stated where authors read it: fields are added rather than repurposed, and an incompatible change takes a new `formatVersion`. **No version freeze is planned.** This item used to be "freeze template format v1 here"; milestone 19 changes the format and later milestones may too, so the format stays versioned and documented rather than declared final (2-3 h)
 - [ ] Template authoring guide with a step-by-step walkthrough and a `pulp-template` starter folder (2-3 h)
 - [ ] Accessibility pass across every region: keyboard navigation for the browse tree and nodes, the grid, the player, the tray, the inspector tabs (arrow keys, roving tabindex), the filter chips and the scope chip; splitter keyboard resizing kept; focus states and screen reader labels throughout (2-3 h)
-- [ ] Crash and error reporting that stays local (log file, "copy diagnostics" in the status bar) (1-2 h)
+- [x] Crash and error reporting that stays local (log file, "copy diagnostics" in the status bar) (1-2 h) *Built 2026-10-31. `logs/pulp.log` beside the settings, bounded at 256 KB by dropping whole lines from the front, one line per entry however long the stack. It catches an uncaught exception or rejection in the main process, a renderer or helper process that goes, and whatever the window and the popped-out stage window catch of their own — each message once per run, so a loop that throws every frame cannot fill it. Copy diagnostics is a button in the status items now, which the Help menu presses, and it carries the log's place and its last 30 lines; the home directory reads as `~` throughout. It used to say it had copied in the shortcut dialog's own line, which nobody saw unless that dialog was open; the status item says it where it was asked for.*
 - [ ] User guide for the window: regions, keyboard shortcuts, search syntax; README and screenshots updated for the new layout. Opened from Help → User Guide and from the start screen's Learn section, the two places milestones 27 and 31 left waiting for it (1-2 h)
 - [ ] **A Settings window,** so the menu's Settings item (left out in milestone 27 because it had nothing to open) opens something: Pulp → Settings on macOS, Edit → Settings elsewhere. It holds what `settings.json` keeps with no other home today — show the start screen at launch, where FFmpeg is, the default render folder, the render cache's size and clearing it, audition on choosing audio — each control writing the same setting the rest of the window reads (2-3 h)
 - [ ] Third-party notices: a file covering Electron and Chromium, the npm dependencies (pdf.js, `pdfjs-dist`, Apache-2.0, since milestone 33; lottie-web, MIT, since milestone 35), the bundled fonts and ffmpeg if it is ever bundled, shown in an "Acknowledgements" screen reached from About, and checked in CI so a new dependency cannot ship unlisted; required before any build is distributed (milestone 17) (2-4 h)
