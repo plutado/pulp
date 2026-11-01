@@ -34,7 +34,7 @@ import type { TemplateManifest } from '../core/manifest';
 import type { MediaEntry } from '../core/library-types';
 import { resolveLength } from '../core/timing';
 import { layerEditor } from './layer-edit';
-import { appState, playheadSeconds, trim } from './store';
+import { appState, playheadSeconds, selectedTemplate, trim } from './store';
 
 /** The elements of one cut, kept across updates so a drag keeps its pointer. */
 interface CutEl {
@@ -161,7 +161,7 @@ export function cutTrackTakeDrop(id: string): boolean {
   const entry = mediaFor(id);
   if (!entry || entry.mediaKind !== 'video' || entry.sequence || entry.offline || !entry.meta?.duration || entry.meta.duration <= 0) return false;
   const track = editor.track() ?? { cuts: [] };
-  const next = withCutInserted(track, track.cuts.length, cutFromClip(id, entry.meta.duration));
+  const next = withCutInserted(track, track.cuts.length, cutFromClip(id, entry.meta.duration, entry.path));
   if (next === track) {
     say('The cut track is full.');
     return true;
@@ -459,6 +459,7 @@ function cutMenuItems(track: CutTrack, index: number): MenuItemSpec[] {
     { label: 'Sound', submenu: sound },
     { type: 'separator' },
     { command: 'cut.silences', label: 'Remove Silences…' },
+    { command: 'cut.export', label: 'Export Edit…' },
     { command: 'cut.delete', label: 'Ripple Delete' },
   ];
 }
@@ -492,6 +493,17 @@ function runCutCommand(command: string, arg: string | null, index: number): void
   }
   if (command === 'cut.silences') {
     openSilenceDialog();
+    return;
+  }
+  if (command === 'cut.export') {
+    // FCPXML, an EDL and the graphics with alpha, written beside each other where the save
+    // dialog says (milestone 49): the shots referenced in place, the titles finished elsewhere.
+    const entry = selectedTemplate.value;
+    if (!entry) return;
+    void window.pulp.exportEdit({ templateId: entry.id, name: entry.manifest.name, params: editor.params() }).then((result) => {
+      if (result.ok) say(`Exported the edit: ${result.fcpxml}`);
+      else if (!result.cancelled) say(result.message);
+    });
     return;
   }
   if (command === 'cut.transition') {
@@ -644,7 +656,7 @@ function onDrop(e: DragEvent): void {
   const under = cutIndexAt(track, time);
   const windows = cutWindows(track);
   const index = under === null ? track.cuts.length : time - windows[under]!.start < cutSeconds(track.cuts[under]!) / 2 ? under : under + 1;
-  const next = withCutInserted(track, index, cutFromClip(entry.id, entry.meta.duration));
+  const next = withCutInserted(track, index, cutFromClip(entry.id, entry.meta.duration, entry.path));
   if (next === track) {
     say('The cut track is full.');
     return;

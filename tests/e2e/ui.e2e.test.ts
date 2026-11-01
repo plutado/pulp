@@ -1623,8 +1623,10 @@ describe.skipIf(!electron)('inspector UI', () => {
         await dropOn(0.9, gappyId!);
         await until(async () => (await count()) === 2, 'the shot that goes quiet');
 
-        // A dissolve from the cut's own menu, marked on the join.
+        // A dissolve from the cut's own menu, marked on the join — and the way out to an editing
+        // app sits beside the edits (milestone 49's hand-off; the save dialog keeps it out of reach here).
         await menuOn(0);
+        expect(await page.eval<string[]>(`[...document.querySelectorAll('.context-menu > button')].map((b) => b.textContent)`)).toContain('Export Edit…');
         await openSub('Transition');
         await chooseArg('cut.transition', 'dissolve');
         await until(() => page.eval<boolean>(`(() => { const j = ${cut(0)}.querySelector('.cut-join'); return !!j && !j.hidden; })()`), 'the join marked');

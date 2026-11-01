@@ -57,6 +57,8 @@ export interface LayerEditor {
   setLength(length: number | undefined, commit: boolean): void;
   /** The cut track as it stands (milestone 49); null when the project has none. */
   track(): CutTrack | null;
+  /** The raw parameter bag as it stands — the values, the layers, the length and the track ride together. */
+  params(): Record<string, unknown>;
   /**
    * Replace the cut track, as the lane's gestures do (src/renderer/cut-track.ts);
    * null removes it. `commit` makes it one undo step — a drop, a split, a

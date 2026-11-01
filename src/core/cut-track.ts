@@ -80,6 +80,13 @@ export interface Cut {
   transition?: CutTransition;
   /** The sound unlinked from the picture; absent is linked. */
   sound?: CutSound;
+  /**
+   * Where the clip's file was when the cut was made, like a collected item's
+   * remembered path (src/core/collection.ts): the one name that survives the
+   * file moving, so a track in a saved project heals once the moved folder is
+   * back in the library (`healedTrack`).
+   */
+  path?: string;
 }
 
 /** The track: its cuts in timeline order. An object, so a transition on a cut has a home to come. */
@@ -89,9 +96,28 @@ export interface CutTrack {
 
 const ms = (seconds: number): number => Math.round(seconds * 1000) / 1000;
 
-/** A whole clip as a cut: what a drop from the results brings. */
-export function cutFromClip(id: string, duration: number): Cut {
-  return { id, from: 0, to: ms(Math.max(MIN_CUT_SECONDS, duration)) };
+/** A whole clip as a cut: what a drop from the results brings, remembering where the file was. */
+export function cutFromClip(id: string, duration: number, path?: string): Cut {
+  return { id, from: 0, to: ms(Math.max(MIN_CUT_SECONDS, duration)), ...(path ? { path } : {}) };
+}
+
+/**
+ * The track with every cut's clip re-answered (milestone 49's relinking):
+ * `lookup` names the clip as the library knows it now — by its id, or by the
+ * cut's remembered path once a moved folder is back in the library — or null
+ * to leave the cut as it stands. The same track comes back, by identity, when
+ * nothing changed, so nobody writes an undo step for a heal that healed
+ * nothing.
+ */
+export function healedTrack(track: CutTrack, lookup: (cut: Cut) => { id: string; path?: string } | null): CutTrack {
+  let changed = false;
+  const cuts = track.cuts.map((cut) => {
+    const found = lookup(cut);
+    if (!found || (found.id === cut.id && (found.path ?? cut.path) === cut.path)) return cut;
+    changed = true;
+    return { ...cut, id: found.id, ...(found.path ? { path: found.path } : {}) };
+  });
+  return changed ? { cuts } : track;
 }
 
 export function cutSeconds(cut: Cut): number {
@@ -306,6 +332,7 @@ export function withSilencesCut(track: CutTrack, ranges: readonly { start: numbe
         id: cut.id,
         from: ms(piece.from),
         to: ms(piece.to),
+        ...(cut.path ? { path: cut.path } : {}),
         ...(first && cut.sound ? { sound: cut.sound } : {}),
         ...(last && cut.transition ? { transition: cut.transition } : {}),
       });
@@ -365,6 +392,7 @@ export function sanitizeCutTrack(input: unknown): CutTrack | null {
         cut.transition = { type: t.type as CutTransitionType, seconds, ...(color ? { color } : {}), ...(template ? { template } : {}) };
       }
     }
+    if (typeof r.path === 'string' && r.path.trim() !== '') cut.path = r.path.trim();
     const sd = r.sound as Record<string, unknown> | undefined;
     if (typeof sd === 'object' && sd !== null) {
       const offset = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0

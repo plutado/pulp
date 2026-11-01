@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CUT_TRACK_LIMITS, cutFromClip, cutIndexAt, cutWindows, MIN_CUT_SECONDS, sanitizeCutTrack, snapTime,
-  splitAt, trackAudio, trackDuration, trackSourceAt, transitionAt, withCutInserted, withCutSound, withCutTransition, withSilencesCut, withCutMoved, withCutRemoved, withCutWindow, type CutTrack,
+  healedTrack, splitAt, trackAudio, trackDuration, trackSourceAt, transitionAt, withCutInserted, withCutSound, withCutTransition, withSilencesCut, withCutMoved, withCutRemoved, withCutWindow, type CutTrack,
 } from '../src/core/cut-track';
 
 const id = (n: number) => String(n).repeat(24);
@@ -187,6 +187,27 @@ describe('silence removal (milestone 49)', () => {
     const cut = withSilencesCut(dressed, [{ start: 0.8, end: 1.2 }]);
     expect(cut.cuts[0]).toEqual({ id: id(1), from: 0, to: 0.8, sound: { lead: 0.5 } });
     expect(cut.cuts[1]).toEqual({ id: id(1), from: 1.2, to: 2, transition: { type: 'dissolve', seconds: 0.5 } });
+  });
+});
+
+describe('relinking by remembered path (milestone 49)', () => {
+  it('heals a cut whose clip moved, by the path the cut remembers, and says nothing when nothing changed', () => {
+    const t: CutTrack = { cuts: [{ id: 'stale', from: 0, to: 2, path: '/old/a.mp4' }, { id: 'fine', from: 0, to: 1 }] };
+    const healed = healedTrack(t, (cut) => (cut.id === 'stale' ? { id: 'fresh', path: '/new/a.mp4' } : null));
+    expect(healed.cuts[0]).toMatchObject({ id: 'fresh', path: '/new/a.mp4', from: 0, to: 2 });
+    expect(healed.cuts[1]!.id).toBe('fine');
+    // Nothing to heal is the same track, by identity: no undo step for a heal that healed nothing.
+    expect(healedTrack(t, () => null)).toBe(t);
+    expect(healedTrack(t, (cut) => ({ id: cut.id }))).toBe(t);
+  });
+
+  it('keeps the remembered path through a drop, a split and a silence cut', () => {
+    const dropped = cutFromClip('abc', 4, '/shots/a.mp4');
+    expect(dropped.path).toBe('/shots/a.mp4');
+    const t: CutTrack = { cuts: [dropped] };
+    expect(splitAt(t, 2).cuts.map((c) => c.path)).toEqual(['/shots/a.mp4', '/shots/a.mp4']);
+    expect(withSilencesCut(t, [{ start: 1, end: 2 }]).cuts.map((c) => c.path)).toEqual(['/shots/a.mp4', '/shots/a.mp4']);
+    expect(sanitizeCutTrack({ cuts: [{ id: 'a', from: 0, to: 1, path: ' /kept/here.mp4 ' }] })!.cuts[0]!.path).toBe('/kept/here.mp4');
   });
 });
 

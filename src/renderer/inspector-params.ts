@@ -49,7 +49,7 @@ import { IMAGE_TREATMENTS, sanitizeImageValue, sanitizePsdChoice, type ImageValu
 import { fileHiddenLayers, layersTopFirst, layerShown, placeableLayers, psdLimitSummary, type PsdOutline } from '../core/psd';
 import { hiddenDiffersFromFile, hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines } from './psd-state';
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue } from '../core/video-layer';
-import { trackDuration, type CutTrack } from '../core/cut-track';
+import { healedTrack, trackDuration, type CutTrack } from '../core/cut-track';
 import { DEFAULT_VOICE_AMOUNT, VOICE_DESCRIPTIONS, VOICE_LABELS, VOICE_LIMITS, VOICE_TREATMENTS, type VoiceValue } from '../core/voice-treatment';
 import { EMPTY_SOUND, SOUND_ENDINGS, SOUND_LIMITS, type SoundEnding, type SoundValue } from '../core/sound-layer';
 import { DEFAULT_CURVE, DEFAULT_KEY_EASING, KEY_EASINGS, keyedPoseAt, sanitizeKeys, withKeyAt, type KeyEasing, type LayerKey } from '../core/layer-keys';
@@ -1179,9 +1179,19 @@ function setLength(length: number | undefined, commit = true): void {
   buildParamForm(selected.manifest);
 }
 
-/** The cut track as the raw values hold it (milestone 49), for the lane and the stage. */
+/** The cut track as the raw values hold it (milestone 49), for the lane and the stage — each cut
+ * healed by the path it remembers when its clip moved (an id is the hash of a path, so the moved
+ * file answers under a new one once its folder is back in the library). The heal flows to every
+ * consumer from here, and the next edit writes the healed ids through. */
 export function currentTrack(): CutTrack | null {
-  return trackIn(p.raw);
+  const track = trackIn(p.raw);
+  const media = appState.value.index?.media;
+  if (!track || !media) return track;
+  return healedTrack(track, (cut) => {
+    if (media.some((m) => m.id === cut.id)) return null;
+    const found = cut.path ? media.find((m) => m.path === cut.path) : undefined;
+    return found ? { id: found.id, path: found.path } : null;
+  });
 }
 
 /**
@@ -2777,6 +2787,7 @@ export function initInspectorParams(): void {
     },
     setLength: (length, commit) => setLength(length, commit),
     track: () => currentTrack(),
+    params: () => ({ ...p.raw }),
     setTrack: (track, commit) => {
       // The same gesture rules as edit(): a live drag never leaves the typing timer armed, and a
       // typed edit still waiting on it becomes its own step before the gesture's live edits begin.

@@ -73,6 +73,7 @@ export type MenuCommand =
   | 'cut.transitionSeconds'
   | 'cut.sound'
   | 'cut.silences'
+  | 'cut.export'
   | 'cut.delete'
   | 'search.focus'
   | 'browse.filter'

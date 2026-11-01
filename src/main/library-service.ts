@@ -412,6 +412,17 @@ export function markItemRendered(id: string): void {
  * Reveal or Copy path — it sends the id and the main process looks it up, so
  * there is nothing to allow-list and nothing to get wrong.
  */
+/**
+ * The media item at a path a project remembered (milestone 49's relinking):
+ * an id is the hash of its path, so the path a cut kept names the id the file
+ * has wherever it is now — once its folder is back in the library.
+ */
+export function findMediaIdByPath(path: string): { id: string; path: string } | undefined {
+  const id = itemId(`media:${path}`);
+  const found = getStore().findMediaById(id);
+  return found && found.online ? { id, path: found.entry.path } : undefined;
+}
+
 export function itemPath(id: string): string | undefined {
   const entry = getStore().findEntryById(id);
   if (!entry) return undefined;

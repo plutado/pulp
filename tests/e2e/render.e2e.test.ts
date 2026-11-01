@@ -1464,6 +1464,74 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(((JSON.parse(probed.stdout || '{}') as { streams?: unknown[] }).streams ?? []).length, 'a muted cut adds nothing to the mix').toBe(0);
   }, 300_000);
 
+  it('exports the edit for an editing app: FCPXML and an EDL with the clips in place, the graphics rendered with alpha beside them (milestone 49)', async () => {
+    const lib = join(out, 'edit-library');
+    await mkdir(lib, { recursive: true });
+    const clip = async (file: string, color: string, tone: number) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs([
+        '-v', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${color}:s=160x160:d=1:r=30`, '-f', 'lavfi', '-i', `sine=frequency=${tone}:duration=1`,
+        '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(lib, file),
+      ]), { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(r.code, r.stderr).toBe(0);
+      return itemId(`media:${join(lib, file)}`);
+    };
+    const redId = await clip('e-red.mp4', 'red', 440);
+    const blueId = await clip('e-blue.mp4', 'blue', 880);
+    // Both sides hold handles past their windows, so the dissolve travels into the FCPXML too.
+    const track = { cuts: [{ id: redId, from: 0.2, to: 0.8, transition: { type: 'dissolve', seconds: 0.2 } }, { id: blueId, from: 0.2, to: 0.8 }] };
+    const base = join(out, 'edit-out');
+    const run = await runBounded(electron, [
+      '.', '--render', 'pulp.test.video-layer', '--export-edit', base,
+      '--library', FIXTURES, '--library', lib, '--param', `@track=${JSON.stringify(track)}`,
+    ], { cwd: ROOT, timeoutMs: 180_000 });
+    expect(run.code, run.stderr).toBe(0);
+
+    // The FCPXML: the spine of cuts, the clips referenced where they lie, the dissolve between
+    // them, and the graphics connected above the first cut.
+    const xml = await readFile(`${base}.fcpxml`, 'utf8');
+    expect(xml).toContain('<fcpxml version="1.10">');
+    expect(xml).toContain(`src="${'file://' + encodeURI(join(lib, 'e-red.mp4'))}"`);
+    expect(xml).toContain(`src="${'file://' + encodeURI(join(lib, 'e-blue.mp4'))}"`);
+    expect(xml).toContain('<transition name="Cross Dissolve"');
+    expect(xml).toContain('lane="1"');
+    expect(xml).toContain('start="6/30s" duration="18/30s"');
+
+    // The EDL: one event per cut with the files named.
+    const edl = await readFile(`${base}.edl`, 'utf8');
+    expect(edl).toContain('TITLE: Test Video Layer');
+    expect(edl).toContain('001  AX       V     C ');
+    expect(edl).toContain('002  AX       V     D    006');
+    expect(edl).toContain(`* SOURCE FILE: ${join(lib, 'e-red.mp4')}`);
+    expect(edl).toContain(`* GRAPHICS WITH ALPHA: ${base}-graphics.mov`);
+
+    // The graphics beside them: ProRes 4444 with alpha, the piece's own length, and the track
+    // nowhere in it — the fixture's yellow marker over transparency, not over footage.
+    const probed = await runBounded(ffprobe, [
+      '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=codec_name,pix_fmt,duration', '-of', 'json', `${base}-graphics.mov`,
+    ], { timeoutMs: TOOL_TIMEOUT_MS });
+    const stream = (JSON.parse(probed.stdout) as { streams: { codec_name: string; pix_fmt: string; duration: string }[] }).streams[0]!;
+    expect(stream.codec_name).toBe('prores');
+    expect(stream.pix_fmt).toContain('yuva');
+    expect(Number(stream.duration)).toBeCloseTo(2, 0);
+  }, 300_000);
+
+  it('heals a saved track whose clips moved, by the path each cut remembers (milestone 49)', async () => {
+    const lib = join(out, 'heal-library');
+    await mkdir(lib, { recursive: true });
+    const file = join(lib, 'moved.mp4');
+    const made = await runBounded(ffmpeg, ffmpegArgs(['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=160x160:d=1:r=30', '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-movflags', '+faststart', file]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(made.code, made.stderr).toBe(0);
+    // The stored id is stale — the file "moved" here from somewhere else — but the cut remembers
+    // this path, and an id is the hash of a path, so the render answers for it.
+    const stale = { cuts: [{ id: 'f'.repeat(24), from: 0, to: 1, path: file }] };
+    const healed = await render('pulp.test.video-layer', 'png-sequence', 'heal-track', {
+      extra: ['--library', FIXTURES, '--library', lib, '--param', `@track=${JSON.stringify(stale)}`],
+    });
+    expect(healed.code, healed.stderr).toBe(0);
+    const px = await pixels(join(out, 'heal-track_00010.png'), 160, 90);
+    expect(px[0], 'the moved clip plays under the graphic').toBeGreaterThan(180);
+  }, 240_000);
+
   it('plays a clip inside a graphic, on the template\'s own time (milestone 26)', async () => {
     // A transparent clip whose red square moves left to right over its 30 frames, so which frame
     // was drawn can be read off the rendered picture. The library sees it by path, as any clip.

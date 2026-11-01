@@ -18,6 +18,7 @@ import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, i
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { mixLoudness } from './mix-loudness';
+import { exportEdit } from './edit-export-service';
 import { trackSilences } from './track-silence';
 import { voicePreview } from './voice-service';
 import { chromaKeyClip, chromaKeyPreview, splitScenes } from './cleanup-service';
@@ -455,6 +456,8 @@ function registerIpc(): void {
   ipcMain.handle('track:frames', (_event, request: unknown) => loadTrackFrames(request));
   // The track's quiet stretches (milestone 49), shown before anything is cut.
   ipcMain.handle('track:silences', (_event, request: unknown) => trackSilences(request));
+  // The edit exported for an editing app (milestone 49): FCPXML, an EDL and the graphics with alpha.
+  ipcMain.handle('track:export-edit', (_event, request: unknown) => exportEdit(request));
 
   ipcMain.handle('drag-notice:get', async () => (await loadSettings()).dragNoticeSeen);
   ipcMain.handle('drag-notice:seen', async () => {
@@ -539,6 +542,8 @@ interface CliRender {
   outPoint?: string;
   /** Flags whose value was not a number, reported before anything runs. */
   badNumbers: string[];
+  /** `--export-edit <base>`: write the cut track as FCPXML and an EDL with the graphics rendered beside, instead of a render (milestone 49). */
+  exportEdit?: string;
 }
 
 /**
@@ -639,6 +644,7 @@ function parseCliRender(argv: string[]): CliRender | null {
   const sampleMedia = get('--sample-media');
   const sampleTypes = get('--types');
   const visualHashes = get('--visual-hashes');
+  const exportEditPath = get('--export-edit');
   return {
     templateId: argv[i + 1] ?? '',
     presetId: get('--preset') ?? platformPresetId ?? 'prores-4444',
@@ -656,6 +662,7 @@ function parseCliRender(argv: string[]): CliRender | null {
     ...(sampleTypes !== undefined ? { sampleTypes: sampleTypes.split(',').map((t) => t.trim()).filter(Boolean) } : {}),
     ...(coverAt !== undefined ? { coverAt } : {}),
     ...(visualHashes !== undefined ? { visualHashes: { file: resolve(visualHashes), check: argv.includes('--check') } } : {}),
+    ...(exportEditPath !== undefined ? { exportEdit: resolve(exportEditPath) } : {}),
     ...(outPoint !== undefined ? { outPoint } : {}),
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
     ...(frameFormat !== undefined ? { frameFormat } : {}),
@@ -672,7 +679,8 @@ async function runCliRender(cli: CliRender): Promise<number> {
     console.error(`Template "${cli.templateId}" not found.`);
     return 2;
   }
-  if (!cli.out) {
+  if (!cli.out && cli.exportEdit === undefined) {
+    // --export-edit names its own destination; everything else renders to --out.
     console.error('Missing --out <path>.');
     return 2;
   }
@@ -741,6 +749,18 @@ async function runCliRender(cli: CliRender): Promise<number> {
     cli.params[TRACK_KEY] = sane;
   }
   if (cli.batch !== undefined) return runCliBatch(cli, template);
+  // --export-edit (milestone 49): the edit for an editing app, in place of a render.
+  if (cli.exportEdit !== undefined) {
+    const exported = await exportEdit({ templateId: template.id, name: template.manifest.name, params: cli.params }, cli.exportEdit, template);
+    if (!exported.ok) {
+      console.error(exported.message);
+      return 1;
+    }
+    console.log(`wrote ${exported.fcpxml}`);
+    console.log(`wrote ${exported.edl}`);
+    console.log(`wrote ${exported.graphics}`);
+    return 0;
+  }
   const started = Date.now();
   const result = await renderTemplate({
     template,
@@ -929,6 +949,16 @@ app.whenReady().then(async () => {
     // sample-media generator skipping a folder that is already made — leaves them queued, and
     // app.exit drops the queue, so the run's own summary line never arrived on the Linux runner.
     await flushStdio();
+    // A run that ends within a moment of ready could crash on Windows (0xC0000005): app.exit tore
+    // the process down while Chromium's own start-up — its GPU process handshake — was still under
+    // way (docs/ideas.md, 2026-11-01). The GPU process answering is the sign that start-up has
+    // settled, so a quick run now ends the way a long one does: after it. A graceful app.quit was
+    // tried and drops the exit code, so the exit stays app.exit, only no longer mid-handshake.
+    await Promise.race([
+      app.getGPUInfo('basic').catch(() => undefined),
+      // No answer is not a reason to hang a finished run; five seconds is far past a handshake.
+      new Promise((settle) => setTimeout(settle, 5_000)),
+    ]);
     app.exit(code);
     return;
   }

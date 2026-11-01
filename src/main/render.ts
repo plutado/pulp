@@ -29,7 +29,7 @@ import { ffprobePathFor } from '../core/media-probe';
 import type { ClipSource } from '../core/video-layer';
 import { resolveLayers } from '../core/layers';
 import { checkImages, readSlotImages } from './image-grant';
-import { findTemplate, lookupClipItem, lookupMedia } from './library-service';
+import { findMediaIdByPath, findTemplate, lookupClipItem, lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg, runForBuffer, runWithInput } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan } from '../core/render-plan';
@@ -39,7 +39,7 @@ import { soundAudible } from '../core/sound-layer';
 import { resolveSoundSource } from './sound-grant';
 import { finishedFileWarnings } from './platform-check';
 import { platformPreset } from '../core/platform-presets';
-import { trackAudio, transitionAt } from '../core/cut-track';
+import { healedTrack, trackAudio, transitionAt } from '../core/cut-track';
 import { lengthIn, resolveParams, splitLayers, trackIn } from '../core/params';
 import {
   captureBytesMessage,
@@ -197,7 +197,12 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   // The cut track rides in the same bag (milestone 49): resolve each cut's clip to its file here,
   // so the plan is pure over paths. A cut whose clip cannot answer stops the render by name — a
   // shot silently dropped from a delivery is worse than being told.
-  const track = trackIn(job.params);
+  // A saved project's clips may have moved: heal each cut by the path it remembers (an id is the
+  // hash of a path, so the remembered path names the id the file has now) before anything resolves.
+  const track = ((t) => t && healedTrack(t, (cut) => {
+    if (lookupClipItem(cut.id)) return null;
+    return (cut.path && findMediaIdByPath(cut.path)) || null;
+  }))(trackIn(job.params));
   const trackCuts: { path: string; from: number; to: number; transition?: { type: 'dissolve' | 'dip'; seconds: number; color?: string } }[] = [];
   const trackWipes: { template: string; at: number; seconds: number }[] = [];
   for (const [index, cut] of (track?.cuts ?? []).entries()) {

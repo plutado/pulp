@@ -265,6 +265,13 @@ export interface PulpApi {
    * the timeline — shown on the lane before anything is cut.
    */
   trackSilences(request: { cuts: { id: string; from: number; to: number }[]; thresholdDb: number; minSeconds: number }): Promise<{ ranges: { start: number; end: number }[] }>;
+  /**
+   * Export the edit for an editing app (milestone 49): the cut track written
+   * as FCPXML and an EDL, with the clips referenced in place and the graphics
+   * above them rendered with alpha beside the files. The save dialog asks
+   * where; the result names what was written.
+   */
+  exportEdit(request: { templateId: string; name: string; params: Record<string, unknown> }): Promise<{ ok: true; fcpxml: string; edl: string; graphics: string } | { ok: false; cancelled?: boolean; message: string }>;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */
