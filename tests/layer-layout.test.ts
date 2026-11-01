@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_TYPOGRAPHY } from '../src/core/layers';
 import {
   applyCase,
   ASCENT,
@@ -292,6 +293,43 @@ describe('blockStates', () => {
     const states = blockStates(m, { card: [chosen] }, { width: 1920, height: 1080 });
     expect(layerImageIds(states)).toEqual(['b'.repeat(24)]);
     expect(layerImageIds(blockStates(m, {}, { width: 1920, height: 1080 }))).toEqual([]);
+  });
+});
+
+describe('a keyed layer (milestone 51)', () => {
+  const keys = [
+    { at: 0, dx: -100, dy: 0, scale: 1, rotate: 0, opacity: 1, easing: 'linear' as const },
+    { at: 2, dx: 100, dy: 50, scale: 2, rotate: 90, opacity: 0.5, easing: 'linear' as const },
+  ];
+
+  it('moves by its keys, composed around the template\'s own draw', () => {
+    const b = block([text({ keys })]);
+    const at = (elapsed: number) => layoutBlock(b, measure, noImages, { watched: { elapsed, length: 4 } }).layers[0]!.draw;
+    expect(at(0)).toMatchObject({ dx: -100, dy: 0, scale: 1, rotate: 0, alpha: 1 });
+    const mid = at(1);
+    expect(mid.dx).toBeCloseTo(0, 6);
+    expect(mid.dy).toBeCloseTo(25, 6);
+    expect(mid.scale).toBeCloseTo(1.5, 6);
+    expect(mid.rotate).toBeCloseTo(45, 6);
+    expect(mid.alpha).toBeCloseTo(0.75, 6);
+    expect(at(3)).toMatchObject({ dx: 100, scale: 2, rotate: 90 });
+  });
+
+  it('moves by its keys instead of its placement: two answers to one question would drift', () => {
+    const b = block([text({ keys, placement: { dx: 999, dy: 999, scale: 4, rotate: 180 } })]);
+    const draw = layoutBlock(b, measure, noImages, { watched: { elapsed: 0, length: 4 } }).layers[0]!.draw;
+    expect(draw.dx).toBe(-100);
+    expect(draw.scale).toBe(1);
+    // And without keys the placement stands, as it always has.
+    const placedOnly = block([text({ placement: { dx: 10, dy: 0, scale: 2, rotate: 0 } })]);
+    expect(layoutBlock(placedOnly, measure, noImages, { watched: { elapsed: 0, length: 4 } }).layers[0]!.draw.dx).toBe(10);
+  });
+
+  it('scales a key\'s offsets to this frame\'s pixels, as a placement\'s are', () => {
+    const manifest = { blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, open: true, typography: DEFAULT_TYPOGRAPHY, direction: 'column' as const, gap: 0, align: 'left' as const, verticalAlign: 'top' as const, layers: [] }] };
+    const layer = { id: 't', label: 'T', required: false, hidden: false, spaceBefore: 0, type: 'text' as const, ...DEFAULT_TYPOGRAPHY, text: 'x', maxLines: 3, keys: [{ at: 0, dx: 0.5, dy: 0.5, scale: 1, rotate: 0, opacity: 1, easing: 'linear' as const }] };
+    const states = blockStates(manifest, { b: [layer] }, { width: 1920, height: 1080 });
+    expect(states.b!.layers[0]!.keys![0]).toMatchObject({ dx: 960, dy: 540 });
   });
 });
 

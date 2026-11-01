@@ -230,6 +230,14 @@ export interface PulpApi {
   hoverStrip(id: string): Promise<HoverStripResult>;
   /** An audio file's waveform peaks, computed on first ask and cached. */
   waveform(id: string): Promise<WaveformResult>;
+  /** One frame of a clip, plain and keyed with the settings as they stand (milestone 52): the key dialog's before and after. */
+  chromaKeyPreview(id: string, settings: unknown, atSeconds: number): Promise<{ ok: true; plain: string; keyed: string } | { ok: false; message: string }>;
+  /** Key the whole clip to an alpha clip beside the original, and rescan so it joins the library. */
+  chromaKeyClip(id: string, settings: unknown): Promise<{ ok: true; path: string } | { ok: false; message: string }>;
+  /** Split footage at its cuts into clips in a folder beside it, by stream copy, and rescan. */
+  splitScenes(id: string): Promise<{ ok: true; clips: number; folder: string } | { ok: false; message: string }>;
+  /** Ask for a `.cube` file; null when the dialog is closed without one. */
+  chooseLutFile(): Promise<string | null>;
   /**
    * What the project's mix measures (milestone 52): integrated loudness and
    * true peak by EBU R128, for the transport row's meter — the same

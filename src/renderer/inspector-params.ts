@@ -50,14 +50,15 @@ import { fileHiddenLayers, layersTopFirst, layerShown, placeableLayers, psdLimit
 import { hiddenDiffersFromFile, hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines } from './psd-state';
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue } from '../core/video-layer';
 import { EMPTY_SOUND, SOUND_ENDINGS, SOUND_LIMITS, type SoundEnding, type SoundValue } from '../core/sound-layer';
+import { DEFAULT_CURVE, DEFAULT_KEY_EASING, KEY_EASINGS, keyedPoseAt, sanitizeKeys, withKeyAt, type KeyEasing, type LayerKey } from '../core/layer-keys';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { setIcon, type IconName } from './icons';
 import type { MediaEntry } from '../core/library-types';
 import { mediaUrlFor } from '../core/media-url';
 import { stageSetParams } from './stage';
 import { outputRefreshOptions } from './inspector-output';
-import { appState, frameSize, importedFonts, paramsEdited, selectedTemplate, slotNotes } from './store';
-import { aspectOf } from '../core/aspect';
+import { appState, frameSize, importedFonts, paramsEdited, playheadSeconds, selectedTemplate, slotNotes } from './store';
+import { aspectOf, defaultAspect } from '../core/aspect';
 import { registerLayerEditor, selectedLayer } from './layer-edit';
 import { openInspector } from './inspector-tabs';
 import { mediaPicker } from './media-picker';
@@ -1019,7 +1020,64 @@ function editLayer(blockId: string, layerId: string, change: (layer: Layer) => L
   const layers = currentLayers();
   const stack = layers[blockId];
   if (!stack) return;
-  setLayers({ ...layers, [blockId]: stack.map((l) => (l.id === layerId ? change(l) : l)) }, rebuild);
+  setLayers({ ...layers, [blockId]: stack.map((l) => (l.id === layerId ? keyedEdit(blockId, l, change(l)) : l)) }, rebuild);
+}
+
+// ---------------------------------------------------------------- keyframes (milestone 51)
+
+/** Layers whose edits write keys, keyed block.layer. Session state, like an open card. */
+const keyframing = new Set<string>();
+
+export function keyframingOn(blockId: string, layerId: string): boolean {
+  return keyframing.has(`${blockId}.${layerId}`);
+}
+
+/** The shape the preview is drawn at, which a placement is read against. */
+function currentAspectId(): string {
+  const size = frameSize.value;
+  if (size) return aspectOf(size.width, size.height);
+  const m = selectedTemplate.value?.manifest;
+  return m ? defaultAspect(m) : '16:9';
+}
+
+/** The pose a layer stands in at a moment: its keys' answer, or its static placement and opacity. */
+function poseNow(layer: Layer, at: number): { dx: number; dy: number; scale: number; rotate: number; opacity: number } {
+  if (layer.keys && layer.keys.length > 0) return keyedPoseAt(layer.keys, at)!;
+  const placed = placementFor(layer.placement, currentAspectId());
+  return { dx: placed.dx, dy: placed.dy, scale: placed.scale, rotate: placed.rotate, opacity: layer.look?.opacity ?? 1 };
+}
+
+/**
+ * While keyframing is on for a layer, a change to where it is — a drag on the
+ * stage, the angle field, an opacity edit — is written as a key at the
+ * playhead (milestone 51): the change is taken as a **delta** on the pose the
+ * keys hold there, so a drag moves the keyed layer by what the hand did
+ * rather than snapping it to a stale placement. An animated opacity then
+ * lives in the keys alone — the look's own would draw a second time over it.
+ */
+function keyedEdit(blockId: string, before: Layer, after: Layer): Layer {
+  if (!keyframing.has(`${blockId}.${after.id}`)) return after;
+  const aspect = currentAspectId();
+  const was = placementFor(before.placement, aspect);
+  const now = placementFor(after.placement, aspect);
+  const wasOpacity = before.look?.opacity ?? 1;
+  const nowOpacity = after.look?.opacity ?? 1;
+  const moved = was.dx !== now.dx || was.dy !== now.dy || was.scale !== now.scale || was.rotate !== now.rotate;
+  const faded = wasOpacity !== nowOpacity;
+  if (!moved && !faded) return after;
+  const at = Math.max(0, playheadSeconds.peek());
+  const keys = after.keys ?? [];
+  const base = keys.length > 0 ? keyedPoseAt(keys, at)! : { dx: was.dx, dy: was.dy, scale: was.scale, rotate: was.rotate, opacity: wasOpacity };
+  const pose = {
+    dx: base.dx + (now.dx - was.dx),
+    dy: base.dy + (now.dy - was.dy),
+    scale: base.scale * (now.scale / Math.max(0.0001, was.scale)),
+    rotate: base.rotate + (now.rotate - was.rotate),
+    opacity: faded ? nowOpacity : base.opacity,
+  };
+  const next: Layer = { ...after, keys: sanitizeKeys(withKeyAt(keys, { at, easing: DEFAULT_KEY_EASING, ...pose })) ?? [] };
+  if (faded && next.look) next.look = { ...next.look, opacity: 1 };
+  return next;
 }
 
 function addLayer(blockId: string, type: LayerType): void {
@@ -1210,7 +1268,7 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
       gone.textContent = `"${familyLabel(layer.family)}" is not on this computer, so the line is drawn in a fallback face. Import it, or choose another family.`;
       parts.push(gone);
     }
-    parts.push(motionControls(blockId, layer), lookControls(blockId, layer));
+    parts.push(motionControls(blockId, layer), keyControls(blockId, layer), lookControls(blockId, layer));
     return parts;
   }
   if (layer.type === 'video') {
@@ -1218,6 +1276,7 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
       clipField(layer.clip, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, clip: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }),
       imageLayerControls(blockId, layer),
       motionControls(blockId, layer),
+      keyControls(blockId, layer),
       lookControls(blockId, layer),
     ];
   }
@@ -1243,6 +1302,7 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
     }),
     imageLayerControls(blockId, layer),
     motionControls(blockId, layer),
+    keyControls(blockId, layer),
     lookControls(blockId, layer),
   ];
 }
@@ -1333,6 +1393,34 @@ function clipField(
       typeField('Speed', numberOf(value.speed, CLIP_LIMITS.speed, 0.1, (v) => patch({ speed: v }), `${slot.label} speed`)),
       typeField('Start delay, s', numberOf(value.delay, CLIP_LIMITS.delay, 0.1, (v) => patch({ delay: v }), `${slot.label} start delay`)),
     );
+    // The clip's own grade (milestone 52): a .cube decoded into its frames, so the preview and
+    // the render show the same colour by the one path.
+    const lutRow = document.createElement('span');
+    lutRow.className = 'lut-row';
+    const lutChoose = document.createElement('button');
+    lutChoose.type = 'button';
+    lutChoose.className = 'ghost';
+    lutChoose.textContent = 'Choose…';
+    lutChoose.setAttribute('aria-label', `${slot.label}: choose a LUT`);
+    const lutName = document.createElement('span');
+    lutName.className = 'lut-name';
+    lutName.textContent = value.lut ? (value.lut.split(/[\\/]/).pop() ?? value.lut) : '';
+    if (value.lut) lutName.dataset.tip = value.lut;
+    const lutClear = iconButton('x', `${slot.label}: clear the LUT`);
+    lutClear.hidden = !value.lut;
+    lutChoose.addEventListener('click', () => {
+      void window.pulp.chooseLutFile().then((path) => {
+        if (path) patch({ lut: path });
+      });
+    });
+    lutClear.addEventListener('click', () => {
+      if (!value) return;
+      const cleared = { ...value };
+      delete cleared.lut;
+      set(cleared);
+    });
+    lutRow.append(lutChoose, lutName, lutClear);
+    settings.append(typeField('LUT', lutRow));
     // The clip's own sound (milestone 48): volume and mute where it has an audio stream, and said
     // plainly where it has none rather than a dead pair of controls. A clip the library has not
     // read yet gets the controls — there may well be sound there once it is.
@@ -1694,6 +1782,116 @@ function motionControls(blockId: string, layer: Layer): HTMLElement {
 /** The layer as it stands now, after an edit that did not rebuild the form. */
 function currentLayer(blockId: string, layerId: string): Layer | undefined {
   return currentLayers()[blockId]?.find((l) => l.id === layerId);
+}
+
+/** Which layers have their Animate open, across rebuilds of the form; keyed block.layer. */
+const openAnimate = new Set<string>();
+
+const EASING_LABELS: Record<KeyEasing, string> = {
+  linear: 'Linear', 'ease-in': 'Ease in', 'ease-out': 'Ease out', 'ease-in-out': 'Ease in and out', hold: 'Hold', curve: 'Curve',
+};
+
+/**
+ * Keyframes (milestone 51), folded away under Animate: the keyframing toggle —
+ * while it is on, moving, scaling, turning or fading the layer writes a key at
+ * the playhead — a button that writes one outright, and the keys themselves,
+ * each with its moment, its easing and, for a curve, the bezier's own points.
+ * A keyed layer moves by its keys instead of its placement.
+ */
+function keyControls(blockId: string, layer: Layer): HTMLElement {
+  const key = `${blockId}.${layer.id}`;
+  const details = document.createElement('details');
+  details.className = 'layer-animate';
+  details.open = openAnimate.has(key);
+  details.addEventListener('toggle', () => {
+    if (details.open) openAnimate.add(key);
+    else openAnimate.delete(key);
+  });
+  const summary = document.createElement('summary');
+  const count = layer.keys?.length ?? 0;
+  summary.textContent = count > 0 ? `Animate · ${count} ${count === 1 ? 'key' : 'keys'}` : 'Animate';
+  details.append(summary);
+
+  const body = document.createElement('div');
+  body.className = 'animate-body';
+  const row = document.createElement('div');
+  row.className = 'render-actions';
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'ghost keyframing-toggle';
+  toggle.textContent = 'Keyframing';
+  toggle.setAttribute('aria-pressed', String(keyframing.has(key)));
+  toggle.dataset.tip = 'While it is on, moving, scaling, turning or fading this layer writes a key at the playhead';
+  toggle.addEventListener('click', () => {
+    if (keyframing.has(key)) keyframing.delete(key);
+    else keyframing.add(key);
+    toggle.setAttribute('aria-pressed', String(keyframing.has(key)));
+  });
+  const addKey = document.createElement('button');
+  addKey.type = 'button';
+  addKey.className = 'ghost add-key';
+  addKey.textContent = 'Add key at the playhead';
+  addKey.addEventListener('click', () => {
+    const at = Math.max(0, playheadSeconds.peek());
+    editLayer(blockId, layer.id, (l) => {
+      const keys = l.keys ?? [];
+      const pose = poseNow(l, at);
+      const next: Layer = { ...l, keys: sanitizeKeys(withKeyAt(keys, { at, easing: DEFAULT_KEY_EASING, ...pose })) ?? [] };
+      // The first key takes the look's opacity with it; animated opacity lives in the keys alone.
+      if (keys.length === 0 && next.look && (l.look?.opacity ?? 1) !== 1) next.look = { ...next.look, opacity: 1 };
+      return next;
+    }, true);
+    commitParams();
+  });
+  row.append(toggle, addKey);
+  body.append(row);
+
+  const keys = layer.keys ?? [];
+  if (keys.length === 0) {
+    const note = document.createElement('p');
+    note.className = 'note';
+    note.textContent = 'No keys yet. A keyed layer moves by its keys instead of where it was placed.';
+    body.append(note);
+  }
+  keys.forEach((k, index) => {
+    const line = document.createElement('div');
+    line.className = 'key-row';
+    const when = document.createElement('span');
+    when.className = 'key-at';
+    when.textContent = `${k.at} s`;
+    const setKeys = (next: LayerKey[]) => {
+      editLayer(blockId, layer.id, (l) => {
+        const out: Layer = { ...l, keys: sanitizeKeys(next) ?? [] };
+        if ((out.keys?.length ?? 0) === 0) delete out.keys;
+        return out;
+      }, true);
+      commitParams();
+    };
+    const easing = selectOf(KEY_EASINGS, EASING_LABELS, k.easing, (v) => {
+      setKeys(keys.map((other, i) => (i === index ? { ...other, easing: v, ...(v === 'curve' ? { curve: other.curve ?? [...DEFAULT_CURVE] as typeof DEFAULT_CURVE } : {}) } : other)));
+    }, `${layer.label} key at ${k.at} s easing`);
+    const remove = iconButton('trash', `Remove ${layer.label} key at ${k.at} s`);
+    remove.addEventListener('click', () => setKeys(keys.filter((_, i) => i !== index)));
+    line.append(when, easing);
+    if (k.easing === 'curve') {
+      const curve = k.curve ?? DEFAULT_CURVE;
+      const labels = ['x1', 'y1', 'x2', 'y2'] as const;
+      curve.forEach((value, ci) => {
+        const limit = ci % 2 === 0 ? { min: 0, max: 1 } : { min: -2, max: 3 };
+        const field = numberOf(value, limit, 0.05, (v) => {
+          const nextCurve = [...(k.curve ?? DEFAULT_CURVE)] as [number, number, number, number];
+          nextCurve[ci] = v;
+          setKeys(keys.map((other, i) => (i === index ? { ...other, curve: nextCurve } : other)));
+        }, `${layer.label} key at ${k.at} s curve ${labels[ci]}`);
+        field.classList.add('key-curve');
+        line.append(field);
+      });
+    }
+    line.append(remove);
+    body.append(line);
+  });
+  details.append(body);
+  return details;
 }
 
 /** Which layers have their Look open, across rebuilds of the form; keyed block.layer. */

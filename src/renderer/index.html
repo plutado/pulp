@@ -205,6 +205,14 @@
           <span>Background for flattening</span>
           <input id="opt-background" type="color" value="#000000">
         </label>
+        <div class="field" id="opt-lut-field" data-tip="A .cube colour grade over the whole render, applied before the preset's colour conversion">
+          <span>LUT</span>
+          <span class="lut-row">
+            <button id="opt-lut" type="button" class="ghost">Choose…</button>
+            <span id="opt-lut-name" class="lut-name"></span>
+            <button id="opt-lut-clear" type="button" class="icon-button" data-icon="x" aria-label="Clear the LUT" hidden></button>
+          </span>
+        </div>
         <div id="media-options" class="media-options" hidden>
           <label class="field" id="opt-length-field">
             <span>Length</span>
@@ -498,6 +506,29 @@
         <label class="field inline"><span>Limit (MB)</span><input id="cache-limit" type="number" min="64" step="64"></label>
         <span class="dialog-spacer"></span>
         <button id="cache-close" type="button">Close</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="key-dialog" class="pack-dialog key-dialog" aria-labelledby="key-title">
+    <form method="dialog">
+      <h2 id="key-title">Key out a colour</h2>
+      <p class="note">The colour becomes transparency and its cast is washed from what remains. Pick it from the frame on the left, or choose it below; the result is written beside the original as an alpha clip, its sound kept.</p>
+      <div class="key-previews">
+        <figure><img id="key-plain" alt="A frame of the clip; choosing a point on it picks the colour to key out" title="Choose the colour here"><figcaption>The frame</figcaption></figure>
+        <figure class="checker"><img id="key-keyed" alt="The same frame with the colour keyed out"><figcaption>Keyed</figcaption></figure>
+      </div>
+      <div class="key-controls">
+        <label class="field inline"><span>Colour</span><input id="key-color" type="color" value="#00ff00"></label>
+        <button id="key-green" type="button" class="ghost">Green</button>
+        <button id="key-blue" type="button" class="ghost">Blue</button>
+        <label class="field inline"><span>Tolerance</span><input id="key-tolerance" type="range" min="1" max="90" step="1" value="18"></label>
+        <label class="field inline"><span>Spill</span><input id="key-spill" type="range" min="0" max="100" step="5" value="50"></label>
+      </div>
+      <p id="key-status" class="note" role="status"></p>
+      <div class="render-actions">
+        <button id="key-make" type="button" class="primary">Make alpha clip</button>
+        <span class="dialog-spacer"></span>
+        <button id="key-close" type="button">Close</button>
       </div>
     </form>
   </dialog>

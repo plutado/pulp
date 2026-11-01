@@ -25,13 +25,14 @@ import {
   type InfoRow,
   type InfoSectionId,
 } from '../core/item-info';
-import type { LibraryEntry, TemplateEntry } from '../core/library-types';
+import type { LibraryEntry, MediaEntry, TemplateEntry } from '../core/library-types';
 import { entryType, typeInfo } from '../core/taxonomy';
 import { appState, selectedTemplate, slotNotes } from './store';
 import { Icon, scopeIcon, TYPE_GROUP_ICONS, type IconName } from './icons';
 import { Thumb } from './item-preview';
 import { layersTopFirst, layerShown, psdLimitSummary } from '../core/psd';
 import { hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines, togglePsdLayer } from './psd-state';
+import { openChromaKey } from './cleanup';
 
 const shown = computed(() => shownEntry(appState.value));
 
@@ -91,6 +92,39 @@ function Rows({ rows }: { rows: InfoRow[] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/** The scenes flow says what it is doing here, per item; the key has a dialog of its own. */
+const sceneStatus = signal<{ id: string; text: string; error?: boolean } | null>(null);
+
+function Cleanup({ entry }: { entry: MediaEntry }) {
+  const status = sceneStatus.value;
+  const splitting = status?.id === entry.id && status.text === 'Looking for cuts…';
+  const split = async () => {
+    sceneStatus.value = { id: entry.id, text: 'Looking for cuts…' };
+    const result = await window.pulp.splitScenes(entry.id);
+    sceneStatus.value = result.ok
+      ? { id: entry.id, text: `Split into ${result.clips} clips, in ${result.folder.split(/[\\/]/).pop()} beside it.` }
+      : { id: entry.id, text: result.message, error: true };
+  };
+  return (
+    <div class="cleanup-actions">
+      <p class="note">Footage made ready to composite: a colour keyed to transparency, or long footage split into its scenes.</p>
+      <div class="render-actions">
+        <button type="button" id="cleanup-key" onClick={() => openChromaKey(entry.id)}>
+          Key out a colour…
+        </button>
+        <button type="button" id="cleanup-split" disabled={splitting} onClick={() => void split()}>
+          Split at its cuts
+        </button>
+      </div>
+      {status?.id === entry.id && (
+        <p id="cleanup-status" class={`note${status.error ? ' error' : ''}`} role="status">
+          {status.text}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -384,6 +418,9 @@ function Panel({ onSelect }: { onSelect: (e: LibraryEntry) => void }) {
     ),
     ...(entry.kind === 'template' && entry.pack ? { set: <Set_ entry={entry} onSelect={onSelect} /> } : {}),
     file: <FileSection entry={entry} />,
+    // Clip clean-up (milestone 52): footage made ready to sit in a frame. Only a clip that is a
+    // file has streams to key or split, so a sequence and a sound are not offered it.
+    ...(entry.kind === 'media' && entry.mediaKind === 'video' && !entry.sequence && !entry.offline ? { cleanup: <Cleanup entry={entry} /> } : {}),
     // Image slots whose chosen image has gone or is offline, as the Parameters tab found them.
     ...(entry.kind === 'template' && slotNotes.value.length > 0 && selectedTemplate.value?.manifest.id === entry.manifest.id
       ? { images: <Rows rows={slotNotes.value.map((n) => ({ label: n.label, value: n.note, tone: 'warn' as const }))} /> }

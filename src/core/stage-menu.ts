@@ -82,7 +82,7 @@ export function layerMenuFacts(input: LayerMenuInput): LayerMenuFacts {
 
 /** Has this layer been placed, timed, given an entrance or a look of its own? Then there is something to reset. */
 export function hasOwnTreatment(layer: Layer): boolean {
-  return layer.placement !== undefined || layer.span !== undefined || layer.transition !== undefined || layer.look !== undefined;
+  return layer.placement !== undefined || layer.span !== undefined || layer.transition !== undefined || layer.look !== undefined || layer.keys !== undefined;
 }
 
 // ---------------------------------------------------------------- the menu
@@ -308,6 +308,7 @@ export function resetLayer(layer: Layer): Layer {
   delete next.span;
   delete next.transition;
   delete next.look;
+  delete next.keys;
   return next;
 }
 

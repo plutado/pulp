@@ -26,6 +26,21 @@ function flag(args: string[], name: string): string | undefined {
   return i === -1 ? undefined : args[i + 1];
 }
 
+describe('a LUT over the whole render (milestone 52)', () => {
+  it('grades in RGB before the colour conversion, in the plain and the flattening graphs alike', () => {
+    const plain = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t', options: { lut: '/luts/warm.cube' } });
+    const chain = plain.args[plain.args.indexOf('-vf') + 1]!;
+    expect(chain).toContain("lut3d=file='/luts/warm.cube'");
+    expect(chain.indexOf('lut3d'), 'before the Rec.709 conversion').toBeLessThan(chain.indexOf('out_color_matrix'));
+    const flat = buildRenderPlan({ manifest: { ...timing(), alpha: true }, presetId: 'h264-mp4', outputPath: '/o/t', options: { lut: '/luts/warm.cube' } });
+    const graph = flat.args[flat.args.indexOf('-filter_complex') + 1]!;
+    expect(graph.indexOf('overlay'), 'the grade sees the finished picture, after the flatten').toBeLessThan(graph.indexOf('lut3d'));
+    // Without one, nothing is graded; with the wrong kind of file, the plan is refused by name.
+    expect(buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t' }).args.join(' ')).not.toContain('lut3d');
+    expect(() => buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t', options: { lut: '/luts/warm.look' } })).toThrow(/\.cube/);
+  });
+});
+
 describe('buildRenderPlan', () => {
   it('uses the same raw BGRA pipe input for every preset by default', () => {
     for (const presetId of PRESET_IDS) {

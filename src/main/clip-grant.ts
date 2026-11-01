@@ -19,6 +19,7 @@ import { detectFfmpeg, nodeRunner, runForBuffer } from '../core/ffmpeg';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { sequencePatternName, SEQUENCE_FPS } from '../core/media-sequence';
 import { clipProxySize, clipWindow, sanitizeClipValue, type ClipSource, type ClipValue } from '../core/video-layer';
+import { isCubeFile, lutFilter } from '../core/clip-clean';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { lookupClipItem } from './library-service';
 import { templateDefaultSize } from '../core/aspect';
@@ -168,17 +169,20 @@ export function clipStamps(ids: readonly string[]): { id: string; size: number; 
  * before `-i`, so it is the fast kind, and `-frames:v` stops it at the window's
  * end rather than decoding the rest of a long clip.
  */
-export function clipFramesArgs(entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, maxSide: number): string[] {
+export function clipFramesArgs(entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, maxSide: number, lut?: string): string[] {
   const side = Math.max(16, Math.min(MAX_CLIP_FRAME_SIDE, Math.round(maxSide)));
   const scale = `scale=w='min(iw,${side})':h='min(ih,${side})':force_original_aspect_ratio=decrease`;
   const input = entry.sequence
     ? ['-start_number', String(entry.sequence.start + window.first), '-framerate', String(source.fps), '-i', join(entry.sequence.dir, sequencePatternName(entry.sequence))]
     : ['-ss', (window.first / Math.max(1, source.fps)).toFixed(6), '-i', entry.path];
+  // The layer's own grade (milestone 52) is decoded into the frames, so the preview and the
+  // render show it by the one path, and the page never learns there was a file.
+  const grade = lut && isCubeFile(lut) ? `${lutFilter(lut)},` : '';
   return [
     '-v', 'error', '-nostdin',
     ...input,
     '-frames:v', String(window.frames),
-    '-an', '-vf', `${scale},format=rgba`,
+    '-an', '-vf', `${grade}${scale},format=rgba`,
     '-f', 'image2pipe', '-c:v', 'png', 'pipe:1',
   ];
 }
@@ -220,12 +224,12 @@ export async function readClipFrames(
   // Twice the drawn height, rounded up to a proxy step: sharp enough for a scaled or rotated
   // layer, and stable while a window is resized, so nothing is decoded twice for a few pixels.
   const side = clipProxySize(drawnHeight * 2);
-  const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}`;
+  const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}|${value.lut ?? ''}`;
   const cached = cacheTake(key);
   if (cached) return { ok: true, data: cached };
   const frames = found.kind === 'drawn'
     ? await drawnClipFrames(found.entry, window, side)
-    : await ffmpegClipFrames(ffmpegPath, found.entry, source, window, side);
+    : await ffmpegClipFrames(ffmpegPath, found.entry, source, window, side, value.lut);
   if (!frames.ok) return frames;
   const data: ClipFrameData = { id, kind: 'clip', srcs: frames.pngs.map((f) => `data:image/png;base64,${f.toString('base64')}`) };
   cachePut(key, data);
@@ -234,8 +238,8 @@ export async function readClipFrames(
 
 type FramesRead = { ok: true; pngs: Buffer[] } | { ok: false; message: string };
 
-async function ffmpegClipFrames(ffmpegPath: string, entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, side: number): Promise<FramesRead> {
-  const result = await runForBuffer(ffmpegPath, clipFramesArgs(entry, source, window, side));
+async function ffmpegClipFrames(ffmpegPath: string, entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, side: number, lut?: string): Promise<FramesRead> {
+  const result = await runForBuffer(ffmpegPath, clipFramesArgs(entry, source, window, side, lut));
   if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
   const pngs = splitPngStream(result.stdout);
   if (pngs.length === 0) return { ok: false, message: 'ffmpeg decoded no frames from it' };

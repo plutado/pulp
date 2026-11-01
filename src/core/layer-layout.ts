@@ -32,6 +32,7 @@ import { DEFAULT_MAX_LINES, IDENTITY_PLACEMENT, placementFor, type Block, type I
 import type { TemplateManifest } from './manifest';
 import { clipWindowIndexAt, type ClipSource, type ClipValue } from './video-layer';
 import type { SoundValue } from './sound-layer';
+import { keyedPoseAt, type LayerKey } from './layer-keys';
 
 /**
  * The line box a text layer occupies: ascent above the baseline, descent below,
@@ -60,6 +61,8 @@ interface LayerStateBase {
   placement: { dx: number; dy: number; scale: number; rotate: number };
   /** When it comes and goes, in seconds of the graphic as it is watched; absent is the whole of it (src/core/layer-time.ts). */
   span?: LayerSpan;
+  /** Its pose over time (milestone 51), offsets in pixels of this frame; a keyed layer moves by these instead of its placement. */
+  keys?: LayerKey[];
   /** How it looks, for the draw; absent is as the template draws it (src/core/layer-look.ts). */
   look?: LayerLook;
 }
@@ -307,6 +310,20 @@ function layerDraws(block: BlockState, options: LayoutOptions): LayerDraw[] {
     const before = ends.exit ? combineShapes(arrived, ends.exit) : arrived;
     const on = watched && layer.span ? spanAt(layer.span, watched) : 1;
     const draw = on === 1 ? before : { ...before, alpha: before.alpha * on };
+    // A keyed layer moves by its keys (milestone 51): the pose at this moment composed around the
+    // template's own draw exactly as a placement would be — and instead of the placement, since the
+    // keys are where the layer is, moment by moment, and two answers would drift.
+    if (layer.keys && layer.keys.length > 0) {
+      const keyed = keyedPoseAt(layer.keys, watched?.elapsed ?? 0)!;
+      return {
+        ...draw,
+        alpha: draw.alpha * keyed.opacity,
+        dx: draw.dx + keyed.dx,
+        dy: draw.dy + keyed.dy,
+        scale: draw.scale * keyed.scale,
+        rotate: (draw.rotate ?? 0) + keyed.rotate,
+      };
+    }
     // The person's placement is applied around whatever the template (or the override) asked:
     // the offsets add and the scales multiply, so a placed layer still rides the design.
     const placed = layer.placement;
@@ -459,7 +476,11 @@ function layerState(layer: Layer, position: number, short: number, size: Size, c
   const placement = placed === IDENTITY_PLACEMENT
     ? { ...IDENTITY_PLACEMENT }
     : { dx: placed.dx * size.width, dy: placed.dy * size.height, scale: placed.scale, rotate: placed.rotate };
-  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.type === 'audio' ? ('left' as const) : (layer.align ?? 'left'), placement, ...(layer.transition ? { transition: layer.transition } : {}), ...(layer.span ? { span: layer.span } : {}), ...(layer.look ? { look: layer.look } : {}) };
+  // Keyframe offsets become pixels of this frame, exactly as a placement's do.
+  const keys = layer.keys && layer.keys.length > 0
+    ? layer.keys.map((k) => ({ ...k, dx: k.dx * size.width, dy: k.dy * size.height }))
+    : undefined;
+  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.type === 'audio' ? ('left' as const) : (layer.align ?? 'left'), placement, ...(keys ? { keys } : {}), ...(layer.transition ? { transition: layer.transition } : {}), ...(layer.span ? { span: layer.span } : {}), ...(layer.look ? { look: layer.look } : {}) };
   if (layer.type === 'text') {
     const text = layer as TextLayer;
     return {

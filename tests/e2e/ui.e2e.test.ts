@@ -401,6 +401,21 @@ describe.skipIf(!electron)('inspector UI', () => {
         '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2',
         '-t', '2', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(mediaDir, 'noisy.mp4'),
       ]), { timeoutMs: 60_000 });
+      // A green-screen take and footage with two hard cuts (milestone 52) — mpeg4, so the codec
+      // searches keep counting only what they counted, and named to sort after everything else,
+      // so the stage menu's first eight assets stay what they were.
+      await runBounded(ffmpeg.path, ffmpegArgs([
+        '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=green:s=64x36:d=0.9:r=10',
+        '-f', 'lavfi', '-i', 'color=c=red:s=16x16:d=0.9:r=10',
+        '-filter_complex', '[0][1]overlay=x=24:y=10', '-c:v', 'mpeg4', '-qscale:v', '2', join(mediaDir, 'weathercast.mp4'),
+      ]), { timeoutMs: 60_000 });
+      await runBounded(ffmpeg.path, ffmpegArgs([
+        '-v', 'error', '-y',
+        '-f', 'lavfi', '-i', 'color=c=red:s=64x36:d=2:r=10',
+        '-f', 'lavfi', '-i', 'color=c=blue:s=64x36:d=2:r=10',
+        '-f', 'lavfi', '-i', 'color=c=green:s=64x36:d=2:r=10',
+        '-filter_complex', '[0][1][2]concat=n=3:v=1:a=0', '-c:v', 'mpeg4', '-qscale:v', '2', '-g', '5', join(mediaDir, 'yearbook.mp4'),
+      ]), { timeoutMs: 60_000 });
       // A run of numbered frames (milestone 26), so the stage has a sequence to step through.
       await mkdir(join(mediaDir, 'frames'), { recursive: true });
       await runBounded(ffmpeg.path, ffmpegArgs([
@@ -1313,6 +1328,50 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`document.getElementById('undo').click()`);
         await until(async () => (await layerIds()).length === before.length + 1, 'undo bringing it back');
       } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
+    it('keys a layer at the playhead, eases each key its own way, and keyframing writes a key from an edit (milestone 51)', async () => {
+      await clickResult('Title Card');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const card = `document.querySelector('#params .param-card[data-layer="title"]')`;
+      const animate = `${card}.querySelector('.layer-animate')`;
+      const rows = () => page.eval<number>(`${card} ? [...${card}.querySelectorAll('.key-row')].length : -1`);
+      try {
+        // The card and its Animate disclosure open.
+        await until(() => page.eval<boolean>(`!!${card}`), 'the title\'s card');
+        await page.eval(`(() => { const c = ${card}; const b = c.querySelector('.card-body'); if (b && b.hidden) c.querySelector('.card-toggle').click(); })()`);
+        await page.eval(`(() => { const a = ${animate}; if (a && !a.open) a.querySelector('summary').click(); })()`);
+        await until(() => page.eval<boolean>(`${animate} && ${animate}.open`), 'the Animate disclosure');
+
+        // The playhead at the top, drawn there — a key is written where the playhead really is.
+        await page.eval(`(() => { const s = document.getElementById('scrub'); s.value = '0'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) === 0), 'the playhead at the top');
+        await page.eval(`${card}.querySelector('.add-key').click()`);
+        await until(async () => (await rows()) === 1, 'the first key');
+        expect(await page.eval<string>(`${animate}.querySelector('summary').textContent`)).toBe('Animate · 1 key');
+
+        // Keyframing on: turning the layer writes a key at the playhead rather than a placement.
+        await page.eval(`(() => { const t = ${card}.querySelector('.keyframing-toggle'); if (t.getAttribute('aria-pressed') !== 'true') t.click(); })()`);
+        await page.eval(`(() => { const s = document.getElementById('scrub'); s.value = String(Math.round(Number(s.max) * 0.8)); s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) > 0), 'the playhead along the bar');
+        await page.eval(`(() => { const a = ${card}.querySelector('details.layer-advanced'); if (a && !a.open) a.querySelector('summary').click(); })()`);
+        await page.eval(`(() => { const f = ${card}.querySelector('input[aria-label="Title angle"]'); f.value = '45'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(async () => (await rows()) === 2, 'the edit written as a second key');
+
+        // Each key travels its own way: Hold on the first, and Curve opens the bezier's own points.
+        await page.eval(`(() => { const e = ${card}.querySelectorAll('.key-row select')[0]; e.value = 'hold'; e.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`${card}.querySelectorAll('.key-row select')[0]?.value || ''`).then((v) => v === 'hold'), 'the hold kept');
+        await page.eval(`(() => { const e = ${card}.querySelectorAll('.key-row select')[1]; e.value = 'curve'; e.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<number>(`[...${card}.querySelectorAll('.key-row')[1]?.querySelectorAll('.key-curve') || []].length`).then((n) => n === 4), 'the curve\'s four points');
+
+        // A key comes out again, and the count follows it.
+        await page.eval(`${card}.querySelectorAll('.key-row button[aria-label^="Remove"]')[0].click()`);
+        await until(async () => (await rows()) === 1, 'one key left');
+      } finally {
+        await page.eval(`(() => { const t = ${card}?.querySelector('.keyframing-toggle'); if (t && t.getAttribute('aria-pressed') === 'true') t.click(); })()`);
         await restoreLayers();
       }
     }, 120_000);
@@ -4608,6 +4667,56 @@ describe.skipIf(!electron)('inspector UI', () => {
       await sleep(1000);
       expect(await frame('tiny')).toBeNull();
     }, 180_000);
+
+    it('keys a colour to transparency from the Info tab, the result joining the library as an alpha clip (milestone 52)', async () => {
+      if (!haveVideo) return;
+      await selectMedia('weathercast');
+      await openTab('info');
+      await until(() => page.eval<boolean>(`!!document.querySelector('.info-section[data-section=cleanup]')`), 'the clean-up section');
+      await page.eval(`(() => { const h = document.querySelector('.info-section[data-section=cleanup] .section-heading'); if (h.getAttribute('aria-expanded') !== 'true') h.click(); })()`);
+      await until(() => page.eval<boolean>(`!!document.getElementById('cleanup-key')`), 'the clean-up actions');
+      await page.eval(`document.getElementById('cleanup-key').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('key-dialog').open`), 'the key dialog');
+      try {
+        // Both frames arrive: the plain one the colour is picked from, and the keyed result.
+        await until(
+          () => page.eval<boolean>(`!!document.getElementById('key-plain').getAttribute('src') && !!document.getElementById('key-keyed').getAttribute('src')`),
+          'the before and after frames',
+          30_000,
+        );
+        // Studio green is the default; the fixture really is green, so the key goes straight through.
+        expect(await page.eval<string>(`document.getElementById('key-color').value`)).toBe('#00ff00');
+        await page.eval(`document.getElementById('key-make').click()`);
+        await until(
+          () => page.eval<string>(`document.getElementById('key-status').textContent`).then((t) => t.includes('weathercast alpha')),
+          'the keyed clip made and said',
+          60_000,
+        );
+        // It joined the library beside the original, an asset ready to place.
+        await page.eval(`document.getElementById('key-close').click()`);
+        await until(() => onResult<boolean>('weathercast alpha', '(li) => true').then(() => true), 'the alpha clip in the results', 30_000);
+      } finally {
+        await page.eval(`(() => { const d = document.getElementById('key-dialog'); if (d.open) d.close(); })()`);
+      }
+    }, 120_000);
+
+    it('splits footage at its cuts into clips of the one file, beside it (milestone 52)', async () => {
+      if (!haveVideo) return;
+      await selectMedia('yearbook');
+      await openTab('info');
+      await until(() => page.eval<boolean>(`!!document.querySelector('.info-section[data-section=cleanup]')`), 'the clean-up section');
+      await page.eval(`(() => { const h = document.querySelector('.info-section[data-section=cleanup] .section-heading'); if (h.getAttribute('aria-expanded') !== 'true') h.click(); })()`);
+      await until(() => page.eval<boolean>(`!!document.getElementById('cleanup-split')`), 'the clean-up actions');
+      await page.eval(`document.getElementById('cleanup-split').click()`);
+      await until(
+        () => page.eval<string>(`document.getElementById('cleanup-status')?.textContent || ''`).then((t) => t.includes('Split into 3 clips')),
+        'the three scenes said',
+        60_000,
+      );
+      // The clips are in the library, named for the file and numbered in order.
+      await until(() => onResult<boolean>('yearbook_000', '(li) => true').then(() => true), 'the first scene in the results', 30_000);
+      await until(() => onResult<boolean>('yearbook_002', '(li) => true').then(() => true), 'and the last', 30_000);
+    }, 120_000);
 
     it('draws a waveform for audio, in the row and on the stage, and keeps the peaks', async () => {
       if (!haveVideo) {

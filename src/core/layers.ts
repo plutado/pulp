@@ -19,6 +19,7 @@
 import { sanitizeImageValue, validateSlotBoxes, type ImageValue, type SlotBoxes } from './image-slot';
 import { sanitizeClipValue, type ClipValue } from './video-layer';
 import { sanitizeSoundValue, type SoundValue } from './sound-layer';
+import { sanitizeKeys, type LayerKey } from './layer-keys';
 import {
   DEFAULT_TRANSITION, DEFAULT_TRANSITIONS, isTemplateMovement, isWholeGraphic, LAYER_TRANSITIONS, roundSeconds,
   TRANSITION_DIRECTIONS, TRANSITION_LIMITS, type LayerSpan, type LayerTransition, type LayerTransitions,
@@ -192,6 +193,13 @@ interface LayerBase {
    * (src/core/layer-time.ts).
    */
   span?: LayerSpan;
+  /**
+   * Its position, scale, rotation and opacity over time (milestone 51,
+   * src/core/layer-keys.ts): a layer with keys moves by them instead of its
+   * static placement. Absent until a layer is keyed, which is no motion of its
+   * own at all.
+   */
+  keys?: LayerKey[];
   /** How it looks — opacity, shadow, glow, outline, blur, blend, colour (src/core/layer-look.ts); absent is as the template draws it. */
   look?: LayerLook;
 }
@@ -530,7 +538,7 @@ function readSpan(raw: unknown, base: LayerSpan | undefined, issue: (field: stri
   return isWholeGraphic(out) ? undefined : out;
 }
 
-type LayerBaseFields = Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'transition' | 'placement' | 'span' | 'look'>;
+type LayerBaseFields = Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'transition' | 'placement' | 'span' | 'look' | 'keys'>;
 
 /** The fields a layer of either type has, read against a base the same way as typography. */
 function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issue: (field: string, message: string) => void): LayerBaseFields {
@@ -554,6 +562,17 @@ function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issu
   const look = readLook(raw.look, base.look, issue);
   if (look) out.look = look;
   else delete out.look;
+  // Keyframes (milestone 51): a list replaces the base's, null clears them, a non-list is reported.
+  if (raw.keys !== undefined) {
+    if (raw.keys === null) delete out.keys;
+    else {
+      const keys = sanitizeKeys(raw.keys);
+      if (keys === undefined) issue('keys', 'must be a list of keys, each with `at` in seconds and the pose it holds');
+      else if (keys.length > 0) out.keys = keys;
+      else delete out.keys;
+    }
+  } else if (base.keys && base.keys.length > 0) out.keys = base.keys;
+  else delete out.keys;
   if (raw.label !== undefined) {
     if (isNonEmptyString(raw.label)) out.label = raw.label.trim();
     else issue('label', 'must be a non-empty string');
@@ -602,7 +621,7 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
   const id = typeof raw.id === 'string' ? raw.id : '';
   const fresh = newLayer(raw.type, block, id, typeof raw.label === 'string' ? raw.label.trim() : undefined);
   const base = readLayerBase(raw, fresh, issue);
-  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, ...(base.transition ? { transition: base.transition } : {}), ...(base.placement ? { placement: base.placement } : {}), ...(base.span ? { span: base.span } : {}), ...(base.look ? { look: base.look } : {}) };
+  const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, ...(base.transition ? { transition: base.transition } : {}), ...(base.placement ? { placement: base.placement } : {}), ...(base.span ? { span: base.span } : {}), ...(base.look ? { look: base.look } : {}), ...(base.keys ? { keys: base.keys } : {}) };
   let layer: Layer;
   if (raw.type === 'text') {
     if (typeof raw.text !== 'string') issue('text', 'must be a string (the layer\'s default text)');
@@ -736,6 +755,7 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
     if (!common.placement) delete out.placement;
     if (!common.span) delete out.span;
     if (!common.look) delete out.look;
+    if (!common.keys) delete out.keys;
     return out;
   };
   if (base.type === 'text') {

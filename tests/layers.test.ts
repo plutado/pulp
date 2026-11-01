@@ -270,6 +270,27 @@ describe('video layers (milestone 26)', () => {
     expect(fresh).toEqual({ id: 'm2', label: 'Audio', required: false, hidden: false, spaceBefore: 0, type: 'audio', sound: null });
   });
 
+  it('takes keyframes at use time, clamped and sorted, and null clears them (milestone 51)', () => {
+    const r = validateManifest(rawManifest({ blocks: [{ id: 'strap', label: 'Strap', box: { x: 0, y: 0, width: 1, height: 1 }, open: true, layers: [{ id: 'name', type: 'text', label: 'Name', text: 'Ada' }] }] }));
+    if (!r.ok) throw new Error('fixture');
+    const keys = [
+      { at: 2, dx: 0.3, scale: 2, easing: 'ease-out' },
+      { at: 0, dx: -0.3, rotate: 45, opacity: 0.5, easing: 'linear' },
+    ];
+    const { values, issues } = resolveLayers(r.manifest, { strap: [{ id: 'name', keys }] });
+    expect(issues).toEqual([]);
+    const resolved = values.strap![0]!.keys!;
+    expect(resolved.map((k) => k.at)).toEqual([0, 2]);
+    expect(resolved[0]).toMatchObject({ dx: -0.3, dy: 0, scale: 1, rotate: 45, opacity: 0.5, easing: 'linear' });
+    expect(resolved[1]).toMatchObject({ dx: 0.3, scale: 2, easing: 'ease-out' });
+    // Null clears them, and a wrong shape is reported with the layer kept.
+    const cleared = resolveLayers(r.manifest, { strap: [{ id: 'name', keys: null }] });
+    expect(cleared.values.strap![0]!.keys).toBeUndefined();
+    const wrong = resolveLayers(r.manifest, { strap: [{ id: 'name', keys: 'nope' }] });
+    expect(wrong.issues.some((i) => i.message.includes('keys'))).toBe(true);
+    expect(wrong.values.strap![0]!.keys).toBeUndefined();
+  });
+
   it('takes a clip at use time, through every route that carries raw values', () => {
     const r = validateManifest(rawManifest({ blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, open: true, layers: [{ id: 'plate', type: 'video', label: 'Plate' }] }] }));
     if (!r.ok) throw new Error('fixture');

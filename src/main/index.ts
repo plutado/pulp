@@ -18,6 +18,7 @@ import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, i
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { mixLoudness } from './mix-loudness';
+import { chromaKeyClip, chromaKeyPreview, splitScenes } from './cleanup-service';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag, removeRender } from './render-queue-service';
 import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
 import { sanitizeCacheMaxMB } from '../core/render-cache';
@@ -435,6 +436,14 @@ function registerIpc(): void {
 
   ipcMain.handle('library:hover-strip', (_event, id: string) => hoverStrip(String(id)));
   ipcMain.handle('library:waveform', (_event, id: string) => waveform(String(id)));
+  // Clip clean-up (milestone 52): keys, splits and the LUT chooser, each by library id, never a path.
+  ipcMain.handle('cleanup:key-preview', (_event, id: unknown, settings: unknown, at: unknown) => chromaKeyPreview(String(id), settings, at));
+  ipcMain.handle('cleanup:key', (_event, id: unknown, settings: unknown) => chromaKeyClip(String(id), settings));
+  ipcMain.handle('cleanup:split-scenes', (_event, id: unknown) => splitScenes(String(id)));
+  ipcMain.handle('cleanup:choose-lut', async () => {
+    const pick = await dialog.showOpenDialog({ title: 'Choose a LUT', filters: [{ name: 'Cube LUT', extensions: ['cube'] }], properties: ['openFile'] });
+    return pick.canceled || !pick.filePaths[0] ? null : pick.filePaths[0];
+  });
   // The mix's loudness for the transport row's meter (milestone 52): ids and settings in, LUFS out.
   ipcMain.handle('audio:mix-loudness', (_event, request: unknown) => mixLoudness(request));
 
@@ -466,7 +475,7 @@ function registerIpc(): void {
  *
  * A parameter may be a layer stack: `--param '@layers={"strap":[{"id":"name","text":"Ada Lovelace"}]}'`.
  *     [--fps <rate>] [--length <seconds|tc>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
- *     [--cover-at <tc|frame>] [--platform <platform-id>]
+ *     [--cover-at <tc|frame>] [--platform <platform-id>] [--lut <file.cube>]
  *     [--aspect 16:9|9:16|1:1|4:5] [--size <width>x<height>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
  *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
@@ -487,6 +496,8 @@ function registerIpc(): void {
  * `--platform <id>` (milestone 20) sets the aspect, size, frame rate and preset a platform asks for
  * in one go, and measures the finished file against that platform's length and file-size limits,
  * warning rather than refusing; `--preset`, `--aspect`, `--size` and `--fps` beside it win.
+ * `--lut <file.cube>` (milestone 52) grades the whole render through the LUT, after any flattening
+ * and before the preset's colour conversion.
  * `--library` adds template folders for this run only; they are not saved to settings.
  * `--frame-format png` uses the slower PNG pipe to ffmpeg, for comparison with the raw default.
  * The final line reports the elapsed time and frames per second.
@@ -596,6 +607,9 @@ function parseCliRender(argv: string[]): CliRender | null {
   }
   const background = get('--background');
   if (background !== undefined) options.background = background;
+  // A .cube graded over the whole render (milestone 52); the planner refuses anything else by name.
+  const lutPath = get('--lut');
+  if (lutPath !== undefined) options.lut = resolve(lutPath);
   const aspect = get('--aspect');
   if (aspect !== undefined) options.aspect = aspect;
   const sizeRaw = get('--size');

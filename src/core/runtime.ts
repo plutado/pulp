@@ -360,6 +360,53 @@ export const BRIDGE_SCRIPT = `(function () {
         : transitionShape(transitions.out, secs.out <= 0 ? 1 : (w.to - elapsed) / secs.out, distance, column),
     };
   }
+  /* Keyframes (milestone 51). Mirrors cubicBezier, easeKey and keyedPoseAt in
+     src/core/layer-keys.ts, the copies with unit tests: change both or neither. The keys arrive
+     with their offsets already in pixels of this frame (src/core/layer-layout.ts). */
+  function cubicBezier(x1, y1, x2, y2, progress) {
+    var x = Math.min(1, Math.max(0, progress));
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    function sample(p1, p2, t) { return ((1 - t) * (1 - t) * 3 * t * p1) + ((1 - t) * 3 * t * t * p2) + (t * t * t); }
+    var lo = 0, hi = 1, t = x, i, sx;
+    for (i = 0; i < 24; i++) {
+      sx = sample(x1, x2, t);
+      if (Math.abs(sx - x) < 1e-5) break;
+      if (sx < x) lo = t; else hi = t;
+      t = (lo + hi) / 2;
+    }
+    return sample(y1, y2, t);
+  }
+  function easeKey(easing, curve, progress) {
+    var p = Math.min(1, Math.max(0, progress));
+    if (easing === 'hold') return 0;
+    if (easing === 'linear') return p;
+    if (easing === 'ease-in') return cubicBezier(0.42, 0, 1, 1, p);
+    if (easing === 'ease-out') return cubicBezier(0, 0, 0.58, 1, p);
+    if (easing === 'ease-in-out') return cubicBezier(0.42, 0, 0.58, 1, p);
+    var c = curve || [0.25, 0.1, 0.25, 1];
+    return cubicBezier(c[0], c[1], c[2], c[3], p);
+  }
+  function keyedPoseAt(keys, time) {
+    if (!keys || keys.length === 0) return null;
+    var t = isFinite(time) ? time : 0;
+    var first = keys[0], last = keys[keys.length - 1];
+    if (t <= first.at) return first;
+    if (t >= last.at) return last;
+    var a = first, b = last, i;
+    for (i = 1; i < keys.length; i++) {
+      if (keys[i].at >= t) { a = keys[i - 1]; b = keys[i]; break; }
+    }
+    var span = Math.max(1e-6, b.at - a.at);
+    var eased = easeKey(a.easing, a.curve, (t - a.at) / span);
+    return {
+      dx: a.dx + (b.dx - a.dx) * eased,
+      dy: a.dy + (b.dy - a.dy) * eased,
+      scale: a.scale + (b.scale - a.scale) * eased,
+      rotate: a.rotate + (b.rotate - a.rotate) * eased,
+      opacity: a.opacity + (b.opacity - a.opacity) * eased,
+    };
+  }
   function combineShapes(base, over) {
     var wipe = base.wipe && over.wipe ? (base.wipe.shown <= over.wipe.shown ? base.wipe : over.wipe) : (base.wipe || over.wipe);
     return { alpha: base.alpha * over.alpha, dx: base.dx + over.dx, dy: base.dy + over.dy, scale: base.scale * over.scale,
@@ -385,6 +432,13 @@ export const BRIDGE_SCRIPT = `(function () {
       /* The layer's own start and end are the last word: outside them it is simply not there,
          whether the movement above was the template's or the person's. */
       if (layer.span) draw = { alpha: draw.alpha * spanAt(layer.span, watched), dx: draw.dx, dy: draw.dy, scale: draw.scale, rotate: draw.rotate, letterSpacing: draw.letterSpacing, wipe: draw.wipe };
+      /* A keyed layer moves by its keys (milestone 51), instead of its placement: the pose at this
+         moment composed around the template's own draw exactly as a placement would be. Mirrors
+         layerDraws in src/core/layer-layout.ts: change both or neither. */
+      if (layer.keys && layer.keys.length > 0) {
+        var keyed = keyedPoseAt(layer.keys, watched.elapsed);
+        return { alpha: draw.alpha * keyed.opacity, dx: draw.dx + keyed.dx, dy: draw.dy + keyed.dy, scale: draw.scale * keyed.scale, rotate: (draw.rotate || 0) + keyed.rotate, letterSpacing: draw.letterSpacing, wipe: draw.wipe };
+      }
       /* The person's placement (milestone 25) wraps whatever the template or the override asked:
          offsets add, scales multiply, so a placed layer still rides the design. Mirrors layerDraws
          in src/core/layer-layout.ts: change both or neither. */

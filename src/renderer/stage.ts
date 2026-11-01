@@ -436,7 +436,7 @@ function syncImages(): void {
     ...requests.map((r) => imageRequestKey(r)),
     // The proxy step, not the exact height: a window nudged a few pixels wider asks for the
     // same frames, so nothing is decoded again for it (milestone 26).
-    ...clipRequests.map((c) => `clip:${c.id}|${c.value.inPoint}|${c.value.outPoint}|${clipProxySize(c.drawnHeight * 2)}`),
+    ...clipRequests.map((c) => `clip:${c.id}|${c.value.inPoint}|${c.value.outPoint}|${c.value.lut ?? ''}|${clipProxySize(c.drawnHeight * 2)}`),
   ].sort().join(',');
   if (key === s.imagesKey) return;
   s.imagesKey = key;

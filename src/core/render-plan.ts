@@ -31,6 +31,7 @@ import { AspectError, resolveRenderSize } from './aspect';
 import { resolveLength, type TemplateStructure } from './timing';
 import { isValidColor, type TemplateManifest } from './manifest';
 import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
+import { isCubeFile, lutFilter } from './clip-clean';
 
 export { fpsToRational } from './timecode';
 
@@ -258,6 +259,13 @@ export interface RenderOptions {
    * measured against, before the render and from the file afterwards.
    */
   platform?: string;
+  /**
+   * A `.cube` LUT graded over the whole render (milestone 52), as a file path.
+   * Applied in RGB after any flattening and before the preset's colour
+   * conversion, so the grade sees the finished picture; the matte beside a
+   * render is alpha only and takes no grade.
+   */
+  lut?: string;
   /** Media only (milestone 15): playback speed of a clip; 1 is as recorded. */
   speed?: number;
   /** Media only: recolor the picture at render time — its luminance in this colour (`#rrggbb`), alpha kept. */
@@ -510,6 +518,8 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
 
   const background = input.options?.background ?? '#000000';
   if (!isValidColor(background)) throw new RenderPlanError(`background must be #RRGGBB, got "${background}"`);
+  const lut = input.options?.lut;
+  if (lut !== undefined && !isCubeFile(lut)) throw new RenderPlanError(`a LUT must be a .cube file, got "${lut}"`);
 
   const timing = resolveTiming(manifest, input.options, { still: preset.still === true });
   const fps = fpsToRational(timing.fps);
@@ -534,7 +544,9 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   if (frameFormat === 'raw' && rawInput.premultiplied && manifest.alpha) prepare.push(UNPREMULTIPLY);
   // From straight RGB to the preset's pixel format. Rec.709 presets convert and tag; the format
   // filter last makes the scale step do the conversion, with the matrix and range given above.
-  const toOutput = preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [RGB_FULL_TAGS];
+  // A LUT (milestone 52) grades first, in RGB, after any flattening below: the grade sees the
+  // finished picture, as it would in an editor.
+  const toOutput = [...(lut ? [lutFilter(lut)] : []), ...(preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [RGB_FULL_TAGS])];
   toOutput.push(`format=${preset.pixelFormat}`);
 
   const matte = input.options?.matte === true;

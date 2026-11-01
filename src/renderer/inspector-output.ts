@@ -54,6 +54,9 @@ const els = {
   optFps: $<HTMLSelectElement>('opt-fps'),
   optBackgroundField: $<HTMLLabelElement>('opt-background-field'),
   optBackground: $<HTMLInputElement>('opt-background'),
+  optLut: $<HTMLButtonElement>('opt-lut'),
+  optLutName: $<HTMLSpanElement>('opt-lut-name'),
+  optLutClear: $<HTMLButtonElement>('opt-lut-clear'),
   optIn: $<HTMLInputElement>('opt-in'),
   optOut: $<HTMLInputElement>('opt-out'),
   optionsNote: $<HTMLParagraphElement>('options-note'),
@@ -93,6 +96,8 @@ const els = {
 
 const o = {
   ffmpegOk: false,
+  /** The .cube graded over the whole render (milestone 52), as chosen; null is no grade. */
+  lutPath: null as string | null,
   /** Waiting for the save dialog after a click on Render. */
   choosingOutput: false,
   /** False while the frame rate or trim fields hold something the planner rejects. */
@@ -441,6 +446,8 @@ export function readRenderOptions(): RenderOptions {
   // within the timeline should the rounding land a frame past the end.
   if (preset?.still && inFrame === undefined && fps !== undefined) options.inFrame = Math.max(0, Math.round(playheadSeconds.peek() * fps));
   if (preset && !preset.alpha) options.background = els.optBackground.value;
+  // The grade over the whole render (milestone 52).
+  if (o.lutPath) options.lut = o.lutPath;
   // Where this is going (milestone 20): it changes no pixel, it is what the warnings are measured against.
   const platform = chosenPlatform();
   if (platform) options.platform = platform.id;
@@ -715,6 +722,16 @@ async function prepareForDrag(): Promise<void> {
   }
 }
 
+/** Set or clear the grade (milestone 52): the name on the row, the whole path in its tip, the summary refreshed. */
+function setLut(path: string | null): void {
+  o.lutPath = path;
+  els.optLutName.textContent = path ? (path.split(/[\\/]/).pop() ?? path) : '';
+  els.optLutName.dataset.tip = path ?? '';
+  els.optLutClear.hidden = path === null;
+  updateOptionsNote();
+  saveToEditedCard();
+}
+
 /** The output preset as chosen now, for anything that wants to record it. */
 export function currentPresetId(): PresetId {
   return els.preset.value as PresetId;
@@ -873,6 +890,7 @@ export function outputShowMedia(entry: MediaEntry): void {
   els.optChannels.value = '';
   els.optBitDepth.value = '16';
   els.dragStatus.textContent = '';
+  setLut(null);
   trim.value = { inFrame: null, outFrame: null };
   showMediaFields(entry);
   showPresetNote();
@@ -901,6 +919,7 @@ export function outputShow(entry: TemplateEntry): void {
   els.optIn.value = '';
   els.optOut.value = '';
   els.dragStatus.textContent = '';
+  setLut(null);
   trim.value = { inFrame: null, outFrame: null };
   o.batch = null;
   els.batchSummary.textContent = '';
@@ -974,6 +993,7 @@ function initCollectionEditing(): void {
       els.optIn.value = item.options.inFrame === undefined ? '' : formatTimecode(item.options.inFrame, fps);
       els.optOut.value = item.options.outFrame === undefined ? '' : formatTimecode(item.options.outFrame, fps);
       // The cover a card was collected with, and its mark (milestone 20).
+      setLut(item.options.lut ?? null);
       els.optCover.checked = item.options.coverFrame !== undefined;
       els.optCoverAt.value = item.options.coverFrame === undefined ? '' : formatTimecode(item.options.coverFrame, fps);
       publishCover();
@@ -1106,6 +1126,14 @@ export function initInspectorOutput(): void {
       saveToEditedCard();
     });
   }
+  // The LUT over the whole render (milestone 52): a .cube chosen by name, cleared with its cross.
+  els.optLut.addEventListener('click', () => {
+    void window.pulp.chooseLutFile().then((path) => {
+      if (!path) return;
+      setLut(path);
+    });
+  });
+  els.optLutClear.addEventListener('click', () => setLut(null));
   els.render.addEventListener('click', () => void queueRender());
   els.dragPrepare.addEventListener('click', () => void prepareForDrag());
   els.batchCsv.addEventListener('input', () => {

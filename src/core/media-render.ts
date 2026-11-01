@@ -27,6 +27,7 @@ import {
   RenderPlanError, RGB_FULL_TAGS, type AudioOptions, type OutputPreset, type PresetId, type RenderOptions,
 } from './render-plan';
 import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
+import { isCubeFile, lutFilter } from './clip-clean';
 
 // ---------------------------------------------------------------- audio presets
 
@@ -361,10 +362,13 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
 
   const tint = options.tint;
   if (tint !== undefined && !isValidColor(tint)) throw new RenderPlanError(`tint must be #RRGGBB, got "${tint}"`);
-  // What every path normalises the picture to first: speed, a constant output rate, the recolor, the size.
+  const lut = options.lut;
+  if (lut !== undefined && !isCubeFile(lut)) throw new RenderPlanError(`a LUT must be a .cube file, got "${lut}"`);
+  // What every path normalises the picture to first: speed, a constant output rate, the grade, the recolor, the size.
   const normalise = (speedToo: boolean): string[] => [
     ...(speedToo && timing.speed !== 1 ? [`setpts=PTS/${timing.speed}`] : []),
     `fps=${fps}`,
+    ...(lut ? [lutFilter(lut)] : []),
     ...(tint ? [tintFilter(tint)] : []),
     ...(fitted ? [fitFilter(width, height, preset.alpha || matte || source.alpha, background)] : []),
   ];

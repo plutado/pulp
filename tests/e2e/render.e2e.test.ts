@@ -1171,6 +1171,89 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(Math.abs(levelled - -14), `levelled it measures ${levelled} LUFS`).toBeLessThan(1.5);
   }, 300_000);
 
+  it('grades the whole render through a .cube LUT, named on the command line (milestone 52)', async () => {
+    // A two-point inverting LUT: red in, cyan out — a grade that cannot be mistaken for drift.
+    const lib = join(out, 'lut-library');
+    await mkdir(lib, { recursive: true });
+    const cube = join(lib, 'invert.cube');
+    await writeFile(cube, ['LUT_3D_SIZE 2', '1 1 1', '0 1 1', '1 0 1', '0 0 1', '1 1 0', '0 1 0', '1 0 0', '0 0 0', ''].join('\n'));
+    const solid = join(lib, 'lut-solid.mov');
+    const madeSolid = await runBounded(ffmpeg, ffmpegArgs(['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=160x160:d=1:r=30,format=rgba', '-c:v', 'qtrle', solid]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(madeSolid.code, madeSolid.stderr).toBe(0);
+    const solidId = itemId(`media:${solid}`);
+    const layers = ['--param', `@layers=${JSON.stringify({ stack: [{ id: 'plate', clip: solidId }] })}`];
+    const common = ['--library', FIXTURES, '--library', lib];
+    const middle = [160, 90] as const;
+
+    const plain = await render('pulp.test.video-layer', 'png-sequence', 'lut-off', { extra: [...common, ...layers] });
+    expect(plain.code, plain.stderr).toBe(0);
+    const [r0, g0, b0] = await pixels(join(out, 'lut-off_00000.png'), ...middle);
+    expect(r0, 'red as shot').toBeGreaterThan(200);
+    expect(g0).toBeLessThan(60);
+
+    const graded = await render('pulp.test.video-layer', 'png-sequence', 'lut-on', { extra: [...common, ...layers, '--lut', cube] });
+    expect(graded.code, graded.stderr).toBe(0);
+    const [r1, g1, b1] = await pixels(join(out, 'lut-on_00000.png'), ...middle);
+    expect(r1, 'and cyan through the grade').toBeLessThan(60);
+    expect(g1).toBeGreaterThan(200);
+    expect(b1).toBeGreaterThan(200);
+    void b0;
+
+    // The wrong kind of file is refused by name before anything renders.
+    const wrong = await render('pulp.test.video-layer', 'png-sequence', 'lut-bad', { extra: [...common, ...layers, '--lut', join(lib, 'invert.look')] });
+    expect(wrong.code).toBe(1);
+    expect(wrong.stderr).toContain('.cube');
+  }, 240_000);
+
+  it('moves a layer by its keys: position, scale, rotation and opacity over time, eased (milestone 51)', async () => {
+    // The solid red square again, keyed across the frame; where it lands is read off the pixels,
+    // so the preview's arithmetic and the render's bridge are held to the same answer.
+    const lib = join(out, 'keys-library');
+    await mkdir(lib, { recursive: true });
+    const solid = join(lib, 'keys-solid.mov');
+    const made = await runBounded(ffmpeg, ffmpegArgs(['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=160x160:d=1:r=30,format=rgba', '-c:v', 'qtrle', solid]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(made.code, made.stderr).toBe(0);
+    const solidId = itemId(`media:${solid}`);
+    const common = ['--library', FIXTURES, '--library', lib];
+    const keyed = (keys: unknown) => ['--param', `@layers=${JSON.stringify({ stack: [{ id: 'plate', clip: solidId, keys }] })}`];
+    // The 320 x 180 fixture draws the plate 90 px square at its centre, x 160.
+    const left = [80, 90] as const;
+    const right = [240, 90] as const;
+    const middle = [160, 90] as const;
+
+    // Linear travel: left at the first frame, right at the last, passing the middle half way.
+    const moved = await render('pulp.test.video-layer', 'png-sequence', 'keys-move', {
+      extra: [...common, ...keyed([{ at: 0, dx: -0.25, easing: 'linear' }, { at: 2, dx: 0.25 }])],
+    });
+    expect(moved.code, moved.stderr).toBe(0);
+    expect((await pixels(join(out, 'keys-move_00000.png'), ...left))[3], 'left at the start').toBe(255);
+    expect((await pixels(join(out, 'keys-move_00000.png'), ...right))[3]).toBe(0);
+    expect((await pixels(join(out, 'keys-move_00030.png'), ...middle))[3], 'half way at one second').toBe(255);
+    expect((await pixels(join(out, 'keys-move_00059.png'), ...right))[3], 'right at the end').toBe(255);
+    expect((await pixels(join(out, 'keys-move_00059.png'), ...left))[3]).toBe(0);
+
+    // A hold stays put until the next key.
+    const held = await render('pulp.test.video-layer', 'png-sequence', 'keys-hold', {
+      extra: [...common, ...keyed([{ at: 0, dx: -0.25, easing: 'hold' }, { at: 1.5, dx: 0.25 }])],
+    });
+    expect(held.code, held.stderr).toBe(0);
+    expect((await pixels(join(out, 'keys-hold_00030.png'), ...left))[3], 'still left at one second').toBe(255);
+    expect((await pixels(join(out, 'keys-hold_00059.png'), ...right))[3], 'and across after the key').toBe(255);
+
+    // Scale, rotation and opacity key too: grown and faded by the end.
+    const posed = await render('pulp.test.video-layer', 'png-sequence', 'keys-pose', {
+      extra: [...common, ...keyed([{ at: 0, scale: 1, opacity: 1, easing: 'linear' }, { at: 2, scale: 2, rotate: 45, opacity: 0.4 }])],
+    });
+    expect(posed.code, posed.stderr).toBe(0);
+    // At the start the corner beyond the 90 px plate is empty; grown to nearly double it is covered.
+    const corner = [160, 25] as const;
+    expect((await pixels(join(out, 'keys-pose_00000.png'), ...corner))[3]).toBe(0);
+    const late = (await pixels(join(out, 'keys-pose_00059.png'), ...middle))[3]!;
+    expect(late, 'faded by the end').toBeGreaterThan(60);
+    expect(late).toBeLessThan(160);
+    expect((await pixels(join(out, 'keys-pose_00059.png'), ...corner))[3], 'and grown past its old edge').toBeGreaterThan(0);
+  }, 300_000);
+
   it('plays a clip inside a graphic, on the template\'s own time (milestone 26)', async () => {
     // A transparent clip whose red square moves left to right over its 30 frames, so which frame
     // was drawn can be read off the rendered picture. The library sees it by path, as any clip.

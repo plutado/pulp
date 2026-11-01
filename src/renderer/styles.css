@@ -703,6 +703,27 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 #loudness-target { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: var(--text); }
 #loudness-target[hidden] { display: none; }
 
+/* The LUT row in the Output tab and on a clip layer (milestone 52). */
+.lut-row { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.lut-name { font-size: var(--font-caption); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+
+/* Keyframes under Animate (milestone 51). */
+.layer-animate { margin-top: var(--space-1); }
+.animate-body { display: grid; gap: var(--space-1); padding: var(--space-1) 0 0 var(--space-2); }
+.key-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.key-at { font-size: var(--font-secondary); color: var(--muted); min-width: 48px; font-variant-numeric: tabular-nums; }
+.key-row .key-curve { width: 56px; }
+
+/* The key dialog's before and after (milestone 52). */
+.key-dialog { width: min(720px, 92vw); }
+.key-previews { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: var(--space-2) 0; }
+.key-previews figure { margin: 0; min-width: 0; }
+.key-previews img { display: block; width: 100%; height: auto; border-radius: var(--radius-control); min-height: 40px; }
+#key-plain { cursor: crosshair; }
+.key-previews figcaption { font-size: var(--font-caption); color: var(--muted); margin-top: 2px; }
+.key-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.key-controls input[type="range"] { width: 110px; }
+
 .transport-tools { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-secondary); min-width: 0; }
 /* The drawer's tabs, at the row's end: open, switch, or choose again to close (milestone 38). */
 .transport-tabs { display: inline-flex; align-items: center; gap: 4px; margin-left: var(--space-2); padding-left: var(--space-3); border-left: 1px solid var(--border); }
@@ -758,6 +779,27 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 #loudness-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
 #loudness-target { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: var(--text); }
 #loudness-target[hidden] { display: none; }
+
+/* The LUT row in the Output tab and on a clip layer (milestone 52). */
+.lut-row { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.lut-name { font-size: var(--font-caption); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+
+/* Keyframes under Animate (milestone 51). */
+.layer-animate { margin-top: var(--space-1); }
+.animate-body { display: grid; gap: var(--space-1); padding: var(--space-1) 0 0 var(--space-2); }
+.key-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.key-at { font-size: var(--font-secondary); color: var(--muted); min-width: 48px; font-variant-numeric: tabular-nums; }
+.key-row .key-curve { width: 56px; }
+
+/* The key dialog's before and after (milestone 52). */
+.key-dialog { width: min(720px, 92vw); }
+.key-previews { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: var(--space-2) 0; }
+.key-previews figure { margin: 0; min-width: 0; }
+.key-previews img { display: block; width: 100%; height: auto; border-radius: var(--radius-control); min-height: 40px; }
+#key-plain { cursor: crosshair; }
+.key-previews figcaption { font-size: var(--font-caption); color: var(--muted); margin-top: 2px; }
+.key-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.key-controls input[type="range"] { width: 110px; }
 
 .transport-tools { grid-row: 1; grid-column: 4; }
   /* The status down to what must stay — the project, a warning about ffmpeg, the cache — since the
@@ -1059,8 +1101,8 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 /* A text layer's type, folded under its words, and a layer's own motion folded under Advanced.
    The summary says how it is set; open, a two-column grid of small labelled controls, the family
    and the colour taking the whole width. */
-.layer-type summary, .layer-advanced summary, .layer-look summary { cursor: pointer; color: var(--muted); font-size: var(--font-caption); padding: 2px 0; list-style: none; display: flex; align-items: center; gap: var(--space-1); }
-.layer-type summary::-webkit-details-marker, .layer-advanced summary::-webkit-details-marker, .layer-look summary::-webkit-details-marker { display: none; }
+.layer-type summary, .layer-advanced summary, .layer-animate summary, .layer-look summary { cursor: pointer; color: var(--muted); font-size: var(--font-caption); padding: 2px 0; list-style: none; display: flex; align-items: center; gap: var(--space-1); }
+.layer-type summary::-webkit-details-marker, .layer-advanced summary::-webkit-details-marker, .layer-animate summary::-webkit-details-marker, .layer-look summary::-webkit-details-marker { display: none; }
 .layer-type summary::before, .layer-advanced summary::before, .layer-look summary::before { content: ''; width: 0; height: 0; border: 4px solid transparent; border-left: 5px solid var(--muted); margin-right: 2px; }
 .layer-type[open] summary::before, .layer-advanced[open] summary::before, .layer-look[open] summary::before { transform: rotate(90deg); }
 .layer-type summary:hover, .layer-advanced summary:hover, .layer-look summary:hover { color: var(--text); }

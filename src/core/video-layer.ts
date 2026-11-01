@@ -44,6 +44,14 @@ export interface ClipValue {
   delay: number;
   /** Chosen but not drawn, and taking no room, like a hidden image. */
   hidden: boolean;
+  /**
+   * A `.cube` LUT graded over the clip's picture (milestone 52), as a file
+   * path. Applied by the host when the clip's frames are decoded, so the
+   * preview and the render show the same grade; the page never sees the path.
+   * A path rather than a library id because a LUT is not media — it travels in
+   * projects the way a collected item's remembered path does.
+   */
+  lut?: string;
   /** The clip's own sound in the mix, 0 to 1 (milestone 48); 1 is as recorded. */
   volume: number;
   /** Sound off, volume kept, like a mixer's mute. */
@@ -204,10 +212,17 @@ export function sanitizeClipValue(input: unknown): ClipValue | null | undefined 
   const delay = Math.min(CLIP_LIMITS.delay.max, Math.max(CLIP_LIMITS.delay.min, Math.round(rawDelay * 1000) / 1000));
   const rawVolume = typeof r.volume === 'number' && Number.isFinite(r.volume) ? r.volume : 1;
   const volume = Math.min(1, Math.max(0, Math.round(rawVolume * 100) / 100));
-  return { id, inPoint, outPoint, ending, speed, delay, hidden: r.hidden === true, volume, muted: r.muted === true };
+  // Only a .cube may ride here: the host hands the path to ffmpeg, and anything else is noise.
+  const lut = typeof r.lut === 'string' && /\.cube$/i.test(r.lut.trim()) ? r.lut.trim() : undefined;
+  return { id, inPoint, outPoint, ending, speed, delay, hidden: r.hidden === true, volume, muted: r.muted === true, ...(lut ? { lut } : {}) };
 }
 
-/** The same value written short, for presets, collections and CSV: defaults are left out. */
+/**
+ * The same value written short, for presets, collections and CSV: defaults are
+ * left out. The LUT stays out of this form on purpose — its path carries
+ * spaces, and the form is split on them; a CSV row grades a clip through the
+ * `settings` column's JSON instead.
+ */
 export function clipValueToText(value: ClipValue | null): string {
   if (value === null) return '';
   if (value.id === null) return value.hidden ? 'hidden' : '';
