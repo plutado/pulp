@@ -40,6 +40,7 @@ import type { MediaLookup } from '../core/media-serve';
 import { watchRoot, type RootWatcher } from '../core/library-watch';
 import { normalizeTag } from '../core/tags';
 import { normalizeTheme } from '../core/taxonomy';
+import { placeableTemplate } from '../core/search';
 import { loadSettings, updateSettings } from './settings';
 
 /** Folder of sample templates shipped with the app. */
@@ -672,7 +673,8 @@ export function lookupMedia(id: string): MediaLookup | undefined {
  */
 export type ClipLookup =
   | { kind: 'media'; entry: MediaEntry; size: number; mtimeMs: number }
-  | { kind: 'lottie'; entry: TemplateEntry; size: number; mtimeMs: number };
+  /** A template drawn offscreen into frames: a Lottie, or an effect or object on transparency. */
+  | { kind: 'drawn'; entry: TemplateEntry; size: number; mtimeMs: number };
 
 export function lookupClipItem(id: string): ClipLookup | undefined {
   const media = getStore().findMediaById(id);
@@ -680,13 +682,14 @@ export function lookupClipItem(id: string): ClipLookup | undefined {
     if (!media.online || media.entry.mediaKind !== 'video') return undefined;
     return { kind: 'media', entry: media.entry, size: media.entry.size, mtimeMs: media.entry.mtimeMs };
   }
-  // A template, and only one read from a Lottie file: a written template has a page of its own
-  // and is not something a layer can play. Its root must be reachable, which is a fact about the
-  // root rather than the row, so it is asked for here.
+  // A template that is a finished thing on transparency — a Lottie, or a bundled effect or object
+  // (milestone 45) — plays as a layer, drawn offscreen rather than decoded. A graphic with words to
+  // fill in is not one. Its root must be reachable, which is a fact about the root rather than the
+  // row, so it is asked for here.
   const found = getStore().findTemplateById(id);
-  if (!found || !found.online || !found.entry.lottie) return undefined;
+  if (!found || !found.online || !placeableTemplate(found.entry)) return undefined;
   const { entry } = found;
-  return { kind: 'lottie', entry, size: entry.size ?? 0, mtimeMs: entry.mtimeMs ?? 0 };
+  return { kind: 'drawn', entry, size: entry.size ?? 0, mtimeMs: entry.mtimeMs ?? 0 };
 }
 
 export async function findTemplate(id: string): Promise<TemplateEntry | undefined> {

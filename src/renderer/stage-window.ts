@@ -177,11 +177,22 @@ export function toggleStagePopOut(): void {
 export function stageOnDisplay(id: number): void {
   if (!Number.isFinite(id)) return;
   if (!out && !popOutStage()) return;
-  void window.pulp.stageWindowOnDisplay(id);
+  void window.pulp.stageWindowOnDisplay(id).then((result) => {
+    // Said rather than left silent: a session with no window manager to grant full screen still
+    // gets the stage on the display it chose, and the picture simply does not fill it.
+    if (result.moved && !result.fullScreen) console.info('The stage moved to that display; this session did not grant it full screen.');
+    lastOnDisplay = result;
+  });
 }
+
+/** What the last Stage on Display did, for the end-to-end test to hold the real outcome to. */
+let lastOnDisplay: { moved: boolean; fullScreen: boolean } | null = null;
 
 export function initStageWindow(): void {
   $('stage-popout').addEventListener('click', toggleStagePopOut);
+  // For the end-to-end test: what the last Stage on Display did, since whether a session grants
+  // full screen is the session's to say and not the platform's name to guess.
+  (window as unknown as { pulpLastStageOnDisplay?: () => typeof lastOnDisplay }).pulpLastStageOnDisplay = () => lastOnDisplay;
   // The window's own close button: the stage comes back first, then the window goes.
   window.pulp.onStageWindowCloseRequested(() => popInStage());
   // Out again at launch if it was left out — unless its display has gone, which the main process decides.

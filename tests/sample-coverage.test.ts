@@ -19,6 +19,7 @@ import { scanLibrary } from '../src/core/library';
 import { SAMPLE_MEDIA } from '../src/core/sample-media';
 import { normalizeTag } from '../src/core/tags';
 import { BROWSE_CATEGORIES, categoryInfo, categoryOfEntry } from '../src/core/categories';
+import { placeableTemplate } from '../src/core/search';
 import { entryType, inferThemes, STYLES, THEME_GROUPS, TYPE_GROUPS, TYPES, typeInfo } from '../src/core/taxonomy';
 
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
@@ -57,6 +58,18 @@ export const CATEGORY_FLOORS: Record<string, number> = {
  */
 export const BUNDLED_CATEGORY_FLOORS: Record<string, number> = {
   'still-backgrounds': 32,
+  // Milestone 45: Effects opened on nothing but three Lottie animations out of the box.
+  effects: 32,
+};
+
+/**
+ * Milestone 45: every kind of effect has at least this many bundled templates, so no subtype of
+ * the category opens empty — the thing milestone 36's type floors missed, since they counted the
+ * sample media too and these asset types are drawn rather than generated.
+ */
+export const BUNDLED_SUBTYPE_FLOORS: Record<string, number> = {
+  fire: 3, smoke: 3, sparks: 3, 'explosion-asset': 3, energy: 3,
+  'light-asset': 3, 'weather-asset': 3, liquid: 3, confetti: 3, brush: 3,
 };
 
 /**
@@ -130,10 +143,29 @@ describe('every category is at least its floor deep', () => {
     });
   }
 
-  it.each(Object.entries(BUNDLED_CATEGORY_FLOORS))('the top category %s is at least %i deep with bundled templates alone (milestone 44)', (id, floor) => {
+  it.each(Object.entries(BUNDLED_CATEGORY_FLOORS))('the top category %s is at least %i deep with bundled templates alone (milestones 44 and 45)', (id, floor) => {
     const category = categoryInfo(id)!;
     const bundled = index.templates.filter((t) => categoryOfEntry(t)?.id === category.id);
     expect(bundled.length, `${category.label}: ${bundled.length} bundled templates`).toBeGreaterThanOrEqual(floor);
+  });
+
+  it.each(Object.entries(BUNDLED_SUBTYPE_FLOORS))('the effect kind %s has %i or more bundled templates (milestone 45)', (id, floor) => {
+    const bundled = index.templates.filter((t) => entryType(t) === id);
+    expect(bundled.length, `${typeInfo(id)?.label ?? id}: ${bundled.length} bundled templates`).toBeGreaterThanOrEqual(floor);
+  });
+
+  it('gives every bundled effect its colour, speed, density and size, and alpha to lay it over anything (milestone 45)', () => {
+    const effects = index.templates.filter((t) => categoryInfo('effects')!.types.includes(entryType(t) ?? ''));
+    expect(effects.length).toBeGreaterThanOrEqual(32);
+    for (const t of effects) {
+      const ids = t.manifest.parameters.map((p) => p.id);
+      // A Lottie's parameters are whatever its file exposes; a written effect declares the four.
+      if (t.lottie !== undefined) continue;
+      expect(ids, t.manifest.id).toEqual(expect.arrayContaining(['color', 'speed', 'density', 'size']));
+      expect(t.manifest.alpha, `${t.manifest.id} draws on transparency`).toBe(true);
+      // Every one can be laid on the stage as a layer: that is what an effect is for.
+      expect(placeableTemplate(t), `${t.manifest.id} can be placed as a layer`).toBe(true);
+    }
   });
 
   it.each(Object.entries(CATEGORY_FLOORS))('the top category %s is at least %i deep (milestone 36)', (id, floor) => {

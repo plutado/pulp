@@ -47,8 +47,8 @@ function sourceFromEntry(entry: MediaEntry, meta = entry.meta): ClipSource | nul
   return { frames: Math.max(1, Math.round(meta.duration * meta.fps)), fps: meta.fps };
 }
 
-/** A Lottie's own timing, straight from the manifest its file was read into (milestone 35). */
-function sourceFromLottie(entry: TemplateEntry): ClipSource {
+/** A drawn template's own timing, straight from its manifest (milestone 35; any effect since 45). */
+function sourceFromTemplate(entry: TemplateEntry): ClipSource {
   const { duration, fps } = entry.manifest;
   return { frames: Math.max(1, Math.round(duration * fps)), fps };
 }
@@ -57,7 +57,7 @@ function sourceFromLottie(entry: TemplateEntry): ClipSource {
 export function clipSourceFor(id: string): ClipSource | null {
   const found = lookupClipItem(id);
   if (!found) return null;
-  return found.kind === 'lottie' ? sourceFromLottie(found.entry) : sourceFromEntry(found.entry);
+  return found.kind === 'drawn' ? sourceFromTemplate(found.entry) : sourceFromEntry(found.entry);
 }
 
 /**
@@ -71,8 +71,8 @@ export function clipSourceFor(id: string): ClipSource | null {
 export async function resolveClipSource(ffprobePath: string, id: string): Promise<ClipSource | null> {
   const found = lookupClipItem(id);
   if (!found) return null;
-  // A Lottie states its own rate and length in the manifest its file was read into: nothing to probe.
-  if (found.kind === 'lottie') return sourceFromLottie(found.entry);
+  // A drawn template states its own rate and length in its manifest: nothing to probe.
+  if (found.kind === 'drawn') return sourceFromTemplate(found.entry);
   const known = sourceFromEntry(found.entry);
   if (known) return known;
   const meta = await probeMedia(ffprobePath, found.entry.path, nodeRunner);
@@ -208,8 +208,8 @@ export async function readClipFrames(
   const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}`;
   const cached = cacheTake(key);
   if (cached) return { ok: true, data: cached };
-  const frames = found.kind === 'lottie'
-    ? await lottieClipFrames(found.entry, window, side)
+  const frames = found.kind === 'drawn'
+    ? await drawnClipFrames(found.entry, window, side)
     : await ffmpegClipFrames(ffmpegPath, found.entry, source, window, side);
   if (!frames.ok) return frames;
   const data: ClipFrameData = { id, kind: 'clip', srcs: frames.pngs.map((f) => `data:image/png;base64,${f.toString('base64')}`) };
@@ -228,13 +228,14 @@ async function ffmpegClipFrames(ffmpegPath: string, entry: MediaEntry, source: C
 }
 
 /**
- * A Lottie's window, drawn rather than decoded (milestone 35): it has no file
- * of pixels for ffmpeg to read, so its frames are captured through the same
- * offscreen window its poster and its hover strip come from, at the size the
- * layer is drawn — which is also why a vector animation placed small costs
- * little. Its own shape is kept, inside the box the proxy step allows.
+ * A template's window, drawn rather than decoded (milestone 35, and any
+ * effect or object on transparency since 45): it has no file of pixels for
+ * ffmpeg to read, so its frames are captured through the same offscreen
+ * window its poster and its hover strip come from, at the size the layer is
+ * drawn — which is also why one placed small costs little. Its own shape is
+ * kept, inside the box the proxy step allows.
  */
-async function lottieClipFrames(entry: TemplateEntry, window: { first: number; frames: number }, side: number): Promise<FramesRead> {
+async function drawnClipFrames(entry: TemplateEntry, window: { first: number; frames: number }, side: number): Promise<FramesRead> {
   const own = templateDefaultSize(entry.manifest);
   const scale = Math.min(1, side / Math.max(own.width, own.height));
   const size = { width: Math.max(16, Math.round(own.width * scale)), height: Math.max(16, Math.round(own.height * scale)) };
@@ -273,10 +274,10 @@ export async function loadLayerClips(
     const value = sanitizeClipValue(request?.value);
     const id = typeof request?.id === 'string' ? request.id : '';
     if (!id || !value?.id || sources[id]) continue;
-    // A Lottie is drawn, not decoded, so it plays as a layer on a machine with no ffmpeg;
+    // A template is drawn, not decoded, so it plays as a layer on a machine with no ffmpeg;
     // a clip from a file cannot be read without one.
-    const isLottie = lookupClipItem(id)?.kind === 'lottie';
-    if (!ffmpeg.ok && !isLottie) {
+    const isDrawn = lookupClipItem(id)?.kind === 'drawn';
+    if (!ffmpeg.ok && !isDrawn) {
       missing.push(id);
       continue;
     }

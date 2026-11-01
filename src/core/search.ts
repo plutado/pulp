@@ -26,7 +26,7 @@
  */
 
 import { ORIENTATIONS, orientationOf, templateDefaultSize, templateOrientations, type Orientation } from './aspect';
-import type { LibraryEntry, LibraryIndex, MediaEntry, MediaKind } from './library-types';
+import type { LibraryEntry, LibraryIndex, MediaEntry, MediaKind, TemplateEntry } from './library-types';
 import { RESOLUTION_ALIASES, resolutionLabel } from './media-meta';
 import { normalizeTag } from './tags';
 import { entryType, isThemeGroup, normalizeTheme, themesInGroup, typeInfo } from './taxonomy';
@@ -315,11 +315,30 @@ function placeableOf(entry: LibraryEntry, builtInRoot: string | undefined): Plac
   const builtIn = builtInRoot !== undefined && entry.root === builtInRoot;
   const shared = { builtIn, ...(entry.thumbnail ? { thumbnail: entry.thumbnail } : {}), ...(entry.lastUsed ? { lastUsed: entry.lastUsed } : {}) };
   if (entry.kind === 'template') {
-    if (!entry.lottie) return null;
-    return { id: entry.id, name: entry.manifest.name, layer: 'video', lottie: true, ...shared };
+    if (!placeableTemplate(entry)) return null;
+    return { id: entry.id, name: entry.manifest.name, layer: 'video', lottie: entry.lottie !== undefined, ...shared };
   }
   if (entry.mediaKind === 'audio') return null;
   return { id: entry.id, name: entry.name, layer: entry.mediaKind === 'video' ? 'video' : 'image', lottie: false, ...shared };
+}
+
+/**
+ * A template that can be placed on the stage as a layer (milestone 45): one
+ * that draws a finished thing on transparency and asks for nothing to be
+ * typed into it. A Lottie is one by definition; so is a bundled **asset** —
+ * the taxonomy's own word for an effect or an object, a thing you put on a
+ * frame rather than a graphic you fill in. Both are drawn offscreen into
+ * frames for the layer (`src/main/clip-grant.ts`), which is why neither needs
+ * a file of pixels or ffmpeg.
+ *
+ * A template with blocks is not one of these however it draws: its words are
+ * the point, and placing it inside another graphic would ask where they go.
+ */
+export function placeableTemplate(entry: TemplateEntry): boolean {
+  if (entry.lottie !== undefined) return true;
+  if (!entry.manifest.alpha) return false;
+  if ((entry.manifest.blocks ?? []).length > 0) return false;
+  return typeInfo(entryType(entry) ?? '')?.group === 'assets';
 }
 
 export function searchPlaceable(index: LibraryIndex | null | undefined, options: PlaceableSearch = {}): PlaceableItem[] {
@@ -329,7 +348,7 @@ export function searchPlaceable(index: LibraryIndex | null | undefined, options:
   // An item whose folder is offline cannot be loaded, so it is never offered.
   const media = index.media.filter((m) => !m.offline && m.mediaKind !== 'audio' && wants(m.mediaKind === 'video' ? 'video' : 'image'));
   // A Lottie plays, so it belongs with the clips.
-  const templates = wants('video') ? index.templates.filter((t) => t.lottie !== undefined && !t.offline) : [];
+  const templates = wants('video') ? index.templates.filter((t) => placeableTemplate(t) && !t.offline) : [];
   const found = searchLibrary({ ...index, templates, media }, options.query ?? '')
     .map((h) => placeableOf(h.entry, index.builtInRoot))
     .filter((p): p is PlaceableItem => p !== null);

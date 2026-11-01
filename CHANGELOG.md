@@ -6,6 +6,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+
+- Effects on transparency (milestone 45). The Effects category opened on almost nothing: nine of its ten kinds were empty, and the tenth held three Lottie animations. Thirty-three new CC0 templates fill it — flame flicker, a torch flame and a line of fire; rising smoke, steam wisps and smoke puffs; ember drift, a spark shower, a sparkler fizz and ember rise; a shockwave ring, a dust burst and a debris burst; a magic swirl, an energy pulse, lightning arcs and a rune circle; a lens flare, light streaks and god rays; rain, snow and drifting fog; a water splash, water drips and ripple rings; confetti falling, a confetti burst and streamer drop; a brush stroke, an ink bleed, a paint splatter and a scribbled underline. Each takes a **colour, speed, density and size**, with its lighter and darker tones derived from the one colour, and draws on transparency at every aspect. Twenty-four loop seamlessly — they are built from whole cycles, so the speed knob changes how many times something goes round and never where it ends — and nine play once, where speed is how soon they are over.
+
+  **And they go on the stage as layers.** A template that draws a finished thing on transparency and asks for nothing to be typed into it can now be placed from the stage's Add Asset Here, or dragged onto the picture, over a title, a clip or a still — the path that drew a Lottie's frames offscreen rather than decoding a file now serves any of them, so an effect plays as a layer even where FFmpeg is not installed.
+
 ### Changed
 
 - One Add menu in the browse header (milestone 47). The header carried four icon buttons — Add folder, Add sample media, Import pack and Export — which said "add" three times, used "Add" and "Import" for the same idea, and never said what each would bring. One **Add** opens a menu that names the three things, with a line under each: **Your media folder…** (footage, stills and sounds, indexed where they are), **Templates from a pack…** (a .zip or a folder of templates, installed) and **Sample media** (original CC0 files, made and added), the last offered only while some of the catalogue is still unmade. **Export as pack…** leaves the header for the results' heading, since it sends out the templates the results are listing, and stays in the File menu. File → Add, the start screen and the empty results use the same words, from one list, so the same thing is never called two things.

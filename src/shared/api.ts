@@ -199,6 +199,12 @@ export interface SampleMediaOutcome {
   failed: string[];
 }
 
+/** What View → Stage on Display did (milestone 43). */
+export interface StageOnDisplayResult {
+  moved: boolean;
+  fullScreen: boolean;
+}
+
 /** Outcome of adding a render to the queue; the render itself reports through the queue snapshot. */
 export type EnqueueResult = { ok: true; jobId: number } | { ok: false; cancelled?: boolean; message: string };
 
@@ -239,8 +245,12 @@ export interface PulpApi {
   closeStageWindow(): Promise<void>;
   /** Fill the stage window's display with it, or come back from that. */
   setStageWindowFullScreen(on: boolean): Promise<void>;
-  /** Move the stage's window to this display and fill it (View → Stage on Display); false when there is no such display or no window. */
-  stageWindowOnDisplay(id: number): Promise<boolean>;
+  /**
+   * Move the stage's window to this display and fill it (View → Stage on Display). `moved` is false
+   * when there is no such display or no window; `fullScreen` says whether the platform granted it,
+   * which a session with no window manager to ask does not.
+   */
+  stageWindowOnDisplay(id: number): Promise<StageOnDisplayResult>;
   /** The stage window is being closed by its own button: put the stage back, then closeStageWindow. */
   onStageWindowCloseRequested(listener: () => void): () => void;
   /** The stage window went full screen or came back, by any means, so the theater button can follow. */

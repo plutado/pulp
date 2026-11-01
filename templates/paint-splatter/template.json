@@ -1,0 +1,73 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.paint-splatter",
+  "name": "Paint splatter",
+  "description": "A splatter of paint thrown at the frame, a main blot with droplets around it; plays once.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "brush",
+  "themes": [
+    "kids",
+    "fashion"
+  ],
+  "styles": [
+    "hand-drawn",
+    "playful"
+  ],
+  "tags": [
+    "effect",
+    "paint",
+    "splatter"
+  ],
+  "duration": 2,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#1f2933",
+      "element": "Color"
+    },
+    {
+      "id": "speed",
+      "type": "number",
+      "label": "Speed",
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "step": 0.05,
+      "element": "Motion"
+    },
+    {
+      "id": "density",
+      "type": "number",
+      "label": "Density",
+      "default": 1,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.05,
+      "element": "Motion"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "step": 0.05,
+      "element": "Motion"
+    }
+  ]
+}

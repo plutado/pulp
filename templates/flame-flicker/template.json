@@ -1,0 +1,75 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.flame-flicker",
+  "name": "Flame flicker",
+  "description": "A cluster of flames licking upward with a bright core and a darker tip, flickering on a seamless loop.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "fire",
+  "themes": [
+    "holiday",
+    "gaming"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "tags": [
+    "effect",
+    "fire",
+    "flame"
+  ],
+  "duration": 4,
+  "fps": 30,
+  "structure": {
+    "loop": true
+  },
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#ff8a3d",
+      "element": "Color"
+    },
+    {
+      "id": "speed",
+      "type": "number",
+      "label": "Speed",
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "step": 0.05,
+      "element": "Motion"
+    },
+    {
+      "id": "density",
+      "type": "number",
+      "label": "Density",
+      "default": 1,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.05,
+      "element": "Motion"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "step": 0.05,
+      "element": "Motion"
+    }
+  ]
+}

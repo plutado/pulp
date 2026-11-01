@@ -8,7 +8,8 @@
  * display with it for theater.
  */
 
-import { app, ipcMain, screen, type BrowserWindow, type BrowserWindowConstructorOptions } from 'electron';
+import { app, ipcMain, screen, type BrowserWindow, type BrowserWindowConstructorOptions, type Display } from 'electron';
+import type { StageOnDisplayResult } from '../shared/api';
 import {
   DEFAULT_STAGE_WINDOW,
   STAGE_WINDOW_MIN,
@@ -105,6 +106,58 @@ export function adoptStageWindow(win: BrowserWindow, main: BrowserWindow): void 
   });
 }
 
+/** Wait for a full-screen transition to land, or give up: the animation takes about a second on macOS. */
+function transition(win: BrowserWindow, event: 'enter-full-screen' | 'leave-full-screen', ms = 2_000): Promise<void> {
+  return new Promise((resolve) => {
+    if (win.isDestroyed()) {
+      resolve();
+      return;
+    }
+    let settled = false;
+    const done = (): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    // Named one at a time: the typings overload per event, and a union of the two satisfies neither.
+    if (event === 'enter-full-screen') win.once('enter-full-screen', done);
+    else win.once('leave-full-screen', done);
+  });
+}
+
+/**
+ * Put the window on this display and fill it, and make sure the ask took.
+ *
+ * macOS grants full screen by moving the window to a Space of its own, and it
+ * drops the request without a word when the window is not in a state to take
+ * one: still coming up (this is called moments after the renderer opened it),
+ * minimised, or sitting behind in another Space — which is where it is when a
+ * run of other work has been in front of it. So the window is shown and given
+ * focus where it is going first, the transition is waited for, and the ask is
+ * repeated while it has not landed. Returns whether it ended up full screen;
+ * a Linux session with no window manager to grant one says false rather than
+ * leaving the caller to guess from the platform.
+ */
+async function fillDisplay(win: BrowserWindow, display: Display, tries = 4): Promise<boolean> {
+  for (let attempt = 0; attempt < tries; attempt++) {
+    if (win.isDestroyed()) return false;
+    if (win.isFullScreen()) return true;
+    if (win.isMinimized()) win.restore();
+    if (!win.isVisible()) win.show();
+    win.focus();
+    // Inside the display first, so full screen takes that display and no other.
+    const area = display.workArea;
+    const width = Math.min(win.getBounds().width, area.width - 40);
+    const height = Math.min(win.getBounds().height, area.height - 40);
+    win.setBounds({ x: area.x + Math.round((area.width - width) / 2), y: area.y + Math.round((area.height - height) / 2), width, height });
+    win.setFullScreen(true);
+    await transition(win, 'enter-full-screen');
+  }
+  return !win.isDestroyed() && win.isFullScreen();
+}
+
 /** The stage's window, waiting a moment for one that is being opened right now. */
 async function stageWindowSoon(): Promise<BrowserWindow | null> {
   for (let tries = 0; tries < 30; tries++) {
@@ -148,27 +201,17 @@ export function registerStageWindowIpc(): void {
   // View → Stage on Display (milestone 43): the stage's window moves to the chosen display and
   // fills it. The renderer has just popped the stage out if it was not; the window it opened is
   // adopted within the same turn, but it is waited for rather than assumed.
-  ipcMain.handle('stage-window:on-display', async (_event, id: unknown) => {
+  ipcMain.handle('stage-window:on-display', async (_event, id: unknown): Promise<StageOnDisplayResult> => {
     const display = screen.getAllDisplays().find((d) => d.id === id);
-    if (!display) return false;
+    if (!display) return { moved: false, fullScreen: false };
     const win = await stageWindowSoon();
-    if (!win) return false;
-    const fill = () => {
-      if (win.isDestroyed()) return;
-      // Inside the display first, so full screen takes that display and no other.
-      const area = display.workArea;
-      const width = Math.min(win.getBounds().width, area.width - 40);
-      const height = Math.min(win.getBounds().height, area.height - 40);
-      win.setBounds({ x: area.x + Math.round((area.width - width) / 2), y: area.y + Math.round((area.height - height) / 2), width, height });
-      win.setFullScreen(true);
-    };
+    if (!win) return { moved: false, fullScreen: false };
+    // Out of one display's full screen before into another's: the two cannot be asked at once.
     if (win.isFullScreen()) {
-      // Out of one display's full screen before into another's: the two cannot be asked at once.
-      win.once('leave-full-screen', fill);
       win.setFullScreen(false);
-    } else {
-      fill();
+      await transition(win, 'leave-full-screen');
     }
-    return true;
+    const fullScreen = await fillDisplay(win, display);
+    return { moved: !win.isDestroyed(), fullScreen };
   });
 }

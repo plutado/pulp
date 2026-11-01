@@ -122,9 +122,9 @@ describe('bundled sample templates', async () => {
     // looping overlay plates, and ten ambient fixed lengths (turning rings, drifting stripes, a pulse
     // grid, a running light, marching chevrons, a stopwatch and the four countdowns).
     expect(kinds.hold).toHaveLength(110);
-    expect(kinds.loop).toHaveLength(75);
+    expect(kinds.loop).toHaveLength(99);
     expect(kinds.scale).toHaveLength(40);
-    expect(kinds.none).toHaveLength(64);
+    expect(kinds.none).toHaveLength(73);
   });
 
   it.each(dirs)('%s defines window.pulpRender and avoids wall-clock time', async (dir) => {

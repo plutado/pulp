@@ -1,0 +1,72 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.dust-burst",
+  "name": "Dust burst",
+  "description": "A cloud of dust thrown out low and settling, the aftermath of something landing; plays once.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "explosion-asset",
+  "themes": [
+    "sports",
+    "documentary"
+  ],
+  "styles": [
+    "grunge"
+  ],
+  "tags": [
+    "effect",
+    "dust",
+    "impact"
+  ],
+  "duration": 2,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#e8d9c0",
+      "element": "Color"
+    },
+    {
+      "id": "speed",
+      "type": "number",
+      "label": "Speed",
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "step": 0.05,
+      "element": "Motion"
+    },
+    {
+      "id": "density",
+      "type": "number",
+      "label": "Density",
+      "default": 1,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.05,
+      "element": "Motion"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "step": 0.05,
+      "element": "Motion"
+    }
+  ]
+}

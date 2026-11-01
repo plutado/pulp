@@ -1,0 +1,72 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.shockwave-ring",
+  "name": "Shockwave ring",
+  "description": "A ring of compressed air racing outward from the centre and thinning as it goes; plays once.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "explosion-asset",
+  "themes": [
+    "gaming",
+    "sports"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "tags": [
+    "effect",
+    "shockwave",
+    "impact"
+  ],
+  "duration": 2,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#e8d9c0",
+      "element": "Color"
+    },
+    {
+      "id": "speed",
+      "type": "number",
+      "label": "Speed",
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "step": 0.05,
+      "element": "Motion"
+    },
+    {
+      "id": "density",
+      "type": "number",
+      "label": "Density",
+      "default": 1,
+      "min": 0.2,
+      "max": 2,
+      "step": 0.05,
+      "element": "Motion"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "step": 0.05,
+      "element": "Motion"
+    }
+  ]
+}
