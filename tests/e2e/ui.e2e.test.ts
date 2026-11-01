@@ -1284,27 +1284,36 @@ describe.skipIf(!electron)('inspector UI', () => {
           'the loudness meter on the mix',
           30_000,
         );
-        // And with the meter showing, the row's controls still keep apart at the default width —
-        // the same rule the 1280 × 788 layout test holds the row to with the meter away. The
-        // runner's own window can be narrower than that (a 1024 × 768 screen), so the default
-        // size is set for the measurement, as that test sets it.
-        await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 788, deviceScaleFactor: 1, mobile: false });
-        await until(() => page.eval<boolean>(`window.innerHeight === 788 && window.innerWidth === 1280`), 'the default window size');
-        await page.eval(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`);
-        const rowBoxes = await page.eval<{ id: string; left: number; right: number; top: number; bottom: number }[]>(
-          `[...document.querySelectorAll('#region-transport .buttons-line button, #region-transport .buttons-line input, #region-transport .buttons-line #timecode, #region-transport .buttons-line #loudness, #region-status > *')]
-             .filter((el) => el.getBoundingClientRect().width > 0)
-             .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id || el.className, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; })`,
-        );
-        for (let i = 0; i < rowBoxes.length; i++) {
-          for (let j = i + 1; j < rowBoxes.length; j++) {
-            const a = rowBoxes[i]!;
-            const b = rowBoxes[j]!;
-            const met = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
-            expect(met, `${a.id} does not overlap ${b.id} with the meter showing`).toBe(0);
+        // And the row's controls keep apart at the default width and the narrow ones — the same
+        // rule the 1280 × 788 layout test holds the row to with the meter away. The meter is on
+        // the line at the default size and folds on a narrow window (below 1150 px), the way the
+        // tab labels and the library's counts do: on CI's 1008 px window it sat the Output tab's
+        // button 62 px over the project's name (docs/ideas.md, 2026-11-01).
+        try {
+          for (const [width, height] of [[1280, 788], [1120, 700], [1008, 655], [960, 600]] as const) {
+            await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+            await until(() => page.eval<boolean>(`window.innerHeight === ${height} && window.innerWidth === ${width}`), `the ${width} × ${height} window`);
+            await page.eval(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`);
+            const meterShown = await page.eval<boolean>(`document.getElementById('loudness').getBoundingClientRect().width > 0`);
+            expect(meterShown, `the meter ${width >= 1150 ? 'on the line' : 'folded'} at ${width} px`).toBe(width >= 1150);
+            const rowBoxes = await page.eval<{ id: string; left: number; right: number; top: number; bottom: number }[]>(
+              `[...document.querySelectorAll('#region-transport .buttons-line button, #region-transport .buttons-line input, #region-transport .buttons-line #timecode, #region-transport .buttons-line #loudness, #region-status > *')]
+                 .filter((el) => el.getBoundingClientRect().width > 0)
+                 .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id || el.className, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; })`,
+            );
+            for (let i = 0; i < rowBoxes.length; i++) {
+              for (let j = i + 1; j < rowBoxes.length; j++) {
+                const a = rowBoxes[i]!;
+                const b = rowBoxes[j]!;
+                const met = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+                expect(met, `${a.id} does not overlap ${b.id} at ${width} × ${height} with the mix measured`).toBe(0);
+              }
+            }
           }
+        } finally {
+          await page.send('Emulation.clearDeviceMetricsOverride', {});
+          await page.eval(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`);
         }
-        await page.send('Emulation.clearDeviceMetricsOverride', {});
 
         // The playhead goes to the top, where the sound starts: how loud a layer is is a question
         // about a moment, and the preview answers it for the moment on the stage.

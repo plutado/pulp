@@ -740,10 +740,29 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
    Render cache dialog while the tray is empty, are what must stay. */
 @media (max-width: 1230px) {
   .transport-tabs .tab .label { display: none; }
-  .transport-tools #volume { width: 56px; }
+  /* Three classes and the id, so this outweighs the base width below, which shares its selector
+     and comes later in the file — equal specificity would hand the narrow window the wide slider. */
+  .transport-row .transport-tools #volume { width: 56px; }
 }
+/* The meter folds too: below about 1100 px the line has no room for its bar, and the Output tab's
+   button sat over the project's name on CI's 1008 px window (docs/ideas.md, 2026-11-01). The
+   measurement still runs — the meter is back the moment the window is. */
+@media (max-width: 1150px) {
+  .transport-middle #loudness { display: none; }
+}
+/* Narrower, the line is full even with the meter away — the status's icons are what overflow —
+   so Copy diagnostics leaves with the counts, as the one-line layout already sends it: it is in
+   the Help menu too, and the project, ffmpeg and the cache are what must stay. */
 @media (max-width: 1040px) {
-  .transport-status #library-summary { display: none; }
+  .transport-status #library-summary, .transport-status #status-diagnostics { display: none; }
+}
+/* At the window's minimum (960 px) the line needs its last slack: the timecode gives up the floor
+   that steadies it against other items — it is monospaced, so it cannot jitter while playing —
+   and the clusters sit closer. */
+@media (max-width: 1000px) {
+  .buttons-line { column-gap: var(--space-2); }
+  /* Two classes, so this outweighs the base floor below, which comes later in the file. */
+  .transport-middle .timecode { min-width: 0; }
 }
 /* One line in a short window (milestone 42): below a height where two lines cost the picture, and
    where one line fits — the clusters at their icon-only widths, with the status down to the project,
@@ -772,36 +791,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   .scrub-line { grid-row: 1; grid-column: 2; padding: 0; min-width: 0; }
   .scrub-line .scrub-wrap { margin-left: 0; width: auto; }
   .transport-middle { grid-row: 1; grid-column: 3; margin: 0; }
-  /* The mix's loudness against the platform's target (milestone 52). */
-.loudness { display: inline-flex; align-items: center; gap: 6px; }
-.loudness[hidden] { display: none; }
-.loudness-bar { position: relative; width: 56px; height: 6px; border-radius: 3px; background: rgba(148, 163, 184, 0.28); overflow: hidden; }
-#loudness-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
-#loudness-target { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: var(--text); }
-#loudness-target[hidden] { display: none; }
-
-/* The LUT row in the Output tab and on a clip layer (milestone 52). */
-.lut-row { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; }
-.lut-name { font-size: var(--font-caption); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
-
-/* Keyframes under Animate (milestone 51). */
-.layer-animate { margin-top: var(--space-1); }
-.animate-body { display: grid; gap: var(--space-1); padding: var(--space-1) 0 0 var(--space-2); }
-.key-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.key-at { font-size: var(--font-secondary); color: var(--muted); min-width: 48px; font-variant-numeric: tabular-nums; }
-.key-row .key-curve { width: 56px; }
-
-/* The key dialog's before and after (milestone 52). */
-.key-dialog { width: min(720px, 92vw); }
-.key-previews { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: var(--space-2) 0; }
-.key-previews figure { margin: 0; min-width: 0; }
-.key-previews img { display: block; width: 100%; height: auto; border-radius: var(--radius-control); min-height: 40px; }
-#key-plain { cursor: crosshair; }
-.key-previews figcaption { font-size: var(--font-caption); color: var(--muted); margin-top: 2px; }
-.key-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
-.key-controls input[type="range"] { width: 110px; }
-
-.transport-tools { grid-row: 1; grid-column: 4; }
+  .transport-tools { grid-row: 1; grid-column: 4; }
   /* The status down to what must stay — the project, a warning about ffmpeg, the cache — since the
      line's room is the scrub bar's; the library's counts and its problems are back on two lines, and
      Copy diagnostics with them — it is in the Help menu too, and the bar is what the line is for.
@@ -811,7 +801,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   /* Named with the row: the lanes' own rule, below, would otherwise win by coming later. */
   .transport-row .transport-lanes { grid-row: 2; grid-column: 2; margin: 0 -4px; width: auto; align-self: stretch; }
   .transport-tabs .tab .label { display: none; }
-  .transport-tools #volume { width: 56px; }
+  .transport-row .transport-tools #volume { width: 56px; }
 }
 /* The lanes sit under the scrub bar at its width. They clip what scrolls out of them, and a bar's
    end handles reach 3 px past its ends, so the lanes are 4 px wider on each side as padding: the
