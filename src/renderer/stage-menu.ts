@@ -131,8 +131,10 @@ export function currentLayerFacts(): LayerMenuFacts {
  * the same way.
  */
 function stageAssets(): StageAsset[] {
+  // Pictures and clips: `searchPlaceable` leaves sounds out unless they are asked for, since a
+  // sound is not placed on the picture (milestone 48).
   return searchPlaceable(appState.value.index, { recentFirst: true, limit: STAGE_MENU_ASSETS })
-    .map((m) => ({ id: m.id, name: m.name, kind: m.layer }));
+    .flatMap((m) => (m.layer === 'audio' ? [] : [{ id: m.id, name: m.name, kind: m.layer }]));
 }
 
 // ---------------------------------------------------------------- the commands

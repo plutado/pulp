@@ -294,7 +294,7 @@ export interface PlaceableItem {
   id: string;
   name: string;
   /** The kind of layer it becomes. */
-  layer: 'image' | 'video';
+  layer: 'image' | 'video' | 'audio';
   /** A Lottie, which the card and the Info tab say so of. */
   lottie: boolean;
   /** It came with Pulp rather than from a folder the person added. */
@@ -304,8 +304,8 @@ export interface PlaceableItem {
 }
 
 export interface PlaceableSearch {
-  /** Which layers may be made here; both when it is not said. */
-  layers?: readonly ('image' | 'video')[];
+  /** Which layers may be made here; pictures and clips when it is not said, never sounds. */
+  layers?: readonly ('image' | 'video' | 'audio')[];
   query?: string;
   recentFirst?: boolean;
   limit?: number;
@@ -318,7 +318,7 @@ function placeableOf(entry: LibraryEntry, builtInRoot: string | undefined): Plac
     if (!placeableTemplate(entry)) return null;
     return { id: entry.id, name: entry.manifest.name, layer: 'video', lottie: entry.lottie !== undefined, ...shared };
   }
-  if (entry.mediaKind === 'audio') return null;
+  if (entry.mediaKind === 'audio') return { id: entry.id, name: entry.name, layer: 'audio', lottie: false, ...shared };
   return { id: entry.id, name: entry.name, layer: entry.mediaKind === 'video' ? 'video' : 'image', lottie: false, ...shared };
 }
 
@@ -344,9 +344,11 @@ export function placeableTemplate(entry: TemplateEntry): boolean {
 export function searchPlaceable(index: LibraryIndex | null | undefined, options: PlaceableSearch = {}): PlaceableItem[] {
   if (!index) return [];
   const { layers, recentFirst, limit } = options;
-  const wants = (layer: 'image' | 'video') => !layers || layers.includes(layer);
+  // A sound is asked for by name and never by default: the stage places pictures and clips, and
+  // only an audio layer's own chooser wants music (milestone 48).
+  const wants = (layer: 'image' | 'video' | 'audio') => (layers ? layers.includes(layer) : layer !== 'audio');
   // An item whose folder is offline cannot be loaded, so it is never offered.
-  const media = index.media.filter((m) => !m.offline && m.mediaKind !== 'audio' && wants(m.mediaKind === 'video' ? 'video' : 'image'));
+  const media = index.media.filter((m) => !m.offline && wants(m.mediaKind === 'video' ? 'video' : m.mediaKind === 'audio' ? 'audio' : 'image'));
   // A Lottie plays, so it belongs with the clips.
   const templates = wants('video') ? index.templates.filter((t) => placeableTemplate(t) && !t.offline) : [];
   const found = searchLibrary({ ...index, templates, media }, options.query ?? '')

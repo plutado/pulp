@@ -22,7 +22,7 @@ import { access, mkdir, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { templateDefaultSize, type Size } from '../core/aspect';
 import { chosenImageIds, imageGrantKey, imageGrantRequests, imageRequests, imageSlots, MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
-import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, layerTexts, type BlockState } from '../core/layer-layout';
+import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, layerSoundChoices, layerTexts, type BlockState } from '../core/layer-layout';
 import { readClipFrames, resolveClipAudio, resolveClipSource, type ClipFrameData } from './clip-grant';
 import { ffprobePathFor } from '../core/media-probe';
 import type { ClipSource } from '../core/video-layer';
@@ -32,8 +32,10 @@ import { lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg, runWithInput } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan } from '../core/render-plan';
-import { applyClipAudio, type ClipAudioLayer } from '../core/clip-audio';
+import { applyLayerAudio, type AudioLayer } from '../core/layer-audio';
 import { clipAudible } from '../core/video-layer';
+import { soundAudible } from '../core/sound-layer';
+import { resolveSoundSource } from './sound-grant';
 import { finishedFileWarnings } from './platform-check';
 import { lengthIn, resolveParams, splitLayers } from '../core/params';
 import {
@@ -202,16 +204,25 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     else return { ok: false, message: `A clip chosen for a layer is not in the library, is offline, or could not be read.` };
   }
 
-  // A clip keeps its sound (milestone 48): each audible video layer joins the same ffmpeg command
-  // the frames are piped into, as an audio input mixed in step with its in point, speed and delay.
-  // Nothing changes for a silent project — no audible layer, no audio stream, exactly as before.
-  const audioLayers: ClipAudioLayer[] = [];
+  // Every layer's sound (milestone 48): each audible video layer's clip and each audio layer's
+  // own sound joins the same ffmpeg command the frames are piped into, mixed in step with its in
+  // point, delay, loop and fades. Nothing changes for a silent project — no audible layer, no
+  // audio stream and no file beside it, exactly as before.
+  const audioLayers: AudioLayer[] = [];
   for (const choice of clipChoices) {
     if (!clipAudible(choice) || !clipSources[choice.id]) continue;
     const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), choice.id);
-    if (audio?.hasAudio) audioLayers.push({ path: audio.path, value: choice, source: clipSources[choice.id]! });
+    if (audio?.hasAudio) audioLayers.push({ kind: 'clip', path: audio.path, value: choice, source: clipSources[choice.id]!, ...(choice.span ? { span: choice.span } : {}) });
   }
-  if (audioLayers.length > 0) plan = applyClipAudio(plan, audioLayers);
+  for (const choice of layerSoundChoices(manifest, layers)) {
+    if (!soundAudible(choice)) continue;
+    const found = await resolveSoundSource(ffprobePathFor(ffmpeg.path), choice.id);
+    // A sound that cannot be read stops the render by name: a voice-over silently dropped from a
+    // delivery is worse than being told, and the person can hide the layer if they meant to.
+    if (!found) return { ok: false, message: `Template "${manifest.name}": the sound chosen for "${choice.layer}" is not in the library, is offline, or could not be read.` };
+    audioLayers.push({ kind: 'sound', path: found.path, value: choice, source: found.source, ...(choice.span ? { span: choice.span } : {}) });
+  }
+  if (audioLayers.length > 0) plan = applyLayerAudio(plan, audioLayers);
 
   // The frame size is the plan's, not the manifest's: a template draws for a shape and the
   // size is chosen per render (ADR 0012). The window, the capture check and ffmpeg agree on it.
@@ -255,6 +266,9 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
         overwrite,
         existedBefore,
       });
+      // The mix written beside a render that cannot carry it goes with it (milestone 48): a
+      // failed render leaves no orphan sound file where it left no video.
+      if (plan.audioOutput && !existedBefore.has(plan.audioOutput)) files.push(plan.audioOutput);
       await Promise.all(files.map((f) => rm(f, { force: true })));
     }
     return result;
@@ -316,8 +330,8 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     await drainPaints(win);
 
     await mkdir(dirname(plan.output), { recursive: true });
-    existedBefore = await existingFiles(
-      partialOutputFiles({
+    existedBefore = await existingFiles([
+      ...partialOutputFiles({
         output: plan.output,
         sequence: plan.preset.sequence,
         totalFrames: plan.totalFrames,
@@ -325,7 +339,8 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
         overwrite: false,
         existedBefore: new Set(),
       }),
-    );
+      ...(plan.audioOutput ? [plan.audioOutput] : []),
+    ]);
     child = spawn(ffmpeg.path, plan.args, { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });
     let stderr = '';
     child.stderr?.on('data', (chunk: Buffer) => {

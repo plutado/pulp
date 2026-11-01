@@ -18,9 +18,9 @@ import { mediaUrlFor } from '../shared/api';
 import { appState } from './store';
 
 export interface MediaPickerOptions {
-  /** Which kind of layer may be made here; a clip chooser takes Lotties too (milestone 35). */
-  layers: readonly ('image' | 'video')[];
-  /** What these are called, for the search box and the empty lines: "stills", "clips". */
+  /** Which kind of layer may be made here; a clip chooser takes Lotties too (milestone 35), a sound chooser music and voice-overs (milestone 48). */
+  layers: readonly ('image' | 'video' | 'audio')[];
+  /** What these are called, for the search box and the empty lines: "stills", "clips", "sounds". */
   noun: string;
   /** What the chooser is for, for the search box's accessible name: "Logo". */
   label: string;

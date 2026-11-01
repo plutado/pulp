@@ -18,7 +18,9 @@ import { platformPreset } from '../core/platform-presets';
 import { imageIdsIn } from '../core/image-slot';
 import { imageStamps, resolveRowImages } from './image-grant';
 import { clipStamps } from './clip-grant';
+import { soundStamps } from './sound-grant';
 import { clipIdsInLayers } from '../core/video-layer';
+import { soundIdsInLayers } from '../core/sound-layer';
 import { splitLayers } from '../core/params';
 import { cacheFileForKey, dragFileFor, evictIfNeeded, isCachedFile } from './render-cache-service';
 import { existsSync } from 'node:fs';
@@ -196,6 +198,8 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
     images: imageStamps(imageIdsIn(template.manifest.parameters, request.params)),
     // A clip a layer plays is an input like a chosen still: re-export it and this is a new render.
     clips: clipStamps(clipIdsInLayers(splitLayers(request.params).layers)),
+    // And a sound an audio layer plays (milestone 48), by the same rule.
+    sounds: soundStamps(soundIdsInLayers(splitLayers(request.params).layers)),
   });
   // Clean names (the editor shows them as clip names): lower-third-bar.mov, lower-third-bar-2.mov, keyed in the cache index.
   const { path: outputPath } = await cacheFileForKey(key, template.manifest.name, preset.extension, preset.sequence);

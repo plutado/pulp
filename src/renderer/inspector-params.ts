@@ -34,6 +34,7 @@ import {
   TEXT_OVERFLOWS,
   type Layer,
   type LayerType,
+  type AudioLayer,
   type ImageLayer,
   type LayerPlacements,
   type LayerValues,
@@ -43,11 +44,12 @@ import {
 } from '../core/layers';
 import { addRecentColor } from '../core/recent-colors';
 import { lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
-import { dimensionsLabel } from '../core/display';
+import { clockLabel, dimensionsLabel } from '../core/display';
 import { IMAGE_TREATMENTS, sanitizeImageValue, sanitizePsdChoice, type ImageValue } from '../core/image-slot';
 import { fileHiddenLayers, layersTopFirst, layerShown, placeableLayers, psdLimitSummary, type PsdOutline } from '../core/psd';
 import { hiddenDiffersFromFile, hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines } from './psd-state';
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue } from '../core/video-layer';
+import { EMPTY_SOUND, SOUND_ENDINGS, SOUND_LIMITS, type SoundEnding, type SoundValue } from '../core/sound-layer';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { setIcon, type IconName } from './icons';
 import type { MediaEntry } from '../core/library-types';
@@ -1219,6 +1221,17 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
       lookControls(blockId, layer),
     ];
   }
+  // A sound draws nothing, so it has no size, no alignment, no entrance and no look: the file it
+  // plays, how it plays, and when — which is the bar under the scrub bar (milestone 48).
+  if (layer.type === 'audio') {
+    const when = document.createElement('div');
+    when.className = 'type-grid';
+    when.append(...spanControls(blockId, layer, () => undefined));
+    return [
+      soundField(layer.sound, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, sound: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }),
+      when,
+    ];
+  }
   return [
     imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }, {
       layer: true,
@@ -1237,7 +1250,7 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
 const ENDING_LABELS: Record<ClipEnding, string> = { loop: 'Loop', once: 'Play once' };
 
 /** What the Add layer buttons say, and what a new layer of each type is called. */
-const ADD_LAYER_LABELS: Record<LayerType, string> = { text: 'Text', image: 'Image', video: 'Video' };
+const ADD_LAYER_LABELS: Record<LayerType, string> = { text: 'Text', image: 'Image', video: 'Video', audio: 'Audio' };
 
 /**
  * A video layer's clip: which clip, and how it plays. Chosen from the library
@@ -1386,6 +1399,134 @@ function clipField(
 
   choose.addEventListener('click', () => chooser.toggle());
   hide.addEventListener('click', () => set({ ...(value ?? EMPTY_CLIP), hidden: !(value?.hidden === true) }));
+  clear.addEventListener('click', () => set(null));
+  show();
+  return wrap;
+}
+
+const SOUND_ENDING_LABELS: Record<SoundEnding, string> = { loop: 'Loop', once: 'Play once' };
+
+/**
+ * An audio layer's sound: which sound, and how it plays (milestone 48).
+ * Chosen from the library only, like a clip — a sound is referenced where it
+ * lies and never imported or copied.
+ *
+ * In and out points are seconds, not frames: a sound has no frames, and a
+ * person placing music thinks "from eight seconds in".
+ */
+function soundField(
+  initial: SoundValue | null,
+  onChange: (value: SoundValue | null) => void,
+  slot: { id: string; label: string },
+): HTMLElement {
+  let value = initial;
+  const wrap = document.createElement('div');
+  wrap.className = 'image-field sound-field';
+  const meta = document.createElement('div');
+  meta.className = 'image-meta';
+  const caption = document.createElement('span');
+  caption.className = 'name';
+  const dims = document.createElement('span');
+  dims.className = 'dims';
+  const actions = document.createElement('span');
+  actions.className = 'image-actions';
+  const choose = document.createElement('button');
+  choose.type = 'button';
+  choose.className = 'ghost picker-toggle';
+  choose.textContent = 'Choose…';
+  choose.setAttribute('aria-label', `${slot.label}: choose a sound`);
+  const hide = iconButton('eye', `Hide ${slot.label}`);
+  const clear = iconButton('trash', `Clear ${slot.label}`);
+  actions.append(choose, hide, clear);
+  meta.append(caption, dims, actions);
+
+  const chooser = mediaPicker({
+    layers: ['audio'],
+    noun: 'sounds',
+    label: slot.label,
+    emptyLibrary: 'No sounds or music in the library yet. Add a folder with audio, or make the sample media.',
+    chosen: () => value?.id ?? undefined,
+    // A new sound starts from the whole of it: in and out points of the one before mean nothing here.
+    onPick: (entry) => set({ ...EMPTY_SOUND, id: entry.id, ending: value?.ending ?? EMPTY_SOUND.ending, delay: value?.delay ?? 0, volume: value?.volume ?? 1 }),
+  });
+
+  const settings = document.createElement('div');
+  settings.className = 'type-grid sound-settings';
+  const note = document.createElement('p');
+  note.className = 'note image-note';
+  wrap.append(meta, chooser.el, settings, note);
+
+  const entryFor = (id: string) => appState.value.index?.media.find((m) => m.id === id);
+  const set = (next: SoundValue | null) => {
+    value = next;
+    show();
+    onChange(next);
+    commitParams();
+  };
+  const patch = (over: Partial<SoundValue>) => {
+    if (!value) return;
+    set({ ...value, ...over });
+  };
+
+  function buildSettings(entry: MediaEntry | undefined): void {
+    settings.replaceChildren();
+    if (!value?.id || value.hidden) return;
+    const duration = entry?.meta?.duration ?? 0;
+    const limit = { min: 0, max: duration > 0 ? duration : SOUND_LIMITS.point.max };
+    settings.append(
+      typeField('In point, s', numberOf(value.inPoint, limit, 0.1, (v) => patch({ inPoint: v }), `${slot.label} in point`)),
+      // -1 is "to the end", and stays that way unless a point is named.
+      typeField('Out point, s', numberOf(value.outPoint < 0 ? limit.max : value.outPoint, limit, 0.1, (v) => patch({ outPoint: v }), `${slot.label} out point`)),
+      typeField('At the end', selectOf(SOUND_ENDINGS, SOUND_ENDING_LABELS, value.ending, (v) => patch({ ending: v }), `${slot.label} ending`)),
+      typeField('Start delay, s', numberOf(value.delay, SOUND_LIMITS.delay, 0.1, (v) => patch({ delay: v }), `${slot.label} start delay`)),
+      typeField('Volume, %', numberOf(value.volume, { min: 0, max: 1 }, 5, (v) => patch({ volume: v }), `${slot.label} volume`, 100)),
+      typeField('Muted', checkOf(value.muted, (v) => patch({ muted: v }), `${slot.label} muted`)),
+      typeField('Fade in, s', numberOf(value.fadeIn, SOUND_LIMITS.fade, 0.1, (v) => patch({ fadeIn: v }), `${slot.label} fade in`)),
+      typeField('Fade out, s', numberOf(value.fadeOut, SOUND_LIMITS.fade, 0.1, (v) => patch({ fadeOut: v }), `${slot.label} fade out`)),
+    );
+    if (duration === 0) {
+      const waiting = document.createElement('p');
+      waiting.className = 'note';
+      waiting.textContent = 'Its length is not known yet, so the whole sound plays; set in and out once the library has read it.';
+      settings.append(waiting);
+    }
+  }
+
+  function show(): void {
+    const entry = value?.id ? entryFor(value.id) : undefined;
+    const isHidden = value?.hidden === true;
+    setIcon(hide, isHidden ? 'eye-slash' : 'eye');
+    hide.setAttribute('aria-label', `${isHidden ? 'Play' : 'Hide'} ${slot.label}`);
+    hide.dataset.tip = isHidden ? 'Play it again' : 'Keep the sound but do not play it';
+    hide.setAttribute('aria-pressed', String(isHidden));
+    if (value && entry) {
+      caption.textContent = entry.name;
+      dims.textContent = entry.meta?.duration ? clockLabel(entry.meta.duration) : '';
+    } else {
+      caption.textContent = value?.id ? 'Sound not found — choose another' : 'No sound; the layer is silent';
+      dims.textContent = '';
+    }
+    clear.hidden = value === null || (isHidden && !value.id);
+    if (isHidden) caption.textContent = entry ? `${entry.name} · not played` : 'Nothing played here';
+    buildSettings(entry);
+    note.hidden = true;
+    slotProblems.delete(slot.id);
+    if (isHidden) {
+      // A hidden layer plays nothing, so a sound it no longer has is no problem.
+    } else if (value?.id && !entry) {
+      note.hidden = false;
+      note.textContent = 'The chosen sound is no longer in the library. The layer is silent until another is picked.';
+      slotProblems.set(slot.id, { label: slot.label, note: 'Not in the library; the layer is silent' });
+    } else if (entry?.offline) {
+      note.hidden = false;
+      note.textContent = 'The chosen sound\'s folder is offline.';
+      slotProblems.set(slot.id, { label: slot.label, note: 'Its folder is offline' });
+    }
+    publishSlotNotes();
+  }
+
+  choose.addEventListener('click', () => chooser.toggle());
+  hide.addEventListener('click', () => set({ ...(value ?? EMPTY_SOUND), hidden: !(value?.hidden === true) }));
   clear.addEventListener('click', () => set(null));
   show();
   return wrap;
@@ -2078,13 +2219,14 @@ function paramField(param: TemplateParameter, heading?: string): HTMLElement {
 }
 
 /**
- * A picture layer's card takes a drop from the results: a still replaces an
- * image layer's picture, a clip a video layer's clip. A drop of the wrong kind
- * is refused on the card itself rather than silently swapping a layer's type,
- * which would move it in the stack and lose its settings.
+ * A layer's card takes a drop from the results: a still replaces an image
+ * layer's picture, a clip a video layer's clip, a sound an audio layer's
+ * sound (milestone 48). A drop of the wrong kind is refused on the card
+ * itself rather than silently swapping a layer's type, which would move it in
+ * the stack and lose its settings.
  */
-function acceptItemDrop(section: HTMLElement, block: string, layer: ImageLayer | VideoLayer): void {
-  const wants = layer.type === 'video' ? 'video' : 'image';
+function acceptItemDrop(section: HTMLElement, block: string, layer: ImageLayer | VideoLayer | AudioLayer): void {
+  const wants = layer.type === 'video' ? 'video' : layer.type === 'audio' ? 'audio' : 'image';
   const entryFor = (id: string) => appState.value.index?.media.find((m) => m.id === id);
   section.addEventListener('dragover', (e) => {
     const id = e.dataTransfer?.types.includes(COLLECTION_DRAG_TYPE);
@@ -2106,7 +2248,9 @@ function acceptItemDrop(section: HTMLElement, block: string, layer: ImageLayer |
     editLayer(block, layer.id, (l) =>
       l.type === 'video'
         ? { ...l, clip: { ...EMPTY_CLIP, id } }
-        : { ...l, image: { id, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false, ...browsedPsdChoice(id) } },
+        : l.type === 'audio'
+          ? { ...l, sound: { ...EMPTY_SOUND, id } }
+          : { ...l, image: { id, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false, ...browsedPsdChoice(id) } },
     true);
     commitParams();
     // The card shows what the layer holds, so it is rebuilt: the field's own display was made
@@ -2155,7 +2299,7 @@ function paramCardEl(card: ParamCard): HTMLElement {
     section.dataset.block = card.layer.block;
     // Dropping a library item on a picture layer's card replaces what it shows (milestone 26).
     const { block, layer } = card.layer;
-    if (layer.type === 'image' || layer.type === 'video') acceptItemDrop(section, block, layer);
+    if (layer.type === 'image' || layer.type === 'video' || layer.type === 'audio') acceptItemDrop(section, block, layer);
   }
   const head = document.createElement('div');
   head.className = 'card-head';
@@ -2390,7 +2534,9 @@ export function initInspectorParams(): void {
         ? fresh
         : type === 'video'
           ? { ...fresh, clip: { ...EMPTY_CLIP, id: itemId } }
-          : { ...fresh, image: { id: itemId, treatment: 'original' as const, tint: '#ffffff', effect: 'none' as const, hidden: false, ...browsedPsdChoice(itemId) } };
+          : type === 'audio'
+            ? { ...fresh, sound: { ...EMPTY_SOUND, id: itemId } }
+            : { ...fresh, image: { id: itemId, treatment: 'original' as const, tint: '#ffffff', effect: 'none' as const, hidden: false, ...browsedPsdChoice(itemId) } };
       setLayers({ ...layers, [block.id]: [...stack, layer as Layer] }, true);
       return { block: block.id, id: fresh.id };
     },

@@ -455,6 +455,8 @@ export interface RenderPlan {
   /** The cover image beside the render, and the frame it is taken at (milestone 20). */
   coverOutput?: string;
   coverFrame?: number;
+  /** The mix written beside the render when the output has no room for an audio stream (milestone 48). */
+  audioOutput?: string;
   warnings: string[];
 }
 

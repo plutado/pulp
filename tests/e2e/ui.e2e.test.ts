@@ -1212,6 +1212,77 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+    it('adds an audio layer, with its window, delay, loop, volume and fades, heard in the preview (milestone 48)', async () => {
+      await clickResult('Title Card');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const before = await layerIds();
+      const sounds = `(window.pulpLayerSounds ? window.pulpLayerSounds() : [])`;
+      try {
+        // Audio sits beside Text, Image and Video under Add layer.
+        expect(await page.eval<string[]>(`[...${section}.querySelectorAll('.layer-add button[data-add]')].map((b) => b.textContent)`))
+          .toEqual(['Text', 'Image', 'Video', 'Audio']);
+        await page.eval(`${section}.querySelector('.layer-add button[data-add=audio]').click()`);
+        await until(async () => (await layerIds()).length === before.length + 1, 'the audio layer');
+        const layer = (await layerIds()).find((id) => !before.includes(id))!;
+        const card = `document.querySelector('#params .param-card[data-layer="${layer}"]')`;
+
+        // It draws nothing, so it has no size, no alignment and no look — only its sound and when.
+        expect(await page.eval<boolean>(`!!${card}.querySelector('.sound-field')`)).toBe(true);
+        expect(await page.eval<boolean>(`!!${card}.querySelector('.layer-look')`), 'nothing to style').toBe(false);
+        expect(await page.eval<string>(`${card}.querySelector('.sound-field .name').textContent`)).toBe('No sound; the layer is silent');
+        // And nothing is heard until one is chosen.
+        expect(await page.eval<number>(`${sounds}.length`)).toBe(0);
+
+        // Choose the bundled fixture sound from the layer's own chooser.
+        await page.eval(`${card}.querySelector('.sound-field .picker-toggle').click()`);
+        await until(() => page.eval<boolean>(`!${card}.querySelector('.image-picker').hidden`), 'the sound chooser');
+        await until(
+          () => page.eval<boolean>(
+            `(() => { const b = [...${card}.querySelectorAll('.image-picker .image-choice')].find((x) => (x.textContent || '').startsWith('silence'));
+              if (!b) return false; b.click(); return true; })()`,
+          ),
+          'the sound chosen from the chooser',
+        );
+
+        // Its settings are all there, in seconds, and the preview holds a sound for the layer.
+        const labels = () => page.eval<string[]>(`[...${card}.querySelectorAll('.sound-settings > .type-field > span')].map((s) => s.textContent)`);
+        await until(async () => (await labels()).length >= 8, 'the sound settings');
+        expect(await labels()).toEqual(['In point, s', 'Out point, s', 'At the end', 'Start delay, s', 'Volume, %', 'Muted', 'Fade in, s', 'Fade out, s']);
+        await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 1), 'the layer heard in the preview');
+        expect(await page.eval<string>(`${sounds}[0].kind`)).toBe('sound');
+        // Paused is silent: a held frame makes no sound.
+        expect(await page.eval<boolean>(`${sounds}.every((s) => !s.playing)`)).toBe(true);
+
+        // The playhead goes to the top, where the sound starts: how loud a layer is is a question
+        // about a moment, and the preview answers it for the moment on the stage.
+        await page.eval(`(() => { const s = document.getElementById('scrub'); s.value = '0'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+        // Volume reaches the element, under the transport's own.
+        const field = (name: string) => `${card}.querySelector('input[aria-label$="${name}"]')`;
+        await page.eval(`(() => { const v = ${field('volume')}; v.value = '40'; v.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<number>(`${sounds}[0] ? ${sounds}[0].volume : -1`).then((v) => Math.abs(v - 0.4) < 0.01), 'the layer volume on the element');
+
+        // A fade in means silence at the very start, where the full volume was a moment ago.
+        await page.eval(`(() => { const f = ${field('fade in')}; f.value = '2'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<number>(`${sounds}[0] ? ${sounds}[0].volume : -1`).then((v) => v === 0), 'silent at the start of its fade in');
+
+        // Muted asks for nothing to be heard, so the element goes; unmuting brings it back.
+        await page.eval(`(() => { const m = ${field('muted')}; m.checked = true; m.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 0), 'muted means nothing to hear');
+        await page.eval(`(() => { const m = ${field('muted')}; m.checked = false; m.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 1), 'and back when unmuted');
+
+        // Taking it out is one undo step, like any layer.
+        await page.eval(`${card}.querySelector('.layer-actions button[aria-label^="Remove"]').click()`);
+        await until(async () => (await layerIds()).length === before.length, 'the layer removed');
+        await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 0), 'and nothing left to hear');
+        await page.eval(`document.getElementById('undo').click()`);
+        await until(async () => (await layerIds()).length === before.length + 1, 'undo bringing it back');
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
     it('sets a layer\'s type: the family in its own face from the bundled set, and every other property, undoably', async () => {
       const title = `document.querySelector('#params .layer-row[data-layer=title]')`;
       const summary = () => page.eval<string>(`${title}.querySelector('.layer-type summary').textContent`);

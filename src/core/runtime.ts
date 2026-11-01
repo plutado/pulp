@@ -782,6 +782,9 @@ export const BRIDGE_SCRIPT = `(function () {
       (blocks[id].layers || []).forEach(function (layer) {
         if (layer.type === 'image') out[id + '.' + layer.id] = layer.image ? (pictureFor(layer) ? 'drawn' : 'no picture for ' + requestKey(layer.image)) : 'none chosen';
         if (layer.type === 'video') out[id + '.' + layer.id] = !layer.clip ? 'none chosen' : layer.frame === null ? 'not playing now' : (pictureFor(layer) ? 'drawn' : 'no frames for ' + layer.clip.id);
+        /* A sound draws nothing, and the page is never told which one it is: it is mixed by the
+           host (milestone 48). It is listed so a stack reads whole. */
+        if (layer.type === 'audio') out[id + '.' + layer.id] = 'sound, not drawn';
       });
     });
     out.cached = Object.keys(pictures).join(',');

@@ -9,6 +9,7 @@ import {
   validateBlock,
   validateLayer,
   parseLayersArgument,
+  type AudioLayer,
   type Block,
   type ImageLayer,
   type VideoLayer,
@@ -18,6 +19,7 @@ import { validateManifest, type ValidationIssue } from '../src/core/manifest';
 import { normalizeAngle } from '../src/core/layers';
 import { DEFAULT_TRANSITION } from '../src/core/layer-time';
 import { EMPTY_CLIP } from '../src/core/video-layer';
+import { EMPTY_SOUND } from '../src/core/sound-layer';
 import { rawManifest } from './fixtures';
 
 /** A lower third's block: a name over a title, the name required, room for one more line. */
@@ -98,7 +100,7 @@ describe('validateBlock', () => {
         typography: { family: '', size: 0, weight: 50, italic: 'no', case: 'caps', letterSpacing: 5, kerning: 1, lineHeight: 0, color: 'white', align: 'justify', overflow: 'ellipsis' },
         layers: [
           { id: 'a', type: 'text', label: 'A', text: 1, spaceBefore: -1, hidden: 'no', required: 'yes' },
-          { id: 'b', type: 'audio', label: 'B' },
+          { id: 'b', type: 'sticker', label: 'B' },
           { id: 'c c', type: 'image', label: 'C', size: 3, align: 'top' },
           'not a layer',
         ],
@@ -207,7 +209,7 @@ describe('parseLayersArgument', () => {
     expect(message('{"strap":{}}')).toBe('layers: "strap" must be an array of layers.');
     expect(message('{"strap":[{"id":"nmae","text":"x"}]}')).toContain('"strap" has no layer "nmae" (it has "name", "title", "mark"); to add one, give it a type of text or image');
     expect(message('{"strap":[7]}')).toBe('layers: "strap" layer 0 must be an object.');
-    expect(message('{"strap":[{"text":"x"}]}')).toContain('needs an id of one of its layers, or a type of text or image or video to add one');
+    expect(message('{"strap":[{"text":"x"}]}')).toContain('needs an id of one of its layers, or a type of text or image or video or audio to add one');
     expect(message('{"corner":[{"type":"text","text":"x"}]}')).toBe('layers: "corner" takes no more layers.');
   });
 
@@ -245,6 +247,27 @@ describe('video layers (milestone 26)', () => {
     expect(sized).toMatchObject({ size: 0.4, align: 'right' });
     const fresh = newLayer('video', { typography: videoBlock()!.typography, align: 'center' }, 'extra');
     expect(fresh).toMatchObject({ type: 'video', clip: null, label: 'Video', align: 'center' });
+  });
+
+  it('takes a sound at use time, and the template declares the slot without one (milestone 48)', () => {
+    const r = validateManifest(rawManifest({ blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, open: true, layers: [{ id: 'music', type: 'audio', label: 'Music' }] }] }));
+    if (!r.ok) throw new Error('fixture');
+    expect(r.manifest.blocks[0]!.layers[0]).toMatchObject({ type: 'audio', sound: null, label: 'Music' });
+    const { values, issues } = resolveLayers(r.manifest, { b: [{ id: 'music', sound: { id: 'snd1', inPoint: 2, outPoint: 8, ending: 'loop', volume: 0.5, fadeIn: 1, fadeOut: 2 } }] });
+    expect(issues).toEqual([]);
+    expect((values.b![0] as AudioLayer).sound).toEqual({
+      id: 'snd1', inPoint: 2, outPoint: 8, ending: 'loop', delay: 0, volume: 0.5, muted: false, fadeIn: 1, fadeOut: 2, hidden: false,
+    });
+    // A bare id is the whole sound, played once.
+    const bare = resolveLayers(r.manifest, { b: [{ id: 'music', sound: 'xyz' }] });
+    expect((bare.values.b![0] as AudioLayer).sound).toEqual({ ...EMPTY_SOUND, id: 'xyz' });
+    // A template may not ship a library id of its own, as it may not ship a clip or a picture.
+    const errors: ValidationIssue[] = [];
+    validateBlock({ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [{ id: 'm', type: 'audio', label: 'M', sound: 'snd1' }] }, 'blocks[0]', errors);
+    expect(errors.map((e) => e.path)).toEqual(['blocks[0].layers[0].sound']);
+    // Fresh from a block: an Audio layer with nothing chosen and no size or alignment to set.
+    const fresh = newLayer('audio', { typography: r.manifest.blocks[0]!.typography, align: 'center' }, 'm2');
+    expect(fresh).toEqual({ id: 'm2', label: 'Audio', required: false, hidden: false, spaceBefore: 0, type: 'audio', sound: null });
   });
 
   it('takes a clip at use time, through every route that carries raw values', () => {

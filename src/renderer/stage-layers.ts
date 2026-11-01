@@ -334,10 +334,13 @@ function dropPoint(e: DragEvent, el: HTMLElement): { x: number; y: number } {
 /**
  * Dropping a library item on the preview makes it a layer where it was
  * dropped (milestone 26): a still becomes an image layer, a clip a video
- * layer. Anything else — a sound, a template — is refused with a word about
- * why rather than ignored.
+ * layer. A sound becomes an audio layer (milestone 48) — it has no place on
+ * the picture, so it is added to the stack and not placed, and the drawer
+ * opens on its card, which is where everything about it is. Anything else —
+ * a template with words to fill in — is refused with a word about why rather
+ * than ignored.
  */
-export function mountStageDrop(el: HTMLElement, stageHost: Host, lookup: (id: string) => { kind: 'image' | 'video' | 'other'; name: string } | null, note: (text: string) => void): void {
+export function mountStageDrop(el: HTMLElement, stageHost: Host, lookup: (id: string) => { kind: 'image' | 'video' | 'audio' | 'other'; name: string } | null, note: (text: string) => void): void {
   host = stageHost;
   el.addEventListener('dragover', (e) => {
     if (!e.dataTransfer?.types.includes(COLLECTION_DRAG_TYPE)) return;
@@ -355,17 +358,18 @@ export function mountStageDrop(el: HTMLElement, stageHost: Host, lookup: (id: st
     const found = lookup(itemId);
     if (!found) return;
     if (found.kind === 'other') {
-      note('Only a picture or a clip can be dropped on the stage.');
+      note('Only a picture, a clip or a sound can be dropped on the stage.');
       return;
     }
     const editor = layerEditor();
     if (!editor) return;
-    const added = editor.addLayer(found.kind === 'video' ? 'video' : 'image', found.name, itemId);
+    const added = editor.addLayer(found.kind, found.name, itemId);
     if ('refused' in added) {
       note(added.refused);
       return;
     }
-    placeLayerAt(added.block, added.id, dropPoint(e, el));
+    // A sound is nowhere on the picture, so there is nothing to place it at.
+    if (found.kind !== 'audio') placeLayerAt(added.block, added.id, dropPoint(e, el));
   });
 }
 

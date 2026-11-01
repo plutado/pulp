@@ -23,6 +23,8 @@ export interface CacheKeyInput {
   images?: readonly ImageStamp[];
   /** The same for clips a video layer plays (milestone 26): a re-exported clip is a new render. */
   clips?: readonly ImageStamp[];
+  /** The same for sounds an audio layer plays (milestone 48): a re-cut voice-over is a new render. */
+  sounds?: readonly ImageStamp[];
 }
 
 /** Stable key for a render: same inputs, same key. 24 hex characters. */
@@ -37,7 +39,8 @@ export function cacheKey(input: CacheKeyInput): string {
   const params = Object.fromEntries(Object.entries(input.params).sort(([a], [b]) => a.localeCompare(b)));
   const images = [...(input.images ?? [])].sort((a, b) => a.id.localeCompare(b.id));
   const clips = [...(input.clips ?? [])].sort((a, b) => a.id.localeCompare(b.id));
-  const payload = JSON.stringify({ t: input.templateId, m: input.manifest, p: params, preset: input.presetId, o: input.options ?? {}, i: images, c: clips });
+  const sounds = [...(input.sounds ?? [])].sort((a, b) => a.id.localeCompare(b.id));
+  const payload = JSON.stringify({ t: input.templateId, m: input.manifest, p: params, preset: input.presetId, o: input.options ?? {}, i: images, c: clips, ...(sounds.length > 0 ? { s: sounds } : {}) });
   return createHash('sha256').update(payload).digest('hex').slice(0, 24);
 }
 

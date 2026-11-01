@@ -191,7 +191,7 @@ function applyPlayer(): void {
     el.loop = p.loop;
   }
   // The layers' own sound sits under the same volume and mute (milestone 48).
-  layerSoundsUpdate(soundTime(), s.playing, soundMaster());
+  layerSoundsUpdate(soundTime(), s.playing, soundMaster(), soundLength());
 }
 
 /**
@@ -234,6 +234,11 @@ function soundMaster(): { volume: number; muted: boolean } {
 /** Where the playhead is in seconds, for the layer sounds to follow. */
 function soundTime(): number {
   return s.frame / Math.max(1, previewFps());
+}
+
+/** How long the graphic runs for, which a looping sound's fade-out and a layer's span are measured against. */
+function soundLength(): number {
+  return previewFrames() / Math.max(1, previewFps());
 }
 
 /**
@@ -535,7 +540,7 @@ function tick(now: number): void {
   if (frame !== s.frame) requestFrame(frame);
   // Each layer's sound is held to the playhead: seeked over a loop's join, silent before its
   // delay and after a once clip has played out (milestone 48).
-  layerSoundsUpdate(frame / Math.max(1, previewFps()), true, soundMaster());
+  layerSoundsUpdate(frame / Math.max(1, previewFps()), true, soundMaster(), soundLength());
   rafId = requestAnimationFrame(tick);
 }
 
@@ -555,7 +560,7 @@ function play(): void {
   setIcon(els.play, 'pause', 24);
   els.play.setAttribute('aria-label', 'Pause');
   publishTransport();
-  layerSoundsUpdate(soundTime(), true, soundMaster());
+  layerSoundsUpdate(soundTime(), true, soundMaster(), soundLength());
   rafId = requestAnimationFrame(tick);
 }
 
@@ -637,6 +642,8 @@ function drawWaveform(entry: MediaEntry): void {
 export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, layers: LayerValues = {}): void {
   stageStop();
   clearMediaPreview();
+  // A different template is a different mix: the sounds go with the stack they played for, and
+  // the new stack's own are picked up below (milestone 48).
   layerSoundsClear();
   clearNote();
   // A different template is a different stack: nothing stays selected across the change.
@@ -665,6 +672,8 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
   }
   els.scrub.max = String(previewFrames() - 1);
   els.scrub.value = String(s.frame);
+  // An audio layer needs no clip sources and no page: its sound can play the moment it is shown.
+  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor);
   updateTransport();
   applyLayerBars();
 }
@@ -860,7 +869,7 @@ export function stageSetParams(params: ResolvedParams, layers: LayerValues = {},
   s.layers = layers;
   // A changed volume, mute or clip takes effect mid-play (milestone 48); new clips join when their sources land.
   layerSoundsSync(s.layers, s.clipSources, mediaEntryFor);
-  layerSoundsUpdate(soundTime(), s.playing, soundMaster());
+  layerSoundsUpdate(soundTime(), s.playing, soundMaster(), soundLength());
   // A new length changes how many frames there are, so the scrub bar and the playhead follow it.
   if (length !== s.length) {
     s.length = length;
@@ -1078,9 +1087,10 @@ export function initStage(): void {
     els.previewFrame,
     { frameSize: () => previewSize() },
     (id) => {
-      // A still, a clip, or a Lottie animation, which becomes a clip layer (milestone 35);
-      // anything else — a sound, a template — is refused with a word about why.
-      const found = searchPlaceable(appState.value.index).find((m) => m.id === id);
+      // A still, a clip, or a Lottie animation, which becomes a clip layer (milestone 35); a
+      // sound or a piece of music, which becomes an audio layer (milestone 48); anything else —
+      // a template with words to fill in — is refused with a word about why.
+      const found = searchPlaceable(appState.value.index, { layers: ['image', 'video', 'audio'] }).find((m) => m.id === id);
       if (found) return { kind: found.layer, name: found.name };
       const entry = appState.value.index?.media.find((m) => m.id === id);
       return entry ? { kind: 'other', name: entry.name } : null;

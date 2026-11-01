@@ -31,6 +31,7 @@ import type { LayerLook } from './layer-look';
 import { DEFAULT_MAX_LINES, IDENTITY_PLACEMENT, placementFor, type Block, type ImageLayer, type Layer, type LayerValues, type TextCase, type TextLayer, type VideoLayer } from './layers';
 import type { TemplateManifest } from './manifest';
 import { clipWindowIndexAt, type ClipSource, type ClipValue } from './video-layer';
+import type { SoundValue } from './sound-layer';
 
 /**
  * The line box a text layer occupies: ascent above the baseline, descent below,
@@ -435,7 +436,10 @@ export interface ClipContext {
 export function blockState(block: Block, layers: readonly Layer[], size: Size, clips?: ClipContext): BlockState {
   const frac = boxFor(block.box, size);
   const short = Math.min(size.width, size.height);
-  const drawn = layers.filter((l) => !l.hidden);
+  // Hidden layers are left out so the stack closes up, and so are audio layers: a sound draws
+  // nothing, and a position in the drawn stack is what a template animates by, so one spent on
+  // something invisible would move every layer below it (milestone 48).
+  const drawn = layers.filter((l) => !l.hidden && l.type !== 'audio');
   return {
     id: block.id,
     label: block.label,
@@ -455,7 +459,7 @@ function layerState(layer: Layer, position: number, short: number, size: Size, c
   const placement = placed === IDENTITY_PLACEMENT
     ? { ...IDENTITY_PLACEMENT }
     : { dx: placed.dx * size.width, dy: placed.dy * size.height, scale: placed.scale, rotate: placed.rotate };
-  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.align ?? 'left', placement, ...(layer.transition ? { transition: layer.transition } : {}), ...(layer.span ? { span: layer.span } : {}), ...(layer.look ? { look: layer.look } : {}) };
+  const base = { id: layer.id, label: layer.label, position, spaceBefore: layer.spaceBefore * short, align: layer.type === 'audio' ? ('left' as const) : (layer.align ?? 'left'), placement, ...(layer.transition ? { transition: layer.transition } : {}), ...(layer.span ? { span: layer.span } : {}), ...(layer.look ? { look: layer.look } : {}) };
   if (layer.type === 'text') {
     const text = layer as TextLayer;
     return {
@@ -483,6 +487,8 @@ function layerState(layer: Layer, position: number, short: number, size: Size, c
     const frame = video.clip && source ? clipWindowIndexAt(clips?.time ?? 0, video.clip, source) : null;
     return { ...base, type: 'video', clip: video.clip, size: video.size * short, align: video.align, frame };
   }
+  // An audio layer never reaches here: it draws nothing, so `blockState` leaves it out of the
+  // drawn stack entirely, and the page is never handed one (milestone 48).
   const image = layer as ImageLayer;
   return { ...base, type: 'image', image: image.image, size: image.size * short, align: image.align };
 }
@@ -535,12 +541,38 @@ export function layerTexts(blocks: Record<string, BlockState>): Record<string, s
   return out;
 }
 
-/** The clips the blocks' layers have chosen and draw: one entry per video layer with a clip to show. */
-export function layerClipChoices(blocks: Record<string, BlockState>): (ClipValue & { id: string })[] {
-  const out: (ClipValue & { id: string })[] = [];
+/**
+ * The clips the blocks' layers have chosen and draw: one entry per video
+ * layer with a clip to show. Each carries where it sits — the block and layer
+ * it belongs to, and the span it is on screen for — since a clip's sound is
+ * heard only while its layer is (milestone 48).
+ */
+export function layerClipChoices(blocks: Record<string, BlockState>): (ClipValue & { id: string; block: string; layer: string; span?: LayerSpan })[] {
+  const out: (ClipValue & { id: string; block: string; layer: string; span?: LayerSpan })[] = [];
   for (const block of Object.values(blocks)) {
     for (const layer of block.layers) {
-      if (layer.type === 'video' && layer.clip?.id && !layer.clip.hidden) out.push(layer.clip as ClipValue & { id: string });
+      if (layer.type !== 'video' || !layer.clip?.id || layer.clip.hidden) continue;
+      out.push({ ...(layer.clip as ClipValue & { id: string }), block: block.id, layer: layer.id, ...(layer.span ? { span: layer.span } : {}) });
+    }
+  }
+  return out;
+}
+
+/**
+ * The sounds the layers have chosen and play (milestone 48): one entry per
+ * audio layer with something to be heard, with where it sits — the block and
+ * layer it belongs to, and the span it is heard over.
+ *
+ * Read from the stacks rather than from the laid-out blocks, because an audio
+ * layer is never laid out: it draws nothing, so it is not in the drawn stack
+ * the page is handed, and the page is never told which sound a project uses.
+ */
+export function layerSoundChoices(manifest: Pick<TemplateManifest, 'blocks'>, layers: LayerValues): (SoundValue & { id: string; block: string; layer: string; span?: LayerSpan })[] {
+  const out: (SoundValue & { id: string; block: string; layer: string; span?: LayerSpan })[] = [];
+  for (const block of manifest.blocks) {
+    for (const layer of layers[block.id] ?? block.layers) {
+      if (layer.type !== 'audio' || layer.hidden || !layer.sound?.id || layer.sound.hidden) continue;
+      out.push({ ...(layer.sound as SoundValue & { id: string }), block: block.id, layer: layer.id, ...(layer.span ? { span: layer.span } : {}) });
     }
   }
   return out;

@@ -1020,6 +1020,119 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await probeAudio(join(out, 'sound-pro.mov')))?.codec_name).toBe('pcm_s16le');
   }, 240_000);
 
+  it('an audio layer puts music or a voice-over in the project, with its window, delay, loop and fades, and the whole mix is rendered (milestone 48)', async () => {
+    // A one-second tone and a four-second one at another pitch, so each can be told from the
+    // other in the mix, and a two-second silent clip for the picture under them.
+    const lib = join(out, 'audio-layer-library');
+    await mkdir(lib, { recursive: true });
+    const tone = async (file: string, frequency: number, seconds: number) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs([
+        '-v', 'error', '-y', '-f', 'lavfi', '-i', `sine=frequency=${frequency}:duration=${seconds}`, '-c:a', 'pcm_s16le', join(lib, file),
+      ]), { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(r.code, r.stderr).toBe(0);
+      return itemId(`media:${join(lib, file)}`);
+    };
+    const shortId = await tone('blip.wav', 880, 1);
+    const longId = await tone('bed.wav', 220, 4);
+    const common = ['--library', FIXTURES, '--library', lib];
+    /** One audio layer added to the fixture's open block. */
+    const audio = (sound: unknown, over: Record<string, unknown> = {}) =>
+      ['--param', `@layers=${JSON.stringify({ stack: [{ id: 'music', type: 'audio', sound, ...over }] })}`];
+
+    /** Loudest moment of a stretch of the file's sound, in dB (0 is full scale). */
+    const maxVolume = async (file: string, from = 0, to?: number): Promise<number> => {
+      const trim = `atrim=start=${from}${to !== undefined ? `:end=${to}` : ''},asetpts=PTS-STARTPTS,`;
+      const r = await runBounded(ffmpeg, ffmpegArgs(['-i', file, '-af', `${trim}volumedetect`, '-f', 'null', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
+      const m = /max_volume:\s*(-?[\d.]+) dB/.exec(r.stderr);
+      expect(m, r.stderr.slice(-2000)).not.toBeNull();
+      return Number(m![1]);
+    };
+    const probeAudio = async (file: string) => {
+      const { stdout, stderr } = await runBounded(ffprobe, [
+        '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name,duration', '-of', 'json', file,
+      ], { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(stdout, stderr).not.toBe('');
+      return (JSON.parse(stdout) as { streams?: { codec_name?: string; duration?: string }[] }).streams?.[0] ?? null;
+    };
+
+    // A bed under the whole two-second graphic: the layer is heard throughout and the file is AAC.
+    const bed = await render('pulp.test.video-layer', 'h264-mp4', 'audio-bed', { extra: [...common, ...audio(longId)] });
+    expect(bed.code, bed.stderr).toBe(0);
+    const stream = await probeAudio(join(out, 'audio-bed.mp4'));
+    expect(stream?.codec_name).toBe('aac');
+    expect(Number(stream?.duration), 'the mix is the graphic\'s own length').toBeCloseTo(2, 0);
+    const level = await maxVolume(join(out, 'audio-bed.mp4'));
+    expect(level, 'the bed is there').toBeGreaterThan(-24);
+
+    // In and out points take a stretch of the file; a start delay holds it back.
+    const windowed = await render('pulp.test.video-layer', 'h264-mp4', 'audio-window', {
+      extra: [...common, ...audio({ id: longId, inPoint: 1, outPoint: 2, ending: 'once', delay: 1 })],
+    });
+    expect(windowed.code, windowed.stderr).toBe(0);
+    expect(await maxVolume(join(out, 'audio-window.mp4'), 0, 0.9), 'silence before the delay').toBeLessThan(-50);
+    expect(await maxVolume(join(out, 'audio-window.mp4'), 1.1, 1.9), 'and the second it was given').toBeGreaterThan(-24);
+
+    // Looping: a one-second sound fills a two-second graphic, so its second pass is there too.
+    const looped = await render('pulp.test.video-layer', 'h264-mp4', 'audio-loop', {
+      extra: [...common, ...audio({ id: shortId, ending: 'loop' })],
+    });
+    expect(looped.code, looped.stderr).toBe(0);
+    expect(await maxVolume(join(out, 'audio-loop.mp4'), 1.2, 1.9), 'the loop comes round').toBeGreaterThan(-24);
+
+    // Fades: a two-second fade in over a two-second graphic is quiet at the start and full at the end.
+    const faded = await render('pulp.test.video-layer', 'h264-mp4', 'audio-fade', {
+      extra: [...common, ...audio({ id: longId, fadeIn: 2 })],
+    });
+    expect(faded.code, faded.stderr).toBe(0);
+    const early = await maxVolume(join(out, 'audio-fade.mp4'), 0, 0.3);
+    const late = await maxVolume(join(out, 'audio-fade.mp4'), 1.6, 2);
+    expect(late - early, 'the fade in really rises').toBeGreaterThan(8);
+
+    // The layer's span holds its sound: dragging the bar under the scrub bar moves the music.
+    const spanned = await render('pulp.test.video-layer', 'h264-mp4', 'audio-span', {
+      extra: [...common, ...audio(longId, { span: { start: 1, end: null } })],
+    });
+    expect(spanned.code, spanned.stderr).toBe(0);
+    expect(await maxVolume(join(out, 'audio-span.mp4'), 0, 0.9), 'silent before its span').toBeLessThan(-50);
+    expect(await maxVolume(join(out, 'audio-span.mp4'), 1.2, 1.9), 'and heard inside it').toBeGreaterThan(-24);
+
+    // Muted, and hidden: the render carries no audio stream at all, as a silent project does.
+    for (const [name, value] of [['audio-muted', { id: longId, muted: true }], ['audio-hidden', { id: longId, hidden: true }]] as const) {
+      const silent = await render('pulp.test.video-layer', 'h264-mp4', name, { extra: [...common, ...audio(value)] });
+      expect(silent.code, silent.stderr).toBe(0);
+      expect(await probeAudio(join(out, `${name}.mp4`)), name).toBeNull();
+    }
+
+    // An output with no room for sound gets the mix beside it as a WAV, of the same length.
+    const seq = await render('pulp.test.video-layer', 'png-sequence', 'audio-seq', { extra: [...common, ...audio(longId)] });
+    expect(seq.code, seq.stderr).toBe(0);
+    const wav = join(out, 'audio-seq-audio.wav');
+    expect(existsSync(wav), 'the mix beside the sequence').toBe(true);
+    expect(Number((await probeAudio(wav))?.duration)).toBeCloseTo(2, 0);
+    expect(await maxVolume(wav)).toBeGreaterThan(-24);
+    // And a silent project writes none.
+    const quiet = await render('pulp.test.video-layer', 'png-sequence', 'audio-seq-quiet', { extra: common });
+    expect(quiet.code, quiet.stderr).toBe(0);
+    expect(existsSync(join(out, 'audio-seq-quiet-audio.wav'))).toBe(false);
+
+    // Two layers together: a clip's own sound and an audio layer, one mix.
+    const both = await render('pulp.test.video-layer', 'h264-mp4', 'audio-both', {
+      extra: [
+        ...common,
+        '--param',
+        `@layers=${JSON.stringify({ stack: [{ id: 'plate', clip: null }, { id: 'music', type: 'audio', sound: { id: longId, volume: 0.5 } }] })}`,
+      ],
+    });
+    expect(both.code, both.stderr).toBe(0);
+    expect((await probeAudio(join(out, 'audio-both.mp4')))?.codec_name).toBe('aac');
+    expect(await maxVolume(join(out, 'audio-both.mp4'))).toBeGreaterThan(-30);
+
+    // A sound the library cannot answer for stops the render by name rather than going quiet.
+    const missing = await render('pulp.test.video-layer', 'h264-mp4', 'audio-missing', { extra: [...common, ...audio('not-a-real-id')] });
+    expect(missing.code).toBe(1);
+    expect(missing.stderr).toContain('the sound chosen for "music"');
+  }, 300_000);
+
   it('plays a clip inside a graphic, on the template\'s own time (milestone 26)', async () => {
     // A transparent clip whose red square moves left to right over its 30 frames, so which frame
     // was drawn can be read off the rendered picture. The library sees it by path, as any clip.

@@ -161,7 +161,7 @@ A block:
 | `typography` | object | no | What the block's text layers start from; any of the text properties below. Unnamed properties take the built-in defaults (Inter, 0.06, 400, white, wrap). |
 | `layers` | object[] | no | The template's own layers, in stack order. Default `[]`: a block the user fills. |
 
-A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text`, `image` or `video`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `transition` (how it arrives and how it leaves; see **A layer's own entrance and exit** below), `span` (when it comes and goes; see **A layer's own start and end**) and `look` (see **A layer's own look**). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
+A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text`, `image`, `video` or `audio`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `transition` (how it arrives and how it leaves; see **A layer's own entrance and exit** below), `span` (when it comes and goes; see **A layer's own start and end**) and `look` (see **A layer's own look**). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
 
 | Property | Type | Description |
 |---|---|---|
@@ -236,6 +236,12 @@ Where no stretch survives all three, the template declares no structure and keep
 A `video` layer plays a clip inside the graphic (milestone 26). It takes its room exactly as an image layer does — `size` is a height as a fraction of the frame's short side, the width follows the clip's shape, and `align` places it across the block — and like an image layer it carries **no clip of its own**: a template ships no library ids, so `clip` is left out or `null` and the person using the template chooses one.
 
 What they choose carries the clip's id with how it plays: an in point and an out point in clip frames, `loop` or `once` at the end, a `speed` (1 is the recorded rate) and a `delay` in seconds before it starts. The host decides which frame of the clip belongs to each moment of the graphic and hands the page that frame; a clip played `once` **clears** when it reaches its out point rather than freezing on the last frame, and a layer that is not playing takes no room at all, so the stack closes up around it. Templates need no code for any of this: a block drawn with `pulpLayoutBlock` and `pulpDrawBlock` plays its video layers already.
+
+#### Audio layers
+
+An `audio` layer is a piece of music or a voice-over in the project (milestone 48). It **draws nothing and takes no room**: it is a layer because that is where a project keeps the things it is made of, and because it then gets a bar under the scrub bar, a span, hiding, ordering and every route a layer travels — projects, presets, collections and the command line. It has no `size`, no `align`, no `transition` and no `look`, and like an image or a video layer it carries **no sound of its own**: `sound` is left out or `null` and the person using the template chooses one.
+
+What they choose carries the sound's id with how it plays: an in point and an out point **in seconds** of the file (a sound has no frames, and `-1` as the out point means "to the end"), `loop` or `once` at the end, a `delay` in seconds before it starts, a `volume` from 0 to 1, `muted`, and a `fadeIn` and `fadeOut` in seconds. The host mixes it under the picture in the preview and in the render; a layer's `span` holds its sound as it holds a picture, so dragging the bar under the scrub bar moves when the music is heard. A sound that loops fades out at the end of the graphic, which is the only end a loop has. Templates need no code for any of this: nothing of an audio layer reaches the page.
 
 #### A layer's own entrance and exit
 

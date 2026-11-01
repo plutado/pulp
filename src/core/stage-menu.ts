@@ -365,7 +365,7 @@ export const NEW_TEXT_WORDS = 'Text';
 export function addedLayer(type: LayerType, block: Pick<Block, 'typography' | 'align'>, stack: readonly Layer[], label?: string): Layer {
   // The words the Parameters tab's own Add buttons use, so a layer added there and one added
   // on the stage are named alike.
-  const stem = type === 'text' ? 'Line' : type === 'video' ? 'Video' : 'Image';
+  const stem = type === 'text' ? 'Line' : type === 'video' ? 'Video' : type === 'audio' ? 'Sound' : 'Image';
   const made = newLayer(type, block, freeLayerId(stack, type), freeLayerLabel(stack, label ?? `${stem} ${stack.length + 1}`));
   return made.type === 'text' ? { ...made, text: NEW_TEXT_WORDS } : made;
 }

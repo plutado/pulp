@@ -18,6 +18,7 @@
 
 import { sanitizeImageValue, validateSlotBoxes, type ImageValue, type SlotBoxes } from './image-slot';
 import { sanitizeClipValue, type ClipValue } from './video-layer';
+import { sanitizeSoundValue, type SoundValue } from './sound-layer';
 import {
   DEFAULT_TRANSITION, DEFAULT_TRANSITIONS, isTemplateMovement, isWholeGraphic, LAYER_TRANSITIONS, roundSeconds,
   TRANSITION_DIRECTIONS, TRANSITION_LIMITS, type LayerSpan, type LayerTransition, type LayerTransitions,
@@ -26,7 +27,7 @@ import { hasShadow, lookFromImageEffect, readLook, type LayerLook } from './laye
 import { MAX_LENGTH_SECONDS } from './timing';
 import { isValidColor, type TemplateManifest, type ValidationIssue } from './manifest';
 
-export const LAYER_TYPES = ['text', 'image', 'video'] as const;
+export const LAYER_TYPES = ['text', 'image', 'video', 'audio'] as const;
 export type LayerType = (typeof LAYER_TYPES)[number];
 
 export const BLOCK_DIRECTIONS = ['column', 'row'] as const;
@@ -217,6 +218,20 @@ export interface VideoLayer extends LayerBase {
   align: LayerAlign;
 }
 
+/**
+ * A sound inside the graphic (milestone 48): music under the whole piece, or
+ * a voice-over. It draws nothing and takes no room in its block — it is a
+ * layer because that is where a project keeps the things it is made of, and
+ * because it then gets a bar under the scrub bar, a span, hiding, ordering
+ * and every route a layer travels: projects, presets, collections and the
+ * command line. `sound` says which sound and how it plays (`sound-layer.ts`).
+ */
+export interface AudioLayer extends LayerBase {
+  type: 'audio';
+  /** A library sound with its in and out points, ending, delay, volume and fades, or null: nothing chosen, nothing heard. */
+  sound: SoundValue | null;
+}
+
 export interface ImageLayer extends LayerBase {
   type: 'image';
   /** A library still with its treatment (milestone 22), or null: nothing chosen, nothing drawn, no room taken. */
@@ -226,7 +241,7 @@ export interface ImageLayer extends LayerBase {
   align: LayerAlign;
 }
 
-export type Layer = TextLayer | ImageLayer | VideoLayer;
+export type Layer = TextLayer | ImageLayer | VideoLayer | AudioLayer;
 
 /** Layers that take their room from a picture rather than from type. */
 export type PictureLayer = ImageLayer | VideoLayer;
@@ -556,9 +571,10 @@ function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issu
 
 /** A fresh layer of a type, as a block hands it out: the block's typography, the default image size, nothing required. */
 export function newLayer(type: LayerType, block: Pick<Block, 'typography' | 'align'>, id: string, label?: string): Layer {
-  const fallbackLabel = type === 'text' ? 'Text' : type === 'video' ? 'Video' : 'Image';
+  const fallbackLabel = type === 'text' ? 'Text' : type === 'video' ? 'Video' : type === 'audio' ? 'Audio' : 'Image';
   const base: LayerBase = { id, label: label ?? fallbackLabel, required: false, hidden: false, spaceBefore: 0 };
   if (type === 'text') return { ...base, ...block.typography, type: 'text', text: '', maxLines: DEFAULT_MAX_LINES };
+  if (type === 'audio') return { ...base, type: 'audio', sound: null };
   if (type === 'video') return { ...base, type: 'video', clip: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
   return { ...base, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
 }
@@ -596,6 +612,10 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
       else issue('maxLines', `must be an integer from ${LAYER_LIMITS.maxLines.min} to ${LAYER_LIMITS.maxLines.max}`);
     }
     layer = { ...common, ...readTypography(raw, block.typography, path, issue), type: 'text', text: typeof raw.text === 'string' ? raw.text : '', maxLines };
+  } else if (raw.type === 'audio') {
+    // A template ships no library ids, so it declares the slot and never the sound.
+    if (raw.sound !== undefined && raw.sound !== null) issue('sound', 'an audio layer has no sound of its own: leave it out or set it to null');
+    layer = { ...common, type: 'audio', sound: null };
   } else {
     // A template ships no library ids, so neither an image nor a clip is declared here.
     const chosen = raw.type === 'video' ? 'clip' : 'image';
@@ -731,6 +751,16 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
       else issue('maxLines', `must be an integer from ${LAYER_LIMITS.maxLines.min} to ${LAYER_LIMITS.maxLines.max}`);
     }
     return settled({ ...base, ...common, ...typography, text, maxLines });
+  }
+  if (base.type === 'audio') {
+    let sound = base.sound;
+    if (raw.sound !== undefined) {
+      const value = sanitizeSoundValue(raw.sound);
+      if (value === undefined) issue('sound', 'must be a library id with optional in, out, ending, delay, volume and fades, or null');
+      else sound = value;
+    }
+    void block;
+    return settled({ ...base, ...common, sound });
   }
   let image = base.type === 'image' ? base.image : null;
   if (base.type === 'image' && raw.image !== undefined) {

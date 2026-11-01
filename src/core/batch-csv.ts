@@ -8,6 +8,7 @@
 
 import { defaultLayers, type Block, type LayerValues } from './layers';
 import { clipValueFromText } from './video-layer';
+import { soundValueFromText } from './sound-layer';
 import type { TemplateManifest } from './manifest';
 import { LAYERS_KEY } from './params';
 
@@ -27,7 +28,7 @@ export interface BatchPlan {
    * columns that matched. A layer's `settings` column (milestone 28) carries the rest of what a
    * layer can be given, as JSON: its span, transitions, look, placement, or hidden.
    */
-  columns: { header: string; paramId: string; layer?: { block: string; id: string; type: 'text' | 'video' | 'image'; settings?: true } }[];
+  columns: { header: string; paramId: string; layer?: { block: string; id: string; type: 'text' | 'video' | 'image' | 'audio'; settings?: true } }[];
   /** The column used for job and file names, if any. */
   nameColumn?: string;
   unknownColumns: string[];
@@ -111,10 +112,11 @@ export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blo
     byKey.set(p.label.trim().toLowerCase(), p.id);
   }
   // A column may name a layer too, by its id or label: the words of a lower third's name line,
-  // or the clip a video layer plays (milestone 26, written as `clipValueToText` writes it). And
+  // the clip a video layer plays (milestone 26, written as `clipValueToText` writes it), or the
+  // sound an audio layer plays (milestone 48, as `soundValueToText` writes it). And
   // "<layer> settings" takes everything else a layer can be given, as one JSON object per row
   // (milestone 28): {"span":{"start":2},"transition":{"in":{"type":"fade"}},"look":{"opacity":0.5}}.
-  type LayerColumn = { block: string; id: string; type: 'text' | 'video' | 'image'; settings?: true };
+  type LayerColumn = { block: string; id: string; type: 'text' | 'video' | 'image' | 'audio'; settings?: true };
   const layerByKey = new Map<string, LayerColumn>();
   for (const block of manifest.blocks ?? []) {
     for (const layer of block.layers) {
@@ -188,6 +190,7 @@ export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blo
         if (l.type === 'text') return { ...l, text: v };
         // A video layer's cell is a clip id, optionally with its in, out, ending, speed and delay.
         if (l.type === 'video') return { ...l, clip: clipValueFromText(v) };
+        if (l.type === 'audio') return { ...l, sound: soundValueFromText(v) };
         return l;
       });
     });
