@@ -8,7 +8,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 **Milestone 42, nothing empty takes room from the stage, is done:** an empty collection tray is not in the window at all and appears with the first item; empty results fold to their heading, which says why and offers the way out; the status bar's items sit at the end of the transport row, so the window has one fixed row fewer; in a short window the row's controls share one line; and on a window where the browse panel would squeeze the stage it opens folded to its rail. **Milestone 35, Lottie animations, is done before it:** a `.json` or `.lottie` is read, played, recoloured, rendered with alpha, timed from its markers and dropped onto a template as a layer, with twenty CC0 animations bundled. **Milestone 41, search and browse in the left panel, is done before it:** the row above the stage is gone — Search and Browse are two sections of the left panel, how the results are shown sits in the results' heading, the stage starts at the window's top edge, and Cmd/Ctrl+F or the rail's search icon puts the caret in the field from anywhere (ADR 0018). **Milestone 40, one search wherever you search, is done before it:** every chooser asks the library through the one `searchMedia`, so the search bar's query language and ranking hold in a picture or clip chooser and in the stage's asset list, and the two choosers are one. **Milestone 39, a right-click menu on the stage, is done before it:** the common layer edits — cut, copy, paste, duplicate, delete, layer order, copy and paste look, reset, start or end at the playhead, edit a line's words, replace a picture or a clip — adding text or an asset where you click, and the stage's own background (now with mid-grey), theater and add-to-collection over bare picture, opened by the pointer or by Shift+F10 and the Menu key, all built from the application menu's own command list and held to it by a test (ADR 0017). **Milestone 38, a bigger stage, is done before it:** the inspector's Parameters, Output and Info are three buttons in the transport row that open a drawer over the results — never over the stage — the right column is gone, so the stage and the results span from the browse panel's edge to the window's right edge, the view controls are a quiet overlay on the stage's corner, and the window fits at every size: the page never scrolls, nothing overlaps, and the picture gets its share, held by a UI test at the default 1280 × 788. Milestone 37, the transport row, is done before it: the player's controls sit in one row across the bottom of the window, above the status bar, the scrub bar and the bars per layer at the window's width, and the stage is only the picture. Milestone 27, projects and the application menu, is done before it: a session saves as a `.pulp` project — guarded, recovered and relinked — and Pulp has its own menu on every platform. Milestone 28 is done before it — a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar — and milestone 30 before that — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 355 bundled CC0 templates, a 625-file sample-media catalogue, 66 types / 51 themes / 11 styles in the taxonomy, every type at least ten deep, every theme at least six with three assets of its own.
 
-What is left for 1.0: popping out the stage (43), still backgrounds to 32 and a still image output (44), effects (45) and objects (46) on transparency, social-ready export (20), sound in a project (48), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those comes stock library import (32); Lottie animations (35) are done but for one post-1.0 item; a deeper library (36), the transport row (37), the stage's right-click menu (39), one search in every chooser (40), search and browse in the left panel (41), nothing empty taking room from the stage (42), the start screen (31), the browse panel that says what things are (34, all but its card sort), layered graphics (33) and converting library media (15) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
+What is left for 1.0: popping out the stage (43), still backgrounds to 32 and a still image output (44), effects (45) and objects (46) on transparency, social-ready export (20), sound in a project (48), a cut track (49), captions from speech (50), keyframes on layers (51), clip clean-up for compositing (52), 1.0 hardening and docs (8), then packaging — unsigned builds (17) and signing (7). Before those comes stock library import (32); Lottie animations (35) are done but for one post-1.0 item; a deeper library (36), the transport row (37), the stage's right-click menu (39), one search in every chooser (40), search and browse in the left panel (41), nothing empty taking room from the stage (42), the start screen (31), the browse panel that says what things are (34, all but its card sort), layered graphics (33) and converting library media (15) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
 
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. A decision is written here as soon as it is made — a new milestone, or items in an existing one — even when it is low priority and may never be built, so everything decided is visible in one place; `docs/ideas.md` keeps only ideas not yet decided and known issues. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
@@ -57,15 +57,19 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 47. One Add menu in the browse header (**done**) | 3-5 h |
 | 20. Social-ready export | 9-14 h |
 | 48. Sound in a project | 19-30 h |
+| 49. A cut track | 40-60 h |
+| 50. Captions from speech | 20-32 h |
+| 51. Keyframes on layers | 12-20 h |
+| 52. Clip clean-up for compositing | 10-16 h |
 | 8. 1.0 hardening and docs | 14-23 h |
 | 17. Unsigned builds and releases | 8-14 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
 | 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
-| **Total through 1.0 (every milestone above not marked post-1.0)** | **653-1057 h** |
-| **Still open through 1.0 (unticked items only)** | **83-136 h** |
-| **Total including post-1.0 items** | **679-1105 h** |
+| **Total through 1.0 (every milestone above not marked post-1.0)** | **735-1185 h** |
+| **Still open through 1.0 (unticked items only)** | **165-264 h** |
+| **Total including post-1.0 items** | **761-1233 h** |
 
 ## 0. Foundation (done)
 
@@ -604,6 +608,48 @@ Decided 2026-11-01. A project is a picture with no sound. A clip placed as a vid
 - [ ] **Kept everywhere a layer is kept:** projects, presets, collections and `--param @layers` on the command line; relinking a moved sound like a moved clip; tests that a render has an audio stream of the right length and level, and a UI test that adds a sound, sees its waveform and hears nothing when it is muted (2-3 h)
 
 Milestone 16 builds on this after 1.0: template stingers, paired sound effects and stems become kinds of audio layer rather than a separate path.
+
+## 49. A cut track (40-60 h; GitHub issue #51)
+
+Decided 2026-11-01, with milestones 50 to 52. With sound in a project (48) and the platform presets of milestone 20, Pulp is close to finishing a short on its own: record, cut, caption, add music, export for the platform. These four close the gap with the consumer short-form editors people use for that, before 1.0, while Pulp's first purpose stays the same — making what goes into an editing app. Each one is held to that: the cut track exports its edit for an editing app, captions render as an alpha track and as subtitle files, and clean-up turns footage into assets with alpha. Left out on purpose, because they need accounts, credits or sending media off the machine: generated video and pictures, cloned or dubbed voices, cloud storage and teams, sticker and GIF services, and posting through a platform's API.
+
+A project today is one moment: layers over a template or a clip. This gives it a picture track of clips cut end to end under those layers — deliberately one track, not an editing app's many: the shots of a short, with graphics, captions and sound above them.
+
+- [ ] **The cut track:** a project can hold clips end to end under its layers, dropped from the results onto the track or the stage; the project's length follows the track, and a project without one works as now (6-9 h)
+- [ ] **Split, trim and ripple:** split at the playhead (Cmd/Ctrl+B), trim either end by dragging, ripple delete, move a clip along the track, snapping to cuts, the playhead and the in and out marks; every gesture is one undo step (8-12 h)
+- [ ] **Transitions on a cut:** a dissolve, a dip to a colour, and any bundled wipe dropped on a cut, with a duration taken from both sides (5-8 h)
+- [ ] **Each clip's sound follows it** into milestone 48's mix, with its waveform on the track; unlinking a clip's sound allows J and L cuts (4-6 h)
+- [ ] **Silence removal:** quiet stretches found with ffmpeg's silence detection, a threshold and a minimum length, shown on the track before anything is cut, and cut in one undo step (4-6 h)
+- [ ] **Play, render and hand over:** frame-accurate playback across cuts on proxies; the whole rendered as one file in every preset; and the edit exported for an editing app (FCPXML, and an EDL or OpenTimelineIO where they carry it) with the clips referenced in place and the graphics above them rendered with alpha, so an assembly started in Pulp is finished there (8-12 h)
+- [ ] **Kept everywhere:** projects, relinking, the command line; unit tests for the track's arithmetic and a UI test that cuts, trims, ripples and renders (5-7 h)
+
+## 50. Captions from speech (20-32 h; GitHub issue #52)
+
+Decided 2026-11-01 with milestone 49. Captions are the most used thing people make for short video, and they are graphics: Pulp should make them from speech and hand them over the way it hands over a lower third.
+
+- [ ] **On-device transcription:** a speech model run locally, fetched on first use after asking, checked against its checksum and kept beside the settings; words with their timings from a clip, an audio layer or the cut track's mix. Nothing leaves the machine (6-9 h)
+- [ ] **A captions layer:** lines broken by length and by pauses, the words editable with their timings kept, lines split and merged (4-6 h)
+- [ ] **Caption styles:** caption templates in the template format, with the spoken word highlighted, placed inside the safe area for each aspect (4-7 h)
+- [ ] **Output:** burned into the render, rendered alone as an alpha caption track for an editing app, and written as SRT and WebVTT beside the video (3-5 h)
+- [ ] **Languages and tests:** the model's languages offered, a transcription test on a bundled spoken sample, render and subtitle-file tests (3-5 h)
+
+## 51. Keyframes on layers (12-20 h; GitHub issue #53)
+
+Decided 2026-11-01 with milestone 49. A layer moves by its entrance, its exit and the template's own motion; there is no way to move it from here to there over time.
+
+- [ ] **Keyframes** for a layer's position, scale, rotation and opacity, set at the playhead by changing a value while keyframing is on for it (4-6 h)
+- [ ] **Easing per keyframe:** linear, ease in, ease out, ease in and out, hold, and a curve (2-4 h)
+- [ ] **On the layer's bar:** keyframes shown as marks, dragged in time, copied, pasted and deleted (3-5 h)
+- [ ] **Together with the rest:** composes with entrances, exits and the template's motion; preview and render agree to the frame; kept in projects and presets; tests (3-5 h)
+
+## 52. Clip clean-up for compositing (10-16 h; GitHub issue #54)
+
+Decided 2026-11-01 with milestone 49. Footage made ready to sit in a frame or go to a platform.
+
+- [ ] **Chroma key:** a green or blue key on a video layer or a library clip — a picker, tolerance and spill — rendered to an alpha clip that joins the library as an asset (3-5 h)
+- [ ] **A LUT:** a `.cube` applied to a clip, a layer or the whole render (2-3 h)
+- [ ] **Loudness:** the mix normalised to a target (EBU R128, two passes) that the platform preset sets, with a meter in the transport row (2-4 h)
+- [ ] **Scene detection:** long footage split into clips at its cuts, kept in the library as clips of the one file (3-4 h)
 
 ## 8. 1.0 hardening and docs (14-23 h)
 
