@@ -101,3 +101,13 @@ export const paramsEdited = signal(false);
  * default, and the Output tab's field stays free to choose.
  */
 export const preferredAspect = signal<string | null>(null);
+
+/**
+ * The platform the session is making for (milestone 20): the start screen's
+ * "New project for TikTok", or the Output tab's own Platform chooser. Every
+ * item shown then opens with that platform's aspect, size, frame rate and
+ * encoder, and its length and file-size limits are what the warnings are
+ * measured against. A lean like `preferredAspect`: an item that does not draw
+ * the platform's shape keeps its own, and every field stays free to change.
+ */
+export const preferredPlatform = signal<string | null>(null);

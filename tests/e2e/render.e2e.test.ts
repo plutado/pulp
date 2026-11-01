@@ -269,6 +269,40 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(existsSync(join(out, 'no-cover-cover.png'))).toBe(false);
   }, 240_000);
 
+  it('renders for a platform: --platform sets the shape, size, rate and encoder together (milestone 20)', async () => {
+    // One flag instead of four. The limits ride with it, so the finished file is measured against
+    // them — 6 seconds of a lower third is inside every one of TikTok's, so nothing is warned about.
+    const made = await runBounded(
+      electron,
+      ['.', '--render', 'pulp.samples.lower-third-bar', '--platform', 'tiktok', '--out', join(out, 'for-tiktok')],
+      { cwd: ROOT, timeoutMs: 90_000 },
+    );
+    expect(made.code, made.stderr).toBe(0);
+    expect(made.stderr).not.toContain('warning:');
+    const video = join(out, 'for-tiktok.mp4');
+    expect(existsSync(video), 'the H.264 MP4 the platform asks for').toBe(true);
+    const shot = await probe(video);
+    expect(shot).toMatchObject({ codec_name: 'h264', width: 1080, height: 1920 });
+    expect(shot.r_frame_rate).toBe('30/1');
+    expect(shot.nb_read_frames).toBe('180');
+
+    // A flag given beside it wins: the platform stays what the file is measured against.
+    const resized = await runBounded(
+      electron,
+      ['.', '--render', 'pulp.samples.lower-third-bar', '--platform', 'tiktok', '--size', '720x1280', '--out', join(out, 'tiktok-720')],
+      { cwd: ROOT, timeoutMs: 90_000 },
+    );
+    expect(resized.code, resized.stderr).toBe(0);
+    expect(await probe(join(out, 'tiktok-720.mp4'))).toMatchObject({ codec_name: 'h264', width: 720, height: 1280 });
+
+    // A platform Pulp does not know is named with the list, before anything renders.
+    const unknown = await render('pulp.samples.lower-third-bar', 'h264-mp4', 'bad-platform', { extra: ['--platform', 'myspace'] });
+    expect(unknown.code).toBe(2);
+    expect(unknown.stderr).toContain('Unknown platform "myspace"');
+    expect(unknown.stderr).toContain('tiktok');
+    expect(existsSync(join(out, 'bad-platform.mp4'))).toBe(false);
+  }, 240_000);
+
   it('writes a still image: one RGBA PNG of the frame at the in point, the same frame the sequence would write (milestone 44)', async () => {
     // A background that holds still renders as a picture rather than a clip, and any template gives
     // a frame at the playhead — a poster or a thumbnail — which the CLI names with --in-point.

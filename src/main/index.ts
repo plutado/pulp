@@ -11,6 +11,7 @@ import { existsSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
 import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
+import { PLATFORM_IDS, platformPreset } from '../core/platform-presets';
 import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest, SampleMediaOutcome } from '../shared/api';
 import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
@@ -441,7 +442,7 @@ function registerIpc(): void {
  *
  * A parameter may be a layer stack: `--param '@layers={"strap":[{"id":"name","text":"Ada Lovelace"}]}'`.
  *     [--fps <rate>] [--length <seconds|tc>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
- *     [--cover-at <tc|frame>]
+ *     [--cover-at <tc|frame>] [--platform <platform-id>]
  *     [--aspect 16:9|9:16|1:1|4:5] [--size <width>x<height>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
  *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
@@ -459,6 +460,9 @@ function registerIpc(): void {
  * last frame to render (inclusive), as timecode HH:MM:SS:FF, a frame number, or seconds like "2.5s".
  * `--aspect` picks one of the shapes the template draws for and `--size` the output size in pixels
  * (ADR 0012); without them a template renders at the size it declared, else its first aspect at 1080p.
+ * `--platform <id>` (milestone 20) sets the aspect, size, frame rate and preset a platform asks for
+ * in one go, and measures the finished file against that platform's length and file-size limits,
+ * warning rather than refusing; `--preset`, `--aspect`, `--size` and `--fps` beside it win.
  * `--library` adds template folders for this run only; they are not saved to settings.
  * `--frame-format png` uses the slower PNG pipe to ffmpeg, for comparison with the raw default.
  * The final line reports the elapsed time and frames per second.
@@ -479,6 +483,8 @@ interface CliRender {
   sampleTypes?: string[];
   /** --cover-at: the frame a cover image is taken at, beside the render (milestone 20). */
   coverAt?: string;
+  /** --platform: named but not in the built-in list, reported with the list before anything runs. */
+  unknownPlatform?: string;
   /** `--visual-hashes <file>`: write or check the visual references. */
   visualHashes?: { file: string; check: boolean };
   options: RenderOptions;
@@ -545,6 +551,19 @@ function parseCliRender(argv: string[]): CliRender | null {
   const frameFormat = get('--frame-format');
   const options: RenderOptions = {};
   const badNumbers: string[] = [];
+  // --platform seeds the aspect, size, rate and preset (milestone 20); the flags read below
+  // overwrite whichever of them were also given by hand, so either can be used with the other.
+  const platformRaw = get('--platform');
+  const platform = platformPreset(platformRaw);
+  let platformPresetId: string | undefined;
+  if (platform) {
+    options.platform = platform.id;
+    options.aspect = platform.aspect;
+    options.width = platform.width;
+    options.height = platform.height;
+    options.fps = platform.fps;
+    platformPresetId = platform.presetId;
+  }
   const fpsRaw = get('--fps');
   if (fpsRaw !== undefined) {
     const value = Number(fpsRaw);
@@ -575,8 +594,9 @@ function parseCliRender(argv: string[]): CliRender | null {
   const visualHashes = get('--visual-hashes');
   return {
     templateId: argv[i + 1] ?? '',
-    presetId: get('--preset') ?? 'prores-4444',
+    presetId: get('--preset') ?? platformPresetId ?? 'prores-4444',
     out: get('--out') ?? '',
+    ...(platformRaw !== undefined && !platform ? { unknownPlatform: platformRaw } : {}),
     params,
     libraries,
     options,
@@ -611,6 +631,10 @@ async function runCliRender(cli: CliRender): Promise<number> {
   }
   if (cli.badNumbers.length > 0) {
     console.error(`Expected a number: ${cli.badNumbers.join(', ')}.`);
+    return 2;
+  }
+  if (cli.unknownPlatform !== undefined) {
+    console.error(`Unknown platform "${cli.unknownPlatform}" (expected one of: ${PLATFORM_IDS.join(', ')}).`);
     return 2;
   }
   if (cli.frameFormat !== undefined && !(FRAME_FORMATS as readonly string[]).includes(cli.frameFormat)) {

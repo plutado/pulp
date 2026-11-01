@@ -27,6 +27,7 @@ import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { nodeRunner } from '../core/ffmpeg';
 import type { RenderProgress, RenderResult } from '../shared/api';
 import { isLayeredPath, layeredFileFor } from './layered-service';
+import { finishedFileWarnings } from './platform-check';
 
 export interface MediaRenderJob {
   entry: MediaEntry;
@@ -157,6 +158,13 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
       if (written.ok) cover = written.output;
       else warnings.push(`The cover image could not be written: ${written.message}`);
     }
+    // The platform's limits against the file that was written (milestone 20), not the one planned.
+    warnings.push(...(await finishedFileWarnings({
+      platform: job.options?.platform,
+      output: plan.output,
+      seconds: total / plan.timing.fps,
+      sequence: /%0?\d*d/.test(plan.output),
+    })));
     return {
       ok: true, output: plan.output, frames: total, warnings,
       transport: plan.stages.length > 1 ? 'ffmpeg (loop unit, then stream loop)' : 'ffmpeg',

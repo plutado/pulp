@@ -20,7 +20,10 @@ import { currentRawParams } from './inspector-params';
 import { lengthIn } from '../core/params';
 import { lengthFrameCount, resolveLength } from '../core/timing';
 import { stageStop } from './stage';
-import { appState, coverFrame, dispatch, frameSize, playheadSeconds, preferredAspect, renderBlocked, selectedTemplate, trim } from './store';
+import { appState, coverFrame, dispatch, frameSize, playheadSeconds, preferredAspect, preferredPlatform, renderBlocked, selectedTemplate, trim } from './store';
+import {
+  PLATFORM_PRESETS, platformLimitsLabel, platformPreset, platformSummary, platformWarningsBefore, type PlatformPreset,
+} from '../core/platform-presets';
 import { setCollection, setEditing } from '../core/app-state';
 import { updateItem } from '../core/collection';
 import { editing } from './collection';
@@ -35,6 +38,10 @@ const $ = <T extends HTMLElement>(id: string): T => {
 };
 
 const els = {
+  optPlatformField: $<HTMLLabelElement>('opt-platform-field'),
+  optPlatform: $<HTMLSelectElement>('opt-platform'),
+  platformNote: $<HTMLParagraphElement>('platform-note'),
+  platformWarnings: $<HTMLParagraphElement>('platform-warnings'),
   preset: $<HTMLSelectElement>('preset'),
   presetNote: $<HTMLParagraphElement>('preset-note'),
   presetUnavailable: $<HTMLParagraphElement>('preset-unavailable'),
@@ -291,6 +298,116 @@ function showSizeChoice(m: { aspects: readonly string[]; size?: Size }, options:
   els.optSizeCustom.hidden = els.optResolution.value !== CUSTOM_SIZE;
 }
 
+// ---------------------------------------------------------------- platform presets (milestone 20)
+
+/** The chooser: no platform, then the built-in list. */
+function populatePlatforms(): void {
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = 'No platform';
+  els.optPlatform.append(none);
+  for (const p of PLATFORM_PRESETS) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.label;
+    els.optPlatform.append(opt);
+  }
+}
+
+/** The platform the render is aimed at, as the chooser now stands. */
+function chosenPlatform(): PlatformPreset | undefined {
+  if (els.optPlatformField.hidden) return undefined;
+  return platformPreset(els.optPlatform.value || undefined);
+}
+
+/** What the platform amounts to and what it takes, with the date those limits were read; `missed` is whatever could not be set. */
+function showPlatformNote(missed = ''): void {
+  const p = chosenPlatform();
+  els.platformNote.textContent = p ? [platformSummary(p), platformLimitsLabel(p), missed].filter(Boolean).join(' · ') : '';
+}
+
+/** Put a size into the resolution field: the default entry, a standard one, or a custom size typed in. */
+function selectResolution(m: { aspects: readonly string[]; size?: Size } | undefined, width: number, height: number): void {
+  if (m) {
+    try {
+      const fallback = resolveRenderSize(m, { aspect: els.optAspect.value || defaultAspect(m) });
+      if (fallback.width === width && fallback.height === height) {
+        els.optResolution.value = '';
+        els.optSizeCustom.hidden = true;
+        return;
+      }
+    } catch {
+      // The fields hold something the planner refuses; the note already says so.
+    }
+  }
+  const exact = `${width}x${height}`;
+  if (Array.from(els.optResolution.options).some((opt) => opt.value === exact)) {
+    els.optResolution.value = exact;
+    els.optSizeCustom.hidden = true;
+    return;
+  }
+  els.optResolution.value = CUSTOM_SIZE;
+  els.optSizeCustom.hidden = false;
+  els.optWidth.value = String(width);
+  els.optHeight.value = String(height);
+}
+
+/**
+ * Choosing a platform sets the four things it stands for at once: the aspect
+ * where the item draws it, the resolution, the frame rate and the output
+ * preset. What it cannot set it says rather than quietly leaving — a template
+ * that does not draw 9:16 keeps the shape it has — and every field stays free
+ * to change afterwards, since a preset is a starting point, not a lock.
+ */
+function applyPlatform(): void {
+  const p = chosenPlatform();
+  if (!p) {
+    showPlatformNote();
+    return;
+  }
+  const missed: string[] = [];
+  // A media item has no aspects of its own to choose from, so every shape is its shape.
+  const m = selectedTemplate.value?.manifest;
+  const drawsIt = !m || m.aspects.includes(p.aspect);
+  if (m && drawsIt) {
+    els.optAspect.value = p.aspect;
+    populateResolutions(m);
+  } else if (m) {
+    missed.push(`this template does not draw ${p.aspect}, so the shape is unchanged`);
+  }
+  if (drawsIt) selectResolution(m, p.width, p.height);
+  els.optFps.value = String(p.fps);
+  const option = Array.from(els.preset.options).find((opt) => opt.value === p.presetId);
+  if (option && !option.disabled) {
+    els.preset.value = p.presetId;
+    showPresetNote();
+  } else if (option) {
+    missed.push(`this FFmpeg cannot write ${OUTPUT_PRESETS[p.presetId].label}, so the output preset is unchanged`);
+  }
+  showPlatformNote(missed.join('; '));
+}
+
+/**
+ * The length and file-size warnings before a render: the trim's own length
+ * against what the platform takes, and what the preset's bitrate target says
+ * the file will weigh. Never blocking — a limit may have moved since the list
+ * was written, and the person rendering may know something it does not.
+ */
+function showPlatformWarnings(seconds: number | null): void {
+  const p = chosenPlatform();
+  const lines = p && seconds !== null ? platformWarningsBefore(p, seconds) : [];
+  els.platformWarnings.hidden = lines.length === 0;
+  els.platformWarnings.textContent = lines.join(' ');
+}
+
+/** The session's platform, taken up by the item now being shown (milestone 20). */
+function applyPreferredPlatform(): void {
+  const preferred = preferredPlatform.peek();
+  els.optPlatform.value = preferred && platformPreset(preferred) && !els.optPlatformField.hidden ? preferred : '';
+  if (els.optPlatform.value) applyPlatform();
+  else showPlatformNote();
+}
+
 /** The output frame rate as currently chosen: the override, or the template's — or the media item's own. */
 function chosenFps(): number | undefined {
   if (els.optFps.value !== '') return Number(els.optFps.value);
@@ -324,6 +441,9 @@ export function readRenderOptions(): RenderOptions {
   // within the timeline should the rounding land a frame past the end.
   if (preset?.still && inFrame === undefined && fps !== undefined) options.inFrame = Math.max(0, Math.round(playheadSeconds.peek() * fps));
   if (preset && !preset.alpha) options.background = els.optBackground.value;
+  // Where this is going (milestone 20): it changes no pixel, it is what the warnings are measured against.
+  const platform = chosenPlatform();
+  if (platform) options.platform = platform.id;
   Object.assign(options, readSizeChoice());
   if (preset && !els.optMatteField.hidden && els.optMatte.checked) options.matte = true;
   // The cover image (milestone 20): a still of one frame beside the render. The frame is whatever
@@ -431,6 +551,7 @@ function updateOptionsNote(): void {
   }
   if (!m) {
     els.optionsNote.textContent = '';
+    showPlatformWarnings(null);
     o.optionsValid = true;
     updateRenderControls();
     return;
@@ -462,10 +583,12 @@ function updateOptionsNote(): void {
     if (options.coverFrame !== undefined) parts.push(`with a cover image at ${formatTimecode(coverFrameWithin(options.coverFrame, t.fps, t.length), t.fps)}`);
     els.optionsNote.classList.remove('error');
     els.optionsNote.textContent = parts.join(' · ');
+    showPlatformWarnings(seconds);
     o.optionsValid = true;
   } catch (err) {
     els.optionsNote.classList.add('error');
     els.optionsNote.textContent = err instanceof RenderPlanError || err instanceof TimecodeError || err instanceof AspectError ? err.message : String(err);
+    showPlatformWarnings(null);
     o.optionsValid = false;
   }
   publishFrameSize();
@@ -505,8 +628,10 @@ function updateMediaOptionsNote(entry: MediaEntry): void {
     if (options.coverFrame !== undefined) parts.push('with a cover image');
     els.optionsNote.classList.remove('error');
     els.optionsNote.textContent = parts.join(' · ');
+    showPlatformWarnings(t.totalFrames / t.fps);
     o.optionsValid = true;
   } catch (err) {
+    showPlatformWarnings(null);
     const message = err instanceof RenderPlanError || err instanceof TimecodeError ? err.message : String(err);
     const unmeasured = message.includes(NOT_MEASURED);
     // Not measured yet is not wrong: the render reads the file itself.
@@ -694,10 +819,13 @@ function showMediaFields(entry: MediaEntry | null): void {
   if (!entry) {
     els.optMatteField.hidden = false;
     els.optCoverField.hidden = false;
+    els.optPlatformField.hidden = false;
     publishCover();
     return;
   }
   const kind = entry.sequence ? 'video' : entry.mediaKind;
+  // A sound has no shape, size or frame rate for a platform preset to set (milestone 20).
+  els.optPlatformField.hidden = kind === 'audio';
   els.optSpeedField.hidden = kind === 'image';
   els.optCrossfadeField.hidden = kind === 'image';
   els.audioOptions.hidden = kind !== 'audio';
@@ -748,6 +876,7 @@ export function outputShowMedia(entry: MediaEntry): void {
   trim.value = { inFrame: null, outFrame: null };
   showMediaFields(entry);
   showPresetNote();
+  applyPreferredPlatform();
   updateOptionsNote();
 }
 
@@ -776,6 +905,7 @@ export function outputShow(entry: TemplateEntry): void {
   o.batch = null;
   els.batchSummary.textContent = '';
   els.batchQueue.disabled = true;
+  applyPreferredPlatform();
   updateOptionsNote();
 }
 
@@ -835,6 +965,10 @@ function initCollectionEditing(): void {
       }
       els.preset.value = item.presetId;
       els.preset.dispatchEvent(new Event('change'));
+      // The platform a card was collected for (milestone 20): shown, not applied again — the size
+      // and rate the card carries are what it was saved with, whatever has been chosen since.
+      els.optPlatform.value = item.options.platform && platformPreset(item.options.platform) ? item.options.platform : '';
+      showPlatformNote();
       els.optFps.value = item.options.fps === undefined ? '' : String(item.options.fps);
       const fps = item.options.fps ?? selectedTemplate.value?.manifest.fps ?? 25;
       els.optIn.value = item.options.inFrame === undefined ? '' : formatTimecode(item.options.inFrame, fps);
@@ -878,6 +1012,18 @@ export function initInspectorOutput(): void {
   initCollectionEditing();
   populatePresets();
   populateFrameRates();
+  populatePlatforms();
+  // A platform sets the aspect, size, rate and encoder in one go, and stays the session's lean, so
+  // the next item shown opens the same way (milestone 20).
+  els.optPlatform.addEventListener('change', () => {
+    preferredPlatform.value = els.optPlatform.value || null;
+    applyPlatform();
+    updateOptionsNote();
+    // A new rate means the same trim text is a different frame.
+    publishTrim();
+    publishCover();
+    saveToEditedCard();
+  });
   for (const el of [els.optIn, els.optOut]) {
     el.addEventListener('input', () => {
       updateOptionsNote();

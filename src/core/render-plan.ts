@@ -250,6 +250,14 @@ export interface RenderOptions {
    * a trimmed render may not include.
    */
   coverFrame?: number;
+  /**
+   * The platform this render is aimed at (milestone 20), by the id of a
+   * platform preset (src/core/platform-presets.ts). It changes no pixel and no
+   * ffmpeg argument — choosing a platform has already set the aspect, size,
+   * rate and encoder — it only says what the length and file-size warnings are
+   * measured against, before the render and from the file afterwards.
+   */
+  platform?: string;
   /** Media only (milestone 15): playback speed of a clip; 1 is as recorded. */
   speed?: number;
   /** Media only: recolor the picture at render time — its luminance in this colour (`#rrggbb`), alpha kept. */

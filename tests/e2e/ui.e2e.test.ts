@@ -3231,6 +3231,60 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 90_000);
 
+    it('sets the aspect, size, rate and encoder from one platform, and warns before a render past its limits (milestone 20)', async () => {
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
+      await openTab('output');
+      const warnings = () => page.eval<{ hidden: boolean; text: string }>(
+        `(() => { const w = document.getElementById('platform-warnings'); return { hidden: w.hidden, text: w.textContent }; })()`,
+      );
+      try {
+        // Nothing chosen to begin with: no platform, and nothing said about anyone's limits.
+        expect(await page.eval<string>(`document.getElementById('opt-platform').value`)).toBe('');
+        expect(await page.eval<string>(`document.getElementById('platform-note').textContent`)).toBe('');
+        expect((await warnings()).hidden, 'no warnings without a platform').toBe(true);
+
+        // One choice sets the four fields it stands for.
+        await fire('#opt-platform', 'tiktok', 'change');
+        await until(() => page.eval<string>(`document.getElementById('opt-fps').value`).then((v) => v === '30'), 'the platform\'s frame rate');
+        expect(await page.eval<string>(`document.getElementById('opt-aspect').value`), 'its shape').toBe('9:16');
+        expect(await page.eval<string>(`document.getElementById('preset').value`), 'its encoder').toBe('h264-mp4');
+        expect(
+          await page.eval<string>(`(() => { const r = document.getElementById('opt-resolution'); return r.options[r.selectedIndex].textContent; })()`),
+          'its resolution',
+        ).toContain('1080 × 1920');
+        const note = await page.eval<string>(`document.getElementById('platform-note').textContent`);
+        expect(note).toContain('9:16 · 1080 × 1920 · 30 fps · H.264 MP4');
+        expect(note, 'the date the limits were read, because this is data that ages').toContain('limits checked');
+        // Six seconds is inside every limit TikTok has, so nothing is warned about yet.
+        expect((await warnings()).hidden).toBe(true);
+
+        // X takes 2:20. Stretch the graphic past that and the Output tab says so before the render.
+        await fire('#opt-platform', 'x', 'change');
+        await until(() => page.eval<string>(`document.getElementById('opt-aspect').value`).then((v) => v === '16:9'), 'the wide shape');
+        await openTab('parameters');
+        await fire('#params .length-field input[type=number]', '200', 'change');
+        await openTab('output');
+        await until(async () => !(await warnings()).hidden, 'the length warning');
+        const said = (await warnings()).text;
+        expect(said).toContain('Longer than X takes: 3:20, against 2:20');
+        expect(said, 'and it says when the limit was read').toContain('limits checked');
+        // A warning is not an error: the options still stand, so nothing here blocks the render.
+        // A limit may have moved, and the person rendering may know something the list does not.
+        expect(await page.eval<boolean>(`document.getElementById('options-note').classList.contains('error')`), 'never blocking').toBe(false);
+
+        // Back inside the limit and the warning goes.
+        await openTab('parameters');
+        await fire('#params .length-field input[type=number]', '6', 'change');
+        await openTab('output');
+        await until(async () => (await warnings()).hidden, 'the warning gone with the length');
+      } finally {
+        await fire('#opt-platform', '', 'change');
+        await openTab('parameters');
+        await fire('#params .length-field input[type=number]', '6', 'change');
+      }
+    }, 90_000);
+
     it('writes what went wrong to a local log, and copies diagnostics from the status items (milestone 8)', async () => {
       const logFile = join(userData, 'logs', 'pulp.log');
       // The log is there from the start: the main process writes a line as it comes up.
@@ -4960,6 +5014,46 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'closed');
       await page.eval(`document.getElementById('scope-chip-clear').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('scope-chip').hidden`), 'the scope cleared again');
+      await page.eval(`window.pulpMenuCommand('project.new')`);
+      await until(
+        () => page.eval<boolean>(
+          `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
+            return document.querySelector('#project-button .label').textContent === 'Untitled'; })()`,
+        ),
+        'a clean session left behind',
+      );
+    }, 90_000);
+
+    it('starts a new project for a platform, and every item opens set up for it (milestone 20)', async () => {
+      await page.eval(`window.pulpMenuCommand('app.home')`);
+      await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'the start screen');
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#start-platforms button').length`)) >= 4, 'the platforms beside the shapes');
+      expect(
+        await page.eval<string>(`document.getElementById('start-platforms-note').textContent`),
+        'the date the limits were read',
+      ).toContain('limits checked');
+
+      await page.eval(`[...document.querySelectorAll('#start-platforms button')].find((b) => b.textContent === 'TikTok').click()`);
+      await until(
+        () => page.eval<boolean>(
+          `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
+            return document.getElementById('start-screen').hidden; })()`,
+        ),
+        'the screen closed by a new project for TikTok',
+      );
+
+      // The lean, not a lock: every item shown opens at the platform's shape, size, rate and encoder.
+      await clickResult('Lower Third Bar');
+      await openTab('output');
+      await until(() => page.eval<string>(`document.getElementById('opt-platform').value`).then((v) => v === 'tiktok'), 'the platform in the Output tab');
+      expect(await page.eval<string>(`document.getElementById('opt-aspect').value`), 'its shape').toBe('9:16');
+      expect(await page.eval<string>(`document.getElementById('opt-fps').value`), 'its frame rate').toBe('30');
+      expect(await page.eval<string>(`document.getElementById('preset').value`), 'its encoder').toBe('h264-mp4');
+
+      // Left as it was found.
+      await fire('#opt-platform', '', 'change');
+      await fire('#opt-fps', '', 'change');
+      await openTab('parameters');
       await page.eval(`window.pulpMenuCommand('project.new')`);
       await until(
         () => page.eval<boolean>(

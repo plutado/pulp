@@ -32,6 +32,7 @@ import { lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg, runWithInput } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan } from '../core/render-plan';
+import { finishedFileWarnings } from './platform-check';
 import { lengthIn, resolveParams, splitLayers } from '../core/params';
 import {
   captureBytesMessage,
@@ -371,6 +372,13 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       if (written.ok) cover = plan.coverOutput;
       else warnings.push(`The cover image could not be written: ${written.message}`);
     }
+    // The platform's limits against the file that was written (milestone 20), not the one planned.
+    warnings.push(...(await finishedFileWarnings({
+      platform: job.options?.platform,
+      output: plan.output,
+      seconds: plan.totalFrames / plan.fps,
+      sequence: plan.preset.sequence,
+    })));
     return { ok: true, output: plan.output, frames: plan.totalFrames, warnings, transport, ...(cover ? { cover } : {}) };
   } catch (err) {
     return await fail({ ok: false, message: `Render failed: ${(err as Error).message}` });

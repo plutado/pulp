@@ -1,6 +1,7 @@
 /**
  * The start screen (milestone 31): shown at launch and from File → Home. Get
- * going (a new project, blank or by shape, and the example projects), the
+ * going (a new project — blank, by shape, or for a platform (milestone 20) —
+ * and the example projects), the
  * recent projects with pins and relinking, Learn (the tour, what's new, the
  * shortcuts), set up and status, and "What are you making?" leading into the
  * browse categories. What it offers is pure (src/core/start-screen.ts); this
@@ -13,7 +14,8 @@ import {
   lastOpenedLabel, libraryGlance, MAKING_CHOICES, makingChoiceLanding, orderRecents, PROJECT_SHAPES, setupChecklist,
 } from '../core/start-screen';
 import type { RecentProjectRow } from '../core/start-screen';
-import { appState, dispatch, facets, preferredAspect } from './store';
+import { limitsCheckedLabel, PLATFORM_PRESETS, platformSummary } from '../core/platform-presets';
+import { appState, dispatch, facets, preferredAspect, preferredPlatform } from './store';
 import { browseFoldToActive } from './browse';
 import { newProject, openExampleFrom, openProjectFrom } from './project';
 import { showShortcuts } from './shortcuts';
@@ -192,11 +194,40 @@ function fillShapes(): void {
       void newProject().then((made) => {
         if (!made) return;
         preferredAspect.value = shape.id;
+        preferredPlatform.value = null;
         hideStartScreen();
       });
     });
     wrap.append(button);
   }
+}
+
+/**
+ * New project by platform (milestone 20): the same new project as a shape
+ * gives, leaning on a platform preset instead — its aspect, size, frame rate
+ * and encoder, the way choosing it in the Output tab does. A lean, not a
+ * lock: every field stays free, and a template that does not draw the shape
+ * keeps its own.
+ */
+function fillPlatforms(): void {
+  const wrap = $('start-platforms');
+  wrap.replaceChildren();
+  for (const platform of PLATFORM_PRESETS) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = platform.label;
+    button.dataset.tip = `${platform.hint} · ${platformSummary(platform)}`;
+    button.addEventListener('click', () => {
+      void newProject().then((made) => {
+        if (!made) return;
+        preferredAspect.value = platform.aspect;
+        preferredPlatform.value = platform.id;
+        hideStartScreen();
+      });
+    });
+    wrap.append(button);
+  }
+  $('start-platforms-note').textContent = `Sets the aspect, size, frame rate and encoder; limits ${limitsCheckedLabel()}.`;
 }
 
 async function fillSetup(): Promise<void> {
@@ -248,6 +279,7 @@ export function showStartScreen(): void {
 export function initStartScreen(): void {
   fillMaking();
   fillShapes();
+  fillPlatforms();
   $('start-close').addEventListener('click', hideStartScreen);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && startScreenShowing()) hideStartScreen();
@@ -259,6 +291,7 @@ export function initStartScreen(): void {
     void newProject().then((made) => {
       if (!made) return;
       preferredAspect.value = null;
+      preferredPlatform.value = null;
       hideStartScreen();
     });
   });
