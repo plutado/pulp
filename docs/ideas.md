@@ -17,6 +17,8 @@ The order work is built in is `ROADMAP.md`'s planned order, which scheduling fol
 
 ## Known issues
 
+- **The loudness meter crowds a narrow transport row.** With the meter showing (milestone 52), the row's controls overlap below about 1100 px wide: on CI's 1024 × 768 screen, at a 1008 px window, the Output button sat 62 px over the project button (CI run on `cc5dd09`, macOS and Windows). At the default 1280 × 788 they keep apart, and the UI test now measures there; the narrow row needs the meter to fold or move to the row's second line as the other controls do.
+
 - **A saved "Hold, seconds" is dropped, not carried into a length.** Milestone 30 removed the `inOut` parameter ("Hold, seconds") from eleven bundled templates — the citation callout, the city lights and civic openers, the donation, fitness and lap counters, the handle and profile cards, the poll strip, the hairline lower third and the kicker title — since the length is the control now. A preset, collection item, `.pulpcollection` file, CSV row or `--param` that still carries a value for it renders with the template's own hold, and the value is only reported as an unknown parameter (`resolveParams` in `src/core/params.ts`). Translate it instead: for those eleven, an old `inOut` becomes the matching `@length` (the declared entrance and exit plus the saved hold, within the length's limits) when no length is set, with a unit test per kind of saved work.
 
 - **Linux CI: 8K frames are clipped by one pixel** (CI run 40240858897 on `fb2b3a5`, `render-linux`): the virtual screen is exactly 7680 × 4320, and an offscreen window is kept inside it, so the 8K test captured 7679 × 4319. The CI virtual screen is now 8192 × 4608, larger than any render; the underlying clipping is the Linux issue above.

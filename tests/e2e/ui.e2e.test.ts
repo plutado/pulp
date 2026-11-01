@@ -1285,7 +1285,12 @@ describe.skipIf(!electron)('inspector UI', () => {
           30_000,
         );
         // And with the meter showing, the row's controls still keep apart at the default width —
-        // the same rule the 1280 × 788 layout test holds the row to with the meter away.
+        // the same rule the 1280 × 788 layout test holds the row to with the meter away. The
+        // runner's own window can be narrower than that (a 1024 × 768 screen), so the default
+        // size is set for the measurement, as that test sets it.
+        await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 788, deviceScaleFactor: 1, mobile: false });
+        await until(() => page.eval<boolean>(`window.innerHeight === 788 && window.innerWidth === 1280`), 'the default window size');
+        await page.eval(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`);
         const rowBoxes = await page.eval<{ id: string; left: number; right: number; top: number; bottom: number }[]>(
           `[...document.querySelectorAll('#region-transport .buttons-line button, #region-transport .buttons-line input, #region-transport .buttons-line #timecode, #region-transport .buttons-line #loudness, #region-status > *')]
              .filter((el) => el.getBoundingClientRect().width > 0)
@@ -1299,6 +1304,7 @@ describe.skipIf(!electron)('inspector UI', () => {
             expect(met, `${a.id} does not overlap ${b.id} with the meter showing`).toBe(0);
           }
         }
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
 
         // The playhead goes to the top, where the sound starts: how loud a layer is is a question
         // about a moment, and the preview answers it for the moment on the stage.
