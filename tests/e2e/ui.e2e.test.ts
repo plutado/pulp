@@ -396,6 +396,11 @@ describe.skipIf(!electron)('inspector UI', () => {
       const wide = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'clip.mp4')]), { timeoutMs: 60_000 });
       // A tall clip too, for the orientation filter and the portrait cards.
       const tall = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=36x64:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'tall.mp4')]), { timeoutMs: 60_000 });
+      // A clip with its own sound (milestone 48), so a video layer has something to keep.
+      await runBounded(ffmpeg.path, ffmpegArgs([
+        '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2',
+        '-t', '2', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(mediaDir, 'noisy.mp4'),
+      ]), { timeoutMs: 60_000 });
       // A run of numbered frames (milestone 26), so the stage has a sequence to step through.
       await mkdir(join(mediaDir, 'frames'), { recursive: true });
       await runBounded(ffmpeg.path, ffmpegArgs([
@@ -2382,6 +2387,59 @@ describe.skipIf(!electron)('inspector UI', () => {
         );
       }, 120_000);
 
+      it('a video layer keeps its own sound: volume and mute on its card, silence while muted, and a silent clip says so (milestone 48)', async () => {
+        if (!haveVideo) return;
+        const before = await layerIds();
+        const frame = await page.eval<{ width: number; height: number }>(
+          `(() => { const [w, h] = (document.getElementById('preview-frame').style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`,
+        );
+        await rightClick(frame.width * 0.8, frame.height * 0.8);
+        await choose('Add Asset Here');
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the asset submenu');
+        const picked = await page.eval<boolean>(
+          `(() => { const b = [...document.querySelectorAll('.context-menu.submenu > button[data-command="layer.addVideo"]')].find((x) => x.textContent === 'noisy');
+            if (!b) return false; b.click(); return true; })()`,
+        );
+        expect(picked, 'the submenu offers the clip with sound').toBe(true);
+        await until(async () => (await layerIds()).length === before.length + 1, 'the clip layer');
+        const layer = (await layerIds()).find((id) => !before.includes(id))!;
+        await addedLayerReady(layer);
+        const card = `document.querySelector('#params .param-card[data-layer="${layer}"]')`;
+
+        // The card offers the sound's own two controls, and the preview holds a sound for the layer.
+        await until(() => page.eval<boolean>(`!!${card}.querySelector('input[aria-label$="volume"]')`), 'the volume control', 30_000);
+        expect(await page.eval<boolean>(`!!${card}.querySelector('input[aria-label$="muted"]')`)).toBe(true);
+        const hook = `(window.pulpLayerSounds ? window.pulpLayerSounds() : [])`;
+        await until(() => page.eval<number>(`${hook}.length`).then((n) => n >= 1), 'a sound held to the layer', 30_000);
+        // Paused is silent: a held frame makes no sound.
+        expect(await page.eval<boolean>(`${hook}.every((s) => !s.playing)`)).toBe(true);
+
+        // Half volume reaches the element under the transport's own volume.
+        await page.eval(`(() => { const v = ${card}.querySelector('input[aria-label$="volume"]'); v.value = '50'; v.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<number>(`${hook}[0] ? ${hook}[0].volume : -1`).then((v) => Math.abs(v - 0.5) < 0.01), 'the layer volume on the element');
+
+        // Muted asks for no sound at all, so the element goes; unmuting brings it back.
+        await page.eval(`(() => { const m = ${card}.querySelector('input[aria-label$="muted"]'); m.checked = true; m.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<number>(`${hook}.length`).then((n) => n === 0), 'muted means nothing to hear');
+        await page.eval(`(() => { const m = ${card}.querySelector('input[aria-label$="muted"]'); m.checked = false; m.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<number>(`${hook}.length`).then((n) => n === 1), 'and back when unmuted');
+
+        // A clip the library knows has no audio stream says so, with no dead controls beside it.
+        await page.eval(`${card}.querySelector('.picker-toggle').click()`);
+        await until(() => page.eval<boolean>(`!${card}.querySelector('.image-picker').hidden`), 'the clip chooser');
+        await until(
+          () => page.eval<boolean>(
+            `(() => { const b = [...${card}.querySelectorAll('.image-picker .image-choice')].find((x) => (x.textContent || '').startsWith('clip'));
+              if (!b) return false; b.click(); return true; })()`,
+          ),
+          'the silent clip chosen from the chooser',
+        );
+        await until(() => page.eval<boolean>(`!!${card}.querySelector('.clip-no-sound')`), 'the silent clip said plainly', 30_000);
+        expect(await page.eval<string>(`${card}.querySelector('.clip-no-sound').textContent`)).toBe('This clip has no sound.');
+        expect(await page.eval<boolean>(`!!${card}.querySelector('input[aria-label$="volume"]')`), 'no dead control beside it').toBe(false);
+        await until(() => page.eval<number>(`${hook}.length`).then((n) => n === 0), 'and nothing to hear');
+      }, 120_000);
+
       it('offers the stage\'s own background, theater and collection over bare picture', async () => {
         await rightClick(40, 40);
         expect(await labels()).toEqual(['Add Text Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
@@ -4320,7 +4378,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
       try {
         await setSearch('codec:h264 duration:>1');
-        expect(await resultNames()).toEqual(['clip', 'tall']);
+        expect(await resultNames()).toEqual(['clip', 'noisy', 'tall']);
         await setSearch('res:1080p');
         const at1080 = await resultNames();
         expect(at1080).toEqual(expect.arrayContaining(['Diagonal Wipe', 'Lower Third Bar', 'Title Card', 'Boardroom title', 'Newsdesk title']));
@@ -5046,6 +5104,9 @@ describe.skipIf(!electron)('inspector UI', () => {
         'the screen closed by a new project for TikTok',
       );
 
+      // The making-choice test before this one leaves its "For…" theme set — as a person would be
+      // left — so the chip is put back before looking for an item the theme does not carry.
+      await page.eval(`(() => { const f = document.getElementById('for-select'); if (f.value !== '') { f.value = ''; f.dispatchEvent(new Event('change', { bubbles: true })); } })()`);
       // The lean, not a lock: every item shown opens at the platform's shape, size, rate and encoder.
       await clickResult('Lower Third Bar');
       await openTab('output');

@@ -42,6 +42,7 @@ import { onLayoutApplied } from './shell';
 import { onStageWindow } from './stage-window';
 import { searchPlaceable } from '../core/search';
 import { appState, coverFrame, frameSize, playheadSeconds, transport, trim } from './store';
+import { layerSoundsClear, layerSoundsDebug, layerSoundsStop, layerSoundsSync, layerSoundsUpdate } from './stage-audio';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
 
@@ -189,6 +190,8 @@ function applyPlayer(): void {
     // The row's loop toggle is the one loop: a clip or a sound comes round at its end as a template does.
     el.loop = p.loop;
   }
+  // The layers' own sound sits under the same volume and mute (milestone 48).
+  layerSoundsUpdate(soundTime(), s.playing, soundMaster());
 }
 
 /**
@@ -214,6 +217,23 @@ function previewFps(): number {
 /** Is there something the transport can step through — a template, a sequence, a clip or a sound? */
 function hasTimeline(): boolean {
   return Boolean(s.manifest || s.sequence || s.media);
+}
+
+// ---------------------------------------------------------------- a video layer's own sound (milestone 48)
+
+/** The media entry behind a clip id, for the layer sounds: a drawn template is not here, and plays nothing. */
+function mediaEntryFor(id: string): MediaEntry | undefined {
+  return appState.value.index?.media.find((m) => m.id === id);
+}
+
+/** The transport's own volume and mute, which every layer's sound sits under. */
+function soundMaster(): { volume: number; muted: boolean } {
+  return { volume: s.player.volume, muted: s.player.muted };
+}
+
+/** Where the playhead is in seconds, for the layer sounds to follow. */
+function soundTime(): number {
+  return s.frame / Math.max(1, previewFps());
 }
 
 /**
@@ -430,6 +450,8 @@ function syncImages(): void {
       els.note.textContent = 'A clip chosen for a layer could not be read; that layer draws nothing.';
     }
     s.clipSources = clips.sources;
+    // The sources are what the layer sounds follow the playhead by (milestone 48).
+    layerSoundsSync(s.layers, s.clipSources, mediaEntryFor);
     const srcByKey = new Map(handed.images.map((i) => [i.key, i.src]));
     win.postMessage({
       type: 'pulp:prepare',
@@ -511,6 +533,9 @@ function tick(now: number): void {
     return;
   }
   if (frame !== s.frame) requestFrame(frame);
+  // Each layer's sound is held to the playhead: seeked over a loop's join, silent before its
+  // delay and after a once clip has played out (milestone 48).
+  layerSoundsUpdate(frame / Math.max(1, previewFps()), true, soundMaster());
   rafId = requestAnimationFrame(tick);
 }
 
@@ -530,6 +555,7 @@ function play(): void {
   setIcon(els.play, 'pause', 24);
   els.play.setAttribute('aria-label', 'Pause');
   publishTransport();
+  layerSoundsUpdate(soundTime(), true, soundMaster());
   rafId = requestAnimationFrame(tick);
 }
 
@@ -541,6 +567,7 @@ export function stopPlayback(): void {
 
 export function stageStop(): void {
   s.playing = false;
+  layerSoundsStop();
   cancelAnimationFrame(rafId);
   setIcon(els.play, 'play', 24);
   els.play.setAttribute('aria-label', 'Play');
@@ -610,6 +637,7 @@ function drawWaveform(entry: MediaEntry): void {
 export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, layers: LayerValues = {}): void {
   stageStop();
   clearMediaPreview();
+  layerSoundsClear();
   clearNote();
   // A different template is a different stack: nothing stays selected across the change.
   selectedLayer.value = null;
@@ -643,6 +671,7 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
 
 /** Show a media item, served by id through pulp-media://. */
 export function stageShowMedia(entry: MediaEntry): void {
+  layerSoundsClear();
   // Volume and mute are the player's, not each file's.
   applyPlayer();
   if (entry.offline) {
@@ -829,6 +858,9 @@ function onLengthKeyDown(e: KeyboardEvent): void {
 export function stageSetParams(params: ResolvedParams, layers: LayerValues = {}, length?: number): void {
   s.params = params;
   s.layers = layers;
+  // A changed volume, mute or clip takes effect mid-play (milestone 48); new clips join when their sources land.
+  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor);
+  layerSoundsUpdate(soundTime(), s.playing, soundMaster());
   // A new length changes how many frames there are, so the scrub bar and the playhead follow it.
   if (length !== s.length) {
     s.length = length;
@@ -945,6 +977,8 @@ function stageRehome(win: Window): void {
 }
 
 export function initStage(): void {
+  // For the UI test: the layer sounds, which have no elements on the page to read.
+  (window as unknown as { pulpLayerSounds?: typeof layerSoundsDebug }).pulpLayerSounds = layerSoundsDebug;
   // The picture's box changes with the window, the stage split, the browse panel and the
   // aspect: the splits resize the centre column, the rest resize the picture itself, so
   // observing both covers them all; the pane toggles arrive through the layout.

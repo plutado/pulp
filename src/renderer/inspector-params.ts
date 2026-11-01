@@ -1320,6 +1320,20 @@ function clipField(
       typeField('Speed', numberOf(value.speed, CLIP_LIMITS.speed, 0.1, (v) => patch({ speed: v }), `${slot.label} speed`)),
       typeField('Start delay, s', numberOf(value.delay, CLIP_LIMITS.delay, 0.1, (v) => patch({ delay: v }), `${slot.label} start delay`)),
     );
+    // The clip's own sound (milestone 48): volume and mute where it has an audio stream, and said
+    // plainly where it has none rather than a dead pair of controls. A clip the library has not
+    // read yet gets the controls — there may well be sound there once it is.
+    if (entry && (entry.sequence || (entry.meta && !entry.meta.audioCodec))) {
+      const silent = document.createElement('p');
+      silent.className = 'note clip-no-sound';
+      silent.textContent = 'This clip has no sound.';
+      settings.append(silent);
+    } else if (entry) {
+      settings.append(
+        typeField('Volume, %', numberOf(value.volume, { min: 0, max: 1 }, 5, (v) => patch({ volume: v }), `${slot.label} volume`, 100)),
+        typeField('Muted', checkOf(value.muted, (v) => patch({ muted: v }), `${slot.label} muted`)),
+      );
+    }
     if (frames === 0) {
       const waiting = document.createElement('p');
       waiting.className = 'note';

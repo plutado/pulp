@@ -80,6 +80,21 @@ export async function resolveClipSource(ffprobePath: string, id: string): Promis
   return sourceFromEntry(found.entry, meta);
 }
 
+/**
+ * The clip's file and whether it carries sound (milestone 48): what mixing a
+ * layer's audio into a render needs to know. Null for anything without a file
+ * of its own to read sound from — a drawn template, a frame sequence — and
+ * probed on the spot when the library's background pass has not run, the same
+ * reason `resolveClipSource` probes.
+ */
+export async function resolveClipAudio(ffprobePath: string, id: string): Promise<{ path: string; hasAudio: boolean } | null> {
+  const found = lookupClipItem(id);
+  if (!found || found.kind !== 'media' || found.entry.sequence) return null;
+  const meta = found.entry.meta ?? (ffprobePath ? await probeMedia(ffprobePath, found.entry.path, nodeRunner) : null);
+  if (!meta) return null;
+  return { path: found.entry.path, hasAudio: Boolean(meta.audioCodec) };
+}
+
 /** Only ids that are online clips the library has measured; anything else is named back as missing. */
 export function checkClips(ids: readonly string[]): { ok: string[]; missing: string[] } {
   const ok: string[] = [];

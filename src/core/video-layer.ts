@@ -44,6 +44,10 @@ export interface ClipValue {
   delay: number;
   /** Chosen but not drawn, and taking no room, like a hidden image. */
   hidden: boolean;
+  /** The clip's own sound in the mix, 0 to 1 (milestone 48); 1 is as recorded. */
+  volume: number;
+  /** Sound off, volume kept, like a mixer's mute. */
+  muted: boolean;
 }
 
 export const EMPTY_CLIP: ClipValue = {
@@ -54,6 +58,8 @@ export const EMPTY_CLIP: ClipValue = {
   speed: DEFAULT_CLIP_SPEED,
   delay: 0,
   hidden: false,
+  volume: 1,
+  muted: false,
 };
 
 /** What the host measured about a clip: enough to turn a moment into a frame. */
@@ -138,6 +144,33 @@ export function clipWindowIndexAt(time: number, value: ClipValue, source: ClipSo
   return frame - clipWindow(value, source).first;
 }
 
+/** Does the layer ask for its sound at all? Hidden layers draw nothing and say nothing. */
+export function clipAudible(value: ClipValue | null): value is ClipValue {
+  return Boolean(value && value.id !== null && !value.hidden && !value.muted && value.volume > 0);
+}
+
+/**
+ * Seconds into the clip's own file whose **sound** belongs to `time` seconds
+ * of the graphic, or `null` when the layer is silent then — before its delay,
+ * or after a `once` clip has played out. The same arithmetic as `clipFrameAt`
+ * kept continuous instead of floored to a frame, so the preview's audio
+ * element and the render's filter follow the picture exactly, loops and all
+ * (milestone 48).
+ */
+export function clipMediaTimeAt(time: number, value: ClipValue, source: ClipSource): number | null {
+  if (!Number.isFinite(time) || value.id === null || value.hidden) return null;
+  const { first, frames } = clipWindow(value, source);
+  if (frames === 0) return null;
+  const fps = Math.max(1, source.fps);
+  const elapsed = (time - Math.max(0, value.delay)) * (Number.isFinite(value.speed) && value.speed > 0 ? Math.min(CLIP_LIMITS.speed.max, Math.max(CLIP_LIMITS.speed.min, value.speed)) : DEFAULT_CLIP_SPEED);
+  if (elapsed < -1e-9) return null;
+  const windowSeconds = frames / fps;
+  let within = Math.max(0, elapsed);
+  if (value.ending === 'loop') within = within % windowSeconds;
+  else if (within >= windowSeconds - 1e-9) return null;
+  return first / fps + within;
+}
+
 /**
  * Every clip frame a render needs, in the order it needs them, for one layer.
  * The host decodes a clip once per render and walks it forward, so what it
@@ -169,7 +202,9 @@ export function sanitizeClipValue(input: unknown): ClipValue | null | undefined 
   const speed = typeof r.speed === 'number' && Number.isFinite(r.speed) ? clipSpeed(r.speed) : DEFAULT_CLIP_SPEED;
   const rawDelay = typeof r.delay === 'number' && Number.isFinite(r.delay) ? r.delay : 0;
   const delay = Math.min(CLIP_LIMITS.delay.max, Math.max(CLIP_LIMITS.delay.min, Math.round(rawDelay * 1000) / 1000));
-  return { id, inPoint, outPoint, ending, speed, delay, hidden: r.hidden === true };
+  const rawVolume = typeof r.volume === 'number' && Number.isFinite(r.volume) ? r.volume : 1;
+  const volume = Math.min(1, Math.max(0, Math.round(rawVolume * 100) / 100));
+  return { id, inPoint, outPoint, ending, speed, delay, hidden: r.hidden === true, volume, muted: r.muted === true };
 }
 
 /** The same value written short, for presets, collections and CSV: defaults are left out. */
@@ -182,12 +217,14 @@ export function clipValueToText(value: ClipValue | null): string {
   if (value.ending !== 'loop') parts.push(`ending=${value.ending}`);
   if (value.speed !== DEFAULT_CLIP_SPEED) parts.push(`speed=${value.speed}`);
   if (value.delay !== 0) parts.push(`delay=${value.delay}`);
+  if (value.volume !== 1) parts.push(`volume=${value.volume}`);
+  if (value.muted) parts.push('muted');
   if (value.hidden) parts.push('hidden');
   return parts.join(' ');
 }
 
 /** The short names the text form uses, against the fields they set. */
-const TEXT_KEYS: Record<string, string> = { in: 'inPoint', out: 'outPoint', ending: 'ending', speed: 'speed', delay: 'delay' };
+const TEXT_KEYS: Record<string, string> = { in: 'inPoint', out: 'outPoint', ending: 'ending', speed: 'speed', delay: 'delay', volume: 'volume' };
 
 /** Read what `clipValueToText` wrote: an id, then any of the settings as `key=value`. */
 export function clipValueFromText(text: string): ClipValue | null {
@@ -199,6 +236,10 @@ export function clipValueFromText(text: string): ClipValue | null {
   for (const part of rest) {
     if (part.toLowerCase() === 'hidden') {
       fields.hidden = true;
+      continue;
+    }
+    if (part.toLowerCase() === 'muted') {
+      fields.muted = true;
       continue;
     }
     const at = part.indexOf('=');

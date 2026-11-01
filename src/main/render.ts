@@ -23,7 +23,7 @@ import { dirname } from 'node:path';
 import { templateDefaultSize, type Size } from '../core/aspect';
 import { chosenImageIds, imageGrantKey, imageGrantRequests, imageRequests, imageSlots, MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
 import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, layerTexts, type BlockState } from '../core/layer-layout';
-import { readClipFrames, resolveClipSource, type ClipFrameData } from './clip-grant';
+import { readClipFrames, resolveClipAudio, resolveClipSource, type ClipFrameData } from './clip-grant';
 import { ffprobePathFor } from '../core/media-probe';
 import type { ClipSource } from '../core/video-layer';
 import { resolveLayers } from '../core/layers';
@@ -32,6 +32,8 @@ import { lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg, runWithInput } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan } from '../core/render-plan';
+import { applyClipAudio, type ClipAudioLayer } from '../core/clip-audio';
+import { clipAudible } from '../core/video-layer';
 import { finishedFileWarnings } from './platform-check';
 import { lengthIn, resolveParams, splitLayers } from '../core/params';
 import {
@@ -199,6 +201,17 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     if (source) clipSources[choice.id] = source;
     else return { ok: false, message: `A clip chosen for a layer is not in the library, is offline, or could not be read.` };
   }
+
+  // A clip keeps its sound (milestone 48): each audible video layer joins the same ffmpeg command
+  // the frames are piped into, as an audio input mixed in step with its in point, speed and delay.
+  // Nothing changes for a silent project — no audible layer, no audio stream, exactly as before.
+  const audioLayers: ClipAudioLayer[] = [];
+  for (const choice of clipChoices) {
+    if (!clipAudible(choice) || !clipSources[choice.id]) continue;
+    const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), choice.id);
+    if (audio?.hasAudio) audioLayers.push({ path: audio.path, value: choice, source: clipSources[choice.id]! });
+  }
+  if (audioLayers.length > 0) plan = applyClipAudio(plan, audioLayers);
 
   // The frame size is the plan's, not the manifest's: a template draws for a shape and the
   // size is chosen per render (ADR 0012). The window, the capture check and ffmpeg agree on it.

@@ -252,7 +252,7 @@ describe('video layers (milestone 26)', () => {
     if (!r.ok) throw new Error('fixture');
     const { values, issues } = resolveLayers(r.manifest, { b: [{ id: 'plate', clip: { id: 'abc123', inPoint: 10, outPoint: 40, ending: 'once', speed: 2, delay: 0.5 } }] });
     expect(issues).toEqual([]);
-    expect((values.b![0] as VideoLayer).clip).toEqual({ id: 'abc123', inPoint: 10, outPoint: 40, ending: 'once', speed: 2, delay: 0.5, hidden: false });
+    expect((values.b![0] as VideoLayer).clip).toEqual({ id: 'abc123', inPoint: 10, outPoint: 40, ending: 'once', speed: 2, delay: 0.5, hidden: false, volume: 1, muted: false });
     // A bare id is the whole clip, looping.
     const bare = resolveLayers(r.manifest, { b: [{ id: 'plate', clip: 'xyz' }] });
     expect((bare.values.b![0] as VideoLayer).clip).toEqual({ ...EMPTY_CLIP, id: 'xyz' });

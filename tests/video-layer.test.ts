@@ -7,7 +7,9 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  clipAudible,
   clipFrameAt,
+  clipMediaTimeAt,
   clipFramePlan,
   clipPassSeconds,
   clipValueFromText,
@@ -130,7 +132,7 @@ describe('reading and writing a clip value', () => {
 
   it('clamps every setting it is given', () => {
     const value = sanitizeClipValue({ id: 'x', inPoint: -5, outPoint: 12.7, ending: 'nonsense', speed: 99, delay: -3 });
-    expect(value).toEqual({ id: 'x', inPoint: 0, outPoint: 12, ending: 'loop', speed: CLIP_LIMITS.speed.max, delay: 0, hidden: false });
+    expect(value).toEqual({ id: 'x', inPoint: 0, outPoint: 12, ending: 'loop', speed: CLIP_LIMITS.speed.max, delay: 0, hidden: false, volume: 1, muted: false });
     expect(sanitizeClipValue({ id: 'x', delay: 1.23456 })?.delay).toBe(1.235);
     expect(sanitizeClipValue({ id: 'x', ending: 'once' })?.ending).toBe('once');
     expect(sanitizeClipValue({ id: 'x', speed: 0.01 })?.speed).toBe(CLIP_LIMITS.speed.min);
@@ -142,6 +144,8 @@ describe('reading and writing a clip value', () => {
       clip({ inPoint: 10, outPoint: 40 }),
       clip({ ending: 'once', speed: 2, delay: 1.5 }),
       clip({ inPoint: 3, outPoint: 9, ending: 'once', speed: 0.5, delay: 0.25 }),
+      clip({ volume: 0.4 }),
+      clip({ muted: true, volume: 0.75 }),
       { ...EMPTY_CLIP, hidden: true },
     ];
     for (const value of cases) {
@@ -154,6 +158,59 @@ describe('reading and writing a clip value', () => {
     expect(clipValueFromText('')).toBeNull();
     // Junk between the fields is ignored rather than failing the row.
     expect(clipValueFromText('abc ending=once what speed=')).toMatchObject({ id: 'abc', ending: 'once', speed: 1 });
+  });
+
+  it('keeps the layer\'s sound settings in range (milestone 48)', () => {
+    // Volume is 0 to 1, a hundredth at a time; mute is a flag beside it, so unmuting restores the level.
+    expect(sanitizeClipValue({ id: 'x' })).toMatchObject({ volume: 1, muted: false });
+    expect(sanitizeClipValue({ id: 'x', volume: 0.5, muted: true })).toMatchObject({ volume: 0.5, muted: true });
+    expect(sanitizeClipValue({ id: 'x', volume: 7 })?.volume).toBe(1);
+    expect(sanitizeClipValue({ id: 'x', volume: -2 })?.volume).toBe(0);
+    expect(sanitizeClipValue({ id: 'x', volume: 0.333333 })?.volume).toBe(0.33);
+    expect(sanitizeClipValue({ id: 'x', volume: 'loud', muted: 'yes' })).toMatchObject({ volume: 1, muted: false });
+  });
+
+  it('says whether a layer asks for its sound at all (milestone 48)', () => {
+    expect(clipAudible(clip())).toBe(true);
+    expect(clipAudible(null)).toBe(false);
+    expect(clipAudible({ ...EMPTY_CLIP })).toBe(false); // no clip chosen
+    expect(clipAudible(clip({ hidden: true }))).toBe(false);
+    expect(clipAudible(clip({ muted: true }))).toBe(false);
+    expect(clipAudible(clip({ volume: 0 }))).toBe(false);
+  });
+});
+
+describe('where a moment lands in the clip\'s own sound (milestone 48)', () => {
+  // A 30-frame clip at 30 fps: one second of material.
+  const source: ClipSource = { frames: 30, fps: 30 };
+
+  it('follows the picture: the same arithmetic as clipFrameAt, kept continuous', () => {
+    expect(clipMediaTimeAt(0, clip(), source)).toBe(0);
+    expect(clipMediaTimeAt(0.5, clip(), source)).toBeCloseTo(0.5, 9);
+    // The in point offsets into the file, so the sound starts where the picture does.
+    expect(clipMediaTimeAt(0, clip({ inPoint: 15 }), source)).toBeCloseTo(0.5, 9);
+    // Speed scales how fast the file is traversed.
+    expect(clipMediaTimeAt(0.25, clip({ speed: 2 }), source)).toBeCloseTo(0.5, 9);
+  });
+
+  it('is silent before the delay, loops with the window, and ends with a once clip', () => {
+    expect(clipMediaTimeAt(0.5, clip({ delay: 1 }), source)).toBeNull();
+    expect(clipMediaTimeAt(1.25, clip({ delay: 1 }), source)).toBeCloseTo(0.25, 9);
+    // A loop comes round: 1.25 s into a one-second window is 0.25 s again.
+    expect(clipMediaTimeAt(1.25, clip(), source)).toBeCloseTo(0.25, 9);
+    // Played once, it is silent after its pass — the picture clears there too.
+    expect(clipMediaTimeAt(1.25, clip({ ending: 'once' }), source)).toBeNull();
+    // Hidden draws nothing and says nothing.
+    expect(clipMediaTimeAt(0.5, clip({ hidden: true }), source)).toBeNull();
+  });
+
+  it('respects the window: a trimmed clip\'s sound stays inside its in and out points', () => {
+    const windowed = clip({ inPoint: 10, outPoint: 19 }); // a third of a second of material
+    expect(clipMediaTimeAt(0, windowed, source)).toBeCloseTo(10 / 30, 9);
+    // Past one pass it loops back to the window's start, never before frame 10.
+    const at = clipMediaTimeAt(0.4, windowed, source)!;
+    expect(at).toBeGreaterThanOrEqual(10 / 30);
+    expect(at).toBeLessThan(20 / 30);
   });
 });
 

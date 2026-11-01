@@ -952,6 +952,74 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(await ink(join(out, 'turn-360_00090.png'))).toEqual(upright);
   }, 240_000);
 
+  it('a video layer keeps its sound: mixed into the render in step with its delay and loop, scaled by volume, gone when muted (milestone 48)', async () => {
+    // One second of red picture with a full-scale 440 Hz tone, so the sound's presence, level and
+    // timing can all be read back off the written file.
+    const lib = join(out, 'sound-library');
+    await mkdir(lib, { recursive: true });
+    const noisy = join(lib, 'noisy.mp4');
+    const built = await runBounded(ffmpeg, ffmpegArgs([
+      '-v', 'error', '-y',
+      '-f', 'lavfi', '-i', 'color=c=red:s=160x160:d=1:r=30',
+      '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
+      '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-shortest', noisy,
+    ]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(built.code, built.stderr).toBe(0);
+    const noisyId = itemId(`media:${noisy}`);
+    const layers = (value: unknown) => ['--param', `@layers=${JSON.stringify({ stack: [{ id: 'plate', clip: value }] })}`];
+    const common = ['--library', FIXTURES, '--library', lib];
+
+    /** The first audio stream of a file, or null where there is none. */
+    const probeAudio = async (file: string): Promise<{ codec_name?: string; duration?: string } | null> => {
+      const { stdout, stderr } = await runBounded(ffprobe, [
+        '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name,duration', '-of', 'json', file,
+      ], { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(stdout, stderr).not.toBe('');
+      return (JSON.parse(stdout) as { streams?: { codec_name?: string; duration?: string }[] }).streams?.[0] ?? null;
+    };
+    /** Loudest moment of a stretch of the file's sound, in dB (0 is full scale). */
+    const maxVolume = async (file: string, from = 0, to?: number): Promise<number> => {
+      const trim = `atrim=start=${from}${to !== undefined ? `:end=${to}` : ''},asetpts=PTS-STARTPTS,`;
+      const r = await runBounded(ffmpeg, ffmpegArgs(['-i', file, '-af', `${trim}volumedetect`, '-f', 'null', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
+      const m = /max_volume:\s*(-?[\d.]+) dB/.exec(r.stderr);
+      expect(m, r.stderr.slice(-2000)).not.toBeNull();
+      return Number(m![1]);
+    };
+
+    // The looping default: the one-second clip sounds through the whole two-second render.
+    const mixed = await render('pulp.test.video-layer', 'h264-mp4', 'sound-loop', { extra: [...common, ...layers(noisyId)] });
+    expect(mixed.code, mixed.stderr).toBe(0);
+    const stream = await probeAudio(join(out, 'sound-loop.mp4'));
+    expect(stream?.codec_name, 'AAC beside H.264').toBe('aac');
+    expect(Number(stream?.duration), 'the sound runs the render\'s own length').toBeCloseTo(2, 0);
+    // ffmpeg's sine source generates at an eighth of full scale, about -18 dB; presence is anything near it.
+    const loud = await maxVolume(join(out, 'sound-loop.mp4'));
+    expect(loud, 'the tone is there').toBeGreaterThan(-24);
+    expect(await maxVolume(join(out, 'sound-loop.mp4'), 1.2, 1.8), 'and still there in the second pass of the loop').toBeGreaterThan(loud - 3);
+
+    // Volume scales the layer: a quarter is about 12 dB down from full.
+    const quiet = await render('pulp.test.video-layer', 'h264-mp4', 'sound-quiet', { extra: [...common, ...layers({ id: noisyId, volume: 0.25 })] });
+    expect(quiet.code, quiet.stderr).toBe(0);
+    const quietLevel = await maxVolume(join(out, 'sound-quiet.mp4'));
+    expect(Math.abs(quietLevel - (loud - 12)), `quarter volume is about 12 dB down (${quietLevel} against ${loud})`).toBeLessThan(2);
+
+    // A start delay holds the sound back exactly as it holds the picture.
+    const delayed = await render('pulp.test.video-layer', 'h264-mp4', 'sound-delay', { extra: [...common, ...layers({ id: noisyId, delay: 1, ending: 'once' })] });
+    expect(delayed.code, delayed.stderr).toBe(0);
+    expect(await maxVolume(join(out, 'sound-delay.mp4'), 0, 0.9), 'silence before the delay').toBeLessThan(-50);
+    expect(await maxVolume(join(out, 'sound-delay.mp4'), 1.1, 1.9), 'the tone after it').toBeGreaterThan(loud - 3);
+
+    // Muted, the render carries no audio stream at all — exactly what a silent project writes.
+    const muted = await render('pulp.test.video-layer', 'h264-mp4', 'sound-muted', { extra: [...common, ...layers({ id: noisyId, muted: true })] });
+    expect(muted.code, muted.stderr).toBe(0);
+    expect(await probeAudio(join(out, 'sound-muted.mp4'))).toBeNull();
+
+    // An editing preset carries the mix as PCM, alpha picture and all.
+    const pro = await render('pulp.test.video-layer', 'prores-4444', 'sound-pro', { extra: [...common, ...layers(noisyId)] });
+    expect(pro.code, pro.stderr).toBe(0);
+    expect((await probeAudio(join(out, 'sound-pro.mov')))?.codec_name).toBe('pcm_s16le');
+  }, 240_000);
+
   it('plays a clip inside a graphic, on the template\'s own time (milestone 26)', async () => {
     // A transparent clip whose red square moves left to right over its 30 frames, so which frame
     // was drawn can be read off the rendered picture. The library sees it by path, as any clip.
