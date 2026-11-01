@@ -3685,8 +3685,9 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(async () => (await settings())?.open === true && !!(await settings())?.bounds, 'the stage window remembered as out, with its place');
 
         // The window's own close puts the stage back first — nothing is lost with the window — and
-        // the setting says it is in.
-        await stage.eval(`window.close()`);
+        // the setting says it is in. The close is scheduled rather than called in the evaluation: a
+        // window that goes before it answers leaves the evaluation waiting on a reply that never comes.
+        await stage.eval(`setTimeout(() => window.close(), 0), true`);
         await until(() => page.eval<boolean>(`!!document.getElementById('region-stage') && !!document.getElementById('scrub') && !document.getElementById('app').classList.contains('stage-out')`), 'the stage back in the main window');
         await until(async () => (await stageTarget()) === undefined, 'the stage window gone');
         stage = null;
