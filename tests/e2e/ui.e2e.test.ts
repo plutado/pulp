@@ -5014,6 +5014,10 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'closed');
       await page.eval(`document.getElementById('scope-chip-clear').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('scope-chip').hidden`), 'the scope cleared again');
+      // The making choice set "For…" as well as the scope, and clearing the scope keeps it; the
+      // tests after this one expect the whole library, so it goes too.
+      await fire('#for-select', '', 'change');
+      await until(() => page.eval<boolean>(`document.getElementById('for-select').value === ''`), 'For… cleared');
       await page.eval(`window.pulpMenuCommand('project.new')`);
       await until(
         () => page.eval<boolean>(
