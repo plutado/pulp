@@ -253,6 +253,12 @@ export interface PulpApi {
    * The item travels as an id; the main process resolves the file (ADR 0013).
    */
   voicePreview(request: { kind: 'clip' | 'sound'; id: string; voice: unknown }): Promise<{ url: string | null }>;
+  /**
+   * The cut track's frames for the preview (milestone 49): each cut's window
+   * decoded at a proxy height, as PNG data URLs with what maps a moment to a
+   * frame. A cut that cannot be read is null; ids only, never paths (ADR 0013).
+   */
+  trackFrames(request: { cuts: { id: string; from: number; to: number }[]; height: number }): Promise<{ cuts: ({ srcs: string[]; fps: number; first: number } | null)[] }>;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */

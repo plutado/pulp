@@ -21,6 +21,7 @@
  * as in an editing app a held frame is silent.
  */
 
+import { trackAudio, type CutTrack } from '../core/cut-track';
 import { layerGainAt, type AudioLayer } from '../core/layer-audio';
 import type { LayerValues } from '../core/layers';
 import type { MediaEntry } from '../core/library-types';
@@ -68,7 +69,7 @@ function soundSourceFor(entry: MediaEntry | undefined): SoundSource | null {
  * is nothing there. A sound the library has not measured yet is left out,
  * since without its length there is no window to play.
  */
-export function layerSoundsSync(layers: LayerValues, sources: Record<string, ClipSource>, entryFor: (id: string) => MediaEntry | undefined): void {
+export function layerSoundsSync(layers: LayerValues, sources: Record<string, ClipSource>, entryFor: (id: string) => MediaEntry | undefined, track: CutTrack | null = null): void {
   const wanted = new Map<string, AudioLayer>();
   for (const [blockId, stack] of Object.entries(layers)) {
     for (const layer of stack) {
@@ -87,6 +88,15 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
       }
     }
   }
+  // The cut track's sound (milestone 49): each cut as the sound-shaped value the core derives,
+  // through the very elements an audio layer plays by. A clip with no audio stream plays nothing.
+  (track ? trackAudio(track) : []).forEach((cut, index) => {
+    const entry = entryFor(cut.value.id!);
+    const source = soundSourceFor(entry);
+    if (!entry || entry.offline || !source) return;
+    if (entry.meta && !entry.meta.audioCodec) return;
+    wanted.set(`@track.${index}`, { kind: 'sound', path: '', value: cut.value, source, span: cut.span });
+  });
   for (const [key, sound] of sounds) {
     const next = wanted.get(key);
     if (next && next.kind === sound.layer.kind && sourceId(next) === sourceId(sound.layer)) {

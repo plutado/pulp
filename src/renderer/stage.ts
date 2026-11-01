@@ -29,7 +29,8 @@ import type { ResolvedParams } from '../core/params';
 import { layerAtPoint, layerCentre, mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
 import { mountStageMenu } from './stage-menu';
 import type { CutTrack } from '../core/cut-track';
-import { cutTrackUpdate, mountCutTrack } from './cut-track';
+import { cutTrackTakeDrop, cutTrackUpdate, mountCutTrack } from './cut-track';
+import { mountTrackPicture, trackPictureDebug, trackPictureDraw, trackPictureSync } from './stage-track';
 import { layerBarsUpdate, mountLayerBars } from './stage-bars';
 import { layerEditor, selectedLayer } from './layer-edit';
 import type { LaidReport } from '../core/stage-place';
@@ -415,6 +416,10 @@ function postFrame(frame: number): void {
     requestFrame(next);
   }, FRAME_REPLY_TIMEOUT_MS);
   win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, previewSize(), s.layers, s.clipSources, s.length) }, '*');
+  // The footage under the graphic (milestone 49): synced cheaply — one ask per change — and drawn
+  // to this frame, so a cut lands in the preview on the frame it lands on in the file.
+  trackPictureSync(s.track, els.previewFrame.getBoundingClientRect().height);
+  trackPictureDraw(frame / Math.max(1, previewFps()), previewSize());
   updateTimecode(frame);
   noteFrameState();
 }
@@ -463,7 +468,7 @@ function syncImages(): void {
     }
     s.clipSources = clips.sources;
     // The sources are what the layer sounds follow the playhead by (milestone 48).
-    layerSoundsSync(s.layers, s.clipSources, mediaEntryFor);
+    layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track);
     const srcByKey = new Map(handed.images.map((i) => [i.key, i.src]));
     win.postMessage({
       type: 'pulp:prepare',
@@ -681,14 +686,16 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
   els.scrub.max = String(previewFrames() - 1);
   els.scrub.value = String(s.frame);
   // An audio layer needs no clip sources and no page: its sound can play the moment it is shown.
-  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor);
-  loudnessUpdate(s.layers, previewFps(), soundLength());
+  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track);
+  loudnessUpdate(s.layers, previewFps(), soundLength(), s.track);
   updateTransport();
   applyLayerBars();
 }
 
 /** Show a media item, served by id through pulp-media://. */
 export function stageShowMedia(entry: MediaEntry): void {
+  // A media item is its own picture: the cut track belongs to a project, and its canvas goes.
+  trackPictureSync(null, 0);
   layerSoundsClear();
   loudnessClear();
   // Volume and mute are the player's, not each file's.
@@ -879,10 +886,10 @@ export function stageSetParams(params: ResolvedParams, layers: LayerValues = {},
   s.layers = layers;
   s.track = track;
   // A changed volume, mute or clip takes effect mid-play (milestone 48); new clips join when their sources land.
-  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor);
+  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track);
   layerSoundsUpdate(soundTime(), s.playing, soundMaster(), soundLength());
   // And the meter measures the mix afresh, after the edits settle (milestone 52).
-  loudnessUpdate(s.layers, previewFps(), soundLength());
+  loudnessUpdate(s.layers, previewFps(), soundLength(), s.track);
   // A new length changes how many frames there are, so the scrub bar and the playhead follow it.
   if (length !== s.length) {
     s.length = length;
@@ -1001,6 +1008,7 @@ function stageRehome(win: Window): void {
 export function initStage(): void {
   // For the UI test: the layer sounds, which have no elements on the page to read.
   (window as unknown as { pulpLayerSounds?: typeof layerSoundsDebug }).pulpLayerSounds = layerSoundsDebug;
+  (window as unknown as { pulpTrackPicture?: typeof trackPictureDebug }).pulpTrackPicture = trackPictureDebug;
   initLoudness();
   // The picture's box changes with the window, the stage split, the browse panel and the
   // aspect: the splits resize the centre column, the rest resize the picture itself, so
@@ -1036,6 +1044,9 @@ export function initStage(): void {
   mountLayerBars($<HTMLDivElement>('layer-bars'), els.row);
   // The cut track's lane, with the stage's own fps for the split's frame step and the stage's
   // note for a refused drop (milestone 49).
+  mountTrackPicture($<HTMLCanvasElement>('track-picture'), () => {
+    if (s.manifest) trackPictureDraw(s.frame / Math.max(1, previewFps()), previewSize());
+  });
   mountCutTrack($<HTMLDivElement>('cut-track'), $<HTMLDivElement>('transport-lanes'), (text) => {
     els.note.hidden = false;
     els.note.textContent = text;
@@ -1119,6 +1130,7 @@ export function initStage(): void {
       els.note.hidden = false;
       els.note.textContent = text;
     },
+    cutTrackTakeDrop,
   );
   els.audition.addEventListener('click', () => setPlayer({ audition: !s.player.audition }));
 

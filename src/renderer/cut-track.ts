@@ -18,11 +18,15 @@
  * lane never keeps a second answer of its own.
  */
 
+import { effect } from '@preact/signals';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import {
-  cutIndexAt, cutSeconds, cutFromClip, cutWindows, snapTime, splitAt, trackDuration,
+  cutIndexAt, cutSeconds, cutFromClip, cutWindows, snapTime, splitAt, trackAudio, trackDuration,
   withCutInserted, withCutMoved, withCutRemoved, withCutWindow, type CutTrack,
 } from '../core/cut-track';
+import { layerBarPeaks } from '../core/layer-audio';
+import { WAVEFORM_BUCKETS, waveformPath } from '../core/waveform';
+import { requestWaveform, waveforms } from './waveforms';
 import type { TemplateManifest } from '../core/manifest';
 import type { MediaEntry } from '../core/library-types';
 import { resolveLength } from '../core/timing';
@@ -36,6 +40,9 @@ interface CutEl {
   label: HTMLSpanElement;
   start: HTMLButtonElement;
   end: HTMLButtonElement;
+  /** The cut's sound, drawn inside the body (milestone 49); empty while it has none. */
+  wave: SVGSVGElement;
+  wavePath: SVGPathElement;
 }
 
 let host: HTMLDivElement | null = null;
@@ -99,6 +106,54 @@ export function cutTrackUpdate(track: CutTrack | null, manifest: TemplateManifes
   });
   if (selected !== null && selected >= cuts.length) selected = null;
   paintSelection();
+  paintWaves();
+}
+
+/**
+ * Each cut's sound on its own stretch of the lane (milestone 49): the peaks
+ * the library caches, resampled through the same sound-shaped value the mix
+ * plays the cut by — so a beat sits on the cut where it will be heard. Peaks
+ * arrive in the background; until they do a cut is plain, and the `waveforms`
+ * signal repaints it when they land. A clip with no audio stream stays plain.
+ */
+function paintWaves(): void {
+  const track = current.track;
+  if (!track || !host || host.hidden) return;
+  trackAudio(track).forEach((cut, index) => {
+    const el = cutEls[index];
+    if (!el) return;
+    const entry = mediaFor(cut.value.id!);
+    const duration = entry?.meta?.duration;
+    const peaks = entry && !entry.sequence && entry.meta?.audioCodec && duration ? waveforms.value.get(entry.id) : undefined;
+    if (!entry || !duration || !peaks || peaks.length === 0) {
+      if (entry && duration && entry.meta?.audioCodec && peaks === undefined) requestWaveform(entry);
+      el.wave.toggleAttribute('hidden', true);
+      el.wavePath.removeAttribute('d');
+      return;
+    }
+    const columns = Math.max(16, Math.round((cutSeconds(track.cuts[index]!) / Math.max(0.001, current.length)) * WAVEFORM_BUCKETS));
+    const drawn = layerBarPeaks({ kind: 'sound', path: '', value: cut.value, source: { duration }, span: cut.span }, peaks, current.length, columns);
+    el.wave.setAttribute('viewBox', `0 0 ${columns} 12`);
+    el.wavePath.setAttribute('d', waveformPath(drawn, columns, 12));
+    el.wave.toggleAttribute('hidden', false);
+  });
+}
+
+/** A clip dropped on the stage lands on the track (milestone 49): appended, one undo step. True when the track took it. */
+export function cutTrackTakeDrop(id: string): boolean {
+  const editor = layerEditor();
+  if (!editor || !current.showing) return false;
+  const entry = mediaFor(id);
+  if (!entry || entry.mediaKind !== 'video' || entry.sequence || entry.offline || !entry.meta?.duration || entry.meta.duration <= 0) return false;
+  const track = editor.track() ?? { cuts: [] };
+  const next = withCutInserted(track, track.cuts.length, cutFromClip(id, entry.meta.duration));
+  if (next === track) {
+    say('The cut track is full.');
+    return true;
+  }
+  selected = next.cuts.length - 1;
+  editor.setTrack(next, true);
+  return true;
 }
 
 function makeCut(): CutEl {
@@ -109,7 +164,15 @@ function makeCut(): CutEl {
   body.className = 'cut-body';
   const label = document.createElement('span');
   label.className = 'cut-label';
-  body.append(label);
+  // The sound first, so the label draws over it — the bars' own order (src/renderer/stage-bars.ts).
+  const wave = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  wave.setAttribute('class', 'cut-wave');
+  wave.setAttribute('preserveAspectRatio', 'none');
+  wave.setAttribute('aria-hidden', 'true');
+  const wavePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  wave.append(wavePath);
+  wave.toggleAttribute('hidden', true);
+  body.append(wave, label);
   const start = trimHandle('start');
   const end = trimHandle('end');
   root.append(body, start, end);
@@ -124,7 +187,7 @@ function makeCut(): CutEl {
     handle.addEventListener('pointerup', onTrimPointerUp);
     handle.addEventListener('pointercancel', onTrimPointerUp);
   }
-  return { root, body, label, start, end };
+  return { root, body, label, start, end, wave, wavePath };
 }
 
 function trimHandle(which: 'start' | 'end'): HTMLButtonElement {
@@ -384,4 +447,9 @@ export function mountCutTrack(el: HTMLDivElement, lanesEl: HTMLDivElement, note:
   }
   lanes.addEventListener('drop', onDrop);
   window.addEventListener('keydown', onSplitKey);
+  // Peaks arrive in the background: the cuts catch up when they land.
+  effect(() => {
+    void waveforms.value;
+    paintWaves();
+  });
 }

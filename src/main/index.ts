@@ -6,7 +6,7 @@ import { layeredOutlineFor } from './layered-service';
 import { renderMedia } from './media-render';
 import { AUDIO_PRESETS, isAudioPresetId } from '../core/media-render';
 import { sanitizePsdChoice, type ImageGrantRequest } from '../core/image-slot';
-import { loadLayerClips } from './clip-grant';
+import { loadLayerClips, loadTrackFrames } from './clip-grant';
 import { existsSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
@@ -41,7 +41,8 @@ import { windowTitle } from '../core/display';
 import { familiesUsedBy, importedFamilies } from '../core/fonts';
 import { chooseFontFile, importFontFile, listImportedFonts } from './font-service';
 import { parseLayersArgument } from '../core/layers';
-import { LAYERS_KEY } from '../core/params';
+import { sanitizeCutTrack } from '../core/cut-track';
+import { LAYERS_KEY, TRACK_KEY } from '../core/params';
 import { slug } from '../core/pack';
 import { readFile, writeFile } from 'node:fs/promises';
 import { addRecentColor } from '../core/recent-colors';
@@ -449,6 +450,8 @@ function registerIpc(): void {
   ipcMain.handle('audio:mix-loudness', (_event, request: unknown) => mixLoudness(request));
   // A treated voice preview (milestone 53): an id and a treatment in, a cache URL out.
   ipcMain.handle('audio:voice-preview', (_event, request: unknown) => voicePreview(request));
+  // The cut track's frames for the preview (milestone 49): proxy windows per cut.
+  ipcMain.handle('track:frames', (_event, request: unknown) => loadTrackFrames(request));
 
   ipcMain.handle('drag-notice:get', async () => (await loadSettings()).dragNoticeSeen);
   ipcMain.handle('drag-notice:seen', async () => {
@@ -716,6 +719,23 @@ async function runCliRender(cli: CliRender): Promise<number> {
       return 2;
     }
     cli.params[LAYERS_KEY] = parsed.layers;
+  }
+  // The cut track given as JSON (milestone 49): read strictly, so a typo is named rather than ignored.
+  const trackArg = cli.params[TRACK_KEY];
+  if (typeof trackArg === 'string') {
+    let parsedTrack: unknown;
+    try {
+      parsedTrack = JSON.parse(trackArg);
+    } catch {
+      console.error(`${TRACK_KEY}: must be JSON, such as {"cuts":[{"id":"<clip-id>","from":0,"to":2.5}]}`);
+      return 2;
+    }
+    const sane = sanitizeCutTrack(parsedTrack);
+    if (!sane) {
+      console.error(`${TRACK_KEY}: holds no cuts; each needs a clip id and a window at least 0.05 s long`);
+      return 2;
+    }
+    cli.params[TRACK_KEY] = sane;
   }
   if (cli.batch !== undefined) return runCliBatch(cli, template);
   const started = Date.now();

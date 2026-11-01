@@ -340,7 +340,14 @@ function dropPoint(e: DragEvent, el: HTMLElement): { x: number; y: number } {
  * a template with words to fill in — is refused with a word about why rather
  * than ignored.
  */
-export function mountStageDrop(el: HTMLElement, stageHost: Host, lookup: (id: string) => { kind: 'image' | 'video' | 'audio' | 'other'; name: string } | null, note: (text: string) => void): void {
+export function mountStageDrop(
+  el: HTMLElement,
+  stageHost: Host,
+  lookup: (id: string) => { kind: 'image' | 'video' | 'audio' | 'other'; name: string } | null,
+  note: (text: string) => void,
+  /** Offered a dropped clip first (milestone 49): true when the cut track took it, and no layer is made. */
+  toTrack?: (id: string) => boolean,
+): void {
   host = stageHost;
   el.addEventListener('dragover', (e) => {
     if (!e.dataTransfer?.types.includes(COLLECTION_DRAG_TYPE)) return;
@@ -361,6 +368,9 @@ export function mountStageDrop(el: HTMLElement, stageHost: Host, lookup: (id: st
       note('Only a picture, a clip or a sound can be dropped on the stage.');
       return;
     }
+    // A clip from the library lands on the cut track (milestone 49): the shots of the project.
+    // What falls through — a drawn asset, a Lottie, a frame sequence — still becomes a layer.
+    if (found.kind === 'video' && toTrack?.(itemId)) return;
     const editor = layerEditor();
     if (!editor) return;
     const added = editor.addLayer(found.kind, found.name, itemId);

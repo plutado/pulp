@@ -1495,6 +1495,78 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+    it('plays the cut track under the graphic: a stage drop lands on it, the cuts switch to the frame, and a cut\'s sound joins the mix with its waveform (milestone 49)', async () => {
+      await clickResult('Title Card');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const before = await layerIds();
+      const count = () => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`);
+      const sounds = `(window.pulpLayerSounds ? window.pulpLayerSounds() : [])`;
+      const clipId = await onResult<string>('clip', '(li) => li.dataset.id');
+      const tallId = await onResult<string>('tall', '(li) => li.dataset.id');
+      const noisyId = await onResult<string>('noisy', '(li) => li.dataset.id');
+      const dropOnStage = (id: string) =>
+        page.eval<boolean>(
+          `(() => {
+            const el = document.getElementById('preview-frame');
+            const r = el.getBoundingClientRect();
+            const dt = new DataTransfer();
+            dt.setData('application/x-pulp-item', ${JSON.stringify(id)});
+            const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true };
+            el.dispatchEvent(new DragEvent('dragover', at));
+            el.dispatchEvent(new DragEvent('drop', at));
+            return true;
+          })()`,
+        );
+      const scrub = (frame: number) => page.eval(`(() => { const s = document.getElementById('scrub'); s.value = '${frame}'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      const pixel = (fx: number) => page.eval<number[]>(
+        `(() => { const c = document.getElementById('track-picture'); const d = c.getContext('2d').getImageData(Math.floor(c.width * ${fx}), Math.floor(c.height / 2), 1, 1).data; return [d[0], d[1], d[2]]; })()`,
+      );
+      try {
+        // A clip dropped on the stage lands on the track — the shots of the project — not as a layer.
+        await dropOnStage(clipId!);
+        await until(async () => (await count()) === 1, 'the stage drop on the track');
+        expect(await layerIds()).toEqual(before);
+        await dropOnStage(tallId!);
+        await until(async () => (await count()) === 2, 'the second shot after the first');
+
+        // The track's picture sits under the graphic, drawn to the frame on screen: inside the
+        // first cut the wide test pattern fills the frame, and inside the second the tall one
+        // leaves the sides to the pad — the cut switched on the boundary's own frame.
+        await scrub(15);
+        // The wide pattern fills the frame: a quarter along sits inside its picture.
+        await until(async () => {
+          const [r, g, b] = await pixel(0.25);
+          return r! + g! + b! > 120;
+        }, 'the first cut\'s picture under the graphic', 30_000);
+        await scrub(75);
+        await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) === 75), 'the playhead inside the second cut');
+        // The tall pattern is pillarboxed: a quarter along is the pad now, and the centre its picture.
+        await until(async () => {
+          const [r, g, b] = await pixel(0.25);
+          return r! + g! + b! < 60;
+        }, 'the tall cut pillarboxed: the side is the pad', 30_000);
+        const centre = await pixel(0.5);
+        expect(centre[0]! + centre[1]! + centre[2]!, 'and its picture at the centre').toBeGreaterThan(120);
+
+        // A cut with sound joins the mix through the same elements an audio layer plays by, and
+        // its waveform draws on its stretch of the lane; the silent test patterns add nothing.
+        await dropOnStage(noisyId!);
+        await until(async () => (await count()) === 3, 'the shot with sound');
+        await until(() => page.eval<number>(`${sounds}.filter((s) => s.key.startsWith('@track.')).length`).then((n) => n === 1), 'the cut\'s sound in the preview mix', 30_000);
+        expect(await page.eval<string>(`${sounds}.find((s) => s.key.startsWith('@track.')).key`)).toBe('@track.2');
+        await until(
+          () => page.eval<boolean>(
+            `(() => { const w = document.querySelectorAll('#cut-track .cut')[2]?.querySelector('.cut-wave'); return !!w && !w.hidden && !!w.querySelector('path')?.getAttribute('d'); })()`,
+          ),
+          'the waveform on the cut',
+          30_000,
+        );
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
+
     it('keys a layer at the playhead, eases each key its own way, and keyframing writes a key from an edit (milestone 51)', async () => {
       await clickResult('Title Card');
       await openTab('parameters');

@@ -327,6 +327,21 @@ describe('the plan with sound mixed in', () => {
     expect(after.audioOutput, 'the output carries it, so nothing is written beside it').toBeUndefined();
   });
 
+  it('counts the inputs already there, so the cut track\'s own inputs shift the audio\'s names (milestone 49)', () => {
+    const tracked = buildRenderPlan({
+      manifest: { fps: 30, duration: 2, alpha: true, aspects: ['16:9'], size: { width: 320, height: 180 } },
+      presetId: 'h264-mp4', outputPath: '/out/render',
+      track: { cuts: [{ path: '/lib/a.mp4', from: 0, to: 1 }, { path: '/lib/b.mp4', from: 0, to: 1 }] },
+    });
+    const after = applyLayerAudio(tracked, [music()]);
+    const graph = after.args[after.args.indexOf('-filter_complex') + 1]!;
+    // The pipe is 0, the two cuts are 1 and 2, so the first sound is 3 — and its file joins after theirs.
+    expect(graph).toContain('[3:a]aresample');
+    const inputs = after.args.flatMap((a: string, i: number) => (a === '-i' ? [after.args[i + 1]] : []));
+    expect(inputs).toEqual(['pipe:0', '/lib/a.mp4', '/lib/b.mp4', '/lib/music.wav']);
+    expect(graph, 'the track\'s composite is still there').toContain('concat=n=2');
+  });
+
   it('folds a plain -vf chain into one complex graph, with the video mapped first', () => {
     const before = plan('prores-4444');
     expect(before.args).toContain('-vf');

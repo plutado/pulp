@@ -16,6 +16,7 @@
  */
 
 import { effect } from '@preact/signals';
+import { trackAudio, type CutTrack } from '../core/cut-track';
 import type { Layer, LayerValues } from '../core/layers';
 import { platformPreset } from '../core/platform-presets';
 import { preferredPlatform } from './store';
@@ -77,11 +78,13 @@ function paint(): void {
  * What is heard has changed: measure again, after the edits settle. Called by
  * the stage whenever the layers, the sources or the length move.
  */
-export function loudnessUpdate(layers: LayerValues, fps: number, length: number): void {
+export function loudnessUpdate(layers: LayerValues, fps: number, length: number, track: CutTrack | null = null): void {
   if (!els) return;
   const asked = ++generation;
   clearTimeout(timer);
   const request = soundRequest(layers);
+  // The cut track's sound is part of the mix (milestone 49), so the meter measures it too.
+  for (const cut of track ? trackAudio(track) : []) request.push({ kind: 'sound', value: cut.value, span: cut.span });
   if (request.length === 0 || !(length > 0) || !(fps > 0)) {
     shown = null;
     paint();

@@ -438,6 +438,13 @@ export interface RenderPlanInput {
   rawInput?: RawInput;
   /** Tag raw frames with their alpha mode (needs ffmpeg 8.1 or later; see FfmpegStatus.alphaModeAware). Default false. */
   tagAlphaMode?: boolean;
+  /**
+   * The cut track under the graphic (milestone 49), its clip ids already
+   * resolved to files by the caller: each cut a window of a file in seconds.
+   * The cuts are read as inputs, scaled and padded to the output's own frame,
+   * joined end to end, and the graphic is composited over them.
+   */
+  track?: { cuts: { path: string; from: number; to: number }[] };
 }
 
 export interface RenderPlan {
@@ -560,7 +567,34 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   // With a matte, the prepared frames are split: one branch to the picture, one to the grey (milestone 15).
   const prepared = prepare.length > 0 ? `[0:v]${prepare.join(',')}[src]` : '[0:v]null[src]';
   const split = `${prepared};[src]split[pic][mat];[mat]${matteFilters(preset)}[matte]`;
-  if (!preset.alpha && manifest.alpha) {
+  const track = input.track && input.track.cuts.length > 0 ? input.track : undefined;
+  if (track) {
+    // The cut track under the graphic (milestone 49): each cut is its own input, sought to its
+    // window (`-ss`/`-t` before `-i`: fast to the keyframe, exact from there), brought to the
+    // output's clock and frame — scaled inside it, padded to it, square pixels — then joined end
+    // to end. The join is padded on in time, so a track shorter than the graphic shows the pad
+    // rather than ending the render, and trimmed to the rendered range exactly as the audio mix
+    // is. The graphic is composited over it in RGB, as the flatten branch composites, so one
+    // conversion serves both; a flattening render's chosen background is the pad, since that is
+    // the colour the graphic would have met. The matte stays the graphic's own alpha — the
+    // graphics over the footage are exactly what an editing app wants a matte of.
+    const sec = (v: number) => String(Math.round(v * 1e6) / 1e6);
+    const pad = !preset.alpha && manifest.alpha ? hexToFfmpegColor(background) : 'black';
+    track.cuts.forEach((cut) => args.push('-ss', sec(cut.from), '-t', sec(Math.max(0.001, cut.to - cut.from)), '-i', cut.path));
+    const segments = track.cuts.map((_, i) =>
+      `[${i + 1}:v]fps=${fps},scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:-1:-1:color=${pad},setsar=1,setpts=PTS-STARTPTS[t${i}]`);
+    const joined = track.cuts.length > 1
+      ? `${track.cuts.map((_, i) => `[t${i}]`).join('')}concat=n=${track.cuts.length}:v=1:a=0[tcat]`
+      : '[t0]null[tcat]';
+    const placed = `[tcat]tpad=stop=-1:stop_mode=add:color=${pad},trim=start=${sec(timing.firstFrame / timing.fps)},setpts=PTS-STARTPTS[trk]`;
+    const graphic = matte ? split : prepared;
+    const over = matte ? '[pic]' : '[src]';
+    args.push(
+      '-filter_complex',
+      `${segments.join(';')};${joined};${placed};${graphic};[trk]${over}overlay=shortest=1:format=rgb,${toOutput.join(',')}[out]`,
+      '-map', '[out]',
+    );
+  } else if (!preset.alpha && manifest.alpha) {
     // Composite in RGB so the background color and the template pixels share one conversion.
     const foreground = matte ? `${split};[bg][pic]` : prepare.length > 0 ? `[0:v]${prepare.join(',')}[fg];[bg][fg]` : '[bg][0:v]';
     args.push(

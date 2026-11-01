@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CUT_TRACK_LIMITS, cutFromClip, cutIndexAt, cutWindows, MIN_CUT_SECONDS, sanitizeCutTrack, snapTime,
-  splitAt, trackDuration, withCutInserted, withCutMoved, withCutRemoved, withCutWindow, type CutTrack,
+  splitAt, trackAudio, trackDuration, trackSourceAt, withCutInserted, withCutMoved, withCutRemoved, withCutWindow, type CutTrack,
 } from '../src/core/cut-track';
 
 const id = (n: number) => String(n).repeat(24);
@@ -100,6 +100,24 @@ describe('ripple delete and the move', () => {
     expect(trackDuration(moved)).toBe(4.5);
     const t = track();
     expect(withCutMoved(t, 1, 1)).toBe(t);
+  });
+});
+
+describe('what the track plays (milestone 49)', () => {
+  it('names the clip and the second of its file under any moment of the timeline', () => {
+    expect(trackSourceAt(track(), 0.5)).toEqual({ id: id(1), index: 0, seconds: 0.5 });
+    // The second cut starts at 2 on the timeline and at 1 in its file.
+    expect(trackSourceAt(track(), 2)).toEqual({ id: id(2), index: 1, seconds: 1 });
+    expect(trackSourceAt(track(), 3.25)).toEqual({ id: id(2), index: 1, seconds: 2.25 });
+    expect(trackSourceAt(track(), 4.5)).toBeNull();
+  });
+
+  it('carries each cut\'s sound as a sound-shaped value, placed by its delay and gated by its span', () => {
+    const audio = trackAudio(track());
+    expect(audio).toHaveLength(3);
+    expect(audio[1]!.value).toMatchObject({ id: id(2), inPoint: 1, outPoint: 2.5, ending: 'once', delay: 2, volume: 1, muted: false });
+    expect(audio[1]!.span).toEqual({ start: 2, end: 3.5 });
+    expect(audio[0]!.value).toMatchObject({ inPoint: 0, outPoint: 2, delay: 0 });
   });
 });
 

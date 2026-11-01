@@ -41,6 +41,57 @@ describe('a LUT over the whole render (milestone 52)', () => {
   });
 });
 
+describe('the cut track under the graphic (milestone 49)', () => {
+  const track = { cuts: [{ path: '/lib/a.mp4', from: 0.5, to: 2.5 }, { path: '/lib/b.mov', from: 0, to: 1 }] };
+
+  it('reads each cut as its own sought input, joins them at the output frame, and composites the graphic over', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t', track });
+    const text = plan.args.join(' ');
+    expect(text).toContain('-ss 0.5 -t 2 -i /lib/a.mp4');
+    expect(text).toContain('-ss 0 -t 1 -i /lib/b.mov');
+    const graph = plan.args[plan.args.indexOf('-filter_complex') + 1]!;
+    // Inputs 1 and 2 (the pipe is 0), each brought to the output's clock, frame and square pixels.
+    expect(graph).toContain('[1:v]fps=30,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:-1:-1:color=black,setsar=1');
+    expect(graph).toContain('[t0][t1]concat=n=2:v=1:a=0[tcat]');
+    // Padded on in time and trimmed to the rendered range, so a short track pads rather than ending the file.
+    expect(graph).toContain('[tcat]tpad=stop=-1:stop_mode=add:color=black,trim=start=0,setpts=PTS-STARTPTS[trk]');
+    expect(graph).toContain('[trk][src]overlay=shortest=1:format=rgb');
+    // The graphic's own preparation still runs, and the preset's conversion follows the composite.
+    expect(graph.indexOf('overlay')).toBeLessThan(graph.indexOf('format=yuva444p10le'));
+    expect(flag(plan.args, '-map')).toBe('[out]');
+  });
+
+  it('pads a flattening render with its chosen background, and starts the track at the trim', () => {
+    const plan = buildRenderPlan({
+      manifest: timing(), presetId: 'h264-mp4', outputPath: '/o/t', track,
+      options: { background: '#112233', inFrame: 30 },
+    });
+    const graph = plan.args[plan.args.indexOf('-filter_complex') + 1]!;
+    expect(graph).toContain('color=0x112233');
+    // The track replaces the flatten's own background source entirely.
+    expect(graph).not.toContain('color=c=');
+    expect(graph).toContain('trim=start=1,');
+    expect(plan.firstFrame).toBe(30);
+  });
+
+  it('keeps the matte as the graphic\'s own alpha: the graphics over the footage are what an editor wants', () => {
+    const plan = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t', track, options: { matte: true } });
+    const graph = plan.args[plan.args.indexOf('-filter_complex') + 1]!;
+    expect(graph).toContain('[src]split[pic][mat]');
+    expect(graph).toContain('[trk][pic]overlay=shortest=1:format=rgb');
+    expect(graph).toContain('[matte]');
+  });
+
+  it('is one cut just the same, and no track is the plan as it always was', () => {
+    const one = buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/o/t', track: { cuts: [track.cuts[0]!] } });
+    const graph = one.args[one.args.indexOf('-filter_complex') + 1]!;
+    expect(graph).toContain('[t0]null[tcat]');
+    expect(graph).not.toContain('concat');
+    const none = buildRenderPlan({ manifest: timing(), presetId: 'png-sequence', outputPath: '/o/t', track: { cuts: [] } });
+    expect(none.args.join(' ')).not.toContain('-filter_complex');
+  });
+});
+
 describe('buildRenderPlan', () => {
   it('uses the same raw BGRA pipe input for every preset by default', () => {
     for (const presetId of PRESET_IDS) {

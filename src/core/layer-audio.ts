@@ -423,7 +423,14 @@ export function applyLayerAudio(
   const pipeAt = args.indexOf('pipe:0');
   if (pipeAt < 0 || args.indexOf(plan.output) < 0) return plan;
 
-  const filter = layerAudioFilter(audible, plan, 1, loudness ? loudnormFilter(loudness.target, loudness.measured) : undefined);
+  // The chains name inputs by index, after whatever is already there — the frame pipe, and the
+  // cut track's own inputs when the project has one (milestone 49) — so count rather than assume.
+  const inputFlags: number[] = [];
+  for (let i = 0; i < args.length; i++) if (args[i] === '-i') inputFlags.push(i);
+  const firstInputIndex = inputFlags.length;
+  const lastInputEnd = inputFlags[inputFlags.length - 1]! + 1;
+
+  const filter = layerAudioFilter(audible, plan, firstInputIndex, loudness ? loudnormFilter(loudness.target, loudness.measured) : undefined);
   const vfAt = args.indexOf('-vf');
   const complexAt = args.indexOf('-filter_complex');
   if (complexAt >= 0) {
@@ -446,7 +453,7 @@ export function applyLayerAudio(
     audioOutput = audioOutputPath(plan.output);
     args.push('-map', '[aout]', '-c:a', 'pcm_s16le', audioOutput);
   }
-  // The files join as inputs after the frame pipe, in chain order.
-  args.splice(pipeAt + 1, 0, ...audible.flatMap((l) => ['-i', l.path]));
+  // The files join as inputs after the last input there is, in chain order.
+  args.splice(lastInputEnd + 1, 0, ...audible.flatMap((l) => ['-i', l.path]));
   return { ...plan, args, ...(audioOutput ? { audioOutput } : {}) };
 }

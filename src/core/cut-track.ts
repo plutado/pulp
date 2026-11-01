@@ -16,6 +16,9 @@
  * computes with these and never keeps a second answer of its own.
  */
 
+import type { LayerSpan } from './layer-time';
+import { EMPTY_SOUND, type SoundValue } from './sound-layer';
+
 /** A cut shorter than this is a click, not a shot: about a frame at any sane rate. */
 export const MIN_CUT_SECONDS = 0.05;
 
@@ -138,6 +141,31 @@ export function splitAt(track: CutTrack, time: number): CutTrack {
   const cuts = [...track.cuts];
   cuts.splice(index, 1, first, second);
   return { cuts };
+}
+
+/** What the track shows at a moment: which cut, and the second of its file — or null past the track's end. */
+export function trackSourceAt(track: CutTrack, time: number): { id: string; index: number; seconds: number } | null {
+  const index = cutIndexAt(track, time);
+  if (index === null) return null;
+  const cut = track.cuts[index]!;
+  return { id: cut.id, index, seconds: cut.from + (time - cutWindows(track)[index]!.start) };
+}
+
+/**
+ * The track's sound (milestone 48 serves milestone 49): each cut as a
+ * sound-shaped value — the cut's window as the in and out points, its place
+ * on the timeline as the delay, played once — with its own window as a span.
+ * The span's gate fades the ten milliseconds at each boundary, so a cut in
+ * the mix is a cut without the click. The whole of milestone 48 then carries
+ * it: the preview's elements, the render's chains, the loudness meter and the
+ * waveform arithmetic all take these as they take an audio layer's sound.
+ */
+export function trackAudio(track: CutTrack): { value: SoundValue; span: LayerSpan }[] {
+  const windows = cutWindows(track);
+  return track.cuts.map((cut, index) => ({
+    value: { ...EMPTY_SOUND, id: cut.id, inPoint: cut.from, outPoint: cut.to, ending: 'once' as const, delay: windows[index]!.start },
+    span: { start: windows[index]!.start, end: windows[index]!.end },
+  }));
 }
 
 /**

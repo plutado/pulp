@@ -28,7 +28,7 @@ import { ffprobePathFor } from '../core/media-probe';
 import type { ClipSource } from '../core/video-layer';
 import { resolveLayers } from '../core/layers';
 import { checkImages, readSlotImages } from './image-grant';
-import { lookupMedia } from './library-service';
+import { lookupClipItem, lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg, runForBuffer, runWithInput } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan } from '../core/render-plan';
@@ -38,7 +38,8 @@ import { soundAudible } from '../core/sound-layer';
 import { resolveSoundSource } from './sound-grant';
 import { finishedFileWarnings } from './platform-check';
 import { platformPreset } from '../core/platform-presets';
-import { lengthIn, resolveParams, splitLayers } from '../core/params';
+import { trackAudio } from '../core/cut-track';
+import { lengthIn, resolveParams, splitLayers, trackIn } from '../core/params';
 import {
   captureBytesMessage,
   captureSizeMessage,
@@ -187,6 +188,18 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   // render from wherever they came — the form, a preset, a collection card, a CSV row. An explicit
   // option wins, which is what `--length` on the command line is.
   const chosenLength = job.options?.length ?? lengthIn(job.params);
+  // The cut track rides in the same bag (milestone 49): resolve each cut's clip to its file here,
+  // so the plan is pure over paths. A cut whose clip cannot answer stops the render by name — a
+  // shot silently dropped from a delivery is worse than being told.
+  const track = trackIn(job.params);
+  const trackCuts: { path: string; from: number; to: number }[] = [];
+  for (const cut of track?.cuts ?? []) {
+    const found = lookupClipItem(cut.id);
+    if (!found || found.kind !== 'media' || found.entry.sequence) {
+      return { ok: false, message: 'A clip on the cut track is not in the library, is offline, or is not a file ffmpeg can read.' };
+    }
+    trackCuts.push({ path: found.entry.path, from: cut.from, to: cut.to });
+  }
   let plan;
   try {
     plan = buildRenderPlan({
@@ -200,6 +213,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
         ? { options: { ...(job.options ?? {}), ...(chosenLength !== undefined ? { length: chosenLength } : {}) } }
         : {}),
       ...(probe?.format ? { rawInput: probe.format } : {}),
+      ...(trackCuts.length > 0 ? { track: { cuts: trackCuts } } : {}),
     });
   } catch (err) {
     return { ok: false, message: (err as Error).message };
@@ -253,6 +267,12 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     // delivery is worse than being told, and the person can hide the layer if they meant to.
     if (!found) return { ok: false, message: `Template "${manifest.name}": the sound chosen for "${choice.layer}" is not in the library, is offline, or could not be read.` };
     audioLayers.push({ kind: 'sound', path: found.path, value: choice, source: found.source, ...(choice.span ? { span: choice.span } : {}) });
+  }
+  // Each cut's sound follows it into the mix (milestone 49), as a sound-shaped value gated by the
+  // cut's own span (src/core/cut-track.ts). A clip with no audio stream simply contributes none.
+  for (const cut of track ? trackAudio(track) : []) {
+    const found = await resolveSoundSource(ffprobePathFor(ffmpeg.path), cut.value.id!);
+    if (found) audioLayers.push({ kind: 'sound', path: found.path, value: cut.value, source: found.source, span: cut.span });
   }
   if (audioLayers.length > 0) plan = applyLayerAudio(plan, audioLayers, await mixLoudnessFor(ffmpeg.path, plan, audioLayers, job.options?.platform, warnings));
 

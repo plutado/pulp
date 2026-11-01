@@ -18,7 +18,7 @@ import { join } from 'node:path';
 import { detectFfmpeg, nodeRunner, runForBuffer } from '../core/ffmpeg';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { sequencePatternName, SEQUENCE_FPS } from '../core/media-sequence';
-import { clipProxySize, clipWindow, sanitizeClipValue, type ClipSource, type ClipValue } from '../core/video-layer';
+import { clipProxySize, clipWindow, EMPTY_CLIP, sanitizeClipValue, type ClipSource, type ClipValue } from '../core/video-layer';
 import { isCubeFile, lutFilter } from '../core/clip-clean';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { lookupClipItem } from './library-service';
@@ -266,6 +266,55 @@ async function drawnClipFrames(entry: TemplateEntry, window: { first: number; fr
   if (!shot.ok) return { ok: false, message: shot.message };
   if (shot.frames.length === 0) return { ok: false, message: 'drew no frames' };
   return { ok: true, pngs: shot.frames };
+}
+
+/** One cut's frames for the preview (milestone 49): the proxy window, with what maps a moment to a frame. */
+export interface TrackCutFrames {
+  srcs: string[];
+  fps: number;
+  /** The source frame `srcs[0]` holds, so `floor(seconds * fps) - first` indexes the window. */
+  first: number;
+}
+
+/**
+ * Read the cut track's frames for the preview (milestone 49): each cut's
+ * window through the same proxy decode a video layer's window takes, so the
+ * cache, the LUT-free scale and the size steps are all the ones already
+ * there. A cut that cannot be read — offline, no ffmpeg, or longer than the
+ * frames a window may hold — is null, and the lane shows the pad for it
+ * rather than failing the rest; the render reads the file itself and is exact
+ * regardless.
+ */
+export async function loadTrackFrames(raw: unknown): Promise<{ cuts: (TrackCutFrames | null)[] }> {
+  const request = raw as Partial<{ cuts: { id: string; from: number; to: number }[]; height: number }>;
+  const asked = Array.isArray(request?.cuts) ? request.cuts : [];
+  const height = typeof request?.height === 'number' && Number.isFinite(request.height) ? Math.min(1080, Math.max(90, request.height)) : 360;
+  const ffmpeg = await detectFfmpeg();
+  const cuts: (TrackCutFrames | null)[] = [];
+  for (const cut of asked) {
+    const from = Number(cut?.from);
+    const to = Number(cut?.to);
+    if (typeof cut?.id !== 'string' || !Number.isFinite(from) || !Number.isFinite(to) || to <= from) {
+      cuts.push(null);
+      continue;
+    }
+    const isDrawn = lookupClipItem(cut.id)?.kind === 'drawn';
+    if (!ffmpeg.ok && !isDrawn) {
+      cuts.push(null);
+      continue;
+    }
+    const source = await resolveClipSource(ffmpeg.ok ? ffprobePathFor(ffmpeg.path) : '', cut.id);
+    if (!source) {
+      cuts.push(null);
+      continue;
+    }
+    const first = Math.max(0, Math.round(from * source.fps));
+    const last = Math.min(source.frames - 1, Math.max(first, Math.round(to * source.fps) - 1));
+    const value: ClipValue = { ...EMPTY_CLIP, id: cut.id, inPoint: first, outPoint: last, ending: 'once' };
+    const read = await readClipFrames(ffmpeg.ok ? ffmpeg.path : '', cut.id, value, source, height);
+    cuts.push(read.ok ? { srcs: read.data.srcs, fps: source.fps, first } : null);
+  }
+  return { cuts };
 }
 
 /** What the window asks for: a layer's clip and how tall it is drawn in the preview. */

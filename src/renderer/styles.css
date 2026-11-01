@@ -914,6 +914,11 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .scrub-marks .mark.cover { background: var(--text); }
 .scrub-marks .mark.cover::before { content: ''; position: absolute; top: -4px; left: -3px; width: 8px; height: 5px; border-radius: 1px; background: var(--text); }
 
+/* The cut track's picture (milestone 49): the footage under the graphic, before the iframe in the
+   DOM so it sits over the stage's background and beneath the transparent template. It takes no
+   pointer: the layers and the overlay above it are what a hand reaches for. */
+.preview .track-picture { pointer-events: none; }
+
 /* The cut track (milestone 49): the project's shots end to end under the layer bars, on the scrub
    bar's scale. A cut reads as footage rather than a layer — a touch of green against the bars'
    slate — and its trim handles and selection wear the bars' own shapes, so one hand serves both. */
@@ -923,7 +928,10 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .cut .cut-body { position: absolute; inset: 0; width: 100%; margin: 0; padding: 0 6px; border: 1px solid #0d1117; border-radius: 3px; background: rgba(134, 180, 148, 0.35); cursor: grab; overflow: hidden; text-align: left; }
 .cut.selected .cut-body { background: rgba(134, 213, 166, 0.55); }
 .cut .cut-body:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
-.cut .cut-label { display: block; font-size: var(--font-caption); line-height: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.cut .cut-label { display: block; position: relative; font-size: var(--font-caption); line-height: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.cut .cut-wave { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cut .cut-wave[hidden] { display: none; }
+.cut .cut-wave path { stroke: rgba(255, 255, 255, 0.65); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .cut .cut-trim { position: absolute; top: -1px; width: 7px; height: 18px; margin: 0; padding: 0; border: 1px solid #0d1117; border-radius: 2px; background: var(--muted); cursor: ew-resize; }
 .cut.selected .cut-trim { background: var(--accent); }
 .cut .cut-trim.start { left: -3px; }

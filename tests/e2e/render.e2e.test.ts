@@ -1324,6 +1324,64 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await pixels(join(out, 'keys-together_00055.png'), ...right))[3]).toBe(0);
   }, 300_000);
 
+  it('renders the cut track under the graphic as one file, each cut\'s sound in the mix (milestone 49)', async () => {
+    // Two solid one-second clips, each with its own tone, so the picture and the sound both say
+    // which cut is playing; the blue cut is trimmed to half a second, so the track ends before
+    // the graphic and the pad shows.
+    const lib = join(out, 'track-library');
+    await mkdir(lib, { recursive: true });
+    const clip = async (file: string, color: string, tone: number) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs([
+        '-v', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${color}:s=160x160:d=1:r=30`, '-f', 'lavfi', '-i', `sine=frequency=${tone}:duration=1`,
+        '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(lib, file),
+      ]), { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(r.code, r.stderr).toBe(0);
+      return itemId(`media:${join(lib, file)}`);
+    };
+    const redId = await clip('red.mp4', 'red', 440);
+    const blueId = await clip('blue.mp4', 'blue', 880);
+    const common = ['--library', FIXTURES, '--library', lib];
+    const trackArg = ['--param', `@track=${JSON.stringify({ cuts: [{ id: redId, from: 0, to: 1 }, { id: blueId, from: 0, to: 0.5 }] })}`];
+    const middle = [160, 90] as const;
+    const side = [30, 90] as const;
+
+    // The picture: red, then blue, then the pad once the track has ended — opaque under the
+    // graphic's own transparency, with the square clip letterboxed into the frame.
+    const seq = await render('pulp.test.video-layer', 'png-sequence', 'track-seq', { extra: [...common, ...trackArg] });
+    expect(seq.code, seq.stderr).toBe(0);
+    const at = async (frame: number, x: number, y: number) => pixels(join(out, `track-seq_${String(frame).padStart(5, '0')}.png`), x, y);
+    const red = await at(15, ...middle);
+    expect(red[0], 'the first cut').toBeGreaterThan(180);
+    expect(red[2]).toBeLessThan(80);
+    expect(red[3], 'the track is opaque under the graphic').toBe(255);
+    const blue = await at(40, ...middle);
+    expect(blue[2], 'the second cut after the first').toBeGreaterThan(180);
+    expect(blue[0]).toBeLessThan(80);
+    const padded = await at(55, ...middle);
+    expect(padded[0]! + padded[1]! + padded[2]!, 'the pad once the track ends').toBeLessThan(60);
+    expect(padded[3]).toBe(255);
+    // The square clip is letterboxed: the frame's sides are the pad, not the picture.
+    const bar = await at(15, ...side);
+    expect(bar[0]! + bar[1]! + bar[2]!).toBeLessThan(60);
+    // And the graphic still draws on top: the fixture's yellow marker at the corner.
+    const marker = await at(15, 2, 2);
+    expect(marker[0], 'the graphic over the footage').toBeGreaterThan(180);
+    expect(marker[1]).toBeGreaterThan(180);
+
+    // One file in a delivery preset too, with each cut's sound following it into the mix.
+    const mp4 = await render('pulp.test.video-layer', 'h264-mp4', 'track-mix', { extra: [...common, ...trackArg] });
+    expect(mp4.code, mp4.stderr).toBe(0);
+    const level = async (from: number, to: number) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs(['-i', join(out, 'track-mix.mp4'), '-af', `atrim=start=${from}:end=${to},asetpts=PTS-STARTPTS,volumedetect`, '-f', 'null', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
+      const m = /max_volume:\s*(-?[\d.]+) dB/.exec(r.stderr);
+      expect(m, r.stderr.slice(-1500)).not.toBeNull();
+      return Number(m![1]);
+    };
+    expect(await level(0.2, 0.8), 'the first cut is heard').toBeGreaterThan(-24);
+    expect(await level(1.1, 1.4), 'and the second where it plays').toBeGreaterThan(-24);
+    expect(await level(1.6, 1.9), 'and silence once the track has ended').toBeLessThan(-50);
+  }, 300_000);
+
   it('plays a clip inside a graphic, on the template\'s own time (milestone 26)', async () => {
     // A transparent clip whose red square moves left to right over its 30 frames, so which frame
     // was drawn can be read off the rendered picture. The library sees it by path, as any clip.
