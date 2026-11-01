@@ -15,9 +15,9 @@ import {
 describe('the LUT filter', () => {
   it('quotes a path for a filtergraph, a Windows one included', () => {
     expect(lutFilter('/luts/warm look.cube')).toBe("lut3d=file='/luts/warm look.cube'");
-    // Backslashes become the forward slashes ffmpeg takes on Windows too, so the drive's colon
-    // sits inside quotes where it is plain.
-    expect(lutFilter('C:\\LUTs\\teal.cube')).toBe("lut3d=file='C:/LUTs/teal.cube'");
+    // Backslashes become the forward slashes ffmpeg takes on Windows too, and the drive's colon is
+    // escaped: the graph strips the quotes before the filter splits its options at colons.
+    expect(lutFilter('C:\\LUTs\\teal.cube')).toBe("lut3d=file='C\\:/LUTs/teal.cube'");
     expect(filterQuoted("o'brien.cube")).toBe("'o'\\''brien.cube'");
   });
 

@@ -24,11 +24,13 @@ export const PREVIEW_SECONDS = 1;
 /**
  * A value quoted for an ffmpeg filtergraph: single-quoted, with the quotes
  * themselves escaped, and backslashes turned to forward slashes — which
- * ffmpeg takes on Windows too, and which keeps the graph's own escaping out
- * of the path entirely. Inside quotes a drive's colon and a space are plain.
+ * ffmpeg takes on Windows too. A filter's arguments are read twice: the
+ * graph strips the quotes, then the filter splits its options at colons, so
+ * a drive's colon is escaped as `\:` inside the quotes, where the graph
+ * leaves the backslash for the option parser to take off again.
  */
 export function filterQuoted(value: string): string {
-  return `'${value.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`;
+  return `'${value.replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, "'\\''")}'`;
 }
 
 export function isCubeFile(path: string): boolean {
