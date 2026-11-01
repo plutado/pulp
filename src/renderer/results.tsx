@@ -39,6 +39,7 @@ import { virtualWindow } from '../core/virtual-list';
 import { Icon, type IconName } from './icons';
 import { Thumb } from './item-preview';
 import { appState, dispatch, hasIndex, results, resultsView, selectedKey } from './store';
+import { runLibraryAdd } from './library-add';
 
 /** The scrolling viewport, measured: the column count, the window and the layout agree on one number. */
 const viewport = signal({ width: 0, height: 0 });
@@ -162,7 +163,7 @@ function takeAction(id: EmptyActionId): void {
   if (id === 'clear-search') dispatch((s) => setQuery(s, ''));
   else if (id === 'clear-filters') dispatch((s) => ({ ...s, filters: [], forTheme: null, look: null }));
   else if (id === 'clear-scope') dispatch((s) => ({ ...s, scope: null }));
-  else document.getElementById(id === 'add-folder' ? 'add-folder' : 'add-sample-media')?.click();
+  else runLibraryAdd(id === 'add-folder' ? 'library.addFolder' : 'library.addSampleMedia');
 }
 
 /**

@@ -54,7 +54,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 44. Still backgrounds to 32, and a still image output (**done**) | 12-20 h |
 | 45. Effects on transparency | 14-22 h |
 | 46. Objects on transparency | 12-20 h |
-| 47. One Add menu in the browse header | 3-5 h |
+| 47. One Add menu in the browse header (**done**) | 3-5 h |
 | 20. Social-ready export | 9-14 h |
 | 8. 1.0 hardening and docs | 14-23 h |
 | 17. Unsigned builds and releases | 8-14 h |
@@ -485,11 +485,11 @@ Decided 2026-10-31, straight after milestone 39; built the same day. The window 
 
 Decided 2026-10-31. The browse header carries four icon-only buttons side by side — Add folder, Add sample media, Import pack and Export pack — and they read as one idea: each seems to put something into Pulp. They are three: linking a folder of your own media where it lies, making Pulp's starter media and linking it, and installing templates from a pack; Export sends the listed templates out. Their names describe the mechanism (folder, pack, import) rather than what arrives, and the folder-with-a-plus beside a stack of pictures looked like two ways to do one thing. One Add, named by what it brings in, ends the guess.
 
-- [ ] **One Add button with a menu,** the only add in the browse header: **Your media folder…** (footage, stills and sounds, indexed where they are), **Templates from a pack…** (a .zip or a folder of templates, installed) and **Sample media** (made and added; shown only while some of it is unmade), each with a line saying what it brings (1-1.5 h)
-- [ ] **Export pack leaves the header:** "Export as pack…" in the results heading, since it sends the listed templates, and in the File menu (0.5-1 h)
-- [ ] **The same words everywhere:** the Library menu, the start screen and the tooltips name each choice as the Add menu does (0.5-1 h)
-- [ ] **The style guide:** an add or an import names what it brings in, not how; one icon-only add per panel (0.5 h)
-- [ ] **Tests:** the menu's three choices and when Sample media shows, Export's new places, and the menu wording matching the start screen (0.5-1.5 h)
+- [x] **One Add button with a menu,** the only add in the browse header: **Your media folder…** (footage, stills and sounds, indexed where they are), **Templates from a pack…** (a .zip or a folder of templates, installed) and **Sample media** (made and added; shown only while some of it is unmade), each with a line saying what it brings (1-1.5 h) *Built 2026-10-31. The header is Add and Rescan. `libraryAddItems` in `src/core/menu.ts` is the one list, read by the panel's menu and by File → Add; `MenuItemSpec` gained a `detail` line, which the in-window menus draw and the platform's own menu has no room for. Sample media is offered only while `someSampleMediaUnmade` says some is left, in both places.*
+- [x] **Export pack leaves the header:** "Export as pack…" in the results heading, since it sends the listed templates, and in the File menu (0.5-1 h) *The same `#export-pack` button, so the menu still reads its enabled state off it; the File item is "Export as Pack…" now.*
+- [x] **The same words everywhere:** the Library menu, the start screen and the tooltips name each choice as the Add menu does (0.5-1 h) *File → Add, the start screen's three buttons and its setup checklist, and the empty results' two ways out. The three actions have no buttons of their own any more, so every surface runs them through `runLibraryAdd` rather than pressing a hidden control.*
+- [x] **The style guide:** an add or an import names what it brings in, not how; one icon-only add per panel (0.5 h) *With the ellipsis rule it turned up: a choice that asks every time carries one, a choice that asks only the first time does not, which is why Sample media has none.*
+- [x] **Tests:** the menu's three choices and when Sample media shows, Export's new places, and the menu wording matching the start screen (0.5-1.5 h) *A unit test holds File → Add and the panel to one list, to naming what arrives rather than the act, and to dropping Sample media once it is all made; a UI test reads the header's two buttons, opens Add and reads the three names and their lines, finds Export in the results heading, and checks the start screen says the same words.*
 
 ## 46. Objects on transparency (12-20 h; GitHub issue #48)
 

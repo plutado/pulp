@@ -15,6 +15,7 @@ import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
 import { initTray, sayInTray } from './tray';
 import { initSampleHint, refreshSampleHint } from './sample-hint';
+import { initLibraryAdd, setLibraryAddBusy } from './library-add';
 import { initProject } from './project';
 import { askAboutRecovery, initProjectUi } from './project-ui';
 import { initMenu } from './menu';
@@ -40,9 +41,6 @@ const $ = <T extends HTMLElement>(id: string): T => {
 
 const els = {
   search: $<HTMLInputElement>('search'),
-  addFolder: $<HTMLButtonElement>('add-folder'),
-  addSampleMedia: $<HTMLButtonElement>('add-sample-media'),
-  importPack: $<HTMLButtonElement>('import-pack'),
   exportPack: $<HTMLButtonElement>('export-pack'),
   packDialog: $<HTMLDialogElement>('pack-dialog'),
   packTitle: $<HTMLHeadingElement>('pack-title'),
@@ -331,32 +329,33 @@ effect(() => {
   const q = appState.value.query;
   if (els.search.value !== q) els.search.value = q;
 });
-els.importPack.addEventListener('click', () => {
-  void window.pulp.choosePackFile().then((path) => {
-    if (path) void showPackPreview(path);
-  });
-});
 els.exportPack.addEventListener('click', showExportDialog);
 els.packConfirm.addEventListener('click', () => void confirmPack());
 els.packClose.addEventListener('click', () => els.packDialog.close());
 // For tests and scripting: preview a pack by path without the open dialog.
 (window as unknown as { pulpPreviewPack?: (path: string) => Promise<void> }).pulpPreviewPack = showPackPreview;
-els.addFolder.addEventListener('click', () => void loadLibrary(window.pulp.addLibraryFolder()));
-els.addSampleMedia.addEventListener('click', () => {
-  // Making the folder takes a little while (clips are rendered); the button says so and takes no second click.
-  els.addSampleMedia.disabled = true;
-  els.addSampleMedia.setAttribute('aria-busy', 'true');
-  void loadLibrary(
-    window.pulp.addSampleMedia().then((outcome) => {
-      if (outcome && outcome.failed.length > 0) console.warn(`Sample media: ${outcome.failed.length} file(s) could not be made: ${outcome.failed.join('; ')}`);
-      return outcome?.index ?? null;
-    }),
-  ).finally(() => {
-      els.addSampleMedia.disabled = false;
-      els.addSampleMedia.removeAttribute('aria-busy');
+// What the browse panel's one Add button brings in, and what File → Add runs (milestone 47).
+initLibraryAdd({
+  addFolder: () => void loadLibrary(window.pulp.addLibraryFolder()),
+  importPack: () => {
+    void window.pulp.choosePackFile().then((path) => {
+      if (path) void showPackPreview(path);
+    });
+  },
+  addSampleMedia: () => {
+    // Making the folder takes a little while (clips are rendered); Add says so and takes no second press.
+    setLibraryAddBusy(true);
+    void loadLibrary(
+      window.pulp.addSampleMedia().then((outcome) => {
+        if (outcome && outcome.failed.length > 0) console.warn(`Sample media: ${outcome.failed.length} file(s) could not be made: ${outcome.failed.join('; ')}`);
+        return outcome?.index ?? null;
+      }),
+    ).finally(() => {
+      setLibraryAddBusy(false);
       // Whatever that made, the line under the results stops offering (milestone 34).
       void refreshSampleHint();
     });
+  },
 });
 els.rescan.addEventListener('click', () => void loadLibrary(window.pulp.rescanLibrary()));
 

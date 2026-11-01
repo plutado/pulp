@@ -70,6 +70,7 @@ Search syntax is the exception by design: what you type in the search field (`ta
 - Every icon-only button has an `aria-label` and a tooltip that also appears on keyboard focus after a short delay, with the shortcut when there is one.
 - Labels may shrink or hide where the icon is unambiguous; the collapsed browse panel becomes an icon rail with labels as tooltips.
 - The Unicode stand-ins (`⟨`, `⌃`, `⌄`, `×`, `★`, `☆`, `T`, `♫`) are replaced by icons.
+- **A control that brings something in names what arrives, not the act, and a panel has one of them.** The browse panel's header carried four icon buttons — "Add folder", "Add sample media…", "Import pack…" and "Export…" — which said "add" three times, used "Add" and "Import" for the same idea, and never said that the first takes a folder of your own media, the second makes files Pulp draws itself, and the third installs templates somebody else made. One **Add** button opens a menu naming the three things, each with a line saying what it brings: **Your media folder…** (footage, stills and sounds, indexed where they are), **Templates from a pack…** (a .zip or a folder of templates, installed), **Sample media** (original CC0 files, made and added — offered only while some are unmade). One icon-only add per panel; the rest of what it can bring in goes in its menu. The same words appear wherever the choices are offered — File → Add, the start screen, the empty results — from one list in `src/core/menu.ts`, so the same thing is never called two things. A control that sends something *out* does not belong among them: **Export as pack…** acts on the templates the results are listing, so it sits in the results' heading. An ellipsis follows a choice that asks every time, not one that asks only the first time.
 - **Sparkles mean AI, and nothing else.** The sparkle has become the mark for a generative feature across the industry, so on anything that is not one it makes a promise Pulp does not make. Add sample media drew tones, gradients and the bundled templates with a sparkle on it and read as "generate with AI"; it carries the images icon now. Use a sparkle only on a feature that really does call a model, if one ever lands.
 
 **Icon map** (first pass; milestone 10's type groups each get one):
@@ -77,10 +78,10 @@ Search syntax is the exception by design: what you type in the search field (`ta
 | Region | Icons |
 |---|---|
 | Browse panel | Star (Favorites), clock (Recently used), package (Built-in templates), folder (user folders); one per type group when the tree lands |
-| Browse toolbar | Folder-plus (Add folder), images (Add sample media…), arrow-clockwise (Rescan), download (Import pack…), upload (Export…) |
+| Browse toolbar | Plus (Add, which opens the menu below), arrow-clockwise (Rescan) |
 | Left panel, Search | Magnifier in the field (and on the folded rail); chips icon-only at the default width, icon + short label when the panel is wider; the scope chip carries its node's icon |
 | Left panel, Browse | A funnel in the heading opens the category filter; lit while a filter is in force |
-| Results heading | Sort icon on the sort control; squares-four and rows for grid or list; carets for the stage and results toggles |
+| Results heading | Upload (Export pack, on the templates listed); sort icon on the sort control; squares-four and rows for grid or list; carets for the stage and results toggles |
 | Results | Type icon as the empty-thumbnail placeholder; badges as small icons with tooltips (alpha, loop, audio) |
 | Stage | Background toggle, safe areas and theater (corners-out, corners-in when on) as icon buttons, a quiet overlay on the stage's corner |
 | Transport row | Two lines: the scrub bar alone on the first, one to one under the picture; the buttons on the second in three clusters. Play/pause, loop, frame step, mute, audition and Add to collection as icon buttons (play at 24, the rest at 20); Set in, Set out and Clear as text buttons; the timecode in monospace; the inspector's three tabs at the row's end, an accent dot when the shown item has edits |

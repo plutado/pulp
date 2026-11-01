@@ -122,6 +122,8 @@ export interface MenuState {
   grid: boolean;
   /** The stage is in a window of its own (milestone 43). */
   stageOut: boolean;
+  /** Some of the sample-media catalogue is still unmade, so Add has something to offer (milestone 47). */
+  canAddSampleMedia: boolean;
   /** The connected displays, for View → Stage on Display; filled by the main process, which is where the screen is. */
   displays: MenuDisplay[];
   /**
@@ -181,6 +183,7 @@ export const EMPTY_MENU_STATE: MenuState = {
   infoOpen: false,
   grid: true,
   stageOut: false,
+  canAddSampleMedia: true,
   displays: [],
   canAddLayer: false,
   canEditText: false,
@@ -229,6 +232,12 @@ export interface MenuItemSpec {
   devOnly?: true;
   /** What the shortcut list calls this, when the label alone is not enough out of context. */
   listAs?: string;
+  /**
+   * A line under the label saying what the choice brings or does (milestone 47).
+   * Drawn by the in-window menus; the platform's own menu has no room for it,
+   * so there it is simply not shown and the label carries the meaning alone.
+   */
+  detail?: string;
   /** Filled in by `resolveMenu`: what the item is now, rather than what decides it. */
   enabled?: boolean;
   checked?: boolean;
@@ -248,6 +257,28 @@ export interface MenuOptions {
 }
 
 const sep: MenuItemSpec = { type: 'separator' };
+
+/**
+ * What Add brings into the library (milestone 47), named by **what arrives**
+ * rather than by the act of adding: four buttons in the browse panel's header
+ * said "Add folder", "Add sample media…", "Import pack…" and "Export…", which
+ * between them said "add" three times and never said that the first takes a
+ * folder of your own media, the second makes files Pulp draws itself, and the
+ * third installs templates somebody else made.
+ *
+ * One list, read by the panel's Add menu and by File → Add alike, so the two
+ * cannot drift apart in their words or in what they do (ADR 0017's rule for
+ * the stage's menu, which this follows).
+ */
+export function libraryAddItems(state: Pick<MenuState, 'canAddSampleMedia'> = EMPTY_MENU_STATE): MenuItemSpec[] {
+  return [
+    { command: 'library.addFolder', label: 'Your Media Folder…', detail: 'Footage, stills and sounds, indexed where they are' },
+    { command: 'pack.import', label: 'Templates from a Pack…', detail: 'A .zip or a folder of templates, installed' },
+    // Offered only while some of the catalogue is unmade: once it is all there, there is nothing
+    // to bring in (milestone 34 counts what is left).
+    ...(state.canAddSampleMedia ? [{ command: 'library.addSampleMedia' as const, label: 'Sample Media', detail: 'Original CC0 sounds, music, stills and clips, made and added' }] : []),
+  ];
+}
 
 /** The connected displays as a submenu (milestone 43), or one disabled line while none is known. */
 function displaysSubmenu(displays: readonly MenuDisplay[]): MenuItemSpec[] {
@@ -393,11 +424,9 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       { command: 'project.save', label: 'Save', accelerator: 'CmdOrCtrl+S' },
       { command: 'project.saveAs', label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S' },
       sep,
-      { command: 'library.addFolder', label: 'Add Library Folder…' },
-      { command: 'library.addSampleMedia', label: 'Add Sample Media' },
-      sep,
-      { command: 'pack.import', label: 'Import Pack…' },
-      { command: 'pack.export', label: 'Export Pack…', enabledBy: 'canExportPack' },
+      // The same list the browse panel's Add button offers, in the same words (milestone 47).
+      { label: 'Add', submenu: libraryAddItems(state) },
+      { command: 'pack.export', label: 'Export as Pack…', enabledBy: 'canExportPack' },
       sep,
       { command: 'collection.add', label: 'Add to Collection', enabledBy: 'canAddToCollection' },
       sep,

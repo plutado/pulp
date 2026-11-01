@@ -28,6 +28,7 @@ import { showStartScreen } from './start-screen';
 import { showWhatsNew } from './whats-new';
 import { startTour } from './tour';
 import { findControl, stageIsOut, stageOnDisplay, toggleStagePopOut } from './stage-window';
+import { libraryAddState, runLibraryAdd } from './library-add';
 import { theaterOn } from './theater';
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -65,9 +66,11 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'project.openRecent': if (arg) void openProjectFrom(arg); return;
     case 'project.save': void saveProject(); return;
     case 'project.saveAs': void saveProject({ saveAs: true }); return;
-    case 'library.addFolder': press('add-folder'); return;
-    case 'library.addSampleMedia': press('add-sample-media'); return;
-    case 'pack.import': press('import-pack'); return;
+    // The three Add choices have no button of their own since milestone 47: one Add menu offers
+    // them, in the browse panel and here, and both run them through this one place.
+    case 'library.addFolder': case 'library.addSampleMedia': case 'pack.import':
+      runLibraryAdd(command);
+      return;
     case 'pack.export': press('export-pack'); return;
     case 'render.one': press('render'); return;
     case 'render.all': press('collection-render'); return;
@@ -169,6 +172,7 @@ function readState(recent: string[]): MenuState {
     infoOpen: tabOpen('info'),
     grid: pressed('view-grid'),
     stageOut: stageIsOut(),
+    canAddSampleMedia: libraryAddState().canAddSampleMedia,
     // The main process fills these in, since the screen is its to see.
     displays: [],
     theater: theaterOn(),

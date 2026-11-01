@@ -222,6 +222,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   font: inherit; font-size: var(--font-body); text-align: left; cursor: default; }
 .context-menu > button:hover:not(:disabled), .context-menu > button:focus-visible { background: var(--panel-2); outline: none; }
 .context-menu > button:disabled { color: var(--muted); }
+/* A choice with a line under it saying what it brings (milestone 47): the label keeps its weight,
+   the line reads as the quieter of the two. */
+.context-menu > button .item-lines { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+.context-menu > button .item-detail { color: var(--muted); font-size: var(--font-caption); }
+.context-menu > button:disabled .item-detail { opacity: 0.8; }
 /* The one caret that says a submenu opens here; drawn rather than an icon, as the tree's twisty is. */
 .context-menu > button.has-submenu::after { content: ''; width: 5px; height: 5px; margin-right: 2px; border-right: 1px solid currentColor;
   border-top: 1px solid currentColor; transform: rotate(45deg); flex: 0 0 auto; }

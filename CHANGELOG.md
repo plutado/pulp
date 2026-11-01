@@ -6,6 +6,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Changed
+
+- One Add menu in the browse header (milestone 47). The header carried four icon buttons — Add folder, Add sample media, Import pack and Export — which said "add" three times, used "Add" and "Import" for the same idea, and never said what each would bring. One **Add** opens a menu that names the three things, with a line under each: **Your media folder…** (footage, stills and sounds, indexed where they are), **Templates from a pack…** (a .zip or a folder of templates, installed) and **Sample media** (original CC0 files, made and added), the last offered only while some of the catalogue is still unmade. **Export as pack…** leaves the header for the results' heading, since it sends out the templates the results are listing, and stays in the File menu. File → Add, the start screen and the empty results use the same words, from one list, so the same thing is never called two things.
+
 ### Fixed
 
 - **A bundled item's library id no longer depends on where Pulp is installed.** An item's id is a hash of its key, and the key was its absolute path — so every bundled template, media file and Lottie took a different id in every checkout and every install, and on Windows a different one again for the separator. The bundled library is keyed by the item's path *inside* the app now, with `/` separators on every platform, so the id is the same everywhere. The twenty bundled Lottie animations felt it first: a Lottie has no manifest id of its own, so its manifest id is made from its library id, and the approved visual references matched nothing on another machine. Saved projects and collections that name a bundled item keep matching across machines for the same reason. The library cache is re-read once on first launch, since every bundled item has a new id.

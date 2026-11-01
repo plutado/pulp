@@ -66,8 +66,9 @@ export function emptyResults(context: ResultsContext): EmptyResults | null {
       title: 'Nothing in the library yet',
       detail: 'Add a folder of templates or media. Pulp can also make a folder of sample media to try.',
       actions: [
-        { id: 'add-folder', label: 'Add folder' },
-        { id: 'add-sample-media', label: 'Add sample media…' },
+        // The words the Add menu uses, so the same thing is called the same thing (milestone 47).
+        { id: 'add-folder', label: 'Your media folder…' },
+        { id: 'add-sample-media', label: 'Sample media…' },
       ],
     };
   }

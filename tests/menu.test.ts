@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   acceleratorLabel, buildMenu, effectiveAccelerator, EMPTY_MENU_STATE, itemChecked, itemEnabled, itemLabel,
-  recentLabel, shortcutList,
+  libraryAddItems, recentLabel, shortcutList,
   type MenuItemSpec, type MenuSection, type MenuState,
 } from '../src/core/menu';
 
@@ -31,7 +31,7 @@ describe('the application menu (milestone 27)', () => {
     const off = state();
     const on = state({ canRender: true, canRenderAll: true, canExportPack: true, canUndo: true, canRedo: true, canPlay: true });
     const file = section(menu(), 'File');
-    for (const label of ['Render…', 'Render All', 'Export Pack…']) {
+    for (const label of ['Render…', 'Render All', 'Export as Pack…']) {
       expect(itemEnabled(byLabel(file, label)!, off), `${label} off`).toBe(false);
       expect(itemEnabled(byLabel(file, label)!, on), `${label} on`).toBe(true);
     }
@@ -186,9 +186,33 @@ describe('the application menu (milestone 27)', () => {
     const file = list.find((s) => s.section === 'File')!.shortcuts;
     expect(file).toContainEqual({ label: 'New Project', accelerator: 'CmdOrCtrl+N' });
     // An item with no key is not in the list at all.
-    expect(file.map((s) => s.label)).not.toContain('Add Sample Media');
+    expect(file.map((s) => s.label)).not.toContain('Sample Media…');
     // Play is listed as what it does rather than as whichever label it is wearing.
     expect(list.find((s) => s.section === 'Playback')!.shortcuts[0]!.label).toBe('Play or pause');
+  });
+
+  it('offers Add in the same words wherever it is, and Export beside the results it acts on (milestone 47)', () => {
+    const file = menu().find((s) => s.label === 'File')!.items;
+    const add = file.find((i) => i.label === 'Add');
+    expect(add, 'File offers Add').toBeDefined();
+    // One list, read by the application menu and by the browse panel's Add button alike.
+    expect(add!.submenu).toEqual(libraryAddItems({ canAddSampleMedia: true }));
+    // It names what arrives, not the act of adding: no item begins with "Add" or "Import".
+    const offered = libraryAddItems({ canAddSampleMedia: true });
+    expect(offered.map((i) => i.label)).toEqual(['Your Media Folder…', 'Templates from a Pack…', 'Sample Media']);
+    for (const item of offered) expect(item.label, item.command).not.toMatch(/^(Add|Import)\b/);
+    // Each says what it brings, under its name.
+    for (const item of offered) expect(item.detail, item.command).toBeTruthy();
+    // The two that ask for a file or a folder every time carry the ellipsis; sample media asks
+    // only the first time, so it does not.
+    expect(offered.filter((i) => i.label!.endsWith('…')).map((i) => i.command)).toEqual(['library.addFolder', 'pack.import']);
+    // Every command the panel offers is one the application menu offers too, and nothing else.
+    expect(offered.map((i) => i.command).sort()).toEqual(['library.addFolder', 'library.addSampleMedia', 'pack.import']);
+    // Once the catalogue is all made there is no sample media to bring in, and the choice goes.
+    expect(libraryAddItems({ canAddSampleMedia: false }).map((i) => i.command)).toEqual(['library.addFolder', 'pack.import']);
+    // Export is not one of them: it sends templates out rather than bringing any in.
+    expect(offered.some((i) => i.command === 'pack.export')).toBe(false);
+    expect(file.some((i) => i.command === 'pack.export'), 'File keeps Export as Pack…').toBe(true);
   });
 
   it('writes a key the way the platform writes it', () => {

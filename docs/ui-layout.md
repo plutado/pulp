@@ -28,7 +28,7 @@ Nothing is dropped; everything moves into a region.
 | Today | Target region |
 |---|---|
 | Search field | Left panel, the Search section |
-| Add folder, rescan, library summary | Browse panel (My folders) and the status in the transport row |
+| Add (your media folder, templates from a pack, sample media), rescan, library summary | Browse panel's header and the status in the transport row |
 | Pack import and export | Browse panel (Matching sets) |
 | Flat result list with thumbnails | Results, list view (the grid is added later) |
 | Preview | Stage |

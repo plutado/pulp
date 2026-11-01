@@ -17,11 +17,8 @@
           <button id="browse-toggle" type="button" class="region-toggle icon-button" data-icon="caret-left" aria-label="Hide the browse panel" aria-expanded="true"></button>
         </div>
         <div class="sidebar-actions" role="toolbar" aria-label="Library tools">
-          <button id="add-folder" type="button" class="icon-button" data-icon="folder-plus" data-icon-size="20" aria-label="Add folder"><span class="label">Add folder</span></button>
-          <button id="add-sample-media" type="button" class="icon-button" data-icon="images" data-icon-size="20" aria-label="Add sample media" data-tip="Add sample media… (make original CC0 sounds, music, stills and clips in a folder and add it)"><span class="label">Add sample media…</span></button>
+          <button id="library-add" type="button" class="icon-button" data-icon="plus" data-icon-size="20" aria-haspopup="menu" aria-label="Add to the library" data-tip="Add to the library: your media folder, templates from a pack, or sample media"><span class="label">Add</span></button>
           <button id="rescan" type="button" class="icon-button" data-icon="arrow-clockwise" data-icon-size="20" aria-label="Rescan"><span class="label">Rescan</span></button>
-          <button id="import-pack" type="button" class="icon-button" data-icon="download-simple" data-icon-size="20" aria-label="Import pack" data-tip="Import pack… (install templates from a .zip or folder)"><span class="label">Import pack…</span></button>
-          <button id="export-pack" type="button" class="icon-button" disabled data-icon="upload-simple" data-icon-size="20" aria-label="Export pack" data-tip="Export… (the listed templates as a pack)"><span class="label">Export…</span></button>
         </div>
       </div>
       <section id="region-search" class="panel-section search-section" aria-label="Search">
@@ -113,6 +110,7 @@
           <span id="results-description" class="results-description"></span>
           <span id="results-empty" class="results-empty-note" role="status" hidden></span>
           <span class="results-tools">
+            <button id="export-pack" type="button" class="icon-button" disabled data-icon="upload-simple" data-icon-size="20" aria-label="Export as pack" data-tip="Export as pack… (the templates the results are listing)"></button>
             <span class="sort-wrap">
               <span data-icon="sort-ascending" aria-hidden="true"></span>
               <select id="sort" aria-label="Sort results">
@@ -414,9 +412,9 @@
           <ul id="start-checklist" class="start-checklist"></ul>
           <p id="start-glance" class="note"></p>
           <div class="start-actions">
-            <button id="start-add-folder" type="button">Add library folder…</button>
-            <button id="start-import-pack" type="button">Import pack…</button>
-            <button id="start-sample-media" type="button">Make sample media</button>
+            <button id="start-add-folder" type="button">Your media folder…</button>
+            <button id="start-import-pack" type="button">Templates from a pack…</button>
+            <button id="start-sample-media" type="button">Sample media…</button>
           </div>
         </section>
       </div>

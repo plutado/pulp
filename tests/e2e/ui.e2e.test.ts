@@ -3103,7 +3103,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       // A menu item and the button for the same thing are never enabled differently: that is what
       // reading the state off the window's own controls buys.
       const pairs: [string, string, string][] = [
-        ['File', 'Render…', 'render'], ['File', 'Render All', 'collection-render'], ['File', 'Export Pack…', 'export-pack'],
+        ['File', 'Render…', 'render'], ['File', 'Render All', 'collection-render'], ['File', 'Export as Pack…', 'export-pack'],
         ['Edit', 'Undo', 'undo'], ['Edit', 'Redo', 'redo'], ['Playback', 'Play', 'play'],
       ];
       for (const [section, label, id] of pairs) {
@@ -3324,12 +3324,13 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(panel.browseTop, 'Browse below Search').toBeGreaterThanOrEqual(panel.searchBottom - 0.5);
         expect(panel.chipsOneLine, 'the filter chips in one compact row').toBe(true);
         expect(panel.forLookBelow, 'For… and Look under the chips').toBe(true);
-        // Sort, grid or list and the thumbnail size are in the results' heading, inside it and apart.
+        // Export pack (milestone 47), sort, grid or list and the thumbnail size are in the results'
+        // heading, inside it and apart.
         const heading = await page.eval<{ id: string; left: number; right: number; top: number; bottom: number }[]>(
-          `[...document.querySelectorAll('#region-results .results-head #sort, #region-results .results-head #view-grid, #region-results .results-head #view-list, #region-results .results-head #thumb-size, #region-results .results-head #stage-toggle, #region-results .results-head #results-toggle')]
+          `[...document.querySelectorAll('#region-results .results-head #export-pack, #region-results .results-head #sort, #region-results .results-head #view-grid, #region-results .results-head #view-list, #region-results .results-head #thumb-size, #region-results .results-head #stage-toggle, #region-results .results-head #results-toggle')]
             .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; })`,
         );
-        expect(heading.map((h) => h.id)).toEqual(['sort', 'view-grid', 'view-list', 'thumb-size', 'stage-toggle', 'results-toggle']);
+        expect(heading.map((h) => h.id)).toEqual(['export-pack', 'sort', 'view-grid', 'view-list', 'thumb-size', 'stage-toggle', 'results-toggle']);
         const headBox = await page.eval<Box>(`(() => { const b = document.querySelector('#region-results .results-head').getBoundingClientRect(); return { id: 'head', left: b.left, right: b.right, top: b.top, bottom: b.bottom }; })()`);
         for (const h of heading) {
           expect(h.right, `${h.id} inside the heading`).toBeLessThanOrEqual(headBox.right + 0.5);
@@ -3907,6 +3908,39 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`document.getElementById('pack-confirm').hidden`)).toBe(true);
       await page.eval(`document.getElementById('pack-close').click()`);
     }, 90_000);
+
+    it('brings things in through one Add menu that names them, and sends them out from the results (milestone 47)', async () => {
+      // The browse panel's header is Add and Rescan: the four add/import/export buttons are gone.
+      const toolbar = await page.eval<string[]>(`[...document.querySelectorAll('.sidebar-actions button')].map((b) => b.id)`);
+      expect(toolbar).toEqual(['library-add', 'rescan']);
+      // Export is not among them; it acts on the templates the results list, so it is in their heading.
+      expect(await page.eval<boolean>(`!!document.querySelector('#region-results .results-head #export-pack')`), 'Export in the results heading').toBe(true);
+
+      // Add opens a menu naming what each choice brings in, in the words the application menu uses.
+      await page.eval(`document.getElementById('library-add').click()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu button')`), 'the Add menu');
+      const items = await page.eval<string[]>(`[...document.querySelectorAll('.context-menu > button .item-label')].map((b) => b.textContent.trim())`);
+      expect(items).toEqual(['Your Media Folder…', 'Templates from a Pack…', 'Sample Media']);
+      // Each says what it brings, under its name.
+      const details = await page.eval<string[]>(`[...document.querySelectorAll('.context-menu > button .item-detail')].map((b) => b.textContent.trim())`);
+      expect(details[0]).toContain('indexed where they are');
+      expect(details[1]).toContain('installed');
+      expect(details[2]).toContain('made and added');
+      // And it is the same list File → Add offers.
+      type Item = { label?: string; submenu?: Item[] };
+      const fileAdd = (await page.eval<{ label: string; items: Item[] }[]>(`window.pulp.menuSections()`))
+        .find((s) => s.label === 'File')?.items.find((i) => i.label === 'Add');
+      expect(fileAdd?.submenu?.map((i) => i.label)).toEqual(items);
+
+      // Choosing one runs it: Templates from a pack opens the pack chooser, which cannot be driven
+      // here, so the menu is closed instead and the choice checked through the command it names.
+      await page.eval(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+      await until(async () => !(await page.eval<boolean>(`!!document.querySelector('.context-menu button')`)), 'the menu closed by Escape');
+
+      // The start screen and the empty results call the same things by the same names.
+      const startWords = await page.eval<string[]>(`['start-add-folder', 'start-import-pack', 'start-sample-media'].map((id) => document.getElementById(id).textContent.trim())`);
+      expect(startWords).toEqual(['Your media folder…', 'Templates from a pack…', 'Sample media…']);
+    }, 60_000);
 
     it('export is offered for the listed templates with a pack name and license', async () => {
       await page.eval(`(() => { const s = document.getElementById('search'); s.value = 'pack:news-pack'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);

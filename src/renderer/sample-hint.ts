@@ -27,6 +27,14 @@ const $ = <T extends HTMLElement>(id: string): T => {
 const unmade = signal<UnmadeByType>({});
 
 /**
+ * Some of the catalogue is still to make, so Add has sample media to offer
+ * (milestone 47). Empty while the first answer is awaited, which reads as
+ * "nothing left" — so the choice appears when the answer says it should
+ * rather than flickering away a moment after launch.
+ */
+export const someSampleMediaUnmade = computed(() => Object.values(unmade.value).some((n) => n > 0));
+
+/**
  * What a run is doing or did, and where it was started. Kept with its scope so
  * "Made 20 files." is still readable afterwards, and goes when somewhere else
  * is browsed — where the count speaks for itself.

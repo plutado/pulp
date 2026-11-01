@@ -17,6 +17,7 @@ import { appState, dispatch, facets, preferredAspect } from './store';
 import { browseFoldToActive } from './browse';
 import { newProject, openExampleFrom, openProjectFrom } from './project';
 import { showShortcuts } from './shortcuts';
+import { runLibraryAdd } from './library-add';
 import { showWhatsNew } from './whats-new';
 import { startTour } from './tour';
 import { setIcon } from './icons';
@@ -26,12 +27,6 @@ const $ = <T extends HTMLElement>(id: string): T => {
   if (!el) throw new Error(`missing #${id}`);
   return el as T;
 };
-
-/** Press the button that does this thing, as the menu does; the start screen grows no second way. */
-function press(id: string): void {
-  const el = document.getElementById(id) as HTMLButtonElement | null;
-  if (el && !el.disabled) el.click();
-}
 
 export function startScreenShowing(): boolean {
   return !$('start-screen').hidden;
@@ -225,7 +220,7 @@ async function fillSetup(): Promise<void> {
       act.type = 'button';
       act.textContent = item.action;
       act.addEventListener('click', () => {
-        press(item.id === 'folder' ? 'add-folder' : 'add-sample-media');
+        runLibraryAdd(item.id === 'folder' ? 'library.addFolder' : 'library.addSampleMedia');
       });
       li.append(act);
     }
@@ -274,9 +269,10 @@ export function initStartScreen(): void {
   });
   $('start-whats-new').addEventListener('click', showWhatsNew);
   $('start-shortcuts').addEventListener('click', () => void showShortcuts());
-  $('start-add-folder').addEventListener('click', () => press('add-folder'));
-  $('start-import-pack').addEventListener('click', () => press('import-pack'));
-  $('start-sample-media').addEventListener('click', () => press('add-sample-media'));
+  // The same three the browse panel's Add offers, in the same words (milestone 47).
+  $('start-add-folder').addEventListener('click', () => runLibraryAdd('library.addFolder'));
+  $('start-import-pack').addEventListener('click', () => runLibraryAdd('pack.import'));
+  $('start-sample-media').addEventListener('click', () => runLibraryAdd('library.addSampleMedia'));
   // The checklist and glance follow the library: a folder added from here ticks itself off.
   effect(() => {
     void appState.value.index;

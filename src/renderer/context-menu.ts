@@ -127,7 +127,22 @@ function buildPanel(items: readonly MenuItemSpec[], depth: number): HTMLDivEleme
       button.setAttribute('aria-checked', String(item.checked === true));
       button.classList.toggle('checked', item.checked === true);
     }
-    button.textContent = item.label ?? '';
+    if (item.detail) {
+      // A label with a line under it saying what it brings (milestone 47): two spans, so the
+      // label keeps its weight and the line reads as the quieter of the two.
+      const label = document.createElement('span');
+      label.className = 'item-label';
+      label.textContent = item.label ?? '';
+      const detail = document.createElement('span');
+      detail.className = 'item-detail';
+      detail.textContent = item.detail;
+      const stack = document.createElement('span');
+      stack.className = 'item-lines';
+      stack.append(label, detail);
+      button.append(stack);
+    } else {
+      button.textContent = item.label ?? '';
+    }
     if (item.command) button.dataset.command = item.command;
     if (item.arg !== undefined) button.dataset.arg = item.arg;
     // `enabled` is filled in by whoever built the list (src/core/stage-menu.ts), as the

@@ -106,13 +106,13 @@ export function setupChecklist(facts: SetupFacts): ChecklistItem[] {
       id: 'folder',
       label: userFolders.length > 0 ? 'A library folder of your own is added' : 'Add a library folder of your own',
       done: userFolders.length > 0,
-      action: userFolders.length > 0 ? '' : 'Add folder…',
+      action: userFolders.length > 0 ? '' : 'Your media folder…',
     },
     {
       id: 'samples',
       label: hasSampleMedia(facts.roots) ? 'Sample media is made' : 'Make sample media to try templates with',
       done: hasSampleMedia(facts.roots),
-      action: hasSampleMedia(facts.roots) ? '' : 'Make sample media',
+      action: hasSampleMedia(facts.roots) ? '' : 'Sample media…',
     },
   ];
 }
