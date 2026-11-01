@@ -64,7 +64,7 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Everything stays on your machine, and says so: what goes wrong is written to a log beside the settings — an uncaught error in any of Pulp's processes, a window that goes, whatever the page itself catches — bounded so it cannot grow without end, and **Copy diagnostics** in the status items puts the facts and the log's last lines on the clipboard for a bug report. Nothing is sent anywhere: no reporting service, no network call, no identifier, and your home directory reads as `~` in every path it carries.
 - A headless command-line render mode (below).
 
-Not yet: stock library import, social-ready export, the rest of 1.0 hardening and docs, installers and signed builds, and verification on Windows. These are on the [roadmap](ROADMAP.md).
+Not yet: stock library import, the rest of sound in a project, a cut track, captions from speech, keyframes on layers, clip clean-up for compositing, the rest of 1.0 hardening and docs, installers and signed builds, and verification on Windows. These are on the [roadmap](ROADMAP.md).
 
 ## What's next
 
@@ -76,7 +76,7 @@ Milestones 1-6, 10-13, 15, 18-31, 33, 35-47 (renderer, alpha export, parameter e
 |---|---|---|
 | 34. A browse panel that says what things are | Built, but for one item: a short card sort with three to five people on the new category labels before they are final | 1-2 h |
 | 32. Stock library import | Open the licensed stock media you already own where it lies — folders, drives, disc images, zipped downloads — browsed as it was organised, with clip sets that stretch, layered music, and what can't be read said plainly | 27-46 h |
-| 48. Sound in a project | Audio layers for music and voice-over with fades and volume, waveforms on each layer's bar against the project's time, one mix in the preview and in every render (a clip's own sound, with volume and mute on the layer, is done) | 16-25 h |
+| 48. Sound in a project | Audio layers for music and voice-over with fades and volume, waveforms on each layer's bar against the project's time, one mix in the preview and in every render (a clip's own sound, with volume and mute on the layer, is done) | 19-30 h |
 | 49. A cut track | Clips cut end to end under the layers — split, trim, ripple, transitions, silence removal — rendered as one file or exported as an edit for an editing app with the graphics as alpha renders | 40-60 h |
 | 50. Captions from speech | On-device transcription into a captions layer, caption styles with the spoken word highlighted, burned in or as an alpha track, and SRT and WebVTT | 20-32 h |
 | 51. Keyframes on layers | Position, scale, rotation and opacity over time, with easing, on each layer's bar | 12-20 h |
@@ -85,7 +85,7 @@ Milestones 1-6, 10-13, 15, 18-31, 33, 35-47 (renderer, alpha export, parameter e
 | 17. Unsigned builds and releases | electron-builder, an app icon of Pulp's own and the names and shortcuts each system shows, unsigned macOS/Windows builds and a Linux AppImage, a draft-release workflow, the ffmpeg distribution decision | 8-14 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 
-The milestones through 1.0 total **735-1185 hours**, of which **160-256 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, audio with stems and paired effects, media slots, output presets per kind of asset, a `pulp` command, optional on-device semantic search) add 26-48 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **735-1185 hours**, of which **155-248 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, audio with stems and paired effects, media slots, output presets per kind of asset, a `pulp` command, optional on-device semantic search) add 26-48 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
