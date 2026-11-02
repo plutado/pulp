@@ -164,3 +164,18 @@ export function initProjectUi(): void {
 export async function askAboutRecovery(): Promise<boolean> {
   return offerRecovery(askRecovery);
 }
+
+/**
+ * Renders the last session was in the middle of (milestone 58): their partial files are gone
+ * already, and a yes queues them again to the outputs the save dialog had answered. Asked once,
+ * after the recovery question, since a recovered project is what some of them were rendering.
+ */
+export async function offerInterruptedRenders(): Promise<void> {
+  const jobs = await window.pulp.interruptedRenders();
+  if (jobs.length === 0) return;
+  const named = jobs.slice(0, 3).map((j) => `"${j.label}"`).join(', ');
+  const more = jobs.length > 3 ? ` and ${jobs.length - 3} more` : '';
+  $('interrupted-text').textContent =
+    `Pulp closed while rendering ${named}${more}. The unfinished ${jobs.length === 1 ? 'file has' : 'files have'} been removed. Render ${jobs.length === 1 ? 'it' : 'them'} again now, to the same ${jobs.length === 1 ? 'place' : 'places'}?`;
+  if (await ask('interrupted-dialog', { 'interrupted-render': true, 'interrupted-skip': false }, false)) await window.pulp.renderAgain();
+}

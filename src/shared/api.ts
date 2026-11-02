@@ -461,6 +461,12 @@ export interface PulpApi {
   clearRecovery(): Promise<void>;
   /** A recovery copy left by a session that did not end cleanly, offered once at launch. */
   pendingRecovery(): Promise<ProjectRecovery | null>;
+  /**
+   * Renders the last session was in the middle of when it ended without finishing (milestone 58):
+   * their partial files are already gone, and `renderAgain` queues them to the same outputs.
+   */
+  interruptedRenders(): Promise<{ label: string; outputPath: string }[]>;
+  renderAgain(): Promise<number>;
   /** Ask where a missing item is now, bring its folder in, and rebind it and everything that moved with it. */
   relinkItem(target: { uid: string; path: string; kind: 'template' | 'media'; name: string }, others: { uid: string; path: string }[], answer?: string): Promise<RelinkResult>;
   /** Which of a project's library folders this computer does not have. */

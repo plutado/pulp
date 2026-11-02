@@ -1565,8 +1565,11 @@ describe.skipIf(!electron)('inspector UI', () => {
           const [r, g, b] = await pixel(0.25);
           return r! + g! + b! < 60;
         }, 'the tall cut pillarboxed: the side is the pad', 30_000);
-        const centre = await pixel(0.5);
-        expect(centre[0]! + centre[1]! + centre[2]!, 'and its picture at the centre').toBeGreaterThan(120);
+        // Its frames arrive as a tile around the playhead (milestone 58), so the centre lights when they land.
+        await until(async () => {
+          const [r, g, b] = await pixel(0.5);
+          return r! + g! + b! > 120;
+        }, 'and its picture at the centre', 30_000);
 
         // A cut with sound joins the mix through the same elements an audio layer plays by, and
         // its waveform draws on its stretch of the lane; the silent test patterns add nothing.
@@ -1716,6 +1719,57 @@ describe.skipIf(!electron)('inspector UI', () => {
         await restoreLayers();
       }
     }, 120_000);
+
+    it('previews a ten-minute shot by the tile the playhead is on, holding frames within the budget (milestone 58)', async () => {
+      // A ten-minute clip written into a folder of the library and scanned in: longer by far than
+      // the 900 frames a whole window may hold, which used to mean the pad. The preview now decodes
+      // ten-second tiles around the playhead, so the shot shows at its start, its middle and its end,
+      // and the frames held stay under the budget wherever the playhead is.
+      const folder = join(mediaDir, 'long');
+      await mkdir(folder, { recursive: true });
+      const { runBounded: run, ffmpegArgs: ff } = await import('./process');
+      const ffmpegPath = (await page.eval<{ path?: string }>(`window.pulp.ffmpegStatus()`)).path!;
+      const made = await run(ffmpegPath, ff(['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=160x90:r=30:d=600', '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-preset', 'ultrafast', '-movflags', '+faststart', join(folder, 'long-shot.mp4')]), { timeoutMs: 300_000 });
+      expect(made.code, made.stderr).toBe(0);
+      await page.eval(`document.getElementById('rescan').click()`);
+      await until(() => page.eval<boolean>(`window.pulp.getLibrary().then((i) => i.media.some((m) => m.name === 'long-shot'))`), 'the long shot scanned into the library', 60_000);
+      await clickResult('Title Card');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const picture = () => page.eval<{ cuts: (number | null)[]; held: number; budget: number }>(`window.pulpTrackPicture()`);
+      const pixel = (fx: number) => page.eval<number[]>(
+        `(() => { const c = document.getElementById('track-picture'); const d = c.getContext('2d').getImageData(Math.floor(c.width * ${fx}), Math.floor(c.height / 2), 1, 1).data; return [d[0], d[1], d[2]]; })()`,
+      );
+      const scrub = (fraction: number) => page.eval(`(() => { const s = document.getElementById('scrub'); s.value = String(Math.round(Number(s.max) * ${fraction})); s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      const lit = async (fx: number) => { const [r, g, b] = await pixel(fx); return r! + g! + b! > 120; };
+      try {
+        const longId = await onResult<string>('long-shot', '(li) => li.dataset.id');
+        await page.eval(`(() => {
+          const el = document.getElementById('transport-lanes');
+          const r = el.getBoundingClientRect();
+          const dt = new DataTransfer();
+          dt.setData('application/x-pulp-item', ${JSON.stringify(longId)});
+          const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true };
+          el.dispatchEvent(new DragEvent('dragover', at));
+          el.dispatchEvent(new DragEvent('drop', at));
+        })()`);
+        await until(() => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`).then((n) => n === 1), 'the ten-minute shot on the track');
+        // The project's length followed the track: ten minutes.
+        await until(() => page.eval<string>(`document.getElementById('scrub').max`).then((m) => Number(m) > 17_000), 'a ten-minute scrub bar');
+        for (const [fraction, where] of [[0.01, 'the start'], [0.5, 'the middle'], [0.98, 'the end']] as const) {
+          await scrub(fraction);
+          await until(() => lit(0.5), `the shot's picture at ${where}`, 60_000);
+          const held = await picture();
+          expect(held.held, `frames held at ${where}`).toBeLessThanOrEqual(held.budget);
+          expect(held.cuts[0], 'the cut readable, not the pad').not.toBeNull();
+        }
+      } finally {
+        await page.eval(`(() => { const u = document.getElementById('undo'); u.click(); })()`);
+        await rm(folder, { recursive: true, force: true });
+        await page.eval(`document.getElementById('rescan').click()`);
+        await restoreLayers();
+      }
+    }, 600_000);
 
     it('puts a clip over the shots from the picture track\'s lane: a drop at a moment makes a video layer there, cropped and bordered from its card (milestone 57)', async () => {
       await clickResult('Title Card');

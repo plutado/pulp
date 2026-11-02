@@ -62,3 +62,35 @@ describe('writeFileAtomic', () => {
     expect((await readdir(dir)).filter((n) => n.endsWith('.tmp'))).toEqual([]);
   });
 });
+
+describe('a process killed mid-write (milestone 58)', () => {
+  it('leaves the target whole — the old file or the new one — never a mix', async () => {
+    // A child writes the same file over and over, each write a fresh 4 MB payload that says which
+    // write it is in every byte; it is killed with no warning a moment in. Whatever write it was
+    // inside, the file on disk is one complete payload.
+    const target = join(dir, 'project.pulp');
+    const script = join(dir, 'writer.mjs');
+    const atomic = new URL('../src/core/atomic-file.ts', import.meta.url).pathname;
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(script, `
+      import { writeFileAtomic } from ${JSON.stringify(atomic)};
+      let n = 0;
+      for (;;) {
+        n += 1;
+        await writeFileAtomic(${JSON.stringify(target)}, Buffer.alloc(4 * 1024 * 1024, String(n % 10)));
+        if (n === 1) process.stdout.write('first\\n');
+      }
+    `);
+    const { spawn } = await import('node:child_process');
+    const child = spawn(process.execPath, ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', script], { stdio: ['ignore', 'pipe', 'inherit'] });
+    await new Promise<void>((resolve) => child.stdout.on('data', (chunk: Buffer) => { if (chunk.toString().includes('first')) resolve(); }));
+    // Some writes later, mid-whatever: SIGKILL gives nothing a chance to clean up.
+    await new Promise((r) => setTimeout(r, 120));
+    child.kill('SIGKILL');
+    await new Promise<void>((resolve) => child.on('exit', () => resolve()));
+    const data = await readFile(target);
+    expect(data.length, 'a whole payload').toBe(4 * 1024 * 1024);
+    const digit = data[0]!;
+    expect(data.every((b) => b === digit), 'every byte from the same write').toBe(true);
+  }, 30_000);
+});

@@ -19,7 +19,7 @@ import { initTray, sayInTray } from './tray';
 import { initSampleHint, refreshSampleHint } from './sample-hint';
 import { initLibraryAdd, setLibraryAddBusy } from './library-add';
 import { initProject, openProjectFrom } from './project';
-import { askAboutRecovery, initProjectUi } from './project-ui';
+import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './project-ui';
 import { initMenu } from './menu';
 import { initContextMenu } from './context-menu';
 import { hideStartScreen, initStartScreen, showStartScreen } from './start-screen';
@@ -117,6 +117,8 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
       // a recovered session with changes is put aside for it.
       const handed = await window.pulp.takePendingOpen();
       if (handed) await openFromSystem(handed);
+      // And the renders a killed session left unfinished (milestone 58), after the project is settled.
+      await offerInterruptedRenders();
     });
   }
   // The panel opens on where you are rather than on everything at once: the first time there is a

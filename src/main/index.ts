@@ -24,7 +24,7 @@ import { fetchSpeechModel, setSpeechProgressWindow, speechStatus, transcribe } f
 import { fetchFfmpeg, ffmpegDownloadStatus, registerManagedFfmpeg, setFfmpegProgressWindow } from './ffmpeg-service';
 import { voicePreview } from './voice-service';
 import { chromaKeyClip, chromaKeyPreview, splitScenes } from './cleanup-service';
-import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag, removeRender } from './render-queue-service';
+import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, interruptedRenders, prepareDrag, removeRender, renderAgain } from './render-queue-service';
 import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
 import { sanitizeCacheMaxMB } from '../core/render-cache';
 import { deletePreset, listPresets, savePreset } from './preset-service';
@@ -374,6 +374,9 @@ function registerIpc(): void {
     writeRecovery(project, typeof path === 'string' && path ? path : null));
   ipcMain.handle('project:clear-recovery', () => clearRecovery());
   ipcMain.handle('project:recovery', () => readRecovery());
+  // Renders a killed session was in the middle of (milestone 58): named at launch, run again on a yes.
+  ipcMain.handle('render:interrupted', () => interruptedRenders());
+  ipcMain.handle('render:again', () => renderAgain());
   ipcMain.handle('project:relink', (_event, target: { uid: string; path: string; kind: 'template' | 'media'; name: string }, others: { uid: string; path: string }[], answer: unknown) =>
     relinkProjectItem(target, Array.isArray(others) ? others : [], typeof answer === 'string' && answer ? answer : undefined));
   ipcMain.handle('project:missing-folders', (_event, folders: unknown) =>
@@ -861,6 +864,10 @@ async function runCliRender(cli: CliRender): Promise<number> {
   console.log(`frames: ${result.transport}`);
   const seconds = (Date.now() - started) / 1000;
   console.log(`wrote ${result.output} (${result.frames} frames in ${seconds.toFixed(1)} s, ${(result.frames / seconds).toFixed(1)} frames/s)`);
+  // The main process's high-water mark (milestone 58): what a render of this size costs in memory,
+  // for the long-track test to hold and for a report to carry. The renderer and GPU processes are
+  // not in it; Copy diagnostics has those.
+  console.log(`peak memory (main process): ${Math.round(process.resourceUsage().maxRSS / 1024)} MB`);
   if (result.cover) console.log(`wrote ${result.cover}`);
   if (result.subtitles) console.log(`wrote ${result.subtitles.srt}\nwrote ${result.subtitles.vtt}`);
   if (result.captionTrack) console.log(`wrote ${result.captionTrack}`);

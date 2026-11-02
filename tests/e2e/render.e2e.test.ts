@@ -1383,6 +1383,61 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(await level(1.6, 1.9), 'and silence once the track has ended').toBeLessThan(-50);
   }, 300_000);
 
+  it('renders a 30-minute cut track within a memory budget, and a render killed half way leaves only a file that says it is partial (milestone 58)', async () => {
+    // One ten-minute clip, cut three times end to end: thirty minutes of track under a graphic.
+    // The rendered range is the last ten seconds, so the capture is a hundred frames — but the
+    // track is trimmed after it is joined, so ffmpeg still decodes and concatenates the whole
+    // thirty minutes to reach them, which is the cost the budget is about.
+    const lib = join(out, 'long-library');
+    await mkdir(lib, { recursive: true });
+    const made = await runBounded(ffmpeg, ffmpegArgs([
+      '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=160x90:r=30:d=600', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=600',
+      '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(lib, 'ten-minutes.mp4'),
+    ]), { timeoutMs: 300_000 });
+    expect(made.code, made.stderr).toBe(0);
+    const longId = itemId(`media:${join(lib, 'ten-minutes.mp4')}`);
+    const track = { cuts: [{ id: longId, from: 0, to: 600 }, { id: longId, from: 0, to: 600 }, { id: longId, from: 0, to: 600 }] };
+    const common = ['--library', FIXTURES, '--library', lib, '--param', `@track=${JSON.stringify(track)}`, '--length', '1800', '--in-point', '53700', '--out-point', '53999'];
+    const long = await render('pulp.test.structure', 'h264-mp4', 'long-track', { extra: common, timeoutMs: 600_000 });
+    expect(long.code, long.stderr).toBe(0);
+    const info = await probe(join(out, 'long-track.mp4'));
+    expect(Number(info.nb_read_frames)).toBe(300);
+    // The main process's high-water mark, printed by the render: the budget a long track must fit.
+    const peak = /peak memory \(main process\): (\d+) MB/.exec(long.stdout);
+    expect(peak, long.stdout.slice(-400)).not.toBeNull();
+    console.info(`30-minute track render: ${long.stdout.split('\n').filter((l) => l.startsWith('wrote') || l.startsWith('peak')).join('; ')}`);
+    expect(Number(peak![1]), 'peak main-process memory for a 30-minute track').toBeLessThan(1536);
+
+    // Killed mid-render: ffmpeg was writing to a staged name, so the finished name never exists
+    // half-written — and running the same render again clears the stage and finishes.
+    const { spawn } = await import('node:child_process');
+    const target = join(out, 'killed.mp4');
+    const child = spawn(electron!, ['.', '--render', 'pulp.samples.lower-third-bar', '--preset', 'h264-mp4', '--out', target, '--library', FIXTURES, '--length', '20'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+    await new Promise<void>((resolve, reject) => {
+      let text = '';
+      const timer = setTimeout(() => reject(new Error(`the render never reached frame 90: ${text.slice(-300)}`)), 120_000);
+      child.stdout.on('data', (chunk: Buffer) => {
+        text += chunk.toString();
+        if (/frame (9|1\d)\d\//.test(text)) {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+      child.on('exit', () => {
+        clearTimeout(timer);
+        reject(new Error(`the render ended before it could be killed: ${text.slice(-300)}`));
+      });
+    });
+    child.kill('SIGKILL');
+    await new Promise<void>((resolve) => child.on('exit', () => resolve()));
+    expect(existsSync(target), 'nothing wears the finished name').toBe(false);
+    expect(existsSync(join(out, 'killed.partial.mp4')), 'the staged file says what it is').toBe(true);
+    const again = await render('pulp.samples.lower-third-bar', 'h264-mp4', 'killed', { extra: ['--library', FIXTURES, '--length', '20'], timeoutMs: 180_000 });
+    expect(again.code, again.stderr).toBe(0);
+    expect(existsSync(target)).toBe(true);
+    expect(existsSync(join(out, 'killed.partial.mp4')), 'the stage cleared by the render that finished').toBe(false);
+  }, 900_000);
+
   it('plays a cut at a speed with its pitch kept, holds a frozen frame, and renders a smooth ramp (milestone 56)', async () => {
     // The same two toned clips as the track test: red at 440 Hz, blue at 880 Hz. Red plays at 2×
     // — half a second of timeline — blue at ½× for a second, then red's first frame is held for

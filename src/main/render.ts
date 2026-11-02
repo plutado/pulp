@@ -16,9 +16,11 @@
  */
 
 import { BrowserWindow, nativeImage } from 'electron';
+import { stagedOutputPath } from '../core/render-recovery';
+import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, rm, writeFile, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { templateDefaultSize, type Size } from '../core/aspect';
@@ -370,6 +372,19 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   let existedBefore = new Set<string>();
   let captionWin: BrowserWindow | null = null;
 
+  /**
+   * A single-file output is written to a staged name — `name.partial.mp4` — and renamed when it
+   * is whole (milestone 58): a render killed half way leaves a file that says what it is rather
+   * than one that looks finished, and the next run of the same render clears it. A sequence is
+   * already visibly short when it is partial, and stays as it is. The side outputs — the mix
+   * beside a sequence, the matte — are staged the same way.
+   */
+  const staged = new Map<string, string>();
+  if (!plan.preset.sequence) staged.set(plan.output, stagedOutputPath(plan.output));
+  if (plan.audioOutput) staged.set(plan.audioOutput, stagedOutputPath(plan.audioOutput));
+  if (plan.matteOutput) staged.set(plan.matteOutput, stagedOutputPath(plan.matteOutput));
+  const ffmpegArgs = plan.args.map((arg) => staged.get(arg) ?? arg);
+
   /** Stop ffmpeg and remove whatever it wrote, then report the failure. */
   const fail = async (result: Extract<RenderResult, { ok: false }>): Promise<RenderResult> => {
     await cleanTemp();
@@ -387,6 +402,8 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       // The mix written beside a render that cannot carry it goes with it (milestone 48): a
       // failed render leaves no orphan sound file where it left no video.
       if (plan.audioOutput && !existedBefore.has(plan.audioOutput)) files.push(plan.audioOutput);
+      // And whatever was staged: it was never whole.
+      files.push(...staged.values());
       await Promise.all(files.map((f) => rm(f, { force: true })));
     }
     return result;
@@ -466,7 +483,14 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       }),
       ...(plan.audioOutput ? [plan.audioOutput] : []),
     ]);
-    child = spawn(ffmpeg.path, plan.args, { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });
+    // ffmpeg is told `-n` and would refuse an existing *staged* file, never the final one, so the
+    // final name is checked here; a staged file from a render that was killed is cleared first.
+    if (!overwrite) {
+      const taken = [...staged.keys()].find((f) => existsSync(f));
+      if (taken) return { ok: false, message: `${taken} already exists` };
+    }
+    await Promise.all([...staged.values()].map((f) => rm(f, { force: true })));
+    child = spawn(ffmpeg.path, ffmpegArgs, { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });
     let stderr = '';
     child.stderr?.on('data', (chunk: Buffer) => {
       stderr = (stderr + chunk.toString('utf8')).slice(-8000);
@@ -519,6 +543,10 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     await cleanTemp();
     if (code !== 0) {
       return await fail({ ok: false, message: `ffmpeg exited with code ${code}: ${stderr.trim() || 'no error output'}` });
+    }
+    // Whole: each staged file takes its final name, which is the moment the render exists.
+    for (const [final, partial] of staged) {
+      if (existsSync(partial)) await rename(partial, final);
     }
 
     // The cover image (milestone 20): one more frame from the page that just drew the render, so

@@ -24,6 +24,9 @@ import { soundIdsInLayers } from '../core/sound-layer';
 import { splitLayers } from '../core/params';
 import { cacheFileForKey, dragFileFor, evictIfNeeded, isCachedFile } from './render-cache-service';
 import { existsSync } from 'node:fs';
+import { readFile, rm } from 'node:fs/promises';
+import { writeFileAtomic } from '../core/atomic-file';
+import { EMPTY_LEDGER, interruptedFiles, parseLedger, serializeLedger, withJob, withoutJob, type InterruptedRender, type RenderLedger } from '../core/render-recovery';
 import { findTemplate, lookupMedia, markItemRendered, markItemUsed } from './library-service';
 import { renderTemplate } from './render';
 import { planMediaRender, renderMedia } from './media-render';
@@ -374,6 +377,79 @@ export function removeRender(id: number): void {
 }
 
 /** Render queued jobs until none are left. Only one pump runs at a time. */
+// ---------------------------------------------------------------- renders that outlive the app (milestone 58)
+
+/** The ledger of renders in flight, beside the settings: what a killed session was in the middle of. */
+function ledgerPath(): string {
+  return join(app.getPath('userData'), 'render-recovery.json');
+}
+
+async function readLedger(): Promise<RenderLedger> {
+  try {
+    return parseLedger(await readFile(ledgerPath(), 'utf8'));
+  } catch {
+    return EMPTY_LEDGER;
+  }
+}
+
+/** One writer at a time: a start and a finish a moment apart must not race on the file. */
+let ledgerChain: Promise<void> = Promise.resolve();
+
+function updateLedger(change: (ledger: RenderLedger) => RenderLedger): Promise<void> {
+  ledgerChain = ledgerChain.then(async () => {
+    const next = change(await readLedger());
+    if (next.jobs.length === 0) await rm(ledgerPath(), { force: true });
+    else await writeFileAtomic(ledgerPath(), serializeLedger(next));
+  }).catch(() => undefined);
+  return ledgerChain;
+}
+
+/** The jobs a killed session left in the ledger, read once at launch and held for `renderAgain`. */
+let interrupted: InterruptedRender[] | null = null;
+
+/**
+ * At launch: what the last session was rendering when it ended without finishing. Their partial
+ * files are removed — a render killed half way has nothing whole to keep — and the jobs are held
+ * so the window can offer to run them again, with the inputs they were started with and the
+ * output the save dialog had already answered.
+ */
+export async function interruptedRenders(): Promise<{ label: string; outputPath: string }[]> {
+  if (interrupted === null) {
+    const ledger = await readLedger();
+    interrupted = ledger.jobs;
+    for (const job of interrupted) {
+      const sequence = presetFacts(job.presetId)?.sequence ?? false;
+      await Promise.all(interruptedFiles(job, sequence).map((f) => rm(f, { force: true })));
+    }
+    await rm(ledgerPath(), { force: true });
+  }
+  return interrupted.map((j) => ({ label: j.label, outputPath: j.outputPath }));
+}
+
+/** Queue the interrupted renders again, to the outputs they were going to; how many were queued. */
+export async function renderAgain(): Promise<number> {
+  const jobs = interrupted ?? [];
+  interrupted = [];
+  let queued = 0;
+  for (const saved of jobs) {
+    const options = saved.options as RenderOptions | undefined;
+    if (saved.mediaId) {
+      const entry = mediaFor(saved.mediaId);
+      if (!entry) continue;
+      const job = queue.add({ templateId: '', mediaId: entry.id, templateName: entry.name, presetId: saved.presetId, outputPath: saved.outputPath, totalFrames: saved.totalFrames, firstFrame: saved.firstFrame, ...platformOf(options) });
+      inputs.set(job.id, { media: entry, params: saved.params, ...(options ? { options } : {}) });
+    } else if (saved.templateId) {
+      const template = await findTemplate(saved.templateId);
+      if (!template) continue;
+      const job = queue.add({ templateId: template.manifest.id, templateName: template.manifest.name, presetId: saved.presetId, outputPath: saved.outputPath, totalFrames: saved.totalFrames, firstFrame: saved.firstFrame, ...platformOf(options) });
+      inputs.set(job.id, { template, params: saved.params, ...(options ? { options } : {}) });
+    } else continue;
+    queued += 1;
+  }
+  if (queued > 0) void pump();
+  return queued;
+}
+
 async function pump(): Promise<void> {
   if (pumping) return;
   pumping = true;
@@ -384,6 +460,17 @@ async function pump(): Promise<void> {
       if (!input) {
         queue.finish(job.id, { ok: false, message: 'Render inputs were lost before the job started.' });
         continue;
+      }
+      // In the ledger while it runs, so a session killed now leaves it to be offered again. A render
+      // into the drag cache is not: it is remade on demand, and nobody asked for a file.
+      if (!input.forCache) {
+        await updateLedger((ledger) => withJob(ledger, {
+          ...(input.template ? { templateId: input.template.manifest.id } : {}),
+          ...(input.media ? { mediaId: input.media.id } : {}),
+          presetId: job.presetId, outputPath: job.outputPath, params: input.params,
+          ...(input.options ? { options: input.options as Record<string, unknown> } : {}),
+          totalFrames: job.totalFrames, firstFrame: job.firstFrame ?? 0, startedAt: new Date().toISOString(), label: job.templateName,
+        }));
       }
       active = new AbortController();
       const id = job.id;
@@ -399,6 +486,8 @@ async function pump(): Promise<void> {
       };
       const result = input.media ? await renderMedia({ entry: input.media, ...shared }) : await renderTemplate({ template: input.template, ...shared });
       active = null;
+      // Finished, failed or cancelled: nothing left to recover.
+      if (!input.forCache) await updateLedger((ledger) => withoutJob(ledger, job.outputPath));
       queue.finish(id, result);
       if (result.ok) {
         markItemRendered(input.media ? input.media.id : input.template.id);

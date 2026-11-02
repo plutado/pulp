@@ -33,10 +33,13 @@ export type TemplateStructure =
 
 /** What a template's structure must satisfy to be usable; a manifest saying otherwise is refused. */
 /**
- * The longest a graphic may be asked to run for. Past ten minutes it is a film
- * rather than a graphic, and the frames would have to be held somewhere.
+ * The longest a graphic may be asked to run for: thirty minutes, the length of
+ * a short with its shots on the cut track (milestone 58). It was ten, when the
+ * frames of anything under the graphic had to be held whole; the preview now
+ * decodes the track in tiles around the playhead and the render streams it,
+ * so the length is bounded by what a piece is rather than by memory.
  */
-export const MAX_LENGTH_SECONDS = 600;
+export const MAX_LENGTH_SECONDS = 1800;
 
 export const STRUCTURE_LIMITS = {
   /** The shortest hold a template may declare. Shorter than a frame or two is not a part. */
