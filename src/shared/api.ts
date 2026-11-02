@@ -4,6 +4,7 @@
  */
 
 import type { LayoutState } from '../core/layout';
+import type { MainPerformance } from '../core/perf';
 import type { LibraryIndex } from '../core/library-types';
 import type { PresetId, RenderOptions } from '../core/render-plan';
 import type { RenderQueueSnapshot } from '../core/render-queue';
@@ -511,6 +512,8 @@ export interface PulpApi {
   platform: string;
   /** Pulp's version, which only the main process can answer for. */
   appVersion(): Promise<string>;
+  /** What the main process knows about speed and weight (milestone 58), for the diagnostics' Performance section. */
+  appPerformance(): Promise<MainPerformance>;
   getRenderQueue(): Promise<RenderQueueSnapshot>;
   /** The last committed searches, most recent first. */
   getRecentSearches(): Promise<string[]>;

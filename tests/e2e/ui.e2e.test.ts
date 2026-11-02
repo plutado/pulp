@@ -3996,6 +3996,17 @@ describe.skipIf(!electron)('inspector UI', () => {
       // said it where nobody could see it unless that dialog happened to be open.
       await page.eval(`window.pulpMenuCommand('help.diagnostics')`);
       await until(() => page.eval<string>(`document.querySelector('#status-diagnostics .label').textContent`).then((t) => t === 'Diagnostics copied'), 'the diagnostics confirmation');
+      // The Performance section's facts (milestone 58): the main process measures the library and
+      // its processes when asked, and the window has recorded what the index cost it to take in.
+      const perf = await page.eval<{ library: { templates: number; media: number }; indexMs: number; indexBytes: number; memory: { processes: unknown[]; mainHeapMB: number }; uptimeSeconds: number }>(`window.pulp.appPerformance()`);
+      expect(perf.library.templates).toBeGreaterThan(0);
+      expect(perf.indexMs).toBeGreaterThanOrEqual(0);
+      expect(perf.indexBytes).toBeGreaterThan(1000);
+      expect(perf.memory.processes.length).toBeGreaterThan(0);
+      expect(perf.memory.mainHeapMB).toBeGreaterThan(0);
+      const recorded = await page.eval<{ receiveMs: { count: number } | null; windowMs: { count: number } | null }>(`window.pulpWindowPerformance()`);
+      expect(recorded.receiveMs?.count ?? 0, 'the index landed at least once').toBeGreaterThanOrEqual(1);
+      expect(recorded.windowMs?.count ?? 0, 'the results drew at least once').toBeGreaterThanOrEqual(1);
 
       // Settings… (milestone 8): where the platform puts it, and every control reading the very
       // setting the rest of the window keeps — the start screen's own checkbox says the same.

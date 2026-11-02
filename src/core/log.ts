@@ -98,6 +98,8 @@ export interface DiagnosticsFacts {
   /** Where the log file is, so it can be opened; and its last lines. */
   logPath: string;
   logTail: string[];
+  /** The Performance section (milestone 58, src/core/perf.ts): library size, scan and search timings, memory. */
+  performance?: string[];
 }
 
 /**
@@ -120,6 +122,7 @@ export function diagnosticsText(facts: DiagnosticsFacts, home?: string): string 
     `Renders this session: ${facts.renders}`,
     `Log: ${facts.logPath}`,
   ];
+  if (facts.performance && facts.performance.length > 0) lines.push('', 'Performance:', ...facts.performance.map((line) => `  ${line}`));
   if (facts.logTail.length > 0) lines.push('', `Last ${facts.logTail.length} log ${facts.logTail.length === 1 ? 'line' : 'lines'}:`, ...facts.logTail);
   else lines.push('', 'Log: nothing recorded this session.');
   const text = redactHome(lines.join('\n'), home);

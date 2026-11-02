@@ -10,6 +10,8 @@
  */
 
 import { app, BrowserWindow } from 'electron';
+import { performance } from 'node:perf_hooks';
+import type { MainPerformance } from '../core/perf';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
@@ -710,6 +712,30 @@ export function startLibraryMonitor(): void {
 
 export function lastScanStats(): ScanStats | null {
   return lastStats;
+}
+
+/**
+ * What the main process knows about speed and weight (milestone 58), for the
+ * diagnostics' Performance section: the library's size, the last scan's
+ * numbers, how long the index takes to build and how large it is as the
+ * window receives it — measured now, since asking is rare and the answer is
+ * then today's — and what each of Electron's processes holds.
+ */
+export function libraryPerformance(): MainPerformance {
+  const st = getStore();
+  const started = performance.now();
+  const index = st.toIndex();
+  const indexMs = performance.now() - started;
+  const indexBytes = JSON.stringify(index).length;
+  const metrics = app.getAppMetrics().map((m) => ({ type: m.type, workingSetMB: m.memory.workingSetSize / 1024 }));
+  return {
+    library: { templates: index.templates.length, media: index.media.length, problems: index.problems.length },
+    lastScan: lastStats ? { visited: lastStats.visited, loaded: lastStats.loaded, kept: lastStats.kept, removed: lastStats.removed, ms: lastStats.ms } : null,
+    indexMs,
+    indexBytes,
+    memory: { mainHeapMB: process.memoryUsage().heapUsed / 1_000_000, processes: metrics },
+    uptimeSeconds: process.uptime(),
+  };
 }
 
 /** Stop watching and close the database (app quit). */

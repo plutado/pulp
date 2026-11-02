@@ -30,6 +30,7 @@ import { initCrashLog } from './crash-log';
 import { initTour } from './tour';
 import { initWhatsNew } from './whats-new';
 import { initSettings, registerFfmpegRefresh } from './settings';
+import { receiveTiming, windowPerformance } from './perf';
 import { initUserGuide } from './user-guide';
 import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
 import { importedFonts } from './store';
@@ -101,7 +102,11 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
   }
   if (!index) return;
   const first = appState.value.index === null;
+  // Timed for Copy diagnostics (milestone 58): the index landing in the state, which recomputes
+  // the results, the facets and the tree over the whole library.
+  const started = performance.now();
   dispatch((s) => setIndex(s, index));
+  receiveTiming.record(performance.now() - started);
   // A session that ended suddenly is offered back once the library is in, since the items it
   // holds mean nothing without one. Recovering it is choosing to work, so the start screen goes.
   if (first) {
@@ -505,3 +510,5 @@ function readFfmpeg(): void {
 }
 registerFfmpegRefresh(readFfmpeg);
 readFfmpeg();
+// For the UI test: what the window has recorded of its own speed (milestone 58).
+(window as unknown as { pulpWindowPerformance?: typeof windowPerformance }).pulpWindowPerformance = windowPerformance;

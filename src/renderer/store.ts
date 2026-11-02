@@ -7,6 +7,7 @@
  */
 
 import { computed, signal } from '@preact/signals';
+import { searchTiming } from './perf';
 import { createFacetSelector, createResultsSelector, createTreeSelector, initialAppState, type AppState } from '../core/app-state';
 import type { Size } from '../core/aspect';
 import type { TemplateEntry } from '../core/library-types';
@@ -22,8 +23,21 @@ export function dispatch(action: (s: AppState) => AppState): void {
 
 const selectResults = createResultsSelector();
 
-/** Results: searched only when index, query or scope changed; the same object otherwise. */
-export const results = computed(() => selectResults(appState.value));
+/**
+ * Results: searched only when index, query or scope changed; the same object otherwise. Timed
+ * when it really searches (milestone 58), so Copy diagnostics can say what a keystroke costs.
+ */
+let lastResults: ReturnType<typeof selectResults> | null = null;
+export const results = computed(() => {
+  const started = performance.now();
+  const view = selectResults(appState.value);
+  // The same object back is the selector's memo answering, not a search.
+  if (view !== lastResults) {
+    lastResults = view;
+    searchTiming.record(performance.now() - started);
+  }
+  return view;
+});
 export const hasIndex = computed(() => appState.value.index !== null);
 
 const selectTree = createTreeSelector();

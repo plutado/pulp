@@ -36,6 +36,7 @@ import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { emptyResults, resultsLabel, type EmptyActionId } from '../core/results-empty';
 import { setQuery } from '../core/app-state';
 import { virtualWindow } from '../core/virtual-list';
+import { windowTiming } from './perf';
 import { Icon, type IconName } from './icons';
 import { Thumb } from './item-preview';
 import { appState, dispatch, hasIndex, results, resultsView, selectedKey } from './store';
@@ -211,8 +212,12 @@ function Results({ onSelect }: { onSelect: (entry: LibraryEntry) => void }) {
   if (!hasIndex.value) return null;
   const { entries } = results.value;
   if (entries.length === 0) return null;
+  // Timed for Copy diagnostics (milestone 58): the geometry and the window for this scroll position,
+  // which is what a scroll costs before Preact draws the cards.
+  const started = performance.now();
   const { grid, ratio, columns, rowHeight } = geometry(entries);
   const win = virtualWindow({ total: entries.length, columns, rowHeight, viewportHeight: viewport.value.height, scrollTop: scrollTop.value });
+  windowTiming.record(performance.now() - started);
   const selected = selectedKey.value;
   return (
     <>

@@ -14,7 +14,7 @@ import { CAPTIONS_MODES, FRAME_FORMATS, OUTPUT_PRESETS, type CaptionsMode, type 
 import { PLATFORM_IDS, platformPreset } from '../core/platform-presets';
 import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest, SampleMediaOutcome } from '../shared/api';
-import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
+import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, libraryPerformance, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { mixLoudness } from './mix-loudness';
@@ -402,6 +402,8 @@ function registerIpc(): void {
   // Help -> Copy Diagnostics. Named for its one purpose and bounded, rather than a way for the
   // window to put anything at all on the clipboard.
   ipcMain.handle('app:version', () => app.getVersion());
+  // The Performance section of Copy diagnostics (milestone 58): measured when asked, since asking is rare.
+  ipcMain.handle('app:performance', () => libraryPerformance());
   ipcMain.handle('diagnostics:copy', (_event, text: unknown) => {
     if (typeof text !== 'string' || text.length > DIAGNOSTICS_MAX_CHARS) return false;
     clipboard.writeText(text);

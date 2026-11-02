@@ -127,6 +127,7 @@ const api: PulpApi = {
   openUploadPage: (path, platform) => ipcRenderer.invoke('file:open-upload', path, platform),
   platform: process.platform,
   appVersion: () => ipcRenderer.invoke('app:version'),
+  appPerformance: () => ipcRenderer.invoke('app:performance'),
   getRenderQueue: () => ipcRenderer.invoke('queue:get'),
   getRecentColors: () => ipcRenderer.invoke('colors:recent-get'),
   addRecentColor: (hex) => ipcRenderer.invoke('colors:recent-add', hex),

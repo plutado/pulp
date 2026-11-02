@@ -21,6 +21,8 @@ import { selectedLayer } from './layer-edit';
 import { currentLayerFacts, runLayerCommand, stageClipboard } from './stage-menu';
 import { registerCommandRunner } from './commands';
 import { diagnosticsText } from '../core/log';
+import { performanceLines } from '../core/perf';
+import { windowPerformance } from './perf';
 import { focusSearch } from './search-bar';
 import { openBrowseFilter } from './browse';
 import { newProject, openProjectFrom, saveProject } from './project';
@@ -205,12 +207,13 @@ function readState(recent: string[]): MenuState {
  * dialog's own line, which nobody saw unless that dialog happened to be open.
  */
 export async function copyDiagnostics(): Promise<void> {
-  const [ffmpeg, diagnostics, cache, log, version] = await Promise.all([
+  const [ffmpeg, diagnostics, cache, log, version, mainPerformance] = await Promise.all([
     window.pulp.ffmpegStatus(),
     window.pulp.libraryDiagnostics(),
     window.pulp.renderCacheStats(),
     window.pulp.logTail(),
     window.pulp.appVersion(),
+    window.pulp.appPerformance(),
   ]);
   const index = appState.value.index;
   const text = diagnosticsText({
@@ -226,6 +229,9 @@ export async function copyDiagnostics(): Promise<void> {
     renders: appState.value.jobs.jobs.length,
     logPath: log.path,
     logTail: log.lines,
+    // Speed and weight (milestone 58): what the main process measured just now, and what the window
+    // has been recording as it searched, scrolled and took the index in.
+    performance: performanceLines(mainPerformance, windowPerformance()),
   });
   const ok = await window.pulp.copyDiagnostics(text);
   sayInStatus(ok ? 'Diagnostics copied' : 'Could not reach the clipboard');
