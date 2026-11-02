@@ -8,15 +8,10 @@
  * the one name that travels between machines (src/core/collection.ts).
  */
 
-import { app } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { parseProject, type Project } from '../core/project';
-
-/** Folder of example projects shipped with the app, beside the bundled templates. */
-export function bundledExamplesDir(): string {
-  return app.isPackaged ? join(process.resourcesPath, 'examples') : join(app.getAppPath(), 'examples');
-}
+import { bundledExamplesDir } from './resources';
 
 export interface ExampleProject {
   /** Where the file is, which is also the key readExample accepts. */

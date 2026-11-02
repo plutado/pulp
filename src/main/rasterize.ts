@@ -12,14 +12,10 @@
  * than compiled. Calls run one at a time: the page is shared state.
  */
 
-import { app, BrowserWindow } from 'electron';
+import { BrowserWindow } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-
-/** Where pdf.js's build lives: node_modules in a checkout; packaging (milestone 17) must carry these two files. */
-function pdfJsBuildDir(): string {
-  return join(app.getAppPath(), 'node_modules', 'pdfjs-dist', 'build');
-}
+import { pdfJsBuildDir } from './resources';
 
 let win: BrowserWindow | null = null;
 let pdfJsLoaded = false;

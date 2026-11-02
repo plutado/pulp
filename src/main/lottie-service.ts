@@ -6,18 +6,15 @@
  * `.lottie`). The reading is pure (src/core/lottie.ts); this is the door.
  */
 
-import { app } from 'electron';
 import { readFile, stat } from 'node:fs/promises';
-import { dirname, join, resolve, sep } from 'node:path';
+import { dirname, resolve, sep } from 'node:path';
 import { lottieAssetPaths, parseLottie, prepareLottieData, readDotLottie, type LottieDocument } from '../core/lottie';
 import { lottiePageHtml } from '../core/lottie-page';
 import type { TemplateEntry } from '../core/library-types';
 import { MEDIA_MIME } from '../core/media-serve';
+import { lottiePlayerFile } from './resources';
 
-/** The player: lottie-web's light build, read from node_modules in a checkout; packaging (milestone 17) must carry it. */
-export function lottiePlayerFile(): string {
-  return join(app.getAppPath(), 'node_modules', 'lottie-web', 'build', 'player', 'lottie_light.min.js');
-}
+export { lottiePlayerFile };
 
 export interface LottieHandle {
   document: LottieDocument;

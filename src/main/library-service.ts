@@ -42,16 +42,9 @@ import { normalizeTag } from '../core/tags';
 import { normalizeTheme } from '../core/taxonomy';
 import { placeableTemplate } from '../core/search';
 import { loadSettings, updateSettings } from './settings';
+import { bundledFontsDir, bundledTemplatesDir } from './resources';
 
-/** Folder of sample templates shipped with the app. */
-export function bundledTemplatesDir(): string {
-  return app.isPackaged ? join(process.resourcesPath, 'templates') : join(app.getAppPath(), 'templates');
-}
-
-/** The bundled fonts (src/core/fonts.ts, ADR 0014), beside the bundled templates. */
-export function bundledFontsDir(): string {
-  return app.isPackaged ? join(process.resourcesPath, 'fonts') : join(app.getAppPath(), 'fonts');
-}
+export { bundledFontsDir, bundledTemplatesDir };
 
 /** How long a scan result counts as fresh when the window regains focus. */
 export const FOCUS_RESCAN_AGE_MS = 5_000;

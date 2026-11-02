@@ -1,0 +1,104 @@
+# How Pulp is packaged (milestone 17). Builds are unsigned for now; signing
+# and notarization are milestone 7, and this file is where the identity will
+# go when there is one.
+#
+#   npm run package:mac     a universal .app and a .dmg, unsigned
+#
+# What goes in, and what stays out: the built app is `out/` (electron-vite's
+# output) and nothing else of the repository — no sources, no tests, no
+# `templates/` — because everything Pulp reads at run time is copied into
+# `Resources/` by `extraResources` below, and `src/main/resources.ts` is the
+# one place that knows where each lands.
+appId: com.davidfugate.pulp
+productName: Pulp
+copyright: Copyright © 2026 David Fugate. MIT licensed; see THIRD_PARTY_NOTICES.md.
+
+directories:
+  # The icons this reads are drawn by `npx electron scripts/make-icon.mjs` and committed.
+  buildResources: build
+  output: release
+
+# Only the built app and the manifest that points at it. electron-vite bundles everything the
+# main, preload and renderer code imports into `out/` — the built main process requires nothing
+# but `electron` and Node's own modules — so **no `node_modules` ships**. That has to be said
+# outright: electron-builder copies the production dependency tree unless told not to, which
+# here would mean pdf.js's native canvas (a binary per architecture, tens of megabytes) that
+# Pulp never calls, and which stopped the universal build outright for differing between the
+# two architectures. The two libraries Pulp reads as *files* at run time are extraResources.
+files:
+  - out/**
+  - package.json
+  - '!node_modules/**'
+
+extraResources:
+  # The bundled library: templates the app shows as "Built-in templates", the ten OFL fonts
+  # every template page is given, and the example projects the start screen opens as copies.
+  - from: templates
+    to: templates
+  - from: fonts
+    to: fonts
+  - from: examples
+    to: examples
+  # pdf.js, read as text into the sandboxed rasterizer (milestone 33), and lottie-web's player,
+  # served to a Lottie's own page (milestone 35). Both are read from disk at run time rather
+  # than bundled into the main process, so both have to be files in the app.
+  - from: node_modules/pdfjs-dist/build
+    to: pdfjs
+    filter:
+      - pdf.min.mjs
+      - pdf.worker.min.mjs
+  - from: node_modules/lottie-web/build/player
+    to: lottie
+    filter:
+      - lottie_light.min.js
+  # What Pulp is built on, beside the app, as the licences ask.
+  - from: THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+  - from: LICENSE
+    to: LICENSE
+
+# macOS: one build for both architectures, with the hardened runtime on.
+#
+# `identity: "-"` is an **ad-hoc** signature: no Developer ID, no team, nothing Apple has
+# issued — which is what "unsigned" means here — but a real signature over the bundle, which
+# is the least Apple Silicon will launch, and which is what lets the hardened runtime be
+# applied at all. (The runtime is a signing option: with signing skipped outright it would be
+# written here and do nothing.) Signing proper is milestone 7, and from here it is the
+# identity changing rather than any behaviour.
+#
+# An ad-hoc build is still quarantined when it is downloaded: Gatekeeper refuses it until it
+# is opened through the Finder's context menu once, or `xattr -dr com.apple.quarantine` is
+# run on it. The entitlements are what Electron needs under the hardened runtime — a JIT for
+# V8 and the unsigned executable memory Chromium's renderers use — and library validation
+# off, which ad-hoc signing requires and which also lets ffmpeg and whisper.cpp run as
+# children of the app.
+mac:
+  category: public.app-category.video
+  target:
+    - target: dmg
+      arch: [universal]
+    - target: zip
+      arch: [universal]
+  icon: build/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  identity: "-"
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    # Pulp reads media the person points it at; macOS asks for a reason before it may.
+    NSDocumentsFolderUsageDescription: Pulp reads the template and media folders you add to its library.
+    NSDesktopFolderUsageDescription: Pulp reads the template and media folders you add to its library.
+    NSDownloadsFolderUsageDescription: Pulp reads the template and media folders you add to its library.
+    NSMicrophoneUsageDescription: Pulp does not record; it only reads the media files you give it.
+
+dmg:
+  # The window a .dmg opens: the app, and the Applications folder to drag it into.
+  contents:
+    - x: 140
+      y: 180
+      type: file
+    - x: 400
+      y: 180
+      type: link
+      path: /Applications

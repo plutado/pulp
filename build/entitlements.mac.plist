@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  What Electron needs under the hardened runtime (milestone 17). Nothing here
+  is about Pulp reaching outside the machine: it asks for no network
+  entitlement, and the sandbox is not enabled, which is what lets a person's
+  own library folders be read where they are.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <!-- V8 compiles JavaScript as it runs, and Chromium's renderers map that memory executable. -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <!-- ffmpeg and whisper.cpp are the person's own programs, run as children of Pulp. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+  </dict>
+</plist>

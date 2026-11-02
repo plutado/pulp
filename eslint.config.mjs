@@ -3,7 +3,9 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['node_modules', 'out', 'dist', 'renders', 'coverage'] },
+  // `release` is what a packaged build leaves behind (milestone 17): a whole application,
+  // minified bundles and all, which is nobody's source to lint.
+  { ignores: ['node_modules', 'out', 'dist', 'release', 'renders', 'coverage'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
