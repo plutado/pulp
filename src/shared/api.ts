@@ -429,6 +429,14 @@ export interface PulpApi {
   saveProject(project: Project, path: string | null, suggestedName: string): Promise<ProjectFileResult>;
   /** Open dialog, then read a project or a collection back as a project. */
   openProject(): Promise<ProjectFileResult>;
+  /**
+   * A project file the system handed over (milestone 17) — double-clicked, dropped on the Dock
+   * icon, or given on the command line. `takePendingOpen` is asked once the window can open
+   * one, and answers with the file the app was started with, if any; after that `onOpenFile`
+   * hears each new one as it arrives, from the running app's second copy or the Dock.
+   */
+  takePendingOpen(): Promise<string | null>;
+  onOpenFile(listener: (path: string) => void): () => void;
   /** The same by path, for Open Recent and for scripting. */
   openProjectPath(path: string): Promise<ProjectFileResult>;
   /** Recently opened projects, newest first; `forgetProject` takes one off. */

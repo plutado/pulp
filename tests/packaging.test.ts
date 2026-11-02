@@ -25,6 +25,7 @@ interface BuilderConfig {
   appId: string;
   productName: string;
   artifactName: string;
+  fileAssociations: { ext: string; name: string; mimeType: string; role: string }[];
   files: string[];
   directories: { buildResources: string; output: string };
   extraResources: { from: string; to: string; filter?: string[] }[];
@@ -234,6 +235,23 @@ describe('the release workflow', () => {
   it('refuses a tag that does not match the version in package.json', () => {
     const steps = release.jobs.build!.steps.map((s) => s.run ?? '').join('\n');
     expect(steps).toContain("require('./package.json').version");
+  });
+});
+
+describe('the files a double-click opens in Pulp', () => {
+  it('associates exactly the two files the main process reads as a project', async () => {
+    // macOS writes them into Info.plist, the installer registers them per user on Windows, and
+    // the AppImage's .desktop entry carries their MIME types; src/core/open-file.ts reads the
+    // path the system then hands over, by these same extensions.
+    const openFile = await readFile(join(ROOT, 'src', 'core', 'open-file.ts'), 'utf8');
+    const known = [...openFile.matchAll(/_EXTENSION = '([a-z]+)'/g)].map((m) => m[1]!).sort();
+    expect(known).toEqual(['pulp', 'pulpcollection']);
+    expect(config.fileAssociations.map((a) => a.ext).sort()).toEqual(known);
+    for (const association of config.fileAssociations) {
+      expect(association.role, association.ext).toBe('Editor');
+      expect(association.mimeType, association.ext).toMatch(/^application\/x-pulp-/);
+      expect(association.name, association.ext).toMatch(/^Pulp /);
+    }
   });
 });
 

@@ -31,6 +31,23 @@ directories:
 # the same in a downloads folder otherwise.
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 
+# The two files Pulp opens as a project (milestone 27), so a double-click opens them in Pulp
+# (milestone 17): macOS writes these into the bundle's Info.plist, the installer registers them
+# for the user on Windows, and the AppImage's .desktop entry carries their MIME types. The main
+# process reads the path the system hands over (src/core/open-file.ts) and the window opens it
+# through the same opener as File → Open.
+fileAssociations:
+  - ext: pulp
+    name: Pulp Project
+    description: Pulp project
+    mimeType: application/x-pulp-project
+    role: Editor
+  - ext: pulpcollection
+    name: Pulp Collection
+    description: Pulp collection
+    mimeType: application/x-pulp-collection
+    role: Editor
+
 # Only the built app and the manifest that points at it. electron-vite bundles everything the
 # main, preload and renderer code imports into `out/` — the built main process requires nothing
 # but `electron` and Node's own modules — so **no `node_modules` ships**. That has to be said

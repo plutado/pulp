@@ -75,6 +75,7 @@ Free text matches names, tags and themes; several words all have to match. Doubl
 
 ## Where your things are
 
+- **A project file opens in Pulp when you double-click it**, from a file manager or the Dock; a Pulp that is already open takes it in its own window and asks about unsaved changes first.
 - **Your media stays where it is.** Pulp indexes folders in place and never moves or copies what is in them, except the pictures and fonts you import, which are copied into a managed folder so a project cannot lose them.
 - **Settings, the library index, the render cache and the log** live in Pulp's own folder beside your other applications' data. **Settings…** (Cmd/Ctrl+,) holds what you can change; **Copy diagnostics**, in the status items, puts the facts and the log's last lines on the clipboard for a bug report, with your home folder written as `~`.
 - **FFmpeg is a program of its own**, which Pulp runs to encode what it renders and does not ship. It finds the one you installed, on your path or at `PULP_FFMPEG_PATH`. If you have none, **Settings → FFmpeg** offers to fetch one: it says which build, from which publisher, how big it is and under what licence before anything is fetched, checks what arrives against a published checksum, and keeps it in Pulp's own folder — where it is looked for last, so an FFmpeg of your own always wins (decision record 0022).

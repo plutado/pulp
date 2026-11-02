@@ -34,6 +34,7 @@ import {
   recentProjects, recentProjectsDetailed, relinkProjectItem, relinkRecentProject, saveProjectTo, setProjectPinned, writeRecovery,
 } from './project-service';
 import { listExamples, readExample } from './examples-service';
+import { projectFileArg } from '../core/open-file';
 import type { Project } from '../core/project';
 import { initMenu, menuSections, setMenuState } from './menu-service';
 import type { MenuState } from '../core/menu';
@@ -85,6 +86,28 @@ if (process.env.PULP_USER_DATA) app.setPath('userData', resolve(process.env.PULP
 initCrashLog();
 
 let mainWindow: BrowserWindow | null = null;
+
+/**
+ * A project file the system handed over (milestone 17): double-clicked in a file manager,
+ * dropped on the Dock icon, or given on the command line. macOS sends an `open-file` event,
+ * before the app is even ready when the file is what launched it; Windows and Linux start a
+ * second copy with the path among its arguments, which the single-instance lock below turns
+ * into a `second-instance` event here. Either way the window is what opens it — through the
+ * same opener File → Open uses, which asks about unsaved changes — so the path waits here
+ * until the window has said it is listening, and is pushed straight to it after that.
+ */
+let pendingOpen: string | null = null;
+let windowListening = false;
+
+function openFileFromSystem(path: string): void {
+  if (windowListening && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('project:open-file', path);
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  } else {
+    pendingOpen = path;
+  }
+}
 
 function createWindow(): void {
   // Run from source, the window names the checkout it came from, so two copies side by side are
@@ -157,6 +180,7 @@ function createWindow(): void {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    windowListening = false;
     setSpeechProgressWindow(null);
     setFfmpegProgressWindow(null);
     // The stage's window has no life of its own; it is remembered as it was for the next launch.
@@ -319,6 +343,14 @@ function registerIpc(): void {
   ipcMain.handle('project:open', () => openProjectDialog());
   ipcMain.handle('project:open-path', (_event, path: unknown) =>
     typeof path === 'string' && path ? readProjectFile(path) : { ok: false as const, message: 'No project was chosen.' });
+  // The window is ready for the file the system handed over, if there was one (milestone 17);
+  // from here on a new one is pushed to it as it arrives.
+  ipcMain.handle('project:take-pending-open', () => {
+    windowListening = true;
+    const path = pendingOpen;
+    pendingOpen = null;
+    return path;
+  });
   ipcMain.handle('project:recent', () => recentProjects());
   ipcMain.handle('project:forget', (_event, path: unknown) => forgetProject(String(path ?? '')));
   // The start screen (milestone 31): the recent list with pins and times, the examples, and its switches.
@@ -982,6 +1014,35 @@ async function runCliBatch(cli: CliRender, template: NonNullable<Awaited<ReturnT
 }
 
 const cli = parseCliRender(process.argv);
+
+if (!cli) {
+  // macOS hands a double-clicked file over as an event — before `ready` when the file is what
+  // launched the app, which is why this is registered here and the path is kept until the
+  // window asks for it.
+  app.on('open-file', (event, path) => {
+    event.preventDefault();
+    openFileFromSystem(path);
+  });
+  // Windows and Linux start a second copy of the app per double-clicked file. One window is the
+  // rule — a project is a session, and two sessions over one library would fight — so the first
+  // copy keeps the lock and is told what the second was started with, and the second goes.
+  // A headless render (`cli`) takes no lock: several may run at once, beside an open window.
+  if (!app.requestSingleInstanceLock()) {
+    app.quit();
+  } else {
+    app.on('second-instance', (_event, argv, workingDirectory) => {
+      const path = projectFileArg(argv, workingDirectory);
+      if (path) openFileFromSystem(path);
+      else if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+    });
+    // The file this very copy was started with, on Windows and Linux.
+    const path = projectFileArg(process.argv.slice(1), process.cwd());
+    if (path) openFileFromSystem(path);
+  }
+}
 
 app.whenReady().then(async () => {
   // The platform's About panel is a role Pulp cannot put a button on, so its credits line points

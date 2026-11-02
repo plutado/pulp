@@ -84,6 +84,12 @@ x64 only. Windows on ARM runs x64 applications under its own emulation, and a se
 
 The `.desktop` entry inside it puts Pulp in the application menu with its icon (the PNG sizes in `build/icons`) under **AudioVideo / Video / AudioVideoEditing / Graphics**, with the words someone would search a launcher for. `StartupWMClass: Pulp` matches the class the window really reports, without which a dock shows the AppImage's generic icon beside the running app instead of grouping them.
 
+## A double-clicked project opens in Pulp
+
+`fileAssociations` registers `.pulp` and `.pulpcollection` with each build: macOS writes them into the bundle's `Info.plist`, the installer registers them for the user on Windows, and the AppImage's `.desktop` entry carries their MIME types. The two extensions live in `src/core/open-file.ts`, which the file dialogs and the reader use too, and the packaging test holds the config to them.
+
+How the path arrives differs by platform, and the main process reads all three down to one: macOS sends an `open-file` event (before `ready`, when the file is what launched the app); Windows and Linux start a second copy of the app with the path among its arguments, so Pulp holds the **single-instance lock** — the second copy hands its arguments to the first and exits — and `projectFileArg` finds the file among them, past flags and their values and back from a `file://` URL. The window opens it through the same opener as File → Open, so unsaved changes are asked about first. A headless render (`--render`) takes no lock, so several can run at once beside an open window.
+
 ## The release workflow
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml) builds all three on a tag `v*` — the tag `npm run release` makes — and **drafts** a release with them:

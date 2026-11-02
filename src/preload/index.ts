@@ -77,6 +77,12 @@ const api: PulpApi = {
   openCollection: () => ipcRenderer.invoke('collection:open'),
   saveProject: (project, path, suggestedName) => ipcRenderer.invoke('project:save', project, path, suggestedName),
   openProject: () => ipcRenderer.invoke('project:open'),
+  takePendingOpen: () => ipcRenderer.invoke('project:take-pending-open'),
+  onOpenFile: (listener) => {
+    const handler = (_event: unknown, path: string) => listener(path);
+    ipcRenderer.on('project:open-file', handler);
+    return () => ipcRenderer.removeListener('project:open-file', handler);
+  },
   openProjectPath: (path) => ipcRenderer.invoke('project:open-path', path),
   recentProjects: () => ipcRenderer.invoke('project:recent'),
   forgetProject: (path) => ipcRenderer.invoke('project:forget', path),

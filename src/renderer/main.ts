@@ -18,7 +18,7 @@ import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
 import { initTray, sayInTray } from './tray';
 import { initSampleHint, refreshSampleHint } from './sample-hint';
 import { initLibraryAdd, setLibraryAddBusy } from './library-add';
-import { initProject } from './project';
+import { initProject, openProjectFrom } from './project';
 import { askAboutRecovery, initProjectUi } from './project-ui';
 import { initMenu } from './menu';
 import { initContextMenu } from './context-menu';
@@ -105,8 +105,13 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
   // A session that ended suddenly is offered back once the library is in, since the items it
   // holds mean nothing without one. Recovering it is choosing to work, so the start screen goes.
   if (first) {
-    void askAboutRecovery().then((recovered) => {
+    void askAboutRecovery().then(async (recovered) => {
       if (recovered) hideStartScreen();
+      // The file the app was started with, if it was started by one (milestone 17): opened
+      // after the recovery question, through the same opener as File → Open, which asks before
+      // a recovered session with changes is put aside for it.
+      const handed = await window.pulp.takePendingOpen();
+      if (handed) await openFromSystem(handed);
     });
   }
   // The panel opens on where you are rather than on everything at once: the first time there is a
@@ -418,6 +423,11 @@ initTray((id) => {
 // The project (milestone 27): the session as a file, with its unsaved changes guarded.
 initProject(sayInTray);
 initProjectUi();
+/** A file the system handed over opens like any other, and opening it is choosing to work, so the start screen goes. */
+async function openFromSystem(path: string): Promise<void> {
+  if (await openProjectFrom(path)) hideStartScreen();
+}
+window.pulp.onOpenFile((path) => void openFromSystem(path));
 // Pulp's own application menu (milestone 27): it does what the window's own buttons do.
 initMenu();
 initContextMenu();

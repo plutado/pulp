@@ -15,6 +15,7 @@ import { readFile, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, join } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
+import { COLLECTION_EXTENSION, PROJECT_EXTENSION } from '../core/open-file';
 import { parseCollection, serializeCollection, type CollectionItem } from '../core/collection';
 import { itemId } from '../core/library-scan';
 import { slug } from '../core/pack';
@@ -27,8 +28,7 @@ import type { ProjectFileResult, ProjectRecovery, RelinkResult } from '../shared
 import { addLibraryFolder, getLibrary } from './library-service';
 import { loadSettings, updateSettings } from './settings';
 
-const PROJECT_EXTENSION = 'pulp';
-const COLLECTION_EXTENSION = 'pulpcollection';
+// The two extensions live in src/core/open-file.ts, which reads them off a double-clicked file too.
 const OPEN_FILTERS = [
   { name: 'Pulp project or collection', extensions: [PROJECT_EXTENSION, COLLECTION_EXTENSION] },
   { name: 'Pulp project', extensions: [PROJECT_EXTENSION] },
