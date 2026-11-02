@@ -43,6 +43,7 @@ A UTF-8 JSON object.
 | `styles` | string[] | no | How it looks, from the built-in style list only: `clean`, `corporate`, `elegant`, `high-energy`, `grunge`, `retro`, `tech`, `cinematic`, `playful`, `hand-drawn`, `organic`. Unknown styles are errors. |
 | `tags` | string[] | no | Search tags. Normalized to lowercase and de-duplicated. |
 | `duration` | number | yes | Length in seconds, greater than 0 and at most 600. |
+| `sound` | object | no | The template's own sound: variations shipped inside the folder, one chosen in the window, mixed into the render. See **The template's own sound** below. |
 | `fps` | number | yes | Frames per second, greater than 0 and at most 240. Use `23.976`, `29.97` or `59.94` for NTSC rates; the renderer converts them to exact rationals. |
 | `aspects` | string[] | yes, unless `width` and `height` are given | The shapes the template draws for, from `16:9`, `9:16`, `1:1` and `4:5`; at least one, the first is the default. The pixel size is chosen at render time from a standard list per aspect (720p, 1080p, 1440p, 4K, and 8K for 16:9) or as an exact size; without a choice a template renders at its first aspect's 1080-class size (1920 × 1080, 1080 × 1920, 1080 × 1080, 1080 × 1350). |
 | `width`, `height` | integer | no | A default size in pixels, 16 to 8192, both or neither. Alone, it also declares the aspect: the built-in one it is within 1% of, or else its reduced ratio (`4:3`), at which the template renders at this one size. With `aspects`, it must be of one of them. Use even numbers: H.264, ProRes 422 and VP9 cannot encode odd sizes. |
@@ -235,6 +236,32 @@ The hold is what the graphic **settles into**, and the declaration is a promise 
 **Allow for a line being added.** A block that is `open` takes layers the template never shipped, and a stack whose entrance is staggered per layer finishes later for each one. Declare the hold the design settles into with a line added to every open block, not the one it reaches with the layers it ships.
 
 Where no stretch survives all three, the template declares no structure and keeps its fixed length. That is the right answer for a countdown, for a graphic that drifts throughout, and for anything whose whole duration is movement. The end-to-end suite checks the promise on a bundled template of each kind, at the settings that squeeze its hold hardest (`tests/e2e/render.e2e.test.ts`).
+
+### The template's own sound
+
+A template may carry sound of its own — a swoosh on a transition, a sting on a logo reveal — as files inside its folder, with a few variations to pick from (milestone 59):
+
+```json
+{
+  "sound": {
+    "variants": [
+      { "value": "soft", "label": "Soft swoosh", "file": "sounds/soft.wav" },
+      { "value": "sharp", "label": "Sharp swoosh", "file": "sounds/sharp.wav", "gain": 0.8 },
+      { "value": "airy", "label": "Airy swoosh", "file": "sounds/airy.wav" }
+    ],
+    "default": "soft",
+    "at": 0
+  }
+}
+```
+
+Each variant is a `value` stored as the choice (any word but `none`, unique within the list), a `label` shown in the window, and a `file` — a relative path inside the template folder ending in `.wav`, `.mp3`, `.ogg`, `.flac`, `.m4a` or `.aac` — with an optional `gain` from 0 to 1 against the file as recorded. `default` names the variant played when no choice has been made, or `"none"` for silence; left out, the first variant is the default. `at` is the moment the sound starts, in seconds of the template's **own** time, from 0 to the duration; left out, it starts at 0.
+
+The person using the template picks a variation — or **None** — in the Parameters tab; the choice rides with the parameters as `@sound` (so it travels into projects, presets, collections, CSV batches and `--param @sound=soft` on the command line), plays in the preview, counts in the loudness meter, and is **mixed into the render** with every other sound — or written beside an image sequence or a still in the `<name>-audio.wav`, as the rest of the mix is. A render aimed at a platform levels the whole mix, this sound included.
+
+The sound follows the template's clock. Through a declared `hold`, its start moves with the part of the timeline it sits in and the sound plays as recorded. A `scale` template — a transition played faster or slower — plays its sound at the same rate with the pitch kept, exactly as a cut's sound at a speed is. A `loop` plays it once, where its first pass would. And a **wipe dropped on a cut join** plays its template's default variant with the transition, scaled onto the transition's window as its picture is.
+
+Templates need no code for any of this: the page never plays or even sees the files — the host does, so the sound is identical in the preview and in the render. WAV is the safe choice for short effects; keep files small, since they ship with the template.
 
 #### Video layers
 
@@ -612,4 +639,4 @@ Importing shows a preview first: pack name, author and license, and for each tem
 
 ## Planned additions (not part of version 1)
 
-Tracked in ROADMAP.md: the drawing side of blocks and layers (`state.blocks` and a bridge helper, milestone 23), a `media` parameter type (a video plate from a library clip), audio tracks, localized labels, and an optional seeded random number generator provided by the bridge.
+Tracked in ROADMAP.md: the drawing side of blocks and layers (`state.blocks` and a bridge helper, milestone 23), a `media` parameter type (a video plate from a library clip), localized labels, and an optional seeded random number generator provided by the bridge.

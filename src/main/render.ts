@@ -40,11 +40,12 @@ import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type 
 import { applyLayerAudio, audibleLayers, measureMixArgs, parseMixLoudness, type AudioLayer, type LoudnessTarget, type MixLoudness } from '../core/layer-audio';
 import { clipAudible } from '../core/video-layer';
 import { soundAudible } from '../core/sound-layer';
-import { resolveSoundSource } from './sound-grant';
+import { resolveSoundSource, resolveTemplateSoundFile } from './sound-grant';
+import { resolveTemplateSoundChoice, templateSoundValue, wipeSoundValue } from '../core/template-sound';
 import { finishedFileWarnings } from './platform-check';
 import { platformPreset } from '../core/platform-presets';
 import { healedTrack, trackAudio, transitionAt } from '../core/cut-track';
-import { captionsIn, lengthIn, resolveParams, splitLayers, trackIn } from '../core/params';
+import { captionsIn, lengthIn, resolveParams, soundIn, splitLayers, trackIn } from '../core/params';
 import { captionFrame } from '../core/captions';
 import { captionBandFor } from '../core/player';
 import { compositeOver } from '../core/composite';
@@ -319,6 +320,32 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   for (const cut of track ? trackAudio(track) : []) {
     const found = await resolveSoundSource(ffprobePathFor(ffmpeg.path), cut.value.id!);
     if (found) audioLayers.push({ kind: 'sound', path: found.path, value: cut.value, source: found.source, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) });
+  }
+  // The template's own sound (milestone 59): the chosen variant — or the manifest's default when
+  // none was chosen — joins the mix on the template's own clock, retimed with the picture when a
+  // length stretches or scales it. A file the manifest promised and cannot deliver stops the
+  // render by name, as a layer's missing sound does: the person can choose "None" if they meant it.
+  const ownVariant = manifest.sound ? resolveTemplateSoundChoice(manifest.sound, soundIn(params)) : null;
+  if (manifest.sound && ownVariant) {
+    const found = await resolveTemplateSoundFile(ffprobePathFor(ffmpeg.path), job.template, ownVariant.file);
+    if (!found) return { ok: false, message: `Template "${manifest.name}": its sound "${ownVariant.label}" (${ownVariant.file}) could not be read from the template folder.` };
+    const made = templateSoundValue(manifest.sound, ownVariant, manifest, plan.length);
+    audioLayers.push({ kind: 'sound', path: found.path, value: made.value, source: found.source, ...(made.speed !== undefined ? { speed: made.speed } : {}) });
+  }
+  // A wipe on a cut join carries its template's default sound with it, scaled onto the transition's
+  // window as its picture is. A wipe that plays silently is a warning, never a failed render: the
+  // wipe itself is already a straight cut when it cannot be drawn, and its sound follows that rule.
+  for (const wipe of trackWipes) {
+    const entry = await findTemplate(wipe.template);
+    if (!entry?.manifest.sound) continue;
+    const made = wipeSoundValue(entry.manifest.sound, entry.manifest, wipe);
+    if (!made) continue;
+    const found = await resolveTemplateSoundFile(ffprobePathFor(ffmpeg.path), entry, made.value.id!);
+    if (!found) {
+      warnings.push(`The wipe "${entry.manifest.name}" names a sound that could not be read from its folder; the wipe plays silently.`);
+      continue;
+    }
+    audioLayers.push({ kind: 'sound', path: found.path, value: made.value, source: found.source, speed: made.speed });
   }
   if (audioLayers.length > 0) plan = applyLayerAudio(plan, audioLayers, await mixLoudnessFor(ffmpeg.path, plan, audioLayers, job.options?.platform, warnings));
 

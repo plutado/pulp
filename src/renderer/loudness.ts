@@ -31,9 +31,12 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let generation = 0;
 let shown: { lufs: number; truePeakDb: number | null } | null = null;
 
+/** One entry on the meter's wire: ids and settings, never paths; a template entry names its template. */
+type SoundRequestEntry = { kind: 'clip' | 'sound' | 'template'; value: unknown; span?: { start: number; end: number | null }; speed?: number; templateId?: string };
+
 /** The layers that could be heard, as the wire carries them: ids and settings, never paths. */
-function soundRequest(layers: LayerValues): { kind: 'clip' | 'sound'; value: unknown; span?: { start: number; end: number | null }; speed?: number }[] {
-  const out: { kind: 'clip' | 'sound'; value: unknown; span?: { start: number; end: number | null }; speed?: number }[] = [];
+function soundRequest(layers: LayerValues): SoundRequestEntry[] {
+  const out: SoundRequestEntry[] = [];
   const spanOf = (layer: Layer) => (layer.span ? { span: layer.span } : {});
   for (const stack of Object.values(layers)) {
     for (const layer of stack) {
@@ -78,13 +81,22 @@ function paint(): void {
  * What is heard has changed: measure again, after the edits settle. Called by
  * the stage whenever the layers, the sources or the length move.
  */
-export function loudnessUpdate(layers: LayerValues, fps: number, length: number, track: CutTrack | null = null): void {
+export function loudnessUpdate(
+  layers: LayerValues,
+  fps: number,
+  length: number,
+  track: CutTrack | null = null,
+  /** The template's own sound and the wipes' (milestone 59), as the stage resolved them. */
+  templateSounds: readonly { templateId: string; value: unknown; speed?: number }[] = [],
+): void {
   if (!els) return;
   const asked = ++generation;
   clearTimeout(timer);
   const request = soundRequest(layers);
   // The cut track's sound is part of the mix (milestone 49), so the meter measures it too.
   for (const cut of track ? trackAudio(track) : []) request.push({ kind: 'sound', value: cut.value, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) });
+  // And the template's own sound (milestone 59), so the meter shows the mix the render levels.
+  for (const own of templateSounds) request.push({ kind: 'template', templateId: own.templateId, value: own.value, ...(own.speed !== undefined ? { speed: own.speed } : {}) });
   if (request.length === 0 || !(length > 0) || !(fps > 0)) {
     shown = null;
     paint();

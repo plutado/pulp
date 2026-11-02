@@ -33,10 +33,25 @@ interface LayerSound {
   el: HTMLAudioElement;
   /** What the layer is and how it plays; the one place that decides when it is heard. */
   layer: AudioLayer;
+  /** The URL the element plays as recorded: the library's for a layer, the template's own for its sound. */
+  url: string;
   /** The treatment the element's src is treated for (milestone 53); '' is the file as recorded. */
   voiceKey: string;
   /** The ask for a treated file, waiting for the settings to settle. */
   voiceTimer?: ReturnType<typeof setTimeout>;
+}
+
+/**
+ * A sound the stage adds beside the layers' own (milestone 59): the template's
+ * own sound, or a wipe's, played by its URL rather than a library id. Its file
+ * is not in the library, so its length arrives from the element's own metadata
+ * rather than from a probe; until it does, the layer's window is empty and the
+ * element is simply silent.
+ */
+export interface ExtraSound {
+  key: string;
+  url: string;
+  layer: AudioLayer;
 }
 
 /** One element per audible layer, keyed block.layer. */
@@ -69,8 +84,10 @@ function soundSourceFor(entry: MediaEntry | undefined): SoundSource | null {
  * is nothing there. A sound the library has not measured yet is left out,
  * since without its length there is no window to play.
  */
-export function layerSoundsSync(layers: LayerValues, sources: Record<string, ClipSource>, entryFor: (id: string) => MediaEntry | undefined, track: CutTrack | null = null): void {
+export function layerSoundsSync(layers: LayerValues, sources: Record<string, ClipSource>, entryFor: (id: string) => MediaEntry | undefined, track: CutTrack | null = null, extras: readonly ExtraSound[] = []): void {
   const wanted = new Map<string, AudioLayer>();
+  /** Where each wanted key plays from; absent means the library, by the layer's id. */
+  const urls = new Map<string, string>();
   for (const [blockId, stack] of Object.entries(layers)) {
     for (const layer of stack) {
       const key = `${blockId}.${layer.id}`;
@@ -97,11 +114,22 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
     if (entry.meta && !entry.meta.audioCodec) return;
     wanted.set(`@track.${index}`, { kind: 'sound', path: '', value: cut.value, source, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) });
   });
+  // The template's own sound and a wipe's (milestone 59), by the URL the stage resolved.
+  for (const extra of extras) {
+    wanted.set(extra.key, extra.layer);
+    urls.set(extra.key, extra.url);
+  }
   for (const [key, sound] of sounds) {
     const next = wanted.get(key);
-    if (next && next.kind === sound.layer.kind && sourceId(next) === sourceId(sound.layer)) {
-      // The same file with new settings keeps its element and the sound it has already buffered.
+    const nextUrl = next ? (urls.get(key) ?? mediaUrlFor(sourceId(next))) : '';
+    if (next && next.kind === sound.layer.kind && nextUrl === sound.url) {
+      // The same file with new settings keeps its element, the sound it has already buffered —
+      // and the length its metadata already answered, which a fresh extra does not know yet.
+      if (next.kind === 'sound' && next.source.duration <= 0 && sound.layer.kind === 'sound' && sound.layer.source.duration > 0) {
+        next.source = sound.layer.source;
+      }
       sound.layer = next;
+      adoptDuration(sound);
       wanted.delete(key);
       bindVoice(key, sound);
       continue;
@@ -115,11 +143,23 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
   for (const [key, layer] of wanted) {
     const el = document.createElement('audio');
     el.preload = 'auto';
-    el.src = mediaUrlFor(sourceId(layer));
-    const sound: LayerSound = { el, layer, voiceKey: '' };
+    const url = urls.get(key) ?? mediaUrlFor(sourceId(layer));
+    el.src = url;
+    const sound: LayerSound = { el, layer, url, voiceKey: '' };
     sounds.set(key, sound);
+    el.addEventListener('loadedmetadata', () => adoptDuration(sound));
     bindVoice(key, sound);
   }
+}
+
+/**
+ * A sound whose length the library never measured — the template's own — takes
+ * it from the element's metadata: the one fact the window and the loop need.
+ */
+function adoptDuration(sound: LayerSound): void {
+  const { el, layer } = sound;
+  if (layer.kind !== 'sound' || layer.source.duration > 0) return;
+  if (Number.isFinite(el.duration) && el.duration > 0) layer.source = { duration: el.duration };
 }
 
 // ---------------------------------------------------------------- voice treatments (milestone 53)

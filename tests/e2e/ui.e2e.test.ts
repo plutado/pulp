@@ -3560,7 +3560,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`${card}.focus()`);
       expect(await page.eval<boolean>(`document.activeElement === ${card}`)).toBe(true);
 
-      await until(() => page.eval<boolean>(`document.getElementById('cache-summary').textContent.includes('3 files')`), 'the cache summary');
+      // Three frames plus the template's own swoosh beside them (milestone 59): a sequence has no
+      // room for an audio stream, so the mix rides into the cache as the WAV it always writes.
+      await until(() => page.eval<boolean>(`document.getElementById('cache-summary').textContent.includes('4 files')`), 'the cache summary');
 
       // Preparing again with the same inputs reuses the cache, and still leaves a card to drag.
       await page.eval(`document.getElementById('drag-prepare').click()`);

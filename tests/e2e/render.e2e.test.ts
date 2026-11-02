@@ -2143,6 +2143,43 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(info).toMatchObject({ width: 1920, height: 1080, pix_fmt: 'rgba' });
   }, 120_000);
 
+  it('a template\'s own sound is mixed into the render, follows the chosen variant, and "none" silences it (milestone 59)', async () => {
+    // Diagonal Wipe ships three swooshes and defaults to the soft one.
+    /** The first audio stream of a file, or null where there is none. */
+    const probeAudio = async (file: string): Promise<{ codec_name?: string } | null> => {
+      const { stdout, stderr } = await runBounded(ffprobe, [
+        '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name', '-of', 'json', file,
+      ], { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(stdout, stderr).not.toBe('');
+      return (JSON.parse(stdout) as { streams?: { codec_name?: string }[] }).streams?.[0] ?? null;
+    };
+    const maxVolume = async (file: string): Promise<number> => {
+      const r = await runBounded(ffmpeg, ffmpegArgs(['-i', file, '-af', 'volumedetect', '-f', 'null', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
+      const m = /max_volume:\s*(-?[\d.]+) dB/.exec(r.stderr);
+      expect(m, r.stderr.slice(-2000)).not.toBeNull();
+      return Number(m![1]);
+    };
+
+    // The default variant, mixed in without being asked for: AAC beside H.264, and audibly there.
+    const mixed = await render('pulp.samples.diagonal-wipe', 'h264-mp4', 'swoosh.mp4');
+    expect(mixed.code, mixed.stderr).toBe(0);
+    expect((await probeAudio(join(out, 'swoosh.mp4')))?.codec_name).toBe('aac');
+    expect(await maxVolume(join(out, 'swoosh.mp4')), 'the swoosh is there').toBeGreaterThan(-20);
+
+    // A chosen variant rides @sound; "none" renders no audio stream at all, as a silent project does.
+    const chosen = await render('pulp.samples.diagonal-wipe', 'h264-mp4', 'swoosh-sharp.mp4', { extra: ['--param', '@sound=sharp'] });
+    expect(chosen.code, chosen.stderr).toBe(0);
+    expect((await probeAudio(join(out, 'swoosh-sharp.mp4')))?.codec_name).toBe('aac');
+    const silent = await render('pulp.samples.diagonal-wipe', 'h264-mp4', 'swoosh-none.mp4', { extra: ['--param', '@sound=none'] });
+    expect(silent.code, silent.stderr).toBe(0);
+    expect(await probeAudio(join(out, 'swoosh-none.mp4'))).toBeNull();
+
+    // An image sequence has no room for an audio stream: the swoosh is the WAV beside it.
+    const sequence = await render('pulp.samples.diagonal-wipe', 'png-sequence', 'swoosh-seq');
+    expect(sequence.code, sequence.stderr).toBe(0);
+    expect((await probeAudio(join(out, 'swoosh-seq-audio.wav')))?.codec_name).toBe('pcm_s16le');
+  }, 240_000);
+
   it('renders H.264 without alpha', async () => {
     const result = await render('pulp.samples.title-card', 'h264-mp4', 'title.mp4');
     expect(result.code, result.stderr).toBe(0);

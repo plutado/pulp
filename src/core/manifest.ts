@@ -12,6 +12,10 @@ import { readStructure, type TemplateStructure } from './timing';
 import { IMAGE_ALIGNS, IMAGE_FITS, validateSlotBoxes, type ImageAlign, type ImageFit, type SlotBoxes } from './image-slot';
 import { validateBlock, type Block } from './layers';
 import { isBuiltInStyle, isBuiltInType, normalizeTheme, STYLES } from './taxonomy';
+import { isSafeRelativePath } from './manifest-path';
+import { validateTemplateSound, type TemplateSound } from './template-sound';
+
+export { isSafeRelativePath } from './manifest-path';
 
 export const MANIFEST_FILENAME = 'template.json';
 export const CURRENT_FORMAT_VERSION = 1;
@@ -140,6 +144,12 @@ export interface TemplateManifest {
    * template that declares none keeps its fixed length.
    */
   structure?: TemplateStructure;
+  /**
+   * The template's own sound (milestone 59): a few variations shipped inside
+   * the folder, one chosen in the window, played with the graphic and mixed
+   * into the render. Left out, the template is silent, exactly as before.
+   */
+  sound?: TemplateSound;
   fps: number;
   /**
    * The shapes the template draws for, as "16:9" ids (src/core/aspect.ts); at least one.
@@ -200,13 +210,6 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
-}
-
-/** Rejects absolute paths and parent-directory traversal in template-relative paths. */
-export function isSafeRelativePath(value: string): boolean {
-  if (value.length === 0) return false;
-  if (value.startsWith('/') || value.startsWith('\\') || /^[A-Za-z]:/.test(value)) return false;
-  return !value.split(/[\\/]/).some((segment) => segment === '..');
 }
 
 function validateParameter(raw: unknown, path: string, errors: ValidationIssue[]): TemplateParameter | null {
@@ -404,6 +407,16 @@ export function validateManifest(raw: unknown): ValidationResult {
       errors.push({ path: 'structure', message: 'cannot be read without a usable duration' });
     }
   }
+  // The template's own sound (milestone 59). Its start is checked against the duration, so it
+  // is only read once that is known to be a usable number, as the structure is.
+  let sound: TemplateSound | null = null;
+  if (raw.sound !== undefined) {
+    if (isFiniteNumber(raw.duration) && raw.duration > 0) {
+      sound = validateTemplateSound(raw.sound, raw.duration, errors);
+    } else {
+      errors.push({ path: 'sound', message: 'cannot be read without a usable duration' });
+    }
+  }
   if (!isFiniteNumber(raw.fps) || raw.fps <= 0 || raw.fps > 240) {
     errors.push({ path: 'fps', message: 'must be a number in (0, 240]' });
   } else if (!Number.isInteger(raw.fps) && ![23.976, 29.97, 59.94].includes(raw.fps)) {
@@ -521,7 +534,7 @@ export function validateManifest(raw: unknown): ValidationResult {
 
   const known = new Set([
     'formatVersion', 'id', 'name', 'description', 'version', 'author', 'license', 'category', 'type', 'themes', 'styles', 'tags',
-    'duration', 'structure', 'fps', 'aspects', 'width', 'height', 'alpha', 'captions', 'entry', 'thumbnail', 'posterAt', 'parameters', 'blocks',
+    'duration', 'structure', 'sound', 'fps', 'aspects', 'width', 'height', 'alpha', 'captions', 'entry', 'thumbnail', 'posterAt', 'parameters', 'blocks',
   ]);
   for (const key of Object.keys(raw)) {
     if (!known.has(key) && !key.startsWith('x-')) {
@@ -541,6 +554,7 @@ export function validateManifest(raw: unknown): ValidationResult {
     tags,
     duration: raw.duration as number,
     ...(structure ? { structure } : {}),
+    ...(sound ? { sound } : {}),
     fps: raw.fps as number,
     aspects: aspects ?? [],
     alpha: (raw.alpha as boolean | undefined) ?? false,

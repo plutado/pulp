@@ -12,7 +12,8 @@ import type { TemplateEntry } from '../core/library-types';
 import type { TemplateManifest, TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
-import { captionsIn, LAYERS_KEY, lengthIn, resolveParams, trackIn, withCaptions, withLength, withTrack, type ResolvedParams } from '../core/params';
+import { captionsIn, LAYERS_KEY, lengthIn, resolveParams, soundIn, trackIn, withCaptions, withLength, withSound, withTrack, type ResolvedParams } from '../core/params';
+import { resolveTemplateSoundChoice, TEMPLATE_SOUND_NONE } from '../core/template-sound';
 import {
   DEFAULT_TRANSITION, isTemplateMovement, isWholeGraphic, LAYER_TRANSITIONS, roundSeconds, spanWindow,
   TRANSITION_DIRECTIONS, TRANSITION_LIMITS, type LayerSpan, type LayerTransition, type LayerTransitions,
@@ -201,7 +202,7 @@ function setParam(id: string, value: unknown): void {
   p.raw[id] = value;
   editorFor(selected.manifest.id).current = p.raw;
   p.values = resolveParams(selected.manifest, p.raw).values;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions(), soundIn(p.raw));
   scheduleCommit();
   updateResetButtons();
 }
@@ -221,7 +222,7 @@ function applySnapshot(snapshot: Snapshot, record: boolean): void {
   editor.committed = { ...p.raw };
   p.values = resolveParams(selected.manifest, p.raw).values;
   buildParamForm(selected.manifest);
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions(), soundIn(p.raw));
   outputRefreshOptions();
   updateHistoryButtons();
 }
@@ -1012,7 +1013,7 @@ function setLayers(next: LayerValues, rebuild: boolean): void {
   if (sameLayers(next, defaultLayers(selected.manifest))) delete p.raw[LAYERS_KEY];
   else p.raw[LAYERS_KEY] = next;
   editorFor(selected.manifest.id).current = p.raw;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions(), soundIn(p.raw));
   if (rebuild) {
     buildParamForm(selected.manifest);
     commitParams();
@@ -1174,12 +1175,52 @@ function setLength(length: number | undefined, commit = true): void {
   // then one history step. The form is rebuilt because the note and the reset button follow it.
   p.raw = withLength(p.raw, length);
   editorFor(selected.manifest.id).current = p.raw;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions(), soundIn(p.raw));
   // The Output tab trims within the length, so what it shows follows it.
   outputRefreshOptions();
   if (!commit) return;
   commitParams();
   buildParamForm(selected.manifest);
+}
+
+/** The chosen variant of the template's own sound (milestone 59), or none chosen: the manifest's default then. */
+export function currentSound(): string | undefined {
+  return soundIn(p.raw);
+}
+
+/**
+ * The template's own sound (milestone 59): which of the shipped variations
+ * plays with the graphic, or none. Absent for a template that ships no sound —
+ * there is nothing to choose.
+ */
+function templateSoundField(): HTMLElement | null {
+  const selected = selectedTemplate.value;
+  const sound = selected?.manifest.sound;
+  if (!selected || !sound) return null;
+  const values = [TEMPLATE_SOUND_NONE, ...sound.variants.map((v) => v.value)];
+  const labels = Object.fromEntries([
+    [TEMPLATE_SOUND_NONE, 'None'],
+    ...sound.variants.map((v) => [v.value, v.label]),
+  ]) as Record<string, string>;
+  const current = resolveTemplateSoundChoice(sound, soundIn(p.raw))?.value ?? TEMPLATE_SOUND_NONE;
+  const wrap = document.createElement('div');
+  wrap.className = 'sound-field';
+  wrap.append(typeField('Sound', selectOf(values, labels, current, (v) => setSound(v), `${selected.manifest.name} sound`)));
+  const note = document.createElement('p');
+  note.className = 'note';
+  note.textContent = 'This template\'s own sound, mixed into the render — or written beside an image sequence as a WAV.';
+  wrap.append(note);
+  return wrap;
+}
+
+/** Choose the template's sound; the same path a parameter edit takes, one undo step. */
+function setSound(choice: string): void {
+  const selected = selectedTemplate.value;
+  if (!selected) return;
+  p.raw = withSound(p.raw, choice);
+  editorFor(selected.manifest.id).current = p.raw;
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions(), soundIn(p.raw));
+  commitParams();
 }
 
 /** The cut track as the raw values hold it (milestone 49), for the lane and the stage — each cut
@@ -1211,7 +1252,7 @@ function setTrack(track: CutTrack | null, commit: boolean): void {
   // cut gone the template's own length stands again, as it did before the track.
   p.raw = withLength(p.raw, track ? Math.round(trackDuration(track) * 1000) / 1000 : undefined);
   editorFor(selected.manifest.id).current = p.raw;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions(), soundIn(p.raw));
   // The Output tab trims within the length, so what it shows follows it (as setLength does).
   outputRefreshOptions();
   if (commit) {
@@ -1236,7 +1277,7 @@ function setCaptions(captions: CaptionsValue | null, commit: boolean): void {
   if (!selected) return;
   p.raw = withCaptions(p.raw, captions);
   editorFor(selected.manifest.id).current = p.raw;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions(), soundIn(p.raw));
   // The Output tab offers how the captions reach the render while there are any.
   outputRefreshOptions();
   if (commit) {
@@ -2639,6 +2680,9 @@ function paramCardEl(card: ParamCard): HTMLElement {
   if (card.kind === 'rest') {
     const field = lengthField();
     if (field) body.append(field);
+    // The template's own sound belongs with the layout and the timing too (milestone 59).
+    const sound = templateSoundField();
+    if (sound) body.append(sound);
   }
   section.append(body);
   toggle.addEventListener('click', () => {
@@ -2662,7 +2706,7 @@ function buildParamForm(manifest: TemplateManifest): void {
   recentRows.clear();
   // A template with no parameters and no layers still has something to edit when it declares
   // what may stretch: how long the graphic runs for (milestone 30).
-  if (parameters.length === 0 && manifest.blocks.length === 0 && !manifest.structure) {
+  if (parameters.length === 0 && manifest.blocks.length === 0 && !manifest.structure && !manifest.sound) {
     const note = document.createElement('p');
     note.className = 'note';
     note.textContent = 'This template has no editable parameters.';
@@ -2688,6 +2732,8 @@ function buildParamForm(manifest: TemplateManifest): void {
     // where that card would have been (milestone 30).
     const length = lengthField();
     if (length) els.params.append(length);
+    const sound = templateSoundField();
+    if (sound) els.params.append(sound);
     els.params.append(captionsCard(currentCaptions()));
     updateHistoryButtons();
     return;

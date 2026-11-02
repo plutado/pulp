@@ -13,9 +13,12 @@
  * fills its cache in its own time.
  */
 
+import { resolve, sep } from 'node:path';
 import { nodeRunner } from '../core/ffmpeg';
 import { probeMedia } from '../core/media-probe';
 import type { SoundSource } from '../core/sound-layer';
+import { isSafeRelativePath } from '../core/manifest-path';
+import { isTemplateSoundFile } from '../core/template-sound';
 import { lookupMedia } from './library-service';
 
 /** The size and modification time of each chosen sound, for the render cache key; unknown ids stamp as zero. */
@@ -38,4 +41,24 @@ export async function resolveSoundSource(ffprobePath: string, id: string): Promi
   // A video file chosen as a sound must actually carry one; an audio file is sound by definition.
   if (entry.mediaKind === 'video' && !meta.audioCodec) return null;
   return { path: entry.path, source: { duration: meta.duration } };
+}
+
+/**
+ * The file behind a template's own sound (milestone 59): a path inside the
+ * template folder, named by the manifest and nothing else, probed for its
+ * length as a layer's sound is. Held inside the folder the way the template
+ * protocol holds its requests, so a manifest cannot name a file outside it.
+ */
+export async function resolveTemplateSoundFile(
+  ffprobePath: string,
+  template: { dir: string },
+  file: string,
+): Promise<{ path: string; source: SoundSource } | null> {
+  if (!isSafeRelativePath(file) || !isTemplateSoundFile(file)) return null;
+  const root = resolve(template.dir);
+  const filePath = resolve(root, file);
+  if (filePath !== root && !filePath.startsWith(root + sep)) return null;
+  const meta = ffprobePath ? await probeMedia(ffprobePath, filePath, nodeRunner) : null;
+  if (!meta?.duration || meta.duration <= 0) return null;
+  return { path: filePath, source: { duration: meta.duration } };
 }

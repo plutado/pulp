@@ -7,7 +7,7 @@
 
 import type { TemplateManifest } from './manifest';
 import { withLegacyHold, type HoldManifest } from './legacy-hold';
-import { CAPTIONS_KEY, LAYERS_KEY, LENGTH_KEY, resolveParams, TRACK_KEY } from './params';
+import { CAPTIONS_KEY, LAYERS_KEY, LENGTH_KEY, resolveParams, SOUND_KEY, TRACK_KEY } from './params';
 
 export type PresetValues = Record<string, unknown>;
 
@@ -35,6 +35,8 @@ export function diffFromDefaults(manifest: Pick<TemplateManifest, 'parameters'>,
   if (raw[CAPTIONS_KEY] !== undefined) out[CAPTIONS_KEY] = raw[CAPTIONS_KEY];
   // And so does the length, when one was chosen (milestone 30).
   if (raw[LENGTH_KEY] !== undefined) out[LENGTH_KEY] = raw[LENGTH_KEY];
+  // And the template's own sound, when a variant was chosen (milestone 59).
+  if (raw[SOUND_KEY] !== undefined) out[SOUND_KEY] = raw[SOUND_KEY];
   return out;
 }
 
@@ -48,7 +50,7 @@ export function applyPreset(manifest: HoldManifest & Pick<TemplateManifest, 'par
   const translated = withLegacyHold(manifest, values);
   const known = new Set(manifest.parameters.map((p) => p.id));
   const out: PresetValues = {};
-  for (const [id, value] of Object.entries(translated.params)) if (known.has(id) || id === LAYERS_KEY || id === LENGTH_KEY || id === TRACK_KEY || id === CAPTIONS_KEY) out[id] = value;
+  for (const [id, value] of Object.entries(translated.params)) if (known.has(id) || id === LAYERS_KEY || id === LENGTH_KEY || id === TRACK_KEY || id === CAPTIONS_KEY || id === SOUND_KEY) out[id] = value;
   return out;
 }
 

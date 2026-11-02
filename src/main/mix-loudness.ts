@@ -18,11 +18,18 @@ import { ffprobePathFor } from '../core/media-probe';
 import { sanitizeSoundValue } from '../core/sound-layer';
 import { sanitizeClipValue } from '../core/video-layer';
 import { resolveClipAudio, resolveClipSource } from './clip-grant';
-import { resolveSoundSource } from './sound-grant';
+import { findTemplate } from './library-service';
+import { resolveSoundSource, resolveTemplateSoundFile } from './sound-grant';
 
-/** What the window sends: each layer's settings as stored, with its span; the kind says which value it is. */
+/**
+ * What the window sends: each layer's settings as stored, with its span; the
+ * kind says which value it is. A `template` entry is the template's own sound
+ * (milestone 59): the value's id is a file inside the named template's folder,
+ * never a library id, and it is resolved by the template rule rather than the
+ * library's.
+ */
 export interface MixLoudnessRequest {
-  layers: { kind: 'clip' | 'sound'; value: unknown; span?: LayerSpan; speed?: number }[];
+  layers: { kind: 'clip' | 'sound' | 'template'; value: unknown; span?: LayerSpan; speed?: number; templateId?: string }[];
   fps: number;
   length: number;
 }
@@ -58,7 +65,15 @@ async function measure(raw: unknown): Promise<MixLoudnessAnswer> {
   const layers: AudioLayer[] = [];
   for (const entry of request.layers) {
     const span = entry?.span ? { span: entry.span } : {};
-    if (entry?.kind === 'sound') {
+    if (entry?.kind === 'template') {
+      const value = sanitizeSoundValue(entry.value);
+      if (!value?.id || typeof entry.templateId !== 'string') continue;
+      const template = await findTemplate(entry.templateId);
+      if (!template) continue;
+      const found = await resolveTemplateSoundFile(ffprobePathFor(ffmpeg.path), template, value.id);
+      const speed = typeof entry.speed === 'number' && Number.isFinite(entry.speed) && entry.speed > 0 ? { speed: entry.speed } : {};
+      if (found) layers.push({ kind: 'sound', path: found.path, value, source: found.source, ...span, ...speed });
+    } else if (entry?.kind === 'sound') {
       const value = sanitizeSoundValue(entry.value);
       if (!value?.id) continue;
       const found = await resolveSoundSource(ffprobePathFor(ffmpeg.path), value.id);

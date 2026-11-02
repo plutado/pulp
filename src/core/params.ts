@@ -39,6 +39,14 @@ export const TRACK_KEY = '@track';
 /** Where the captions ride (milestone 50): the words said, their timings and the style that draws them. */
 export const CAPTIONS_KEY = '@captions';
 
+/**
+ * Where the chosen variant of the template's own sound rides (milestone 59):
+ * a variant's value, or "none" for silence chosen on purpose. Absent means the
+ * manifest's default, so a template that gains a sound later is heard without
+ * touching saved work.
+ */
+export const SOUND_KEY = '@sound';
+
 /** Raw values split into the parameters and the layer stacks that rode with them. */
 export function splitLayers(raw: Record<string, unknown>): { params: Record<string, unknown>; layers: LayerValues } {
   const { [LAYERS_KEY]: layers, ...rest } = raw;
@@ -48,6 +56,7 @@ export function splitLayers(raw: Record<string, unknown>): { params: Record<stri
   delete rest[LENGTH_KEY];
   delete rest[TRACK_KEY];
   delete rest[CAPTIONS_KEY];
+  delete rest[SOUND_KEY];
   return { params: rest, layers: (layers ?? {}) as LayerValues };
 }
 
@@ -88,6 +97,20 @@ export function withLength(params: Record<string, unknown>, length: number | und
   const out = { ...params };
   if (length === undefined) delete out[LENGTH_KEY];
   else out[LENGTH_KEY] = length;
+  return out;
+}
+
+/** The template-sound choice riding with a bag of raw values, or undefined when none was made. */
+export function soundIn(raw: Record<string, unknown>): string | undefined {
+  const value = raw[SOUND_KEY];
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
+/** The raw values with a template-sound choice put in, or with it taken out when there is none. */
+export function withSound(params: Record<string, unknown>, choice: string | undefined): Record<string, unknown> {
+  const out = { ...params };
+  if (choice === undefined) delete out[SOUND_KEY];
+  else out[SOUND_KEY] = choice;
   return out;
 }
 

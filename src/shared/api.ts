@@ -285,7 +285,7 @@ export interface PulpApi {
    * settings; the main process resolves the files (ADR 0013). Null when there
    * is nothing to measure.
    */
-  mixLoudness(request: { layers: { kind: 'clip' | 'sound'; value: unknown; span?: { start: number; end: number | null }; speed?: number }[]; fps: number; length: number }): Promise<{ lufs: number | null; truePeakDb: number | null }>;
+  mixLoudness(request: { layers: { kind: 'clip' | 'sound' | 'template'; value: unknown; span?: { start: number; end: number | null }; speed?: number; templateId?: string }[]; fps: number; length: number }): Promise<{ lufs: number | null; truePeakDb: number | null }>;
   /**
    * A treated voice preview (milestone 53): the layer's sound rendered once
    * through its treatment's own recipe, answered as a pulp-media URL for the

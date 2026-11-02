@@ -28,7 +28,8 @@ import { lengthFrameCount, lengthParts, MAX_LENGTH_SECONDS, minimumLength, resol
 import type { ResolvedParams } from '../core/params';
 import { layerAtPoint, layerCentre, mountStageDrop, mountStageLayers, stageLayersUpdate } from './stage-layers';
 import { mountStageMenu } from './stage-menu';
-import type { CutTrack } from '../core/cut-track';
+import { transitionAt, type CutTrack } from '../core/cut-track';
+import { resolveTemplateSoundChoice, templateSoundValue, wipeSoundValue } from '../core/template-sound';
 import { cutTrackTakeDrop, cutTrackUpdate, mountCutTrack } from './cut-track';
 import { mountOverlayTrack, overlayTrackUpdate } from './overlay-track';
 import { mountTrackPicture, trackPictureDebug, trackPictureDraw, trackPictureSync } from './stage-track';
@@ -49,7 +50,7 @@ import { onLayoutApplied } from './shell';
 import { onStageWindow } from './stage-window';
 import { searchPlaceable } from '../core/search';
 import { appState, coverFrame, frameSize, playheadSeconds, transport, trim } from './store';
-import { layerSoundsClear, layerSoundsDebug, layerSoundsStop, layerSoundsSync, layerSoundsUpdate } from './stage-audio';
+import { layerSoundsClear, layerSoundsDebug, layerSoundsStop, layerSoundsSync, layerSoundsUpdate, type ExtraSound } from './stage-audio';
 import { initLoudness, loudnessClear, loudnessUpdate } from './loudness';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
@@ -137,6 +138,8 @@ const s = {
   clipSources: {} as Record<string, ClipSource>,
   /** Seconds the graphic runs for, when a length has been chosen (milestone 30). */
   length: undefined as number | undefined,
+  /** The chosen variant of the template's own sound (milestone 59), or none chosen: the manifest's default then. */
+  sound: undefined as string | undefined,
   /** The project's cut track (milestone 49), or none: the shots under the layers. */
   track: null as CutTrack | null,
   /** The project's captions (milestone 50), or none: the words over everything. */
@@ -253,6 +256,56 @@ function soundTime(): number {
 /** How long the graphic runs for, which a looping sound's fade-out and a layer's span are measured against. */
 function soundLength(): number {
   return previewFrames() / Math.max(1, previewFps());
+}
+
+/**
+ * The sounds the stage adds beside the layers' own (milestone 59): the
+ * template's own sound as the chosen variant plays it, and each wipe's on the
+ * cut track, every one resolved to the URL the template protocol serves it at.
+ * The length is unknown here — these files are not in the library — so the
+ * source arrives empty and the element's own metadata fills it.
+ */
+function templateSoundExtras(): (ExtraSound & { templateId: string })[] {
+  const out: (ExtraSound & { templateId: string })[] = [];
+  const m = s.manifest;
+  if (m?.sound) {
+    const variant = resolveTemplateSoundChoice(m.sound, s.sound);
+    if (variant) {
+      const made = templateSoundValue(m.sound, variant, m, resolveLength(m.duration, m.structure ?? null, s.length));
+      out.push({
+        key: '@sound',
+        templateId: m.id,
+        url: templateUrlFor(m.id, variant.file),
+        layer: { kind: 'sound', path: '', value: made.value, source: { duration: 0 }, ...(made.speed !== undefined ? { speed: made.speed } : {}) },
+      });
+    }
+  }
+  // A wipe on a join plays its template's default sound with it, as the render mixes it.
+  s.track?.cuts.forEach((_, index) => {
+    const track = s.track!;
+    const transition = transitionAt(track, index);
+    if (transition?.type !== 'wipe' || !transition.template) return;
+    const entry = appState.value.index?.templates.find((t) => t.id === transition.template);
+    if (!entry?.manifest.sound) return;
+    const made = wipeSoundValue(entry.manifest.sound, entry.manifest, transition);
+    if (!made) return;
+    out.push({
+      key: `@wipe.${index}`,
+      templateId: entry.id,
+      url: templateUrlFor(entry.id, made.value.id!),
+      layer: { kind: 'sound', path: '', value: made.value, source: { duration: 0 }, speed: made.speed },
+    });
+  });
+  return out;
+}
+
+/** The same sounds as the loudness meter's wire carries them: the template named, never a path. */
+function templateSoundRequests(extras: readonly (ExtraSound & { templateId: string })[]): { templateId: string; value: unknown; speed?: number }[] {
+  return extras.map((e) => ({
+    templateId: e.templateId,
+    value: e.layer.value,
+    ...(e.layer.kind === 'sound' && e.layer.speed !== undefined ? { speed: e.layer.speed } : {}),
+  }));
 }
 
 /**
@@ -480,7 +533,7 @@ function syncImages(): void {
     }
     s.clipSources = clips.sources;
     // The sources are what the layer sounds follow the playhead by (milestone 48).
-    layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track);
+    layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, templateSoundExtras());
     const srcByKey = new Map(handed.images.map((i) => [i.key, i.src]));
     win.postMessage({
       type: 'pulp:prepare',
@@ -669,6 +722,7 @@ export function stageShowTemplate(
   layers: LayerValues = {},
   track: CutTrack | null = null,
   captions: CaptionsValue | null = null,
+  sound?: string,
 ): void {
   stageStop();
   clearMediaPreview();
@@ -685,6 +739,7 @@ export function stageShowTemplate(
   s.layers = layers;
   s.track = track;
   s.captions = captions;
+  s.sound = sound;
   captionsPreviewSync(captions);
   s.frame = Math.floor(previewFrames() / 2);
   s.previewReady = false;
@@ -706,8 +761,9 @@ export function stageShowTemplate(
   els.scrub.max = String(previewFrames() - 1);
   els.scrub.value = String(s.frame);
   // An audio layer needs no clip sources and no page: its sound can play the moment it is shown.
-  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track);
-  loudnessUpdate(s.layers, previewFps(), soundLength(), s.track);
+  const extras = templateSoundExtras();
+  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, extras);
+  loudnessUpdate(s.layers, previewFps(), soundLength(), s.track, templateSoundRequests(extras));
   updateTransport();
   applyLayerBars();
 }
@@ -912,22 +968,21 @@ export function stageSetParams(
   length?: number,
   track: CutTrack | null = null,
   captions: CaptionsValue | null = null,
+  sound?: string,
 ): void {
   s.params = params;
   s.layers = layers;
   s.track = track;
+  s.sound = sound;
   // The captions are drawn by their own style's page over the graphic (milestone 50); loading it
   // is one ask per change of style, as the track's frames are.
   s.captions = captions;
   captionsPreviewSync(captions);
-  // A changed volume, mute or clip takes effect mid-play (milestone 48); new clips join when their sources land.
-  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track);
-  layerSoundsUpdate(soundTime(), s.playing, soundMaster(), soundLength());
-  // And the meter measures the mix afresh, after the edits settle (milestone 52).
-  loudnessUpdate(s.layers, previewFps(), soundLength(), s.track);
-  // A new length changes how many frames there are, so the scrub bar and the playhead follow it.
-  if (length !== s.length) {
-    s.length = length;
+  // A new length changes how many frames there are, so the scrub bar and the playhead follow it —
+  // taken first, so the sounds below are retimed against the length they will play at.
+  const lengthChanged = length !== s.length;
+  s.length = length;
+  if (lengthChanged) {
     const last = Math.max(0, previewFrames() - 1);
     els.scrub.max = String(last);
     if (s.frame > last) s.frame = last;
@@ -935,6 +990,12 @@ export function stageSetParams(
   } else {
     applyLayerBars();
   }
+  // A changed volume, mute or clip takes effect mid-play (milestone 48); new clips join when their sources land.
+  const extras = templateSoundExtras();
+  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, extras);
+  layerSoundsUpdate(soundTime(), s.playing, soundMaster(), soundLength());
+  // And the meter measures the mix afresh, after the edits settle (milestone 52).
+  loudnessUpdate(s.layers, previewFps(), soundLength(), s.track, templateSoundRequests(extras));
   requestFrame(s.frame);
 }
 

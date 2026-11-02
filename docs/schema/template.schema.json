@@ -24,6 +24,7 @@
     "tags": { "type": "array", "items": { "type": "string" } },
     "duration": { "type": "number", "exclusiveMinimum": 0, "maximum": 600, "description": "Seconds the template was designed at." },
     "structure": { "$ref": "#/$defs/structure" },
+    "sound": { "$ref": "#/$defs/sound" },
     "fps": { "type": "number", "exclusiveMinimum": 0, "maximum": 240 },
     "aspects": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/aspectId" }, "description": "The shapes the template draws for; the first is the default." },
     "width": { "type": "integer", "minimum": 16, "maximum": 8192 },
@@ -68,6 +69,29 @@
         { "required": ["loop"], "properties": { "loop": { "const": true } }, "not": { "anyOf": [ { "required": ["holdFrom"] }, { "required": ["holdTo"] }, { "required": ["scale"] } ] } },
         { "required": ["scale"], "properties": { "scale": { "const": true } }, "not": { "anyOf": [ { "required": ["holdFrom"] }, { "required": ["holdTo"] }, { "required": ["loop"] } ] } }
       ]
+    },
+    "sound": {
+      "description": "The template's own sound: variations shipped inside the folder, one chosen in the window, mixed into the render. `default` is a variant's value or \"none\" (the first variant when left out); `at` is the moment the sound starts, in seconds of the template's own time. The validator also checks that `at` sits inside the duration and `default` names a variant.",
+      "type": "object",
+      "required": ["variants"],
+      "properties": {
+        "variants": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["value", "label", "file"],
+            "properties": {
+              "value": { "type": "string", "minLength": 1, "not": { "const": "none" } },
+              "label": { "type": "string", "minLength": 1 },
+              "file": { "allOf": [ { "$ref": "#/$defs/relativePath" }, { "pattern": "\\.(wav|mp3|ogg|flac|m4a|aac)$" } ] },
+              "gain": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "default": { "type": "string", "minLength": 1 },
+        "at": { "type": "number", "minimum": 0 }
+      }
     },
     "box": {
       "type": "object",
