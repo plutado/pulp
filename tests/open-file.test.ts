@@ -4,16 +4,18 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isAbsolute } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { COLLECTION_EXTENSION, isProjectFile, PROJECT_EXTENSION, projectFileArg } from '../src/core/open-file';
 
 describe('the file double-clicked, as the main process sees it', () => {
   it('finds a project or a collection among the arguments, whatever else is there', () => {
     expect(projectFileArg(['/Applications/Pulp.app/Contents/MacOS/Pulp', '/Users/me/show.pulp'], '/')).toBe('/Users/me/show.pulp');
     expect(projectFileArg(['Pulp.exe', 'C:\\work\\show.PULP'], 'C:\\')).toBe('C:\\work\\show.PULP');
-    expect(projectFileArg(['pulp', 'gathered.pulpcollection'], '/home/me')).toBe('/home/me/gathered.pulpcollection');
+    // Resolved the way the platform resolves it: on Windows a rooted path takes the drive.
+    expect(projectFileArg(['pulp', 'gathered.pulpcollection'], '/home/me')).toBe(resolve('/home/me', 'gathered.pulpcollection'));
     // Electron in a checkout: the app folder is an argument too, and is not a file.
-    expect(projectFileArg(['electron', '.', '--remote-debugging-port=9222', 'a.pulp'], '/w')).toBe('/w/a.pulp');
+    expect(projectFileArg(['electron', '.', '--remote-debugging-port=9222', 'a.pulp'], '/w')).toBe(resolve('/w', 'a.pulp'));
   });
 
   it('passes over flags and the values that follow them', () => {
@@ -25,8 +27,11 @@ describe('the file double-clicked, as the main process sees it', () => {
   });
 
   it('reads a file URL back to its path, which is how a Linux launcher may hand one over', () => {
-    const found = projectFileArg(['pulp', 'file:///home/me/my%20show.pulp'], '/');
-    expect(found).toBe('/home/me/my show.pulp');
+    // The URL of a path on this platform, since Windows reads a file URL only with its drive.
+    const target = resolve('/home/me/my show.pulp');
+    const found = projectFileArg(['pulp', pathToFileURL(target).href], '/');
+    expect(pathToFileURL(target).href).toContain('my%20show.pulp');
+    expect(found).toBe(target);
     expect(isAbsolute(found!)).toBe(true);
     // A URL that is not a file's is not a path to open.
     expect(projectFileArg(['pulp', 'https://example.com/a.pulp'], '/')).toBeNull();
