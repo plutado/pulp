@@ -63,7 +63,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 52. Clip clean-up for compositing (**done**) | 10-16 h |
 | 53. Voice treatments (**done**) | 6-10 h |
 | 8. 1.0 hardening and docs (**done**) | 14-23 h |
-| 17. Unsigned builds and releases | 9-16 h |
+| 17. Unsigned builds and releases (**done**) | 9-16 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
 | 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
@@ -74,7 +74,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 57. A second picture track (post-1.0) | 16-26 h |
 | 58. Reliability, scale and speed (post-1.0) | 16-28 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
-| **Still open through 1.0 (unticked items only)** | **36-61 h** |
+| **Still open through 1.0 (unticked items only)** | **35-59 h** |
 | **Total including post-1.0 items** | **880-1435 h** |
 
 ## 0. Foundation (done)
@@ -677,7 +677,7 @@ Decided 2026-11-01. With sound in a project (48), a talking head recorded on a l
 - [x] A release process: version numbers, release notes drawn from the changelog's Unreleased section, a tag per release (1-2 h) *Built 2026-11-02. `npm run release -- patch|minor|major|<version>` does the three edits that have to agree: the version in `package.json` and `package-lock.json` (through `npm version --no-git-tag-version`, which keeps the lock in step), the changelog's **Unreleased** section dated into a release with a fresh empty one above it, and an annotated tag `v<version>` whose message is those same notes — so `git show`, the changelog and the release page say one thing. The notes are never written twice: every change already adds its entry under Unreleased as it lands, and a release with an empty section is refused, since a release that says nothing is a mistake every time. It runs lint, the tests and the build first (`--no-checks` skips them, `--dry-run` writes nothing), refuses a dirty tree and a version already tagged, and **pushes nothing**: it prints the two pushes to make. The arithmetic is `src/core/release.ts`, unit tested and imported by the script as it is — Node strips the types itself — so there is no second copy to drift. `docs/releasing.md` has the steps and what a patch, a minor and a major mean here.*
 - [x] Project basics: issue and pull request templates, a code of conduct, and a `SECURITY.md` saying how to report a vulnerability (1 h) *Built 2026-11-01. `.github/ISSUE_TEMPLATE/` has a bug report (what happened, steps, the diagnostics Copy diagnostics puts on the clipboard, the file that triggers it) and an idea form that points at the roadmap and the ideas file first, with a contact link sending security problems to GitHub's private reporting; `.github/PULL_REQUEST_TEMPLATE.md` is CONTRIBUTING's checks as a checklist with the licence of anything added. `CODE_OF_CONDUCT.md` is short and in the project's own words — direct about the work, kind about the person — with the maintainer as the one who enforces it. `SECURITY.md` asks for private reports through GitHub, says what counts (a template, pack or file that reaches outside what it was given; anything that leaves the machine) and what to expect back.*
 
-## 17. Unsigned builds and releases (9-16 h)
+## 17. Unsigned builds and releases (done; 9-16 h)
 
 **Packaging is the last step of the project**, which is why this milestone and signing come after hardening: what is packaged should be the finished thing, and every change before this one would otherwise be packaged twice. The buildable half of the old "Packaging and signing" milestone; signing is milestone 7, blocked on account decisions. Unsigned artifacts also make the hardware-blocked verification sessions in milestones 2 and 5 easier to run when a machine is available.
 
