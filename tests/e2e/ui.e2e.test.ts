@@ -5808,7 +5808,8 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`document.getElementById('start-screen').hidden`)).toBe(true);
       await page.eval(`window.pulpMenuCommand('app.home')`);
       await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'the start screen from File → Home');
-      expect(await page.eval<boolean>(`document.getElementById('start-show-at-startup').checked`)).toBe(false);
+      // The box is filled from the saved preference once it arrives, a moment after the screen shows.
+      await until(() => page.eval<boolean>(`!document.getElementById('start-show-at-startup').checked`), 'show at startup read as off');
 
       // The bundled examples are listed, and opening one opens a copy: the example's items arrive,
       // the project takes its name, and there is no path — Save will ask where.
