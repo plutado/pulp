@@ -201,6 +201,18 @@ export interface SampleMediaOutcome {
   failed: string[];
 }
 
+/**
+ * What transcription needs and what is already here (milestone 50): the
+ * program that runs the model, the model with its size and licence so the
+ * dialog can say what it would fetch, and whether ffmpeg is there to read the
+ * sound.
+ */
+export interface SpeechStatus {
+  runner: { ok: boolean; path?: string; message?: string };
+  model: { id: string; label: string; bytes: number; license: string; note: string; installed: boolean };
+  ffmpeg: boolean;
+}
+
 /** What View → Stage on Display did (milestone 43). */
 export interface StageOnDisplayResult {
   moved: boolean;
@@ -272,6 +284,21 @@ export interface PulpApi {
    * where; the result names what was written.
    */
   exportEdit(request: { templateId: string; name: string; params: Record<string, unknown> }): Promise<{ ok: true; fcpxml: string; edl: string; graphics: string } | { ok: false; cancelled?: boolean; message: string }>;
+  /**
+   * Transcription on this machine (milestone 50). `speechStatus` says what is
+   * there — the program that runs the model, the model itself with its size
+   * and licence, and ffmpeg — so the dialog can **ask before anything is
+   * fetched**; `fetchSpeechModel` is the yes, and the only request Pulp
+   * makes. `transcribe` listens to the stretches of project sound named by
+   * library id (ADR 0013) and answers with the words and their timings, on
+   * the project's own clock. Nothing of the project leaves the machine.
+   */
+  speechStatus(request?: { model?: string }): Promise<SpeechStatus>;
+  fetchSpeechModel(request: { model: string }): Promise<{ ok: true; path: string } | { ok: false; message: string }>;
+  transcribe(request: { segments: { kind: 'clip' | 'sound'; id: string; from: number; to: number; at: number }[]; model?: string; language?: string }):
+    Promise<{ ok: true; words: { text: string; start: number; end: number }[]; language: string } | { ok: false; message: string }>;
+  /** How a fetch or a transcription is going, for the dialog's line of status. */
+  onSpeechProgress(listener: (progress: { note: string; fraction: number | null }) => void): () => void;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if cancelled. */

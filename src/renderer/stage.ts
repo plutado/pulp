@@ -31,6 +31,8 @@ import { mountStageMenu } from './stage-menu';
 import type { CutTrack } from '../core/cut-track';
 import { cutTrackTakeDrop, cutTrackUpdate, mountCutTrack } from './cut-track';
 import { mountTrackPicture, trackPictureDebug, trackPictureDraw, trackPictureSync } from './stage-track';
+import { captionsPreviewDraw, captionsPreviewSync, mountCaptionsPreview } from './stage-captions';
+import type { CaptionsValue } from '../core/captions';
 import { layerBarsUpdate, mountLayerBars } from './stage-bars';
 import { layerEditor, selectedLayer } from './layer-edit';
 import type { LaidReport } from '../core/stage-place';
@@ -65,6 +67,8 @@ const els = {
   lanes: $<HTMLDivElement>('transport-lanes'),
   previewFrame: $<HTMLDivElement>('preview-frame'),
   preview: $<HTMLIFrameElement>('preview'),
+  /** The caption style's own page, drawn over the graphic (milestone 50). */
+  captions: $<HTMLIFrameElement>('captions-preview'),
   previewEmpty: $<HTMLDivElement>('preview-empty'),
   mediaVideo: $<HTMLVideoElement>('media-video'),
   mediaImage: $<HTMLImageElement>('media-image'),
@@ -133,6 +137,8 @@ const s = {
   length: undefined as number | undefined,
   /** The project's cut track (milestone 49), or none: the shots under the layers. */
   track: null as CutTrack | null,
+  /** The project's captions (milestone 50), or none: the words over everything. */
+  captions: null as CaptionsValue | null,
   /**
    * A frame sequence being previewed on its own (milestone 30): a folder of
    * numbered frames has no video element to play it, so the stage steps it
@@ -420,6 +426,8 @@ function postFrame(frame: number): void {
   // to this frame, so a cut lands in the preview on the frame it lands on in the file.
   trackPictureSync(s.track, els.previewFrame.getBoundingClientRect().height);
   trackPictureDraw(frame / Math.max(1, previewFps()), previewSize());
+  // The captions ride over the graphic, on the project's own clock (milestone 50).
+  captionsPreviewDraw(frame / Math.max(1, previewFps()), previewSize());
   updateTimecode(frame);
   noteFrameState();
 }
@@ -651,7 +659,13 @@ function drawWaveform(entry: MediaEntry): void {
 }
 
 /** Load a template and show the frame at mid-progress, the frame the thumbnails use. */
-export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, layers: LayerValues = {}, track: CutTrack | null = null): void {
+export function stageShowTemplate(
+  entry: TemplateEntry,
+  params: ResolvedParams,
+  layers: LayerValues = {},
+  track: CutTrack | null = null,
+  captions: CaptionsValue | null = null,
+): void {
   stageStop();
   clearMediaPreview();
   // A different template is a different mix: the sounds go with the stack they played for, and
@@ -666,6 +680,8 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
   s.params = params;
   s.layers = layers;
   s.track = track;
+  s.captions = captions;
+  captionsPreviewSync(captions);
   s.frame = Math.floor(previewFrames() / 2);
   s.previewReady = false;
   s.inFlight = false;
@@ -696,6 +712,9 @@ export function stageShowTemplate(entry: TemplateEntry, params: ResolvedParams, 
 export function stageShowMedia(entry: MediaEntry): void {
   // A media item is its own picture: the cut track belongs to a project, and its canvas goes.
   trackPictureSync(null, 0);
+  // So do the captions, for the same reason: they are the project's, not this file's.
+  s.captions = null;
+  captionsPreviewSync(null);
   layerSoundsClear();
   loudnessClear();
   // Volume and mute are the player's, not each file's.
@@ -765,6 +784,8 @@ export function stageShowMedia(entry: MediaEntry): void {
 /** Empty stage: nothing selected. */
 export function stageClear(): void {
   s.manifest = null;
+  s.captions = null;
+  captionsPreviewSync(null);
   s.psd = null;
   s.previewReady = false;
   selectedLayer.value = null;
@@ -881,10 +902,20 @@ function onLengthKeyDown(e: KeyboardEvent): void {
 }
 
 /** New parameter values (edit, undo, preset): redraw the current frame with them. */
-export function stageSetParams(params: ResolvedParams, layers: LayerValues = {}, length?: number, track: CutTrack | null = null): void {
+export function stageSetParams(
+  params: ResolvedParams,
+  layers: LayerValues = {},
+  length?: number,
+  track: CutTrack | null = null,
+  captions: CaptionsValue | null = null,
+): void {
   s.params = params;
   s.layers = layers;
   s.track = track;
+  // The captions are drawn by their own style's page over the graphic (milestone 50); loading it
+  // is one ask per change of style, as the track's frames are.
+  s.captions = captions;
+  captionsPreviewSync(captions);
   // A changed volume, mute or clip takes effect mid-play (milestone 48); new clips join when their sources land.
   layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track);
   layerSoundsUpdate(soundTime(), s.playing, soundMaster(), soundLength());
@@ -1093,6 +1124,7 @@ export function initStage(): void {
   }
   els.bgCustom.addEventListener('input', () => setPlayer({ background: 'custom', customBackground: els.bgCustom.value }));
   els.safeToggle.addEventListener('click', () => setPlayer({ safeAreas: !s.player.safeAreas }));
+  mountCaptionsPreview(els.captions);
   mountStageLayers(els.layerOverlay, { frameSize: () => previewSize() });
   // The right-click menu (milestone 39) is mounted on the picture, not the overlay: the overlay
   // stands aside when a template has no layers yet, which is exactly when adding one is wanted.

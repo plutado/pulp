@@ -9,6 +9,7 @@
  */
 
 import type { Size } from './aspect';
+import type { CaptionFrame } from './captions';
 import { fontFaceCss, TEMPLATE_FONTS_PATH } from './fonts';
 import { imageSlots, type ImageSlotState } from './image-slot';
 import { blockStates, layerTexts, type BlockState } from './layer-layout';
@@ -39,6 +40,14 @@ export interface FrameState {
    * finishes the job — measuring, wrapping and stacking — and `window.pulpDrawBlock` draws the result.
    */
   blocks: Record<string, BlockState>;
+  /**
+   * The caption line on screen at this frame, the word being spoken, and the
+   * band a caption belongs in (milestone 50) — handed only to a **caption
+   * style**, a template whose manifest declares `captions: true`. Absent for
+   * every other template, and for a caption style drawn with no captions to
+   * show, which draws nothing.
+   */
+  captions?: CaptionFrame;
 }
 
 /**
@@ -63,6 +72,12 @@ export function frameState(
    * nothing is asked, this is its own duration and nothing below changes.
    */
   askedLength?: number,
+  /**
+   * The caption line to draw at this frame (milestone 50), for a caption
+   * style and for nothing else: what `captionFrame` answers for the moment
+   * of the project this frame shows (src/core/captions.ts).
+   */
+  captions?: CaptionFrame,
 ): FrameState {
   const structure = manifest.structure ?? null;
   const length = resolveLength(manifest.duration, structure, askedLength);
@@ -87,6 +102,7 @@ export function frameState(
     params,
     images: manifest.parameters ? imageSlots(manifest.parameters, params, size, layerTexts(blocks)) : {},
     blocks,
+    ...(captions ? { captions } : {}),
   };
 }
 

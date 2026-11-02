@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.caption-clean",
+  "name": "Caption Clean",
+  "description": "Plain captions set low in the frame, the word being spoken picked out in colour. The style to reach for when the footage should carry the shot.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "callout",
+  "captions": true,
+  "tags": [
+    "caption",
+    "subtitle",
+    "speech"
+  ],
+  "themes": [
+    "social-media",
+    "podcast",
+    "documentary"
+  ],
+  "styles": [
+    "clean"
+  ],
+  "duration": 4,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Words",
+      "default": "#ffffff",
+      "element": "Caption"
+    },
+    {
+      "id": "spoken",
+      "type": "color",
+      "label": "Word being spoken",
+      "default": "#ffd43b",
+      "element": "Caption"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 0.055,
+      "min": 0.025,
+      "max": 0.1,
+      "step": 0.005,
+      "element": "Caption"
+    },
+    {
+      "id": "shade",
+      "type": "number",
+      "label": "Shade behind",
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "element": "Caption"
+    }
+  ]
+}

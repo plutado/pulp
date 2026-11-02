@@ -12,7 +12,7 @@ import type { TemplateEntry } from '../core/library-types';
 import type { TemplateManifest, TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
-import { LAYERS_KEY, lengthIn, resolveParams, trackIn, withLength, withTrack, type ResolvedParams } from '../core/params';
+import { captionsIn, LAYERS_KEY, lengthIn, resolveParams, trackIn, withCaptions, withLength, withTrack, type ResolvedParams } from '../core/params';
 import {
   DEFAULT_TRANSITION, isTemplateMovement, isWholeGraphic, LAYER_TRANSITIONS, roundSeconds, spanWindow,
   TRANSITION_DIRECTIONS, TRANSITION_LIMITS, type LayerSpan, type LayerTransition, type LayerTransitions,
@@ -58,6 +58,8 @@ import { setIcon, type IconName } from './icons';
 import type { MediaEntry } from '../core/library-types';
 import { mediaUrlFor } from '../core/media-url';
 import { stageSetParams } from './stage';
+import { captionsCard } from './captions';
+import type { CaptionsValue } from '../core/captions';
 import { outputRefreshOptions } from './inspector-output';
 import { appState, frameSize, importedFonts, paramsEdited, playheadSeconds, selectedTemplate, slotNotes } from './store';
 import { aspectOf, defaultAspect } from '../core/aspect';
@@ -199,7 +201,7 @@ function setParam(id: string, value: unknown): void {
   p.raw[id] = value;
   editorFor(selected.manifest.id).current = p.raw;
   p.values = resolveParams(selected.manifest, p.raw).values;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
   scheduleCommit();
   updateResetButtons();
 }
@@ -219,7 +221,7 @@ function applySnapshot(snapshot: Snapshot, record: boolean): void {
   editor.committed = { ...p.raw };
   p.values = resolveParams(selected.manifest, p.raw).values;
   buildParamForm(selected.manifest);
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
   updateHistoryButtons();
 }
 
@@ -1009,7 +1011,7 @@ function setLayers(next: LayerValues, rebuild: boolean): void {
   if (sameLayers(next, defaultLayers(selected.manifest))) delete p.raw[LAYERS_KEY];
   else p.raw[LAYERS_KEY] = next;
   editorFor(selected.manifest.id).current = p.raw;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
   if (rebuild) {
     buildParamForm(selected.manifest);
     commitParams();
@@ -1171,7 +1173,7 @@ function setLength(length: number | undefined, commit = true): void {
   // then one history step. The form is rebuilt because the note and the reset button follow it.
   p.raw = withLength(p.raw, length);
   editorFor(selected.manifest.id).current = p.raw;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
   // The Output tab trims within the length, so what it shows follows it.
   outputRefreshOptions();
   if (!commit) return;
@@ -1208,9 +1210,32 @@ function setTrack(track: CutTrack | null, commit: boolean): void {
   // cut gone the template's own length stands again, as it did before the track.
   p.raw = withLength(p.raw, track ? Math.round(trackDuration(track) * 1000) / 1000 : undefined);
   editorFor(selected.manifest.id).current = p.raw;
-  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack());
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
   // The Output tab trims within the length, so what it shows follows it (as setLength does).
   outputRefreshOptions();
+  if (commit) {
+    commitParams();
+    buildParamForm(selected.manifest);
+  }
+}
+
+/** The captions as the raw values hold them (milestone 50), for the card and the preview. */
+export function currentCaptions(): CaptionsValue | null {
+  return captionsIn(p.raw);
+}
+
+/**
+ * Replace the captions; null takes them off the project. The same path a
+ * length and a track take: the raw values, the editor's own copy, the
+ * preview, then one history step — every caption edit is one, since none of
+ * them is a drag.
+ */
+function setCaptions(captions: CaptionsValue | null, commit: boolean): void {
+  const selected = selectedTemplate.value;
+  if (!selected) return;
+  p.raw = withCaptions(p.raw, captions);
+  editorFor(selected.manifest.id).current = p.raw;
+  stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
   if (commit) {
     commitParams();
     buildParamForm(selected.manifest);
@@ -2626,6 +2651,8 @@ function buildParamForm(manifest: TemplateManifest): void {
     note.className = 'note';
     note.textContent = 'This template has no editable parameters.';
     els.params.append(note);
+    // The captions are the project's rather than the template's, so they are offered even here.
+    els.params.append(captionsCard(currentCaptions()));
     return;
   }
   const cards = paramCards(manifest, currentLayers());
@@ -2645,6 +2672,7 @@ function buildParamForm(manifest: TemplateManifest): void {
     // where that card would have been (milestone 30).
     const length = lengthField();
     if (length) els.params.append(length);
+    els.params.append(captionsCard(currentCaptions()));
     updateHistoryButtons();
     return;
   }
@@ -2676,6 +2704,9 @@ function buildParamForm(manifest: TemplateManifest): void {
     els.params.append(paramCardEl(card));
   }
   closeBlock();
+  // The captions belong to the whole project rather than to one part of the graphic, so the card
+  // comes last, after the parts (milestone 50).
+  els.params.append(captionsCard(currentCaptions()));
   updateHistoryButtons();
 }
 
@@ -2788,6 +2819,8 @@ export function initInspectorParams(): void {
     setLength: (length, commit) => setLength(length, commit),
     track: () => currentTrack(),
     params: () => ({ ...p.raw }),
+    captions: () => currentCaptions(),
+    setCaptions: (captions, commit) => setCaptions(captions, commit),
     setTrack: (track, commit) => {
       // The same gesture rules as edit(): a live drag never leaves the typing timer armed, and a
       // typed edit still waiting on it becomes its own step before the gesture's live edits begin.

@@ -103,6 +103,39 @@ export function verticalZonesFor(width: number, height: number): typeof VERTICAL
 }
 
 /**
+ * Where a caption belongs in the frame (milestone 50): the band a caption
+ * style draws its line in, as fractions of the frame. Low in the picture and
+ * title-safe, which is where captions have always gone.
+ *
+ * On a tall frame it sits **above** the platform's own caption band and left
+ * of its controls column, not inside them: those zones are the areas a
+ * vertical video keeps clear (above), so a caption drawn there would be under
+ * the platform's own furniture.
+ */
+export const CAPTION_BAND = {
+  /** Kept clear of every edge, as title safe is. */
+  inset: SAFE_AREAS[1].inset,
+  /** The band's own height, as a fraction of the frame: room for two lines of caption type. */
+  height: 0.22,
+} as const;
+
+/** The caption band for a frame of this size, in pixels: what a caption style is handed to draw in. */
+export function captionBandFor(width: number, height: number): { x: number; y: number; width: number; height: number } {
+  const tall = height > width;
+  const zone = VERTICAL_ZONES.find((z) => z.id === 'caption')!;
+  const column = VERTICAL_ZONES.find((z) => z.id === 'controls')!;
+  const bottom = tall ? zone.top : 1 - CAPTION_BAND.inset;
+  const right = tall ? column.left : 1 - CAPTION_BAND.inset;
+  const top = Math.max(CAPTION_BAND.inset, bottom - CAPTION_BAND.height);
+  return {
+    x: Math.round(CAPTION_BAND.inset * width),
+    y: Math.round(top * height),
+    width: Math.round((right - CAPTION_BAND.inset) * width),
+    height: Math.round((bottom - top) * height),
+  };
+}
+
+/**
  * Where playback is after some time: frames advance at the output rate from
  * where play started. Null means the end was reached with looping off, so the
  * player stops on the last frame.

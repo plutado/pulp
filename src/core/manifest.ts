@@ -151,6 +151,14 @@ export interface TemplateManifest {
   size?: Size;
   /** True when the template draws on a transparent background and is meant for alpha output. */
   alpha: boolean;
+  /**
+   * True when the template is a **caption style** (milestone 50): it draws the
+   * caption line the host hands it in `state.captions`, with the spoken word
+   * highlighted, instead of words of its own. Such a template is what the
+   * captions layer's style picker offers; it is alpha by nature, since it is
+   * drawn over the picture.
+   */
+  captions?: boolean;
   /** HTML entry point relative to the template folder. */
   entry: string;
   /** Optional poster image relative to the template folder. */
@@ -446,6 +454,12 @@ export function validateManifest(raw: unknown): ValidationResult {
     errors.push({ path: 'aspects', message: `declare the aspect ratios the template draws for (${ASPECT_IDS.join(', ')}), or a width and height` });
   }
   if (raw.alpha !== undefined && typeof raw.alpha !== 'boolean') errors.push({ path: 'alpha', message: 'must be a boolean' });
+  if (raw.captions !== undefined && typeof raw.captions !== 'boolean') errors.push({ path: 'captions', message: 'must be a boolean' });
+  // A caption style is drawn over the picture, so it has to be transparent: one that flattened
+  // its own background would hide the shot it captions.
+  if (raw.captions === true && raw.alpha !== true) {
+    errors.push({ path: 'captions', message: 'a caption style draws over the picture, so it must declare "alpha": true' });
+  }
 
   const entry = raw.entry === undefined ? 'index.html' : raw.entry;
   if (typeof entry !== 'string' || !isSafeRelativePath(entry) || !/\.html?$/i.test(entry)) {
@@ -507,7 +521,7 @@ export function validateManifest(raw: unknown): ValidationResult {
 
   const known = new Set([
     'formatVersion', 'id', 'name', 'description', 'version', 'author', 'license', 'category', 'type', 'themes', 'styles', 'tags',
-    'duration', 'structure', 'fps', 'aspects', 'width', 'height', 'alpha', 'entry', 'thumbnail', 'posterAt', 'parameters', 'blocks',
+    'duration', 'structure', 'fps', 'aspects', 'width', 'height', 'alpha', 'captions', 'entry', 'thumbnail', 'posterAt', 'parameters', 'blocks',
   ]);
   for (const key of Object.keys(raw)) {
     if (!known.has(key) && !key.startsWith('x-')) {
@@ -535,6 +549,7 @@ export function validateManifest(raw: unknown): ValidationResult {
     blocks,
   };
   if (size) manifest.size = size;
+  if (raw.captions === true) manifest.captions = true;
   if (typeof raw.type === 'string') manifest.type = raw.type;
   if (themes !== undefined) manifest.themes = themes;
   if (styles !== undefined) manifest.styles = styles;

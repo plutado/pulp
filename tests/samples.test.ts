@@ -120,11 +120,13 @@ describe('bundled sample templates', async () => {
     // cursor, the turning rays, the hashtag carousel). The last batch to ten adds fifteen holds
     // (counters and infographics that count and lock, settled shapes and arrows, still plates), eight
     // looping overlay plates, and ten ambient fixed lengths (turning rings, drifting stripes, a pulse
-    // grid, a running light, marching chevrons, a stopwatch and the four countdowns).
+    // grid, a running light, marching chevrons, a stopwatch and the four countdowns). Milestone 50
+    // adds the three caption styles, which keep a fixed length: a caption style draws the line it
+    // is handed for as long as that line is on screen, so it has no timeline of its own to stretch.
     expect(kinds.hold).toHaveLength(143);
     expect(kinds.loop).toHaveLength(99);
     expect(kinds.scale).toHaveLength(40);
-    expect(kinds.none).toHaveLength(73);
+    expect(kinds.none).toHaveLength(76);
   });
 
   it.each(dirs)('%s defines window.pulpRender and avoids wall-clock time', async (dir) => {

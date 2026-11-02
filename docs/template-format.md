@@ -45,6 +45,7 @@ A UTF-8 JSON object.
 | `aspects` | string[] | yes, unless `width` and `height` are given | The shapes the template draws for, from `16:9`, `9:16`, `1:1` and `4:5`; at least one, the first is the default. The pixel size is chosen at render time from a standard list per aspect (720p, 1080p, 1440p, 4K, and 8K for 16:9) or as an exact size; without a choice a template renders at its first aspect's 1080-class size (1920 × 1080, 1080 × 1920, 1080 × 1080, 1080 × 1350). |
 | `width`, `height` | integer | no | A default size in pixels, 16 to 8192, both or neither. Alone, it also declares the aspect: the built-in one it is within 1% of, or else its reduced ratio (`4:3`), at which the template renders at this one size. With `aspects`, it must be of one of them. Use even numbers: H.264, ProRes 422 and VP9 cannot encode odd sizes. |
 | `alpha` | boolean | no | `true` if the template draws on a transparent background and is meant to be composited. Default `false`. |
+| `captions` | boolean | no | `true` if the template is a **caption style**: it draws the caption line the host hands it in `state.captions` rather than words of its own. Requires `alpha`. See **Caption styles** below. Default `false`. |
 | `entry` | string | no | Path to the HTML entry page, relative to the folder. Default `index.html`. Must not be absolute or contain `..`. |
 | `thumbnail` | string | no | Relative path to a poster image. |
 | `posterAt` | number | no | The moment, in seconds, the card's poster is taken at. Without it, Pulp picks the frame that shows the most from eight spread over the timeline, and crops a transparent template's poster to what it draws. |
@@ -325,6 +326,46 @@ Like every layer value it rides in the same bag as the parameters, so presets, c
 
 The bundled examples are generated, never committed: recipes in the sample generator draw each one on a transparent canvas over its own time and write it as a WebM with alpha (VP9) for the moving version and a PNG for the still, seeded so every generation is identical. A category's assets loop where that is natural — a flame, a wisp of steam, falling rain — and play once where it is not, like a splash or a shockwave.
 
+### Caption styles
+
+A **caption style** draws the words a person is saying, a line at a time, with
+the word being spoken picked out (milestone 50). It is an ordinary template —
+its own folder, manifest and page — that declares `"captions": true` and
+`"alpha": true`, and the captions layer's style picker offers exactly the
+templates that do.
+
+What makes it a caption style is what it is handed. Each frame's `state` gains
+a `captions` object:
+
+| Field | Type | Description |
+|---|---|---|
+| `time` | number | Seconds of the **project** this frame shows: the clock the lines are timed on. |
+| `line` | object or `null` | The line on screen now, or `null` in the gap between two lines, which a style draws as nothing. |
+| `line.text` | string | The whole line, its words joined by spaces. |
+| `line.start`, `line.end` | number | When the line's first word began and its last word ended. |
+| `line.words` | object[] | `{ "text", "start", "end" }` per word, in order: what to draw, and when each was said. |
+| `spoken` | integer | Index into `line.words` of the word being spoken; `-1` before the first has started. In the gap between two words the earlier one keeps it, so a highlight does not flicker. |
+| `box` | object | The caption band in **pixels** of this frame — `{ x, y, width, height }` — low in the picture and title-safe, and on a tall frame above the band and left of the column a vertical video keeps clear (`src/core/player.ts`). Draw inside it. |
+
+Three rules, and a caption style is otherwise a template like any other:
+
+- **Animate from `state.captions`, not from `state.time`.** A caption style has
+  no timeline of its own: it is asked for whatever moment of the project is on
+  screen, over and over, for as long as the project is. An entrance is timed
+  from `captions.time - line.start`, a word's own from `captions.time` against
+  that word's `start`.
+- **Draw inside `box`.** It is where a caption belongs at this shape, already
+  clear of what the frame has to keep clear. Wrap the words into as many rows
+  as they need inside its width.
+- **Draw a specimen when there is no `captions` at all.** A card's poster, the
+  library preview and the visual-regression render hand the template no
+  captions, and a style that drew nothing then would be an empty thumbnail.
+  Draw a sample line so the style can be seen. (A `captions` with `line: null`
+  is a different thing — a real moment between two lines — and draws nothing.)
+
+The three bundled styles (`templates/caption-clean`, `caption-block`,
+`caption-pop`, CC0) are the worked examples.
+
 ### Fonts
 
 Pulp bundles ten families under the SIL Open Font License 1.1 — **Inter, Montserrat, Oswald, Bebas Neue, Source Serif 4, Playfair, JetBrains Mono, Caveat, Dancing Script, Noto Sans** — so a layer can be set in a face that exists on every machine (`docs/font-credits.md`, decision record 0014). Every template page has them: the bridge declares an `@font-face` for each file beside itself, and the template protocol serves the files under the template's own origin at the reserved path `/__pulp/fonts/`, which is what `font-src 'self'` allows. A template folder therefore cannot have files under `__pulp/`.
@@ -404,6 +445,7 @@ It may return a Promise; the host waits for it to settle before capturing.
 | `params` | object | Resolved parameter values keyed by parameter id. An image parameter's value is `null` or `{ id, treatment, tint, effect }`. |
 | `images` | object | One entry per image slot (see Image slots): `{ id, box, fit, align, margin, treatment, tint, effect, fallback, bitmap? }`, the box in pixels of this frame. Draw them with `window.pulpDrawImage`. |
 | `blocks` | object | One entry per block (see Blocks and layers): the box in pixels and the layers that are drawn, in stack order. Lay one out with `window.pulpLayoutBlock` and draw it with `window.pulpDrawBlock`. |
+| `captions` | object | **Caption styles only** (see above): the line on screen, the word being spoken and the band to draw it in. Absent for every other template, and when a caption style is drawn with no captions to show. |
 
 ### Rules for templates
 

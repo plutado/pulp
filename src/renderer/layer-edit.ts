@@ -9,6 +9,7 @@
  */
 
 import { signal } from '@preact/signals';
+import type { CaptionsValue } from '../core/captions';
 import type { CutTrack } from '../core/cut-track';
 import type { Block, Layer, LayerType } from '../core/layers';
 
@@ -65,6 +66,14 @@ export interface LayerEditor {
    * delete, the end of a trim or a move — false is a live drag.
    */
   setTrack(track: CutTrack | null, commit: boolean): void;
+  /** The project's captions as they stand (milestone 50); null when it has none. */
+  captions(): CaptionsValue | null;
+  /**
+   * Replace the captions, as the card's edits do (src/renderer/captions.ts);
+   * null takes them off the project. `commit` makes it one undo step, which
+   * every caption edit is: there is no live drag here.
+   */
+  setCaptions(captions: CaptionsValue | null, commit: boolean): void;
 }
 
 let editor: LayerEditor | null = null;

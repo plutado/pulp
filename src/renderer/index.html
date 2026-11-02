@@ -73,6 +73,7 @@
           <div id="preview-frame" class="preview checker">
             <canvas id="track-picture" class="media track-picture" aria-hidden="true" hidden></canvas>
             <iframe id="preview" title="Template preview" sandbox="allow-scripts allow-same-origin"></iframe>
+            <iframe id="captions-preview" class="captions-preview" title="Captions preview" sandbox="allow-scripts allow-same-origin" aria-hidden="true" hidden></iframe>
             <video id="media-video" class="media" preload="metadata" hidden></video>
             <img id="media-image" class="media" alt="" hidden>
             <audio id="media-audio" class="media" preload="metadata" hidden></audio>
@@ -524,6 +525,23 @@
       <div class="dialog-actions render-actions">
         <button id="silence-cut" type="button" disabled>Cut them</button>
         <button id="silence-close" value="cancel">Close</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="captions-dialog" class="pack-dialog captions-dialog" aria-labelledby="captions-title">
+    <form method="dialog">
+      <h2 id="captions-title">Transcribe speech</h2>
+      <p class="note">The speech model runs on this machine and nothing of your project is sent anywhere. The model file itself is fetched once, from its publisher, checked against its checksum and kept beside your settings.</p>
+      <div class="key-controls">
+        <label>Listen to <select id="captions-source" aria-label="What to transcribe"></select></label>
+      </div>
+      <p id="captions-model" class="note"></p>
+      <div class="dialog-actions render-actions">
+        <button id="captions-fetch" type="button" hidden>Get the model</button>
+        <span id="captions-status" class="note" role="status"></span>
+        <span class="dialog-spacer"></span>
+        <button id="captions-run" type="button" disabled>Transcribe</button>
+        <button id="captions-close" value="cancel">Close</button>
       </div>
     </form>
   </dialog>

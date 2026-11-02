@@ -919,6 +919,20 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
    pointer: the layers and the overlay above it are what a hand reaches for. */
 .preview .track-picture { pointer-events: none; }
 
+/* The captions (milestone 50): the chosen caption style's own page, after the template's in the
+   DOM so the words sit over the graphic, as they sit over everything in the finished video. It
+   takes no pointer either — the rule above covers every iframe in the picture. */
+.preview .captions-preview[hidden] { display: none; }
+
+/* The Captions card in the Parameters tab (milestone 50): the lines of what was said, each with
+   when it starts and the words to change. The list scrolls inside the card, since a minute of
+   speech is twenty lines and the card is one of many. */
+.captions-card .caption-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-1); }
+.captions-card .caption-lines { display: flex; flex-direction: column; gap: 2px; margin-top: var(--space-2); max-height: 320px; overflow-y: auto; }
+.caption-line { display: flex; align-items: center; gap: var(--space-1); }
+.caption-line .caption-at { flex: 0 0 auto; min-width: 42px; font-variant-numeric: tabular-nums; }
+.caption-line .caption-text { flex: 1 1 auto; min-width: 0; }
+
 /* The cut track (milestone 49): the project's shots end to end under the layer bars, on the scrub
    bar's scale. A cut reads as footage rather than a layer — a touch of green against the bars'
    slate — and its trim handles and selection wear the bars' own shapes, so one hand serves both. */

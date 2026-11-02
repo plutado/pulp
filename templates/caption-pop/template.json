@@ -1,0 +1,68 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.caption-pop",
+  "name": "Caption Pop",
+  "description": "Heavy outlined capitals with the spoken word jumping forward a size, the caption short-form video is cut to. Loud on purpose.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "callout",
+  "captions": true,
+  "tags": [
+    "caption",
+    "subtitle",
+    "speech"
+  ],
+  "themes": [
+    "social-media",
+    "gaming",
+    "fitness"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 4,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Words",
+      "default": "#ffffff",
+      "element": "Caption"
+    },
+    {
+      "id": "spoken",
+      "type": "color",
+      "label": "Word being spoken",
+      "default": "#22d3ee",
+      "element": "Caption"
+    },
+    {
+      "id": "outline",
+      "type": "color",
+      "label": "Outline",
+      "default": "#0b1020",
+      "element": "Caption"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 0.062,
+      "min": 0.03,
+      "max": 0.12,
+      "step": 0.005,
+      "element": "Caption"
+    }
+  ]
+}

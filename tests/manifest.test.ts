@@ -49,6 +49,19 @@ describe('validateManifest', () => {
     expect(result.ok && result.manifest.alpha).toBe(false);
   });
 
+  // Milestone 50: a caption style draws the line the host hands it, so it declares that it is one.
+  it('takes a caption style\'s own flag, and only on a transparent template', () => {
+    const style = validateManifest(rawManifest({ captions: true, alpha: true }));
+    expect(style.ok && style.manifest.captions).toBe(true);
+    expect(style.warnings).toEqual([]);
+    // Every other template has no flag at all rather than a false one.
+    const plain = validateManifest(rawManifest());
+    expect(plain.ok && plain.manifest.captions).toBeUndefined();
+    // Drawn over the picture: one that flattened its background would hide the shot it captions.
+    expect(errorPaths(rawManifest({ captions: true, alpha: false }))).toContain('captions');
+    expect(errorPaths(rawManifest({ captions: 'yes' }))).toContain('captions');
+  });
+
   it('rejects non-objects', () => {
     expect(validateManifest(null).ok).toBe(false);
     expect(validateManifest([]).ok).toBe(false);

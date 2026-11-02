@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Caption Block</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Caption Block, a caption style for Pulp (milestone 50). CC0-1.0: no rights reserved.
+  // The line sits on a bar so it reads over any footage; the word being spoken takes a chip of
+  // its own. With no captions handed over it draws a specimen line, so the style can be seen.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  document.fonts.load('600 64px Inter');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) {
+    var alpha = c.length >= 9 ? hex(c, 7) / 255 : 1;
+    return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + (alpha * a).toFixed(4) + ')';
+  }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  var SPECIMEN = {
+    time: 1.4,
+    spoken: 3,
+    box: null,
+    line: {
+      start: 0, end: 2.4,
+      words: [
+        { text: 'Every', start: 0, end: 0.4 },
+        { text: 'word', start: 0.4, end: 0.8 },
+        { text: 'lands', start: 0.8, end: 1.2 },
+        { text: 'where', start: 1.2, end: 1.7 },
+        { text: 'it', start: 1.7, end: 1.9 },
+        { text: 'was', start: 1.9, end: 2.1 },
+        { text: 'said', start: 2.1, end: 2.4 }
+      ]
+    }
+  };
+
+  function band(W, H) {
+    var tall = H > W;
+    var bottom = tall ? 0.78 : 0.95;
+    var right = tall ? 0.82 : 0.95;
+    return { x: 0.05 * W, y: (bottom - 0.22) * H, width: (right - 0.05) * W, height: 0.22 * H };
+  }
+
+  function wrap(words, maxWidth, space) {
+    var rows = [[]];
+    var width = 0;
+    for (var i = 0; i < words.length; i++) {
+      var w = ctx.measureText(words[i].text).width;
+      var row = rows[rows.length - 1];
+      if (row.length > 0 && width + space + w > maxWidth) {
+        rows.push([]);
+        row = rows[rows.length - 1];
+        width = 0;
+      }
+      row.push({ index: i, text: words[i].text, width: w });
+      width += (row.length > 1 ? space : 0) + w;
+    }
+    return rows;
+  }
+
+  window.pulpRender = function (state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, p = state.params;
+    var u = Math.min(W, H);
+    ctx.clearRect(0, 0, W, H);
+    var caps = state.captions || SPECIMEN;
+    var line = caps.line;
+    if (!line || !line.words || line.words.length === 0) return;
+    var box = caps.box || band(W, H);
+    var size = Math.round(p.size * u);
+    var space = size * 0.34;
+    var lead = size * 1.45;
+    var pad = size * 0.45;
+    ctx.font = '600 ' + size + 'px Inter';
+    ctx.textBaseline = 'alphabetic';
+    var rows = wrap(line.words, box.width - pad * 2, space);
+    var inAt = easeOut(clamp01((caps.time - line.start) / 0.14));
+    var widths = [];
+    var widest = 0;
+    for (var r = 0; r < rows.length; r++) {
+      var rowWidth = 0;
+      for (var i = 0; i < rows[r].length; i++) rowWidth += rows[r][i].width + (i > 0 ? space : 0);
+      widths.push(rowWidth);
+      if (rowWidth > widest) widest = rowWidth;
+    }
+    var barW = widest + pad * 2;
+    var barH = rows.length * lead + pad * 0.6;
+    var barX = box.x + (box.width - barW) / 2;
+    var barY = box.y + box.height - barH;
+    ctx.save();
+    ctx.globalAlpha = inAt;
+    ctx.translate(0, (1 - inAt) * size * 0.35);
+    ctx.fillStyle = rgba(p.bar, 1);
+    rr(barX, barY, barW, barH, size * 0.25);
+    ctx.fill();
+    for (var q = 0; q < rows.length; q++) {
+      var row = rows[q];
+      var x = barX + (barW - widths[q]) / 2;
+      var baseline = barY + pad * 0.3 + q * lead + size;
+      for (var k = 0; k < row.length; k++) {
+        if (row[k].index === caps.spoken) {
+          ctx.fillStyle = rgba(p.chip, 1);
+          rr(x - size * 0.16, baseline - size * 0.98, row[k].width + size * 0.32, lead * 0.86, size * 0.16);
+          ctx.fill();
+        }
+        ctx.fillStyle = rgba(p.ink, 1);
+        ctx.fillText(row[k].text, x, baseline);
+        x += row[k].width + space;
+      }
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

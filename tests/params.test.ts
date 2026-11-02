@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateManifest, type TemplateManifest } from '../src/core/manifest';
-import { defaultParams, resolveParams, splitLayers, trackIn, withTrack } from '../src/core/params';
+import { captionsIn, defaultParams, resolveParams, splitLayers, trackIn, withCaptions, withTrack } from '../src/core/params';
 import { rawManifest } from './fixtures';
 
 function manifest(): TemplateManifest {
@@ -108,8 +108,19 @@ describe('resolveParams', () => {
   });
 
   it('lets the passengers ride without a report: a parameter id can never start with "@"', () => {
-    const bag = { '@length': 8, '@layers': {}, '@track': { cuts: [] } };
+    const bag = { '@length': 8, '@layers': {}, '@track': { cuts: [] }, '@captions': { lines: [] } };
     expect(resolveParams(manifest(), bag).issues).toEqual([]);
+  });
+
+  it('carries the captions in the bag and splits them out before resolution (milestone 50)', () => {
+    const captions = { style: 'pulp.samples.caption-clean', lines: [{ words: [{ text: 'Hi', start: 0, end: 0.4 }] }] };
+    const bag = withCaptions({ title: 'Hi' }, captions);
+    expect(captionsIn(bag)).toEqual(captions);
+    expect(splitLayers(bag).params).toEqual({ title: 'Hi' });
+    // None is none, as with the track: a project nobody has captioned serializes as it always did.
+    expect(withCaptions(bag, null)).toEqual({ title: 'Hi' });
+    expect(captionsIn({ title: 'Hi' })).toBeNull();
+    expect(captionsIn({ '@captions': { lines: [{ words: [{ text: '' }] }] } })).toBeNull();
   });
 
   it('carries the cut track in the bag and splits it out before resolution (milestone 49)', () => {

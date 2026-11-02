@@ -2393,7 +2393,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       // Its two lines, then the card's own colours, then the logo, and the timing last — the title
       // card declares a hold (milestone 30), so that card holds its Length and no parameter of its
       // own. No "Colors" group, and nothing left over.
-      expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`)).toEqual(['Title: ', 'Subtitle: ', 'Card: background,rule', 'Logo: logo', 'Layout and timing: ']);
+      // The Captions card is last of all (milestone 50): the words a project says belong to the
+      // whole project rather than to any part of the graphic, so they come after the timing.
+      expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`)).toEqual(['Title: ', 'Subtitle: ', 'Card: background,rule', 'Logo: logo', 'Layout and timing: ', 'Captions: ']);
       expect(await page.eval<number>(`document.querySelectorAll('#params .group-label').length`)).toBe(0);
       // A line's card holds its words and its type, with what can be done to the layer beside the heading.
       expect(await page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="layer:card.title"] .layer-text')`)).toBe(true);
@@ -2406,20 +2408,20 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect((await cards()).find((c) => c.card === 'element:Card')!.open).toBe(false);
       expect(await page.eval<boolean>(`document.querySelector('#params .param-card[data-card="element:Card"] .card-body').hidden`)).toBe(true);
       await page.eval(`document.querySelector('#params .layers-block [data-add=text]').click()`);
-      await until(async () => (await cards()).length === 6, 'the added line\'s card');
+      await until(async () => (await cards()).length === 7, 'the added line\'s card');
       expect((await cards()).find((c) => c.card === 'element:Card')!.open, 'still folded after the rebuild').toBe(false);
       // The added line is a card like the template's own, and can be taken out again.
       const added = (await cards())[2]!;
       expect(added.label).toBe('Line 3');
       expect(await page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="${added.card}"] .layer-type')`)).toBe(true);
       await page.eval(`document.querySelector('#params .param-card[data-card="${added.card}"] [aria-label="Remove Line 3"]').click()`);
-      await until(async () => (await cards()).length === 5, 'the card gone with the layer');
+      await until(async () => (await cards()).length === 6, 'the card gone with the layer');
       await page.eval(`document.querySelector('#params .param-card[data-card="element:Card"] .card-toggle').click()`);
 
       // The lower third: the panel's two colours together, and what belongs to the whole graphic last.
       await clickResult('Lower Third Bar');
       await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="element:Panel"]')`), 'the lower third\'s cards');
-      expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`)).toEqual(['Name: ', 'Title: ', 'Panel: accent,panel', 'Logo: logo', 'Layout and timing: side,inOut']);
+      expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`)).toEqual(['Name: ', 'Title: ', 'Panel: accent,panel', 'Logo: logo', 'Layout and timing: side,inOut', 'Captions: ']);
       // "Logo" under the Logo card is not shown twice: the field's label is kept for the screen reader only.
       expect(await page.eval<string[]>(`[...document.querySelectorAll('#params .param-card[data-card="element:Logo"] .field > .field-head > span')].map((s) => s.className)`)).toEqual(['visually-hidden']);
       // Nothing visible is left in the head but, when there is one, the field's Reset.
@@ -2432,10 +2434,28 @@ describe.skipIf(!electron)('inspector UI', () => {
       await clickResult('Boardroom opener');
       await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card')`), 'the opener\'s cards');
       expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`))
-        .toEqual(['Company: company', 'Tagline: tagline', 'Accent: accent', 'Text: text', 'Layout and timing: inOut']);
+        .toEqual(['Company: company', 'Tagline: tagline', 'Accent: accent', 'Text: text', 'Layout and timing: inOut', 'Captions: ']);
       expect(await page.eval<number>(`document.querySelectorAll('#params .group-label').length`)).toBe(0);
     }, 90_000);
 
+
+    // Milestone 50: the captions layer's own card. Transcription itself needs the speech model and
+    // whisper.cpp, neither of which a test machine is asked for; what is checked here is the card,
+    // the styles it offers, and the promise that nothing is fetched before the person is asked.
+    it('offers the captions layer: the bundled styles, and a dialog that names the model before fetching it', async () => {
+      await clickResult('Title Card');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="@captions"]')`), 'the captions card');
+      expect(await page.eval<string[]>(`[...document.querySelectorAll('#params .captions-card select option')].map((o) => o.textContent)`))
+        .toEqual(['None (not drawn)', 'Caption Block', 'Caption Clean', 'Caption Pop']);
+      // Nothing captioned yet: the card says where the words would come from, and says it plainly.
+      expect(await page.eval<string>(`document.querySelector('#params .captions-card .caption-actions .note').textContent`))
+        .toContain('nothing is sent anywhere');
+      await page.eval(`[...document.querySelectorAll('#params .captions-card button')].find((b) => b.textContent.startsWith('Transcribe')).click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('captions-dialog').open === true`), 'the captions dialog');
+      // The model, its size and its licence are said before anything is fetched (ADR 0021).
+      await until(() => page.eval<boolean>(`/Whisper .* MB · MIT/.test(document.getElementById('captions-model').textContent)`), 'the model named with its size and licence');
+      await page.eval(`document.getElementById('captions-dialog').close()`);
+    }, 60_000);
 
     it('an image layer stacks with the lines and rides the animation by its position, on both proofs, wide and tall', async () => {
       /** The "mark" still is solid red, so every pixel of it says where the picture is, and none reads as a line of text. */

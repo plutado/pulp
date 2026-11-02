@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Caption Clean</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Caption Clean, a caption style for Pulp (milestone 50). CC0-1.0: no rights reserved.
+  // A caption style draws the line the host hands it in state.captions, with the word being
+  // spoken picked out. With no captions at all — a card's poster, a library preview — it draws a
+  // specimen line, so the style can be seen before a project has any words.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  document.fonts.load('700 64px Inter');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  var SPECIMEN = {
+    time: 1.05,
+    spoken: 2,
+    box: null,
+    line: {
+      start: 0, end: 2.2,
+      words: [
+        { text: 'Captions', start: 0, end: 0.45 },
+        { text: 'from', start: 0.45, end: 0.7 },
+        { text: 'what', start: 0.7, end: 1.2 },
+        { text: 'was', start: 1.2, end: 1.6 },
+        { text: 'said', start: 1.6, end: 2.2 }
+      ]
+    }
+  };
+
+  // Where a caption belongs when the host has not said: low in the frame and title-safe, and on
+  // a tall frame above the band a platform keeps for its own caption.
+  function band(W, H) {
+    var tall = H > W;
+    var bottom = tall ? 0.78 : 0.95;
+    var right = tall ? 0.82 : 0.95;
+    return { x: 0.05 * W, y: (bottom - 0.22) * H, width: (right - 0.05) * W, height: 0.22 * H };
+  }
+
+  // The words wrapped into rows that fit the band, each row keeping each word's own place in the
+  // line, so the one being spoken can be found again when it is drawn.
+  function wrap(words, maxWidth, space) {
+    var rows = [[]];
+    var width = 0;
+    for (var i = 0; i < words.length; i++) {
+      var w = ctx.measureText(words[i].text).width;
+      var row = rows[rows.length - 1];
+      if (row.length > 0 && width + space + w > maxWidth) {
+        rows.push([]);
+        row = rows[rows.length - 1];
+        width = 0;
+      }
+      row.push({ index: i, text: words[i].text, width: w });
+      width += (row.length > 1 ? space : 0) + w;
+    }
+    return rows;
+  }
+
+  window.pulpRender = function (state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, p = state.params;
+    var u = Math.min(W, H);
+    ctx.clearRect(0, 0, W, H);
+    var caps = state.captions || SPECIMEN;
+    var line = caps.line;
+    if (!line || !line.words || line.words.length === 0) return;
+    var box = caps.box || band(W, H);
+    var size = Math.round(p.size * u);
+    var space = size * 0.3;
+    var lead = size * 1.25;
+    ctx.font = '700 ' + size + 'px Inter';
+    ctx.textBaseline = 'alphabetic';
+    var rows = wrap(line.words, box.width, space);
+    // The line arrives with a short rise, timed from when it was said, and sits still after.
+    var inAt = easeOut(clamp01((caps.time - line.start) / 0.12));
+    var block = rows.length * lead;
+    var top = box.y + box.height - block;
+    ctx.save();
+    ctx.globalAlpha = inAt;
+    ctx.translate(0, (1 - inAt) * size * 0.3);
+    for (var r = 0; r < rows.length; r++) {
+      var row = rows[r];
+      var rowWidth = 0;
+      for (var i = 0; i < row.length; i++) rowWidth += row[i].width + (i > 0 ? space : 0);
+      var x = box.x + (box.width - rowWidth) / 2;
+      var baseline = top + r * lead + size;
+      if (p.shade > 0) {
+        ctx.fillStyle = 'rgba(0,0,0,' + (p.shade * 0.85).toFixed(4) + ')';
+        rr(x - size * 0.35, baseline - size * 1.0, rowWidth + size * 0.7, lead, size * 0.22);
+        ctx.fill();
+      }
+      for (var k = 0; k < row.length; k++) {
+        ctx.fillStyle = row[k].index === caps.spoken ? rgba(p.spoken, 1) : rgba(p.ink, 1);
+        ctx.fillText(row[k].text, x, baseline);
+        x += row[k].width + space;
+      }
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor } from '../src/core/player';
+import { captionBandFor, CAPTION_BAND, DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor } from '../src/core/player';
 
 describe('playback', () => {
   // 180 frames at 30 fps: a six-second template.
@@ -105,5 +105,27 @@ describe('safe areas', () => {
     expect(verticalZonesFor(1080, 1350)).toBe(VERTICAL_ZONES);
     expect(verticalZonesFor(1920, 1080)).toEqual([]);
     expect(verticalZonesFor(1080, 1080)).toEqual([]);
+  });
+
+  // Milestone 50: where a caption style draws its line. Low in the picture, title-safe, and on a
+  // tall frame above the platform's own caption band rather than inside it.
+  it('give captions a band inside the frame, clear of what a tall frame keeps clear', () => {
+    for (const [width, height] of [[1920, 1080], [1080, 1920], [1080, 1080], [1080, 1350]] as const) {
+      const band = captionBandFor(width, height);
+      const name = `${width}x${height}`;
+      expect(band.x, name).toBeGreaterThanOrEqual(Math.round(SAFE_AREAS[1].inset * width));
+      expect(band.y, name).toBeGreaterThan(height / 2);
+      expect(band.x + band.width, name).toBeLessThanOrEqual(width);
+      expect(band.y + band.height, name).toBeLessThanOrEqual(height);
+      expect(band.height, name).toBeGreaterThan(0);
+    }
+    const tall = captionBandFor(1080, 1920);
+    const [, controls, caption] = VERTICAL_ZONES;
+    // Above the band the platform keeps for its own caption, and left of its controls column.
+    expect(tall.y + tall.height).toBeLessThanOrEqual(Math.round(caption.top * 1920));
+    expect(tall.x + tall.width).toBeLessThanOrEqual(Math.round(controls.left * 1080));
+    // A wide frame has neither, so the band simply sits title-safe above the bottom edge.
+    const wide = captionBandFor(1920, 1080);
+    expect(wide.y + wide.height).toBe(Math.round((1 - CAPTION_BAND.inset) * 1080));
   });
 });

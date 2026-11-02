@@ -128,6 +128,14 @@ const api: PulpApi = {
   trackFrames: (request) => ipcRenderer.invoke('track:frames', request),
   trackSilences: (request) => ipcRenderer.invoke('track:silences', request),
   exportEdit: (request) => ipcRenderer.invoke('track:export-edit', request),
+  speechStatus: (request) => ipcRenderer.invoke('speech:status', request),
+  fetchSpeechModel: (request) => ipcRenderer.invoke('speech:fetch-model', request),
+  transcribe: (request) => ipcRenderer.invoke('speech:transcribe', request),
+  onSpeechProgress: (listener) => {
+    const handler = (_event: unknown, progress: Parameters<typeof listener>[0]) => listener(progress);
+    ipcRenderer.on('speech:progress', handler);
+    return () => ipcRenderer.removeListener('speech:progress', handler);
+  },
   chromaKeyPreview: (id, settings, atSeconds) => ipcRenderer.invoke('cleanup:key-preview', id, settings, atSeconds),
   chromaKeyClip: (id, settings) => ipcRenderer.invoke('cleanup:key', id, settings),
   splitScenes: (id) => ipcRenderer.invoke('cleanup:split-scenes', id),

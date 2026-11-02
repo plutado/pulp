@@ -20,6 +20,7 @@ import { renderTemplate } from './render';
 import { mixLoudness } from './mix-loudness';
 import { exportEdit } from './edit-export-service';
 import { trackSilences } from './track-silence';
+import { fetchSpeechModel, setSpeechProgressWindow, speechStatus, transcribe } from './speech-service';
 import { voicePreview } from './voice-service';
 import { chromaKeyClip, chromaKeyPreview, splitScenes } from './cleanup-service';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag, removeRender } from './render-queue-service';
@@ -143,6 +144,8 @@ function createWindow(): void {
 
   // Pulp's own menu goes up before the page loads, so there is never a moment of Electron's.
   initMenu(mainWindow);
+  // Where a model fetch and a transcription say how far along they are (milestone 50).
+  setSpeechProgressWindow(mainWindow);
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (!app.isPackaged && devUrl) void mainWindow.loadURL(devUrl);
@@ -150,6 +153,7 @@ function createWindow(): void {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    setSpeechProgressWindow(null);
     // The stage's window has no life of its own; it is remembered as it was for the next launch.
     destroyStageWindow();
   });
@@ -458,6 +462,11 @@ function registerIpc(): void {
   ipcMain.handle('track:silences', (_event, request: unknown) => trackSilences(request));
   // The edit exported for an editing app (milestone 49): FCPXML, an EDL and the graphics with alpha.
   ipcMain.handle('track:export-edit', (_event, request: unknown) => exportEdit(request));
+  // Transcription on this machine (milestone 50): what is here, the model fetched once the person
+  // has said yes, and the words with their timings. Nothing of the project leaves the machine.
+  ipcMain.handle('speech:status', (_event, request: unknown) => speechStatus(request));
+  ipcMain.handle('speech:fetch-model', (_event, request: unknown) => fetchSpeechModel(request));
+  ipcMain.handle('speech:transcribe', (_event, request: unknown) => transcribe(request));
 
   ipcMain.handle('drag-notice:get', async () => (await loadSettings()).dragNoticeSeen);
   ipcMain.handle('drag-notice:seen', async () => {

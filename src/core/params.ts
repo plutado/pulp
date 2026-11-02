@@ -7,6 +7,7 @@
  * default and is reported as an issue rather than throwing.
  */
 
+import { sanitizeCaptions, type CaptionsValue } from './captions';
 import { sanitizeCutTrack, type CutTrack } from './cut-track';
 import { sanitizeImageValue, type ImageValue } from './image-slot';
 import type { LayerValues } from './layers';
@@ -35,14 +36,32 @@ export const LENGTH_KEY = '@length';
 /** Where the cut track rides (milestone 49): the project's shots, no more a parameter than the layers are. */
 export const TRACK_KEY = '@track';
 
+/** Where the captions ride (milestone 50): the words said, their timings and the style that draws them. */
+export const CAPTIONS_KEY = '@captions';
+
 /** Raw values split into the parameters and the layer stacks that rode with them. */
 export function splitLayers(raw: Record<string, unknown>): { params: Record<string, unknown>; layers: LayerValues } {
   const { [LAYERS_KEY]: layers, ...rest } = raw;
-  // The length and the cut track ride here too, and are read with `lengthIn` and `trackIn`; they
-  // are no more parameters than the layers are, so they do not travel on into resolution.
+  // The length, the cut track and the captions ride here too, and are read with `lengthIn`,
+  // `trackIn` and `captionsIn`; they are no more parameters than the layers are, so they do not
+  // travel on into resolution.
   delete rest[LENGTH_KEY];
   delete rest[TRACK_KEY];
+  delete rest[CAPTIONS_KEY];
   return { params: rest, layers: (layers ?? {}) as LayerValues };
+}
+
+/** The captions riding with a bag of raw values, sanitized, or null when the project has none. */
+export function captionsIn(raw: Record<string, unknown>): CaptionsValue | null {
+  return sanitizeCaptions(raw[CAPTIONS_KEY]);
+}
+
+/** The raw values with captions put in, or with them taken out when there are none. */
+export function withCaptions(params: Record<string, unknown>, captions: CaptionsValue | null): Record<string, unknown> {
+  const out = { ...params };
+  if (captions === null || captions.lines.length === 0) delete out[CAPTIONS_KEY];
+  else out[CAPTIONS_KEY] = captions;
+  return out;
 }
 
 /** The cut track riding with a bag of raw values, sanitized, or null when the project has none. */

@@ -1,0 +1,68 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.caption-block",
+  "name": "Caption Block",
+  "description": "Captions on a solid bar, the word being spoken lit by a chip behind it. Reads over busy footage, where plain type would not.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "callout",
+  "captions": true,
+  "tags": [
+    "caption",
+    "subtitle",
+    "speech"
+  ],
+  "themes": [
+    "news",
+    "social-media",
+    "corporate"
+  ],
+  "styles": [
+    "corporate"
+  ],
+  "duration": 4,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "bar",
+      "type": "color",
+      "label": "Bar",
+      "default": "#111827e6",
+      "element": "Caption"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Words",
+      "default": "#f8fafc",
+      "element": "Caption"
+    },
+    {
+      "id": "chip",
+      "type": "color",
+      "label": "Chip behind the spoken word",
+      "default": "#2563eb",
+      "element": "Caption"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 0.05,
+      "min": 0.025,
+      "max": 0.1,
+      "step": 0.005,
+      "element": "Caption"
+    }
+  ]
+}

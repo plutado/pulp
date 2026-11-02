@@ -9,7 +9,8 @@ import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback 
 import { initCleanup } from './cleanup';
 import { initShell } from './shell';
 import { closeInspectorUnlessPinned, initInspectorTabs, openInspector, showInspectorTab } from './inspector-tabs';
-import { chosenLibraryItems, currentLayers, currentRawParams, currentTrack, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
+import { mountCaptions } from './captions';
+import { chosenLibraryItems, currentCaptions, currentLayers, currentRawParams, currentTrack, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
 import { currentOptions, currentPresetId, initInspectorOutput, outputClear, outputEdited, outputSetFfmpeg, outputShow, outputShowMedia, setTemplateShower, updateRenderControls } from './inspector-output';
 import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
@@ -150,7 +151,7 @@ function select(entry: LibraryEntry): void {
   showInspectorTab('parameters');
   void window.pulp.markItemUsed(entry.id);
   selectedTemplate.value = entry;
-  stageShowTemplate(entry, paramsShow(entry), currentLayers(), currentTrack());
+  stageShowTemplate(entry, paramsShow(entry), currentLayers(), currentTrack(), currentCaptions());
   outputShow(entry);
   renderResults();
 }
@@ -395,6 +396,8 @@ initCleanup();
 initInspectorTabs();
 initTheater();
 initInspectorParams();
+// The captions dialog's own wiring (milestone 50): the model ask, the run and its progress.
+mountCaptions();
 setTemplateShower((templateId) => {
   const entry = appState.value.index?.templates.find((t) => t.manifest.id === templateId);
   if (entry && selectedTemplate.value?.manifest.id !== templateId) select(entry);
