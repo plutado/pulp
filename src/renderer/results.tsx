@@ -14,7 +14,7 @@
 
 import { render } from 'preact';
 import { effect, signal } from '@preact/signals';
-import { entryLabel, neighbourEntry } from '../core/app-state';
+import { entryLabel } from '../core/app-state';
 import { tagLabel } from '../core/display';
 import type { LibraryEntry } from '../core/library-types';
 import {
@@ -40,6 +40,17 @@ import { Icon, type IconName } from './icons';
 import { Thumb } from './item-preview';
 import { appState, dispatch, hasIndex, results, resultsView, selectedKey } from './store';
 import { runLibraryAdd } from './library-add';
+import { rovingTarget } from '../core/roving';
+
+/**
+ * The id the listbox points `aria-activedescendant` at, so a screen reader
+ * reads the card the arrows land on (milestone 8). The container keeps the
+ * focus rather than the cards: only the cards in view are in the DOM, and
+ * focus on an element the window is about to recycle would be lost.
+ */
+function optionId(entry: LibraryEntry): string {
+  return `result-${entry.id}`;
+}
 
 /** The scrolling viewport, measured: the column count, the window and the layout agree on one number. */
 const viewport = signal({ width: 0, height: 0 });
@@ -87,6 +98,7 @@ function summary(entry: LibraryEntry): string {
 function Card({ entry, selected, onSelect, gridRatio }: ItemProps & { gridRatio: number }) {
   return (
     <li
+      id={optionId(entry)}
       class={`card${entry.offline ? ' offline' : ''}`}
       role="option"
       data-id={entry.id}
@@ -118,6 +130,7 @@ function Row({ entry, selected, onSelect }: ItemProps) {
   const row = listRow(entry);
   return (
     <li
+      id={optionId(entry)}
       class={`row${entry.offline ? ' offline' : ''}`}
       role="option"
       data-id={entry.id}
@@ -224,19 +237,52 @@ function Results({ onSelect }: { onSelect: (entry: LibraryEntry) => void }) {
 }
 
 /**
- * Up and Down walk the results and show each item as they go — which is what
+ * The arrows walk the results and show each item as they go — which is what
  * audition mode listens through — and Escape stops whatever is playing.
+ *
+ * In the grid they walk it **as a grid** (milestone 8): one card across on
+ * Left and Right, one row on Up and Down, a screenful on Page Up and Page
+ * Down, the ends on Home and End. Before this, Up and Down moved one card in
+ * reading order, which in a grid of six across meant Up and the card beside
+ * the one above. A list is one column, so there Up and Down are what they
+ * always were and Left and Right say nothing.
  */
-function onKeyDown(event: KeyboardEvent, actions: ResultsActions): void {
+function onKeyDown(event: KeyboardEvent, actions: ResultsActions, container: HTMLElement): void {
   if (event.key === 'Escape') {
     actions.onStop();
     return;
   }
-  const delta = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
-  if (delta === 0) return;
+  const entries = results.value.entries;
+  const { grid, columns, rowHeight } = geometry(entries);
+  const at = entries.findIndex((e) => e.key === appState.value.shownKey);
+  const target = rovingTarget(event.key, {
+    count: entries.length,
+    index: at,
+    shape: grid ? 'grid' : 'list',
+    columns,
+    // A page is the rows a screenful holds, and at least one.
+    page: Math.max(1, Math.floor(viewport.value.height / Math.max(1, rowHeight))),
+  });
+  if (target === null) return;
   event.preventDefault();
-  const next = neighbourEntry(results.value.entries, appState.value.shownKey, delta);
-  if (next) actions.onSelect(next);
+  const next = entries[target];
+  if (!next) return;
+  actions.onSelect(next);
+  scrollRowIntoView(container, target, columns, rowHeight);
+}
+
+/**
+ * Keep the card the keyboard moved to in view. Only the rows in view are in
+ * the DOM, so there may be no element to scroll to yet: the row's place is
+ * arithmetic (`row * rowHeight`, as the window's own is), and moving the
+ * scroll brings the element with it.
+ */
+function scrollRowIntoView(container: HTMLElement, index: number, columns: number, rowHeight: number): void {
+  const row = Math.floor(index / Math.max(1, columns));
+  const top = row * rowHeight;
+  const bottom = top + rowHeight;
+  if (top < container.scrollTop) container.scrollTop = top;
+  else if (bottom > container.scrollTop + container.clientHeight) container.scrollTop = bottom - container.clientHeight;
 }
 
 /** What the region asks of the rest of the app; it knows no other region. */
@@ -249,7 +295,13 @@ export interface ResultsActions {
 /** Mounts into the existing #results element, which from then on belongs to Preact. */
 export function mountResults(container: HTMLElement, actions: ResultsActions): void {
   container.tabIndex = 0;
-  container.addEventListener('keydown', (e) => onKeyDown(e, actions));
+  container.addEventListener('keydown', (e) => onKeyDown(e, actions, container));
+  // What the arrows are on: the card a screen reader should read as the listbox's active one.
+  effect(() => {
+    const shown = results.value.entries.find((e) => e.key === appState.value.shownKey);
+    if (shown) container.setAttribute('aria-activedescendant', optionId(shown));
+    else container.removeAttribute('aria-activedescendant');
+  });
   const measure = () => {
     const { clientWidth: width, clientHeight: height } = container;
     if (width !== viewport.value.width || height !== viewport.value.height) viewport.value = { width, height };

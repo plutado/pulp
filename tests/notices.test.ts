@@ -9,7 +9,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { noticeSections } from '../src/core/notices';
+import { docSections, isDocTable } from '../src/core/doc-page';
 import { BUNDLED_FONTS } from '../src/core/fonts';
 
 const ROOT = join(__dirname, '..');
@@ -34,11 +34,11 @@ describe('third-party notices', () => {
   });
 
   it('reads into the sections the Acknowledgements dialog shows: a title, paragraphs and tables', () => {
-    const sections = noticeSections(notices);
+    const sections = docSections(notices);
     expect(sections[0]!.title).toBe('Third-party notices');
     expect(sections.map((s) => s.title)).toContain('Runtime');
     const runtime = sections.find((s) => s.title === 'Runtime')!;
-    const table = runtime.blocks.find((b): b is Exclude<typeof b, string> => typeof b !== 'string')!;
+    const table = runtime.blocks.find(isDocTable)!;
     expect(table.header).toEqual(['Component', 'Licence', 'Notes']);
     expect(table.rows.map((r) => r[0])).toEqual(['Electron', 'Chromium', 'Node.js']);
     // Inline marks are taken off: the dialog sets the words plainly.

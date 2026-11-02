@@ -9,12 +9,13 @@
  */
 
 import { render } from 'preact';
-import { computed, signal } from '@preact/signals';
+import { computed, effect, signal } from '@preact/signals';
 import { revealLabel } from '../core/display';
 import { queueCard, type QueueCard } from '../core/queue-card';
 import { isFinished, type RenderQueueJob } from '../core/render-queue';
 import { Icon } from './icons';
 import { appState } from './store';
+import { mountRovingGroup, paintRovingStops } from './roving';
 
 const jobs = computed(() => appState.value.jobs.jobs);
 
@@ -92,7 +93,9 @@ function Job({ job }: { job: RenderQueueJob }) {
     <li
       class={`job-card ${card.status.kind}${dragging.value === card.id ? ' dragging' : ''}`}
       draggable={card.draggable}
-      tabIndex={card.draggable ? 0 : -1}
+      // Every card is reachable, draggable or not (milestone 8): the list is one tab stop and Up
+      // and Down walk it, so a render in progress can be read and cancelled without a pointer.
+      tabIndex={-1}
       data-file={card.file}
       data-job={card.id}
       data-tip={card.tip}
@@ -159,4 +162,10 @@ function Queue() {
 
 export function mountQueue(container: HTMLElement): void {
   render(<Queue />, container);
+  mountRovingGroup(container, { shape: 'list', items: () => [...container.querySelectorAll<HTMLElement>('.job-card')] });
+  // Cards come and go as renders finish; the stop follows, so tabbing in always lands somewhere.
+  effect(() => {
+    void jobs.value;
+    requestAnimationFrame(() => paintRovingStops([...container.querySelectorAll<HTMLElement>('.job-card')], 0));
+  });
 }

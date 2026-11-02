@@ -30,6 +30,7 @@ import { initCrashLog } from './crash-log';
 import { initTour } from './tour';
 import { initWhatsNew } from './whats-new';
 import { initSettings } from './settings';
+import { initUserGuide } from './user-guide';
 import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
 import { importedFonts } from './store';
 import { mountIcons } from './icons';
@@ -429,6 +430,7 @@ initStageWindow();
 initTour();
 initWhatsNew();
 initSettings();
+initUserGuide();
 initStartScreen();
 void window.pulp.getStartScreenPrefs().then((prefs) => {
   if (prefs.showAtStartup) showStartScreen();

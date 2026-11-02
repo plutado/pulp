@@ -924,6 +924,14 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .settings-dialog .field.inline { margin: var(--space-2) 0; }
 .settings-head { margin: var(--space-3) 0 var(--space-1); font-size: var(--font-body); font-weight: 600; }
 .notices-body { max-height: 60vh; overflow-y: auto; font-size: var(--font-secondary); }
+/* The user guide (milestone 8): the same page in a dialog, with a strip of its sections across
+   the top — it is long, and a dialog is a small window onto it. */
+.guide-dialog { width: min(760px, 92vw); }
+.guide-contents { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--space-2) 0; }
+.guide-body { max-height: 62vh; }
+.guide-body h4 { margin: var(--space-2) 0 var(--space-1); font-size: var(--font-secondary); color: var(--text-secondary); }
+.guide-body ul { margin: 0 0 var(--space-2); padding-left: var(--space-4); }
+.guide-body li { margin-bottom: 4px; }
 .notices-body h3 { margin: var(--space-3) 0 var(--space-1); font-size: var(--font-body); }
 .notices-body p { margin: 0 0 var(--space-2); }
 .notices-body table { border-collapse: collapse; width: 100%; margin: 0 0 var(--space-2); }

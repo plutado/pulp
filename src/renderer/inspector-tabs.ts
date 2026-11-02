@@ -14,6 +14,7 @@
 
 import { INSPECTOR_TABS, type InspectorTab } from '../core/layout';
 import { setIcon } from './icons';
+import { mountRovingGroup, paintRovingStops } from './roving';
 import { onLayoutApplied, patchLayout } from './shell';
 
 export type { InspectorTab };
@@ -28,6 +29,10 @@ let open = false;
 let active: InspectorTab = 'parameters';
 let pinned = false;
 
+function tabButtons(): HTMLElement[] {
+  return INSPECTOR_TABS.map((tab) => $(`tab-${tab}`));
+}
+
 function apply(): void {
   $('app').classList.toggle('inspector-open', open);
   for (const tab of INSPECTOR_TABS) {
@@ -35,6 +40,8 @@ function apply(): void {
     $(`tab-${tab}`).setAttribute('aria-selected', String(chosen));
     $(`pane-${tab}`).hidden = !chosen;
   }
+  // A tablist is one tab stop, and it is the chosen tab (milestone 8): the arrows move inside it.
+  paintRovingStops(tabButtons(), INSPECTOR_TABS.indexOf(active));
 }
 
 /** Prime the active tab without opening or persisting: what selecting an item does. */
@@ -76,6 +83,12 @@ export function initInspectorTabs(): void {
   for (const tab of INSPECTOR_TABS) {
     $(`tab-${tab}`).addEventListener('click', () => toggleTab(tab));
   }
+  // Left and Right walk the three, as a tablist does; pressing one opens it, as clicking does.
+  mountRovingGroup($('transport-tabs'), {
+    shape: 'row',
+    items: tabButtons,
+    current: () => INSPECTOR_TABS.indexOf(active),
+  });
   $('inspector-close').addEventListener('click', closeInspector);
   const pin = $('inspector-pin');
   pin.addEventListener('click', () => {

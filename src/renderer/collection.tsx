@@ -9,7 +9,7 @@
  */
 
 import { render } from 'preact';
-import { computed } from '@preact/signals';
+import { computed, effect } from '@preact/signals';
 import { editingItem, setCollection, setEditing } from '../core/app-state';
 import { moveItem, removeItem, resolveCollection, type ResolvedItem } from '../core/collection';
 import { durationLabel, frameRateLabel } from '../core/display';
@@ -19,6 +19,7 @@ import { formatTimecode } from '../core/timecode';
 import { Icon } from './icons';
 import { BUNDLED_FAMILIES, importedFamilies } from '../core/fonts';
 import { appState, dispatch, importedFonts } from './store';
+import { mountRovingGroup, paintRovingStops } from './roving';
 import { relinkMissing } from './project';
 import { sanitizePsdChoice } from '../core/image-slot';
 import { psdCompositeUrlFor } from '../core/media-url';
@@ -79,7 +80,17 @@ function Item({ r, first, last }: { r: ResolvedItem; first: boolean; last: boole
     <li
       class={`job-card collection-card${chosen ? ' chosen' : ''}${trouble ? ' unusable' : ''}`}
       data-uid={item.uid}
+      role="option"
       aria-selected={chosen ? 'true' : 'false'}
+      // The list is one tab stop and Up and Down walk it (milestone 8); Enter or Space chooses a
+      // card, which is what clicking it does — before this a card could only be reached by its
+      // own buttons, so the settings of a collected item were out of a keyboard's reach.
+      tabIndex={-1}
+      onKeyDown={(e: KeyboardEvent) => {
+        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        dispatch((s) => setEditing(s, chosen ? null : item.uid));
+      }}
       onClick={() => dispatch((s) => setEditing(s, chosen ? null : item.uid))}
     >
       <span class="order">
@@ -143,6 +154,12 @@ function CollectionList() {
 
 export function mountCollection(container: HTMLElement): void {
   render(<CollectionList />, container);
+  mountRovingGroup(container, { shape: 'list', items: () => [...container.querySelectorAll<HTMLElement>('.collection-card')] });
+  // Items are added, removed and reordered; the stop follows them, so tabbing in lands somewhere.
+  effect(() => {
+    void resolved.value;
+    requestAnimationFrame(() => paintRovingStops([...container.querySelectorAll<HTMLElement>('.collection-card')], 0));
+  });
 }
 
 /** The item the inspector is editing, for the Output and Parameters tabs. */

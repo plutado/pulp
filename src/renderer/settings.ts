@@ -11,7 +11,7 @@
  */
 
 import noticesText from '../../THIRD_PARTY_NOTICES.md?raw';
-import { noticeSections } from '../core/notices';
+import { docSections, isDocTable } from '../core/doc-page';
 import type { PlayerState } from '../core/player';
 import { setCacheSummary } from './status-bar';
 
@@ -63,14 +63,14 @@ export async function showSettings(): Promise<void> {
 export function showAcknowledgements(): void {
   const body = $('notices-body');
   body.replaceChildren();
-  for (const section of noticeSections(noticesText)) {
+  for (const section of docSections(noticesText)) {
     const head = document.createElement('h3');
     head.textContent = section.title;
     body.append(head);
     for (const block of section.blocks) {
-      if (typeof block === 'string') {
+      if (!isDocTable(block)) {
         const p = document.createElement('p');
-        p.textContent = block;
+        p.textContent = typeof block === 'string' ? block : block.items.join(' · ');
         body.append(p);
         continue;
       }

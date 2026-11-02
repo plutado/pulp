@@ -21,6 +21,7 @@ import { newProject, openExampleFrom, openProjectFrom } from './project';
 import { showShortcuts } from './shortcuts';
 import { runLibraryAdd } from './library-add';
 import { showWhatsNew } from './whats-new';
+import { showUserGuide } from './user-guide';
 import { startTour } from './tour';
 import { setIcon } from './icons';
 
@@ -300,6 +301,7 @@ export function initStartScreen(): void {
     hideStartScreen();
     startTour();
   });
+  $('start-guide').addEventListener('click', showUserGuide);
   $('start-whats-new').addEventListener('click', showWhatsNew);
   $('start-shortcuts').addEventListener('click', () => void showShortcuts());
   // The same three the browse panel's Add offers, in the same words (milestone 47).

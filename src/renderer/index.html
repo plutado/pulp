@@ -30,12 +30,12 @@
           <input id="search" type="search" list="search-history" placeholder="Search templates and media" aria-label="Search templates and media" autocomplete="off" spellcheck="false" data-tip="Free text, or a filter: tag: type: theme: style: category: pack: duration: width: height: fps: res: codec: alpha: orientation: favorite: recent: — for example type:wipe theme:news duration:>5">
           <datalist id="search-history"></datalist>
         </span>
-        <span id="scope-chip" class="scope-chip" hidden>
+        <span id="scope-chip" class="scope-chip" role="status" hidden>
           <span id="scope-chip-icon" class="icon-slot" aria-hidden="true"></span>
           <span id="scope-chip-label"></span>
           <button id="scope-chip-clear" type="button" class="icon-button" data-icon="x" aria-label="Clear the search scope" data-tip="Search the whole library again"></button>
         </span>
-        <div class="filter-chips" role="group" aria-label="Filters">
+        <div id="filter-chips" class="filter-chips" role="toolbar" aria-label="Filters">
           <button id="chip-templates" class="chip" type="button" data-chip="templates" data-icon="shapes" aria-pressed="false" aria-label="Templates" data-tip="Templates only"><span class="label">Templates</span></button>
           <button id="chip-video" class="chip" type="button" data-chip="video" data-icon="film-strip" aria-pressed="false" aria-label="Video" data-tip="Video only"><span class="label">Video</span></button>
           <button id="chip-image" class="chip" type="button" data-chip="image" data-icon="image" aria-pressed="false" aria-label="Images" data-tip="Images only"><span class="label">Images</span></button>
@@ -329,7 +329,7 @@
         </div>
         <p id="collection-note" class="note" role="status"></p>
         <div class="tray-lists">
-          <ul id="collection" class="queue collection" aria-label="Collection"></ul>
+          <ul id="collection" class="queue collection" role="listbox" aria-label="Collection"></ul>
           <ul id="queue" class="queue" aria-label="Renders" aria-live="polite" data-tip="A finished render: drag it into your editor, or press Enter to show it in the file manager and Cmd+C or Ctrl+C to copy its path"></ul>
         </div>
         <div class="tray-foot">
@@ -394,7 +394,7 @@
           </span>
           <button id="audition" type="button" class="icon-button" data-icon="play-circle" data-icon-size="20" aria-pressed="false" aria-label="Audition mode" data-tip="Audition: choosing a sound plays it, and the arrow keys move through the results"></button>
           <button id="add-to-collection" type="button" class="icon-button" disabled data-icon="stack" data-icon-size="20" aria-label="Add to collection" data-tip="Add this item to the collection in the tray"></button>
-          <span class="transport-tabs" role="tablist" aria-label="Inspector sections">
+          <span id="transport-tabs" class="transport-tabs" role="tablist" aria-label="Inspector sections">
             <button id="tab-parameters" class="tab" type="button" role="tab" aria-selected="true" aria-controls="pane-parameters" data-icon="sliders-horizontal" data-tip="The template's own settings; choosing again closes the drawer"><span class="label">Parameters</span></button>
             <button id="tab-output" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-output" data-icon="export" data-tip="Format, size and trim of a render; choosing again closes the drawer"><span class="label">Output</span></button>
             <button id="tab-info" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-info" data-icon="info" data-tip="What the item is; choosing again closes the drawer"><span class="label">Info</span></button>
@@ -451,6 +451,7 @@
           <div class="start-actions">
             <button id="start-tour" type="button">Take the tour</button>
             <button id="start-whats-new" type="button">What&#8217;s new</button>
+            <button id="start-guide" type="button">User guide</button>
             <button id="start-shortcuts" type="button">Keyboard shortcuts</button>
           </div>
           <p id="start-tour-hint" class="note" hidden>New here? The tour shows the window in seven short steps.</p>
@@ -531,6 +532,17 @@
       <div class="dialog-actions render-actions">
         <span class="dialog-spacer"></span>
         <button id="settings-close" value="cancel">Close</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="guide-dialog" class="pack-dialog guide-dialog" aria-labelledby="guide-title">
+    <form method="dialog">
+      <h2 id="guide-title">Using Pulp</h2>
+      <nav id="guide-contents" class="guide-contents" aria-label="Sections of the guide"></nav>
+      <div id="guide-body" class="notices-body guide-body" tabindex="0" role="document"></div>
+      <div class="dialog-actions render-actions">
+        <span class="dialog-spacer"></span>
+        <button id="guide-close" value="cancel">Close</button>
       </div>
     </form>
   </dialog>

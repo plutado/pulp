@@ -102,6 +102,7 @@ export type MenuCommand =
   | 'help.tour'
   | 'help.whatsNew'
   | 'help.shortcuts'
+  | 'help.userGuide'
   | 'help.acknowledgements'
   | 'help.diagnostics'
   | 'app.settings';
@@ -556,6 +557,7 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
   sections.push({
     label: 'Help',
     items: [
+      { command: 'help.userGuide', label: 'User Guide' },
       { command: 'help.tour', label: 'Take the Tour' },
       { command: 'help.whatsNew', label: "What's New" },
       sep,

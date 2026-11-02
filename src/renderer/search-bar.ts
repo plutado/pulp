@@ -9,6 +9,7 @@ import { forOptions, lookOptions, scopeCategory, type ChipOption } from '../core
 import { resultsKind, THUMB_SIZES, withThumbSize, withViewMode, type ResultsViewState, type ViewMode } from '../core/results-view';
 import { appState, dispatch, facets, results, resultsView } from './store';
 import { scopeIcon, setIcon } from './icons';
+import { mountRovingGroup } from './roving';
 
 const $ = (id: string): HTMLElement => {
   const el = document.getElementById(id);
@@ -148,6 +149,8 @@ export function initSearchBar(): void {
     const button = $(`chip-${def.id}`);
     button.addEventListener('click', () => dispatch((s) => toggleFilter(s, def.id)));
   }
+  // Seven chips are one tab stop, not seven: Left and Right walk them (milestone 8).
+  mountRovingGroup($('filter-chips'), { shape: 'row', items: () => FILTER_CHIPS.map((def) => $(`chip-${def.id}`)) });
   effect(() => {
     const active = appState.value.filters;
     for (const def of FILTER_CHIPS) $(`chip-${def.id}`).setAttribute('aria-pressed', String(active.includes(def.id)));

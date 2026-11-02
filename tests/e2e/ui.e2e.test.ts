@@ -3721,6 +3721,58 @@ describe.skipIf(!electron)('inspector UI', () => {
   });
 
   describe('the window shell', () => {
+    // Milestone 8's accessibility pass: a group of controls is one tab stop, and the arrows move
+    // inside it. The arithmetic has its own unit tests; this is the window really doing it.
+    it('moves by the arrows inside the chips, the tabs and the results, with one tab stop each', async () => {
+      // The filter chips: seven chips, one tab stop, Left and Right walking them and wrapping.
+      const chipStops = () => page.eval<number>(`[...document.querySelectorAll('#filter-chips .chip')].filter((c) => c.tabIndex === 0).length`);
+      expect(await chipStops(), 'one tab stop for the row').toBe(1);
+      await page.eval(`document.getElementById('chip-templates').focus()`);
+      const press = (id: string, key: string) =>
+        page.eval(`document.getElementById(${JSON.stringify(id)}).dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(key)}, bubbles: true }))`);
+      await press('chip-templates', 'ArrowRight');
+      expect(await page.eval<string>(`document.activeElement.id`)).toBe('chip-video');
+      expect(await chipStops(), 'still one tab stop, where the focus is').toBe(1);
+      await press('chip-video', 'ArrowLeft');
+      await press('chip-templates', 'ArrowLeft');
+      expect(await page.eval<string>(`document.activeElement.id`), 'the row wraps at its ends').toBe('chip-favorites');
+      await press('chip-favorites', 'Home');
+      expect(await page.eval<string>(`document.activeElement.id`)).toBe('chip-templates');
+      // Arrowing to a chip does not press it: the filters are untouched.
+      expect(await page.eval<string>(`document.getElementById('chip-templates').getAttribute('aria-pressed')`)).toBe('false');
+
+      // The inspector's tabs, the same way; the tab stop is the chosen one.
+      await openTab('parameters');
+      expect(await page.eval<number>(`[...document.querySelectorAll('#transport-tabs .tab')].filter((t) => t.tabIndex === 0).length`)).toBe(1);
+      expect(await page.eval<boolean>(`document.getElementById('tab-parameters').tabIndex === 0`)).toBe(true);
+      await page.eval(`document.getElementById('tab-parameters').focus()`);
+      await press('tab-parameters', 'ArrowRight');
+      expect(await page.eval<string>(`document.activeElement.id`)).toBe('tab-output');
+
+      // The results are a grid, so Down moves a whole row rather than one card along it.
+      await page.eval(`document.getElementById('view-grid').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('results').classList.contains('grid')`), 'the grid of cards');
+      const names = await resultNames();
+      const columns = await page.eval<number>(`Number(getComputedStyle(document.getElementById('results')).getPropertyValue('--cols'))`);
+      expect(columns, 'more than one column, or a grid proves nothing').toBeGreaterThan(1);
+      await clickResult(names[0]!);
+      const shown = () => page.eval<string>(`document.querySelector('#results .card[aria-selected=true] .name').textContent`);
+      expect(await shown()).toBe(names[0]);
+      await page.eval(`document.getElementById('results').focus()`);
+      const arrow = (key: string) => page.eval(`document.getElementById('results').dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(key)}, bubbles: true }))`);
+      await arrow('ArrowDown');
+      await until(async () => (await shown()) === names[columns], 'a row down, not a card along');
+      await arrow('ArrowRight');
+      await until(async () => (await shown()) === names[columns + 1], 'one card across');
+      await arrow('ArrowUp');
+      await until(async () => (await shown()) === names[1], 'a row back up');
+      // And the listbox says which option the arrows are on, for a screen reader.
+      const active = await page.eval<string>(`document.getElementById('results').getAttribute('aria-activedescendant')`);
+      expect(await page.eval<boolean>(`!!document.getElementById(${JSON.stringify(active)})`), 'the active option is in the DOM').toBe(true);
+      await arrow('Home');
+      await until(async () => (await shown()) === names[0], 'Home goes to the first');
+    }, 90_000);
+
     it('has Pulp\'s own application menu, offering only what can act (milestone 27)', async () => {
       // The menu is built in the main process, so it is read back from there; what it offers is
       // decided by the state the window pushes, which is read off the window's own controls.
@@ -3845,6 +3897,17 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`(() => { const c = document.getElementById('settings-start-screen'); c.checked = ${startAt}; c.dispatchEvent(new Event('change')); })()`);
       await until(() => page.eval<{ showAtStartup: boolean }>(`window.pulp.getStartScreenPrefs()`).then((p) => p.showAtStartup === startAt), 'the setting put back');
       await page.eval(`document.getElementById('settings-close').click()`);
+
+      // Help > User Guide shows the guide itself, with a strip of its sections (milestone 8).
+      await page.eval(`window.pulpMenuCommand('help.userGuide')`);
+      await until(() => page.eval<boolean>(`document.getElementById('guide-dialog').open === true`), 'the user guide');
+      expect(await page.eval<string[]>(`[...document.querySelectorAll('#guide-contents button')].map((b) => b.textContent)`))
+        .toEqual(['The window', 'Making something', 'Keys worth knowing', 'Searching', 'Where your things are', 'More']);
+      expect(await page.eval<string>(`document.getElementById('guide-body').textContent`)).toContain('Cmd/Ctrl+F');
+      // A section in the strip scrolls the guide to it.
+      await page.eval(`[...document.querySelectorAll('#guide-contents button')].find((b) => b.textContent === 'Searching').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('guide-body').scrollTop > 0`), 'the guide scrolled to the section');
+      await page.eval(`document.getElementById('guide-close').click()`);
 
       // Help > Acknowledgements shows the third-party notices file itself.
       await page.eval(`window.pulpMenuCommand('help.acknowledgements')`);
