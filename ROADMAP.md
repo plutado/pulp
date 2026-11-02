@@ -71,7 +71,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 54. A panel inside the editing apps (post-1.0) | 30-50 h |
 | 55. A visual template editor (post-1.0) | 40-70 h |
 | 56. Speed changes on the cut track (post-1.0, **done**) | 10-16 h |
-| 57. A second picture track (post-1.0) | 16-26 h |
+| 57. A second picture track (post-1.0, **done**) | 16-26 h |
 | 58. Reliability, scale and speed (post-1.0) | 16-28 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **35-59 h** |
