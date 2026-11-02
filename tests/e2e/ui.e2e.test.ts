@@ -5231,8 +5231,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       const setSearch = (q: string) => page.eval(`(() => { const s = document.getElementById('search'); s.value = ${JSON.stringify(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 
       try {
-        // Narrow to audio, which also puts the results in list view.
-        await setSearch('type:audio');
+        // Narrow to audio, which also puts the results in list view — and to the one sound, since
+        // the steps below walk a one-item list and milestone 50 added a spoken sample beside it.
+        await setSearch('type:audio silence');
         await until(async () => (await resultNames()).includes('silence'), 'the audio results');
         expect(await page.eval<boolean>(`document.getElementById('results').classList.contains('list')`)).toBe(true);
 
