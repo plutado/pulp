@@ -3830,6 +3830,28 @@ describe.skipIf(!electron)('inspector UI', () => {
       // said it where nobody could see it unless that dialog happened to be open.
       await page.eval(`window.pulpMenuCommand('help.diagnostics')`);
       await until(() => page.eval<string>(`document.querySelector('#status-diagnostics .label').textContent`).then((t) => t === 'Diagnostics copied'), 'the diagnostics confirmation');
+
+      // Settings… (milestone 8): where the platform puts it, and every control reading the very
+      // setting the rest of the window keeps — the start screen's own checkbox says the same.
+      const settingsIn = process.platform === 'darwin' ? 'Pulp' : 'Edit';
+      expect((await item(settingsIn, 'Settings…')).accelerator).toBe('CmdOrCtrl+,');
+      await page.eval(`window.pulpMenuCommand('app.settings')`);
+      await until(() => page.eval<boolean>(`document.getElementById('settings-dialog').open === true`), 'the settings dialog');
+      await until(() => page.eval<string>(`document.getElementById('settings-ffmpeg').textContent`).then((t) => t.startsWith('FFmpeg')), 'the FFmpeg line');
+      expect(await page.eval<string>(`document.getElementById('settings-cache-summary').textContent`)).not.toBe('');
+      const startAt = await page.eval<boolean>(`document.getElementById('settings-start-screen').checked`);
+      await page.eval(`(() => { const c = document.getElementById('settings-start-screen'); c.checked = ${!startAt}; c.dispatchEvent(new Event('change')); })()`);
+      await until(() => page.eval<{ showAtStartup: boolean }>(`window.pulp.getStartScreenPrefs()`).then((p) => p.showAtStartup === !startAt), 'the setting written');
+      await page.eval(`(() => { const c = document.getElementById('settings-start-screen'); c.checked = ${startAt}; c.dispatchEvent(new Event('change')); })()`);
+      await until(() => page.eval<{ showAtStartup: boolean }>(`window.pulp.getStartScreenPrefs()`).then((p) => p.showAtStartup === startAt), 'the setting put back');
+      await page.eval(`document.getElementById('settings-close').click()`);
+
+      // Help > Acknowledgements shows the third-party notices file itself.
+      await page.eval(`window.pulpMenuCommand('help.acknowledgements')`);
+      await until(() => page.eval<boolean>(`document.getElementById('notices-dialog').open === true`), 'the acknowledgements dialog');
+      expect(await page.eval<string[]>(`[...document.querySelectorAll('#notices-body h3')].map((h) => h.textContent)`)).toContain('Runtime');
+      expect(await page.eval<string>(`document.getElementById('notices-body').textContent`)).toContain('Electron');
+      await page.eval(`document.getElementById('notices-close').click()`);
     }, 90_000);
 
     it('picks the cover frame on the scrub bar and marks it (milestone 20)', async () => {

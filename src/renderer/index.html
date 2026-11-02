@@ -506,6 +506,44 @@
       </div>
     </form>
   </dialog>
+  <dialog id="settings-dialog" class="pack-dialog settings-dialog" aria-labelledby="settings-title">
+    <form method="dialog">
+      <h2 id="settings-title">Settings</h2>
+      <p class="note">What the window remembers between sessions, kept beside the library in your settings file. Every control here is the same setting the rest of the window reads.</p>
+      <label class="field inline">
+        <input id="settings-start-screen" type="checkbox">
+        <span>Show the start screen at launch</span>
+      </label>
+      <label class="field inline" data-tip="Choosing a sound in the results plays it, so a list can be heard by arrowing through it">
+        <input id="settings-audition" type="checkbox">
+        <span>Play a sound when it is chosen</span>
+      </label>
+      <h3 class="settings-head">FFmpeg</h3>
+      <p id="settings-ffmpeg" class="note" role="status"></p>
+      <p class="note">Pulp finds FFmpeg on your path, or where the PULP_FFMPEG_PATH environment variable points, when it starts. Renders need it; the rest of Pulp does not.</p>
+      <h3 class="settings-head">Render cache</h3>
+      <p id="settings-cache-summary" class="note"></p>
+      <div class="key-controls">
+        <label>Limit, MB <input id="settings-cache-limit" type="number" min="100" max="100000" step="100"></label>
+        <button id="settings-cache-dir" type="button" class="ghost">Choose folder…</button>
+        <button id="settings-cache-clear" type="button" class="ghost">Clear cache</button>
+      </div>
+      <div class="dialog-actions render-actions">
+        <span class="dialog-spacer"></span>
+        <button id="settings-close" value="cancel">Close</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="notices-dialog" class="pack-dialog notices-dialog" aria-labelledby="notices-title">
+    <form method="dialog">
+      <h2 id="notices-title">Acknowledgements</h2>
+      <div id="notices-body" class="notices-body"></div>
+      <div class="dialog-actions render-actions">
+        <span class="dialog-spacer"></span>
+        <button id="notices-close" value="cancel">Close</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="cache-dialog" class="pack-dialog cache-dialog" aria-labelledby="cache-title">
     <form method="dialog">
       <h2 id="cache-title">Render cache</h2>

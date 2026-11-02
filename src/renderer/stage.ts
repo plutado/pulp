@@ -32,6 +32,7 @@ import type { CutTrack } from '../core/cut-track';
 import { cutTrackTakeDrop, cutTrackUpdate, mountCutTrack } from './cut-track';
 import { mountTrackPicture, trackPictureDebug, trackPictureDraw, trackPictureSync } from './stage-track';
 import { captionsPreviewDraw, captionsPreviewSync, mountCaptionsPreview } from './stage-captions';
+import { registerPlayerSetter } from './settings';
 import type { CaptionsValue } from '../core/captions';
 import { layerBarsUpdate, mountLayerBars } from './stage-bars';
 import { layerEditor, selectedLayer } from './layer-edit';
@@ -1125,6 +1126,8 @@ export function initStage(): void {
   els.bgCustom.addEventListener('input', () => setPlayer({ background: 'custom', customBackground: els.bgCustom.value }));
   els.safeToggle.addEventListener('click', () => setPlayer({ safeAreas: !s.player.safeAreas }));
   mountCaptionsPreview(els.captions);
+  // The Settings window (milestone 8) sets audition through the same path the stage's own button does.
+  registerPlayerSetter(setPlayer);
   mountStageLayers(els.layerOverlay, { frameSize: () => previewSize() });
   // The right-click menu (milestone 39) is mounted on the picture, not the overlay: the overlay
   // stands aside when a template has no layers yet, which is exactly when adding one is wanted.

@@ -1,0 +1,36 @@
+name: Bug report
+description: Something Pulp did wrong, or did not do.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. The more of this you can fill in, the faster it can be fixed. **Copy diagnostics** (the status items in the transport row, or Help → Copy Diagnostics) puts the facts and the log's last lines on your clipboard; paste them below. Paths in it read as `~`, and nothing in it leaves your machine until you paste it here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what Pulp did instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Title Card template
+        2. Set the length to 20 s
+        3. Render as ProRes 4444
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Paste what Copy diagnostics put on the clipboard.
+      render: text
+  - type: textarea
+    id: files
+    attributes:
+      label: Files
+      description: If a template, pack, media file or project triggers it, attach it or a cut-down copy. Only share what you have the right to share.

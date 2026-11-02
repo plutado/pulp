@@ -1,0 +1,32 @@
+name: Idea
+description: Something Pulp could do, or do better.
+labels: [idea]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome. `ROADMAP.md` is the plan and `docs/ideas.md` is where ideas wait before they are decided; have a look at both first, since yours may already be there.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The job, in your words, rather than the feature. What are you making, and where does Pulp get in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What might help
+      description: If you have a shape in mind, describe it. If not, leave this blank.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Templates and the format
+        - The library, search and browsing
+        - The stage, layers and the cut track
+        - Rendering and output
+        - Sound and captions
+        - The window and its regions
+        - Something else

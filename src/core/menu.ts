@@ -102,7 +102,9 @@ export type MenuCommand =
   | 'help.tour'
   | 'help.whatsNew'
   | 'help.shortcuts'
-  | 'help.diagnostics';
+  | 'help.acknowledgements'
+  | 'help.diagnostics'
+  | 'app.settings';
 
 /**
  * What the window can do right now. Every flag is something a menu item asks
@@ -415,6 +417,9 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       items: [
         { role: 'about', label: `About ${appName}` },
         sep,
+        // The Settings window (milestone 8): where the platform puts it, under the app's own menu.
+        { command: 'app.settings', label: 'Settings…', accelerator: 'CmdOrCtrl+,' },
+        sep,
         { role: 'hide', label: `Hide ${appName}` },
         { role: 'hideOthers' },
         { role: 'unhide' },
@@ -473,6 +478,8 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       // is reached from the funnel in the Browse heading, and has no key of its own.
       { command: 'search.focus', label: 'Search', accelerator: 'CmdOrCtrl+F' },
       { command: 'browse.filter', label: 'Filter Categories' },
+      // Settings lives in Edit everywhere but macOS, which keeps it in the app's own menu.
+      ...(mac ? [] : [sep, { command: 'app.settings' as const, label: 'Settings…', accelerator: 'CmdOrCtrl+,' }]),
     ],
   });
 
@@ -553,6 +560,8 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       { command: 'help.whatsNew', label: "What's New" },
       sep,
       { command: 'help.shortcuts', label: 'Keyboard Shortcuts' },
+      // The third-party notices (milestone 8): what Pulp is built on, each under its own licence.
+      { command: 'help.acknowledgements', label: 'Acknowledgements' },
       { command: 'help.diagnostics', label: 'Copy Diagnostics' },
     ],
   });

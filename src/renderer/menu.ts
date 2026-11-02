@@ -27,6 +27,7 @@ import { newProject, openProjectFrom, saveProject } from './project';
 import { showShortcuts } from './shortcuts';
 import { showStartScreen } from './start-screen';
 import { showWhatsNew } from './whats-new';
+import { showAcknowledgements, showSettings } from './settings';
 import { startTour } from './tour';
 import { findControl, stageIsOut, stageOnDisplay, toggleStagePopOut } from './stage-window';
 import { libraryAddState, runLibraryAdd } from './library-add';
@@ -122,6 +123,8 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'help.tour': startTour(); return;
     case 'help.whatsNew': showWhatsNew(); return;
     case 'help.shortcuts': void showShortcuts(); return;
+    case 'help.acknowledgements': showAcknowledgements(); return;
+    case 'app.settings': void showSettings(); return;
     // The status item is the button for it, so the menu presses that rather than keeping a second way.
     case 'help.diagnostics': press('status-diagnostics'); return;
   }

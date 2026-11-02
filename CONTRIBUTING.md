@@ -9,7 +9,7 @@ Read this file first, then what the task needs:
 - `ROADMAP.md`: the plan, milestone by milestone, and what to work on next.
 - `docs/ideas.md`: ideas not yet decided, known issues, and how an idea becomes roadmap work.
 - `docs/ui-layout.md` and `docs/ui-style.md`: before any UI work (regions, labels, icons, tokens).
-- `docs/template-format.md`: before changing a template or the format.
+- `docs/template-authoring.md`: before writing a template; `docs/template-format.md`: before changing a template or the format.
 - `docs/platform-notes.md`: before investigating any capture, color, platform or CI symptom.
 - `docs/decisions/`: before reversing or reworking a past choice.
 
@@ -75,6 +75,8 @@ The steps above for sending a pull request are for contributors working from the
 
 ## Writing templates
 
-See `docs/template-format.md`. The samples in `templates/` are small and are a good starting point. Contributed sample templates should be CC0 1.0 or MIT.
+Start with `docs/template-authoring.md`, which builds `examples/pulp-template/` step by step; `docs/template-format.md` is the specification. The samples in `templates/` are small and are a good starting point too. Contributed sample templates should be CC0 1.0 or MIT.
+
+A new runtime dependency goes into `THIRD_PARTY_NOTICES.md` with its licence; the notices test fails until it does. Security problems go through `SECURITY.md`, not an issue, and everyone taking part is held to `CODE_OF_CONDUCT.md`.
 
 By contributing, you agree that your contributions are licensed under the project's MIT license (code) or the license stated for the template you add.

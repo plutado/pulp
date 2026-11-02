@@ -919,6 +919,16 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
    pointer: the layers and the overlay above it are what a hand reaches for. */
 .preview .track-picture { pointer-events: none; }
 
+/* The Settings window and the Acknowledgements (milestone 8): two dialogs in the pack dialog's
+   clothes, since a window of settings on a desktop is a dialog over the window that has them. */
+.settings-dialog .field.inline { margin: var(--space-2) 0; }
+.settings-head { margin: var(--space-3) 0 var(--space-1); font-size: var(--font-body); font-weight: 600; }
+.notices-body { max-height: 60vh; overflow-y: auto; font-size: var(--font-secondary); }
+.notices-body h3 { margin: var(--space-3) 0 var(--space-1); font-size: var(--font-body); }
+.notices-body p { margin: 0 0 var(--space-2); }
+.notices-body table { border-collapse: collapse; width: 100%; margin: 0 0 var(--space-2); }
+.notices-body th, .notices-body td { text-align: left; vertical-align: top; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--border); }
+
 /* The captions (milestone 50): the chosen caption style's own page, after the template's in the
    DOM so the words sit over the graphic, as they sit over everything in the finished video. It
    takes no pointer either — the rule above covers every iframe in the picture. */

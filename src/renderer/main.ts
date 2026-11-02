@@ -29,6 +29,7 @@ import { initStageWindow } from './stage-window';
 import { initCrashLog } from './crash-log';
 import { initTour } from './tour';
 import { initWhatsNew } from './whats-new';
+import { initSettings } from './settings';
 import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
 import { importedFonts } from './store';
 import { mountIcons } from './icons';
@@ -427,6 +428,7 @@ initStageWindow();
 // The start screen, tour and What's new (milestone 31); File → Home brings the screen back.
 initTour();
 initWhatsNew();
+initSettings();
 initStartScreen();
 void window.pulp.getStartScreenPrefs().then((prefs) => {
   if (prefs.showAtStartup) showStartScreen();

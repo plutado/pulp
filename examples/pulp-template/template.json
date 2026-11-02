@@ -1,0 +1,41 @@
+{
+  "formatVersion": 1,
+  "id": "example.starter.lower-third",
+  "name": "Starter Lower Third",
+  "description": "The starter template from the authoring guide: a bar that slides in, two lines of type that ride it, a logo slot, and a hold that stretches to any length.",
+  "version": "1.0.0",
+  "author": "Your name",
+  "license": "CC0-1.0",
+  "category": "lower-third",
+  "type": "lower-third",
+  "themes": ["corporate"],
+  "styles": ["clean"],
+  "tags": ["starter", "lower third"],
+  "duration": 6,
+  "structure": { "holdFrom": 1, "holdTo": 5 },
+  "fps": 30,
+  "aspects": ["16:9", "9:16", "1:1", "4:5"],
+  "alpha": true,
+  "parameters": [
+    { "id": "bar", "type": "color", "label": "Fill", "default": "#1d4ed8", "element": "Bar" },
+    { "id": "accent", "type": "color", "label": "Accent", "default": "#facc15", "element": "Bar" },
+    { "id": "logo", "type": "image", "label": "Logo", "box": { "x": 0.08, "y": 0.7, "width": 0.1, "height": 0.16 }, "fit": "contain", "margin": 0.1, "fallbackText": "name", "element": "Logo" },
+    { "id": "inOut", "type": "number", "label": "Animate in and out, seconds", "default": 0.6, "min": 0.2, "max": 1, "step": 0.1, "element": "Layout and timing" }
+  ],
+  "blocks": [
+    {
+      "id": "strap",
+      "label": "Strap",
+      "box": {
+        "16:9": { "x": 0.2, "y": 0.72, "width": 0.6, "height": 0.16 },
+        "default": { "x": 0.08, "y": 0.6, "width": 0.84, "height": 0.16 }
+      },
+      "gap": 0.01,
+      "typography": { "family": "Inter", "size": 0.06, "weight": 700, "color": "#ffffff" },
+      "layers": [
+        { "id": "name", "type": "text", "label": "Name", "text": "Jane Doe", "required": true, "case": "upper" },
+        { "id": "title", "type": "text", "label": "Title", "text": "Reporter", "size": 0.04, "weight": 400, "color": "#dbeafe" }
+      ]
+    }
+  ]
+}

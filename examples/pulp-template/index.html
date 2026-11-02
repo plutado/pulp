@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Starter Lower Third</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // The starter template from docs/template-authoring.md. CC0-1.0: no rights reserved.
+  // Every frame is drawn from `state` alone: no clocks, no timers, no randomness (rule 1 of the
+  // format). The host calls pulpRender once per frame, in any order, as often as it likes.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  // Canvas text never triggers a font load, so the bundled face is asked for before the first frame.
+  document.fonts.load('700 48px Inter');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+
+  window.pulpRender = function (state) {
+    // Size the canvas from the state, never from a constant: the same page is drawn wide and tall.
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, p = state.params;
+    // A unit from the short side, so the design keeps its proportions at every shape and size.
+    var u = Math.min(W, H) / 1080;
+    ctx.clearRect(0, 0, W, H);
+
+    // Timing on the template's own clock. The hold (1 s to 5 s, declared in the manifest) is
+    // what stretches when a person asks for another length; the entrance and the exit keep
+    // the speed they were designed at, so they are timed from the ends.
+    var inAt = easeOut(clamp01(state.time / p.inOut));
+    var outAt = easeOut(clamp01((state.time - (state.duration - p.inOut)) / p.inOut));
+    var shown = inAt * (1 - outAt);
+    if (shown <= 0.001) return;
+
+    // The block the host laid out for this frame: where the strap is, in pixels of this frame.
+    var block = state.blocks.strap;
+    var box = block.box;
+    var pad = 28 * u;
+
+    ctx.save();
+    ctx.globalAlpha = shown;
+    // The bar slides in from the left and leaves the same way.
+    var slide = (1 - inAt) * -box.width + outAt * -box.width;
+    ctx.translate(slide, 0);
+    ctx.fillStyle = p.bar;
+    ctx.fillRect(box.x - pad, box.y - pad / 2, box.width + pad * 2, box.height + pad);
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(box.x - pad, box.y - pad / 2, 10 * u, box.height + pad);
+
+    // The logo slot: the chosen picture, or the name in type where the logo would be.
+    var logo = state.images.logo;
+    if (!window.pulpDrawImage(ctx, state, 'logo')) {
+      ctx.fillStyle = p.accent;
+      ctx.font = '700 ' + Math.round(36 * u) + 'px Inter';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(logo.fallback || '', logo.box.x, logo.box.y + logo.box.height / 2);
+    }
+
+    // The lines of type: the host measures, wraps and stacks them, and whatever `each` returns
+    // rides that position — so a line a person adds in the Parameters tab moves as this one does.
+    var laid = window.pulpLayoutBlock(ctx, state, 'strap', {
+      each: function (layer, position) {
+        var start = 0.15 * position;
+        var a = easeOut(clamp01((state.time - start) / p.inOut));
+        return { alpha: a, dx: (1 - a) * 40 * u };
+      }
+    });
+    window.pulpDrawBlock(ctx, laid);
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

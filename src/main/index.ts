@@ -976,6 +976,9 @@ async function runCliBatch(cli: CliRender, template: NonNullable<Awaited<ReturnT
 const cli = parseCliRender(process.argv);
 
 app.whenReady().then(async () => {
+  // The platform's About panel is a role Pulp cannot put a button on, so its credits line points
+  // at the third-party notices, which Help → Acknowledgements shows in full (milestone 8).
+  app.setAboutPanelOptions({ applicationName: app.getName(), applicationVersion: app.getVersion(), credits: 'Built on Electron, Chromium and open-source work under their own licences: Help → Acknowledgements.' });
   handleTemplateProtocol();
   handleMediaProtocol();
   handleThumbProtocol();
