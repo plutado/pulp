@@ -8,8 +8,8 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  CUT_TRACK_LIMITS, cutFromClip, cutIndexAt, cutWindows, MIN_CUT_SECONDS, sanitizeCutTrack, snapTime,
-  healedTrack, splitAt, trackAudio, trackDuration, trackSourceAt, transitionAt, withCutInserted, withCutSound, withCutTransition, withSilencesCut, withCutMoved, withCutRemoved, withCutWindow, type CutTrack,
+  CUT_TRACK_LIMITS, cutFromClip, cutIndexAt, cutRateAt, cutSeconds, cutSourceTime, cutTimelineTime, cutWindows, MIN_CUT_SECONDS, sanitizeCutTrack, snapTime,
+  healedTrack, splitAt, trackAudio, trackDuration, trackSourceAt, transitionAt, withCutHold, withCutInserted, withCutSound, withCutSpeed, withCutTransition, withFreezeAt, withSilencesCut, withCutMoved, withCutRemoved, withCutWindow, type Cut, type CutTrack,
 } from '../src/core/cut-track';
 
 const id = (n: number) => String(n).repeat(24);
@@ -230,5 +230,153 @@ describe('reading a stored track', () => {
     expect(sanitizeCutTrack('x')).toBeNull();
     const long = { cuts: Array.from({ length: CUT_TRACK_LIMITS.count + 9 }, () => ({ id: 'a', from: 0, to: 1 })) };
     expect(sanitizeCutTrack(long)!.cuts).toHaveLength(CUT_TRACK_LIMITS.count);
+  });
+});
+
+describe('speed changes (milestone 56)', () => {
+  const fast = (): CutTrack => ({ cuts: [{ id: id(1), from: 0, to: 2, speed: { rate: 2 } }, { id: id(2), from: 1, to: 2.5 }] });
+
+  it('takes a cut\'s timeline length from its rate, and maps a moment back into the file through it', () => {
+    const t = fast();
+    expect(cutSeconds(t.cuts[0]!)).toBe(1);
+    expect(cutWindows(t)).toEqual([{ start: 0, end: 1 }, { start: 1, end: 2.5 }]);
+    expect(trackDuration(t)).toBe(2.5);
+    // Half a second into a 2× cut is a second into the file; the neighbour is untouched.
+    expect(trackSourceAt(t, 0.5)).toEqual({ id: id(1), index: 0, seconds: 1 });
+    expect(trackSourceAt(t, 1.25)).toEqual({ id: id(2), index: 1, seconds: 1.25 });
+    const slow: Cut = { id: id(1), from: 1, to: 2, speed: { rate: 0.25 } };
+    expect(cutSeconds(slow)).toBe(4);
+    expect(cutSourceTime(slow, 2)).toBe(1.5);
+    expect(cutTimelineTime(slow, 1.5)).toBe(2);
+  });
+
+  it('ramps linearly in timeline time: the file is consumed as the integral of the rate, and the inverse agrees', () => {
+    // From 1× to 3× over a 4-second window: the mean is 2×, so it takes 2 s on the timeline.
+    const ramp: Cut = { id: id(1), from: 0, to: 4, speed: { rate: 1, to: 3 } };
+    expect(cutSeconds(ramp)).toBe(2);
+    expect(cutRateAt(ramp, 0)).toBe(1);
+    expect(cutRateAt(ramp, 1)).toBe(2);
+    expect(cutRateAt(ramp, 2)).toBe(3);
+    // r₁t + (r₂−r₁)t²/2T at t = 1: 1 + 2·1/4 = 1.5 s of the file.
+    expect(cutSourceTime(ramp, 1)).toBeCloseTo(1.5, 9);
+    expect(cutSourceTime(ramp, 2)).toBeCloseTo(4, 9);
+    for (const t of [0, 0.3, 1, 1.7, 2]) expect(cutTimelineTime(ramp, cutSourceTime(ramp, t))).toBeCloseTo(t, 9);
+    // Past either edge the edge holds, as a dissolve's clone-padding does.
+    expect(cutSourceTime(ramp, -1)).toBe(0);
+    expect(cutSourceTime(ramp, 5)).toBe(4);
+  });
+
+  it('splits a ramp into two ramps meeting at the rate it had there, so what plays is unchanged', () => {
+    const t: CutTrack = { cuts: [{ id: id(1), from: 0, to: 4, speed: { rate: 1, to: 3, smooth: true } }] };
+    const split = splitAt(t, 1);
+    expect(split.cuts).toHaveLength(2);
+    expect(split.cuts[0]).toEqual({ id: id(1), from: 0, to: 1.5, speed: { rate: 1, to: 2, smooth: true } });
+    expect(split.cuts[1]).toEqual({ id: id(1), from: 1.5, to: 4, speed: { rate: 2, to: 3, smooth: true } });
+    // The two pieces take exactly the time the whole did, and meet at the moment of the split.
+    expect(cutWindows(split)).toEqual([{ start: 0, end: 1 }, { start: 1, end: 2 }]);
+    // A constant speed splits as it always did, the speed kept on both sides.
+    const two = splitAt(fast(), 0.5);
+    expect(two.cuts.slice(0, 2).map((c) => [c.from, c.to, c.speed?.rate])).toEqual([[0, 1, 2], [1, 2, 2]]);
+  });
+
+  it('plays the sound at the rate too, and a ramp as slices of constant speed that never drift from the picture', () => {
+    const [piece] = trackAudio(fast());
+    expect(piece).toEqual({
+      cut: 0,
+      value: expect.objectContaining({ id: id(1), inPoint: 0, outPoint: 2, delay: 0 }),
+      span: { start: 0, end: 1 },
+      speed: 2,
+    });
+    // The second cut, in real time, carries no speed at all.
+    expect(trackAudio(fast())[1]!.speed).toBeUndefined();
+    const ramp: CutTrack = { cuts: [{ id: id(1), from: 0, to: 4, speed: { rate: 1, to: 3 } }] };
+    const slices = trackAudio(ramp);
+    expect(slices.length).toBeGreaterThanOrEqual(2);
+    // Each slice picks up the file where the last left it, at the mean rate of its stretch,
+    // and together they cover the whole window on the whole timeline.
+    slices.forEach((slice, k) => {
+      expect(slice.cut).toBe(0);
+      if (k > 0) expect(slice.value.inPoint).toBe(slices[k - 1]!.value.outPoint);
+      expect(slice.speed).toBeCloseTo((slice.value.outPoint - slice.value.inPoint) / (slice.span.end! - slice.span.start!), 3);
+    });
+    expect(slices[0]!.value.inPoint).toBe(0);
+    expect(slices[slices.length - 1]!.value.outPoint).toBe(4);
+    expect(slices[slices.length - 1]!.span.end).toBe(2);
+    // Rates rise along the ramp.
+    expect(slices[0]!.speed!).toBeLessThan(slices[slices.length - 1]!.speed!);
+  });
+
+  it('is set and cleared on a cut, kept inside the limits, and real time is no speed at all', () => {
+    const t = track();
+    expect(withCutSpeed(t, 1, { rate: 4 }).cuts[1]!.speed).toEqual({ rate: 4 });
+    expect(withCutSpeed(t, 1, { rate: 99 }).cuts[1]!.speed).toEqual({ rate: 4 });
+    expect(withCutSpeed(t, 1, { rate: 0.5, to: 2 }).cuts[1]!.speed).toEqual({ rate: 0.5, to: 2 });
+    // A ramp to the same rate is the rate; 1× with nothing else is no speed.
+    expect(withCutSpeed(t, 1, { rate: 2, to: 2 }).cuts[1]!.speed).toEqual({ rate: 2 });
+    expect(withCutSpeed(t, 1, { rate: 1 }).cuts[1]!.speed).toBeUndefined();
+    expect(withCutSpeed(t, 1, { rate: 1, smooth: true }).cuts[1]!.speed).toEqual({ rate: 1, smooth: true });
+    expect(withCutSpeed(withCutSpeed(t, 1, { rate: 2 }), 1, null).cuts[1]!.speed).toBeUndefined();
+    expect(withCutSpeed(t, 9, { rate: 2 })).toBe(t);
+  });
+
+  it('survives a stored track with its limits applied', () => {
+    const stored = sanitizeCutTrack({ cuts: [
+      { id: id(1), from: 0, to: 2, speed: { rate: 8, to: 0.1, smooth: true } },
+      { id: id(2), from: 0, to: 1, speed: { rate: 1 } },
+      { id: id(3), from: 0, to: 1, speed: 'fast' },
+    ] })!;
+    expect(stored.cuts[0]!.speed).toEqual({ rate: 4, to: 0.25, smooth: true });
+    expect(stored.cuts[1]!.speed).toBeUndefined();
+    expect(stored.cuts[2]!.speed).toBeUndefined();
+  });
+});
+
+describe('freeze frames (milestone 56)', () => {
+  it('holds the frame under the playhead for the asked time, the shot going on from that very frame', () => {
+    const t = track();
+    const frozen = withFreezeAt(t, 1, 2);
+    // Three cuts become five: the first split in two around the hold.
+    expect(frozen.cuts).toHaveLength(5);
+    expect(frozen.cuts[0]).toEqual({ id: id(1), from: 0, to: 1 });
+    expect(frozen.cuts[1]).toEqual({ id: id(1), from: 1, to: 1 + MIN_CUT_SECONDS, hold: 2 });
+    expect(frozen.cuts[2]).toEqual({ id: id(1), from: 1, to: 2 });
+    // The hold takes its own time on the timeline and shows its one frame throughout.
+    expect(cutWindows(frozen)[1]).toEqual({ start: 1, end: 3 });
+    expect(trackSourceAt(frozen, 2.5)).toEqual({ id: id(1), index: 1, seconds: 1 });
+    expect(cutRateAt(frozen.cuts[1]!, 1)).toBe(0);
+    // Too near a boundary to split, the hold goes in at the boundary, of the frame the later shot starts on.
+    const atHead = withFreezeAt(t, 2.01, 1);
+    expect(atHead.cuts).toHaveLength(4);
+    expect(atHead.cuts[1]).toEqual({ id: id(2), from: 1, to: 1 + MIN_CUT_SECONDS, hold: 1 });
+    // Off the track there is nothing to freeze, and the same track says so.
+    expect(withFreezeAt(t, 99, 1)).toBe(t);
+  });
+
+  it('has no sound, no speed to set, splits into two holds, and its length is trimmed as a hold', () => {
+    const frozen = withFreezeAt(track(), 1, 2);
+    expect(trackAudio(frozen).map((p) => p.span)).toEqual([{ start: 0, end: 1 }, { start: 3, end: 4 }, { start: 4, end: 5.5 }, { start: 5.5, end: 6.5 }]);
+    expect(withCutSpeed(frozen, 1, { rate: 2 })).toBe(frozen);
+    expect(withCutHold(frozen, 1, 0.5).cuts[1]!.hold).toBe(0.5);
+    expect(withCutHold(frozen, 1, 999).cuts[1]!.hold).toBe(60);
+    expect(withCutHold(frozen, 0, 1)).toBe(frozen);
+    const halves = splitAt(frozen, 2);
+    expect(halves.cuts[1]!.hold).toBe(1);
+    expect(halves.cuts[2]!.hold).toBe(1);
+    // Silence removal leaves a hold alone: it has no sound to be quiet in.
+    expect(withSilencesCut(frozen, [{ start: 1.5, end: 2.5 }]).cuts[1]).toEqual(frozen.cuts[1]);
+  });
+
+  it('is read back from a stored track, within its limits and with no sound or speed', () => {
+    const stored = sanitizeCutTrack({ cuts: [{ id: id(1), from: 1, to: 1.05, hold: 500, speed: { rate: 2 }, sound: { muted: true } }] })!;
+    expect(stored.cuts[0]).toEqual({ id: id(1), from: 1, to: 1.05, hold: 60 });
+  });
+});
+
+describe('a stored window a hair under the minimum', () => {
+  it('is kept: from + MIN_CUT_SECONDS can read a billionth short once subtracted, as a freeze frame\'s window does', () => {
+    const frozen = withFreezeAt({ cuts: [{ id: id(1), from: 0, to: 0.8 }] }, 0.3, 1);
+    expect(frozen.cuts).toHaveLength(3);
+    expect(sanitizeCutTrack(frozen)!.cuts).toHaveLength(3);
+    expect(sanitizeCutTrack({ cuts: [{ id: id(1), from: 0.3, to: 0.35 }] })!.cuts).toHaveLength(1);
   });
 });

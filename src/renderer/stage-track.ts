@@ -15,7 +15,7 @@
  * still exact.
  */
 
-import { cutWindows, transitionAt, trackSourceAt, type CutTrack } from '../core/cut-track';
+import { cutSourceTime, cutWindows, transitionAt, trackSourceAt, type CutTrack } from '../core/cut-track';
 import { clipProxySize } from '../core/video-layer';
 
 interface CutFrames {
@@ -69,7 +69,8 @@ export function trackPictureSync(track: CutTrack | null, displayedHeight: number
   key = wanted;
   const asked = ++generation;
   const request = [
-    ...track.cuts.map((c) => ({ id: c.id, from: c.from, to: c.to })),
+    // A freeze frame needs one frame; a sliver of the file at its moment is enough to hold.
+    ...track.cuts.map((c) => ({ id: c.id, from: c.from, to: c.hold !== undefined ? c.from + 0.2 : c.to })),
     ...wipeIds.map((id) => ({ id, from: 0, to: 120 })),
   ];
   void window.pulp.trackFrames({ cuts: request, height }).then(async (answer) => {
@@ -107,9 +108,11 @@ function drawCut(index: number, seconds: number, alpha: number): void {
   const frames = cuts[index];
   if (!cut || !frames || frames.imgs.length === 0) return;
   const windows = cutWindows(shown);
-  // The moment mapped into the cut's own file, clamped to its window: past either edge the edge
-  // frame holds — which is exactly what the render's clone-padding holds through a dissolve.
-  const source = cut.from + (seconds - windows[index]!.start);
+  // The moment mapped into the cut's own file through its speed (milestone 56), clamped to its
+  // window: past either edge the edge frame holds — which is exactly what the render's
+  // clone-padding holds through a dissolve — and a freeze frame is always its one frame. Slow
+  // motion shows the nearest frame here; the render makes the frames in between where asked.
+  const source = cutSourceTime(cut, seconds - windows[index]!.start);
   const frameIndex = Math.min(frames.imgs.length - 1, Math.max(0, Math.floor(source * frames.fps) - frames.first));
   const img = frames.imgs[frameIndex]!;
   if (!img.complete || img.naturalWidth === 0) return;

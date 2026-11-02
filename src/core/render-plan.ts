@@ -28,6 +28,7 @@
  */
 
 import { AspectError, resolveRenderSize } from './aspect';
+import { cutRates, cutSeconds, type CutSpeed } from './cut-track';
 import { resolveLength, type TemplateStructure } from './timing';
 import { isValidColor, type TemplateManifest } from './manifest';
 import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
@@ -461,6 +462,10 @@ export interface RenderPlanInput {
       path: string;
       from: number;
       to: number;
+      /** The speed the cut plays at (milestone 56); absent is real time. */
+      speed?: CutSpeed;
+      /** A freeze frame: the frame at `from` held for this many seconds (milestone 56). */
+      hold?: number;
       /** The transition into the next cut, already clamped by the caller (transitionAt). A wipe rides in `wipes`. */
       transition?: { type: 'dissolve' | 'dip'; seconds: number; color?: string };
     }[];
@@ -520,6 +525,39 @@ export function normalizeOutputPath(outputPath: string, preset: OutputPreset): s
 function hexToFfmpegColor(hex: string): string {
   // ffmpeg accepts 0xRRGGBB[AA]; drop alpha because the background must be opaque.
   return `0x${hex.slice(1, 7)}`;
+}
+
+/**
+ * The filter steps that put one cut of the track on the timeline's clock at
+ * the output's rate (milestone 56). Real time is the output rate alone. A
+ * constant speed divides the timestamps; a ramp maps each frame's file second
+ * to the timeline moment the ramp reaches it — the quadratic `cutSourceTime`
+ * integrates, solved for t, written as a `setpts` expression — and either is
+ * then resampled to the rate: frames repeated or dropped by `fps`, or, for
+ * smooth slow motion, made up by motion-compensated interpolation. A freeze
+ * frame is its first frame alone, held for the hold.
+ */
+export function cutSpeedSteps(cut: { from: number; to: number; speed?: CutSpeed; hold?: number }, fps: number): string[] {
+  const rate = String(fps);
+  if (cut.hold !== undefined) {
+    return ['trim=end_frame=1', 'setpts=PTS-STARTPTS', `tpad=stop_mode=clone:stop_duration=${Math.round(cut.hold * 1e6) / 1e6}`, `fps=${rate}`, `trim=duration=${Math.round(cut.hold * 1e6) / 1e6}`];
+  }
+  const { start, end } = cutRates(cut);
+  if (start === 1 && end === 1) return [`fps=${rate}`];
+  const seconds = Math.max(0.001, cutSeconds(cut));
+  const slow = Math.min(start, end) < 1;
+  // Interpolation where frames have to be made up, at the rate the output wants; otherwise the
+  // ordinary repeat-or-drop. The interpolation is the costly step of the whole render.
+  const resample = cut.speed?.smooth && slow
+    ? `minterpolate=fps=${rate}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1`
+    : `fps=${rate}`;
+  if (start === end) return [`setpts=(PTS-STARTPTS)/${Number(start.toFixed(6))}`, resample];
+  // t = (−r₁ + √(r₁² + 4a·s)) / 2a, with a = (r₂ − r₁) / 2T and s the file second from the
+  // cut's start; numbers in plain decimals, since the expression parser reads no exponents.
+  const a = (end - start) / (2 * seconds);
+  const plain = (v: number) => v.toFixed(9).replace(/0+$/, '').replace(/\.$/, '');
+  const expr = `((0-${plain(start)})+sqrt(${plain(start * start)}+${plain(4 * a)}*(PTS-STARTPTS)*TB))/(${plain(2 * a)})/TB`;
+  return [`setpts=${expr}`, resample, `trim=duration=${Math.round(seconds * 1e6) / 1e6}`];
 }
 
 export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
@@ -610,13 +648,18 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
     // caller captured as frames with alpha, overlaid across the boundary after the join.
     const sec = (v: number) => String(Math.round(v * 1e6) / 1e6);
     const pad = !preset.alpha && manifest.alpha ? hexToFfmpegColor(background) : 'black';
-    track.cuts.forEach((cut) => args.push('-ss', sec(cut.from), '-t', sec(Math.max(0.001, cut.to - cut.from)), '-i', cut.path));
+    // A freeze frame reads a sliver of the file at its moment; everything else reads its window.
+    track.cuts.forEach((cut) => args.push('-ss', sec(cut.from), '-t', sec(cut.hold !== undefined ? 0.2 : Math.max(0.001, cut.to - cut.from)), '-i', cut.path));
     const wipes = track.wipes ?? [];
     wipes.forEach((wipe) => args.push('-framerate', fps, '-start_number', '0', '-i', wipe.pattern));
     const chains: string[] = [];
     const segments = track.cuts.map((cut, i) => {
-      const steps = [`fps=${fps}`, `scale=${width}:${height}:force_original_aspect_ratio=decrease`, `pad=${width}:${height}:-1:-1:color=${pad}`, 'setsar=1', 'format=yuv420p', 'setpts=PTS-STARTPTS'];
-      const seconds = Math.max(0.001, cut.to - cut.from);
+      // The cut's time, before anything else (milestone 56): `cutSpeedSteps` retimes the frames
+      // to the timeline and brings them to the output's constant rate — by repeating or dropping
+      // frames, or by interpolating them where smooth slow motion is asked for — so the scale,
+      // the pad and the joins after it see an ordinary constant-rate stream of the cut's length.
+      const steps = [...cutSpeedSteps(cut, timing.fps), `scale=${width}:${height}:force_original_aspect_ratio=decrease`, `pad=${width}:${height}:-1:-1:color=${pad}`, 'setsar=1', 'format=yuv420p', 'setpts=PTS-STARTPTS'];
+      const seconds = Math.max(0.001, cutSeconds(cut));
       const into = i > 0 ? track.cuts[i - 1]!.transition : undefined;
       if (into?.type === 'dip') steps.push(`fade=t=in:st=0:d=${sec(into.seconds / 2)}:color=${hexToFfmpegColor(into.color ?? '#000000')}`);
       if (cut.transition?.type === 'dip' && i < track.cuts.length - 1) {
@@ -628,10 +671,10 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
     // Fold the segments together one boundary at a time: a straight cut concats, a dissolve
     // clone-pads both sides and cross-fades — the running length never moves.
     let run = 't0';
-    let runLength = Math.max(0.001, track.cuts[0]!.to - track.cuts[0]!.from);
+    let runLength = Math.max(0.001, cutSeconds(track.cuts[0]!));
     track.cuts.slice(1).forEach((cut, i) => {
       const earlier = track.cuts[i]!.transition;
-      const seconds = Math.max(0.001, cut.to - cut.from);
+      const seconds = Math.max(0.001, cutSeconds(cut));
       const joined = `j${i}`;
       if (earlier?.type === 'dissolve') {
         const half = sec(earlier.seconds / 2);

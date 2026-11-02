@@ -95,7 +95,7 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
     const source = soundSourceFor(entry);
     if (!entry || entry.offline || !source) return;
     if (entry.meta && !entry.meta.audioCodec) return;
-    wanted.set(`@track.${index}`, { kind: 'sound', path: '', value: cut.value, source, span: cut.span });
+    wanted.set(`@track.${index}`, { kind: 'sound', path: '', value: cut.value, source, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) });
   });
   for (const [key, sound] of sounds) {
     const next = wanted.get(key);
@@ -191,7 +191,9 @@ export function layerSoundsUpdate(timeSeconds: number, playing: boolean, master:
     // The layer's own volume and its fades, under the transport's master.
     el.volume = Math.min(1, Math.max(0, master.volume * layerGainAt(layer, timeSeconds, length)));
     el.muted = master.muted;
-    el.playbackRate = layer.kind === 'clip' ? clampSpeed(layer.value.speed) : 1;
+    // A cut at a speed (milestone 56) plays at its rate; the element keeps the pitch by default,
+    // as the render's `atempo` does, so the two are heard alike.
+    el.playbackRate = layer.kind === 'clip' ? clampSpeed(layer.value.speed) : Math.min(4, Math.max(0.25, layer.speed ?? 1));
     if (!playing || at === null) {
       if (!el.paused) el.pause();
       continue;
@@ -220,8 +222,9 @@ export function layerSoundsClear(): void {
 }
 
 /** For the UI test: which layers have a sound element, whether each is audibly playing, and what it is treated for. */
-export function layerSoundsDebug(): { key: string; kind: string; playing: boolean; muted: boolean; volume: number; time: number; voice: string }[] {
+export function layerSoundsDebug(): { key: string; kind: string; playing: boolean; muted: boolean; volume: number; time: number; voice: string; speed: number }[] {
   return [...sounds.entries()].map(([key, s]) => ({
     key, kind: s.layer.kind, playing: !s.el.paused, muted: s.el.muted, volume: Math.round(s.el.volume * 1000) / 1000, time: s.el.currentTime, voice: s.voiceKey,
+    speed: s.el.playbackRate,
   }));
 }

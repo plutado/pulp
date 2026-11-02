@@ -1383,6 +1383,80 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(await level(1.6, 1.9), 'and silence once the track has ended').toBeLessThan(-50);
   }, 300_000);
 
+  it('plays a cut at a speed with its pitch kept, holds a frozen frame, and renders a smooth ramp (milestone 56)', async () => {
+    // The same two toned clips as the track test: red at 440 Hz, blue at 880 Hz. Red plays at 2×
+    // — half a second of timeline — blue at ½× for a second, then red's first frame is held for
+    // half a second. If the speed changed the pitch, red's tone would sit at 880 and blue's at 440;
+    // with the pitch kept each stays where it was recorded, which the band levels say.
+    const lib = join(out, 'speed-library');
+    await mkdir(lib, { recursive: true });
+    const clip = async (file: string, color: string, tone: number) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs([
+        '-v', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${color}:s=160x160:d=1:r=30`, '-f', 'lavfi', '-i', `sine=frequency=${tone}:duration=1`,
+        '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(lib, file),
+      ]), { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(r.code, r.stderr).toBe(0);
+      return itemId(`media:${join(lib, file)}`);
+    };
+    const redId = await clip('red.mp4', 'red', 440);
+    const blueId = await clip('blue.mp4', 'blue', 880);
+    const common = ['--library', FIXTURES, '--library', lib];
+    const track = { cuts: [
+      { id: redId, from: 0, to: 1, speed: { rate: 2 } },
+      { id: blueId, from: 0, to: 0.5, speed: { rate: 0.5 } },
+      { id: redId, from: 0, to: 0.05, hold: 0.5 },
+    ] };
+    const trackArg = ['--param', `@track=${JSON.stringify(track)}`];
+    const middle = [160, 90] as const;
+
+    const seq = await render('pulp.test.video-layer', 'png-sequence', 'speed-seq', { extra: [...common, ...trackArg] });
+    expect(seq.code, seq.stderr).toBe(0);
+    const at = async (frame: number, x: number, y: number) => pixels(join(out, `speed-seq_${String(frame).padStart(5, '0')}.png`), x, y);
+    // Red for half a second, blue for the next second, red's held frame for half a second, then the pad.
+    const red = await at(8, ...middle);
+    expect(red[0], 'the fast cut').toBeGreaterThan(180);
+    expect(red[2]).toBeLessThan(80);
+    const blue = await at(30, ...middle);
+    expect(blue[2], 'the slow cut where the fast one ended').toBeGreaterThan(180);
+    expect(blue[0]).toBeLessThan(80);
+    // The hold runs to the end of the track, which is also the end of the two-second graphic: the
+    // last frame is still the held one, red to the last.
+    for (const frame of [52, 59]) {
+      const held = await at(frame, ...middle);
+      expect(held[0], `the frozen frame after the slow cut (frame ${frame})`).toBeGreaterThan(180);
+      expect(held[2]).toBeLessThan(80);
+    }
+
+    const mp4 = await render('pulp.test.video-layer', 'h264-mp4', 'speed-mix', { extra: [...common, ...trackArg] });
+    expect(mp4.code, mp4.stderr).toBe(0);
+    const band = async (from: number, to: number, hz: number) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs(['-i', join(out, 'speed-mix.mp4'), '-af', `atrim=start=${from}:end=${to},asetpts=PTS-STARTPTS,bandpass=f=${hz}:width_type=q:w=8,volumedetect`, '-f', 'null', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
+      const m = /max_volume:\s*(-?[\d.]+) dB/.exec(r.stderr);
+      expect(m, r.stderr.slice(-1500)).not.toBeNull();
+      return Number(m![1]);
+    };
+    // Red at 2× is still 440 Hz, not 880; blue at ½× is still 880, not 440.
+    expect((await band(0.1, 0.4, 440)) - (await band(0.1, 0.4, 880)), 'the fast cut keeps its pitch').toBeGreaterThan(12);
+    expect((await band(0.7, 1.3, 880)) - (await band(0.7, 1.3, 440)), 'the slow cut keeps its pitch').toBeGreaterThan(12);
+    // A frozen frame has no sound.
+    const level = async (from: number, to: number) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs(['-i', join(out, 'speed-mix.mp4'), '-af', `atrim=start=${from}:end=${to},asetpts=PTS-STARTPTS,volumedetect`, '-f', 'null', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
+      return Number(/max_volume:\s*(-?[\d.]+) dB/.exec(r.stderr)![1]);
+    };
+    expect(await level(1.6, 1.9), 'silence under the hold').toBeLessThan(-50);
+
+    // A ramp from ½× to 2× with smooth slow motion: the interpolated frames render, the cut takes
+    // its mean-rate length (a second of file at a mean of 1.25× is 0.8 s), and the pad follows.
+    const ramp = { cuts: [{ id: blueId, from: 0, to: 1, speed: { rate: 0.5, to: 2, smooth: true } }] };
+    const smooth = await render('pulp.test.video-layer', 'png-sequence', 'ramp-seq', { extra: [...common, '--param', `@track=${JSON.stringify(ramp)}`], timeoutMs: 180_000 });
+    expect(smooth.code, smooth.stderr).toBe(0);
+    const rampAt = async (frame: number) => pixels(join(out, `ramp-seq_${String(frame).padStart(5, '0')}.png`), ...middle);
+    expect((await rampAt(12))[2], 'blue through the ramp').toBeGreaterThan(180);
+    expect((await rampAt(20))[2]).toBeGreaterThan(180);
+    const after = await rampAt(30);
+    expect(after[0]! + after[1]! + after[2]!, 'the pad once the ramp has run its 0.8 s').toBeLessThan(60);
+  }, 300_000);
+
   it('writes the captions into the render, beside it as SRT and WebVTT, and on their own as an alpha track (milestone 50)', async () => {
     // Two lines on the project's clock, drawn by a bundled caption style over the video-layer
     // fixture — 320 × 180, transparent but for its corner marker — so the caption band is the only

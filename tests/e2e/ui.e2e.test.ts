@@ -1650,6 +1650,49 @@ describe.skipIf(!electron)('inspector UI', () => {
         await chooseArg('cut.sound', 'linked');
         await until(() => page.eval<number>(`${sounds}.length`).then((n) => n === 1), 'and linked back in');
 
+        // Speed (milestone 56): a rate from the cut's menu halves the cut's run on the lane and is
+        // said on it; its sound keeps its place in the mix at that rate; a ramp says both ends.
+        // The cut's run on the timeline, read off its handles: the project's length follows the
+        // track, so the lane's own percentages move with every edit and say nothing on their own.
+        const runOf = async (i: number) => {
+          const [start, end] = await page.eval<number[]>(`[${cut(i)}.querySelector('.cut-trim.start'), ${cut(i)}.querySelector('.cut-trim.end')].map((h) => Number(h.getAttribute('aria-valuenow')))`);
+          return end! - start!;
+        };
+        const badge = (i: number) => page.eval<string>(`${cut(i)}.querySelector('.cut-speed')?.hidden ? '' : ${cut(i)}.querySelector('.cut-speed').textContent`);
+        const plainRun = await runOf(1);
+        await menuOn(1);
+        await openSub('Speed');
+        await chooseArg('cut.speed', '2');
+        await until(() => badge(1).then((t) => t === '2×'), 'the rate said on the cut');
+        expect(await runOf(1), 'half the run at twice the speed').toBeCloseTo(plainRun / 2, 1);
+        expect(await page.eval<number>(`${sounds}.find((s) => s.key === '@track.1')?.speed ?? ${sounds}[0]?.speed ?? 0`), 'the sound at the rate').toBe(2);
+        await menuOn(1);
+        await openSub('Speed');
+        await chooseArg('cut.ramp', '0.5');
+        await until(() => badge(1).then((t) => t === '2×→½×'), 'the ramp said on the cut');
+        await menuOn(1);
+        await openSub('Speed');
+        await chooseArg('cut.speed', '1');
+        await menuOn(1);
+        await openSub('Speed');
+        await chooseArg('cut.ramp', 'none');
+        await until(() => badge(1).then((t) => t === ''), 'real time again, and nothing said');
+        // A freeze frame at the playhead, which sits inside the second cut: the shot is split there
+        // and the held frame goes between the pieces, so two cuts become four, hatched where it holds.
+        await page.eval(`(() => { const s = document.getElementById('scrub'); s.value = String(Math.round(Number(s.max) * 0.6)); s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+        await menuOn(1);
+        await openSub('Freeze Frame');
+        await chooseArg('cut.freeze', '1');
+        await until(async () => (await count()) === 4, 'the frozen frame as a cut of its own, between the two halves of the shot');
+        expect(await page.eval<boolean>(`${cut(2)}.classList.contains('hold')`)).toBe(true);
+        expect(await badge(2)).toBe('Hold 1 s');
+        // The hold takes its second on the timeline: the shot's end moves out by one.
+        const held = await ends();
+        expect(Number(held[3]) - Number(held[1])).toBeCloseTo(1 + (Number(held[3]) - Number(held[2])), 1);
+        // One undo step for the split and the hold together.
+        await page.eval(`document.getElementById('undo').click()`);
+        await until(async () => (await count()) === 2, 'undo takes the hold out');
+
         // Silence removal: the quiet stretch found and shaded on the track before anything is cut,
         // then cut in one undo step.
         await menuOn(1);

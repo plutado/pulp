@@ -961,6 +961,11 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .cut.selected .cut-body { background: rgba(134, 213, 166, 0.55); }
 .cut .cut-body:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .cut .cut-label { display: block; position: relative; font-size: var(--font-caption); line-height: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+/* The cut's speed or hold (milestone 56): a small tag at the right of the body, over the sound. */
+.cut .cut-speed { position: absolute; right: 3px; top: 1px; padding: 0 3px; border-radius: 2px; background: rgba(13, 17, 23, 0.7); color: var(--accent); font-size: var(--font-caption); line-height: 12px; pointer-events: none; }
+.cut .cut-speed[hidden] { display: none; }
+.cut.hold .cut-body { background: rgba(180, 160, 134, 0.4); background-image: repeating-linear-gradient(90deg, transparent 0 6px, rgba(255, 255, 255, 0.08) 6px 8px); }
+.cut.hold.selected .cut-body { background-color: rgba(213, 190, 150, 0.6); }
 .cut .cut-wave { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .cut .cut-wave[hidden] { display: none; }
 .cut .cut-wave path { stroke: rgba(255, 255, 255, 0.65); stroke-width: 1; vector-effect: non-scaling-stroke; }

@@ -32,8 +32,8 @@ let generation = 0;
 let shown: { lufs: number; truePeakDb: number | null } | null = null;
 
 /** The layers that could be heard, as the wire carries them: ids and settings, never paths. */
-function soundRequest(layers: LayerValues): { kind: 'clip' | 'sound'; value: unknown; span?: { start: number; end: number | null } }[] {
-  const out: { kind: 'clip' | 'sound'; value: unknown; span?: { start: number; end: number | null } }[] = [];
+function soundRequest(layers: LayerValues): { kind: 'clip' | 'sound'; value: unknown; span?: { start: number; end: number | null }; speed?: number }[] {
+  const out: { kind: 'clip' | 'sound'; value: unknown; span?: { start: number; end: number | null }; speed?: number }[] = [];
   const spanOf = (layer: Layer) => (layer.span ? { span: layer.span } : {});
   for (const stack of Object.values(layers)) {
     for (const layer of stack) {
@@ -84,7 +84,7 @@ export function loudnessUpdate(layers: LayerValues, fps: number, length: number,
   clearTimeout(timer);
   const request = soundRequest(layers);
   // The cut track's sound is part of the mix (milestone 49), so the meter measures it too.
-  for (const cut of track ? trackAudio(track) : []) request.push({ kind: 'sound', value: cut.value, span: cut.span });
+  for (const cut of track ? trackAudio(track) : []) request.push({ kind: 'sound', value: cut.value, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) });
   if (request.length === 0 || !(length > 0) || !(fps > 0)) {
     shown = null;
     paint();

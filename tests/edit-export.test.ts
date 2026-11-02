@@ -80,3 +80,39 @@ describe('the EDL', () => {
     expect(wedl).toContain('* WIPE: pulp.samples.circle-wipe');
   });
 });
+
+describe('speed changes in the exported edit (milestone 56)', () => {
+  it('writes a time map on a retimed clip, and none on an ordinary one', () => {
+    const plain = fcpxmlEdit(input());
+    expect(plain).not.toContain('<timeMap>');
+    // 2 s of file at 2× is 1 s of timeline: the clip runs 30 frames and its map reaches 2 s in.
+    const fast: CutTrack = { cuts: [{ id: 'aa', from: 1, to: 3, speed: { rate: 2 } }, { id: 'bb', from: 0.5, to: 2 }] };
+    const xml = fcpxmlEdit(input(fast));
+    expect(xml).toContain('<asset-clip ref="r2" name="red &amp; blue" offset="0/30s" start="30/30s" duration="30/30s" format="r1">');
+    expect(xml).toContain('<timept time="0/30s" value="30/30s" interp="linear"/>');
+    expect(xml).toContain('<timept time="30/30s" value="90/30s" interp="linear"/>');
+    // The next cut starts where the fast one ends on the timeline.
+    expect(xml).toContain('<asset-clip ref="r3" name="tall" offset="30/30s"');
+    // A ramp is sampled along its curve; a freeze frame maps its whole length to one frame.
+    const ramp: CutTrack = { cuts: [{ id: 'aa', from: 0, to: 4, speed: { rate: 1, to: 3 } }] };
+    const curve = fcpxmlEdit(input(ramp));
+    expect(curve.match(/<timept /g)).toHaveLength(6);
+    expect(curve).toContain('<timept time="60/30s" value="120/30s" interp="linear"/>');
+    const hold: CutTrack = { cuts: [{ id: 'aa', from: 2, to: 2.05, hold: 1.5 }] };
+    const held = fcpxmlEdit(input(hold));
+    expect(held).toContain('duration="45/30s"');
+    expect(held).toContain('<timept time="0/30s" value="60/30s" interp="linear"/>');
+    expect(held).toContain('<timept time="45/30s" value="60/30s" interp="linear"/>');
+    expect(parseXml(held).name).toBe('fcpxml');
+  });
+
+  it('writes an M2 motion line per retimed event in the EDL', () => {
+    const fast: CutTrack = { cuts: [{ id: 'aa', from: 1, to: 3, speed: { rate: 2 } }, { id: 'bb', from: 0.5, to: 2, speed: { rate: 0.5, to: 2 } }] };
+    const edl = edlEdit(input(fast));
+    expect(edl).toContain('001  AX       V     C        00:00:01:00 00:00:03:00 00:00:00:00 00:00:01:00\nM2   AX       060.0                00:00:01:00');
+    expect(edl).toContain('M2   AX       037.5                00:00:00:15\n* SPEED RAMP: 50% TO 200%');
+    const hold = edlEdit(input({ cuts: [{ id: 'aa', from: 2, to: 2.05, hold: 1.5 }] }));
+    expect(hold).toContain('M2   AX       000.0                00:00:02:00\n* FREEZE FRAME: 1.5 s');
+    expect(edlEdit(input())).not.toContain('M2');
+  });
+});

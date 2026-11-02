@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildRenderPlan,
+  buildRenderPlan, cutSpeedSteps,
   coverArgs,
   coverFrameWithin,
   coverOutputPath,
@@ -584,5 +584,61 @@ describe('a cover image beside the render (milestone 20)', () => {
     expect(opaque.join(' ')).toContain('overlay');
     expect(opaque.join(' ')).toContain('format=rgb24');
     expect(opaque[opaque.length - 1]).toBe('/out/c.png');
+  });
+});
+
+describe('speed changes on the cut track (milestone 56)', () => {
+  const plan = (cuts: NonNullable<Parameters<typeof buildRenderPlan>[0]['track']>['cuts']) =>
+    buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t', track: { cuts } });
+  const graph = (cuts: Parameters<typeof plan>[0]) => {
+    const p = plan(cuts);
+    return p.args[p.args.indexOf('-filter_complex') + 1]!;
+  };
+
+  it('divides a cut\'s timestamps by its rate and brings it back to the output rate', () => {
+    expect(cutSpeedSteps({ from: 0, to: 2 }, 30)).toEqual(['fps=30']);
+    expect(cutSpeedSteps({ from: 0, to: 2, speed: { rate: 2 } }, 30)).toEqual(['setpts=(PTS-STARTPTS)/2', 'fps=30']);
+    // Slow motion repeats frames by default, and makes them up when asked to be smooth.
+    expect(cutSpeedSteps({ from: 0, to: 2, speed: { rate: 0.5 } }, 30)).toEqual(['setpts=(PTS-STARTPTS)/0.5', 'fps=30']);
+    expect(cutSpeedSteps({ from: 0, to: 2, speed: { rate: 0.5, smooth: true } }, 30)).toEqual([
+      'setpts=(PTS-STARTPTS)/0.5', 'minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1',
+    ]);
+    // Smooth means nothing at a speed where no frame has to be made up.
+    expect(cutSpeedSteps({ from: 0, to: 2, speed: { rate: 2, smooth: true } }, 30)).toEqual(['setpts=(PTS-STARTPTS)/2', 'fps=30']);
+  });
+
+  it('maps a ramp through the inverse of its integral, as a setpts expression without exponents, and trims to its length', () => {
+    // 1× to 3× over 4 s of file is 2 s of timeline: a = (3−1)/(2·2) = 0.5, so t = (−1 + √(1 + 2s)) / 1.
+    const steps = cutSpeedSteps({ from: 0, to: 4, speed: { rate: 1, to: 3 } }, 30);
+    expect(steps).toEqual(['setpts=((0-1)+sqrt(1+2*(PTS-STARTPTS)*TB))/(1)/TB', 'fps=30', 'trim=duration=2']);
+    // The expression carries no comma or colon, so it sits inside a filter graph as it is.
+    expect(steps[0]).not.toMatch(/[,:]/);
+    expect(steps[0]).not.toMatch(/e[+-]\d/);
+    // A slow ramp interpolates when asked.
+    expect(cutSpeedSteps({ from: 0, to: 1, speed: { rate: 1, to: 0.25, smooth: true } }, 30)[1]).toMatch(/^minterpolate=fps=30/);
+  });
+
+  it('holds a freeze frame\'s one frame for the hold, from a sliver of the file', () => {
+    expect(cutSpeedSteps({ from: 3, to: 3.05, hold: 2 }, 30)).toEqual([
+      'trim=end_frame=1', 'setpts=PTS-STARTPTS', 'tpad=stop_mode=clone:stop_duration=2', 'fps=30', 'trim=duration=2',
+    ]);
+    const p = plan([{ path: '/lib/a.mp4', from: 3, to: 3.05, hold: 2 }, { path: '/lib/b.mov', from: 0, to: 1 }]);
+    expect(p.args.join(' ')).toContain('-ss 3 -t 0.2 -i /lib/a.mp4');
+  });
+
+  it('lays the joins at the cuts\' timeline lengths, not their file lengths', () => {
+    // A 2 s window at 2× is 1 s on the timeline, so a dissolve into the next cut is centred at 1 s.
+    const g = graph([
+      { path: '/lib/a.mp4', from: 0, to: 2, speed: { rate: 2 }, transition: { type: 'dissolve', seconds: 0.5 } },
+      { path: '/lib/b.mov', from: 0, to: 1 },
+    ]);
+    expect(g).toContain('[1:v]setpts=(PTS-STARTPTS)/2,fps=30,scale=1920:1080');
+    expect(g).toContain('xfade=transition=fade:duration=0.5:offset=0.75[j0]');
+    // A dip out of a slowed cut fades at the end of its timeline length.
+    const dip = graph([
+      { path: '/lib/a.mp4', from: 0, to: 1, speed: { rate: 0.5 }, transition: { type: 'dip', seconds: 0.5, color: '#000000' } },
+      { path: '/lib/b.mov', from: 0, to: 1 },
+    ]);
+    expect(dip).toContain('fade=t=out:st=1.75:d=0.25');
   });
 });

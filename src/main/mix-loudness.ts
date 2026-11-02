@@ -22,7 +22,7 @@ import { resolveSoundSource } from './sound-grant';
 
 /** What the window sends: each layer's settings as stored, with its span; the kind says which value it is. */
 export interface MixLoudnessRequest {
-  layers: { kind: 'clip' | 'sound'; value: unknown; span?: LayerSpan }[];
+  layers: { kind: 'clip' | 'sound'; value: unknown; span?: LayerSpan; speed?: number }[];
   fps: number;
   length: number;
 }
@@ -62,7 +62,9 @@ async function measure(raw: unknown): Promise<MixLoudnessAnswer> {
       const value = sanitizeSoundValue(entry.value);
       if (!value?.id) continue;
       const found = await resolveSoundSource(ffprobePathFor(ffmpeg.path), value.id);
-      if (found) layers.push({ kind: 'sound', path: found.path, value, source: found.source, ...span });
+      // A cut's sound at a speed (milestone 56) is measured at that speed, as it will be mixed.
+      const speed = typeof entry.speed === 'number' && Number.isFinite(entry.speed) && entry.speed > 0 ? { speed: entry.speed } : {};
+      if (found) layers.push({ kind: 'sound', path: found.path, value, source: found.source, ...span, ...speed });
     } else if (entry?.kind === 'clip') {
       const value = sanitizeClipValue(entry.value);
       if (!value?.id) continue;

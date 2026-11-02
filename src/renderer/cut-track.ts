@@ -21,9 +21,9 @@
 import { effect } from '@preact/signals';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import {
-  cutIndexAt, cutSeconds, cutFromClip, cutWindows, DEFAULT_TRANSITION_SECONDS, snapTime, splitAt, trackAudio,
-  trackDuration, transitionAt, withCutInserted, withCutMoved, withCutRemoved, withCutSound, withCutTransition,
-  withCutWindow, withSilencesCut, type CutSound, type CutTransition, type CutTrack,
+  cutIndexAt, cutRates, cutSeconds, cutFromClip, cutWindows, DEFAULT_HOLD_SECONDS, DEFAULT_TRANSITION_SECONDS, snapTime, splitAt, trackAudio,
+  trackDuration, transitionAt, withCutHold, withCutInserted, withCutMoved, withCutRemoved, withCutSound, withCutSpeed, withCutTransition,
+  withCutWindow, withFreezeAt, withSilencesCut, type Cut, type CutSound, type CutSpeed, type CutTransition, type CutTrack,
 } from '../core/cut-track';
 import type { MenuCommand, MenuItemSpec } from '../core/menu';
 import { openContextMenu } from './context-menu';
@@ -41,6 +41,8 @@ interface CutEl {
   root: HTMLDivElement;
   body: HTMLButtonElement;
   label: HTMLSpanElement;
+  /** The cut's speed or hold, said on it (milestone 56); hidden in real time. */
+  speed: HTMLSpanElement;
   start: HTMLButtonElement;
   end: HTMLButtonElement;
   /** The transition into the next cut, marked at the boundary (milestone 49); hidden on a straight cut. */
@@ -98,7 +100,12 @@ export function cutTrackUpdate(track: CutTrack | null, manifest: TemplateManifes
     el.root.style.width = pct(cutSeconds(cut));
     const name = mediaFor(cut.id)?.name ?? 'Clip not found';
     el.label.textContent = name;
-    const said = `${name}: ${tidy(windows[index]!.start)}-${tidy(windows[index]!.end)} s, from ${tidy(cut.from)} s of the clip`;
+    const speed = speedLabel(cut);
+    el.speed.textContent = speed;
+    el.speed.toggleAttribute('hidden', speed === '');
+    el.root.classList.toggle('hold', cut.hold !== undefined);
+    const how = cut.hold !== undefined ? `, a frame at ${tidy(cut.from)} s of the clip held for ${tidy(cut.hold)} s` : `, from ${tidy(cut.from)} s of the clip${speed ? ` at ${speed}` : ''}`;
+    const said = `${name}: ${tidy(windows[index]!.start)}-${tidy(windows[index]!.end)} s${how}`;
     el.body.title = said;
     el.body.setAttribute('aria-label', `Cut ${index + 1}, ${said}`);
     for (const [handle, which, value] of [[el.start, 'start', windows[index]!.start], [el.end, 'end', windows[index]!.end]] as const) {
@@ -124,6 +131,21 @@ export function cutTrackUpdate(track: CutTrack | null, manifest: TemplateManifes
 
 const TRANSITION_LABELS: Record<CutTransition['type'], string> = { dissolve: 'Dissolve', dip: 'Dip', wipe: 'Wipe' };
 
+/** A rate as the lane says it: ¼×, ½×, 2×, and anything else as a decimal. */
+function rateText(rate: number): string {
+  if (rate === 0.25) return '¼×';
+  if (rate === 0.5) return '½×';
+  return `${Number(rate.toFixed(2))}×`;
+}
+
+/** What a cut's speed says on it (milestone 56): nothing in real time, the rate, a ramp, or a held frame. */
+function speedLabel(cut: Cut): string {
+  if (cut.hold !== undefined) return `Hold ${tidy(cut.hold)} s`;
+  const { start, end } = cutRates(cut);
+  if (start === 1 && end === 1) return '';
+  return start === end ? rateText(start) : `${rateText(start)}→${rateText(end)}`;
+}
+
 /**
  * Each cut's sound on its own stretch of the lane (milestone 49): the peaks
  * the library caches, resampled through the same sound-shaped value the mix
@@ -134,9 +156,20 @@ const TRANSITION_LABELS: Record<CutTransition['type'], string> = { dissolve: 'Di
 function paintWaves(): void {
   const track = current.track;
   if (!track || !host || host.hidden) return;
-  trackAudio(track).forEach((cut, index) => {
+  // A hold has no piece and a ramp has several (milestone 56), so the pieces are matched to their
+  // cuts by the index each carries; a cut with none stays plain, and a ramp draws its first slice.
+  const drawn = new Set<number>();
+  cutEls.forEach((el, index) => {
+    if (!trackAudio(track).some((piece) => piece.cut === index)) {
+      el.wave.toggleAttribute('hidden', true);
+      el.wavePath.removeAttribute('d');
+    }
+  });
+  trackAudio(track).forEach((cut) => {
+    const index = cut.cut;
     const el = cutEls[index];
-    if (!el) return;
+    if (!el || drawn.has(index)) return;
+    drawn.add(index);
     const entry = mediaFor(cut.value.id!);
     const duration = entry?.meta?.duration;
     const peaks = entry && !entry.sequence && entry.meta?.audioCodec && duration ? waveforms.value.get(entry.id) : undefined;
@@ -147,9 +180,9 @@ function paintWaves(): void {
       return;
     }
     const columns = Math.max(16, Math.round((cutSeconds(track.cuts[index]!) / Math.max(0.001, current.length)) * WAVEFORM_BUCKETS));
-    const drawn = layerBarPeaks({ kind: 'sound', path: '', value: cut.value, source: { duration }, span: cut.span }, peaks, current.length, columns);
+    const bars = layerBarPeaks({ kind: 'sound', path: '', value: cut.value, source: { duration }, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) }, peaks, current.length, columns);
     el.wave.setAttribute('viewBox', `0 0 ${columns} 12`);
-    el.wavePath.setAttribute('d', waveformPath(drawn, columns, 12));
+    el.wavePath.setAttribute('d', waveformPath(bars, columns, 12));
     el.wave.toggleAttribute('hidden', false);
   });
 }
@@ -179,6 +212,9 @@ function makeCut(): CutEl {
   body.className = 'cut-body';
   const label = document.createElement('span');
   label.className = 'cut-label';
+  const speed = document.createElement('span');
+  speed.className = 'cut-speed';
+  speed.toggleAttribute('hidden', true);
   // The sound first, so the label draws over it — the bars' own order (src/renderer/stage-bars.ts).
   const wave = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   wave.setAttribute('class', 'cut-wave');
@@ -187,7 +223,7 @@ function makeCut(): CutEl {
   const wavePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   wave.append(wavePath);
   wave.toggleAttribute('hidden', true);
-  body.append(wave, label);
+  body.append(wave, label, speed);
   const start = trimHandle('start');
   const end = trimHandle('end');
   const join = document.createElement('span');
@@ -206,7 +242,7 @@ function makeCut(): CutEl {
     handle.addEventListener('pointerup', onTrimPointerUp);
     handle.addEventListener('pointercancel', onTrimPointerUp);
   }
-  return { root, body, label, start, end, join, wave, wavePath };
+  return { root, body, label, speed, start, end, join, wave, wavePath };
 }
 
 function trimHandle(which: 'start' | 'end'): HTMLButtonElement {
@@ -300,9 +336,15 @@ function onTrimPointerDown(e: PointerEvent, which: 'start' | 'end'): void {
 function trimmedTo(drag: NonNullable<typeof trimDrag>, clientX: number): CutTrack {
   const edge = snapTime(drag.edge + (clientX - drag.startX) * drag.spp, drag.targets, SNAP_PX * drag.spp);
   const cut = drag.track.cuts[drag.index]!;
-  const start = cutWindows(drag.track)[drag.index]!.start;
-  // The edge is a moment of the timeline; the window is seconds of the file, one delta apart.
-  const source = cut.from + (edge - start);
+  const { start, end } = cutWindows(drag.track)[drag.index]!;
+  // A freeze frame has no window to trim: its edge sets how long it holds.
+  if (cut.hold !== undefined) return withCutHold(drag.track, drag.index, drag.which === 'start' ? end - edge : edge - start);
+  // The edge is a moment of the timeline; the window is seconds of the file, one delta apart —
+  // scaled by the cut's speed (milestone 56), so a second of the lane is a second of the file at
+  // 1× and two of them at 2×. A ramp trims by its mean rate, which keeps its length honest.
+  const rates = cutRates(cut);
+  const mean = (rates.start + rates.end) / 2;
+  const source = drag.which === 'start' ? cut.from + (edge - start) * mean : cut.from + (edge - start) * mean;
   return withCutWindow(drag.track, drag.index, drag.which === 'start' ? { from: source } : { to: source }, drag.duration);
 }
 
@@ -425,7 +467,12 @@ function wipeChoices(): { id: string; name: string }[] {
     .slice(0, 12);
 }
 
-/** What the menu offers a cut: its transition, its sound unlinked, the track's silences, and the ripple. */
+/** The rates the menu offers, from a quarter to four times (milestone 56). */
+const RATES = [0.25, 0.5, 1, 2, 4] as const;
+/** How long a freeze frame may be asked to hold from the menu. */
+const HOLDS = [0.5, 1, 2, 3, 5] as const;
+
+/** What the menu offers a cut: its transition, its sound unlinked, its speed or hold, a freeze frame, the track's silences, and the ripple. */
 function cutMenuItems(track: CutTrack, index: number): MenuItemSpec[] {
   const cut = track.cuts[index]!;
   const last = index === track.cuts.length - 1;
@@ -454,9 +501,26 @@ function cutMenuItems(track: CutTrack, index: number): MenuItemSpec[] {
     ...[0.25, 0.5, 1].map((v) => soundRadio(`Leads ${v} s (J cut)`, `lead:${v}`, sd?.lead === v && !sd?.muted)),
     ...[0.25, 0.5, 1].map((v) => soundRadio(`Trails ${v} s (L cut)`, `tail:${v}`, sd?.tail === v && !sd?.muted)),
   ];
+  // The speed (milestone 56): a rate, a ramp from the rate to another across the cut, and smooth
+  // slow motion where frames have to be made up. A freeze frame offers how long it holds instead.
+  const { start: rate, end: rateTo } = cutRates(cut);
+  const speedRadio = (label: string, arg: string, checked: boolean): MenuItemSpec => ({ command: 'cut.speed', label, arg, type: 'radio', checked });
+  const rampRadio = (label: string, arg: string, checked: boolean): MenuItemSpec => ({ command: 'cut.ramp', label, arg, type: 'radio', checked });
+  const speed: MenuItemSpec[] = [
+    ...RATES.map((r) => speedRadio(rateText(r), String(r), rate === r)),
+    { type: 'separator' },
+    rampRadio('No ramp', 'none', cut.speed?.to === undefined),
+    ...RATES.map((r) => rampRadio(`Ramp to ${rateText(r)}`, String(r), cut.speed?.to === r)),
+    { type: 'separator' },
+    { command: 'cut.smooth', label: 'Smooth slow motion', type: 'checkbox', checked: cut.speed?.smooth === true, enabled: Math.min(rate, rateTo) < 1 },
+  ];
+  const hold: MenuItemSpec[] = HOLDS.map((v) => ({ command: 'cut.hold', label: `${v} s`, arg: String(v), type: 'radio', checked: cut.hold === v }));
+  const freeze: MenuItemSpec[] = HOLDS.map((v) => ({ command: 'cut.freeze', label: `Hold ${v} s`, arg: String(v) }));
   return [
     ...(last ? [] : [{ label: 'Transition', submenu: transition } satisfies MenuItemSpec]),
     { label: 'Sound', submenu: sound },
+    ...(cut.hold !== undefined ? [{ label: 'Hold', submenu: hold } satisfies MenuItemSpec] : [{ label: 'Speed', submenu: speed } satisfies MenuItemSpec]),
+    { label: 'Freeze Frame', submenu: freeze },
     { type: 'separator' },
     { command: 'cut.silences', label: 'Remove Silences…' },
     { command: 'cut.export', label: 'Export Edit…' },
@@ -517,6 +581,40 @@ function runCutCommand(command: string, arg: string | null, index: number): void
   }
   if (command === 'cut.transitionSeconds' && cut.transition) {
     setTrack(withCutTransition(track, index, { ...cut.transition, seconds: Number(arg) || DEFAULT_TRANSITION_SECONDS }), true);
+    return;
+  }
+  if (command === 'cut.speed') {
+    // The new rate keeps the ramp's far end and the smoothness, as changing one thing should.
+    const rate = Number(arg) || 1;
+    const speed: CutSpeed = { rate, ...(cut.speed?.to !== undefined ? { to: cut.speed.to } : {}), ...(cut.speed?.smooth ? { smooth: true as const } : {}) };
+    setTrack(withCutSpeed(track, index, speed), true);
+    return;
+  }
+  if (command === 'cut.ramp') {
+    const { start } = cutRates(cut);
+    const speed: CutSpeed = { rate: start, ...(arg !== 'none' && arg ? { to: Number(arg) || 1 } : {}), ...(cut.speed?.smooth ? { smooth: true as const } : {}) };
+    setTrack(withCutSpeed(track, index, speed), true);
+    return;
+  }
+  if (command === 'cut.smooth') {
+    const { start, end } = cutRates(cut);
+    const speed: CutSpeed = { rate: start, ...(cut.speed?.to !== undefined ? { to: end } : {}), ...(cut.speed?.smooth ? {} : { smooth: true as const }) };
+    setTrack(withCutSpeed(track, index, speed), true);
+    return;
+  }
+  if (command === 'cut.hold') {
+    setTrack(withCutHold(track, index, Number(arg) || DEFAULT_HOLD_SECONDS), true);
+    return;
+  }
+  if (command === 'cut.freeze') {
+    // At the playhead when it is inside this cut, so the shot stops on the frame being looked
+    // at; otherwise at the head of the cut.
+    const windows = cutWindows(track);
+    const playhead = playheadSeconds.peek();
+    const inside = playhead > windows[index]!.start && playhead < windows[index]!.end;
+    const at = inside ? playhead : windows[index]!.start;
+    const frozen = withFreezeAt(track, at, Number(arg) || DEFAULT_HOLD_SECONDS);
+    if (frozen !== track) setTrack(frozen, true);
     return;
   }
   if (command === 'cut.sound') {

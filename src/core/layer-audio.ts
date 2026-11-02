@@ -67,6 +67,12 @@ export interface SoundAudioLayer {
   value: SoundValue;
   source: SoundSource;
   span?: LayerSpan;
+  /**
+   * The rate the sound plays at, its pitch kept (milestone 56): a cut on the
+   * track at a speed, as `trackAudio` derives it. A sound layer of its own
+   * has none; absent is real time.
+   */
+  speed?: number;
 }
 
 /** One layer that makes sound, of either kind. */
@@ -109,6 +115,11 @@ function clampSpeed(speed: number): number {
   return Math.min(CLIP_LIMITS.speed.max, Math.max(CLIP_LIMITS.speed.min, speed));
 }
 
+/** The rate a layer of either kind plays at: a clip's own setting, or the speed a cut's sound was handed. */
+function layerSpeed(layer: AudioLayer): number {
+  return layer.kind === 'clip' ? clampSpeed(layer.value.speed) : clampSpeed(layer.speed ?? 1);
+}
+
 // ---------------------------------------------------------------- when a layer is heard
 
 /** The layer's own settings, whichever kind it is. */
@@ -124,7 +135,7 @@ function settings(layer: AudioLayer): { delay: number; volume: number; ending: '
 
 /** Seconds one pass of the layer's sound runs for on the graphic's clock. */
 export function layerPassSeconds(layer: AudioLayer): number {
-  if (layer.kind === 'sound') return soundWindow(layer.value, layer.source).seconds;
+  if (layer.kind === 'sound') return soundWindow(layer.value, layer.source).seconds / layerSpeed(layer);
   const { frames } = clipWindow(layer.value, layer.source);
   return frames / Math.max(1, layer.source.fps) / clampSpeed(layer.value.speed);
 }
@@ -146,9 +157,21 @@ export function layerHeard(layer: AudioLayer, length: number): { from: number; t
 
 /** Where in its own file a layer's sound is at a moment of the graphic, or null while it is silent. */
 export function layerSourceTimeAt(layer: AudioLayer, time: number): number | null {
-  return layer.kind === 'sound'
-    ? soundTimeAt(time, layer.value, layer.source)
-    : clipMediaTimeAt(time, layer.value, layer.source);
+  if (layer.kind === 'clip') return clipMediaTimeAt(time, layer.value, layer.source);
+  const speed = layerSpeed(layer);
+  if (speed === 1) return soundTimeAt(time, layer.value, layer.source);
+  // At a speed (milestone 56) the window passes `speed` times as fast: the moment is scaled onto
+  // the file's clock from the delay, and the pass is the window's seconds over the speed.
+  if (!Number.isFinite(time) || layer.value.id === null || layer.value.hidden) return null;
+  const { from, seconds } = soundWindow(layer.value, layer.source);
+  if (seconds <= 0) return null;
+  const elapsed = time - Math.max(0, layer.value.delay);
+  if (elapsed < -1e-9) return null;
+  const pass = seconds / speed;
+  let within = Math.max(0, elapsed);
+  if (layer.value.ending === 'loop') within = within % pass;
+  else if (within >= pass - 1e-9) return null;
+  return from + within * speed;
 }
 
 /**
@@ -249,7 +272,9 @@ export function layerAudioChain(inputIndex: number, layer: AudioLayer, label: st
   // loudness levelling, which measures the treated mix and still lands the target.
   if (layer.kind === 'sound') {
     const { from, to } = soundWindow(layer.value, layer.source);
-    steps.push(`atrim=start=${s(from)}:end=${s(to)}`, 'asetpts=PTS-STARTPTS', ...voiceSteps(layer.value.voice));
+    // A cut's sound at a speed (milestone 56) is retimed as a clip's is: `atempo` changes the
+    // tempo and keeps the pitch, so a slowed voice stays a voice rather than a growl.
+    steps.push(`atrim=start=${s(from)}:end=${s(to)}`, 'asetpts=PTS-STARTPTS', ...voiceSteps(layer.value.voice), ...atempoChain(layerSpeed(layer)));
   } else {
     const fps = Math.max(1, layer.source.fps);
     const { first, last } = clipWindow(layer.value, layer.source);

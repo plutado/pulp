@@ -17,7 +17,7 @@
  * which is what both formats are made of.
  */
 
-import { cutSeconds, cutWindows, transitionAt, type CutTrack } from './cut-track';
+import { cutRates, cutSeconds, cutSourceTime, cutWindows, transitionAt, type Cut, type CutTrack } from './cut-track';
 
 /** What a cut's clip resolves to: the file as it lies, and what was measured about it. */
 export interface EditClip {
@@ -115,19 +115,56 @@ export function fcpxmlEdit(input: EditExportInput): string {
       lines.push(`            <transition name="Cross Dissolve" offset="${rational(transition.at - transition.seconds / 2, fps)}" duration="${rational(transition.seconds, fps)}"/>`);
     }
     const open = `            <asset-clip ref="${assetId.get(cut.id)}" name="${escapeXml(clip.name)}" offset="${rational(windows[index]!.start, fps)}" start="${rational(cut.from, fps)}" duration="${rational(cutSeconds(cut), fps)}" format="r1"`;
+    const inside: string[] = [];
     if (index === 0 && input.graphics) {
       // The graphics ride connected above the first cut, from the top of the piece.
-      lines.push(
-        `${open}>`,
-        `              <asset-clip lane="1" ref="${graphicsId}" name="${escapeXml(input.name)} graphics" offset="${rational(cut.from, fps)}" start="0s" duration="${rational(input.graphics.seconds, fps)}" format="r1"/>`,
-        '            </asset-clip>',
-      );
-    } else {
-      lines.push(`${open}/>`);
+      inside.push(`              <asset-clip lane="1" ref="${graphicsId}" name="${escapeXml(input.name)} graphics" offset="${rational(cut.from, fps)}" start="0s" duration="${rational(input.graphics.seconds, fps)}" format="r1"/>`);
     }
+    inside.push(...timeMapLines(cut, fps));
+    if (inside.length > 0) lines.push(`${open}>`, ...inside, '            </asset-clip>');
+    else lines.push(`${open}/>`);
   });
   lines.push('          </spine>', '        </sequence>', '      </project>', '    </event>', '  </library>', '</fcpxml>', '');
   return lines.join('\n');
+}
+
+/**
+ * A retimed cut's time map (milestone 56), as FCPXML says it: points pairing
+ * a moment of the clip on the timeline with the second of the file it shows.
+ * Two points are a constant speed or a held frame; a ramp is the quadratic
+ * `cutSourceTime` integrates, sampled at a handful of points joined
+ * linearly, which an editor plays as a close stepped ramp. Nothing in real
+ * time: an ordinary clip carries no map.
+ */
+function timeMapLines(cut: Cut, fps: number): string[] {
+  const { start, end } = cutRates(cut);
+  if (cut.hold === undefined && start === 1 && end === 1) return [];
+  const seconds = cutSeconds(cut);
+  const points = cut.hold !== undefined || start === end ? 2 : 6;
+  const lines = ['              <timeMap>'];
+  for (let k = 0; k < points; k++) {
+    const t = (seconds * k) / (points - 1);
+    lines.push(`                <timept time="${rational(t, fps)}" value="${rational(cutSourceTime(cut, t), fps)}" interp="linear"/>`);
+  }
+  lines.push('              </timeMap>');
+  return lines;
+}
+
+/**
+ * The speed a cut plays at, as an EDL's `M2` motion memory line says it: the
+ * frames per second the source runs at, which is the sequence rate times the
+ * rate, and the source timecode it starts from. A ramp has no words in the
+ * format, so it is written at its mean with a comment saying the two ends; a
+ * freeze frame is a speed of nothing.
+ */
+function motionLines(cut: Cut, fps: number): string[] {
+  const { start, end } = cutRates(cut);
+  if (cut.hold === undefined && start === 1 && end === 1) return [];
+  const mean = cut.hold !== undefined ? 0 : (start + end) / 2;
+  const lines = [`M2   AX       ${(fps * mean).toFixed(1).padStart(5, '0')}                ${timecode(cut.from, fps)}`];
+  if (cut.hold !== undefined) lines.push(`* FREEZE FRAME: ${cut.hold} s`);
+  else if (start !== end) lines.push(`* SPEED RAMP: ${Math.round(start * 100)}% TO ${Math.round(end * 100)}%`);
+  return lines;
 }
 
 /** Frames as a non-drop timecode at the sequence's rate. */
@@ -159,6 +196,7 @@ export function edlEdit(input: EditExportInput): string {
     const kind = into ? (into.type === 'wipe' ? 'W001' : 'D   ') : 'C   ';
     const span = into ? ` ${String(Math.round(into.seconds * fps)).padStart(3, '0')}` : '    ';
     lines.push(`${event}  AX       V     ${kind}${span} ${tc(cut.from)} ${tc(cut.to)} ${tc(windows[index]!.start)} ${tc(windows[index]!.end)}`);
+    lines.push(...motionLines(cut, fps));
     if (into?.type === 'dip') lines.push(`* DIP TO COLOR: ${into.color}`);
     if (into?.type === 'wipe' && into.template) lines.push(`* WIPE: ${into.template}`);
     lines.push(`* FROM CLIP NAME: ${clip.name}`, `* SOURCE FILE: ${clip.path}`, '');

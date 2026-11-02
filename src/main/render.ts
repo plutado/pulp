@@ -32,7 +32,7 @@ import { checkImages, readSlotImages } from './image-grant';
 import { findMediaIdByPath, findTemplate, lookupClipItem, lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg, runForBuffer, runWithInput } from '../core/ffmpeg';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
-import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan } from '../core/render-plan';
+import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan, type RenderPlanInput } from '../core/render-plan';
 import { applyLayerAudio, audibleLayers, measureMixArgs, parseMixLoudness, type AudioLayer, type LoudnessTarget, type MixLoudness } from '../core/layer-audio';
 import { clipAudible } from '../core/video-layer';
 import { soundAudible } from '../core/sound-layer';
@@ -207,7 +207,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     if (lookupClipItem(cut.id)) return null;
     return (cut.path && findMediaIdByPath(cut.path)) || null;
   }))(trackIn(job.params));
-  const trackCuts: { path: string; from: number; to: number; transition?: { type: 'dissolve' | 'dip'; seconds: number; color?: string } }[] = [];
+  const trackCuts: NonNullable<RenderPlanInput['track']>['cuts'] = [];
   const trackWipes: { template: string; at: number; seconds: number }[] = [];
   for (const [index, cut] of (track?.cuts ?? []).entries()) {
     const found = lookupClipItem(cut.id);
@@ -219,6 +219,9 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     if (transition?.type === 'wipe' && transition.template) trackWipes.push({ template: transition.template, at: transition.at, seconds: transition.seconds });
     trackCuts.push({
       path: found.entry.path, from: cut.from, to: cut.to,
+      // The speed or the hold ride through as the cut has them (milestone 56); the plan does the arithmetic.
+      ...(cut.speed ? { speed: cut.speed } : {}),
+      ...(cut.hold !== undefined ? { hold: cut.hold } : {}),
       ...(transition && transition.type !== 'wipe' ? { transition: { type: transition.type, seconds: transition.seconds, color: transition.color } } : {}),
     });
   }
@@ -313,7 +316,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   // cut's own span (src/core/cut-track.ts). A clip with no audio stream simply contributes none.
   for (const cut of track ? trackAudio(track) : []) {
     const found = await resolveSoundSource(ffprobePathFor(ffmpeg.path), cut.value.id!);
-    if (found) audioLayers.push({ kind: 'sound', path: found.path, value: cut.value, source: found.source, span: cut.span });
+    if (found) audioLayers.push({ kind: 'sound', path: found.path, value: cut.value, source: found.source, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) });
   }
   if (audioLayers.length > 0) plan = applyLayerAudio(plan, audioLayers, await mixLoudnessFor(ffmpeg.path, plan, audioLayers, job.options?.platform, warnings));
 
