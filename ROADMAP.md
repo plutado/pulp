@@ -68,9 +68,14 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
 | 16. Audio: stems, variants and pairing (post-1.0) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
+| 54. A panel inside the editing apps (post-1.0) | 30-50 h |
+| 55. A visual template editor (post-1.0) | 40-70 h |
+| 56. Speed changes on the cut track (post-1.0) | 10-16 h |
+| 57. A second picture track (post-1.0) | 16-26 h |
+| 58. Reliability, scale and speed (post-1.0) | 16-28 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **741-1195 h** |
 | **Still open through 1.0 (unticked items only)** | **44-74 h** |
-| **Total including post-1.0 items** | **767-1243 h** |
+| **Total including post-1.0 items** | **879-1433 h** |
 
 ## 0. Foundation (done)
 
@@ -682,7 +687,7 @@ Decided 2026-11-01. With sound in a project (48), a talking head recorded on a l
 - [ ] Windows: NSIS installer, unsigned (1-2 h)
 - [ ] Linux: AppImage (1-2 h)
 - [ ] Release workflow in GitHub Actions producing draft releases with the unsigned artifacts (2-3 h)
-- [ ] Decide on ffmpeg distribution: keep "user installs ffmpeg", offer a download helper, or bundle an LGPL build; document license implications (ADR)
+- [ ] ffmpeg distribution, decided 2026-11-01: **a download helper**, with "use your own ffmpeg" kept as it is. On first run without ffmpeg, Pulp offers to fetch a full build from its publisher, after asking, checked against a pinned checksum and kept beside the settings — the pattern ADR 0021 set for the speech model. Not an LGPL build in the installers: an LGPL-only ffmpeg has no x264, so every H.264 render, the platform presets included, would fall back on each system's hardware encoder; and not a GPL build in them, which would make the installers distribute GPL software beside Pulp's MIT licence. An ADR records it with the licence implications
 
 ## 7. Signing and auto-update (4-7 h)
 
@@ -710,3 +715,50 @@ Takes over "audio in templates" from the Later list, and builds on the audio lay
 
 - [ ] A proper `pulp` command: what already renders without the window (`--render`, `--param` including `@layers`, `--length`, `--collection`, CSV batch) packaged as its own entry point — `pulp render …` and `pulp collection …` — with help text, exit codes and a section in the README, rather than a second interface (2-3 h)
 - [ ] Optional local semantic search over the library (on-device embeddings, off by default, no network) (5-13 h)
+
+## 54. A panel inside the editing apps (30-50 h, after 1.0; GitHub issue #56)
+
+Decided 2026-11-01. Pulp's first purpose is making what goes into an editing app; today that ends in a drag from the render queue. This puts Pulp's library inside the editing apps themselves, so an editor browses, renders and drops without leaving the timeline.
+
+- [ ] **A panel** for each of the two editing apps drag-out is verified with (milestone 5), listing Pulp's library and collections over a local connection to the running app — nothing leaves the machine (10-16 h)
+- [ ] **Drop into the edit:** an item dragged into the bin or onto the timeline at the playhead, rendered on request with the item's own output settings, alpha kept (8-14 h)
+- [ ] **Back and forth:** open an item in Pulp from the panel to change it, and the render queue's progress shown in the panel (6-10 h)
+- [ ] **Packaging and tests:** the panels' own install steps documented, and tested against a stand-in host that speaks the same connection (6-10 h)
+
+## 55. A visual template editor (40-70 h, after 1.0; GitHub issue #57)
+
+Decided 2026-11-01. A template is HTML and Canvas today, which keeps the format open but leaves making one to people who write code. This makes one in the window, and saves it in the same open format, so a template made here is a template like any other.
+
+- [ ] **A blank canvas:** text, shapes, pictures and clips placed, sized and timed on the stage, with milestone 25's handles (10-16 h)
+- [ ] **Parameters by picking:** any property — a line's words, a colour, a picture — exposed as a parameter by choosing it and naming it (6-10 h)
+- [ ] **Motion** with milestone 51's keyframes and easing, and the entrances and exits of milestone 28 (6-10 h)
+- [ ] **A layout per aspect,** so one template draws 16:9, 9:16, 1:1 and 4:5 (6-12 h)
+- [ ] **Saved as a template folder** that passes the JSON Schema, reopened for editing, and editable by hand afterwards (6-12 h)
+- [ ] **Tests:** a template built step by step in the UI renders the frames its hand-written twin does (6-10 h)
+
+## 56. Speed changes on the cut track (10-16 h, after 1.0; GitHub issue #58)
+
+Decided 2026-11-01, following milestone 49.
+
+- [ ] **A speed per cut,** from a quarter to four times, the sound kept at its pitch (3-5 h)
+- [ ] **Ramps** between two speeds across a cut (3-5 h)
+- [ ] **Freeze frames:** a frame held for a chosen length (1-2 h)
+- [ ] **Smooth slow motion** by frame interpolation, proxied in the preview and full quality in the render (3-4 h)
+
+## 57. A second picture track (16-26 h, after 1.0; GitHub issue #59)
+
+Decided 2026-11-01, following milestone 49: one picture track carries the shots; a second carries what sits over them.
+
+- [ ] **A second track** above the cut track, whose clips sit anywhere on the timeline, gaps allowed (5-8 h)
+- [ ] **Picture-in-picture:** position, size, crop and a border, with the stage's handles (4-6 h)
+- [ ] **Sound and hand-over:** its clips' sound in the mix, and a second video lane in the edit exported for an editing app (4-7 h)
+- [ ] **Tests** for the track's arithmetic, the render and the exported edit (3-5 h)
+
+## 58. Reliability, scale and speed (16-28 h, after 1.0; GitHub issue #60)
+
+Decided 2026-11-01, from the undecided list in `docs/ideas.md`.
+
+- [ ] **A library of 100,000 items:** indexing, search and scrolling timed against a generated library, with budgets a test holds (6-10 h)
+- [ ] **Long projects:** a 30-minute cut track previewed and rendered within a memory budget (4-7 h)
+- [ ] **Recovery under load:** the app killed mid-render and mid-save, and the work recovered (3-6 h)
+- [ ] **A performance section** in Copy diagnostics: library size, index and search timings, memory (3-5 h)
