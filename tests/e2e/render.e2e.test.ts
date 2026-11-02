@@ -1562,9 +1562,11 @@ describe.skipIf(!available)('end-to-end render', () => {
     // them, and the graphics connected above the first cut.
     const xml = await readFile(`${base}.fcpxml`, 'utf8');
     expect(xml).toContain('<fcpxml version="1.10">');
-    // Node's own file URL, so a Windows path is checked as file:///C:/… rather than a backslashed guess.
-    expect(xml).toContain(`src="${pathToFileURL(join(lib, 'e-red.mp4')).href}"`);
-    expect(xml).toContain(`src="${pathToFileURL(join(lib, 'e-blue.mp4')).href}"`);
+    // Node's own file URL, so a Windows path is checked as file:///C:/… rather than a backslashed
+    // guess — compared decoded, since Node writes a short name's ~ as %7E where the export keeps it.
+    const sources = [...xml.matchAll(/src="([^"]+)"/g)].map((m) => decodeURI(m[1]!));
+    expect(sources).toContain(decodeURI(pathToFileURL(join(lib, 'e-red.mp4')).href));
+    expect(sources).toContain(decodeURI(pathToFileURL(join(lib, 'e-blue.mp4')).href));
     expect(xml).toContain('<transition name="Cross Dissolve"');
     expect(xml).toContain('lane="1"');
     expect(xml).toContain('start="6/30s" duration="18/30s"');
