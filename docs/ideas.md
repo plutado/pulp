@@ -17,6 +17,8 @@ The order work is built in is `ROADMAP.md`'s planned order, which scheduling fol
 
 ## Known issues
 
+- **A Lottie frame captured a frame late, once, on Linux CI** (run 41528310500 on `9fd08a6`, `render-linux`; passed on rerun). The stretched-Lottie render test found the square at x = 179.5 on frame 2, which is where frame 1 puts it, rather than about 260. The render took the previous frame's picture once; if it happens again, the frame capture needs to wait for the Lottie player to have drawn the frame asked for, not only for the call to return.
+
 - **Visual regression references only match the machine that made them.** `tests/visual/references.json` holds perceptual hashes made on the maintainer's Mac; on CI's Windows runner, its macOS virtual machine and Linux, frames differ by 7 to 64 bits against `HASH_TOLERANCE` = 6 (CI run 40237022619), so `tests/e2e/visual.e2e.test.ts` is skipped on CI and runs locally only. Make references work across platforms: references per platform (approved from each platform's own run), or a comparison tuned so that rendering differences between machines pass and a moved, recoloured or missing element still fails, then run it on CI again.
 
 
