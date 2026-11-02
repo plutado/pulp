@@ -17,6 +17,7 @@
 
 import { BrowserWindow, nativeImage } from 'electron';
 import { stagedOutputPath } from '../core/render-recovery';
+import { createCaptureWindow, fitPageToFrame, screenHint, } from './capture-window';
 import { withLegacyHold } from '../core/legacy-hold';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -87,15 +88,7 @@ export interface RenderJob {
   onProgress?: (progress: RenderProgress) => void;
 }
 
-/**
- * Device scale factor of the offscreen window. Always 1; PULP_OFFSCREEN_SCALE
- * exists only so tests can simulate a HiDPI surface and check that such a
- * render is refused rather than resized.
- */
-export function offscreenDeviceScaleFactor(): number {
-  const override = Number(process.env.PULP_OFFSCREEN_SCALE);
-  return Number.isFinite(override) && override > 0 ? override : 1;
-}
+export { offscreenDeviceScaleFactor } from './capture-window';
 
 /** Result of the capture probe: the bitmap layout, or why it could not be classified. */
 type CaptureProbe = { format: CaptureFormat } | { format: null; reason: string };
@@ -352,24 +345,9 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   // The frame size is the plan's, not the manifest's: a template draws for a shape and the
   // size is chosen per render (ADR 0012). The window, the capture check and ffmpeg agree on it.
   const frameSize = { name: manifest.name, width: plan.width, height: plan.height };
-  const win = new BrowserWindow({
-    show: false,
-    width: plan.width,
-    height: plan.height,
-    useContentSize: true,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    webPreferences: {
-      // Scale 1 on purpose: a 1920x1080 template is captured as 1920x1080 pixels on any display,
-      // and window.devicePixelRatio is 1 inside the template.
-      offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() },
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-      backgroundThrottling: false,
-    },
-  });
+  // Fitted to the screen where Linux would otherwise shrink it (src/main/capture-window.ts).
+  const capture = createCaptureWindow({ width: plan.width, height: plan.height }, { backgroundThrottling: false });
+  const win = capture.win;
 
   const overwrite = job.overwrite ?? false;
   const frameTimeoutMs = job.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS;
@@ -417,8 +395,6 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   };
 
   try {
-    // Offscreen windows are not clamped to the screen size, so 4K templates still get a full-size surface.
-    win.setContentSize(plan.width, plan.height);
     // Begin-frame cadence, not the output rate. Each frame waits two animation frames and one paint
     // (see captureFrame), which at the default 60 Hz caps the render near 30 frames/s; at Electron's
     // maximum of 240 the waits cost ~4 ms. The offscreen.frameRate web preference has no effect here;
@@ -436,6 +412,8 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       if (err instanceof RenderTimeoutError) return { ok: false, message: err.message };
       return { ok: false, message: `Could not load template "${manifest.name}": ${(err as Error).message}` };
     }
+    // A window fitted to a small screen now tells its page the frame's own size (Linux).
+    await fitPageToFrame(capture);
     // Every chosen image is read by the main process, handed to the page as bytes, and decoded now,
     // before the first frame, under the load budget rather than a frame's (ADR 0013).
     const requests = [...imageRequests(slots), ...layerImageChoices(blocks).map((c) => ({ id: c.id, treatment: c.treatment, tint: c.tint }))]
@@ -640,30 +618,16 @@ function defaultStyleParams(style: TemplateEntry): ReturnType<typeof resolvePara
  * own size, to be captured once per frame beside the template's page.
  */
 async function openStylePage(style: TemplateEntry, size: Size, loadTimeoutMs: number): Promise<{ ok: true; win: BrowserWindow } | { ok: false; message: string }> {
-  const win = new BrowserWindow({
-    show: false,
-    width: size.width,
-    height: size.height,
-    useContentSize: true,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    webPreferences: {
-      offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() },
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-      backgroundThrottling: false,
-    },
-  });
+  const capture = createCaptureWindow(size, { backgroundThrottling: false });
+  const win = capture.win;
   try {
-    win.setContentSize(size.width, size.height);
     win.webContents.setFrameRate(240);
     await withTimeout(
       win.loadURL(templateUrlFor(style.manifest.id, style.manifest.entry)).then(() => win.webContents.executeJavaScript('window.__pulp.ready')),
       loadTimeoutMs,
       loadTimeoutMessage(style.manifest.name, loadTimeoutMs),
     );
+    await fitPageToFrame(capture);
     await drainPaints(win);
     return { ok: true, win };
   } catch (err) {
@@ -894,7 +858,7 @@ async function captureFrameImage(
   if (size.width !== manifest.width || size.height !== manifest.height) {
     // The window is at scale 1 (see offscreenDeviceScaleFactor), so a different size means the
     // platform scaled or clamped it. Resampling would hide that and soften every frame.
-    throw new Error(captureSizeMessage(manifest.name, state.frame, manifest, size));
+    throw new Error(captureSizeMessage(manifest.name, state.frame, manifest, size) + screenHint(manifest));
   }
   return image;
 }
@@ -988,24 +952,9 @@ export async function captureTemplateFrames(
   const { values: layers } = resolveLayers(manifest, rawLayers);
   // The template's default size unless told otherwise: the hover strip wants the same frame the poster shows.
   const frameSize = { name: manifest.name, ...(options.size ?? templateDefaultSize(manifest)) };
-  const win = new BrowserWindow({
-    show: false,
-    width: frameSize.width,
-    height: frameSize.height,
-    useContentSize: true,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    webPreferences: {
-      offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() },
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-      backgroundThrottling: false,
-    },
-  });
+  const capture = createCaptureWindow({ width: frameSize.width, height: frameSize.height }, { backgroundThrottling: false });
+  const win = capture.win;
   try {
-    win.setContentSize(frameSize.width, frameSize.height);
     win.webContents.setFrameRate(240);
     const loadTimeoutMs = options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
     try {
@@ -1019,6 +968,7 @@ export async function captureTemplateFrames(
       if (err instanceof RenderTimeoutError) return { ok: false, message: err.message, timedOut: true };
       return { ok: false, message: `Could not load template "${manifest.name}": ${(err as Error).message}` };
     }
+    await fitPageToFrame(capture);
     // The load's own paints, out of the way before the first frame waits for one (see drainPaints).
     await drainPaints(win);
     const frameTimeoutMs = options.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS;
@@ -1066,23 +1016,15 @@ export interface CapturePage {
 }
 
 export async function openCapturePage(url: string, size: Size, timeoutMs = DEFAULT_LOAD_TIMEOUT_MS): Promise<{ ok: true; page: CapturePage } | { ok: false; message: string }> {
-  const win = new BrowserWindow({
-    show: false,
-    width: size.width,
-    height: size.height,
-    useContentSize: true,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    webPreferences: { offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() }, sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
-  });
+  const capture = createCaptureWindow(size, { backgroundThrottling: false });
+  const win = capture.win;
   let first = true;
   try {
-    win.setContentSize(size.width, size.height);
     // The render path's cadence (docs/platform-notes.md): the waits around each draw run at the
     // window's begin-frame rate, and 60 Hz costs two intervals per frame.
     win.webContents.setFrameRate(240);
     await withTimeout(win.loadURL(url), timeoutMs, `the page did not load within ${Math.round(timeoutMs / 1000)} s`);
+    await fitPageToFrame(capture);
     await drainPaints(win);
   } catch (err) {
     win.destroy();

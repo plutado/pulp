@@ -17,10 +17,6 @@ The order work is built in is `ROADMAP.md`'s planned order, which scheduling fol
 
 ## Known issues
 
-- **Linux CI: 8K frames are clipped by one pixel** (CI run 40240858897 on `fb2b3a5`, `render-linux`): the virtual screen is exactly 7680 × 4320, and an offscreen window is kept inside it, so the 8K test captured 7679 × 4319. The CI virtual screen is now 8192 × 4608, larger than any render; the underlying clipping is the Linux issue above.
-
-- **Linux: a render is clipped to the screen.** On Linux an offscreen render window is kept inside the screen, so on a 1920 × 1080 display a 1080p frame was captured at 1919 × 1079 and the render refused it (CI run 40240070884, `render-linux`, before its virtual screen was enlarged). CI now uses a 7680 × 4320 virtual screen, but a person on a 1080p Linux desktop would still hit it, and 4K or 8K renders on a smaller screen likewise. Make offscreen windows independent of the screen size on Linux, or size the capture another way, and test it on a small virtual screen.
-
 - **Visual regression references only match the machine that made them.** `tests/visual/references.json` holds perceptual hashes made on the maintainer's Mac; on CI's Windows runner, its macOS virtual machine and Linux, frames differ by 7 to 64 bits against `HASH_TOLERANCE` = 6 (CI run 40237022619), so `tests/e2e/visual.e2e.test.ts` is skipped on CI and runs locally only. Make references work across platforms: references per platform (approved from each platform's own run), or a comparison tuned so that rendering differences between machines pass and a moved, recoloured or missing element still fails, then run it on CI again.
 
 

@@ -1448,6 +1448,41 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(existsSync(join(out, 'killed.partial.mp4')), 'the stage cleared by the render that finished').toBe(false);
   }, 900_000);
 
+  it('renders a frame the screen\'s own size, and one larger than it, on a small Linux screen (milestone 58)', async () => {
+    // On X11 a window the desktop's size is shrunk by a pixel, so a 1080p render on a 1080p desktop
+    // was captured at 1919 × 1079 and refused. The render now fits the screen with a smaller
+    // window at a higher scale (src/core/capture-fit.ts). Each case runs the app under a virtual
+    // screen of its own, the way a person's desktop would be; without xvfb-run — macOS, Windows,
+    // and a Linux without it — there is no small screen to try, and the test says so.
+    const { spawnSync } = await import('node:child_process');
+    if (process.platform !== 'linux' || spawnSync('which', ['xvfb-run']).status !== 0) {
+      console.info('small Linux screen: skipped, no xvfb-run here');
+      return;
+    }
+    const under = async (screen: string, file: string, extra: string[]) => {
+      const r = await runBounded('xvfb-run', ['-a', '--server-args', `-screen 0 ${screen}x24`, electron!, '.', '--render', 'pulp.samples.lower-third-bar', '--preset', 'png-sequence', '--out', join(out, file), '--in-point', '30', '--out-point', '30', '--param', 'panel=#ffffffd9', ...extra], { cwd: ROOT, timeoutMs: 240_000 });
+      // Both streams: the render's own refusal is on stderr, what it managed on stdout, and D-Bus
+      // noise on a runner without a system bus can crowd either.
+      expect(r.code, `${r.stdout.slice(-400)}\n${r.stderr.split('\n').filter((l) => !l.includes('dbus/bus.cc')).join('\n').slice(-800)}`).toBe(0);
+      return join(out, `${file}_00030.png`);
+    };
+    // The frame's pixels, so a fitted render can be held to a plain one: the same picture, exactly.
+    const bytes = async (file: string) => (await runBoundedBuffer(ffmpeg, ffmpegArgs(['-v', 'error', '-i', file, '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']), { timeoutMs: TOOL_TIMEOUT_MS })).stdout;
+
+    // 1080p on a 1080p desktop: the case the issue was filed for.
+    const small = await under('1920x1080', 'screen-small', []);
+    expect(await probe(small)).toMatchObject({ width: 1920, height: 1080 });
+    // Against the same frame on a screen with room to spare: pixel for pixel the same.
+    const roomy = await under('2000x1200', 'screen-roomy', []);
+    expect((await bytes(small)).equals(await bytes(roomy)), 'a fitted capture is the plain capture, byte for byte').toBe(true);
+
+    // 4K on the same desktop: a window halved is still the screen's size, so it is a third.
+    const big = await under('1920x1080', 'screen-4k', ['--size', '3840x2160']);
+    expect(await probe(big)).toMatchObject({ width: 3840, height: 2160 });
+    const bigRoomy = await under('4000x2400', 'screen-4k-roomy', ['--size', '3840x2160']);
+    expect((await bytes(big)).equals(await bytes(bigRoomy)), '4K fitted at a third is the plain 4K').toBe(true);
+  }, 900_000);
+
   it('plays a cut at a speed with its pitch kept, holds a frozen frame, and renders a smooth ramp (milestone 56)', async () => {
     // The same two toned clips as the track test: red at 440 Hz, blue at 880 Hz. Red plays at 2×
     // — half a second of timeline — blue at ½× for a second, then red's first frame is held for

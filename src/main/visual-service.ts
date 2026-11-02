@@ -13,7 +13,6 @@
  * a render each.
  */
 
-import { BrowserWindow } from 'electron';
 import { resolveRenderSize, templateDefaultSize } from '../core/aspect';
 import { frameCount } from '../core/manifest';
 import { defaultParams, resolveParams } from '../core/params';
@@ -21,7 +20,8 @@ import { frameState } from '../core/runtime';
 import { framesToCheck, frameHash, hammingDistance, looksSame, type VisualReferences } from '../core/visual-hash';
 import { scanLibrary } from '../core/library';
 import type { TemplateEntry } from '../core/library-types';
-import { drainPaints, offscreenDeviceScaleFactor, paintComposited } from './render';
+import { drainPaints, paintComposited } from './render';
+import { createCaptureWindow, fitPageToFrame } from './capture-window';
 import { withTimeout } from '../core/render-guard';
 
 export interface VisualResult {
@@ -44,19 +44,11 @@ async function hashTemplate(entry: TemplateEntry, aspect: string): Promise<Visua
   const size = aspect === '' ? templateDefaultSize(manifest) : resolveRenderSize(manifest, { aspect });
   const total = frameCount(manifest);
   const frames = framesToCheck(total);
-  const win = new BrowserWindow({
-    show: false,
-    width: size.width,
-    height: size.height,
-    useContentSize: true,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    webPreferences: { offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() }, sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
-  });
+  const capture = createCaptureWindow(size, { backgroundThrottling: false });
+  const win = capture.win;
   try {
-    win.setContentSize(size.width, size.height);
     await withTimeout(win.loadURL(`pulp-template://${manifest.id}/`), LOAD_TIMEOUT_MS, 'the template did not load');
+    await fitPageToFrame(capture);
     // The load's own paints, out of the way before the first frame waits for one (see drainPaints):
     // a stale paint there would hash the blank page instead of the template.
     await drainPaints(win);

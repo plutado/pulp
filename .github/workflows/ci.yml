@@ -130,8 +130,10 @@ jobs:
           sudo chown root node_modules/electron/dist/chrome-sandbox
           sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - name: Unit and end-to-end tests
-        # The virtual screen is larger than the largest render: on Linux an offscreen window is kept
-        # inside the screen, so a 1920 x 1080 screen clipped 1080p frames to 1919 x 1079.
+        # The virtual screen is large so the window tests have room. A render no longer needs it: a
+        # frame the screen's size or larger is captured from a smaller window at a higher scale
+        # (src/core/capture-fit.ts), and one of the render tests starts its own 1920 x 1080 virtual
+        # screen with xvfb-run to prove it.
         # A session bus, which the runner lacks: without one Electron logs "Failed to connect to the
         # bus" on every launch, and the tests that expect a quiet run read it as an error.
         run: dbus-run-session -- xvfb-run --auto-servernum --server-args="-screen 0 8192x4608x24" npm test
