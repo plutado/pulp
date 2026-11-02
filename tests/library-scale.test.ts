@@ -73,9 +73,10 @@ describe('a library of 100,000 items (milestone 58)', () => {
     dir = await mkdtemp(join(tmpdir(), 'pulp-scale-'));
   });
 
+  // A hundred thousand files take a while to remove on Windows: well past the default 10 s.
   afterAll(async () => {
     await rm(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
-  });
+  }, 180_000);
 
   it('indexes, searches and scrolls within its budgets', async () => {
     const built = await timed(buildLibrary);
