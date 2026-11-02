@@ -116,3 +116,34 @@ describe('speed changes in the exported edit (milestone 56)', () => {
     expect(edlEdit(input())).not.toContain('M2');
   });
 });
+
+describe('the second picture track in the exported edit (milestone 57)', () => {
+  const pip = { id: 'bb', name: 'Reaction', from: 0.5, to: 2.5, at: 1, speed: 1, dx: 0.3, dy: -0.25, height: 0.35, crop: { left: 0.1, top: 0, right: 0.1, bottom: 0 } };
+
+  it('writes each clip as a connected clip on a lane of its own, the graphics above them, with its transform and crop', () => {
+    const xml = fcpxmlEdit({ ...input(), overlays: [pip] });
+    expect(parseXml(xml).name).toBe('fcpxml');
+    // Inside the first spine clip, at its own moment in the parent's time (the cut starts at 1 s of its file).
+    expect(xml).toContain('<asset-clip lane="1" ref="r3" name="Reaction" offset="60/30s" start="15/30s" duration="60/30s" format="r1">');
+    // The frame is 1920 × 1080: 30% across is 576 px right, a quarter up is 270 px up; the scale is the height.
+    expect(xml).toContain('<adjust-transform position="576 270" scale="0.35 0.35"/>');
+    expect(xml).toContain('<trim-rect left="192" right="192" top="0" bottom="0"/>');
+    // The graphics move up a lane to stay on top.
+    expect(xml).toContain('<asset-clip lane="2" ref="r4" name="My Short graphics"');
+    // The sequence reaches the overlay's end where that is the furthest thing.
+    const late = fcpxmlEdit({ ...input(), graphics: undefined, overlays: [{ ...pip, at: 3 }] });
+    expect(late).toContain('<sequence format="r1" duration="150/30s">');
+    // An overlay at a speed carries a time map like a retimed cut.
+    expect(fcpxmlEdit({ ...input(), overlays: [{ ...pip, speed: 2 }] })).toContain('<timept time="30/30s" value="75/30s" interp="linear"/>');
+    // Without any, nothing changes: the graphics stay on lane 1.
+    expect(fcpxmlEdit(input())).toContain('<asset-clip lane="1" ref="r4"');
+  });
+
+  it('writes V2 events in the EDL, with the framing in comments', () => {
+    const edl = edlEdit({ ...input(), overlays: [{ ...pip, speed: 2 }] });
+    expect(edl).toContain('003  AX       V2    C        00:00:00:15 00:00:02:15 00:00:01:00 00:00:02:00\nM2   AX       060.0                00:00:00:15');
+    expect(edl).toContain("* PICTURE IN PICTURE: Reaction, 35% of the frame's height, centre 30% across and -25% down from the frame's centre");
+    expect(edl).toContain('* CROP: left 10%, top 0%, right 10%, bottom 0%');
+    expect(edl).toContain('* SOURCE FILE: C:\\shots\\tall.mov');
+  });
+});

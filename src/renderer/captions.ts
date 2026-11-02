@@ -65,12 +65,14 @@ function speechSources(): { id: string; label: string; segments: SpeechSegment[]
   const found: { id: string; label: string; segments: SpeechSegment[] }[] = [];
   const track = layerEditor()?.track() ?? null;
   if (track && track.cuts.length > 0) {
-    const segments = trackAudio(track).map(({ value }): SpeechSegment => ({
+    const segments = trackAudio(track).map(({ value, speed }): SpeechSegment => ({
       kind: 'clip',
       id: value.id!,
       from: value.inPoint,
       to: value.outPoint,
       at: value.delay,
+      // A cut at a speed (milestone 56) is heard at that speed, so its words must be too.
+      ...(speed !== undefined && speed !== 1 ? { speed } : {}),
     }));
     if (segments.length > 0) found.push({ id: 'track', label: `The cut track (${track.cuts.length} ${track.cuts.length === 1 ? 'shot' : 'shots'})`, segments });
   }

@@ -18,6 +18,7 @@
  */
 
 import { spreadWords, type CaptionWord } from './captions';
+import { atempoChain } from './layer-audio';
 
 /**
  * A speech model Pulp can fetch. `bytes` and `sha256` are the published file's
@@ -125,6 +126,13 @@ export interface SpeechSegment {
   to: number;
   /** Seconds into the project the stretch is heard at, so the words land on the project's clock. */
   at: number;
+  /**
+   * The rate the stretch plays at (milestone 56): a cut at a speed passes its
+   * file seconds faster or slower than the clock, and the model has to hear it
+   * as it is heard, or every word after the first lands where the file was
+   * rather than where it plays. Absent is real time.
+   */
+  speed?: number;
 }
 
 /** What the model listens at: 16 kHz mono is what whisper was trained on and what it resamples to anyway. */
@@ -184,9 +192,11 @@ export function speechLanguage(code: string | undefined): string {
  */
 export function speechMixFilter(segments: readonly SpeechSegment[]): string {
   if (segments.length === 0) return '';
+  // A stretch at a speed is stretched the way the mix plays it — `atempo`, the tempo alone, the
+  // pitch kept — before it is delayed to its place, so its seconds are the clock's seconds.
   const chain = (segment: SpeechSegment, index: number): string =>
     `[${index}:a]aresample=${SPEECH_SAMPLE_RATE},aformat=sample_fmts=s16:channel_layouts=mono,` +
-    `adelay=${Math.max(0, Math.round(segment.at * 1000))}:all=1`;
+    [...atempoChain(segment.speed ?? 1), `adelay=${Math.max(0, Math.round(segment.at * 1000))}:all=1`].join(',');
   if (segments.length === 1) return `${chain(segments[0]!, 0)}[speech]`;
   const parts = segments.map((segment, i) => `${chain(segment, i)}[s${i}]`);
   const inputs = segments.map((_, i) => `[s${i}]`).join('');

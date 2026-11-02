@@ -485,7 +485,11 @@ export const BRIDGE_SCRIPT = `(function () {
       }
       var picture = pictureFor(layer);
       if (!picture) return { layer: layer, draw: draw, size: 0, lines: [], widths: [], width: 0, height: 0, extent: 0, cross: 0 };
-      var aspect = Math.max(0.01, picture.width / picture.height);
+      /* A cropped clip (milestone 57) is the shape of what is left of it: mirrors croppedAspect in
+         src/core/video-layer.ts, the copy with unit tests. */
+      var crop = layer.type === 'video' && layer.clip ? layer.clip.crop : null;
+      var cw = picture.width * (1 - (crop ? crop.left + crop.right : 0)), ch = picture.height * (1 - (crop ? crop.top + crop.bottom : 0));
+      var aspect = Math.max(0.01, cw / Math.max(0.01, ch));
       var w = Math.min(box.width, layer.size * aspect), h = w / aspect;
       return { layer: layer, draw: draw, size: 0, lines: [], widths: [], width: w, height: h, picture: picture, extent: column ? h : w, cross: column ? w : h };
     });
@@ -664,6 +668,15 @@ export const BRIDGE_SCRIPT = `(function () {
     }
     return c;
   }
+  /* What is left of a picture inside its crop, as a canvas of that size. */
+  function croppedPicture(picture, crop) {
+    var sx = Math.round(picture.width * crop.left), sy = Math.round(picture.height * crop.top);
+    var sw = Math.max(1, Math.round(picture.width * (1 - crop.left - crop.right))), sh = Math.max(1, Math.round(picture.height * (1 - crop.top - crop.bottom)));
+    var c = document.createElement('canvas');
+    c.width = sw; c.height = sh;
+    c.getContext('2d').drawImage(picture, sx, sy, sw, sh, 0, 0, sw, sh);
+    return c;
+  }
   function withShadow(ctx, color, blur, dx, dy, paint) {
     ctx.save();
     ctx.shadowColor = color; ctx.shadowBlur = blur; ctx.shadowOffsetX = dx; ctx.shadowOffsetY = dy;
@@ -688,10 +701,22 @@ export const BRIDGE_SCRIPT = `(function () {
       return;
     }
     if (!layer.picture) return;
-    var at = fitBox(layer.box, layer.picture.width, layer.picture.height, 'contain', 'center', 0);
-    if (!look) { ctx.drawImage(layer.picture, at.x, at.y, at.width, at.height); return; }
-    var source = px.corners > 0 || px.feather > 0 || look.tint ? dressedPicture(layer.picture, at, look, px) : layer.picture;
-    var draw = function () { ctx.drawImage(source, at.x, at.y, at.width, at.height); };
+    /* A clip's crop and border (milestone 57): the picture is first cut to what is left of it, so
+       every pass below -- the look's corners, feather and tint included -- sees the cropped shot;
+       the border goes on last, inside the edge, so it is never cut off by the box. */
+    var framed = layer.type === 'video' && layer.clip ? layer.clip : null;
+    var pic = framed && framed.crop ? croppedPicture(layer.picture, framed.crop) : layer.picture;
+    var at = fitBox(layer.box, pic.width, pic.height, 'contain', 'center', 0);
+    var border = function () {
+      if (!framed || !framed.border) return;
+      var short = Math.min(ctx.canvas.width, ctx.canvas.height);
+      var lw = Math.max(1, framed.border.width * short);
+      ctx.save(); ctx.lineWidth = lw; ctx.strokeStyle = framed.border.color;
+      ctx.strokeRect(at.x + lw / 2, at.y + lw / 2, Math.max(0, at.width - lw), Math.max(0, at.height - lw)); ctx.restore();
+    };
+    if (!look) { ctx.drawImage(pic, at.x, at.y, at.width, at.height); border(); return; }
+    var source = px.corners > 0 || px.feather > 0 || look.tint ? dressedPicture(pic, at, look, px) : pic;
+    var draw = function () { ctx.drawImage(source, at.x, at.y, at.width, at.height); border(); };
     if (px.glowBlur > 0) withShadow(ctx, look.glowColor, px.glowBlur, 0, 0, draw);
     if (hasShadow(look)) withShadow(ctx, look.shadowColor, px.shadowBlur, px.shadowOffsetX, px.shadowOffsetY, draw);
     if (px.outlineWidth > 0) {

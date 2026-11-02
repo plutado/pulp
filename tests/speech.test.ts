@@ -83,6 +83,16 @@ describe('laying the project\'s sound out for the model', () => {
     expect(filter.endsWith('[speech]')).toBe(true);
   });
 
+  it('stretches a stretch at a speed the way the mix plays it, so its words land where they are heard (milestone 56)', () => {
+    // Two seconds of file at 2× are one second of the clock: the tempo is doubled, the pitch
+    // kept, before the delay puts it in its place — and real time adds nothing.
+    const fast = speechMixFilter([{ ...cut(0, 0, 2), speed: 2 }, cut(1, 5, 6)]);
+    expect(fast).toContain('channel_layouts=mono,atempo=2,adelay=0:all=1');
+    expect(fast).toContain('channel_layouts=mono,adelay=1000:all=1');
+    // A quarter speed is two halvings, as the mix factors it.
+    expect(speechMixFilter([{ ...cut(0, 0, 1), speed: 0.25 }])).toContain('atempo=0.5,atempo=0.5,adelay=0');
+  });
+
   it('resamples to what the model listens at', () => {
     expect(speechMixFilter([cut(0, 0, 1)])).toContain(`aresample=${SPEECH_SAMPLE_RATE}`);
   });

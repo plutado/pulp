@@ -28,6 +28,32 @@ export const CLIP_LIMITS = {
 export const DEFAULT_CLIP_SPEED = 1;
 
 /**
+ * How much of each edge of the clip's picture is cut away (milestone 57), as
+ * fractions of its width and height: a picture-in-picture shows the part of
+ * the shot that matters. Opposite edges together leave at least a tenth.
+ */
+export interface ClipCrop {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** A border drawn on the picture's edge (milestone 57): its width as a fraction of the frame's short side, and its colour. */
+export interface ClipBorder {
+  width: number;
+  color: string;
+}
+
+export const CLIP_FRAME_LIMITS = {
+  /** Any one edge; and two opposite edges together leave at least a tenth of the picture. */
+  crop: { min: 0, max: 0.45 },
+  border: { min: 0.001, max: 0.05 },
+} as const;
+export const DEFAULT_BORDER_WIDTH = 0.006;
+export const DEFAULT_BORDER_COLOR = '#ffffff';
+
+/**
  * A clip chosen for a layer. `id` is a library id and nothing else — the page
  * never sees a path, and the host reads only the clips a layer names, by the
  * same grant images use (ADR 0013).
@@ -59,6 +85,10 @@ export interface ClipValue {
   muted: boolean;
   /** A voice treatment on the clip's own track (milestone 53, src/core/voice-treatment.ts); absent is as recorded. */
   voice?: VoiceValue;
+  /** The picture cropped at its edges (milestone 57); absent is the whole frame. */
+  crop?: ClipCrop;
+  /** A border on the picture's edge (milestone 57); absent is none. */
+  border?: ClipBorder;
 }
 
 export const EMPTY_CLIP: ClipValue = {
@@ -218,7 +248,45 @@ export function sanitizeClipValue(input: unknown): ClipValue | null | undefined 
   // Only a .cube may ride here: the host hands the path to ffmpeg, and anything else is noise.
   const lut = typeof r.lut === 'string' && /\.cube$/i.test(r.lut.trim()) ? r.lut.trim() : undefined;
   const voice = sanitizeVoice(r.voice);
-  return { id, inPoint, outPoint, ending, speed, delay, hidden: r.hidden === true, volume, muted: r.muted === true, ...(lut ? { lut } : {}), ...(voice ? { voice } : {}) };
+  const crop = sanitizeCrop(r.crop);
+  const border = sanitizeBorder(r.border);
+  return {
+    id, inPoint, outPoint, ending, speed, delay, hidden: r.hidden === true, volume, muted: r.muted === true,
+    ...(lut ? { lut } : {}), ...(voice ? { voice } : {}), ...(crop ? { crop } : {}), ...(border ? { border } : {}),
+  };
+}
+
+/** A crop with each edge in range and opposite edges leaving a tenth, or undefined for none at all. */
+export function sanitizeCrop(input: unknown): ClipCrop | undefined {
+  if (typeof input !== 'object' || input === null) return undefined;
+  const r = input as Record<string, unknown>;
+  const edge = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(CLIP_FRAME_LIMITS.crop.max, Math.max(CLIP_FRAME_LIMITS.crop.min, Math.round(v * 1000) / 1000)) : 0);
+  const crop = { left: edge(r.left), top: edge(r.top), right: edge(r.right), bottom: edge(r.bottom) };
+  if (crop.left + crop.right > 0.9) crop.right = Math.max(0, 0.9 - crop.left);
+  if (crop.top + crop.bottom > 0.9) crop.bottom = Math.max(0, 0.9 - crop.top);
+  return crop.left || crop.top || crop.right || crop.bottom ? crop : undefined;
+}
+
+/** A border with its width in range and a six-digit colour, or undefined for none. */
+export function sanitizeBorder(input: unknown): ClipBorder | undefined {
+  if (typeof input !== 'object' || input === null) return undefined;
+  const r = input as Record<string, unknown>;
+  const raw = typeof r.width === 'number' && Number.isFinite(r.width) ? r.width : DEFAULT_BORDER_WIDTH;
+  if (raw <= 0) return undefined;
+  const width = Math.min(CLIP_FRAME_LIMITS.border.max, Math.max(CLIP_FRAME_LIMITS.border.min, Math.round(raw * 10000) / 10000));
+  const color = typeof r.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(r.color) ? r.color.toLowerCase() : DEFAULT_BORDER_COLOR;
+  return { width, color };
+}
+
+/**
+ * The shape of a cropped picture (milestone 57): what the layout sizes the
+ * layer by, so a crop narrows the layer rather than squashing the shot into
+ * the box the whole frame had.
+ */
+export function croppedAspect(width: number, height: number, crop: ClipCrop | undefined): number {
+  const w = Math.max(1, width) * (1 - (crop?.left ?? 0) - (crop?.right ?? 0));
+  const h = Math.max(1, height) * (1 - (crop?.top ?? 0) - (crop?.bottom ?? 0));
+  return Math.max(0.01, w / Math.max(0.01, h));
 }
 
 /**
@@ -238,6 +306,8 @@ export function clipValueToText(value: ClipValue | null): string {
   if (value.delay !== 0) parts.push(`delay=${value.delay}`);
   if (value.volume !== 1) parts.push(`volume=${value.volume}`);
   if (value.voice) parts.push(`voice=${voiceToText(value.voice)}`);
+  if (value.crop) parts.push(`crop=${[value.crop.left, value.crop.top, value.crop.right, value.crop.bottom].join(',')}`);
+  if (value.border) parts.push(`border=${value.border.width}:${value.border.color}`);
   if (value.muted) parts.push('muted');
   if (value.hidden) parts.push('hidden');
   return parts.join(' ');
@@ -269,6 +339,17 @@ export function clipValueFromText(text: string): ClipValue | null {
     if (name === 'voice') {
       const voice = voiceFromText(raw);
       if (voice) fields.voice = voice;
+      continue;
+    }
+    if (name === 'crop') {
+      // left,top,right,bottom as fractions, in the order a frame is read round.
+      const [left, top, right, bottom] = raw.split(',').map((v) => Number(v));
+      fields.crop = { left, top, right, bottom };
+      continue;
+    }
+    if (name === 'border') {
+      const [width, color] = raw.split(':');
+      fields.border = { width: Number(width), ...(color ? { color } : {}) };
       continue;
     }
     const field = TEXT_KEYS[name];

@@ -956,6 +956,18 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
    slate — and its trim handles and selection wear the bars' own shapes, so one hand serves both. */
 .cut-track { position: relative; height: 16px; margin-top: 3px; flex: 0 0 auto; }
 .cut-track[hidden] { display: none; }
+/* The second picture track (milestone 57): the project's video layers as a lane over the cut track —
+   a block per clip at its span, selecting its layer; empty, a thin strip that says it takes a drop. */
+.overlay-track { position: relative; height: 16px; margin: 2px 0; border-radius: 3px; background: rgba(255, 255, 255, 0.04); }
+.overlay-track[hidden] { display: none; }
+.overlay-track.empty { border: 1px dashed rgba(255, 255, 255, 0.18); }
+.overlay-track.empty::after { content: 'Picture track: drop a clip here for picture-in-picture or b-roll'; position: absolute; inset: 0; padding: 0 6px; font-size: var(--font-caption); line-height: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.overlay-track.drop-target { background: rgba(125, 211, 252, 0.15); border-color: var(--accent); }
+.overlay-track .pip { position: absolute; top: 0; bottom: 0; min-width: 6px; }
+.overlay-track .pip-body { position: absolute; inset: 0; width: 100%; margin: 0; padding: 0 6px; border: 1px solid #0d1117; border-radius: 3px; background: rgba(180, 148, 212, 0.4); cursor: pointer; overflow: hidden; text-align: left; }
+.overlay-track .pip.selected .pip-body { background: rgba(200, 160, 240, 0.6); }
+.overlay-track .pip-body:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+.overlay-track .pip-label { display: block; font-size: var(--font-caption); line-height: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .cut { position: absolute; top: 0; bottom: 0; min-width: 6px; }
 .cut .cut-body { position: absolute; inset: 0; width: 100%; margin: 0; padding: 0 6px; border: 1px solid #0d1117; border-radius: 3px; background: rgba(134, 180, 148, 0.35); cursor: grab; overflow: hidden; text-align: left; }
 .cut.selected .cut-body { background: rgba(134, 213, 166, 0.55); }

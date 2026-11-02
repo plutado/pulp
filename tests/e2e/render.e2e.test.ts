@@ -2301,6 +2301,41 @@ describe.skipIf(!available)('end-to-end render', () => {
       expect(existsSync(join(out, 'lottie-gone_00000.png'))).toBe(false);
     }, 180_000);
 
+    it('draws a clip layer cropped and bordered, in the render as in the preview (milestone 57)', async () => {
+      // The same Lottie as a layer, once whole and once cropped to its middle half with a green
+      // border: the border's colour appears on the row through the layer, and the cropped
+      // picture's red run is narrower than the whole one's.
+      const lottieItemId = itemId(`lottie:${join(lib, 'Lower thirds', 'box.json')}`);
+      const stack = (framing: object) => JSON.stringify({
+        strap: [{ id: 'name', text: 'Ada Lovelace' }, { type: 'video', size: 0.3, clip: { id: lottieItemId, ending: 'loop', ...framing } }],
+      });
+      const redRun = async (file: string): Promise<{ red: number; green: number }> => {
+        const row = await pixels(file, 0, 820, 1920);
+        let red = 0;
+        let green = 0;
+        for (let x = 0; x < 1920; x++) {
+          const [r, g, b, a] = [row[x * 4]!, row[x * 4 + 1]!, row[x * 4 + 2]!, row[x * 4 + 3]!];
+          if (a > 200 && r > 150 && g < 90 && b < 90) red += 1;
+          if (a > 200 && g > 150 && r < 90 && b < 90) green += 1;
+        }
+        return { red, green };
+      };
+      const whole = await render('pulp.samples.lower-third-bar', 'png-sequence', 'pip-whole', {
+        extra: ['--library', lib, '--param', `@layers=${stack({})}`, '--param', 'panel=#ffffffd9', '--in-point', '90', '--out-point', '90'],
+      });
+      expect(whole.code, whole.stderr).toBe(0);
+      const framed = await render('pulp.samples.lower-third-bar', 'png-sequence', 'pip-framed', {
+        extra: ['--library', lib, '--param', `@layers=${stack({ crop: { left: 0.25, top: 0, right: 0.25, bottom: 0 }, border: { width: 0.01, color: '#00ff00' } })}`, '--param', 'panel=#ffffffd9', '--in-point', '90', '--out-point', '90'],
+      });
+      expect(framed.code, framed.stderr).toBe(0);
+      const plain = await redRun(join(out, 'pip-whole_00090.png'));
+      const cropped = await redRun(join(out, 'pip-framed_00090.png'));
+      expect(plain.red, 'the whole animation drawn').toBeGreaterThan(20);
+      expect(plain.green, 'and no border on it').toBe(0);
+      expect(cropped.green, 'the border\'s colour where the picture\'s edge is').toBeGreaterThan(0);
+      expect(cropped.red, 'the cropped picture narrower than the whole').toBeLessThan(plain.red * 0.8);
+    }, 180_000);
+
     it('renders a .lottie archive fitted into another aspect', async () => {
       const result = await render(dotId, 'png-sequence', 'lottie-dot', { extra: ['--library', lib, '--aspect', '1:1', '--out-point', '0'] });
       expect(result.code, result.stderr).toBe(0);

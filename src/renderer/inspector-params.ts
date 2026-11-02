@@ -48,7 +48,7 @@ import { clockLabel, dimensionsLabel } from '../core/display';
 import { IMAGE_TREATMENTS, sanitizeImageValue, sanitizePsdChoice, type ImageValue } from '../core/image-slot';
 import { fileHiddenLayers, layersTopFirst, layerShown, placeableLayers, psdLimitSummary, type PsdOutline } from '../core/psd';
 import { hiddenDiffersFromFile, hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines } from './psd-state';
-import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue } from '../core/video-layer';
+import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue, CLIP_FRAME_LIMITS, DEFAULT_BORDER_COLOR, DEFAULT_BORDER_WIDTH, sanitizeCrop } from '../core/video-layer';
 import { healedTrack, trackDuration, type CutTrack } from '../core/cut-track';
 import { DEFAULT_VOICE_AMOUNT, VOICE_DESCRIPTIONS, VOICE_LABELS, VOICE_LIMITS, VOICE_TREATMENTS, type VoiceValue } from '../core/voice-treatment';
 import { EMPTY_SOUND, SOUND_ENDINGS, SOUND_LIMITS, type SoundEnding, type SoundValue } from '../core/sound-layer';
@@ -1486,6 +1486,19 @@ function clipField(
       typeField('At the end', selectOf(CLIP_ENDINGS, ENDING_LABELS, value.ending, (v) => patch({ ending: v }), `${slot.label} ending`)),
       typeField('Speed', numberOf(value.speed, CLIP_LIMITS.speed, 0.1, (v) => patch({ speed: v }), `${slot.label} speed`)),
       typeField('Start delay, s', numberOf(value.delay, CLIP_LIMITS.delay, 0.1, (v) => patch({ delay: v }), `${slot.label} start delay`)),
+    );
+    // The picture's framing for picture-in-picture (milestone 57): each edge cropped away as a
+    // share of the shot, and a border on what is left. Position and size are the stage's handles.
+    const crop = value.crop ?? { left: 0, top: 0, right: 0, bottom: 0 };
+    const cropField = (edge: 'left' | 'top' | 'right' | 'bottom', label: string) =>
+      typeField(`Crop ${label}, %`, numberOf(crop[edge], CLIP_FRAME_LIMITS.crop, 1, (v) => patch({ crop: sanitizeCrop({ ...crop, [edge]: v }) }), `${slot.label} crop ${label}`, 100));
+    const border = value.border;
+    settings.append(
+      cropField('left', 'left'), cropField('right', 'right'), cropField('top', 'top'), cropField('bottom', 'bottom'),
+      typeField('Border, % of frame', numberOf(border?.width ?? 0, { min: 0, max: CLIP_FRAME_LIMITS.border.max }, 0.1,
+        (v) => patch({ border: v > 0 ? { width: v, color: border?.color ?? DEFAULT_BORDER_COLOR } : undefined }), `${slot.label} border width`, 100)),
+      typeField('Border colour', colorField(border?.color ?? DEFAULT_BORDER_COLOR,
+        (hex) => patch({ border: { width: border?.width ?? DEFAULT_BORDER_WIDTH, color: hex.slice(0, 7).toLowerCase() } }))),
     );
     // The clip's own grade (milestone 52): a .cube decoded into its frames, so the preview and
     // the render show the same colour by the one path.

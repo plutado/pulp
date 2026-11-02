@@ -30,6 +30,7 @@ import { layerAtPoint, layerCentre, mountStageDrop, mountStageLayers, stageLayer
 import { mountStageMenu } from './stage-menu';
 import type { CutTrack } from '../core/cut-track';
 import { cutTrackTakeDrop, cutTrackUpdate, mountCutTrack } from './cut-track';
+import { mountOverlayTrack, overlayTrackUpdate } from './overlay-track';
 import { mountTrackPicture, trackPictureDebug, trackPictureDraw, trackPictureSync } from './stage-track';
 import { captionsPreviewDraw, captionsPreviewSync, mountCaptionsPreview } from './stage-captions';
 import { registerPlayerSetter } from './settings';
@@ -328,6 +329,8 @@ function applyTrim(): void {
 /** The bars under the scrub bar (milestone 28): the layers of the template being previewed, at its length. */
 function applyLayerBars(): void {
   layerBarsUpdate(s.manifest, s.layers, s.length, Boolean(s.manifest) && !s.sequence);
+  // The second picture track between them (milestone 57): the video layers as a lane over the shots.
+  overlayTrackUpdate(s.manifest, s.layers, s.length, Boolean(s.manifest) && !s.sequence, s.track);
   // And the cut track's lane under them (milestone 49), on the same scale.
   cutTrackUpdate(s.track, s.manifest, s.length, Boolean(s.manifest) && !s.sequence);
 }
@@ -1040,6 +1043,8 @@ function stageRehome(win: Window): void {
 export function initStage(): void {
   // For the UI test: the layer sounds, which have no elements on the page to read.
   (window as unknown as { pulpLayerSounds?: typeof layerSoundsDebug }).pulpLayerSounds = layerSoundsDebug;
+  // And the layer editor, for a test to read a layer as it stands (milestone 57).
+  (window as unknown as { pulpLayerEditor?: typeof layerEditor }).pulpLayerEditor = layerEditor;
   (window as unknown as { pulpTrackPicture?: typeof trackPictureDebug }).pulpTrackPicture = trackPictureDebug;
   initLoudness();
   // The picture's box changes with the window, the stage split, the browse panel and the
@@ -1080,6 +1085,16 @@ export function initStage(): void {
     if (s.manifest) trackPictureDraw(s.frame / Math.max(1, previewFps()), previewSize());
   });
   mountCutTrack($<HTMLDivElement>('cut-track'), $<HTMLDivElement>('transport-lanes'), (text) => {
+    els.note.hidden = false;
+    els.note.textContent = text;
+  });
+  // Choosing a layer lights its clip on the picture track too.
+  effect(() => {
+    void selectedLayer.value;
+    overlayTrackUpdate(s.manifest, s.layers, s.length, Boolean(s.manifest) && !s.sequence, s.track);
+  });
+  // The picture track's own drop, ahead of the lanes' drop onto the cut track (milestone 57).
+  mountOverlayTrack($<HTMLDivElement>('overlay-track'), (text) => {
     els.note.hidden = false;
     els.note.textContent = text;
   });

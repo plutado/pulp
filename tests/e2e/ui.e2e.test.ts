@@ -1717,6 +1717,77 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+    it('puts a clip over the shots from the picture track\'s lane: a drop at a moment makes a video layer there, cropped and bordered from its card (milestone 57)', async () => {
+      await clickResult('Title Card');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const before = await layerIds();
+      const lane = `document.getElementById('overlay-track')`;
+      const cuts = () => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`);
+      const pips = () => page.eval<number>(`document.querySelectorAll('#overlay-track .pip').length`);
+      const clipId = await onResult<string>('clip', '(li) => li.dataset.id');
+      const tallId = await onResult<string>('tall', '(li) => li.dataset.id');
+      const dropOn = (target: string, fx: number, id: string) =>
+        page.eval<boolean>(
+          `(() => {
+            const el = ${target};
+            const r = el.getBoundingClientRect();
+            const dt = new DataTransfer();
+            dt.setData('application/x-pulp-item', ${JSON.stringify(id)});
+            const at = { clientX: r.left + r.width * ${fx}, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true };
+            el.dispatchEvent(new DragEvent('dragover', at));
+            el.dispatchEvent(new DragEvent('drop', at));
+            return true;
+          })()`,
+        );
+      try {
+        // No shots yet: no lane to drop over them on.
+        expect(await page.eval<boolean>(`${lane}.hidden`)).toBe(true);
+        await dropOn(`document.getElementById('transport-lanes')`, 0.5, clipId!);
+        await until(async () => (await cuts()) === 1, 'the shot on the cut track');
+        await until(() => page.eval<boolean>(`!${lane}.hidden`), 'the picture track\'s lane, now there is a shot to sit over');
+        expect(await page.eval<boolean>(`${lane}.classList.contains('empty')`)).toBe(true);
+
+        // A clip dropped on the lane is a video layer starting there — not another shot.
+        await dropOn(lane, 0.4, tallId!);
+        await until(async () => (await pips()) === 1, 'the clip over the shots');
+        expect(await cuts(), 'the cut track is untouched').toBe(1);
+        const ids = await layerIds();
+        expect(ids.length).toBe(before.length + 1);
+        const added = ids.find((id) => !before.includes(id))!;
+        // It starts at the moment it was dropped — 0.4 of the piece, whose length followed the
+        // track when the shot landed — runs for the clip's own two seconds, and is the selected
+        // layer, lit on the lane.
+        const length = await page.eval<number>(`Number(document.getElementById('scrub').max) / 30`);
+        const left = await page.eval<number>(`parseFloat(document.querySelector('#overlay-track .pip').style.left)`);
+        expect(left).toBeCloseTo(40, 0);
+        expect(await page.eval<boolean>(`document.querySelector('#overlay-track .pip').classList.contains('selected')`)).toBe(true);
+        expect(await page.eval<string>(`document.querySelector('#overlay-track .pip').dataset.layer`)).toBe(added);
+        const layer = await page.eval<{ span: { start: number; end: number }; size: number; clip: { delay: number; ending: string } }>(
+          `(() => { const l = window.pulpLayerEditor ? window.pulpLayerEditor().get('card', ${JSON.stringify(added)}) : null; return l && { span: l.span, size: l.size, clip: { delay: l.clip.delay, ending: l.clip.ending } }; })()`,
+        );
+        expect(layer, 'the layer as the editor holds it').not.toBeNull();
+        expect(layer!.span.start).toBeCloseTo(0.4 * length, 1);
+        expect(layer!.span.end).toBeCloseTo(Math.min(length, 0.4 * length + 2), 1);
+        expect(layer!.clip.delay).toBeCloseTo(0.4 * length, 1);
+        expect(layer!.clip.ending).toBe('once');
+
+        // Its card carries the crop and the border, which write to the clip and are read back.
+        const card = `document.querySelector('#params .param-card[data-layer=${JSON.stringify(added)}]')`;
+        await until(() => page.eval<boolean>(`!!${card}`), 'the clip\'s card');
+        await page.eval(`(() => { const c = ${card}; const b = c.querySelector('.card-body'); if (b && b.hidden) c.querySelector('.card-toggle').click(); })()`);
+        const field = (label: string) => `${card}.querySelector('input[aria-label$=${JSON.stringify(label)}]')`;
+        await until(() => page.eval<boolean>(`!!${field('crop left')}`), 'the crop fields');
+        await page.eval(`(() => { const f = ${field('crop left')}; f.value = '20'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await page.eval(`(() => { const f = ${field('border width')}; f.value = '1'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`${field('crop left')}?.value ?? ''`).then((v) => v === '20'), 'the crop kept');
+        await until(() => page.eval<string>(`${field('border width')}?.value ?? ''`).then((v) => v === '1'), 'the border kept');
+      } finally {
+        await restoreLayers();
+        await page.eval(`(() => { const u = document.getElementById('undo'); for (let i = 0; i < 6; i++) u.click(); })()`);
+      }
+    }, 120_000);
+
     it('keys a layer at the playhead, eases each key its own way, and keyframing writes a key from an edit (milestone 51)', async () => {
       await clickResult('Title Card');
       await openTab('parameters');

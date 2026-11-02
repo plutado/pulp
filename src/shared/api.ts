@@ -322,7 +322,7 @@ export interface PulpApi {
    */
   speechStatus(request?: { model?: string }): Promise<SpeechStatus>;
   fetchSpeechModel(request: { model: string }): Promise<{ ok: true; path: string } | { ok: false; message: string }>;
-  transcribe(request: { segments: { kind: 'clip' | 'sound'; id: string; from: number; to: number; at: number }[]; model?: string; language?: string }):
+  transcribe(request: { segments: { kind: 'clip' | 'sound'; id: string; from: number; to: number; at: number; speed?: number }[]; model?: string; language?: string }):
     Promise<{ ok: true; words: { text: string; start: number; end: number }[]; language: string } | { ok: false; message: string }>;
   /** How a fetch or a transcription is going, for the dialog's line of status. */
   onSpeechProgress(listener: (progress: { note: string; fraction: number | null }) => void): () => void;

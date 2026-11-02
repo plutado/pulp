@@ -13,10 +13,12 @@ import { writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { healedTrack, trackDuration } from '../core/cut-track';
-import { edlEdit, fcpxmlEdit, type EditClip } from '../core/edit-export';
-import { lengthIn, trackIn, withTrack } from '../core/params';
+import { edlEdit, fcpxmlEdit, type EditClip, type EditOverlay } from '../core/edit-export';
+import { lengthIn, splitLayers, trackIn, withLayers, withTrack } from '../core/params';
 import { resolveLength } from '../core/timing';
-import { templateDefaultSize } from '../core/aspect';
+import { aspectOf, templateDefaultSize } from '../core/aspect';
+import { placementFor, type Layer, type LayerValues } from '../core/layers';
+import { clipWindow } from '../core/video-layer';
 import type { TemplateEntry } from '../core/library-types';
 import { findMediaIdByPath, findTemplate, lookupClipItem } from './library-service';
 import { ffprobePathFor } from '../core/media-probe';
@@ -80,11 +82,63 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
     };
   }
 
-  // The graphics alone, with alpha: the project minus its track, at the piece's own length.
+  // The second picture track (milestone 57): every video layer with a clip, as a connected clip
+  // of its own in the exported edit — so the graphics are rendered **without** them, and the
+  // editor gets the clips in place rather than burned into the titles.
+  const manifest = template.manifest;
+  const size = templateDefaultSize(manifest);
+  const { layers: rawLayers } = splitLayers(params);
+  const overlays: EditOverlay[] = [];
+  const withoutOverlays: LayerValues = {};
+  for (const block of manifest.blocks) {
+    const stack = rawLayers[block.id] ?? block.layers;
+    const kept: Layer[] = [];
+    for (const layer of stack) {
+      if (layer.type !== 'video' || !layer.clip?.id || layer.hidden || layer.clip.hidden) {
+        kept.push(layer);
+        continue;
+      }
+      const found = lookupClipItem(layer.clip.id);
+      // A drawn asset or a Lottie is a layer of the graphics, not a clip an editor can reference.
+      if (!found || found.kind !== 'media' || found.entry.sequence) {
+        kept.push(layer);
+        continue;
+      }
+      const source = await resolveClipSource(ffprobePathFor(ffmpeg.path), layer.clip.id);
+      if (!source) {
+        kept.push(layer);
+        continue;
+      }
+      if (!clips[layer.clip.id]) {
+        const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), layer.clip.id);
+        clips[layer.clip.id] = { path: found.entry.path, name: found.entry.name, duration: source.frames / Math.max(1, source.fps), audio: audio?.hasAudio === true };
+      }
+      const window = clipWindow(layer.clip, source);
+      const placement = placementFor(layer.placement, aspectOf(size.width, size.height));
+      const short = Math.min(size.width, size.height);
+      overlays.push({
+        id: layer.clip.id,
+        name: layer.label,
+        from: window.first / Math.max(1, source.fps),
+        to: (window.last + 1) / Math.max(1, source.fps),
+        at: layer.span?.start ?? Math.max(0, layer.clip.delay),
+        speed: layer.clip.speed > 0 ? layer.clip.speed : 1,
+        dx: placement.dx,
+        dy: placement.dy,
+        height: (layer.size * short * placement.scale) / size.height,
+        ...(layer.clip.crop ? { crop: layer.clip.crop } : {}),
+      });
+      kept.push({ ...layer, hidden: true });
+    }
+    if (rawLayers[block.id] || kept.some((l) => l.hidden)) withoutOverlays[block.id] = kept;
+  }
+
+  // The graphics alone, with alpha: the project minus its track and its picture track, at the
+  // piece's own length.
   const graphics = `${base}-graphics.mov`;
   const rendered = await renderTemplate({
     template,
-    params: withTrack(params, null),
+    params: withLayers(withTrack(params, null), Object.keys(withoutOverlays).length > 0 ? withoutOverlays : undefined),
     presetId: 'prores-4444',
     outputPath: graphics,
     overwrite: true,
@@ -92,12 +146,11 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
   if (!rendered.ok) return { ok: false, message: `The graphics could not be rendered: ${rendered.message}` };
 
   const name = (request?.name ?? template.manifest.name) || basename(base);
-  const manifest = template.manifest;
-  const size = templateDefaultSize(manifest);
   const seconds = resolveLength(manifest.duration, manifest.structure ?? null, lengthIn(params) ?? trackDuration(track));
   const input = {
     name, fps: manifest.fps, width: size.width, height: size.height, track, clips,
     graphics: { path: graphics, seconds },
+    ...(overlays.length > 0 ? { overlays } : {}),
   };
   const fcpxml = `${base}.fcpxml`;
   const edl = `${base}.edl`;

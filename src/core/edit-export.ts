@@ -13,6 +13,11 @@
  * EDL carries every transition the format has words for: `D` for a dissolve
  * or a dip, `W001` for a wipe, each named in a comment.
  *
+ * The second picture track (milestone 57) — the project's video layers, a
+ * clip anywhere over the shots — travels as connected clips on a lane of its
+ * own between the spine and the graphics, with the transform and the crop the
+ * format has words for, and as V2 events in the EDL.
+ *
  * Pure text over plain values; times are whole frames at the sequence's rate,
  * which is what both formats are made of.
  */
@@ -40,6 +45,35 @@ export interface EditExportInput {
   clips: Record<string, EditClip>;
   /** The graphics rendered with alpha, connected above the cuts for the piece's whole length. */
   graphics?: { path: string; seconds: number };
+  /**
+   * The second picture track (milestone 57): the project's video layers, each
+   * a clip placed anywhere on the timeline over the shots, written as a lane
+   * of connected clips between the spine and the graphics, with its framing —
+   * where it sits, how large, what is cropped — as near as the format says it.
+   */
+  overlays?: EditOverlay[];
+}
+
+/** One clip of the second picture track, as the exported edit places it. */
+export interface EditOverlay {
+  /** The clip's library id, which must answer in `clips`. */
+  id: string;
+  /** The layer's own name, which the editor shows on the clip. */
+  name: string;
+  /** Seconds into the file it plays from and to. */
+  from: number;
+  to: number;
+  /** Seconds into the piece it starts. */
+  at: number;
+  /** The rate it plays at; 1 is real time. */
+  speed: number;
+  /** Its centre's offset from the frame's centre, as fractions of the frame's width and height; down is positive. */
+  dx: number;
+  dy: number;
+  /** Its height as a fraction of the frame's height. */
+  height: number;
+  /** Fractions of each edge cut away, if any. */
+  crop?: { left: number; top: number; right: number; bottom: number };
 }
 
 const escapeXml = (value: string): string =>
@@ -73,7 +107,8 @@ export function dissolveHandles(track: CutTrack, index: number, clips: Record<st
 export function fcpxmlEdit(input: EditExportInput): string {
   const { track, fps, clips } = input;
   const windows = cutWindows(track);
-  const ids = [...new Set(track.cuts.map((c) => c.id))];
+  const overlays = input.overlays ?? [];
+  const ids = [...new Set([...track.cuts.map((c) => c.id), ...overlays.map((o) => o.id)])];
   const assetId = new Map(ids.map((id, i) => [id, `r${i + 2}`]));
   const graphicsId = `r${ids.length + 2}`;
   const lines: string[] = [
@@ -98,7 +133,8 @@ export function fcpxmlEdit(input: EditExportInput): string {
       '    </asset>',
     );
   }
-  const total = input.graphics ? Math.max(input.graphics.seconds, windows[windows.length - 1]?.end ?? 0) : windows[windows.length - 1]?.end ?? 0;
+  const overlayEnd = overlays.reduce((end, o) => Math.max(end, o.at + (o.to - o.from) / o.speed), 0);
+  const total = Math.max(input.graphics?.seconds ?? 0, windows[windows.length - 1]?.end ?? 0, overlayEnd);
   lines.push(
     '  </resources>',
     '  <library>',
@@ -116,9 +152,24 @@ export function fcpxmlEdit(input: EditExportInput): string {
     }
     const open = `            <asset-clip ref="${assetId.get(cut.id)}" name="${escapeXml(clip.name)}" offset="${rational(windows[index]!.start, fps)}" start="${rational(cut.from, fps)}" duration="${rational(cutSeconds(cut), fps)}" format="r1"`;
     const inside: string[] = [];
-    if (index === 0 && input.graphics) {
-      // The graphics ride connected above the first cut, from the top of the piece.
-      inside.push(`              <asset-clip lane="1" ref="${graphicsId}" name="${escapeXml(input.name)} graphics" offset="${rational(cut.from, fps)}" start="0s" duration="${rational(input.graphics.seconds, fps)}" format="r1"/>`);
+    if (index === 0) {
+      // The second picture track rides connected above the first cut on lane 1 (milestone 57),
+      // each clip at its own moment, and the graphics above them all on lane 2, from the top of
+      // the piece. A connected clip's offset is in the parent's own time, which starts at `start`.
+      for (const overlay of overlays) {
+        const clip = clips[overlay.id]!;
+        const seconds = (overlay.to - overlay.from) / overlay.speed;
+        inside.push(
+          `              <asset-clip lane="1" ref="${assetId.get(overlay.id)}" name="${escapeXml(overlay.name)}" offset="${rational(cut.from + overlay.at, fps)}" start="${rational(overlay.from, fps)}" duration="${rational(seconds, fps)}" format="r1">`,
+          ...overlayAdjustLines(overlay, input.width, input.height),
+          ...timeMapLines({ id: overlay.id, from: overlay.from, to: overlay.to, ...(overlay.speed !== 1 ? { speed: { rate: overlay.speed } } : {}) }, fps),
+          '              </asset-clip>',
+        );
+        void clip;
+      }
+      if (input.graphics) {
+        inside.push(`              <asset-clip lane="${overlays.length > 0 ? 2 : 1}" ref="${graphicsId}" name="${escapeXml(input.name)} graphics" offset="${rational(cut.from, fps)}" start="0s" duration="${rational(input.graphics.seconds, fps)}" format="r1"/>`);
+      }
     }
     inside.push(...timeMapLines(cut, fps));
     if (inside.length > 0) lines.push(`${open}>`, ...inside, '            </asset-clip>');
@@ -129,6 +180,30 @@ export function fcpxmlEdit(input: EditExportInput): string {
 }
 
 /**
+ * Where a clip of the second picture track sits (milestone 57), as FCPXML
+ * says it: the transform's position in pixels of the project's frame from its
+ * centre, up positive, and its scale against a clip that fills the frame's
+ * height; the crop as the fraction of each edge trimmed away. An editor's own
+ * fit of a clip to the frame is the thing the scale is relative to, so a clip
+ * of another shape lands near rather than exactly — the layout's anchor is the
+ * frame's centre and nothing finer, which is said in the comment it carries.
+ */
+function overlayAdjustLines(overlay: EditOverlay, width: number, height: number): string[] {
+  const num = (v: number) => String(Math.round(v * 1000) / 1000);
+  const lines = [
+    `                <adjust-transform position="${num(overlay.dx * width)} ${num(-overlay.dy * height)}" scale="${num(overlay.height)} ${num(overlay.height)}"/>`,
+  ];
+  if (overlay.crop) {
+    lines.push(
+      '                <adjust-crop mode="trim">',
+      `                  <trim-rect left="${num(overlay.crop.left * width)}" right="${num(overlay.crop.right * width)}" top="${num(overlay.crop.top * height)}" bottom="${num(overlay.crop.bottom * height)}"/>`,
+      '                </adjust-crop>',
+    );
+  }
+  return lines;
+}
+
+/**
  * A retimed cut's time map (milestone 56), as FCPXML says it: points pairing
  * a moment of the clip on the timeline with the second of the file it shows.
  * Two points are a constant speed or a held frame; a ramp is the quadratic
@@ -136,7 +211,7 @@ export function fcpxmlEdit(input: EditExportInput): string {
  * linearly, which an editor plays as a close stepped ramp. Nothing in real
  * time: an ordinary clip carries no map.
  */
-function timeMapLines(cut: Cut, fps: number): string[] {
+function timeMapLines(cut: Pick<Cut, 'id' | 'from' | 'to' | 'speed' | 'hold'>, fps: number): string[] {
   const { start, end } = cutRates(cut);
   if (cut.hold === undefined && start === 1 && end === 1) return [];
   const seconds = cutSeconds(cut);
@@ -199,6 +274,18 @@ export function edlEdit(input: EditExportInput): string {
     lines.push(...motionLines(cut, fps));
     if (into?.type === 'dip') lines.push(`* DIP TO COLOR: ${into.color}`);
     if (into?.type === 'wipe' && into.template) lines.push(`* WIPE: ${into.template}`);
+    lines.push(`* FROM CLIP NAME: ${clip.name}`, `* SOURCE FILE: ${clip.path}`, '');
+  });
+  // The second picture track as V2 events (milestone 57): where each clip sits over the shots, its
+  // speed as a motion line, and its framing in comments, since an EDL has no words for a transform.
+  (input.overlays ?? []).forEach((overlay, k) => {
+    const clip = clips[overlay.id]!;
+    const event = String(track.cuts.length + k + 1).padStart(3, '0');
+    const seconds = (overlay.to - overlay.from) / overlay.speed;
+    lines.push(`${event}  AX       V2    C        ${tc(overlay.from)} ${tc(overlay.to)} ${tc(overlay.at)} ${tc(overlay.at + seconds)}`);
+    if (overlay.speed !== 1) lines.push(`M2   AX       ${(fps * overlay.speed).toFixed(1).padStart(5, '0')}                ${tc(overlay.from)}`);
+    lines.push(`* PICTURE IN PICTURE: ${overlay.name}, ${Math.round(overlay.height * 100)}% of the frame's height, centre ${Math.round(overlay.dx * 100)}% across and ${Math.round(overlay.dy * 100)}% down from the frame's centre`);
+    if (overlay.crop) lines.push(`* CROP: left ${Math.round(overlay.crop.left * 100)}%, top ${Math.round(overlay.crop.top * 100)}%, right ${Math.round(overlay.crop.right * 100)}%, bottom ${Math.round(overlay.crop.bottom * 100)}%`);
     lines.push(`* FROM CLIP NAME: ${clip.name}`, `* SOURCE FILE: ${clip.path}`, '');
   });
   return lines.join('\n');

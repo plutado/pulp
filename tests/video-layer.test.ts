@@ -5,9 +5,10 @@
  * the kind of thing only a test catches.
  */
 
-import { describe, expect, it } from 'vitest';
 import {
-  clipAudible,
+  describe,
+  expect,
+  it } from 'vitest'; import {   clipAudible,
   clipFrameAt,
   clipMediaTimeAt,
   clipFramePlan,
@@ -22,6 +23,11 @@ import {
   sanitizeClipValue,
   type ClipSource,
   type ClipValue,
+  sanitizeCrop,
+  sanitizeBorder,
+  croppedAspect,
+  DEFAULT_BORDER_WIDTH,
+  DEFAULT_BORDER_COLOR,
 } from '../src/core/video-layer';
 
 /** A two-second clip at 30 fps: 60 frames, 0 to 59. */
@@ -233,5 +239,35 @@ describe('proxy sizes (milestone 26)', () => {
     expect(clipProxySize(99_999)).toBe(CLIP_PROXY_SIZES[CLIP_PROXY_SIZES.length - 1]);
     // Steady across a nudge, which is the point: no re-decode for a window a few pixels wider.
     expect(clipProxySize(300)).toBe(clipProxySize(320));
+  });
+});
+
+describe('a clip cropped and bordered for picture-in-picture (milestone 57)', () => {
+  it('keeps a crop in range, two opposite edges leaving a tenth, and none at all as none', () => {
+    expect(sanitizeCrop({ left: 0.1, top: 0.2, right: 0.9, bottom: -1 })).toEqual({ left: 0.1, top: 0.2, right: 0.45, bottom: 0 });
+    expect(sanitizeCrop({ left: 0.45, right: 0.45 })?.right).toBeCloseTo(0.45, 9);
+    expect(sanitizeCrop({ left: 0.45, right: 0.45, top: 0.45, bottom: 0.45 })).toEqual({ left: 0.45, top: 0.45, right: 0.45, bottom: 0.45 });
+    expect(sanitizeCrop({ left: 0, top: 0 })).toBeUndefined();
+    expect(sanitizeCrop('tight')).toBeUndefined();
+    expect(sanitizeBorder({ width: 1, color: '#FF0000' })).toEqual({ width: 0.05, color: '#ff0000' });
+    expect(sanitizeBorder({ width: 0 })).toBeUndefined();
+    expect(sanitizeBorder({ color: 'red' })).toEqual({ width: DEFAULT_BORDER_WIDTH, color: DEFAULT_BORDER_COLOR });
+  });
+
+  it('rides on the clip value through the sanitizer and the short text form', () => {
+    const value = sanitizeClipValue({ id: 'abc', crop: { left: 0.1, top: 0, right: 0.2, bottom: 0 }, border: { width: 0.01, color: '#112233' } })!;
+    expect(value.crop).toEqual({ left: 0.1, top: 0, right: 0.2, bottom: 0 });
+    expect(value.border).toEqual({ width: 0.01, color: '#112233' });
+    const text = clipValueToText(value);
+    expect(text).toBe('abc crop=0.1,0,0.2,0 border=0.01:#112233');
+    expect(clipValueFromText(text)).toEqual(value);
+    expect(clipValueToText(sanitizeClipValue({ id: 'abc' })!)).toBe('abc');
+  });
+
+  it('sizes a cropped clip by what is left of it', () => {
+    expect(croppedAspect(1920, 1080, undefined)).toBeCloseTo(16 / 9, 9);
+    // A quarter off each side of a 16:9 frame leaves 8:9.
+    expect(croppedAspect(1920, 1080, { left: 0.25, top: 0, right: 0.25, bottom: 0 })).toBeCloseTo(8 / 9, 9);
+    expect(croppedAspect(1920, 1080, { left: 0, top: 0.25, right: 0, bottom: 0.25 })).toBeCloseTo(32 / 9, 9);
   });
 });
