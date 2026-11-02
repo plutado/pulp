@@ -40,7 +40,7 @@ export const TRACK_KEY = '@track';
 export const CAPTIONS_KEY = '@captions';
 
 /**
- * Where the chosen variant of the template's own sound rides (milestone 59):
+ * Where the chosen variant of the template's own sound rides (milestone 16):
  * a variant's value, or "none" for silence chosen on purpose. Absent means the
  * manifest's default, so a template that gains a sound later is heard without
  * touching saved work.

@@ -301,7 +301,7 @@ export class LibraryStore {
             const parsed = parsePackManifest(await readFile(join(dir, PACK_FILENAME), 'utf8'));
             if (parsed.ok) {
               const m = parsed.manifest;
-              pack = { name: m.name, slug: slug(m.name, 'pack'), ...(m.type ? { type: m.type } : {}), ...(m.themes ? { themes: m.themes } : {}), ...(m.styles ? { styles: m.styles } : {}) };
+              pack = { name: m.name, slug: slug(m.name, 'pack'), ...(m.type ? { type: m.type } : {}), ...(m.themes ? { themes: m.themes } : {}), ...(m.styles ? { styles: m.styles } : {}), ...(m.sound ? { sound: m.sound } : {}) };
             } else {
               problems.push({ path: join(dir, PACK_FILENAME), message: `invalid pack.json: ${parsed.problems.join('; ')}` });
             }

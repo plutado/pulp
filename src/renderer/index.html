@@ -261,6 +261,13 @@
           <input id="opt-matte" type="checkbox">
           <span>Matte file beside the render</span>
         </label>
+        <label class="field inline stems-field" id="opt-stems-field" hidden data-tip="Music that came in as stems: folded into the mix, or left out of it and written one audio file per stem beside the render, cut to the rendered range, for remixing in an editor">
+          <span>Music stems</span>
+          <select id="opt-stems" aria-label="Music stems in the render">
+            <option value="mix">In the mix</option>
+            <option value="files">One file per stem beside the render</option>
+          </select>
+        </label>
         <label class="field inline captions-field" id="opt-captions-field" hidden data-tip="How the project's captions reach the render. SRT and WebVTT files are written beside the video whichever is chosen">
           <span>Captions</span>
           <select id="opt-captions" aria-label="Captions in the render">

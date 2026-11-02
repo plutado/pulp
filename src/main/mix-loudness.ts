@@ -24,7 +24,7 @@ import { resolveSoundSource, resolveTemplateSoundFile } from './sound-grant';
 /**
  * What the window sends: each layer's settings as stored, with its span; the
  * kind says which value it is. A `template` entry is the template's own sound
- * (milestone 59): the value's id is a file inside the named template's folder,
+ * (milestone 16): the value's id is a file inside the named template's folder,
  * never a library id, and it is resolved by the template rule rather than the
  * library's.
  */

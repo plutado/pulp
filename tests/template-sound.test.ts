@@ -1,5 +1,5 @@
 /**
- * The template's own sound (milestone 59): the manifest field, the choice that
+ * The template's own sound (milestone 16): the manifest field, the choice that
  * rides with the parameters, and the timing that keeps the sound with the
  * picture when a length stretches or scales the template.
  */

@@ -20,6 +20,7 @@ import { keyMovedTo, sanitizeKeys, withKeyAt, type LayerKey } from '../core/laye
 import { MIN_ON_SCREEN, spanWindow, transitionSeconds } from '../core/layer-time';
 import { layerWithSpan, spanWithEnd } from '../core/stage-menu';
 import type { Layer, LayerValues } from '../core/layers';
+import { heardStems } from '../core/sound-layer';
 import type { MediaEntry } from '../core/library-types';
 import type { TemplateManifest } from '../core/manifest';
 import { resolveLength } from '../core/timing';
@@ -56,9 +57,17 @@ let current: { manifest: TemplateManifest | null; layers: LayerValues; length: n
 export function layerBarsUpdate(manifest: TemplateManifest | null, layers: LayerValues, chosenLength: number | undefined, showing: boolean): void {
   if (!host || !transport) return;
   current = { manifest, layers, length: manifest ? resolveLength(manifest.duration, manifest.structure ?? null, chosenLength) : 0 };
-  const rows: { block: string; layer: Layer }[] = [];
+  const rows: { block: string; layer: Layer; stem?: number }[] = [];
   for (const block of manifest?.blocks ?? []) {
-    for (const layer of layers[block.id] ?? block.layers) if (!layer.hidden) rows.push({ block: block.id, layer });
+    for (const layer of layers[block.id] ?? block.layers) {
+      if (layer.hidden) continue;
+      // Music as stems (milestone 16): one lane per stem, each with its own waveform and its
+      // mute and solo, so the mix is read and worked where it is heard. Muted stems keep their
+      // lane — the lane is where the mute is pressed back off.
+      const stems = layer.type === 'audio' && !layer.sound?.hidden ? layer.sound?.stems : undefined;
+      if (stems && stems.length > 0) stems.forEach((_, i) => rows.push({ block: block.id, layer, stem: i }));
+      else rows.push({ block: block.id, layer });
+    }
   }
   const show = showing && rows.length > 0 && current.length > 0;
   host.hidden = !show;
@@ -69,17 +78,17 @@ export function layerBarsUpdate(manifest: TemplateManifest | null, layers: Layer
     return;
   }
   const keep = new Set<string>();
-  rows.forEach(({ block, layer }, index) => {
-    const key = `${block}.${layer.id}`;
+  rows.forEach(({ block, layer, stem }, index) => {
+    const key = stem === undefined ? `${block}.${layer.id}` : `${block}.${layer.id}#${stem}`;
     keep.add(key);
     let bar = bars.get(key);
     if (!bar) {
-      bar = makeBar(block, layer.id);
+      bar = makeBar(block, layer.id, stem);
       bars.set(key, bar);
     }
     host!.append(bar.root);
     bar.root.style.order = String(index);
-    placeBar(bar, layer, current.length);
+    placeBar(bar, layer, current.length, stem);
   });
   for (const [key, bar] of bars) {
     if (keep.has(key)) continue;
@@ -89,11 +98,12 @@ export function layerBarsUpdate(manifest: TemplateManifest | null, layers: Layer
   paintSelection();
 }
 
-function makeBar(block: string, id: string): Bar {
+function makeBar(block: string, id: string, stem?: number): Bar {
   const root = document.createElement('div');
   root.className = 'layer-bar';
   root.dataset.block = block;
   root.dataset.layer = id;
+  if (stem !== undefined) root.dataset.stem = String(stem);
   const body = document.createElement('span');
   body.className = 'bar-body';
   const enter = document.createElement('span');
@@ -113,6 +123,21 @@ function makeBar(block: string, id: string): Bar {
   wave.append(wavePath);
   wave.toggleAttribute('hidden', true);
   body.append(wave, enter, leave, label, start, end);
+  // A stem's lane carries the mixer's two buttons (milestone 16): mute, and solo.
+  if (stem !== undefined) {
+    const mute = stemButton('M', 'bar-mute');
+    const solo = stemButton('S', 'bar-solo');
+    mute.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleStem(block, id, stem, 'muted');
+    });
+    solo.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleStem(block, id, stem, 'solo');
+    });
+    for (const b of [mute, solo]) b.addEventListener('pointerdown', (e) => e.stopPropagation());
+    body.append(mute, solo);
+  }
   root.append(body);
   body.addEventListener('pointerdown', (e) => {
     if ((e.target as HTMLElement).classList.contains('bar-end')) return;
@@ -152,7 +177,7 @@ function endHandle(which: 'start' | 'end'): HTMLButtonElement {
 }
 
 /** Put a bar where its layer's window is, with its ends shaded for the time its transitions take. */
-function placeBar(bar: Bar, layer: Layer, length: number): void {
+function placeBar(bar: Bar, layer: Layer, length: number, stem?: number): void {
   const window = spanWindow(layer.span, length);
   const pct = (seconds: number) => `${(seconds / Math.max(0.001, length)) * 100}%`;
   bar.body.style.left = pct(window.from);
@@ -161,18 +186,52 @@ function placeBar(bar: Bar, layer: Layer, length: number): void {
   const room = Math.max(0.001, window.to - window.from);
   bar.enter.style.width = `${(ends.in / room) * 100}%`;
   bar.leave.style.width = `${(ends.out / room) * 100}%`;
-  bar.label.textContent = layer.label;
-  bar.body.title = `${layer.label}: ${tidy(window.from)}-${tidy(window.to)} s`;
+  const stemValue = stem !== undefined && layer.type === 'audio' ? layer.sound?.stems?.[stem] : undefined;
+  const label = stemValue ? `${layer.label} · ${stemValue.label}` : layer.label;
+  bar.label.textContent = stemValue ? stemValue.label : layer.label;
+  bar.body.title = `${label}: ${tidy(window.from)}-${tidy(window.to)} s`;
+  if (stemValue) {
+    // The lane says what the mixer holds: a pressed M, a pressed S, and a dimmed body while silent.
+    const mute = bar.body.querySelector<HTMLButtonElement>('.bar-mute');
+    const solo = bar.body.querySelector<HTMLButtonElement>('.bar-solo');
+    mute?.setAttribute('aria-pressed', String(stemValue.muted));
+    mute?.setAttribute('aria-label', `Mute ${label}`);
+    solo?.setAttribute('aria-pressed', String(stemValue.solo));
+    solo?.setAttribute('aria-label', `Solo ${label}`);
+    const heard = layer.type === 'audio' && layer.sound ? heardStems(layer.sound).includes(stemValue) : true;
+    bar.root.classList.toggle('stem-silent', !heard);
+  }
   for (const [handle, which, value] of [[bar.start, 'start', window.from], [bar.end, 'end', window.to]] as const) {
-    handle.setAttribute('aria-label', `${layer.label} ${which}, seconds`);
+    handle.setAttribute('aria-label', `${label} ${which}, seconds`);
     handle.setAttribute('aria-valuemin', which === 'start' ? '0' : String(tidy(window.from + MIN_ON_SCREEN)));
     handle.setAttribute('aria-valuemax', which === 'start' ? String(tidy(window.to - MIN_ON_SCREEN)) : String(tidy(length)));
     handle.setAttribute('aria-valuenow', String(tidy(value)));
     handle.setAttribute('aria-valuetext', `${tidy(value)} seconds`);
   }
   bar.layer = layer;
-  paintWave(bar, layer, length);
+  paintWave(bar, layer, length, stem);
   placeKeys(bar, layer, length);
+}
+
+/** One of the lane's two letters, pressed or not; the state is painted by placeBar. */
+function stemButton(letter: 'M' | 'S', className: string): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = `bar-stem ${className}`;
+  b.textContent = letter;
+  b.setAttribute('aria-pressed', 'false');
+  return b;
+}
+
+/** Flip one stem's mute or solo, one undo step, through the layer editor like every other layer edit. */
+function toggleStem(block: string, id: string, index: number, field: 'muted' | 'solo'): void {
+  const editor = layerEditor();
+  if (!editor) return;
+  editor.edit(block, id, (l) => {
+    if (l.type !== 'audio' || !l.sound?.stems?.[index]) return l;
+    const stems = l.sound.stems.map((s, i) => (i === index ? { ...s, [field]: !s[field] } : s));
+    return { ...l, sound: { ...l.sound, stems } };
+  }, true);
 }
 
 // ---------------------------------------------------------------- the keys on the bar (milestone 51)
@@ -386,13 +445,18 @@ function mediaFor(id: string): MediaEntry | undefined {
  * the waveform is resampled through. Mute and volume are left out on purpose —
  * the bar is about time, and a muted layer still shows what it holds.
  */
-function barSound(layer: Layer): { audio: AudioLayer; entry: MediaEntry } | null {
+function barSound(layer: Layer, stem?: number): { audio: AudioLayer; entry: MediaEntry } | null {
   const span = layer.span ? { span: layer.span } : {};
   if (layer.type === 'audio' && layer.sound?.id && !layer.sound.hidden) {
-    const entry = mediaFor(layer.sound.id);
+    // A stem's lane shows that stem's own file (milestone 16) — muted or not, since the bar is
+    // about time and a muted stem still shows what it holds, as a muted layer does.
+    const stemValue = stem !== undefined ? layer.sound.stems?.[stem] : undefined;
+    if (stem !== undefined && !stemValue) return null;
+    const value = stemValue ? (({ stems: _stems, ...rest }) => ({ ...rest, id: stemValue.id }))(layer.sound) : layer.sound;
+    const entry = mediaFor(value.id!);
     const duration = entry?.meta?.duration;
     if (!entry || !duration || duration <= 0) return null;
-    return { audio: { kind: 'sound', path: '', value: layer.sound, source: { duration }, ...span }, entry };
+    return { audio: { kind: 'sound', path: '', value, source: { duration }, ...span }, entry };
   }
   if (layer.type === 'video' && layer.clip?.id && !layer.clip.hidden) {
     const entry = mediaFor(layer.clip.id);
@@ -410,8 +474,8 @@ function barSound(layer: Layer): { audio: AudioLayer; entry: MediaEntry } | null
  * fades. Peaks arrive in the background; until they do the bar is plain, and
  * the `waveforms` signal repaints it when they land.
  */
-function paintWave(bar: Bar, layer: Layer, length: number): void {
-  const sound = barSound(layer);
+function paintWave(bar: Bar, layer: Layer, length: number, stem?: number): void {
+  const sound = barSound(layer, stem);
   const peaks = sound ? waveforms.value.get(sound.entry.id) : undefined;
   if (!sound || !peaks || peaks.length === 0) {
     if (sound && peaks === undefined) requestWaveform(sound.entry);
@@ -434,7 +498,10 @@ function tidy(seconds: number): number {
 
 function paintSelection(): void {
   const chosen = selectedLayer.value;
-  for (const [key, bar] of bars) bar.root.classList.toggle('selected', chosen !== null && key === `${chosen.block}.${chosen.id}`);
+  // A stem's lane belongs to its layer, so selecting the layer lights every one of its lanes.
+  for (const bar of bars.values()) {
+    bar.root.classList.toggle('selected', chosen !== null && bar.root.dataset.block === chosen.block && bar.root.dataset.layer === chosen.id);
+  }
 }
 
 /**
@@ -511,6 +578,10 @@ export function mountLayerBars(el: HTMLDivElement, transportEl: HTMLElement): vo
   // Peaks arrive in the background, and the library's metadata with them: the bars catch up.
   effect(() => {
     void waveforms.value;
-    for (const bar of bars.values()) if (bar.layer) paintWave(bar, bar.layer, current.length);
+    for (const bar of bars.values()) {
+      if (!bar.layer) continue;
+      const stem = bar.root.dataset.stem !== undefined ? Number(bar.root.dataset.stem) : undefined;
+      paintWave(bar, bar.layer, current.length, stem);
+    }
   });
 }

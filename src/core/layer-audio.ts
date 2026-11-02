@@ -318,15 +318,17 @@ export function layerAudioFilter(
   firstInputIndex: number,
   /** A levelling stage after the cut (milestone 52), so what is levelled is exactly what is written. */
   level?: string,
+  /** A tag on every label, so several mixes can live in one graph (milestone 16's stems). */
+  suffix = '',
 ): string {
   const fps = Math.max(1, timing.fps);
   const start = s(timing.firstFrame / fps);
   const seconds = s(timing.totalFrames / fps);
   const chains = [
-    `anullsrc=r=${LAYER_AUDIO_RATE}:cl=stereo:d=${s(Math.max(timing.length, start + seconds))}[abase]`,
-    ...layers.map((layer, i) => layerAudioChain(firstInputIndex + i, layer, `la${i}`, timing.length)),
-    `[abase]${layers.map((_, i) => `[la${i}]`).join('')}amix=inputs=${layers.length + 1}:normalize=0[amix]`,
-    `[amix]atrim=start=${start}:end=${s(start + seconds)},asetpts=PTS-STARTPTS,apad=whole_dur=${seconds}${level ? `,${level}` : ''}[aout]`,
+    `anullsrc=r=${LAYER_AUDIO_RATE}:cl=stereo:d=${s(Math.max(timing.length, start + seconds))}[abase${suffix}]`,
+    ...layers.map((layer, i) => layerAudioChain(firstInputIndex + i, layer, `la${suffix}${i}`, timing.length)),
+    `[abase${suffix}]${layers.map((_, i) => `[la${suffix}${i}]`).join('')}amix=inputs=${layers.length + 1}:normalize=0[amix${suffix}]`,
+    `[amix${suffix}]atrim=start=${start}:end=${s(start + seconds)},asetpts=PTS-STARTPTS,apad=whole_dur=${seconds}${level ? `,${level}` : ''}[aout${suffix}]`,
   ];
   return chains.join(';');
 }
@@ -481,4 +483,57 @@ export function applyLayerAudio(
   // The files join as inputs after the last input there is, in chain order.
   args.splice(lastInputEnd + 1, 0, ...audible.flatMap((l) => ['-i', l.path]));
   return { ...plan, args, ...(audioOutput ? { audioOutput } : {}) };
+}
+
+// ---------------------------------------------------------------- music as stems (milestone 16)
+
+/** Where one stem is written beside the render: `<name>-<slug>.wav`, the slug from the stem's label. */
+export function stemOutputPath(output: string, label: string, index: number): string {
+  const slash = Math.max(output.lastIndexOf('/'), output.lastIndexOf('\\'));
+  const dir = output.slice(0, slash + 1);
+  let file = output.slice(slash + 1);
+  file = file.replace(/_%0?\d*d(?=\.[^.]*$|$)/, '');
+  const dot = file.lastIndexOf('.');
+  const base = dot > 0 ? file.slice(0, dot) : file;
+  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || `stem-${index + 1}`;
+  return `${dir}${base}-${slug}.wav`;
+}
+
+/**
+ * A render plan with each stem written as its own WAV beside the output
+ * (milestone 16): one chain per stem — the layer's own trim, gain, delay and
+ * fades, on its own silent bed, cut to exactly the rendered range — mapped to
+ * `<name>-<stem>.wav` as a further output of the same command. Used when the
+ * person asked for the music as files rather than in the mix, so an editor
+ * can remix what Pulp placed; the rest of the mix is `applyLayerAudio`'s
+ * business and is untouched here. No levelling: a stem handed to a mixer is
+ * wanted as placed, not normalised on its own.
+ */
+export function applyStemAudio(plan: RenderPlan, stems: readonly { layer: SoundAudioLayer; label: string }[]): RenderPlan {
+  const audible = stems.filter((s) => audibleLayers([s.layer], plan.length).length > 0);
+  if (audible.length === 0) return plan;
+
+  const args = [...plan.args];
+  if (args.indexOf('pipe:0') < 0 || args.indexOf(plan.output) < 0) return plan;
+
+  const inputFlags: number[] = [];
+  for (let i = 0; i < args.length; i++) if (args[i] === '-i') inputFlags.push(i);
+  const firstInputIndex = inputFlags.length;
+  const lastInputEnd = inputFlags[inputFlags.length - 1]! + 1;
+
+  const filter = audible.map((stem, i) => layerAudioFilter([stem.layer], plan, firstInputIndex + i, undefined, `s${i}`)).join(';');
+  const vfAt = args.indexOf('-vf');
+  const complexAt = args.indexOf('-filter_complex');
+  if (complexAt >= 0) {
+    args[complexAt + 1] = `${args[complexAt + 1]};${filter}`;
+  } else if (vfAt >= 0) {
+    const chain = args[vfAt + 1]!;
+    args.splice(vfAt, 2, '-filter_complex', `[0:v]${chain}[vout];${filter}`, '-map', '[vout]');
+  } else {
+    return plan;
+  }
+  const stemOutputs = audible.map((stem, i) => stemOutputPath(plan.output, stem.label, i));
+  audible.forEach((_, i) => args.push('-map', `[aouts${i}]`, '-c:a', 'pcm_s16le', stemOutputs[i]!));
+  args.splice(lastInputEnd + 1, 0, ...audible.flatMap((s) => ['-i', s.layer.path]));
+  return { ...plan, args, stemOutputs: [...(plan.stemOutputs ?? []), ...stemOutputs] };
 }

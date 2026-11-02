@@ -36,7 +36,7 @@ const MIME: Record<string, string> = {
   '.otf': 'font/otf',
   '.mp4': 'video/mp4',
   '.webm': 'video/webm',
-  // A template's own sound (milestone 59), played by the app window's elements.
+  // A template's own sound (milestone 16), played by the app window's elements.
   '.wav': 'audio/wav',
   '.mp3': 'audio/mpeg',
   '.ogg': 'audio/ogg',
@@ -48,7 +48,7 @@ const MIME: Record<string, string> = {
 /** Must run before app "ready", once, with every custom scheme. */
 export function registerTemplateScheme(): void {
   protocol.registerSchemesAsPrivileged([
-    // `stream` lets the app window's <audio> play a template's own sound (milestone 59).
+    // `stream` lets the app window's <audio> play a template's own sound (milestone 16).
     { scheme: TEMPLATE_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
     // `stream` lets <video> and <audio> play from it. No fetch: only media elements need it, and the
     // scheme enforces CORS, so even the app window cannot read responses as data.

@@ -17,8 +17,9 @@ import { browsedHiddenChoice } from './psd-state';
 import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, timecodePattern } from '../core/timecode';
 import type { TemplateEntry } from '../core/library-types';
 import { currentRawParams } from './inspector-params';
-import { captionsIn } from '../core/params';
+import { captionsIn, LAYERS_KEY } from '../core/params';
 import { lengthIn } from '../core/params';
+import { layersHaveStems } from '../core/sound-layer';
 import { lengthFrameCount, resolveLength } from '../core/timing';
 import { stageStop } from './stage';
 import { appState, coverFrame, dispatch, frameSize, playheadSeconds, preferredAspect, preferredPlatform, renderBlocked, selectedTemplate, trim } from './store';
@@ -76,6 +77,9 @@ const els = {
   /** How the project's captions reach the render (milestone 50); shown only while the project has any. */
   optCaptionsField: $<HTMLLabelElement>('opt-captions-field'),
   optCaptions: $<HTMLSelectElement>('opt-captions'),
+  /** How music that came in as stems reaches the render (milestone 16); shown only while the project has stems. */
+  optStemsField: $<HTMLLabelElement>('opt-stems-field'),
+  optStems: $<HTMLSelectElement>('opt-stems'),
   optCoverField: $<HTMLDivElement>('opt-cover-field'),
   optCover: $<HTMLInputElement>('opt-cover'),
   optCoverRow: $<HTMLDivElement>('opt-cover-row'),
@@ -459,6 +463,8 @@ export function readRenderOptions(): RenderOptions {
   if (preset && !els.optMatteField.hidden && els.optMatte.checked) options.matte = true;
   // The captions (milestone 50): only a choice other than the default is worth carrying.
   if (!els.optCaptionsField.hidden && els.optCaptions.value !== 'burn') options.captions = els.optCaptions.value as CaptionsMode;
+  // The music's stems (milestone 16): only "files" is worth carrying; the mix is the default.
+  if (!els.optStemsField.hidden && els.optStems.value === 'files') options.stems = 'files';
   // The cover image (milestone 20): a still of one frame beside the render. The frame is whatever
   // the field holds — filled from the playhead when the box is ticked, and editable after.
   if (preset && !els.optCoverField.hidden && els.optCover.checked) {
@@ -640,6 +646,7 @@ function updateMediaOptionsNote(entry: MediaEntry): void {
     if (options.matte) parts.push('with a matte file');
     if (!els.optCaptionsField.hidden) parts.push(options.captions === 'track' ? 'captions as an alpha track, with SRT and WebVTT' : options.captions === 'none' ? 'captions as SRT and WebVTT only' : 'captions burned in, with SRT and WebVTT');
     if (options.coverFrame !== undefined) parts.push('with a cover image');
+    if (options.stems === 'files') parts.push('music stems as files beside the render');
     els.optionsNote.classList.remove('error');
     els.optionsNote.textContent = parts.join(' · ');
     showPlatformWarnings(t.totalFrames / t.fps);
@@ -694,6 +701,8 @@ function markPresetAvailability(encoders: readonly string[]): void {
 export function outputRefreshOptions(): void {
   // The captions row is there while the project has captions (milestone 50), and goes with them.
   els.optCaptionsField.hidden = o.media !== null || captionsIn(currentRawParams()) === null;
+  // And the stems row while any audio layer holds its music as stems (milestone 16).
+  els.optStemsField.hidden = o.media !== null || !layersHaveStems(currentRawParams()[LAYERS_KEY]);
   updateOptionsNote();
 }
 
@@ -840,8 +849,9 @@ async function queueBatch(): Promise<void> {
 /** The fields a media item has and a template does not, shown or hidden as one. */
 function showMediaFields(entry: MediaEntry | null): void {
   els.mediaOptions.hidden = entry === null;
-  // A media item has no captions; a template's project may (milestone 50).
+  // A media item has no captions; a template's project may (milestone 50). Likewise the stems row.
   els.optCaptionsField.hidden = entry !== null || captionsIn(currentRawParams()) === null;
+  els.optStemsField.hidden = entry !== null || !layersHaveStems(currentRawParams()[LAYERS_KEY]);
   els.batch.hidden = entry !== null;
   els.optAspectField.hidden = entry !== null || els.optAspectField.hidden;
   if (!entry) {
@@ -929,6 +939,7 @@ export function outputShow(entry: TemplateEntry): void {
   els.optFps.value = '';
   els.optIn.value = '';
   els.optOut.value = '';
+  els.optStems.value = 'mix';
   els.dragStatus.textContent = '';
   setLut(null);
   trim.value = { inFrame: null, outFrame: null };
@@ -1006,6 +1017,8 @@ function initCollectionEditing(): void {
       els.optOut.value = item.options.outFrame === undefined ? '' : formatTimecode(item.options.outFrame, fps);
       // The cover a card was collected with, and its mark (milestone 20).
       setLut(item.options.lut ?? null);
+      // How the card's music stems reach the render (milestone 16); the row shows only while there are stems.
+      els.optStems.value = item.options.stems === 'files' ? 'files' : 'mix';
       els.optCover.checked = item.options.coverFrame !== undefined;
       els.optCoverAt.value = item.options.coverFrame === undefined ? '' : formatTimecode(item.options.coverFrame, fps);
       publishCover();

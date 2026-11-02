@@ -1,5 +1,5 @@
 /**
- * A template's own sound (milestone 59): a swoosh on a transition, a sting on
+ * A template's own sound (milestone 16): a swoosh on a transition, a sting on
  * a logo reveal, shipped inside the template folder with a few variations to
  * pick from. The manifest names the variants; the chosen one rides with the
  * parameters as `@sound` (src/core/params.ts), so it travels into projects,

@@ -239,7 +239,7 @@ Where no stretch survives all three, the template declares no structure and keep
 
 ### The template's own sound
 
-A template may carry sound of its own — a swoosh on a transition, a sting on a logo reveal — as files inside its folder, with a few variations to pick from (milestone 59):
+A template may carry sound of its own — a swoosh on a transition, a sting on a logo reveal — as files inside its folder, with a few variations to pick from (milestone 16):
 
 ```json
 {
@@ -630,6 +630,7 @@ news-pack/
 | `type` | string | no | Default type for the pack's templates, from the built-in type list; a template that declares its own `type` keeps it. |
 | `themes` | string[] | no | Themes added to every template in the pack (built-in ids or your own words, normalized like tags). |
 | `styles` | string[] | no | Styles added to every template in the pack, from the built-in style list only. |
+| `sound` | object | no | Sound variations for the pack's templates, declared once — the same shape as a template's own `sound` field. A template that declares its own keeps it; for the rest, only variants whose files are inside the template's own folder apply, so a template without the files simply stays silent. |
 | `homepage` | string | no | |
 | `templates` | string[] | yes | Folder names inside the pack, one per template. Each must hold a valid `template.json` and its entry file. |
 

@@ -8,6 +8,7 @@
 
 import { MANIFEST_FILENAME, parseManifest, type TemplateManifest, type ValidationIssue } from './manifest';
 import { isBuiltInStyle, isBuiltInType, normalizeTheme } from './taxonomy';
+import { validateTemplateSound, type TemplateSound } from './template-sound';
 
 export const PACK_FILENAME = 'pack.json';
 
@@ -26,6 +27,15 @@ export interface PackManifest {
   type?: string;
   themes?: string[];
   styles?: string[];
+  /**
+   * Sound variations for the pack's templates (milestone 16): the
+   * same `sound` a template manifest declares, stated once for the whole pack.
+   * A template that declares its own keeps it; for the rest, each variant's
+   * file is looked for **inside the template's own folder**, and only the
+   * variants whose files are there apply — so one declaration serves thirty
+   * templates, and a template without the files simply stays silent.
+   */
+  sound?: TemplateSound;
 }
 
 /** Licenses that permit redistribution without further terms. Anything else gets a warning, not a block. */
@@ -115,6 +125,13 @@ export function parsePackManifest(text: string): { ok: true; manifest: PackManif
       for (const style of styles) if (!isBuiltInStyle(style)) problems.push(`"${style}" is not a built-in style`);
     }
   }
+  let sound: TemplateSound | null = null;
+  if (r.sound !== undefined) {
+    // The duration bound is each template's own business; here only the shape is checked.
+    const issues: { path: string; message: string }[] = [];
+    sound = validateTemplateSound(r.sound, Number.MAX_SAFE_INTEGER, issues);
+    problems.push(...issues.map((i) => `${i.path}: ${i.message}`));
+  }
   if (problems.length > 0) return { ok: false, problems };
   return {
     ok: true,
@@ -130,6 +147,7 @@ export function parsePackManifest(text: string): { ok: true; manifest: PackManif
       ...(typeof r.type === 'string' ? { type: r.type } : {}),
       ...(themes !== undefined ? { themes } : {}),
       ...(styles !== undefined ? { styles } : {}),
+      ...(sound ? { sound } : {}),
     },
   };
 }

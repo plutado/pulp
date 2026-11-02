@@ -10,7 +10,7 @@ import { loadLayerClips, loadTrackFrames } from './clip-grant';
 import { existsSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
-import { CAPTIONS_MODES, FRAME_FORMATS, OUTPUT_PRESETS, type CaptionsMode, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
+import { CAPTIONS_MODES, FRAME_FORMATS, OUTPUT_PRESETS, STEMS_MODES, type CaptionsMode, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
 import { PLATFORM_IDS, platformPreset } from '../core/platform-presets';
 import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest, SampleMediaOutcome } from '../shared/api';
@@ -701,6 +701,12 @@ function parseCliRender(argv: string[]): CliRender | null {
   if (captionsRaw !== undefined) {
     if ((CAPTIONS_MODES as readonly string[]).includes(captionsRaw)) options.captions = captionsRaw as CaptionsMode;
     else badNumbers.push(`--captions ${captionsRaw} (expected ${CAPTIONS_MODES.join(', ')})`);
+  }
+  // Music that came in as stems (milestone 16): in the mix, or one WAV per stem beside the render.
+  const stemsRaw = get('--stems');
+  if (stemsRaw !== undefined) {
+    if ((STEMS_MODES as readonly string[]).includes(stemsRaw)) options.stems = stemsRaw as 'mix' | 'files';
+    else badNumbers.push(`--stems ${stemsRaw} (expected ${STEMS_MODES.join(', ')})`);
   }
   const length = get('--length');
   const batch = get('--batch');

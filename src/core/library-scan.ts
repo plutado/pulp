@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { open, readdir, readFile, stat } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, relative, sep } from 'node:path';
 import { type TemplateManifest, MANIFEST_FILENAME, parseManifest } from './manifest';
+import type { TemplateSound } from './template-sound';
 import type { LibraryProblem, MediaKind, TemplateEntry } from './library-types';
 import { normalizeTag } from './tags';
 import { humanizeFileName, lottieEditables, lottieExtras, lottieInfo, lottieLimits, lottieManifest, parseLottie, readDotLottie, sniffLottieJson, type LottieDocument } from './lottie';
@@ -94,6 +95,8 @@ export interface PackContext {
   type?: string;
   themes?: string[];
   styles?: string[];
+  /** Sound variations for the pack's templates (milestone 16): applied where a template declares none and carries the files. */
+  sound?: TemplateSound;
 }
 
 /** A template's manifest with its pack's defaults filled in: its own type wins; themes and styles are joined. */
@@ -103,7 +106,28 @@ export function applyPackDefaults(manifest: TemplateManifest, pack: PackContext 
   if (out.type === undefined && pack.type) out.type = pack.type;
   if (pack.themes?.length) out.themes = [...new Set([...(out.themes ?? []), ...pack.themes])];
   if (pack.styles?.length) out.styles = [...new Set([...(out.styles ?? []), ...pack.styles])];
+  if (out.sound === undefined && pack.sound) out.sound = pack.sound;
   return out;
+}
+
+/**
+ * The pack's sound as it applies to one template folder (milestone 16): only
+ * the variants whose files are really inside the folder, with a default that
+ * still names one of them; null when none are there, so a template without the
+ * files is simply a template without a sound rather than a broken promise.
+ */
+export async function packSoundFor(sound: TemplateSound, dir: string): Promise<TemplateSound | null> {
+  const variants = [];
+  for (const variant of sound.variants) {
+    try {
+      if ((await stat(join(dir, variant.file))).isFile()) variants.push(variant);
+    } catch {
+      // Not there: this variant does not apply to this template.
+    }
+  }
+  if (variants.length === 0) return null;
+  const defaultKept = sound.default === undefined || sound.default === 'none' || variants.some((v) => v.value === sound.default);
+  return { variants, ...(defaultKept && sound.default !== undefined ? { default: sound.default } : {}), ...(sound.at !== undefined ? { at: sound.at } : {}) };
 }
 
 /**
@@ -163,6 +187,13 @@ export async function loadTemplate(dir: string, root: string, pack?: PackContext
   const onDisk = await folderBytes(dir);
   // A template folder's own name is not a useful tag; only its parents are.
   const tags = unique([...result.manifest.tags, ...folderTags(root, join(dir, '..'))]);
+  // A pack's sound (milestone 16) applies only where this folder really holds the files, and
+  // never over a sound the template declares itself.
+  let packHere = pack;
+  if (pack?.sound && result.manifest.sound === undefined) {
+    const sound = await packSoundFor(pack.sound, dir);
+    packHere = sound ? { ...pack, sound } : (({ sound: _sound, ...rest }) => rest)(pack);
+  }
   const key = itemKey('template', dir, builtInRoot);
   return {
     kind: 'template',
@@ -173,7 +204,7 @@ export async function loadTemplate(dir: string, root: string, pack?: PackContext
     mtimeMs: onDisk.mtimeMs,
     root,
     ...(pack ? { pack: { name: pack.name, slug: pack.slug } } : {}),
-    manifest: applyPackDefaults(result.manifest, pack),
+    manifest: applyPackDefaults(result.manifest, packHere),
     tags,
     warnings: result.warnings,
   };

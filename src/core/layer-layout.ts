@@ -31,7 +31,7 @@ import type { LayerLook } from './layer-look';
 import { DEFAULT_MAX_LINES, IDENTITY_PLACEMENT, placementFor, type Block, type ImageLayer, type Layer, type LayerValues, type TextCase, type TextLayer, type VideoLayer } from './layers';
 import type { TemplateManifest } from './manifest';
 import { clipWindowIndexAt, type ClipSource, type ClipValue } from './video-layer';
-import type { SoundValue } from './sound-layer';
+import { playableSounds, type SoundValue } from './sound-layer';
 import { keyedPoseAt, type LayerKey } from './layer-keys';
 
 /**
@@ -588,12 +588,22 @@ export function layerClipChoices(blocks: Record<string, BlockState>): (ClipValue
  * layer is never laid out: it draws nothing, so it is not in the drawn stack
  * the page is handed, and the page is never told which sound a project uses.
  */
-export function layerSoundChoices(manifest: Pick<TemplateManifest, 'blocks'>, layers: LayerValues): (SoundValue & { id: string; block: string; layer: string; span?: LayerSpan })[] {
-  const out: (SoundValue & { id: string; block: string; layer: string; span?: LayerSpan })[] = [];
+export function layerSoundChoices(manifest: Pick<TemplateManifest, 'blocks'>, layers: LayerValues): (SoundValue & { id: string; block: string; layer: string; span?: LayerSpan; stem?: { index: number; label: string } })[] {
+  const out: (SoundValue & { id: string; block: string; layer: string; span?: LayerSpan; stem?: { index: number; label: string } })[] = [];
   for (const block of manifest.blocks) {
     for (const layer of layers[block.id] ?? block.layers) {
       if (layer.type !== 'audio' || layer.hidden || !layer.sound?.id || layer.sound.hidden) continue;
-      out.push({ ...(layer.sound as SoundValue & { id: string }), block: block.id, layer: layer.id, ...(layer.span ? { span: layer.span } : {}) });
+      // Music as stems (milestone 16) expands to one playable sound per heard stem, each the
+      // layer's own window and fades with the stem's file and gain; one file stays one entry.
+      for (const playable of playableSounds(layer.sound)) {
+        out.push({
+          ...(playable.value as SoundValue & { id: string }),
+          block: block.id,
+          layer: layer.id,
+          ...(layer.span ? { span: layer.span } : {}),
+          ...(playable.stem ? { stem: playable.stem } : {}),
+        });
+      }
     }
   }
   return out;

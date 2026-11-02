@@ -900,6 +900,17 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .layer-bar .bar-end.start { left: -3px; }
 .layer-bar .bar-end.end { right: -3px; }
 .layer-bar .bar-end:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+/* A stem lane's mixer buttons (milestone 16): M and S on the lane itself, where the sound is read. */
+.layer-bar .bar-stem {
+  position: absolute; top: 0; width: 13px; height: 12px; margin: 0; padding: 0; border: 1px solid #0d1117; border-radius: 2px;
+  background: var(--panel); color: var(--muted); font-size: var(--font-caption); line-height: 10px; cursor: pointer;
+}
+.layer-bar .bar-stem.bar-mute { right: 18px; }
+.layer-bar .bar-stem.bar-solo { right: 3px; }
+.layer-bar .bar-stem[aria-pressed='true'].bar-mute { background: var(--warn, #b45309); color: var(--text); }
+.layer-bar .bar-stem[aria-pressed='true'].bar-solo { background: var(--accent); color: #0d1117; }
+.layer-bar .bar-stem:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+.layer-bar.stem-silent .bar-body { opacity: 0.45; }
 /* A keyframe's mark (milestone 51): a diamond on the row at the key's moment, dragged in time,
    with copy, paste and delete on its own right-click menu. On the row rather than in the body:
    a key sits in the graphic's time and can sit outside the layer's span, still holding the pose
@@ -1244,6 +1255,14 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .image-field .image-well img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
 /* One row: what the image is on the left, what to do with it on the right. */
 .image-field .image-meta { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; }
+/* Music as stems (milestone 16): the card's list of stems, each with the mixer's two buttons and its gain. */
+.sound-field .stems { display: flex; flex-direction: column; gap: 4px; }
+.sound-field .stem-row { display: flex; align-items: center; gap: var(--space-2); }
+.sound-field .stem-row .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--font-caption); }
+.sound-field .stem-row .stem-mute, .sound-field .stem-row .stem-solo { width: 22px; padding: 0 4px; }
+.sound-field .stem-row .stem-mute[aria-pressed='true'] { background: var(--warn, #b45309); color: var(--text); }
+.sound-field .stem-row .stem-solo[aria-pressed='true'] { background: var(--accent); color: #0d1117; }
+.sound-field .stem-row .stem-gain { width: 64px; }
 /* min-width 0, or the name's own length sets the row's width and the field overflows a narrow inspector. */
 .image-field .image-name { min-width: 0; color: var(--text-secondary); font-size: var(--font-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .image-field .image-dims { color: var(--muted); font-size: var(--font-caption); font-variant-numeric: tabular-nums; white-space: nowrap; }

@@ -287,7 +287,18 @@ export interface RenderOptions {
   crossfade?: number;
   /** Audio presets only: how the sound is written. */
   audio?: AudioOptions;
+  /**
+   * How music that came in as stems reaches the render (milestone 16): `mix`
+   * (the default) folds the stems into the mix like any other sound; `files`
+   * leaves them out of the render's own audio and writes one WAV per stem
+   * beside it — `<name>-<stem>.wav`, trimmed to exactly the rendered range —
+   * so an editor can remix what Pulp placed. A project with no stems is
+   * untouched either way.
+   */
+  stems?: 'mix' | 'files';
 }
+
+export const STEMS_MODES = ['mix', 'files'] as const;
 
 /** How an audio render is written (milestone 15); each unset field keeps the source's. */
 export interface AudioOptions {
@@ -499,6 +510,8 @@ export interface RenderPlan {
   coverFrame?: number;
   /** The mix written beside the render when the output has no room for an audio stream (milestone 48). */
   audioOutput?: string;
+  /** The music's stems written beside the render, one WAV each, when asked for as files (milestone 16). */
+  stemOutputs?: string[];
   warnings: string[];
 }
 

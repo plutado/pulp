@@ -52,7 +52,7 @@ import { hiddenDiffersFromFile, hiddenFor, isPsdEntry, psdOutlineFor, psdOutline
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue, CLIP_FRAME_LIMITS, DEFAULT_BORDER_COLOR, DEFAULT_BORDER_WIDTH, sanitizeCrop } from '../core/video-layer';
 import { healedTrack, trackDuration, type CutTrack } from '../core/cut-track';
 import { DEFAULT_VOICE_AMOUNT, VOICE_DESCRIPTIONS, VOICE_LABELS, VOICE_LIMITS, VOICE_TREATMENTS, type VoiceValue } from '../core/voice-treatment';
-import { EMPTY_SOUND, SOUND_ENDINGS, SOUND_LIMITS, type SoundEnding, type SoundValue } from '../core/sound-layer';
+import { EMPTY_SOUND, SOUND_ENDINGS, SOUND_LIMITS, type SoundEnding, type SoundStem, type SoundValue } from '../core/sound-layer';
 import { DEFAULT_CURVE, DEFAULT_KEY_EASING, KEY_EASINGS, keyedPoseAt, sanitizeKeys, withKeyAt, type KeyEasing, type LayerKey } from '../core/layer-keys';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { setIcon, type IconName } from './icons';
@@ -1183,13 +1183,13 @@ function setLength(length: number | undefined, commit = true): void {
   buildParamForm(selected.manifest);
 }
 
-/** The chosen variant of the template's own sound (milestone 59), or none chosen: the manifest's default then. */
+/** The chosen variant of the template's own sound (milestone 16), or none chosen: the manifest's default then. */
 export function currentSound(): string | undefined {
   return soundIn(p.raw);
 }
 
 /**
- * The template's own sound (milestone 59): which of the shipped variations
+ * The template's own sound (milestone 16): which of the shipped variations
  * plays with the graphic, or none. Absent for a template that ships no sound —
  * there is nothing to choose.
  */
@@ -1689,9 +1689,21 @@ function soundField(
 
   const settings = document.createElement('div');
   settings.className = 'type-grid sound-settings';
+  // Music as stems (milestone 16): the same piece split into parallel tracks, each with its own
+  // lane under the scrub bar; here the list, the mixer's buttons, and the way in and out of stems.
+  const stems = document.createElement('div');
+  stems.className = 'stems';
+  const stemChooser = mediaPicker({
+    layers: ['audio'],
+    noun: 'stems',
+    label: `${slot.label} stems`,
+    emptyLibrary: 'No sounds or music in the library yet. Add a folder with audio, or make the sample media.',
+    chosen: () => undefined,
+    onPick: (entry) => addStem(entry),
+  });
   const note = document.createElement('p');
   note.className = 'note image-note';
-  wrap.append(meta, chooser.el, settings, note);
+  wrap.append(meta, chooser.el, settings, stems, stemChooser.el, note);
 
   const entryFor = (id: string) => appState.value.index?.media.find((m) => m.id === id);
   const set = (next: SoundValue | null) => {
@@ -1705,8 +1717,72 @@ function soundField(
     set({ ...value, ...over });
   };
 
+  /** A new stem: the current single sound becomes stem one, or the picked file joins the list. */
+  function addStem(picked: { id: string; name: string }): void {
+    if (!value?.id) return;
+    const stemOf = (id: string, name?: string): SoundStem => ({ id, label: name ?? entryFor(id)?.name ?? 'Stem', muted: false, solo: false, gain: 1 });
+    const existing = value.stems ?? [stemOf(value.id)];
+    if (existing.length >= SOUND_LIMITS.stems) return;
+    set({ ...value, stems: [...existing, stemOf(picked.id, picked.name)] });
+  }
+
+  /** Write the stems back; one left collapses to the plain single sound it is. */
+  function setStems(stems: SoundStem[]): void {
+    if (!value) return;
+    if (stems.length <= 1) {
+      const rest = { ...value, ...(stems[0] ? { id: stems[0].id } : {}) };
+      delete rest.stems;
+      set(rest);
+      return;
+    }
+    set({ ...value, id: stems[0]!.id, stems });
+  }
+
+  function buildStems(): void {
+    stems.replaceChildren();
+    stemChooser.el.hidden = !value?.id || value.hidden === true;
+    if (!value?.id || value.hidden) return;
+    const list = value.stems ?? [];
+    for (const [index, stem] of list.entries()) {
+      const row = document.createElement('div');
+      row.className = 'stem-row';
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = stem.label;
+      name.title = entryFor(stem.id)?.path ?? stem.label;
+      const mute = document.createElement('button');
+      mute.type = 'button';
+      mute.className = 'ghost stem-mute';
+      mute.textContent = 'M';
+      mute.setAttribute('aria-pressed', String(stem.muted));
+      mute.setAttribute('aria-label', `Mute ${slot.label} stem ${stem.label}`);
+      mute.addEventListener('click', () => setStems(list.map((s, i) => (i === index ? { ...s, muted: !s.muted } : s))));
+      const solo = document.createElement('button');
+      solo.type = 'button';
+      solo.className = 'ghost stem-solo';
+      solo.textContent = 'S';
+      solo.setAttribute('aria-pressed', String(stem.solo));
+      solo.setAttribute('aria-label', `Solo ${slot.label} stem ${stem.label}`);
+      solo.addEventListener('click', () => setStems(list.map((s, i) => (i === index ? { ...s, solo: !s.solo } : s))));
+      const gain = numberOf(stem.gain, { min: 0, max: 1 }, 5, (v) => setStems(list.map((s, i) => (i === index ? { ...s, gain: v } : s))), `${slot.label} stem ${stem.label} gain`, 100);
+      gain.classList.add('stem-gain');
+      const remove = iconButton('trash', `Remove ${slot.label} stem ${stem.label}`);
+      remove.addEventListener('click', () => setStems(list.filter((_, i) => i !== index)));
+      row.append(name, mute, solo, gain, remove);
+      stems.append(row);
+    }
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'ghost picker-toggle';
+    add.textContent = list.length === 0 ? 'Add stem… (splits this sound into stems)' : 'Add stem…';
+    add.setAttribute('aria-label', `${slot.label}: add a stem`);
+    add.addEventListener('click', () => stemChooser.toggle());
+    stems.append(add);
+  }
+
   function buildSettings(entry: MediaEntry | undefined): void {
     settings.replaceChildren();
+    buildStems();
     if (!value?.id || value.hidden) return;
     const duration = entry?.meta?.duration ?? 0;
     const limit = { min: 0, max: duration > 0 ? duration : SOUND_LIMITS.point.max };
@@ -2680,7 +2756,7 @@ function paramCardEl(card: ParamCard): HTMLElement {
   if (card.kind === 'rest') {
     const field = lengthField();
     if (field) body.append(field);
-    // The template's own sound belongs with the layout and the timing too (milestone 59).
+    // The template's own sound belongs with the layout and the timing too (milestone 16).
     const sound = templateSoundField();
     if (sound) body.append(sound);
   }

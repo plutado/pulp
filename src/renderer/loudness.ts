@@ -17,6 +17,7 @@
 
 import { effect } from '@preact/signals';
 import { trackAudio, type CutTrack } from '../core/cut-track';
+import { playableSounds } from '../core/sound-layer';
 import type { Layer, LayerValues } from '../core/layers';
 import { platformPreset } from '../core/platform-presets';
 import { preferredPlatform } from './store';
@@ -41,7 +42,10 @@ function soundRequest(layers: LayerValues): SoundRequestEntry[] {
   for (const stack of Object.values(layers)) {
     for (const layer of stack) {
       if (layer.hidden) continue;
-      if (layer.type === 'audio' && layer.sound?.id && !layer.sound.hidden) out.push({ kind: 'sound', value: layer.sound, ...spanOf(layer) });
+      // Music as stems (milestone 16) measures as what is heard: one entry per unmuted (or soloed) stem.
+      if (layer.type === 'audio' && layer.sound?.id && !layer.sound.hidden) {
+        for (const playable of playableSounds(layer.sound)) out.push({ kind: 'sound', value: playable.value, ...spanOf(layer) });
+      }
       if (layer.type === 'video' && layer.clip?.id && !layer.clip.hidden) out.push({ kind: 'clip', value: layer.clip, ...spanOf(layer) });
     }
   }
@@ -86,7 +90,7 @@ export function loudnessUpdate(
   fps: number,
   length: number,
   track: CutTrack | null = null,
-  /** The template's own sound and the wipes' (milestone 59), as the stage resolved them. */
+  /** The template's own sound and the wipes' (milestone 16), as the stage resolved them. */
   templateSounds: readonly { templateId: string; value: unknown; speed?: number }[] = [],
 ): void {
   if (!els) return;
@@ -95,7 +99,7 @@ export function loudnessUpdate(
   const request = soundRequest(layers);
   // The cut track's sound is part of the mix (milestone 49), so the meter measures it too.
   for (const cut of track ? trackAudio(track) : []) request.push({ kind: 'sound', value: cut.value, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) });
-  // And the template's own sound (milestone 59), so the meter shows the mix the render levels.
+  // And the template's own sound (milestone 16), so the meter shows the mix the render levels.
   for (const own of templateSounds) request.push({ kind: 'template', templateId: own.templateId, value: own.value, ...(own.speed !== undefined ? { speed: own.speed } : {}) });
   if (request.length === 0 || !(length > 0) || !(fps > 0)) {
     shown = null;

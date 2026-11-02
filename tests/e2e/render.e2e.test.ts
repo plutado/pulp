@@ -1144,6 +1144,72 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(missing.stderr).toContain('the sound chosen for "music"');
   }, 300_000);
 
+  it('music as stems: mute and solo decide what the mix holds, and --stems files writes one WAV per stem beside the render (milestone 16)', async () => {
+    // Two tones at different pitches stand in for two stems of one piece.
+    const lib = join(out, 'stems-library');
+    await mkdir(lib, { recursive: true });
+    const tone = async (file: string, frequency: number) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs([
+        '-v', 'error', '-y', '-f', 'lavfi', '-i', `sine=frequency=${frequency}:duration=2`, '-c:a', 'pcm_s16le', join(lib, file),
+      ]), { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(r.code, r.stderr).toBe(0);
+      return itemId(`media:${join(lib, file)}`);
+    };
+    const drumsId = await tone('drums.wav', 220);
+    const keysId = await tone('keys.wav', 1760);
+    const common = ['--library', FIXTURES, '--library', lib];
+    const stems = (over: { muted?: boolean; solo?: boolean }[] = [{}, {}]) => ['--param', `@layers=${JSON.stringify({
+      stack: [{ id: 'music', type: 'audio', sound: { id: drumsId, stems: [
+        { id: drumsId, label: 'Drums', ...over[0] },
+        { id: keysId, label: 'Keys', ...over[1] },
+      ] } }],
+    })}`];
+    const probeAudio = async (file: string) => {
+      const { stdout, stderr } = await runBounded(ffprobe, [
+        '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name', '-of', 'json', file,
+      ], { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(stdout, stderr).not.toBe('');
+      return (JSON.parse(stdout) as { streams?: { codec_name?: string }[] }).streams?.[0] ?? null;
+    };
+    /** Loudest moment of one pitch's narrow band, in dB: tells one stem from the other in a mix. */
+    const bandLevel = async (file: string, frequency: number): Promise<number> => {
+      const r = await runBounded(ffmpeg, ffmpegArgs([
+        '-i', file, '-af', `bandpass=f=${frequency}:width_type=q:w=5,volumedetect`, '-f', 'null', '-',
+      ]), { timeoutMs: TOOL_TIMEOUT_MS });
+      const m = /max_volume:\s*(-?[\d.]+) dB/.exec(r.stderr);
+      expect(m, r.stderr.slice(-2000)).not.toBeNull();
+      return Number(m![1]);
+    };
+
+    // Both stems in the mix by default; soloing one takes the other out.
+    const mixed = await render('pulp.test.video-layer', 'h264-mp4', 'stems-mix', { extra: [...common, ...stems()] });
+    expect(mixed.code, mixed.stderr).toBe(0);
+    expect(await bandLevel(join(out, 'stems-mix.mp4'), 220), 'the drums are in the mix').toBeGreaterThan(-30);
+    expect(await bandLevel(join(out, 'stems-mix.mp4'), 1760), 'and the keys').toBeGreaterThan(-30);
+    const soloed = await render('pulp.test.video-layer', 'h264-mp4', 'stems-solo', { extra: [...common, ...stems([{}, { solo: true }])] });
+    expect(soloed.code, soloed.stderr).toBe(0);
+    const drumsInSolo = await bandLevel(join(out, 'stems-solo.mp4'), 220);
+    const keysInSolo = await bandLevel(join(out, 'stems-solo.mp4'), 1760);
+    expect(keysInSolo, 'the soloed stem is there').toBeGreaterThan(-30);
+    expect(keysInSolo - drumsInSolo, 'and the other is gone').toBeGreaterThan(20);
+
+    // --stems files: the stems leave the render's own audio and land one WAV each beside it.
+    const files = await render('pulp.test.video-layer', 'h264-mp4', 'stems-files', { extra: [...common, ...stems(), '--stems', 'files'] });
+    expect(files.code, files.stderr).toBe(0);
+    expect(await probeAudio(join(out, 'stems-files.mp4')), 'no stems in the render itself').toBeNull();
+    for (const [name, frequency] of [['stems-files-drums.wav', 220], ['stems-files-keys.wav', 1760]] as const) {
+      const wav = join(out, name);
+      expect(existsSync(wav), name).toBe(true);
+      expect((await probeAudio(wav))?.codec_name).toBe('pcm_s16le');
+      expect(await bandLevel(wav, frequency), `${name} holds its own pitch`).toBeGreaterThan(-30);
+    }
+    // A muted stem writes no file: what is beside the render is what would have been heard.
+    const partial = await render('pulp.test.video-layer', 'h264-mp4', 'stems-part', { extra: [...common, ...stems([{}, { muted: true }]), '--stems', 'files'] });
+    expect(partial.code, partial.stderr).toBe(0);
+    expect(existsSync(join(out, 'stems-part-drums.wav'))).toBe(true);
+    expect(existsSync(join(out, 'stems-part-keys.wav'))).toBe(false);
+  }, 300_000);
+
   it('levels the mix to the platform preset\'s loudness target, and leaves a render aimed nowhere as mixed (milestone 52)', async () => {
     // A tone under the whole graphic, well off the -14 LUFS target, so levelling is legible.
     const lib = join(out, 'loudness-library');
@@ -2143,7 +2209,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(info).toMatchObject({ width: 1920, height: 1080, pix_fmt: 'rgba' });
   }, 120_000);
 
-  it('a template\'s own sound is mixed into the render, follows the chosen variant, and "none" silences it (milestone 59)', async () => {
+  it('a template\'s own sound is mixed into the render, follows the chosen variant, and "none" silences it (milestone 16)', async () => {
     // Diagonal Wipe ships three swooshes and defaults to the soft one.
     /** The first audio stream of a file, or null where there is none. */
     const probeAudio = async (file: string): Promise<{ codec_name?: string } | null> => {

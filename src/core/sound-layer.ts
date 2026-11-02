@@ -30,7 +30,28 @@ export const SOUND_LIMITS = {
   fade: { min: 0, max: 30 },
   /** Seconds into the file; the window is held to what the file actually holds once it is measured. */
   point: { min: 0, max: 86_400 },
+  /** How many stems one piece of music may be split into (milestone 16). More than this is a session, not a layer. */
+  stems: 12,
 } as const;
+
+/**
+ * One stem of a piece of music (milestone 16): the same piece split into
+ * parallel tracks — drums, bass, keys, vocals — that play **together** under
+ * the layer's one window, delay and fades, since they are one recording cut
+ * apart. What differs per stem is which file it is, its own gain against the
+ * layer's volume, and the mixer's two buttons: mute, and solo — when any stem
+ * is soloed, only the soloed ones are heard.
+ */
+export interface SoundStem {
+  /** A library id, like the layer's own sound. */
+  id: string;
+  /** What the lane and the card call it: "Drums", "Bass". */
+  label: string;
+  muted: boolean;
+  solo: boolean;
+  /** 0 to 1 against the file as recorded, under the layer's volume. */
+  gain: number;
+}
 
 /**
  * A sound chosen for a layer. `id` is a library id and nothing else — the
@@ -58,6 +79,12 @@ export interface SoundValue {
   hidden: boolean;
   /** A voice treatment with its amount (milestone 53, src/core/voice-treatment.ts); absent is as recorded. */
   voice?: VoiceValue;
+  /**
+   * The music as stems (milestone 16): when present, these files play together
+   * instead of `id` — which is kept equal to the first stem's id, so everything
+   * that asks "is a sound chosen" keeps its answer. Absent is one file, as ever.
+   */
+  stems?: SoundStem[];
 }
 
 export const EMPTY_SOUND: SoundValue = {
@@ -122,6 +149,56 @@ export function soundTimeAt(time: number, value: SoundValue, source: SoundSource
   return from + within;
 }
 
+/** The stems a layer is heard through (milestone 16): the soloed ones when any is soloed, otherwise the unmuted. */
+export function heardStems(value: Pick<SoundValue, 'stems'>): SoundStem[] {
+  const stems = value.stems ?? [];
+  const solos = stems.filter((s) => s.solo);
+  // Mute wins inside a solo, as on a mixing desk: a stem both soloed and muted is silent.
+  return (solos.length > 0 ? solos : stems).filter((s) => !s.muted);
+}
+
+/**
+ * One sound to actually play per file (milestone 16): the value itself when it
+ * is one file, or one derived single-file value per heard stem — the layer's
+ * own window, delay, fades and voice, the stem's file and its gain folded into
+ * the volume. The preview's elements, the loudness meter and the render's
+ * chains all expand through here, so a solo is the same solo everywhere.
+ */
+export interface PlayableSound {
+  value: SoundValue;
+  /** Which stem this is, when the sound is stems; absent for a single file. */
+  stem?: { index: number; label: string };
+}
+
+export function playableSounds(value: SoundValue | null): PlayableSound[] {
+  if (!value || value.id === null) return [];
+  if (!value.stems || value.stems.length === 0) return [{ value }];
+  const heard = new Set(heardStems(value));
+  return value.stems.flatMap((stem, index) => {
+    if (!heard.has(stem)) return [];
+    const derived: SoundValue = { ...value, id: stem.id, volume: Math.round(value.volume * stem.gain * 100) / 100 };
+    delete derived.stems;
+    return [{ value: derived, stem: { index, label: stem.label } }];
+  });
+}
+
+/** The stems read from anything at all: each with an id, a label, its gain in range, and its two buttons. */
+export function sanitizeStems(input: unknown): SoundStem[] | undefined {
+  if (!Array.isArray(input)) return undefined;
+  const out: SoundStem[] = [];
+  for (const raw of input) {
+    if (out.length >= SOUND_LIMITS.stems) break;
+    if (typeof raw !== 'object' || raw === null) continue;
+    const r = raw as Record<string, unknown>;
+    const id = typeof r.id === 'string' && r.id.trim() !== '' ? r.id.trim() : null;
+    if (id === null) continue;
+    const label = typeof r.label === 'string' && r.label.trim() !== '' ? r.label.trim() : `Stem ${out.length + 1}`;
+    const gain = typeof r.gain === 'number' && Number.isFinite(r.gain) ? Math.min(1, Math.max(0, Math.round(r.gain * 100) / 100)) : 1;
+    out.push({ id, label, muted: r.muted === true, solo: r.solo === true, gain });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
 /** A sound value with every field in range, from anything at all; `undefined` when the input is not one. */
 export function sanitizeSoundValue(input: unknown): SoundValue | null | undefined {
   if (input === null) return null;
@@ -133,7 +210,8 @@ export function sanitizeSoundValue(input: unknown): SoundValue | null | undefine
   }
   if (typeof input !== 'object') return undefined;
   const r = input as Record<string, unknown>;
-  const id = typeof r.id === 'string' && r.id.trim() !== '' ? r.id.trim() : null;
+  const stems = sanitizeStems(r.stems);
+  const id = typeof r.id === 'string' && r.id.trim() !== '' ? r.id.trim() : (stems ? stems[0]!.id : null);
   if (id === null && r.hidden !== true) return null;
   /** Seconds, kept to the millisecond: a sound is placed by ear, not to the sample. */
   const seconds = (v: unknown, fallback: number, limit: { min: number; max: number }): number => {
@@ -147,7 +225,9 @@ export function sanitizeSoundValue(input: unknown): SoundValue | null | undefine
   const volume = typeof r.volume === 'number' && Number.isFinite(r.volume) ? Math.min(1, Math.max(0, Math.round(r.volume * 100) / 100)) : 1;
   const voice = sanitizeVoice(r.voice);
   return {
-    id,
+    // The first stem's file stands as the layer's id (milestone 16), so "is a sound chosen" and
+    // "what does the library know about it" keep an answer; playback goes through the stems.
+    id: stems ? stems[0]!.id : id,
     inPoint,
     outPoint,
     ending,
@@ -158,6 +238,7 @@ export function sanitizeSoundValue(input: unknown): SoundValue | null | undefine
     fadeOut: seconds(r.fadeOut, 0, SOUND_LIMITS.fade),
     hidden: r.hidden === true,
     ...(voice ? { voice } : {}),
+    ...(stems ? { stems } : {}),
   };
 }
 
@@ -174,6 +255,11 @@ export function soundValueToText(value: SoundValue | null): string {
   if (value.fadeIn !== 0) parts.push(`fadein=${value.fadeIn}`);
   if (value.fadeOut !== 0) parts.push(`fadeout=${value.fadeOut}`);
   if (value.voice) parts.push(`voice=${voiceToText(value.voice)}`);
+  // Each stem (milestone 16): id, URI-encoded label, gain, and its two buttons as flags.
+  for (const stem of value.stems ?? []) {
+    const flags = `${stem.muted ? 'm' : ''}${stem.solo ? 's' : ''}`;
+    parts.push(`stem=${stem.id}|${encodeURIComponent(stem.label)}|${stem.gain}|${flags}`);
+  }
   if (value.muted) parts.push('muted');
   if (value.hidden) parts.push('hidden');
   return parts.join(' ');
@@ -206,12 +292,40 @@ export function soundValueFromText(text: string): SoundValue | null {
       if (voice) fields.voice = voice;
       continue;
     }
+    if (name === 'stem') {
+      const [stemId, label, gain, flags] = raw.split('|');
+      if (!stemId) continue;
+      const stems = (fields.stems as unknown[] | undefined) ?? [];
+      stems.push({
+        id: stemId,
+        label: label ? decodeURIComponent(label) : undefined,
+        gain: gain !== undefined && gain !== '' ? Number(gain) : 1,
+        muted: (flags ?? '').includes('m'),
+        solo: (flags ?? '').includes('s'),
+      });
+      fields.stems = stems;
+      continue;
+    }
     const field = TEXT_KEYS[name];
     if (!field) continue;
     if (field === 'ending') fields.ending = raw;
     else if (raw.trim() !== '' && Number.isFinite(Number(raw))) fields[field] = Number(raw);
   }
   return sanitizeSoundValue(fields) ?? null;
+}
+
+/** Does any audio layer in these raw stacks hold its music as stems (milestone 16)? Read tolerantly, like `soundIdsInLayers`. */
+export function layersHaveStems(layers: unknown): boolean {
+  if (typeof layers !== 'object' || layers === null) return false;
+  for (const stack of Object.values(layers as Record<string, unknown>)) {
+    if (!Array.isArray(stack)) continue;
+    for (const layer of stack) {
+      if (typeof layer !== 'object' || layer === null) continue;
+      const value = sanitizeSoundValue((layer as { sound?: unknown }).sound);
+      if (value && !value.hidden && (value.stems?.length ?? 0) > 0) return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -228,7 +342,11 @@ export function soundIdsInLayers(layers: unknown): string[] {
     for (const layer of stack) {
       if (typeof layer !== 'object' || layer === null) continue;
       const value = sanitizeSoundValue((layer as { sound?: unknown }).sound);
-      if (value?.id && !value.hidden && !ids.includes(value.id)) ids.push(value.id);
+      if (!value || value.hidden) continue;
+      // Every file the layer may read: the one sound, or each of its stems (milestone 16).
+      for (const id of value.stems ? value.stems.map((s) => s.id) : value.id ? [value.id] : []) {
+        if (!ids.includes(id)) ids.push(id);
+      }
     }
   }
   return ids.sort();

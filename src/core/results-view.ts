@@ -201,7 +201,7 @@ export function columnsFor(width: number, cardWidth: number): number {
 
 // What a card and a row show.
 
-export type BadgeId = 'alpha' | 'loop' | 'duration' | 'resolution' | 'vertical' | 'square' | 'pack';
+export type BadgeId = 'alpha' | 'loop' | 'duration' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound';
 
 export interface ResultBadge {
   id: BadgeId;
@@ -240,6 +240,11 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   const orientation = entryOrientationBadge(entry);
   if (orientation) badges.push(orientation);
   if (entry.kind === 'template' && entry.pack) badges.push({ id: 'pack', label: entry.pack.name, tip: `From the pack ${entry.pack.name}` });
+  // A template that carries its own sound (milestone 16) says so on its card, with how many variations.
+  if (entry.kind === 'template' && entry.manifest.sound) {
+    const count = entry.manifest.sound.variants.length;
+    badges.push({ id: 'sound', label: 'Sound', tip: count > 1 ? `Carries its own sound, ${count} variations` : 'Carries its own sound' });
+  }
   return badges;
 }
 

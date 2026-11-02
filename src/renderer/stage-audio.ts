@@ -25,7 +25,7 @@ import { trackAudio, type CutTrack } from '../core/cut-track';
 import { layerGainAt, type AudioLayer } from '../core/layer-audio';
 import type { LayerValues } from '../core/layers';
 import type { MediaEntry } from '../core/library-types';
-import { soundAudible, soundTimeAt, type SoundSource } from '../core/sound-layer';
+import { playableSounds, soundAudible, soundTimeAt, type SoundSource } from '../core/sound-layer';
 import { mediaUrlFor } from '../shared/api';
 import { CLIP_LIMITS, clipAudible, clipMediaTimeAt, DEFAULT_CLIP_SPEED, type ClipSource } from '../core/video-layer';
 
@@ -42,7 +42,7 @@ interface LayerSound {
 }
 
 /**
- * A sound the stage adds beside the layers' own (milestone 59): the template's
+ * A sound the stage adds beside the layers' own (milestone 16): the template's
  * own sound, or a wipe's, played by its URL rather than a library id. Its file
  * is not in the library, so its length arrives from the element's own metadata
  * rather than from a probe; until it does, the layer's window is empty and the
@@ -98,10 +98,15 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
         if (!source || !entry || entry.sequence || (entry.meta && !entry.meta.audioCodec)) continue;
         wanted.set(key, { kind: 'clip', path: '', value: layer.clip, source, ...(span ? { span } : {}) });
       } else if (layer.type === 'audio' && soundAudible(layer.sound)) {
-        const entry = entryFor(layer.sound.id!);
-        const source = soundSourceFor(entry);
-        if (!entry || entry.offline || !source) continue;
-        wanted.set(key, { kind: 'sound', path: '', value: layer.sound, source, ...(span ? { span } : {}) });
+        // Music as stems (milestone 16) plays as one element per heard stem, so a mute or a solo
+        // is a different set of elements; one file is one element keyed as it always was.
+        for (const playable of playableSounds(layer.sound)) {
+          const entry = entryFor(playable.value.id!);
+          const source = soundSourceFor(entry);
+          if (!entry || entry.offline || !source) continue;
+          const stemKey = playable.stem ? `${key}~${playable.stem.index}` : key;
+          wanted.set(stemKey, { kind: 'sound', path: '', value: playable.value, source, ...(span ? { span } : {}) });
+        }
       }
     }
   }
@@ -114,7 +119,7 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
     if (entry.meta && !entry.meta.audioCodec) return;
     wanted.set(`@track.${index}`, { kind: 'sound', path: '', value: cut.value, source, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) });
   });
-  // The template's own sound and a wipe's (milestone 59), by the URL the stage resolved.
+  // The template's own sound and a wipe's (milestone 16), by the URL the stage resolved.
   for (const extra of extras) {
     wanted.set(extra.key, extra.layer);
     urls.set(extra.key, extra.url);

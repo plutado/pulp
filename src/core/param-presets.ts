@@ -35,7 +35,7 @@ export function diffFromDefaults(manifest: Pick<TemplateManifest, 'parameters'>,
   if (raw[CAPTIONS_KEY] !== undefined) out[CAPTIONS_KEY] = raw[CAPTIONS_KEY];
   // And so does the length, when one was chosen (milestone 30).
   if (raw[LENGTH_KEY] !== undefined) out[LENGTH_KEY] = raw[LENGTH_KEY];
-  // And the template's own sound, when a variant was chosen (milestone 59).
+  // And the template's own sound, when a variant was chosen (milestone 16).
   if (raw[SOUND_KEY] !== undefined) out[SOUND_KEY] = raw[SOUND_KEY];
   return out;
 }

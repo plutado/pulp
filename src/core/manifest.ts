@@ -145,7 +145,7 @@ export interface TemplateManifest {
    */
   structure?: TemplateStructure;
   /**
-   * The template's own sound (milestone 59): a few variations shipped inside
+   * The template's own sound (milestone 16): a few variations shipped inside
    * the folder, one chosen in the window, played with the graphic and mixed
    * into the render. Left out, the template is silent, exactly as before.
    */
@@ -407,7 +407,7 @@ export function validateManifest(raw: unknown): ValidationResult {
       errors.push({ path: 'structure', message: 'cannot be read without a usable duration' });
     }
   }
-  // The template's own sound (milestone 59). Its start is checked against the duration, so it
+  // The template's own sound (milestone 16). Its start is checked against the duration, so it
   // is only read once that is known to be a usable number, as the structure is.
   let sound: TemplateSound | null = null;
   if (raw.sound !== undefined) {

@@ -16,6 +16,7 @@
     "type": { "$ref": "template.schema.json#/$defs/typeId", "description": "Default type for the pack's templates; a template that declares its own keeps it." },
     "themes": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "styles": { "type": "array", "items": { "$ref": "template.schema.json#/$defs/styleId" } },
+    "sound": { "$ref": "template.schema.json#/$defs/sound", "description": "Sound variations for the pack's templates, declared once: a template that declares its own keeps it; for the rest, only variants whose files are inside the template's own folder apply." },
     "templates": {
       "type": "array",
       "minItems": 1,

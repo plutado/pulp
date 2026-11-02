@@ -44,7 +44,7 @@ export async function resolveSoundSource(ffprobePath: string, id: string): Promi
 }
 
 /**
- * The file behind a template's own sound (milestone 59): a path inside the
+ * The file behind a template's own sound (milestone 16): a path inside the
  * template folder, named by the manifest and nothing else, probed for its
  * length as a layer's sound is. Held inside the folder the way the template
  * protocol holds its requests, so a manifest cannot name a file outside it.

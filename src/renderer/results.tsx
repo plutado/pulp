@@ -57,7 +57,7 @@ function optionId(entry: LibraryEntry): string {
 const viewport = signal({ width: 0, height: 0 });
 const scrollTop = signal(0);
 
-const BADGE_ICONS: Partial<Record<BadgeId, IconName>> = { alpha: 'checkerboard', loop: 'repeat', vertical: 'device-mobile', square: 'square', pack: 'package' };
+const BADGE_ICONS: Partial<Record<BadgeId, IconName>> = { alpha: 'checkerboard', loop: 'repeat', vertical: 'device-mobile', square: 'square', pack: 'package', sound: 'speaker-high' };
 
 function Badges({ badges }: { badges: ResultBadge[] }) {
   return (

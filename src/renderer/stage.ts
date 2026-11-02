@@ -138,7 +138,7 @@ const s = {
   clipSources: {} as Record<string, ClipSource>,
   /** Seconds the graphic runs for, when a length has been chosen (milestone 30). */
   length: undefined as number | undefined,
-  /** The chosen variant of the template's own sound (milestone 59), or none chosen: the manifest's default then. */
+  /** The chosen variant of the template's own sound (milestone 16), or none chosen: the manifest's default then. */
   sound: undefined as string | undefined,
   /** The project's cut track (milestone 49), or none: the shots under the layers. */
   track: null as CutTrack | null,
@@ -259,7 +259,7 @@ function soundLength(): number {
 }
 
 /**
- * The sounds the stage adds beside the layers' own (milestone 59): the
+ * The sounds the stage adds beside the layers' own (milestone 16): the
  * template's own sound as the chosen variant plays it, and each wipe's on the
  * cut track, every one resolved to the URL the template protocol serves it at.
  * The length is unknown here — these files are not in the library — so the
