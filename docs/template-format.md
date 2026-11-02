@@ -222,6 +222,8 @@ The host then maps every moment of the chosen length back to a moment of the tem
 
 A template that declares a structure should not also offer a "Hold, seconds" parameter: the length is the control now, and two ways to set the same thing would fight.
 
+The eleven bundled templates that did offer one lost it when they declared their parts, and work saved before that is **translated rather than dropped**: a preset, collection item, project, CSV column or `--param` still carrying a "Hold, seconds" becomes the length that matches it — the declared entrance and exit with that hold between them — unless a length was saved with it, which wins. The table of the eleven is `src/core/legacy-hold.ts`, and it is held to the bundled templates by a test, so re-adding one of those parameters fails rather than quietly translating a value that is no longer legacy. A template of your own that drops a parameter is not translated: Pulp cannot know what the value meant.
+
 #### Choosing `holdFrom` and `holdTo`
 
 The hold is what the graphic **settles into**, and the declaration is a promise about the pictures between those two moments: stretching them must change nothing but how long they are on screen. Three things decide where they go.

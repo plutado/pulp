@@ -7,10 +7,11 @@
  */
 
 import { defaultLayers, type Block, type LayerValues } from './layers';
+import { isLegacyHoldHeader, LEGACY_HOLD_LABEL, lengthForLegacyHold, type HoldManifest } from './legacy-hold';
 import { clipValueFromText } from './video-layer';
 import { soundValueFromText } from './sound-layer';
 import type { TemplateManifest } from './manifest';
-import { LAYERS_KEY } from './params';
+import { LAYERS_KEY, LENGTH_KEY } from './params';
 
 export interface BatchRow {
   /** 1-based row number in the CSV, excluding the header. */
@@ -98,7 +99,7 @@ export function safeFileName(text: string, fallback: string): string {
   return cleaned || fallback;
 }
 
-export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blocks?: readonly Block[] }, csv: string): BatchPlan {
+export function planBatch(manifest: HoldManifest & Pick<TemplateManifest, 'parameters'> & { blocks?: readonly Block[] }, csv: string): BatchPlan {
   const plan: BatchPlan = { columns: [], unknownColumns: [], rows: [], warnings: [] };
   const table = parseCsv(csv);
   if (table.length === 0) {
@@ -130,6 +131,8 @@ export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blo
   }
   const layerColumns = new Map<number, LayerColumn>();
   let nameIndex = -1;
+  /** A column headed with the "Hold, seconds" one of the eleven templates lost (src/core/legacy-hold.ts). */
+  let holdIndex = -1;
   const columnIds: (string | null)[] = headers.map((h, i) => {
     const key = h.toLowerCase();
     const id = byKey.get(key);
@@ -148,12 +151,22 @@ export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blo
       plan.nameColumn = h;
       return null;
     }
+    // The parameter eleven templates lost: the column is not unknown, it is a length written the
+    // old way, so each row's value becomes the length that matches that hold.
+    if (holdIndex === -1 && isLegacyHoldHeader(manifest, h)) {
+      holdIndex = i;
+      plan.columns.push({ header: h, paramId: LENGTH_KEY });
+      return null;
+    }
     if (h !== '') plan.unknownColumns.push(h);
     return null;
   });
   if (plan.columns.length === 0) plan.warnings.push('No column matches a parameter or a layer of this template.');
   if (plan.unknownColumns.length > 0) {
     plan.warnings.push(`Unknown column${plan.unknownColumns.length > 1 ? 's' : ''} ignored: ${plan.unknownColumns.join(', ')}.`);
+  }
+  if (holdIndex >= 0) {
+    plan.warnings.push(`"${LEGACY_HOLD_LABEL}" is no longer a parameter of this template: each row's value becomes the length that matches that hold.`);
   }
   // The row's label when no name column: the first text parameter with a column, else the first text layer with one.
   const firstText = manifest.parameters.find((p) => p.type === 'text' && columnIds.includes(p.id))?.id;
@@ -195,6 +208,16 @@ export function planBatch(manifest: Pick<TemplateManifest, 'parameters'> & { blo
       });
     });
     if (layers) params[LAYERS_KEY] = layers;
+    // The old hold, as the length it means. A cell that is not a number is said and left out,
+    // since a row rendered at the wrong length is worse than one rendered at the template's own.
+    if (holdIndex >= 0) {
+      const cell = cells[holdIndex]?.trim() ?? '';
+      if (cell !== '') {
+        const length = lengthForLegacyHold(manifest, cell);
+        if (length === null) plan.warnings.push(`Row ${r}: "${LEGACY_HOLD_LABEL}" is not a number of seconds; ignored.`);
+        else params[LENGTH_KEY] = length;
+      }
+    }
     const layerName = firstLayerColumn !== undefined ? cells[firstLayerColumn]?.trim() : '';
     const rawName = nameIndex >= 0 ? cells[nameIndex]?.trim() : firstText ? String(params[firstText] ?? '').trim() : layerName;
     const label = rawName || `Row ${r}`;

@@ -608,6 +608,16 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await readdir(out)).filter((f) => /^len-trim_\d{5}\.png$/.test(f))).toHaveLength(10);
     expect(await templateTime(join(out, 'len-trim_00150.png'))).toBeCloseTo(1, 2);
 
+    // A "Hold, seconds" saved before the eleven templates lost it becomes the matching length
+    // (src/core/legacy-hold.ts) rather than being dropped: the citation callout holds from 1.35 s
+    // to 3.97 s of its own six, so a saved hold of 5 s is an entrance of 1.35, five seconds still
+    // and an exit of 2.03 — 8.38 s, 251 frames at 30 fps, where the template's own length is 180.
+    const legacy = await render('pulp.samples.citation-callout', 'png-sequence', 'len-hold', { extra: ['--param', 'inOut=5', '--size', '320x180'] });
+    expect(legacy.code, legacy.stderr).toBe(0);
+    expect((await readdir(out)).filter((f) => /^len-hold_\d{5}\.png$/.test(f))).toHaveLength(251);
+    // And it says what it did, since the person asked for something that no longer exists.
+    expect(legacy.stdout + legacy.stderr).toContain('the saved 5 s became a length of 8.38 s');
+
     // A template that declares nothing to stretch — a countdown counts real seconds — says so
     // rather than quietly ignoring the ask.
     const fixed = await render('pulp.samples.launch-countdown', 'png-sequence', 'len-fixed', { extra: ['--length', '20'] });

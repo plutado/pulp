@@ -17,6 +17,7 @@
 
 import { BrowserWindow, nativeImage } from 'electron';
 import { stagedOutputPath } from '../core/render-recovery';
+import { withLegacyHold } from '../core/legacy-hold';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -194,7 +195,13 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   // A length chosen in the window rides with the parameters (src/core/params.ts), so it reaches a
   // render from wherever they came — the form, a preset, a collection card, a CSV row. An explicit
   // option wins, which is what `--length` on the command line is.
-  const chosenLength = job.options?.length ?? lengthIn(job.params);
+  // A "Hold, seconds" saved before the eleven templates lost it becomes the length that matches
+  // it (milestone 30's loose end, src/core/legacy-hold.ts), whatever the saved work was: a
+  // collection, a project, a CSV row or a --param. Everything below reads the translated bag.
+  const legacy = withLegacyHold(manifest, job.params);
+  const params = legacy.params;
+  if (legacy.note) warnings.push(legacy.note);
+  const chosenLength = job.options?.length ?? lengthIn(params);
   /** Temporary folders the render made (a wipe's captured frames); gone once ffmpeg has read them. */
   const cleanupDirs: string[] = [];
   const cleanTemp = async () => {
@@ -208,7 +215,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   const track = ((t) => t && healedTrack(t, (cut) => {
     if (lookupClipItem(cut.id)) return null;
     return (cut.path && findMediaIdByPath(cut.path)) || null;
-  }))(trackIn(job.params));
+  }))(trackIn(params));
   const trackCuts: NonNullable<RenderPlanInput['track']>['cuts'] = [];
   const trackWipes: { template: string; at: number; seconds: number }[] = [];
   for (const [index, cut] of (track?.cuts ?? []).entries()) {
@@ -269,7 +276,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
 
   // The layer stacks ride in the same bag as the parameters (src/core/params.ts), so a render gets
   // the layers the person built wherever the parameters came from: the form, a card, a CSV row.
-  const { params: rawParams, layers: rawLayers } = splitLayers(job.params);
+  const { params: rawParams, layers: rawLayers } = splitLayers(params);
   const { values, issues } = resolveParams(manifest, rawParams);
   const { values: layers, issues: layerIssues } = resolveLayers(manifest, rawLayers);
   warnings.push(...layerIssues.map((i) => `layer ${i.layer ? `${i.block}.${i.layer}` : i.block}: ${i.message}`));
@@ -327,7 +334,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   // frame in its state; any other template has the chosen style drawn **over** it, captured from
   // a second page the same size and composited before the frame goes to ffmpeg. The subtitle
   // files beside the video are written whichever way is chosen, and when they are drawn nowhere.
-  const captions = captionsIn(job.params);
+  const captions = captionsIn(params);
   const captionsMode = captions ? (job.options?.captions ?? 'burn') : 'none';
   const selfIsStyle = manifest.captions === true;
   let captionStyle: TemplateEntry | null = null;

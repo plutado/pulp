@@ -6,6 +6,7 @@
  */
 
 import type { TemplateManifest } from './manifest';
+import { withLegacyHold, type HoldManifest } from './legacy-hold';
 import { CAPTIONS_KEY, LAYERS_KEY, LENGTH_KEY, resolveParams, TRACK_KEY } from './params';
 
 export type PresetValues = Record<string, unknown>;
@@ -37,11 +38,17 @@ export function diffFromDefaults(manifest: Pick<TemplateManifest, 'parameters'>,
   return out;
 }
 
-/** Stored values for a template as it is now: parameters it no longer declares are dropped without comment. */
-export function applyPreset(manifest: Pick<TemplateManifest, 'parameters'>, values: PresetValues): PresetValues {
+/**
+ * Stored values for a template as it is now: parameters it no longer declares
+ * are dropped without comment — except a "Hold, seconds" saved for one of the
+ * eleven templates that lost it, which becomes the length that matches it
+ * (src/core/legacy-hold.ts) rather than being thrown away.
+ */
+export function applyPreset(manifest: HoldManifest & Pick<TemplateManifest, 'parameters'>, values: PresetValues): PresetValues {
+  const translated = withLegacyHold(manifest, values);
   const known = new Set(manifest.parameters.map((p) => p.id));
   const out: PresetValues = {};
-  for (const [id, value] of Object.entries(values)) if (known.has(id) || id === LAYERS_KEY || id === LENGTH_KEY || id === TRACK_KEY || id === CAPTIONS_KEY) out[id] = value;
+  for (const [id, value] of Object.entries(translated.params)) if (known.has(id) || id === LAYERS_KEY || id === LENGTH_KEY || id === TRACK_KEY || id === CAPTIONS_KEY) out[id] = value;
   return out;
 }
 
