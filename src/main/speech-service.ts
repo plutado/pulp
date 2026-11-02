@@ -29,7 +29,7 @@ import { detectFfmpeg, nodeRunner, type ProcessRunner } from '../core/ffmpeg';
 import { ffprobePathFor } from '../core/media-probe';
 import type { CaptionWord } from '../core/captions';
 import {
-  DEFAULT_SPEECH_MODEL, speechMixFilter, speechModel, speechRunnerPaths, SPEECH_LANGUAGE_AUTO,
+  DEFAULT_SPEECH_MODEL, speechLanguage, speechMixFilter, speechModel, speechRunnerPaths,
   SPEECH_MODEL_LICENSE, SPEECH_RUNNER_MISSING_MESSAGE, SPEECH_SAMPLE_RATE, whisperArgs, whisperProgress, wordsFromWhisperJson,
   type SpeechSegment,
 } from '../core/speech';
@@ -194,7 +194,8 @@ async function resolveSegments(ffprobePath: string, segments: readonly SpeechSeg
 async function run(raw: unknown): Promise<TranscribeResult> {
   const request = raw as Partial<TranscribeRequest>;
   const asked = Array.isArray(request?.segments) ? (request.segments as SpeechSegment[]) : [];
-  const language = typeof request?.language === 'string' && request.language.trim() !== '' ? request.language.trim() : SPEECH_LANGUAGE_AUTO;
+  // A code the model knows, or auto: nothing else is handed to the program (milestone 50).
+  const language = speechLanguage(typeof request?.language === 'string' ? request.language : undefined);
   const model = speechModel(request?.model);
   const [runner, file, ffmpeg] = await Promise.all([detectRunner(), modelFile(model.id), detectFfmpeg()]);
   if (!ffmpeg.ok) return { ok: false, message: ffmpeg.message };

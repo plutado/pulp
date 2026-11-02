@@ -4,7 +4,9 @@ Status: draft. Version 1 may still change in incompatible ways before Pulp 1.0. 
 
 **A template is a shape, not a pixel size** (ADR 0012). The manifest declares the aspect ratios the template draws for (`aspects`), and the output resolution is chosen when it is rendered. Draw from the `width` and `height` in the state you are handed, never from a hard-coded size. Manifests that declare `width` and `height` keep working: the aspect is inferred from them and the size becomes that template's default resolution.
 
-This document is the specification. The validator in `src/core/manifest.ts` implements it, and the two must agree; when they disagree, that is a bug in one of them.
+This document is the specification. The validator in `src/core/manifest.ts` implements it, and the two must agree; when they disagree, that is a bug in one of them. A **JSON Schema** of the manifest is at [`docs/schema/template.schema.json`](schema/template.schema.json), and of `pack.json` at [`docs/schema/pack.schema.json`](schema/pack.schema.json), for editors and tools that read one; a test holds both to the validators (`tests/schema.test.ts`). The schema describes the shape; the validator is the last word, since a few rules cross fields.
+
+**Compatibility.** Fields are added to this format and never repurposed: a manifest that was valid stays valid, and a field keeps the meaning it had. An incompatible change — one that would read an existing manifest differently — takes a new `formatVersion`, and the validator says which versions it reads. There is no version freeze: the format stays versioned and documented rather than declared final, and the changelog records every addition.
 
 ## Overview
 
@@ -332,7 +334,10 @@ A **caption style** draws the words a person is saying, a line at a time, with
 the word being spoken picked out (milestone 50). It is an ordinary template —
 its own folder, manifest and page — that declares `"captions": true` and
 `"alpha": true`, and the captions layer's style picker offers exactly the
-templates that do.
+templates that do. It declares `"structure": { "loop": true }` as well (and so
+a `category` of `overlay`): a caption style has no timeline of its own, and
+the loop is what lets it be asked for the project's whole length, which is how
+the captions are rendered alone as an alpha caption track.
 
 What makes it a caption style is what it is handed. Each frame's `state` gains
 a `captions` object:
@@ -365,6 +370,15 @@ Three rules, and a caption style is otherwise a template like any other:
 
 The three bundled styles (`templates/caption-clean`, `caption-block`,
 `caption-pop`, CC0) are the worked examples.
+
+**How the captions reach a render.** Burned into the picture by default — the
+style's page is captured beside the template's and laid over it, frame by
+frame — or, with the Output tab's Captions choice (`--captions track` on the
+command line), left out of the picture and rendered on their own as
+`<name>-captions.mov`, ProRes 4444 at the render's own size, rate and trim,
+for an editing app; or drawn nowhere (`none`). Whichever is chosen, a project
+with captions gets `<name>.srt` and `<name>.vtt` beside the video, each line a
+cue timed against the rendered stretch.
 
 ### Fonts
 

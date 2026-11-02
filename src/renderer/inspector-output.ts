@@ -10,13 +10,14 @@ import { AspectError, aspectById, defaultAspect, orientationOf, resolutionsFor, 
 import { planBatch, type BatchPlan } from '../core/batch-csv';
 import { dimensionsLabel } from '../core/display';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
-import { coverFrameWithin, OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type AudioOptions, type PresetId, type RenderOptions } from '../core/render-plan';
+import { coverFrameWithin, OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type AudioOptions, type CaptionsMode, type PresetId, type RenderOptions } from '../core/render-plan';
 import { AUDIO_PRESET_IDS, AUDIO_PRESETS, DEFAULT_STILL_SECONDS, isAudioPresetId, mediaDefaultFps, NOT_MEASURED, resolveMediaTiming, sourceFromEntry } from '../core/media-render';
 import type { MediaEntry } from '../core/library-types';
 import { browsedHiddenChoice } from './psd-state';
 import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, timecodePattern } from '../core/timecode';
 import type { TemplateEntry } from '../core/library-types';
 import { currentRawParams } from './inspector-params';
+import { captionsIn } from '../core/params';
 import { lengthIn } from '../core/params';
 import { lengthFrameCount, resolveLength } from '../core/timing';
 import { stageStop } from './stage';
@@ -72,6 +73,9 @@ const els = {
   optTintOn: $<HTMLInputElement>('opt-tint-on'),
   optTint: $<HTMLInputElement>('opt-tint'),
   optMatte: $<HTMLInputElement>('opt-matte'),
+  /** How the project's captions reach the render (milestone 50); shown only while the project has any. */
+  optCaptionsField: $<HTMLLabelElement>('opt-captions-field'),
+  optCaptions: $<HTMLSelectElement>('opt-captions'),
   optCoverField: $<HTMLDivElement>('opt-cover-field'),
   optCover: $<HTMLInputElement>('opt-cover'),
   optCoverRow: $<HTMLDivElement>('opt-cover-row'),
@@ -453,6 +457,8 @@ export function readRenderOptions(): RenderOptions {
   if (platform) options.platform = platform.id;
   Object.assign(options, readSizeChoice());
   if (preset && !els.optMatteField.hidden && els.optMatte.checked) options.matte = true;
+  // The captions (milestone 50): only a choice other than the default is worth carrying.
+  if (!els.optCaptionsField.hidden && els.optCaptions.value !== 'burn') options.captions = els.optCaptions.value as CaptionsMode;
   // The cover image (milestone 20): a still of one frame beside the render. The frame is whatever
   // the field holds — filled from the playhead when the box is ticked, and editable after.
   if (preset && !els.optCoverField.hidden && els.optCover.checked) {
@@ -632,6 +638,7 @@ function updateMediaOptionsNote(entry: MediaEntry): void {
     }
     if (options.tint) parts.push(`recoloured ${options.tint}`);
     if (options.matte) parts.push('with a matte file');
+    if (!els.optCaptionsField.hidden) parts.push(options.captions === 'track' ? 'captions as an alpha track, with SRT and WebVTT' : options.captions === 'none' ? 'captions as SRT and WebVTT only' : 'captions burned in, with SRT and WebVTT');
     if (options.coverFrame !== undefined) parts.push('with a cover image');
     els.optionsNote.classList.remove('error');
     els.optionsNote.textContent = parts.join(' · ');
@@ -685,6 +692,8 @@ function markPresetAvailability(encoders: readonly string[]): void {
  * within the length, so what this tab shows depends on it.
  */
 export function outputRefreshOptions(): void {
+  // The captions row is there while the project has captions (milestone 50), and goes with them.
+  els.optCaptionsField.hidden = o.media !== null || captionsIn(currentRawParams()) === null;
   updateOptionsNote();
 }
 
@@ -831,6 +840,8 @@ async function queueBatch(): Promise<void> {
 /** The fields a media item has and a template does not, shown or hidden as one. */
 function showMediaFields(entry: MediaEntry | null): void {
   els.mediaOptions.hidden = entry === null;
+  // A media item has no captions; a template's project may (milestone 50).
+  els.optCaptionsField.hidden = entry !== null || captionsIn(currentRawParams()) === null;
   els.batch.hidden = entry !== null;
   els.optAspectField.hidden = entry !== null || els.optAspectField.hidden;
   if (!entry) {
@@ -969,6 +980,7 @@ function initCollectionEditing(): void {
         els.optSpeed.value = item.options.speed === undefined ? '' : String(item.options.speed);
         els.optCrossfade.value = item.options.crossfade === undefined ? '' : String(item.options.crossfade);
         els.optMatte.checked = item.options.matte === true;
+        els.optCaptions.value = item.options.captions ?? 'burn';
         els.optTintOn.checked = item.options.tint !== undefined;
         els.optTint.hidden = item.options.tint === undefined;
         if (item.options.tint) els.optTint.value = item.options.tint;

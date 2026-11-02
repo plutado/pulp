@@ -222,6 +222,7 @@ function applySnapshot(snapshot: Snapshot, record: boolean): void {
   p.values = resolveParams(selected.manifest, p.raw).values;
   buildParamForm(selected.manifest);
   stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
+  outputRefreshOptions();
   updateHistoryButtons();
 }
 
@@ -1236,6 +1237,8 @@ function setCaptions(captions: CaptionsValue | null, commit: boolean): void {
   p.raw = withCaptions(p.raw, captions);
   editorFor(selected.manifest.id).current = p.raw;
   stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions());
+  // The Output tab offers how the captions reach the render while there are any.
+  outputRefreshOptions();
   if (commit) {
     commitParams();
     buildParamForm(selected.manifest);

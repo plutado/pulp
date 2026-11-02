@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/plutado/pulp/blob/main/docs/schema/template.schema.json",
+  "title": "Pulp template manifest (template.json), format version 1",
+  "description": "The shape of a template's manifest, as docs/template-format.md specifies it and src/core/manifest.ts validates it. The validator is the last word: a few rules cross fields (a default inside its range, a select's default among its options, a hold inside the duration, a width and height of a declared aspect) and are checked there and not here. Unknown fields are accepted — the validator warns about them — so use an `x-` prefix for anything of your own. Fields are added to this format and never repurposed; an incompatible change takes a new formatVersion.",
+  "type": "object",
+  "required": ["formatVersion", "id", "name", "version", "license", "category", "duration", "fps"],
+  "anyOf": [
+    { "required": ["aspects"] },
+    { "required": ["width", "height"] }
+  ],
+  "properties": {
+    "formatVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$", "description": "Stable identifier: lowercase letters and digits in segments separated by . or -; unique within a library." },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$", "description": "Semantic version of the template." },
+    "author": { "type": "string" },
+    "license": { "type": "string", "minLength": 1, "description": "SPDX identifier for the template itself, e.g. CC0-1.0." },
+    "category": { "type": "string", "enum": ["lower-third", "title", "transition", "overlay", "background", "other"] },
+    "type": { "$ref": "#/$defs/typeId" },
+    "themes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Built-in theme ids or your own words; normalised like tags." },
+    "styles": { "type": "array", "items": { "$ref": "#/$defs/styleId" } },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "duration": { "type": "number", "exclusiveMinimum": 0, "maximum": 600, "description": "Seconds the template was designed at." },
+    "structure": { "$ref": "#/$defs/structure" },
+    "fps": { "type": "number", "exclusiveMinimum": 0, "maximum": 240 },
+    "aspects": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/aspectId" }, "description": "The shapes the template draws for; the first is the default." },
+    "width": { "type": "integer", "minimum": 16, "maximum": 8192 },
+    "height": { "type": "integer", "minimum": 16, "maximum": 8192 },
+    "alpha": { "type": "boolean", "default": false },
+    "captions": { "type": "boolean", "default": false, "description": "A caption style: the template draws the caption line handed to it in state.captions. Requires alpha." },
+    "entry": { "$ref": "#/$defs/relativePath", "default": "index.html" },
+    "thumbnail": { "$ref": "#/$defs/relativePath" },
+    "posterAt": { "type": "number", "minimum": 0 },
+    "parameters": { "type": "array", "items": { "$ref": "#/$defs/parameter" }, "default": [] },
+    "blocks": { "type": "array", "items": { "$ref": "#/$defs/block" }, "default": [] }
+  },
+  "dependentRequired": { "width": ["height"], "height": ["width"] },
+  "if": { "properties": { "captions": { "const": true } }, "required": ["captions"] },
+  "then": { "properties": { "alpha": { "const": true } }, "required": ["alpha"] },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+    "color": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$" },
+    "relativePath": { "type": "string", "minLength": 1, "not": { "anyOf": [ { "pattern": "^[/\\\\]" }, { "pattern": "^[A-Za-z]:" }, { "pattern": "(^|[/\\\\])\\.\\.([/\\\\]|$)" } ] } },
+    "aspectId": { "type": "string", "enum": ["16:9", "9:16", "1:1", "4:5"] },
+    "styleId": { "type": "string", "enum": ["clean", "corporate", "elegant", "high-energy", "grunge", "retro", "tech", "cinematic", "playful", "hand-drawn", "organic"] },
+    "typeId": {
+      "type": "string",
+      "enum": [
+        "lower-third", "title", "opener", "end-card", "callout", "social", "logo-reveal",
+        "animated-loop", "still-background", "texture",
+        "wipe", "reveal", "flash", "glitch",
+        "overlay", "frame", "light-particles", "film-grunge", "logo-bug", "vignette",
+        "shapes", "icons", "arrows", "infographic", "counter", "countdown",
+        "stock-footage", "photo", "illustration", "layered-graphic",
+        "full-mix", "stems", "sting",
+        "ambience", "impact", "whoosh", "ui-tech", "alarm", "nature-weather", "animals", "vehicles", "crowd", "foley", "explosion", "sci-fi", "musical-phrase",
+        "fire", "smoke", "sparks", "explosion-asset", "energy", "light-asset", "weather-asset", "liquid", "confetti", "brush",
+        "sports-objects", "celebration-objects", "holiday-objects", "business-objects", "science-objects", "media-objects", "nature-objects", "travel-objects", "home-objects", "community-objects"
+      ]
+    },
+    "structure": {
+      "description": "Which part of the template may stretch: a hold between two moments of its own clock, or loop, or scale — one of the three.",
+      "type": "object",
+      "oneOf": [
+        { "required": ["holdFrom", "holdTo"], "properties": { "holdFrom": { "type": "number", "minimum": 0 }, "holdTo": { "type": "number" } }, "not": { "anyOf": [ { "required": ["loop"] }, { "required": ["scale"] } ] } },
+        { "required": ["loop"], "properties": { "loop": { "const": true } }, "not": { "anyOf": [ { "required": ["holdFrom"] }, { "required": ["holdTo"] }, { "required": ["scale"] } ] } },
+        { "required": ["scale"], "properties": { "scale": { "const": true } }, "not": { "anyOf": [ { "required": ["holdFrom"] }, { "required": ["holdTo"] }, { "required": ["loop"] } ] } }
+      ]
+    },
+    "box": {
+      "type": "object",
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 },
+        "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+      }
+    },
+    "boxes": {
+      "description": "One box for every shape, or one per aspect id with an optional \"default\".",
+      "oneOf": [
+        { "$ref": "#/$defs/box" },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^(\\d+:\\d+|default)$" },
+          "additionalProperties": { "$ref": "#/$defs/box" },
+          "not": { "required": ["x", "y", "width", "height"] }
+        }
+      ]
+    },
+    "parameterBase": {
+      "type": "object",
+      "required": ["id", "type", "label"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "group": { "type": "string" },
+        "element": { "type": "string", "minLength": 1 }
+      }
+    },
+    "parameter": {
+      "allOf": [ { "$ref": "#/$defs/parameterBase" } ],
+      "oneOf": [
+        { "properties": { "type": { "const": "text" }, "default": { "type": "string" }, "maxLength": { "type": "integer", "minimum": 1 }, "multiline": { "type": "boolean" } }, "required": ["type", "default"] },
+        { "properties": { "type": { "const": "color" }, "default": { "$ref": "#/$defs/color" } }, "required": ["type", "default"] },
+        { "properties": { "type": { "const": "number" }, "default": { "type": "number" }, "min": { "type": "number" }, "max": { "type": "number" }, "step": { "type": "number", "exclusiveMinimum": 0 } }, "required": ["type", "default"] },
+        { "properties": { "type": { "const": "boolean" }, "default": { "type": "boolean" } }, "required": ["type", "default"] },
+        {
+          "properties": {
+            "type": { "const": "select" },
+            "default": { "type": "string" },
+            "options": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["value", "label"], "properties": { "value": { "type": "string" }, "label": { "type": "string" } } } }
+          },
+          "required": ["type", "default", "options"]
+        },
+        { "properties": { "type": { "const": "font" }, "default": { "type": "string", "minLength": 1 }, "options": { "type": "array", "items": { "type": "string" } } }, "required": ["type", "default"] },
+        {
+          "properties": {
+            "type": { "const": "image" },
+            "default": { "type": "null" },
+            "box": { "$ref": "#/$defs/boxes" },
+            "fit": { "type": "string", "enum": ["contain", "cover"] },
+            "align": { "type": "string", "enum": ["center", "left", "right", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right"] },
+            "margin": { "type": "number", "minimum": 0, "maximum": 0.45 },
+            "fallbackText": { "$ref": "#/$defs/identifier" }
+          },
+          "required": ["type", "box"]
+        }
+      ]
+    },
+    "typography": {
+      "type": "object",
+      "properties": {
+        "family": { "type": "string", "minLength": 1 },
+        "size": { "type": "number", "minimum": 0.001, "maximum": 1 },
+        "weight": { "type": "integer", "minimum": 100, "maximum": 900 },
+        "italic": { "type": "boolean" },
+        "case": { "type": "string", "enum": ["none", "upper", "lower", "title"] },
+        "letterSpacing": { "type": "number", "minimum": -0.5, "maximum": 2 },
+        "kerning": { "type": "boolean" },
+        "lineHeight": { "type": "number", "minimum": 0.5, "maximum": 4 },
+        "color": { "$ref": "#/$defs/color" },
+        "align": { "type": "string", "enum": ["left", "center", "right"] },
+        "overflow": { "type": "string", "enum": ["wrap", "shrink", "truncate"] }
+      }
+    },
+    "transitionEnd": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["template", "fade", "slide", "scale", "wipe", "none"] },
+        "seconds": { "type": "number", "minimum": 0.05, "maximum": 10 },
+        "direction": { "type": "string", "enum": ["auto", "top", "bottom", "left", "right"] }
+      }
+    },
+    "layerBase": {
+      "type": "object",
+      "required": ["id", "label", "type"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["text", "image", "video", "audio"] },
+        "required": { "type": "boolean" },
+        "hidden": { "type": "boolean" },
+        "spaceBefore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "transition": { "type": ["object", "null"], "properties": { "in": { "$ref": "#/$defs/transitionEnd" }, "out": { "$ref": "#/$defs/transitionEnd" } } },
+        "span": { "type": ["object", "null"], "properties": { "start": { "type": "number", "minimum": 0, "maximum": 600 }, "end": { "type": ["number", "null"], "minimum": 0, "maximum": 600 } } },
+        "look": {
+          "type": ["object", "null"],
+          "properties": {
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "shadowColor": { "$ref": "#/$defs/color" },
+            "shadowDistance": { "type": "number", "minimum": 0, "maximum": 0.25 },
+            "shadowAngle": { "type": "number", "minimum": -180, "maximum": 180 },
+            "shadowSoftness": { "type": "number", "minimum": 0, "maximum": 0.25 },
+            "glowColor": { "$ref": "#/$defs/color" },
+            "glowSize": { "type": "number", "minimum": 0, "maximum": 0.25 },
+            "outlineColor": { "$ref": "#/$defs/color" },
+            "outlineWidth": { "type": "number", "minimum": 0, "maximum": 0.25 },
+            "blur": { "type": "number", "minimum": 0, "maximum": 0.25 },
+            "blend": { "type": "string", "enum": ["normal", "multiply", "screen", "overlay"] },
+            "brightness": { "type": "number", "minimum": -1, "maximum": 1 },
+            "saturation": { "type": "number", "minimum": 0, "maximum": 2 },
+            "tint": { "oneOf": [ { "$ref": "#/$defs/color" }, { "type": "null" } ] },
+            "corners": { "type": "number", "minimum": 0, "maximum": 0.25 },
+            "feather": { "type": "number", "minimum": 0, "maximum": 0.25 }
+          }
+        },
+        "placement": {
+          "type": ["object", "null"],
+          "propertyNames": { "pattern": "^(\\d+:\\d+|default)$" },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "dx": { "type": "number", "minimum": -1, "maximum": 1 },
+              "dy": { "type": "number", "minimum": -1, "maximum": 1 },
+              "scale": { "type": "number", "minimum": 0.05, "maximum": 10 },
+              "rotate": { "type": "number" }
+            }
+          }
+        },
+        "keys": {
+          "type": ["array", "null"],
+          "maxItems": 120,
+          "items": {
+            "type": "object",
+            "required": ["at"],
+            "properties": {
+              "at": { "type": "number", "minimum": 0, "maximum": 600 },
+              "dx": { "type": "number", "minimum": -1, "maximum": 1 },
+              "dy": { "type": "number", "minimum": -1, "maximum": 1 },
+              "scale": { "type": "number", "minimum": 0.05, "maximum": 10 },
+              "rotate": { "type": "number" },
+              "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+              "easing": { "type": "string", "enum": ["linear", "ease-in", "ease-out", "ease-in-out", "hold", "curve"] },
+              "curve": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "type": "number" } }
+            }
+          }
+        }
+      }
+    },
+    "layer": {
+      "allOf": [ { "$ref": "#/$defs/layerBase" } ],
+      "oneOf": [
+        {
+          "allOf": [ { "$ref": "#/$defs/typography" } ],
+          "properties": { "type": { "const": "text" }, "text": { "type": "string" }, "maxLines": { "type": "integer", "minimum": 1, "maximum": 20 } },
+          "required": ["type", "text"]
+        },
+        { "properties": { "type": { "const": "image" }, "image": { "type": "null" }, "size": { "type": "number", "minimum": 0.001, "maximum": 1 }, "align": { "type": "string", "enum": ["left", "center", "right"] } }, "required": ["type"] },
+        { "properties": { "type": { "const": "video" }, "clip": { "type": "null" }, "size": { "type": "number", "minimum": 0.001, "maximum": 1 }, "align": { "type": "string", "enum": ["left", "center", "right"] } }, "required": ["type"] },
+        { "properties": { "type": { "const": "audio" }, "sound": { "type": "null" } }, "required": ["type"] }
+      ]
+    },
+    "block": {
+      "type": "object",
+      "required": ["id", "label", "box"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1 },
+        "box": { "$ref": "#/$defs/boxes" },
+        "direction": { "type": "string", "enum": ["column", "row"] },
+        "gap": { "type": "number", "minimum": 0, "maximum": 1 },
+        "align": { "type": "string", "enum": ["left", "center", "right"] },
+        "verticalAlign": { "type": "string", "enum": ["top", "middle", "bottom"] },
+        "open": { "type": "boolean" },
+        "typography": { "$ref": "#/$defs/typography" },
+        "layers": { "type": "array", "items": { "$ref": "#/$defs/layer" } }
+      }
+    }
+  }
+}

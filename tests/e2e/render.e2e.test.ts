@@ -1383,6 +1383,77 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(await level(1.6, 1.9), 'and silence once the track has ended').toBeLessThan(-50);
   }, 300_000);
 
+  it('writes the captions into the render, beside it as SRT and WebVTT, and on their own as an alpha track (milestone 50)', async () => {
+    // Two lines on the project's clock, drawn by a bundled caption style over the video-layer
+    // fixture — 320 × 180, transparent but for its corner marker — so the caption band is the only
+    // thing that can light up, and a moment between the lines must leave it clear.
+    const captions = {
+      style: 'pulp.samples.caption-clean',
+      lines: [
+        { words: [{ text: 'Hello', start: 0.2, end: 0.6 }, { text: 'there.', start: 0.6, end: 1.0 }] },
+        { words: [{ text: 'Again', start: 1.4, end: 1.8 }] },
+      ],
+    };
+    const common = ['--library', FIXTURES, '--param', `@captions=${JSON.stringify(captions)}`];
+    // The band for 320 × 180 (src/core/player.ts): x 16, y 131, 288 wide, 40 tall; the style sets its
+    // row at the band's foot, so a row of pixels a little above the foot crosses the words.
+    const bandRow = async (file: string) => (await pixels(file, 16, 165, 288)).filter((_, i) => i % 4 === 3).reduce((sum, a) => sum + a, 0);
+    const frameFile = (base: string, frame: number) => join(out, `${base}_${String(frame).padStart(5, '0')}.png`);
+
+    // Burned in, the default: the words in the band while a line is on screen, nothing between lines.
+    const burn = await render('pulp.test.video-layer', 'png-sequence', 'caps-burn', { extra: common });
+    expect(burn.code, burn.stderr).toBe(0);
+    expect(await bandRow(frameFile('caps-burn', 15)), 'the first line, at half a second').toBeGreaterThan(0);
+    expect(await bandRow(frameFile('caps-burn', 36)), 'nothing between the lines').toBe(0);
+    expect(await bandRow(frameFile('caps-burn', 48)), 'the second line').toBeGreaterThan(0);
+    // Above the band the graphic is as it was: its corner marker and nothing else.
+    const above = await pixels(frameFile('caps-burn', 15), 16, 90, 288);
+    expect(above.filter((_, i) => i % 4 === 3).reduce((sum, a) => sum + a, 0)).toBe(0);
+    // The subtitle files beside it, timed against the render.
+    const srt = await readFile(join(out, 'caps-burn.srt'), 'utf8');
+    expect(srt).toContain('1\n00:00:00,200 --> 00:00:01,000\nHello there.\n');
+    expect(srt).toContain('2\n00:00:01,400 --> 00:00:01,900\nAgain\n');
+    const vtt = await readFile(join(out, 'caps-burn.vtt'), 'utf8');
+    expect(vtt.startsWith('WEBVTT\n\n')).toBe(true);
+    expect(vtt).toContain('00:00:00.200 --> 00:00:01.000\nHello there.');
+    expect(burn.stdout).toContain('caps-burn.srt');
+
+    // As an alpha track: the picture left alone, the captions rendered on their own beside it, the
+    // same size and rate, with alpha, so they lay over the video in an editing app.
+    const track = await render('pulp.test.video-layer', 'png-sequence', 'caps-track', { extra: [...common, '--captions', 'track'], timeoutMs: 180_000 });
+    expect(track.code, track.stderr).toBe(0);
+    expect(await bandRow(frameFile('caps-track', 15)), 'the picture without the words').toBe(0);
+    const trackFile = join(out, 'caps-track-captions.mov');
+    expect(track.stdout).toContain(trackFile);
+    const info = await probe(trackFile);
+    expect(info).toMatchObject({ codec_name: 'prores', width: 320, height: 180, nb_read_frames: '60' });
+    expect(info.pix_fmt, 'ProRes 4444 with its alpha').toMatch(/^yuva444p1[02]le$/);
+    // Its frame at half a second carries the words, and its frame between the lines carries nothing.
+    const at = async (seconds: number) => {
+      const { stdout, stderr } = await runBoundedBuffer(ffmpeg, ffmpegArgs(['-v', 'error', '-ss', String(seconds), '-i', trackFile, '-vf', 'format=rgba,crop=288:1:16:165', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(stdout.length, stderr).toBe(288 * 4);
+      return [...stdout].filter((_, i) => i % 4 === 3).reduce((sum, a) => sum + a, 0);
+    };
+    expect(await at(0.5), 'the words on the track').toBeGreaterThan(0);
+    expect(await at(1.2), 'and clear between the lines').toBe(0);
+    expect(existsSync(join(out, 'caps-track.srt'))).toBe(true);
+
+    // Drawn nowhere: the subtitle files alone.
+    const none = await render('pulp.test.video-layer', 'png-sequence', 'caps-none', { extra: [...common, '--captions', 'none'] });
+    expect(none.code, none.stderr).toBe(0);
+    expect(await bandRow(frameFile('caps-none', 15))).toBe(0);
+    expect(existsSync(join(out, 'caps-none.vtt'))).toBe(true);
+    expect(existsSync(join(out, 'caps-none-captions.mov'))).toBe(false);
+
+    // Read strictly on the command line, as the track is.
+    const bad = await render('pulp.test.video-layer', 'png-sequence', 'caps-bad', { extra: ['--library', FIXTURES, '--param', '@captions={"lines":[]}'] });
+    expect(bad.code).toBe(2);
+    expect(bad.stderr).toContain('@captions');
+    const badMode = await render('pulp.test.video-layer', 'png-sequence', 'caps-bad-mode', { extra: [...common, '--captions', 'sideways'] });
+    expect(badMode.code).toBe(2);
+    expect(badMode.stderr).toContain('--captions');
+  }, 400_000);
+
   it('plays transitions on a cut — a dissolve, a dip to a colour, a bundled wipe — and an unlinked sound for a J cut (milestone 49)', async () => {
     const lib = join(out, 'transition-library');
     await mkdir(lib, { recursive: true });

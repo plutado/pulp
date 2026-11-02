@@ -6,7 +6,7 @@
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
-  "category": "title",
+  "category": "overlay",
   "type": "callout",
   "captions": true,
   "tags": [
@@ -23,6 +23,9 @@
     "high-energy"
   ],
   "duration": 4,
+  "structure": {
+    "loop": true
+  },
   "fps": 30,
   "aspects": [
     "16:9",

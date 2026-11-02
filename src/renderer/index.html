@@ -261,6 +261,14 @@
           <input id="opt-matte" type="checkbox">
           <span>Matte file beside the render</span>
         </label>
+        <label class="field inline captions-field" id="opt-captions-field" hidden data-tip="How the project's captions reach the render. SRT and WebVTT files are written beside the video whichever is chosen">
+          <span>Captions</span>
+          <select id="opt-captions" aria-label="Captions in the render">
+            <option value="burn">Burned into the picture</option>
+            <option value="track">An alpha caption track beside the render</option>
+            <option value="none">Not drawn (subtitle files only)</option>
+          </select>
+        </label>
         <div class="cover-field" id="opt-cover-field">
           <label class="field inline" data-tip="A still of one frame beside the render, at the same size, for the thumbnail a platform asks for separately">
             <input id="opt-cover" type="checkbox">
@@ -534,6 +542,7 @@
       <p class="note">The speech model runs on this machine and nothing of your project is sent anywhere. The model file itself is fetched once, from its publisher, checked against its checksum and kept beside your settings.</p>
       <div class="key-controls">
         <label>Listen to <select id="captions-source" aria-label="What to transcribe"></select></label>
+        <label>Language <select id="captions-language" aria-label="The language spoken"></select></label>
       </div>
       <p id="captions-model" class="note"></p>
       <div class="dialog-actions render-actions">

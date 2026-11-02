@@ -11,8 +11,8 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_SPEECH_MODEL, modelSizeText, speechMixFilter, speechModel, speechRunnerPaths, SPEECH_LANGUAGE_AUTO,
-  SPEECH_MODELS, SPEECH_SAMPLE_RATE, whisperArgs, whisperProgress, wordsFromWhisperJson, type SpeechSegment,
+  DEFAULT_SPEECH_MODEL, modelSizeText, speechLanguage, speechMixFilter, speechModel, speechRunnerPaths, SPEECH_LANGUAGE_AUTO,
+  SPEECH_LANGUAGES, SPEECH_MODELS, SPEECH_SAMPLE_RATE, whisperArgs, whisperProgress, wordsFromWhisperJson, type SpeechSegment,
 } from '../src/core/speech';
 import { linesFromWords, lineText } from '../src/core/captions';
 
@@ -51,8 +51,19 @@ describe('what the model is asked', () => {
     expect(args).toContain('/m/ggml-base.bin');
   });
 
-  it('lets the model decide the language when none was chosen', () => {
+  it('lets the model decide the language when none was chosen, or when the choice is not one it knows', () => {
     expect(whisperArgs({ modelPath: 'm', wavPath: 'w', outBase: 'o' }).join(' ')).toContain(`-l ${SPEECH_LANGUAGE_AUTO}`);
+    expect(whisperArgs({ modelPath: 'm', wavPath: 'w', outBase: 'o', language: 'klingon' }).join(' ')).toContain(`-l ${SPEECH_LANGUAGE_AUTO}`);
+    expect(speechLanguage(' DE ')).toBe('de');
+  });
+
+  it('offers the model\'s languages: ninety-nine, each once, by code and name, in the order a person reads', () => {
+    expect(SPEECH_LANGUAGES).toHaveLength(99);
+    expect(new Set(SPEECH_LANGUAGES.map((l) => l.code)).size).toBe(99);
+    for (const l of SPEECH_LANGUAGES) expect(l.code, l.name).toMatch(/^[a-z]{2,3}$/);
+    const names = SPEECH_LANGUAGES.map((l) => l.name);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+    expect(SPEECH_LANGUAGES.find((l) => l.code === 'en')?.name).toBe('English');
   });
 
   it('reads its progress prints, and nothing else', () => {

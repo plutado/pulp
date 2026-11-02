@@ -15,7 +15,7 @@
  * management, and long renders. See milestone 1 in ROADMAP.md.
  */
 
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, nativeImage } from 'electron';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -40,7 +40,11 @@ import { resolveSoundSource } from './sound-grant';
 import { finishedFileWarnings } from './platform-check';
 import { platformPreset } from '../core/platform-presets';
 import { healedTrack, trackAudio, transitionAt } from '../core/cut-track';
-import { lengthIn, resolveParams, splitLayers, trackIn } from '../core/params';
+import { captionsIn, lengthIn, resolveParams, splitLayers, trackIn } from '../core/params';
+import { captionFrame } from '../core/captions';
+import { captionBandFor } from '../core/player';
+import { compositeOver } from '../core/composite';
+import { captionTrackOutputPath, srtText, subtitleCues, subtitleOutputPaths, vttText } from '../core/subtitles';
 import {
   captureBytesMessage,
   captureSizeMessage,
@@ -313,6 +317,26 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   }
   if (audioLayers.length > 0) plan = applyLayerAudio(plan, audioLayers, await mixLoudnessFor(ffmpeg.path, plan, audioLayers, job.options?.platform, warnings));
 
+  // The captions (milestone 50) ride in the same bag. A caption style rendering on its own — the
+  // alpha caption track, or the style chosen as the project's template — is handed the line per
+  // frame in its state; any other template has the chosen style drawn **over** it, captured from
+  // a second page the same size and composited before the frame goes to ffmpeg. The subtitle
+  // files beside the video are written whichever way is chosen, and when they are drawn nowhere.
+  const captions = captionsIn(job.params);
+  const captionsMode = captions ? (job.options?.captions ?? 'burn') : 'none';
+  const selfIsStyle = manifest.captions === true;
+  let captionStyle: TemplateEntry | null = null;
+  if (captions && !selfIsStyle && captionsMode !== 'none') {
+    captionStyle = captions.style ? (await findTemplate(captions.style)) ?? null : null;
+    if (!captionStyle?.manifest.captions) {
+      captionStyle = null;
+      warnings.push(captions.style
+        ? `The caption style "${captions.style}" is not in the library, so the captions were not drawn; the subtitle files beside the render still carry them.`
+        : 'The project\'s captions have no style chosen, so they were not drawn; the subtitle files beside the render still carry them.');
+    }
+  }
+  const captionBand = captionBandFor(plan.width, plan.height);
+
   // The frame size is the plan's, not the manifest's: a template draws for a shape and the
   // size is chosen per render (ADR 0012). The window, the capture check and ffmpeg agree on it.
   const frameSize = { name: manifest.name, width: plan.width, height: plan.height };
@@ -341,6 +365,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   let child: ReturnType<typeof spawn> | null = null;
   let exited: Promise<[number | null, NodeJS.Signals | null]> | null = null;
   let existedBefore = new Set<string>();
+  let captionWin: BrowserWindow | null = null;
 
   /** Stop ffmpeg and remove whatever it wrote, then report the failure. */
   const fail = async (result: Extract<RenderResult, { ok: false }>): Promise<RenderResult> => {
@@ -419,6 +444,13 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     // first frame waits for one of its own, or it can be handed the frame from before the draw.
     await drainPaints(win);
 
+    // The caption style's own page (milestone 50), the same size, held open for the whole render.
+    if (captionStyle && captionsMode === 'burn') {
+      const opened = await openStylePage(captionStyle, frameSize, loadTimeoutMs);
+      if (!opened.ok) return { ok: false, message: opened.message };
+      captionWin = opened.win;
+    }
+
     await mkdir(dirname(plan.output), { recursive: true });
     existedBefore = await existingFiles([
       ...partialOutputFiles({
@@ -448,14 +480,27 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       if (child.exitCode !== null) break;
 
       const frame = plan.firstFrame + i;
-      const state = frameState(timeline, frame, values, frameSize, layers, clipSources, plan.length);
+      // The moment of the project this frame shows, on the clock the captions are timed on.
+      const line = captions ? captionFrame(captions, frame / plan.fps, captionBand) : undefined;
+      const state = frameState(timeline, frame, values, frameSize, layers, clipSources, plan.length, selfIsStyle ? line : undefined);
       let pixels: Buffer;
       try {
-        pixels = await withTimeout(
-          captureFrame(win, state, frameSize, plan.frameFormat, { first: i === 0 }),
-          frameTimeoutMs,
-          frameTimeoutMessage(manifest.name, frame, frameTimeoutMs),
-        );
+        if (captionWin && captionStyle && line?.line) {
+          // Burned in: the graphic and the caption captured apart and laid together here, so ffmpeg
+          // sees one picture. A moment between lines captures the graphic alone, as always.
+          const styleState = frameState(captionStyle.manifest, frame, defaultStyleParams(captionStyle), frameSize, {}, {}, undefined, line);
+          pixels = await withTimeout(
+            captureComposited(win, captionWin, state, styleState, frameSize, plan.frameFormat, probe?.format ?? { pixelFormat: 'bgra', premultiplied: true }, { first: i === 0 }),
+            frameTimeoutMs,
+            frameTimeoutMessage(manifest.name, frame, frameTimeoutMs),
+          );
+        } else {
+          pixels = await withTimeout(
+            captureFrame(win, state, frameSize, plan.frameFormat, { first: i === 0 }),
+            frameTimeoutMs,
+            frameTimeoutMessage(manifest.name, frame, frameTimeoutMs),
+          );
+        }
       } catch (err) {
         // A template stuck in a synchronous loop blocks its renderer; crash it so the window can be destroyed.
         if (err instanceof RenderTimeoutError) win.webContents.forcefullyCrashRenderer();
@@ -498,12 +543,123 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       seconds: plan.totalFrames / plan.fps,
       sequence: plan.preset.sequence,
     })));
-    return { ok: true, output: plan.output, frames: plan.totalFrames, warnings, transport, ...(cover ? { cover } : {}) };
+    // The captions beside the video (milestone 50): SRT and WebVTT timed against the rendered
+    // stretch, and — when asked — the style rendered on its own as an alpha track, the same size,
+    // rate and trim, so it lays over the video in an editing app frame for frame. A still has no
+    // time for either. Neither failing throws the render away: the video is what was asked for.
+    let subtitles: { srt: string; vtt: string } | undefined;
+    let captionTrack: string | undefined;
+    if (captions && !selfIsStyle && !plan.preset.still) {
+      const paths = subtitleOutputPaths(plan.output);
+      const cues = subtitleCues(captions, { from: plan.firstFrame / plan.fps, to: (plan.firstFrame + plan.totalFrames) / plan.fps });
+      try {
+        await writeFile(paths.srt, srtText(cues));
+        await writeFile(paths.vtt, vttText(cues));
+        subtitles = paths;
+      } catch (err) {
+        warnings.push(`The subtitle files could not be written beside the render: ${(err as Error).message}`);
+      }
+      if (captionsMode === 'track' && captionStyle) {
+        const rendered = await renderTemplate({
+          template: captionStyle,
+          params: { '@captions': captions, '@length': plan.length },
+          presetId: 'prores-4444',
+          outputPath: captionTrackOutputPath(plan.output),
+          overwrite: job.overwrite ?? false,
+          options: {
+            fps: plan.fps, width: plan.width, height: plan.height, aspect: plan.aspect,
+            ...(job.options?.inFrame !== undefined ? { inFrame: job.options.inFrame } : {}),
+            ...(job.options?.outFrame !== undefined ? { outFrame: job.options.outFrame } : {}),
+          },
+          ...(job.signal ? { signal: job.signal } : {}),
+          ...(job.frameFormat ? { frameFormat: job.frameFormat } : {}),
+        });
+        if (rendered.ok) captionTrack = rendered.output;
+        else warnings.push(`The caption track could not be rendered beside the video: ${rendered.message}`);
+      }
+    }
+    return {
+      ok: true, output: plan.output, frames: plan.totalFrames, warnings, transport,
+      ...(cover ? { cover } : {}),
+      ...(subtitles ? { subtitles } : {}),
+      ...(captionTrack ? { captionTrack } : {}),
+    };
   } catch (err) {
     return await fail({ ok: false, message: `Render failed: ${(err as Error).message}` });
   } finally {
+    captionWin?.destroy();
     win.destroy();
   }
+}
+
+/** A caption style's own parameters at their defaults: the style is drawn as it ships (milestone 50). */
+function defaultStyleParams(style: TemplateEntry): ReturnType<typeof resolveParams>['values'] {
+  return resolveParams(style.manifest).values;
+}
+
+/**
+ * The caption style's page (milestone 50), loaded and ready at the render's
+ * own size, to be captured once per frame beside the template's page.
+ */
+async function openStylePage(style: TemplateEntry, size: Size, loadTimeoutMs: number): Promise<{ ok: true; win: BrowserWindow } | { ok: false; message: string }> {
+  const win = new BrowserWindow({
+    show: false,
+    width: size.width,
+    height: size.height,
+    useContentSize: true,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      offscreen: { deviceScaleFactor: offscreenDeviceScaleFactor() },
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false,
+    },
+  });
+  try {
+    win.setContentSize(size.width, size.height);
+    win.webContents.setFrameRate(240);
+    await withTimeout(
+      win.loadURL(templateUrlFor(style.manifest.id, style.manifest.entry)).then(() => win.webContents.executeJavaScript('window.__pulp.ready')),
+      loadTimeoutMs,
+      loadTimeoutMessage(style.manifest.name, loadTimeoutMs),
+    );
+    await drainPaints(win);
+    return { ok: true, win };
+  } catch (err) {
+    win.destroy();
+    return { ok: false, message: err instanceof RenderTimeoutError ? err.message : `Could not load the caption style "${style.manifest.name}": ${(err as Error).message}` };
+  }
+}
+
+/**
+ * The template's frame with the caption style's laid over it (milestone 50):
+ * both pages draw their state and are captured, and the caption bitmap goes
+ * over the graphic's in the layout the probe measured, before the frame is
+ * handed on as raw pixels or PNG exactly as a plain capture would be.
+ */
+async function captureComposited(
+  win: BrowserWindow,
+  captionWin: BrowserWindow,
+  state: ReturnType<typeof frameState>,
+  styleState: ReturnType<typeof frameState>,
+  manifest: { name: string; width: number; height: number },
+  frameFormat: FrameFormat,
+  format: CaptureFormat,
+  options: { first?: boolean } = {},
+): Promise<Buffer> {
+  const [under, over] = await Promise.all([
+    captureFrameImage(win, state, manifest, options),
+    captureFrameImage(captionWin, styleState, manifest, options),
+  ]);
+  const pixels = under.toBitmap();
+  const expectedBytes = manifest.width * manifest.height * 4;
+  if (pixels.length !== expectedBytes) throw new Error(captureBytesMessage(manifest.name, state.frame, expectedBytes, pixels.length));
+  compositeOver(pixels, over.toBitmap(), format);
+  if (frameFormat === 'png') return nativeImage.createFromBitmap(pixels, { width: manifest.width, height: manifest.height }).toPNG();
+  return pixels;
 }
 
 /**
@@ -681,19 +837,13 @@ export function paintComposited(win: BrowserWindow): Promise<void> {
   });
 }
 
-/**
- * Draw one frame in the template page and capture it, which must be exactly the
- * template's size. Raw frames are the capture's own bitmap, in the layout the
- * probe measured (the render plan undoes premultiplication in ffmpeg if needed),
- * so no image codec runs per frame.
- */
-async function captureFrame(
+/** Draw one frame in a page and capture it as the image, checked to be exactly the asked size. */
+async function captureFrameImage(
   win: BrowserWindow,
   state: ReturnType<typeof frameState>,
   manifest: { name: string; width: number; height: number },
-  frameFormat: FrameFormat,
   options: { first?: boolean } = {},
-): Promise<Buffer> {
+): Promise<Electron.NativeImage> {
   const result = (await win.webContents.executeJavaScript(frameCallScript(state))) as FrameCallResult;
   if (result?.error) throw new TemplateError(result.error);
   // The renderer never ran an animation frame, so nothing orders the draw against the capture:
@@ -708,6 +858,23 @@ async function captureFrame(
     // platform scaled or clamped it. Resampling would hide that and soften every frame.
     throw new Error(captureSizeMessage(manifest.name, state.frame, manifest, size));
   }
+  return image;
+}
+
+/**
+ * Draw one frame in the template page and capture it, which must be exactly the
+ * template's size. Raw frames are the capture's own bitmap, in the layout the
+ * probe measured (the render plan undoes premultiplication in ffmpeg if needed),
+ * so no image codec runs per frame.
+ */
+async function captureFrame(
+  win: BrowserWindow,
+  state: ReturnType<typeof frameState>,
+  manifest: { name: string; width: number; height: number },
+  frameFormat: FrameFormat,
+  options: { first?: boolean } = {},
+): Promise<Buffer> {
+  const image = await captureFrameImage(win, state, manifest, options);
   if (frameFormat === 'png') return image.toPNG();
   const pixels = image.toBitmap();
   const expectedBytes = manifest.width * manifest.height * 4;

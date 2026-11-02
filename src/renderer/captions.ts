@@ -23,7 +23,7 @@ import {
 import { clipAudible, clipWindow, DEFAULT_CLIP_SPEED, type ClipValue } from '../core/video-layer';
 import { soundAudible, soundWindow, type SoundValue } from '../core/sound-layer';
 import { trackAudio } from '../core/cut-track';
-import { DEFAULT_SPEECH_MODEL, modelSizeText, type SpeechSegment } from '../core/speech';
+import { DEFAULT_SPEECH_MODEL, modelSizeText, SPEECH_LANGUAGE_AUTO, SPEECH_LANGUAGES, type SpeechSegment } from '../core/speech';
 import type { Layer } from '../core/layers';
 import { layerEditor } from './layer-edit';
 import { appState } from './store';
@@ -342,6 +342,16 @@ export function mountCaptions(): void {
   const fetchButton = $<HTMLButtonElement>('captions-fetch')!;
   const run = $<HTMLButtonElement>('captions-run')!;
   const select = $<HTMLSelectElement>('captions-source')!;
+  // The model's languages (milestone 50), with "Detect" first: whisper decides unless told. The
+  // choice is kept for the session, since a project is rarely in two languages.
+  const language = $<HTMLSelectElement>('captions-language')!;
+  for (const option of [{ code: SPEECH_LANGUAGE_AUTO, name: 'Detect the language' }, ...SPEECH_LANGUAGES]) {
+    const el = document.createElement('option');
+    el.value = option.code;
+    el.textContent = option.name;
+    language.append(el);
+  }
+  language.value = SPEECH_LANGUAGE_AUTO;
 
   fetchButton.addEventListener('click', () => {
     fetchButton.disabled = true;
@@ -358,7 +368,7 @@ export function mountCaptions(): void {
     if (!source) return;
     run.disabled = true;
     say('Listening…');
-    void window.pulp.transcribe({ segments: source.segments }).then((result) => {
+    void window.pulp.transcribe({ segments: source.segments, language: language.value }).then((result) => {
       run.disabled = false;
       if (!result.ok) {
         say(result.message);

@@ -80,6 +80,10 @@ export type RenderResult =
       transport: string;
       /** The cover image written beside the render, when one was asked for (milestone 20). */
       cover?: string;
+      /** The project's captions as SRT and WebVTT beside the render (milestone 50), when it has any. */
+      subtitles?: { srt: string; vtt: string };
+      /** The captions rendered on their own as an alpha track beside the render, when asked for (milestone 50). */
+      captionTrack?: string;
     }
   | { ok: false; cancelled?: boolean; message: string };
 

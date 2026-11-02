@@ -215,6 +215,9 @@ export class RenderPlanError extends Error {
 }
 
 /** Per-render choices on top of the template's timing and the preset. All optional. */
+export const CAPTIONS_MODES = ['burn', 'track', 'none'] as const;
+export type CaptionsMode = (typeof CAPTIONS_MODES)[number];
+
 export interface RenderOptions {
   /** Output frame rate, one of STANDARD_FRAME_RATES. Frames are sampled from the template's timeline at this rate. Default: the template's fps. */
   fps?: number;
@@ -266,6 +269,15 @@ export interface RenderOptions {
    * render is alpha only and takes no grade.
    */
   lut?: string;
+  /**
+   * How the project's captions reach the render (milestone 50), when it has
+   * any: `burn` draws them into the picture (the default), `track` leaves the
+   * picture alone and renders them on their own as an alpha caption track
+   * beside it (`<name>-captions.mov`, ProRes 4444), and `none` draws them
+   * nowhere. The SRT and WebVTT files beside the video are written whichever
+   * is chosen: a subtitle file is what a platform takes, drawn or not.
+   */
+  captions?: CaptionsMode;
   /** Media only (milestone 15): playback speed of a clip; 1 is as recorded. */
   speed?: number;
   /** Media only: recolor the picture at render time — its luminance in this colour (`#rrggbb`), alpha kept. */

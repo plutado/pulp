@@ -363,6 +363,8 @@ describe.skipIf(!electron)('inspector UI', () => {
       '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent}canvas{display:block;width:100%;height:100%}</style></head><body><canvas id="c"></canvas><script>var c=document.getElementById("c"),x=c.getContext("2d");window.pulpRender=function(s){if(c.width!==s.width||c.height!==s.height){c.width=s.width;c.height=s.height;}x.clearRect(0,0,s.width,s.height);x.fillStyle="#4f7cac";x.fillRect(s.width*0.1,s.height*0.6,s.width*0.5,s.height*0.2);};</script></body></html>',
     );
     await writeFile(join(mediaDir, 'silence.wav'), await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'silence.wav')));
+    // A spoken sample (milestone 50): a sentence synthesised with the system voice, 16 kHz mono, for the transcription test.
+    await writeFile(join(mediaDir, 'spoken.wav'), await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'spoken.wav')));
     // The other layered stills (milestone 33), generated like the Photoshop one: an OpenRaster of
     // the same picture, an SVG whose top-level groups are the layers, a PDF with two optional
     // content groups (one off), and a Sketch file Pulp names rather than reads.
@@ -5138,6 +5140,32 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => onResult<boolean>('yearbook_000', '(li) => true').then(() => true), 'the first scene in the results', 30_000);
       await until(() => onResult<boolean>('yearbook_002', '(li) => true').then(() => true), 'and the last', 30_000);
     }, 120_000);
+
+    // Milestone 50: the words of a bundled spoken sample, from the model on this machine. The model
+    // and whisper.cpp are not asked of a test machine: without them the test says so and stands
+    // aside, and PULP_SPEECH=1 makes it fail instead, for a machine that is meant to have them.
+    it('transcribes the bundled spoken sample on this machine, with the words on the project\'s clock', async () => {
+      const status = await page.eval<{ runner: { ok: boolean }; model: { installed: boolean }; ffmpeg: boolean }>('window.pulp.speechStatus({})');
+      if (!status.runner.ok || !status.model.installed || !status.ffmpeg) {
+        const why = !status.ffmpeg ? 'ffmpeg not found' : !status.runner.ok ? 'whisper.cpp not found' : 'the speech model is not fetched';
+        if (process.env.PULP_SPEECH === '1') throw new Error(`transcription is required (PULP_SPEECH=1) but cannot run: ${why}`);
+        console.info(`Skipping the transcription test: ${why}.`);
+        return;
+      }
+      const id = await onResult<string>('spoken', '(li) => li.dataset.id');
+      // The sample placed a second and a half into the project: the words come back on that clock.
+      const result = await page.eval<{ ok: true; words: { text: string; start: number; end: number }[]; language: string } | { ok: false; message: string }>(
+        `window.pulp.transcribe({ segments: [{ kind: 'sound', id: ${JSON.stringify(id)}, from: 0, to: 4, at: 1.5 }], language: 'en' })`,
+      );
+      expect(result.ok, result.ok ? '' : result.message).toBe(true);
+      if (!result.ok) return;
+      const said = result.words.map((w) => w.text.toLowerCase().replace(/[^a-z]/g, '')).join(' ');
+      expect(said).toContain('captions');
+      expect(said).toContain('machine');
+      expect(result.words[0]!.start).toBeGreaterThanOrEqual(1.4);
+      for (let i = 1; i < result.words.length; i++) expect(result.words[i]!.start).toBeGreaterThanOrEqual(result.words[i - 1]!.start);
+      expect(result.language).toBe('en');
+    }, 300_000);
 
     it('draws a waveform for audio, in the row and on the stage, and keeps the peaks', async () => {
       if (!haveVideo) {

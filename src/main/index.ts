@@ -10,7 +10,7 @@ import { loadLayerClips, loadTrackFrames } from './clip-grant';
 import { existsSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
-import { FRAME_FORMATS, OUTPUT_PRESETS, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
+import { CAPTIONS_MODES, FRAME_FORMATS, OUTPUT_PRESETS, type CaptionsMode, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
 import { PLATFORM_IDS, platformPreset } from '../core/platform-presets';
 import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest, SampleMediaOutcome } from '../shared/api';
@@ -45,7 +45,8 @@ import { familiesUsedBy, importedFamilies } from '../core/fonts';
 import { chooseFontFile, importFontFile, listImportedFonts } from './font-service';
 import { parseLayersArgument } from '../core/layers';
 import { sanitizeCutTrack } from '../core/cut-track';
-import { LAYERS_KEY, TRACK_KEY } from '../core/params';
+import { CAPTIONS_KEY, LAYERS_KEY, TRACK_KEY } from '../core/params';
+import { sanitizeCaptions } from '../core/captions';
 import { slug } from '../core/pack';
 import { readFile, writeFile } from 'node:fs/promises';
 import { addRecentColor } from '../core/recent-colors';
@@ -496,7 +497,7 @@ function registerIpc(): void {
  *
  * A parameter may be a layer stack: `--param '@layers={"strap":[{"id":"name","text":"Ada Lovelace"}]}'`.
  *     [--fps <rate>] [--length <seconds|tc>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
- *     [--cover-at <tc|frame>] [--platform <platform-id>] [--lut <file.cube>]
+ *     [--cover-at <tc|frame>] [--platform <platform-id>] [--lut <file.cube>] [--captions burn|track|none]
  *     [--aspect 16:9|9:16|1:1|4:5] [--size <width>x<height>]
  *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
  *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
@@ -519,6 +520,10 @@ function registerIpc(): void {
  * warning rather than refusing; `--preset`, `--aspect`, `--size` and `--fps` beside it win.
  * `--lut <file.cube>` (milestone 52) grades the whole render through the LUT, after any flattening
  * and before the preset's colour conversion.
+ * `--captions` (milestone 50) says how a project's captions (`--param '@captions={…}'`) reach the
+ * render: `burn` draws them into the picture (the default), `track` renders them on their own as an
+ * alpha caption track beside it (`<name>-captions.mov`), `none` draws them nowhere; the SRT and
+ * WebVTT files are written beside the video whichever is chosen.
  * `--library` adds template folders for this run only; they are not saved to settings.
  * `--frame-format png` uses the slower PNG pipe to ffmpeg, for comparison with the raw default.
  * The final line reports the elapsed time and frames per second.
@@ -647,6 +652,11 @@ function parseCliRender(argv: string[]): CliRender | null {
   const inPoint = get('--in-point');
   const outPoint = get('--out-point');
   const coverAt = get('--cover-at');
+  const captionsRaw = get('--captions');
+  if (captionsRaw !== undefined) {
+    if ((CAPTIONS_MODES as readonly string[]).includes(captionsRaw)) options.captions = captionsRaw as CaptionsMode;
+    else badNumbers.push(`--captions ${captionsRaw} (expected ${CAPTIONS_MODES.join(', ')})`);
+  }
   const length = get('--length');
   const batch = get('--batch');
   const collection = get('--collection');
@@ -757,6 +767,23 @@ async function runCliRender(cli: CliRender): Promise<number> {
     }
     cli.params[TRACK_KEY] = sane;
   }
+  // The captions given as JSON (milestone 50): read strictly, as the track is.
+  const captionsArg = cli.params[CAPTIONS_KEY];
+  if (typeof captionsArg === 'string') {
+    let parsedCaptions: unknown;
+    try {
+      parsedCaptions = JSON.parse(captionsArg);
+    } catch {
+      console.error(`${CAPTIONS_KEY}: must be JSON, such as {"style":"pulp.samples.caption-clean","lines":[{"words":[{"text":"Hello","start":0,"end":0.4}]}]}`);
+      return 2;
+    }
+    const sane = sanitizeCaptions(parsedCaptions);
+    if (!sane) {
+      console.error(`${CAPTIONS_KEY}: holds no lines; each needs words with a text, a start and an end in seconds`);
+      return 2;
+    }
+    cli.params[CAPTIONS_KEY] = sane;
+  }
   if (cli.batch !== undefined) return runCliBatch(cli, template);
   // --export-edit (milestone 49): the edit for an editing app, in place of a render.
   if (cli.exportEdit !== undefined) {
@@ -792,6 +819,9 @@ async function runCliRender(cli: CliRender): Promise<number> {
   console.log(`frames: ${result.transport}`);
   const seconds = (Date.now() - started) / 1000;
   console.log(`wrote ${result.output} (${result.frames} frames in ${seconds.toFixed(1)} s, ${(result.frames / seconds).toFixed(1)} frames/s)`);
+  if (result.cover) console.log(`wrote ${result.cover}`);
+  if (result.subtitles) console.log(`wrote ${result.subtitles.srt}\nwrote ${result.subtitles.vtt}`);
+  if (result.captionTrack) console.log(`wrote ${result.captionTrack}`);
   return 0;
 }
 
