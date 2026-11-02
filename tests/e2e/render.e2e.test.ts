@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
 import { probeMedia } from '../../src/core/media-probe';
@@ -1490,8 +1491,9 @@ describe.skipIf(!available)('end-to-end render', () => {
     // them, and the graphics connected above the first cut.
     const xml = await readFile(`${base}.fcpxml`, 'utf8');
     expect(xml).toContain('<fcpxml version="1.10">');
-    expect(xml).toContain(`src="${'file://' + encodeURI(join(lib, 'e-red.mp4'))}"`);
-    expect(xml).toContain(`src="${'file://' + encodeURI(join(lib, 'e-blue.mp4'))}"`);
+    // Node's own file URL, so a Windows path is checked as file:///C:/… rather than a backslashed guess.
+    expect(xml).toContain(`src="${pathToFileURL(join(lib, 'e-red.mp4')).href}"`);
+    expect(xml).toContain(`src="${pathToFileURL(join(lib, 'e-blue.mp4')).href}"`);
     expect(xml).toContain('<transition name="Cross Dissolve"');
     expect(xml).toContain('lane="1"');
     expect(xml).toContain('start="6/30s" duration="18/30s"');
