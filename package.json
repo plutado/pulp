@@ -5,6 +5,7 @@
   "description": "Desktop app for browsing, previewing, customizing and rendering open-format motion-graphics templates.",
   "license": "MIT",
   "author": "David Fugate",
+  "desktopName": "pulp.desktop",
   "main": "out/main/index.js",
   "engines": {
     "node": ">=22"
@@ -24,7 +25,9 @@
     "lottie:write": "node scripts/write-lottie-starter.mjs",
     "release": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/release.mjs",
     "icon": "electron scripts/make-icon.mjs",
-    "package:mac": "npm run build && electron-builder --mac"
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:win": "npm run build && electron-builder --win",
+    "package:linux": "npm run build && electron-builder --linux"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

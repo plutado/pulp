@@ -16,24 +16,41 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = join(__dirname, '..');
 
+interface TargetSpec {
+  target: string;
+  arch: string[];
+}
+
 interface BuilderConfig {
   appId: string;
   productName: string;
+  artifactName: string;
   files: string[];
   directories: { buildResources: string; output: string };
   extraResources: { from: string; to: string; filter?: string[] }[];
   mac: {
-    target: { target: string; arch: string[] }[];
+    target: TargetSpec[];
     icon: string;
     hardenedRuntime: boolean;
     identity: string | null;
     entitlements: string;
     entitlementsInherit: string;
   };
+  win: { target: TargetSpec[]; icon: string; executableName: string };
+  nsis: Record<string, unknown>;
+  linux: {
+    target: TargetSpec[];
+    icon: string;
+    category: string;
+    syncDesktopName: boolean;
+    desktop: { entry: Record<string, string> };
+  };
 }
 
 const config = load(await readFile(join(ROOT, 'electron-builder.yml'), 'utf8')) as BuilderConfig;
 const resources = await readFile(join(ROOT, 'src', 'main', 'resources.ts'), 'utf8');
+const packageJson = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string>; desktopName: string };
+const releaseWorkflow = await readFile(join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
 
 describe('what the build copies', () => {
   it('copies something that is really there, to a name of its own', () => {
@@ -104,6 +121,119 @@ describe('the macOS build', () => {
     }
     // Nothing here reaches outside the machine; that is the point of listing them.
     expect(text).not.toContain('com.apple.security.network');
+  });
+});
+
+describe('the Windows build', () => {
+  it('is an installer, and the app is "Pulp" wherever Windows names it', () => {
+    expect(config.win.target.map((t) => t.target)).toEqual(['nsis']);
+    expect(config.win.target[0]!.arch).toEqual(['x64']);
+    expect(config.win.icon).toBe('build/icon.ico');
+    // The task bar, the task manager and the Start menu read the executable's own name.
+    expect(config.win.executableName).toBe('Pulp');
+  });
+
+  it('offers the shortcuts and the folder, and leaves what a person made behind', () => {
+    // Not a one-click installer: it asks where to go and which shortcuts to make.
+    expect(config.nsis.oneClick).toBe(false);
+    expect(config.nsis.allowToChangeInstallationDirectory).toBe(true);
+    expect(config.nsis.createDesktopShortcut).toBe(true);
+    expect(config.nsis.createStartMenuShortcut).toBe(true);
+    expect(config.nsis.shortcutName).toBe('Pulp');
+    // Per-user, so no administrator prompt; Pulp writes nothing outside its own folders.
+    expect(config.nsis.perMachine).toBe(false);
+    // The library index, the settings and the render cache survive an uninstall.
+    expect(config.nsis.deleteAppDataOnUninstall).toBe(false);
+    // An installer and the app itself are both .exe files; the name says which is which.
+    expect(String(config.nsis.artifactName)).toContain('Setup');
+  });
+});
+
+describe('the Linux build', () => {
+  it('is an AppImage with the icon sizes a desktop reads', () => {
+    expect(config.linux.target.map((t) => t.target)).toEqual(['AppImage']);
+    expect(config.linux.target[0]!.arch).toEqual(['x64']);
+    expect(config.linux.icon).toBe('build/icons');
+    expect(existsSync(join(ROOT, config.linux.icon)), 'the icon folder is in the repository').toBe(true);
+  });
+
+  it('puts itself in the application menu as a video tool', () => {
+    expect(config.linux.category).toBe('AudioVideo');
+    const entry = config.linux.desktop.entry;
+    // A desktop entry's categories are semicolon-separated and end in one.
+    expect(entry.Categories).toMatch(/^(?:[A-Za-z]+;)+$/);
+    expect(entry.Categories).toContain('AudioVideo;');
+    expect(entry.Keywords).toMatch(/;$/);
+  });
+
+  it('names the entry what Electron calls the window, so the two belong together', () => {
+    // Electron reports `desktopName` as the window's class and electron-builder writes the
+    // entry (and its StartupWMClass) from the same name; with them apart, a dock shows the
+    // AppImage's generic icon beside the running window instead of grouping them.
+    expect(config.linux.syncDesktopName).toBe(true);
+    expect(packageJson.desktopName).toBe('pulp.desktop');
+  });
+});
+
+describe('what a build is called, and how one is made', () => {
+  it('names every artifact the same way, since they land on one release page together', () => {
+    expect(config.artifactName).toBe('${productName}-${version}-${os}-${arch}.${ext}');
+  });
+
+  it('has a command per platform, each building the app first', () => {
+    for (const platform of ['mac', 'win', 'linux']) {
+      const script = packageJson.scripts[`package:${platform}`];
+      expect(script, `npm run package:${platform}`).toBe(`npm run build && electron-builder --${platform}`);
+    }
+  });
+});
+
+describe('the release workflow', () => {
+  const release = load(releaseWorkflow) as {
+    on: { push: { tags: string[] } };
+    permissions: Record<string, string>;
+    jobs: Record<string, {
+      needs?: string;
+      permissions?: Record<string, string>;
+      strategy?: { matrix: { include: { os: string; flag: string; artifacts: string }[] } };
+      steps: { name?: string; run?: string; uses?: string; with?: Record<string, unknown> }[];
+    }>;
+  };
+
+  it('runs on the tag `npm run release` makes, and builds each platform on itself', () => {
+    expect(release.on.push.tags).toEqual(['v*']);
+    const matrix = release.jobs.build!.strategy!.matrix.include;
+    expect(matrix.map((m) => m.os).sort()).toEqual(['macos-latest', 'ubuntu-latest', 'windows-latest']);
+    expect(matrix.map((m) => m.flag).sort()).toEqual(['--linux', '--mac', '--win']);
+    // Each job collects what its own platform builds, and fails rather than drafting nothing.
+    for (const entry of matrix) expect(entry.artifacts, entry.os).toContain('release/');
+  });
+
+  it('drafts the release and publishes nothing', () => {
+    // Read-only by default; the one job that writes says so for itself.
+    expect(release.permissions.contents).toBe('read');
+    expect(release.jobs.draft!.permissions!.contents).toBe('write');
+    expect(release.jobs.draft!.needs).toBe('build');
+    const steps = release.jobs.draft!.steps.map((s) => s.run ?? '').join('\n');
+    expect(steps).toContain('--draft');
+    expect(steps).not.toMatch(/gh release (create|edit)[^\n]*--latest/);
+    // electron-builder uploads nothing of its own accord.
+    expect(release.jobs.build!.steps.some((s) => (s.run ?? '').includes('--publish never'))).toBe(true);
+    // The checksums go up with the files, since the builds are unsigned.
+    expect(steps).toContain('sha256sum');
+  });
+
+  it('draws its notes from the changelog rather than writing them a second time', () => {
+    const steps = release.jobs.draft!.steps.map((s) => s.run ?? '').join('\n');
+    expect(steps).toContain('scripts/release-notes.mjs');
+    expect(steps).toContain('.github/release-footer.md');
+    expect(existsSync(join(ROOT, 'scripts', 'release-notes.mjs'))).toBe(true);
+    expect(existsSync(join(ROOT, '.github', 'release-footer.md'))).toBe(true);
+  });
+
+  it('refuses a tag that does not match the version in package.json', () => {
+    const steps = release.jobs.build!.steps.map((s) => s.run ?? '').join('\n');
+    expect(steps).toContain("require('./package.json').version");
   });
 });
 

@@ -2,7 +2,14 @@
 # and notarization are milestone 7, and this file is where the identity will
 # go when there is one.
 #
-#   npm run package:mac     a universal .app and a .dmg, unsigned
+#   npm run package:mac     a universal .app, a .dmg and a .zip, unsigned
+#   npm run package:win     an NSIS installer, unsigned (run on Windows)
+#   npm run package:linux   an AppImage with a .desktop entry (run on Linux)
+#
+# Each platform's build is made on that platform, which is what the release
+# workflow does (.github/workflows/release.yml): a Windows installer wants
+# Windows to sign and stamp it later, and an AppImage wants a Linux
+# tool chain. Nothing here is cross-built.
 #
 # What goes in, and what stays out: the built app is `out/` (electron-vite's
 # output) and nothing else of the repository — no sources, no tests, no
@@ -17,6 +24,12 @@ directories:
   # The icons this reads are drawn by `npx electron scripts/make-icon.mjs` and committed.
   buildResources: build
   output: release
+
+# One shape of name for every artifact, since they all land on one release page together:
+# "Pulp-0.1.0-macos-universal.dmg", "Pulp-0.1.0-linux-x64.AppImage". The installer adds
+# "Setup" to its own, below, because an `.exe` that installs and an `.exe` that runs look
+# the same in a downloads folder otherwise.
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 
 # Only the built app and the manifest that points at it. electron-vite bundles everything the
 # main, preload and renderer code imports into `out/` — the built main process requires nothing
@@ -102,3 +115,58 @@ dmg:
       y: 180
       type: link
       path: /Applications
+
+# Windows: an NSIS installer, unsigned. x64 only: Windows on ARM runs x64 apps under its own
+# emulation, and a second installer to choose wrongly from is worse than the emulation.
+#
+# Unsigned here means unsigned — Windows has no ad-hoc signature the way macOS does. SmartScreen
+# shows "Windows protected your PC" on a downloaded installer until the certificate of milestone 7
+# is behind it, and "More info" → "Run anyway" is the way past it; docs/packaging.md says so.
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  # The executable is Pulp.exe, so the task bar, the task manager and the Start menu all
+  # name the app rather than the project folder.
+  executableName: Pulp
+
+nsis:
+  # Not a one-click installer: it asks where to go and what shortcuts to make, which is what
+  # a tool people keep beside an editing app should do.
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  # Per-user by default, so no administrator prompt: Pulp writes nothing outside its own folders.
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Pulp
+  uninstallDisplayName: Pulp ${version}
+  # What a person made stays: the library index, the settings and the render cache live in
+  # the user's app data, and uninstalling a renderer should not throw away their work.
+  deleteAppDataOnUninstall: false
+  artifactName: ${productName}-${version}-${os}-${arch}-Setup.${ext}
+
+# Linux: an AppImage, which runs on any desktop distribution without being installed. x64 only
+# for the same reason as Windows; a Linux person on another architecture builds from source.
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  # The PNG sizes in build/icons, which is what a Linux desktop reads for its menus.
+  icon: build/icons
+  category: AudioVideo
+  synopsis: Browse, preview, customize and render motion-graphics templates
+  description: >-
+    Pulp browses, previews, customizes and renders open-format motion-graphics templates —
+    lower thirds, titles, transitions and overlays — and hands the result to an editing app.
+  # The entry is named after `desktopName` in package.json, which is also what Electron
+  # reports as the window's own class: without the two agreeing, a dock shows the AppImage's
+  # generic icon beside the running app instead of grouping them under this entry.
+  syncDesktopName: true
+  desktop:
+    entry:
+      # The categories a video tool belongs in, and the words a person searches a launcher
+      # with. `StartupWMClass` is left to electron-builder, which writes the name above.
+      Categories: AudioVideo;Video;AudioVideoEditing;Graphics;
+      Keywords: video;motion graphics;template;title;lower third;render;ffmpeg;

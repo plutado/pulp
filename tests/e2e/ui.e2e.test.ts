@@ -3890,6 +3890,21 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`window.pulpMenuCommand('app.settings')`);
       await until(() => page.eval<boolean>(`document.getElementById('settings-dialog').open === true`), 'the settings dialog');
       await until(() => page.eval<string>(`document.getElementById('settings-ffmpeg').textContent`).then((t) => t.startsWith('FFmpeg')), 'the FFmpeg line');
+
+      // The download helper (milestone 17, ADR 0022): what Pulp would fetch for this machine,
+      // said before there is a button to press. **Nothing is fetched here** — the fetch is the
+      // person's own press, and this only proves the asking is in front of it.
+      const download = await page.eval<{ build: { label: string; license: string; note: string; bytes: number } | null; installed: boolean }>(
+        `window.pulp.ffmpegDownloadStatus()`,
+      );
+      expect(download.build, `a build is pinned for ${process.platform} ${process.arch}`).not.toBeNull();
+      expect(download.build!.license).toMatch(/^GPL/);
+      expect(download.build!.bytes).toBeGreaterThan(1_000_000);
+      // Which build, from whom, how big and under what licence, in the line beside the button.
+      for (const said of [download.build!.label, 'GPL', 'MB', 'checksum']) expect(download.build!.note).toContain(said);
+      // The button is there exactly when there is something to fetch and nothing already found.
+      const ffmpegFound = await page.eval<boolean>(`window.pulp.ffmpegStatus().then((s) => s.ok)`);
+      expect(await page.eval<boolean>(`document.getElementById('settings-ffmpeg-get').hidden`)).toBe(ffmpegFound || download.installed);
       expect(await page.eval<string>(`document.getElementById('settings-cache-summary').textContent`)).not.toBe('');
       const startAt = await page.eval<boolean>(`document.getElementById('settings-start-screen').checked`);
       await page.eval(`(() => { const c = document.getElementById('settings-start-screen'); c.checked = ${!startAt}; c.dispatchEvent(new Event('change')); })()`);

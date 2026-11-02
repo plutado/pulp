@@ -84,10 +84,10 @@ Milestones 1-6, 8, 10-13, 15, 18-31, 33, 35-53 (renderer, alpha export, paramete
 |---|---|---|
 | 34. A browse panel that says what things are | Built, but for one item: a short card sort with three to five people on the new category labels before they are final | 1-2 h |
 | 32. Stock library import | Open the licensed stock media you already own where it lies — folders, drives, disc images, zipped downloads — browsed as it was organised, with clip sets that stretch, layered music, and what can't be read said plainly | 27-46 h |
-| 17. Unsigned builds and releases | Built for macOS — electron-builder, Pulp's own icon, a universal ad-hoc-signed app with the hardened runtime; what remains is the Windows installer, the Linux AppImage, a draft-release workflow and the ffmpeg distribution decision | 3-6 h |
+| 17. Unsigned builds and releases | Built: a universal ad-hoc-signed macOS app, a Windows NSIS installer, a Linux AppImage, a workflow that drafts a release from a tag with all three and their checksums, and an FFmpeg download helper for the machine that has none. What remains is opening a `.pulp` file by double-clicking it, which needed the packaged app to exist first | 1-2 h |
 | 7. Signing and auto-update | macOS notarization, Windows code signing, electron-updater (blocked on account decisions) | 4-7 h |
 
-The milestones through 1.0 total **741-1195 hours**, of which **39-66 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, audio with stems and paired effects, media slots, output presets per kind of asset, a `pulp` command, optional on-device semantic search, a panel inside the editing apps, a visual template editor, speed changes and a second picture track on the cut track, and reliability at scale) add 138-238 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
+The milestones through 1.0 total **742-1197 hours**, of which **36-61 hours** are still open (the rest is done). Packaging and signing come last, after hardening: what is packaged should be the finished thing. Post-1.0 milestones (defaults per type and a guided setup, audio with stems and paired effects, media slots, output presets per kind of asset, a `pulp` command, optional on-device semantic search, a panel inside the editing apps, a visual template editor, speed changes and a second picture track on the cut track, and reliability at scale) add 138-238 hours. The window layout these milestones build toward is described in [docs/ui-layout.md](docs/ui-layout.md).
 
 ## Template format
 
@@ -98,13 +98,13 @@ The format is specified in [docs/template-format.md](docs/template-format.md), w
 - Electron and TypeScript, built with electron-vite (Vite)
 - A pure TypeScript core in `src/core` (manifest validation, parameter resolution, library indexer, search, render planning, shared UI state), tested with Vitest without Electron
 - Preact with signals for the UI regions (pinned to Preact 10; decision record 0009)
-- ffmpeg for encoding (installed separately)
+- ffmpeg for encoding — installed separately, never shipped, and fetched from its own publisher on request where there is none (decision record 0022)
 
 Template packs (a `.zip` or folder with `pack.json` and one folder per template) can be imported with a preview of licenses, authors and id collisions, and exported from the listed templates; the format is in the template specification. Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). How a release is cut: [docs/releasing.md](docs/releasing.md). How it is packaged: [docs/packaging.md](docs/packaging.md). Design notes: [docs/system-design.md](docs/system-design.md). Decisions: [docs/decisions/](docs/decisions/). Platform findings (Electron capture, ffmpeg versions, Windows and macOS): [docs/platform-notes.md](docs/platform-notes.md).
 
 ## Running it
 
-Requirements: Node.js 22 or newer, npm 10 or newer, and ffmpeg on your PATH for rendering (macOS: `brew install ffmpeg`; Windows: `winget install Gyan.FFmpeg`; Linux: your package manager). The app runs without ffmpeg, but the Render button stays disabled and explains why.
+Requirements: Node.js 22 or newer, npm 10 or newer, and ffmpeg on your PATH for rendering (macOS: `brew install ffmpeg`; Windows: `winget install Gyan.FFmpeg`; Linux: your package manager). The app runs without ffmpeg, but the Render button stays disabled and explains why. Pulp can also fetch a build for you — **Settings → FFmpeg**, which says which build, from whom, how big and under what licence before it fetches anything, and keeps it beside your settings; an ffmpeg of your own still comes first ([decision record 0022](docs/decisions/0022-ffmpeg-fetched-on-request-rather-than-bundled.md)).
 
 ```sh
 npm install

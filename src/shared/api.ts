@@ -59,6 +59,29 @@ export interface FfmpegInfo {
   encoders?: string[];
 }
 
+/**
+ * What the download helper would fetch for this machine (milestone 17, ADR
+ * 0022): said in full before anything is fetched, since what arrives is GPL
+ * software from someone else's server.
+ */
+export interface FfmpegDownloadInfo {
+  /** None where Pulp has no build pinned for this platform and architecture. */
+  build: {
+    id: string;
+    label: string;
+    version: string;
+    publisher: string;
+    publisherUrl: string;
+    license: string;
+    bytes: number;
+    /** The sentence Settings shows beside the button. */
+    note: string;
+  } | null;
+  /** True when a build Pulp fetched is on this machine; an ffmpeg of your own is `ffmpegStatus`. */
+  installed: boolean;
+  path?: string;
+}
+
 export interface RenderRequest {
   /** Manifest id of the template to render; or none, with `mediaId`, for a library item rendered itself (milestone 15). */
   templateId?: string;
@@ -360,6 +383,18 @@ export interface PulpApi {
   /** What the background queue is doing: thumbnails, probes, the heavy-work chain. For diagnostics. */
   libraryDiagnostics(): Promise<LibraryDiagnostics>;
   ffmpegStatus(): Promise<FfmpegInfo>;
+  /**
+   * The FFmpeg download helper (milestone 17, ADR 0022), for the machine with
+   * no FFmpeg on it. `ffmpegDownloadStatus` says what Pulp would fetch for
+   * this machine — which build, from whom, how big and under what licence —
+   * so Settings can **ask before anything is fetched**; `fetchFfmpeg` is the
+   * yes. What arrives is checked against a pinned checksum and kept beside
+   * the settings, and an ffmpeg of your own still comes first.
+   */
+  ffmpegDownloadStatus(): Promise<FfmpegDownloadInfo>;
+  fetchFfmpeg(): Promise<{ ok: true; path: string; version: string } | { ok: false; message: string }>;
+  /** How the fetch is going, for the Settings line of status. */
+  onFfmpegProgress(listener: (progress: { note: string; fraction: number | null }) => void): () => void;
   /** Opens a save dialog, then adds the render to the queue. Jobs run one after another. */
   render(request: RenderRequest): Promise<EnqueueResult>;
   /** Opens a folder picker, then queues one render per row. */

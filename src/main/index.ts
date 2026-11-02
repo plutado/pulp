@@ -21,6 +21,7 @@ import { mixLoudness } from './mix-loudness';
 import { exportEdit } from './edit-export-service';
 import { trackSilences } from './track-silence';
 import { fetchSpeechModel, setSpeechProgressWindow, speechStatus, transcribe } from './speech-service';
+import { fetchFfmpeg, ffmpegDownloadStatus, registerManagedFfmpeg, setFfmpegProgressWindow } from './ffmpeg-service';
 import { voicePreview } from './voice-service';
 import { chromaKeyClip, chromaKeyPreview, splitScenes } from './cleanup-service';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, prepareDrag, removeRender } from './render-queue-service';
@@ -145,8 +146,10 @@ function createWindow(): void {
 
   // Pulp's own menu goes up before the page loads, so there is never a moment of Electron's.
   initMenu(mainWindow);
-  // Where a model fetch and a transcription say how far along they are (milestone 50).
+  // Where a model fetch and a transcription say how far along they are (milestone 50),
+  // and where the FFmpeg download helper says how far along it is (milestone 17).
   setSpeechProgressWindow(mainWindow);
+  setFfmpegProgressWindow(mainWindow);
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (!app.isPackaged && devUrl) void mainWindow.loadURL(devUrl);
@@ -155,6 +158,7 @@ function createWindow(): void {
   mainWindow.on('closed', () => {
     mainWindow = null;
     setSpeechProgressWindow(null);
+    setFfmpegProgressWindow(null);
     // The stage's window has no life of its own; it is remembered as it was for the next launch.
     destroyStageWindow();
   });
@@ -260,6 +264,10 @@ function registerIpc(): void {
       ? { ok: true, path: status.path, version: status.version, encoders: status.encoders }
       : { ok: false, message: status.message };
   });
+  // The download helper (milestone 17, ADR 0022). The status says what would be fetched and
+  // from whom; the fetch is the person's yes, and the only request either one ever makes.
+  ipcMain.handle('ffmpeg:download-status', () => ffmpegDownloadStatus());
+  ipcMain.handle('ffmpeg:fetch', () => fetchFfmpeg());
 
   ipcMain.handle('queue:add', (_event, request: RenderRequest) => enqueueRender(request));
   ipcMain.handle('queue:add-batch', (_event, request: BatchRequest) => enqueueBatch(request));
@@ -983,6 +991,9 @@ app.whenReady().then(async () => {
   handleMediaProtocol();
   handleThumbProtocol();
   handleFontProtocol();
+  // A build fetched in an earlier session is found from here on, by the window and by a
+  // headless render alike — before the command line runs, since that renders too.
+  await registerManagedFfmpeg();
   if (cli) {
     app.dock?.hide();
     useInMemoryLibrary();

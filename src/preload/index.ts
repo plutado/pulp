@@ -47,6 +47,13 @@ const api: PulpApi = {
   },
   libraryDiagnostics: () => ipcRenderer.invoke('library:diagnostics'),
   ffmpegStatus: () => ipcRenderer.invoke('ffmpeg:status'),
+  ffmpegDownloadStatus: () => ipcRenderer.invoke('ffmpeg:download-status'),
+  fetchFfmpeg: () => ipcRenderer.invoke('ffmpeg:fetch'),
+  onFfmpegProgress: (listener) => {
+    const handler = (_event: unknown, progress: Parameters<typeof listener>[0]) => listener(progress);
+    ipcRenderer.on('ffmpeg:progress', handler);
+    return () => ipcRenderer.removeListener('ffmpeg:progress', handler);
+  },
   render: (request) => ipcRenderer.invoke('queue:add', request),
   renderBatch: (request) => ipcRenderer.invoke('queue:add-batch', request),
   prepareDrag: (request) => ipcRenderer.invoke('drag:prepare', request),

@@ -80,6 +80,29 @@ export function cutRelease(changelog: string, version: string, date: string): Re
 }
 
 /**
+ * What a release already in the changelog says, verbatim: the body under
+ * `## [version] - date`, which is the same text `cutRelease` put in the tag's
+ * own message. The release workflow draws the draft release page from this,
+ * so the page, the tag and the changelog cannot say three different things.
+ */
+export function notesFor(changelog: string, version: string): string {
+  const text = changelog.replace(/\r\n?/g, '\n');
+  const heading = new RegExp(`^## \\[${version.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]`, 'm');
+  const at = text.search(heading);
+  if (at === -1) throw new Error(`CHANGELOG.md has no section for ${version}`);
+  const rest = text.slice(at);
+  const body = rest.slice(rest.indexOf('\n') + 1);
+  const next = body.search(/\n## \[/);
+  const lines = (next === -1 ? body : body.slice(0, next)).replace(/^\n+/, '').trimEnd().split('\n');
+  // Keep a Changelog's link definitions sit at the foot of the file, which makes them part
+  // of the oldest release's section and nobody's release notes. They are dropped here.
+  while (lines.length > 0 && /^\[[^\]]+\]:\s*\S+$/.test(lines[lines.length - 1]!.trim())) lines.pop();
+  const notes = lines.join('\n').trimEnd();
+  if (notes === '') throw new Error(`The section for ${version} in CHANGELOG.md is empty`);
+  return notes;
+}
+
+/**
  * The version the package file declares, for the script to count from. Writing
  * the new one back is `npm version --no-git-tag-version`'s job rather than a
  * function here: it keeps `package-lock.json` in step, which a replacement in

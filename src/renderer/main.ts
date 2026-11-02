@@ -29,7 +29,7 @@ import { initStageWindow } from './stage-window';
 import { initCrashLog } from './crash-log';
 import { initTour } from './tour';
 import { initWhatsNew } from './whats-new';
-import { initSettings } from './settings';
+import { initSettings, registerFfmpegRefresh } from './settings';
 import { initUserGuide } from './user-guide';
 import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
 import { importedFonts } from './store';
@@ -485,7 +485,13 @@ effect(() => {
 void window.pulp.getRenderQueue().then((snapshot) => dispatch((s) => setJobs(s, snapshot)));
 void loadLibrary(window.pulp.getLibrary());
 window.pulp.onLibraryChanged((index) => void loadLibrary(Promise.resolve(index)));
-void window.pulp.ffmpegStatus().then((info) => {
-  setFfmpeg(info);
-  outputSetFfmpeg(info.ok, info.encoders ?? []);
-});
+/** Where FFmpeg stands, as the status bar and the Output tab read it: at launch, and again
+ *  after Settings has fetched one (milestone 17), which is why it is a function with a name. */
+function readFfmpeg(): void {
+  void window.pulp.ffmpegStatus().then((info) => {
+    setFfmpeg(info);
+    outputSetFfmpeg(info.ok, info.encoders ?? []);
+  });
+}
+registerFfmpegRefresh(readFfmpeg);
+readFfmpeg();

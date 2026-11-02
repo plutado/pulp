@@ -19,6 +19,7 @@ import { appState, dispatch, facets, preferredAspect, preferredPlatform } from '
 import { browseFoldToActive } from './browse';
 import { newProject, openExampleFrom, openProjectFrom } from './project';
 import { showShortcuts } from './shortcuts';
+import { showSettings } from './settings';
 import { runLibraryAdd } from './library-add';
 import { showWhatsNew } from './whats-new';
 import { showUserGuide } from './user-guide';
@@ -233,10 +234,15 @@ function fillPlatforms(): void {
 
 async function fillSetup(): Promise<void> {
   const index = appState.value.index;
-  const ffmpeg = await window.pulp.ffmpegStatus();
+  const [ffmpeg, download] = await Promise.all([window.pulp.ffmpegStatus(), window.pulp.ffmpegDownloadStatus()]);
   const list = $('start-checklist');
   list.replaceChildren();
-  const items = setupChecklist({ ffmpegOk: ffmpeg.ok, roots: index?.roots ?? [], ...(index?.builtInRoot ? { builtInRoot: index.builtInRoot } : {}) });
+  const items = setupChecklist({
+    ffmpegOk: ffmpeg.ok,
+    ffmpegDownloadable: download.build !== null,
+    roots: index?.roots ?? [],
+    ...(index?.builtInRoot ? { builtInRoot: index.builtInRoot } : {}),
+  });
   for (const item of items) {
     const li = document.createElement('li');
     li.className = item.done ? 'done' : 'todo';
@@ -252,6 +258,12 @@ async function fillSetup(): Promise<void> {
       act.type = 'button';
       act.textContent = item.action;
       act.addEventListener('click', () => {
+        // FFmpeg's own button opens Settings, where the offer says what would be fetched,
+        // from whom and under what licence — the asking, which happens in one place.
+        if (item.id === 'ffmpeg') {
+          void showSettings();
+          return;
+        }
         runLibraryAdd(item.id === 'folder' ? 'library.addFolder' : 'library.addSampleMedia');
       });
       li.append(act);

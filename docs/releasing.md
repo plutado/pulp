@@ -42,7 +42,8 @@ A release with an empty Unreleased section is refused: nothing has landed, and a
 2. **Read the Unreleased section.** It is what people will read. Fix the wording now, in a commit of its own, rather than in the release.
 3. **Run it.** `npm run release -- minor`. It runs `npm run lint`, `npm test` and `npm run build` first — a release is exactly when the whole suite is worth the wait — then writes the version and the changelog, commits as `Release <version>` and makes an annotated tag. `--no-checks` skips the suite, for a release whose checks were run a moment ago.
 4. **Nothing has been pushed.** Look at the commit and the tag, then `git push && git push origin v<version>`.
-5. **Draft the release page** on GitHub from the same notes, and attach the installers once milestone 17 builds them. Until then a release is the tag and the notes.
+5. **The tag does the rest.** Pushing it starts [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds the macOS app, the Windows installer and the Linux AppImage on their own runners and **drafts** a release carrying them, their checksums, and these same notes with a footer on what an unsigned build asks of a person. It takes about ten minutes.
+6. **Read the draft and publish it.** Nothing is published until someone presses the button: that is the point at which the notes, the artifacts and the version are one person's responsibility rather than a workflow's. A build that failed can be re-run from the Actions tab — the second run attaches to the same draft rather than making another.
 
 ## What the version touches
 

@@ -30,7 +30,23 @@ export type FfmpegStatus =
 export const FFMPEG_MISSING_MESSAGE =
   'ffmpeg was not found. Pulp needs ffmpeg to encode renders. ' +
   'Install it (macOS: "brew install ffmpeg"; Windows: "winget install Gyan.FFmpeg"; Linux: your package manager), ' +
-  'or set PULP_FFMPEG_PATH to the full path of the ffmpeg executable, then restart Pulp.';
+  'or set PULP_FFMPEG_PATH to the full path of the ffmpeg executable, then restart Pulp. ' +
+  'In the window, Settings → FFmpeg will fetch a build from its publisher for you, after saying what it would fetch.';
+
+/**
+ * The build Pulp fetched for this machine, where there is one: the download
+ * helper registers it at startup and again the moment a fetch lands
+ * (src/main/ffmpeg-service.ts), so nothing has to be restarted.
+ *
+ * It goes **last** among the candidates below. "Use your own ffmpeg" stays the
+ * rule: the one on your PATH wins over the one Pulp fetched, which is only
+ * ever there because there was none.
+ */
+let managedFfmpeg: string | null = null;
+
+export function setManagedFfmpeg(path: string | null): void {
+  managedFfmpeg = path;
+}
 
 export const nodeRunner: ProcessRunner = (command, args) =>
   new Promise((resolve, reject) => {
@@ -134,12 +150,16 @@ export function parseAlphaModeSupport(output: string): boolean {
   return /^\s*alpha_mode\s+<int>/m.test(output);
 }
 
-export function candidatePaths(env: Record<string, string | undefined>): string[] {
+export function candidatePaths(
+  env: Record<string, string | undefined>,
+  managed: string | null = managedFfmpeg,
+): string[] {
   const list: string[] = [];
   if (env.PULP_FFMPEG_PATH) list.push(env.PULP_FFMPEG_PATH);
   list.push('ffmpeg');
   // GUI apps on macOS do not inherit the shell PATH, so check the usual Homebrew locations too.
   list.push('/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg');
+  if (managed) list.push(managed);
   return [...new Set(list)];
 }
 

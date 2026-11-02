@@ -18,6 +18,12 @@ export interface ZipLimits {
   maxBytes?: number;
   /** Default 5000. */
   maxEntries?: number;
+  /**
+   * Read only the entries this says yes to. The rest are neither inflated nor
+   * counted towards `maxBytes`: the FFmpeg download helper takes two binaries
+   * out of an archive that also carries a third and a folder of HTML.
+   */
+  wanted?: (name: string) => boolean;
 }
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
@@ -85,6 +91,7 @@ export function readZip(buf: Buffer, limits: ZipLimits = {}): ZipEntry[] {
     if (rawName.endsWith('/')) continue; // directory entry
     const name = safeZipPath(rawName);
     if (!name) throw new ZipError(`unsafe entry name "${rawName}"`);
+    if (limits.wanted && !limits.wanted(name)) continue;
     total += size;
     if (total > maxBytes) throw new ZipError(`unpacked size exceeds ${Math.round(maxBytes / 1024 / 1024)} MiB`);
 

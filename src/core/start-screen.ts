@@ -70,6 +70,8 @@ export function makingChoiceLanding(choice: MakingChoice, entries: readonly Libr
 
 export interface SetupFacts {
   ffmpegOk: boolean;
+  /** True where Pulp has a build it could fetch for this machine (milestone 17, ADR 0022). */
+  ffmpegDownloadable?: boolean;
   /** Library roots as scanned, with the bundled one named, so "a folder of your own" can be told apart. */
   roots: readonly string[];
   builtInRoot?: string;
@@ -90,8 +92,12 @@ export function hasSampleMedia(roots: readonly string[]): boolean {
 
 /**
  * The first-run checklist: each item is something the window can do with one
- * press. FFmpeg cannot be installed from here, so its undone action points at
- * the thing a person checks rather than pretending to a button.
+ * press. FFmpeg still cannot be *installed* from here — it is a program on
+ * the machine, not a setting — but since milestone 17 Pulp can fetch a build
+ * of its own, so the undone item offers the way to that, which says what it
+ * would fetch before it fetches anything. Where there is no build for this
+ * machine the item is a sentence again, since a button that cannot act is
+ * worse than none.
  */
 export function setupChecklist(facts: SetupFacts): ChecklistItem[] {
   const userFolders = facts.roots.filter((r) => r !== facts.builtInRoot);
@@ -100,7 +106,7 @@ export function setupChecklist(facts: SetupFacts): ChecklistItem[] {
       id: 'ffmpeg',
       label: facts.ffmpegOk ? 'FFmpeg found, so rendering works' : 'FFmpeg not found — install it to render',
       done: facts.ffmpegOk,
-      action: '',
+      action: !facts.ffmpegOk && facts.ffmpegDownloadable ? 'Get FFmpeg…' : '',
     },
     {
       id: 'folder',

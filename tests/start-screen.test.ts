@@ -46,9 +46,16 @@ describe('the start screen (milestone 31)', () => {
   it('ticks the checklist off from what the session knows', () => {
     const fresh = setupChecklist({ ffmpegOk: false, roots: ['/app/templates'], builtInRoot: '/app/templates' });
     expect(fresh.map((i) => i.done)).toEqual([false, false, false]);
-    // FFmpeg cannot be installed from here, so its undone item offers no button.
+    // No build to fetch for this machine, so the undone FFmpeg item offers no button:
+    // one that cannot act is worse than none.
     expect(fresh[0]!.action).toBe('');
     expect(fresh[1]!.action).not.toBe('');
+    // With one to fetch (milestone 17), it is a press away, through Settings, which is
+    // where what would be fetched is said.
+    const offered = setupChecklist({ ffmpegOk: false, ffmpegDownloadable: true, roots: [] });
+    expect(offered[0]!.action).toBe('Get FFmpeg…');
+    // And nothing is offered where ffmpeg is already there, fetched or installed.
+    expect(setupChecklist({ ffmpegOk: true, ffmpegDownloadable: true, roots: [] })[0]!.action).toBe('');
     const ready = setupChecklist({
       ffmpegOk: true,
       roots: ['/app/templates', '/home/me/clips', '/home/me/clips/Sample media'],

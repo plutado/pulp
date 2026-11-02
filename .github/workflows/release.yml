@@ -1,0 +1,153 @@
+# The builds a release page carries (milestone 17): a universal macOS app, a
+# Windows installer and a Linux AppImage, built on their own platforms and
+# attached to a **draft** release for a person to read over and publish.
+#
+# Nothing here publishes anything: the draft is written, the artifacts are
+# attached, and the release stays unpublished until someone presses the button
+# on it. `docs/releasing.md` has the steps around this; `npm run release` is
+# what makes the tag this watches for.
+#
+# The builds are unsigned (milestone 7 signs them), which the notes say
+# outright, because an unsigned build is refused on first open by both macOS
+# and Windows and a person needs to be told why.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  # For a dry run, or a second attempt after a failed one: the draft is made for
+  # the version in package.json, and its tag is created when it is published.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      # One platform failing should not throw away the other two: a draft with
+      # two artifacts and a red job says more than no draft at all.
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (universal)
+            os: macos-latest
+            # Ad-hoc signed with the hardened runtime, which electron-builder.yml asks for
+            # by `identity: "-"`; no certificate is involved, so nothing is needed here.
+            flag: --mac
+            artifacts: |
+              release/*.dmg
+              release/*.zip
+            cache: ~/Library/Caches/electron
+          - name: Windows (x64 installer)
+            os: windows-latest
+            flag: --win
+            artifacts: release/*Setup.exe
+            cache: ~\AppData\Local\electron\Cache
+          - name: Linux (x64 AppImage)
+            os: ubuntu-latest
+            flag: --linux
+            artifacts: release/*.AppImage
+            cache: ~/.cache/electron
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Cache the Electron binaries
+        # The macOS build downloads Electron for both architectures, about 400 MB; without
+        # this every release pays for it three times over.
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.cache }}
+          key: electron-${{ matrix.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npm ci
+      - name: Check the tag against the version
+        # A tag that does not match package.json means the release commit and the tag
+        # came apart; better to stop here than to publish a build naming the wrong version.
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          declared=$(node -p "require('./package.json').version")
+          if [ "$tagged" != "$declared" ]; then
+            echo "::error::$GITHUB_REF_NAME does not match the version in package.json ($declared)"
+            exit 1
+          fi
+      - name: Build
+        run: npm run build
+      - name: Package
+        # `--publish never`: this workflow attaches the files itself, to a draft, rather
+        # than letting electron-builder upload anything of its own accord.
+        run: npx --no-install electron-builder ${{ matrix.flag }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pulp-${{ runner.os }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error
+          # The artifacts are already compressed; zipping them again costs minutes.
+          compression-level: 0
+
+  draft:
+    name: Draft release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # The one job that writes anything, and what it writes is a draft.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Work out the version and the notes
+        id: release
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version=$(node -p "require('./package.json').version")
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          # The notes are the changelog's own section for this release — the same text the
+          # annotated tag carries — followed by what an unsigned build asks of a person,
+          # which is the same every release and so is kept in a file of its own.
+          node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/release-notes.mjs "$version" > notes.md
+          printf '\n' >> notes.md
+          cat .github/release-footer.md >> notes.md
+      - name: Gather the files and their checksums
+        working-directory: artifacts
+        run: |
+          set -euo pipefail
+          ls -la
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          # A re-run attaches to what is already there rather than failing on it — and a
+          # release someone has already published is left published, with its notes as they
+          # were read: this workflow drafts, and never undoes a person's press.
+          state=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null || echo missing)
+          case "$state" in
+            missing) gh release create "$TAG" --draft --notes-file notes.md --title "Pulp $VERSION" --target "$GITHUB_SHA" ;;
+            true)    gh release edit "$TAG" --notes-file notes.md --title "Pulp $VERSION" ;;
+            *)       echo "::warning::$TAG is already published; attaching the files and leaving the notes alone." ;;
+          esac
+          gh release upload "$TAG" artifacts/* --clobber
+          echo "$TAG is drafted. Nothing is published until someone presses Publish on it."

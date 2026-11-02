@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { cutRelease, isVersion, nextVersion, tagFor, versionIn } from '../src/core/release';
+import { cutRelease, isVersion, nextVersion, notesFor, tagFor, versionIn } from '../src/core/release';
 
 const CHANGELOG = `# Changelog
 
@@ -84,5 +84,33 @@ describe('cutting the release', () => {
     const made = cutRelease(first, '0.1.0', '2026-11-02');
     expect(made.text).toBe('# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-11-02\n\n### Added\n\n- Everything.\n\n');
     expect(made.notes).toBe('### Added\n\n- Everything.');
+  });
+});
+
+describe('the notes a release page is drafted from (milestone 17)', () => {
+  it('reads back exactly what the tag carries, for the version asked for', () => {
+    const cut = cutRelease(CHANGELOG, '0.2.0', '2026-11-02');
+    // The workflow reads the file after the release commit, so what it finds has to be
+    // the same text `cutRelease` put in the tag's message: one release, one set of words.
+    expect(notesFor(cut.text, '0.2.0')).toBe(cut.notes);
+    expect(notesFor(cut.text, '0.1.0')).toBe('### Added\n\n- The first release.');
+  });
+
+  it('says so rather than drafting a page from nothing', () => {
+    expect(() => notesFor(CHANGELOG, '9.9.9')).toThrow(/no section for 9\.9\.9/);
+    expect(() => notesFor('# Changelog\n\n## [0.2.0] - 2026-11-02\n\n## [0.1.0] - 2026-10-18\n\n- A thing.\n', '0.2.0')).toThrow(/is empty/);
+  });
+
+  it('leaves the file\'s link definitions out of the oldest release\'s notes', () => {
+    // They sit at the foot of a Keep a Changelog file, so they fall inside the last
+    // section and belong to no release at all.
+    const text = `${CHANGELOG}\n[Unreleased]: https://example.com/compare/v0.1.0...HEAD\n[0.1.0]: https://example.com/releases/tag/v0.1.0\n`;
+    expect(notesFor(text, '0.1.0')).toBe('### Added\n\n- The first release.');
+  });
+
+  it('reads a version as a version rather than as a pattern', () => {
+    // A dot is any character to a regular expression; 0x2x0 is not this release.
+    const text = '# Changelog\n\n## [0x2x0] - 2026-11-02\n\n- Not this one.\n\n## [0.2.0] - 2026-11-02\n\n- This one.\n';
+    expect(notesFor(text, '0.2.0')).toBe('- This one.');
   });
 });
