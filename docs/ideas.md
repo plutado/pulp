@@ -31,6 +31,6 @@ The order work is built in is `ROADMAP.md`'s planned order, which scheduling fol
 - **~~A settings window~~** (built, milestone 8, 2026-11-01): every setting now kept only in `settings.json` (one section open at a time, cache limit, default folders, the ffmpeg location, card size and more) reachable in a window opened from the application menu's Settings (milestone 27), with reset to defaults.
 - **Security review:** a threat model for templates and packs as untrusted code (a decision record), an audit of Electron's hardening (context isolation, sandbox, content security policy, protocol handlers, navigation and new windows), and automatic dependency update alerts.
 - **Template versions in saved work:** presets, collections and `.pulp` projects record which version of each template they used, so updating a bundled template never silently changes a saved project; part of milestone 8's format-versioning work.
-- **~~Localisation~~** (scheduled as milestone 59, Languages and locale, 2026-11-03): UI strings moved out of the code so they can be translated; right-to-left and complex scripts in text layers (Noto Sans is bundled).
+- **~~Localization~~** (scheduled as milestone 59, Languages and locale, 2026-11-03): UI strings moved out of the code so they can be translated; right-to-left and complex scripts in text layers (Noto Sans is bundled).
 - **Light and high-contrast themes** (after 1.0), following the system setting; Pulp is dark-only today.
 - **Customisable keyboard shortcuts** (after 1.0), once the application menu exists.

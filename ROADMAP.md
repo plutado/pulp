@@ -769,7 +769,7 @@ Decided 2026-11-01, from the undecided list in `docs/ideas.md`.
 
 ## 59. Languages and locale (26-46 h, after 1.0)
 
-Decided 2026-11-03. Pulp speaks one language today, with its words written into the code. This moves them out so the interface can be shown in the language a person chooses in Settings: US English by default, British English for those who want colour and centre, and other languages as they are translated. Takes over "Localisation" from the undecided list in `docs/ideas.md`.
+Decided 2026-11-03. Pulp speaks one language today, with its words written into the code. This moves them out so the interface can be shown in the language a person chooses in Settings: US English by default, British English for those who want colour and centre, and other languages as they are translated. Takes over "Localization" from the undecided list in `docs/ideas.md`.
 
 - [ ] **Words out of the code:** every interface string (menus, buttons, labels, messages, the user guide's in-app help) read from a message catalog keyed by id, with US English as the source; a test fails on a user-facing string written straight into the code (8-14 h)
 - [ ] **A language setting:** Settings → Language, following the system by default, with English (US) and English (UK) offered first; switching redraws the interface without a restart, and the choice is kept with the other settings (4-7 h)
