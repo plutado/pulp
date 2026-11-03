@@ -76,9 +76,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 59. Languages and locale (post-1.0) | 26-46 h |
 | 60. A start screen with a clear way in (post-1.0) | 12-20 h |
 | 61. A polished set of bundled art (post-1.0) | 26-43 h |
+| 62. Light and dark appearance (post-1.0) | 8-12 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **35-59 h** |
-| **Total including post-1.0 items** | **944-1544 h** |
+| **Total including post-1.0 items** | **952-1556 h** |
 
 ## 0. Foundation (done)
 
@@ -802,3 +803,13 @@ Decided 2026-11-03. The bundled objects, icons and design elements (milestone 46
 - [ ] **Glass and depth design elements:** frosted glass panels, cards, chips and tags with a light-catching edge; soft three-dimensional shapes and gradient orbs; fine-line geometric accents. Built to sit behind lower thirds, callouts and titles, and added to the bundled matching sets where one fits (6-10 h)
 - [ ] **Thumbnails that show the finish:** the polished items' cards are drawn on a neutral studio backdrop with consistent framing, so the grid reads as one set and the difference from the playful art is visible before anything is opened (1-2 h)
 - [ ] **Found first where it fits, and tested:** a **Polished** look in the browse panel's Look filter; within Objects and Design elements the polished items lead under the default sort; visual references for every new item; a test that each carries a look, a CC0 notice and an entrance (3-4 h)
+
+## 62. Light and dark appearance (8-12 h, after 1.0)
+
+Decided 2026-11-03. Pulp's window is dark only, and for an instant at launch it shows light, before its stylesheet has loaded. This adds a light appearance beside the dark one, a setting to choose between them, and a launch that opens in the chosen one from its first frame. It is also what milestone 60's "in both themes" assumes.
+
+- [ ] **An Appearance setting:** Settings → Appearance with System (the default, following the operating system and changing when it does), Light and Dark, also in the View menu; kept with the other settings, and switching redraws every open window at once, without a restart (2-3 h)
+- [ ] **A light theme:** every color in the window's styles read from a token (about 67 are still written in directly), a light palette for every token that meets WCAG AA contrast, icons, focus rings, selection and the accent all legible on it. What belongs to the work stays as it is in either appearance: the stage's checkerboard and chosen background, thumbnails, waveforms and the colors a template draws (3-5 h)
+- [ ] **No flash at launch:** the window opens with the chosen appearance's background (the main process reads the setting before it creates the window, the page sets its background and `color-scheme` before its stylesheet loads, and the window is shown once it is ready), so neither appearance ever shows the other for a frame (1 h)
+- [ ] **Every window follows:** the popped-out stage, the Settings window and dialogs take the same appearance; the editor panels follow the host app's own (1-1.5 h)
+- [ ] **Tests:** a unit test of the setting and of System following the operating system; an end-to-end test that switches appearance and finds the window redrawn; visual references of the main window in each; a check that no color is written into the styles outside the token list (1-1.5 h)
