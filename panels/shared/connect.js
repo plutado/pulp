@@ -73,6 +73,25 @@
     });
   }
 
+  /** POST a bridge route with a JSON body; a refusal's own words become the error. */
+  function bridgePost(session, path, body) {
+    return fetch('http://127.0.0.1:' + session.port + path, {
+      method: 'POST',
+      headers: (function () {
+        var h = { 'Content-Type': 'application/json' };
+        h[TOKEN_HEADER] = session.token;
+        return h;
+      })(),
+      body: JSON.stringify(body),
+    }).then(function (response) {
+      if (response.status === 401) throw new Error('Pulp refused the token; turn the panel setting off and on in Pulp, then reconnect.');
+      return response.json().then(function (answer) {
+        if (!response.ok) throw new Error(answer && answer.error ? answer.error : 'Pulp answered ' + response.status + '.');
+        return answer;
+      });
+    });
+  }
+
   /** GET a thumbnail as an object URL, since an <img> cannot carry the token header. Null when there is none. */
   function bridgeThumb(session, id) {
     return fetch('http://127.0.0.1:' + session.port + '/v1/thumb/' + id, {
@@ -121,5 +140,5 @@
     });
   }
 
-  window.pulpBridge = { connect: connect, get: bridgeGet, thumb: bridgeThumb, parse: parseBridge };
+  window.pulpBridge = { connect: connect, get: bridgeGet, post: bridgePost, thumb: bridgeThumb, parse: parseBridge };
 })();

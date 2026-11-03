@@ -2,9 +2,10 @@
 
 A Pulp panel inside Premiere Pro and inside DaVinci Resolve Studio
 (milestone 54): the library and the collection of the Pulp running on this
-machine, browsed and searched without leaving the editing app. Today the
-panels list; rendering from the panel and dropping into the edit are the
-milestone's later items.
+machine, browsed, searched and **dropped into the edit** without leaving the
+editing app — each item rendered on request with its own output settings,
+alpha kept. Showing the render queue's progress in the panel and opening an
+item in Pulp from it are the milestone's later items.
 
 Nothing leaves the machine. The panels talk to Pulp over `127.0.0.1` only,
 and every request carries a token Pulp writes to a file beside its settings —
@@ -83,6 +84,36 @@ field speaks Pulp's own query syntax — `type:lower-third`, `mood:calm`,
 app over the bridge. The collection section mirrors the tray in Pulp's
 window, with items the library has lost marked missing rather than dropped.
 
+### Dropping into the edit
+
+Every row — library and collection alike — has two buttons under the pointer
+and can be dragged:
+
+- **Bin** renders the item if it is not already in Pulp's render cache, then
+  imports the file: into Premiere's insertion bin, into Resolve's media pool.
+- The **timeline button** puts it in the edit. In Premiere (**Playhead**) it
+  inserts at the playhead on the first unlocked video track of the active
+  sequence. In Resolve (**Append**) it appends to the current timeline —
+  Resolve's scripting API has no insert-at-playhead, so landing at the
+  playhead is the drag's job.
+- **Dragging a row** hands the rendered file to wherever it is dropped. In
+  Resolve this is a native drag from the plugin's own window: drop it on the
+  timeline at the playhead, into a bin, anywhere a file lands. A row that has
+  not rendered yet starts its render on the first drag and says
+  "ready — drag again" when the file exists, since a drag must begin with a
+  real file. In Premiere, CEP has no native drag-out, so the buttons are the
+  reliable path; the drag offers the file's URI for hosts that take one.
+
+What renders is **the item's own output settings**: a collection item uses
+the preset, options and parameters its card carries; a bare template uses its
+type's saved output default (Output tab → *Save as default for this type*),
+or **ProRes 4444 where nothing is saved, so the graphic keeps its alpha**; a
+bare media item is handed over as its own file, untouched. Renders go through
+the same managed cache as the app's *Prepare for drag*, so a second drop of
+the same thing is instant, and the row shows the render's percentage while it
+runs. The render also appears as a card in Pulp's own queue tray, like any
+prepare.
+
 If the panel says Pulp is not reachable: Pulp is not running, or the setting
 is off, or Pulp was restarted (the port and token change each start —
 Reconnect). The bridge file it reads is `panel-bridge.json` beside Pulp's
@@ -95,7 +126,9 @@ system. Port and token are written to `panel-bridge.json` (mode 0600) while
 the setting is on, and removed when it goes off or Pulp quits. Every request
 must carry the token in the `x-pulp-token` header; anything without it — for
 instance a web page, which can reach 127.0.0.1 but cannot read your files —
-gets a 401 and nothing else. Answers name items by library id and never carry
-paths. The protocol is versioned; `src/core/panel-bridge.ts` is its one
-definition, and `tests/panel-bridge.test.ts` speaks it end to end over a real
-socket.
+gets a 401 and nothing else. Listings name items by library id and never
+carry paths; the one answer that carries one is a prepared file's own
+(`POST /v1/prepare`, then `GET /v1/prepare/<job>` while it renders), because
+handing that file into the edit is what the panel is for. The protocol is
+versioned; `src/core/panel-bridge.ts` is its one definition, and
+`tests/panel-bridge.test.ts` speaks it end to end over a real socket.

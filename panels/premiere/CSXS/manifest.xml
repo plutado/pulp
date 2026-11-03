@@ -26,6 +26,7 @@
       <DispatchInfo>
         <Resources>
           <MainPath>./panel.html</MainPath>
+          <ScriptPath>./host.jsx</ScriptPath>
         </Resources>
         <Lifecycle>
           <AutoVisible>true</AutoVisible>

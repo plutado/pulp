@@ -14,10 +14,15 @@
 
 import { app } from 'electron';
 import { open, realpath, rename, rm } from 'node:fs/promises';
-import { extname, join, sep } from 'node:path';
+import { basename, extname, join, sep } from 'node:path';
 import type { Collection, CollectionItem } from '../core/collection';
-import { BRIDGE_FILE_NAME, bridgeFileContents, newBridgeToken, startPanelServer, type PanelServer } from '../core/panel-bridge';
+import {
+  BRIDGE_FILE_NAME, bridgeFileContents, newBridgeToken, startPanelServer,
+  type PanelJobAnswer, type PanelPrepareAnswer, type PanelRenderRequest, type PanelServer,
+} from '../core/panel-bridge';
 import { getLibrary, lookupThumbnail, thumbnailDir } from './library-service';
+import { dragFileFor } from './render-cache-service';
+import { getRenderQueue, prepareDrag } from './render-queue-service';
 import { loadSettings, updateSettings } from './settings';
 
 export interface PanelStatus {
@@ -102,6 +107,47 @@ async function removeBridgeFile(): Promise<void> {
   await rm(bridgeFilePath(), { force: true }).catch(() => undefined);
 }
 
+/**
+ * A media item's own file handed into the edit: the entry the index holds, as
+ * long as it is online and the file is still where the index says. The one
+ * answer the bridge gives that carries a path, because the host needs a file.
+ */
+async function panelItemFile(id: string): Promise<{ file: string; name: string } | undefined> {
+  const index = await getLibrary();
+  const entry = index.media.find((e) => e.id === id);
+  if (!entry || entry.offline) return undefined;
+  try {
+    const real = await realpath(entry.path);
+    const root = await realpath(entry.root);
+    if (!real.startsWith(root + sep)) return undefined;
+    return { file: real, name: entry.name };
+  } catch {
+    return undefined;
+  }
+}
+
+/** The window's own Prepare for drag, asked over the bridge: cached is in hand, queued is a job to follow. */
+async function panelPrepare(request: PanelRenderRequest): Promise<PanelPrepareAnswer> {
+  const prepared = await prepareDrag(request);
+  if (!prepared.ok) return { refused: prepared.message };
+  if (prepared.cached) return { ready: true, file: prepared.file, name: basename(prepared.file) };
+  return { ready: false, job: prepared.jobId };
+}
+
+/** How a prepare's job is going, read off the same queue the window's tray shows. */
+function panelJob(id: number): PanelJobAnswer | undefined {
+  const job = getRenderQueue().jobs.find((j) => j.id === id);
+  if (!job) return undefined;
+  if (job.status === 'done') {
+    const file = dragFileFor(job.output ?? job.outputPath, job.firstFrame ?? 0);
+    return { state: 'done', file, name: basename(file) };
+  }
+  if (job.status === 'failed' || job.status === 'cancelled') {
+    return { state: 'failed', message: job.message ?? 'The render did not finish.' };
+  }
+  return { state: 'rendering', fraction: job.totalFrames > 0 ? job.frame / job.totalFrames : null };
+}
+
 async function start(): Promise<void> {
   if (server) return;
   const token = newBridgeToken();
@@ -111,6 +157,10 @@ async function start(): Promise<void> {
     library: () => getLibrary(),
     collection: () => panelCollectionState,
     thumbnail: panelThumbnail,
+    typeDefaults: async () => (await loadSettings()).typeOutputDefaults,
+    itemFile: panelItemFile,
+    prepare: panelPrepare,
+    job: panelJob,
   });
   await writeBridgeFile(server.port, token);
 }

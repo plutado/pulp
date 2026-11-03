@@ -6382,5 +6382,45 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.querySelector('#region-tray .collection-card [aria-label="Remove from the collection"]').click()`);
       await until(() => page.eval<boolean>(`document.querySelectorAll('#region-tray .collection-card').length === 0`), 'the tray empty again');
     }, 60_000);
+
+    it("prepares a drop: rendered on request with the item's own settings, alpha kept, cached for the next one", async () => {
+      // The render is ffmpeg's; without it there is nothing to prepare. Asked in the body,
+      // not with skipIf, for the reason the clip tests give.
+      const ffmpeg = await detectFfmpeg();
+      if (!ffmpeg.ok) return;
+      const bridge = parseBridgeFile(await readFile(join(userData, 'panel-bridge.json'), 'utf8'))!;
+      const headers = { [BRIDGE_TOKEN_HEADER]: bridge.token, 'Content-Type': 'application/json' };
+      const base = `http://127.0.0.1:${bridge.port}`;
+      const library = (await (await fetch(`${base}/v1/library?q=lower third`, { headers })).json()) as { items: { id: string; name: string }[] };
+      const strap = library.items.find((i) => i.name === 'Lower Third Bar')!;
+
+      // No saved default for lower thirds in this scratch profile, so the alpha preset renders: ProRes 4444.
+      const asked = await (await fetch(`${base}/v1/prepare`, { method: 'POST', headers, body: JSON.stringify({ id: strap.id }) })).json() as
+        { ready: true; file: string } | { ready: false; job: number };
+      let file: string;
+      if (asked.ready) {
+        file = asked.file;
+      } else {
+        let answer: { state: string; file?: string; message?: string } = { state: 'rendering' };
+        await until(async () => {
+          answer = (await (await fetch(`${base}/v1/prepare/${asked.job}`, { headers })).json()) as typeof answer;
+          return answer.state !== 'rendering';
+        }, 'the prepared render to finish', 150_000);
+        expect(answer.state, answer.message ?? '').toBe('done');
+        file = answer.file!;
+      }
+      // The file is real, QuickTime, and inside the managed render cache — never anywhere else.
+      expect(file.endsWith('.mov'), file).toBe(true);
+      expect(file.startsWith(join(userData, 'render-cache')), file).toBe(true);
+      expect(existsSync(file)).toBe(true);
+
+      // The same ask again is the cache answering: ready at once, the very same file.
+      const again = (await (await fetch(`${base}/v1/prepare`, { method: 'POST', headers, body: JSON.stringify({ id: strap.id }) })).json()) as { ready: boolean; file?: string };
+      expect(again.ready).toBe(true);
+      expect(again.file).toBe(file);
+
+      // What the library cannot answer for is a refusal that says so, not half an answer.
+      expect((await fetch(`${base}/v1/prepare`, { method: 'POST', headers, body: JSON.stringify({ id: 'ffffffffffffffffffffffff' }) })).status).toBe(404);
+    }, 180_000);
   });
 });

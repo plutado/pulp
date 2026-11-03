@@ -7,7 +7,7 @@
 
 'use strict';
 
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 const { readFileSync } = require('fs');
 const { homedir } = require('os');
 const path = require('path');
@@ -36,5 +36,15 @@ contextBridge.exposeInMainWorld('pulpPanelHost', {
       }
     }
     return null;
+  },
+  // The drop (milestone 54): the main side speaks Resolve's API; the page only names a file.
+  importToBin(file) {
+    return ipcRenderer.invoke('pulp:import', String(file));
+  },
+  appendToTimeline(file) {
+    return ipcRenderer.invoke('pulp:append', String(file));
+  },
+  startDrag(file) {
+    ipcRenderer.send('pulp:drag', String(file));
   },
 });

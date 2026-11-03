@@ -9,8 +9,10 @@
  * by the user, which is how the panels find the bridge and the only place the
  * token ever is — so a web page in a browser, which can reach 127.0.0.1 but
  * cannot read the user's files, is answered 401 and nothing else (decision
- * record 0025). Items are addressed by their library id and the answers carry
- * no file system paths, as the app window's own protocols do (ADR 0013).
+ * record 0025). Items are addressed by their library id and the listings carry
+ * no file system paths, as the app window's own protocols do (ADR 0013); the
+ * one answer that carries one is a prepared file's own, because handing that
+ * file into the edit is what the panel is for.
  *
  * Pure apart from node:http and node:fs; the main process supplies the live
  * library, the collection and the thumbnail files through PanelBridgeContext.
@@ -24,7 +26,10 @@ import type { Readable } from 'node:stream';
 import type { Collection } from './collection';
 import { resolveCollection } from './collection';
 import type { LibraryEntry, LibraryIndex } from './library-types';
+import type { TypeOutputDefault } from './output-defaults';
+import { OUTPUT_PRESETS, type PresetId, type RenderOptions } from './render-plan';
 import { searchLibrary } from './search';
+import { templateType } from './taxonomy';
 
 /** Bumped when an answer's shape changes, so a panel can say "this Pulp is newer than me" instead of misreading it. */
 export const BRIDGE_PROTOCOL_VERSION = 1;
@@ -179,6 +184,114 @@ export function panelCollection(name: string, collection: Collection, index: Lib
   };
 }
 
+// ---------------------------------------------------------------- handing a file into the edit (milestone 54's drop)
+
+/**
+ * The preset a bare library template renders with when its type has no saved
+ * default: ProRes 4444, so what lands on the timeline keeps its alpha.
+ */
+export const PANEL_ALPHA_PRESET: PresetId = 'prores-4444';
+
+/** The render a prepare starts: the very shape the window's own Prepare for drag sends. */
+export interface PanelRenderRequest {
+  templateId?: string;
+  mediaId?: string;
+  presetId: PresetId;
+  options?: RenderOptions;
+  params: Record<string, unknown>;
+}
+
+/**
+ * What a POST /v1/prepare body asks for, once vouched for: a media item's own
+ * file handed over as it is, a render with the item's own output settings, or
+ * a refusal with the status that says why.
+ */
+export type PanelPrepareTarget =
+  | { kind: 'file'; id: string }
+  | { kind: 'render'; request: PanelRenderRequest }
+  | { kind: 'refused'; status: number; message: string };
+
+/** The remembered slice of the Output tab as render options; the preset travels separately. */
+export function optionsFromTypeDefault(d: TypeOutputDefault): RenderOptions {
+  return {
+    ...(d.aspect ? { aspect: d.aspect } : {}),
+    ...(d.width !== undefined && d.height !== undefined ? { width: d.width, height: d.height } : {}),
+    ...(d.fps !== undefined ? { fps: d.fps } : {}),
+    ...(d.background !== undefined ? { background: d.background } : {}),
+    ...(d.matte ? { matte: true } : {}),
+  };
+}
+
+/**
+ * Decide what a prepare body means, with the item's own output settings:
+ * a collection item (`uid`) renders with the settings its card carries; a
+ * library template (`id`) renders with its type's saved output default, or
+ * ProRes 4444 where none is saved, so alpha is kept; a library media item is
+ * its own file already and is handed over as it is. Anything the library
+ * cannot answer for — unknown, offline, a preset it does not know — is a
+ * refusal that says so, never half an answer.
+ */
+export function panelPrepareTarget(
+  body: unknown,
+  index: LibraryIndex,
+  collection: Collection,
+  typeDefaults: Record<string, TypeOutputDefault>,
+): PanelPrepareTarget {
+  const refused = (status: number, message: string): PanelPrepareTarget => ({ kind: 'refused', status, message });
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return refused(400, 'The body must be JSON: {"id": …} or {"uid": …}.');
+  const { id, uid } = body as { id?: unknown; uid?: unknown };
+  if ((typeof id === 'string') === (typeof uid === 'string')) return refused(400, 'Name exactly one of "id" (a library item) or "uid" (a collection item).');
+
+  const all: LibraryEntry[] = [...index.templates, ...index.media];
+  const byId = new Map(all.map((e) => [e.id, e]));
+
+  if (typeof uid === 'string') {
+    const item = collection.items.find((i) => i.uid === uid);
+    if (!item) return refused(404, 'That collection item is no longer in the collection.');
+    if (!(item.presetId in OUTPUT_PRESETS)) return refused(409, `The item carries a preset this Pulp does not know ("${item.presetId}").`);
+    const resolved = resolveCollection({ items: [item] }, index)[0]!;
+    if (resolved.missing || !resolved.entry) return refused(404, `${item.name}: nothing in the library matches it any more.`);
+    if (resolved.offline) return refused(409, `${item.name}: its folder is not reachable right now.`);
+    return {
+      kind: 'render',
+      request: {
+        ...(resolved.entry.kind === 'template' ? { templateId: resolved.entry.manifest.id } : { mediaId: resolved.entry.id }),
+        presetId: item.presetId as PresetId,
+        options: item.options,
+        params: item.params,
+      },
+    };
+  }
+
+  const entry = byId.get(id as string);
+  if (!entry) return refused(404, 'That item is not in the library.');
+  if (entry.offline) return refused(409, 'That item’s folder is not reachable right now.');
+  if (entry.kind === 'media') return { kind: 'file', id: entry.id };
+  const byType = templateType(entry.manifest);
+  const saved = byType !== undefined ? typeDefaults[byType] : undefined;
+  return {
+    kind: 'render',
+    request: {
+      templateId: entry.manifest.id,
+      presetId: saved?.presetId ?? PANEL_ALPHA_PRESET,
+      options: saved ? optionsFromTypeDefault(saved) : {},
+      params: {},
+    },
+  };
+}
+
+/** What a prepare answers: the file already in hand, or the job to ask after. */
+export type PanelPrepareAnswer =
+  | { ready: true; file: string; name: string }
+  | { ready: false; job: number }
+  | { refused: string };
+
+/** How a queued prepare is going, asked by job id. */
+export type PanelJobAnswer =
+  | { state: 'rendering'; fraction: number | null }
+  | { state: 'done'; file: string; name: string }
+  | { state: 'failed'; message: string };
+
 // ---------------------------------------------------------------- answering a request
 
 /** What the main process supplies: the token, the version, and the live data the answers are made from. */
@@ -189,6 +302,14 @@ export interface PanelBridgeContext {
   collection(): { name: string; collection: Collection };
   /** An item's thumbnail as a real PNG inside the cache, or nothing; the caller holds it to the cache folder. */
   thumbnail(id: string): Promise<string | undefined>;
+  /** The saved output defaults per template type, for a bare template's own settings. */
+  typeDefaults(): Promise<Record<string, TypeOutputDefault>>;
+  /** A media item's own file to hand into the edit, or nothing the library can vouch for. */
+  itemFile(id: string): Promise<{ file: string; name: string } | undefined>;
+  /** Render into the drag cache, or find the same render already there; the window's own Prepare for drag. */
+  prepare(request: PanelRenderRequest): Promise<PanelPrepareAnswer>;
+  /** How a queued prepare is going; nothing for a job the queue does not hold. */
+  job(id: number): PanelJobAnswer | undefined;
 }
 
 export interface BridgeRequest {
@@ -196,6 +317,8 @@ export interface BridgeRequest {
   /** Path and query, as node:http gives it: "/v1/library?q=…". */
   url: string;
   token: string | null;
+  /** The request body, for POST; bounded by the listener before it gets here. */
+  body?: string;
 }
 
 export interface BridgeResponse {
@@ -214,8 +337,8 @@ const NO_STORE = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosni
  */
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET',
-  'Access-Control-Allow-Headers': BRIDGE_TOKEN_HEADER,
+  'Access-Control-Allow-Methods': 'GET, POST',
+  'Access-Control-Allow-Headers': `${BRIDGE_TOKEN_HEADER}, content-type`,
 };
 
 function json(status: number, payload: unknown): BridgeResponse {
@@ -234,7 +357,7 @@ const ITEM_ID = /^[0-9a-f]{1,64}$/;
 export async function handleBridgeRequest(req: BridgeRequest, ctx: PanelBridgeContext): Promise<BridgeResponse> {
   // The preflight is how a hosted page earns the right to send the token header; it carries no data either way.
   if (req.method === 'OPTIONS') return { status: 204, headers: { ...NO_STORE, ...CORS } };
-  if (req.method !== 'GET') return { status: 405, headers: { Allow: 'GET, OPTIONS', ...NO_STORE, ...CORS } };
+  if (req.method !== 'GET' && req.method !== 'POST') return { status: 405, headers: { Allow: 'GET, POST, OPTIONS', ...NO_STORE, ...CORS } };
   if (!tokenMatches(req.token, ctx.token)) return json(401, { error: 'unauthorized' });
 
   let url: URL;
@@ -243,6 +366,33 @@ export async function handleBridgeRequest(req: BridgeRequest, ctx: PanelBridgeCo
   } catch {
     return notFound();
   }
+
+  // Preparing a file for the edit (the milestone's drop): POST asks, GET /<job> follows the render.
+  if (url.pathname === '/v1/prepare') {
+    if (req.method !== 'POST') return { status: 405, headers: { Allow: 'POST, OPTIONS', ...NO_STORE, ...CORS } };
+    let body: unknown;
+    try {
+      body = JSON.parse(req.body ?? '');
+    } catch {
+      body = null;
+    }
+    const target = panelPrepareTarget(body, await ctx.library(), ctx.collection().collection, await ctx.typeDefaults());
+    if (target.kind === 'refused') return json(target.status, { error: target.message });
+    if (target.kind === 'file') {
+      const file = await ctx.itemFile(target.id);
+      return file ? json(200, { ready: true, ...file }) : notFound();
+    }
+    const answer = await ctx.prepare(target.request);
+    if ('refused' in answer) return json(409, { error: answer.refused });
+    return json(200, answer);
+  }
+  const jobAsked = /^\/v1\/prepare\/(\d{1,9})$/.exec(url.pathname);
+  if (jobAsked && req.method === 'GET') {
+    const answer = ctx.job(Number(jobAsked[1]));
+    return answer ? json(200, answer) : notFound();
+  }
+  // Every route from here on answers GET alone.
+  if (req.method !== 'GET') return { status: 405, headers: { Allow: 'GET, OPTIONS', ...NO_STORE, ...CORS } };
 
   if (url.pathname === '/v1/hello') {
     return json(200, { app: 'pulp', bridge: BRIDGE_PROTOCOL_VERSION, version: ctx.version });
@@ -295,23 +445,45 @@ export interface PanelServer {
  * request answered through handleBridgeRequest. Port 0 (the default) lets the
  * system pick a free one; the discovery file is how anyone learns which.
  */
+/** The most a request body may carry; a prepare names an item, nothing more. */
+export const BRIDGE_MAX_BODY_BYTES = 64 * 1024;
+
 export function startPanelServer(ctx: PanelBridgeContext, port = 0): Promise<PanelServer> {
   const server: Server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const token = req.headers[BRIDGE_TOKEN_HEADER];
-    void handleBridgeRequest(
-      { method: req.method ?? '', url: req.url ?? '/', token: typeof token === 'string' ? token : null },
-      ctx,
-    )
-      .catch(() => json(500, { error: 'bridge error' }))
-      .then((answer) => {
-        res.writeHead(answer.status, answer.headers);
-        if (answer.body === undefined || typeof answer.body === 'string') {
-          res.end(answer.body);
-        } else {
-          answer.body.on('error', () => res.destroy());
-          answer.body.pipe(res);
-        }
-      });
+    const chunks: Buffer[] = [];
+    let read = 0;
+    let overflowed = false;
+    req.on('data', (chunk: Buffer) => {
+      read += chunk.length;
+      if (read > BRIDGE_MAX_BODY_BYTES) {
+        overflowed = true;
+        chunks.length = 0;
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      if (overflowed) {
+        res.writeHead(413, { ...NO_STORE, ...CORS });
+        res.end();
+        return;
+      }
+      void handleBridgeRequest(
+        { method: req.method ?? '', url: req.url ?? '/', token: typeof token === 'string' ? token : null, body: Buffer.concat(chunks).toString('utf8') },
+        ctx,
+      )
+        .catch(() => json(500, { error: 'bridge error' }))
+        .then((answer) => {
+          res.writeHead(answer.status, answer.headers);
+          if (answer.body === undefined || typeof answer.body === 'string') {
+            res.end(answer.body);
+          } else {
+            answer.body.on('error', () => res.destroy());
+            answer.body.pipe(res);
+          }
+        });
+    });
   });
   return new Promise((resolve, reject) => {
     server.once('error', reject);

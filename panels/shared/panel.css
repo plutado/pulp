@@ -74,6 +74,7 @@ h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: 
 .rows li {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 4px 6px;
   border-radius: 4px;
@@ -81,6 +82,18 @@ h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: 
   margin-bottom: 3px;
 }
 .rows li:hover { background: var(--row-hover); }
+.rows li[draggable="true"] { cursor: grab; }
+
+/* The hand-over: Bin and the timeline button, shown when the row is under the pointer or in use. */
+.actions { display: none; gap: 4px; flex: none; }
+.rows li:hover .actions, .rows li:focus-within .actions { display: inline-flex; }
+.actions button { padding: 1px 7px; font-size: 11px; }
+.actions button:disabled { opacity: 0.45; cursor: default; }
+
+/* How a render or a hand-over is going, on the row itself; errors in the warning colour, whole width. */
+.status { flex: none; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.status:empty { display: none; }
+.status.bad { color: var(--bad); flex-basis: 100%; white-space: normal; }
 
 .thumb {
   width: 48px;

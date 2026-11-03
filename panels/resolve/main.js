@@ -13,10 +13,15 @@
 
 'use strict';
 
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeImage } = require('electron');
 const path = require('path');
 
 const PLUGIN_ID = 'com.pulp.panel';
+
+/** What a dragged row carries under the pointer: Pulp's strap mark, inlined so the plugin is self-contained. */
+const DRAG_ICON = nativeImage.createFromDataURL(
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAOCAYAAAA1+Nx+AAAALElEQVR4nGNggIIXi23/UxMzoINRC0YtGLWAgWHWrEX/ScEYBhACoxYMmAUAesOd9/bGGOoAAAAASUVORK5CYII=',
+);
 
 let workflow = null;
 try {
@@ -31,6 +36,60 @@ if (workflow) {
     workflow = null;
   }
 }
+
+/** The current project's media pool, or a message saying which link in the chain is missing. */
+async function mediaPool() {
+  if (!workflow) return { error: 'Resolve’s WorkflowIntegration.node is not beside the plugin; reinstall with the Resolve sample present.' };
+  const resolve = await workflow.GetResolve();
+  if (!resolve) return { error: 'Resolve did not answer the plugin.' };
+  const manager = await resolve.GetProjectManager();
+  const project = manager ? await manager.GetCurrentProject() : null;
+  if (!project) return { error: 'No project is open in Resolve.' };
+  const pool = await project.GetMediaPool();
+  if (!pool) return { error: 'Resolve has no media pool to import into.' };
+  return { pool };
+}
+
+/** Import a file into the media pool's current bin; the items come back for the timeline verb to reuse. */
+async function importToPool(file) {
+  const found = await mediaPool();
+  if (found.error) return { ok: false, message: found.error };
+  const items = await found.pool.ImportMedia([file]);
+  if (!items || items.length === 0) return { ok: false, message: 'Resolve refused the import.' };
+  return { ok: true, items, pool: found.pool };
+}
+
+// The panel's three verbs (milestone 54's drop). Import and append speak Resolve's own
+// scripting API; the native drag is how a clip lands on the timeline at the playhead,
+// since the API appends to the end and a drop lands where the pointer is.
+ipcMain.handle('pulp:import', async (_event, file) => {
+  try {
+    const imported = await importToPool(String(file));
+    return imported.ok ? { ok: true } : { ok: false, message: imported.message };
+  } catch (err) {
+    return { ok: false, message: String(err) };
+  }
+});
+
+ipcMain.handle('pulp:append', async (_event, file) => {
+  try {
+    const imported = await importToPool(String(file));
+    if (!imported.ok) return { ok: false, message: imported.message };
+    const appended = await imported.pool.AppendToTimeline(imported.items);
+    if (!appended || appended.length === 0) return { ok: false, message: 'Resolve could not append it; is a timeline open?' };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: String(err) };
+  }
+});
+
+ipcMain.on('pulp:drag', (event, file) => {
+  try {
+    event.sender.startDrag({ file: String(file), icon: DRAG_ICON });
+  } catch {
+    // A drag that cannot start is nothing to crash the host over.
+  }
+});
 
 let window = null;
 

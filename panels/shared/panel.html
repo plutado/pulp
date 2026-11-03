@@ -16,6 +16,9 @@
     <p id="connect-message"></p>
     <p class="small">The panel talks to the Pulp app on this machine only. Open Pulp, turn on
       <strong>Settings → Serve the editor panel (local)</strong>, then press Reconnect.</p>
+    <p class="small">Once connected: <strong>Bin</strong> renders an item with its own output settings
+      (alpha kept) and imports it; the timeline button puts it in the edit; dragging a rendered row
+      drops the file wherever it lands.</p>
   </section>
 
   <main id="panel-main" hidden>
@@ -37,6 +40,7 @@
   </main>
 
   <script src="connect.js"></script>
+  <script src="host.js"></script>
   <script src="panel.js"></script>
 </body>
 </html>

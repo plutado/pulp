@@ -34,8 +34,12 @@ re-scans the library per keystroke.
 else, speaking a versioned JSON protocol** (`src/core/panel-bridge.ts`; the
 answers are built from the same index and the same `searchLibrary` the app's
 own window uses, so the panel's search syntax is the app's). Items are
-addressed by library id and the answers carry no file system paths, the rule
-the app's own protocols already follow (ADR 0013).
+addressed by library id and the listings carry no file system paths, the rule
+the app's own protocols already follow (ADR 0013). The one answer that
+carries a path is a prepared file's own (`POST /v1/prepare`, the milestone's
+drop): the host has to be handed a real file to import or drag, and that file
+is Pulp's own render in the managed cache — or a media item's, vouched for
+against its library root — never a path the asker chose.
 
 **Every request must carry a token that lives only in a file the user can
 read.** The bridge starts with a fresh 256-bit token and writes
