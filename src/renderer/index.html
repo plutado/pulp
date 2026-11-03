@@ -552,6 +552,13 @@
       <div class="key-controls">
         <button id="settings-semantic-get" type="button" class="ghost" hidden>Download the model</button>
       </div>
+      <h3 class="settings-head">Editor panel</h3>
+      <p class="note">A Pulp panel inside Premiere Pro or DaVinci Resolve lists this library and collection without leaving the editing app. Off by default. On, Pulp answers on this machine only (127.0.0.1), and only requests carrying the token from a file beside your settings &#8212; nothing is sent anywhere. Installing the panels is described in docs/editor-panels.md (Help &#8594; User Guide links it).</p>
+      <label class="field inline">
+        <input id="settings-panel" type="checkbox">
+        <span>Serve the editor panel (local)</span>
+      </label>
+      <p id="settings-panel-note" class="note" role="status"></p>
       <h3 class="settings-head">FFmpeg</h3>
       <p id="settings-ffmpeg" class="note" role="status"></p>
       <p class="note">Pulp finds FFmpeg on your path, or where the PULP_FFMPEG_PATH environment variable points, when it starts. Renders need it; the rest of Pulp does not.</p>

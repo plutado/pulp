@@ -9,6 +9,7 @@ import type { LibraryIndex } from '../core/library-types';
 import type { PresetId, RenderOptions } from '../core/render-plan';
 import type { TypeOutputDefault } from '../core/output-defaults';
 import type { SemanticStatus } from '../main/semantic-service';
+import type { PanelStatus } from '../main/panel-service';
 import type { RenderQueueSnapshot } from '../core/render-queue';
 import type { PlayerState } from '../core/player';
 import type { ResultsViewState } from '../core/results-view';
@@ -26,6 +27,7 @@ export type { Collection, CollectionItem } from '../core/collection';
 export type { Project } from '../core/project';
 export type { MenuCommand, MenuSection, MenuState } from '../core/menu';
 export type { RecentProjectRow } from '../core/start-screen';
+export type { PanelStatus } from '../main/panel-service';
 import type { ImageGrantRequest } from '../core/image-slot';
 import type { PsdOutline } from '../core/psd';
 export type { PsdOutline } from '../core/psd';
@@ -337,6 +339,18 @@ export interface PulpApi {
   fetchSemanticModel(): Promise<{ ok: true; path: string } | { ok: false; message: string }>;
   semanticSearch(text: string): Promise<{ hits: { id: string; score: number }[] }>;
   onSemanticProgress(listener: (progress: { note: string; fraction: number | null }) => void): () => void;
+  /**
+   * The editor panel's bridge (milestone 54, ADR 0025). Off by default.
+   * `panelStatus` says whether it is on and where it listens; `setEditorPanel`
+   * is the toggle, starting or stopping the listener there and then. The
+   * bridge binds to 127.0.0.1 only and asks a token of every request, so
+   * nothing leaves the machine and nothing on it answers without the word.
+   * `panelCollectionChanged` is the window reporting its collection whenever
+   * it changes, so the panel inside the editing app can list it.
+   */
+  panelStatus(): Promise<PanelStatus>;
+  setEditorPanel(enabled: boolean): Promise<PanelStatus>;
+  panelCollectionChanged(collection: Collection, name: string): Promise<void>;
   speechStatus(request?: { model?: string }): Promise<SpeechStatus>;
   fetchSpeechModel(request: { model: string }): Promise<{ ok: true; path: string } | { ok: false; message: string }>;
   transcribe(request: { segments: { kind: 'clip' | 'sound'; id: string; from: number; to: number; at: number; speed?: number }[]; model?: string; language?: string }):

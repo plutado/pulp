@@ -116,6 +116,24 @@ async function showSemantic(): Promise<void> {
   semanticSetAvailable(status.enabled, status.runner.ok && status.model.installed);
 }
 
+/**
+ * The editor panel's bridge (milestone 54, ADR 0025): the toggle, and one line
+ * saying where it listens — the loopback port while it runs, and where the
+ * panels read it from, since that file is the whole handshake.
+ */
+async function showPanel(): Promise<void> {
+  const status = await window.pulp.panelStatus();
+  $<HTMLInputElement>('settings-panel').checked = status.enabled;
+  const note = $('settings-panel-note');
+  if (status.running && status.port !== undefined) {
+    note.textContent = `Listening on 127.0.0.1:${status.port}. The panels find it through panel-bridge.json beside your settings.`;
+    note.dataset.tip = status.bridgeFile;
+  } else {
+    note.textContent = 'Not listening. Panels inside the editing apps will say Pulp is not reachable.';
+    delete note.dataset.tip;
+  }
+}
+
 /** Open the window with every control reading its setting afresh. */
 export async function showSettings(): Promise<void> {
   const dialog = $<HTMLDialogElement>('settings-dialog');
@@ -125,6 +143,7 @@ export async function showSettings(): Promise<void> {
     window.pulp.renderCacheStats(),
     showFfmpeg(),
     showSemantic(),
+    showPanel(),
   ]);
   $<HTMLInputElement>('settings-start-screen').checked = prefs.showAtStartup;
   $<HTMLInputElement>('settings-audition').checked = player.audition;
@@ -222,6 +241,11 @@ export function initSettings(): void {
     if (!dialog.open) return;
     const percent = progress.fraction === null ? '' : ` ${Math.round(progress.fraction * 100)}%`;
     $('settings-semantic-note').textContent = `${progress.note}${percent}`;
+  });
+
+  // The editor panel: the toggle starts or stops the listener there and then, and the line says where it landed.
+  $<HTMLInputElement>('settings-panel').addEventListener('change', (e) => {
+    void window.pulp.setEditorPanel((e.currentTarget as HTMLInputElement).checked).then(() => showPanel());
   });
 
   $<HTMLInputElement>('settings-start-screen').addEventListener('change', (e) => {

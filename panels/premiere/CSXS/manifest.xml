@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The Pulp panel for Premiere Pro (milestone 54): a CEP extension whose page is
+  panels/shared, talking to the running Pulp over 127.0.0.1 (docs/editor-panels.md).
+  Unsigned, so loading it needs CEP's PlayerDebugMode; the install script says how.
+-->
+<ExtensionManifest Version="5.0" ExtensionBundleId="com.pulp.panel" ExtensionBundleVersion="0.1.0"
+    ExtensionBundleName="Pulp" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <ExtensionList>
+    <Extension Id="com.pulp.panel" Version="0.1.0" />
+  </ExtensionList>
+  <ExecutionEnvironment>
+    <HostList>
+      <!-- Premiere Pro 2019 (13.0) onward; the upper bound is open so a new year's version still loads. -->
+      <Host Name="PPRO" Version="[13.0,99.9]" />
+    </HostList>
+    <LocaleList>
+      <Locale Code="All" />
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="9.0" />
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+  <DispatchInfoList>
+    <Extension Id="com.pulp.panel">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./panel.html</MainPath>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Pulp</Menu>
+          <Geometry>
+            <Size>
+              <Height>640</Height>
+              <Width>380</Width>
+            </Size>
+            <MinSize>
+              <Height>360</Height>
+              <Width>260</Width>
+            </MinSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>

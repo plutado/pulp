@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The Pulp panel for DaVinci Resolve Studio (milestone 54): a Workflow
+  Integration plugin — Resolve Studio lists it under Workspace → Workflow
+  Integrations and runs main.js, which opens the shared panel page
+  (docs/editor-panels.md). Workflow Integrations are a Studio feature.
+-->
+<BlackmagicDesign>
+    <Plugin>
+        <Id>com.pulp.panel</Id>
+        <Name>Pulp</Name>
+        <Version>0.1</Version>
+        <Description>Pulp's library and collection, without leaving the edit</Description>
+        <FilePath>main.js</FilePath>
+    </Plugin>
+</BlackmagicDesign>

@@ -23,6 +23,7 @@ import { detectFfmpeg } from '../../src/core/ffmpeg';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
+import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { categoryInfo } from '../../src/core/categories';
 import { ffmpegArgs, killTree, runBounded } from './process';
 
@@ -447,7 +448,8 @@ describe.skipIf(!electron)('inspector UI', () => {
     // opening a folder dialog, which cannot be driven from the protocol.
     sampleRoot = join(userData, 'Sample media');
     await mkdir(sampleRoot, { recursive: true });
-    await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir], showStartScreen: false, sampleMediaRoot: sampleRoot }));
+    // The editor panel's bridge is on, so its describe can speak to the app from outside (milestone 54).
+    await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir], showStartScreen: false, sampleMediaRoot: sampleRoot, editorPanel: true }));
     // A font already imported: a real TTF in the managed folder under a family of its own, with a
     // licence note, as fonts:import would leave it. The import dialog itself cannot be driven here.
     await mkdir(join(userData, 'fonts'), { recursive: true });
@@ -6338,5 +6340,47 @@ describe.skipIf(!electron)('inspector UI', () => {
         'a clean session left behind',
       );
     }, 90_000);
+  });
+
+  describe("the editor panel's bridge (milestone 54, ADR 0025)", () => {
+    it('answers the library and the collection on loopback, and nothing without the token', async () => {
+      // The setting was seeded on, so the running app has written the discovery file beside its settings.
+      const bridgePath = join(userData, 'panel-bridge.json');
+      await until(() => Promise.resolve(existsSync(bridgePath)), 'the bridge file');
+      const bridge = parseBridgeFile(await readFile(bridgePath, 'utf8'));
+      expect(bridge, 'the discovery file parses').not.toBeNull();
+
+      // Without the token: 401 and nothing else — what a stray page that can reach loopback gets.
+      const refused = await fetch(`http://127.0.0.1:${bridge!.port}/v1/library`);
+      expect(refused.status).toBe(401);
+      expect(await refused.text()).not.toContain('Lower Third');
+
+      // With it: the bundled library, searched with the app's own syntax, no path in any answer.
+      const headers = { [BRIDGE_TOKEN_HEADER]: bridge!.token };
+      const library = (await (await fetch(`http://127.0.0.1:${bridge!.port}/v1/library?q=lower third`, { headers })).json()) as { items: { id: string; name: string; thumb?: boolean }[] };
+      const strap = library.items.find((i) => i.name === 'Lower Third Bar');
+      expect(strap, 'the bundled lower third over the bridge').toBeDefined();
+      expect(JSON.stringify(library)).not.toContain(userData);
+
+      // The collection the window holds is what the bridge lists: gather the shown item, ask again.
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'Add to collection ready');
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      await until(async () => {
+        const told = (await (await fetch(`http://127.0.0.1:${bridge!.port}/v1/collection`, { headers })).json()) as { items: { name: string; missing: boolean }[] };
+        return told.items.some((i) => i.name === 'Lower Third Bar' && !i.missing);
+      }, 'the gathered item over the bridge');
+
+      // Its thumbnail comes by id out of the cache, as PNG bytes.
+      if (strap!.thumb) {
+        const thumb = await fetch(`http://127.0.0.1:${bridge!.port}/v1/thumb/${strap!.id}`, { headers });
+        expect(thumb.status).toBe(200);
+        expect(thumb.headers.get('content-type')).toBe('image/png');
+      }
+
+      // Left as it was found: the tray empties again.
+      await page.eval(`document.querySelector('#region-tray .collection-card [aria-label="Remove from the collection"]').click()`);
+      await until(() => page.eval<boolean>(`document.querySelectorAll('#region-tray .collection-card').length === 0`), 'the tray empty again');
+    }, 60_000);
   });
 });

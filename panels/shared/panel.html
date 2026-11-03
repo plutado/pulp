@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pulp</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <header class="top">
+    <span id="status-dot" class="dot off" aria-hidden="true"></span>
+    <span id="status-line" role="status">Connecting to Pulp…</span>
+    <button id="reconnect" type="button" title="Read the bridge file again and reconnect">Reconnect</button>
+  </header>
+
+  <section id="connect-help" class="help" hidden>
+    <p id="connect-message"></p>
+    <p class="small">The panel talks to the Pulp app on this machine only. Open Pulp, turn on
+      <strong>Settings → Serve the editor panel (local)</strong>, then press Reconnect.</p>
+  </section>
+
+  <main id="panel-main" hidden>
+    <div class="search-row">
+      <input id="search" type="search" placeholder="Search the library — Pulp’s own syntax: type:lower-third, mood:calm…" aria-label="Search the library">
+    </div>
+
+    <section aria-labelledby="collection-head">
+      <h2 id="collection-head">Collection <span id="collection-name" class="small"></span></h2>
+      <ul id="collection-list" class="rows"></ul>
+      <p id="collection-empty" class="small">Nothing collected in Pulp yet.</p>
+    </section>
+
+    <section aria-labelledby="library-head">
+      <h2 id="library-head">Library <span id="library-count" class="small"></span></h2>
+      <ul id="library-list" class="rows"></ul>
+      <p id="library-empty" class="small" hidden>Nothing matches.</p>
+    </section>
+  </main>
+
+  <script src="connect.js"></script>
+  <script src="panel.js"></script>
+</body>
+</html>

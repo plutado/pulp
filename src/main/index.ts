@@ -31,6 +31,7 @@ import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit
 import { sanitizeCacheMaxMB } from '../core/render-cache';
 import { deletePreset, listPresets, savePreset } from './preset-service';
 import { openCollectionFile, readCollectionFile, renderCollection, saveCollectionTo } from './collection-service';
+import { panelStatus, setEditorPanel, setPanelCollection, startPanelBridgeIfEnabled, stopPanelBridge } from './panel-service';
 import {
   clearRecovery, forgetProject, missingLibraryFolders, openProjectDialog, readProjectFile, readRecovery,
   recentProjects, recentProjectsDetailed, relinkProjectItem, relinkRecentProject, saveProjectTo, setProjectPinned, writeRecovery,
@@ -342,6 +343,14 @@ function registerIpc(): void {
   ipcMain.handle('collection:save', (_event, collection: Collection, name: unknown) => saveCollectionTo(collection, String(name ?? '')));
   ipcMain.handle('collection:open', () => openCollectionFile());
   ipcMain.handle('collection:render', (_event, items: CollectionItem[], name: unknown) => renderCollection(items, String(name ?? '')));
+
+  // The editor panel's bridge (milestone 54, ADR 0025): the Settings toggle, and the window
+  // reporting its collection so the panel inside the editing app can list it.
+  ipcMain.handle('panel:status', () => panelStatus());
+  ipcMain.handle('panel:set', (_event, on: unknown) => setEditorPanel(on));
+  ipcMain.handle('panel:collection', (_event, collection: unknown, name: unknown) => {
+    setPanelCollection(collection, name);
+  });
   // Projects (milestone 27).
   ipcMain.handle('project:save', (_event, project: Project, path: unknown, name: unknown) =>
     saveProjectTo(project, typeof path === 'string' && path ? path : null, String(name ?? '')));
@@ -1106,6 +1115,8 @@ app.whenReady().then(async () => {
   await loadStageWindowSetting();
   createWindow();
   startLibraryMonitor();
+  // The editor panel's bridge (milestone 54): listening only if Settings says so, never headless.
+  void startPanelBridgeIfEnabled();
   // Coming back to the app after working in a file manager: pick up what changed.
   app.on('browser-window-focus', () => void rescanIfStale());
   app.on('activate', () => {
@@ -1113,7 +1124,11 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on('will-quit', () => closeLibrary());
+app.on('will-quit', () => {
+  // The bridge's discovery file must not outlive the bridge: a panel reading a dead port learns so politely.
+  void stopPanelBridge();
+  closeLibrary();
+});
 
 app.on('window-all-closed', () => {
   if (cliMode) return;

@@ -53,6 +53,8 @@ export interface Settings {
   typeOutputDefaults: Record<string, TypeOutputDefault>;
   /** Semantic search over the library (milestone 9): off by default, embeddings on this machine only. */
   semanticSearch: boolean;
+  /** The editor panel's bridge (milestone 54): off by default; on, it listens on 127.0.0.1 only. */
+  editorPanel: boolean;
 }
 
 const DEFAULTS: Settings = {
@@ -74,6 +76,7 @@ const DEFAULTS: Settings = {
   recentProjectTimes: {},
   typeOutputDefaults: {},
   semanticSearch: false,
+  editorPanel: false,
 };
 
 /** Only string-to-string entries, and only for paths the recent list still holds. */
@@ -125,6 +128,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     recentProjectTimes: sanitizeRecentTimes(raw.recentProjectTimes, recentProjects),
     typeOutputDefaults: sanitizeTypeOutputDefaults(raw.typeOutputDefaults),
     semanticSearch: raw.semanticSearch === true,
+    editorPanel: raw.editorPanel === true,
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
     ...(typeof raw.sampleMediaRoot === 'string' && raw.sampleMediaRoot.trim() ? { sampleMediaRoot: raw.sampleMediaRoot } : {}),
   };

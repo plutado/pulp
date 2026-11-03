@@ -1,0 +1,7 @@
+{
+  "name": "pulp-panel",
+  "version": "0.1.0",
+  "description": "Pulp's library and collection inside DaVinci Resolve Studio",
+  "main": "main.js",
+  "license": "MIT"
+}

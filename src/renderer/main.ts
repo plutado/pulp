@@ -1,6 +1,6 @@
 import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
 import { formatBytes, setCollection, setIndex, setJobs, setQuery, setSelection, setShown, shownEntry } from '../core/app-state';
-import { addItem, itemFor } from '../core/collection';
+import { addItem, itemFor, type Collection } from '../core/collection';
 import { appState, dispatch, paramsEdited, results, selectedTemplate } from './store';
 import { mountResults } from './results';
 import { mountCategoryCards } from './category-cards';
@@ -487,6 +487,20 @@ effect(() => {
 }
 // What a chosen category holds, as pictures (milestone 34).
 mountCategoryCards($('category-cards'));
+
+// The editor panel's bridge lists the collection as the window holds it (milestone 54), so every
+// change is reported — by reference, since an unchanged collection is the same object (core/collection.ts).
+{
+  let lastCollection: Collection | null = null;
+  let lastName: string | null = null;
+  effect(() => {
+    const { collection, collectionName } = appState.value;
+    if (collection === lastCollection && collectionName === lastName) return;
+    lastCollection = collection;
+    lastName = collectionName;
+    void window.pulp.panelCollectionChanged(collection, collectionName);
+  });
+}
 
 // Add to collection: the item on the stage, with whatever the Output tab currently says.
 const addToCollection = $<HTMLButtonElement>('add-to-collection');

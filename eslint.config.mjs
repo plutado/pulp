@@ -33,6 +33,17 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser, sourceType: 'script' },
   },
   {
+    // The editor panels' shared page (milestone 54): plain browser scripts both hosts load with a <script> tag.
+    files: ['panels/shared/**/*.js'],
+    languageOptions: { globals: globals.browser, sourceType: 'script' },
+  },
+  {
+    // The Resolve plugin's entry and preload: CommonJS run by Resolve's own Electron.
+    files: ['panels/resolve/**/*.js'],
+    languageOptions: { globals: globals.node, sourceType: 'commonjs' },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+  {
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },

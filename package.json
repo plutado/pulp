@@ -27,6 +27,7 @@
     "visual:check": "electron . --visual-hashes tests/visual/references.json --check",
     "visual:approve": "electron . --visual-hashes tests/visual/references.json",
     "lottie:write": "node scripts/write-lottie-starter.mjs",
+    "panels:install": "node scripts/install-panels.mjs",
     "release": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/release.mjs",
     "icon": "electron scripts/make-icon.mjs",
     "package:mac": "npm run build && electron-builder --mac",
