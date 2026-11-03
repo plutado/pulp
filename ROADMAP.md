@@ -75,9 +75,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 58. Reliability, scale and speed (post-1.0, **done**) | 16-28 h |
 | 59. Languages and locale (post-1.0) | 26-46 h |
 | 60. A start screen with a clear way in (post-1.0) | 12-20 h |
+| 61. A polished set of bundled art (post-1.0) | 26-43 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **35-59 h** |
-| **Total including post-1.0 items** | **918-1501 h** |
+| **Total including post-1.0 items** | **944-1544 h** |
 
 ## 0. Foundation (done)
 
@@ -790,3 +791,14 @@ Decided 2026-11-03. Milestone 31's start screen does everything it promised, but
 - [ ] **First run and returning, each with its own arrangement:** on a first launch the set-up checklist is a single card with its progress ("2 of 3 done") near the top, and Continue is replaced by a short invitation to start; once set up, the checklist leaves the screen (still reachable from Help), and Continue leads with the most recent work. The library at a glance becomes one quiet line, not a block (2-4 h)
 - [ ] **Holds up at every size and in both themes:** at 1280 × 788 the welcome, New project and the first row of every section are visible without scrolling; light and dark themes both read with WCAG AA contrast; the keyboard order follows the visual order (1-2 h)
 - [ ] **Tests:** visual references of the first-run and returning screens in both themes, a unit test that New project is the only primary button, and the UI end-to-end test walking each path from the screen into the window (1 h)
+
+## 61. A polished set of bundled art, beside the playful one (26-43 h, after 1.0)
+
+Decided 2026-11-03. The bundled objects, icons and design elements (milestone 46 and the shapes, arrows and icon sets before it) are flat, bright and cartoon-like: right for a birthday clip or a children's channel, wrong for a corporate piece, a news package or a product launch. Stock libraries a person already owns cover much of that (milestone 32), but Pulp's own art should be able to look finished too. This adds a second, more sophisticated set **alongside** the existing one; nothing is removed or redrawn, and the current art stays a choice for the work it suits.
+
+- [ ] **An art direction, written down:** `docs/art-direction.md` says what "polished" means for Pulp's own art: one light direction with soft shadows and contact shadows, gradients and layered depth where the playful set uses flat fills, real materials (frosted and clear glass, brushed and polished metal, matte plastic, paper), restrained palettes that follow the project's palette instead of primary colors, thin or no outlines, and how it should sit over video. A handful of reference renders made to it become visual references, so later work is held to them (3-5 h)
+- [ ] **The playful set labelled, not lost:** every existing object, icon set and design element carries the **Playful** look (most already do), so it is found and filtered as a style rather than being the only option (1-2 h)
+- [ ] **Polished objects:** a new set of about two dozen objects drawn to the art direction, not recolors of the old ones, across the families people reach for in professional work: business and data (a chart, a laptop, a phone, a document, a badge), media (a microphone, a camera, headphones), places and travel (a pin, a globe, a plane), sports (a trophy, a ball, a stopwatch) and the seasons. Each is still a CC0 vector template, sharp at any size, with its light angle, material and shadow as parameters, and a light entrance (12-20 h)
+- [ ] **Glass and depth design elements:** frosted glass panels, cards, chips and tags with a light-catching edge; soft three-dimensional shapes and gradient orbs; fine-line geometric accents. Built to sit behind lower thirds, callouts and titles, and added to the bundled matching sets where one fits (6-10 h)
+- [ ] **Thumbnails that show the finish:** the polished items' cards are drawn on a neutral studio backdrop with consistent framing, so the grid reads as one set and the difference from the playful art is visible before anything is opened (1-2 h)
+- [ ] **Found first where it fits, and tested:** a **Polished** look in the browse panel's Look filter; within Objects and Design elements the polished items lead under the default sort; visual references for every new item; a test that each carries a look, a CC0 notice and an entrance (3-4 h)
