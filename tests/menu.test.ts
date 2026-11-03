@@ -124,6 +124,7 @@ describe('the application menu (milestone 27)', () => {
     expect(layer.filter((i) => i.type !== 'separator').map((i) => i.label)).toEqual([
       'Edit Text', 'Replace Image…', 'Replace Clip…',
       'Add Text Layer', 'Add Image Layer', 'Add Video Layer',
+      'Add Shape Layer',
       'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete',
       'Bring Forward', 'Send Backward', 'Bring to Front', 'Send to Back',
       'Copy Look', 'Paste Look',

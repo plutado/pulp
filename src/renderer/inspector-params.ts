@@ -42,6 +42,9 @@ import {
   type PictureLayer,
   type VideoLayer,
   type TextLayer,
+  SHAPE_KINDS,
+  type ShapeKind,
+  type ShapeLayer,
 } from '../core/layers';
 import { addRecentColor } from '../core/recent-colors';
 import { lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
@@ -1407,6 +1410,14 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
       when,
     ];
   }
+  if (layer.type === 'shape') {
+    return [
+      shapeLayerControls(blockId, layer),
+      motionControls(blockId, layer),
+      keyControls(blockId, layer),
+      lookControls(blockId, layer),
+    ];
+  }
   return [
     imageField(layer.image, (value) => editLayer(blockId, layer.id, (l) => ({ ...l, image: value }), false), { id: `${blockId}.${layer.id}`, label: layer.label }, {
       layer: true,
@@ -1452,7 +1463,10 @@ function voiceControls(current: VoiceValue | undefined, onChange: (voice: VoiceV
 }
 
 /** What the Add layer buttons say, and what a new layer of each type is called. */
-const ADD_LAYER_LABELS: Record<LayerType, string> = { text: 'Text', image: 'Image', video: 'Video', audio: 'Audio' };
+const ADD_LAYER_LABELS: Record<LayerType, string> = { text: 'Text', image: 'Image', video: 'Video', audio: 'Audio', shape: 'Shape' };
+
+/** What each shape is called where one is chosen. */
+const SHAPE_LABELS: Record<ShapeKind, string> = { rectangle: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' };
 
 /**
  * A video layer's clip: which clip, and how it plays. Chosen from the library
@@ -1854,6 +1868,45 @@ function soundField(
   clear.addEventListener('click', () => set(null));
   show();
   return wrap;
+}
+
+/**
+ * A shape layer's own settings (milestone 55): what it is, its fill, how tall
+ * it is, its width over its height, and where it sits across the block.
+ * Rounded corners, outlines and shadows are the look's, as for every layer.
+ */
+function shapeLayerControls(blockId: string, layer: ShapeLayer): HTMLElement {
+  const grid = document.createElement('div');
+  grid.className = 'type-grid image-layer-controls';
+  const set = <K extends keyof ShapeLayer>(prop: K, value: ShapeLayer[K]) => {
+    editLayer(blockId, layer.id, (l) => ({ ...l, [prop]: value }) as Layer, false);
+    commitParams();
+  };
+  grid.append(
+    typeField('Shape', selectOf(SHAPE_KINDS, SHAPE_LABELS, layer.shape, (v) => set('shape', v), `${layer.label} shape`)),
+    typeField('Colour', colorField(layer.color, (hex) => set('color', hex))),
+    typeField('Size, % of frame', numberOf(layer.size, LAYER_LIMITS.size, 0.5, (v) => set('size', v), `${layer.label} size`, 100)),
+    typeField('Width over height', numberOf(layer.ratio, LAYER_LIMITS.ratio, 0.1, (v) => set('ratio', v), `${layer.label} ratio`)),
+  );
+  const align = document.createElement('div');
+  align.className = 'segmented';
+  align.setAttribute('role', 'group');
+  align.setAttribute('aria-label', `${layer.label} alignment`);
+  const buttons = LAYER_ALIGNS.map((a) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.align = a;
+    b.textContent = ALIGN_LABELS[a];
+    b.setAttribute('aria-pressed', String(a === layer.align));
+    b.addEventListener('click', () => {
+      set('align', a);
+      for (const other of buttons) other.setAttribute('aria-pressed', String(other === b));
+    });
+    return b;
+  });
+  align.append(...buttons);
+  grid.append(typeField('Align', align));
+  return grid;
 }
 
 /** An image layer's own two settings: how tall the picture is, and where it sits across the block. No type here. */

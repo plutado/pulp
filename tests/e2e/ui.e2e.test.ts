@@ -6342,6 +6342,91 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 90_000);
   });
 
+  describe('the blank canvas (milestone 55): composing from nothing with layers', () => {
+    const CANVAS = 'pulp.samples.blank-canvas';
+    const overlay = `document.getElementById('layer-overlay')`;
+    type LaidDraw = { alpha: number; dx: number; dy: number; scale: number; rotate?: number };
+    type Laid = { frame: number | null; blocks: Record<string, { layers: { id: string; type: string; box: { x: number; y: number; width: number; height: number }; draw: LaidDraw }[] }> };
+    const laidShape = async () => (await inTemplate<Laid>(`window.__pulp.laid`, CANVAS)).blocks.canvas!.layers.find((l) => l.type === 'shape');
+
+    it('opens from File → New Blank Canvas as a transparent frame, and a shape placed, sized, moved and timed on it draws', async () => {
+      await page.eval(`window.pulpMenuCommand('canvas.new')`);
+      await until(
+        () => page.eval<boolean>(`(document.getElementById('preview').getAttribute('src') || '').startsWith('pulp-template://${CANVAS}/')`),
+        'the blank canvas on the stage',
+      );
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'its preview ready');
+      // Nothing of its own: the frame is fully transparent until something is composed on it.
+      await until(async () => (await previewPixel(960, 540, CANVAS))[3] === 0, 'the empty frame transparent at its centre');
+
+      // Add Shape Layer, the same command the Edit menu and the stage's right-click menu run:
+      // a fresh shape is the accent rectangle, centred in the canvas block, drawn at once.
+      await page.eval(`window.pulpMenuCommand('layer.addShape')`);
+      await until(async () => {
+        const px = await previewPixel(960, 540, CANVAS);
+        return Math.abs(px[0]! - 232) <= 2 && Math.abs(px[1]! - 163) <= 2 && Math.abs(px[2]! - 61) <= 2 && px[3] === 255;
+      }, 'the fresh shape in the accent at the centre');
+
+      // Sized by its own ratio: the card's field makes it two and a half times as wide as tall.
+      await openTab('parameters');
+      const card = `document.querySelector('#params .param-card[data-layer]')`;
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params input[aria-label="Shape 1 ratio"]')`), 'the shape card');
+      await page.eval(`(() => { const f = document.querySelector('#params input[aria-label="Shape 1 ratio"]'); f.value = '2.5'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(async () => {
+        const l = await laidShape();
+        return l !== undefined && Math.abs(l.box.width / l.box.height - 2.5) < 0.01;
+      }, 'the laid box at the asked ratio');
+      void card;
+
+      // An ellipse leaves the box's corner empty where the rectangle filled it.
+      const box = (await laidShape())!.box;
+      const corner = { x: Math.round(box.x + 4), y: Math.round(box.y + 4) };
+      expect((await previewPixel(corner.x, corner.y, CANVAS))[3], 'the rectangle fills its corner').toBe(255);
+      await page.eval(`(() => { const f = document.querySelector('#params select[aria-label="Shape 1 shape"]'); f.value = 'ellipse'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(async () => (await previewPixel(corner.x, corner.y, CANVAS))[3] === 0, 'the ellipse leaving the corner empty');
+      expect((await previewPixel(960, 540, CANVAS))[3], 'and still filling its centre').toBe(255);
+
+      // Moved with milestone 25's handles: select it on the stage, drag it a fifth of the frame right.
+      const client = async (fx: number, fy: number) => {
+        const b = await page.eval<{ left: number; top: number; width: number; height: number }>(`(() => { const r = ${overlay}.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
+        const f = await page.eval<{ width: number; height: number }>(`(() => { const c = document.getElementById('preview-frame'); const [w, h] = (c.style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`);
+        return { x: b.left + (fx / f.width) * b.width, y: b.top + (fy / f.height) * b.height };
+      };
+      const pointer = (type: string, x: number, y: number) =>
+        page.eval(`${overlay}.dispatchEvent(new PointerEvent(${JSON.stringify(type)}, { clientX: ${x}, clientY: ${y}, pointerId: 9, button: 0, bubbles: true }))`);
+      const at = await client(960, 540);
+      await pointer('pointerdown', at.x, at.y);
+      await pointer('pointerup', at.x, at.y);
+      await until(() => page.eval<boolean>(`!!${overlay}.querySelector('.stage-handle')`), 'the handles on the selection');
+      const to = await client(960 + 384, 540);
+      await pointer('pointerdown', at.x, at.y);
+      await pointer('pointermove', to.x, to.y);
+      await pointer('pointerup', to.x, to.y);
+      await until(async () => Math.abs(((await laidShape())!.draw.dx) - 384) < 8, 'the drag moving the shape a fifth of the frame');
+      await until(async () => (await previewPixel(960 + 384, 540, CANVAS))[3] === 255, 'the pixels following the drag');
+      expect((await previewPixel(960 - 300, 540, CANVAS))[3], 'and leaving where it was').toBe(0);
+
+      // Timed on the stage: Start at Playhead gives it a beginning, before which it is not there.
+      await scrubTo(60);
+      await page.eval(`window.pulpMenuCommand('layer.startHere')`);
+      await scrubTo(15);
+      await until(async () => (await previewPixel(960 + 384, 540, CANVAS))[3] === 0, 'nothing before its start');
+      await scrubTo(90);
+      await until(async () => (await previewPixel(960 + 384, 540, CANVAS))[3] === 255, 'the shape from its start on');
+
+      // Left as it was found: a fresh session for the tests after this one.
+      await page.eval(`window.pulpMenuCommand('project.new')`);
+      await until(
+        () => page.eval<boolean>(
+          `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
+            return document.querySelector('#project-button .label').textContent === 'Untitled'; })()`,
+        ),
+        'a clean session left behind',
+      );
+      await clickResult('Lower Third Bar');
+    }, 180_000);
+  });
+
   describe("the editor panel's bridge (milestone 54, ADR 0025)", () => {
     it('answers the library and the collection on loopback, and nothing without the token', async () => {
       // The setting was seeded on, so the running app has written the discovery file beside its settings.

@@ -197,6 +197,7 @@ export function runLayerCommand(command: MenuCommand, arg: string | null): void 
   if (!editor) return;
   switch (command) {
     case 'layer.addText': landed(editor.addLayer('text')); return;
+    case 'layer.addShape': landed(editor.addLayer('shape')); return;
     case 'layer.addImage': case 'layer.addVideo': {
       const type = command === 'layer.addVideo' ? 'video' : 'image';
       // With a library item it shows that item, named after it; with none it is a blank layer,

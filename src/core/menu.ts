@@ -27,6 +27,7 @@ import type { MenuDisplay } from './stage-window';
 export type MenuCommand =
   | 'app.home'
   | 'project.new'
+  | 'canvas.new'
   | 'project.open'
   | 'project.openRecent'
   | 'project.save'
@@ -48,6 +49,7 @@ export type MenuCommand =
   | 'layer.addText'
   | 'layer.addImage'
   | 'layer.addVideo'
+  | 'layer.addShape'
   | 'layer.cut'
   | 'layer.copy'
   | 'layer.paste'
@@ -117,6 +119,9 @@ export type MenuCommand =
  * about; the window works them out from the same state its buttons do, so a
  * menu item and its button are never enabled differently.
  */
+/** The bundled template "New Blank Canvas" opens (milestone 55): nothing of its own, one open block to compose on. */
+export const BLANK_CANVAS_ID = 'pulp.samples.blank-canvas';
+
 export interface MenuState {
   /** A render can be queued: a template is shown, ffmpeg is there, the options are usable. */
   canRender: boolean;
@@ -344,6 +349,7 @@ export function layerSubmenu(): MenuItemSpec[] {
     // a layer showing it (the stage's Add Asset Here), with none a blank layer to be filled in.
     { command: 'layer.addImage', label: 'Add Image Layer', enabledBy: 'canAddLayer' },
     { command: 'layer.addVideo', label: 'Add Video Layer', enabledBy: 'canAddLayer' },
+    { command: 'layer.addShape', label: 'Add Shape Layer', enabledBy: 'canAddLayer' },
     sep,
     { command: 'layer.cut', label: 'Cut', enabledBy: 'canDeleteLayer' },
     { command: 'layer.copy', label: 'Copy', enabledBy: 'canEditLayer' },
@@ -380,6 +386,7 @@ export const SHARED_COMMAND_FLAGS: Readonly<Partial<Record<MenuCommand, Flag>>> 
   'layer.addText': 'canAddLayer',
   'layer.addImage': 'canAddLayer',
   'layer.addVideo': 'canAddLayer',
+  'layer.addShape': 'canAddLayer',
   'layer.cut': 'canDeleteLayer',
   'layer.copy': 'canEditLayer',
   'layer.paste': 'canPasteLayer',
@@ -442,6 +449,8 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       { command: 'app.home', label: 'Home' },
       sep,
       { command: 'project.new', label: 'New Project', accelerator: 'CmdOrCtrl+N' },
+      // The visual template editor's first piece (milestone 55): the bundled blank canvas, opened to compose on.
+      { command: 'canvas.new', label: 'New Blank Canvas', accelerator: 'CmdOrCtrl+Shift+N' },
       { command: 'project.open', label: 'Open…', accelerator: 'CmdOrCtrl+O' },
       { label: 'Open Recent', submenu: recentSubmenu(state.recent) },
       sep,

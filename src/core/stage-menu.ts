@@ -188,6 +188,7 @@ export function stageMenu(context: StageMenuContext): MenuItemSpec[] {
   if (context.template) {
     items.push(
       item('layer.addText', 'Add Text Here', state),
+      item('layer.addShape', 'Add Shape Here', state),
       { label: 'Add Asset Here', enabled: state.canAddLayer, submenu: assetSubmenu(context.assets, state) },
     );
     // With no layer under the pointer, Paste is the only edit that still means something.
@@ -366,7 +367,7 @@ export const NEW_TEXT_WORDS = 'Text';
 export function addedLayer(type: LayerType, block: Pick<Block, 'typography' | 'align'>, stack: readonly Layer[], label?: string): Layer {
   // The words the Parameters tab's own Add buttons use, so a layer added there and one added
   // on the stage are named alike.
-  const stem = type === 'text' ? 'Line' : type === 'video' ? 'Video' : type === 'audio' ? 'Sound' : 'Image';
+  const stem = type === 'text' ? 'Line' : type === 'video' ? 'Video' : type === 'audio' ? 'Sound' : type === 'shape' ? 'Shape' : 'Image';
   const made = newLayer(type, block, freeLayerId(stack, type), freeLayerLabel(stack, label ?? `${stem} ${stack.length + 1}`));
   return made.type === 'text' ? { ...made, text: NEW_TEXT_WORDS } : made;
 }

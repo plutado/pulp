@@ -12,6 +12,7 @@ import {
   type BlockState,
   type ImageLayerState,
   type LayerState,
+  type ShapeLayerState,
   type Measure,
   type TextLayerState,
 } from '../src/core/layer-layout';
@@ -549,5 +550,46 @@ describe('a layer with a start and an end of its own (milestone 28)', () => {
     expect(states.layers[0]!.span).toEqual({ start: 1, end: 3 });
     // A layer with none has none, so nothing a template ships carries a key it never asked for.
     expect(blockStates(r.manifest, { card: [title] }, { width: 1920, height: 1080 }).card!.layers[0]!.span).toBeUndefined();
+  });
+});
+
+describe('shape layers (milestone 55)', () => {
+  function shape(over: Partial<ShapeLayerState> = {}): ShapeLayerState {
+    return { id: 's', label: 'S', type: 'shape', position: 0, spaceBefore: 0, align: 'left', placement: { dx: 0, dy: 0, scale: 1, rotate: 0 }, shape: 'rectangle', color: '#e8a33d', size: 80, ratio: 1, ...over };
+  }
+
+  it('takes its room from its own ratio: height is its size, width is size times ratio', () => {
+    const laid = layoutBlock(block([shape({ size: 80, ratio: 2.5 })]), measure, noImages);
+    expect(laid.layers[0]!.box).toEqual({ x: 100, y: 200, width: 200, height: 80 });
+  });
+
+  it('is capped by the block the way a picture is, keeping its ratio', () => {
+    const laid = layoutBlock(block([shape({ size: 800, ratio: 4 })]), measure, noImages);
+    // 800 * 4 = 3200 wide would overflow the 1000-wide box: the width caps and the height follows.
+    expect(laid.layers[0]!.box.width).toBe(1000);
+    expect(laid.layers[0]!.box.height).toBe(250);
+  });
+
+  it('aligns across the block and stacks with text, needing no picture to have room', () => {
+    const laid = layoutBlock(block([shape({ size: 100, ratio: 1, align: 'center' }), text({ text: 'ab' })], { gap: 10 }), measure, noImages);
+    expect(laid.layers[0]!.box).toEqual({ x: 550, y: 200, width: 100, height: 100 });
+    // The line starts under the shape and its gap: 200 + 100 + 10.
+    expect(laid.layers[1]!.box.y).toBe(310);
+  });
+
+  it('reaches the page through blockStates with its size in pixels of the frame', () => {
+    const r = validateManifest(rawManifest({
+      blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [{ id: 'bar', label: 'Bar', type: 'shape', shape: 'ellipse', color: '#112233', size: 0.25, ratio: 2 }] }],
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const states = blockStates(r.manifest, { b: r.manifest.blocks[0]!.layers }, { width: 1920, height: 1080 });
+    const laid = states.b!.layers[0]!;
+    expect(laid.type).toBe('shape');
+    if (laid.type !== 'shape') return;
+    expect(laid.shape).toBe('ellipse');
+    expect(laid.color).toBe('#112233');
+    expect(laid.size).toBe(270);
+    expect(laid.ratio).toBe(2);
   });
 });

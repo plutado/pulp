@@ -28,7 +28,7 @@ import {
   combineShapes, isTemplateMovement, spanAt, transitionsAt, type LayerSpan, type LayerTransitions, type TransitionShape, type WatchedAt,
 } from './layer-time';
 import type { LayerLook } from './layer-look';
-import { DEFAULT_MAX_LINES, IDENTITY_PLACEMENT, placementFor, type Block, type ImageLayer, type Layer, type LayerValues, type TextCase, type TextLayer, type VideoLayer } from './layers';
+import { DEFAULT_MAX_LINES, IDENTITY_PLACEMENT, placementFor, type Block, type ImageLayer, type Layer, type LayerValues, type ShapeKind, type ShapeLayer, type TextCase, type TextLayer, type VideoLayer } from './layers';
 import type { TemplateManifest } from './manifest';
 import { clipWindowIndexAt, type ClipSource, type ClipValue } from './video-layer';
 import { playableSounds, type SoundValue } from './sound-layer';
@@ -108,7 +108,18 @@ export interface VideoLayerState extends LayerStateBase {
   frame: number | null;
 }
 
-export type LayerState = TextLayerState | ImageLayerState | VideoLayerState;
+/** A shape (milestone 55): drawn by the canvas itself, so it always has its room. */
+export interface ShapeLayerState extends LayerStateBase {
+  type: 'shape';
+  shape: ShapeKind;
+  color: string;
+  /** Its height in pixels of this frame; its width is this times the ratio, capped by the block. */
+  size: number;
+  /** Width over height. */
+  ratio: number;
+}
+
+export type LayerState = TextLayerState | ImageLayerState | VideoLayerState | ShapeLayerState;
 
 /** The layer states that take their room from a picture: a still, or a clip's current frame. */
 export type PictureLayerState = ImageLayerState | VideoLayerState;
@@ -147,7 +158,7 @@ export interface LaidLine {
   width: number;
 }
 
-export type LaidLayer = (TextLayerState | PictureLayerState) & {
+export type LaidLayer = (TextLayerState | PictureLayerState | ShapeLayerState) & {
   /** Where the layer sits, in pixels of this frame. */
   box: PxBox;
   /** The size it is actually set at, after shrinking to fit; text only. */
@@ -372,7 +383,7 @@ export function layoutBlock(block: BlockState, measure: Measure, imageAspect: Im
       const width = widths.reduce((widest, w) => Math.max(widest, w), 0);
       return { layer, draw, size, lines, widths, width, height, extent: column ? height : width, cross: column ? width : height };
     }
-    const aspect = layerHasPicture(layer) ? imageAspect(layer) : null;
+    const aspect = layer.type === 'shape' ? Math.max(0.01, layer.ratio) : layerHasPicture(layer) ? imageAspect(layer) : null;
     if (aspect === null) return { layer, draw, size: 0, lines: [], widths: [], width: 0, height: 0, extent: 0, cross: 0 };
     const height = layer.size;
     const width = Math.min(box.width, height * Math.max(0.01, aspect));
@@ -500,6 +511,10 @@ function layerState(layer: Layer, position: number, short: number, size: Size, c
       maxLines: text.maxLines ?? DEFAULT_MAX_LINES,
       align: text.align,
     };
+  }
+  if (layer.type === 'shape') {
+    const shape = layer as ShapeLayer;
+    return { ...base, type: 'shape', shape: shape.shape, color: shape.color, size: shape.size * short, ratio: shape.ratio, align: shape.align };
   }
   if (layer.type === 'video') {
     const video = layer as VideoLayer;

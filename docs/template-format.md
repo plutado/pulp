@@ -192,7 +192,7 @@ A block:
 | `typography` | object | no | What the block's text layers start from; any of the text properties below. Unnamed properties take the built-in defaults (Inter, 0.06, 400, white, wrap). |
 | `layers` | object[] | no | The template's own layers, in stack order. Default `[]`: a block the user fills. |
 
-A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text`, `image`, `video` or `audio`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `transition` (how it arrives and how it leaves; see **A layer's own entrance and exit** below), `span` (when it comes and goes; see **A layer's own start and end**), `look` (see **A layer's own look**) and `keys` (its pose over time; see **Keyframes** below). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
+A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text`, `image`, `video`, `audio` or `shape`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `transition` (how it arrives and how it leaves; see **A layer's own entrance and exit** below), `span` (when it comes and goes; see **A layer's own start and end**), `look` (see **A layer's own look**) and `keys` (its pose over time; see **Keyframes** below). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
 
 | Property | Type | Description |
 |---|---|---|
@@ -210,6 +210,8 @@ A layer has an `id` (unique within its block, same form as a block id), a `label
 | `maxLines` | integer | Lines a `wrap` layer may take before it is set smaller instead; 1 to 20, default 3. |
 
 An image layer has a `size` (the picture's height as a fraction of the frame's short side; the width follows the picture's shape and is capped by the block) and an `align`, and no font properties. It carries no `image` of its own, for the reason an image slot has no default: a template cannot ship a library id. The picture is chosen at use time, with milestone 22's picker, grant and treatments; with none chosen the layer draws nothing and takes no room.
+
+A **shape layer** (milestone 55) is drawn by the canvas itself, so — alone among the layers — a template may ship one complete, and one added at use time needs nothing chosen from any library. It has a `shape` of `rectangle`, `ellipse` or `triangle` (default `rectangle`), a `color` (`#rrggbb` or `#rrggbbaa`; default the accent), a `size` (its height as a fraction of the frame's short side, as a picture's), a `ratio` (width over height, 0.05 to 20; default 1 — its width is `size × ratio`, capped by the block) and an `align`. Rounded corners, outlines, shadows and the rest are its `look`'s, like every layer's, and it is placed, timed, keyed and wiped like every layer.
 
 ```json
 "blocks": [

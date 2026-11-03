@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Blank Canvas</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Blank Canvas, a sample for Pulp (milestone 55). CC0-1.0: no rights reserved.
+  // The visual template editor's starting point: the template draws nothing of its
+  // own — the frame is transparent until layers are composed on it — and its one
+  // open block covers the frame, so text, shapes, pictures and clips placed there
+  // ride the standard layer machinery: handles, timing, looks, keyframes.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  window.pulpRender = function (state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+    var laid = window.pulpLayoutBlock(ctx, state, 'canvas', {});
+    window.pulpDrawBlock(ctx, laid);
+  };
+</script>
+</body>
+</html>

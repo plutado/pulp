@@ -28,8 +28,12 @@ import { hasShadow, lookFromImageEffect, readLook, type LayerLook } from './laye
 import { MAX_LENGTH_SECONDS } from './timing';
 import { isValidColor, type TemplateManifest, type ValidationIssue } from './manifest';
 
-export const LAYER_TYPES = ['text', 'image', 'video', 'audio'] as const;
+export const LAYER_TYPES = ['text', 'image', 'video', 'audio', 'shape'] as const;
 export type LayerType = (typeof LAYER_TYPES)[number];
+
+/** What a shape layer draws (milestone 55): flat colour on the canvas, no picture and no library id. */
+export const SHAPE_KINDS = ['rectangle', 'ellipse', 'triangle'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
 
 export const BLOCK_DIRECTIONS = ['column', 'row'] as const;
 export type BlockDirection = (typeof BLOCK_DIRECTIONS)[number];
@@ -151,6 +155,11 @@ export const DEFAULT_TYPOGRAPHY: Typography = {
 /** An image layer's height when the template or the person does not say, as a fraction of the frame's short side. */
 export const DEFAULT_IMAGE_LAYER_SIZE = 0.12;
 
+/** What a fresh shape layer is: a squarish bar in the accent, big enough to see and grab. */
+export const DEFAULT_SHAPE_SIZE = 0.2;
+export const DEFAULT_SHAPE_RATIO = 1;
+export const DEFAULT_SHAPE_COLOR = '#e8a33d';
+
 /** What each number may be; validation and use-time sanitizing share them. */
 export const LAYER_LIMITS = {
   size: { min: 0.001, max: 1 },
@@ -166,6 +175,8 @@ export const LAYER_LIMITS = {
   placementScale: { min: 0.05, max: 10 },
   /** A layer's own start and end, in seconds of the graphic; no graphic may run longer than this. */
   spanSeconds: { min: 0, max: MAX_LENGTH_SECONDS },
+  /** A shape's width over its height; past these it reads as a sliver, which the size alone can be. */
+  ratio: { min: 0.05, max: 20 },
 } as const;
 
 interface LayerBase {
@@ -249,7 +260,27 @@ export interface ImageLayer extends LayerBase {
   align: LayerAlign;
 }
 
-export type Layer = TextLayer | ImageLayer | VideoLayer | AudioLayer;
+/**
+ * A flat shape drawn by the canvas itself (milestone 55): a rectangle, an
+ * ellipse or a triangle in one colour, taking its room the way a picture does
+ * — a height as a fraction of the frame's short side, a width from its own
+ * ratio. The first layer that draws with nothing chosen from any library, so
+ * a blank canvas has something to compose with; rounded corners, outlines,
+ * shadows and the rest are its look's, like every layer's.
+ */
+export interface ShapeLayer extends LayerBase {
+  type: 'shape';
+  shape: ShapeKind;
+  /** Its fill, #rrggbb or #rrggbbaa. */
+  color: string;
+  /** Its height as a fraction of the frame's short side. */
+  size: number;
+  /** Width over height; 1 is as tall as it is wide. */
+  ratio: number;
+  align: LayerAlign;
+}
+
+export type Layer = TextLayer | ImageLayer | VideoLayer | AudioLayer | ShapeLayer;
 
 /** Layers that take their room from a picture rather than from type. */
 export type PictureLayer = ImageLayer | VideoLayer;
@@ -590,11 +621,12 @@ function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issu
 
 /** A fresh layer of a type, as a block hands it out: the block's typography, the default image size, nothing required. */
 export function newLayer(type: LayerType, block: Pick<Block, 'typography' | 'align'>, id: string, label?: string): Layer {
-  const fallbackLabel = type === 'text' ? 'Text' : type === 'video' ? 'Video' : type === 'audio' ? 'Audio' : 'Image';
+  const fallbackLabel = type === 'text' ? 'Text' : type === 'video' ? 'Video' : type === 'audio' ? 'Audio' : type === 'shape' ? 'Shape' : 'Image';
   const base: LayerBase = { id, label: label ?? fallbackLabel, required: false, hidden: false, spaceBefore: 0 };
   if (type === 'text') return { ...base, ...block.typography, type: 'text', text: '', maxLines: DEFAULT_MAX_LINES };
   if (type === 'audio') return { ...base, type: 'audio', sound: null };
   if (type === 'video') return { ...base, type: 'video', clip: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
+  if (type === 'shape') return { ...base, type: 'shape', shape: 'rectangle', color: DEFAULT_SHAPE_COLOR, size: DEFAULT_SHAPE_SIZE, ratio: DEFAULT_SHAPE_RATIO, align: block.align };
   return { ...base, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
 }
 
@@ -631,6 +663,34 @@ export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'ty
       else issue('maxLines', `must be an integer from ${LAYER_LIMITS.maxLines.min} to ${LAYER_LIMITS.maxLines.max}`);
     }
     layer = { ...common, ...readTypography(raw, block.typography, path, issue), type: 'text', text: typeof raw.text === 'string' ? raw.text : '', maxLines };
+  } else if (raw.type === 'shape') {
+    const shaped = fresh as ShapeLayer;
+    let shape = shaped.shape;
+    if (raw.shape !== undefined) {
+      if (oneOf(SHAPE_KINDS, raw.shape)) shape = raw.shape;
+      else issue('shape', `must be one of: ${SHAPE_KINDS.join(', ')}`);
+    }
+    let color = shaped.color;
+    if (raw.color !== undefined) {
+      if (isValidColor(raw.color)) color = (raw.color as string).toLowerCase();
+      else issue('color', 'must be #rrggbb or #rrggbbaa');
+    }
+    let size = shaped.size;
+    if (raw.size !== undefined) {
+      if (inRange(raw.size, LAYER_LIMITS.size)) size = raw.size;
+      else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`);
+    }
+    let ratio = shaped.ratio;
+    if (raw.ratio !== undefined) {
+      if (inRange(raw.ratio, LAYER_LIMITS.ratio)) ratio = raw.ratio;
+      else issue('ratio', `must be width over height, from ${LAYER_LIMITS.ratio.min} to ${LAYER_LIMITS.ratio.max}`);
+    }
+    let align = block.align;
+    if (raw.align !== undefined) {
+      if (oneOf(LAYER_ALIGNS, raw.align)) align = raw.align;
+      else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`);
+    }
+    layer = { ...common, type: 'shape', shape, color, size, ratio, align };
   } else if (raw.type === 'audio') {
     // A template ships no library ids, so it declares the slot and never the sound.
     if (raw.sound !== undefined && raw.sound !== null) issue('sound', 'an audio layer has no sound of its own: leave it out or set it to null');
@@ -781,6 +841,34 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
     }
     void block;
     return settled({ ...base, ...common, sound });
+  }
+  if (base.type === 'shape') {
+    let shape = base.shape;
+    if (raw.shape !== undefined) {
+      if (oneOf(SHAPE_KINDS, raw.shape)) shape = raw.shape;
+      else issue('shape', `must be one of: ${SHAPE_KINDS.join(', ')}`);
+    }
+    let color = base.color;
+    if (raw.color !== undefined) {
+      if (isValidColor(raw.color)) color = (raw.color as string).toLowerCase();
+      else issue('color', 'must be #rrggbb or #rrggbbaa');
+    }
+    let shapeSize = base.size;
+    if (raw.size !== undefined) {
+      if (inRange(raw.size, LAYER_LIMITS.size)) shapeSize = raw.size;
+      else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`);
+    }
+    let ratio = base.ratio;
+    if (raw.ratio !== undefined) {
+      if (inRange(raw.ratio, LAYER_LIMITS.ratio)) ratio = raw.ratio;
+      else issue('ratio', `must be width over height, from ${LAYER_LIMITS.ratio.min} to ${LAYER_LIMITS.ratio.max}`);
+    }
+    let shapeAlign = base.align;
+    if (raw.align !== undefined) {
+      if (oneOf(LAYER_ALIGNS, raw.align)) shapeAlign = raw.align;
+      else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`);
+    }
+    return settled({ ...base, ...common, shape, color, size: shapeSize, ratio, align: shapeAlign });
   }
   let image = base.type === 'image' ? base.image : null;
   if (base.type === 'image' && raw.image !== undefined) {

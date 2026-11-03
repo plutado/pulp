@@ -22,7 +22,8 @@ import { initSampleHint, refreshSampleHint } from './sample-hint';
 import { initLibraryAdd, setLibraryAddBusy } from './library-add';
 import { initProject, openProjectFrom } from './project';
 import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './project-ui';
-import { initMenu } from './menu';
+import { initMenu, registerBlankCanvasOpener } from './menu';
+import { BLANK_CANVAS_ID } from '../core/menu';
 import { initContextMenu } from './context-menu';
 import { hideStartScreen, initStartScreen, showStartScreen } from './start-screen';
 import { browsedHiddenChoice } from './psd-state';
@@ -417,6 +418,13 @@ mountCaptions();
 setTemplateShower((templateId) => {
   const entry = appState.value.index?.templates.find((t) => t.manifest.id === templateId);
   if (entry && selectedTemplate.value?.manifest.id !== templateId) select(entry);
+});
+// File → New Blank Canvas (milestone 55): the bundled canvas on the stage, the start screen out of the way.
+registerBlankCanvasOpener(() => {
+  const entry = appState.value.index?.templates.find((t) => t.manifest.id === BLANK_CANVAS_ID);
+  if (!entry) return;
+  hideStartScreen();
+  select(entry);
 });
 initInspectorOutput();
 initGuidedSetup();

@@ -1,0 +1,52 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.blank-canvas",
+  "name": "Blank Canvas",
+  "description": "Nothing of its own: one open block covering the frame, for composing a graphic from scratch — text, shapes, pictures and clips placed, sized and timed on the stage (File → New Blank Canvas). The first piece of the visual template editor.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "tags": [
+    "canvas",
+    "blank",
+    "compose",
+    "editor"
+  ],
+  "styles": [
+    "clean"
+  ],
+  "duration": 6,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [],
+  "blocks": [
+    {
+      "id": "canvas",
+      "label": "Canvas",
+      "box": {
+        "default": {
+          "x": 0.06,
+          "y": 0.06,
+          "width": 0.88,
+          "height": 0.88
+        }
+      },
+      "gap": 0.02,
+      "align": "center",
+      "verticalAlign": "middle",
+      "open": true,
+      "layers": []
+    }
+  ]
+}

@@ -14,6 +14,9 @@ import {
   type ImageLayer,
   type VideoLayer,
   type TextLayer,
+  DEFAULT_SHAPE_COLOR,
+  DEFAULT_SHAPE_SIZE,
+  DEFAULT_SHAPE_RATIO,
 } from '../src/core/layers';
 import { validateManifest, type ValidationIssue } from '../src/core/manifest';
 import { normalizeAngle } from '../src/core/layers';
@@ -209,7 +212,7 @@ describe('parseLayersArgument', () => {
     expect(message('{"strap":{}}')).toBe('layers: "strap" must be an array of layers.');
     expect(message('{"strap":[{"id":"nmae","text":"x"}]}')).toContain('"strap" has no layer "nmae" (it has "name", "title", "mark"); to add one, give it a type of text or image');
     expect(message('{"strap":[7]}')).toBe('layers: "strap" layer 0 must be an object.');
-    expect(message('{"strap":[{"text":"x"}]}')).toContain('needs an id of one of its layers, or a type of text or image or video or audio to add one');
+    expect(message('{"strap":[{"text":"x"}]}')).toContain('needs an id of one of its layers, or a type of text or image or video or audio or shape to add one');
     expect(message('{"corner":[{"type":"text","text":"x"}]}')).toBe('layers: "corner" takes no more layers.');
   });
 
@@ -550,5 +553,49 @@ describe('resolveLayers', () => {
     const b = block({ align: 'center' });
     expect(newLayer('text', b, 'x')).toEqual({ id: 'x', label: 'Text', required: false, hidden: false, spaceBefore: 0, ...b.typography, type: 'text', text: '', maxLines: 3 });
     expect(newLayer('image', b, 'y', 'Logo')).toEqual({ id: 'y', label: 'Logo', required: false, hidden: false, spaceBefore: 0, type: 'image', image: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: 'center' });
+  });
+});
+
+describe('shape layers (milestone 55)', () => {
+  const manifest = () => {
+    const r = validateManifest(rawManifest({
+      blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, open: true, layers: [{ id: 'bar', label: 'Bar', type: 'shape', shape: 'triangle', color: '#AABBCC', size: 0.3, ratio: 1.5 }] }],
+    }));
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    return r.manifest;
+  };
+
+  it('a template may ship one, validated and filled with defaults, its colour folded to lowercase', () => {
+    const shipped = manifest().blocks[0]!.layers[0]!;
+    expect(shipped).toMatchObject({ type: 'shape', shape: 'triangle', color: '#aabbcc', size: 0.3, ratio: 1.5, align: 'left' });
+    const bare = validateManifest(rawManifest({
+      blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [{ id: 's', label: 'S', type: 'shape' }] }],
+    }));
+    expect(bare.ok).toBe(true);
+    if (bare.ok) expect(bare.manifest.blocks[0]!.layers[0]).toMatchObject({ type: 'shape', shape: 'rectangle', color: DEFAULT_SHAPE_COLOR, size: DEFAULT_SHAPE_SIZE, ratio: DEFAULT_SHAPE_RATIO });
+    const wrong = validateManifest(rawManifest({
+      blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [{ id: 's', label: 'S', type: 'shape', shape: 'star', ratio: 99 }] }],
+    }));
+    expect(wrong.ok).toBe(false);
+  });
+
+  it('a fresh one is the accent rectangle, ready to see and grab', () => {
+    const fresh = newLayer('shape', { typography: DEFAULT_TYPOGRAPHY, align: 'center' }, 's1');
+    expect(fresh).toMatchObject({ type: 'shape', label: 'Shape', shape: 'rectangle', color: DEFAULT_SHAPE_COLOR, size: DEFAULT_SHAPE_SIZE, ratio: DEFAULT_SHAPE_RATIO, align: 'center' });
+  });
+
+  it('a stored stack changes its kind, colour, size and ratio, and keeps what a wrong value would break', () => {
+    const { values, issues } = resolveLayers(manifest(), { b: [{ id: 'bar', shape: 'ellipse', color: '#00000080', size: 0.5, ratio: 0.5 }] });
+    expect(issues).toEqual([]);
+    expect(values.b![0]).toMatchObject({ shape: 'ellipse', color: '#00000080', size: 0.5, ratio: 0.5 });
+    const bad = resolveLayers(manifest(), { b: [{ id: 'bar', shape: 'blob', color: 'red', ratio: 0 }] });
+    expect(bad.issues).toHaveLength(3);
+    expect(bad.values.b![0]).toMatchObject({ shape: 'triangle', color: '#aabbcc', ratio: 1.5 });
+  });
+
+  it('one can be added to an open block from a stored stack, by type', () => {
+    const { values, issues } = resolveLayers(manifest(), { b: [{ id: 'bar' }, { id: 'extra', type: 'shape', shape: 'ellipse', color: '#123456', size: 0.1, ratio: 3, label: 'Dot' }] });
+    expect(issues).toEqual([]);
+    expect(values.b![1]).toMatchObject({ id: 'extra', type: 'shape', shape: 'ellipse', color: '#123456', size: 0.1, ratio: 3 });
   });
 });

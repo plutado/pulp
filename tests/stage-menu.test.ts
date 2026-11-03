@@ -120,7 +120,8 @@ describe('the menu itself', () => {
       'Copy Look', 'Paste Look',
       'Start at Playhead', 'End at Playhead',
       'Reset Layer',
-      'Add Text Here', 'Add Asset Here',
+      'Add Text Here',
+      'Add Shape Here', 'Add Asset Here',
     ]);
     expect(labels(byLabel(onLayer, 'Order')!.submenu!)).toEqual(['Bring Forward', 'Send Backward', 'Bring to Front', 'Send to Back']);
   });
@@ -142,7 +143,8 @@ describe('the menu itself', () => {
 
   it('offers what can be added over bare picture, and what the stage is doing with the picture itself', () => {
     const empty = stageMenu(context({ facts: facts({ canAddLayer: true, canPasteLayer: true }), assets, view: view({ canAddToCollection: true }) }));
-    expect(labels(empty)).toEqual(['Add Text Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
+    expect(labels(empty)).toEqual(['Add Text Here',
+      'Add Shape Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
     expect(byLabel(empty, 'Paste')!.enabled).toBe(true);
     expect(byLabel(empty, 'Add to Collection')!.enabled).toBe(true);
     // Those belong to the picture as a whole, so a layer's menu does not repeat them.

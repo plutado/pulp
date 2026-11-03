@@ -127,7 +127,8 @@ describe('bundled sample templates', async () => {
     // Title holds: its words finish rising at 1.4 s and start fading at 5.2 s, and the clip in its
     // media slot plays against elapsed time as a video layer does, so a stretched hold never slows it.
     expect(kinds.hold).toHaveLength(144);
-    expect(kinds.loop).toHaveLength(102);
+    // Milestone 55 adds the blank canvas, which loops: it draws nothing of its own, so any length holds.
+    expect(kinds.loop).toHaveLength(103);
     expect(kinds.scale).toHaveLength(40);
     expect(kinds.none).toHaveLength(73);
   });

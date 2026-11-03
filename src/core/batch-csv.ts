@@ -6,7 +6,7 @@
  * so the user sees them before anything is queued.
  */
 
-import { defaultLayers, type Block, type LayerValues } from './layers';
+import { defaultLayers, type Block, type LayerValues, type LayerType } from './layers';
 import { isLegacyHoldHeader, LEGACY_HOLD_LABEL, lengthForLegacyHold, type HoldManifest } from './legacy-hold';
 import { clipValueFromText } from './video-layer';
 import { soundValueFromText } from './sound-layer';
@@ -29,7 +29,7 @@ export interface BatchPlan {
    * columns that matched. A layer's `settings` column (milestone 28) carries the rest of what a
    * layer can be given, as JSON: its span, transitions, look, placement, or hidden.
    */
-  columns: { header: string; paramId: string; layer?: { block: string; id: string; type: 'text' | 'video' | 'image' | 'audio'; settings?: true } }[];
+  columns: { header: string; paramId: string; layer?: { block: string; id: string; type: LayerType; settings?: true } }[];
   /** The column used for job and file names, if any. */
   nameColumn?: string;
   unknownColumns: string[];
@@ -117,14 +117,14 @@ export function planBatch(manifest: HoldManifest & Pick<TemplateManifest, 'param
   // sound an audio layer plays (milestone 48, as `soundValueToText` writes it). And
   // "<layer> settings" takes everything else a layer can be given, as one JSON object per row
   // (milestone 28): {"span":{"start":2},"transition":{"in":{"type":"fade"}},"look":{"opacity":0.5}}.
-  type LayerColumn = { block: string; id: string; type: 'text' | 'video' | 'image' | 'audio'; settings?: true };
+  type LayerColumn = { block: string; id: string; type: LayerType; settings?: true };
   const layerByKey = new Map<string, LayerColumn>();
   for (const block of manifest.blocks ?? []) {
     for (const layer of block.layers) {
       const entry: LayerColumn = { block: block.id, id: layer.id, type: layer.type };
       const settings: LayerColumn = { ...entry, settings: true };
       for (const key of [layer.id.toLowerCase(), layer.label.trim().toLowerCase()]) {
-        if (layer.type !== 'image' && !layerByKey.has(key)) layerByKey.set(key, entry);
+        if (layer.type !== 'image' && layer.type !== 'shape' && !layerByKey.has(key)) layerByKey.set(key, entry);
         if (!layerByKey.has(`${key} settings`)) layerByKey.set(`${key} settings`, settings);
       }
     }

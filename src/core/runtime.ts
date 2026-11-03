@@ -488,6 +488,11 @@ export const BRIDGE_SCRIPT = `(function () {
         var width = widths.reduce(function (a, b) { return Math.max(a, b); }, 0);
         return { layer: layer, draw: draw, size: laid.size, lines: laid.lines, widths: widths, width: width, height: height, extent: column ? height : width, cross: column ? width : height };
       }
+      if (layer.type === 'shape') {
+        var sAspect = Math.max(0.01, layer.ratio);
+        var sw = Math.min(box.width, layer.size * sAspect), sh = sw / sAspect;
+        return { layer: layer, draw: draw, size: 0, lines: [], widths: [], width: sw, height: sh, extent: column ? sh : sw, cross: column ? sw : sh };
+      }
       var picture = pictureFor(layer);
       if (!picture) return { layer: layer, draw: draw, size: 0, lines: [], widths: [], width: 0, height: 0, extent: 0, cross: 0 };
       /* A cropped clip (milestone 57) is the shape of what is left of it: mirrors croppedAspect in
@@ -703,6 +708,41 @@ export const BRIDGE_SCRIPT = `(function () {
         }
       }
       fill();
+      return;
+    }
+    if (layer.type === 'shape') {
+      var at0 = layer.box;
+      var tracePath = function (c) {
+        if (layer.shape === 'ellipse') {
+          c.beginPath();
+          c.ellipse(at0.x + at0.width / 2, at0.y + at0.height / 2, at0.width / 2, at0.height / 2, 0, 0, Math.PI * 2);
+          c.closePath();
+        } else if (layer.shape === 'triangle') {
+          c.beginPath();
+          c.moveTo(at0.x + at0.width / 2, at0.y);
+          c.lineTo(at0.x + at0.width, at0.y + at0.height);
+          c.lineTo(at0.x, at0.y + at0.height);
+          c.closePath();
+        } else {
+          roundedPath(c, at0.x, at0.y, at0.width, at0.height, px ? px.corners : 0);
+        }
+      };
+      var fillShape = function () {
+        ctx.save();
+        tracePath(ctx);
+        ctx.fillStyle = look && look.tint ? mixHex(layer.color, look.tint, TINT_STRENGTH) : layer.color;
+        ctx.fill();
+        ctx.restore();
+      };
+      if (look) {
+        if (px.glowBlur > 0) withShadow(ctx, look.glowColor, px.glowBlur, 0, 0, fillShape);
+        if (hasShadow(look)) withShadow(ctx, look.shadowColor, px.shadowBlur, px.shadowOffsetX, px.shadowOffsetY, fillShape);
+        if (px.outlineWidth > 0) {
+          ctx.save(); ctx.lineWidth = px.outlineWidth; ctx.lineJoin = 'round'; ctx.strokeStyle = look.outlineColor;
+          tracePath(ctx); ctx.stroke(); ctx.restore();
+        }
+      }
+      fillShape();
       return;
     }
     if (!layer.picture) return;

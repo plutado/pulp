@@ -198,7 +198,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/identifier" },
         "label": { "type": "string", "minLength": 1 },
-        "type": { "type": "string", "enum": ["text", "image", "video", "audio"] },
+        "type": { "type": "string", "enum": ["text", "image", "video", "audio", "shape"] },
         "required": { "type": "boolean" },
         "hidden": { "type": "boolean" },
         "spaceBefore": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -267,6 +267,7 @@
           "required": ["type", "text"]
         },
         { "properties": { "type": { "const": "image" }, "image": { "type": "null" }, "size": { "type": "number", "minimum": 0.001, "maximum": 1 }, "align": { "type": "string", "enum": ["left", "center", "right"] } }, "required": ["type"] },
+        { "properties": { "type": { "const": "shape" }, "shape": { "type": "string", "enum": ["rectangle", "ellipse", "triangle"] }, "color": { "$ref": "#/$defs/color" }, "size": { "type": "number", "minimum": 0.001, "maximum": 1 }, "ratio": { "type": "number", "minimum": 0.05, "maximum": 20 }, "align": { "type": "string", "enum": ["left", "center", "right"] } }, "required": ["type"] },
         { "properties": { "type": { "const": "video" }, "clip": { "type": "null" }, "size": { "type": "number", "minimum": 0.001, "maximum": 1 }, "align": { "type": "string", "enum": ["left", "center", "right"] } }, "required": ["type"] },
         { "properties": { "type": { "const": "audio" }, "sound": { "type": "null" } }, "required": ["type"] }
       ]

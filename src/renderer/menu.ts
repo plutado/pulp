@@ -20,6 +20,21 @@ import { appState, paramsEdited, renderBlocked, results, resultsView, transport 
 import { selectedLayer } from './layer-edit';
 import { currentLayerFacts, runLayerCommand, stageClipboard } from './stage-menu';
 import { registerCommandRunner } from './commands';
+
+/**
+ * How "New Blank Canvas" shows the canvas: main.ts registers the very select a
+ * click in the results performs, so the menu opens it exactly as browsing to
+ * it would (milestone 55).
+ */
+let blankCanvasOpener: () => void = () => undefined;
+
+export function registerBlankCanvasOpener(fn: () => void): void {
+  blankCanvasOpener = fn;
+}
+
+function openBlankCanvas(): void {
+  blankCanvasOpener();
+}
 import { diagnosticsText } from '../core/log';
 import { performanceLines } from '../core/perf';
 import { windowPerformance } from './perf';
@@ -67,6 +82,8 @@ function run(command: MenuCommand, arg: string | null): void {
   switch (command) {
     case 'app.home': showStartScreen(); return;
     case 'project.new': void newProject(); return;
+    // The blank canvas (milestone 55): the bundled template to compose on, shown as a click on it would.
+    case 'canvas.new': openBlankCanvas(); return;
     case 'project.open': void openProjectFrom(null); return;
     case 'project.openRecent': if (arg) void openProjectFrom(arg); return;
     case 'project.save': void saveProject(); return;
@@ -84,7 +101,7 @@ function run(command: MenuCommand, arg: string | null): void {
     // The layer edits (milestone 39) are the same commands the stage's right-click menu names,
     // and they run here, in the one dispatcher, whichever menu asked.
     case 'layer.editText': case 'layer.replaceImage': case 'layer.replaceClip':
-    case 'layer.addText': case 'layer.addImage': case 'layer.addVideo':
+    case 'layer.addText': case 'layer.addImage': case 'layer.addVideo': case 'layer.addShape':
     case 'layer.cut': case 'layer.copy': case 'layer.paste': case 'layer.duplicate': case 'layer.delete':
     case 'layer.forward': case 'layer.backward': case 'layer.front': case 'layer.back':
     case 'layer.copyLook': case 'layer.pasteLook': case 'layer.startHere': case 'layer.endHere': case 'layer.reset':

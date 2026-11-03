@@ -125,7 +125,7 @@ describe('the template schema', () => {
     ['a select with no options', rawManifest({ parameters: [{ id: 's', type: 'select', label: 'S', default: 'a' }] })],
     ['an image slot with no box', rawManifest({ parameters: [{ id: 'logo', type: 'image', label: 'Logo', fit: 'contain' }] })],
     ['a parameter id starting with a digit', rawManifest({ parameters: [{ id: '1st', type: 'text', label: 'First', default: '' }] })],
-    ['a layer of an unknown type', rawManifest({ blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [{ id: 'l', label: 'L', type: 'shape' }] }] })],
+    ['a layer of an unknown type', rawManifest({ blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [{ id: 'l', label: 'L', type: 'blob' }] }] })],
     ['a text layer with a weight past 900', rawManifest({ blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 }, layers: [{ id: 'l', label: 'L', type: 'text', text: 'x', weight: 1000 }] }] })],
     ['a block box that is not a box', rawManifest({ blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0 } }] })],
     ['a block box keyed by something that is not an aspect', rawManifest({ blocks: [{ id: 'b', label: 'B', box: { wide: { x: 0, y: 0, width: 1, height: 1 } } }] })],
