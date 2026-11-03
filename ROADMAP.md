@@ -65,7 +65,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 8. 1.0 hardening and docs (**done**) | 14-23 h |
 | 17. Unsigned builds and releases (**done**) | 9-16 h |
 | 7. Signing and auto-update (blocked on accounts) | 4-7 h |
-| 14. Defaults per type and guided setup (post-1.0) | 8-13 h |
+| 14. Defaults per type and guided setup (post-1.0; two of three items done) | 8-13 h |
 | 16. Audio: stems, variants and pairing (post-1.0, **done**) | 8-14 h |
 | 9. Later (post-1.0) | 7-16 h |
 | 54. A panel inside the editing apps (post-1.0) | 30-50 h |
@@ -698,11 +698,11 @@ Decided 2026-11-01. With sound in a project (48), a talking head recorded on a l
 - [ ] Windows: code signing (1-2 h)
 - [ ] Auto-update (electron-updater; needs signed builds on macOS) (1-2 h)
 
-## 14. Defaults per type and guided setup (8-13 h, after 1.0)
+## 14. Defaults per type and guided setup (two of three items done; 8-13 h, after 1.0)
 
-- [ ] "Save as default for this type" in the Output tab; new items of that type (a template type, video, image or audio) start from it (2-3 h)
+- [x] "Save as default for this type" in the Output tab; new items of that type (a template type, video, image or audio) start from it (2-3 h) *Built 2026-11-02, for template types (a media item renders by its own nature and keeps its sticky controls). The button sits under the preset select and remembers the slice worth remembering for a kind of thing — the output preset, the shape and size, a rate override, the flatten background and the matte; never the trim, the cover, a LUT or the captions, which belong to one piece. Keyed by the template's type (declared, or mapped from its category), sanitized into `settings.json` (`src/core/output-defaults.ts`), applied when an item of that type is shown — each choice only where the template can take it, and under the session's platform lean, which stays the stronger word — with a note saying the default is held, and a Clear beside it.*
 - [ ] Guided setup: a modal with numbered steps (what it is for, size and frame rate, format and alpha, audio, where to save), a live preview over a checkerboard, a settings summary, a save-as-default checkbox, and Add to collection at the end (4-7 h)
-- [ ] Output presets per kind of asset: one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen, alongside "Save as default for this type" and the guided setup (2-3 h)
+- [x] Output presets per kind of asset: one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen, alongside "Save as default for this type" and the guided setup (2-3 h) *Built 2026-11-02. A "Quick setup" row above the preset select, offered only where each fits: **Transparent overlay** (ProRes 4444) and **Web overlay (VP9)** for anything drawn on alpha, **Editor-safe, with matte** (H.264 over black with the grey matte beside it) for pipelines that cannot read alpha, and **Full-screen background** (H.264) for backgrounds. One click sets the controls and nothing more; "Save as default for this type" is how it becomes the standing answer. The catalogue is pure (`ASSET_OUTPUT_PRESETS` in `src/core/output-defaults.ts`) and held by tests; the whole flow — click, save, another lower third opening on it, clear — runs in the UI end-to-end test.*
 
 ## 16. Audio: stems, variants and pairing (done; 8-14 h, after 1.0)
 

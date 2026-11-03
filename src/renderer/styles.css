@@ -1041,6 +1041,11 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .safe-overlay .zones[hidden] { display: none; }
 .safe-overlay .zone { position: absolute; background: rgba(255, 96, 96, 0.14); border: 1px dashed rgba(255, 140, 140, 0.6); }
 .render-options .trim input { font-family: Menlo, Consolas, monospace; }
+/* One-click output presets per kind of asset, and the type's remembered default (milestone 14). */
+.asset-presets .asset-preset-buttons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.asset-presets .asset-preset { padding: 2px 8px; }
+.type-default { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.type-default .note { flex-basis: 100%; margin: 0; }
 .render-options .size-custom { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
 .render-options .size-custom[hidden] { display: none; }
 

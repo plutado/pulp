@@ -57,6 +57,8 @@ import { sanitizeLayout } from '../core/layout';
 import { sanitizeResultsView } from '../core/results-view';
 import { sanitizePlayer } from '../core/player';
 import { loadSettings, updateSettings } from './settings';
+import { sanitizeTypeOutputDefault } from '../core/output-defaults';
+import { isBuiltInType } from '../core/taxonomy';
 import { adoptStageWindow, destroyStageWindow, loadStageWindowSetting, registerStageWindowIpc, stageWindowOptions } from './stage-window-service';
 import { initCrashLog, registerLogIpc } from './log-service';
 import { DIAGNOSTICS_MAX_CHARS } from '../core/log';
@@ -522,6 +524,22 @@ function registerIpc(): void {
   ipcMain.handle('info-sections:get', async () => (await loadSettings()).infoSections);
   ipcMain.handle('info-sections:save', async (_event, sections: unknown) => {
     await updateSettings((s) => ({ ...s, infoSections: { ...s.infoSections, ...(sections && typeof sections === 'object' ? (sections as Record<string, boolean>) : {}) } }));
+  });
+
+  // The Output tab's remembered settings per template type (milestone 14): the whole map on ask,
+  // one type saved or cleared at a time, the updated map answered so the window stays in step.
+  ipcMain.handle('type-defaults:get', async () => (await loadSettings()).typeOutputDefaults);
+  ipcMain.handle('type-defaults:save', async (_event, type: unknown, value: unknown) => {
+    const updated = await updateSettings((s) => {
+      const next = { ...s.typeOutputDefaults };
+      const key = typeof type === 'string' && isBuiltInType(type) ? type : null;
+      if (!key) return s;
+      const d = sanitizeTypeOutputDefault(value);
+      if (d) next[key] = d;
+      else delete next[key];
+      return { ...s, typeOutputDefaults: next };
+    });
+    return updated.typeOutputDefaults;
   });
 
   ipcMain.handle('player:get', async () => (await loadSettings()).player);

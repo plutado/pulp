@@ -10,6 +10,7 @@ import { DEFAULT_RESULTS_VIEW, sanitizeResultsView, type ResultsViewState } from
 import { sanitizeRecentColors } from '../core/recent-colors';
 import { sanitizeRecentSearches } from '../core/recent-searches';
 import { DEFAULT_CACHE_MAX_MB, sanitizeCacheMaxMB } from '../core/render-cache';
+import { sanitizeTypeOutputDefaults, type TypeOutputDefault } from '../core/output-defaults';
 
 export interface Settings {
   /** User-chosen library folders, in the order they were added. */
@@ -48,6 +49,8 @@ export interface Settings {
   pinnedProjects: string[];
   /** When each recent project was last opened or saved, path to ISO timestamp. */
   recentProjectTimes: Record<string, string>;
+  /** The Output tab's remembered settings per template type (milestone 14, src/core/output-defaults.ts). */
+  typeOutputDefaults: Record<string, TypeOutputDefault>;
 }
 
 const DEFAULTS: Settings = {
@@ -67,6 +70,7 @@ const DEFAULTS: Settings = {
   tourSeen: false,
   pinnedProjects: [],
   recentProjectTimes: {},
+  typeOutputDefaults: {},
 };
 
 /** Only string-to-string entries, and only for paths the recent list still holds. */
@@ -116,6 +120,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     // A pin names a recent entry; one whose project left the list goes with it.
     pinnedProjects: Array.isArray(raw.pinnedProjects) ? raw.pinnedProjects.filter((p): p is string => typeof p === 'string' && recentProjects.includes(p)) : [],
     recentProjectTimes: sanitizeRecentTimes(raw.recentProjectTimes, recentProjects),
+    typeOutputDefaults: sanitizeTypeOutputDefaults(raw.typeOutputDefaults),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
     ...(typeof raw.sampleMediaRoot === 'string' && raw.sampleMediaRoot.trim() ? { sampleMediaRoot: raw.sampleMediaRoot } : {}),
   };

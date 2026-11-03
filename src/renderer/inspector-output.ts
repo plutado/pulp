@@ -26,6 +26,9 @@ import { appState, coverFrame, dispatch, frameSize, playheadSeconds, preferredAs
 import {
   PLATFORM_PRESETS, platformLimitsLabel, platformPreset, platformSummary, platformWarningsBefore, type PlatformPreset,
 } from '../core/platform-presets';
+import { templateType, TYPES } from '../core/taxonomy';
+import { assetPresetsFor, type AssetOutputPreset, type TypeOutputDefault } from '../core/output-defaults';
+import type { TemplateManifest } from '../core/manifest';
 import { setCollection, setEditing } from '../core/app-state';
 import { updateItem } from '../core/collection';
 import { editing } from './collection';
@@ -80,6 +83,13 @@ const els = {
   /** How music that came in as stems reaches the render (milestone 16); shown only while the project has stems. */
   optStemsField: $<HTMLLabelElement>('opt-stems-field'),
   optStems: $<HTMLSelectElement>('opt-stems'),
+  /** One-click output presets per kind of asset, and the type's remembered default (milestone 14). */
+  assetPresets: $<HTMLDivElement>('asset-presets'),
+  assetPresetButtons: $<HTMLDivElement>('asset-preset-buttons'),
+  typeDefaultRow: $<HTMLDivElement>('type-default-row'),
+  typeDefaultSave: $<HTMLButtonElement>('type-default-save'),
+  typeDefaultClear: $<HTMLButtonElement>('type-default-clear'),
+  typeDefaultNote: $<HTMLParagraphElement>('type-default-note'),
   optCoverField: $<HTMLDivElement>('opt-cover-field'),
   optCover: $<HTMLInputElement>('opt-cover'),
   optCoverRow: $<HTMLDivElement>('opt-cover-row'),
@@ -123,6 +133,8 @@ const o = {
   media: null as MediaEntry | null,
   /** What the detected ffmpeg can encode, kept so the preset list can be rebuilt for a sound. */
   encoders: [] as readonly string[],
+  /** The Output tab's remembered settings per template type (milestone 14), from settings.json. */
+  typeDefaults: {} as Record<string, TypeOutputDefault>,
   /** Which list the preset select holds now. */
   presetKind: 'video' as 'video' | 'audio',
 };
@@ -419,6 +431,116 @@ function applyPreferredPlatform(): void {
   els.optPlatform.value = preferred && platformPreset(preferred) && !els.optPlatformField.hidden ? preferred : '';
   if (els.optPlatform.value) applyPlatform();
   else showPlatformNote();
+}
+
+// ---------------------------------------------------------------- defaults per type, presets per kind (milestone 14)
+
+/** The type a template's default is remembered under: declared, or mapped from its category; null where neither says. */
+function typeKeyFor(manifest: TemplateManifest): string | null {
+  return templateType(manifest) ?? null;
+}
+
+/** The type's display name, for the note under the save button. */
+function typeLabelFor(type: string): string {
+  return TYPES.find((t) => t.id === type)?.label ?? type;
+}
+
+/** What the controls hold that is worth remembering for a kind of thing; never the trim, the cover, a LUT or the captions. */
+function readTypeDefault(): TypeOutputDefault | null {
+  const presetId = els.preset.value as PresetId;
+  if (!presetId) return null;
+  const d: TypeOutputDefault = { presetId };
+  if (!els.optAspectField.hidden && els.optAspect.value) d.aspect = els.optAspect.value;
+  const size = readSizeChoice();
+  if (Number.isInteger(size.width) && Number.isInteger(size.height)) {
+    d.width = size.width!;
+    d.height = size.height!;
+  }
+  if (els.optFps.value !== '') d.fps = Number(els.optFps.value);
+  if (!els.optBackgroundField.hidden) d.background = els.optBackground.value;
+  if (!els.optMatteField.hidden && els.optMatte.checked) d.matte = true;
+  return d;
+}
+
+/**
+ * Open the controls on the type's remembered default, each choice only where
+ * this template can take it: a preset this ffmpeg writes, a shape it draws, a
+ * rate the list offers. The session's platform lean is applied after this and
+ * stays the stronger word where both speak.
+ */
+function applyTypeDefault(manifest: TemplateManifest): void {
+  const type = typeKeyFor(manifest);
+  const d = type ? o.typeDefaults[type] : undefined;
+  if (!d) return;
+  const presetOption = Array.from(els.preset.options).find((opt) => opt.value === d.presetId);
+  if (presetOption && !presetOption.disabled) els.preset.value = d.presetId;
+  if (d.aspect && manifest.aspects.includes(d.aspect)) {
+    els.optAspect.value = d.aspect;
+    populateResolutions(manifest);
+  }
+  if (d.width && d.height) selectResolution(manifest, d.width, d.height);
+  if (d.fps !== undefined && Array.from(els.optFps.options).some((opt) => opt.value === String(d.fps))) {
+    els.optFps.value = String(d.fps);
+  }
+  if (d.background !== undefined) els.optBackground.value = d.background;
+  els.optMatte.checked = d.matte === true;
+  showPresetNote();
+}
+
+/** The save-and-clear row under the preset: shown for a template with a type, saying when a default is held. */
+function refreshTypeDefaultRow(manifest: TemplateManifest | null): void {
+  const type = manifest ? typeKeyFor(manifest) : null;
+  els.typeDefaultRow.hidden = type === null;
+  if (type === null) return;
+  const saved = o.typeDefaults[type] !== undefined;
+  els.typeDefaultClear.hidden = !saved;
+  els.typeDefaultNote.hidden = !saved;
+  els.typeDefaultSave.setAttribute('aria-label', `Save these output settings as the default for ${typeLabelFor(type)}`);
+  if (saved) {
+    const d = o.typeDefaults[type]!;
+    els.typeDefaultNote.textContent = `${typeLabelFor(type)} items open with the saved default (${OUTPUT_PRESETS[d.presetId]?.label ?? d.presetId}).`;
+  }
+}
+
+/** Write or clear the type's default and keep the row in step; the main process answers with the map as saved. */
+async function saveTypeDefault(value: TypeOutputDefault | null): Promise<void> {
+  const manifest = selectedTemplate.value?.manifest;
+  const type = manifest ? typeKeyFor(manifest) : null;
+  if (!manifest || !type) return;
+  o.typeDefaults = await window.pulp.setTypeOutputDefault(type, value);
+  refreshTypeDefaultRow(manifest);
+}
+
+/**
+ * One-click output presets per kind of asset: offered only where they fit —
+ * a transparent overlay for anything drawn on alpha, the editor-safe pair, a
+ * flat full-screen background. Clicking one sets the controls and nothing
+ * more; "Save as default for this type" is how it becomes the standing answer.
+ */
+function renderAssetPresets(manifest: TemplateManifest | null): void {
+  const offered = manifest ? assetPresetsFor(manifest) : [];
+  els.assetPresets.hidden = offered.length === 0;
+  els.assetPresetButtons.replaceChildren();
+  for (const preset of offered) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ghost asset-preset';
+    button.textContent = preset.label;
+    button.dataset.preset = preset.id;
+    button.dataset.tip = preset.tip;
+    button.addEventListener('click', () => applyAssetPreset(preset));
+    els.assetPresetButtons.append(button);
+  }
+}
+
+function applyAssetPreset(preset: AssetOutputPreset): void {
+  const option = Array.from(els.preset.options).find((opt) => opt.value === preset.choices.presetId);
+  if (option && !option.disabled) els.preset.value = preset.choices.presetId;
+  if (preset.choices.background !== undefined) els.optBackground.value = preset.choices.background;
+  els.optMatte.checked = preset.choices.matte === true;
+  showPresetNote();
+  updateOptionsNote();
+  saveToEditedCard();
 }
 
 /** The output frame rate as currently chosen: the override, or the template's — or the media item's own. */
@@ -849,6 +971,11 @@ async function queueBatch(): Promise<void> {
 /** The fields a media item has and a template does not, shown or hidden as one. */
 function showMediaFields(entry: MediaEntry | null): void {
   els.mediaOptions.hidden = entry === null;
+  // Type defaults and the kind presets are a template's business (milestone 14).
+  if (entry !== null) {
+    renderAssetPresets(null);
+    refreshTypeDefaultRow(null);
+  }
   // A media item has no captions; a template's project may (milestone 50). Likewise the stems row.
   els.optCaptionsField.hidden = entry !== null || captionsIn(currentRawParams()) === null;
   els.optStemsField.hidden = entry !== null || !layersHaveStems(currentRawParams()[LAYERS_KEY]);
@@ -923,6 +1050,8 @@ export function outputShowMedia(entry: MediaEntry): void {
 export function outputClear(): void {
   o.media = null;
   showMediaFields(null);
+  renderAssetPresets(null);
+  refreshTypeDefaultRow(null);
   updateOptionsNote();
 }
 
@@ -946,6 +1075,11 @@ export function outputShow(entry: TemplateEntry): void {
   o.batch = null;
   els.batchSummary.textContent = '';
   els.batchQueue.disabled = true;
+  // The kind's own answers (milestone 14): the one-click presets this template can take, and the
+  // type's remembered default — applied before the platform lean, which stays the stronger word.
+  renderAssetPresets(entry.manifest);
+  applyTypeDefault(entry.manifest);
+  refreshTypeDefaultRow(entry.manifest);
   applyPreferredPlatform();
   updateOptionsNote();
 }
@@ -1058,6 +1192,17 @@ export function initInspectorOutput(): void {
   populatePresets();
   populateFrameRates();
   populatePlatforms();
+  // The remembered defaults per type (milestone 14), in before the first item is shown.
+  void window.pulp.getTypeOutputDefaults().then((defaults) => {
+    o.typeDefaults = defaults;
+    refreshTypeDefaultRow(selectedTemplate.value?.manifest ?? null);
+  });
+  els.typeDefaultSave.addEventListener('click', () => {
+    void saveTypeDefault(readTypeDefault());
+  });
+  els.typeDefaultClear.addEventListener('click', () => {
+    void saveTypeDefault(null);
+  });
   // A platform sets the aspect, size, rate and encoder in one go, and stays the session's lean, so
   // the next item shown opens the same way (milestone 20).
   els.optPlatform.addEventListener('change', () => {

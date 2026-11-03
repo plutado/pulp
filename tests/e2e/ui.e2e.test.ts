@@ -4211,6 +4211,67 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 90_000);
 
+    it('one-click presets set up common kinds, and Save as default for this type is how every such item opens (milestone 14)', async () => {
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
+      await openTab('output');
+      const typeDefaults = async (): Promise<Record<string, { presetId?: string; matte?: boolean }>> => {
+        try {
+          return (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { typeOutputDefaults?: Record<string, { presetId?: string; matte?: boolean }> }).typeOutputDefaults ?? {};
+        } catch {
+          return {};
+        }
+      };
+      try {
+        // The quick setup row offers what fits an alpha lower third, by name.
+        const labels = await page.eval<string[]>(`[...document.querySelectorAll('#asset-preset-buttons .asset-preset')].map((b) => b.textContent)`);
+        expect(labels).toEqual(['Transparent overlay', 'Editor-safe, with matte', 'Web overlay (VP9)']);
+
+        // One click sets the preset, the flatten background and the matte; nothing is written yet.
+        await page.eval(`document.querySelector('#asset-preset-buttons [data-preset="editor-safe"]').click()`);
+        expect(await page.eval<string>(`document.getElementById('preset').value`)).toBe('h264-mp4');
+        expect(await page.eval<boolean>(`document.getElementById('opt-matte').checked`)).toBe(true);
+        expect((await typeDefaults())['lower-third']).toBeUndefined();
+
+        // Save as default for this type: into settings.json, said under the button.
+        await page.eval(`document.getElementById('type-default-save').click()`);
+        await until(() => page.eval<boolean>(`!document.getElementById('type-default-note').hidden`), 'the saved note');
+        expect(await page.eval<string>(`document.getElementById('type-default-note').textContent`)).toContain('Lower third items open with the saved default');
+        await until(async () => (await typeDefaults())['lower-third']?.presetId === 'h264-mp4', 'the default in settings.json');
+        expect((await typeDefaults())['lower-third']?.matte).toBe(true);
+
+        // Point the controls elsewhere, then show another lower third: it opens on the saved default.
+        await fire('#preset', 'prores-4444', 'change');
+        await page.eval(`(() => { const m = document.getElementById('opt-matte'); m.checked = false; m.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await clickResult('Hairline Lower Third');
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the second lower third');
+        await openTab('output');
+        expect(await page.eval<string>(`document.getElementById('preset').value`), 'the saved preset').toBe('h264-mp4');
+        expect(await page.eval<boolean>(`document.getElementById('opt-matte').checked`), 'the saved matte').toBe(true);
+        expect(await page.eval<boolean>(`document.getElementById('type-default-note').hidden`)).toBe(false);
+
+        // A different kind holds no default, and an opaque title is offered no alpha quick setup at all.
+        await clickResult('Title Card');
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the title card');
+        await openTab('output');
+        expect(await page.eval<boolean>(`document.getElementById('type-default-note').hidden`)).toBe(true);
+        expect(await page.eval<boolean>(`document.getElementById('asset-presets').hidden`), 'nothing fits, the row hides').toBe(true);
+
+        // Clear takes the default out of settings, and the note with it.
+        await clickResult('Lower Third Bar');
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the lower third again');
+        await openTab('output');
+        await page.eval(`document.getElementById('type-default-clear').click()`);
+        await until(() => page.eval<boolean>(`document.getElementById('type-default-note').hidden`), 'the note gone');
+        await until(async () => (await typeDefaults())['lower-third'] === undefined, 'the default gone from settings.json');
+      } finally {
+        // Back to the suite's standing output settings, and no default left behind.
+        await page.eval(`window.pulp.setTypeOutputDefault('lower-third', null)`);
+        await fire('#preset', 'prores-4444', 'change');
+        await page.eval(`(() => { const m = document.getElementById('opt-matte'); m.checked = false; m.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      }
+    }, 90_000);
+
     it('writes what went wrong to a local log, and copies diagnostics from the status items (milestone 8)', async () => {
       const logFile = join(userData, 'logs', 'pulp.log');
       // The log is there from the start: the main process writes a line as it comes up.

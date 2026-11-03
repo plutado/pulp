@@ -7,6 +7,7 @@ import type { LayoutState } from '../core/layout';
 import type { MainPerformance } from '../core/perf';
 import type { LibraryIndex } from '../core/library-types';
 import type { PresetId, RenderOptions } from '../core/render-plan';
+import type { TypeOutputDefault } from '../core/output-defaults';
 import type { RenderQueueSnapshot } from '../core/render-queue';
 import type { PlayerState } from '../core/player';
 import type { ResultsViewState } from '../core/results-view';
@@ -533,6 +534,10 @@ export interface PulpApi {
   getDragNoticeSeen(): Promise<boolean>;
   setDragNoticeSeen(): Promise<void>;
   /** Which Info tab sections are open, remembered between sessions. */
+  /** The Output tab's remembered settings per template type (milestone 14), from settings.json. */
+  getTypeOutputDefaults(): Promise<Record<string, TypeOutputDefault>>;
+  /** Save one type's default (or clear it with null); answers the updated map. */
+  setTypeOutputDefault(type: string, value: TypeOutputDefault | null): Promise<Record<string, TypeOutputDefault>>;
   getInfoSections(): Promise<Record<string, boolean>>;
   saveInfoSections(sections: Record<string, boolean>): Promise<void>;
   /** Stage player preferences: loop, background, safe areas, volume. */

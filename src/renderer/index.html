@@ -174,12 +174,21 @@
         <select id="opt-platform"></select>
       </label>
       <p id="platform-note" class="note"></p>
+      <div class="field asset-presets" id="asset-presets" hidden>
+        <span>Quick setup</span>
+        <div class="asset-preset-buttons" id="asset-preset-buttons" role="group" aria-label="Output presets for this kind of asset"></div>
+      </div>
       <label class="field">
         <span>Output preset</span>
         <select id="preset"></select>
       </label>
       <p id="preset-note" class="note"></p>
       <p id="preset-unavailable" class="note" hidden></p>
+      <div class="type-default" id="type-default-row" hidden>
+        <button id="type-default-save" type="button" class="ghost" data-tip="Remember the preset, shape, size, rate, background and matte as the default this kind of template opens with">Save as default for this type</button>
+        <button id="type-default-clear" type="button" class="ghost" hidden>Clear the saved default</button>
+        <p id="type-default-note" class="note" hidden></p>
+      </div>
       <div class="render-options">
         <label class="field" id="opt-aspect-field" hidden>
           <span>Aspect</span>
