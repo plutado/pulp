@@ -27,7 +27,6 @@ The order work is built in is `ROADMAP.md`'s planned order, which scheduling fol
 ## Ideas
 
 - **Display names for library folders**: let a person rename how a folder shows in the browse tree, without renaming it on disk.
-- **"All caps" as a template option**: the Newsdesk set forces capitals; this would make it a parameter, on by default.
 - **~~Music moods~~** (built, milestone 16, 2026-11-03): a fourth taxonomy axis for audio (upbeat, dramatic, calm…), the Mood chip and `mood:` in search.
 - **~~A settings window~~** (built, milestone 8, 2026-11-01): every setting now kept only in `settings.json` (one section open at a time, cache limit, default folders, the ffmpeg location, card size and more) reachable in a window opened from the application menu's Settings (milestone 27), with reset to defaults.
 - **Security review:** a threat model for templates and packs as untrusted code (a decision record), an audit of Electron's hardening (context isolation, sandbox, content security policy, protocol handlers, navigation and new windows), and automatic dependency update alerts.

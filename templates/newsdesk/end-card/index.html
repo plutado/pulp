@@ -43,8 +43,17 @@
     return size;
   }
 
+  // All caps is a parameter now (on by default, so existing work is unchanged): the set's house
+  // style, which a person may turn off to keep the words as typed. Read once per frame; the
+  // helpers below never uppercase on their own.
+  var allCaps = true;
+  function caps(text) {
+    text = String(text == null ? '' : text);
+    return allCaps ? text.toUpperCase() : text;
+  }
   window.pulpRender = function (state) {
     var p = state.params;
+    allCaps = p.allCaps !== false;
     if (canvas.width !== state.width || canvas.height !== state.height) {
       canvas.width = state.width;
       canvas.height = state.height;
@@ -99,7 +108,7 @@
     }
 
     // Programme name at the top left, then a thin accent rule.
-    var programme = (p.programme || '').toUpperCase();
+    var programme = caps(p.programme);
     var nameSize = fitFont(programme, '800 ', 64 * s, maxW);
     var y = margin + lockH + (hasLogo ? 28 * s : 0) + nameSize;
     ctx.fillStyle = p.text;
@@ -127,7 +136,7 @@
     var tabT = easeOutQuart(clamp01((t - dur * 1.6) / dur));
     ctx.globalAlpha = tabT;
     var tabH = 56 * s, tabPad = 30 * s, tabGap = 20 * s;
-    var h1 = (p.handle1 || '').toUpperCase(), h2 = (p.handle2 || '').toUpperCase();
+    var h1 = caps(p.handle1), h2 = caps(p.handle2);
     var tabSize = 26 * s;
     fitFont(h1, '800 ', tabSize, maxW / 2 - tabPad * 2 - tabGap);
     var w1 = ctx.measureText(h1).width + tabPad * 2 + tabH * SLANT;

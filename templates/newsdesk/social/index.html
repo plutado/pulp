@@ -32,8 +32,17 @@
     ctx.closePath();
   }
 
+  // All caps is a parameter now (on by default, so existing work is unchanged): the set's house
+  // style, which a person may turn off to keep the words as typed. Read once per frame; the
+  // helpers below never uppercase on their own.
+  var allCaps = true;
+  function caps(text) {
+    text = String(text == null ? '' : text);
+    return allCaps ? text.toUpperCase() : text;
+  }
   window.pulpRender = function (state) {
     var p = state.params;
+    allCaps = p.allCaps !== false;
     if (canvas.width !== state.width || canvas.height !== state.height) {
       canvas.width = state.width;
       canvas.height = state.height;
@@ -54,8 +63,8 @@
     var y = H - margin - stripH;
 
     // Both texts share the strip; shrink them together if they would collide.
-    var handle = (p.handle || '').toUpperCase();
-    var hashtag = (p.hashtag || '').toUpperCase();
+    var handle = caps(p.handle);
+    var hashtag = caps(p.hashtag);
     var size = 30 * s;
     ctx.font = '800 ' + size + 'px ' + FONT;
     var hw = ctx.measureText(handle).width;

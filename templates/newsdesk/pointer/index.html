@@ -23,8 +23,17 @@
   function easeInCubic(x) { return x * x * x; }
   function easeOutBack(x) { var c = 1.2; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
 
+  // All caps is a parameter now (on by default, so existing work is unchanged): the set's house
+  // style, which a person may turn off to keep the words as typed. Read once per frame; the
+  // helpers below never uppercase on their own.
+  var allCaps = true;
+  function caps(text) {
+    text = String(text == null ? '' : text);
+    return allCaps ? text.toUpperCase() : text;
+  }
   window.pulpRender = function (state) {
     var p = state.params;
+    allCaps = p.allCaps !== false;
     if (canvas.width !== state.width || canvas.height !== state.height) {
       canvas.width = state.width;
       canvas.height = state.height;
@@ -49,8 +58,8 @@
 
     var size = 44 * s;
     ctx.font = '800 ' + size + 'px ' + FONT;
-    var caps = (p.label || '').toUpperCase().split('').join(' ');
-    var tw = ctx.measureText(caps).width;
+    var spaced = caps(p.label).split('').join(' ');
+    var tw = ctx.measureText(spaced).width;
     var padX = 32 * s;
     var reach = W * p.reach / 100;
     var barW = Math.max(reach, tw + padX * 2 + capW + tipW);
@@ -114,7 +123,7 @@
     ctx.font = '800 ' + size + 'px ' + FONT;
     ctx.textBaseline = 'middle';
     ctx.textAlign = right ? 'left' : 'right';
-    ctx.fillText(caps, textX, cy + 2 * s);
+    ctx.fillText(spaced, textX, cy + 2 * s);
   };
 </script>
 </body>

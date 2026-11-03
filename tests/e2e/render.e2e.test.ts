@@ -2348,6 +2348,26 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(missing.stderr).toContain('the clip chosen for "plate"');
   }, 300_000);
 
+  it('All caps on the Newsdesk set is a switch: on by default and the frame is what it always was, off and the words stay as typed', async () => {
+    // One frame of the lower third three ways. Said nothing, the switch is on, and that frame is
+    // byte for byte the frame the switch says on gives — so saved work renders exactly as before;
+    // off, a name typed in lower case draws different letters, and the frame changes.
+    const frame = ['--in-point', '90', '--out-point', '90', '--param', 'name=Sam Okafor'];
+    const asBefore = await render('pulp.samples.newsdesk.lower-third', 'png-sequence', 'caps-default', { extra: frame });
+    expect(asBefore.code, asBefore.stderr).toBe(0);
+    const on = await render('pulp.samples.newsdesk.lower-third', 'png-sequence', 'caps-on', { extra: [...frame, '--param', 'allCaps=true'] });
+    expect(on.code, on.stderr).toBe(0);
+    const off = await render('pulp.samples.newsdesk.lower-third', 'png-sequence', 'caps-off', { extra: [...frame, '--param', 'allCaps=false'] });
+    expect(off.code, off.stderr).toBe(0);
+    const [byDefault, switchedOn, switchedOff] = await Promise.all([
+      readFile(join(out, 'caps-default_00090.png')),
+      readFile(join(out, 'caps-on_00090.png')),
+      readFile(join(out, 'caps-off_00090.png')),
+    ]);
+    expect(byDefault.equals(switchedOn), 'nothing said is the switch on').toBe(true);
+    expect(byDefault.equals(switchedOff), 'off draws other letters').toBe(false);
+  }, 240_000);
+
   it('renders H.264 without alpha', async () => {
     const result = await render('pulp.samples.title-card', 'h264-mp4', 'title.mp4');
     expect(result.code, result.stderr).toBe(0);

@@ -3,7 +3,7 @@
   "id": "pulp.samples.newsdesk.end-card",
   "name": "Newsdesk end card",
   "description": "A navy card with the programme name, a stack of credit lines and two social handles, a red slash cutting through it all.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
   "category": "title",
@@ -105,6 +105,14 @@
       "margin": 0.1,
       "fallbackText": "programme",
       "element": "Logo"
+    },
+    {
+      "id": "allCaps",
+      "type": "boolean",
+      "label": "All caps",
+      "description": "The set's house style sets every word in capitals. Off, the words stay as typed.",
+      "default": true,
+      "element": "Text"
     }
   ]
 }

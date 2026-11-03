@@ -22,8 +22,17 @@
   function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
   function easeInCubic(x) { return x * x * x; }
 
+  // All caps is a parameter now (on by default, so existing work is unchanged): the set's house
+  // style, which a person may turn off to keep the words as typed. Read once per frame; the
+  // helpers below never uppercase on their own.
+  var allCaps = true;
+  function caps(text) {
+    text = String(text == null ? '' : text);
+    return allCaps ? text.toUpperCase() : text;
+  }
   window.pulpRender = function (state) {
     var p = state.params;
+    allCaps = p.allCaps !== false;
     if (canvas.width !== state.width || canvas.height !== state.height) {
       canvas.width = state.width;
       canvas.height = state.height;
@@ -47,7 +56,7 @@
     // The headline wraps onto two or three lines when it does not fit (a no-op on a wide frame);
     // the band grows by one line pitch per extra line.
     ctx.font = '800 ' + headSize + 'px ' + FONT;
-    var words = (p.headline || '').toUpperCase().split(' ').filter(function (w) { return w; });
+    var words = caps(p.headline).split(' ').filter(function (w) { return w; });
     var lines = [];
     var line = '';
     for (var i = 0; i < words.length; i++) {
@@ -89,7 +98,7 @@
     var textA = clamp01((show - 0.35) / 0.65);
 
     // The kicker tab sits above the band on the left.
-    var kickText = (p.kicker || '').toUpperCase();
+    var kickText = caps(p.kicker);
     ctx.font = '800 ' + kickSize + 'px ' + FONT;
     var kickTextW = ctx.measureText(kickText).width;
     if (kickTextW > maxTextW - 56 * s) {

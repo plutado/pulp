@@ -3,7 +3,7 @@
   "id": "pulp.samples.newsdesk.lower-third",
   "name": "Newsdesk lower third",
   "description": "A dark bar with a red slash cap: name in bold capitals, topic below, and an optional pulsing live flag.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
   "category": "lower-third",
@@ -94,6 +94,14 @@
       "margin": 0.1,
       "fallbackText": "name",
       "element": "Logo"
+    },
+    {
+      "id": "allCaps",
+      "type": "boolean",
+      "label": "All caps",
+      "description": "The set's house style sets every word in capitals. Off, the words stay as typed.",
+      "default": true,
+      "element": "Text"
     }
   ]
 }

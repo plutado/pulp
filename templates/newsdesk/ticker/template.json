@@ -3,7 +3,7 @@
   "id": "pulp.samples.newsdesk.ticker",
   "name": "Newsdesk ticker",
   "description": "A bottom ticker bar with a slash-cut red label and a looping headline that scrolls across, sliding up to enter and down to leave.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
   "category": "overlay",
@@ -81,6 +81,14 @@
       "max": 1.5,
       "step": 0.05,
       "element": "Layout and timing"
+    },
+    {
+      "id": "allCaps",
+      "type": "boolean",
+      "label": "All caps",
+      "description": "The set's house style sets every word in capitals. Off, the words stay as typed.",
+      "default": true,
+      "element": "Text"
     }
   ]
 }
