@@ -332,9 +332,13 @@ describe.skipIf(!electron)('inspector UI', () => {
     return page.eval<T>(expr, ctx?.id);
   }
 
-  /** Read one preview pixel (straight RGBA, as the template's canvas holds it) in template coordinates. */
+  /**
+   * Read one preview pixel (straight RGBA, as the template's canvas holds it) in template coordinates.
+   * A template page that exists before its canvas does (a slow CI machine) answers [-1, -1, -1, -1],
+   * which no check accepts, so an `until` keeps polling instead of throwing out of the wait.
+   */
   function previewPixel(x: number, y: number, templateId = 'pulp.samples.lower-third-bar'): Promise<number[]> {
-    return inTemplate<number[]>(`(() => { const d = document.getElementById('c').getContext('2d').getImageData(${x}, ${y}, 1, 1).data; return [...d]; })()`, templateId);
+    return inTemplate<number[]>(`(() => { const c = document.getElementById('c'); if (!c) return [-1, -1, -1, -1]; const d = c.getContext('2d').getImageData(${x}, ${y}, 1, 1).data; return [...d]; })()`, templateId);
   }
 
   /** Move the scrubber and give the preview a moment to draw the frame. */
