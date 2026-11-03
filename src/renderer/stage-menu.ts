@@ -191,6 +191,17 @@ function paste(): void {
   selectedLayer.value = { block: home, id: added.id };
 }
 
+/**
+ * How a picked property becomes a parameter (milestone 55): the Parameters tab
+ * owns the form and the raw values, so it registers the maker here (from
+ * src/renderer/main.ts) and the menus only name the layer and the property.
+ */
+let exposer: (block: string, layerId: string, prop: 'text' | 'color' | 'image') => void = () => undefined;
+
+export function registerExposer(fn: (block: string, layerId: string, prop: 'text' | 'color' | 'image') => void): void {
+  exposer = fn;
+}
+
 /** Run one layer command. The application menu's dispatcher sends them here, and so does the menu below. */
 export function runLayerCommand(command: MenuCommand, arg: string | null): void {
   const editor = layerEditor();
@@ -198,6 +209,14 @@ export function runLayerCommand(command: MenuCommand, arg: string | null): void 
   switch (command) {
     case 'layer.addText': landed(editor.addLayer('text')); return;
     case 'layer.addShape': landed(editor.addLayer('shape')); return;
+    case 'layer.exposeText': case 'layer.exposeColor': case 'layer.exposeImage': {
+      const it = chosen();
+      if (!it) return;
+      // The parameter lands in the Parameters tab, named and ready to rename: open on it.
+      openInspector('parameters');
+      exposer(it.block, it.layer.id, command === 'layer.exposeText' ? 'text' : command === 'layer.exposeColor' ? 'color' : 'image');
+      return;
+    }
     case 'layer.addImage': case 'layer.addVideo': {
       const type = command === 'layer.addVideo' ? 'video' : 'image';
       // With a library item it shows that item, named after it; with none it is a blank layer,

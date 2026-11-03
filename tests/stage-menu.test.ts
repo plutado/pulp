@@ -65,7 +65,7 @@ describe('what can be done to a layer', () => {
     const stack = stackOf('a', 'b', 'c');
     const middle = layerMenuFacts({ stack, selected: 'b', canAdd: true, hasCopiedLayer: false, hasCopiedLook: false });
     // The fixture's layers are lines of type, so there are words to edit as well.
-    expect(middle).toEqual(facts({ canAddLayer: true, canEditLayer: true, canDeleteLayer: true, canLayerForward: true, canLayerBackward: true, canEditText: true }));
+    expect(middle).toEqual(facts({ canAddLayer: true, canEditLayer: true, canDeleteLayer: true, canLayerForward: true, canLayerBackward: true, canEditText: true, canExposeColor: true }));
     // The stack draws bottom first, so the last is at the front and cannot go further.
     expect(layerMenuFacts({ stack, selected: 'c', canAdd: true, hasCopiedLayer: false, hasCopiedLook: false })).toMatchObject({ canLayerForward: false, canLayerBackward: true });
     expect(layerMenuFacts({ stack, selected: 'a', canAdd: true, hasCopiedLayer: false, hasCopiedLook: false })).toMatchObject({ canLayerForward: true, canLayerBackward: false });
@@ -220,7 +220,7 @@ describe('one command list with the application menu', () => {
     for (const layerLabel of ['Title', null]) {
       const all = { canAddLayer: true, canEditLayer: true, canDeleteLayer: true, canLayerForward: true, canLayerBackward: true, canPasteLayer: true, canPasteLook: true, canResetLayer: true };
       // Every kind of layer, since each offers an item the others do not.
-      for (const f of [NO_LAYER_FACTS, facts({ ...all, canEditText: true }), facts({ ...all, canReplaceImage: true }), facts({ ...all, canReplaceClip: true })]) {
+      for (const f of [NO_LAYER_FACTS, facts({ ...all, canEditText: true, canExposeColor: true }), facts({ ...all, canReplaceImage: true }), facts({ ...all, canReplaceClip: true })]) {
         const assets: StageAsset[] = [{ id: 'i1', name: 'Logo', kind: 'image' }, { id: 'v1', name: 'Fire', kind: 'video' }];
         for (const c of stageMenuCommands(stageMenu(context({ layerLabel, facts: f, assets })))) found.add(c);
       }

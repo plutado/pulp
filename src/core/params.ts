@@ -8,6 +8,7 @@
  */
 
 import { sanitizeCaptions, type CaptionsValue } from './captions';
+import { EXPOSE_KEY as EXPOSE_KEY_INTERNAL } from './expose';
 import { sanitizeCutTrack, type CutTrack } from './cut-track';
 import { sanitizeImageValue, type ImageValue } from './image-slot';
 import { clipValueFromText, sanitizeClipValue, type ClipValue } from './video-layer';
@@ -48,6 +49,9 @@ export const CAPTIONS_KEY = '@captions';
  */
 export const SOUND_KEY = '@sound';
 
+/** Where the picked parameters ride (milestone 55): names bound to layer properties, metadata only (src/core/expose.ts). */
+export { EXPOSE_KEY } from './expose';
+
 /** Raw values split into the parameters and the layer stacks that rode with them. */
 export function splitLayers(raw: Record<string, unknown>): { params: Record<string, unknown>; layers: LayerValues } {
   const { [LAYERS_KEY]: layers, ...rest } = raw;
@@ -58,6 +62,7 @@ export function splitLayers(raw: Record<string, unknown>): { params: Record<stri
   delete rest[TRACK_KEY];
   delete rest[CAPTIONS_KEY];
   delete rest[SOUND_KEY];
+  delete rest[EXPOSE_KEY_INTERNAL];
   return { params: rest, layers: (layers ?? {}) as LayerValues };
 }
 

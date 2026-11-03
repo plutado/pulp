@@ -50,6 +50,9 @@ export type MenuCommand =
   | 'layer.addImage'
   | 'layer.addVideo'
   | 'layer.addShape'
+  | 'layer.exposeText'
+  | 'layer.exposeColor'
+  | 'layer.exposeImage'
   | 'layer.cut'
   | 'layer.copy'
   | 'layer.paste'
@@ -165,6 +168,8 @@ export interface MenuState {
   canEditText: boolean;
   /** The selected layer shows a picture, so another can be chosen for it. */
   canReplaceImage: boolean;
+  /** The selected layer has one colour of its own — a line of type or a shape — so it can be picked as a parameter. */
+  canExposeColor: boolean;
   /** The selected layer plays a clip, so another can be chosen for it. */
   canReplaceClip: boolean;
   /** A layer is selected: there is something to copy, duplicate, time or reset. */
@@ -214,6 +219,7 @@ export const EMPTY_MENU_STATE: MenuState = {
   canAddLayer: false,
   canEditText: false,
   canReplaceImage: false,
+  canExposeColor: false,
   canReplaceClip: false,
   canEditLayer: false,
   canDeleteLayer: false,
@@ -344,6 +350,11 @@ export function layerSubmenu(): MenuItemSpec[] {
     { command: 'layer.replaceImage', label: 'Replace Image…', enabledBy: 'canReplaceImage' },
     { command: 'layer.replaceClip', label: 'Replace Clip…', enabledBy: 'canReplaceClip' },
     sep,
+    // Parameters by picking (milestone 55): the property becomes a named parameter in the Parameters tab.
+    { command: 'layer.exposeText', label: 'Make Words a Parameter', enabledBy: 'canEditText' },
+    { command: 'layer.exposeColor', label: 'Make Colour a Parameter', enabledBy: 'canExposeColor' },
+    { command: 'layer.exposeImage', label: 'Make Picture a Parameter', enabledBy: 'canReplaceImage' },
+    sep,
     { command: 'layer.addText', label: 'Add Text Layer', enabledBy: 'canAddLayer' },
     // Both take a library item as their argument, as Open Recent takes a path: with one they add
     // a layer showing it (the stage's Add Asset Here), with none a blank layer to be filled in.
@@ -387,6 +398,9 @@ export const SHARED_COMMAND_FLAGS: Readonly<Partial<Record<MenuCommand, Flag>>> 
   'layer.addImage': 'canAddLayer',
   'layer.addVideo': 'canAddLayer',
   'layer.addShape': 'canAddLayer',
+  'layer.exposeText': 'canEditText',
+  'layer.exposeColor': 'canExposeColor',
+  'layer.exposeImage': 'canReplaceImage',
   'layer.cut': 'canDeleteLayer',
   'layer.copy': 'canEditLayer',
   'layer.paste': 'canPasteLayer',

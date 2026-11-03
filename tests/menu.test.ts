@@ -123,6 +123,7 @@ describe('the application menu (milestone 27)', () => {
     const layer = byLabel(edit, 'Layer')!.submenu!;
     expect(layer.filter((i) => i.type !== 'separator').map((i) => i.label)).toEqual([
       'Edit Text', 'Replace Image…', 'Replace Clip…',
+      'Make Words a Parameter', 'Make Colour a Parameter', 'Make Picture a Parameter',
       'Add Text Layer', 'Add Image Layer', 'Add Video Layer',
       'Add Shape Layer',
       'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete',

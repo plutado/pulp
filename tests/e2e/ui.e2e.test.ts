@@ -6425,6 +6425,78 @@ describe.skipIf(!electron)('inspector UI', () => {
       );
       await clickResult('Lower Third Bar');
     }, 180_000);
+
+    it('makes a property a parameter by picking it and naming it: colour off the stage menu path, words off the card (milestone 55)', async () => {
+      await page.eval(`window.pulpMenuCommand('canvas.new')`);
+      await until(
+        () => page.eval<boolean>(`(document.getElementById('preview').getAttribute('src') || '').startsWith('pulp-template://${CANVAS}/')`),
+        'the blank canvas on the stage',
+      );
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'its preview ready');
+      // The canvas as the template ships it, whatever an earlier test composed on it.
+      await openTab('parameters');
+      await page.eval(`(() => { const b = document.querySelector('#params .layers-block[data-block=canvas] .layers-reset'); if (b && !b.hidden) b.click(); })()`);
+      await until(async () => (await previewPixel(960, 540, CANVAS))[3] === 0, 'the canvas empty again');
+      await page.eval(`window.pulpMenuCommand('layer.addShape')`);
+      await until(async () => (await previewPixel(960, 540, CANVAS))[3] === 255, 'the shape drawn');
+
+      // Select the shape on the stage, then run the very command the right-click menu names.
+      const client = async (fx: number, fy: number) => {
+        const b = await page.eval<{ left: number; top: number; width: number; height: number }>(`(() => { const r = ${overlay}.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
+        const f = await page.eval<{ width: number; height: number }>(`(() => { const c = document.getElementById('preview-frame'); const [w, h] = (c.style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`);
+        return { x: b.left + (fx / f.width) * b.width, y: b.top + (fy / f.height) * b.height };
+      };
+      const at = await client(960, 540);
+      await page.eval(`${overlay}.dispatchEvent(new PointerEvent('pointerdown', { clientX: ${at.x}, clientY: ${at.y}, pointerId: 9, button: 0, bubbles: true }))`);
+      await page.eval(`${overlay}.dispatchEvent(new PointerEvent('pointerup', { clientX: ${at.x}, clientY: ${at.y}, pointerId: 9, button: 0, bubbles: true }))`);
+      await until(() => page.eval<boolean>(`!!${overlay}.querySelector('.stage-handle')`), 'the shape selected');
+      await page.eval(`window.pulpMenuCommand('layer.exposeColor')`);
+
+      // Picked: it lands at the top of the Parameters tab, named after the layer, the name focused to rename.
+      const row = `document.querySelector('#params .exposed-param[data-expose="shape_1_colour"]')`;
+      await until(() => page.eval<boolean>(`!!${row}`), 'the picked parameter in the tab');
+      expect(await page.eval<string>(`${row}.querySelector('.exposed-name').value`), 'named after the layer to start').toBe('Shape 1 colour');
+      expect(await page.eval<boolean>(`document.activeElement === ${row}.querySelector('.exposed-name')`), 'the name focused: naming is the other half of picking').toBe(true);
+      await page.eval(`(() => { const f = ${row}.querySelector('.exposed-name'); f.value = 'Accent'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(() => page.eval<boolean>(`${row} && ${row}.querySelector('.exposed-name').value === 'Accent'`), 'the parameter renamed');
+
+      // The parameter's control edits the very property it was picked from: the shape recolours.
+      await page.eval(`(() => { const f = ${row}.querySelector('.color-field .hex'); f.value = '#2266ff'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(async () => {
+        const px = await previewPixel(960, 540, CANVAS);
+        return Math.abs(px[0]! - 34) <= 2 && Math.abs(px[1]! - 102) <= 2 && Math.abs(px[2]! - 255) <= 2;
+      }, 'the shape in the parameter\u2019s colour');
+
+      // Words off the card's own pick button, and one value with two ways to reach it.
+      await page.eval(`window.pulpMenuCommand('layer.addText')`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params [aria-label="Line 2: make words a parameter"]')`), 'the pick button on the line\u2019s card');
+      await page.eval(`document.querySelector('#params [aria-label="Line 2: make words a parameter"]').click()`);
+      const words = `document.querySelector('#params .exposed-param[data-expose="line_2_words"]')`;
+      await until(() => page.eval<boolean>(`!!${words}`), 'the words parameter in the tab');
+      await page.eval(`(() => { const f = ${words}.querySelector('.layer-text'); f.value = 'Ada Lovelace'; f.dispatchEvent(new Event('input', { bubbles: true })); f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      // The layer card's own input answers with the same value once the form rebuilds on reselect.
+      await clickResult('Blank Canvas');
+      await until(
+        () => page.eval<string>(`(document.querySelector('#params .param-card[data-layer="text_2"] .layer-text') || {}).value || ''`).then((v) => v === 'Ada Lovelace'),
+        'the layer holding the parameter\u2019s words',
+      );
+
+      // Un-picked: the parameter goes, the layer keeps its words.
+      await page.eval(`document.querySelector('#params .exposed-param[data-expose="line_2_words"] [aria-label="Stop Line 2 words being a parameter"]').click()`);
+      await until(() => page.eval<boolean>(`!document.querySelector('#params .exposed-param[data-expose="line_2_words"]')`), 'the parameter gone');
+      expect(await page.eval<string>(`document.querySelector('#params .param-card[data-layer="text_2"] .layer-text').value`), 'the layer keeping its words').toBe('Ada Lovelace');
+
+      // Left as it was found.
+      await page.eval(`window.pulpMenuCommand('project.new')`);
+      await until(
+        () => page.eval<boolean>(
+          `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
+            return document.querySelector('#project-button .label').textContent === 'Untitled'; })()`,
+        ),
+        'a clean session left behind',
+      );
+      await clickResult('Lower Third Bar');
+    }, 180_000);
   });
 
   describe("the editor panel's bridge (milestone 54, ADR 0025)", () => {

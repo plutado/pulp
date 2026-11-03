@@ -1590,3 +1590,25 @@ progress { width: 100%; margin: 2px 0; }
 .matte-field { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
 .tint-row { display: flex; align-items: center; gap: var(--space-2); }
 .matte-field input { width: auto; }
+
+/* Parameters by picking (milestone 55): the pick row on a layer card, and the picked parameters' own rows. */
+.layer-expose {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: var(--font-secondary);
+  color: var(--muted);
+}
+.exposed-params .note { margin: 2px 0 8px; }
+.exposed-param {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.8fr) minmax(120px, 1.2fr) auto;
+  gap: 6px;
+  align-items: start;
+  margin-bottom: 6px;
+}
+.exposed-param .exposed-name { font-weight: 600; min-width: 0; }
+.exposed-param .layer-text { min-width: 0; }
+.exposed-param .image-field { grid-column: 2; }

@@ -10,7 +10,7 @@ import { initCleanup } from './cleanup';
 import { initShell } from './shell';
 import { closeInspectorUnlessPinned, initInspectorTabs, openInspector, showInspectorTab } from './inspector-tabs';
 import { mountCaptions } from './captions';
-import { chosenLibraryItems, currentCaptions, currentLayers, currentRawParams, currentSound, currentTrack, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
+import { chosenLibraryItems, currentCaptions, currentLayers, currentRawParams, currentSound, currentTrack, exposeLayerProperty, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
 import { currentOptions, currentPresetId, initInspectorOutput, outputClear, outputEdited, outputSetFfmpeg, outputShow, outputShowMedia, setTemplateShower, updateRenderControls } from './inspector-output';
 import { initGuidedSetup } from './guided-setup';
 import { initSemantic } from './semantic';
@@ -23,6 +23,7 @@ import { initLibraryAdd, setLibraryAddBusy } from './library-add';
 import { initProject, openProjectFrom } from './project';
 import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './project-ui';
 import { initMenu, registerBlankCanvasOpener } from './menu';
+import { registerExposer } from './stage-menu';
 import { BLANK_CANVAS_ID } from '../core/menu';
 import { initContextMenu } from './context-menu';
 import { hideStartScreen, initStartScreen, showStartScreen } from './start-screen';
@@ -413,6 +414,8 @@ initCleanup();
 initInspectorTabs();
 initTheater();
 initInspectorParams();
+// Picking a property on the stage makes it a parameter in the tab (milestone 55): the tab owns the form.
+registerExposer(exposeLayerProperty);
 // The captions dialog's own wiring (milestone 50): the model ask, the run and its progress.
 mountCaptions();
 setTemplateShower((templateId) => {

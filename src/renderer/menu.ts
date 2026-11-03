@@ -102,6 +102,7 @@ function run(command: MenuCommand, arg: string | null): void {
     // and they run here, in the one dispatcher, whichever menu asked.
     case 'layer.editText': case 'layer.replaceImage': case 'layer.replaceClip':
     case 'layer.addText': case 'layer.addImage': case 'layer.addVideo': case 'layer.addShape':
+    case 'layer.exposeText': case 'layer.exposeColor': case 'layer.exposeImage':
     case 'layer.cut': case 'layer.copy': case 'layer.paste': case 'layer.duplicate': case 'layer.delete':
     case 'layer.forward': case 'layer.backward': case 'layer.front': case 'layer.back':
     case 'layer.copyLook': case 'layer.pasteLook': case 'layer.startHere': case 'layer.endHere': case 'layer.reset':

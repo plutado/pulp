@@ -46,6 +46,7 @@ import {
   type ShapeKind,
   type ShapeLayer,
 } from '../core/layers';
+import { exposableProps, exposedValue, exposeId, exposeIn, PROP_LABELS, pruneExpose, suggestedLabel, withExpose, withExposedValue, type ExposableProp, type ExposedParam } from '../core/expose';
 import { addRecentColor } from '../core/recent-colors';
 import { lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
 import { clockLabel, dimensionsLabel } from '../core/display';
@@ -1296,6 +1297,157 @@ function setCaptions(captions: CaptionsValue | null, commit: boolean): void {
   }
 }
 
+// ---------------------------------------------------------------- parameters by picking (milestone 55)
+
+/** An exposure's value set on its bound layer, through the one edit path layers have. */
+function setExposed(exposure: ExposedParam, value: unknown, rebuild: boolean): void {
+  const layers = currentLayers();
+  const next = withExposedValue(exposure, layers, value);
+  if (next !== layers) setLayers(next, rebuild);
+}
+
+/** One picked parameter: its name (editable — the naming is the point), its control, and the way out. */
+function exposedRow(exposure: ExposedParam): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'exposed-param';
+  row.dataset.expose = exposure.id;
+  const name = document.createElement('input');
+  name.type = 'text';
+  name.className = 'exposed-name';
+  name.value = exposure.label;
+  name.setAttribute('aria-label', `${exposure.label} parameter name`);
+  name.title = 'The parameter\u2019s name, shown wherever it is offered';
+  name.addEventListener('change', () => {
+    const label = name.value.trim();
+    if (label === '' || label === exposure.label) {
+      name.value = exposure.label;
+      return;
+    }
+    renameExposure(exposure.id, label);
+  });
+  row.append(name);
+
+  const layers = currentLayers();
+  const current = exposedValue(exposure, layers);
+  if (exposure.prop === 'text') {
+    const words = document.createElement('input');
+    words.type = 'text';
+    words.className = 'layer-text';
+    words.value = typeof current === 'string' ? current : '';
+    words.setAttribute('aria-label', exposure.label);
+    words.addEventListener('input', () => setExposed(exposure, words.value, false));
+    words.addEventListener('change', () => commitParams());
+    row.append(words);
+  } else if (exposure.prop === 'color') {
+    row.append(colorField(typeof current === 'string' ? current : '#ffffff', (hex) => {
+      setExposed(exposure, hex, false);
+      commitParams();
+    }));
+  } else {
+    row.append(imageField(current && typeof current === 'object' ? current : null, (v) => {
+      setExposed(exposure, v, true);
+    }, { id: `expose.${exposure.id}`, label: exposure.label }, { layer: true }));
+  }
+
+  const remove = iconButton('trash', `Stop ${exposure.label} being a parameter`, 'The layer keeps its value; only the parameter goes');
+  remove.addEventListener('click', () => {
+    const selected = selectedTemplate.value;
+    if (!selected) return;
+    p.raw = withExpose(p.raw, exposeIn(p.raw).filter((e) => e.id !== exposure.id));
+    editorFor(selected.manifest.id).current = p.raw;
+    buildParamForm(selected.manifest);
+    commitParams();
+  });
+  row.append(remove);
+  return row;
+}
+
+/** Rename an exposure; the binding and the id stay, so nothing saved elsewhere moves. */
+function renameExposure(id: string, label: string): void {
+  const selected = selectedTemplate.value;
+  if (!selected) return;
+  p.raw = withExpose(p.raw, exposeIn(p.raw).map((e) => (e.id === id ? { ...e, label } : e)));
+  editorFor(selected.manifest.id).current = p.raw;
+  buildParamForm(selected.manifest);
+  commitParams();
+}
+
+/**
+ * The picked parameters, as a form of their own at the top of the tab: each
+ * control edits the very layer property it names, so there is one value and
+ * two ways to reach it, never two values. An exposure whose layer has gone is
+ * kept in the raw values — an undo can bring the layer back — but not shown.
+ */
+function exposedParamsSection(): HTMLElement | null {
+  const live = pruneExpose(exposeIn(p.raw), currentLayers());
+  if (live.length === 0) return null;
+  const section = document.createElement('section');
+  section.className = 'param-card exposed-params';
+  const head = document.createElement('div');
+  head.className = 'group-label';
+  head.textContent = 'Template parameters';
+  const note = document.createElement('p');
+  note.className = 'note';
+  note.textContent = 'Picked off the layers and named here. Each edits the property it was picked from; saving the canvas as a template carries them as its parameters.';
+  section.append(head, note);
+  for (const exposure of live) section.append(exposedRow(exposure));
+  return section;
+}
+
+/**
+ * Make a layer property a parameter (milestone 55): picked on the stage's
+ * right-click menu, the Edit menu, or the property's own card. Named after the
+ * layer to start with, and the name field is focused, because giving it a name
+ * is the other half of picking it.
+ */
+export function exposeLayerProperty(blockId: string, layerId: string, prop: ExposableProp): void {
+  const selected = selectedTemplate.value;
+  if (!selected) return;
+  const layer = (currentLayers()[blockId] ?? []).find((l) => l.id === layerId);
+  if (!layer || !exposableProps(layer).includes(prop)) return;
+  const existing = exposeIn(p.raw);
+  const already = existing.find((e) => e.block === blockId && e.layer === layerId && e.prop === prop);
+  let id: string;
+  if (already) {
+    id = already.id;
+  } else {
+    const label = suggestedLabel(layer.label, prop);
+    id = exposeId(label, new Set(existing.map((e) => e.id)));
+    p.raw = withExpose(p.raw, [...existing, { id, label, block: blockId, layer: layerId, prop }]);
+    editorFor(selected.manifest.id).current = p.raw;
+    buildParamForm(selected.manifest);
+    commitParams();
+  }
+  const name = els.params.querySelector<HTMLInputElement>(`[data-expose="${id}"] .exposed-name`);
+  name?.focus();
+  name?.select();
+}
+
+/** The card's own way to pick (milestone 55): one small button per property not yet a parameter. */
+function exposeButtons(blockId: string, layer: Layer): HTMLElement | null {
+  const props = exposableProps(layer);
+  if (props.length === 0) return null;
+  const existing = exposeIn(p.raw);
+  const free = props.filter((prop) => !existing.some((e) => e.block === blockId && e.layer === layer.id && e.prop === prop));
+  if (free.length === 0) return null;
+  const row = document.createElement('div');
+  row.className = 'layer-expose';
+  const label = document.createElement('span');
+  label.textContent = 'Make a parameter:';
+  row.append(label);
+  for (const prop of free) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ghost';
+    button.textContent = PROP_LABELS[prop];
+    button.setAttribute('aria-label', `${layer.label}: make ${PROP_LABELS[prop].toLowerCase()} a parameter`);
+    button.title = `Expose the ${PROP_LABELS[prop].toLowerCase()} as a template parameter, named and edited at the top of this tab`;
+    button.addEventListener('click', () => exposeLayerProperty(blockId, layer.id, prop));
+    row.append(button);
+  }
+  return row;
+}
+
 /** One block's layers: the stack, what can be done to each, and how to add one. */
 /** What belongs to the block rather than to one of its layers: adding a layer, and putting the template's own back. */
 function blockFooter(manifest: TemplateManifest, blockId: string, label: string, showLabel: boolean): HTMLElement {
@@ -1388,6 +1540,8 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
       parts.push(gone);
     }
     parts.push(motionControls(blockId, layer), keyControls(blockId, layer), lookControls(blockId, layer));
+    const pick = exposeButtons(blockId, layer);
+    if (pick) parts.push(pick);
     return parts;
   }
   if (layer.type === 'video') {
@@ -1411,11 +1565,13 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
     ];
   }
   if (layer.type === 'shape') {
+    const pick = exposeButtons(blockId, layer);
     return [
       shapeLayerControls(blockId, layer),
       motionControls(blockId, layer),
       keyControls(blockId, layer),
       lookControls(blockId, layer),
+      ...(pick ? [pick] : []),
     ];
   }
   return [
@@ -1431,6 +1587,10 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
     motionControls(blockId, layer),
     keyControls(blockId, layer),
     lookControls(blockId, layer),
+    ...((): HTMLElement[] => {
+      const pick = exposeButtons(blockId, layer);
+      return pick ? [pick] : [];
+    })(),
   ];
 }
 
@@ -2877,6 +3037,9 @@ function buildParamForm(manifest: TemplateManifest): void {
     updateHistoryButtons();
     return;
   }
+  // The picked parameters first (milestone 55): the form the canvas is growing into.
+  const exposed = exposedParamsSection();
+  if (exposed) els.params.append(exposed);
   // A block's layer cards sit together, with what belongs to the block itself under them.
   let blockWrap: HTMLElement | null = null;
   let blockId: string | null = null;
