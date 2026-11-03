@@ -13,13 +13,16 @@
  */
 
 import { effect } from '@preact/signals';
+import { exposeIn } from '../core/expose';
+import { BLANK_CANVAS_ID } from '../core/menu';
 import type { MenuCommand, MenuState } from '../core/menu';
 import { DEFAULT_PLAYER, STAGE_BACKGROUNDS, type StageBackground } from '../core/player';
 import { THUMB_SIZES } from '../core/results-view';
-import { appState, paramsEdited, renderBlocked, results, resultsView, transport } from './store';
-import { selectedLayer } from './layer-edit';
+import { appState, paramsEdited, renderBlocked, results, resultsView, selectedTemplate, transport } from './store';
+import { layerEditor, selectedLayer } from './layer-edit';
 import { currentLayerFacts, recording, runLayerCommand, stageClipboard } from './stage-menu';
 import { registerCommandRunner } from './commands';
+import { sayInTray } from './tray';
 
 /**
  * How "New Blank Canvas" shows the canvas: main.ts registers the very select a
@@ -34,6 +37,39 @@ export function registerBlankCanvasOpener(fn: () => void): void {
 
 function openBlankCanvas(): void {
   blankCanvasOpener();
+}
+
+/** How a freshly saved template is shown: main.ts registers a select-by-manifest-id that waits for the rescan. */
+let savedTemplateOpener: (templateId: string) => void = () => undefined;
+
+export function registerSavedTemplateOpener(fn: (templateId: string) => void): void {
+  savedTemplateOpener = fn;
+}
+
+/**
+ * Save the canvas as a template folder (milestone 55): the window sends what
+ * was composed — the stacks, the picked parameters, the length — and the main
+ * process asks where (or a test's argument says), writes the folder, and adds
+ * it to the library. What could not travel is said in the tray, not dropped
+ * silently; the new template is then shown, reopened for editing.
+ */
+async function saveCanvasAsTemplate(dirArg: string | null): Promise<void> {
+  const editor = layerEditor();
+  const selected = selectedTemplate.value;
+  if (!editor || selected?.manifest.id !== BLANK_CANVAS_ID) return;
+  const layers = Object.fromEntries(editor.blocks().map((b) => [b.id, editor.stack(b.id) ?? []]));
+  const result = await window.pulp.saveCanvasTemplate({
+    layers,
+    expose: exposeIn(editor.params()),
+    length: editor.length(),
+    ...(dirArg ? { dir: dirArg } : {}),
+  });
+  if (!result.ok) {
+    if (!result.cancelled) sayInTray(result.message);
+    return;
+  }
+  for (const note of result.notes) sayInTray(note);
+  savedTemplateOpener(result.templateId);
 }
 import { diagnosticsText } from '../core/log';
 import { performanceLines } from '../core/perf';
@@ -84,6 +120,7 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'project.new': void newProject(); return;
     // The blank canvas (milestone 55): the bundled template to compose on, shown as a click on it would.
     case 'canvas.new': openBlankCanvas(); return;
+    case 'canvas.saveTemplate': void saveCanvasAsTemplate(arg); return;
     case 'project.open': void openProjectFrom(null); return;
     case 'project.openRecent': if (arg) void openProjectFrom(arg); return;
     case 'project.save': void saveProject(); return;
@@ -209,6 +246,7 @@ function readState(recent: string[]): MenuState {
     // What can be done to a layer, worked out once and read by both menus (milestone 39).
     ...currentLayerFacts(),
     keyframing: recording(),
+    canSaveCanvas: selectedTemplate.value?.manifest.id === BLANK_CANVAS_ID,
     recent,
   };
 }

@@ -29,6 +29,7 @@ export type MenuCommand =
   | 'app.home'
   | 'project.new'
   | 'canvas.new'
+  | 'canvas.saveTemplate'
   | 'project.open'
   | 'project.openRecent'
   | 'project.save'
@@ -175,6 +176,8 @@ export interface MenuState {
   canExposeColor: boolean;
   /** Keyframe recording is on for the selected layer (milestone 51): moving it writes a key at the playhead. */
   keyframing: boolean;
+  /** The blank canvas is on the stage, so what is composed on it can be saved as a template (milestone 55). */
+  canSaveCanvas: boolean;
   /** The selected layer plays a clip, so another can be chosen for it. */
   canReplaceClip: boolean;
   /** A layer is selected: there is something to copy, duplicate, time or reset. */
@@ -226,6 +229,7 @@ export const EMPTY_MENU_STATE: MenuState = {
   canReplaceImage: false,
   canExposeColor: false,
   keyframing: false,
+  canSaveCanvas: false,
   canReplaceClip: false,
   canEditLayer: false,
   canDeleteLayer: false,
@@ -486,6 +490,8 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       { command: 'project.new', label: 'New Project', accelerator: 'CmdOrCtrl+N' },
       // The visual template editor's first piece (milestone 55): the bundled blank canvas, opened to compose on.
       { command: 'canvas.new', label: 'New Blank Canvas', accelerator: 'CmdOrCtrl+Shift+N' },
+      // And its other end (milestone 55): what was composed on the canvas, saved in the open format.
+      { command: 'canvas.saveTemplate', label: 'Save as Template…', enabledBy: 'canSaveCanvas' },
       { command: 'project.open', label: 'Open…', accelerator: 'CmdOrCtrl+O' },
       { label: 'Open Recent', submenu: recentSubmenu(state.recent) },
       sep,

@@ -1132,6 +1132,9 @@ function moveLayer(blockId: string, layerId: string, delta: -1 | 1): void {
 function resetLayers(blockId: string): void {
   const selected = selectedTemplate.value;
   if (!selected) return;
+  // The block's picked parameters go with its composition: a later layer that happens to reuse an
+  // id must not inherit a stale name. Undo restores the raw values whole, exposures included.
+  p.raw = withExpose(p.raw, exposeIn(p.raw).filter((e) => e.block !== blockId));
   setLayers({ ...currentLayers(), [blockId]: defaultLayers(selected.manifest)[blockId] ?? [] }, true);
 }
 
@@ -2248,6 +2251,22 @@ function motionControls(blockId: string, layer: Layer): HTMLElement {
   grid.append(...transitionFields('In', 'in', layer, readTransition, setTransition));
   grid.append(...transitionFields('Out', 'out', layer, readTransition, setTransition));
   grid.append(angleField(blockId, layer));
+  // A layout per aspect (milestone 55): a placement is kept per shape, and this makes the one on
+  // screen the starting point for the shapes not laid out yet — their own placements stay theirs.
+  if (layer.type !== 'audio' && layer.placement && !Object.values(layer.placement).every(isIdentityPlacement)) {
+    const everyShape = document.createElement('button');
+    everyShape.type = 'button';
+    everyShape.className = 'ghost layout-every-shape';
+    everyShape.textContent = 'Use this layout on every shape';
+    everyShape.setAttribute('aria-label', `${layer.label}: use this layout on every shape`);
+    everyShape.dataset.tip = 'The placement on screen now becomes the starting point at every aspect; a shape laid out on its own keeps its own';
+    everyShape.addEventListener('click', () => {
+      // Read at the click, not at the card's build: the aspect may have turned since.
+      const here = placementFor(currentLayer(blockId, layer.id)?.placement, currentAspectId());
+      editLayer(blockId, layer.id, (l) => ({ ...l, placement: { ...(l.placement ?? {}), default: { ...here } } }), true);
+    });
+    grid.append(typeField('Layout', everyShape, true));
+  }
   grid.append(...spanControls(blockId, layer, () => { span = currentLayer(blockId, layer.id)?.span; retitle(); }));
   details.append(grid);
   return details;

@@ -445,6 +445,11 @@ describe.skipIf(!electron)('inspector UI', () => {
     for (const file of ['template.json', 'index.html']) {
       await writeFile(join(mediaDir, 'structure', file), await readFile(join(__dirname, 'templates', 'structure', file)));
     }
+    // The hand-written twin of a composition the editor builds (milestone 55's test).
+    await mkdir(join(mediaDir, 'twin-canvas'), { recursive: true });
+    for (const file of ['template.json', 'index.html']) {
+      await writeFile(join(mediaDir, 'twin-canvas', file), await readFile(join(__dirname, 'templates', 'twin-canvas', file)));
+    }
     // The start screen stays out of the way: this suite drives the window underneath it,
     // and the screen has its own test, which shows it through File → Home.
     // Where sample media would go (milestone 34): the folder exists and is empty, so the results'
@@ -6570,6 +6575,209 @@ describe.skipIf(!electron)('inspector UI', () => {
       );
       await clickResult('Lower Third Bar');
     }, 180_000);
+
+    /** The canvas as the template ships it, ready for a fresh composition. */
+    async function freshCanvas(): Promise<{ cx: number; cy: number }> {
+      await page.eval(`window.pulpMenuCommand('canvas.new')`);
+      await until(
+        () => page.eval<boolean>(`(document.getElementById('preview').getAttribute('src') || '').startsWith('pulp-template://${CANVAS}/')`),
+        'the blank canvas on the stage',
+      );
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'its preview ready');
+      // An earlier test may have left the session leaning to a platform's shape: these tests
+      // compose at 16:9 first, so the canvas is pinned there the way a person would pin it.
+      await openTab('output');
+      await fire('#opt-aspect', '16:9', 'change');
+      await until(async () => { const f = await frameOf(); return f.width > f.height; }, 'the canvas wide');
+      await openTab('parameters');
+      await page.eval(`(() => { const b = document.querySelector('#params .layers-block[data-block=canvas] .layers-reset'); if (b && !b.hidden) b.click(); })()`);
+      const F = await frameOf();
+      const cx = Math.round(F.width / 2), cy = Math.round(F.height / 2);
+      await until(async () => (await previewPixel(cx, cy, CANVAS))[3] === 0, 'the canvas empty again');
+      return { cx, cy };
+    }
+
+    /** A frame point as overlay client coordinates, at the frame the preview shows now. */
+    async function clientAt(fx: number, fy: number): Promise<{ x: number; y: number }> {
+      const b = await page.eval<{ left: number; top: number; width: number; height: number }>(`(() => { const r = ${overlay}.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
+      const f = await frameOf();
+      return { x: b.left + (fx / f.width) * b.width, y: b.top + (fy / f.height) * b.height };
+    }
+
+    /** Drag the selected layer from one frame point to another, as the stage's handles do. */
+    async function dragLayer(from: { x: number; y: number }, to: { x: number; y: number }): Promise<void> {
+      const a = await clientAt(from.x, from.y);
+      const b = await clientAt(to.x, to.y);
+      const pointer = (type: string, at: { x: number; y: number }) =>
+        page.eval(`${overlay}.dispatchEvent(new PointerEvent(${JSON.stringify(type)}, { clientX: ${at.x}, clientY: ${at.y}, pointerId: 9, button: 0, bubbles: true }))`);
+      await pointer('pointerdown', a);
+      await pointer('pointermove', b);
+      await pointer('pointerup', b);
+    }
+
+    /** Leave the session clean for the tests after this one. */
+    async function leaveClean(): Promise<void> {
+      await page.eval(`window.pulpMenuCommand('project.new')`);
+      await until(
+        () => page.eval<boolean>(
+          `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
+            return document.querySelector('#project-button .label').textContent === 'Untitled'; })()`,
+        ),
+        'a clean session left behind',
+      );
+      await clickResult('Lower Third Bar');
+    }
+
+    it('keeps a layout per aspect, and hands one layout to every shape on asking (milestone 55)', async () => {
+      const { cx, cy } = await freshCanvas();
+      await page.eval(`window.pulpMenuCommand('layer.addShape')`);
+      await until(async () => (await previewPixel(cx, cy, CANVAS))[3] === 255, 'the shape drawn');
+      const wide = await frameOf();
+      const step = Math.round(wide.width / 5);
+
+      // Lay it out at 16:9: a fifth of the frame to the right.
+      await selectOnStage(cx, cy);
+      await dragLayer({ x: cx, y: cy }, { x: cx + step, y: cy });
+      await until(async () => Math.abs(((await laidShape())!.draw.dx) - step) < 8, 'the wide layout placed');
+
+      // 9:16 starts untouched: the stack's own place, not the wide layout's.
+      await openTab('output');
+      await fire('#opt-aspect', '9:16', 'change');
+      await until(async () => (await frameOf()).width < (await frameOf()).height, 'the frame turned tall');
+      await until(async () => Math.abs((await laidShape())!.draw.dx) < 2, 'the tall shape where its stack puts it');
+
+      // Lay the tall frame out its own way: a fifth of its height downward.
+      const tall = await frameOf();
+      const tcx = Math.round(tall.width / 2), tcy = Math.round(tall.height / 2);
+      const drop = Math.round(tall.height / 5);
+      await selectOnStage(tcx, tcy);
+      await dragLayer({ x: tcx, y: tcy }, { x: tcx, y: tcy + drop });
+      await until(async () => Math.abs(((await laidShape())!.draw.dy) - drop) < 8, 'the tall layout placed');
+
+      // Back at 16:9 the wide layout stands exactly as it was left.
+      await fire('#opt-aspect', '16:9', 'change');
+      await until(async () => (await frameOf()).width > (await frameOf()).height, 'the frame wide again');
+      await until(async () => {
+        const d = (await laidShape())!.draw;
+        return Math.abs(d.dx - step) < 8 && Math.abs(d.dy) < 2;
+      }, 'the wide layout kept');
+
+      // One layout for every shape, on asking: 1:1 — laid out by nobody — now starts from the wide one.
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params [aria-label="Shape 1: use this layout on every shape"]')`), 'the every-shape button');
+      await page.eval(`document.querySelector('#params [aria-label="Shape 1: use this layout on every shape"]').click()`);
+      await openTab('output');
+      await fire('#opt-aspect', '1:1', 'change');
+      await until(async () => {
+        const f = await frameOf();
+        return Math.abs(f.width - f.height) < 2;
+      }, 'the frame square');
+      await until(async () => {
+        const d = (await laidShape())!.draw;
+        const f = await frameOf();
+        return Math.abs(d.dx - f.width / 5) < 8;
+      }, 'the square frame starting from the handed layout');
+      // The tall frame's own layout outranks the handed one.
+      await fire('#opt-aspect', '9:16', 'change');
+      await until(async () => {
+        const d = (await laidShape())!.draw;
+        const f = await frameOf();
+        return Math.abs(d.dy - f.height / 5) < 8 && Math.abs(d.dx) < 2;
+      }, 'the tall layout still its own');
+      await fire('#opt-aspect', '16:9', 'change');
+      await leaveClean();
+    }, 180_000);
+
+    it('saves the canvas as a template folder that renders the frames its hand-written twin does, reopened for editing (milestone 55)', async () => {
+      const { cx, cy } = await freshCanvas();
+      // Built step by step in the UI: an amber bar 30% tall and 2.5 wide, a blue square 20% tall,
+      // both Still so every frame is the same picture — the twin fixture draws this by hand.
+      await page.eval(`window.pulpMenuCommand('layer.addShape')`);
+      await until(async () => (await previewPixel(cx, cy, CANVAS))[3] === 255, 'the first shape drawn');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params input[aria-label="Shape 1 size"]')`), 'the first card');
+      await page.eval(`(() => { const f = document.querySelector('#params input[aria-label="Shape 1 size"]'); f.value = '30'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`(() => { const f = document.querySelector('#params input[aria-label="Shape 1 ratio"]'); f.value = '2.5'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await selectOnStage(cx, cy);
+      await page.eval(`window.pulpMenuCommand('layer.motion', 'still')`);
+      await page.eval(`window.pulpMenuCommand('layer.addShape')`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params input[aria-label="Shape 2 size"]')`), 'the second card');
+      await page.eval(`(() => { const f = document.querySelector('#params input[aria-label="Shape 2 size"]'); f.value = '20'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await page.eval(`(() => { const f = document.querySelector('#params .param-card[data-layer="shape_2"] .color-field .hex'); f.value = '#2266ff'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      // The second shape sits below the first: select it where it lands to give it Still too.
+      const f = await frameOf();
+      const below = { x: cx, y: Math.round(f.height * 0.6481) };
+      await until(async () => (await previewPixel(below.x, below.y, CANVAS)).join() === '34,102,255,255', 'the blue square below');
+      await selectOnStage(below.x, below.y);
+      await page.eval(`window.pulpMenuCommand('layer.motion', 'still')`);
+      // And one picked parameter rides along: the second shape's color, named Accent.
+      await page.eval(`window.pulpMenuCommand('layer.exposeColor')`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params .exposed-param[data-expose="shape_2_color"]')`), 'the picked color');
+
+      // Saved as a folder, the test naming where so no dialog opens; the window then shows it.
+      const savedDir = join(userData, 'saved-templates', 'Twin Built');
+      await page.eval(`window.pulpMenuCommand('canvas.saveTemplate', ${JSON.stringify(savedDir)})`);
+      await until(
+        () => page.eval<boolean>(`(document.getElementById('preview').getAttribute('src') || '').startsWith('pulp-template://custom.twin-built/')`),
+        'the saved template reopened on the stage',
+        30_000,
+      );
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'its preview ready');
+      // The saved template declares every aspect, so a session leaning to a platform's shape would
+      // open it tall; the comparison is composed at 16:9, so both sides are pinned there.
+      await openTab('output');
+      await fire('#opt-aspect', '16:9', 'change');
+      await until(async () => { const f = await frameOf(); return f.width > f.height; }, 'the saved template wide');
+      const manifest = JSON.parse(await readFile(join(savedDir, 'template.json'), 'utf8')) as { id: string; parameters: { id: string }[] };
+      expect(manifest.id).toBe('custom.twin-built');
+      expect(manifest.parameters.map((q) => q.id)).toEqual(['shape_2_color']);
+
+      // It renders the frames its hand-written twin does: the same probes, pixel for pixel, at
+      // three frames — inside each shape, in the gap between them, and on empty ground. The probes
+      // are fractions of the frame, since a session may show the two at different resolutions and
+      // the composition is fractions of the frame throughout.
+      const probes = [[0.5, 0.3889], [0.5, 0.6481], [0.5, 0.55], [0.15, 0.3889], [0.5, 0.1111]] as const;
+      const probePixels = async (templateId: string, frame: number) => {
+        await scrubTo(frame);
+        const f = await frameOf();
+        const out: number[][] = [];
+        for (const [fx, fy] of probes) out.push(await previewPixel(Math.round(fx * f.width), Math.round(fy * f.height), templateId));
+        return out;
+      };
+      const built: Record<number, number[][]> = {};
+      for (const frame of [5, 90, 170]) built[frame] = await probePixels('custom.twin-built', frame);
+      // The built side first, on its own: both shapes Still, so every frame is the same picture.
+      for (const frame of [5, 90, 170]) {
+        expect(built[frame]![0]!.join(), `built frame ${frame} amber interior`).toBe('232,163,61,255');
+        expect(built[frame]![1]!.join(), `built frame ${frame} blue interior`).toBe('34,102,255,255');
+        expect(built[frame]![4]![3], `built frame ${frame} empty ground`).toBe(0);
+      }
+      await clickResult('Twin Canvas');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the twin ready');
+      await until(async () => { const f = await frameOf(); return f.width > f.height; }, 'the twin wide (it declares 16:9 alone)');
+      for (const frame of [5, 90, 170]) {
+        for (const [i] of probes.entries()) {
+          await until(async () => {
+            const twin = await probePixels('test.twin-canvas', frame);
+            return twin[i]!.join() === built[frame]![i]!.join();
+          }, `frame ${frame} probe ${probes[i]!.join(',')} matching the twin`);
+        }
+      }
+
+      // Reopened for editing: the saved template's own layers edit as the canvas's did.
+      await clickResult('Twin Built');
+      await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card[data-layer="shape_1"]')`), 'the saved layers editable');
+      await openTab('output');
+      await fire('#opt-aspect', '16:9', 'change');
+      await until(async () => { const f = await frameOf(); return f.width > f.height; }, 'the reopened template wide');
+      await openTab('parameters');
+      await page.eval(`(() => { const g = document.querySelector('#params .param-card[data-layer="shape_1"] .color-field .hex'); g.value = '#ff0000'; g.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await scrubTo(90);
+      await until(async () => { const f = await frameOf(); return (await previewPixel(Math.round(0.5 * f.width), Math.round(0.3889 * f.height), 'custom.twin-built')).join() === '255,0,0,255'; }, 'the reopened layer recolored');
+      // And the picked parameter drives the very layer it was picked from.
+      await page.eval(`(() => { const g = document.querySelector('#params [data-param="shape_2_color"] .color-field .hex, #params .exposed-param .color-field .hex, #params [data-param=shape_2_color] input.hex'); if (g) { g.value = '#00ff00'; g.dispatchEvent(new Event('change', { bubbles: true })); } })()`);
+      await until(async () => { const f = await frameOf(); return (await previewPixel(Math.round(0.5 * f.width), Math.round(0.6481 * f.height), 'custom.twin-built')).join() === '0,255,0,255'; }, 'the parameter recoloring its layer');
+      await leaveClean();
+    }, 240_000);
   });
   describe("the editor panel's bridge (milestone 54, ADR 0025)", () => {
     it('answers the library and the collection on loopback, and nothing without the token', async () => {

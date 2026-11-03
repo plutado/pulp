@@ -14,6 +14,8 @@ import type { RenderQueueSnapshot } from '../core/render-queue';
 import type { PlayerState } from '../core/player';
 import type { ResultsViewState } from '../core/results-view';
 import type { Collection, CollectionItem } from '../core/collection';
+import type { ExposedParam } from '../core/expose';
+import type { LayerValues } from '../core/layers';
 import type { Project } from '../core/project';
 import type { MenuCommand, MenuSection, MenuState } from '../core/menu';
 import type { ImportedFont } from '../core/fonts';
@@ -28,6 +30,11 @@ export type { Project } from '../core/project';
 export type { MenuCommand, MenuSection, MenuState } from '../core/menu';
 export type { RecentProjectRow } from '../core/start-screen';
 export type { PanelStatus } from '../main/panel-service';
+
+/** Saving the canvas as a template folder: where it went and what it is called in the library. */
+export type SaveCanvasResult =
+  | { ok: true; path: string; templateId: string; notes: string[] }
+  | { ok: false; cancelled?: boolean; message: string };
 import type { ImageGrantRequest } from '../core/image-slot';
 import type { PsdOutline } from '../core/psd';
 export type { PsdOutline } from '../core/psd';
@@ -351,6 +358,13 @@ export interface PulpApi {
   panelStatus(): Promise<PanelStatus>;
   setEditorPanel(enabled: boolean): Promise<PanelStatus>;
   panelCollectionChanged(collection: Collection, name: string): Promise<void>;
+  /**
+   * Save the canvas as a template folder (milestone 55): the window sends what
+   * was composed, the main process asks where (tests name `dir` outright),
+   * writes template.json and index.html, and adds the folder to the library.
+   * The notes say what could not travel: a template never ships a library id.
+   */
+  saveCanvasTemplate(request: { layers: LayerValues; expose: ExposedParam[]; length: number; dir?: string }): Promise<SaveCanvasResult>;
   /** The panel asked for an item to be shown, or a collection card opened for editing (milestone 54's third item). */
   onPanelOpen(listener: (target: { kind: 'item'; id: string } | { kind: 'collection'; uid: string }) => void): () => void;
   speechStatus(request?: { model?: string }): Promise<SpeechStatus>;

@@ -156,6 +156,7 @@ const api: PulpApi = {
   panelStatus: () => ipcRenderer.invoke('panel:status'),
   setEditorPanel: (enabled) => ipcRenderer.invoke('panel:set', enabled),
   panelCollectionChanged: (collection, name) => ipcRenderer.invoke('panel:collection', collection, name),
+  saveCanvasTemplate: (request) => ipcRenderer.invoke('canvas:save-template', request),
   onPanelOpen: (listener) => {
     const handler = (_event: unknown, target: Parameters<typeof listener>[0]) => listener(target);
     ipcRenderer.on('panel:open', handler);

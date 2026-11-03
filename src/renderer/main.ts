@@ -22,7 +22,7 @@ import { initSampleHint, refreshSampleHint } from './sample-hint';
 import { initLibraryAdd, setLibraryAddBusy } from './library-add';
 import { initProject, openProjectFrom } from './project';
 import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './project-ui';
-import { initMenu, registerBlankCanvasOpener } from './menu';
+import { initMenu, registerBlankCanvasOpener, registerSavedTemplateOpener } from './menu';
 import { registerExposer } from './stage-menu';
 import { BLANK_CANVAS_ID } from '../core/menu';
 import { initContextMenu } from './context-menu';
@@ -421,6 +421,21 @@ mountCaptions();
 setTemplateShower((templateId) => {
   const entry = appState.value.index?.templates.find((t) => t.manifest.id === templateId);
   if (entry && selectedTemplate.value?.manifest.id !== templateId) select(entry);
+});
+// A template the canvas just saved (milestone 55): shown once the rescan lands, retried briefly since
+// the index arrives as a broadcast after the save answers.
+registerSavedTemplateOpener((templateId) => {
+  const started = Date.now();
+  const show = () => {
+    const entry = appState.value.index?.templates.find((t) => t.manifest.id === templateId);
+    if (entry) {
+      hideStartScreen();
+      select(entry);
+      return;
+    }
+    if (Date.now() - started < 5000) setTimeout(show, 200);
+  };
+  show();
 });
 // File → New Blank Canvas (milestone 55): the bundled canvas on the stage, the start screen out of the way.
 registerBlankCanvasOpener(() => {

@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "id": "test.twin-canvas",
+  "name": "Twin Canvas",
+  "description": "The hand-written twin of a composition built step by step in the editor (milestone 55's test): two still shapes, stacked and centered, drawn with raw canvas calls from the same fractions.",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "other",
+  "tags": ["test"],
+  "duration": 6,
+  "structure": { "loop": true },
+  "fps": 30,
+  "aspects": ["16:9"],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": []
+}

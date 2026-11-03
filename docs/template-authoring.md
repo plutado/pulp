@@ -1,5 +1,7 @@
 # Writing a template
 
+You can also start without code: compose on the blank canvas (File → New Blank Canvas) and **File → Save as Template…** writes a folder in this very format — then edit it by hand from there.
+
 A walkthrough from an empty folder to a lower third that works at every shape, stretches to any length, takes a logo, and lets the person using it add their own lines. The finished folder is [`examples/pulp-template/`](../examples/pulp-template/): copy it and change the `id` to start from there instead.
 
 This guide is the path; [`docs/template-format.md`](template-format.md) is the specification, and the [JSON Schema](schema/template.schema.json) is the same shape for your editor. When the two disagree, the specification wins.
