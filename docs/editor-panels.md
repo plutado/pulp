@@ -21,7 +21,24 @@ while it is off. Pulp must be running for the panels to have anything to show.
 
 ## Installing the panels
 
-From a checkout:
+Two ways: from a **package** — one archive per host, made by
+`npm run panels:package` and attached to a release — or from a **checkout**.
+Each package carries its own `INSTALL.md` saying the same as below.
+
+### From a package
+
+- **Premiere Pro:** `pulp-panel-premiere-<version>.zxp`, when a release has
+  one, installs with an extension manager (Anastasiy's Extension Manager, or
+  Adobe's `ExManCmd --install <file>.zxp`) and needs no debug flag. The
+  `.zip` beside it is the same extension unsigned: unzip it to the CEP
+  extensions folder (below) as `com.pulp.panel`, and turn PlayerDebugMode on
+  as described under Premiere Pro.
+- **DaVinci Resolve Studio:** `pulp-panel-resolve-<version>.zip` unzips to a
+  `com.pulp.panel` folder; put it in the Workflow Integration Plugins folder
+  (below), add Resolve's own `WorkflowIntegration.node` from its developer
+  sample — Blackmagic's file, not in the package — and restart Resolve.
+
+### From a checkout
 
 ```sh
 npm run panels:install              # both panels
@@ -75,6 +92,46 @@ developer sample and not something Pulp may redistribute; the install script
 copies it into the panel where it finds the sample installed. Listing needs
 none of it — the panel says nothing about it either way — but the milestone's
 later items (dropping onto the timeline at the playhead) will use it.
+
+## Packaging the panels
+
+```sh
+npm run panels:package                 # release/panels/pulp-panel-{premiere,resolve}-<version>.zip
+npm run panels:package -- --premiere   # one host
+npm run panels:package -- --out dist/panels
+```
+
+`scripts/panel-package.mjs` says what each archive holds — the shared page
+plus the host's own files and its `INSTALL.md`, never Blackmagic's native
+module — and `scripts/package-panels.mjs` writes them, stamped with the
+app's version (the CEP manifest, the Resolve manifest and the plugin's
+`package.json` carry the same number, which a test holds). Where Adobe's
+**ZXPSignCmd** is found — on PATH, or named by `PULP_ZXPSIGNCMD` — a signed
+`.zxp` is written beside the Premiere zip: with the certificate in
+`PULP_ZXP_CERT` and `PULP_ZXP_PASSWORD` for a release, or a self-signed one
+made for the run, which installs through an extension manager on the machine
+that made it. Without the tool the zip is written and the signing step is
+said, not pretended. The archives are deterministic — the same files make the
+same bytes — so a release's checksums mean something.
+
+## How it is tested
+
+The panel's own code is tested without either editing app.
+`tests/dom/panel.test.ts` loads the very scripts the packages carry into a
+DOM over a real bridge on 127.0.0.1, with the host **stood in for**: once as
+Premiere's CEP surface (`__adobe_cep__.evalScript`, `cep.fs`), once as the
+Resolve plugin's preload (`pulpPanelHost`). It holds how the panel finds Pulp
+through each host's way of reading the discovery file, what it lists, that Bin
+and the timeline button render with the item's own settings and end in the
+right ExtendScript call or preload verb with the right file, that a render not
+yet ready is followed to its end, that Open names the item or the card, that
+the queue shows with its percentages and cancels, and that in Resolve a first
+drag renders and the next is a native drag of the file.
+`tests/panel-package.test.ts` opens the archives with Pulp's own ZIP reader
+and checks what is inside; `tests/panel-bridge.test.ts` speaks the protocol
+over a real socket; the UI end-to-end test drives the running app's bridge
+from outside. What stays for a machine with the editing apps installed is
+loading the packages in them, which the install steps above are written for.
 
 ## Using the panel
 

@@ -9,7 +9,7 @@
     <Plugin>
         <Id>com.pulp.panel</Id>
         <Name>Pulp</Name>
-        <Version>0.1</Version>
+        <Version>0.1.0</Version>
         <Description>Pulp's library and collection, without leaving the edit</Description>
         <FilePath>main.js</FilePath>
     </Plugin>

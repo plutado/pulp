@@ -50,3 +50,14 @@ A release with an empty Unreleased section is refused: nothing has landed, and a
 - The window's About panel and `Copy diagnostics` report it, so a bug report says which build it came from.
 - `CHANGELOG.md`'s newest *released* section is what the start screen's **What's new** shows; it reads the file rather than a copy, so a release's notes appear there the moment the release is cut.
 - Nothing in a project file, preset or template carries the app's version: those carry their own `formatVersion`, which moves on its own schedule (`docs/template-format.md`).
+
+## The editor panels
+
+A release can carry the editor panels (milestone 54) beside the installers:
+`npm run panels:package` writes `release/panels/pulp-panel-premiere-<version>.zip`
+and `pulp-panel-resolve-<version>.zip`, deterministic for the same files, and
+— with Adobe's ZXPSignCmd on the machine and a certificate in `PULP_ZXP_CERT`
+and `PULP_ZXP_PASSWORD` — a signed `pulp-panel-premiere-<version>.zxp`. The
+version inside the archives is `package.json`'s, so bump it first; the test
+holds the three manifests to the same number. Attach the archives to the
+release; each carries its own `INSTALL.md`. Details: [editor-panels.md](editor-panels.md).
