@@ -12,6 +12,7 @@ import { closeInspectorUnlessPinned, initInspectorTabs, openInspector, showInspe
 import { mountCaptions } from './captions';
 import { chosenLibraryItems, currentCaptions, currentLayers, currentRawParams, currentSound, currentTrack, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
 import { currentOptions, currentPresetId, initInspectorOutput, outputClear, outputEdited, outputSetFfmpeg, outputShow, outputShowMedia, setTemplateShower, updateRenderControls } from './inspector-output';
+import { initGuidedSetup } from './guided-setup';
 import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
@@ -417,6 +418,7 @@ setTemplateShower((templateId) => {
   if (entry && selectedTemplate.value?.manifest.id !== templateId) select(entry);
 });
 initInspectorOutput();
+initGuidedSetup();
 initSearchBar();
 initStatusBar();
 // The line under the results that says what sample media would add (milestone 34); a run of it

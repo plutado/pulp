@@ -19,7 +19,7 @@ import type { TemplateEntry } from '../core/library-types';
 import { currentRawParams } from './inspector-params';
 import { captionsIn, LAYERS_KEY } from '../core/params';
 import { lengthIn } from '../core/params';
-import { layersHaveStems } from '../core/sound-layer';
+import { layersHaveStems, soundIdsInLayers } from '../core/sound-layer';
 import { lengthFrameCount, resolveLength } from '../core/timing';
 import { stageStop } from './stage';
 import { appState, coverFrame, dispatch, frameSize, playheadSeconds, preferredAspect, preferredPlatform, renderBlocked, selectedTemplate, trim } from './store';
@@ -27,6 +27,8 @@ import {
   PLATFORM_PRESETS, platformLimitsLabel, platformPreset, platformSummary, platformWarningsBefore, type PlatformPreset,
 } from '../core/platform-presets';
 import { templateType, TYPES } from '../core/taxonomy';
+import { defaultGuidedChoices, type GuidedChoices } from '../core/guided-setup';
+import { openGuidedSetup } from './guided-setup';
 import { assetPresetsFor, type AssetOutputPreset, type TypeOutputDefault } from '../core/output-defaults';
 import type { TemplateManifest } from '../core/manifest';
 import { setCollection, setEditing } from '../core/app-state';
@@ -83,6 +85,9 @@ const els = {
   /** How music that came in as stems reaches the render (milestone 16); shown only while the project has stems. */
   optStemsField: $<HTMLLabelElement>('opt-stems-field'),
   optStems: $<HTMLSelectElement>('opt-stems'),
+  /** Guided setup (milestone 14): the launcher; the dialog itself is src/renderer/guided-setup.ts. */
+  guidedField: $<HTMLDivElement>('guided-field'),
+  guidedOpen: $<HTMLButtonElement>('guided-open'),
   /** One-click output presets per kind of asset, and the type's remembered default (milestone 14). */
   assetPresets: $<HTMLDivElement>('asset-presets'),
   assetPresetButtons: $<HTMLDivElement>('asset-preset-buttons'),
@@ -509,6 +514,88 @@ async function saveTypeDefault(value: TypeOutputDefault | null): Promise<void> {
   if (!manifest || !type) return;
   o.typeDefaults = await window.pulp.setTypeOutputDefault(type, value);
   refreshTypeDefaultRow(manifest);
+}
+
+// ---------------------------------------------------------------- guided setup (milestone 14)
+
+/** What the wizard starts from and reasons over: the shown template and the tab's controls as they stand. */
+export interface GuidedContext {
+  entryId: string;
+  manifest: TemplateManifest;
+  choices: GuidedChoices;
+  hasStems: boolean;
+  hasLayerSound: boolean;
+  presetDisabled: (id: string) => boolean;
+}
+
+/** The shown template with the controls read into the wizard's choices, or null while a media item or nothing is shown. */
+export function outputGuidedContext(): GuidedContext | null {
+  const entry = selectedTemplate.value;
+  if (!entry || o.media !== null) return null;
+  const m = entry.manifest;
+  const choices = defaultGuidedChoices(m);
+  const presetId = els.preset.value as PresetId;
+  if (presetId && OUTPUT_PRESETS[presetId]) choices.presetId = presetId;
+  if (els.optAspect.value && m.aspects.includes(els.optAspect.value)) choices.aspect = els.optAspect.value;
+  const size = readSizeChoice();
+  if (Number.isInteger(size.width) && Number.isInteger(size.height)) {
+    choices.width = size.width!;
+    choices.height = size.height!;
+  }
+  if (els.optFps.value !== '') choices.fps = Number(els.optFps.value);
+  choices.background = els.optBackground.value;
+  choices.matte = els.optMatte.checked;
+  if (!els.optStemsField.hidden && els.optStems.value === 'files') choices.stems = 'files';
+  if (els.optPlatform.value && platformPreset(els.optPlatform.value)) {
+    choices.purpose = 'social';
+    choices.platform = els.optPlatform.value;
+  }
+  const layers = currentRawParams()[LAYERS_KEY];
+  return {
+    entryId: entry.id,
+    manifest: m,
+    choices,
+    hasStems: layersHaveStems(layers),
+    hasLayerSound: soundIdsInLayers(layers).length > 0,
+    presetDisabled: (id) => Array.from(els.preset.options).some((opt) => opt.value === id && opt.disabled),
+  };
+}
+
+/**
+ * The wizard finished: its choices land on the very controls this tab holds,
+ * each only where the template can take it, exactly as a type default lands —
+ * and may then be saved as one, which is the wizard's save-as-default box.
+ */
+export function outputApplyGuided(choices: GuidedChoices, saveDefault: boolean): void {
+  const m = selectedTemplate.value?.manifest;
+  if (!m) return;
+  // The platform first, as the session's lean; the fields below say the wizard's own answers over it.
+  els.optPlatform.value = choices.platform && platformPreset(choices.platform) ? choices.platform : '';
+  preferredPlatform.value = els.optPlatform.value || null;
+  showPlatformNote();
+  const presetOption = Array.from(els.preset.options).find((opt) => opt.value === choices.presetId);
+  if (presetOption && !presetOption.disabled) els.preset.value = choices.presetId;
+  if (m.aspects.includes(choices.aspect)) {
+    els.optAspect.value = choices.aspect;
+    populateResolutions(m);
+  }
+  if (choices.width !== undefined && choices.height !== undefined) selectResolution(m, choices.width, choices.height);
+  else {
+    els.optResolution.value = '';
+    els.optSizeCustom.hidden = true;
+  }
+  els.optFps.value = choices.fps !== undefined && Array.from(els.optFps.options).some((opt) => opt.value === String(choices.fps)) ? String(choices.fps) : '';
+  els.optBackground.value = choices.background;
+  els.optMatte.checked = choices.matte;
+  if (!els.optStemsField.hidden) els.optStems.value = choices.stems;
+  showPresetNote();
+  updateOptionsNote();
+  // A new rate means the same trim text is a different frame, as the rate field's own change does.
+  publishTrim();
+  publishCover();
+  saveToEditedCard();
+  if (saveDefault) void saveTypeDefault(readTypeDefault());
+  else refreshTypeDefaultRow(m);
 }
 
 /**
@@ -976,6 +1063,7 @@ function showMediaFields(entry: MediaEntry | null): void {
     renderAssetPresets(null);
     refreshTypeDefaultRow(null);
   }
+  els.guidedField.hidden = entry !== null;
   // A media item has no captions; a template's project may (milestone 50). Likewise the stems row.
   els.optCaptionsField.hidden = entry !== null || captionsIn(currentRawParams()) === null;
   els.optStemsField.hidden = entry !== null || !layersHaveStems(currentRawParams()[LAYERS_KEY]);
@@ -1052,6 +1140,7 @@ export function outputClear(): void {
   showMediaFields(null);
   renderAssetPresets(null);
   refreshTypeDefaultRow(null);
+  els.guidedField.hidden = true;
   updateOptionsNote();
 }
 
@@ -1203,6 +1292,8 @@ export function initInspectorOutput(): void {
   els.typeDefaultClear.addEventListener('click', () => {
     void saveTypeDefault(null);
   });
+  // Guided setup (milestone 14): the same controls, walked step by step with a live preview.
+  els.guidedOpen.addEventListener('click', () => openGuidedSetup());
   // A platform sets the aspect, size, rate and encoder in one go, and stays the session's lean, so
   // the next item shown opens the same way (milestone 20).
   els.optPlatform.addEventListener('change', () => {

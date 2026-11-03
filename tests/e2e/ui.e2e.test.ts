@@ -4272,6 +4272,114 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 90_000);
 
+    it('guided setup walks the output step by step, previews live over a checkerboard, and lands on the tab (milestone 14)', async () => {
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
+      await openTab('output');
+      const open = () => page.eval<boolean>(`document.getElementById('guided-dialog').open`);
+      const head = () => page.eval<string>(`document.getElementById('guided-step-head').textContent`);
+      const next = () => page.eval(`document.getElementById('guided-next').click()`);
+      const typeDefaults = async (): Promise<Record<string, { presetId?: string }>> => {
+        try {
+          return (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { typeOutputDefaults?: Record<string, { presetId?: string }> }).typeOutputDefaults ?? {};
+        } catch {
+          return {};
+        }
+      };
+      try {
+        await page.eval(`document.getElementById('guided-open').click()`);
+        await until(open, 'the wizard');
+        expect(await head()).toBe('Step 1 of 5 · What is it for?');
+        // The purposes are the kind presets that fit an alpha lower third, a social post, and by hand.
+        const purposes = await page.eval<string[]>(`[...document.querySelectorAll('#guided-step-body input[name=guided-purpose]')].map((i) => i.value)`);
+        expect(purposes).toEqual(['transparent-overlay', 'editor-safe', 'web-alpha', 'social', 'custom']);
+        // The preview starts over the checkerboard: transparency kept by the default format.
+        expect(await page.eval<boolean>(`document.getElementById('guided-preview-box').classList.contains('checker')`)).toBe(true);
+        // Choosing the editor-safe answer flattens: the checkerboard gives way to the flatten colour, live.
+        await page.eval(`(() => { const i = document.querySelector('#guided-step-body input[name=guided-purpose][value=editor-safe]'); i.click(); })()`);
+        await until(async () => !(await page.eval<boolean>(`document.getElementById('guided-preview-box').classList.contains('checker')`)), 'the flatten preview');
+        expect(await page.eval<string>(`document.getElementById('guided-preview-caption').textContent`)).toContain('H.264 MP4');
+
+        // Shape and size: picking the vertical shape turns the preview box tall, live.
+        await next();
+        expect(await head()).toBe('Step 2 of 5 · Shape and size');
+        await page.eval(`(() => { const i = document.querySelector('#guided-step-body input[name=guided-aspect][value="9:16"]'); i.click(); })()`);
+        await until(() => page.eval<string>(`document.getElementById('guided-preview-box').style.aspectRatio`).then((v) => v.includes('1080 / 1920')), 'the tall preview');
+        expect(await page.eval<string>(`document.getElementById('guided-preview-caption').textContent`)).toContain('1080 × 1920');
+
+        // Format: the step holds what the first answer chose, said in plain words.
+        await next();
+        expect(await head()).toBe('Step 3 of 5 · Format');
+        expect(await page.eval<string>(`document.querySelector('#guided-step-body select').value`)).toBe('h264-mp4');
+        // Sound: said, not asked — this project holds no sound yet.
+        await next();
+        expect(await head()).toBe('Step 4 of 5 · Sound');
+        expect(await page.eval<string>(`document.getElementById('guided-step-body').textContent`)).toContain('Nothing here makes sound yet');
+
+        // Summary: the sentences, the save-as-default box, and the finish.
+        await next();
+        expect(await head()).toBe('Step 5 of 5 · Summary');
+        const summary = await page.eval<string>(`document.getElementById('guided-step-body').textContent`);
+        expect(summary).toContain('flattened over #000000');
+        expect(summary).toContain('matte');
+        await page.eval(`(() => { const b = document.querySelector('#guided-step-body input[type=checkbox]'); b.click(); })()`);
+        expect(await page.eval<string>(`document.getElementById('guided-next').textContent`)).toBe('Use these settings');
+        await next();
+        await until(async () => !(await open()), 'the wizard closed');
+
+        // The tab holds what the walk chose, and the type's default was saved.
+        expect(await page.eval<string>(`document.getElementById('preset').value`)).toBe('h264-mp4');
+        expect(await page.eval<string>(`document.getElementById('opt-aspect').value`)).toBe('9:16');
+        expect(await page.eval<boolean>(`document.getElementById('opt-matte').checked`)).toBe(true);
+        await until(async () => (await typeDefaults())['lower-third']?.presetId === 'h264-mp4', 'the default in settings.json');
+
+        // Cancel applies nothing: reopen, change the purpose, and leave by Cancel.
+        await page.eval(`document.getElementById('guided-open').click()`);
+        await until(open, 'the wizard again');
+        await page.eval(`(() => { const i = document.querySelector('#guided-step-body input[name=guided-purpose][value=transparent-overlay]'); i.click(); })()`);
+        await page.eval(`document.getElementById('guided-cancel').click()`);
+        await until(async () => !(await open()), 'cancelled');
+        expect(await page.eval<string>(`document.getElementById('preset').value`)).toBe('h264-mp4');
+
+        // Add to collection at the end: the walk applies and a card lands in the tray.
+        const cards = () => page.eval<number>(`document.querySelectorAll('#region-tray [aria-label="Remove from the collection"]').length`);
+        const before = await cards();
+        await page.eval(`document.getElementById('guided-open').click()`);
+        await until(open, 'the wizard a third time');
+        for (let i = 0; i < 4; i += 1) await next();
+        expect(await head()).toBe('Step 5 of 5 · Summary');
+        expect(await page.eval<boolean>(`document.getElementById('guided-collect').hidden`)).toBe(false);
+        expect(await page.eval<boolean>(`document.getElementById('add-to-collection').disabled`)).toBe(false);
+        await page.eval(`document.getElementById('guided-collect').click()`);
+        await until(async () => !(await open()), 'collected and closed');
+        await until(async () => (await cards()) === before + 1, 'the card in the tray');
+        // Taken out again, so later suites meet the tray they expect.
+        await page.eval(`[...document.querySelectorAll('#region-tray [aria-label="Remove from the collection"]')].pop().click()`);
+        await until(async () => (await cards()) === before, 'the tray as it was');
+      } finally {
+        // Resilient on purpose: a cleanup that throws would hide what the walk itself failed on.
+        // The default is cleared through the tab's own button, which also clears the window's
+        // cache of it — the bare API call would leave the cache reapplying it on the next show.
+        for (const expr of [
+          `(() => { const d = document.getElementById('guided-dialog'); if (d.open) d.close(); })()`,
+          `(() => { const c = document.getElementById('type-default-clear'); if (!c.hidden) c.click(); })()`,
+          `(() => { const p = document.getElementById('preset'); p.value = 'prores-4444'; p.dispatchEvent(new Event('change', { bubbles: true })); })()`,
+          `(() => { const a = document.getElementById('opt-aspect'); a.value = '16:9'; a.dispatchEvent(new Event('change', { bubbles: true })); })()`,
+          `(() => { const m = document.getElementById('opt-matte'); m.checked = false; m.dispatchEvent(new Event('change', { bubbles: true })); })()`,
+        ]) {
+          await page.eval(expr).catch(() => undefined);
+        }
+      }
+      // The walk leaves no mark: the tab and the stage are back on the wide shape it opened over,
+      // and reselecting the template reapplies no default, from the settings or the window's cache.
+      expect(await page.eval<string>(`document.getElementById('opt-aspect').value`)).toBe('16:9');
+      await until(() => page.eval<number>(`document.getElementById('preview-frame').getBoundingClientRect().width`).then((w) => w > 400), 'the stage wide again');
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'reselected');
+      expect(await page.eval<string>(`document.getElementById('opt-aspect').value`), 'no default reapplied').toBe('16:9');
+      expect(await page.eval<boolean>(`document.getElementById('type-default-note').hidden`)).toBe(true);
+    }, 120_000);
+
     it('writes what went wrong to a local log, and copies diagnostics from the status items (milestone 8)', async () => {
       const logFile = join(userData, 'logs', 'pulp.log');
       // The log is there from the start: the main process writes a line as it comes up.
