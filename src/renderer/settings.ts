@@ -13,6 +13,7 @@
 import noticesText from '../../THIRD_PARTY_NOTICES.md?raw';
 import { docSections, isDocTable } from '../core/doc-page';
 import { downloadSizeText } from '../core/ffmpeg-download';
+import { semanticSetAvailable } from './semantic';
 import type { PlayerState } from '../core/player';
 import { setCacheSummary } from './status-bar';
 
@@ -87,6 +88,34 @@ async function showFfmpeg(): Promise<void> {
   if (canFetch) button.textContent = `Download FFmpeg (${downloadSizeText(download.build!.bytes)})`;
 }
 
+/**
+ * Semantic search (milestone 9, ADR 0024): the toggle, the one line of what
+ * stands — the runner, the model, how far the indexing has come — and the
+ * offer that says what would be fetched, from whom, how big and under what
+ * licence **before** the button exists to press, the speech model's own rule.
+ */
+async function showSemantic(): Promise<void> {
+  const status = await window.pulp.semanticStatus();
+  $<HTMLInputElement>('settings-semantic').checked = status.enabled;
+  const note = $('settings-semantic-note');
+  const get = $<HTMLButtonElement>('settings-semantic-get');
+  if (!status.runner.ok) {
+    note.textContent = status.runner.message ?? 'llama.cpp was not found.';
+    get.hidden = true;
+  } else if (!status.model.installed) {
+    note.textContent = `${status.model.label} (${downloadSizeText(status.model.bytes)}, ${status.model.license}) would be fetched from its publisher. ${status.model.note}`;
+    get.hidden = !status.enabled;
+    get.disabled = false;
+    get.textContent = `Download the model (${downloadSizeText(status.model.bytes)})`;
+  } else {
+    note.textContent = status.indexing.total > 0
+      ? `Indexing the library… ${status.indexing.done} of ${status.indexing.total}.`
+      : `${status.model.label} is here; the library is indexed as it changes. Everything runs on this machine.`;
+    get.hidden = true;
+  }
+  semanticSetAvailable(status.enabled, status.runner.ok && status.model.installed);
+}
+
 /** Open the window with every control reading its setting afresh. */
 export async function showSettings(): Promise<void> {
   const dialog = $<HTMLDialogElement>('settings-dialog');
@@ -95,6 +124,7 @@ export async function showSettings(): Promise<void> {
     window.pulp.getPlayer(),
     window.pulp.renderCacheStats(),
     showFfmpeg(),
+    showSemantic(),
   ]);
   $<HTMLInputElement>('settings-start-screen').checked = prefs.showAtStartup;
   $<HTMLInputElement>('settings-audition').checked = player.audition;
@@ -169,6 +199,29 @@ export function initSettings(): void {
       refreshFfmpeg();
       await showFfmpeg();
     });
+  });
+
+  // Semantic search: the toggle writes the setting; the model button is the asking (ADR 0024).
+  $<HTMLInputElement>('settings-semantic').addEventListener('change', (e) => {
+    void window.pulp.setSemanticSearch((e.currentTarget as HTMLInputElement).checked).then(() => showSemantic());
+  });
+  const semanticGet = $<HTMLButtonElement>('settings-semantic-get');
+  semanticGet.addEventListener('click', () => {
+    semanticGet.disabled = true;
+    void window.pulp.fetchSemanticModel().then(async (result) => {
+      if (!result.ok) {
+        semanticGet.disabled = false;
+        $('settings-semantic-note').textContent = result.message;
+        return;
+      }
+      await showSemantic();
+    });
+  });
+  window.pulp.onSemanticProgress((progress) => {
+    const dialog = $<HTMLDialogElement>('settings-dialog');
+    if (!dialog.open) return;
+    const percent = progress.fraction === null ? '' : ` ${Math.round(progress.fraction * 100)}%`;
+    $('settings-semantic-note').textContent = `${progress.note}${percent}`;
   });
 
   $<HTMLInputElement>('settings-start-screen').addEventListener('change', (e) => {

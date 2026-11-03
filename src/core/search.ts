@@ -98,6 +98,27 @@ export function tokenizeQuery(query: string): string[] {
   return tokens.map((t) => t.trim()).filter((t) => t.length > 0);
 }
 
+/** The keys the syntax knows; a colon after anything else is just text (a title with a colon in it). */
+const FILTER_KEYS = new Set(['tag', 'type', 'theme', 'style', 'pack', 'category', 'res', 'codec', 'alpha', 'orientation', 'favorite', 'recent']);
+
+/**
+ * A query split into its free text and its filters (milestone 9's semantic
+ * search): the meaning search embeds the words, and its hits must still
+ * satisfy what `tag:`, `type:` and the rest leave. Held to `parseQuery` by a
+ * test, so the two readings of a token cannot drift.
+ */
+export function splitFreeText(query: string): { text: string; filters: string } {
+  const text: string[] = [];
+  const filters: string[] = [];
+  for (const token of tokenizeQuery(query)) {
+    const colon = token.indexOf(':');
+    const key = colon > 0 ? token.slice(0, colon).toLowerCase() : '';
+    const isFilter = colon > 0 && (FILTER_KEYS.has(key) || (NUMERIC_FIELDS.has(key) && parseComparison(token.slice(colon + 1)) !== null));
+    (isFilter ? filters : text).push(token);
+  }
+  return { text: text.join(' ').toLowerCase(), filters: filters.join(' ') };
+}
+
 export function parseQuery(query: string): ParsedQuery {
   const parsed: ParsedQuery = { terms: [], tags: [], types: [], themes: [], styles: [], packs: [], categories: [], numeric: [], resolutions: [], codecs: [] };
   for (const token of tokenizeQuery(query)) {

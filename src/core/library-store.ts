@@ -139,6 +139,13 @@ CREATE TABLE IF NOT EXISTS waveforms (
   mtime_ms REAL NOT NULL,
   peaks TEXT
 );
+CREATE TABLE IF NOT EXISTS embeddings (
+  key TEXT PRIMARY KEY,
+  size INTEGER NOT NULL,
+  mtime_ms REAL NOT NULL,
+  model TEXT NOT NULL,
+  vec BLOB NOT NULL
+);
 CREATE TABLE IF NOT EXISTS user_items (
   key TEXT PRIMARY KEY,
   tags TEXT NOT NULL DEFAULT '[]',
@@ -720,6 +727,42 @@ export class LibraryStore {
     this.db
       .prepare('INSERT INTO waveforms (key, size, mtime_ms, peaks) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET size = excluded.size, mtime_ms = excluded.mtime_ms, peaks = excluded.peaks')
       .run(key, row.size, row.mtime_ms, peaks);
+  }
+
+  /**
+   * The items the semantic pass still has to embed (milestone 9): online, with
+   * no vector for the file as it is now under this model. Keys and ids only;
+   * the text is built from the entry when the pass reaches it.
+   */
+  embeddingsMissing(model: string): { key: string; id: string }[] {
+    return this.db
+      .prepare(
+        'SELECT items.key AS key, items.id AS id FROM items ' +
+        'JOIN roots ON roots.path = items.root ' +
+        'LEFT JOIN embeddings ON embeddings.key = items.key AND embeddings.size = items.size AND embeddings.mtime_ms = items.mtime_ms AND embeddings.model = ? ' +
+        'WHERE roots.online = 1 AND embeddings.key IS NULL',
+      )
+      .all(model) as unknown as { key: string; id: string }[];
+  }
+
+  /** Every vector held for files as they are now under this model, by library id. */
+  embeddingsAll(model: string): { id: string; vec: Uint8Array }[] {
+    return this.db
+      .prepare(
+        'SELECT items.id AS id, embeddings.vec AS vec FROM items ' +
+        'JOIN embeddings ON embeddings.key = items.key AND embeddings.size = items.size AND embeddings.mtime_ms = items.mtime_ms ' +
+        'WHERE embeddings.model = ?',
+      )
+      .all(model) as unknown as { id: string; vec: Uint8Array }[];
+  }
+
+  /** Record an item's vector for the file as it is now. */
+  setEmbedding(key: string, model: string, vec: Uint8Array): void {
+    const row = this.db.prepare('SELECT size, mtime_ms FROM items WHERE key = ?').get(key) as { size: number; mtime_ms: number } | undefined;
+    if (!row) return;
+    this.db
+      .prepare('INSERT INTO embeddings (key, size, mtime_ms, model, vec) VALUES (?, ?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET size = excluded.size, mtime_ms = excluded.mtime_ms, model = excluded.model, vec = excluded.vec')
+      .run(key, row.size, row.mtime_ms, model, vec);
   }
 
   /** Record a strip for the item as it is now; null records a failure, so it is not attempted again until the item changes. */

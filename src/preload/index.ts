@@ -144,6 +144,15 @@ const api: PulpApi = {
   trackFrames: (request) => ipcRenderer.invoke('track:frames', request),
   trackSilences: (request) => ipcRenderer.invoke('track:silences', request),
   exportEdit: (request) => ipcRenderer.invoke('track:export-edit', request),
+  semanticStatus: () => ipcRenderer.invoke('semantic:status'),
+  setSemanticSearch: (enabled) => ipcRenderer.invoke('semantic:set', enabled),
+  fetchSemanticModel: () => ipcRenderer.invoke('semantic:fetch-model'),
+  semanticSearch: (text) => ipcRenderer.invoke('semantic:search', text),
+  onSemanticProgress: (listener) => {
+    const handler = (_event: unknown, progress: Parameters<typeof listener>[0]) => listener(progress);
+    ipcRenderer.on('semantic:progress', handler);
+    return () => ipcRenderer.removeListener('semantic:progress', handler);
+  },
   speechStatus: (request) => ipcRenderer.invoke('speech:status', request),
   fetchSpeechModel: (request) => ipcRenderer.invoke('speech:fetch-model', request),
   transcribe: (request) => ipcRenderer.invoke('speech:transcribe', request),

@@ -539,6 +539,16 @@
         <input id="settings-audition" type="checkbox">
         <span>Play a sound when it is chosen</span>
       </label>
+      <h3 class="settings-head">Semantic search</h3>
+      <p class="note">Search by meaning as well as by words: &#8220;something calm for a podcast intro&#8221; finds the right templates. Off by default. Everything runs on this machine — the library is embedded locally and so is every search; the one thing ever fetched is the model file itself, from its publisher, after you say yes here.</p>
+      <label class="field inline">
+        <input id="settings-semantic" type="checkbox">
+        <span>Search by meaning (local)</span>
+      </label>
+      <p id="settings-semantic-note" class="note" role="status"></p>
+      <div class="key-controls">
+        <button id="settings-semantic-get" type="button" class="ghost" hidden>Download the model</button>
+      </div>
       <h3 class="settings-head">FFmpeg</h3>
       <p id="settings-ffmpeg" class="note" role="status"></p>
       <p class="note">Pulp finds FFmpeg on your path, or where the PULP_FFMPEG_PATH environment variable points, when it starts. Renders need it; the rest of Pulp does not.</p>

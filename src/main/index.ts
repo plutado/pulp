@@ -22,6 +22,7 @@ import { mixLoudness } from './mix-loudness';
 import { exportEdit } from './edit-export-service';
 import { trackSilences } from './track-silence';
 import { fetchSpeechModel, setSpeechProgressWindow, speechStatus, transcribe } from './speech-service';
+import { fetchSemanticModel, semanticSearch, semanticStatus, setSemanticProgressWindow, setSemanticSearch } from './semantic-service';
 import { fetchFfmpeg, ffmpegDownloadStatus, registerManagedFfmpeg, setFfmpegProgressWindow } from './ffmpeg-service';
 import { voicePreview } from './voice-service';
 import { chromaKeyClip, chromaKeyPreview, splitScenes } from './cleanup-service';
@@ -175,6 +176,7 @@ function createWindow(): void {
   // Where a model fetch and a transcription say how far along they are (milestone 50),
   // and where the FFmpeg download helper says how far along it is (milestone 17).
   setSpeechProgressWindow(mainWindow);
+  setSemanticProgressWindow(mainWindow);
   setFfmpegProgressWindow(mainWindow);
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;
@@ -516,6 +518,14 @@ function registerIpc(): void {
   ipcMain.handle('speech:status', (_event, request: unknown) => speechStatus(request));
   ipcMain.handle('speech:fetch-model', (_event, request: unknown) => fetchSpeechModel(request));
   ipcMain.handle('speech:transcribe', (_event, request: unknown) => transcribe(request));
+
+  // Semantic search on this machine (milestone 9, ADR 0024): off by default; status says what
+  // would be fetched before anything is; the search itself is a local child process over the
+  // library database's own vectors, and nothing else ever leaves the machine.
+  ipcMain.handle('semantic:status', () => semanticStatus());
+  ipcMain.handle('semantic:set', (_event, enabled: unknown) => setSemanticSearch(enabled));
+  ipcMain.handle('semantic:fetch-model', () => fetchSemanticModel());
+  ipcMain.handle('semantic:search', (_event, text: unknown) => semanticSearch(text));
 
   ipcMain.handle('drag-notice:get', async () => (await loadSettings()).dragNoticeSeen);
   ipcMain.handle('drag-notice:seen', async () => {

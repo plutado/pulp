@@ -51,6 +51,8 @@ export interface Settings {
   recentProjectTimes: Record<string, string>;
   /** The Output tab's remembered settings per template type (milestone 14, src/core/output-defaults.ts). */
   typeOutputDefaults: Record<string, TypeOutputDefault>;
+  /** Semantic search over the library (milestone 9): off by default, embeddings on this machine only. */
+  semanticSearch: boolean;
 }
 
 const DEFAULTS: Settings = {
@@ -71,6 +73,7 @@ const DEFAULTS: Settings = {
   pinnedProjects: [],
   recentProjectTimes: {},
   typeOutputDefaults: {},
+  semanticSearch: false,
 };
 
 /** Only string-to-string entries, and only for paths the recent list still holds. */
@@ -121,6 +124,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     pinnedProjects: Array.isArray(raw.pinnedProjects) ? raw.pinnedProjects.filter((p): p is string => typeof p === 'string' && recentProjects.includes(p)) : [],
     recentProjectTimes: sanitizeRecentTimes(raw.recentProjectTimes, recentProjects),
     typeOutputDefaults: sanitizeTypeOutputDefaults(raw.typeOutputDefaults),
+    semanticSearch: raw.semanticSearch === true,
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
     ...(typeof raw.sampleMediaRoot === 'string' && raw.sampleMediaRoot.trim() ? { sampleMediaRoot: raw.sampleMediaRoot } : {}),
   };

@@ -11,7 +11,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { closeSync, existsSync, openSync } from 'node:fs';
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -4072,6 +4072,19 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(() => page.eval<boolean>(`document.getElementById('settings-dialog').open === true`), 'the settings dialog');
       await until(() => page.eval<string>(`document.getElementById('settings-ffmpeg').textContent`).then((t) => t.startsWith('FFmpeg')), 'the FFmpeg line');
 
+      // Semantic search (milestone 9, ADR 0024): off by default, nothing fetched and nothing sent
+      // anywhere until the person says so — the toggle writes the one setting the search reads,
+      // and the note says what stands (the runner, or what would be fetched, sized and licensed)
+      // before any button exists to press. Nothing is fetched here either.
+      expect(await page.eval<boolean>(`document.getElementById('settings-semantic').checked`), 'off by default').toBe(false);
+      await until(() => page.eval<string>(`document.getElementById('settings-semantic-note').textContent`).then((t) => t.length > 0), 'the semantic line');
+      const semanticSettings = async (): Promise<boolean | undefined> =>
+        (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { semanticSearch?: boolean }).semanticSearch;
+      await page.eval(`(() => { const c = document.getElementById('settings-semantic'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(async () => (await semanticSettings()) === true, 'the setting on, in settings.json');
+      await page.eval(`(() => { const c = document.getElementById('settings-semantic'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await until(async () => (await semanticSettings()) === false, 'and off again');
+
       // The download helper (milestone 17, ADR 0022): what Pulp would fetch for this machine,
       // said before there is a button to press. **Nothing is fetched here** — the fetch is the
       // person's own press, and this only proves the asking is in front of it.
@@ -4210,6 +4223,48 @@ describe.skipIf(!electron)('inspector UI', () => {
         await fire('#params .length-field input[type=number]', '6', 'change');
       }
     }, 90_000);
+
+    it('semantic search finds meaning the words miss, entirely on this machine (milestone 9)', async () => {
+      // Gated like the speech test: it needs llama.cpp on PATH and a local copy of the pinned
+      // model in PULP_SEMANTIC_TEST_MODEL. CI has neither and says so; this machine ran it.
+      const status = await page.eval<{ runner: { ok: boolean }; model: { installed: boolean } }>(`window.pulp.semanticStatus()`);
+      const modelCopy = process.env.PULP_SEMANTIC_TEST_MODEL ?? '';
+      if (!status.runner.ok || modelCopy === '' || !existsSync(modelCopy)) {
+        console.info('llama-embedding or PULP_SEMANTIC_TEST_MODEL not available; the semantic end-to-end check ran where it is.');
+        return;
+      }
+      const { SEMANTIC_MODEL } = await import('../../src/core/semantic');
+      await mkdir(join(userData, 'semantic-models'), { recursive: true });
+      await copyFile(modelCopy, join(userData, 'semantic-models', SEMANTIC_MODEL.file));
+      try {
+        // Turned on in Settings, the way a person does it, so the window learns it is ready.
+        await page.eval(`window.pulpMenuCommand('app.settings')`);
+        await until(() => page.eval<boolean>(`document.getElementById('settings-dialog').open === true`), 'the settings dialog');
+        await page.eval(`(() => { const c = document.getElementById('settings-semantic'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`document.getElementById('settings-semantic-note').textContent`).then((t) => t.includes('on this machine') || t.includes('Indexing')), 'the model found and the pass started');
+        await page.eval(`document.getElementById('settings-close').click()`);
+        // The library embeds in the background; done when the pass is idle **and** the ask answers —
+        // answers alone arrive while later batches (this very template among them) are still going.
+        await until(async () => {
+          const st = await page.eval<{ indexing: { total: number } }>(`window.pulp.semanticStatus()`);
+          if (st.indexing.total > 0) return false;
+          return (await page.eval<{ hits: unknown[] }>(`window.pulp.semanticSearch('something calm for a podcast intro')`)).hits.length >= 10;
+        }, 'the library indexed', 180_000);
+
+        // On the relevance order (meaning folds into no other), the words match nothing and the
+        // meaning finds the podcast close and calm pieces.
+        await fire('#sort', 'relevance', 'change');
+        await fire('#search', 'something calm for a podcast intro', 'input');
+        await until(async () => {
+          const names = await page.eval<string[]>(`[...document.querySelectorAll('#results li[data-id] .name')].slice(0, 12).map((n) => n.textContent)`);
+          return names.includes('Listen Next');
+        }, 'the podcast close among the top results');
+      } finally {
+        await page.eval(`window.pulp.setSemanticSearch(false)`).catch(() => undefined);
+        await page.eval(`(() => { const d = document.getElementById('settings-dialog'); if (d.open) d.close(); })()`).catch(() => undefined);
+        await fire('#search', '', 'input');
+      }
+    }, 300_000);
 
     it('one-click presets set up common kinds, and Save as default for this type is how every such item opens (milestone 14)', async () => {
       await clickResult('Lower Third Bar');

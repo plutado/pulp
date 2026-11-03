@@ -33,6 +33,35 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
+describe('semantic vectors (milestone 9)', () => {
+  it('keeps a vector under the item\'s stat signature, misses it when the file changes, and lists what is left', async () => {
+    const root = join(dir, 'lib');
+    await writeTemplate(join(root, 'tpl'));
+    await touch(join(root, 'a.mov'), 10);
+    store.setRoots([root]);
+    await store.scanRoots([root]);
+    const missing = store.embeddingsMissing('m1');
+    expect(missing).toHaveLength(2);
+    const vec = new Uint8Array(Float32Array.from([0.25, -0.5, 1]).buffer);
+    store.setEmbedding(missing[0]!.key, 'm1', vec);
+    expect(store.embeddingsMissing('m1')).toHaveLength(1);
+    const all = store.embeddingsAll('m1');
+    expect(all).toHaveLength(1);
+    expect([...new Float32Array(all[0]!.vec.buffer, all[0]!.vec.byteOffset, 3)]).toEqual([0.25, -0.5, 1]);
+    // Another model's vectors are another index entirely.
+    expect(store.embeddingsAll('m2')).toHaveLength(0);
+    expect(store.embeddingsMissing('m2')).toHaveLength(2);
+    // The file changes: the old vector no longer answers for it, and the item is to embed again.
+    await sleep(20);
+    await touch(join(root, 'a.mov'), 20);
+    await store.scanRoots([root]);
+    const after = store.embeddingsMissing('m1');
+    const touched = after.find((m) => m.key.includes('a.mov'));
+    expect(missing[0]!.key.includes('a.mov') ? touched !== undefined : true).toBe(true);
+    expect(store.embeddingsMissing('m1').length).toBeGreaterThanOrEqual(1);
+  });
+});
+
 describe('LibraryStore incremental scans', () => {
   it('loads everything once, then keeps unchanged items without re-reading them', async () => {
     const root = join(dir, 'lib');

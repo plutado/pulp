@@ -196,6 +196,9 @@ async function configuredRoots(): Promise<string[]> {
 function broadcast(index: LibraryIndex): void {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) win.webContents.send('library:changed', index);
+    // A scan may have brought or changed items: the semantic pass catches up (milestone 9),
+    // and only runs when its setting is on. Imported lazily: a cycle would hold the boot.
+    void import('./semantic-service').then((m) => m.semanticOnLibraryChanged());
   }
 }
 
@@ -706,6 +709,19 @@ export async function findTemplate(id: string): Promise<TemplateEntry | undefine
 }
 
 /** Watch for returning roots. Idempotent. */
+/** The semantic pass's view of the store (milestone 9): what still needs a vector, every vector, one written. */
+export function semanticStoreMissing(model: string): { key: string; id: string }[] {
+  return getStore().embeddingsMissing(model);
+}
+
+export function semanticStoreAll(model: string): { id: string; vec: Uint8Array }[] {
+  return getStore().embeddingsAll(model);
+}
+
+export function semanticStoreSet(key: string, model: string, vec: Uint8Array): void {
+  getStore().setEmbedding(key, model, vec);
+}
+
 export function startLibraryMonitor(): void {
   monitor ??= setInterval(() => void rescanIfRootReturned(), OFFLINE_ROOT_POLL_MS);
 }

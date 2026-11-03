@@ -8,6 +8,7 @@ import type { MainPerformance } from '../core/perf';
 import type { LibraryIndex } from '../core/library-types';
 import type { PresetId, RenderOptions } from '../core/render-plan';
 import type { TypeOutputDefault } from '../core/output-defaults';
+import type { SemanticStatus } from '../main/semantic-service';
 import type { RenderQueueSnapshot } from '../core/render-queue';
 import type { PlayerState } from '../core/player';
 import type { ResultsViewState } from '../core/results-view';
@@ -322,6 +323,20 @@ export interface PulpApi {
    * library id (ADR 0013) and answers with the words and their timings, on
    * the project's own clock. Nothing of the project leaves the machine.
    */
+  /**
+   * Semantic search on this machine (milestone 9, ADR 0024). Off by default.
+   * `semanticStatus` says what is there and what Pulp would fetch — which
+   * model, how big, under what licence — so Settings can **ask before anything
+   * is fetched**; `fetchSemanticModel` is the yes, and the only request Pulp
+   * makes. `semanticSearch` embeds the free text locally and answers library
+   * ids with how close each item's meaning came; nothing else ever leaves the
+   * machine.
+   */
+  semanticStatus(): Promise<SemanticStatus>;
+  setSemanticSearch(enabled: boolean): Promise<SemanticStatus>;
+  fetchSemanticModel(): Promise<{ ok: true; path: string } | { ok: false; message: string }>;
+  semanticSearch(text: string): Promise<{ hits: { id: string; score: number }[] }>;
+  onSemanticProgress(listener: (progress: { note: string; fraction: number | null }) => void): () => void;
   speechStatus(request?: { model?: string }): Promise<SpeechStatus>;
   fetchSpeechModel(request: { model: string }): Promise<{ ok: true; path: string } | { ok: false; message: string }>;
   transcribe(request: { segments: { kind: 'clip' | 'sound'; id: string; from: number; to: number; at: number; speed?: number }[]; model?: string; language?: string }):

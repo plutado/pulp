@@ -12,7 +12,8 @@ import { buildBrowseTree, type TreeNode } from './browse-tree';
 
 import { formatTimecode } from './timecode';
 import { isFinished, type RenderJobStatus, type RenderQueueSnapshot } from './render-queue';
-import { searchLibrary } from './search';
+import { searchLibrary, splitFreeText } from './search';
+import { blendSemantic, type SemanticHits } from './semantic';
 
 /**
  * A browse node narrowing the results: its label for the scope chip, plus either
@@ -48,6 +49,8 @@ export interface AppState {
   index: LibraryIndex | null;
   /** The search field's text. */
   query: string;
+  /** The last semantic ask (milestone 9), or null while the setting is off or nothing was asked. */
+  semantic: SemanticHits | null;
   /** The selected browse node, or null for the whole library. */
   scope: Scope | null;
   /** Pressed filter chips. */
@@ -94,6 +97,7 @@ export const initialProjectState: ProjectState = { path: null, name: UNTITLED_PR
 export const initialAppState: AppState = {
   index: null,
   query: '',
+  semantic: null,
   scope: null,
   filters: [],
   forTheme: null,
@@ -131,6 +135,11 @@ export function openProject(s: AppState, collection: Collection, project: Projec
 
 export function setQuery(s: AppState, query: string): AppState {
   return s.query === query ? s : { ...s, query };
+}
+
+/** The meaning search answered (milestone 9); null takes it out, as turning the setting off does. */
+export function setSemanticHits(s: AppState, semantic: SemanticHits | null): AppState {
+  return s.semantic === semantic ? s : { ...s, semantic };
 }
 
 export function setScope(s: AppState, scope: Scope | null): AppState {
@@ -221,7 +230,7 @@ export interface ResultsView {
 }
 
 /** The only parts of the state the results depend on; a change elsewhere (selection, jobs) must not recompute them. */
-export type ResultsInput = Pick<AppState, 'index' | 'query' | 'scope' | 'filters' | 'forTheme' | 'look' | 'sort'>;
+export type ResultsInput = Pick<AppState, 'index' | 'query' | 'scope' | 'filters' | 'forTheme' | 'look' | 'sort' | 'semantic'>;
 
 /** What an entry sorts by under each key; missing values go last. */
 function sortValue(entry: LibraryEntry, sort: SortKey): string | number | undefined {
@@ -249,7 +258,16 @@ function sortEntries(entries: LibraryEntry[], sort: SortKey): LibraryEntry[] {
 
 export function deriveResults(s: ResultsInput): ResultsView {
   if (!s.index) return { entries: [], canExportPack: false };
-  let hits = searchLibrary(s.index, effectiveQuery(s));
+  const query = effectiveQuery(s);
+  let hits = searchLibrary(s.index, query);
+  // The meaning search (milestone 9): when its answer is about this very free text and the order
+  // is relevance, hits above the noise floor fold in — still held to the query's filters, the
+  // chips and the scope, so meaning widens the words but never the fences.
+  const { text, filters } = splitFreeText(query);
+  if (s.semantic && s.semantic.text === text && text !== '' && s.sort === 'relevance' && s.semantic.scores.size > 0) {
+    const pool = searchLibrary(s.index, filters);
+    hits = blendSemantic(hits, pool, s.semantic.scores);
+  }
   if (s.scope?.root !== undefined) hits = hits.filter((h) => h.entry.root === s.scope?.root);
   return {
     entries: sortEntries(hits.map((h) => h.entry), s.sort),
@@ -264,9 +282,9 @@ export function deriveResults(s: ResultsInput): ResultsView {
 export function createResultsSelector(): (s: ResultsInput) => ResultsView {
   let last: (ResultsInput & { view: ResultsView }) | null = null;
   return (s) => {
-    if (last && last.index === s.index && last.query === s.query && last.scope === s.scope && last.filters === s.filters && last.forTheme === s.forTheme && last.look === s.look && last.sort === s.sort) return last.view;
+    if (last && last.index === s.index && last.query === s.query && last.scope === s.scope && last.filters === s.filters && last.forTheme === s.forTheme && last.look === s.look && last.sort === s.sort && last.semantic === s.semantic) return last.view;
     const view = deriveResults(s);
-    last = { index: s.index, query: s.query, scope: s.scope, filters: s.filters, forTheme: s.forTheme, look: s.look, sort: s.sort, view };
+    last = { index: s.index, query: s.query, scope: s.scope, filters: s.filters, forTheme: s.forTheme, look: s.look, sort: s.sort, semantic: s.semantic, view };
     return view;
   };
 }
