@@ -68,7 +68,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 14. Defaults per type and guided setup (post-1.0, **done**) | 8-13 h |
 | 16. Audio: stems, variants and pairing (post-1.0, **done**) | 8-14 h |
 | 9. Later (post-1.0, **done**) | 7-16 h |
-| 54. A panel inside the editing apps (post-1.0) | 30-50 h |
+| 54. A panel inside the editing apps (post-1.0, **done**) | 30-50 h |
 | 55. A visual template editor (post-1.0) | 40-70 h |
 | 56. Speed changes on the cut track (post-1.0, **done**) | 10-16 h |
 | 57. A second picture track (post-1.0, **done**) | 16-26 h |
