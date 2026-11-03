@@ -2287,6 +2287,67 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(collection.stderr).toContain('Could not read');
   }, 300_000);
 
+  it('a media slot plays a library clip frame-accurately inside the graphic, with its trim, loop, once-through and delay (milestone 22)', async () => {
+    // A one-second clip whose every frame says which frame it is: red climbs eight a frame, green
+    // holds at 100, kept lossless (PNG in a .mov) so the number reads back exactly off the render.
+    const lib = join(out, 'media-slot-library');
+    await mkdir(lib, { recursive: true });
+    const coded = join(lib, 'coded.mov');
+    const built = await runBounded(ffmpeg, ffmpegArgs([
+      '-v', 'error', '-y',
+      '-f', 'lavfi', '-i', 'color=c=black:s=64x64:r=30:d=1',
+      '-vf', "format=rgb24,geq=r='N*8':g=100:b=0",
+      '-c:v', 'png', '-pix_fmt', 'rgb24', coded,
+    ]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(built.code, built.stderr).toBe(0);
+    const codedId = itemId(`media:${coded}`);
+    const common = ['--library', FIXTURES, '--library', lib];
+    const plate = (value: Record<string, unknown>) => ['--param', `plate=${JSON.stringify({ id: codedId, ...value })}`];
+    /** The pixel at the centre of the slot's box, where the square clip sits, on frame `k` of a render. */
+    const centre = (name: string, k: number) => pixels(join(out, `${name}_${String(k).padStart(5, '0')}.png`), 160, 90);
+    /** Which clip frame a pixel's red says it is. */
+    const clipFrame = (px: number[]) => Math.round(px[0]! / 8);
+
+    // The whole clip, looping: frame k of the graphic shows clip frame k, round again after thirty.
+    const whole = await render('pulp.test.media-slot', 'png-sequence', 'slot-loop', { extra: [...common, ...plate({})] });
+    expect(whole.code, whole.stderr).toBe(0);
+    for (const [k, want] of [[0, 0], [5, 5], [29, 29], [30, 0], [47, 17]] as const) {
+      const px = await centre('slot-loop', k);
+      expect(px[3], `frame ${k} is drawn`).toBe(255);
+      expect(clipFrame(px), `frame ${k} shows clip frame ${want}`).toBe(want);
+    }
+    // The marker is painted every frame, so a blank slot is told from an absent template.
+    expect((await pixels(join(out, 'slot-loop_00000.png'), 2, 2)).slice(0, 3)).toEqual([255, 255, 0]);
+
+    // Trimmed to frames 10-19 and looping: the window plays from its in point and comes round.
+    const trimmed = await render('pulp.test.media-slot', 'png-sequence', 'slot-trim', { extra: [...common, ...plate({ inPoint: 10, outPoint: 19 })] });
+    expect(trimmed.code, trimmed.stderr).toBe(0);
+    for (const [k, want] of [[0, 10], [9, 19], [10, 10], [25, 15]] as const) {
+      expect(clipFrame(await centre('slot-trim', k)), `frame ${k} shows clip frame ${want}`).toBe(want);
+    }
+
+    // Played once, the same window ends where it ends, and the slot draws nothing after it.
+    const once = await render('pulp.test.media-slot', 'png-sequence', 'slot-once', { extra: [...common, ...plate({ inPoint: 10, outPoint: 19, ending: 'once' })] });
+    expect(once.code, once.stderr).toBe(0);
+    expect(clipFrame(await centre('slot-once', 9))).toBe(19);
+    expect((await centre('slot-once', 10))[3], 'transparent once the clip has played out').toBe(0);
+    expect((await centre('slot-once', 40))[3]).toBe(0);
+
+    // A start delay holds the clip back half a second: nothing before, its first frame on the dot.
+    const delayed = await render('pulp.test.media-slot', 'png-sequence', 'slot-delay', { extra: [...common, ...plate({ delay: 0.5 })] });
+    expect(delayed.code, delayed.stderr).toBe(0);
+    expect((await centre('slot-delay', 14))[3], 'nothing before the delay').toBe(0);
+    const first = await centre('slot-delay', 15);
+    expect(first[3]).toBe(255);
+    expect(clipFrame(first), 'the first clip frame the moment it starts').toBe(0);
+    expect(clipFrame(await centre('slot-delay', 25))).toBe(10);
+
+    // A clip the library cannot answer for stops the render by the slot's name rather than going blank.
+    const missing = await render('pulp.test.media-slot', 'png-sequence', 'slot-missing', { extra: [...common, '--param', 'plate={"id":"not-a-real-id"}'] });
+    expect(missing.code).toBe(1);
+    expect(missing.stderr).toContain('the clip chosen for "plate"');
+  }, 300_000);
+
   it('renders H.264 without alpha', async () => {
     const result = await render('pulp.samples.title-card', 'h264-mp4', 'title.mp4');
     expect(result.code, result.stderr).toBe(0);

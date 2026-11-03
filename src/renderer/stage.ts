@@ -17,7 +17,8 @@
 import { templateDefaultSize } from '../core/aspect';
 import { imageGrantKey, imageGrantRequests, imageRequestKey, imageRequests, imageSlots } from '../core/image-slot';
 import { blockStates, layerClipChoices, layerImageChoices, type BlockState } from '../core/layer-layout';
-import { clipProxySize, type ClipSource, type ClipValue } from '../core/video-layer';
+import { mediaSlotChoices, mediaSlotDrawnHeight, mediaSlots } from '../core/media-slot';
+import { clipAudible, clipProxySize, type ClipSource, type ClipValue } from '../core/video-layer';
 import type { LayerValues } from '../core/layers';
 import { effect } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
@@ -299,6 +300,24 @@ function templateSoundExtras(): (ExtraSound & { templateId: string })[] {
   return out;
 }
 
+/**
+ * A media slot's clip keeps its sound in the preview (milestone 22): one element per audible slot
+ * clip the library has read and found to carry sound, by the layer sounds' own rules.
+ */
+function mediaSlotSounds(): ExtraSound[] {
+  const m = s.manifest;
+  if (!m) return [];
+  const out: ExtraSound[] = [];
+  for (const choice of mediaSlotChoices(m.parameters, s.params)) {
+    if (!clipAudible(choice)) continue;
+    const source = s.clipSources[choice.id];
+    const entry = mediaEntryFor(choice.id);
+    if (!source || !entry || entry.sequence || (entry.meta && !entry.meta.audioCodec)) continue;
+    out.push({ key: `@media.${choice.slot}`, url: mediaUrlFor(choice.id), layer: { kind: 'clip', path: '', value: choice, source } });
+  }
+  return out;
+}
+
 /** The same sounds as the loudness meter's wire carries them: the template named, never a path. */
 function templateSoundRequests(extras: readonly (ExtraSound & { templateId: string })[]): { templateId: string; value: unknown; speed?: number }[] {
   return extras.map((e) => ({
@@ -504,10 +523,13 @@ function syncImages(): void {
   const blocks = blockStates(s.manifest, s.layers, size);
   const requests = [...imageRequests(slots), ...layerImageChoices(blocks).map((c) => ({ id: c.id, treatment: c.treatment, tint: c.tint, ...(c.psd ? { psd: c.psd } : {}) }))]
     .filter((r, i, all) => all.findIndex((o) => imageRequestKey(o) === imageRequestKey(r)) === i);
-  // The clips video layers chose, with how tall each is drawn here, so only that much is decoded.
-  const clipRequests = layerClipChoices(blocks)
-    .filter((c, i, all) => all.findIndex((o) => o.id === c.id) === i)
-    .map((c) => ({ id: c.id, value: c as ClipValue, drawnHeight: clipDrawnHeight(blocks, c.id, size.height) }));
+  // The clips video layers chose, with how tall each is drawn here, so only that much is decoded —
+  // and the clips the media slots chose (milestone 22), at the height their boxes draw them.
+  const mediaBoxes = mediaSlots(s.manifest.parameters, s.params, size, 0);
+  const clipRequests = [
+    ...layerClipChoices(blocks).map((c) => ({ id: c.id, value: c as ClipValue, drawnHeight: clipDrawnHeight(blocks, c.id, size.height) })),
+    ...mediaSlotChoices(s.manifest.parameters, s.params).map((c) => ({ id: c.id, value: c as ClipValue, drawnHeight: mediaBoxes[c.slot] ? mediaSlotDrawnHeight(mediaBoxes[c.slot]!, size.height) : size.height })),
+  ].filter((c, i, all) => all.findIndex((o) => o.id === c.id) === i);
   const key = [
     ...requests.map((r) => imageRequestKey(r)),
     // The proxy step, not the exact height: a window nudged a few pixels wider asks for the
@@ -533,7 +555,7 @@ function syncImages(): void {
     }
     s.clipSources = clips.sources;
     // The sources are what the layer sounds follow the playhead by (milestone 48).
-    layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, templateSoundExtras());
+    layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, [...templateSoundExtras(), ...mediaSlotSounds()]);
     const srcByKey = new Map(handed.images.map((i) => [i.key, i.src]));
     win.postMessage({
       type: 'pulp:prepare',
@@ -762,8 +784,8 @@ export function stageShowTemplate(
   els.scrub.value = String(s.frame);
   // An audio layer needs no clip sources and no page: its sound can play the moment it is shown.
   const extras = templateSoundExtras();
-  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, extras);
-  loudnessUpdate(s.layers, previewFps(), soundLength(), s.track, templateSoundRequests(extras));
+  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, [...extras, ...mediaSlotSounds()]);
+  loudnessUpdate(s.layers, previewFps(), soundLength(), s.track, templateSoundRequests(extras), mediaSlotChoices(m.parameters, s.params));
   updateTransport();
   applyLayerBars();
 }
@@ -992,10 +1014,10 @@ export function stageSetParams(
   }
   // A changed volume, mute or clip takes effect mid-play (milestone 48); new clips join when their sources land.
   const extras = templateSoundExtras();
-  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, extras);
+  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, [...extras, ...mediaSlotSounds()]);
   layerSoundsUpdate(soundTime(), s.playing, soundMaster(), soundLength());
   // And the meter measures the mix afresh, after the edits settle (milestone 52).
-  loudnessUpdate(s.layers, previewFps(), soundLength(), s.track, templateSoundRequests(extras));
+  loudnessUpdate(s.layers, previewFps(), soundLength(), s.track, templateSoundRequests(extras), s.manifest ? mediaSlotChoices(s.manifest.parameters, s.params) : []);
   requestFrame(s.frame);
 }
 

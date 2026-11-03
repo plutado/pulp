@@ -16,6 +16,7 @@ import { slug } from '../core/pack';
 import { cacheKey } from '../core/render-cache';
 import { platformPreset } from '../core/platform-presets';
 import { imageIdsIn } from '../core/image-slot';
+import { mediaIdsIn } from '../core/media-slot';
 import { imageStamps, resolveRowImages } from './image-grant';
 import { clipStamps } from './clip-grant';
 import { soundStamps } from './sound-grant';
@@ -200,7 +201,8 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
     options: request.options,
     images: imageStamps(imageIdsIn(template.manifest.parameters, request.params)),
     // A clip a layer plays is an input like a chosen still: re-export it and this is a new render.
-    clips: clipStamps(clipIdsInLayers(splitLayers(request.params).layers)),
+    // The layers' clips and the media slots' (milestone 22): a replaced file under the same id renders afresh.
+    clips: clipStamps([...new Set([...clipIdsInLayers(splitLayers(request.params).layers), ...mediaIdsIn(template.manifest.parameters, splitLayers(request.params).params)])].sort()),
     // And a sound an audio layer plays (milestone 48), by the same rule.
     sounds: soundStamps(soundIdsInLayers(splitLayers(request.params).layers)),
   });

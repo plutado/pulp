@@ -1,0 +1,25 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.media-slot",
+  "name": "Test Media Slot",
+  "description": "One media slot in a centred box, drawn by the bridge, so a render can check that a clip plays frame-accurately inside a graphic with its trim, loop and delay (milestone 22).",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "other",
+  "tags": ["test"],
+  "duration": 2,
+  "fps": 30,
+  "width": 320,
+  "height": 180,
+  "alpha": true,
+  "parameters": [
+    {
+      "id": "plate",
+      "type": "media",
+      "label": "Plate",
+      "box": { "x": 0.25, "y": 0.25, "width": 0.5, "height": 0.5 },
+      "fit": "contain",
+      "align": "center"
+    }
+  ]
+}

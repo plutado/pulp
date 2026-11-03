@@ -149,6 +149,9 @@ export function chosenLibraryItems(templateIds: readonly string[]): { templateId
       if (key === LAYERS_KEY) continue;
       const image = sanitizeImageValue(value);
       if (image?.id && !image.hidden) ids.add(image.id);
+      // A media slot's clip (milestone 22) is a library item as much as a slot's still is.
+      const clip = typeof value === 'object' && value !== null && 'inPoint' in value ? sanitizeClipValue(value) : undefined;
+      if (clip?.id && !clip.hidden) ids.add(clip.id);
     }
     const layers = raw[LAYERS_KEY];
     if (layers && typeof layers === 'object') {
@@ -448,6 +451,10 @@ function inputFor(param: TemplateParameter): HTMLElement {
     }
     case 'image':
       return imageField(sanitizeImageValue(value) ?? null, onChange, { id: param.id, label: param.label });
+    case 'media':
+      // A media slot takes a clip as a video layer does (milestone 22): the same chooser, the same
+      // trim, loop, speed and delay; the box is the template's, so there is no framing to set here.
+      return clipField(sanitizeClipValue(value) ?? null, onChange, { id: param.id, label: param.label }, { framing: false });
   }
 }
 
@@ -1456,7 +1463,10 @@ function clipField(
   initial: ClipValue | null,
   onChange: (value: ClipValue | null) => void,
   slot: { id: string; label: string },
+  /** `framing` is the crop and the border of a picture-in-picture layer; a media slot's box is the template's. */
+  options: { framing?: boolean } = {},
 ): HTMLElement {
+  const framing = options.framing !== false;
   let value = initial;
   const wrap = document.createElement('div');
   wrap.className = 'image-field clip-field';
@@ -1534,7 +1544,7 @@ function clipField(
     const cropField = (edge: 'left' | 'top' | 'right' | 'bottom', label: string) =>
       typeField(`Crop ${label}, %`, numberOf(crop[edge], CLIP_FRAME_LIMITS.crop, 1, (v) => patch({ crop: sanitizeCrop({ ...crop, [edge]: v }) }), `${slot.label} crop ${label}`, 100));
     const border = value.border;
-    settings.append(
+    if (framing) settings.append(
       cropField('left', 'left'), cropField('right', 'right'), cropField('top', 'top'), cropField('bottom', 'bottom'),
       typeField('Border, % of frame', numberOf(border?.width ?? 0, { min: 0, max: CLIP_FRAME_LIMITS.border.max }, 0.1,
         (v) => patch({ border: v > 0 ? { width: v, color: border?.color ?? DEFAULT_BORDER_COLOR } : undefined }), `${slot.label} border width`, 100)),

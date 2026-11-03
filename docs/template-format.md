@@ -146,6 +146,33 @@ if (!window.pulpDrawImage(ctx, state, 'logo', { x: panelX + 20, y: panelY + 20, 
 
 **What a template may load.** Templates are blocked from the library, and image slots do not change that: the host reads exactly the stills chosen for a template's slots, by id, and hands the page their bytes for the length of a preview or a render (ADR 0013). The template never gets a URL into the library — `pulp-media://` refuses every request from a template page, and the template CSP lists no library scheme — so it cannot read a chosen image's neighbour, or any image when none is chosen.
 
+### Media slots
+
+A media slot is an image slot that **plays**: a box in the layout that a chosen library clip plays inside, frame-accurately, inside the template's own animation — footage behind a title, a shot inside a frame. The user picks the clip in the Parameters tab and sets how it plays; the template only says where it goes and how it fits.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `box` | object | yes | As an image slot's: `{ "x", "y", "width", "height" }` as fractions of the frame, one for every shape or one per aspect id with an optional `"default"`. |
+| `fit` | `contain` or `cover` | no | `contain` (default) fits the whole picture inside the box; `cover` fills the box and crops. |
+| `align` | string | no | Where a smaller picture sits in the box; the same words as an image slot's. Default `center`. |
+| `margin` | number | no | Kept clear on every edge, as a fraction (0 to 0.45) of the box's shorter side. Default 0. |
+
+A media parameter has no `default`: with nothing chosen the slot plays nothing and the template draws what it likes there. **How the clip plays travels with the choice**, exactly as a video layer's does: an in point and an out point in the clip's own frames, `loop` (the default) or `once` at the end, a `speed`, a `delay` in seconds before it starts, the clip's own `volume` and `muted` — its sound is mixed into the render under the same rules as a layer's — and optionally a `.cube` LUT. On the command line the value is the same JSON (`--param 'plate={"id":"<clip-id>","inPoint":10,"outPoint":19,"ending":"once"}'`); in a CSV cell it is the text form a video layer's cell takes (`<clip-id> in=10 out=19 ending=once`).
+
+**The host decides the frame.** For every frame of the preview and of the render, the host works out which frame of the clip belongs to that moment — through the in point, the loop or the once-through, the speed and the delay, with the very arithmetic a video layer uses, so a slot and a layer playing the same clip show the same frame — decodes exactly the window the slot plays, and hands the page those frames **before the first frame is drawn**. In `pulpRender`, `state.media[id]` describes every slot for the current frame: its pixel `box`, `fit`, `align`, `margin`, the chosen `id` or `null`, and `frame`, the index of the decoded frame to show now, or `null` while the slot plays nothing (before its delay, after a once-through has ended, nothing chosen). The bridge provides one helper:
+
+```js
+// Draws the frame of the slot's clip that belongs to this moment into its box (or into `box`,
+// if the slot should ride something the template is animating), with the slot's fit, alignment
+// and margin. Returns false while the slot plays nothing, so the template can draw a fallback.
+if (!window.pulpDrawMedia(ctx, state, 'plate')) {
+  ctx.fillStyle = state.params.plateColor;
+  ctx.fillRect(0, 0, state.width, state.height);
+}
+```
+
+A slot's clip plays against the graphic **as it is watched**: a clip delayed half a second starts half a second in, however a hold is stretched, exactly as a video layer does. The same grant rule as images holds (ADR 0013): the template never gets a URL into the library, only the frames of the clip chosen for its slot, for the length of a preview or a render. The bundled **Plate Title** is the worked example: a clip covering the frame behind a title, a flat colour where none is chosen.
+
 ### Blocks and layers
 
 An image slot is the author's: a logo goes where the template says. A **layer** is the user's: another line of text or a second mark that the person using the template adds, and that still rides the animation. A template makes room for them by declaring **blocks**, and layers stack inside a block — the template's own layers as the defaults, then whatever is added — taking their part of the template's movement from their **position in the stack**, so a line added in the middle moves as the middle line of the design does.
@@ -640,4 +667,4 @@ Importing shows a preview first: pack name, author and license, and for each tem
 
 ## Planned additions (not part of version 1)
 
-Tracked in ROADMAP.md: the drawing side of blocks and layers (`state.blocks` and a bridge helper, milestone 23), a `media` parameter type (a video plate from a library clip), localized labels, and an optional seeded random number generator provided by the bridge.
+Tracked in ROADMAP.md: the drawing side of blocks and layers (`state.blocks` and a bridge helper, milestone 23), localized labels, and an optional seeded random number generator provided by the bridge.

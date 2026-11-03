@@ -30,7 +30,7 @@ export const TEMPLATE_CATEGORIES = [
 ] as const;
 export type TemplateCategory = (typeof TEMPLATE_CATEGORIES)[number];
 
-export const PARAMETER_TYPES = ['text', 'color', 'number', 'boolean', 'select', 'font', 'image'] as const;
+export const PARAMETER_TYPES = ['text', 'color', 'number', 'boolean', 'select', 'font', 'image', 'media'] as const;
 export type ParameterType = (typeof PARAMETER_TYPES)[number];
 
 interface ParameterBase {
@@ -108,6 +108,22 @@ export interface ImageParameter extends ParameterBase {
   fallbackText?: string;
 }
 
+/**
+ * A media slot (milestone 22, src/core/media-slot.ts): a box in the layout
+ * that a chosen library clip plays inside, frame-accurately, with a trim and a
+ * loop option — the image slot's shape with the video layer's playback. The
+ * value is a library id with how it plays, never a path; the default is
+ * always "no clip", since a template cannot ship a library id.
+ */
+export interface MediaParameter extends ParameterBase {
+  type: 'media';
+  default: null;
+  box: SlotBoxes;
+  fit: ImageFit;
+  align: ImageAlign;
+  margin: number;
+}
+
 export type TemplateParameter =
   | TextParameter
   | ColorParameter
@@ -115,7 +131,8 @@ export type TemplateParameter =
   | BooleanParameter
   | SelectParameter
   | FontParameter
-  | ImageParameter;
+  | ImageParameter
+  | MediaParameter;
 
 export interface TemplateManifest {
   formatVersion: number;
@@ -296,6 +313,23 @@ function validateParameter(raw: unknown, path: string, errors: ValidationIssue[]
         } else if (typeof def === 'string' && !options.includes(def)) {
           errors.push({ path: at, message: 'must be one of the options' });
         }
+      }
+      break;
+    }
+    case 'media': {
+      if (def !== undefined && def !== null) errors.push({ path: at, message: 'a media slot has no default: leave it out or set it to null' });
+      validateSlotBoxes(raw.box, `${path}.box`, errors);
+      if (raw.fit !== undefined && !(IMAGE_FITS as readonly string[]).includes(raw.fit as string)) {
+        errors.push({ path: `${path}.fit`, message: `must be one of: ${IMAGE_FITS.join(', ')}` });
+      }
+      if (raw.align !== undefined && !(IMAGE_ALIGNS as readonly string[]).includes(raw.align as string)) {
+        errors.push({ path: `${path}.align`, message: `must be one of: ${IMAGE_ALIGNS.join(', ')}` });
+      }
+      if (raw.margin !== undefined && (!isFiniteNumber(raw.margin) || raw.margin < 0 || raw.margin > 0.45)) {
+        errors.push({ path: `${path}.margin`, message: 'must be a number from 0 to 0.45 (a fraction of the box)' });
+      }
+      if (errors.length === start) {
+        return { ...raw, default: null, fit: raw.fit ?? 'contain', align: raw.align ?? 'center', margin: raw.margin ?? 0 } as unknown as TemplateParameter;
       }
       break;
     }

@@ -123,8 +123,10 @@ describe('bundled sample templates', async () => {
     // grid, a running light, marching chevrons, a stopwatch and the four countdowns). Milestone 50
     // adds the three caption styles, which loop: a caption style has no timeline of its own — it
     // draws the line it is handed at each moment — so it can be asked for the project's length,
-    // which is what rendering the captions alone as an alpha track needs.
-    expect(kinds.hold).toHaveLength(143);
+    // which is what rendering the captions alone as an alpha track needs. Milestone 22's Plate
+    // Title holds: its words finish rising at 1.4 s and start fading at 5.2 s, and the clip in its
+    // media slot plays against elapsed time as a video layer does, so a stretched hold never slows it.
+    expect(kinds.hold).toHaveLength(144);
     expect(kinds.loop).toHaveLength(102);
     expect(kinds.scale).toHaveLength(40);
     expect(kinds.none).toHaveLength(73);

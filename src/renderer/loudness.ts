@@ -92,6 +92,8 @@ export function loudnessUpdate(
   track: CutTrack | null = null,
   /** The template's own sound and the wipes' (milestone 16), as the stage resolved them. */
   templateSounds: readonly { templateId: string; value: unknown; speed?: number }[] = [],
+  /** The media slots' clips (milestone 22), whose own sound is in the mix as a video layer's is. */
+  slotClips: readonly unknown[] = [],
 ): void {
   if (!els) return;
   const asked = ++generation;
@@ -101,6 +103,7 @@ export function loudnessUpdate(
   for (const cut of track ? trackAudio(track) : []) request.push({ kind: 'sound', value: cut.value, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) });
   // And the template's own sound (milestone 16), so the meter shows the mix the render levels.
   for (const own of templateSounds) request.push({ kind: 'template', templateId: own.templateId, value: own.value, ...(own.speed !== undefined ? { speed: own.speed } : {}) });
+  for (const clip of slotClips) request.push({ kind: 'clip', value: clip });
   if (request.length === 0 || !(length > 0) || !(fps > 0)) {
     shown = null;
     paint();

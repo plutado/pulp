@@ -17,6 +17,7 @@ import type { Block, LayerValues } from './layers';
 import type { TemplateManifest, TemplateParameter } from './manifest';
 import type { ResolvedParams } from './params';
 import type { ClipSource } from './video-layer';
+import { mediaSlots, type MediaSlotState } from './media-slot';
 import { lengthFrameCount, resolveLength, templateTimeAt, type TemplateStructure } from './timing';
 
 export interface FrameState {
@@ -34,6 +35,8 @@ export interface FrameState {
   params: ResolvedParams;
   /** The template's image slots laid out for this frame; the bridge attaches the decoded picture to each chosen one. */
   images: Record<string, ImageSlotState>;
+  /** The template's media slots for this frame (milestone 22): the box, and which decoded frame of the chosen clip shows now. */
+  media: Record<string, MediaSlotState>;
   /**
    * The template's blocks for this frame, by block id: the box in pixels and the layers that are
    * drawn, in stack order, with their sizes in pixels (src/core/layer-layout.ts). `window.pulpLayoutBlock`
@@ -101,6 +104,8 @@ export function frameState(
     height: size.height,
     params,
     images: manifest.parameters ? imageSlots(manifest.parameters, params, size, layerTexts(blocks)) : {},
+    // A media slot plays against the graphic as it is watched, as a video layer does.
+    media: manifest.parameters ? mediaSlots(manifest.parameters, params, size, elapsed, clips) : {},
     blocks,
     ...(captions ? { captions } : {}),
   };
@@ -799,6 +804,23 @@ export const BRIDGE_SCRIPT = `(function () {
     var slot = state && state.images ? state.images[slotId] : null;
     return (slot && slot.fallback) || instead || '';
   }
+  /* A media slot (milestone 22): the frame of the chosen clip that belongs to this moment, drawn
+     into the slot's box with the slot's fit, alignment and margin. False while the slot plays
+     nothing -- no clip, before its delay, after a once-through has ended -- so the template draws
+     its fallback instead. The frames are the same decoded window a video layer is handed. */
+  function drawMedia(ctx, state, slotId, box) {
+    var slot = state && state.media ? state.media[slotId] : null;
+    if (!slot || slot.hidden || !slot.id || slot.frame === null || slot.frame === undefined) return false;
+    var c = clips[slot.id];
+    var frames = c && c.value ? c.value : null;
+    if (!frames || frames.length === 0) return false;
+    var picture = frames[Math.max(0, Math.min(frames.length - 1, Math.floor(slot.frame)))];
+    if (!picture) return false;
+    var target = box || slot.box;
+    var at = fitBox(target, picture.width, picture.height, slot.fit, slot.align, slot.margin);
+    ctx.drawImage(picture, at.x, at.y, at.width, at.height);
+    return true;
+  }
   function drawImage(ctx, state, slotId, box) {
     var slot = state && state.images ? state.images[slotId] : null;
     if (!slot || slot.hidden || !slot.bitmap) return false;
@@ -882,6 +904,11 @@ export const BRIDGE_SCRIPT = `(function () {
         if (layer.type === 'audio') out[id + '.' + layer.id] = 'sound, not drawn';
       });
     });
+    var media = state && state.media ? state.media : {};
+    Object.keys(media).forEach(function (slotId) {
+      var slot = media[slotId];
+      out['media.' + slotId] = !slot.id ? 'none chosen' : slot.frame === null ? 'not playing now' : (clips[slot.id] && clips[slot.id].value && clips[slot.id].value.length ? 'drawn' : 'no frames for ' + slot.id);
+    });
     out.cached = Object.keys(pictures).join(',');
     return out;
   }
@@ -890,8 +917,9 @@ export const BRIDGE_SCRIPT = `(function () {
     Object.keys(blocks).forEach(function (id) { n += (blocks[id].layers || []).length; });
     return n;
   }
-  window.__pulp = { ready: ready, render: render, prepare: prepare, drawImage: drawImage, fitBox: fitBox, layoutBlock: layoutBlock, drawBlock: drawBlock, slotHidden: slotHidden, slotText: slotText, drawn: null, laid: { frame: null, blocks: {} } };
+  window.__pulp = { ready: ready, render: render, prepare: prepare, drawImage: drawImage, drawMedia: drawMedia, fitBox: fitBox, layoutBlock: layoutBlock, drawBlock: drawBlock, slotHidden: slotHidden, slotText: slotText, drawn: null, laid: { frame: null, blocks: {} } };
   window.pulpDrawImage = drawImage;
+  window.pulpDrawMedia = drawMedia;
   window.pulpSlotHidden = slotHidden;
   window.pulpSlotText = slotText;
   window.pulpFitBox = fitBox;

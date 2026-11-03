@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Plate Title (milestone 22): a media slot plays a library clip full-frame behind the title. The
+  // host decides which frame of the clip belongs to this moment and the bridge draws it; the
+  // template only says where (the whole frame, covered) and draws its words over it. With no clip
+  // chosen the plate is a flat colour, so the card still works as a plain title.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  function ease(t) { return 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3); }
+  window.pulpRender = function (state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var W = state.width, H = state.height, S = Math.min(W, H), p = state.params, t = state.time;
+    ctx.clearRect(0, 0, W, H);
+    // The plate: the chosen clip covering the frame, or the flat colour.
+    if (!window.pulpDrawMedia(ctx, state, 'plate')) {
+      ctx.fillStyle = p.plateColor;
+      ctx.fillRect(0, 0, W, H);
+    }
+    // A shade at the foot so the type reads over any footage.
+    var shade = ctx.createLinearGradient(0, H * 0.35, 0, H);
+    shade.addColorStop(0, 'rgba(0,0,0,0)');
+    shade.addColorStop(1, 'rgba(0,0,0,' + p.shade + ')');
+    ctx.fillStyle = shade;
+    ctx.fillRect(0, 0, W, H);
+    // The words rise in over the first 1.2 s, hold, and fade out over the last 0.8 s.
+    var inA = ease((t - 0.2) / 1.2);
+    var outA = 1 - ease((t - (state.duration - 0.8)) / 0.8);
+    var alpha = Math.min(inA, outA);
+    if (alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    var rise = (1 - inA) * S * 0.04;
+    var x = S * 0.08, baseline = H - S * 0.14 + rise;
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(x, baseline - S * 0.165, S * 0.006, S * 0.15);
+    ctx.fillStyle = p.ink;
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+    ctx.font = '600 ' + Math.round(S * 0.085) + 'px Inter, system-ui, sans-serif';
+    ctx.fillText(p.title, x + S * 0.03, baseline - S * 0.06);
+    ctx.font = '400 ' + Math.round(S * 0.036) + 'px Inter, system-ui, sans-serif';
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.fillText(p.subtitle, x + S * 0.03, baseline);
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

@@ -154,6 +154,17 @@
             "fallbackText": { "$ref": "#/$defs/identifier" }
           },
           "required": ["type", "box"]
+        },
+        {
+          "properties": {
+            "type": { "const": "media" },
+            "default": { "type": "null" },
+            "box": { "$ref": "#/$defs/boxes" },
+            "fit": { "type": "string", "enum": ["contain", "cover"] },
+            "align": { "type": "string", "enum": ["center", "left", "right", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right"] },
+            "margin": { "type": "number", "minimum": 0, "maximum": 0.45 }
+          },
+          "required": ["type", "box"]
         }
       ]
     },

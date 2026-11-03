@@ -27,6 +27,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { templateDefaultSize, type Size } from '../core/aspect';
 import { chosenImageIds, imageGrantKey, imageGrantRequests, imageRequests, imageSlots, MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
+import { mediaSlotChoices, mediaSlotDrawnHeight, mediaSlots } from '../core/media-slot';
 import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, layerSoundChoices, layerTexts, type BlockState } from '../core/layer-layout';
 import { readClipFrames, resolveClipAudio, resolveClipSource, type ClipFrameData } from './clip-grant';
 import { ffprobePathFor } from '../core/media-probe';
@@ -288,13 +289,16 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   // Video layers (milestone 26): what the library measured about each chosen clip, so the blocks
   // can be laid out for a moment and the host knows which window to read.
   const clipChoices = layerClipChoices(blocks);
+  // Media slots (milestone 22) play clips by the very path a video layer does: the same sources,
+  // the same decoded windows, the same place in the mix; only where each is drawn differs.
+  const mediaChoices = mediaSlotChoices(manifest.parameters, values);
   const clipSources: Record<string, ClipSource> = {};
-  for (const choice of clipChoices) {
+  for (const choice of [...clipChoices, ...mediaChoices]) {
     if (clipSources[choice.id]) continue;
     // Read the file if the library has not: a headless render never runs the background pass.
     const source = await resolveClipSource(ffprobePathFor(ffmpeg.path), choice.id);
     if (source) clipSources[choice.id] = source;
-    else return { ok: false, message: `A clip chosen for a layer is not in the library, is offline, or could not be read.` };
+    else return { ok: false, message: 'slot' in choice ? `Template "${manifest.name}": the clip chosen for "${choice.slot}" is not in the library, is offline, or could not be read.` : `A clip chosen for a layer is not in the library, is offline, or could not be read.` };
   }
 
   // Every layer's sound (milestone 48): each audible video layer's clip and each audio layer's
@@ -306,6 +310,12 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     if (!clipAudible(choice) || !clipSources[choice.id]) continue;
     const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), choice.id);
     if (audio?.hasAudio) audioLayers.push({ kind: 'clip', path: audio.path, value: choice, source: clipSources[choice.id]!, ...(choice.span ? { span: choice.span } : {}) });
+  }
+  // A media slot's clip keeps its sound too (milestone 22), under the clip's own volume and mute.
+  for (const choice of mediaChoices) {
+    if (!clipAudible(choice) || !clipSources[choice.id]) continue;
+    const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), choice.id);
+    if (audio?.hasAudio) audioLayers.push({ kind: 'clip', path: audio.path, value: choice, source: clipSources[choice.id]! });
   }
   // Music that came in as stems (milestone 16) may be asked for as files instead of in the mix:
   // those entries are set aside here and written one WAV per stem after the mix is in place.
@@ -463,6 +473,16 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       const drawn = layerDrawnHeight(blocks, choice.id, plan.height);
       const read = await readClipFrames(ffmpeg.path, choice.id, choice, clipSources[choice.id]!, drawn);
       if (!read.ok) return { ok: false, message: `Template "${manifest.name}": a clip chosen for a layer ${read.message}.` };
+      clipData.push(read.data);
+    }
+    // A media slot's window, decoded at the height its box draws it (milestone 22).
+    const mediaBoxes = mediaSlots(manifest.parameters, values, renderSize, 0);
+    for (const choice of mediaChoices) {
+      if (!clipSources[choice.id] || clipData.some((c) => c.id === choice.id)) continue;
+      const slot = mediaBoxes[choice.slot];
+      const drawn = slot ? mediaSlotDrawnHeight(slot, plan.height) : plan.height;
+      const read = await readClipFrames(ffmpeg.path, choice.id, choice, clipSources[choice.id]!, drawn);
+      if (!read.ok) return { ok: false, message: `Template "${manifest.name}": the clip chosen for "${choice.slot}" ${read.message}.` };
       clipData.push(read.data);
     }
     if (requests.length > 0 || clipData.length > 0) {

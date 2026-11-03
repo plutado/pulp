@@ -10,10 +10,11 @@
 import { sanitizeCaptions, type CaptionsValue } from './captions';
 import { sanitizeCutTrack, type CutTrack } from './cut-track';
 import { sanitizeImageValue, type ImageValue } from './image-slot';
+import { clipValueFromText, sanitizeClipValue, type ClipValue } from './video-layer';
 import type { LayerValues } from './layers';
 import { isValidColor, type TemplateManifest, type TemplateParameter } from './manifest';
 
-export type ParamValue = string | number | boolean | ImageValue | null;
+export type ParamValue = string | number | boolean | ImageValue | ClipValue | null;
 export type ResolvedParams = Record<string, ParamValue>;
 
 /**
@@ -185,6 +186,21 @@ function resolveOne(param: TemplateParameter, input: unknown, issues: ParamIssue
       // A library id (with its treatment), or nothing; never a path.
       const value = sanitizeImageValue(input);
       if (value === undefined) return fallback('expected a library image id');
+      return value;
+    }
+    case 'media': {
+      // A library clip id with how it plays, or nothing: as an object (a project, a preset), as
+      // JSON on the command line, or as the text form a CSV cell carries ("<id> in=10 out=19 ending=once").
+      let value: ClipValue | null | undefined;
+      if (typeof input === 'string' && input.trim().startsWith('{')) {
+        try {
+          value = sanitizeClipValue(JSON.parse(input));
+        } catch {
+          value = undefined;
+        }
+      } else if (typeof input === 'string') value = clipValueFromText(input);
+      else value = sanitizeClipValue(input);
+      if (value === undefined) return fallback('expected a library clip id');
       return value;
     }
   }
