@@ -58,6 +58,11 @@ export interface LayerEditor {
   setLength(length: number | undefined, commit: boolean): void;
   /** The cut track as it stands (milestone 49); null when the project has none. */
   track(): CutTrack | null;
+  /** How long the graphic runs now (milestone 30), which a motion preset spreads its keys over. */
+  length(): number;
+  /** Whether keyframe recording is on for a layer (milestone 51), and the switch (milestone 55's stage menu). */
+  keyframing(block: string, id: string): boolean;
+  toggleKeyframing(block: string, id: string): void;
   /** The raw parameter bag as it stands — the values, the layers, the length and the track ride together. */
   params(): Record<string, unknown>;
   /**

@@ -302,9 +302,19 @@ export interface Block {
   open: boolean;
   /** What this block's text layers start from. */
   typography: Typography;
+  /**
+   * The entrance and exit a layer in this block starts with (milestone 55):
+   * its own, where the template has no movement to lend — a blank canvas. A
+   * layer may still set its own; absent, layers ride the template's movement
+   * as ever.
+   */
+  transition?: LayerTransitions;
   /** The template's own layers: the defaults, in stack order. */
   layers: Layer[];
 }
+
+/** What a fresh layer takes from its block: the typography, the alignment and the motion it starts with. */
+export type BlockDefaults = Pick<Block, 'typography' | 'align'> & { transition?: LayerTransitions };
 
 /** Layer stacks by block id: what a person has built at use time, or the template's defaults. */
 export type LayerValues = Record<string, Layer[]>;
@@ -620,9 +630,11 @@ function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issu
 }
 
 /** A fresh layer of a type, as a block hands it out: the block's typography, the default image size, nothing required. */
-export function newLayer(type: LayerType, block: Pick<Block, 'typography' | 'align'>, id: string, label?: string): Layer {
+export function newLayer(type: LayerType, block: BlockDefaults, id: string, label?: string): Layer {
   const fallbackLabel = type === 'text' ? 'Text' : type === 'video' ? 'Video' : type === 'audio' ? 'Audio' : type === 'shape' ? 'Shape' : 'Image';
-  const base: LayerBase = { id, label: label ?? fallbackLabel, required: false, hidden: false, spaceBefore: 0 };
+  // A sound has no motion; everything else starts with the block's, where the block declares one (milestone 55).
+  const starts = block.transition && type !== 'audio' ? { transition: { in: { ...block.transition.in }, out: { ...block.transition.out } } } : {};
+  const base: LayerBase = { id, label: label ?? fallbackLabel, required: false, hidden: false, spaceBefore: 0, ...starts };
   if (type === 'text') return { ...base, ...block.typography, type: 'text', text: '', maxLines: DEFAULT_MAX_LINES };
   if (type === 'audio') return { ...base, type: 'audio', sound: null };
   if (type === 'video') return { ...base, type: 'video', clip: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
@@ -636,7 +648,7 @@ export function newLayer(type: LayerType, block: Pick<Block, 'typography' | 'ali
  * since a template cannot ship a library id. Fills every default, so readers
  * see complete layers.
  */
-export function validateLayer(raw: unknown, path: string, block: Pick<Block, 'typography' | 'align'>, errors: ValidationIssue[]): Layer | null {
+export function validateLayer(raw: unknown, path: string, block: BlockDefaults, errors: ValidationIssue[]): Layer | null {
   if (!isRecord(raw)) {
     errors.push({ path, message: 'must be an object' });
     return null;
@@ -754,6 +766,8 @@ export function validateBlock(raw: unknown, path: string, errors: ValidationIssu
     if (typeof raw.open === 'boolean') open = raw.open;
     else issue('open', 'must be a boolean');
   }
+  // What layers in this block start with, where the template has no movement of its own to lend (milestone 55).
+  const transition = raw.transition === undefined ? undefined : readTransitions(raw.transition, undefined, (field, message) => errors.push({ path: `${path}.${field}`, message }));
   // The block's alignment is the typography's unless the typography says otherwise.
   let typography: Typography = { ...DEFAULT_TYPOGRAPHY, align };
   if (raw.typography !== undefined) {
@@ -767,7 +781,7 @@ export function validateBlock(raw: unknown, path: string, errors: ValidationIssu
     else {
       const seen = new Set<string>();
       raw.layers.forEach((l, i) => {
-        const layer = validateLayer(l, `${path}.layers[${i}]`, { typography, align }, errors);
+        const layer = validateLayer(l, `${path}.layers[${i}]`, { typography, align, ...(transition ? { transition } : {}) }, errors);
         if (!layer) return;
         if (seen.has(layer.id)) {
           errors.push({ path: `${path}.layers[${i}].id`, message: `duplicate layer id "${layer.id}"` });
@@ -779,7 +793,7 @@ export function validateBlock(raw: unknown, path: string, errors: ValidationIssu
     }
   }
   if (errors.length !== start || !box) return null;
-  return { id: raw.id as string, label: (raw.label as string).trim(), box, direction, gap, align, verticalAlign, open, typography, layers };
+  return { id: raw.id as string, label: (raw.label as string).trim(), box, direction, gap, align, verticalAlign, open, typography, ...(transition ? { transition } : {}), layers };
 }
 
 /** The template's own stacks, one per block, as fresh copies. */

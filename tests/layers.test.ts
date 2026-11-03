@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_IMAGE_LAYER_SIZE,
@@ -597,5 +599,46 @@ describe('shape layers (milestone 55)', () => {
     const { values, issues } = resolveLayers(manifest(), { b: [{ id: 'bar' }, { id: 'extra', type: 'shape', shape: 'ellipse', color: '#123456', size: 0.1, ratio: 3, label: 'Dot' }] });
     expect(issues).toEqual([]);
     expect(values.b![1]).toMatchObject({ id: 'extra', type: 'shape', shape: 'ellipse', color: '#123456', size: 0.1, ratio: 3 });
+  });
+});
+
+describe("a block's own motion (milestone 55)", () => {
+  const fadeEach = { in: { type: 'fade', seconds: 0.4 }, out: { type: 'fade', seconds: 0.6, direction: 'auto' } };
+  const canvas = (over: Record<string, unknown> = {}) => validateManifest(rawManifest({
+    blocks: [{ id: 'canvas', label: 'Canvas', box: { x: 0, y: 0, width: 1, height: 1 }, open: true, transition: fadeEach, layers: [{ id: 'own', label: 'Own', type: 'text', text: 'Hi' }, { id: 'music', label: 'Music', type: 'audio' }], ...over }],
+  }));
+
+  it('is read on the block, filled out, and given to the layers it declares and the layers added to it — never to a sound', () => {
+    const r = canvas();
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const block = r.manifest.blocks[0]!;
+    expect(block.transition).toEqual({ in: { type: 'fade', seconds: 0.4, direction: 'auto' }, out: { type: 'fade', seconds: 0.6, direction: 'auto' } });
+    expect(block.layers[0]!.transition).toEqual(block.transition);
+    expect(block.layers[1]!.transition).toBeUndefined();
+    const added = newLayer('shape', block, 'bar');
+    expect(added.transition).toEqual(block.transition);
+    expect(newLayer('audio', block, 'snd').transition).toBeUndefined();
+    // A declared layer's own transition wins over the block's.
+    const own = canvas({ layers: [{ id: 'own', label: 'Own', type: 'text', text: 'Hi', transition: { in: { type: 'slide', direction: 'left' } } }] });
+    if (own.ok) expect(own.manifest.blocks[0]!.layers[0]!.transition!.in).toMatchObject({ type: 'slide', direction: 'left' });
+  });
+
+  it('is absent where the template says nothing, and a wrong one is named', () => {
+    const plain = validateManifest(rawManifest({ blocks: [{ id: 'b', label: 'B', box: { x: 0, y: 0, width: 1, height: 1 } }] }));
+    if (plain.ok) {
+      expect(plain.manifest.blocks[0]!.transition).toBeUndefined();
+      expect(newLayer('text', plain.manifest.blocks[0]!, 'a').transition).toBeUndefined();
+    }
+    const wrong = canvas({ transition: { in: { type: 'bounce' } } });
+    expect(wrong.ok).toBe(false);
+    if (!wrong.ok) expect(wrong.errors.map((e) => e.path)).toContain('blocks[0].transition.in.type');
+  });
+
+  it('is what the bundled blank canvas declares: a fade each way, since the canvas has no movement to lend', () => {
+    const manifest = JSON.parse(readFileSync(join(__dirname, '..', 'templates', 'blank-canvas', 'template.json'), 'utf8')) as Record<string, unknown>;
+    const r = validateManifest(manifest);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.manifest.blocks[0]!.transition).toMatchObject({ in: { type: 'fade', seconds: 0.5 }, out: { type: 'fade', seconds: 0.5 } });
   });
 });

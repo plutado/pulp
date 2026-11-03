@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MOTION_PRESETS } from '../src/core/motion-presets';
 import { DEFAULT_LOOK, type LayerLook } from '../src/core/layer-look';
 import { DEFAULT_TYPOGRAPHY, newLayer, type Block, type Layer } from '../src/core/layers';
 import { buildMenu, EMPTY_MENU_STATE, itemEnabled, layerSubmenu, SHARED_COMMAND_FLAGS, type MenuItemSpec, type MenuState } from '../src/core/menu';
@@ -40,7 +41,7 @@ const stackOf = (...ids: string[]): Layer[] => ids.map((id) => text(id));
 const facts = (over: Partial<LayerMenuFacts> = {}): LayerMenuFacts => ({ ...NO_LAYER_FACTS, ...over });
 
 type View = StageMenuContext['view'];
-const view = (over: Partial<View> = {}): View => ({ theater: false, background: DEFAULT_PLAYER.background, canAddToCollection: false, ...over });
+const view = (over: Partial<View> = {}): View => ({ theater: false, background: DEFAULT_PLAYER.background, canAddToCollection: false, keyframing: false, ...over });
 
 /** A context with the defaults a test does not care about filled in. */
 const context = (over: Partial<StageMenuContext> = {}): StageMenuContext => ({
@@ -119,10 +120,12 @@ describe('the menu itself', () => {
       'Order',
       'Copy Look', 'Paste Look',
       'Start at Playhead', 'End at Playhead',
+      'Animate', 'Record Keyframes',
       'Reset Layer',
       'Add Text Here',
       'Add Shape Here', 'Add Asset Here',
     ]);
+    expect(labels(byLabel(onLayer, 'Animate')!.submenu!)).toEqual(MOTION_PRESETS.map((p) => p.label));
     expect(labels(byLabel(onLayer, 'Order')!.submenu!)).toEqual(['Bring Forward', 'Send Backward', 'Bring to Front', 'Send to Back']);
   });
 

@@ -46,6 +46,10 @@
       "align": "center",
       "verticalAlign": "middle",
       "open": true,
+      "transition": {
+        "in": { "type": "fade", "seconds": 0.5 },
+        "out": { "type": "fade", "seconds": 0.5 }
+      },
       "layers": []
     }
   ]

@@ -47,6 +47,7 @@ import {
   type ShapeLayer,
 } from '../core/layers';
 import { exposableProps, exposedValue, exposeId, exposeIn, PROP_LABELS, pruneExpose, suggestedLabel, withExpose, withExposedValue, type ExposableProp, type ExposedParam } from '../core/expose';
+import { applyMotionPreset, MOTION_PRESET_IDS, MOTION_PRESETS, motionPresetOf } from '../core/motion-presets';
 import { addRecentColor } from '../core/recent-colors';
 import { lengthParts, MAX_LENGTH_SECONDS, minimumLength, resolveLength } from '../core/timing';
 import { clockLabel, dimensionsLabel } from '../core/display';
@@ -2220,6 +2221,30 @@ function motionControls(blockId: string, layer: Layer): HTMLElement {
 
   const grid = document.createElement('div');
   grid.className = 'type-grid';
+  // A ready-made motion (milestone 55): the presets, read back to where the layer stands — "Custom" for
+  // a motion shaped by hand, "Template's own" while it rides the template — and written whole on a choice.
+  if (layer.type !== 'audio') {
+    const window = { start: layer.span?.start ?? 0, end: layer.span?.end ?? length };
+    const standing = motionPresetOf(layer, window);
+    const choices = ['template', ...MOTION_PRESET_IDS, 'custom'] as const;
+    const labels = { template: 'Template\u2019s own', custom: 'Custom', ...Object.fromEntries(MOTION_PRESETS.map((p) => [p.id, p.label])) } as Record<(typeof choices)[number], string>;
+    const select = selectOf(choices, labels, standing, (choice) => {
+      if (choice === 'custom') return;
+      editLayer(blockId, layer.id, (l) => {
+        if (choice === 'template') {
+          const back = { ...l };
+          delete back.transition;
+          delete back.keys;
+          return back;
+        }
+        return applyMotionPreset(l, choice, window);
+      }, true);
+    }, `${layer.label} motion`);
+    // Custom is where a hand-shaped layer is, never somewhere to go.
+    const custom = [...select.options].find((o) => o.value === 'custom');
+    if (custom) custom.disabled = true;
+    grid.append(typeField('Motion', select, true));
+  }
   grid.append(...transitionFields('In', 'in', layer, readTransition, setTransition));
   grid.append(...transitionFields('Out', 'out', layer, readTransition, setTransition));
   grid.append(angleField(blockId, layer));
@@ -3182,6 +3207,16 @@ export function initInspectorParams(): void {
     },
     setLength: (length, commit) => setLength(length, commit),
     track: () => currentTrack(),
+    length: () => graphicLength(),
+    keyframing: (block, id) => keyframingOn(block, id),
+    toggleKeyframing: (block, id) => {
+      const key = `${block}.${id}`;
+      if (keyframing.has(key)) keyframing.delete(key);
+      else keyframing.add(key);
+      // The card's own toggle says the same thing, wherever the switch was thrown.
+      const selected = selectedTemplate.value;
+      if (selected) buildParamForm(selected.manifest);
+    },
     params: () => ({ ...p.raw }),
     captions: () => currentCaptions(),
     setCaptions: (captions, commit) => setCaptions(captions, commit),

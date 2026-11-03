@@ -190,6 +190,7 @@ A block:
 | `verticalAlign` | `top`, `middle`, `bottom` | no | Where the stack sits in the box's height; in a row, where each layer sits in the row. Default `top`. |
 | `open` | boolean | no | Whether layers may be added beyond the template's own. Default `true`; `false` marks a block that is full. |
 | `typography` | object | no | What the block's text layers start from; any of the text properties below. Unnamed properties take the built-in defaults (Inter, 0.06, 400, white, wrap). |
+| `transition` | object | no | The entrance and exit a layer in this block starts with — `in` and `out` as under **A layer's own entrance and exit** — for a template with no movement of its own to lend, such as the blank canvas. A layer may still set its own. Absent, layers ride the template's movement. |
 | `layers` | object[] | no | The template's own layers, in stack order. Default `[]`: a block the user fills. |
 
 A layer has an `id` (unique within its block, same form as a block id), a `label`, a `type` of `text`, `image`, `video`, `audio` or `shape`, and optionally `required` (it cannot be removed; default `false`), `hidden` (kept but not drawn, the stack closing up; default `false`), `spaceBefore` (room before it along the stack, as a fraction of the frame's short side; default 0) and `transition` (how it arrives and how it leaves; see **A layer's own entrance and exit** below), `span` (when it comes and goes; see **A layer's own start and end**), `look` (see **A layer's own look**) and `keys` (its pose over time; see **Keyframes** below). A text layer has its `text` and any of the text properties, each of which overrides the block's typography:
@@ -310,7 +311,7 @@ A layer may carry `keys` (milestone 51): a list of poses over time, each with `a
 
 #### A layer's own entrance and exit
 
-By default a layer takes the movement of the **position it is in** — that is the whole point of a block, and it is what lets a line added in the middle move as the middle line of the design does. A layer may instead carry a `transition` of its own, which the person using the template sets in the Parameters tab under **Advanced**. It has an `in` and an `out`, chosen separately, each of:
+By default a layer takes the movement of the **position it is in** — that is the whole point of a block, and it is what lets a line added in the middle move as the middle line of the design does. A layer may instead carry a `transition` of its own, which the person using the template sets in the Parameters tab under **Advanced** — or starts with the one its block declares, where the template has no movement to lend (the blank canvas fades each layer in and out). The Advanced section also offers **motion presets** — Fade, Slide in, Rise, Pop, Wipe on, Drift across, Pulse, Spin in, Still — which write a transition and, where the preset moves the layer while it is on, keyframes (below); a preset is the whole motion, so choosing one replaces what was there, and the layer is an ordinary layer afterwards. It has an `in` and an `out`, chosen separately, each of:
 
 | Field | Type | Description |
 |---|---|---|

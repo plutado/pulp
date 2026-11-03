@@ -2982,6 +2982,7 @@ describe.skipIf(!electron)('inspector UI', () => {
           'Order',
           'Copy Look', 'Paste Look',
           'Start at Playhead', 'End at Playhead',
+          'Animate', 'Record Keyframes',
           'Reset Layer',
           'Add Text Here', 'Add Shape Here', 'Add Asset Here',
         ]);
@@ -6516,8 +6517,60 @@ describe.skipIf(!electron)('inspector UI', () => {
       );
       await clickResult('Lower Third Bar');
     }, 180_000);
-  });
 
+    it('gives a layer on the canvas motion: the block\u2019s fade to start with, a preset off the menu, keyframe recording off the menu (milestone 55)', async () => {
+      await page.eval(`window.pulpMenuCommand('canvas.new')`);
+      await until(
+        () => page.eval<boolean>(`(document.getElementById('preview').getAttribute('src') || '').startsWith('pulp-template://${CANVAS}/')`),
+        'the blank canvas on the stage',
+      );
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'its preview ready');
+      const F = await frameOf();
+      const cx = Math.round(F.width / 2), cy = Math.round(F.height / 2);
+      await openTab('parameters');
+      await page.eval(`(() => { const b = document.querySelector('#params .layers-block[data-block=canvas] .layers-reset'); if (b && !b.hidden) b.click(); })()`);
+      await until(async () => (await previewPixel(cx, cy, CANVAS))[3] === 0, 'the canvas empty again');
+      await page.eval(`window.pulpMenuCommand('layer.addShape')`);
+      await until(async () => (await previewPixel(cx, cy, CANVAS))[3] === 255, 'the shape drawn');
+
+      // The canvas has no movement to lend, so its block gives every layer a fade each way: part way
+      // through its first half second the shape is translucent; a moment later it is solid.
+      await scrubTo(3);
+      await until(async () => { const a = (await previewPixel(cx, cy, CANVAS))[3]!; return a > 0 && a < 255; }, 'the shape fading in from the block\u2019s own transition');
+      await scrubTo(90);
+      await until(async () => (await previewPixel(cx, cy, CANVAS))[3] === 255, 'the shape solid once in');
+
+      // A preset off the menu path: Drift across writes keys that carry the shape from left of its
+      // place to right of it over the whole graphic — the same keys milestone 51 draws and edits.
+      await selectOnStage(cx, cy);
+      await page.eval(`window.pulpMenuCommand('layer.motion', 'drift')`);
+      await scrubTo(10);
+      await until(async () => ((await laidShape())?.draw.dx ?? 0) < -5, 'the drift left of its place early on');
+      await scrubTo(170);
+      await until(async () => ((await laidShape())?.draw.dx ?? 0) > 5, 'the drift right of its place late on');
+      // The card reads the preset back where the layer stands.
+      await until(() => page.eval<string>(`(document.querySelector('#params select[aria-label="Shape 1 motion"]') || {}).value || ''`).then((v) => v === 'drift'), 'the card naming the preset');
+
+      // Recording off the menu is the card's own switch, thrown from the stage.
+      const toggle = `document.querySelector('#params .param-card[data-layer="shape_1"] .keyframing-toggle')`;
+      expect(await page.eval<string>(`${toggle}.getAttribute('aria-pressed')`)).toBe('false');
+      await page.eval(`window.pulpMenuCommand('layer.keyframing')`);
+      await until(() => page.eval<boolean>(`${toggle}.getAttribute('aria-pressed') === 'true'`), 'recording on from the menu');
+      await page.eval(`window.pulpMenuCommand('layer.keyframing')`);
+      await until(() => page.eval<boolean>(`${toggle}.getAttribute('aria-pressed') === 'false'`), 'recording off again');
+
+      // Left as it was found.
+      await page.eval(`window.pulpMenuCommand('project.new')`);
+      await until(
+        () => page.eval<boolean>(
+          `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
+            return document.querySelector('#project-button .label').textContent === 'Untitled'; })()`,
+        ),
+        'a clean session left behind',
+      );
+      await clickResult('Lower Third Bar');
+    }, 180_000);
+  });
   describe("the editor panel's bridge (milestone 54, ADR 0025)", () => {
     it('answers the library and the collection on loopback, and nothing without the token', async () => {
       // The setting was seeded on, so the running app has written the discovery file beside its settings.

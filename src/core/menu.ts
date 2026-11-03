@@ -22,6 +22,7 @@
  */
 
 import { DEFAULT_PLAYER, STAGE_BACKGROUNDS, type StageBackground } from './player';
+import { MOTION_PRESETS } from './motion-presets';
 import type { MenuDisplay } from './stage-window';
 
 export type MenuCommand =
@@ -53,6 +54,8 @@ export type MenuCommand =
   | 'layer.exposeText'
   | 'layer.exposeColor'
   | 'layer.exposeImage'
+  | 'layer.motion'
+  | 'layer.keyframing'
   | 'layer.cut'
   | 'layer.copy'
   | 'layer.paste'
@@ -170,6 +173,8 @@ export interface MenuState {
   canReplaceImage: boolean;
   /** The selected layer has one color of its own — a line of type or a shape — so it can be picked as a parameter. */
   canExposeColor: boolean;
+  /** Keyframe recording is on for the selected layer (milestone 51): moving it writes a key at the playhead. */
+  keyframing: boolean;
   /** The selected layer plays a clip, so another can be chosen for it. */
   canReplaceClip: boolean;
   /** A layer is selected: there is something to copy, duplicate, time or reset. */
@@ -220,6 +225,7 @@ export const EMPTY_MENU_STATE: MenuState = {
   canEditText: false,
   canReplaceImage: false,
   canExposeColor: false,
+  keyframing: false,
   canReplaceClip: false,
   canEditLayer: false,
   canDeleteLayer: false,
@@ -343,6 +349,15 @@ export function recentLabel(path: string): string {
  * order a pointer menu wants them; this is the keyboard-reachable, discoverable
  * copy, and `LAYER_COMMAND_FLAGS` below is what holds the two in step.
  */
+/**
+ * The motion presets as menu items (milestone 55): one command, the preset's id
+ * as its argument, the way a recent project's path or an asset's id rides.
+ * Shared by the Edit menu and the stage's right-click menu.
+ */
+export function motionSubmenu(): MenuItemSpec[] {
+  return MOTION_PRESETS.map((p) => ({ command: 'layer.motion' as const, label: p.label, arg: p.id, enabledBy: 'canEditLayer' as const }));
+}
+
 export function layerSubmenu(): MenuItemSpec[] {
   return [
     // What the selected layer itself holds, before what can be added beside it.
@@ -354,6 +369,10 @@ export function layerSubmenu(): MenuItemSpec[] {
     { command: 'layer.exposeText', label: 'Make Words a Parameter', enabledBy: 'canEditText' },
     { command: 'layer.exposeColor', label: 'Make Color a Parameter', enabledBy: 'canExposeColor' },
     { command: 'layer.exposeImage', label: 'Make Picture a Parameter', enabledBy: 'canReplaceImage' },
+    sep,
+    // Motion (milestone 55): a ready-made motion from the presets, and keyframe recording on the selected layer.
+    { label: 'Animate', submenu: motionSubmenu() },
+    { command: 'layer.keyframing', label: 'Record Keyframes', type: 'checkbox', checkedBy: 'keyframing', enabledBy: 'canEditLayer' },
     sep,
     { command: 'layer.addText', label: 'Add Text Layer', enabledBy: 'canAddLayer' },
     // Both take a library item as their argument, as Open Recent takes a path: with one they add
@@ -401,6 +420,8 @@ export const SHARED_COMMAND_FLAGS: Readonly<Partial<Record<MenuCommand, Flag>>> 
   'layer.exposeText': 'canEditText',
   'layer.exposeColor': 'canExposeColor',
   'layer.exposeImage': 'canReplaceImage',
+  'layer.motion': 'canEditLayer',
+  'layer.keyframing': 'canEditLayer',
   'layer.cut': 'canDeleteLayer',
   'layer.copy': 'canEditLayer',
   'layer.paste': 'canPasteLayer',

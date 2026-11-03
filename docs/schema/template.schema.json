@@ -285,6 +285,7 @@
         "verticalAlign": { "type": "string", "enum": ["top", "middle", "bottom"] },
         "open": { "type": "boolean" },
         "typography": { "$ref": "#/$defs/typography" },
+        "transition": { "type": "object", "properties": { "in": { "$ref": "#/$defs/transitionEnd" }, "out": { "$ref": "#/$defs/transitionEnd" } } },
         "layers": { "type": "array", "items": { "$ref": "#/$defs/layer" } }
       }
     }

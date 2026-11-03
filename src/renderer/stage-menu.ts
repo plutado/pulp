@@ -18,6 +18,7 @@ import { computed, signal } from '@preact/signals';
 import type { LayerLook } from '../core/layer-look';
 import type { Layer } from '../core/layers';
 import type { MenuCommand } from '../core/menu';
+import { applyMotionPreset, isMotionPresetId } from '../core/motion-presets';
 import { searchPlaceable } from '../core/search';
 import { framePointIn } from '../core/stage-place';
 import {
@@ -202,6 +203,18 @@ export function registerExposer(fn: (block: string, layerId: string, prop: 'text
   exposer = fn;
 }
 
+/** Whether keyframe recording is on for the selected layer, as both menus show it (milestone 55). */
+export function recording(): boolean {
+  const editor = layerEditor();
+  const at = selectedLayer.value;
+  return !!(editor && at && editor.keyframing(at.block, at.id));
+}
+
+/** The seconds a layer is on screen: its own span, or the whole graphic. */
+function windowOf(layer: Layer, length: number): { start: number; end: number } {
+  return { start: layer.span?.start ?? 0, end: layer.span?.end ?? length };
+}
+
 /** Run one layer command. The application menu's dispatcher sends them here, and so does the menu below. */
 export function runLayerCommand(command: MenuCommand, arg: string | null): void {
   const editor = layerEditor();
@@ -209,6 +222,18 @@ export function runLayerCommand(command: MenuCommand, arg: string | null): void 
   switch (command) {
     case 'layer.addText': landed(editor.addLayer('text')); return;
     case 'layer.addShape': landed(editor.addLayer('shape')); return;
+    case 'layer.motion': {
+      const it = chosen();
+      if (!it || !isMotionPresetId(arg)) return;
+      editor.edit(it.block, it.id, (l) => applyMotionPreset(l, arg, windowOf(l, editor.length())), true);
+      editor.commit();
+      return;
+    }
+    case 'layer.keyframing': {
+      const it = chosen();
+      if (it) editor.toggleKeyframing(it.block, it.id);
+      return;
+    }
     case 'layer.exposeText': case 'layer.exposeColor': case 'layer.exposeImage': {
       const it = chosen();
       if (!it) return;
@@ -297,7 +322,7 @@ export function runLayerCommand(command: MenuCommand, arg: string | null): void 
 // ---------------------------------------------------------------- opening it
 
 /** What the window is doing with the stage, for the items that belong to the picture as a whole. */
-function viewFacts(): { theater: boolean; background: StageBackground; canAddToCollection: boolean } {
+function viewFacts(): { theater: boolean; background: StageBackground; canAddToCollection: boolean; keyframing: boolean } {
   // The stage's controls are read where the stage is: in its own window when it is popped out
   // (milestone 43), which is the document the menu itself is about to open in.
   const doc = anchor?.ownerDocument ?? document;
@@ -307,6 +332,7 @@ function viewFacts(): { theater: boolean; background: StageBackground; canAddToC
     theater: pressed('theater'),
     background: custom ? 'custom' : (STAGE_BACKGROUNDS.find((b) => pressed(`bg-${b.id}`))?.id ?? DEFAULT_PLAYER.background),
     canAddToCollection: (document.getElementById('add-to-collection') as HTMLButtonElement | null)?.disabled === false,
+    keyframing: recording(),
   };
 }
 

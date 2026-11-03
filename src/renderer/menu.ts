@@ -18,7 +18,7 @@ import { DEFAULT_PLAYER, STAGE_BACKGROUNDS, type StageBackground } from '../core
 import { THUMB_SIZES } from '../core/results-view';
 import { appState, paramsEdited, renderBlocked, results, resultsView, transport } from './store';
 import { selectedLayer } from './layer-edit';
-import { currentLayerFacts, runLayerCommand, stageClipboard } from './stage-menu';
+import { currentLayerFacts, recording, runLayerCommand, stageClipboard } from './stage-menu';
 import { registerCommandRunner } from './commands';
 
 /**
@@ -103,6 +103,7 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'layer.editText': case 'layer.replaceImage': case 'layer.replaceClip':
     case 'layer.addText': case 'layer.addImage': case 'layer.addVideo': case 'layer.addShape':
     case 'layer.exposeText': case 'layer.exposeColor': case 'layer.exposeImage':
+    case 'layer.motion': case 'layer.keyframing':
     case 'layer.cut': case 'layer.copy': case 'layer.paste': case 'layer.duplicate': case 'layer.delete':
     case 'layer.forward': case 'layer.backward': case 'layer.front': case 'layer.back':
     case 'layer.copyLook': case 'layer.pasteLook': case 'layer.startHere': case 'layer.endHere': case 'layer.reset':
@@ -207,6 +208,7 @@ function readState(recent: string[]): MenuState {
     canAddToCollection: usable('add-to-collection'),
     // What can be done to a layer, worked out once and read by both menus (milestone 39).
     ...currentLayerFacts(),
+    keyframing: recording(),
     recent,
   };
 }

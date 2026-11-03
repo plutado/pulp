@@ -16,8 +16,8 @@
 
 import type { LayerLook } from './layer-look';
 import { isWholeGraphic, MIN_ON_SCREEN, roundSeconds, spanWindow, type LayerSpan } from './layer-time';
-import { newLayer, type Block, type Layer, type LayerType } from './layers';
-import { backgroundSubmenu, itemChecked, itemEnabled, SHARED_COMMAND_FLAGS, type MenuCommand, type MenuItemSpec, type MenuState } from './menu';
+import { newLayer, type BlockDefaults, type Layer, type LayerType } from './layers';
+import { backgroundSubmenu, itemChecked, itemEnabled, SHARED_COMMAND_FLAGS, type MenuCommand, type MenuItemSpec, type MenuState, motionSubmenu } from './menu';
 
 // ---------------------------------------------------------------- what can be done
 
@@ -114,7 +114,7 @@ export interface StageMenuContext {
    * What the window is doing with the stage, for the view items on bare
    * picture: the whole `MenuState` is not needed, only what they show.
    */
-  view: Pick<MenuState, 'theater' | 'background' | 'canAddToCollection'>;
+  view: Pick<MenuState, 'theater' | 'background' | 'canAddToCollection' | 'keyframing'>;
 }
 
 const sep: MenuItemSpec = { type: 'separator' };
@@ -188,6 +188,10 @@ export function stageMenu(context: StageMenuContext): MenuItemSpec[] {
       sep,
       item('layer.startHere', 'Start at Playhead', state),
       item('layer.endHere', 'End at Playhead', state),
+      sep,
+      // Motion (milestone 55): the presets, and keyframe recording for this layer.
+      { label: 'Animate', enabled: state.canEditLayer, submenu: motionSubmenu().map((spec) => ({ ...spec, enabled: itemEnabled(spec, state) })) },
+      { ...item('layer.keyframing', 'Record Keyframes', state), type: 'checkbox', checked: state.keyframing },
       sep,
       item('layer.reset', 'Reset Layer', state),
       sep,
@@ -372,7 +376,7 @@ export function layerWithSpan(layer: Layer, span: LayerSpan | undefined): Layer 
 export const NEW_TEXT_WORDS = 'Text';
 
 /** A fresh layer for a block, named so it reads in the stack: "Line 3", "Picture 2". */
-export function addedLayer(type: LayerType, block: Pick<Block, 'typography' | 'align'>, stack: readonly Layer[], label?: string): Layer {
+export function addedLayer(type: LayerType, block: BlockDefaults, stack: readonly Layer[], label?: string): Layer {
   // The words the Parameters tab's own Add buttons use, so a layer added there and one added
   // on the stage are named alike.
   const stem = type === 'text' ? 'Line' : type === 'video' ? 'Video' : type === 'audio' ? 'Sound' : type === 'shape' ? 'Shape' : 'Image';
