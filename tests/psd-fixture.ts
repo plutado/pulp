@@ -175,7 +175,7 @@ export function writePsd(options: FixtureOptions): Uint8Array {
   w.u32(width);
   w.u16(depth);
   w.u16(gray ? 1 : 3);
-  w.u32(0); // colour mode data
+  w.u32(0); // color mode data
   w.u32(0); // image resources
 
   const records = flatten(options.layers);
@@ -261,7 +261,7 @@ export function writePsd(options: FixtureOptions): Uint8Array {
   return w.done();
 }
 
-/** A solid rectangle of one colour, as straight RGBA. */
+/** A solid rectangle of one color, as straight RGBA. */
 export function solid(width: number, height: number, rgba: [number, number, number, number]): Uint8Array {
   const out = new Uint8Array(width * height * 4);
   for (let i = 0; i < width * height; i += 1) out.set(rgba, i * 4);

@@ -121,7 +121,7 @@ What a person may change is declared, and reaches the page resolved:
 ]
 ```
 
-In the page, `state.params.bar` is always a valid colour and `state.params.inOut` always a number in range: Pulp resolves what the person typed against your declaration before the page sees it. `element` names the **part of the graphic** a setting belongs to, so the Parameters tab can show one card per part; a template that names a hold should not also offer a "Hold, seconds" parameter, since the length is the control for that now.
+In the page, `state.params.bar` is always a valid color and `state.params.inOut` always a number in range: Pulp resolves what the person typed against your declaration before the page sees it. `element` names the **part of the graphic** a setting belongs to, so the Parameters tab can show one card per part; a template that names a hold should not also offer a "Hold, seconds" parameter, since the length is the control for that now.
 
 Types: `text`, `color`, `number`, `boolean`, `select`, `font` and `image`. The last is a slot, below.
 
@@ -192,7 +192,7 @@ The person picks a library still in the Parameters tab, with treatments (tinted,
 
 ## Step 9. Share it
 
-Set `license` to an SPDX identifier that permits redistribution, `CC0-1.0` or `MIT` for most templates; include the licence of any font or image you bundle. Several templates that share a look travel as a **pack**: a folder with a `pack.json` naming them (`docs/template-format.md`, "Template packs"), exported from File → Export as Pack… and imported by anyone with File → Add → Templates from a Pack….
+Set `license` to an SPDX identifier that permits redistribution, `CC0-1.0` or `MIT` for most templates; include the license of any font or image you bundle. Several templates that share a look travel as a **pack**: a folder with a `pack.json` naming them (`docs/template-format.md`, "Template packs"), exported from File → Export as Pack… and imported by anyone with File → Add → Templates from a Pack….
 
 ## Beyond this
 

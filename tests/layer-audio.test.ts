@@ -173,7 +173,7 @@ describe('the waveform on a layer\'s bar (milestone 48)', () => {
   });
 });
 
-describe('levelling the mix (milestone 52)', () => {
+describe('leveling the mix (milestone 52)', () => {
   const target = { lufs: -14, truePeakDb: -1 };
   const measured: MixLoudness = { inputI: -22.3, inputTp: -3.1, inputLra: 6.4, inputThresh: -32.9 };
 
@@ -203,7 +203,7 @@ describe('levelling the mix (milestone 52)', () => {
     expect(parseMixLoudness('{"input_i": "what"}')).toBeNull();
   });
 
-  it('joins the plan after the cut, so what is levelled is exactly what is written — and only when asked', () => {
+  it('joins the plan after the cut, so what is leveled is exactly what is written — and only when asked', () => {
     const plain = applyLayerAudio(plan('h264-mp4'), [music()]);
     expect(plain.args.join(' ')).not.toContain('loudnorm');
     const levelled = applyLayerAudio(plan('h264-mp4'), [music()], { target, measured });
@@ -257,7 +257,7 @@ describe('one layer\'s chain', () => {
     // A clip: the recipe runs on the file's own clock, before atempo, as the preview hears it.
     const sped = layerAudioChain(1, layer({ speed: 2, voice: { treatment: 'phone', amount: 1 } }), 'la0', 2);
     expect(sped).toContain('asetpts=PTS-STARTPTS,highpass=f=310,lowpass=f=3400,acompressor=threshold=0.0625:ratio=4:attack=10:release=150:makeup=1.8,atempo=2');
-    // The mix's measurement runs the same chains, so the meter and the levelling hear the treatment too.
+    // The mix's measurement runs the same chains, so the meter and the leveling hear the treatment too.
     const measured = measureMixArgs([music({ voice: { treatment: 'reduce-noise', amount: 0.5 } })], { fps: 30, firstFrame: 0, totalFrames: 120, length: 4 });
     expect(measured.join(' ')).toContain('afftdn=nr=15');
     // No treatment, or none of it, is the chain as it always was.

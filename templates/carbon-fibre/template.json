@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "id": "pulp.samples.carbon-fibre",
-  "name": "Carbon fibre",
-  "description": "A carbon-fibre twill: small woven tows alternating in two directions, each with its own sheen; the scale sets the tow width and the angle turns the weave.",
+  "name": "Carbon fiber",
+  "description": "A carbon-fiber twill: small woven tows alternating in two directions, each with its own sheen; the scale sets the tow width and the angle turns the weave.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
@@ -38,7 +38,7 @@
     {
       "id": "dark",
       "type": "color",
-      "label": "Fibre color",
+      "label": "Fiber color",
       "default": "#101214",
       "element": "Colors"
     },

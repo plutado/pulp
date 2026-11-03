@@ -129,7 +129,7 @@ function splitNumbered(name: string): { stem: string; number: number; digits: nu
  * A sequence is **consecutive**: a run with a hole in it is left as separate
  * files, because a clip that silently skips a missing frame is worse than
  * seeing that a frame is missing. A folder may hold several runs, and a run
- * that is long enough while its neighbours are not takes only its own frames.
+ * that is long enough while its neighbors are not takes only its own frames.
  * Frames of different digit widths (`f_1.png` beside `f_0001.png`) are
  * different runs, which is also how ffmpeg's demuxer reads them.
  */

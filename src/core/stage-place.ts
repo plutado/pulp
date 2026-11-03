@@ -2,7 +2,7 @@
  * Moving and resizing layers on the stage (milestone 25): the arithmetic. The
  * stage reads the laid boxes the template page reports with each frame, hit-
  * tests a click against where the layers were really drawn, turns a drag into
- * placement fractions, and snaps to the lines a frame cares about — its centre
+ * placement fractions, and snaps to the lines a frame cares about — its center
  * lines, its safe-area edges, the layer's own block. Pure; the stage draws
  * what these answer.
  */
@@ -40,7 +40,7 @@ export interface LaidReport {
 
 export const EMPTY_LAID: LaidReport = { frame: null, blocks: {} };
 
-/** Where a layer was really drawn: its slot moved by the draw's offset and scaled about its centre. */
+/** Where a layer was really drawn: its slot moved by the draw's offset and scaled about its center. */
 export function placedBox(layer: LaidLayerReport): PxBox {
   const { box, draw } = layer;
   const cx = box.x + draw.dx + box.width / 2;
@@ -59,7 +59,7 @@ export function placedAngle(layer: LaidLayerReport): number {
   return layer.draw.rotate ?? 0;
 }
 
-/** Turn a point about a centre, clockwise, by degrees. */
+/** Turn a point about a center, clockwise, by degrees. */
 export function rotatePoint(point: Point, centre: Point, degrees: number): Point {
   if (!degrees) return { x: point.x, y: point.y };
   const radians = (degrees * Math.PI) / 180;
@@ -72,7 +72,7 @@ export function rotatePoint(point: Point, centre: Point, degrees: number): Point
 
 /**
  * A point of the layer's own space, where the draw's offset and scale put it:
- * moved by the offset, then scaled about the slot's centre, exactly as the
+ * moved by the offset, then scaled about the slot's center, exactly as the
  * canvas does it before any turn.
  */
 export function placedPoint(layer: LaidLayerReport, point: Point): Point {
@@ -83,7 +83,7 @@ export function placedPoint(layer: LaidLayerReport, point: Point): Point {
 }
 
 /**
- * The point a layer turns about: the centre of what it draws, where the offset
+ * The point a layer turns about: the center of what it draws, where the offset
  * and scale have put it. For a line aligned in a wide block that is the middle
  * of the words, not the middle of the block, so a turn spins it where it sits.
  */
@@ -135,7 +135,7 @@ export function hitLayer(laid: LaidReport, x: number, y: number, tolerance = 0):
     for (const layer of report.layers) {
       if (layer.draw.alpha <= 0 || layer.box.width <= 0 || layer.box.height <= 0) continue;
       // A turned layer is tested in its own upright frame: the point is turned back about the
-      // layer's centre, and the same box test then answers for the rotated outline exactly.
+      // layer's center, and the same box test then answers for the rotated outline exactly.
       const b = placedBox(layer);
       const angle = placedAngle(layer);
       const point = angle ? rotatePoint({ x, y }, placedCentre(layer), -angle) : { x, y };
@@ -175,7 +175,7 @@ export interface SnapResult {
   guides: SnapGuide[];
 }
 
-/** The vertical and horizontal lines a frame offers: its centre, its safe edges, the block's edges. */
+/** The vertical and horizontal lines a frame offers: its center, its safe edges, the block's edges. */
 export function snapLines(frame: { width: number; height: number }, block: PxBox): { x: number[]; y: number[] } {
   const x = [frame.width / 2];
   const y = [frame.height / 2];
@@ -189,7 +189,7 @@ export function snapLines(frame: { width: number; height: number }, block: PxBox
 }
 
 /**
- * Snap a moved box: its centre and both edges are tried against each line, on
+ * Snap a moved box: its center and both edges are tried against each line, on
  * each axis independently, and the smallest correction inside the threshold
  * wins. The answer is the correction to add to the drag, with the guides that
  * earned it.
@@ -232,7 +232,7 @@ export function clampScale(value: number): number {
 
 /**
  * The scale a corner drag asks for: how far the pointer is from the placed
- * centre now, over how far it was when the drag started, times the scale the
+ * center now, over how far it was when the drag started, times the scale the
  * layer already had. Proportions keep themselves — one factor serves both axes.
  */
 export function scaleFromDrag(start: { x: number; y: number }, now: { x: number; y: number }, centre: { x: number; y: number }, startScale: number): number {
@@ -247,7 +247,7 @@ export const ANGLE_SNAP_DEGREES = 15;
 
 /**
  * The angle a rotate-handle drag asks for: the angle the pointer has swept
- * about the placed centre since the gesture began, added to the angle the
+ * about the placed center since the gesture began, added to the angle the
  * layer already had. With Shift it settles on the nearest 15°, measured on the
  * **result** rather than the sweep, so the layer lands on 0, 15, 30 and so on
  * whatever angle it started from.

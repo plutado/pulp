@@ -50,7 +50,7 @@ export async function loadStageWindowSetting(): Promise<void> {
 /**
  * The window options for a `window.open` the renderer makes under the stage's
  * name, or null for any other, which the main window refuses as before. Placed
- * where it was last if that display is connected; at its size alone, centred by
+ * where it was last if that display is connected; at its size alone, centered by
  * the platform, if not; at a default the first time.
  */
 export function stageWindowOptions(frameName: string): BrowserWindowConstructorOptions | null {
@@ -78,7 +78,7 @@ export function adoptStageWindow(win: BrowserWindow, main: BrowserWindow): void 
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event) => event.preventDefault());
 
-  // Where it is, remembered as it settles; not while full screen or minimised, which are not places.
+  // Where it is, remembered as it settles; not while full screen or minimized, which are not places.
   let timer: ReturnType<typeof setTimeout> | undefined;
   const save = () => {
     clearTimeout(timer);
@@ -133,7 +133,7 @@ function transition(win: BrowserWindow, event: 'enter-full-screen' | 'leave-full
  * macOS grants full screen by moving the window to a Space of its own, and it
  * drops the request without a word when the window is not in a state to take
  * one: still coming up (this is called moments after the renderer opened it),
- * minimised, or sitting behind in another Space — which is where it is when a
+ * minimized, or sitting behind in another Space — which is where it is when a
  * run of other work has been in front of it. So the window is shown and given
  * focus where it is going first, the transition is waited for, and the ask is
  * repeated while it has not landed. Returns whether it ended up full screen;

@@ -125,13 +125,13 @@ describe('the categories', () => {
   // Milestone 34's closing test (its card sort with people stays open): every top-level category
   // describes itself, and every category card has a picture — a representative thumbnail wherever
   // its entries can carry one, the category's own icon for sound, which has nothing to show.
-  it('gives every top-level category a description and every category a thumbnail, over the full catalogue', async () => {
+  it('gives every top-level category a description and every category a thumbnail, over the full catalog', async () => {
     const { scanLibrary } = await import('../src/core/library');
     const { SAMPLE_MEDIA } = await import('../src/core/sample-media');
     const { mediaKindForPath } = await import('../src/core/library-scan');
     const { wantsThumbnail } = await import('../src/core/thumbnails');
 
-    // The full catalogue: the bundled templates, plus one media entry per type the sample-media
+    // The full catalog: the bundled templates, plus one media entry per type the sample-media
     // folder would make — stills, clips and sounds the bundled templates cannot be.
     const index = await scanLibrary([join(ROOT, 'templates')]);
     const mediaTypes = new Map<string, string>();
@@ -148,7 +148,7 @@ describe('the categories', () => {
     // Thumbnails as the library would have them, once made: every entry that gets one, pictured.
     const pictured = entries.map((e) => (wantsThumbnail(e) ? { ...e, thumbnail: `pulp-thumb://${e.id}/` } : e));
 
-    // Every category is in the catalogue and makes a top-level card.
+    // Every category is in the catalog and makes a top-level card.
     const top = categoryCards(pictured, null)!;
     expect(top.map((c) => c.id).sort()).toEqual(BROWSE_CATEGORIES.map((c) => `category:${c.id}`).sort());
     for (const card of top) {

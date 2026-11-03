@@ -122,7 +122,7 @@ function formatSeconds(ms: number): string {
 }
 
 /**
- * Files a failed or cancelled render may have written, for cleanup.
+ * Files a failed or canceled render may have written, for cleanup.
  *
  * A single-file output is one path. A sequence pattern such as
  * `out_%05d.png` expands to the frame numbers the render covers (from its

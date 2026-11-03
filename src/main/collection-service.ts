@@ -70,6 +70,6 @@ export async function renderCollection(items: CollectionItem[], name: string): P
     properties: ['openDirectory', 'createDirectory'],
   });
   const folder = pick.filePaths[0];
-  if (pick.canceled || !folder) return { ok: false, cancelled: true, message: 'Render all cancelled.' };
+  if (pick.canceled || !folder) return { ok: false, cancelled: true, message: 'Render all canceled.' };
   return enqueueCollectionItems(items, folder);
 }

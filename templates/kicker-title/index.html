@@ -14,7 +14,7 @@
   // Kicker Title, a sample for Pulp. CC0-1.0: no rights reserved.
   //
   // The words are a block of layers: the kicker leads, the headline follows a beat later, and a
-  // rule grows from the centre between them. A line added in the tab takes its position's turn.
+  // rule grows from the center between them. A line added in the tab takes its position's turn.
   'use strict';
   var canvas = document.getElementById('c');
   var ctx = canvas.getContext('2d');
@@ -50,7 +50,7 @@
     });
     window.pulpDrawBlock(ctx, laid);
 
-    // The rule sits between the first two lines and grows from the centre with the headline.
+    // The rule sits between the first two lines and grows from the center with the headline.
     if (laid.layers.length > 1) {
       var first = laid.layers[0], second = laid.layers[1];
       var y = (first.box.y + first.box.height + second.box.y) / 2;

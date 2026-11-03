@@ -6,7 +6,7 @@
  * the first test holds the two together: a change to the builder that was not
  * written out with `npm run lottie:write` fails here rather than shipping a
  * stale file. The rest hold the set to what the milestone promised — every one
- * readable as a template, CC0, typed, with a colour to change.
+ * readable as a template, CC0, typed, with a color to change.
  */
 
 import { readdir, readFile } from 'node:fs/promises';
@@ -70,7 +70,7 @@ describe('what the set is', () => {
     for (const animation of STARTER_ANIMATIONS) {
       const { parameters } = lottieEditables(animation.build());
       const colours = parameters.filter((p) => p.type === 'color');
-      expect(colours.length, `${animation.id} has a colour to change`).toBeGreaterThan(0);
+      expect(colours.length, `${animation.id} has a color to change`).toBeGreaterThan(0);
       for (const p of colours) {
         // "Fill" or "Group 1" would tell a person nothing; the label names the part.
         expect(p.label, `${animation.id}: ${p.label}`).not.toMatch(/^(fill|stroke|group|shape)\b/i);

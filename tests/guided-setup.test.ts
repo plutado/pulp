@@ -71,7 +71,7 @@ describe('the live preview and the sizes', () => {
     expect(guidedSize(m, { ...defaultGuidedChoices(m), width: 17, height: 9 })).toEqual({ aspect: '16:9', width: 1920, height: 1080 });
   });
 
-  it('shows the checkerboard while the transparency is kept, the flatten colour once it is dropped', () => {
+  it('shows the checkerboard while the transparency is kept, the flatten color once it is dropped', () => {
     const m = manifest();
     expect(guidedPreviewBackdrop(m, defaultGuidedChoices(m))).toBe('checker');
     expect(guidedPreviewBackdrop(m, { ...defaultGuidedChoices(m), presetId: 'h264-mp4' })).toBe('color');

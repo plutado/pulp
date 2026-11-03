@@ -53,7 +53,7 @@ export function encodePng(rgba: Uint8Array, width: number, height: number, defla
   header.set(u32(width), 0);
   header.set(u32(height), 4);
   header[8] = 8; // bit depth
-  header[9] = 6; // colour type: RGBA
+  header[9] = 6; // color type: RGBA
   header[10] = 0; // compression
   header[11] = 0; // filter
   header[12] = 0; // interlace
@@ -124,7 +124,7 @@ export function decodePng(bytes: Uint8Array, inflate: (data: Uint8Array) => Uint
   }
   if (width === 0 || height === 0 || idat.length === 0) throw new Error('a PNG with no picture');
   const channels = colorType === 6 ? 4 : colorType === 2 ? 3 : colorType === 4 ? 2 : 1;
-  if (![0, 2, 3, 4, 6].includes(colorType)) throw new Error(`PNG colour type ${colorType} is not read`);
+  if (![0, 2, 3, 4, 6].includes(colorType)) throw new Error(`PNG color type ${colorType} is not read`);
   const joined = new Uint8Array(idat.reduce((n, c) => n + c.length, 0));
   let o = 0;
   for (const c of idat) {

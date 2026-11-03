@@ -1,5 +1,5 @@
 /**
- * The FFmpeg download helper's catalogue (milestone 17, decision record 0022):
+ * The FFmpeg download helper's catalog (milestone 17, decision record 0022):
  * which build Pulp offers to fetch for this machine, from whom, how big it is,
  * what it hashes to and where it is kept.
  *
@@ -18,7 +18,7 @@
  * what is fetched is fetched by the person who asked for it, from its own
  * publisher, and run as a separate program. ADR 0022 has the reasoning.
  *
- * Pure: the catalogue and the names are here and tested; the fetching, the
+ * Pure: the catalog and the names are here and tested; the fetching, the
  * unpacking and the checking are src/main/ffmpeg-service.ts.
  */
 
@@ -49,7 +49,7 @@ export interface FfmpegBuild {
   /** Who built it, named before anything is fetched. */
   publisher: string;
   publisherUrl: string;
-  /** The licence of what arrives — not of Pulp, which ships none of it. */
+  /** The license of what arrives — not of Pulp, which ships none of it. */
   license: string;
   archives: readonly FfmpegArchive[];
 }
@@ -234,7 +234,7 @@ export function ffmpegBinaryName(binary: 'ffmpeg' | 'ffprobe', platform: string)
 
 /**
  * The sentence shown before anything is fetched, and in the acknowledgements:
- * what arrives, under what licence, and that it is a program beside Pulp
+ * what arrives, under what license, and that it is a program beside Pulp
  * rather than a part of it.
  */
 export function ffmpegDownloadNote(build: FfmpegBuild): string {

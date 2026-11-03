@@ -20,7 +20,7 @@ export const TRACK_PREFETCH_SECONDS = 2.5;
 
 /**
  * The most frames the preview holds for the whole track, across every cut:
- * the tile being shown, its neighbour across a transition and the tile ahead,
+ * the tile being shown, its neighbor across a transition and the tile ahead,
  * at any ordinary frame rate. The memory budget the long-track test holds.
  */
 export const TRACK_HELD_FRAMES_BUDGET = 1200;

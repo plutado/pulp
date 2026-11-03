@@ -5,7 +5,7 @@ Status: Accepted
 
 ## Context
 
-Until milestone 41 the window had a search bar across the top of the centre
+Until milestone 41 the window had a search bar across the top of the center
 column: the field that finds items, the scope chip, the filter chips, the
 For… and Look selects, sort, grid or list, the thumbnail size, and the two
 toggles that hide the stage or the results. Under it, the stage; under that,
@@ -30,7 +30,7 @@ its floor until the shell learned to measure the bar's height.
 Everything in the row moves into the left panel as **two clearly different
 sections**, and the row goes.
 
-- **Search**, at the top: the field that finds items, labelled "Search
+- **Search**, at the top: the field that finds items, labeled "Search
   templates and media", with the scope chip under it, the filter chips in one
   compact row, and For… and Look on a row under them. It is the field
   Cmd/Ctrl+F puts the caret in, from anywhere; the folded rail carries a
@@ -44,7 +44,7 @@ sections**, and the row goes.
   region toggles. The results therefore collapse to that heading — a thin bar
   under the stage, which keeps the way back in it — except in theater, which
   wants the picture alone and hides it too.
-- The **stage starts at the window's top edge**. The centre column is the
+- The **stage starts at the window's top edge**. The center column is the
   stage, the splitter and the results, and the space budget no longer counts a
   search bar.
 
@@ -70,7 +70,7 @@ search, told apart by where they sit and what they are called.
 - **What is left above the results is about the results.** Sort and the view
   controls act on the list under them, and nothing else; they sit in its
   heading as the tray's controls sit in the tray's.
-- **Nothing is dropped.** Every control keeps its id and its behaviour, so the
+- **Nothing is dropped.** Every control keeps its id and its behavior, so the
   application menu's items, the start screen's "What are you making?", the
   tour and the tests follow the elements to their new places.
 

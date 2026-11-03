@@ -27,7 +27,7 @@ export interface LottiePageInput {
 
 /**
  * The page script. It keeps one loaded animation and reloads it only when a
- * parameter changes — the player reads text and colours once, at load — then
+ * parameter changes — the player reads text and colors once, at load — then
  * steps to the frame for `state.time`. The Fit setting sizes the container:
  * the SVG fills it, and `preserveAspectRatio` does the fitting or filling;
  * "its own size" places a box of the file's size in the middle of the frame.

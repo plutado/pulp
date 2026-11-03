@@ -112,7 +112,7 @@ export function initShell(): void {
   wireSplitter(app, $('split-browse'), 'browseWidth', (e) => e.clientX - app.getBoundingClientRect().left);
   // The drawer resizes from its top edge, as the tray and the transport row do (milestone 38).
   wireSplitter(app, $('split-inspector'), 'inspectorHeight', (e) => $('region-inspector').getBoundingClientRect().bottom - e.clientY);
-  // The stage starts at the centre's top edge (milestone 41): nothing sits above it any more.
+  // The stage starts at the center's top edge (milestone 41): nothing sits above it any more.
   wireSplitter(app, $('split-stage'), 'stageShare', (e) => {
     const c = center.getBoundingClientRect();
     return (e.clientY - c.top) / Math.max(1, c.height);

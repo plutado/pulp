@@ -21,7 +21,7 @@
   function easeInCubic(x) { return x * x * x; }
   function hash(i) { var x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
 
-  // A closed curve of eight control points around a centre, each radius wobbling on its own phase.
+  // A closed curve of eight control points around a center, each radius wobbling on its own phase.
   function blobPath(cx, cy, r, t, seed, wobble) {
     var k = 8, pts = [];
     for (var i = 0; i < k; i++) {
@@ -63,7 +63,7 @@
     for (var i = 0; i < n; i++) {
       var seed = i + 1;
       var baseR = short * (0.16 + 0.1 * hash(seed * 3 + 1));
-      // Keep centres inside the frame with room for the radius and the drift.
+      // Keep centers inside the frame with room for the radius and the drift.
       var mx = baseR * 1.1, my = baseR * 1.1;
       var bx = mx + (W - 2 * mx) * hash(seed * 5 + 2);
       var by = my + (H - 2 * my) * hash(seed * 7 + 3);
@@ -79,7 +79,7 @@
 
       ctx.save();
       ctx.fillStyle = palette[i % 3];
-      // Softness feathers the edge with a shadow blur in the same colour.
+      // Softness feathers the edge with a shadow blur in the same color.
       if (soft > 0) {
         ctx.shadowColor = palette[i % 3];
         ctx.shadowBlur = soft * 90 * s;

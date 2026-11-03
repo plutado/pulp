@@ -468,7 +468,7 @@ function inputFor(param: TemplateParameter): HTMLElement {
 const TREATMENT_LABELS: Record<ImageValue['treatment'], string> = { original: 'Original', tinted: 'Tinted', white: 'White', black: 'Black' };
 const TREATMENT_TIPS: Record<ImageValue['treatment'], string> = {
   original: 'Draw the image as it is',
-  tinted: 'Flatten the image to one colour',
+  tinted: 'Flatten the image to one color',
   white: 'Flatten the image to white, for a dark background',
   black: 'Flatten the image to black, for a light background',
 };
@@ -480,7 +480,7 @@ const EFFECT_TOGGLES: { id: Exclude<ImageValue['effect'], 'none'>; label: string
 
 /**
  * An image slot's control: a picture well the whole width of the field, the
- * image contained and centred inside it over a checkerboard; under it one row
+ * image contained and centered inside it over a checkerboard; under it one row
  * with the name, the pixel size and Replace and Clear as icon buttons; then the
  * treatment as a segmented control with its tint beside it, the effects as
  * toggles, and a note when the chosen image has gone or its folder is offline.
@@ -565,7 +565,7 @@ function imageField(
   wrap.className = 'image-field';
 
   // The well: one fixed height whatever the slot's shape, with the image contained and
-  // centred, so a square mark, a wide badge and a tall crest all sit in the same box.
+  // centered, so a square mark, a wide badge and a tall crest all sit in the same box.
   const well = document.createElement('button');
   well.type = 'button';
   well.className = 'image-well checker picker-toggle';
@@ -618,7 +618,7 @@ function imageField(
   const segmented = document.createElement('div');
   segmented.className = 'segmented';
   segmented.setAttribute('role', 'group');
-  segmented.setAttribute('aria-label', 'Colour treatment');
+  segmented.setAttribute('aria-label', 'Color treatment');
   const treatmentButtons = IMAGE_TREATMENTS.map((t) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -632,7 +632,7 @@ function imageField(
   const tint = document.createElement('input');
   tint.type = 'color';
   tint.className = 'tint';
-  tint.setAttribute('aria-label', 'Tint colour');
+  tint.setAttribute('aria-label', 'Tint color');
   const effects = document.createElement('div');
   effects.className = 'image-effects';
   effects.setAttribute('role', 'group');
@@ -1603,7 +1603,7 @@ const VOICE_CHOICE_LABELS: Record<(typeof VOICE_CHOICES)[number], string> = { no
 /**
  * A voice treatment on a layer's sound (milestone 53): the treatment, said in
  * one line where it is chosen, and how much of it is heard — the same recipe
- * in the preview and the render, applied before the loudness levelling so the
+ * in the preview and the render, applied before the loudness leveling so the
  * platform's target still holds. Shared by an audio layer's sound and a
  * clip's own track, which is every layer with sound.
  */
@@ -1722,11 +1722,11 @@ function clipField(
       cropField('left', 'left'), cropField('right', 'right'), cropField('top', 'top'), cropField('bottom', 'bottom'),
       typeField('Border, % of frame', numberOf(border?.width ?? 0, { min: 0, max: CLIP_FRAME_LIMITS.border.max }, 0.1,
         (v) => patch({ border: v > 0 ? { width: v, color: border?.color ?? DEFAULT_BORDER_COLOR } : undefined }), `${slot.label} border width`, 100)),
-      typeField('Border colour', colorField(border?.color ?? DEFAULT_BORDER_COLOR,
+      typeField('Border color', colorField(border?.color ?? DEFAULT_BORDER_COLOR,
         (hex) => patch({ border: { width: border?.width ?? DEFAULT_BORDER_WIDTH, color: hex.slice(0, 7).toLowerCase() } }))),
     );
     // The clip's own grade (milestone 52): a .cube decoded into its frames, so the preview and
-    // the render show the same colour by the one path.
+    // the render show the same color by the one path.
     const lutRow = document.createElement('span');
     lutRow.className = 'lut-row';
     const lutChoose = document.createElement('button');
@@ -2044,7 +2044,7 @@ function shapeLayerControls(blockId: string, layer: ShapeLayer): HTMLElement {
   };
   grid.append(
     typeField('Shape', selectOf(SHAPE_KINDS, SHAPE_LABELS, layer.shape, (v) => set('shape', v), `${layer.label} shape`)),
-    typeField('Colour', colorField(layer.color, (hex) => set('color', hex))),
+    typeField('Color', colorField(layer.color, (hex) => set('color', hex))),
     typeField('Size, % of frame', numberOf(layer.size, LAYER_LIMITS.size, 0.5, (v) => set('size', v), `${layer.label} size`, 100)),
     typeField('Width over height', numberOf(layer.ratio, LAYER_LIMITS.ratio, 0.1, (v) => set('ratio', v), `${layer.label} ratio`)),
   );
@@ -2358,7 +2358,7 @@ function lookSummary(look: LayerLook | undefined): string {
   if (look.outlineWidth > 0) parts.push('outline');
   if (look.blur > 0) parts.push('blur');
   if (look.blend !== 'normal') parts.push(BLEND_LABELS[look.blend]);
-  if (look.brightness !== 0 || look.saturation !== 1 || look.tint) parts.push('colour');
+  if (look.brightness !== 0 || look.saturation !== 1 || look.tint) parts.push('color');
   if (look.corners > 0) parts.push('corners');
   if (look.feather > 0) parts.push('soft edges');
   return `Look · ${parts.join(', ')}`;
@@ -2366,7 +2366,7 @@ function lookSummary(look: LayerLook | undefined): string {
 
 /**
  * How a layer looks (milestone 28), folded away under Look: opacity, a shadow,
- * a glow, an outline, a blur, a blend mode and a colour adjustment, and on a
+ * a glow, an outline, a blur, a blend mode and a color adjustment, and on a
  * picture or a clip, rounded corners and soft edges. Set once and not animated;
  * drawn by the host around the template's own draw, so the design stays the
  * author's (src/core/layer-look.ts). Sizes are a percentage of the frame's
@@ -2415,19 +2415,19 @@ function lookControls(blockId: string, layer: Layer): HTMLElement {
   grid.append(
     pct('Opacity, %', 'opacity', LOOK_LIMITS.opacity, 1, 100),
     typeField('Blend', selectOf(BLEND_MODES, BLEND_LABELS, current.blend, (v) => put({ blend: v }), name('blend'))),
-    typeField('Shadow colour', colorField(current.shadowColor, (hex) => put({ shadowColor: hex }))),
+    typeField('Shadow color', colorField(current.shadowColor, (hex) => put({ shadowColor: hex }))),
     pct('Shadow distance, %', 'shadowDistance', LOOK_LIMITS.size, 0.1, 100),
     pct('Shadow angle, °', 'shadowAngle', LOOK_LIMITS.angle, 1, 1),
     pct('Shadow softness, %', 'shadowSoftness', LOOK_LIMITS.size, 0.1, 100),
-    typeField('Glow colour', colorField(current.glowColor, (hex) => put({ glowColor: hex }))),
+    typeField('Glow color', colorField(current.glowColor, (hex) => put({ glowColor: hex }))),
     pct('Glow size, %', 'glowSize', LOOK_LIMITS.size, 0.1, 100),
-    typeField('Outline colour', colorField(current.outlineColor, (hex) => put({ outlineColor: hex }))),
+    typeField('Outline color', colorField(current.outlineColor, (hex) => put({ outlineColor: hex }))),
     pct('Outline width, %', 'outlineWidth', LOOK_LIMITS.size, 0.05, 100),
     pct('Blur, %', 'blur', LOOK_LIMITS.size, 0.1, 100),
     pct('Brightness', 'brightness', LOOK_LIMITS.brightness, 0.05, 1),
     pct('Saturation', 'saturation', LOOK_LIMITS.saturation, 0.05, 1),
   );
-  // A tint is a colour or nothing: the switch says which, and the colour waits beside it.
+  // A tint is a color or nothing: the switch says which, and the color waits beside it.
   const tintOn = checkOf(current.tint !== null, (on) => put({ tint: on ? tintColor : null }), name('tint on'));
   let tintColor = current.tint ?? '#ffffff';
   const tintField = colorField(tintColor, (hex) => { tintColor = hex; if (current.tint !== null) put({ tint: hex }); });
@@ -2478,12 +2478,12 @@ function angleField(blockId: string, layer: Layer): HTMLElement {
 
 const CASE_LABELS: Record<TextLayer['case'], string> = { none: 'As typed', upper: 'Uppercase', lower: 'Lowercase', title: 'Title case' };
 const OVERFLOW_LABELS: Record<TextLayer['overflow'], string> = { wrap: 'Wrap', shrink: 'Shrink to fit', truncate: 'Truncate' };
-const ALIGN_LABELS: Record<TextLayer['align'], string> = { left: 'Left', center: 'Centre', right: 'Right' };
+const ALIGN_LABELS: Record<TextLayer['align'], string> = { left: 'Left', center: 'Center', right: 'Right' };
 const WEIGHT_LABELS: Record<number, string> = { 100: 'Thin', 200: 'Extra light', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semibold', 700: 'Bold', 800: 'Extra bold', 900: 'Black' };
 
 type FamilyKind = 'bundled' | 'imported' | 'own';
 
-/** The families on offer: the bundled set, the person's imported ones with their licence notes, then whatever the template itself sets type in, then the layer's own if it is none of those. */
+/** The families on offer: the bundled set, the person's imported ones with their license notes, then whatever the template itself sets type in, then the layer's own if it is none of those. */
 function familyChoices(current: string): { stack: string; kind: FamilyKind; note?: string }[] {
   const out: { stack: string; kind: FamilyKind; note?: string }[] = BUNDLED_FAMILIES.map((f) => ({ stack: f, kind: 'bundled' }));
   const seen = new Set(out.map((o) => o.stack));
@@ -2528,7 +2528,7 @@ function familyMissing(family: string): boolean {
   return true;
 }
 
-/** What the licence note says about an imported family, for where it is chosen; empty when there is none. */
+/** What the license note says about an imported family, for where it is chosen; empty when there is none. */
 function importedNote(font: ImportedFont | undefined): string {
   return font?.note.trim() ? `Imported · ${font.note.trim()}` : 'Imported';
 }
@@ -2587,7 +2587,7 @@ function familyPicker(current: string, onPick: (stack: string) => void): HTMLEle
       li.dataset.kind = choice.kind;
       li.style.fontFamily = cssFontFamily(choice.stack);
       li.textContent = familyLabel(choice.stack);
-      // The licence note travels with the family, where it is chosen: the licence is the person's to know.
+      // The license note travels with the family, where it is chosen: the license is the person's to know.
       if (choice.kind === 'imported') li.dataset.tip = importedNote(importedFonts.value.find((f) => f.family === choice.stack));
       li.addEventListener('click', () => {
         show(choice.stack);
@@ -2616,8 +2616,8 @@ function familyPicker(current: string, onPick: (stack: string) => void): HTMLEle
 /**
  * The last row of the family list: import a font of your own. The file dialog
  * is the main process's; the family is read from the file, and the person
- * writes what they know of its licence before it is kept. Pulp records the
- * note and shows it with the family; the licence itself is theirs to answer for.
+ * writes what they know of its license before it is kept. Pulp records the
+ * note and shows it with the family; the license itself is theirs to answer for.
  */
 function fontImportRow(onDone: () => void): HTMLElement {
   const row = document.createElement('li');
@@ -2635,8 +2635,8 @@ function fontImportRow(onDone: () => void): HTMLElement {
   who.className = 'font-import-family';
   const note = document.createElement('input');
   note.type = 'text';
-  note.placeholder = 'Licence note, e.g. "Bought from the foundry, desktop licence"';
-  note.setAttribute('aria-label', 'Licence note for the imported font');
+  note.placeholder = 'License note, e.g. "Bought from the foundry, desktop license"';
+  note.setAttribute('aria-label', 'License note for the imported font');
   const add = document.createElement('button');
   add.type = 'button';
   add.textContent = 'Add';
@@ -2656,7 +2656,7 @@ function fontImportRow(onDone: () => void): HTMLElement {
         return;
       }
       chosen = result;
-      who.textContent = `${result.family} — its licence is yours to know. A note to keep with it:`;
+      who.textContent = `${result.family} — its license is yours to know. A note to keep with it:`;
       form.hidden = false;
       note.value = '';
       note.focus();
@@ -2689,7 +2689,7 @@ function fontImportRow(onDone: () => void): HTMLElement {
   return row;
 }
 
-/** A labelled control in the type grid. */
+/** A labeled control in the type grid. */
 function typeField(label: string, control: HTMLElement, wide = false): HTMLElement {
   const field = document.createElement('label');
   field.className = `type-field${wide ? ' wide' : ''}`;
@@ -2752,7 +2752,7 @@ function typographySummary(layer: TextLayer): string {
 /**
  * A text layer's type, collapsed under its words so the list stays readable:
  * family, size, weight, italic, case, letter spacing, kerning, line height,
- * space before, colour, alignment and overflow. Each control changes the one
+ * space before, color, alignment and overflow. Each control changes the one
  * property and commits at once; the summary line follows.
  */
 function typographyControls(blockId: string, layer: TextLayer): HTMLElement {
@@ -2795,7 +2795,7 @@ function typographyControls(blockId: string, layer: TextLayer): HTMLElement {
   grid.append(kerning);
   grid.append(typeField('Line height', numberOf(layer.lineHeight, LAYER_LIMITS.lineHeight, 0.05, (v) => set('lineHeight', v), `${layer.label} line height`)));
   grid.append(typeField('Space before, % of frame', numberOf(layer.spaceBefore, LAYER_LIMITS.spaceBefore, 0.1, (v) => set('spaceBefore', v), `${layer.label} space before`, 100)));
-  grid.append(typeField('Colour', colorField(layer.color, (hex) => set('color', hex)), true));
+  grid.append(typeField('Color', colorField(layer.color, (hex) => set('color', hex)), true));
   const align = document.createElement('div');
   align.className = 'segmented';
   align.setAttribute('role', 'group');

@@ -7,7 +7,7 @@
  *
  * The bitmaps are in whatever layout the capture probe measured
  * (src/core/capture-format.ts): the channel order does not matter to an
- * "over", only where the alpha is and whether the colours are already
+ * "over", only where the alpha is and whether the colors are already
  * multiplied by it, which decides the arithmetic. Pure, in place, and tested
  * on small buffers; a 1080p frame is two million pixels through the loop.
  */
@@ -52,7 +52,7 @@ export function compositeOver(under: Uint8Array, over: Uint8Array, format: Pick<
       under[i + 3] = 255;
       continue;
     }
-    // Straight alpha: the result's alpha first, then each colour weighted by its own coverage.
+    // Straight alpha: the result's alpha first, then each color weighted by its own coverage.
     const sa = a / 255;
     const da = under[i + 3]! / 255;
     const outA = sa + da * (1 - sa);

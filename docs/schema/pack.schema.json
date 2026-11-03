@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/plutado/pulp/blob/main/docs/schema/pack.schema.json",
   "title": "Pulp template pack (pack.json), format version 1",
-  "description": "The shape of a pack's manifest, as docs/template-format.md specifies it and src/core/pack.ts reads it. The validator is the last word: it also warns, without refusing, about a licence that is not in its list of open licences. Unknown fields are accepted.",
+  "description": "The shape of a pack's manifest, as docs/template-format.md specifies it and src/core/pack.ts reads it. The validator is the last word: it also warns, without refusing, about a license that is not in its list of open licenses. Unknown fields are accepted.",
   "type": "object",
   "required": ["formatVersion", "name", "license", "templates"],
   "properties": {

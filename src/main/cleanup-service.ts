@@ -43,7 +43,7 @@ async function run(ffmpeg: string, args: string[]): Promise<{ code: number; stdo
 }
 
 /**
- * Both frames of the key dialog: the plain frame the colour is picked from,
+ * Both frames of the key dialog: the plain frame the color is picked from,
  * and the same frame keyed with the settings as they stand — so what the
  * sliders do is seen before a long encode is asked for.
  */

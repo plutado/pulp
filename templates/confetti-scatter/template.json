@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.confetti-scatter",
   "name": "Confetti scatter",
-  "description": "Confetti scattered and held still: small rotated pieces in three colours over a flat ground; the scale sets their size and the angle turns the scatter.",
+  "description": "Confetti scattered and held still: small rotated pieces in three colors over a flat ground; the scale sets their size and the angle turns the scatter.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

@@ -2,7 +2,7 @@
  * Music moods (milestone 16's moods): how a piece of sound feels — upbeat,
  * dramatic, calm — beside what it is and what it is about. The built-in list
  * and its aliases, inference from folders and from a file's own metadata, the
- * `mood:` search key and the Mood chip's options, and the bundled catalogue's
+ * `mood:` search key and the Mood chip's options, and the bundled catalog's
  * tagging, which travels in each generated file's genre tag.
  */
 
@@ -22,7 +22,7 @@ const media = (id: string, over: Partial<MediaEntry> = {}): MediaEntry => ({
 });
 
 describe('the mood list', () => {
-  it('is fixed, labelled, and holds the words the ask names', () => {
+  it('is fixed, labeled, and holds the words the ask names', () => {
     const ids = MOODS.map((m) => m.id);
     for (const named of ['upbeat', 'dramatic', 'calm']) expect(ids).toContain(named);
     for (const m of MOODS) {

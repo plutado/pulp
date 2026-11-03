@@ -12,7 +12,7 @@ rule is that nothing leaves the machine, which rules out every hosted
 transcription API before the comparison starts.
 
 A model is also not like the rest of Pulp's dependencies. It is a hundred
-megabytes or more of weights, it has a licence of its own, and it comes from
+megabytes or more of weights, it has a license of its own, and it comes from
 somebody else's server. Those three facts are what this record pins down, so
 that what Pulp fetches, how big it is and under what terms is written
 somewhere other than a constant in the source.
@@ -23,7 +23,7 @@ somewhere other than a constant in the source.
 default size is `base`.** Three sizes are offered, and `base` is what a
 project gets unless it asks for another:
 
-| Model | File | Size | SHA-256 | Languages | Licence |
+| Model | File | Size | SHA-256 | Languages | License |
 |---|---|---|---|---|---|
 | Whisper tiny | `ggml-tiny.bin` | 77,691,713 B (78 MB) | `be07e048…c6e1b21` | 99 | MIT |
 | **Whisper base** (default) | `ggml-base.bin` | 147,951,465 B (148 MB) | `60ed5bc3…5fba2efe` | 99 | MIT |
@@ -32,9 +32,9 @@ project gets unless it asks for another:
 The full checksums are in `src/core/speech.ts`, which is the one place they
 live; the table above is the record of what was chosen and when.
 
-**The licence is MIT, twice over.** The Whisper models are released by OpenAI
-under the MIT licence, and the GGML conversions Pulp fetches are published
-under the MIT licence by the whisper.cpp project
+**The license is MIT, twice over.** The Whisper models are released by OpenAI
+under the MIT license, and the GGML conversions Pulp fetches are published
+under the MIT license by the whisper.cpp project
 (`huggingface.co/ggerganov/whisper.cpp`). Nothing about redistribution, output
 ownership or commercial use is restricted, which matters for a tool whose
 output people publish.
@@ -42,7 +42,7 @@ output people publish.
 **It is fetched on first use, after asking.** Pulp ships no weights: the
 repository holds no binaries, and a 148 MB file in an installer is a cost
 every person pays whether or not they ever caption anything. The captions
-dialog says which model it would fetch, how big it is and under what licence,
+dialog says which model it would fetch, how big it is and under what license,
 and fetches nothing until the button is pressed. What arrives is hashed as it
 is written and is only moved into place — `speech-models/` beside the
 settings — when it hashes to exactly the published SHA-256; anything else is
@@ -87,5 +87,5 @@ engine.
   never its weights, and opens on a machine with no model at all.
 - If a later Pulp ever wants to ship weights — for an offline installer, say —
   it is a packaging decision (milestone 17), not a change to this one: the
-  catalogue, the checksum check and the folder stay as they are, and the
+  catalog, the checksum check and the folder stay as they are, and the
   fetch simply finds the file already there.

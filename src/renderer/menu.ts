@@ -3,7 +3,7 @@
  * what the menu is told about what can act.
  *
  * A menu item does **exactly what the button for the same thing does** — in
- * most cases by pressing that button. One behaviour, one place, and an item
+ * most cases by pressing that button. One behavior, one place, and an item
  * that is disabled in the window is disabled in the menu for the same reason.
  * What the menu may offer is `MenuState`, pushed whenever it changes and only
  * then, since every push rebuilds the menu (src/main/menu-service.ts).

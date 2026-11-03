@@ -64,11 +64,11 @@
       "options": [
         {
           "value": "bottom",
-          "label": "Bottom centre"
+          "label": "Bottom center"
         },
         {
           "value": "center",
-          "label": "Centre"
+          "label": "Center"
         },
         {
           "value": "bottom-left",
@@ -80,7 +80,7 @@
         },
         {
           "value": "top",
-          "label": "Top centre"
+          "label": "Top center"
         }
       ],
       "element": "Origin"

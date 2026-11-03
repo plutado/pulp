@@ -110,10 +110,10 @@ function Cleanup({ entry }: { entry: MediaEntry }) {
   };
   return (
     <div class="cleanup-actions">
-      <p class="note">Footage made ready to composite: a colour keyed to transparency, or long footage split into its scenes.</p>
+      <p class="note">Footage made ready to composite: a color keyed to transparency, or long footage split into its scenes.</p>
       <div class="render-actions">
         <button type="button" id="cleanup-key" onClick={() => openChromaKey(entry.id)}>
-          Key out a colour…
+          Key out a color…
         </button>
         <button type="button" id="cleanup-split" disabled={splitting} onClick={() => void split()}>
           Split at its cuts

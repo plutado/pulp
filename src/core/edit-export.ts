@@ -67,7 +67,7 @@ export interface EditOverlay {
   at: number;
   /** The rate it plays at; 1 is real time. */
   speed: number;
-  /** Its centre's offset from the frame's centre, as fractions of the frame's width and height; down is positive. */
+  /** Its center's offset from the frame's center, as fractions of the frame's width and height; down is positive. */
   dx: number;
   dy: number;
   /** Its height as a fraction of the frame's height. */
@@ -182,11 +182,11 @@ export function fcpxmlEdit(input: EditExportInput): string {
 /**
  * Where a clip of the second picture track sits (milestone 57), as FCPXML
  * says it: the transform's position in pixels of the project's frame from its
- * centre, up positive, and its scale against a clip that fills the frame's
+ * center, up positive, and its scale against a clip that fills the frame's
  * height; the crop as the fraction of each edge trimmed away. An editor's own
  * fit of a clip to the frame is the thing the scale is relative to, so a clip
  * of another shape lands near rather than exactly — the layout's anchor is the
- * frame's centre and nothing finer, which is said in the comment it carries.
+ * frame's center and nothing finer, which is said in the comment it carries.
  */
 function overlayAdjustLines(overlay: EditOverlay, width: number, height: number): string[] {
   const num = (v: number) => String(Math.round(v * 1000) / 1000);
@@ -284,7 +284,7 @@ export function edlEdit(input: EditExportInput): string {
     const seconds = (overlay.to - overlay.from) / overlay.speed;
     lines.push(`${event}  AX       V2    C        ${tc(overlay.from)} ${tc(overlay.to)} ${tc(overlay.at)} ${tc(overlay.at + seconds)}`);
     if (overlay.speed !== 1) lines.push(`M2   AX       ${(fps * overlay.speed).toFixed(1).padStart(5, '0')}                ${tc(overlay.from)}`);
-    lines.push(`* PICTURE IN PICTURE: ${overlay.name}, ${Math.round(overlay.height * 100)}% of the frame's height, centre ${Math.round(overlay.dx * 100)}% across and ${Math.round(overlay.dy * 100)}% down from the frame's centre`);
+    lines.push(`* PICTURE IN PICTURE: ${overlay.name}, ${Math.round(overlay.height * 100)}% of the frame's height, center ${Math.round(overlay.dx * 100)}% across and ${Math.round(overlay.dy * 100)}% down from the frame's center`);
     if (overlay.crop) lines.push(`* CROP: left ${Math.round(overlay.crop.left * 100)}%, top ${Math.round(overlay.crop.top * 100)}%, right ${Math.round(overlay.crop.right * 100)}%, bottom ${Math.round(overlay.crop.bottom * 100)}%`);
     lines.push(`* FROM CLIP NAME: ${clip.name}`, `* SOURCE FILE: ${clip.path}`, '');
   });

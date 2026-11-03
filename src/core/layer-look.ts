@@ -1,14 +1,14 @@
 /**
  * How a layer looks (milestone 28): what is set once on a layer and not
  * animated — its opacity, a drop shadow, an outer glow, an outline, a blur, a
- * blend mode and a colour adjustment, and for a picture or a clip, rounded
+ * blend mode and a color adjustment, and for a picture or a clip, rounded
  * corners and soft edges. Drawn by the host around the template's own draw of
  * the layer, as its placement and its transitions are, so templates need no
  * changes.
  *
  * Every size here is a fraction of the frame's **short side**, as a layer's
  * own size is, so a look holds at every resolution and reads the same wide,
- * tall and square; the Parameters tab shows them as a percentage. Colours are
+ * tall and square; the Parameters tab shows them as a percentage. Colors are
  * `#rrggbb` or `#rrggbbaa`, so a shadow carries its own strength.
  *
  * A look that says nothing is no look at all and is not stored, so a layer
@@ -26,7 +26,7 @@ export type BlendMode = (typeof BLEND_MODES)[number];
 export interface LayerLook {
   /** 0 to 1; 1 is as the template draws it. Multiplied into whatever the frame already gave the layer. */
   opacity: number;
-  /** A drop shadow, drawn when it has a distance or a softness; its colour carries its strength. */
+  /** A drop shadow, drawn when it has a distance or a softness; its color carries its strength. */
   shadowColor: string;
   /** How far the shadow sits from the layer, as a fraction of the frame's short side. */
   shadowDistance: number;
@@ -45,9 +45,9 @@ export interface LayerLook {
   blend: BlendMode;
   /** -1 to 1; 0 leaves the brightness alone. */
   brightness: number;
-  /** 0 to 2; 1 leaves the colour alone, 0 is grey. */
+  /** 0 to 2; 1 leaves the color alone, 0 is gray. */
   saturation: number;
-  /** A colour washed half way over the layer's own, or null for none. */
+  /** A color washed half way over the layer's own, or null for none. */
   tint: string | null;
   /** Rounded corners on a picture or a clip, as a fraction of the frame's short side; nothing to type. */
   corners: number;
@@ -101,7 +101,7 @@ export function hasShadow(look: LayerLook): boolean {
 /**
  * The look in pixels of a frame whose short side is `short`: what the canvas
  * is handed. The shadow's offset comes from its angle and distance; the
- * filter is the CSS filter string the colour adjustment and the blur come to,
+ * filter is the CSS filter string the color adjustment and the blur come to,
  * or an empty string for none.
  */
 export interface LookPixels {
@@ -184,7 +184,7 @@ export function readLook(raw: unknown, base: LayerLook | undefined, issue: Issue
   const colour = (key: 'shadowColor' | 'glowColor' | 'outlineColor') => {
     if (r[key] === undefined) return;
     if (typeof r[key] === 'string' && isValidColor(r[key])) out[key] = r[key].toLowerCase();
-    else issue(`look.${key}`, 'must be a colour such as #rrggbb or #rrggbbaa');
+    else issue(`look.${key}`, 'must be a color such as #rrggbb or #rrggbbaa');
   };
   number('opacity', LOOK_LIMITS.opacity, 'a number');
   colour('shadowColor');
@@ -205,7 +205,7 @@ export function readLook(raw: unknown, base: LayerLook | undefined, issue: Issue
   if (r.tint !== undefined) {
     if (r.tint === null) out.tint = null;
     else if (typeof r.tint === 'string' && isValidColor(r.tint)) out.tint = r.tint.toLowerCase();
-    else issue('look.tint', 'must be a colour such as #rrggbb, or null for none');
+    else issue('look.tint', 'must be a color such as #rrggbb, or null for none');
   }
   number('corners', LOOK_LIMITS.size, 'a fraction of the frame\'s short side');
   number('feather', LOOK_LIMITS.size, 'a fraction of the frame\'s short side');

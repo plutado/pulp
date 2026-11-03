@@ -13,6 +13,7 @@ Read this file first, then what the task needs:
 - `docs/template-authoring.md`: before writing a template; `docs/template-format.md`: before changing a template or the format.
 - `docs/platform-notes.md`: before investigating any capture, color, platform or CI symptom.
 - `docs/decisions/`: before reversing or reworking a past choice.
+- `docs/spelling.md`: Pulp is written in US English; the few internal values that keep a UK spelling, and why, are listed there.
 
 The rest (the changelog, font credits, the editor-verification notes) is reference: open it when a task touches it.
 
@@ -78,6 +79,6 @@ The steps above for sending a pull request are for contributors working from the
 
 Start with `docs/template-authoring.md`, which builds `examples/pulp-template/` step by step; `docs/template-format.md` is the specification. The samples in `templates/` are small and are a good starting point too. Contributed sample templates should be CC0 1.0 or MIT.
 
-A new runtime dependency goes into `THIRD_PARTY_NOTICES.md` with its licence; the notices test fails until it does. Releases are cut with `npm run release -- patch|minor|major`, which dates the changelog's Unreleased section, bumps the version and tags the commit; pushing the tag builds all three platforms and **drafts** the release page from those same notes. `docs/releasing.md` has the steps, and `docs/packaging.md` how a build is made on each platform. Anything the app reads at run time has to be copied into a packaged build: add it to `electron-builder.yml` and to `src/main/resources.ts`, which the packaging test holds together. Security problems go through `SECURITY.md`, not an issue, and everyone taking part is held to `CODE_OF_CONDUCT.md`.
+A new runtime dependency goes into `THIRD_PARTY_NOTICES.md` with its license; the notices test fails until it does. Releases are cut with `npm run release -- patch|minor|major`, which dates the changelog's Unreleased section, bumps the version and tags the commit; pushing the tag builds all three platforms and **drafts** the release page from those same notes. `docs/releasing.md` has the steps, and `docs/packaging.md` how a build is made on each platform. Anything the app reads at run time has to be copied into a packaged build: add it to `electron-builder.yml` and to `src/main/resources.ts`, which the packaging test holds together. Security problems go through `SECURITY.md`, not an issue, and everyone taking part is held to `CODE_OF_CONDUCT.md`.
 
 By contributing, you agree that your contributions are licensed under the project's MIT license (code) or the license stated for the template you add.

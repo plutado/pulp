@@ -31,7 +31,7 @@
     ctx.closePath();
   }
 
-  // The rounded rectangle as a path that starts at the top centre and runs clockwise.
+  // The rounded rectangle as a path that starts at the top center and runs clockwise.
   function framePath(x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + w / 2, y);
@@ -67,7 +67,7 @@
     var r = Math.min(p.radius * s, fw / 2, fh / 2);
     var L = 2 * (fw - 2 * r) + 2 * (fh - 2 * r) + TAU * r;
 
-    // The frame draws from the top centre around both sides at once; the two halves meet at the bottom.
+    // The frame draws from the top center around both sides at once; the two halves meet at the bottom.
     var half = (L / 2) * inT;
     ctx.globalAlpha = fade;
     ctx.strokeStyle = p.gold;

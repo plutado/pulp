@@ -180,7 +180,7 @@ export interface LayerDraw {
   dx: number;
   dy: number;
   scale: number;
-  /** Degrees clockwise about the layer's centre; 0 unless a placement turns it (milestone 29). */
+  /** Degrees clockwise about the layer's center; 0 unless a placement turns it (milestone 29). */
   rotate?: number;
   /** In em, replacing the layer's own for this frame; a template animating its tracking passes it here. */
   letterSpacing?: number;
@@ -561,7 +561,7 @@ export function inkBox(layer: LaidLayer): PxBox {
   return { x: left, y: layer.box.y, width: right - left, height: layer.box.height };
 }
 
-/** Where a layer's picture lands inside the room the stack gave it: contained and centred, as an image slot. */
+/** Where a layer's picture lands inside the room the stack gave it: contained and centered, as an image slot. */
 export function fitLayerImage(layer: LaidLayer, imageW: number, imageH: number): PxBox {
   return fitImage(layer.box, imageW, imageH, 'contain', 'center', 0);
 }

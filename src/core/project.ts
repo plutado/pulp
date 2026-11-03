@@ -123,7 +123,7 @@ export interface PathShift {
   from: string;
   /** What it moved to. */
   to: string;
-  /** The separator the new path is written with, so a shifted path reads like its neighbours. */
+  /** The separator the new path is written with, so a shifted path reads like its neighbors. */
   separator: string;
 }
 
@@ -133,7 +133,7 @@ export interface PathShift {
  * *not* move, and what is left on either side is the shift.
  *
  * A file that was **renamed** has no trailing segment in common, and nothing
- * can be said about where its neighbours went, so there is no shift — that one
+ * can be said about where its neighbors went, so there is no shift — that one
  * item is relinked and the rest are left to be relinked themselves. Guessing
  * from a rename would quietly rebind items to the wrong files.
  */

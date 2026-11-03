@@ -90,7 +90,7 @@ h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: 
 .actions button { padding: 1px 7px; font-size: 11px; }
 .actions button:disabled { opacity: 0.45; cursor: default; }
 
-/* How a render or a hand-over is going, on the row itself; errors in the warning colour, whole width. */
+/* How a render or a hand-over is going, on the row itself; errors in the warning color, whole width. */
 .status { flex: none; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .status:empty { display: none; }
 .status.bad { color: var(--bad); flex-basis: 100%; white-space: normal; }

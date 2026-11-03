@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.edge-glow",
   "name": "Edge Glow",
-  "description": "A soft coloured glow breathes around the inside of the frame. Lay it over footage to warm the edges or mark a live segment.",
+  "description": "A soft colored glow breathes around the inside of the frame. Lay it over footage to warm the edges or mark a live segment.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

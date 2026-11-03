@@ -48,8 +48,8 @@ describe('the keys it lists', () => {
     const unknown = written.filter((key) => {
       if (windowOwned.has(key)) return false;
       // The guide writes what a person reads; the menu writes CmdOrCtrl.
-      const normalised = key.replace('Cmd/Ctrl', 'CmdOrCtrl');
-      return !accelerators.has(normalised);
+      const normalized = key.replace('Cmd/Ctrl', 'CmdOrCtrl');
+      return !accelerators.has(normalized);
     });
     expect(unknown).toEqual([]);
   });

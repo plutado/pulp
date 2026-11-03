@@ -120,7 +120,7 @@
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(rot);
-    // A curved arrow bows upward in its own frame; shift so the bow stays centred.
+    // A curved arrow bows upward in its own frame; shift so the bow stays centered.
     if (p.curved) ctx.translate(0, half * 0.2);
     ctx.scale(half, half);
     ctx.lineCap = 'round';

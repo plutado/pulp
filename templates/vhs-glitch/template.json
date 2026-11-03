@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.vhs-glitch",
   "name": "VHS glitch",
-  "description": "A tape-style glitch of rolling bands, colour fringing and a tracking tear that covers the frame at the midpoint with a noisy grey field.",
+  "description": "A tape-style glitch of rolling bands, color fringing and a tracking tear that covers the frame at the midpoint with a noisy gray field.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

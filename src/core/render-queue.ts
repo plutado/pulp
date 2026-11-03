@@ -24,7 +24,7 @@ export interface RenderQueueJob {
   frame: number;
   /** Final output path or pattern, once done. */
   output?: string;
-  /** Why the job failed or was cancelled. */
+  /** Why the job failed or was canceled. */
   message?: string;
   /** The platform preset the render was aimed at (milestone 20): what the finished card's hand-off opens. */
   platform?: string;
@@ -101,7 +101,7 @@ export class RenderQueue {
   }
 
   /**
-   * Cancel a job. A queued job is marked cancelled here. For a running job the
+   * Cancel a job. A queued job is marked canceled here. For a running job the
    * caller must stop the render; the result then arrives through `finish`.
    */
   cancel(id: number): 'cancelled' | 'running' | 'ignored' {
@@ -110,12 +110,12 @@ export class RenderQueue {
     if (job.status === 'running') return 'running';
     if (job.status !== 'queued') return 'ignored';
     job.status = 'cancelled';
-    job.message = 'Cancelled before it started.';
+    job.message = 'Canceled before it started.';
     this.changed();
     return 'cancelled';
   }
 
-  /** Drop done, failed and cancelled jobs from the list. */
+  /** Drop done, failed and canceled jobs from the list. */
   /**
    * Add a job that is already done — a prepare-for-drag that found its render in
    * the cache. The tray shows one kind of card whether the render happened just

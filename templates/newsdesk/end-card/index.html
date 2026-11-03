@@ -84,7 +84,7 @@
     ctx.fillStyle = p.panel;
     ctx.fill();
 
-    // The slash runs the full height of the card, right of centre, thickening in.
+    // The slash runs the full height of the card, right of center, thickening in.
     var slashT = easeOutQuart(clamp01((t - dur * 0.6) / dur));
     var slashW = 70 * s * slashT;
     var slashX = W * 0.72 - slashW / 2 - kH / 2;
@@ -98,16 +98,16 @@
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
 
-    // A chosen logo is a lockup at the top left, above the programme name and the credits, which
+    // A chosen logo is a lockup at the top left, above the program name and the credits, which
     // move down to make room; it rides the card and fades up with the text. With no logo the slot
-    // falls back to the programme name, already set, so nothing changes.
+    // falls back to the program name, already set, so nothing changes.
     var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
     var lockH = hasLogo ? 96 * s : 0;
     if (hasLogo) {
       window.pulpDrawImage(ctx, state, 'logo', { x: margin - shift, y: margin, width: 240 * s, height: lockH });
     }
 
-    // Programme name at the top left, then a thin accent rule.
+    // Program name at the top left, then a thin accent rule.
     var programme = caps(p.programme);
     var nameSize = fitFont(programme, '800 ', 64 * s, maxW);
     var y = margin + lockH + (hasLogo ? 28 * s : 0) + nameSize;

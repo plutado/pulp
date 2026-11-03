@@ -129,7 +129,7 @@ const DEFAULT_WAIT_MS = 15_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** A valid 2x2 RGBA PNG of one colour. */
+/** A valid 2x2 RGBA PNG of one color. */
 function solidPng([r, g, b]: [number, number, number]): Buffer {
   return pngOf([r, g, b, 255, r, g, b, 255, r, g, b, 255, r, g, b, 255]);
 }
@@ -179,7 +179,7 @@ describe.skipIf(!electron)('inspector UI', () => {
   let page: Session;
   /** Scratch userData folder, so the app under test never reads or writes the real settings.json. */
   let userData = '';
-  /** Where the sample-media hint would write; empty, so everything in the catalogue is still to make. */
+  /** Where the sample-media hint would write; empty, so everything in the catalog is still to make. */
   let sampleRoot = '';
   /** The app window's own target, so the preview iframe can be told from a background render's window. */
   let appTargetId = '';
@@ -444,19 +444,19 @@ describe.skipIf(!electron)('inspector UI', () => {
     // The start screen stays out of the way: this suite drives the window underneath it,
     // and the screen has its own test, which shows it through File → Home.
     // Where sample media would go (milestone 34): the folder exists and is empty, so the results'
-    // hint counts the whole catalogue as still to make and its button writes here rather than
+    // hint counts the whole catalog as still to make and its button writes here rather than
     // opening a folder dialog, which cannot be driven from the protocol.
     sampleRoot = join(userData, 'Sample media');
     await mkdir(sampleRoot, { recursive: true });
     // The editor panel's bridge is on, so its describe can speak to the app from outside (milestone 54).
     await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir], showStartScreen: false, sampleMediaRoot: sampleRoot, editorPanel: true }));
     // A font already imported: a real TTF in the managed folder under a family of its own, with a
-    // licence note, as fonts:import would leave it. The import dialog itself cannot be driven here.
+    // license note, as fonts:import would leave it. The import dialog itself cannot be driven here.
     await mkdir(join(userData, 'fonts'), { recursive: true });
     await writeFile(join(userData, 'fonts', 'PulpTestFace.ttf'), await readFile(join(ROOT, 'fonts', 'bebas-neue', 'BebasNeue-Regular.ttf')));
     await writeFile(
       join(userData, 'fonts', 'fonts.json'),
-      JSON.stringify([{ family: 'Pulp Test Face', file: 'PulpTestFace.ttf', style: 'normal', weight: 400, note: 'Bought from the foundry, desktop licence', importedAt: '2026-10-24T00:00:00Z' }]),
+      JSON.stringify([{ family: 'Pulp Test Face', file: 'PulpTestFace.ttf', style: 'normal', weight: 400, note: 'Bought from the foundry, desktop license', importedAt: '2026-10-24T00:00:00Z' }]),
     );
     // The app's own output goes to a file, so a failing test can print what the main process said.
     appLog = join(userData, 'app.log');
@@ -659,7 +659,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     const rows = await page.eval<string[][]>(
       `[...document.querySelectorAll('#params .color-field')].map((f) => [...f.querySelectorAll('.recent-swatch')].map((b) => b.dataset.color))`,
     );
-    // The lower third's two colour parameters and the colour of each of its two text layers.
+    // The lower third's two color parameters and the color of each of its two text layers.
     expect(rows).toHaveLength(4);
     for (const row of rows) expect(row).toEqual(rows[0]);
     expect(rows[0]![0]).toBe('#00ff0040'); // most recent first
@@ -1012,14 +1012,14 @@ describe.skipIf(!electron)('inspector UI', () => {
       // The pixel size appears once the background probe has measured the file; without ffprobe there is none to show.
       if (haveVideo) await until(async () => (await page.eval<string>(`${field}.querySelector('.image-dims').textContent`)) === '2 × 2', 'the image size beside the name');
       expect(await page.eval<boolean>(`${field}.querySelector('.image-picker').hidden`)).toBe(true);
-      // The image is contained and centred at its own shape, inside a well that keeps its height.
+      // The image is contained and centered at its own shape, inside a well that keeps its height.
       const drawn = await page.eval<{ well: number[]; img: number[] }>(
         `(() => { const w = ${field}.querySelector('.image-well').getBoundingClientRect(); const i = ${field}.querySelector('.image-well img').getBoundingClientRect();
           return { well: [w.width, w.height, w.left, w.right], img: [i.width, i.height, i.left, i.right] }; })()`,
       );
       expect(drawn.well[1]).toBe(132);
       expect(drawn.img[0]).toBeCloseTo(drawn.img[1]!, 0); // the 2 x 2 fixture is square
-      expect(drawn.img[2]! - drawn.well[2]!).toBeCloseTo(drawn.well[3]! - drawn.img[3]!, 0); // centred
+      expect(drawn.img[2]! - drawn.well[2]!).toBeCloseTo(drawn.well[3]! - drawn.img[3]!, 0); // centered
       // Treatment is a segmented control and the effects are toggles; both ride along with the choice.
       await page.eval(`${field}.querySelector('.segmented [data-treatment=white]').click()`);
       await page.eval(`${field}.querySelector('.image-effects [data-effect=shadow]').click()`);
@@ -1045,7 +1045,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(stored).toMatchObject({ treatment: 'white', effect: 'shadow' });
       expect(stored!.id).toMatch(/^[0-9a-f]{24}$/);
 
-      // Tinted is the one treatment with a colour, so the swatch appears only for it.
+      // Tinted is the one treatment with a color, so the swatch appears only for it.
       await page.eval(`${field}.querySelector('.segmented [data-treatment=tinted]').click()`);
       await until(() => page.eval<boolean>(`!${field}.querySelector('.image-treatment .tint').hidden`), 'the tint swatch');
       await page.eval(`${field}.querySelector('.segmented [data-treatment=white]').click()`);
@@ -1098,7 +1098,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     /**
      * The bands of light text the card draws, top to bottom: one per line of type. Counted from the
      * template's own canvas, so it is what was drawn and not what the form says. The rule is thin
-     * and coloured, so a band has to be a few rows tall to count.
+     * and colored, so a band has to be a few rows tall to count.
      */
     const bands = async () => (await drawn()).bands;
     /** The light bands and the canvas they were counted on, so a reading from the wrong page is obvious. */
@@ -1249,7 +1249,7 @@ describe.skipIf(!electron)('inspector UI', () => {
 
         // Audio sits beside Text, Image and Video under Add layer.
         expect(await page.eval<string[]>(`[...${section}.querySelectorAll('.layer-add button[data-add]')].map((b) => b.textContent)`))
-          .toEqual(['Text', 'Image', 'Video', 'Audio']);
+          .toEqual(['Text', 'Image', 'Video', 'Audio', 'Shape']);
         await page.eval(`${section}.querySelector('.layer-add button[data-add=audio]').click()`);
         await until(async () => (await layerIds()).length === before.length + 1, 'the audio layer');
         const layer = (await layerIds()).find((id) => !before.includes(id))!;
@@ -1562,16 +1562,16 @@ describe.skipIf(!electron)('inspector UI', () => {
         }, 'the first cut\'s picture under the graphic', 30_000);
         await scrub(75);
         await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) === 75), 'the playhead inside the second cut');
-        // The tall pattern is pillarboxed: a quarter along is the pad now, and the centre its picture.
+        // The tall pattern is pillarboxed: a quarter along is the pad now, and the center its picture.
         await until(async () => {
           const [r, g, b] = await pixel(0.25);
           return r! + g! + b! < 60;
         }, 'the tall cut pillarboxed: the side is the pad', 30_000);
-        // Its frames arrive as a tile around the playhead (milestone 58), so the centre lights when they land.
+        // Its frames arrive as a tile around the playhead (milestone 58), so the center lights when they land.
         await until(async () => {
           const [r, g, b] = await pixel(0.5);
           return r! + g! + b! > 120;
-        }, 'and its picture at the centre', 30_000);
+        }, 'and its picture at the center', 30_000);
 
         // A cut with sound joins the mix through the same elements an audio layer plays by, and
         // its waveform draws on its stretch of the lane; the silent test patterns add nothing.
@@ -1991,7 +1991,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       // Oswald is a condensed face: the same words come out much narrower than they did in Georgia.
       await until(async () => (await inkWidth()) < 0.8 * georgiaWidth, 'the title drawn in Oswald, narrower than in Georgia');
 
-      // The rest: weight, italic, case, size, spacing, colour, alignment, overflow — each one undo step.
+      // The rest: weight, italic, case, size, spacing, color, alignment, overflow — each one undo step.
       await fire('[data-layer=title] select[aria-label="Title weight"]', '700', 'change');
       await page.eval(`${title}.querySelector('input[aria-label="Title italic"]').click()`);
       await fire('[data-layer=title] select[aria-label="Title case"]', 'none', 'change');
@@ -2022,7 +2022,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
-    it('offers an imported font with its licence note, declares its face, and ends the list with Import font…', async () => {
+    it('offers an imported font with its license note, declares its face, and ends the list with Import font…', async () => {
       const title = `document.querySelector('#params .layer-row[data-layer=title]')`;
       await openTab('parameters');
       try {
@@ -2031,13 +2031,13 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`${title}.querySelector('.layer-type').open = true`);
         await page.eval(`${title}.querySelector('.family-current').click()`);
         await until(() => page.eval<boolean>(`!${title}.querySelector('.family-list').hidden`), 'the family list');
-        // The imported family sits under its own divider, set in itself, the licence note with it.
+        // The imported family sits under its own divider, set in itself, the license note with it.
         const rows = await page.eval<{ kind?: string; label: string; tip?: string; divider: boolean }[]>(
           `[...${title}.querySelectorAll('.family-list > li')].map((l) => ({ kind: l.dataset.kind, label: l.textContent, tip: l.dataset.tip, divider: l.classList.contains('family-divider') }))`,
         );
         const dividerAt = rows.findIndex((r) => r.divider && r.label === 'Imported');
         expect(dividerAt).toBeGreaterThan(0);
-        expect(rows[dividerAt + 1]).toMatchObject({ kind: 'imported', label: 'Pulp Test Face', tip: 'Imported · Bought from the foundry, desktop licence' });
+        expect(rows[dividerAt + 1]).toMatchObject({ kind: 'imported', label: 'Pulp Test Face', tip: 'Imported · Bought from the foundry, desktop license' });
         // The last row imports a font of your own; the dialog itself cannot be driven here.
         expect(await page.eval<string>(`${title}.querySelector('.family-list > li:last-child .font-import-start').textContent`)).toBe('Import font…');
 
@@ -2291,8 +2291,8 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(await page.eval<string>(`${card}.querySelector('.layer-label').textContent`)).toBe('tiny');
         expect(await page.eval<string>(`${card}.querySelector('.image-name').textContent`)).toBe('tiny');
 
-        // And it was put where the pointer was: the page reports it drawn left of centre and above it,
-        // which the stack alone (centred, below the two lines) would never do.
+        // And it was put where the pointer was: the page reports it drawn left of center and above it,
+        // which the stack alone (centered, below the two lines) would never do.
         type Laid = { blocks: Record<string, { layers: { id: string; box: { x: number; y: number; width: number; height: number }; draw: { dx: number; dy: number; scale: number } }[] }> };
         const placedCentre = async () => {
           const laid = await inTemplate<Laid>(`window.__pulp.laid`, CARD);
@@ -2359,7 +2359,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         await pointer('pointerup', at.x, at.y);
         await until(() => page.eval<boolean>(`!!${overlay}.querySelector('.stage-handle.rotate')`), 'the rotate handle on the selection');
 
-        // Sweep a quarter turn clockwise about that centre: from above it to the right of it.
+        // Sweep a quarter turn clockwise about that center: from above it to the right of it.
         const above = await client(inkCentre.x, inkCentre.y - 200);
         const right = await client(inkCentre.x + 200, inkCentre.y);
         const handle = `${overlay}.querySelector('.stage-handle.rotate')`;
@@ -2458,10 +2458,10 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected[data-layer=title]')`), 'the title card lit by the stage selection');
         expect(await page.eval<boolean>(`!!${overlay}.querySelector('.stage-select')`)).toBe(true);
 
-        // The title starts centred, so a tiny move keeps it inside the snap threshold: the centre
+        // The title starts centered, so a tiny move keeps it inside the snap threshold: the center
         // guide draws while it holds, which is the "say it while it snaps" of the item.
         await pointer('pointermove', at0.x + 2, at0.y + 1);
-        await until(() => page.eval<boolean>(`!!${overlay}.querySelector('.stage-guide.x')`), 'the centre guide while snapped');
+        await until(() => page.eval<boolean>(`!!${overlay}.querySelector('.stage-guide.x')`), 'the center guide while snapped');
         // A hand pauses mid-drag; the gesture is still one undo step however long it holds. Past
         // the typing commit's 400 ms delay is what split it on a slow runner before.
         await sleep(600);
@@ -2486,7 +2486,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(async () => (await titleDraw()).dx > nudgedFrom + 2, 'the nudge landed');
         expect((await titleDraw()).dx - nudgedFrom).toBeCloseTo(0.002 * 1920, 0);
 
-        // Resize by the corner: drag the south-east handle away from the centre.
+        // Resize by the corner: drag the south-east handle away from the center.
         const handleAt = await page.eval<{ x: number; y: number }>(`(() => { const r = ${overlay}.querySelector('.stage-handle.se').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
         await pointer('pointerdown', handleAt.x, handleAt.y, `${overlay}.querySelector('.stage-handle.se')`);
         await pointer('pointermove', handleAt.x + 60, handleAt.y + 34);
@@ -2562,7 +2562,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         );
       await clickResult('Title Card');
       await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card')`), 'the title card\'s cards');
-      // Its two lines, then the card's own colours, then the logo, and the timing last — the title
+      // Its two lines, then the card's own colors, then the logo, and the timing last — the title
       // card declares a hold (milestone 30), so that card holds its Length and no parameter of its
       // own. No "Colors" group, and nothing left over.
       // The Captions card is last of all (milestone 50): the words a project says belong to the
@@ -2590,7 +2590,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await cards()).length === 6, 'the card gone with the layer');
       await page.eval(`document.querySelector('#params .param-card[data-card="element:Card"] .card-toggle').click()`);
 
-      // The lower third: the panel's two colours together, and what belongs to the whole graphic last.
+      // The lower third: the panel's two colors together, and what belongs to the whole graphic last.
       await clickResult('Lower Third Bar');
       await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="element:Panel"]')`), 'the lower third\'s cards');
       expect((await cards()).map((c) => `${c.label}: ${c.params.join(',')}`)).toEqual(['Name: ', 'Title: ', 'Panel: accent,panel', 'Logo: logo', 'Layout and timing: side,inOut', 'Captions: ']);
@@ -2624,8 +2624,8 @@ describe.skipIf(!electron)('inspector UI', () => {
         .toContain('nothing is sent anywhere');
       await page.eval(`[...document.querySelectorAll('#params .captions-card button')].find((b) => b.textContent.startsWith('Transcribe')).click()`);
       await until(() => page.eval<boolean>(`document.getElementById('captions-dialog').open === true`), 'the captions dialog');
-      // The model, its size and its licence are said before anything is fetched (ADR 0021).
-      await until(() => page.eval<boolean>(`/Whisper .* MB · MIT/.test(document.getElementById('captions-model').textContent)`), 'the model named with its size and licence');
+      // The model, its size and its license are said before anything is fetched (ADR 0021).
+      await until(() => page.eval<boolean>(`/Whisper .* MB · MIT/.test(document.getElementById('captions-model').textContent)`), 'the model named with its size and license');
       await page.eval(`document.getElementById('captions-dialog').close()`);
     }, 60_000);
 
@@ -2973,12 +2973,13 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected[data-layer=title]')`), 'the title selected by the right-click');
         expect(await labels()).toEqual([
           'Edit Text',
+          'Make Words a Parameter', 'Make Color a Parameter',
           'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete',
           'Order',
           'Copy Look', 'Paste Look',
           'Start at Playhead', 'End at Playhead',
           'Reset Layer',
-          'Add Text Here', 'Add Asset Here',
+          'Add Text Here', 'Add Shape Here', 'Add Asset Here',
         ]);
         // The title is the template's own required layer, so it cannot be cut or deleted — and
         // nothing has been given it, so there is nothing to reset.
@@ -2991,7 +2992,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         // Over bare picture: the selection is dropped and only what can be added is offered.
         await rightClick(40, 40);
         expect(await page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected')`)).toBe(false);
-        expect(await labels()).toEqual(['Add Text Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
+        expect(await labels()).toEqual(['Add Text Here', 'Add Shape Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
         // Escape puts it away and gives the keyboard back to the stage.
         await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
         await until(async () => !(await open()), 'the menu closing on Escape');
@@ -3199,17 +3200,17 @@ describe.skipIf(!electron)('inspector UI', () => {
 
       it('offers the stage\'s own background, theater and collection over bare picture', async () => {
         await rightClick(40, 40);
-        expect(await labels()).toEqual(['Add Text Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
+        expect(await labels()).toEqual(['Add Text Here', 'Add Shape Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
 
-        // Grey is the new fourth choice, and choosing it really paints the stage.
+        // Gray is the new fourth choice, and choosing it really paints the stage.
         await choose('Background');
         await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the Background submenu');
         expect(await page.eval<string[]>(`[...document.querySelectorAll('.context-menu.submenu > button')].map((b) => b.textContent)`))
-          .toEqual(['Checkerboard', 'Black', 'White', 'Grey']);
-        await choose('Grey');
+          .toEqual(['Checkerboard', 'Black', 'White', 'Gray']);
+        await choose('Gray');
         await until(
           () => page.eval<boolean>(`document.getElementById('preview-frame').style.backgroundColor === 'rgb(128, 128, 128)'`),
-          'the stage painted grey',
+          'the stage painted gray',
         );
         expect(await page.eval<string>(`document.getElementById('bg-gray').getAttribute('aria-pressed')`)).toBe('true');
         // Re-opened, the menu ticks the one that is on and only that one.
@@ -3217,7 +3218,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         await choose('Background');
         await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu')`), 'the submenu again');
         expect(await page.eval<string[]>(`[...document.querySelectorAll('.context-menu.submenu > button[aria-checked="true"]')].map((b) => b.textContent)`))
-          .toEqual(['Grey']);
+          .toEqual(['Gray']);
         await choose('Checkerboard');
         await until(() => page.eval<boolean>(`document.getElementById('bg-checker').getAttribute('aria-pressed') === 'true'`), 'the checkerboard back');
 
@@ -3266,7 +3267,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(() => page.eval<boolean>(`!document.querySelector('#params .param-card.stage-selected')`), 'nothing selected');
         await overlayKey('F10', true);
         await until(open, 'the bare-picture menu from the keyboard');
-        expect(await labels()).toEqual(['Add Text Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
+        expect(await labels()).toEqual(['Add Text Here', 'Add Shape Here', 'Add Asset Here', 'Paste', 'Add to Collection', 'Background', 'Theater']);
       }, 120_000);
 
       it('adds a line of text where the pointer was, and it lands there', async () => {
@@ -3491,7 +3492,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       const file = await page.eval<string>(`${card}.dataset.file`);
       expect(file.split(/[\\/]/).pop()).toBe('tiny_00000.png');
       expect(existsSync(file)).toBe(true);
-      // The matte is a sequence of its own beside it, grey.
+      // The matte is a sequence of its own beside it, gray.
       expect(existsSync(file.replace('tiny_00000.png', 'tiny-matte_00000.png'))).toBe(true);
       expect(await page.eval<string>(`${card}.querySelector('.job-name').textContent`)).toBe('tiny');
       expect(await page.eval<string>(`${card}.querySelector('.job-status').textContent`)).toBe('Done · 3 frames');
@@ -3749,7 +3750,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<string>(`document.getElementById('unsaved-text').textContent`)).toContain('"Old Set"');
       await page.eval(`document.getElementById('unsaved-cancel').click()`);
       await until(async () => !(await page.eval<boolean>(`document.getElementById('unsaved-dialog').open`)), 'the question answered');
-      expect(await label(), 'cancelling leaves the project exactly as it was').toBe('Old Set');
+      expect(await label(), 'canceling leaves the project exactly as it was').toBe('Old Set');
       expect(await dirty()).toBe(true);
 
       // Discard goes ahead: a new project, empty and clean.
@@ -4096,7 +4097,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(download.build, `a build is pinned for ${process.platform} ${process.arch}`).not.toBeNull();
       expect(download.build!.license).toMatch(/^GPL/);
       expect(download.build!.bytes).toBeGreaterThan(1_000_000);
-      // Which build, from whom, how big and under what licence, in the line beside the button.
+      // Which build, from whom, how big and under what license, in the line beside the button.
       for (const said of [download.build!.label, 'GPL', 'MB', 'checksum']) expect(download.build!.note).toContain(said);
       // The button is there exactly when there is something to fetch and nothing already found.
       const ffmpegFound = await page.eval<boolean>(`window.pulp.ffmpegStatus().then((s) => s.ok)`);
@@ -4390,7 +4391,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(purposes).toEqual(['transparent-overlay', 'editor-safe', 'web-alpha', 'social', 'custom']);
         // The preview starts over the checkerboard: transparency kept by the default format.
         expect(await page.eval<boolean>(`document.getElementById('guided-preview-box').classList.contains('checker')`)).toBe(true);
-        // Choosing the editor-safe answer flattens: the checkerboard gives way to the flatten colour, live.
+        // Choosing the editor-safe answer flattens: the checkerboard gives way to the flatten color, live.
         await page.eval(`(() => { const i = document.querySelector('#guided-step-body input[name=guided-purpose][value=editor-safe]'); i.click(); })()`);
         await until(async () => !(await page.eval<boolean>(`document.getElementById('guided-preview-box').classList.contains('checker')`)), 'the flatten preview');
         expect(await page.eval<string>(`document.getElementById('guided-preview-caption').textContent`)).toContain('H.264 MP4');
@@ -4433,7 +4434,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(open, 'the wizard again');
         await page.eval(`(() => { const i = document.querySelector('#guided-step-body input[name=guided-purpose][value=transparent-overlay]'); i.click(); })()`);
         await page.eval(`document.getElementById('guided-cancel').click()`);
-        await until(async () => !(await open()), 'cancelled');
+        await until(async () => !(await open()), 'canceled');
         expect(await page.eval<string>(`document.getElementById('preset').value`)).toBe('h264-mp4');
 
         // Add to collection at the end: the walk applies and a card lands in the tray.
@@ -4533,15 +4534,15 @@ describe.skipIf(!electron)('inspector UI', () => {
       // sit at the end of the transport row (milestone 42). Aligned on their baselines they once sat
       // at different heights, which reads as a row of things that do not belong together.
       expect(await page.eval<boolean>(`!!document.getElementById('region-status').closest('#region-transport')`), 'the status in the transport row').toBe(true);
-      const items = await page.eval<{ id: string; centre: number; height: number }[]>(
+      const items = await page.eval<{ id: string; center: number; height: number }[]>(
         `[...document.querySelectorAll('#region-status > *')].filter((el) => el.offsetParent !== null && el.getBoundingClientRect().height > 0)
-           .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id || el.className, centre: b.top + b.height / 2, height: b.height }; })`,
+           .map((el) => { const b = el.getBoundingClientRect(); return { id: el.id || el.className, center: b.top + b.height / 2, height: b.height }; })`,
       );
       // The project, ffmpeg and the cache are always on the line; the library's counts leave it
       // under 1040 px (milestone 42), which is narrower than the window CI runs at.
       expect(items.length, 'the status has items to line up').toBeGreaterThanOrEqual(3);
-      const centres = items.map((i) => i.centre);
-      const spread = Math.max(...centres) - Math.min(...centres);
+      const centers = items.map((i) => i.center);
+      const spread = Math.max(...centers) - Math.min(...centers);
       expect(spread, `the items sit on one line (${JSON.stringify(items)})`).toBeLessThan(1.5);
 
       // And they are one size: the bar used to mix 11 px notes with a button that inherited the
@@ -4763,7 +4764,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(atHeading.listTop, 'the list starts below the heading').toBeGreaterThanOrEqual(atHeading.headBottom - 0.5);
         await page.eval(`document.getElementById('results').scrollTop = 0`);
 
-        // A tall picture would make the bar too short to scrub: it keeps its floor, centred under it.
+        // A tall picture would make the bar too short to scrub: it keeps its floor, centered under it.
         await clickResult('Boardroom opener');
         await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the opener preview');
         await fire('#opt-aspect', '9:16', 'change');
@@ -4775,7 +4776,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         lines = await scrubAgainstPicture();
         const picMid = (lines.pic[0]! + lines.pic[1]!) / 2;
         const scrubMid = (lines.scrub[0]! + lines.scrub[1]!) / 2;
-        expect(Math.abs(scrubMid - picMid), 'the bar centred under the tall picture').toBeLessThanOrEqual(1);
+        expect(Math.abs(scrubMid - picMid), 'the bar centered under the tall picture').toBeLessThanOrEqual(1);
         await fire('#opt-aspect', '16:9', 'change');
         await until(async () => {
           const m = await scrubAgainstPicture();
@@ -4972,7 +4973,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         // The stylesheet reached the window: the body is laid out as the picture over its timeline.
         await until(() => stage!.eval<boolean>(`getComputedStyle(document.body).display === 'flex' && document.querySelector('.stage-timeline') !== null`), 'the stage window styled');
 
-        // The main window takes the room: the results fill the centre, and the transport row is its
+        // The main window takes the room: the results fill the center, and the transport row is its
         // buttons line, with the toggle for a stage that is not here gone.
         const centre = (await boxIn(page, '.center'))!;
         const results = (await boxIn(page, '#region-results'))!;
@@ -5637,7 +5638,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await frame('tiny')).toBeNull();
     }, 180_000);
 
-    it('keys a colour to transparency from the Info tab, the result joining the library as an alpha clip (milestone 52)', async () => {
+    it('keys a color to transparency from the Info tab, the result joining the library as an alpha clip (milestone 52)', async () => {
       if (!haveVideo) return;
       await selectMedia('weathercast');
       await openTab('info');
@@ -5647,7 +5648,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.getElementById('cleanup-key').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('key-dialog').open`), 'the key dialog');
       try {
-        // Both frames arrive: the plain one the colour is picked from, and the keyed result.
+        // Both frames arrive: the plain one the color is picked from, and the keyed result.
         await until(
           () => page.eval<boolean>(`!!document.getElementById('key-plain').getAttribute('src') && !!document.getElementById('key-keyed').getAttribute('src')`),
           'the before and after frames',
@@ -6108,7 +6109,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 60_000);
 
     // Last in this suite on purpose: under the accordion, opening folds the other sections, and
-    // nothing after this test reads the tree, so the folded state cannot trip a neighbour.
+    // nothing after this test reads the tree, so the folded state cannot trip a neighbor.
     it('shows only where you are: folded to the active path, and one section open at a time', async () => {
       const heading = (id: string) => `document.querySelector('#browse-tree .section-heading[data-node=${JSON.stringify(id)}]')`;
       const openState = () =>
@@ -6181,20 +6182,20 @@ describe.skipIf(!electron)('inspector UI', () => {
       await clearSearch();
       const samplesFor = (id: string) => samplesForTypes(categoryInfo(id)!.types).length;
 
-      // Nothing has been made, so a category the catalogue fills says how many it would add —
-      // counted for that category, not for the whole 625-file catalogue.
+      // Nothing has been made, so a category the catalog fills says how many it would add —
+      // counted for that category, not for the whole 625-file catalog.
       await openNode('Overlays and frames');
       await until(async () => (await hint()).shown, 'the line under the results');
       const overlays = await hint();
       expect(overlays.text).toBe(`${samplesFor('overlays-frames')} more with sample media`);
       expect(overlays.button, 'with a button beside it').toBe(true);
       expect(overlays.tip).toContain('Overlays and frames');
-      expect(overlays.tip).toContain('not the whole catalogue');
-      // It is the category's own count, not the catalogue's, and not another category's.
+      expect(overlays.tip).toContain('not the whole catalog');
+      // It is the category's own count, not the catalog's, and not another category's.
       await openNode('Design elements');
       await until(async () => (await hint()).text === `${samplesFor('design-elements')} more with sample media`, 'the count for the category in view');
 
-      // A category the catalogue has nothing for is offered nothing.
+      // A category the catalog has nothing for is offered nothing.
       await openNode('Lower thirds');
       expect((await hint()).shown, 'nothing to add to a template-only category').toBe(false);
 
@@ -6208,7 +6209,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await hint()).shown, 'the line back with the results');
 
       // The button makes just what is in view. Vignettes are three stills, a second's work; the
-      // whole catalogue is 625 files, which is why the count and the button are per category.
+      // whole catalog is 625 files, which is why the count and the button are per category.
       await openNode('Vignette');
       await until(async () => (await hint()).text === '3 more with sample media', 'the count for one type');
       const before = await held();
@@ -6347,6 +6348,26 @@ describe.skipIf(!electron)('inspector UI', () => {
     const overlay = `document.getElementById('layer-overlay')`;
     type LaidDraw = { alpha: number; dx: number; dy: number; scale: number; rotate?: number };
     type Laid = { frame: number | null; blocks: Record<string, { layers: { id: string; type: string; box: { x: number; y: number; width: number; height: number }; draw: LaidDraw }[] }> };
+    /** The frame the preview is drawn at: an earlier test may have left the session at another shape. */
+    const frameOf = () => page.eval<{ width: number; height: number }>(`(() => { const c = document.getElementById('preview-frame'); const [w, h] = (c.style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`);
+    /** Select what is drawn at a frame point: the overlay must hold the current frame first, and a click may need a second go. */
+    async function selectOnStage(fx: number, fy: number): Promise<void> {
+      await until(() => page.eval<boolean>(`${overlay}.classList.contains('active') && ${overlay}.dataset.laidFrame === document.getElementById('preview-frame').dataset.frame`), 'the overlay holding the frame');
+      const b = await page.eval<{ left: number; top: number; width: number; height: number }>(`(() => { const r = ${overlay}.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
+      const f = await frameOf();
+      const x = b.left + (fx / f.width) * b.width, y = b.top + (fy / f.height) * b.height;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await page.eval(`${overlay}.dispatchEvent(new PointerEvent('pointerdown', { clientX: ${x}, clientY: ${y}, pointerId: 9, button: 0, bubbles: true }))`);
+        await page.eval(`${overlay}.dispatchEvent(new PointerEvent('pointerup', { clientX: ${x}, clientY: ${y}, pointerId: 9, button: 0, bubbles: true }))`);
+        try {
+          await until(() => page.eval<boolean>(`!!${overlay}.querySelector('.stage-handle')`), 'the handles on the selection', 3000);
+          return;
+        } catch {
+          // The overlay was still catching up; the next go lands.
+        }
+      }
+      throw new Error('the shape was not selected on the stage');
+    }
     const laidShape = async () => (await inTemplate<Laid>(`window.__pulp.laid`, CANVAS)).blocks.canvas!.layers.find((l) => l.type === 'shape');
 
     it('opens from File → New Blank Canvas as a transparent frame, and a shape placed, sized, moved and timed on it draws', async () => {
@@ -6356,16 +6377,18 @@ describe.skipIf(!electron)('inspector UI', () => {
         'the blank canvas on the stage',
       );
       await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'its preview ready');
+      const F = await frameOf();
+      const cx = Math.round(F.width / 2), cy = Math.round(F.height / 2), step = Math.round(F.width / 5);
       // Nothing of its own: the frame is fully transparent until something is composed on it.
-      await until(async () => (await previewPixel(960, 540, CANVAS))[3] === 0, 'the empty frame transparent at its centre');
+      await until(async () => (await previewPixel(cx, cy, CANVAS))[3] === 0, 'the empty frame transparent at its center');
 
       // Add Shape Layer, the same command the Edit menu and the stage's right-click menu run:
-      // a fresh shape is the accent rectangle, centred in the canvas block, drawn at once.
+      // a fresh shape is the accent rectangle, centered in the canvas block, drawn at once.
       await page.eval(`window.pulpMenuCommand('layer.addShape')`);
       await until(async () => {
-        const px = await previewPixel(960, 540, CANVAS);
+        const px = await previewPixel(cx, cy, CANVAS);
         return Math.abs(px[0]! - 232) <= 2 && Math.abs(px[1]! - 163) <= 2 && Math.abs(px[2]! - 61) <= 2 && px[3] === 255;
-      }, 'the fresh shape in the accent at the centre');
+      }, 'the fresh shape in the accent at the center');
 
       // Sized by its own ratio: the card's field makes it two and a half times as wide as tall.
       await openTab('parameters');
@@ -6384,7 +6407,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect((await previewPixel(corner.x, corner.y, CANVAS))[3], 'the rectangle fills its corner').toBe(255);
       await page.eval(`(() => { const f = document.querySelector('#params select[aria-label="Shape 1 shape"]'); f.value = 'ellipse'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
       await until(async () => (await previewPixel(corner.x, corner.y, CANVAS))[3] === 0, 'the ellipse leaving the corner empty');
-      expect((await previewPixel(960, 540, CANVAS))[3], 'and still filling its centre').toBe(255);
+      expect((await previewPixel(cx, cy, CANVAS))[3], 'and still filling its center').toBe(255);
 
       // Moved with milestone 25's handles: select it on the stage, drag it a fifth of the frame right.
       const client = async (fx: number, fy: number) => {
@@ -6394,25 +6417,23 @@ describe.skipIf(!electron)('inspector UI', () => {
       };
       const pointer = (type: string, x: number, y: number) =>
         page.eval(`${overlay}.dispatchEvent(new PointerEvent(${JSON.stringify(type)}, { clientX: ${x}, clientY: ${y}, pointerId: 9, button: 0, bubbles: true }))`);
-      const at = await client(960, 540);
-      await pointer('pointerdown', at.x, at.y);
-      await pointer('pointerup', at.x, at.y);
-      await until(() => page.eval<boolean>(`!!${overlay}.querySelector('.stage-handle')`), 'the handles on the selection');
-      const to = await client(960 + 384, 540);
+      await selectOnStage(cx, cy);
+      const at = await client(cx, cy);
+      const to = await client(cx + step, cy);
       await pointer('pointerdown', at.x, at.y);
       await pointer('pointermove', to.x, to.y);
       await pointer('pointerup', to.x, to.y);
-      await until(async () => Math.abs(((await laidShape())!.draw.dx) - 384) < 8, 'the drag moving the shape a fifth of the frame');
-      await until(async () => (await previewPixel(960 + 384, 540, CANVAS))[3] === 255, 'the pixels following the drag');
-      expect((await previewPixel(960 - 300, 540, CANVAS))[3], 'and leaving where it was').toBe(0);
+      await until(async () => Math.abs(((await laidShape())!.draw.dx) - step) < 8, 'the drag moving the shape a fifth of the frame');
+      await until(async () => (await previewPixel(cx + step, cy, CANVAS))[3] === 255, 'the pixels following the drag');
+      expect((await previewPixel(cx - Math.round(step * 0.8), cy, CANVAS))[3], 'and leaving where it was').toBe(0);
 
       // Timed on the stage: Start at Playhead gives it a beginning, before which it is not there.
       await scrubTo(60);
       await page.eval(`window.pulpMenuCommand('layer.startHere')`);
       await scrubTo(15);
-      await until(async () => (await previewPixel(960 + 384, 540, CANVAS))[3] === 0, 'nothing before its start');
+      await until(async () => (await previewPixel(cx + step, cy, CANVAS))[3] === 0, 'nothing before its start');
       await scrubTo(90);
-      await until(async () => (await previewPixel(960 + 384, 540, CANVAS))[3] === 255, 'the shape from its start on');
+      await until(async () => (await previewPixel(cx + step, cy, CANVAS))[3] === 255, 'the shape from its start on');
 
       // Left as it was found: a fresh session for the tests after this one.
       await page.eval(`window.pulpMenuCommand('project.new')`);
@@ -6426,36 +6447,30 @@ describe.skipIf(!electron)('inspector UI', () => {
       await clickResult('Lower Third Bar');
     }, 180_000);
 
-    it('makes a property a parameter by picking it and naming it: colour off the stage menu path, words off the card (milestone 55)', async () => {
+    it('makes a property a parameter by picking it and naming it: color off the stage menu path, words off the card (milestone 55)', async () => {
       await page.eval(`window.pulpMenuCommand('canvas.new')`);
       await until(
         () => page.eval<boolean>(`(document.getElementById('preview').getAttribute('src') || '').startsWith('pulp-template://${CANVAS}/')`),
         'the blank canvas on the stage',
       );
       await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'its preview ready');
+      const F = await frameOf();
+      const cx = Math.round(F.width / 2), cy = Math.round(F.height / 2);
       // The canvas as the template ships it, whatever an earlier test composed on it.
       await openTab('parameters');
       await page.eval(`(() => { const b = document.querySelector('#params .layers-block[data-block=canvas] .layers-reset'); if (b && !b.hidden) b.click(); })()`);
-      await until(async () => (await previewPixel(960, 540, CANVAS))[3] === 0, 'the canvas empty again');
+      await until(async () => (await previewPixel(cx, cy, CANVAS))[3] === 0, 'the canvas empty again');
       await page.eval(`window.pulpMenuCommand('layer.addShape')`);
-      await until(async () => (await previewPixel(960, 540, CANVAS))[3] === 255, 'the shape drawn');
+      await until(async () => (await previewPixel(cx, cy, CANVAS))[3] === 255, 'the shape drawn');
 
       // Select the shape on the stage, then run the very command the right-click menu names.
-      const client = async (fx: number, fy: number) => {
-        const b = await page.eval<{ left: number; top: number; width: number; height: number }>(`(() => { const r = ${overlay}.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
-        const f = await page.eval<{ width: number; height: number }>(`(() => { const c = document.getElementById('preview-frame'); const [w, h] = (c.style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`);
-        return { x: b.left + (fx / f.width) * b.width, y: b.top + (fy / f.height) * b.height };
-      };
-      const at = await client(960, 540);
-      await page.eval(`${overlay}.dispatchEvent(new PointerEvent('pointerdown', { clientX: ${at.x}, clientY: ${at.y}, pointerId: 9, button: 0, bubbles: true }))`);
-      await page.eval(`${overlay}.dispatchEvent(new PointerEvent('pointerup', { clientX: ${at.x}, clientY: ${at.y}, pointerId: 9, button: 0, bubbles: true }))`);
-      await until(() => page.eval<boolean>(`!!${overlay}.querySelector('.stage-handle')`), 'the shape selected');
+      await selectOnStage(cx, cy);
       await page.eval(`window.pulpMenuCommand('layer.exposeColor')`);
 
       // Picked: it lands at the top of the Parameters tab, named after the layer, the name focused to rename.
-      const row = `document.querySelector('#params .exposed-param[data-expose="shape_1_colour"]')`;
+      const row = `document.querySelector('#params .exposed-param[data-expose="shape_1_color"]')`;
       await until(() => page.eval<boolean>(`!!${row}`), 'the picked parameter in the tab');
-      expect(await page.eval<string>(`${row}.querySelector('.exposed-name').value`), 'named after the layer to start').toBe('Shape 1 colour');
+      expect(await page.eval<string>(`${row}.querySelector('.exposed-name').value`), 'named after the layer to start').toBe('Shape 1 color');
       expect(await page.eval<boolean>(`document.activeElement === ${row}.querySelector('.exposed-name')`), 'the name focused: naming is the other half of picking').toBe(true);
       await page.eval(`(() => { const f = ${row}.querySelector('.exposed-name'); f.value = 'Accent'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
       await until(() => page.eval<boolean>(`${row} && ${row}.querySelector('.exposed-name').value === 'Accent'`), 'the parameter renamed');
@@ -6463,9 +6478,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       // The parameter's control edits the very property it was picked from: the shape recolours.
       await page.eval(`(() => { const f = ${row}.querySelector('.color-field .hex'); f.value = '#2266ff'; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
       await until(async () => {
-        const px = await previewPixel(960, 540, CANVAS);
+        const px = await previewPixel(cx, cy, CANVAS);
         return Math.abs(px[0]! - 34) <= 2 && Math.abs(px[1]! - 102) <= 2 && Math.abs(px[2]! - 255) <= 2;
-      }, 'the shape in the parameter\u2019s colour');
+      }, 'the shape in the parameter\u2019s color');
 
       // Words off the card's own pick button, and one value with two ways to reach it.
       await page.eval(`window.pulpMenuCommand('layer.addText')`);
@@ -6615,7 +6630,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(prepared!.status).toBe('done');
         expect(prepared!.file?.endsWith('.mov'), String(prepared!.file)).toBe(true);
       }
-      // What neither holds is refused with its reason, and a finished job cannot be cancelled.
+      // What neither holds is refused with its reason, and a finished job cannot be canceled.
       expect((await fetch(`${base}/v1/open`, { method: 'POST', headers, body: JSON.stringify({ uid: 'nope' }) })).status).toBe(404);
       expect((await fetch(`${base}/v1/queue/999999/cancel`, { method: 'POST', headers })).status).toBe(404);
 

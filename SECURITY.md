@@ -7,7 +7,7 @@ Please report security problems privately, not in a public issue.
 - Use GitHub's private vulnerability reporting on this repository: **Security → Report a vulnerability**. It reaches the maintainer and nobody else.
 - Say what you found, how to reproduce it, and what it lets someone do. A template folder, a pack, a media file or a project file that triggers the problem is the most useful thing you can attach.
 
-You will get an acknowledgement within a week. Fixes land as ordinary commits; the report is credited in the changelog unless you ask otherwise. There is no bounty programme.
+You will get an acknowledgement within a week. Fixes land as ordinary commits; the report is credited in the changelog unless you ask otherwise. There is no bounty program.
 
 ## What counts
 

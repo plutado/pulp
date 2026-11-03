@@ -1,5 +1,5 @@
 /**
- * The FFmpeg download helper's catalogue (milestone 17, ADR 0022).
+ * The FFmpeg download helper's catalog (milestone 17, ADR 0022).
  *
  * What a fetch is allowed to leave on disk is decided by the data in
  * `src/core/ffmpeg-download.ts`: a pinned URL, the byte count and the SHA-256

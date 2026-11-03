@@ -2,7 +2,7 @@
  * The mix's loudness for the transport row's meter (milestone 52): the window
  * sends the layers that make sound — ids and settings, never paths — the main
  * process resolves each to its file under ADR 0013's rule, runs the same EBU
- * R128 measurement a levelled render's first pass runs, and answers with the
+ * R128 measurement a leveled render's first pass runs, and answers with the
  * integrated loudness and true peak. The meter therefore shows the loudness a
  * render would start from, by the one measurement, not an estimate.
  *

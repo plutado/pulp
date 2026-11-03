@@ -74,7 +74,7 @@
     ctx.fillStyle = p.accent;
     ctx.fillRect(cx - inner / 2, sqY + side / 2 - inner / 2, inner, inner);
 
-    // The rule grows from the centre outward and retracts the same way on the out.
+    // The rule grows from the center outward and retracts the same way on the out.
     var ruleY = sqY + side + 50 * s;
     var ruleW = Math.min(maxW, 760 * s) * rule * fade;
     ctx.fillRect(cx - ruleW / 2, ruleY, ruleW, 2 * s);

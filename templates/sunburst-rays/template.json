@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.sunburst-rays",
   "name": "Sunburst rays",
-  "description": "Alternating rays from a centre set by the angle, the retro sunburst, under a soft vignette; the scale sets how many rays.",
+  "description": "Alternating rays from a center set by the angle, the retro sunburst, under a soft vignette; the scale sets how many rays.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

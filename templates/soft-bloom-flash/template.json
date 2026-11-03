@@ -42,7 +42,7 @@
     {
       "id": "offset",
       "type": "number",
-      "label": "Centre, % across",
+      "label": "Center, % across",
       "default": 50,
       "min": 20,
       "max": 80,

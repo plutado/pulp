@@ -12,10 +12,10 @@ export type StageBackground = 'checker' | 'black' | 'white' | 'gray' | 'custom';
 const BACKGROUNDS: StageBackground[] = ['checker', 'black', 'white', 'gray', 'custom'];
 
 /**
- * The flat colours the stage draws behind a transparent graphic; the
- * checkerboard is a pattern and the custom one is the person's own. Mid-grey
+ * The flat colors the stage draws behind a transparent graphic; the
+ * checkerboard is a pattern and the custom one is the person's own. Mid-gray
  * joined them in milestone 39: black flatters a bright edge and white a dark
- * one, and grey is the neutral a soft edge or a key is really judged against.
+ * one, and gray is the neutral a soft edge or a key is really judged against.
  */
 export const STAGE_BACKGROUND_COLORS: Record<Exclude<StageBackground, 'checker' | 'custom'>, string> = {
   black: '#000000',
@@ -28,14 +28,14 @@ export const STAGE_BACKGROUNDS: readonly { id: StageBackground; label: string }[
   { id: 'checker', label: 'Checkerboard' },
   { id: 'black', label: 'Black' },
   { id: 'white', label: 'White' },
-  { id: 'gray', label: 'Grey' },
+  { id: 'gray', label: 'Gray' },
 ];
 
 export interface PlayerState {
   /** Playback returns to the start at the end instead of stopping on the last frame. */
   loop: boolean;
   background: StageBackground;
-  /** The colour the "custom" background uses, `#rrggbb`. */
+  /** The color the "custom" background uses, `#rrggbb`. */
   customBackground: string;
   /** Title-safe and action-safe rectangles over the preview. */
   safeAreas: boolean;

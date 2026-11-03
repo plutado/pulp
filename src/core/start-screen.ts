@@ -123,7 +123,7 @@ export function setupChecklist(facts: SetupFacts): ChecklistItem[] {
   ];
 }
 
-/** The library at a glance: counts, favourites, and the most common template categories. */
+/** The library at a glance: counts, favorites, and the most common template categories. */
 export function libraryGlance(index: LibraryIndex | null): string {
   if (!index) return 'The library has not been scanned yet.';
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -202,7 +202,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     target: 'region-search',
     title: 'Search',
-    body: 'Find templates and media by name, tag or a filter such as type:wipe or duration:>5; the chips narrow by kind, shape, transparency and favourites, and For… and Look by theme and style. Ctrl+F or ⌘F puts the caret here from anywhere.',
+    body: 'Find templates and media by name, tag or a filter such as type:wipe or duration:>5; the chips narrow by kind, shape, transparency and favorites, and For… and Look by theme and style. Ctrl+F or ⌘F puts the caret here from anywhere.',
   },
   {
     target: 'browse-tree',

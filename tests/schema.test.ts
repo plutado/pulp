@@ -121,7 +121,7 @@ describe('the template schema', () => {
     ['an entry outside the folder', rawManifest({ entry: '../index.html' })],
     ['a poster at a negative time', rawManifest({ posterAt: -1 })],
     ['a structure that is both a hold and a loop', rawManifest({ structure: { holdFrom: 0.5, holdTo: 1.5, loop: true } })],
-    ['a colour default that is not a colour', rawManifest({ parameters: [{ id: 'c', type: 'color', label: 'C', default: 'red' }] })],
+    ['a color default that is not a color', rawManifest({ parameters: [{ id: 'c', type: 'color', label: 'C', default: 'red' }] })],
     ['a select with no options', rawManifest({ parameters: [{ id: 's', type: 'select', label: 'S', default: 'a' }] })],
     ['an image slot with no box', rawManifest({ parameters: [{ id: 'logo', type: 'image', label: 'Logo', fit: 'contain' }] })],
     ['a parameter id starting with a digit', rawManifest({ parameters: [{ id: '1st', type: 'text', label: 'First', default: '' }] })],

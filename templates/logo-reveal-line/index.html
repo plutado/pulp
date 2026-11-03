@@ -40,12 +40,12 @@
     ctx.fillStyle = color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    // Letter spacing trails the last glyph; shift by half of it so the word sits centred.
+    // Letter spacing trails the last glyph; shift by half of it so the word sits centered.
     ctx.fillText(upper, box.x + box.width / 2 + size * 0.09, box.y + box.height / 2);
     ctx.letterSpacing = '0px';
   }
 
-  // The frame path, starting at the top centre and running clockwise, with its total length.
+  // The frame path, starting at the top center and running clockwise, with its total length.
   function framePath(shape, box, pad) {
     var cx = box.x + box.width / 2, cy = box.y + box.height / 2;
     ctx.beginPath();
@@ -95,7 +95,7 @@
     var tagT = easeOutCubic(clamp01((t - 0.2 - inDur * 0.9) / (inDur * 0.5)));
 
     // The line: one dash as long as the path, offset so the visible part grows from the top
-    // centre clockwise on the way in and shrinks back towards it on the way out.
+    // center clockwise on the way in and shrinks back towards it on the way out.
     var visible = drawT * (1 - undrawT);
     if (visible > 0) {
       ctx.save();

@@ -70,7 +70,7 @@
     ctx.quadraticCurveTo(-0.3, -0.3, -0.45, -0.1);
     ctx.closePath();
     ctx.fill();
-    // Finger lines in the detail colour
+    // Finger lines in the detail color
     ctx.strokeStyle = detail;
     ctx.lineWidth = 0.07;
     ctx.lineCap = 'round';
@@ -135,7 +135,7 @@
     // A gentle wobble while it holds.
     var wig = Math.sin(t * 3) * 0.04 * clamp01(inT * 2) * (1 - outT);
 
-    // Dots burst outward from the centre as the icon lands and fade as they slow.
+    // Dots burst outward from the center as the icon lands and fade as they slow.
     var nd = 12;
     var burst = easeOutCubic(clamp01((t - dur * 0.05) / (dur * 1.6)));
     for (var i = 0; i < nd; i++) {

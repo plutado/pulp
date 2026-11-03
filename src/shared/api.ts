@@ -235,7 +235,7 @@ export interface SampleMediaOutcome {
 
 /**
  * What transcription needs and what is already here (milestone 50): the
- * program that runs the model, the model with its size and licence so the
+ * program that runs the model, the model with its size and license so the
  * dialog can say what it would fetch, and whether ffmpeg is there to read the
  * sound.
  */
@@ -285,7 +285,7 @@ export interface PulpApi {
   /**
    * What the project's mix measures (milestone 52): integrated loudness and
    * true peak by EBU R128, for the transport row's meter — the same
-   * measurement a levelled render's first pass runs. Layers travel as ids and
+   * measurement a leveled render's first pass runs. Layers travel as ids and
    * settings; the main process resolves the files (ADR 0013). Null when there
    * is nothing to measure.
    */
@@ -319,7 +319,7 @@ export interface PulpApi {
   /**
    * Transcription on this machine (milestone 50). `speechStatus` says what is
    * there — the program that runs the model, the model itself with its size
-   * and licence, and ffmpeg — so the dialog can **ask before anything is
+   * and license, and ffmpeg — so the dialog can **ask before anything is
    * fetched**; `fetchSpeechModel` is the yes, and the only request Pulp
    * makes. `transcribe` listens to the stretches of project sound named by
    * library id (ADR 0013) and answers with the words and their timings, on
@@ -328,7 +328,7 @@ export interface PulpApi {
   /**
    * Semantic search on this machine (milestone 9, ADR 0024). Off by default.
    * `semanticStatus` says what is there and what Pulp would fetch — which
-   * model, how big, under what licence — so Settings can **ask before anything
+   * model, how big, under what license — so Settings can **ask before anything
    * is fetched**; `fetchSemanticModel` is the yes, and the only request Pulp
    * makes. `semanticSearch` embeds the free text locally and answers library
    * ids with how close each item's meaning came; nothing else ever leaves the
@@ -361,9 +361,9 @@ export interface PulpApi {
   onSpeechProgress(listener: (progress: { note: string; fraction: number | null }) => void): () => void;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
-  /** Opens a folder picker; resolves to the updated index, or null if cancelled. */
+  /** Opens a folder picker; resolves to the updated index, or null if canceled. */
   addLibraryFolder(): Promise<LibraryIndex | null>;
-  /** Make the sample-media folder inside a chosen folder, add it to the library, and say what was written. Null when cancelled. */
+  /** Make the sample-media folder inside a chosen folder, add it to the library, and say what was written. Null when canceled. */
   addSampleMedia(): Promise<SampleMediaOutcome | null>;
   /**
    * The popped-out stage (milestone 43). The renderer moves the stage's own elements into a child
@@ -386,9 +386,9 @@ export interface PulpApi {
   onStageWindowCloseRequested(listener: () => void): () => void;
   /** The stage window went full screen or came back, by any means, so the theater button can follow. */
   onStageWindowFullScreen(listener: (on: boolean) => void): () => void;
-  /** How many catalogue files each taxonomy type still lacks (milestone 34); a type with none left is absent. */
+  /** How many catalog files each taxonomy type still lacks (milestone 34); a type with none left is absent. */
   sampleMediaStatus(): Promise<{ unmade: Record<string, number> }>;
-  /** Make just these types' sample media, into the folder the rest is in or one chosen now. Null when cancelled. */
+  /** Make just these types' sample media, into the folder the rest is in or one chosen now. Null when canceled. */
   makeSampleMedia(types: readonly string[]): Promise<SampleMediaOutcome | null>;
   /**
    * Image slots (ADR 0013): the bytes of exactly these library stills, as data URLs for the preview
@@ -407,9 +407,9 @@ export interface PulpApi {
   importImage(file: File): Promise<{ id: string } | { error: string }>;
   /** The person's own fonts, as the managed folder's index records them (milestone 23). */
   listFonts(): Promise<ImportedFont[]>;
-  /** A file dialog for a font; the family is read from the file so the licence note can name it. Null when cancelled. */
+  /** A file dialog for a font; the family is read from the file so the license note can name it. Null when canceled. */
   chooseFont(): Promise<{ path: string; family: string; file: string } | { error: string } | null>;
-  /** Copy a chosen font into the managed folder with the person's licence note. */
+  /** Copy a chosen font into the managed folder with the person's license note. */
   importFont(path: string, note: string): Promise<ImportedFont | { error: string }>;
   /** The imported fonts changed: the family list and the pages' faces follow. */
   onFontsChanged(listener: (fonts: ImportedFont[]) => void): () => void;
@@ -419,7 +419,7 @@ export interface PulpApi {
   /**
    * The FFmpeg download helper (milestone 17, ADR 0022), for the machine with
    * no FFmpeg on it. `ffmpegDownloadStatus` says what Pulp would fetch for
-   * this machine — which build, from whom, how big and under what licence —
+   * this machine — which build, from whom, how big and under what license —
    * so Settings can **ask before anything is fetched**; `fetchFfmpeg` is the
    * yes. What arrives is checked against a pinned checksum and kept beside
    * the settings, and an ffmpeg of your own still comes first.
@@ -439,7 +439,7 @@ export interface PulpApi {
   /** The file a finished job's output would be dragged as (a sequence drags its first frame). */
   renderCacheStats(): Promise<RenderCacheStats>;
   clearRenderCache(): Promise<RenderCacheStats>;
-  /** Folder picker for the cache; null when cancelled. */
+  /** Folder picker for the cache; null when canceled. */
   chooseRenderCacheDir(): Promise<RenderCacheStats | null>;
   setRenderCacheLimit(maxMB: number): Promise<RenderCacheStats>;
   /** Cancel a queued or running job. */
@@ -448,7 +448,7 @@ export interface PulpApi {
   listPresets(templateId: string): Promise<Record<string, Record<string, unknown>>>;
   savePreset(templateId: string, name: string, values: Record<string, unknown>): Promise<Record<string, Record<string, unknown>>>;
   deletePreset(templateId: string, name: string): Promise<Record<string, Record<string, unknown>>>;
-  /** Remove done, failed and cancelled jobs from the queue. */
+  /** Remove done, failed and canceled jobs from the queue. */
   clearFinishedRenders(): Promise<void>;
   /** Save dialog, then write the collection to a file. */
   saveCollection(collection: Collection, suggestedName: string): Promise<CollectionFileResult>;
@@ -507,7 +507,7 @@ export interface PulpApi {
   onCloseRequested(listener: () => void): () => void;
   /** Let the close that was held go ahead; the recovery copy is cleared with it. */
   allowClose(): Promise<void>;
-  /** The close was cancelled: the next one asks again. */
+  /** The close was canceled: the next one asks again. */
   cancelClose(): Promise<void>;
   /** The project's name and whether it has unsaved changes, for the window title. */
   setProjectTitle(name: string, dirty: boolean): Promise<void>;
@@ -585,7 +585,7 @@ export interface PulpApi {
   addRecentColor(hex: string): Promise<string[]>;
   /** Called with the whole queue whenever a job is added, progresses, finishes or is removed. */
   onRenderQueue(listener: (snapshot: RenderQueueSnapshot) => void): () => void;
-  /** Open dialog for a .zip pack; null when cancelled. */
+  /** Open dialog for a .zip pack; null when canceled. */
   choosePackFile(): Promise<string | null>;
   /** What a pack (zip or folder) contains and what installing it would do. */
   previewPack(path: string): Promise<{ path: string; preview: PackPreview } | { error: string }>;

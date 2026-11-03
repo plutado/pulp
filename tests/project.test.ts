@@ -87,7 +87,7 @@ describe('media that moved (milestone 27)', () => {
     expect(shiftPath('/Volumes/Older/x.mov', shift)).toBeNull();
   });
 
-  it('says nothing about the neighbours when the file was renamed rather than moved', () => {
+  it('says nothing about the neighbors when the file was renamed rather than moved', () => {
     // Nothing trails in common, so where the folder went cannot be told from this; that one item
     // is relinked and the rest are left to be relinked themselves rather than bound to the wrong files.
     expect(pathShift('/Volumes/Old/Assets/fire.mov', '/Users/me/Media/Assets/flame.mov')).toBeNull();

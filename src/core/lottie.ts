@@ -5,12 +5,12 @@
  * shapes, text, images and their keyframes. It is motion graphics already made,
  * so Pulp reads it as an item that plays, renders and is edited like a
  * template rather than as a picture: the library makes a manifest from the
- * file — its size, frame rate and length — and its editable text and colours
+ * file — its size, frame rate and length — and its editable text and colors
  * become parameters, saved with the item like any other.
  *
  * The pure part: telling a Lottie JSON from any other, reading the document and
  * a `.lottie` archive, finding what the file exposes (its slots where it has
- * them, otherwise its text layers and fill colours), applying parameter values
+ * them, otherwise its text layers and fill colors), applying parameter values
  * to the document, naming what the player cannot draw, and the manifest.
  * The page that draws it is src/core/lottie-page.ts; the main process serves
  * both (src/main/lottie-service.ts, src/main/protocol.ts).
@@ -52,10 +52,10 @@ export type LottieData = Record<string, unknown>;
 
 /**
  * What a Lottie file may say about itself that the format has no field for.
- * Lottie carries no licence and no reliable author, so a file that wants to
+ * Lottie carries no license and no reliable author, so a file that wants to
  * state them does it under a key of its own — the same `x-` rule the template
  * manifest gives its extensions (docs/template-format.md). Every other tool
- * ignores it, and a file without one is read exactly as before: the licence is
+ * ignores it, and a file without one is read exactly as before: the license is
  * "not stated", which is the truth about most of them.
  *
  * Pulp's own starter set (src/core/lottie-starter.ts) writes it, which is how
@@ -175,7 +175,7 @@ export function readDotLottie(bytes: Buffer): DotLottie {
           ids = manifest.animations.map((a) => (isRecord(a) && typeof a.id === 'string' ? a.id : '')).filter(Boolean);
         }
         if (typeof manifest.author === 'string' && manifest.author.trim()) author = manifest.author.trim();
-        if ((Array.isArray(manifest.themes) && manifest.themes.length > 0) || entries.some((e) => /^(themes|t)\//.test(e.name))) limits.push('its themes are not read; colours are edited one by one');
+        if ((Array.isArray(manifest.themes) && manifest.themes.length > 0) || entries.some((e) => /^(themes|t)\//.test(e.name))) limits.push('its themes are not read; colors are edited one by one');
         if ((Array.isArray(manifest.states) && manifest.states.length > 0) || entries.some((e) => /^(states|s)\//.test(e.name))) limits.push('its interactive states are not read; the animation plays as one');
       }
     } catch {
@@ -226,7 +226,7 @@ function usefulName(...candidates: unknown[]): string | undefined {
   return undefined;
 }
 
-/** A static colour property's components in 0..1, or null for one that is animated, bound to a slot, or not a colour. */
+/** A static color property's components in 0..1, or null for one that is animated, bound to a slot, or not a color. */
 function staticColor(prop: unknown): number[] | null {
   if (!isRecord(prop) || typeof prop.sid === 'string') return null;
   if (prop.a === 1) return null;
@@ -261,10 +261,10 @@ function staticTextDoc(prop: unknown, at: LottiePath): { doc: Record<string, unk
 }
 
 /**
- * The text and colours a file exposes: its slots where it has them, and its
- * static text layers and fill, stroke, solid and text colours. Each distinct
- * colour is one parameter, however many shapes use it, so a palette stays a
- * palette. Text and colours bound to slots are reached through the slot only.
+ * The text and colors a file exposes: its slots where it has them, and its
+ * static text layers and fill, stroke, solid and text colors. Each distinct
+ * color is one parameter, however many shapes use it, so a palette stays a
+ * palette. Text and colors bound to slots are reached through the slot only.
  */
 export function lottieEditables(data: LottieData): LottieEditables {
   const parameters: TemplateParameter[] = [];
@@ -357,12 +357,12 @@ export function lottieEditables(data: LottieData): LottieEditables {
   colours.forEach((c, i) => {
     const id = `color${i + 1}`;
     const others = c.targets.length - 1;
-    const what = c.what === 'text' ? 'text colour' : c.what === 'solid' ? 'solid' : c.what;
+    const what = c.what === 'text' ? 'text color' : c.what === 'solid' ? 'solid' : c.what;
     parameters.push({
       id,
       type: 'color',
       label: `${c.name} ${what}`,
-      element: 'Colours',
+      element: 'Colors',
       default: c.hex,
       ...(others > 0 ? { description: `Also used in ${others} other ${others === 1 ? 'place' : 'places'}.` } : {}),
     });
@@ -384,7 +384,7 @@ export function lottieFitParameter(): TemplateParameter {
     options: [
       { value: 'fit', label: 'Fit inside the frame' },
       { value: 'fill', label: 'Fill the frame' },
-      { value: 'center', label: 'Its own size, centred' },
+      { value: 'center', label: 'Its own size, centered' },
     ],
   };
 }
@@ -403,7 +403,7 @@ function setAt(root: unknown, path: LottiePath, value: unknown): void {
 /**
  * The document with parameter values written in: a deep copy, the original
  * untouched. Mirrors `applied` in the page script (src/core/lottie-page.ts):
- * change both or neither. Text uses Lottie's `\r` line breaks; a colour's
+ * change both or neither. Text uses Lottie's `\r` line breaks; a color's
  * alpha goes only where the file kept four components.
  */
 export function applyLottieParams(data: LottieData, bindings: readonly LottieBinding[], params: Record<string, unknown>): LottieData {
@@ -634,8 +634,8 @@ export function humanizeFileName(name: string): string {
  * The manifest a Lottie file is read into, validated like any other: the file's
  * own size (rounded up to even, as encoders need) as the default resolution,
  * every built-in aspect declared so the animation can be fitted, filled or
- * centred in any frame, its frame rate and length, transparent, and its
- * editable text and colours as parameters with the Fit setting.
+ * centered in any frame, its frame rate and length, transparent, and its
+ * editable text and colors as parameters with the Fit setting.
  */
 export function lottieManifest(doc: LottieDocumentMeta, input: LottieManifestInput): ValidationResult {
   const width = even(doc.width);
@@ -660,7 +660,7 @@ export function lottieManifest(doc: LottieDocumentMeta, input: LottieManifestInp
     description,
     version: doc.version && /^\d+\.\d+\.\d+$/.test(doc.version) ? doc.version : '1.0.0',
     ...(input.extras?.author ?? input.author ? { author: input.extras?.author ?? input.author } : {}),
-    // The format carries no licence, so a file that does not say under its own key is "not
+    // The format carries no license, so a file that does not say under its own key is "not
     // stated" — the truth, which the Info tab shows rather than a guess.
     license: input.extras?.license ?? 'not stated',
     category: categoryForType(input.type),

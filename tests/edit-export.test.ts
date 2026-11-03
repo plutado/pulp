@@ -142,7 +142,7 @@ describe('the second picture track in the exported edit (milestone 57)', () => {
   it('writes V2 events in the EDL, with the framing in comments', () => {
     const edl = edlEdit({ ...input(), overlays: [{ ...pip, speed: 2 }] });
     expect(edl).toContain('003  AX       V2    C        00:00:00:15 00:00:02:15 00:00:01:00 00:00:02:00\nM2   AX       060.0                00:00:00:15');
-    expect(edl).toContain("* PICTURE IN PICTURE: Reaction, 35% of the frame's height, centre 30% across and -25% down from the frame's centre");
+    expect(edl).toContain("* PICTURE IN PICTURE: Reaction, 35% of the frame's height, center 30% across and -25% down from the frame's center");
     expect(edl).toContain('* CROP: left 10%, top 0%, right 10%, bottom 0%');
     expect(edl).toContain('* SOURCE FILE: C:\\shots\\tall.mov');
   });

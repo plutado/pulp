@@ -236,7 +236,7 @@ export async function sniffLottieFile(path: string): Promise<boolean> {
 
 /**
  * Read a Lottie file — a `.json` or a `.lottie` archive — as a template entry:
- * the manifest made from the file, its editable text and colours as
+ * the manifest made from the file, its editable text and colors as
  * parameters, its type and themes from its folders as a clip's would be.
  * Problems are returned, not thrown, as `loadTemplate` returns them.
  */

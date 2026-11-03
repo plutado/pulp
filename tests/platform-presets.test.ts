@@ -62,7 +62,7 @@ describe('the built-in list', () => {
     for (const p of PLATFORM_PRESETS) expect(p.uploadUrl, p.id).toMatch(/^https:\/\//);
   });
 
-  it('sets the loudness a render aimed there is levelled to (milestone 52)', () => {
+  it('sets the loudness a render aimed there is leveled to (milestone 52)', () => {
     for (const p of PLATFORM_PRESETS) {
       expect(p.loudnessLufs, p.id).toBeLessThanOrEqual(-6);
       expect(p.loudnessLufs, p.id).toBeGreaterThanOrEqual(-36);
@@ -112,8 +112,8 @@ describe('the check on the list', () => {
 });
 
 describe('what a preset says in the window', () => {
-  it('sums up what it sets, the levelling included', () => {
-    expect(platformSummary(tiktok)).toBe('9:16 · 1080 × 1920 · 30 fps · H.264 MP4 · levelled to -14 LUFS');
+  it('sums up what it sets, the leveling included', () => {
+    expect(platformSummary(tiktok)).toBe('9:16 · 1080 × 1920 · 30 fps · H.264 MP4 · leveled to -14 LUFS');
   });
 
   it('says what the platform takes, with the date it was read', () => {

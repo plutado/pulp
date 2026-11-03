@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.split-screen-title",
   "name": "Split Screen",
-  "description": "Two colour panels that part along the middle and let the title stand in the seam. Opens comparisons, debates and versus cuts.",
+  "description": "Two color panels that part along the middle and let the title stand in the seam. Opens comparisons, debates and versus cuts.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

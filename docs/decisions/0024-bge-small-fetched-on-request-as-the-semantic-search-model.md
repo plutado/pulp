@@ -26,7 +26,7 @@ once, after the person says yes.
 form llama.cpp reads.** One model, not a menu: embeddings have no quality
 knob a person should have to reason about.
 
-| Model | File | Size | SHA-256 | Dimensions | Licence |
+| Model | File | Size | SHA-256 | Dimensions | License |
 |---|---|---|---|---|---|
 | BGE small en v1.5 Q8_0 | `bge-small-en-v1.5-q8_0.gguf` | 36,806,944 B (37 MB) | `ec38e8da…60c2f514` | 384 | MIT |
 
@@ -46,7 +46,7 @@ hundred-megabyte native module in every install, for a feature that is off by
 default.
 
 **Why this model.** The candidates were the small retrieval models with
-permissive licences that llama.cpp runs well: BGE small (33 M parameters,
+permissive licenses that llama.cpp runs well: BGE small (33 M parameters,
 MIT), all-MiniLM-L6-v2 (22 M, Apache-2.0), nomic-embed-text (137 M,
 Apache-2.0), EmbeddingGemma (300 M, Gemma terms). BGE small is the smallest
 of them trained for retrieval with a stated query prefix, it places well
@@ -71,7 +71,7 @@ the scope.
 ## Consequences
 
 - Off by default. Turned on, Settings says what would be fetched, from whom,
-  how big and under what licence, before the button exists to press; the
+  how big and under what license, before the button exists to press; the
   fetch is the person's own press, and it is the only network request the
   feature ever makes. Queries, item texts and vectors never leave the machine.
 - No llama.cpp, no semantic search: the Settings line says how to install it,

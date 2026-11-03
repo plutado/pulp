@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.magic-swirl",
   "name": "Magic swirl",
-  "description": "Motes of light turning about a centre on spiral paths, trailing as they go; loops.",
+  "description": "Motes of light turning about a center on spiral paths, trailing as they go; loops.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

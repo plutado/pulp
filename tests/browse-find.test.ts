@@ -37,7 +37,7 @@ describe('matchRank', () => {
 });
 
 describe('findBrowseNodes', () => {
-  it('finds categories, types, folders and the Quick access entries, each labelled with where it lives', () => {
+  it('finds categories, types, folders and the Quick access entries, each labeled with where it lives', () => {
     const favorites = findBrowseNodes(tree, 'fav');
     expect(favorites[0]).toMatchObject({ id: 'favorites', label: 'Favorites', place: 'Quick access', count: 1 });
     expect(findBrowseNodes(tree, 'lower')[0]).toMatchObject({ id: 'category:lower-thirds', label: 'Lower thirds', place: 'Categories' });

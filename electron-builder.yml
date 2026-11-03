@@ -81,7 +81,7 @@ extraResources:
     to: lottie
     filter:
       - lottie_light.min.js
-  # What Pulp is built on, beside the app, as the licences ask.
+  # What Pulp is built on, beside the app, as the licenses ask.
   - from: THIRD_PARTY_NOTICES.md
     to: THIRD_PARTY_NOTICES.md
   - from: LICENSE
@@ -94,7 +94,7 @@ extraResources:
 # is the least Apple Silicon will launch, and which is what lets the hardened runtime be
 # applied at all. (The runtime is a signing option: with signing skipped outright it would be
 # written here and do nothing.) Signing proper is milestone 7, and from here it is the
-# identity changing rather than any behaviour.
+# identity changing rather than any behavior.
 #
 # An ad-hoc build is still quarantined when it is downloaded: Gatekeeper refuses it until it
 # is opened through the Finder's context menu once, or `xattr -dr com.apple.quarantine` is

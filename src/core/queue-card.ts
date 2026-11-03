@@ -59,7 +59,7 @@ function status(job: RenderQueueJob): QueueCardStatus {
       // Warnings are counted here and spelled out in the tooltip: a card is one line.
       return { kind: 'done', text: job.warnings.length > 0 ? `Done · ${frames(job.frame)} · ${job.warnings.length} warning${job.warnings.length === 1 ? '' : 's'}` : `Done · ${frames(job.frame)}` };
     case 'cancelled':
-      return { kind: 'cancelled', text: 'Cancelled' };
+      return { kind: 'cancelled', text: 'Canceled' };
     case 'failed':
       // The one place a path may show: a failure that hides where it happened cannot be acted on.
       return { kind: 'failed', text: job.message ?? 'The render did not finish.' };

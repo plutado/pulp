@@ -43,7 +43,7 @@
       "id": "logo",
       "type": "image",
       "label": "Logo",
-      "description": "A logo at the centre of the iris while it is closed; nothing is drawn without one.",
+      "description": "A logo at the center of the iris while it is closed; nothing is drawn without one.",
       "box": {
         "x": 0.416,
         "y": 0.35,

@@ -19,7 +19,7 @@
     "license": { "type": "string", "minLength": 1, "description": "SPDX identifier for the template itself, e.g. CC0-1.0." },
     "category": { "type": "string", "enum": ["lower-third", "title", "transition", "overlay", "background", "other"] },
     "type": { "$ref": "#/$defs/typeId" },
-    "themes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Built-in theme ids or your own words; normalised like tags." },
+    "themes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Built-in theme ids or your own words; normalized like tags." },
     "styles": { "type": "array", "items": { "$ref": "#/$defs/styleId" } },
     "tags": { "type": "array", "items": { "type": "string" } },
     "duration": { "type": "number", "exclusiveMinimum": 0, "maximum": 600, "description": "Seconds the template was designed at." },

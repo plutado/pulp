@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.newsdesk.end-card",
   "name": "Newsdesk end card",
-  "description": "A navy card with the programme name, a stack of credit lines and two social handles, a red slash cutting through it all.",
+  "description": "A navy card with the program name, a stack of credit lines and two social handles, a red slash cutting through it all.",
   "version": "1.1.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
@@ -28,10 +28,10 @@
     {
       "id": "programme",
       "type": "text",
-      "label": "Programme",
+      "label": "Program",
       "default": "The Evening Report",
       "maxLength": 50,
-      "element": "Programme"
+      "element": "Program"
     },
     {
       "id": "credits",
@@ -93,7 +93,7 @@
       "id": "logo",
       "type": "image",
       "label": "Logo",
-      "description": "A lockup at the top left, above the programme name and the credits, which move down to make room. With none chosen the card is as it always was.",
+      "description": "A lockup at the top left, above the program name and the credits, which move down to make room. With none chosen the card is as it always was.",
       "box": {
         "x": 0.052,
         "y": 0.093,

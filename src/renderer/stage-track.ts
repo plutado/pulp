@@ -17,7 +17,7 @@
  * The frames are decoded in **tiles** (milestone 58, src/core/track-window.ts):
  * ten seconds of a cut's file at a time, around the moment being shown, with
  * the tile ahead fetched before the playhead reaches it. Only the tiles being
- * drawn from are held — the cut under the playhead, its neighbour across a
+ * drawn from are held — the cut under the playhead, its neighbor across a
  * transition, and the one coming next — so a 30-minute track costs what a
  * 30-second one did, and a ten-minute shot previews at all, where a whole
  * window of it was more than a window may hold.
@@ -167,7 +167,7 @@ function window_trackFrames(id: string, tile: Tile): Promise<{ srcs: string[]; f
 /**
  * Let go of every tile the moment is not drawing from and will not within a
  * tile's reach: the budget is the tiles of the cut under the playhead, its
- * neighbour across a transition and the one ahead (TRACK_HELD_FRAMES_BUDGET).
+ * neighbor across a transition and the one ahead (TRACK_HELD_FRAMES_BUDGET).
  */
 function dropFarTiles(keep: Set<string>): void {
   for (const k of [...tiles.keys()]) if (!keep.has(k)) tiles.delete(k);
@@ -234,7 +234,7 @@ function drawCut(index: number, seconds: number, alpha: number): void {
  * Draw what the track shows at a moment, letterboxed into the frame over the
  * pad — and the transition where the moment is inside one (milestone 49): a
  * dissolve blends the two shots exactly as the render's cross-fade does, a
- * dip lays its colour over at the fade's own ramp, and a wipe draws its
+ * dip lays its color over at the fade's own ramp, and a wipe draws its
  * template's frame over the join, its timeline spread across the duration.
  */
 export function trackPictureDraw(seconds: number, frame: { width: number; height: number }): void {
@@ -246,7 +246,7 @@ export function trackPictureDraw(seconds: number, frame: { width: number; height
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   // What this moment and the moments just ahead draw from: the tiles of the cut under the
-  // playhead and, across a transition, its neighbour. Everything else is let go.
+  // playhead and, across a transition, its neighbor. Everything else is let go.
   const keep = new Set<string>();
   const wantedBy = (index: number, source: number) => {
     const cut = shown!.cuts[index];

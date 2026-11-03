@@ -78,7 +78,7 @@ export function layerMenuFacts(input: LayerMenuInput): LayerMenuFacts {
     canEditText: layer?.type === 'text',
     canReplaceImage: layer?.type === 'image',
     canReplaceClip: layer?.type === 'video',
-    // One colour of the layer's own: a line's, or a shape's fill (milestone 55's picking).
+    // One color of the layer's own: a line's, or a shape's fill (milestone 55's picking).
     canExposeColor: layer?.type === 'text' || layer?.type === 'shape',
   };
 }
@@ -162,7 +162,7 @@ export function stageMenu(context: StageMenuContext): MenuItemSpec[] {
       ...(state.canEditText || state.canReplaceImage || state.canReplaceClip ? [sep] : []),
       // Picking a property off the canvas (milestone 55): it becomes a named parameter in the Parameters tab.
       ...(state.canEditText ? [item('layer.exposeText', 'Make Words a Parameter', state)] : []),
-      ...(state.canExposeColor ? [item('layer.exposeColor', 'Make Colour a Parameter', state)] : []),
+      ...(state.canExposeColor ? [item('layer.exposeColor', 'Make Color a Parameter', state)] : []),
       ...(state.canReplaceImage ? [item('layer.exposeImage', 'Make Picture a Parameter', state)] : []),
       ...(state.canEditText || state.canExposeColor || state.canReplaceImage ? [sep] : []),
       item('layer.cut', 'Cut', state),

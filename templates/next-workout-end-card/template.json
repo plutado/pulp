@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.next-workout-end-card",
   "name": "Next Workout",
-  "description": "A week of effort bars that rise into place, the next session flagged at the end. Closes a training vlog or a programme check-in.",
+  "description": "A week of effort bars that rise into place, the next session flagged at the end. Closes a training vlog or a program check-in.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

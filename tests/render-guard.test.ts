@@ -82,7 +82,7 @@ describe('isBlankCapture', () => {
   it('is true only when every pixel is fully transparent', () => {
     // BGRA: the fourth byte of each pixel is the alpha the test reads.
     expect(isBlankCapture(frame([[0, 0, 0, 0], [0, 0, 0, 0]]))).toBe(true);
-    // Colour with no alpha is still nothing drawn — a premultiplied capture leaves it at zero,
+    // Color with no alpha is still nothing drawn — a premultiplied capture leaves it at zero,
     // and an unpremultiplied one is invisible either way.
     expect(isBlankCapture(frame([[9, 9, 9, 0], [0, 0, 0, 0]]))).toBe(true);
     // One opaque pixel anywhere is enough to call the capture real.

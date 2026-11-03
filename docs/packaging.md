@@ -31,13 +31,13 @@ What Pulp reads at run time is copied into the application's `Resources/` instea
 | `examples/` | The example projects the start screen opens as copies |
 | `pdfjs/` | pdf.js's `pdf.min.mjs` and `pdf.worker.min.mjs`, read as text into the sandboxed rasterizer (milestone 33) |
 | `lottie/` | lottie-web's `lottie_light.min.js`, served to a Lottie's own page (milestone 35) |
-| `THIRD_PARTY_NOTICES.md`, `LICENSE` | What Pulp is built on, and its own licence |
+| `THIRD_PARTY_NOTICES.md`, `LICENSE` | What Pulp is built on, and its own license |
 
 **One module knows where they are**: [`src/main/resources.ts`](../src/main/resources.ts) answers for each, in a checkout and in a packaged app alike. `tests/packaging.test.ts` holds the two together — a folder renamed on either side fails there rather than in a download.
 
 ## The icon
 
-Pulp's own mark: a lower third — the thing Pulp makes most — on a dark tile, in the window's own colours. An amber bar stands at the left, a bright bar for the name beside it, a shorter dimmer one for the title under that. At 16 px the three still read as a strap of type.
+Pulp's own mark: a lower third — the thing Pulp makes most — on a dark tile, in the window's own colors. An amber bar stands at the left, a bright bar for the name beside it, a shorter dimmer one for the title under that. At 16 px the three still read as a strap of type.
 
 ```sh
 npm run icon     # redraws build/icon.icns, build/icon.ico and build/icons/*.png
@@ -103,9 +103,9 @@ Nothing is published: the draft waits for someone to read it over and press the 
 
 ## FFmpeg is not in any of them
 
-No installer carries FFmpeg, and the first answer is still the one the README gives: install your own. Where there is none, **Settings → FFmpeg** offers to fetch a build for this machine — which build, from whom, how big and under what licence, all said before the button is pressed. What arrives is hashed as it arrives, refused unless it matches the pinned checksum, run once to prove it starts, and kept in `ffmpeg/` beside the settings, where Pulp looks **last**, after your PATH and `PULP_FFMPEG_PATH`.
+No installer carries FFmpeg, and the first answer is still the one the README gives: install your own. Where there is none, **Settings → FFmpeg** offers to fetch a build for this machine — which build, from whom, how big and under what license, all said before the button is pressed. What arrives is hashed as it arrives, refused unless it matches the pinned checksum, run once to prove it starts, and kept in `ffmpeg/` beside the settings, where Pulp looks **last**, after your PATH and `PULP_FFMPEG_PATH`.
 
-The catalogue is `src/core/ffmpeg-download.ts` and the fetching is `src/main/ffmpeg-service.ts`; why it is a fetch rather than something in the installers — and why an LGPL build in them would be a worse Pulp, quietly — is [decision record 0022](decisions/0022-ffmpeg-fetched-on-request-rather-than-bundled.md).
+The catalog is `src/core/ffmpeg-download.ts` and the fetching is `src/main/ffmpeg-service.ts`; why it is a fetch rather than something in the installers — and why an LGPL build in them would be a worse Pulp, quietly — is [decision record 0022](decisions/0022-ffmpeg-fetched-on-request-rather-than-bundled.md).
 
 ## Checking a build
 

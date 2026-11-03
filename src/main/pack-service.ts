@@ -59,7 +59,7 @@ export interface PackPreviewResult {
   preview: PackPreview;
 }
 
-/** Open dialog for a pack, or null when cancelled. */
+/** Open dialog for a pack, or null when canceled. */
 export async function choosePackFile(): Promise<string | null> {
   const pick = await dialog.showOpenDialog({
     title: 'Import template pack',
@@ -187,7 +187,7 @@ export async function exportPackTo(destination: string, templates: TemplateEntry
   return { bytes: zip.length, templates: templates.length };
 }
 
-/** Save dialog for an exported pack, or null when cancelled. */
+/** Save dialog for an exported pack, or null when canceled. */
 export async function chooseExportFile(suggested: string): Promise<string | null> {
   const save = await dialog.showSaveDialog({
     title: 'Export template pack',

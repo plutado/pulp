@@ -87,7 +87,7 @@
       ctx.fillRect(gx + gwid, bandY, 3 * s, bandH);
     }
 
-    // Colour fringing: thin cyan and magenta lines at the band edges, and a couple drifting elsewhere.
+    // Color fringing: thin cyan and magenta lines at the band edges, and a couple drifting elsewhere.
     if (p.fringe > 0) {
       var fr = Math.max(1, 2 * s);
       ctx.globalAlpha = fade * 0.7 * p.fringe;

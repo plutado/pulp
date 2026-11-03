@@ -73,7 +73,7 @@ export const CLI_SPECS: readonly CliCommandSpec[] = [
       { name: '--aspect', value: '16:9|9:16|1:1|4:5', help: 'One of the shapes the template draws for.' },
       { name: '--size', value: '<width>x<height>', help: 'An exact output size, of the chosen aspect.' },
       { name: '--platform', value: '<platform-id>', help: 'Set the aspect, size, rate and preset a platform asks for (tiktok, instagram-reels, youtube-shorts, youtube, x, linkedin, facebook-feed, instagram-feed) and warn past its limits.' },
-      { name: '--background', value: '#RRGGBB', help: 'The colour an alpha template is flattened over in a preset without alpha (default black).' },
+      { name: '--background', value: '#RRGGBB', help: 'The color an alpha template is flattened over in a preset without alpha (default black).' },
       { name: '--in-point', value: '<tc|frame|Ns>', help: 'First frame to render, at the output rate: timecode, a frame number, or seconds such as 2.5s.' },
       { name: '--out-point', value: '<tc|frame|Ns>', help: 'Last frame to render, inclusive.' },
       { name: '--cover-at', value: '<tc|frame|Ns>', help: 'Write a still of this frame beside the render as <name>-cover.png.' },
@@ -112,7 +112,7 @@ export const CLI_SPECS: readonly CliCommandSpec[] = [
   {
     name: 'sample-media',
     positional: { name: '<folder>', required: true },
-    summary: 'Write the CC0 sample-media catalogue (sounds, music, stills, clips, assets) into a folder, skipping what is there.',
+    summary: 'Write the CC0 sample-media catalog (sounds, music, stills, clips, assets) into a folder, skipping what is there.',
     flags: [
       { name: '--types', value: '<type,type>', help: 'Only these taxonomy types, such as shapes,arrows.' },
       LIBRARY_FLAG,

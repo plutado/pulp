@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.split-tone-vignette-overlay",
   "name": "Split-Tone Vignette",
-  "description": "Cool edges that fall away into a warm centre, held still. Grades a flat shot toward cinema in one layer.",
+  "description": "Cool edges that fall away into a warm center, held still. Grades a flat shot toward cinema in one layer.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
@@ -46,7 +46,7 @@
     {
       "id": "centre",
       "type": "color",
-      "label": "Centre",
+      "label": "Center",
       "default": "#ffb877",
       "element": "Vignette"
     },

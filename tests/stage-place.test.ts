@@ -25,10 +25,10 @@ const layer = (id: string, box: { x: number; y: number; width: number; height: n
 const FRAME = { width: 1920, height: 1080 };
 
 describe('placedBox', () => {
-  it('moves the slot by the draw and scales it about its centre', () => {
+  it('moves the slot by the draw and scales it about its center', () => {
     expect(placedBox(layer('a', { x: 100, y: 200, width: 200, height: 100 }))).toEqual({ x: 100, y: 200, width: 200, height: 100 });
     expect(placedBox(layer('a', { x: 100, y: 200, width: 200, height: 100 }, { dx: 50, dy: -20 }))).toEqual({ x: 150, y: 180, width: 200, height: 100 });
-    // Scaling doubles about the centre: the middle stays put.
+    // Scaling doubles about the center: the middle stays put.
     const scaled = placedBox(layer('a', { x: 100, y: 200, width: 200, height: 100 }, { scale: 2 }));
     expect(scaled).toEqual({ x: 0, y: 150, width: 400, height: 200 });
   });
@@ -69,7 +69,7 @@ describe('hitLayer', () => {
 
 describe('snapping', () => {
   const block = { x: 192, y: 108, width: 960, height: 540 };
-  it('offers the centre lines, both safe areas and the block edges', () => {
+  it('offers the center lines, both safe areas and the block edges', () => {
     const lines = snapLines(FRAME, block);
     expect(lines.x).toContain(960);
     expect(lines.y).toContain(540);
@@ -80,8 +80,8 @@ describe('snapping', () => {
     expect(lines.x).toContain(192);
     expect(lines.x).toContain(192 + 960);
   });
-  it('snaps the nearest edge or centre inside the threshold, each axis on its own', () => {
-    // A box whose centre is 6 px left of the frame's centre line: it snaps right by 6.
+  it('snaps the nearest edge or center inside the threshold, each axis on its own', () => {
+    // A box whose center is 6 px left of the frame's center line: it snaps right by 6.
     const near = { x: 960 - 100 - 6, y: 300, width: 200, height: 100 };
     const snap = snapMove(near, FRAME, block, 8);
     expect(snap.dx).toBe(6);
@@ -99,11 +99,11 @@ describe('snapping', () => {
 });
 
 describe('scaleFromDrag', () => {
-  it('scales by the pointer\'s distance from the centre, proportions kept by construction', () => {
+  it('scales by the pointer\'s distance from the center, proportions kept by construction', () => {
     const centre = { x: 500, y: 500 };
     expect(scaleFromDrag({ x: 600, y: 500 }, { x: 700, y: 500 }, centre, 1)).toBe(2);
     expect(scaleFromDrag({ x: 700, y: 500 }, { x: 600, y: 500 }, centre, 2)).toBe(1);
-    // A degenerate start at the centre changes nothing rather than exploding.
+    // A degenerate start at the center changes nothing rather than exploding.
     expect(scaleFromDrag(centre, { x: 900, y: 500 }, centre, 1.5)).toBe(1.5);
   });
 });
@@ -115,17 +115,17 @@ describe('a turned layer (milestone 29)', () => {
     expect(a.y).toBeCloseTo(b.y, 6);
   };
 
-  it('keeps its centre and its size, and turns its corners about that centre', () => {
+  it('keeps its center and its size, and turns its corners about that center', () => {
     const turned = layer('a', box, { rotate: 90 });
     // The box a drag works in is the unturned one; the quad is where it was really drawn.
     expect(placedBox(turned)).toEqual(box);
     near(placedCentre(turned), { x: 200, y: 250 });
     const quad = placedQuad(turned);
     expect(quad).toHaveLength(4);
-    // A quarter turn clockwise takes the top-left corner to the top-right of the centre.
+    // A quarter turn clockwise takes the top-left corner to the top-right of the center.
     near(quad[0]!, { x: 250, y: 150 });
     near(quad[2]!, { x: 150, y: 350 });
-    // Every corner stays its own distance from the centre: a turn is not a resize.
+    // Every corner stays its own distance from the center: a turn is not a resize.
     for (const corner of quad) {
       expect(Math.hypot(corner.x - 200, corner.y - 250)).toBeCloseTo(Math.hypot(100, 50), 6);
     }
@@ -141,7 +141,7 @@ describe('a turned layer (milestone 29)', () => {
     expect(quarter.width).toBeCloseTo(100, 6);
     expect(quarter.height).toBeCloseTo(200, 6);
     near({ x: quarter.x + quarter.width / 2, y: quarter.y + quarter.height / 2 }, { x: 200, y: 250 });
-    // At 45° it is wider than either side, and still centred on the same point.
+    // At 45° it is wider than either side, and still centered on the same point.
     const diagonal = placedBounds(layer('a', box, { rotate: 45 }));
     expect(diagonal.width).toBeCloseTo(Math.SQRT1_2 * (200 + 100), 6);
     near({ x: diagonal.x + diagonal.width / 2, y: diagonal.y + diagonal.height / 2 }, { x: 200, y: 250 });
@@ -155,7 +155,7 @@ describe('a turned layer (milestone 29)', () => {
     // Turned a quarter, the layer is tall and narrow about (200, 250).
     expect(hitLayer(laid, 200, 330)).toEqual({ block: 'card', id: 'turned' });
     expect(hitLayer(laid, 290, 250), 'outside the turned shape, inside the unturned box').toBeNull();
-    expect(hitLayer(laid, 200, 250), 'the centre is always inside').toEqual({ block: 'card', id: 'turned' });
+    expect(hitLayer(laid, 200, 250), 'the center is always inside').toEqual({ block: 'card', id: 'turned' });
     // The tolerance still widens it, in the layer's own frame.
     expect(hitLayer(laid, 200, 356)).toBeNull();
     expect(hitLayer(laid, 200, 356, 10)).toEqual({ block: 'card', id: 'turned' });
@@ -186,8 +186,8 @@ describe('a turned layer (milestone 29)', () => {
     expect(bounds.x + bounds.width / 2).toBeCloseTo(100, 6);
     // Without an ink box — a page too old to report one — the slot is all there is to go on.
     near(placedCentre({ ...line, ink: undefined }), { x: 500, y: 125 });
-    // The offset and the scale move that centre, as they move everything else.
-    // Scaling is about the slot's centre (500, 125), so the ink centre at (100, 125) is pushed
+    // The offset and the scale move that center, as they move everything else.
+    // Scaling is about the slot's center (500, 125), so the ink center at (100, 125) is pushed
     // twice as far from it, and the offset moves everything: 500 + 40 + (100 - 500) * 2 = -260.
     near(placedCentre({ ...line, draw: { alpha: 1, dx: 40, dy: 10, scale: 2, rotate: 0 } }), { x: -260, y: 135 });
     near(placedPoint(line, { x: 500, y: 125 }), { x: 500, y: 125 });

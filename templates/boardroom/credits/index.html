@@ -78,7 +78,7 @@
       window.pulpDrawImage(ctx, state, 'logo', { x: cx - 120 * s, y: margin, width: 240 * s, height: lockH });
     }
 
-    // Fixed title in spaced capitals with a hairline that draws out from the centre beneath it.
+    // Fixed title in spaced capitals with a hairline that draws out from the center beneath it.
     var titleSize = 30 * s;
     var caps = (p.title || '').toUpperCase().split('').join(' ');
     fitFont(caps, '600 ', titleSize, maxW);
@@ -115,7 +115,7 @@
       var a = edge * show;
       if (a <= 0) continue;
 
-      // Role: spaced capitals in the accent, right of centre gap.
+      // Role: spaced capitals in the accent, right of center gap.
       var role = rows[i].role.toUpperCase().split('').join(' ');
       ctx.globalAlpha = a * 0.9;
       ctx.fillStyle = p.accent;
@@ -132,7 +132,7 @@
     }
     ctx.restore();
 
-    // A short hairline tick marks the centre gap, drawn across the roll's full height.
+    // A short hairline tick marks the center gap, drawn across the roll's full height.
     ctx.globalAlpha = show * 0.35;
     ctx.fillStyle = p.accent;
     ctx.fillRect(cx - 0.5 * s, top, 1 * s, (bottom - top) * show);

@@ -59,7 +59,7 @@
     window.pulpDrawBlock(ctx, card);
 
     var first = card.layers[0];
-    // A chosen logo is a mark centred above the first line, fading with it. With no logo the slot
+    // A chosen logo is a mark centered above the first line, fading with it. With no logo the slot
     // falls back to that line's text, already set, so nothing changes.
     if (state.images && state.images.logo && state.images.logo.bitmap && first.lines.length) {
       var mark = 110 * s;
@@ -70,7 +70,7 @@
       ctx.globalAlpha = 1;
     }
 
-    // The rule sits under the first line and grows from the centre, so it follows the stack.
+    // The rule sits under the first line and grows from the center, so it follows the stack.
     var ruleW = 360 * s * easeInOutSine(clamp01((t - 0.3) / 1.2)) * (1 - fadeOut);
     ctx.globalAlpha = 1;
     ctx.fillStyle = p.rule;

@@ -29,7 +29,7 @@ import { appState } from './store';
 
 /** A dropped clip's height as a fraction of the frame's short side: a corner's worth, not the frame's. */
 export const PIP_SIZE = 0.3;
-/** Where a dropped clip lands, as fractions of the frame from its centre: the top right corner, clear of a lower third. */
+/** Where a dropped clip lands, as fractions of the frame from its center: the top right corner, clear of a lower third. */
 export const PIP_PLACE = { dx: 0.28, dy: -0.24 } as const;
 
 interface PipEl {

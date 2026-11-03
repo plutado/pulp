@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.diagonal-bands",
   "name": "Diagonal bands",
-  "description": "Wide diagonal bands in three colours of unequal widths with soft edges; the angle sets their slant and the scale their width.",
+  "description": "Wide diagonal bands in three colors of unequal widths with soft edges; the angle sets their slant and the scale their width.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

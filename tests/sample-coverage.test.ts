@@ -1,7 +1,7 @@
 /**
  * Milestone 24's rule: every type, theme and style in the browse tree has at
  * least **six** examples across the bundled templates and the sample-media
- * catalogue, and no upper limit — a category people reach for may go as deep
+ * catalog, and no upper limit — a category people reach for may go as deep
  * as it likes. (Milestone 21's band was three to five; the upper bound was
  * never the point, and this milestone removed it and raised the floor.)
  * Milestone 36 raised the floor for **types** to **ten**: a type with six
@@ -36,7 +36,7 @@ const TYPES_STILL_OPEN = new Set<string>([]);
  * Milestone 36's floors for the browse panel's top categories that read as empty at six: the
  * most used first. Keyed by the category (src/core/categories.ts), since a category may gather
  * several types — Still backgrounds holds the still backgrounds and the textures — and counted
- * the same way as everything here, over the templates and the catalogue together. These only
+ * the same way as everything here, over the templates and the catalog together. These only
  * rise, and a category checked here never slips back under its floor. The two background
  * categories reached the decided 32 first (generated loops, stills and textures); the three
  * template categories' floors rise with their batches.
@@ -54,7 +54,7 @@ export const CATEGORY_FLOORS: Record<string, number> = {
 /**
  * Milestone 44: Still backgrounds is at least this deep out of the box — bundled templates alone,
  * with no sample media made — so the one large category that was in single digits at first launch
- * is not. Counted over the templates only; the category floor above counts the catalogue too.
+ * is not. Counted over the templates only; the category floor above counts the catalog too.
  */
 export const BUNDLED_CATEGORY_FLOORS: Record<string, number> = {
   'still-backgrounds': 32,
@@ -79,7 +79,7 @@ export const BUNDLED_SUBTYPE_FLOORS: Record<string, number> = {
 
 /**
  * Milestone 36's second batch: every generated type — the stills, music, sound effects, clips
- * and assets the catalogue draws and synthesizes, and the two background types it shares with
+ * and assets the catalog draws and synthesizes, and the two background types it shares with
  * the bundled templates — is at least ten deep, counted as everything here is. The floor is the
  * groups', so a type added to one of these groups starts at ten rather than six.
  */
@@ -102,7 +102,7 @@ const STYLES_STILL_OPEN = new Set<string>([]);
 
 const index = await scanLibrary([TEMPLATES_DIR]);
 
-/** How many samples carry each type, theme and style: the templates and the catalogue together. */
+/** How many samples carry each type, theme and style: the templates and the catalog together. */
 function tally(): { types: Map<string, number>; themes: Map<string, number>; styles: Map<string, number> } {
   const types = new Map<string, number>();
   const themes = new Map<string, number>();
@@ -159,12 +159,12 @@ describe('every category is at least its floor deep', () => {
     expect(bundled.length, `${typeInfo(id)?.label ?? id}: ${bundled.length} bundled templates`).toBeGreaterThanOrEqual(floor);
   });
 
-  it('gives every bundled object its colours and a light entrance, draws it on transparency, and lets it be placed as a layer (milestone 46)', () => {
+  it('gives every bundled object its colors and a light entrance, draws it on transparency, and lets it be placed as a layer (milestone 46)', () => {
     const objects = index.templates.filter((t) => categoryInfo('objects')!.types.includes(entryType(t) ?? ''));
     expect(objects.length).toBeGreaterThanOrEqual(32);
     for (const t of objects) {
       const params = t.manifest.parameters;
-      expect(params.filter((p) => p.type === 'color').length, `${t.manifest.id} has a colour to change`).toBeGreaterThanOrEqual(1);
+      expect(params.filter((p) => p.type === 'color').length, `${t.manifest.id} has a color to change`).toBeGreaterThanOrEqual(1);
       const entrance = params.find((p) => p.id === 'entrance');
       expect(entrance?.type, `${t.manifest.id} has an entrance`).toBe('select');
       const choices = (entrance as { options?: { value: string }[] } | undefined)?.options?.map((o) => o.value) ?? [];
@@ -176,7 +176,7 @@ describe('every category is at least its floor deep', () => {
     }
   });
 
-  it('gives every bundled effect its colour, speed, density and size, and alpha to lay it over anything (milestone 45)', () => {
+  it('gives every bundled effect its color, speed, density and size, and alpha to lay it over anything (milestone 45)', () => {
     const effects = index.templates.filter((t) => categoryInfo('effects')!.types.includes(entryType(t) ?? ''));
     expect(effects.length).toBeGreaterThanOrEqual(32);
     for (const t of effects) {
@@ -200,7 +200,7 @@ describe('every category is at least its floor deep', () => {
   const generated = [...TYPES.filter((t) => GENERATED_GROUPS.has(t.group)).map((t) => t.id), ...GENERATED_EXTRA_TYPES];
   it.each(generated)(`the generated type %s is at least ${GENERATED_MINIMUM} deep (milestone 36)`, (type) => {
     expect(typeInfo(type), type).toBeDefined();
-    expect(counts.types.get(type) ?? 0, `${typeInfo(type)?.label}: a generated type the catalogue can always deepen`).toBeGreaterThanOrEqual(GENERATED_MINIMUM);
+    expect(counts.types.get(type) ?? 0, `${typeInfo(type)?.label}: a generated type the catalog can always deepen`).toBeGreaterThanOrEqual(GENERATED_MINIMUM);
   });
 
   it('has no upper limit: a category may run as deep as it likes', () => {

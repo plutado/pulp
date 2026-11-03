@@ -10,4 +10,4 @@ Check a download against `SHA256SUMS.txt`, attached here with the files.
 
 ### FFmpeg
 
-Pulp renders with FFmpeg and does not ship it. Install your own — `brew install ffmpeg`, `winget install Gyan.FFmpeg`, or your package manager — or let Pulp fetch a build for you: **Settings → FFmpeg → Download FFmpeg**, which says what it would fetch, from whom, how big it is and under what licence before anything is fetched (decision record 0022).
+Pulp renders with FFmpeg and does not ship it. Install your own — `brew install ffmpeg`, `winget install Gyan.FFmpeg`, or your package manager — or let Pulp fetch a build for you: **Settings → FFmpeg → Download FFmpeg**, which says what it would fetch, from whom, how big it is and under what license before anything is fetched (decision record 0022).

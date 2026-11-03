@@ -1388,10 +1388,10 @@ export const ASSET_PAGE = page(
   `
   var U, T, D, P;
   function rgba(c, a) { return 'rgba(' + c + ',' + a.toFixed(3) + ')'; }
-  function blob(x, y, r, colour, alpha) {
+  function blob(x, y, r, color, alpha) {
     var g = ctx.createRadialGradient(x, y, 0, x, y, Math.max(1, r));
-    g.addColorStop(0, rgba(colour, alpha));
-    g.addColorStop(1, rgba(colour, 0));
+    g.addColorStop(0, rgba(color, alpha));
+    g.addColorStop(1, rgba(color, 0));
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(x, y, Math.max(1, r), 0, Math.PI * 2); ctx.fill();
   }
@@ -1730,11 +1730,11 @@ export const FOOTAGE_PAGE = page(
         var x = toward ? f * 1.2 * W - W * 0.1 : W * 1.1 - f * 1.2 * W;
         var y = H * (toward ? 0.84 : 0.73) + hash(carr + 8) * H * 0.05;
         var r = H * (toward ? 0.012 : 0.009);
-        var colour = toward ? '255,90,80' : '255,235,200';
+        var color = toward ? '255,90,80' : '255,235,200';
         var g2 = ctx.createRadialGradient(x, y, 0, x, y, r * 5);
-        g2.addColorStop(0, 'rgba(' + colour + ',0.9)'); g2.addColorStop(1, 'rgba(' + colour + ',0)');
+        g2.addColorStop(0, 'rgba(' + color + ',0.9)'); g2.addColorStop(1, 'rgba(' + color + ',0)');
         ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(x, y, r * 5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'rgba(' + colour + ',1)';
+        ctx.fillStyle = 'rgba(' + color + ',1)';
         ctx.fillRect(x - r * 2.4, y - r * 0.7, r * 1.4, r * 1.4); ctx.fillRect(x + r, y - r * 0.7, r * 1.4, r * 1.4);
       }
     },
@@ -1858,10 +1858,10 @@ export const LOOPS_PAGE = page(
     for (var i = 0; i < stops.length; i++) g.addColorStop(i / (stops.length - 1), stops[i]);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
-  function soft(x, y, r, colour, alpha) {
+  function soft(x, y, r, color, alpha) {
     var g = ctx.createRadialGradient(x, y, 0, x, y, Math.max(1, r));
-    g.addColorStop(0, 'rgba(' + colour + ',' + alpha.toFixed(3) + ')');
-    g.addColorStop(1, 'rgba(' + colour + ',0)');
+    g.addColorStop(0, 'rgba(' + color + ',' + alpha.toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(' + color + ',0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, Math.max(1, r), 0, Math.PI * 2); ctx.fill();
   }
   var DRAW = {

@@ -600,7 +600,7 @@ export const BRIDGE_SCRIPT = `(function () {
     var n = parseInt(h.slice(0, 6), 16);
     return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1 };
   }
-  /* A colour washed part way toward another: how a tint lands on type, which has one fill. */
+  /* A color washed part way toward another: how a tint lands on type, which has one fill. */
   function mixHex(from, toward, t) {
     var a = hexChannels(from), b = hexChannels(toward);
     if (!a || !b) return from;
@@ -627,13 +627,13 @@ export const BRIDGE_SCRIPT = `(function () {
     if (scratch.width !== width || scratch.height !== height) { scratch.width = width; scratch.height = height; }
     return scratch;
   }
-  /* The transforms a frame gave a layer: its offset, its scale and its angle about its own centre,
+  /* The transforms a frame gave a layer: its offset, its scale and its angle about its own center,
      and the part of it a wipe has uncovered. Milestones 25, 29 and 28. */
   function placeLayer(ctx, layer, d) {
     var cx = layer.box.x + layer.box.width / 2, cy = layer.box.y + layer.box.height / 2;
     ctx.translate((d.dx || 0), (d.dy || 0));
-    /* The scale and the angle are both about the layer's own centre (milestone 29), so they
-       compose in either order; the offset above has already moved that centre. */
+    /* The scale and the angle are both about the layer's own center (milestone 29), so they
+       compose in either order; the offset above has already moved that center. */
     if (d.scale !== undefined && d.scale !== 1) { ctx.translate(cx, cy); ctx.scale(d.scale, d.scale); ctx.translate(-cx, -cy); }
     if (d.rotate) {
       /* About what the layer draws, not the slot it sits in: a line aligned in a wide block
@@ -812,7 +812,7 @@ export const BRIDGE_SCRIPT = `(function () {
     return true;
   }
   /* Type, filled or stroked (for an outline), with its letter spacing by hand so it behaves the
-     same in every Chromium version. A colour given replaces the layer's own fill, for a tint. */
+     same in every Chromium version. A color given replaces the layer's own fill, for a tint. */
   function drawTextLayer(ctx, layer, mode, color) {
     var spacingEm = layer.draw && layer.draw.letterSpacing !== undefined ? layer.draw.letterSpacing : layer.letterSpacing;
     var spacing = spacingEm * layer.size;

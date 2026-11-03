@@ -269,7 +269,7 @@ export function layerAudioChain(inputIndex: number, layer: AudioLayer, label: st
   // The voice treatment (milestone 53) runs on the file's own clock, straight after the trim:
   // before a clip's speed, as the preview hears it, before the loop so one pass is treated once,
   // before the volume so the compressor sees the level as recorded — and so before milestone 52's
-  // loudness levelling, which measures the treated mix and still lands the target.
+  // loudness leveling, which measures the treated mix and still lands the target.
   if (layer.kind === 'sound') {
     const { from, to } = soundWindow(layer.value, layer.source);
     // A cut's sound at a speed (milestone 56) is retimed as a clip's is: `atempo` changes the
@@ -316,7 +316,7 @@ export function layerAudioFilter(
   layers: readonly AudioLayer[],
   timing: { fps: number; firstFrame: number; totalFrames: number; length: number },
   firstInputIndex: number,
-  /** A levelling stage after the cut (milestone 52), so what is levelled is exactly what is written. */
+  /** A leveling stage after the cut (milestone 52), so what is leveled is exactly what is written. */
   level?: string,
   /** A tag on every label, so several mixes can live in one graph (milestone 16's stems). */
   suffix = '',
@@ -335,7 +335,7 @@ export function layerAudioFilter(
 
 // ---------------------------------------------------------------- loudness (milestone 52)
 
-/** What a mix is levelled to: integrated loudness and the true-peak ceiling, as a platform preset sets them. */
+/** What a mix is leveled to: integrated loudness and the true-peak ceiling, as a platform preset sets them. */
 export interface LoudnessTarget {
   /** Integrated loudness, LUFS (EBU R128). */
   lufs: number;
@@ -377,7 +377,7 @@ export function loudnormFilter(target: LoudnessTarget, measured?: MixLoudness): 
 /**
  * ffmpeg arguments that run the mix to nowhere and print what EBU R128
  * measured of it, as JSON on stderr: `loudnorm`'s first pass. The transport
- * row's meter and a levelled render's second pass both read it, so the meter
+ * row's meter and a leveled render's second pass both read it, so the meter
  * shows the loudness the render will start from.
  */
 export function measureMixArgs(layers: readonly AudioLayer[], timing: { fps: number; firstFrame: number; totalFrames: number; length: number }): string[] {
@@ -506,8 +506,8 @@ export function stemOutputPath(output: string, label: string, index: number): st
  * `<name>-<stem>.wav` as a further output of the same command. Used when the
  * person asked for the music as files rather than in the mix, so an editor
  * can remix what Pulp placed; the rest of the mix is `applyLayerAudio`'s
- * business and is untouched here. No levelling: a stem handed to a mixer is
- * wanted as placed, not normalised on its own.
+ * business and is untouched here. No leveling: a stem handed to a mixer is
+ * wanted as placed, not normalized on its own.
  */
 export function applyStemAudio(plan: RenderPlan, stems: readonly { layer: SoundAudioLayer; label: string }[]): RenderPlan {
   const audible = stems.filter((s) => audibleLayers([s.layer], plan.length).length > 0);

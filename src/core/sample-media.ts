@@ -1,5 +1,5 @@
 /**
- * The sample-media catalogue (milestone 21): original CC0 media files that a
+ * The sample-media catalog (milestone 21): original CC0 media files that a
  * library can be filled with on demand, so the browse tree's media types —
  * video clips, stills, music, sound effects — and the picture-friendly types
  * among the backgrounds, overlays and design elements are each at least six
@@ -17,7 +17,7 @@
  * - **clip**: one of the bundled background templates rendered to H.264.
  *
  * This module is pure. The main-process service runs the recipes; the tests
- * check the catalogue against the type inference and the six-deep floor.
+ * check the catalog against the type inference and the six-deep floor.
  */
 
 import { STILL_PAGES } from './sample-stills';
@@ -89,7 +89,7 @@ function tone(f: number, harmonics = 1, time = 't'): string {
   return `(${parts.join('+')})`;
 }
 
-/** A bell-shaped loudness curve centred at `c` with width `w` seconds. */
+/** A bell-shaped loudness curve centered at `c` with width `w` seconds. */
 function bell(c: number, w: number): string {
   return `exp(-pow((t-${num(c)})/${num(w)},2))`;
 }
@@ -987,7 +987,7 @@ const STILLS: SampleMediaItem[] = [
   { folder: ['Stills', 'Layered graphics'], file: 'tag-label.png', type: 'layered-graphic', note: 'A tag-shaped label on a transparent background.', recipe: { kind: 'still', page: 'layered', variant: 'tag', format: 'png', width: 1920, height: 1080 } },
 
   // ---- Milestone 36: every stills type to ten.
-  { folder: ['Stills', 'Photos'], file: 'storm-front.jpg', type: 'photo', note: 'A photo-style storm sky in slate greys.', recipe: { kind: 'still', page: 'photo', variant: 'storm', format: 'jpg', width: 1920, height: 1080 } },
+  { folder: ['Stills', 'Photos'], file: 'storm-front.jpg', type: 'photo', note: 'A photo-style storm sky in slate grays.', recipe: { kind: 'still', page: 'photo', variant: 'storm', format: 'jpg', width: 1920, height: 1080 } },
   { folder: ['Stills', 'Photos'], file: 'meadow-morning.jpg', type: 'photo', note: 'A photo-style meadow under a bright morning sky.', recipe: { kind: 'still', page: 'photo', variant: 'meadow', format: 'jpg', width: 1920, height: 1080 } },
   { folder: ['Stills', 'Photos'], file: 'golden-coast.jpg', type: 'photo', note: 'A photo-style coastline in golden evening light.', recipe: { kind: 'still', page: 'photo', variant: 'coast', format: 'jpg', width: 1920, height: 1080 } },
   { folder: ['Stills', 'Photos'], file: 'clear-night.jpg', type: 'photo', note: 'A photo-style clear night with a bright moon.', recipe: { kind: 'still', page: 'photo', variant: 'night', format: 'jpg', width: 1920, height: 1080 } },
@@ -1004,13 +1004,13 @@ const STILLS: SampleMediaItem[] = [
   // ---- Milestone 24: overlay plates, backdrops and design elements, as stills.
   { folder: ['Backgrounds'], file: 'mesh-gradient.png', type: 'still-background', note: 'A deep blue mesh gradient with soft blooms.', recipe: { kind: 'still', page: 'backdrop', variant: 'mesh-gradient', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Backgrounds'], file: 'paper-grain.png', type: 'still-background', note: 'A warm paper ground with fine grain.', recipe: { kind: 'still', page: 'backdrop', variant: 'paper-grain', format: 'png', width: 1920, height: 1080 } },
-  { folder: ['Backgrounds'], file: 'dusk-bands.png', type: 'still-background', note: 'Banded dusk colours from violet to amber.', recipe: { kind: 'still', page: 'backdrop', variant: 'dusk-bands', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Backgrounds'], file: 'dusk-bands.png', type: 'still-background', note: 'Banded dusk colors from violet to amber.', recipe: { kind: 'still', page: 'backdrop', variant: 'dusk-bands', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Textures'], file: 'canvas-weave.png', type: 'texture', note: 'A woven canvas texture.', recipe: { kind: 'still', page: 'backdrop', variant: 'canvas-weave', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Textures'], file: 'concrete.png', type: 'texture', note: 'A mottled concrete texture.', recipe: { kind: 'still', page: 'backdrop', variant: 'concrete', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Textures'], file: 'noise-grid.png', type: 'texture', note: 'A sparse lit grid on near-black.', recipe: { kind: 'still', page: 'backdrop', variant: 'noise-grid', format: 'png', width: 1920, height: 1080 } },
   // ---- Milestone 36: still backgrounds and textures to ten, counted with the bundled templates.
   { folder: ['Backgrounds'], file: 'spotlight-wall.png', type: 'still-background', note: 'A dark wall under one warm spotlight.', recipe: { kind: 'still', page: 'backdrop', variant: 'spotlight-wall', format: 'png', width: 1920, height: 1080 } },
-  { folder: ['Backgrounds'], file: 'duotone-split.png', type: 'still-background', note: 'Two flat colours split on a diagonal.', recipe: { kind: 'still', page: 'backdrop', variant: 'duotone-split', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Backgrounds'], file: 'duotone-split.png', type: 'still-background', note: 'Two flat colors split on a diagonal.', recipe: { kind: 'still', page: 'backdrop', variant: 'duotone-split', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Backgrounds'], file: 'bokeh-dark.png', type: 'still-background', note: 'Warm and cool bokeh on near-black.', recipe: { kind: 'still', page: 'backdrop', variant: 'bokeh-dark', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Backgrounds'], file: 'horizon-glow.png', type: 'still-background', note: 'A glowing horizon band between dark skies.', recipe: { kind: 'still', page: 'backdrop', variant: 'horizon-glow', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Textures'], file: 'brushed-metal.png', type: 'texture', note: 'A brushed-metal sheet with fine streaks.', recipe: { kind: 'still', page: 'backdrop', variant: 'brushed-metal', format: 'png', width: 1920, height: 1080 } },
@@ -1029,7 +1029,7 @@ const STILLS: SampleMediaItem[] = [
   { folder: ['Textures'], file: 'dot-grid.png', type: 'texture', note: 'A fine dot grid on paper.', recipe: { kind: 'still', page: 'backdrop', variant: 'dot-grid', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Textures'], file: 'crosshatch.png', type: 'texture', note: 'Hand-drawn crosshatching in ink.', recipe: { kind: 'still', page: 'backdrop', variant: 'crosshatch', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Textures'], file: 'leather.png', type: 'texture', note: 'Creased leather in deep brown.', recipe: { kind: 'still', page: 'backdrop', variant: 'leather', format: 'png', width: 1920, height: 1080 } },
-  { folder: ['Textures'], file: 'carbon-weave.png', type: 'texture', note: 'A carbon-fibre weave with a sheen.', recipe: { kind: 'still', page: 'backdrop', variant: 'carbon-weave', format: 'png', width: 1920, height: 1080 } },
+  { folder: ['Textures'], file: 'carbon-weave.png', type: 'texture', note: 'A carbon-fiber weave with a sheen.', recipe: { kind: 'still', page: 'backdrop', variant: 'carbon-weave', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Overlays', 'Frames'], file: 'frame-thin.png', type: 'frame', note: 'A thin double rule framing the frame.', recipe: { kind: 'still', page: 'overlay', variant: 'frame-thin', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Overlays', 'Frames'], file: 'frame-corners.png', type: 'frame', note: 'Gold corner marks, as a viewfinder.', recipe: { kind: 'still', page: 'overlay', variant: 'frame-corners', format: 'png', width: 1920, height: 1080 } },
   { folder: ['Overlays', 'Frames'], file: 'frame-deco.png', type: 'frame', note: 'A bordered frame with corner dots.', recipe: { kind: 'still', page: 'overlay', variant: 'frame-deco', format: 'png', width: 1920, height: 1080 } },
@@ -1072,7 +1072,7 @@ const STILLS: SampleMediaItem[] = [
   { folder: ['Design elements', 'Icons', 'Space'], file: 'ringed-planet.png', type: 'icons', note: 'A ringed planet.', recipe: { kind: 'still', page: 'motif', variant: 'planet-ring', format: 'png', width: 1080, height: 1080 } },
   { folder: ['Design elements', 'Icons', 'Baseball'], file: 'diamond.png', type: 'icons', note: 'A ball field from above.', recipe: { kind: 'still', page: 'motif', variant: 'baseball-diamond', format: 'png', width: 1080, height: 1080 } },
   { folder: ['Design elements', 'Icons', 'Baseball'], file: 'pennant.png', type: 'icons', note: 'A team pennant on its pole.', recipe: { kind: 'still', page: 'motif', variant: 'pennant', format: 'png', width: 1080, height: 1080 } },
-  { folder: ['Design elements', 'Icons', 'Hockey'], file: 'rink.png', type: 'icons', note: 'A rink with centre line and face-off circle.', recipe: { kind: 'still', page: 'motif', variant: 'hockey-rink', format: 'png', width: 1080, height: 1080 } },
+  { folder: ['Design elements', 'Icons', 'Hockey'], file: 'rink.png', type: 'icons', note: 'A rink with center line and face-off circle.', recipe: { kind: 'still', page: 'motif', variant: 'hockey-rink', format: 'png', width: 1080, height: 1080 } },
   { folder: ['Design elements', 'Icons', 'Hockey'], file: 'goalie-mask.png', type: 'icons', note: 'A goalie mask.', recipe: { kind: 'still', page: 'motif', variant: 'goalie-mask', format: 'png', width: 1080, height: 1080 } },
   { folder: ['Design elements', 'Icons', 'Golf'], file: 'pin-flag.png', type: 'icons', note: 'The pin and its flag over a cup.', recipe: { kind: 'still', page: 'motif', variant: 'golf-flag', format: 'png', width: 1080, height: 1080 } },
   { folder: ['Design elements', 'Icons', 'Golf'], file: 'green.png', type: 'icons', note: 'A green with the pin and a ball.', recipe: { kind: 'still', page: 'motif', variant: 'golf-green', format: 'png', width: 1080, height: 1080 } },
@@ -1171,7 +1171,7 @@ const CLIPS: SampleMediaItem[] = [
   // by the loops page; every one is periodic in its progress, so the clip loops seamlessly.
   ...([
     ['gradient-sweep', 'A deep blue gradient whose hues slowly turn.'],
-    ['nebula-drift', 'Nebula colours drifting over a starred dark.'],
+    ['nebula-drift', 'Nebula colors drifting over a starred dark.'],
     ['light-sweep', 'A soft light bar sweeping a dark panel.'],
     ['wave-lines', 'A field of fine sine lines rolling.'],
     ['particle-rise', 'Warm motes rising through violet dusk.'],
@@ -1185,7 +1185,7 @@ const CLIPS: SampleMediaItem[] = [
     ['dot-matrix', 'Amber dots pulsing across a dark board.'],
     ['ribbon-flow', 'Teal ribbons undulating across the frame.'],
     ['gradient-breathe', 'A green glow breathing over a quiet field.'],
-    ['circuit-trace', 'Pulses travelling along circuit paths.'],
+    ['circuit-trace', 'Pulses traveling along circuit paths.'],
     ['ripple-sheen', 'Rings of light opening over deep teal water.'],
     ['halftone-wave', 'A halftone wave rolling across cream.'],
     ['kaleido-turn', 'A kaleidoscope of violet discs turning.'],
@@ -1322,7 +1322,7 @@ const ASSETS: SampleMediaItem[] = [
   asset(['Sports equipment', 'Tennis'], 'sports-objects', 'tennis-racket', 'A tennis racket.'),
   asset(['Sports equipment', 'Tennis'], 'sports-objects', 'tennis-net', 'A tennis net.'),
   asset(['Sports equipment', 'Motorsport'], 'sports-objects', 'checkered-flag-wave', 'A checkered flag waving; loops.', 'square', 'loop'),
-  asset(['Sports equipment', 'Motorsport'], 'sports-objects', 'racing-tyre', 'A racing tyre.'),
+  asset(['Sports equipment', 'Motorsport'], 'sports-objects', 'racing-tyre', 'A racing tire.'),
   asset(['Sports equipment', 'Motorsport'], 'sports-objects', 'racing-helmet', 'A racing helmet.'),
   asset(['Sports equipment', 'Fitness'], 'sports-objects', 'dumbbell-pair', 'A pair of dumbbells.'),
   asset(['Sports equipment', 'Fitness'], 'sports-objects', 'kettlebell', 'A kettlebell.'),
@@ -1418,7 +1418,7 @@ const ASSETS: SampleMediaItem[] = [
   asset(['Nature objects', 'Weather'], 'nature-objects', 'rainbow-arc', 'A rainbow.', 'wide'),
   asset(['Nature objects', 'Weather'], 'nature-objects', 'umbrella-open', 'An open umbrella.'),
   // Travel objects
-  asset(['Travel objects', 'Travel'], 'travel-objects', 'aeroplane-fly', 'An aeroplane flying by; loops.', 'wide', 'loop'),
+  asset(['Travel objects', 'Travel'], 'travel-objects', 'aeroplane-fly', 'An airplane flying by; loops.', 'wide', 'loop'),
   asset(['Travel objects', 'Travel'], 'travel-objects', 'suitcase', 'A suitcase with stickers.'),
   asset(['Travel objects', 'Travel'], 'travel-objects', 'compass-rose', 'A compass.'),
   asset(['Travel objects', 'City'], 'travel-objects', 'traffic-light-cycle', 'A traffic light cycling; loops.', 'square', 'loop'),
@@ -1571,7 +1571,7 @@ export function sampleMediaReadme(): string {
     'Delete any file and run the generator again to get it back; files that already exist are left alone.',
     '',
   ];
-  // Grouped by folder, not by where the item sits in the catalogue, so a file added to a folder
+  // Grouped by folder, not by where the item sits in the catalog, so a file added to a folder
   // later in the list still lands under that folder's one heading.
   const byFolder = new Map<string, SampleMediaItem[]>();
   for (const item of SAMPLE_MEDIA) {
@@ -1587,13 +1587,13 @@ export function sampleMediaReadme(): string {
   return `${lines.join('\n')}\n`;
 }
 
-/** The catalogue's items for a set of taxonomy types, in catalogue order (milestone 34). */
+/** The catalog's items for a set of taxonomy types, in catalog order (milestone 34). */
 export function samplesForTypes(types: readonly string[]): readonly SampleMediaItem[] {
   const wanted = new Set(types);
   return wanted.size === 0 ? [] : SAMPLE_MEDIA.filter((item) => wanted.has(item.type));
 }
 
-/** How many catalogue files each type has, so a count can be read without the catalogue itself. */
+/** How many catalog files each type has, so a count can be read without the catalog itself. */
 export function sampleCountsByType(items: readonly SampleMediaItem[] = SAMPLE_MEDIA): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const item of items) counts[item.type] = (counts[item.type] ?? 0) + 1;
@@ -1601,7 +1601,7 @@ export function sampleCountsByType(items: readonly SampleMediaItem[] = SAMPLE_ME
 }
 
 /**
- * How many catalogue files each type still lacks, asking `made` about each one
+ * How many catalog files each type still lacks, asking `made` about each one
  * (milestone 34): the count the results' hint reads. A type with nothing left
  * is left out, so a missing key reads as "all made" rather than as zero that
  * has to be told apart from one. The caller says what "made" means — the main

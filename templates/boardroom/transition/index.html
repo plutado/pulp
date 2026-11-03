@@ -46,7 +46,7 @@
     if (pr < 0.5) ctx.fillRect(ltr ? x1 - edge : x0, 0, edge, H);
     else ctx.fillRect(ltr ? x0 : x1 - edge, 0, edge, H);
 
-    // A chosen logo sits at the centre of the panel, clipped to the covered span and fading in as
+    // A chosen logo sits at the center of the panel, clipped to the covered span and fading in as
     // the leading edge passes it and out as the trailing edge follows. With no logo nothing is drawn.
     var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
     if (hasLogo) {

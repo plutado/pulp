@@ -151,7 +151,7 @@ export interface MenuState {
   grid: boolean;
   /** The stage is in a window of its own (milestone 43). */
   stageOut: boolean;
-  /** Some of the sample-media catalogue is still unmade, so Add has something to offer (milestone 47). */
+  /** Some of the sample-media catalog is still unmade, so Add has something to offer (milestone 47). */
   canAddSampleMedia: boolean;
   /** The connected displays, for View → Stage on Display; filled by the main process, which is where the screen is. */
   displays: MenuDisplay[];
@@ -168,7 +168,7 @@ export interface MenuState {
   canEditText: boolean;
   /** The selected layer shows a picture, so another can be chosen for it. */
   canReplaceImage: boolean;
-  /** The selected layer has one colour of its own — a line of type or a shape — so it can be picked as a parameter. */
+  /** The selected layer has one color of its own — a line of type or a shape — so it can be picked as a parameter. */
   canExposeColor: boolean;
   /** The selected layer plays a clip, so another can be chosen for it. */
   canReplaceClip: boolean;
@@ -240,7 +240,7 @@ type Flag = Exclude<{ [K in keyof MenuState]: MenuState[K] extends boolean ? K :
 export interface MenuItemSpec {
   /** What the window runs; absent for a separator, a submenu or a platform role. */
   command?: MenuCommand;
-  /** An Electron role: the platform's own behaviour, which Pulp has no business reimplementing. */
+  /** An Electron role: the platform's own behavior, which Pulp has no business reimplementing. */
   role?: string;
   label?: string;
   accelerator?: string;
@@ -306,7 +306,7 @@ export function libraryAddItems(state: Pick<MenuState, 'canAddSampleMedia'> = EM
   return [
     { command: 'library.addFolder', label: 'Your Media Folder…', detail: 'Footage, stills and sounds, indexed where they are' },
     { command: 'pack.import', label: 'Templates from a Pack…', detail: 'A .zip or a folder of templates, installed' },
-    // Offered only while some of the catalogue is unmade: once it is all there, there is nothing
+    // Offered only while some of the catalog is unmade: once it is all there, there is nothing
     // to bring in (milestone 34 counts what is left).
     ...(state.canAddSampleMedia ? [{ command: 'library.addSampleMedia' as const, label: 'Sample Media', detail: 'Original CC0 sounds, music, stills and clips, made and added' }] : []),
   ];
@@ -352,7 +352,7 @@ export function layerSubmenu(): MenuItemSpec[] {
     sep,
     // Parameters by picking (milestone 55): the property becomes a named parameter in the Parameters tab.
     { command: 'layer.exposeText', label: 'Make Words a Parameter', enabledBy: 'canEditText' },
-    { command: 'layer.exposeColor', label: 'Make Colour a Parameter', enabledBy: 'canExposeColor' },
+    { command: 'layer.exposeColor', label: 'Make Color a Parameter', enabledBy: 'canExposeColor' },
     { command: 'layer.exposeImage', label: 'Make Picture a Parameter', enabledBy: 'canReplaceImage' },
     sep,
     { command: 'layer.addText', label: 'Add Text Layer', enabledBy: 'canAddLayer' },
@@ -590,7 +590,7 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       { command: 'help.whatsNew', label: "What's New" },
       sep,
       { command: 'help.shortcuts', label: 'Keyboard Shortcuts' },
-      // The third-party notices (milestone 8): what Pulp is built on, each under its own licence.
+      // The third-party notices (milestone 8): what Pulp is built on, each under its own license.
       { command: 'help.acknowledgements', label: 'Acknowledgements' },
       { command: 'help.diagnostics', label: 'Copy Diagnostics' },
     ],

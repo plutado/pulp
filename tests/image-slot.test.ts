@@ -43,7 +43,7 @@ describe('slot boxes', () => {
 describe('fitImage', () => {
   const box = { x: 100, y: 100, width: 200, height: 100 };
 
-  it('contains a wide image in a wide box edge to edge, and a tall one centred', () => {
+  it('contains a wide image in a wide box edge to edge, and a tall one centered', () => {
     expect(fitImage(box, 400, 200, 'contain', 'center', 0)).toEqual({ x: 100, y: 100, width: 200, height: 100 });
     expect(fitImage(box, 100, 100, 'contain', 'center', 0)).toEqual({ x: 150, y: 100, width: 100, height: 100 });
   });

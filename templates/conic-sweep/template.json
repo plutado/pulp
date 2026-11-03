@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.conic-sweep",
   "name": "Conic sweep",
-  "description": "A conic gradient sweeping three colours around the centre, softened at the seam and vignetted; the angle sets where the sweep starts.",
+  "description": "A conic gradient sweeping three colors around the center, softened at the seam and vignetted; the angle sets where the sweep starts.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

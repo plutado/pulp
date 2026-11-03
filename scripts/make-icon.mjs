@@ -13,7 +13,7 @@
  * **The mark** is Pulp's own: a lower third — the thing Pulp makes most — on
  * a dark tile. An amber bar stands at the left, a bright bar for the name
  * beside it and a shorter, dimmer one for the title under that, in the
- * window's own colours (`src/renderer/styles.css`). At 16 px the three bars
+ * window's own colors (`src/renderer/styles.css`). At 16 px the three bars
  * still read as a strap of type; nothing in it is borrowed from anyone.
  */
 
@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD = join(ROOT, 'build');
 
-/** Pulp's own colours (src/renderer/styles.css): the panel, the accent, the type. */
+/** Pulp's own colors (src/renderer/styles.css): the panel, the accent, the type. */
 const TILE_TOP = '#262b35';
 const TILE_BOTTOM = '#14171d';
 const ACCENT = '#f59e0b';
@@ -56,7 +56,7 @@ const PAGE = `<!doctype html><meta charset="utf-8"><body>
     c.width = S;
     c.height = S;
     var x = c.getContext('2d');
-    // The tile: a rounded square in the window's panel colours, lit from the top.
+    // The tile: a rounded square in the window's panel colors, lit from the top.
     var g = x.createLinearGradient(0, 0, 0, S);
     g.addColorStop(0, ${JSON.stringify(TILE_TOP)});
     g.addColorStop(1, ${JSON.stringify(TILE_BOTTOM)});
@@ -135,7 +135,7 @@ function ico(images) {
     entry.writeUInt8(size >= 256 ? 0 : size, 1);
     entry.writeUInt8(0, 2); // a PNG has its own palette
     entry.writeUInt8(0, 3);
-    entry.writeUInt16LE(1, 4); // colour planes
+    entry.writeUInt16LE(1, 4); // color planes
     entry.writeUInt16LE(32, 6); // bits per pixel
     entry.writeUInt32LE(png.length, 8);
     entry.writeUInt32LE(offset, 12);

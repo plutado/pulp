@@ -11,8 +11,8 @@
  *
  * Every one is drawn from the same few primitives below — a path drawn on by
  * trimming it, a shape scaled in with a little overshoot, a turn that repeats
- * — with **static colours** and meaningfully named groups, because that is
- * what `lottieEditables` turns into the Colours card: recolouring one to match
+ * — with **static colors** and meaningfully named groups, because that is
+ * what `lottieEditables` turns into the Colors card: recolouring one to match
  * a palette is the first thing anyone does with it.
  *
  * Self-contained on purpose: no imports, so the writer script can run this
@@ -80,7 +80,7 @@ function groupTransform(over: Partial<Record<'a' | 'p' | 's' | 'r' | 'o', Json>>
 }
 
 /**
- * A named group. The name is what the Colours card calls the colour inside it,
+ * A named group. The name is what the Colors card calls the color inside it,
  * so it is the word a person reads: "Tick", "Ring", "Bell".
  */
 function group(name: string, items: Json[], tr: Json = groupTransform()): Json {
@@ -165,7 +165,7 @@ const loopMarker = (op: number): Json[] => [marker('loop', 0, op)];
 
 function doc(name: string, op: number, layers: Json[], markers: Json[]): Json {
   return {
-    // The format has no licence field, so Pulp's own key carries it (`lottieExtras`); every
+    // The format has no license field, so Pulp's own key carries it (`lottieExtras`); every
     // other tool ignores it, and the Info tab shows CC0 rather than "not stated".
     'x-pulp': { license: 'CC0-1.0', author: 'Pulp' },
     v: '5.12.2',
@@ -334,7 +334,7 @@ export const STARTER_ANIMATIONS: readonly StarterAnimation[] = [
     build: () => {
       const op = 60;
       const teeth = Array.from({ length: 8 }, (_, i) =>
-        // Every tooth is the gear, so they share one name and one colour to change.
+        // Every tooth is the gear, so they share one name and one color to change.
         group('Gear', [rect([40, 196], [0, 0], 10), fill(INK)], groupTransform({ r: fixed(round2((180 / 8) * i)) })),
       );
       return doc('Gear', op, [
@@ -504,7 +504,7 @@ export const STARTER_ANIMATIONS: readonly StarterAnimation[] = [
         const angle = (Math.PI * 2 * i) / 12 + 0.18;
         const distance = 150 + (i % 3) * 42;
         const spin = 180 + (i % 4) * 90;
-        // Named by which of the six colours it is, so the Colours card offers six, each saying
+        // Named by which of the six colors it is, so the Colors card offers six, each saying
         // which pieces it paints, rather than six rows all called the same thing.
         return shapeLayer(`Piece ${i + 1}`, [group(`Confetti ${(i % colors.length) + 1}`, [rect([26, 40], [0, 0], 4), fill(colors[i % colors.length]!)])],
           transform({

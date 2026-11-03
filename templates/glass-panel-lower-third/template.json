@@ -63,7 +63,7 @@
           "id": "who",
           "type": "text",
           "label": "Name",
-          "text": "Harbour View Residence",
+          "text": "Harbor View Residence",
           "required": true
         },
         {

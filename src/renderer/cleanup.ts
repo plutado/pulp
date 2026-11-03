@@ -3,7 +3,7 @@
  * split-at-cuts flow, both reached from a clip's Info tab.
  *
  * The key dialog shows the same frame twice — plain, where a point on it
- * picks the colour (the picker: the colour wanted is nearly always in the
+ * picks the color (the picker: the color wanted is nearly always in the
  * footage), and keyed with the settings as they stand, over a checkerboard —
  * drawn afresh by the main process as the settings move, debounced so a slider
  * drag asks once. Make alpha clip runs the whole clip and says where it went;
@@ -87,7 +87,7 @@ function settingsChanged(): void {
   refreshPreview();
 }
 
-/** The picker: a point on the plain frame is the colour to key out. */
+/** The picker: a point on the plain frame is the color to key out. */
 function pickFromFrame(e: MouseEvent): void {
   if (!els || !els.plain.naturalWidth) return;
   const box = els.plain.getBoundingClientRect();

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.halftone-dots",
   "name": "Halftone dots",
-  "description": "A slowly drifting halftone dot pattern whose dot size follows a diagonal gradient, cream on burnt orange by default.",
+  "description": "A slowly drifting halftone dot pattern whose dot size follows a diagonal gradient, cream on burned orange by default.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

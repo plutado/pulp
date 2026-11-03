@@ -146,7 +146,7 @@ function createWindow(): void {
 
   /**
    * A window with unsaved changes is not closed under the person's feet: the close is held and
-   * the window asked, and it closes when the window says so (`project:allow-close`). Cancelling
+   * the window asked, and it closes when the window says so (`project:allow-close`). Canceling
    * re-arms the question, so the next close asks again; a close while the question is already up
    * does nothing rather than stacking a second one.
    */
@@ -247,7 +247,7 @@ function registerIpc(): void {
     return named ?? null;
   };
 
-  /** Make the catalogue, or the part of it `types` names, into `folder`, and put it in the library. */
+  /** Make the catalog, or the part of it `types` names, into `folder`, and put it in the library. */
   const makeSampleMedia = async (folder: string, types?: readonly string[]): Promise<SampleMediaOutcome> => {
     const items = types ? samplesToMake(types) : undefined;
     const report = await generateSampleMedia(folder, undefined, items);
@@ -272,7 +272,7 @@ function registerIpc(): void {
     const folder = await askForSampleFolder();
     return folder === null ? null : makeSampleMedia(folder);
   });
-  // What the results' hint counts from (milestone 34): how many catalogue files each type still lacks.
+  // What the results' hint counts from (milestone 34): how many catalog files each type still lacks.
   ipcMain.handle('library:sample-media-status', async () => ({ unmade: unmadeSamplesByType(await sampleMediaRoot()) }));
   // And the button beside it: just these types, into the folder the rest is in — or a new one, asked for once.
   ipcMain.handle('library:make-sample-media', async (_event, types: unknown) => {
@@ -411,7 +411,7 @@ function registerIpc(): void {
     await clearRecovery();
     mainWindow?.close();
   });
-  // Cancelled: the window stays, and the next close asks again rather than going straight through.
+  // Canceled: the window stays, and the next close asks again rather than going straight through.
   ipcMain.handle('project:cancel-close', () => {
     closeAsked = false;
   });
@@ -464,7 +464,7 @@ function registerIpc(): void {
     const lottieSkipped = chosen.filter((t) => t.lottie).map((t) => `${t.manifest.name} is a Lottie animation, which a pack cannot carry; share the .json or .lottie file itself.`);
     if (templates.length === 0) return { ok: false, message: lottieSkipped[0] ?? 'No templates to export.' };
     const destination = await chooseExportFile(meta?.name || templates[0]!.manifest.name);
-    if (!destination) return { ok: false, cancelled: true, message: 'Export cancelled.' };
+    if (!destination) return { ok: false, cancelled: true, message: 'Export canceled.' };
     try {
       const out = await exportPackTo(destination, templates, { name: String(meta?.name || 'Pack'), license: String(meta?.license || ''), ...(meta?.author ? { author: String(meta.author) } : {}), ...(meta?.description ? { description: String(meta.description) } : {}) });
       // A pack never carries a person's imported fonts: a template whose type is set in one is named here,
@@ -885,9 +885,9 @@ async function runCliRender(cli: CliRender): Promise<number> {
 }
 
 /**
- * --sample-media: fill a folder with the sample-media catalogue and say what happened to each file.
+ * --sample-media: fill a folder with the sample-media catalog and say what happened to each file.
  * With --types, only those taxonomy types are made — the command-line form of the results' own
- * "N more with sample media" button (milestone 34), and quicker than the whole catalogue.
+ * "N more with sample media" button (milestone 34), and quicker than the whole catalog.
  */
 async function runCliSampleMedia(folder: string, types?: readonly string[]): Promise<number> {
   if (!folder) {
@@ -1071,7 +1071,7 @@ if (!cliMode) {
 app.whenReady().then(async () => {
   // The platform's About panel is a role Pulp cannot put a button on, so its credits line points
   // at the third-party notices, which Help → Acknowledgements shows in full (milestone 8).
-  app.setAboutPanelOptions({ applicationName: app.getName(), applicationVersion: app.getVersion(), credits: 'Built on Electron, Chromium and open-source work under their own licences: Help → Acknowledgements.' });
+  app.setAboutPanelOptions({ applicationName: app.getName(), applicationVersion: app.getVersion(), credits: 'Built on Electron, Chromium and open-source work under their own licenses: Help → Acknowledgements.' });
   handleTemplateProtocol();
   handleMediaProtocol();
   handleThumbProtocol();

@@ -61,12 +61,12 @@ export interface PlatformPreset {
   uploadUrl: string;
   /**
    * The integrated loudness the platform plays everything back at, LUFS (EBU
-   * R128): what a render aimed here has its mix levelled to (milestone 52).
-   * The platforms normalise on playback anyway; levelling first means what is
+   * R128): what a render aimed here has its mix leveled to (milestone 52).
+   * The platforms normalize on playback anyway; leveling first means what is
    * uploaded is what is heard, with no surprise gain on their side.
    */
   loudnessLufs: number;
-  /** The true-peak ceiling the levelling holds the mix under, dBTP. */
+  /** The true-peak ceiling the leveling holds the mix under, dBTP. */
   truePeakDb: number;
 }
 
@@ -149,9 +149,9 @@ export function limitsCheckedLabel(checked: string = PLATFORM_LIMITS_CHECKED): s
   return `checked ${Number(m[3])} ${months[Number(m[2]) - 1]} ${m[1]}`;
 }
 
-/** What a preset amounts to, under the chooser: "9:16 · 1080 × 1920 · 30 fps · H.264 MP4 · levelled to -14 LUFS". */
+/** What a preset amounts to, under the chooser: "9:16 · 1080 × 1920 · 30 fps · H.264 MP4 · leveled to -14 LUFS". */
 export function platformSummary(preset: PlatformPreset): string {
-  return `${preset.aspect} · ${preset.width} × ${preset.height} · ${preset.fps} fps · ${OUTPUT_PRESETS[preset.presetId].label} · levelled to ${preset.loudnessLufs} LUFS`;
+  return `${preset.aspect} · ${preset.width} × ${preset.height} · ${preset.fps} fps · ${OUTPUT_PRESETS[preset.presetId].label} · leveled to ${preset.loudnessLufs} LUFS`;
 }
 
 /** What the platform takes, in words: "up to 10:00 and 287 MB (limits checked 1 November 2026)". */

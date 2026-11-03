@@ -94,7 +94,7 @@ export function stageWindowAtLaunch(saved: StageWindowState, displays: readonly 
 
 /**
  * Where to open the window: the remembered place when it is still on a
- * display, else its remembered size alone (the platform centres it), else the
+ * display, else its remembered size alone (the platform centers it), else the
  * default size. A window remembered on a display since unplugged keeps its
  * size and loses its place.
  */

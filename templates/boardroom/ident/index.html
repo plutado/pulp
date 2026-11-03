@@ -35,7 +35,7 @@
     return [words.slice(0, best).join(' '), words.slice(best).join(' ')];
   }
 
-  // The fallback: the name set in light type, centred in the logo's box and fitted to it by
+  // The fallback: the name set in light type, centered in the logo's box and fitted to it by
   // measurement; two balanced lines when one line would shrink the type past half its size.
   function wordmark(text, box, color) {
     text = (text || '').trim();
@@ -97,7 +97,7 @@
     ctx.fillStyle = v;
     ctx.fillRect(0, 0, W, H);
 
-    // Where the logo rests: a box about the centre that reads the same tall, square and wide.
+    // Where the logo rests: a box about the center that reads the same tall, square and wide.
     var box = { width: Math.min(500 * s, W * 0.8), height: 324 * s };
     box.x = cx - box.width / 2;
     box.y = cy - box.height / 2;
@@ -112,7 +112,7 @@
     var out = easeInCubic(clamp01((t - 1.95) / 0.55));
     var fade = 1 - out;
 
-    // The hairline rule grows from the centre outward.
+    // The hairline rule grows from the center outward.
     var ruleW = ruleMax * draw;
     if (ruleW > 0 && ruleFade * fade > 0) {
       ctx.globalAlpha = ruleFade * fade;

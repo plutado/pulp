@@ -34,7 +34,7 @@ export interface LibraryAddActions {
 
 let actions: LibraryAddActions | null = null;
 
-/** What Add can offer now: sample media only while some of the catalogue is unmade (milestone 47). */
+/** What Add can offer now: sample media only while some of the catalog is unmade (milestone 47). */
 export function libraryAddState(): { canAddSampleMedia: boolean } {
   return { canAddSampleMedia: someSampleMediaUnmade.value };
 }

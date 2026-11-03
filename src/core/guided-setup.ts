@@ -42,7 +42,7 @@ export interface GuidedChoices {
   height?: number;
   /** A frame-rate override; absent is the template's own rate. */
   fps?: number;
-  /** The colour an alpha template is flattened over when the preset keeps no alpha. */
+  /** The color an alpha template is flattened over when the preset keeps no alpha. */
   background: string;
   matte: boolean;
   /** How music that came in as stems reaches the render; only shown when the project holds stems. */
@@ -128,7 +128,7 @@ export function guidedSize(manifest: ShapeDeclaration, choices: GuidedChoices): 
   }
 }
 
-/** Whether the live preview shows the checkerboard (transparency kept) or the flatten colour. */
+/** Whether the live preview shows the checkerboard (transparency kept) or the flatten color. */
 export function guidedPreviewBackdrop(manifest: Pick<TemplateManifest, 'alpha'>, choices: GuidedChoices): 'checker' | 'color' | 'opaque' {
   if (!manifest.alpha) return 'opaque';
   return OUTPUT_PRESETS[choices.presetId].alpha ? 'checker' : 'color';
@@ -175,7 +175,7 @@ export function guidedSummary(
       ? 'The transparency is kept, so the graphic drops onto footage in an editor.'
       : `The transparency is flattened over ${choices.background}.`);
   }
-  if (choices.matte) lines.push('A grey matte file is written beside the render, for pipelines that cannot read an alpha channel.');
+  if (choices.matte) lines.push('A gray matte file is written beside the render, for pipelines that cannot read an alpha channel.');
   const platform = platformPreset(choices.platform);
   if (platform) lines.push(`Aimed at ${platform.label}: the length and file size are checked against its limits, before the render and from the file.`);
   if (project.hasStems) {

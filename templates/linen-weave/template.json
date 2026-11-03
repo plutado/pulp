@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.linen-weave",
   "name": "Linen weave",
-  "description": "A linen cloth: fine crossing threads with slight irregularity over a flat colour, turned by the angle; the scale sets the thread count.",
+  "description": "A linen cloth: fine crossing threads with slight irregularity over a flat color, turned by the angle; the scale sets the thread count.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

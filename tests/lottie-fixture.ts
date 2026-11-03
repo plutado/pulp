@@ -2,7 +2,7 @@
  * Lottie fixtures written by the tests (milestone 35), never shipped: a small
  * Bodymovin-shaped document with a square that crosses the frame on linear
  * keyframes, a text layer, a solid, and markers — enough for the reader to
- * find its text and colours and for a render to be checked pixel by pixel.
+ * find its text and colors and for a render to be checked pixel by pixel.
  */
 
 import { writeZip } from '../src/core/zip';
@@ -18,7 +18,7 @@ export interface LottieFixtureOptions {
   fill?: [number, number, number];
   /** Add a property with an expression, a layer with an effect, a 3D layer and a web font. */
   withLimits?: boolean;
-  /** Add a `slots` block with a colour and a text slot, bound from the square and a second text layer. */
+  /** Add a `slots` block with a color and a text slot, bound from the square and a second text layer. */
   withSlots?: boolean;
   /** Add a second text layer whose words change over time. */
   withAnimatedText?: boolean;
@@ -26,7 +26,7 @@ export interface LottieFixtureOptions {
   withImage?: string;
 }
 
-/** The square: 200 × 200, its centre moving from x = 100 to x = 900 at y = 540 (in a 1920 × 1080 frame) over the animation. */
+/** The square: 200 × 200, its center moving from x = 100 to x = 900 at y = 540 (in a 1920 × 1080 frame) over the animation. */
 export function lottieFixture(options: LottieFixtureOptions = {}): Record<string, unknown> {
   const width = options.width ?? 1920;
   const height = options.height ?? 1080;

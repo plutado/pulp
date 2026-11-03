@@ -48,7 +48,7 @@
       "min": 0.3,
       "max": 1.2,
       "step": 0.05,
-      "description": "How far from the centre the darkening begins.",
+      "description": "How far from the center the darkening begins.",
       "element": "Soft vignette"
     },
     {

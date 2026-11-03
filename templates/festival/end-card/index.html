@@ -127,7 +127,7 @@
       ctx.globalAlpha = 1;
     }
 
-    // The card pops in around its centre with a gentle bounce.
+    // The card pops in around its center with a gentle bounce.
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(pop, pop);
@@ -155,7 +155,7 @@
     }
     y += (lines.length - 1) * lineH + 36 * s;
 
-    // A short gold pill divider that grows from the centre, then the date in gold sans.
+    // A short gold pill divider that grows from the center, then the date in gold sans.
     var divW = 120 * s * easeOutCubic(textA);
     roundRect(cx - divW / 2, y, divW, 4 * s, 2 * s);
     ctx.fillStyle = p.gold;

@@ -43,7 +43,7 @@ describe('what a card shows', () => {
   it('says where a render has got to', () => {
     expect(queueCard(job({ status: 'queued', frame: 0 })).status).toEqual({ kind: 'queued', text: 'Queued · 180 frames' });
     expect(queueCard(job({ status: 'running', frame: 90 })).status).toEqual({ kind: 'running', text: 'Frame 90 of 180', progress: 0.5 });
-    expect(queueCard(job({ status: 'cancelled' })).status.text).toBe('Cancelled');
+    expect(queueCard(job({ status: 'cancelled' })).status.text).toBe('Canceled');
     // A failure is the one place detail beats brevity: it has to be actionable.
     expect(queueCard(job({ status: 'failed', message: 'ffmpeg exited with 1' })).status.text).toBe('ffmpeg exited with 1');
     expect(queueCard(job({ status: 'failed', message: undefined })).status.text).toBe('The render did not finish.');

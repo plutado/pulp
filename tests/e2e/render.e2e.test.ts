@@ -250,7 +250,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     const still = await render('pulp.samples.lower-third-bar', 'png-still', 'cover-check', { extra: ['--in-point', '2.0s'] });
     expect(still.code, still.stderr).toBe(0);
     // The still keeps its alpha where the cover was flattened, so the two are compared on the
-    // picture rather than byte for byte: the strap's own colour, where the graphic is drawn.
+    // picture rather than byte for byte: the strap's own color, where the graphic is drawn.
     const at = { x: 300, y: 900 };
     const [cr, cg, cb] = await pixels(cover, at.x, at.y);
     const [sr, sg, sb, sa] = await pixels(join(out, 'cover-check.png'), at.x, at.y);
@@ -328,9 +328,9 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await pixels(join(out, 'mesh-still.png'), 960, 540))[3], 'a background is opaque').toBe(255);
   }, 240_000);
 
-  it('makes just one category\'s sample media, and leaves the rest of the catalogue alone (milestone 34)', async () => {
+  it('makes just one category\'s sample media, and leaves the rest of the catalog alone (milestone 34)', async () => {
     // What the results' "N more with sample media" button asks for: the types in view, not the
-    // whole 625-file catalogue. Vignettes are three stills from one page, so this stays quick.
+    // whole 625-file catalog. Vignettes are three stills from one page, so this stays quick.
     const folder = join(out, 'Sample media by type');
     const r = await runBounded(electron, ['.', '--sample-media', folder, '--types', 'vignette'], { cwd: ROOT, timeoutMs: 180_000 });
     expect(r.code, r.stderr).toBe(0);
@@ -338,19 +338,19 @@ describe.skipIf(!available)('end-to-end render', () => {
     const wanted = samplesForTypes(['vignette']);
     expect(wanted).toHaveLength(3);
     for (const item of wanted) expect(existsSync(join(folder, ...sampleMediaPath(item))), sampleMediaPath(item).join('/')).toBe(true);
-    // And nothing else: every other catalogue file is still to make.
+    // And nothing else: every other catalog file is still to make.
     for (const item of SAMPLE_MEDIA) {
       if (item.type === 'vignette') continue;
       expect(existsSync(join(folder, ...sampleMediaPath(item))), sampleMediaPath(item).join('/')).toBe(false);
     }
-    // The library gives them the type the catalogue meant, so the hint's count falls by three.
+    // The library gives them the type the catalog meant, so the hint's count falls by three.
     const index = await scanLibrary([folder]);
     expect(index.problems).toEqual([]);
     expect(index.media.map((m) => m.type).filter(Boolean)).toEqual(['vignette', 'vignette', 'vignette']);
     // A second run has nothing left to do, which is what makes the line go.
     const again = await runBounded(electron, ['.', '--sample-media', folder, '--types', 'vignette'], { cwd: ROOT, timeoutMs: 180_000 });
     expect(again.stdout).toMatch(/0 written, 3 already there, 0 failed/);
-    // A type with no sample media is said, not quietly taken as the whole catalogue.
+    // A type with no sample media is said, not quietly taken as the whole catalog.
     const none = await runBounded(electron, ['.', '--sample-media', folder, '--types', 'lower-third'], { cwd: ROOT, timeoutMs: 60_000 });
     expect(none.code).toBe(2);
     expect(none.stderr).toContain('No sample media for --types lower-third');
@@ -367,7 +367,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     const result = await makeAll();
     expect(result.code, result.stderr).toBe(0);
     expect(result.stdout).toMatch(/\d+ written, 0 already there, 0 failed/);
-    // Every catalogue file exists, and the library gives it the type the catalogue meant.
+    // Every catalog file exists, and the library gives it the type the catalog meant.
     const index = await scanLibrary([folder]);
     expect(index.problems).toEqual([]);
     const byPath = new Map(index.media.map((m) => [m.path, m]));
@@ -377,7 +377,7 @@ describe.skipIf(!available)('end-to-end render', () => {
       expect(byPath.get(path)?.type, path).toBe(item.type);
     }
     expect(existsSync(join(folder, 'LICENSE-CC0.txt'))).toBe(true);
-    // One of each kind through ffprobe: a clip at the catalogue size, a stereo mix, a still with alpha.
+    // One of each kind through ffprobe: a clip at the catalog size, a stereo mix, a still with alpha.
     const clip = await probe(join(folder, 'Video clips', 'Stock footage', 'boardroom-loop.mp4'));
     expect(clip).toMatchObject({ codec_name: 'h264', width: 1280, height: 720 });
     const { stdout: mix } = await runBounded(available!.ffprobe, ['-v', 'error', '-show_entries', 'stream=channels,sample_rate:format=duration', '-of', 'json', join(folder, 'Music', 'Full mix', 'night-drive.wav')], { timeoutMs: TOOL_TIMEOUT_MS });
@@ -385,7 +385,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(mixInfo.streams[0]).toMatchObject({ channels: 2, sample_rate: '48000' });
     expect(Number(mixInfo.format.duration)).toBeCloseTo(16, 0);
     expect(await probe(join(folder, 'Stills', 'Layered graphics', 'badge.png'))).toMatchObject({ width: 1080, height: 1080, pix_fmt: 'rgba' });
-    // The centre of the badge is opaque red, the corner transparent: the page drew, and alpha survived.
+    // The center of the badge is opaque red, the corner transparent: the page drew, and alpha survived.
     expect((await pixels(join(folder, 'Stills', 'Layered graphics', 'badge.png'), 540, 540))[3]).toBe(255);
     expect((await pixels(join(folder, 'Stills', 'Layered graphics', 'badge.png'), 2, 2))[3]).toBe(0);
     // Milestone 24's plates draw too, each in the way its kind should: a backdrop covers the frame,
@@ -411,7 +411,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     // theme subfolder read by the scan.
     const objectStill = join(folder, 'Assets', 'Sports equipment', 'Soccer', 'soccer-ball.png');
     expect(await probe(objectStill)).toMatchObject({ width: 512, height: 512, pix_fmt: 'rgba' });
-    expect((await pixels(objectStill, 256, 256))[3], 'an object is opaque at its centre').toBe(255);
+    expect((await pixels(objectStill, 256, 256))[3], 'an object is opaque at its center').toBe(255);
     expect((await pixels(objectStill, 4, 4))[3], 'an object leaves its corner clear').toBe(0);
     expect(byPath.get(objectStill)?.themes, 'the theme folder tags the object').toContain('soccer');
     const assetClip = join(folder, 'Assets', 'Confetti and celebration', 'confetti-burst.webm');
@@ -1211,7 +1211,7 @@ describe.skipIf(!available)('end-to-end render', () => {
   }, 300_000);
 
   it('levels the mix to the platform preset\'s loudness target, and leaves a render aimed nowhere as mixed (milestone 52)', async () => {
-    // A tone under the whole graphic, well off the -14 LUFS target, so levelling is legible.
+    // A tone under the whole graphic, well off the -14 LUFS target, so leveling is legible.
     const lib = join(out, 'loudness-library');
     await mkdir(lib, { recursive: true });
     const bed = join(lib, 'quiet-bed.wav');
@@ -1237,7 +1237,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     const unlevelled = await integrated(join(out, 'level-plain.mp4'));
     expect(Math.abs(unlevelled - -14), `as mixed it measures ${unlevelled} LUFS`).toBeGreaterThan(3);
 
-    // Aimed at a platform, it is measured and levelled to the platform's target — on the file itself.
+    // Aimed at a platform, it is measured and leveled to the platform's target — on the file itself.
     const aimed = await runBounded(
       electron,
       ['.', '--render', 'pulp.test.video-layer', '--platform', 'x', '--out', join(out, 'level-aimed'), ...common, ...audio],
@@ -1245,7 +1245,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     );
     expect(aimed.code, aimed.stderr).toBe(0);
     const levelled = await integrated(join(out, 'level-aimed.mp4'));
-    expect(Math.abs(levelled - -14), `levelled it measures ${levelled} LUFS`).toBeLessThan(1.5);
+    expect(Math.abs(levelled - -14), `leveled it measures ${levelled} LUFS`).toBeLessThan(1.5);
   }, 300_000);
 
   it('treats a voice on a layer with sound: Reduce noise lowers the bundled noisy sample\'s noise floor (milestone 53)', async () => {
@@ -1332,7 +1332,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     const solidId = itemId(`media:${solid}`);
     const common = ['--library', FIXTURES, '--library', lib];
     const keyed = (keys: unknown) => ['--param', `@layers=${JSON.stringify({ stack: [{ id: 'plate', clip: solidId, keys }] })}`];
-    // The 320 x 180 fixture draws the plate 90 px square at its centre, x 160.
+    // The 320 x 180 fixture draws the plate 90 px square at its center, x 160.
     const left = [80, 90] as const;
     const right = [240, 90] as const;
     const middle = [160, 90] as const;
@@ -1694,7 +1694,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(badMode.stderr).toContain('--captions');
   }, 400_000);
 
-  it('plays transitions on a cut — a dissolve, a dip to a colour, a bundled wipe — and an unlinked sound for a J cut (milestone 49)', async () => {
+  it('plays transitions on a cut — a dissolve, a dip to a color, a bundled wipe — and an unlinked sound for a J cut (milestone 49)', async () => {
     const lib = join(out, 'transition-library');
     await mkdir(lib, { recursive: true });
     const clip = async (file: string, color: string, tone?: number) => {
@@ -1727,13 +1727,13 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(blended[2]!).toBeGreaterThan(60);
     expect(blended[0]!).toBeLessThan(200);
 
-    // A dip to a colour: at the boundary the frame is the colour, with the shots whole either side.
+    // A dip to a color: at the boundary the frame is the color, with the shots whole either side.
     const dipped = await render('pulp.test.video-layer', 'png-sequence', 'join-dip', {
       extra: [...common, ...trackArg({ transition: { type: 'dip', seconds: 0.5, color: '#00ff00' } })],
     });
     expect(dipped.code, dipped.stderr).toBe(0);
     const dip = await at('join-dip', 30);
-    expect(dip[1]!, `the dip's colour at the boundary: ${dip.join(',')}`).toBeGreaterThan(180);
+    expect(dip[1]!, `the dip's color at the boundary: ${dip.join(',')}`).toBeGreaterThan(180);
     expect(dip[0]!).toBeLessThan(70);
     expect((await at('join-dip', 10))[0]).toBeGreaterThan(180);
     expect((await at('join-dip', 50))[2]).toBeGreaterThan(180);
@@ -2303,7 +2303,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     const codedId = itemId(`media:${coded}`);
     const common = ['--library', FIXTURES, '--library', lib];
     const plate = (value: Record<string, unknown>) => ['--param', `plate=${JSON.stringify({ id: codedId, ...value })}`];
-    /** The pixel at the centre of the slot's box, where the square clip sits, on frame `k` of a render. */
+    /** The pixel at the center of the slot's box, where the square clip sits, on frame `k` of a render. */
     const centre = (name: string, k: number) => pixels(join(out, `${name}_${String(k).padStart(5, '0')}.png`), 160, 90);
     /** Which clip frame a pixel's red says it is. */
     const clipFrame = (px: number[]) => Math.round(px[0]! / 8);
@@ -2408,8 +2408,8 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(bad.stderr).toMatch(/layers: not valid JSON/);
   }, 180_000);
 
-  it('image slots: draws the granted still, refuses its neighbour, and grants nothing when nothing is chosen (ADR 0013)', async () => {
-    // Two stills in a scratch library: the logo the user picks, and its neighbour the template must not see.
+  it('image slots: draws the granted still, refuses its neighbor, and grants nothing when nothing is chosen (ADR 0013)', async () => {
+    // Two stills in a scratch library: the logo the user picks, and its neighbor the template must not see.
     const logos = join(out, 'logos');
     await mkdir(logos, { recursive: true });
     await runBounded(ffmpeg, ffmpegArgs(['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x00ff00:s=64x64', '-frames:v', '1', join(logos, 'logo.png')]), { timeoutMs: TOOL_TIMEOUT_MS });
@@ -2418,7 +2418,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     const secretId = itemId(`media:${join(logos, 'secret.png')}`);
     const libs = ['--library', FIXTURES, '--library', logos];
 
-    // Chosen: the logo fills the slot's box (the middle half of a 320x180 frame), while the neighbour is refused.
+    // Chosen: the logo fills the slot's box (the middle half of a 320x180 frame), while the neighbor is refused.
     const a = await render('pulp.test.logo-slot', 'png-sequence', 'slot-granted', { extra: [...libs, '--param', `logo=${logoId}`, '--param', `other=${secretId}`] });
     expect(a.code, a.stderr).toBe(0);
     const granted = join(out, 'slot-granted_00000.png');
@@ -2426,7 +2426,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     const near = (px: number[], want: number[]) => px.every((v, i) => Math.abs(v - want[i]!) <= 2);
     expect(near(await pixels(granted, 160, 90), [0, 255, 0, 255]), 'the logo in its box').toBe(true);
     expect((await pixels(granted, 60, 90))[3]).toBe(0); // outside the box
-    expect(await pixels(granted, 8, 8)).toEqual([255, 0, 0, 255]); // the probe for the neighbour: refused
+    expect(await pixels(granted, 8, 8)).toEqual([255, 0, 0, 255]); // the probe for the neighbor: refused
 
     // Nothing chosen: the slot shows its fallback text, and no image is granted — not even the one above.
     const b = await render('pulp.test.logo-slot', 'png-sequence', 'slot-empty', { extra: [...libs, '--param', `other=${logoId}`] });
@@ -2483,7 +2483,7 @@ describe.skipIf(!available)('end-to-end render', () => {
    * Lottie animations (milestone 35): a `.json` and a `.lottie` written by the test are indexed
    * as templates and rendered through the same path, stepped frame by frame by the player. The
    * fixture's square crosses the frame on linear keyframes, so where it is on a given frame is
-   * known exactly; its text and colours are the parameters the file exposes.
+   * known exactly; its text and colors are the parameters the file exposes.
    */
   describe('Lottie animations', () => {
     let lib = '';
@@ -2520,7 +2520,7 @@ describe.skipIf(!available)('end-to-end render', () => {
       const [first] = frames;
       const sixth = frames[5]!;
       expect(await probe(first!)).toMatchObject({ width: 1920, height: 1080, pix_fmt: 'rgba' });
-      // Frame 0: the 200 px square is centred at x = 100; frame 5, halfway along 100 → 900, at x = 500.
+      // Frame 0: the 200 px square is centered at x = 100; frame 5, halfway along 100 → 900, at x = 500.
       expect(await pixels(first!, 100, 540)).toEqual([255, 0, 0, 255]);
       expect(await alphaAt(first!, 500, 540)).toBe(0);
       expect(await pixels(sixth, 500, 540)).toEqual([255, 0, 0, 255]);
@@ -2534,7 +2534,7 @@ describe.skipIf(!available)('end-to-end render', () => {
       expect([min, max]).toEqual([0, 255]);
     }, 180_000);
 
-    it('takes its text and colours as parameters', async () => {
+    it('takes its text and colors as parameters', async () => {
       const result = await render(jsonId, 'png-sequence', 'lottie-edit', {
         extra: ['--library', lib, '--out-point', '0', '--param', 'text1=', '--param', 'color2=#00ff00', '--param', 'color3=#ffff00'],
       });
@@ -2604,7 +2604,7 @@ describe.skipIf(!available)('end-to-end render', () => {
       expect(await probe(file)).toMatchObject({ width: 1920, height: 1080 });
 
       // The animation's own red square is drawn into the graphic: a row the template alone leaves
-      // clear now holds the layer, and the layer is the Lottie's colour rather than the panel's.
+      // clear now holds the layer, and the layer is the Lottie's color rather than the panel's.
       const row = await pixels(file, 0, 820, 1920);
       let found: number[] | null = null;
       for (let x = 0; x < 1920; x++) {
@@ -2628,7 +2628,7 @@ describe.skipIf(!available)('end-to-end render', () => {
 
     it('draws a clip layer cropped and bordered, in the render as in the preview (milestone 57)', async () => {
       // The same Lottie as a layer, once whole and once cropped to its middle half with a green
-      // border: the border's colour appears on the row through the layer, and the cropped
+      // border: the border's color appears on the row through the layer, and the cropped
       // picture's red run is narrower than the whole one's.
       const lottieItemId = itemId(`lottie:${join(lib, 'Lower thirds', 'box.json')}`);
       const stack = (framing: object) => JSON.stringify({
@@ -2657,7 +2657,7 @@ describe.skipIf(!available)('end-to-end render', () => {
       const cropped = await redRun(join(out, 'pip-framed_00090.png'));
       expect(plain.red, 'the whole animation drawn').toBeGreaterThan(20);
       expect(plain.green, 'and no border on it').toBe(0);
-      expect(cropped.green, 'the border\'s colour where the picture\'s edge is').toBeGreaterThan(0);
+      expect(cropped.green, 'the border\'s color where the picture\'s edge is').toBeGreaterThan(0);
       expect(cropped.red, 'the cropped picture narrower than the whole').toBeLessThan(plain.red * 0.8);
     }, 180_000);
 
@@ -2667,7 +2667,7 @@ describe.skipIf(!available)('end-to-end render', () => {
       const [first] = await frameFiles('lottie-dot');
       expect(await probe(first!)).toMatchObject({ width: 1080, height: 1080 });
       // A 16:9 animation fitted into a square scales by 1080 / 1920 and sits in the middle: the square's
-      // centre lands at (56, 540), and the letterbox above it is transparent.
+      // center lands at (56, 540), and the letterbox above it is transparent.
       expect(await pixels(first!, 56, 540)).toEqual([0, 255, 0, 255]);
       expect(await alphaAt(first!, 540, 100)).toBe(0);
     }, 180_000);

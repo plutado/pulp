@@ -15,12 +15,12 @@ Templates are untrusted documents: a pack from anywhere, run inside an offscreen
 
 - The value of an image parameter is a **library id**, never a path. Files chosen from outside the library are first copied into a managed `imported` folder under user data, which is a library root, so the library stays the one thing a template can be handed.
 - The **main process is the grant**: for a preview or a render it reads exactly the chosen ids — only ids that are online **stills** in the library, under the size bound — and hands the page their bytes as data URLs, once per change of the choice. Anything else is reported back as missing and not read. The preview asks again whenever the choice changes; a render reads once, before its first frame.
-- The **protocol handler and the template CSP are unchanged**: `pulp-media://` refuses every request from a template page, and the template CSP lists no library scheme at all. There is no URL a template could vary to reach a neighbour, because there is no URL.
+- The **protocol handler and the template CSP are unchanged**: `pulp-media://` refuses every request from a template page, and the template CSP lists no library scheme at all. There is no URL a template could vary to reach a neighbor, because there is no URL.
 - The **host decodes the images before the first frame**. The frame state carries each slot's pixel box and chosen id; the bridge decodes the handed bytes once through an `<img>`, under the template's load timeout rather than a frame's, applies the treatment on an offscreen canvas and caches the result. A frame is never drawn with a half-loaded logo, and a frame never waits on a decode.
 
 ### Why not a grant the handler checks
 
-The first design kept the grant in the main process and had the `pulp-media://` handler serve a template referrer the ids its template held. The end-to-end test for it failed: an `<img>` load from a template page reaches the handler **with no referrer**, so the request looked like the app window's and the neighbour loaded. The referrer is also the page's to set — a `<meta name="referrer">` in a pack would strip it on purpose — so nothing keyed on it can carry a security rule. Handing bytes over keeps the decision where a template cannot touch it and leaves the handler's rule with no exception to get wrong.
+The first design kept the grant in the main process and had the `pulp-media://` handler serve a template referrer the ids its template held. The end-to-end test for it failed: an `<img>` load from a template page reaches the handler **with no referrer**, so the request looked like the app window's and the neighbor loaded. The referrer is also the page's to set — a `<meta name="referrer">` in a pack would strip it on purpose — so nothing keyed on it can carry a security rule. Handing bytes over keeps the decision where a template cannot touch it and leaves the handler's rule with no exception to get wrong.
 
 ## Reasons
 

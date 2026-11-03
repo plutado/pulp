@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.vhs-stripe-lower-third",
   "name": "VHS Stripe",
-  "description": "A chunky striped bar with a tracking jitter and a colour fringe that never quite sits still, in a tape-era palette. For retro recaps, summer edits and gig footage.",
+  "description": "A chunky striped bar with a tracking jitter and a color fringe that never quite sits still, in a tape-era palette. For retro recaps, summer edits and gig footage.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

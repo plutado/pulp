@@ -103,7 +103,7 @@ export const TYPES: readonly TaxonomyType[] = [
   { id: 'liquid', label: 'Liquids and splashes', group: 'assets' },
   { id: 'confetti', label: 'Confetti and celebration', group: 'assets' },
   { id: 'brush', label: 'Brush and ink strokes', group: 'assets' },
-  // The Objects kind: themed props, organised along the theme groups. A label is a plain noun
+  // The Objects kind: themed props, organized along the theme groups. A label is a plain noun
   // phrase on purpose — "Business objects", not "Business and work" — because every part of a
   // label split on "and" becomes a folder alias for the type (see `aliases`), and a person's
   // "Business" or "Travel" folder of stills must not be read as a folder of assets. Each

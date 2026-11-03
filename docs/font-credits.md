@@ -1,10 +1,10 @@
 # Font credits
 
-Pulp bundles ten font families so a layer of text can be set in a face that exists on every machine (milestone 23, decision record 0014). Every one is under the **SIL Open Font License 1.1**, confirmed from the licence file shipped beside the fonts — the file each upstream publishes, copied as it is — not from a package listing. The fonts live in `fonts/<family>/`, each with that licence file; `src/core/fonts.ts` is the list the app reads, and `tests/fonts.test.ts` checks this page, the files and their hashes against it.
+Pulp bundles ten font families so a layer of text can be set in a face that exists on every machine (milestone 23, decision record 0014). Every one is under the **SIL Open Font License 1.1**, confirmed from the license file shipped beside the fonts — the file each upstream publishes, copied as it is — not from a package listing. The fonts live in `fonts/<family>/`, each with that license file; `src/core/fonts.ts` is the list the app reads, and `tests/fonts.test.ts` checks this page, the files and their hashes against it.
 
-Pulp's own code is MIT. The fonts are not: they stay under the OFL, which lets them be bundled, used, and passed on with their licence, and forbids selling them on their own. Two families declare a **Reserved Font Name**; the OFL lets an unmodified font keep its name, so those files are the upstream bytes untouched (no subsetting, no renaming) and the hashes in the list are how the test knows.
+Pulp's own code is MIT. The fonts are not: they stay under the OFL, which lets them be bundled, used, and passed on with their license, and forbids selling them on their own. Two families declare a **Reserved Font Name**; the OFL lets an unmodified font keep its name, so those files are the upstream bytes untouched (no subsetting, no renaming) and the hashes in the list are how the test knows.
 
-| Family | Version | Licence | Reserved Font Name | Source | Files |
+| Family | Version | License | Reserved Font Name | Source | Files |
 |---|---|---|---|---|---|
 | Inter | 4.1 (release v4.1; the files say 4.001) | OFL 1.1 (`LICENSE.txt`) | none | https://github.com/rsms/inter | `InterVariable.ttf`, `InterVariable-Italic.ttf`, variable weight 100–900 |
 | Montserrat | 9.000 (master, commit 555facfb2a18, 2026-03-27) | OFL 1.1 (`OFL.txt`) | none | https://github.com/JulietaUla/Montserrat | `Montserrat[wght].ttf`, `Montserrat-Italic[wght].ttf`, variable weight 100–900 |
@@ -32,4 +32,4 @@ A template page may load fonts only from its own origin (`font-src 'self'`). The
 
 ## Adding a family
 
-Take the files and the licence file from the family's own repository or release, read the licence file, note any Reserved Font Name, add an entry to `src/core/fonts.ts` with the files' SHA-256 hashes, and add a row here. The test will not pass until all three agree.
+Take the files and the license file from the family's own repository or release, read the license file, note any Reserved Font Name, add an entry to `src/core/fonts.ts` with the files' SHA-256 hashes, and add a row here. The test will not pass until all three agree.

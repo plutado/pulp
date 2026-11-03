@@ -114,7 +114,7 @@ The style test enforces the two that can be checked: no first-person wording and
 
 The Parameters tab is the worked example; anything that edits a thing with parts follows it.
 
-- **One card per part, holding everything about that part.** The panel's fill and its accent bar together; a line of type with its words, its face and its own colour; the logo's well with its treatment. A reader looking for "the colour of the subtitle" looks at the subtitle.
+- **One card per part, holding everything about that part.** The panel's fill and its accent bar together; a line of type with its words, its face and its own color; the logo's well with its treatment. A reader looking for "the color of the subtitle" looks at the subtitle.
 - **A group named after a kind of setting is a group that says nothing.** "Colors" tells you what the controls are, which you can already see, and not what they affect. The only grouping that survives is by element.
 - **What belongs to no part goes last**, under a heading that says so: "Layout and timing" for position, timing and duration.
 - **A part is one card whether the template declared it or the person added it.** An added line of type looks and behaves like the template's own.
@@ -134,9 +134,9 @@ The Info tab is the worked example; anything that shows what an item *is* follow
 
 ## Fonts are credited dependencies
 
-A font is code someone else wrote, under a licence of its own. Pulp bundles ten families under the SIL Open Font License 1.1 (`docs/font-credits.md`, ADR 0014) and the rule for them, and for any added later, is the same as for a library:
+A font is code someone else wrote, under a license of its own. Pulp bundles ten families under the SIL Open Font License 1.1 (`docs/font-credits.md`, ADR 0014) and the rule for them, and for any added later, is the same as for a library:
 
-- **Taken from upstream, with its licence file**, which is read, not assumed. The credits file names the family, the version, the licence, any Reserved Font Name and the source, and a test holds the files, their hashes and the credits to one list.
+- **Taken from upstream, with its license file**, which is read, not assumed. The credits file names the family, the version, the license, any Reserved Font Name and the source, and a test holds the files, their hashes and the credits to one list.
 - **Shipped unmodified.** No subsetting, no renaming: a Reserved Font Name requires it, and every family keeps its full character set.
 - **Shown in its own face** wherever a family is chosen, so the choice is the look and not a name.
 - **Never redistributed on someone's behalf.** A pack exported from Pulp carries no font files but a template's own; a family a person imports stays in their managed folder and is named by the template, not shipped with it.

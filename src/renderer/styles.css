@@ -37,7 +37,7 @@
      constant budgeted from one platform let the stage fall under its floor on the others. */
   --results-min-h: 160px;
   --stage-min-h: 158px;
-  /* The row above the stage went with milestone 41: the centre is the stage, the splitter and the results. */
+  /* The row above the stage went with milestone 41: the center is the stage, the splitter and the results. */
   /* The results' heading holds the sort and view controls (milestone 41): 40 px, not a caption line's 24. */
   --results-head-h: 40px;
   /* The line under the results that says what sample media would add (milestone 34). */
@@ -293,7 +293,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .filter-chips .chip { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-caption); padding: 3px 6px; border-radius: 10px; color: var(--muted); }
 .filter-chips .chip > .icon + .label { margin-left: 0; }
 .filter-chips .chip .label { display: none; }
-/* Seven labelled chips take about 420 px; the labels come back only where they still fit one row. */
+/* Seven labeled chips take about 420 px; the labels come back only where they still fit one row. */
 @container (min-width: 430px) {
   .filter-chips .chip { padding: 2px 9px 2px 7px; }
   .filter-chips .chip .label { display: inline; }
@@ -417,7 +417,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
    counts, scanning and rendering as they happen, and the cache — what was a fixed row across the
    bottom of the window, so the window has one row fewer and the stage has its height. One row of
    small things of different kinds — a button, a paragraph, a flex summary, spans with icons — set
-   to one size and centred, so it reads as one row rather than three kinds of text. It is the one
+   to one size and centered, so it reads as one row rather than three kinds of text. It is the one
    part of the line that yields: when the window is narrow the counts and the cache shorten to
    their ellipses and the icons, and the project's name and a warning about ffmpeg stay whole. */
 .transport-status {
@@ -580,7 +580,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .app:is(.results-collapsed, .results-empty) #split-stage, .app:is(.results-collapsed, .results-empty) #results, .app:is(.results-collapsed, .results-empty) #category-cards { display: none; }
 .app:is(.results-collapsed, .results-empty) .results-region { flex: 0 0 auto; min-height: 0; }
 .app:is(.results-collapsed, .results-empty) .stage { flex: 1 1 auto; }
-/* Folded, the centre's floor is the stage and the heading: the list's floor is not owed — plus the
+/* Folded, the center's floor is the stage and the heading: the list's floor is not owed — plus the
    line under the results when one is shown (milestone 34), which stays through the fold. */
 .app:is(.results-collapsed, .results-empty) { --center-min-h: calc(var(--results-head-h) + var(--stage-min-h)); }
 .app.sample-hint:is(.results-collapsed, .results-empty) { --center-min-h: calc(var(--results-head-h) + var(--results-foot-h) + var(--stage-min-h)); }
@@ -696,7 +696,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .transport-row > .splitter.h { position: absolute; left: 0; right: 0; top: -1px; margin: 0; }
 /* The scrub bar's own line, one to one under the picture: the stage publishes the picture's box
    and sets --scrub-left and --scrub-w on the row (src/renderer/stage.ts), so halfway along the
-   bar is halfway along the picture; a narrow picture gets the bar's floor, centred under it. */
+   bar is halfway along the picture; a narrow picture gets the bar's floor, centered under it. */
 .scrub-line { flex: 0 0 auto; padding: 2px 0; }
 .scrub-line .scrub-wrap { margin-left: var(--scrub-left, 16px); width: var(--scrub-w, calc(100% - 32px)); }
 /* The buttons on a second line: play, step and loop on the left, the playhead and its marks in
@@ -705,7 +705,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
    with the outer two on equal fr tracks the right cluster outgrew its track at 1280 px and Clear sat
    on Mute (docs/ideas.md, 2026-10-30). The middle sits in the middle of what is left. */
 /* A flex row since milestone 42, with the status as a fourth cluster at the end: the three clusters
-   keep their size, the middle one centres itself in what is left (its auto margins), and only the
+   keep their size, the middle one centers itself in what is left (its auto margins), and only the
    status yields when the line is short. */
 .buttons-line { flex: 0 0 auto; display: flex; align-items: center; column-gap: var(--space-4); padding: 6px var(--space-3) 0; min-width: 0; }
 .transport-buttons { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-1); }
@@ -843,7 +843,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 
 /* The stage popped out (milestone 43, ADR 0019): its region and the row's first line — the scrub bar
    and the lanes under it — have left for a window of their own, and the main window takes the room:
-   the results fill the centre, the transport row is its buttons line, and the toggle that would hide
+   the results fill the center, the transport row is its buttons line, and the toggle that would hide
    a stage that is not here goes. */
 .app.stage-out #split-stage, .app.stage-out #split-transport, .app.stage-out #stage-toggle { display: none; }
 .app.stage-out .results-region { flex: 1 1 auto; }
@@ -937,7 +937,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .scrub-marks .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--accent); }
 .scrub-marks .mark[hidden] { display: none; }
 /* Where the cover is taken (milestone 20): a mark of its own on the scrub bar, told from the in and
-   out points by its colour and the tab at its head, since it says something else about the frame. */
+   out points by its color and the tab at its head, since it says something else about the frame. */
 .scrub-marks .mark.cover { background: var(--text); }
 .scrub-marks .mark.cover::before { content: ''; position: absolute; top: -4px; left: -3px; width: 8px; height: 5px; border-radius: 1px; background: var(--text); }
 
@@ -1211,8 +1211,8 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .layer-actions .icon-button:disabled { opacity: 0.4; }
 .param-card .layer-text { width: 100%; }
 /* A text layer's type, folded under its words, and a layer's own motion folded under Advanced.
-   The summary says how it is set; open, a two-column grid of small labelled controls, the family
-   and the colour taking the whole width. */
+   The summary says how it is set; open, a two-column grid of small labeled controls, the family
+   and the color taking the whole width. */
 .layer-type summary, .layer-advanced summary, .layer-animate summary, .layer-look summary { cursor: pointer; color: var(--muted); font-size: var(--font-caption); padding: 2px 0; list-style: none; display: flex; align-items: center; gap: var(--space-1); }
 .layer-type summary::-webkit-details-marker, .layer-advanced summary::-webkit-details-marker, .layer-animate summary::-webkit-details-marker, .layer-look summary::-webkit-details-marker { display: none; }
 .layer-type summary::before, .layer-advanced summary::before, .layer-look summary::before { content: ''; width: 0; height: 0; border: 4px solid transparent; border-left: 5px solid var(--muted); margin-right: 2px; }
@@ -1240,7 +1240,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .family-list [role="option"]:hover { background: var(--panel-2); }
 .family-list [role="option"][aria-selected="true"] { color: var(--accent); }
 .family-list .family-divider { color: var(--muted); font-size: var(--font-caption); padding: var(--space-1) 8px 2px; border-top: 1px solid var(--border); margin-top: var(--space-1); }
-/* The last row of the family list: import a font of your own, with the licence note asked for in place. */
+/* The last row of the family list: import a font of your own, with the license note asked for in place. */
 .family-list .font-import { padding: 2px 8px var(--space-1); }
 .font-import-start { font-size: var(--font-caption); padding: 2px 0; background: none; border: none; color: var(--accent); cursor: pointer; }
 .font-import-form { display: grid; gap: var(--space-1); padding: var(--space-1) 0; }
@@ -1257,7 +1257,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .layer-add .layers-reset { padding: 2px 6px; }
 
 .image-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); min-width: 0; }
-/* The well is one fixed height whatever the slot's shape: the image is contained and centred
+/* The well is one fixed height whatever the slot's shape: the image is contained and centered
    in it, so a square mark, a wide badge and a tall crest all read as themselves. */
 .image-field .image-well {
   width: 100%; height: 132px; padding: var(--space-1); display: flex; align-items: center; justify-content: center;

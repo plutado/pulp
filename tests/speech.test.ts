@@ -1,5 +1,5 @@
 /**
- * On-device transcription's pure parts (milestone 50): the model catalogue
+ * On-device transcription's pure parts (milestone 50): the model catalog
  * the fetch is held to, how the sound is laid out on the project's clock, and
  * how whisper.cpp's answer is read back as words with their timings.
  *
@@ -16,7 +16,7 @@ import {
 } from '../src/core/speech';
 import { linesFromWords, lineText } from '../src/core/captions';
 
-describe('the model catalogue', () => {
+describe('the model catalog', () => {
   it('names a publisher, a size and a checksum for every model, over https', () => {
     for (const model of SPEECH_MODELS) {
       expect(model.url.startsWith('https://'), model.id).toBe(true);

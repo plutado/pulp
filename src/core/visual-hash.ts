@@ -12,7 +12,7 @@
  * luminance, and each cell becomes one bit — is it brighter than the mean. It
  * sees composition and tone, not a pixel, so antialiasing and a font hinted a
  * shade differently on another platform do not fail it, while a moved title, a
- * changed colour or a dropped element do. Pure.
+ * changed color or a dropped element do. Pure.
  */
 
 /** The grid the frame is reduced to; 8 x 8 gives the 64 bits of the hash. */

@@ -148,7 +148,7 @@ describe('layoutBlock', () => {
     expect(layer.box.height).toBe(120 + 100);
   });
 
-  it('aligns each line on its own, left, centred or right', () => {
+  it('aligns each line on its own, left, centered or right', () => {
     const laid = layoutBlock(block([text({ text: 'ab', align: 'center' }), text({ id: 'r', text: 'abcd', align: 'right' })]), measure, noImages);
     expect(laid.layers[0]!.lines![0]!.x).toBe(100 + (1000 - 100) / 2);
     expect(laid.layers[1]!.lines![0]!.x).toBe(100 + 1000 - 200);
@@ -195,7 +195,7 @@ describe('layoutBlock', () => {
     expect(laid.layers[1]!.box).toMatchObject({ x: 100 + 100 + 20, width: 50 });
     expect(laid.layers[0]!.box.y).toBe(200 + (600 - 100) / 2);
     expect(laid.layers[1]!.box.y).toBe(200 + (600 - 50) / 2);
-    // Centred, the whole row sits in the middle of the box instead.
+    // Centered, the whole row sits in the middle of the box instead.
     const centred = layoutBlock(
       block([text({ id: 'one', text: 'ab' }), text({ id: 'two', text: 'cd', fontSize: 50 })], { direction: 'row', gap: 20, align: 'center' }),
       measure,
@@ -476,7 +476,7 @@ describe("a layer placed on the stage (milestone 25)", () => {
     expect(laid.layers[0]!.box).toEqual(plain.layers[0]!.box);
   });
 
-  it('turns a layer about its centre, adding angles as it adds offsets (milestone 29)', () => {
+  it('turns a layer about its center, adding angles as it adds offsets (milestone 29)', () => {
     const b = block([text({ placement: { dx: 0, dy: 0, scale: 1, rotate: 30 } })]);
     const laid = layoutBlock(b, measure, noImages, { each, watched });
     expect(laid.layers[0]!.draw.rotate).toBe(30);

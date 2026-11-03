@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.vhs-tracking-overlay",
   "name": "VHS Tracking",
-  "description": "Scanlines, a colour fringe at the edges, and a tracking band that rolls through on a cycle. Puts any shot on a worn tape.",
+  "description": "Scanlines, a color fringe at the edges, and a tracking band that rolls through on a cycle. Puts any shot on a worn tape.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

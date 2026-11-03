@@ -75,7 +75,7 @@ describe('what an item embeds', () => {
 });
 
 describe('the runner contract', () => {
-  it('asks for prompts from a file, normalised vectors as one JSON array', () => {
+  it('asks for prompts from a file, normalized vectors as one JSON array', () => {
     expect(embeddingArgs('/m/model.gguf', '/tmp/p.txt')).toEqual([
       '-m', '/m/model.gguf', '-f', '/tmp/p.txt', '--embd-output-format', 'array', '--embd-normalize', '2',
     ]);
@@ -98,7 +98,7 @@ describe('the runner contract', () => {
     expect(unpackVector(new Uint8Array(10), 384)).toBeNull();
   });
 
-  it('scores normalised vectors by their dot product', () => {
+  it('scores normalized vectors by their dot product', () => {
     expect(cosine(Float32Array.from([1, 0]), Float32Array.from([1, 0]))).toBe(1);
     expect(cosine(Float32Array.from([1, 0]), Float32Array.from([0, 1]))).toBe(0);
   });
@@ -174,7 +174,7 @@ describe('the results with meaning folded in', () => {
 /**
  * The real thing, where it is installed: llama.cpp from PATH and the pinned
  * model from PULP_SEMANTIC_TEST_MODEL (a local copy of the very file the
- * catalogue names). CI has neither and says so; this machine ran it.
+ * catalog names). CI has neither and says so; this machine ran it.
  */
 describe('the runner itself', () => {
   it('embeds a calm-podcast query nearer the calm opener and the podcast card than the glitch', async () => {

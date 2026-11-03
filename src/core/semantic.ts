@@ -97,7 +97,7 @@ export function semanticTextFor(entry: LibraryEntry): string {
 }
 
 /**
- * The runner's arguments: prompts come from a file, one per line, normalised
+ * The runner's arguments: prompts come from a file, one per line, normalized
  * vectors answered as one JSON array of arrays on stdout.
  */
 export function embeddingArgs(modelPath: string, promptsFile: string): string[] {
@@ -137,7 +137,7 @@ export function unpackVector(blob: Uint8Array, dims: number): Float32Array | nul
   return new Float32Array(blob.buffer.slice(blob.byteOffset, blob.byteOffset + blob.byteLength));
 }
 
-/** Both vectors are normalised, so similarity is the dot product: 1 the same direction, 0 unrelated. */
+/** Both vectors are normalized, so similarity is the dot product: 1 the same direction, 0 unrelated. */
 export function cosine(a: Float32Array, b: Float32Array): number {
   let sum = 0;
   for (let i = 0; i < a.length && i < b.length; i++) sum += a[i]! * b[i]!;

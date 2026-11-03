@@ -19,15 +19,15 @@ function probe(red: number[], blue: number[]): Uint8Array {
 }
 
 describe('classifyCapture', () => {
-  it('recognises premultiplied BGRA (Chromium on macOS)', () => {
+  it('recognizes premultiplied BGRA (Chromium on macOS)', () => {
     expect(classifyCapture(probe([0, 0, 128, 128], [255, 0, 0, 255]))).toEqual({ pixelFormat: 'bgra', premultiplied: true });
   });
 
-  it('recognises straight BGRA', () => {
+  it('recognizes straight BGRA', () => {
     expect(classifyCapture(probe([0, 0, 255, 128], [255, 0, 0, 255]))).toEqual({ pixelFormat: 'bgra', premultiplied: false });
   });
 
-  it('recognises premultiplied and straight RGBA', () => {
+  it('recognizes premultiplied and straight RGBA', () => {
     expect(classifyCapture(probe([128, 0, 0, 128], [0, 0, 255, 255]))).toEqual({ pixelFormat: 'rgba', premultiplied: true });
     expect(classifyCapture(probe([255, 0, 0, 128], [0, 0, 255, 255]))).toEqual({ pixelFormat: 'rgba', premultiplied: false });
   });

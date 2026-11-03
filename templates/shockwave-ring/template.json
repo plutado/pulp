@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.shockwave-ring",
   "name": "Shockwave ring",
-  "description": "A ring of compressed air racing outward from the centre and thinning as it goes; plays once.",
+  "description": "A ring of compressed air racing outward from the center and thinning as it goes; plays once.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

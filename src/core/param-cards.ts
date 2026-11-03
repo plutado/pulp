@@ -6,8 +6,8 @@
  * "Text color" — which text? — and "Panel color" sat away from everything else
  * about the panel. A template now says which element each parameter belongs to
  * (`element`), its layers are each a part in their own right, and everything
- * about one part is in one place: the panel's two colours together, a line's
- * words with its own type and colour, the logo's well with its treatment.
+ * about one part is in one place: the panel's two colors together, a line's
+ * words with its own type and color, the logo's well with its treatment.
  *
  * Pure: the renderer turns these cards into elements.
  */

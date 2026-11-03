@@ -90,7 +90,7 @@ describe('what the build copies', () => {
     expect(config.files).toContain('!node_modules/**');
   });
 
-  it('puts the licences beside the app', () => {
+  it('puts the licenses beside the app', () => {
     const copied = config.extraResources.map((r) => r.to);
     expect(copied).toContain('THIRD_PARTY_NOTICES.md');
     expect(copied).toContain('LICENSE');

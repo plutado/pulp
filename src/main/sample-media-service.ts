@@ -1,15 +1,15 @@
 /**
  * Makes the sample-media folder (milestone 21): runs every recipe in the
- * catalogue that has no file yet, so a library gets at least six original
+ * catalog that has no file yet, so a library gets at least six original
  * CC0 files per media type without shipping binaries. Sounds and music come
  * from ffmpeg's lavfi sources, stills from canvas pages through the offscreen
  * renderer, clips from the bundled background templates through the normal
  * render path at a small size.
  *
- * The catalogue is made in two lanes at once, because its two halves need
+ * The catalog is made in two lanes at once, because its two halves need
  * different machines: a sound is an ffmpeg subprocess and nothing else, while
  * a still, an asset or a clip goes through an offscreen window. The sounds run
- * several at a time — they are more than half the catalogue and each one is
+ * several at a time — they are more than half the catalog and each one is
  * idle waiting on a child process — and the drawn files stay strictly one at a
  * time, since several offscreen windows competing for the compositor is what
  * makes a capture come back stale (docs/platform-notes.md). The two lanes
@@ -43,7 +43,7 @@ export interface SampleMediaReport {
 }
 
 /**
- * The capture pages a run keeps open, one per page and size: the catalogue's
+ * The capture pages a run keeps open, one per page and size: the catalog's
  * hundreds of drawn files come from a handful of pages, and a window per file
  * paid the load and its paint drain every time — most of a slow runner's
  * minutes. Used strictly one at a time, like every drawn file before them.
@@ -119,7 +119,7 @@ function audioLanes(): number {
   return Math.max(1, Math.min(4, availableParallelism() - 1));
 }
 
-/** What became of one item, kept by its place in the catalogue so the report reads in catalogue order. */
+/** What became of one item, kept by its place in the catalog so the report reads in catalog order. */
 interface ItemOutcome {
   file: string;
   outcome: SampleMediaProgress['outcome'];
@@ -131,12 +131,12 @@ interface ItemOutcome {
  * license and the README. Files that exist are skipped, so running it again
  * only fills gaps. One failure does not stop the rest.
  *
- * `items` is the catalogue by default, and a part of it when one category is
+ * `items` is the catalog by default, and a part of it when one category is
  * being filled from the results' own hint (milestone 34): the folder, license
  * and README are still the whole folder's, since they describe what the
  * generator makes rather than what this run happened to write.
  *
- * The report lists files in catalogue order however the work was interleaved,
+ * The report lists files in catalog order however the work was interleaved,
  * and `onProgress` counts every item once, in the order they finish.
  */
 export async function generateSampleMedia(
@@ -211,7 +211,7 @@ export async function generateSampleMedia(
 }
 
 /**
- * How many catalogue files are still to make, per taxonomy type (milestone 34),
+ * How many catalog files are still to make, per taxonomy type (milestone 34),
  * which is what the results' hint counts from. A root that is not there yet —
  * nobody has made any sample media — leaves every file to make, so a first run
  * is offered the same way a partial one is. The counting is `unmadeSampleCounts`;
@@ -221,7 +221,7 @@ export function unmadeSamplesByType(root: string | null): Record<string, number>
   return unmadeSampleCounts((item) => root !== null && existsSync(join(root, ...sampleMediaPath(item))));
 }
 
-/** The catalogue's items for these types, for a run that fills one category rather than everything. */
+/** The catalog's items for these types, for a run that fills one category rather than everything. */
 export function samplesToMake(types: readonly string[]): readonly SampleMediaItem[] {
   return samplesForTypes(types);
 }

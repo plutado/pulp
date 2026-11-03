@@ -70,7 +70,7 @@
     // The whole mark eases a few pixels in from its edge as it fades.
     var nudge = (1 - inT) * 24 * s;
     var x = left ? margin - nudge : W - margin - totalW + nudge;
-    var bx = left ? x : x + totalW - box;      // the square sits nearest the edge, text toward the centre
+    var bx = left ? x : x + totalW - box;      // the square sits nearest the edge, text toward the center
     var tx = left ? bx + box + gap : x;
 
     ctx.globalAlpha = fade;

@@ -94,7 +94,7 @@ function Job({ job }: { job: RenderQueueJob }) {
       class={`job-card ${card.status.kind}${dragging.value === card.id ? ' dragging' : ''}`}
       draggable={card.draggable}
       // Every card is reachable, draggable or not (milestone 8): the list is one tab stop and Up
-      // and Down walk it, so a render in progress can be read and cancelled without a pointer.
+      // and Down walk it, so a render in progress can be read and canceled without a pointer.
       tabIndex={-1}
       data-file={card.file}
       data-job={card.id}

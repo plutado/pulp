@@ -31,7 +31,7 @@ import { isValidColor, type TemplateManifest, type ValidationIssue } from './man
 export const LAYER_TYPES = ['text', 'image', 'video', 'audio', 'shape'] as const;
 export type LayerType = (typeof LAYER_TYPES)[number];
 
-/** What a shape layer draws (milestone 55): flat colour on the canvas, no picture and no library id. */
+/** What a shape layer draws (milestone 55): flat color on the canvas, no picture and no library id. */
 export const SHAPE_KINDS = ['rectangle', 'ellipse', 'triangle'] as const;
 export type ShapeKind = (typeof SHAPE_KINDS)[number];
 
@@ -72,7 +72,7 @@ export const DEFAULT_MOTION: LayerMotion = { type: 'template', delay: 0 };
 /**
  * Where a person put a layer (milestone 25): an offset from where the block
  * stacked it, as fractions of the frame's width and height, and a scale about
- * the layer's own centre. The host applies it around the template's draw of
+ * the layer's own center. The host applies it around the template's draw of
  * that layer, so a placed layer still enters, moves and leaves with the
  * design. Kept **per aspect** (plus "default"), so a layout placed at 16:9
  * never moves what was placed at 9:16.
@@ -82,9 +82,9 @@ export interface LayerPlacement {
   dx: number;
   /** Down, as a fraction of the frame's height; negative is up. */
   dy: number;
-  /** About the layer's centre; 1 is the size the stack gave it. */
+  /** About the layer's center; 1 is the size the stack gave it. */
   scale: number;
-  /** About the layer's centre, in degrees clockwise; 0 is as the stack set it (milestone 29). */
+  /** About the layer's center, in degrees clockwise; 0 is as the stack set it (milestone 29). */
   rotate: number;
 }
 
@@ -211,7 +211,7 @@ interface LayerBase {
    * own at all.
    */
   keys?: LayerKey[];
-  /** How it looks — opacity, shadow, glow, outline, blur, blend, colour (src/core/layer-look.ts); absent is as the template draws it. */
+  /** How it looks — opacity, shadow, glow, outline, blur, blend, color (src/core/layer-look.ts); absent is as the template draws it. */
   look?: LayerLook;
 }
 
@@ -262,7 +262,7 @@ export interface ImageLayer extends LayerBase {
 
 /**
  * A flat shape drawn by the canvas itself (milestone 55): a rectangle, an
- * ellipse or a triangle in one colour, taking its room the way a picture does
+ * ellipse or a triangle in one color, taking its room the way a picture does
  * — a height as a fraction of the frame's short side, a width from its own
  * ratio. The first layer that draws with nothing chosen from any library, so
  * a blank canvas has something to compose with; rounded corners, outlines,

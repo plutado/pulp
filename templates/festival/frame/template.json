@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.festival.frame",
   "name": "Festival frame",
-  "description": "A rounded gold frame inset from the edges that draws itself in from the top centre around both sides, with small twinkles at the corners.",
+  "description": "A rounded gold frame inset from the edges that draws itself in from the top center around both sides, with small twinkles at the corners.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

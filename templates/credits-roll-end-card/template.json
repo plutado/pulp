@@ -35,7 +35,7 @@
       "id": "lines",
       "type": "text",
       "label": "Credits",
-      "default": "Directed by \u2014 Sam Achebe\nCinematography \u2014 Lior Ben-David\nEdited by \u2014 Priya Natarajan\nMusic \u2014 The Harbour Trio\nThanks to everyone who came out",
+      "default": "Directed by \u2014 Sam Achebe\nCinematography \u2014 Lior Ben-David\nEdited by \u2014 Priya Natarajan\nMusic \u2014 The Harbor Trio\nThanks to everyone who came out",
       "multiline": true,
       "maxLength": 600,
       "element": "Roll"

@@ -6,7 +6,7 @@
  *
  * Three jobs live here:
  *
- * - **A LUT**: a `.cube` colour grade, as the one `lut3d` step every path
+ * - **A LUT**: a `.cube` color grade, as the one `lut3d` step every path
  *   shares — the whole render, a clip rendered itself, and a video layer's
  *   decoded frames, which is how the preview shows it too.
  * - **A chroma key**: a green or blue key rendered to an alpha clip (ProRes
@@ -45,11 +45,11 @@ export function lutFilter(path: string): string {
 // ---------------------------------------------------------------- the chroma key
 
 export interface ChromaKeySettings {
-  /** The colour keyed out, #RRGGBB. */
+  /** The color keyed out, #RRGGBB. */
   color: string;
-  /** How far from the colour still counts as it, 0.01 to 0.9 (ffmpeg's `similarity`). */
+  /** How far from the color still counts as it, 0.01 to 0.9 (ffmpeg's `similarity`). */
   tolerance: number;
-  /** How much of the key colour's cast is washed out of what remains, 0 to 1 (`despill`'s mix). */
+  /** How much of the key color's cast is washed out of what remains, 0 to 1 (`despill`'s mix). */
   spill: number;
 }
 
@@ -74,7 +74,7 @@ export function sanitizeChromaKey(input: unknown): ChromaKeySettings {
   };
 }
 
-/** Which of `despill`'s two washes suits the key colour, or null for one that is neither green nor blue. */
+/** Which of `despill`'s two washes suits the key color, or null for one that is neither green nor blue. */
 export function despillType(color: string): 'green' | 'blue' | null {
   const r = parseInt(color.slice(1, 3), 16);
   const g = parseInt(color.slice(3, 5), 16);
@@ -86,8 +86,8 @@ export function despillType(color: string): 'green' | 'blue' | null {
 
 /**
  * The filter steps of a key: `chromakey` (which works in Y'CbCr, where a key
- * colour is a point rather than a wedge), then `despill` washing the key's
- * cast out of edges and reflections — skipped for a colour that is neither
+ * color is a point rather than a wedge), then `despill` washing the key's
+ * cast out of edges and reflections — skipped for a color that is neither
  * green nor blue, which is what the filter knows how to wash.
  */
 export function chromaKeyFilter(settings: ChromaKeySettings): string {
@@ -117,7 +117,7 @@ export function chromaKeyArgs(input: string, settings: ChromaKeySettings, output
 /**
  * One frame of the key, as a PNG on stdout, for the dialog's before-and-after:
  * the keyed picture with its alpha, beside which the dialog shows the plain
- * frame the colour is picked from.
+ * frame the color is picked from.
  */
 export function chromaKeyStillArgs(input: string, settings: ChromaKeySettings | null, atSeconds: number): string[] {
   const at = Number.isFinite(atSeconds) && atSeconds >= 0 ? atSeconds : PREVIEW_SECONDS;

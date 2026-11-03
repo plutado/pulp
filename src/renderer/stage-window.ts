@@ -9,7 +9,7 @@
  * row's first line, the scrub bar with the lanes under it. Every listener,
  * signal and module that was wired to those elements is still wired to them,
  * because they are the same elements; nothing is copied and nothing is
- * synchronised. What a window owns rather than an element — resize, the
+ * synchronized. What a window owns rather than an element — resize, the
  * template page's messages, tooltips, the right-click menu's closing, the
  * `T` key — is told where the stage is (`stageRehome`, and the watchers here).
  *
@@ -72,7 +72,7 @@ export function findControl(id: string): HTMLElement | null {
   return document.getElementById(id) ?? stageDocument()?.getElementById(id) ?? null;
 }
 
-/** The stylesheet, serialised: the fallback when the window cannot load it by link. */
+/** The stylesheet, serialized: the fallback when the window cannot load it by link. */
 function stylesheetText(): string {
   const rules: string[] = [];
   for (const sheet of document.styleSheets) {
@@ -106,7 +106,7 @@ export function popOutStage(): boolean {
   const doc = win.document;
   doc.documentElement.lang = 'en';
   doc.title = 'Stage';
-  // The same stylesheet as this page's, by the same link; serialised in place should the link fail.
+  // The same stylesheet as this page's, by the same link; serialized in place should the link fail.
   const link = doc.createElement('link');
   link.rel = 'stylesheet';
   link.href = new URL('./styles.css', document.baseURI).href;

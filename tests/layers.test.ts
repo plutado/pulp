@@ -422,7 +422,7 @@ describe('resolveLayers', () => {
   it('refuses a start or an end it cannot use, naming the field, and keeps the rest', () => {
     const bad = resolveLayers(manifest(), { strap: [{ id: 'name', span: { start: -1, end: 4 } }] });
     expect(bad.issues.map((i) => i.message).join(' ')).toContain('span.start must be a number of seconds');
-    // The good field lands even though its neighbour did not.
+    // The good field lands even though its neighbor did not.
     expect(bad.values.strap![0]!.span).toEqual({ start: 0, end: 4 });
     const wrong = resolveLayers(manifest(), { strap: [{ id: 'name', span: 'later' }] });
     expect(wrong.issues.map((i) => i.message).join(' ')).toContain('span must be an object of start and end');
@@ -457,7 +457,7 @@ describe('resolveLayers', () => {
     const bad = resolveLayers(manifest(), { strap: [{ id: 'name', placement: { sideways: { dx: 0.1 }, '16:9': { dx: 9, scale: 0.5 } } }] });
     expect(bad.issues.map((i) => i.message).join(' | ')).toContain('"sideways" is not an aspect id');
     expect(bad.issues.map((i) => i.message).join(' | ')).toContain('placement.dx must be a fraction');
-    // The good field survives the bad neighbour: the scale lands, the wild offset falls back.
+    // The good field survives the bad neighbor: the scale lands, the wild offset falls back.
     expect(bad.values.strap![0]!.placement).toEqual({ '16:9': { dx: 0, dy: 0, scale: 0.5, rotate: 0 } });
     const notObject = resolveLayers(manifest(), { strap: [{ id: 'name', placement: 'everywhere' }] });
     expect(notObject.issues.some((i) => i.message.includes('placements by aspect id'))).toBe(true);
@@ -565,7 +565,7 @@ describe('shape layers (milestone 55)', () => {
     return r.manifest;
   };
 
-  it('a template may ship one, validated and filled with defaults, its colour folded to lowercase', () => {
+  it('a template may ship one, validated and filled with defaults, its color folded to lowercase', () => {
     const shipped = manifest().blocks[0]!.layers[0]!;
     expect(shipped).toMatchObject({ type: 'shape', shape: 'triangle', color: '#aabbcc', size: 0.3, ratio: 1.5, align: 'left' });
     const bare = validateManifest(rawManifest({
@@ -584,7 +584,7 @@ describe('shape layers (milestone 55)', () => {
     expect(fresh).toMatchObject({ type: 'shape', label: 'Shape', shape: 'rectangle', color: DEFAULT_SHAPE_COLOR, size: DEFAULT_SHAPE_SIZE, ratio: DEFAULT_SHAPE_RATIO, align: 'center' });
   });
 
-  it('a stored stack changes its kind, colour, size and ratio, and keeps what a wrong value would break', () => {
+  it('a stored stack changes its kind, color, size and ratio, and keeps what a wrong value would break', () => {
     const { values, issues } = resolveLayers(manifest(), { b: [{ id: 'bar', shape: 'ellipse', color: '#00000080', size: 0.5, ratio: 0.5 }] });
     expect(issues).toEqual([]);
     expect(values.b![0]).toMatchObject({ shape: 'ellipse', color: '#00000080', size: 0.5, ratio: 0.5 });

@@ -1,9 +1,9 @@
 /**
  * A person's own fonts (milestone 23, ADR 0014): TTF, OTF or WOFF2 files copied
  * into a managed folder under user data, named by what each file calls itself,
- * with the licence note they wrote. They are served to template pages and the
+ * with the license note they wrote. They are served to template pages and the
  * app window exactly as the bundled fonts are, under the reserved path and
- * scheme, from this folder instead. The licence is the person's to know: Pulp
+ * scheme, from this folder instead. The license is the person's to know: Pulp
  * records what they said and shows it where the family is chosen, and never
  * puts an imported font into an exported pack.
  */
@@ -39,7 +39,7 @@ export async function importedFontPath(file: string): Promise<string | null> {
   return fonts.some((f) => f.file === file) ? join(importedFontsDir(), file) : null;
 }
 
-/** A file dialog for a font; what it names is read for its family so the person can be asked about the licence. */
+/** A file dialog for a font; what it names is read for its family so the person can be asked about the license. */
 export async function chooseFontFile(): Promise<{ path: string; family: string; file: string } | { error: string } | null> {
   const result = await dialog.showOpenDialog({
     title: 'Import a font',
@@ -74,7 +74,7 @@ async function readFontFile(source: string): Promise<{ family: string; style: 'n
 }
 
 /**
- * Copy a font into the managed folder and record it with the person's licence
+ * Copy a font into the managed folder and record it with the person's license
  * note. The family comes from the file, never from the note or the file name
  * for a readable font, so a layer set in it finds it by the name the font has.
  */

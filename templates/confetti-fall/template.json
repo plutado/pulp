@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.confetti-fall",
   "name": "Confetti fall",
-  "description": "Paper confetti tumbling down and turning as it falls, in shades of one colour; loops.",
+  "description": "Paper confetti tumbling down and turning as it falls, in shades of one color; loops.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

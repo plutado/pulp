@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.donut-chart-infographic",
   "name": "Donut Chart",
-  "description": "Three segments that draw round a ring in turn, each labelled, with the headline figure in the hole. Shows a split in one glance.",
+  "description": "Three segments that draw round a ring in turn, each labeled, with the headline figure in the hole. Shows a split in one glance.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
@@ -99,21 +99,21 @@
     {
       "id": "c1",
       "type": "color",
-      "label": "Colour one",
+      "label": "Color one",
       "default": "#2563eb",
       "element": "Chart"
     },
     {
       "id": "c2",
       "type": "color",
-      "label": "Colour two",
+      "label": "Color two",
       "default": "#f59e0b",
       "element": "Chart"
     },
     {
       "id": "c3",
       "type": "color",
-      "label": "Colour three",
+      "label": "Color three",
       "default": "#10b981",
       "element": "Chart"
     }

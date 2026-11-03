@@ -52,13 +52,13 @@ describe('RenderQueue', () => {
     expect(q.cancel(a.id)).toBe('running');
     expect(q.snapshot().jobs[0]?.status).toBe('running');
     expect(q.cancel(b.id)).toBe('cancelled');
-    expect(q.snapshot().jobs[1]).toMatchObject({ status: 'cancelled', message: 'Cancelled before it started.' });
+    expect(q.snapshot().jobs[1]).toMatchObject({ status: 'cancelled', message: 'Canceled before it started.' });
     expect(q.cancel(b.id)).toBe('ignored');
     expect(q.cancel(42)).toBe('ignored');
 
-    q.finish(a.id, { ok: false, cancelled: true, message: 'Render cancelled.' });
-    expect(q.snapshot().jobs[0]).toMatchObject({ status: 'cancelled', message: 'Render cancelled.' });
-    // Nothing left to start: the queued job was cancelled.
+    q.finish(a.id, { ok: false, cancelled: true, message: 'Render canceled.' });
+    expect(q.snapshot().jobs[0]).toMatchObject({ status: 'cancelled', message: 'Render canceled.' });
+    // Nothing left to start: the queued job was canceled.
     expect(q.startNext()).toBeNull();
   });
 

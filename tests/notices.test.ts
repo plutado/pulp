@@ -39,7 +39,7 @@ describe('third-party notices', () => {
     expect(sections.map((s) => s.title)).toContain('Runtime');
     const runtime = sections.find((s) => s.title === 'Runtime')!;
     const table = runtime.blocks.find(isDocTable)!;
-    expect(table.header).toEqual(['Component', 'Licence', 'Notes']);
+    expect(table.header).toEqual(['Component', 'License', 'Notes']);
     expect(table.rows.map((r) => r[0])).toEqual(['Electron', 'Chromium', 'Node.js']);
     // Inline marks are taken off: the dialog sets the words plainly.
     expect(JSON.stringify(sections)).not.toMatch(/\*\*|`/);

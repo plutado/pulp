@@ -9,7 +9,7 @@ HEVC with an alpha layer is the small-file alpha format for Final Cut Pro, Premi
 
 ## Decision
 
-- Preset `hevc-alpha`, labelled "HEVC (alpha, macOS only)". Quality 80 and alpha quality 0.9, fixed. Stream tag `hvc1`, which Apple's players require.
+- Preset `hevc-alpha`, labeled "HEVC (alpha, macOS only)". Quality 80 and alpha quality 0.9, fixed. Stream tag `hvc1`, which Apple's players require.
 - The frames are converted to Y'CbCr with alpha by the renderer's own Rec.709 steps (ADR 0004) and handed to the encoder as `ayuv`, not as BGRA.
 - On Windows and Linux the preset is shown as unavailable with the reason, and refused at render time.
 

@@ -60,12 +60,12 @@
     ctx.fillStyle = p.accent;
     ctx.fill();
 
-    // A chosen logo sits at the centre of the frame, clipped to the panel and fading in as the
+    // A chosen logo sits at the center of the frame, clipped to the panel and fading in as the
     // leading slash passes it and out as the trailing one follows. With no logo nothing is drawn.
     var hasLogo = !!(state.images && state.images.logo && state.images.logo.bitmap);
     if (hasLogo) {
       var mark = 200 * (Math.min(W, H) / 1080);
-      // The frame's centre, measured along the panel's travel at mid-height (the same either way).
+      // The frame's center, measured along the panel's travel at mid-height (the same either way).
       var qc = W / 2 + k / 2;
       var cover = clamp01((head - qc + mark / 2) / mark) * clamp01((qc + mark / 2 - tail) / mark);
       if (cover > 0) {

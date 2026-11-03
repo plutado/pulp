@@ -300,7 +300,7 @@ export async function relinkProjectItem(
   }
 
   // The folder that moved, if this file says so; otherwise the chosen file's own folder, which
-  // brings it into the library without claiming to know anything about its neighbours.
+  // brings it into the library without claiming to know anything about its neighbors.
   const shift = pathShift(target.path, chosen);
   const root = shift ? shift.to : (folder ? chosen : dirname(chosen));
   let index: LibraryIndex;

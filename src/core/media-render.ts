@@ -242,10 +242,10 @@ function hexToFfmpegColor(hex: string): string {
 }
 
 /**
- * Recolor (milestone 15): the picture's luminance in one colour, alpha kept —
+ * Recolor (milestone 15): the picture's luminance in one color, alpha kept —
  * what a light leak or a texture is tinted to match a palette. One
  * colorchannelmixer: each output channel is the Rec.601 luma scaled by the
- * tint's channel, so grey stays the tint and black stays black.
+ * tint's channel, so gray stays the tint and black stays black.
  */
 export function tintFilter(tint: string): string {
   const r = parseInt(tint.slice(1, 3), 16) / 255;
@@ -280,7 +280,7 @@ function inputArgs(source: MediaSource, repeats: number, fps: number, holdSecond
   return [...loop, '-i', source.input.path];
 }
 
-/** Scale into the asked size, keeping the picture's shape, with the rest left clear (or in the background colour). */
+/** Scale into the asked size, keeping the picture's shape, with the rest left clear (or in the background color). */
 function fitFilter(width: number, height: number, clear: boolean, background: string): string {
   const pad = clear ? '0x00000000' : hexToFfmpegColor(background);
   return `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=${pad}`;
@@ -307,7 +307,7 @@ function sizeOf(source: MediaSource, options: RenderOptions, preset: OutputPrese
 /**
  * The seamless loop unit (video, and sound when there is any): the clip's
  * head crossfaded under its tail, written losslessly to the scratch folder.
- * `in` labels are the normalised streams this builds from.
+ * `in` labels are the normalized streams this builds from.
  */
 function loopUnitGraph(timing: MediaTiming, video: boolean, audio: boolean): { graph: string; maps: string[] } {
   const { natural: d, crossfade: x } = timing;
@@ -396,7 +396,7 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
     finalAudioPrepare = normaliseAudio(true);
   }
 
-  // The final stage: trim to the asked frames, flatten or keep alpha, the preset's colour and format, the matte.
+  // The final stage: trim to the asked frames, flatten or keep alpha, the preset's color and format, the matte.
   const start = timing.firstFrame / timing.fps;
   const end = (timing.firstFrame + timing.totalFrames) / timing.fps;
   const trimV = `trim=start=${start}:end=${end},setpts=PTS-STARTPTS`;
@@ -407,7 +407,7 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
   if (matte) parts.push(`[src]split[pic][mat]`, `[mat]${matteFilters(preset)}[matte]`);
   const pic = matte ? '[pic]' : '[src]';
   if (!preset.alpha && source.alpha) {
-    // Transparent media flattened over the background colour, as an alpha template is.
+    // Transparent media flattened over the background color, as an alpha template is.
     parts.push(`color=c=${hexToFfmpegColor(background)}:s=${width}x${height}:r=${fps}[bg]`, `[bg]${pic}overlay=shortest=1:format=rgb,${toOutput.join(',')}[out]`);
   } else {
     parts.push(`${pic}${toOutput.join(',')}[out]`);

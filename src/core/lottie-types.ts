@@ -5,7 +5,7 @@
  *
  * A Lottie file is read as a template (src/core/lottie.ts): its manifest is
  * made from the file — size, frame rate, length — and its editable text and
- * colours become parameters. `bindings` say where each parameter writes into
+ * colors become parameters. `bindings` say where each parameter writes into
  * the animation's JSON when a frame is drawn; the generated page applies them
  * (src/core/lottie-page.ts).
  */
@@ -17,7 +17,7 @@ export type LottiePath = (string | number)[];
 
 /**
  * One place a parameter writes to. `text` is a text document's string; `rgb`
- * and `rgba` are a static colour's components in 0..1 (as many as the file
+ * and `rgba` are a static color's components in 0..1 (as many as the file
  * had); `hex` is a solid layer's `#rrggbb` string.
  */
 export interface LottieTarget {

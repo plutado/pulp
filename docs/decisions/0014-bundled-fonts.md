@@ -11,19 +11,19 @@ Two constraints shape the answer. Template pages run under a Content Security Po
 
 ## Decision
 
-**Pulp bundles ten open-licence families, taken from their upstreams with their own licence files, and serves them to template pages under each template's own origin at a reserved path.**
+**Pulp bundles ten open-license families, taken from their upstreams with their own license files, and serves them to template pages under each template's own origin at a reserved path.**
 
 - **The set:** Inter, Montserrat and Noto Sans (sans), Oswald and Bebas Neue (display), Source Serif 4 and Playfair (serif), JetBrains Mono (mono), Caveat and Dancing Script (script). Two of each kind a lower third or a title is likely to want, one mono, and one of the Noto family because it covers the most scripts. Playfair stands where the roadmap said Playfair Display: that family's upstream has become the Playfair superfamily, whose display cut is the large end of its optical-size axis.
-- **Licences are read, not assumed.** Each family's folder holds the licence file its upstream ships, and the test confirms from that file that it is the SIL Open Font License 1.1 and reads whether it declares a Reserved Font Name. Two do (Source, Dancing Script); their files are the upstream bytes untouched, which is what the OFL asks of a font that keeps its reserved name, and the files' hashes are in the list the test checks. Nothing is subset, for the same reason and to keep every family's full character set. `docs/font-credits.md` records family, version, licence, Reserved Font Name and source, and the test holds it to the list.
+- **Licenses are read, not assumed.** Each family's folder holds the license file its upstream ships, and the test confirms from that file that it is the SIL Open Font License 1.1 and reads whether it declares a Reserved Font Name. Two do (Source, Dancing Script); their files are the upstream bytes untouched, which is what the OFL asks of a font that keeps its reserved name, and the files' hashes are in the list the test checks. Nothing is subset, for the same reason and to keep every family's full character set. `docs/font-credits.md` records family, version, license, Reserved Font Name and source, and the test holds it to the list.
 - **Delivery to templates fits the CSP rather than widening it.** The template protocol answers for the bundled files under every template at `/__pulp/fonts/<family>/<file>`, which `font-src 'self'` already allows. Only files on the bundled list are served there; a template folder's own `__pulp` is never reachable. The bridge adds an `@font-face` per file beside itself, so every template page knows the families by name without declaring anything.
 - **The app window loads the same files through its own scheme**, `pulp-font://`, so the family control can show each family set in itself. Template pages are refused there, as they are by every app scheme.
-- **Both routes answer with `Access-Control-Allow-Origin: *`.** A font load is a CORS request even to the page's own origin, and these schemes enforce CORS; the fonts are public under their licence, so saying who may read them is simpler and steadier than relying on two custom-scheme origins comparing equal, which did not hold on Windows (docs/platform-notes.md).
+- **Both routes answer with `Access-Control-Allow-Origin: *`.** A font load is a CORS request even to the page's own origin, and these schemes enforce CORS; the fonts are public under their license, so saying who may read them is simpler and steadier than relying on two custom-scheme origins comparing equal, which did not hold on Windows (docs/platform-notes.md).
 - **The bridge loads a face before the frame that uses it.** Canvas text never triggers a font load, so a `@font-face` alone would leave the first frames in a fallback. Before each frame the bridge calls `document.fonts.load` for every text layer's family, weight and style, once per face; a family that is neither bundled nor installed resolves at once and falls back as it always did.
 
 ## Reasons
 
 - Serving under `'self'` keeps the template CSP exactly as it was. The alternative, a `pulp-font:` entry in the template CSP, is a second scheme a template page could address; the reserved path is one list of files behind the origin the template already has.
-- Taking the files from upstream rather than a font package is what makes the licence claim honest: the licence file is the one the authors published with those bytes, and the version is theirs.
+- Taking the files from upstream rather than a font package is what makes the license claim honest: the license file is the one the authors published with those bytes, and the version is theirs.
 - Variable fonts give a layer any weight in one file. The set is about 12 MB; that is the price of real italics and full character sets, and it is paid once in the installer, not per template.
 - A family the user chooses that is not bundled still works where it is installed and falls back where it is not — exactly as a template's own `font` parameter always has. The bundled set is the part that is the same everywhere.
 
@@ -35,4 +35,4 @@ Two constraints shape the answer. Template pages run under a Content Security Po
 
 ## Not decided here
 
-Importing a person's own fonts into a managed folder, with a licence note, is the milestone's next item (since built): it reuses the same delivery (another folder behind the same reserved path and scheme) and is kept out of exported packs, so sharing a pack can never redistribute a licence the sharer does not hold.
+Importing a person's own fonts into a managed folder, with a license note, is the milestone's next item (since built): it reuses the same delivery (another folder behind the same reserved path and scheme) and is kept out of exported packs, so sharing a pack can never redistribute a license the sharer does not hold.

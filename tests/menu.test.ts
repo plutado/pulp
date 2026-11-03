@@ -77,10 +77,10 @@ describe('the application menu (milestone 27)', () => {
       ['Checkerboard', 'view.background', 'checker'],
       ['Black', 'view.background', 'black'],
       ['White', 'view.background', 'white'],
-      ['Grey', 'view.background', 'gray'],
+      ['Gray', 'view.background', 'gray'],
     ]);
     const grey = state({ background: 'gray' });
-    expect(backgrounds.filter((i) => itemChecked(i, grey)).map((i) => i.label)).toEqual(['Grey']);
+    expect(backgrounds.filter((i) => itemChecked(i, grey)).map((i) => i.label)).toEqual(['Gray']);
     expect(backgrounds.filter((i) => itemChecked(i, state({ background: 'custom' })))).toEqual([]);
     // Every one of them can always act: there is always a background.
     expect(backgrounds.every((i) => itemEnabled(i, state()))).toBe(true);
@@ -123,7 +123,7 @@ describe('the application menu (milestone 27)', () => {
     const layer = byLabel(edit, 'Layer')!.submenu!;
     expect(layer.filter((i) => i.type !== 'separator').map((i) => i.label)).toEqual([
       'Edit Text', 'Replace Image…', 'Replace Clip…',
-      'Make Words a Parameter', 'Make Colour a Parameter', 'Make Picture a Parameter',
+      'Make Words a Parameter', 'Make Color a Parameter', 'Make Picture a Parameter',
       'Add Text Layer', 'Add Image Layer', 'Add Video Layer',
       'Add Shape Layer',
       'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete',
@@ -210,7 +210,7 @@ describe('the application menu (milestone 27)', () => {
     expect(offered.filter((i) => i.label!.endsWith('…')).map((i) => i.command)).toEqual(['library.addFolder', 'pack.import']);
     // Every command the panel offers is one the application menu offers too, and nothing else.
     expect(offered.map((i) => i.command).sort()).toEqual(['library.addFolder', 'library.addSampleMedia', 'pack.import']);
-    // Once the catalogue is all made there is no sample media to bring in, and the choice goes.
+    // Once the catalog is all made there is no sample media to bring in, and the choice goes.
     expect(libraryAddItems({ canAddSampleMedia: false }).map((i) => i.command)).toEqual(['library.addFolder', 'pack.import']);
     // Export is not one of them: it sends templates out rather than bringing any in.
     expect(offered.some((i) => i.command === 'pack.export')).toBe(false);

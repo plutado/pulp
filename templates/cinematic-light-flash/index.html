@@ -84,7 +84,7 @@
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    // The full-frame wash: at the midpoint the whole frame is the peak colour.
+    // The full-frame wash: at the midpoint the whole frame is the peak color.
     var wash = clamp01((level - 0.45) / 0.55);
     if (wash > 0) {
       ctx.globalAlpha = wash;

@@ -259,7 +259,7 @@ async function fillSetup(): Promise<void> {
       act.textContent = item.action;
       act.addEventListener('click', () => {
         // FFmpeg's own button opens Settings, where the offer says what would be fetched,
-        // from whom and under what licence — the asking, which happens in one place.
+        // from whom and under what license — the asking, which happens in one place.
         if (item.id === 'ffmpeg') {
           void showSettings();
           return;

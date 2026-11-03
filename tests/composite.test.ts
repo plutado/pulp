@@ -17,7 +17,7 @@ describe('over, premultiplied', () => {
     expect([...under]).toEqual([10, 20, 30, 255, 200, 100, 50, 255]);
   });
 
-  it('adds the premultiplied colour to what the alpha leaves of the picture', () => {
+  it('adds the premultiplied color to what the alpha leaves of the picture', () => {
     // Half-covered red (premultiplied: 128,0,0,128) over opaque blue: half red, half blue, opaque.
     const under = px([0, 0, 255, 255]);
     compositeOver(under, px([128, 0, 0, 128]), format);
@@ -37,7 +37,7 @@ describe('over, premultiplied', () => {
 describe('over, straight alpha', () => {
   const format = { premultiplied: false };
 
-  it('weights each colour by its coverage and unites the alpha', () => {
+  it('weights each color by its coverage and unites the alpha', () => {
     // Half red over opaque blue: half and half, opaque.
     const under = px([0, 0, 255, 255]);
     compositeOver(under, px([255, 0, 0, 128]), format);
@@ -48,7 +48,7 @@ describe('over, straight alpha', () => {
     expect(under[3]).toBe(255);
   });
 
-  it('keeps a straight colour over a clear picture, at its own alpha', () => {
+  it('keeps a straight color over a clear picture, at its own alpha', () => {
     const under = px([0, 0, 0, 0]);
     compositeOver(under, px([200, 100, 50, 64]), format);
     expect([...under]).toEqual([200, 100, 50, 64]);

@@ -86,17 +86,17 @@ describe('readDotLottie', () => {
 });
 
 describe('what the file exposes', () => {
-  it('finds the text layer, each distinct colour once, and the solid', () => {
+  it('finds the text layer, each distinct color once, and the solid', () => {
     const { parameters, bindings, limits } = lottieEditables(lottieFixture());
     expect(limits).toEqual([]);
     expect(parameters.map((p) => [p.id, p.type, p.label])).toEqual([
       ['text1', 'text', 'Text'],
-      ['color1', 'color', 'Headline text colour'],
+      ['color1', 'color', 'Headline text color'],
       ['color2', 'color', 'Square fill'],
       ['color3', 'color', 'Corner solid'],
     ]);
     expect(parameters[0]).toMatchObject({ element: 'Headline', default: 'HELLO' });
-    expect(parameters[1]).toMatchObject({ default: '#ffffff', element: 'Colours' });
+    expect(parameters[1]).toMatchObject({ default: '#ffffff', element: 'Colors' });
     expect(parameters[2]).toMatchObject({ default: '#ff0000' });
     expect(parameters[3]).toMatchObject({ default: '#0000ff' });
     expect(bindings.find((b) => b.id === 'text1')!.targets).toEqual([{ kind: 'text', path: ['layers', 0, 't', 'd', 'k', 0, 's', 't'] }]);
@@ -104,7 +104,7 @@ describe('what the file exposes', () => {
     expect(bindings.find((b) => b.id === 'color3')!.targets).toEqual([{ kind: 'hex', path: ['layers', 2, 'sc'] }]);
   });
 
-  it('merges a colour used in several places into one parameter that says so', () => {
+  it('merges a color used in several places into one parameter that says so', () => {
     const doc = lottieFixture({ fill: [1, 1, 1] }); // the square's fill is the text's white
     const { parameters, bindings } = lottieEditables(doc);
     const white = parameters.find((p) => p.default === '#ffffff')!;
@@ -124,7 +124,7 @@ describe('what the file exposes', () => {
     expect(limits).toEqual(['text that changes over time is not editable: Ticker']);
   });
 
-  it('reads older files whose channels run to 255, and animated colours are not offered', () => {
+  it('reads older files whose channels run to 255, and animated colors are not offered', () => {
     const doc = lottieFixture();
     const fill = ((doc.layers as Record<string, unknown>[])[1]!.shapes as Record<string, unknown>[])[0]!.it as Record<string, unknown>[];
     fill[1]!.c = { a: 0, k: [255, 128, 0] };
@@ -133,7 +133,7 @@ describe('what the file exposes', () => {
     expect(lottieEditables(doc).parameters.some((p) => p.label === 'Square fill')).toBe(false);
   });
 
-  it('applies values into a copy, text with Lottie line breaks and colours as components', () => {
+  it('applies values into a copy, text with Lottie line breaks and colors as components', () => {
     const doc = lottieFixture();
     const { bindings } = lottieEditables(doc);
     const applied = applyLottieParams(doc, bindings, { text1: 'Two\nlines', color2: '#00ff00', color3: '#12345680', color1: 'garbage' });
@@ -146,7 +146,7 @@ describe('what the file exposes', () => {
     expect(((doc.layers as Record<string, unknown>[])[2]!).sc).toBe('#0000ff');
   });
 
-  it('round-trips colours', () => {
+  it('round-trips colors', () => {
     expect(rgbHex([1, 0.5, 0])).toBe('#ff8000');
     expect(hexComponents('#FF8000')).toMatchObject({ r: 1, b: 0, a: 1, hex: '#ff8000' });
     expect(hexComponents('#ff800080')!.a).toBeCloseTo(0.502, 2);
@@ -317,7 +317,7 @@ describe('in the library', () => {
     expect(value('Source')).toBe('Lottie animation · JSON');
     expect(value('Own size')).toContain('375 × 667');
     expect(value('Markers')).toBe('intro 0–0.5 s · loop 0.5–1.5 s · end at 1.97 s');
-    expect(value('Editable')).toBe('1 text, 3 colours');
+    expect(value('Editable')).toBe('1 text, 3 colors');
     expect(rows.find((r) => r.label === 'Not drawn')).toMatchObject({ tone: 'warn' });
     expect(value('Not drawn')).toMatch(/^Expressions on 1 property/);
     expect(lottieRows({ ...entry!.lottie!, bindings: [], limits: [], markers: [] }).map((r) => r.label)).toEqual(['Source', 'Own size', 'Editable']);

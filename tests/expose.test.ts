@@ -34,7 +34,7 @@ const exposure = (over: Partial<ExposedParam> = {}): ExposedParam =>
   ({ id: 'who_words', label: 'Who it is', block: 'canvas', layer: 'who', prop: 'text', ...over });
 
 describe('what can be picked', () => {
-  it('is the words and the colour of a line, the colour of a shape, the picture of a still — and nothing of a sound or a clip', () => {
+  it('is the words and the color of a line, the color of a shape, the picture of a still — and nothing of a sound or a clip', () => {
     expect(exposableProps(line())).toEqual(['text', 'color']);
     expect(exposableProps(shape())).toEqual(['color']);
     expect(exposableProps(still())).toEqual(['image']);
@@ -44,7 +44,7 @@ describe('what can be picked', () => {
 
   it('starts named after the layer, and its id is an identifier made from the name, kept unique', () => {
     expect(suggestedLabel('Line 1', 'text')).toBe('Line 1 words');
-    expect(suggestedLabel('Shape 1', 'color')).toBe('Shape 1 colour');
+    expect(suggestedLabel('Shape 1', 'color')).toBe('Shape 1 color');
     expect(exposeId('Who it is', new Set())).toBe('who_it_is');
     expect(exposeId('Who it is', new Set(['who_it_is']))).toBe('who_it_is_2');
     expect(exposeId('3rd line', new Set())).toBe('p3rd_line');

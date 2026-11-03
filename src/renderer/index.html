@@ -99,7 +99,7 @@
             <button id="bg-checker" type="button" class="icon-button" data-icon="checkerboard" data-icon-size="20" aria-pressed="true" aria-label="Checkerboard background"></button>
             <button id="bg-black" type="button" class="swatch black" aria-pressed="false" aria-label="Black background"></button>
             <button id="bg-white" type="button" class="swatch white" aria-pressed="false" aria-label="White background"></button>
-            <button id="bg-gray" type="button" class="swatch gray" aria-pressed="false" aria-label="Grey background" data-tip="Mid-grey: the neutral a soft edge is judged against"></button>
+            <button id="bg-gray" type="button" class="swatch gray" aria-pressed="false" aria-label="Gray background" data-tip="Mid-gray: the neutral a soft edge is judged against"></button>
             <input id="bg-custom" type="color" value="#808080" aria-label="Custom background color" data-tip="Custom background color">
           </span>
           <button id="safe-toggle" type="button" class="icon-button" data-icon="frame-corners" data-icon-size="20" aria-pressed="false" aria-label="Title-safe and action-safe areas"></button>
@@ -222,7 +222,7 @@
           <span>Background for flattening</span>
           <input id="opt-background" type="color" value="#000000">
         </label>
-        <div class="field" id="opt-lut-field" data-tip="A .cube colour grade over the whole render, applied before the preset's colour conversion">
+        <div class="field" id="opt-lut-field" data-tip="A .cube color grade over the whole render, applied before the preset's color conversion">
           <span>LUT</span>
           <span class="lut-row">
             <button id="opt-lut" type="button" class="ghost">Choose…</button>
@@ -246,8 +246,8 @@
           <label class="field" id="opt-tint-field">
             <span>Recolor</span>
             <span class="tint-row">
-              <input id="opt-tint-on" type="checkbox" aria-label="Recolor the picture" data-tip="Render the picture's luminance in one colour, alpha kept — to match a palette">
-              <input id="opt-tint" type="color" value="#f59e0b" aria-label="Recolor colour" hidden>
+              <input id="opt-tint-on" type="checkbox" aria-label="Recolor the picture" data-tip="Render the picture's luminance in one color, alpha kept — to match a palette">
+              <input id="opt-tint" type="color" value="#f59e0b" aria-label="Recolor color" hidden>
             </span>
           </label>
           <div id="audio-options" class="audio-options" hidden>
@@ -272,7 +272,7 @@
             <input id="opt-out" type="text" inputmode="numeric" spellcheck="false" placeholder="last frame" title="Timecode HH:MM:SS:FF, a frame number, or seconds such as 2.5s">
           </label>
         </div>
-        <label class="field inline matte-field" id="opt-matte-field" data-tip="A second file beside the render with the alpha as grey, for codecs and editors without alpha">
+        <label class="field inline matte-field" id="opt-matte-field" data-tip="A second file beside the render with the alpha as gray, for codecs and editors without alpha">
           <input id="opt-matte" type="checkbox">
           <span>Matte file beside the render</span>
         </label>
@@ -672,14 +672,14 @@
   </dialog>
   <dialog id="key-dialog" class="pack-dialog key-dialog" aria-labelledby="key-title">
     <form method="dialog">
-      <h2 id="key-title">Key out a colour</h2>
-      <p class="note">The colour becomes transparency and its cast is washed from what remains. Pick it from the frame on the left, or choose it below; the result is written beside the original as an alpha clip, its sound kept.</p>
+      <h2 id="key-title">Key out a color</h2>
+      <p class="note">The color becomes transparency and its cast is washed from what remains. Pick it from the frame on the left, or choose it below; the result is written beside the original as an alpha clip, its sound kept.</p>
       <div class="key-previews">
-        <figure><img id="key-plain" alt="A frame of the clip; choosing a point on it picks the colour to key out" title="Choose the colour here"><figcaption>The frame</figcaption></figure>
-        <figure class="checker"><img id="key-keyed" alt="The same frame with the colour keyed out"><figcaption>Keyed</figcaption></figure>
+        <figure><img id="key-plain" alt="A frame of the clip; choosing a point on it picks the color to key out" title="Choose the color here"><figcaption>The frame</figcaption></figure>
+        <figure class="checker"><img id="key-keyed" alt="The same frame with the color keyed out"><figcaption>Keyed</figcaption></figure>
       </div>
       <div class="key-controls">
-        <label class="field inline"><span>Colour</span><input id="key-color" type="color" value="#00ff00"></label>
+        <label class="field inline"><span>Color</span><input id="key-color" type="color" value="#00ff00"></label>
         <button id="key-green" type="button" class="ghost">Green</button>
         <button id="key-blue" type="button" class="ghost">Blue</button>
         <label class="field inline"><span>Tolerance</span><input id="key-tolerance" type="range" min="1" max="90" step="1" value="18"></label>

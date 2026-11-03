@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.plate-title",
   "name": "Plate Title",
-  "description": "A title over a moving plate: a library clip plays full-frame behind the words, darkened at the foot so the type reads, the title rising in over it. With no clip chosen the plate is a flat colour, so the card works as a plain title too.",
+  "description": "A title over a moving plate: a library clip plays full-frame behind the words, darkened at the foot so the type reads, the title rising in over it. With no clip chosen the plate is a flat color, so the card works as a plain title too.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
@@ -29,7 +29,7 @@
       "fit": "cover",
       "align": "center"
     },
-    { "id": "plateColor", "type": "color", "label": "Colour without a clip", "default": "#1f2937", "element": "Plate" },
+    { "id": "plateColor", "type": "color", "label": "Color without a clip", "default": "#1f2937", "element": "Plate" },
     { "id": "shade", "type": "number", "label": "Shade at the foot", "default": 0.7, "min": 0, "max": 1, "step": 0.05, "element": "Plate" },
     { "id": "title", "type": "text", "label": "Title", "default": "North Coast", "maxLength": 40, "element": "Title" },
     { "id": "subtitle", "type": "text", "label": "Subtitle", "default": "Episode one", "maxLength": 60, "element": "Title" },

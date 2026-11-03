@@ -122,10 +122,10 @@ describe('what the track plays (milestone 49)', () => {
 });
 
 describe('transitions on a cut (milestone 49)', () => {
-  it('plays between a cut and the next, centred on their boundary, no more than either side has', () => {
+  it('plays between a cut and the next, centered on their boundary, no more than either side has', () => {
     const t = withCutTransition(track(), 0, { type: 'dissolve', seconds: 1 });
     expect(transitionAt(t, 0)).toEqual({ type: 'dissolve', seconds: 1, at: 2, color: '#000000' });
-    // A short neighbour shortens it: the third cut is one second, so a 5 s dip plays over 1 s... no —
+    // A short neighbor shortens it: the third cut is one second, so a 5 s dip plays over 1 s... no —
     // both sides bound it: half from each, the smaller side ruling both halves.
     const short = withCutTransition(track(), 1, { type: 'dip', seconds: 5, color: '#00ff00' });
     expect(transitionAt(short, 1)).toMatchObject({ type: 'dip', seconds: 1, at: 3.5, color: '#00ff00' });
@@ -241,7 +241,7 @@ describe('speed changes (milestone 56)', () => {
     expect(cutSeconds(t.cuts[0]!)).toBe(1);
     expect(cutWindows(t)).toEqual([{ start: 0, end: 1 }, { start: 1, end: 2.5 }]);
     expect(trackDuration(t)).toBe(2.5);
-    // Half a second into a 2× cut is a second into the file; the neighbour is untouched.
+    // Half a second into a 2× cut is a second into the file; the neighbor is untouched.
     expect(trackSourceAt(t, 0.5)).toEqual({ id: id(1), index: 0, seconds: 1 });
     expect(trackSourceAt(t, 1.25)).toEqual({ id: id(2), index: 1, seconds: 1.25 });
     const slow: Cut = { id: id(1), from: 1, to: 2, speed: { rate: 0.25 } };

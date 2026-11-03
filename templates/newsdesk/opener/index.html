@@ -98,7 +98,7 @@
     ctx.save();
     ctx.translate(outT * (W + kH), 0);
 
-    // The navy band lands behind the title from the left once the sweep has passed the centre.
+    // The navy band lands behind the title from the left once the sweep has passed the center.
     var bandT = easeOutQuart(clamp01((t - dur * 0.9) / dur));
     var programme = caps(p.programme);
     var nameSize = fitFont(programme, '800 ', 110 * s, maxW);
@@ -122,7 +122,7 @@
     ctx.fillStyle = p.panel;
     ctx.fill();
 
-    // The standing slash: a thin red stroke through the band, growing from the centre.
+    // The standing slash: a thin red stroke through the band, growing from the center.
     var slashT = easeOutQuart(clamp01((t - dur * 1.2) / dur));
     var slashH = (panelH + 120 * s) * slashT, slashW = 12 * s;
     var sk = slashH * SLANT;
@@ -131,7 +131,7 @@
     ctx.fillStyle = p.accent;
     ctx.fill();
 
-    // Programme name in bold capitals, hard-landing from the right.
+    // Program name in bold capitals, hard-landing from the right.
     var textT = easeOutQuart(clamp01((t - dur * 1.4) / dur));
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';

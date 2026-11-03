@@ -204,7 +204,7 @@ export function resolveCollection(c: Collection, index: LibraryIndex | null, ava
     }
     // A layer's family that is neither bundled, nor imported, nor one the template itself names has gone;
     // the item is drawn in a fallback face if rendered, so it is said here first. Only when the caller
-    // says which families exist: a headless render has no font list and keeps the old behaviour.
+    // says which families exist: a headless render has no font list and keeps the old behavior.
     const missingFonts: string[] = [];
     if (availableFamilies.length > 0 && entry && entry.kind === 'template') {
       const own = new Set<string>();

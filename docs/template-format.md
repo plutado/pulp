@@ -102,7 +102,7 @@ Type-specific rules:
 
 ### Settings by element
 
-The Parameters tab is organised by **part of the graphic**, not by kind of setting: one collapsible card per part, holding everything about it. A flat "Colors" group says little once a template has layers — *which* text is "Text color" about? — so a parameter names the part it belongs to:
+The Parameters tab is organized by **part of the graphic**, not by kind of setting: one collapsible card per part, holding everything about it. A flat "Colors" group says little once a template has layers — *which* text is "Text color" about? — so a parameter names the part it belongs to:
 
 ```json
 { "id": "panel", "type": "color", "label": "Fill", "element": "Panel" },
@@ -129,7 +129,7 @@ An image slot is a box in the layout that a chosen library still — a logo, a m
 | `margin` | number | no | Kept clear on every edge, as a fraction (0 to 0.45) of the box's shorter side. Default 0. |
 | `fallbackText` | string | no | The id of a `text` parameter — or of a text layer of one of this template's blocks — whose words stand in when no image is chosen: the company name set in type where the logo would be. |
 
-An image parameter has no `default`: with nothing chosen the slot is empty and the template draws its fallback, or nothing. **Treatments travel with the choice**, not with the template: the user picks original colours, tinted (with a colour), white or black for contrast, and an optional shadow or glow; the host applies the treatment before the template draws, so the template never handles pixels. PNG and SVG with alpha are the normal case; any library still is accepted.
+An image parameter has no `default`: with nothing chosen the slot is empty and the template draws its fallback, or nothing. **Treatments travel with the choice**, not with the template: the user picks original colors, tinted (with a color), white or black for contrast, and an optional shadow or glow; the host applies the treatment before the template draws, so the template never handles pixels. PNG and SVG with alpha are the normal case; any library still is accepted.
 
 In `pulpRender`, `state.images[id]` describes every slot for the current frame — its pixel `box`, `fit`, `align`, `margin`, the chosen `id` or `null`, and the resolved `fallback` text — and the host adds `bitmap` to the chosen ones, decoded **before the first frame** so no frame is drawn with a half-loaded logo. The bridge provides one helper:
 
@@ -144,7 +144,7 @@ if (!window.pulpDrawImage(ctx, state, 'logo', { x: panelX + 20, y: panelY + 20, 
 
 `window.pulpFitBox(box, imageWidth, imageHeight, fit, align, margin)` returns the placement without drawing, for templates that want to animate the image themselves; `state.images[id].bitmap` is a canvas they may draw directly.
 
-**What a template may load.** Templates are blocked from the library, and image slots do not change that: the host reads exactly the stills chosen for a template's slots, by id, and hands the page their bytes for the length of a preview or a render (ADR 0013). The template never gets a URL into the library — `pulp-media://` refuses every request from a template page, and the template CSP lists no library scheme — so it cannot read a chosen image's neighbour, or any image when none is chosen.
+**What a template may load.** Templates are blocked from the library, and image slots do not change that: the host reads exactly the stills chosen for a template's slots, by id, and hands the page their bytes for the length of a preview or a render (ADR 0013). The template never gets a URL into the library — `pulp-media://` refuses every request from a template page, and the template CSP lists no library scheme — so it cannot read a chosen image's neighbor, or any image when none is chosen.
 
 ### Media slots
 
@@ -171,7 +171,7 @@ if (!window.pulpDrawMedia(ctx, state, 'plate')) {
 }
 ```
 
-A slot's clip plays against the graphic **as it is watched**: a clip delayed half a second starts half a second in, however a hold is stretched, exactly as a video layer does. The same grant rule as images holds (ADR 0013): the template never gets a URL into the library, only the frames of the clip chosen for its slot, for the length of a preview or a render. The bundled **Plate Title** is the worked example: a clip covering the frame behind a title, a flat colour where none is chosen.
+A slot's clip plays against the graphic **as it is watched**: a clip delayed half a second starts half a second in, however a hold is stretched, exactly as a video layer does. The same grant rule as images holds (ADR 0013): the template never gets a URL into the library, only the frames of the clip chosen for its slot, for the length of a preview or a render. The bundled **Plate Title** is the worked example: a clip covering the frame behind a title, a flat color where none is chosen.
 
 ### Blocks and layers
 
@@ -296,7 +296,7 @@ Templates need no code for any of this: the page never plays or even sees the fi
 
 A `video` layer plays a clip inside the graphic (milestone 26). It takes its room exactly as an image layer does — `size` is a height as a fraction of the frame's short side, the width follows the clip's shape, and `align` places it across the block — and like an image layer it carries **no clip of its own**: a template ships no library ids, so `clip` is left out or `null` and the person using the template chooses one.
 
-What they choose carries the clip's id with how it plays: an in point and an out point in clip frames, `loop` or `once` at the end, a `speed` (1 is the recorded rate), a `delay` in seconds before it starts, optionally a `lut` — the path of a `.cube` colour grade the host decodes into the clip's frames (milestone 52), so the preview and the render show the same colour and the page never sees the file — and, where the clip's own track is used, a `volume` from 0 to 1, `muted`, and optionally a `voice` (milestone 53): `{"treatment": "clean-voice" | "podcast" | "reduce-noise" | "phone" | "radio" | "warm", "amount": 0..1}`, a fixed clean-up recipe the host runs over the clip's sound in the preview and the render alike. The host decides which frame of the clip belongs to each moment of the graphic and hands the page that frame; a clip played `once` **clears** when it reaches its out point rather than freezing on the last frame, and a layer that is not playing takes no room at all, so the stack closes up around it. Templates need no code for any of this: a block drawn with `pulpLayoutBlock` and `pulpDrawBlock` plays its video layers already.
+What they choose carries the clip's id with how it plays: an in point and an out point in clip frames, `loop` or `once` at the end, a `speed` (1 is the recorded rate), a `delay` in seconds before it starts, optionally a `lut` — the path of a `.cube` color grade the host decodes into the clip's frames (milestone 52), so the preview and the render show the same color and the page never sees the file — and, where the clip's own track is used, a `volume` from 0 to 1, `muted`, and optionally a `voice` (milestone 53): `{"treatment": "clean-voice" | "podcast" | "reduce-noise" | "phone" | "radio" | "warm", "amount": 0..1}`, a fixed clean-up recipe the host runs over the clip's sound in the preview and the render alike. The host decides which frame of the clip belongs to each moment of the graphic and hands the page that frame; a clip played `once` **clears** when it reaches its out point rather than freezing on the last frame, and a layer that is not playing takes no room at all, so the stack closes up around it. Templates need no code for any of this: a block drawn with `pulpLayoutBlock` and `pulpDrawBlock` plays its video layers already.
 
 #### Audio layers
 
@@ -350,17 +350,17 @@ The span is the last word: outside it the layer is not drawn, whether the moveme
 
 #### A layer's own look
 
-A layer may carry a `look` (milestone 28): what is set once on it and not animated, in the Parameters tab under **Look**. Every size is a fraction of the frame's short side, as a layer's own `size` is, and the tab shows them as a percentage; colours are `#rrggbb` or `#rrggbbaa`, so a shadow carries its own strength.
+A layer may carry a `look` (milestone 28): what is set once on it and not animated, in the Parameters tab under **Look**. Every size is a fraction of the frame's short side, as a layer's own `size` is, and the tab shows them as a percentage; colors are `#rrggbb` or `#rrggbbaa`, so a shadow carries its own strength.
 
 | Field | Type | Description |
 |---|---|---|
 | `opacity` | number | 0 to 1; default 1. Multiplied into whatever the frame already gave the layer. |
-| `shadowColor`, `shadowDistance`, `shadowAngle`, `shadowSoftness` | colour, number, number, number | A drop shadow, drawn when it has a distance or a softness. The angle is degrees clockwise, 0 to the right and 90 (the default) straight down. Defaults `#00000073`, 0, 90, 0. |
-| `glowColor`, `glowSize` | colour, number | An outer glow, drawn when it has a size. Defaults `#ffffffd9`, 0. |
-| `outlineColor`, `outlineWidth` | colour, number | An outline, drawn when it has a width: a stroke around type, a frame around a picture, along its corners. Defaults `#000000`, 0. |
+| `shadowColor`, `shadowDistance`, `shadowAngle`, `shadowSoftness` | color, number, number, number | A drop shadow, drawn when it has a distance or a softness. The angle is degrees clockwise, 0 to the right and 90 (the default) straight down. Defaults `#00000073`, 0, 90, 0. |
+| `glowColor`, `glowSize` | color, number | An outer glow, drawn when it has a size. Defaults `#ffffffd9`, 0. |
+| `outlineColor`, `outlineWidth` | color, number | An outline, drawn when it has a width: a stroke around type, a frame around a picture, along its corners. Defaults `#000000`, 0. |
 | `blur` | number | A blur of the layer itself; default 0. |
 | `blend` | `normal`, `multiply`, `screen`, `overlay` | How the layer meets what is under it; default `normal`. |
-| `brightness`, `saturation`, `tint` | number, number, colour or `null` | A colour adjustment: brightness -1 to 1 (default 0), saturation 0 to 2 (default 1), and a tint washed half way over the layer's own colour, or `null` for none. |
+| `brightness`, `saturation`, `tint` | number, number, color or `null` | A color adjustment: brightness -1 to 1 (default 0), saturation 0 to 2 (default 1), and a tint washed half way over the layer's own color, or `null` for none. |
 | `corners`, `feather` | number, number | On an `image` or `video` layer only: rounded corners by this radius, and soft edges fading in by this much from the edge. Default 0. |
 
 The host draws it around the template's own draw of the layer, as it draws a placement and a transition, so **templates need no changes**. A layer with a look is painted on a scratch canvas and composited once, so its opacity and blend mode apply to the whole of it — a layer at half opacity drawn as a glow, a shadow and itself over each other would not be at half opacity. A look that comes to the defaults is no look at all and is not stored, and `"look": null` in a stored stack puts a layer back to the template's draw.
@@ -374,9 +374,9 @@ A layer may carry a `placement`: where the person using the template put it, set
 | Field | Type | Description |
 |---|---|---|
 | `dx`, `dy` | number | The offset from where the block stacked the layer, as fractions of the frame's width and height; −1 to 1, default 0. |
-| `scale` | number | About the layer's own centre; 0.05 to 10, default 1. |
+| `scale` | number | About the layer's own center; 0.05 to 10, default 1. |
 
-The host applies a placement **around the template's own draw** of that layer — the offsets add to whatever the template (or the layer's own motion) asked for the frame, the scales multiply, and the angles add (`rotate`, in degrees clockwise about the layer's centre; milestone 29) — so a placed layer still enters, moves and leaves with the design, and **templates need no changes**. Keeping it per aspect means a layout placed at 16:9 never moves what was placed at 9:16: a frame answers with its own aspect's entry, then `"default"`, then nothing. The stack's layout is untouched — the layer's slot stays where the block put it, and "Reset position" simply drops the placement.
+The host applies a placement **around the template's own draw** of that layer — the offsets add to whatever the template (or the layer's own motion) asked for the frame, the scales multiply, and the angles add (`rotate`, in degrees clockwise about the layer's center; milestone 29) — so a placed layer still enters, moves and leaves with the design, and **templates need no changes**. Keeping it per aspect means a layout placed at 16:9 never moves what was placed at 9:16: a frame answers with its own aspect's entry, then `"default"`, then nothing. The stack's layout is untouched — the layer's slot stays where the block put it, and "Reset position" simply drops the placement.
 
 Like every layer value it rides in the same bag as the parameters, so presets, collections, CSV batches, `--param '@layers={…}'` and the render cache key all carry it.
 
@@ -473,7 +473,7 @@ window.pulpDrawBlock(ctx, card);
 
 `each` may return `alpha`, `dx`, `dy`, `scale` — applied when the layer is drawn — and `letterSpacing` in em, which **replaces** the layer's own for this frame and is therefore what the text is measured and wrapped with. A template animating its tracking passes it here. An optional `box` on the options lays the block out somewhere else, for a template animating the block itself, and an optional `align` aligns every layer that way this time, for a design the template mirrors (a strap that sits on the right). A template that needs the stack's size before it knows where to put it — a panel sized to its words — lays the block out once to measure and once more in place; widths do not depend on the box's position.
 
-Text is drawn at its baselines with the layer's family, size, weight, italic and colour. With no letter spacing and kerning on, each line is one `fillText`; otherwise the characters are drawn one at a time with the spacing between them, which is also how they are measured, so the two always agree. A picture is contained and centred in the room the stack gave it.
+Text is drawn at its baselines with the layer's family, size, weight, italic and color. With no letter spacing and kerning on, each line is one `fillText`; otherwise the characters are drawn one at a time with the spacing between them, which is also how they are measured, so the two always agree. A picture is contained and centered in the room the stack gave it.
 
 The arithmetic is `src/core/layer-layout.ts`, unit tested, and the bridge carries the same algorithm; the two are mirrors and change together.
 
@@ -613,7 +613,7 @@ connect-src 'none'; frame-src 'none'; form-action 'none'
 
 A Lottie carries no manifest of its own, so Pulp makes one: its id is `lottie-` and the item's library id, which for the bundled animations comes from the file's path inside the app rather than on the disk, so it is the same id in every checkout and every install (`itemKey` in `src/core/library-scan.ts`).
 
-A `.json` Lottie (told from other JSON by its shape) or a `.lottie` archive in a library folder is read as a template made from one file: its own size becomes the default resolution, its rate and length the timing, every built-in aspect is declared so it can be fitted, filled or centred in any frame, and its static text layers and distinct colours become parameters. It is not a folder and has no `template.json`; the manifest is made from the file (`src/core/lottie.ts`).
+A `.json` Lottie (told from other JSON by its shape) or a `.lottie` archive in a library folder is read as a template made from one file: its own size becomes the default resolution, its rate and length the timing, every built-in aspect is declared so it can be fitted, filled or centered in any frame, and its static text layers and distinct colors become parameters. It is not a folder and has no `template.json`; the manifest is made from the file (`src/core/lottie.ts`).
 
 Two things the Lottie format has no field for, Pulp reads from an optional top-level `x-pulp` object, under the same `x-` rule a manifest's own extensions follow — every other tool ignores it:
 
@@ -621,7 +621,7 @@ Two things the Lottie format has no field for, Pulp reads from an optional top-l
 { "x-pulp": { "license": "CC0-1.0", "author": "Pulp" }, "v": "5.12.2", "fr": 30, "...": "..." }
 ```
 
-Without it the licence is "not stated", which is the truth about most files; the Info tab says so rather than guessing. The author also comes from Bodymovin's own `meta.a`, or a `.lottie` archive's manifest, where either has one.
+Without it the license is "not stated", which is the truth about most files; the Info tab says so rather than guessing. The author also comes from Bodymovin's own `meta.a`, or a `.lottie` archive's manifest, where either has one.
 
 **Markers set what may stretch.** A marker named `intro`, `in`, `entrance` or `start`, one named `outro`, `out`, `exit` or `end`, and one named `loop`, `hold` or `idle` map onto the `structure` a template declares (above): the hold between the intro and the outro stretches, and a `loop` marker covering the whole animation makes it repeat. An animation whose markers say nothing keeps the length it was drawn at.
 

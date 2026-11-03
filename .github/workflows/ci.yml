@@ -103,8 +103,8 @@ jobs:
       - name: Install a virtual display and a session bus
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb dbus dbus-x11
       - name: Install ffmpeg 9.0
-        # Ubuntu's own ffmpeg is 6.1, which rounds the colour conversion a step differently from the
-        # 8.x and 9.x series the other platforms use, so the exact colour checks failed only here.
+        # Ubuntu's own ffmpeg is 6.1, which rounds the color conversion a step differently from the
+        # 8.x and 9.x series the other platforms use, so the exact color checks failed only here.
         # A pinned static build (BtbN/FFmpeg-Builds), verified against its published checksum.
         env:
           FFMPEG_TAG: autobuild-2026-10-23-13-04

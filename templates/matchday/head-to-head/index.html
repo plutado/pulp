@@ -69,7 +69,7 @@
     var px = cx - panelW / 2;
     var py = (H - panelH) / 2;
 
-    // The black panel snaps open from a centre line.
+    // The black panel snaps open from a center line.
     var openH = panelH * inT;
     ctx.globalAlpha = 1 - outT;
     ctx.fillStyle = BLACK;
@@ -83,7 +83,7 @@
     ctx.globalAlpha = textA * (1 - outT);
     ctx.textBaseline = 'middle';
 
-    // The two names, chevrons pointing at the centre.
+    // The two names, chevrons pointing at the center.
     var nameSize = 64 * s;
     var halfW = panelW / 2 - 60 * s;
     var home = (p.home || '').toUpperCase(), away = (p.away || '').toUpperCase();
@@ -117,7 +117,7 @@
       var rowA = clamp01((t - start) / 0.15) * (1 - outT);
       ctx.globalAlpha = rowA;
 
-      // The stat label, spaced capitals, centred over the bars.
+      // The stat label, spaced capitals, centered over the bars.
       ctx.textAlign = 'center';
       ctx.fillStyle = WHITE;
       var sl = label.split('').join(' ');
@@ -125,7 +125,7 @@
       ctx.font = '700 ' + ss + 'px ' + FONT;
       ctx.fillText(sl, cx, ry + 30 * s);
 
-      // Bars grow outward from the centre, home to the left in volt, away to the right in white.
+      // Bars grow outward from the center, home to the left in volt, away to the right in white.
       var by = ry + 70 * s;
       var hw = maxBar * (hv / total) * g, aw = maxBar * (av / total) * g;
       ctx.fillStyle = VOLT;

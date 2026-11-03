@@ -54,12 +54,12 @@ describe('the bundled fonts', () => {
     }
   });
 
-  it.each(BUNDLED_FONTS.map((f) => [f.family, f] as const))('%s: its own licence file says SIL Open Font License 1.1, and declares the Reserved Font Name the list records', async (_family, font) => {
+  it.each(BUNDLED_FONTS.map((f) => [f.family, f] as const))('%s: its own license file says SIL Open Font License 1.1, and declares the Reserved Font Name the list records', async (_family, font) => {
     const text = await read(join(FONTS_DIR, font.slug, font.licenseFile));
-    // The grant sentence upstream puts above the licence text, and the licence's own title.
+    // The grant sentence upstream puts above the license text, and the license's own title.
     expect(text, font.slug).toMatch(/licensed under the SIL Open Font License, Version 1\.1/);
     expect(text, font.slug).toMatch(/SIL OPEN FONT LICENSE Version 1\.1/);
-    // The copyright line is where a Reserved Font Name is declared; the licence body only defines the term.
+    // The copyright line is where a Reserved Font Name is declared; the license body only defines the term.
     const header = text.split('\n').slice(0, 3).join('\n');
     if (font.reservedFontName) {
       expect(header, font.slug).toMatch(new RegExp(`Reserved Font Name[s]? [‘'"]?${font.reservedFontName}`));
@@ -76,7 +76,7 @@ describe('the bundled fonts', () => {
     }
   });
 
-  it('every family is credited with its version, licence and source in docs/font-credits.md', async () => {
+  it('every family is credited with its version, license and source in docs/font-credits.md', async () => {
     const credits = await read(CREDITS);
     for (const font of BUNDLED_FONTS) {
       const row = credits.split('\n').find((line) => line.startsWith(`| ${font.family} |`));

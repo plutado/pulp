@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.kicker-title",
   "name": "Kicker Title",
-  "description": "A small kicker line slides in above a large title, with a rule between them that grows from the centre. For chapter heads and segment openers.",
+  "description": "A small kicker line slides in above a large title, with a rule between them that grows from the center. For chapter heads and segment openers.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

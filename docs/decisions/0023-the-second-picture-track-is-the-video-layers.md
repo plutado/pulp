@@ -25,7 +25,7 @@ A video layer (milestone 26) is already a library clip at a moment of the
 graphic — a start delay, a span with both ends draggable on its bar, an in and
 out point, a speed and keys — placed, scaled and turned on the stage by the
 stage's own handles (milestone 25), with its own sound in the mix, the
-loudness meter and the levelling (milestone 48). That is a clip anywhere on
+loudness meter and the leveling (milestone 48). That is a clip anywhere on
 the timeline, gaps allowed, with position and size: four of the milestone's
 six words.
 
@@ -74,7 +74,7 @@ What was missing is added to that model rather than beside it:
 - Crop and border are on the clip value, so a video layer placed from the
   menu can have them too, which is right: it is the same thing.
 - The exported transform is as near as the format says it: position in pixels
-  of the project's frame from its centre, scale against a clip fitted to the
+  of the project's frame from its center, scale against a clip fitted to the
   frame's height, the crop as pixels trimmed. An editor's own fit of a clip of
   another shape lands near rather than exactly, and the EDL's comment says
   the numbers in words.

@@ -5,7 +5,7 @@ Status: Accepted
 
 ## Context
 
-The stage is too small to work in at nearly every window size. At the default 1280 × 788 the picture was about 450 × 250 px: the inspector's column took 350 px of the window's width, and inside the centre the search bar, the stage's own control rows and the results strip took the height. Milestone 37 moved the transport out of the stage; what remained around the picture was still a column and two rows that are *consulted* — the parameters while editing, the output settings before a render, the info now and then — paying for themselves every minute they are visible.
+The stage is too small to work in at nearly every window size. At the default 1280 × 788 the picture was about 450 × 250 px: the inspector's column took 350 px of the window's width, and inside the center the search bar, the stage's own control rows and the results strip took the height. Milestone 37 moved the transport out of the stage; what remained around the picture was still a column and two rows that are *consulted* — the parameters while editing, the output settings before a render, the info now and then — paying for themselves every minute they are visible.
 
 The picture's size is limited by the window's height before its width: a 16:9 frame in a 1280-wide window wants 720 of height and never gets it, so giving the stage height is what makes it bigger. The inspector's tabs are opened in bursts, not watched; they can live in a surface that exists only while it is used.
 
@@ -22,7 +22,7 @@ The picture's size is limited by the window's height before its width: a 16:9 fr
 
 ## The full-width stage, weighed and not taken
 
-A stage spanning the whole window above every column was the other shape considered. It was turned down because it gives a 16:9 picture no more room at common window sizes — the picture is height-limited, and a full-width stage pays for width the picture cannot use by squeezing the browse tree and the results into a short band under it; a 9:16 picture wastes nearly all of that width; and every pane below would reflow whenever the stage resized. Removing the one column the centre shared its width with, and the rows inside the stage, buys the same height without those costs.
+A stage spanning the whole window above every column was the other shape considered. It was turned down because it gives a 16:9 picture no more room at common window sizes — the picture is height-limited, and a full-width stage pays for width the picture cannot use by squeezing the browse tree and the results into a short band under it; a 9:16 picture wastes nearly all of that width; and every pane below would reflow whenever the stage resized. Removing the one column the center shared its width with, and the rows inside the stage, buys the same height without those costs.
 
 ## Reasons
 

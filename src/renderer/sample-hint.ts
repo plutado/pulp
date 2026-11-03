@@ -1,6 +1,6 @@
 /**
  * The line under the results that says what sample media would add
- * (milestone 34): while the category being browsed has catalogue files that
+ * (milestone 34): while the category being browsed has catalog files that
  * have not been made, it reads "N more with sample media" and offers to make
  * just those. Which files are left is the main process's answer — it looks in
  * the sample-media folder — and the words and the arithmetic are
@@ -23,11 +23,11 @@ const $ = <T extends HTMLElement>(id: string): T => {
   return el as T;
 };
 
-/** How many catalogue files each type still lacks; empty until the first answer arrives. */
+/** How many catalog files each type still lacks; empty until the first answer arrives. */
 const unmade = signal<UnmadeByType>({});
 
 /**
- * Some of the catalogue is still to make, so Add has sample media to offer
+ * Some of the catalog is still to make, so Add has sample media to offer
  * (milestone 47). Empty while the first answer is awaited, which reads as
  * "nothing left" — so the choice appears when the answer says it should
  * rather than flickering away a moment after launch.
@@ -89,7 +89,7 @@ export function initSampleHint(actions: SampleHintActions): void {
     void window.pulp
       .makeSampleMedia(offer.types)
       .then(async (outcome) => {
-        // Cancelled at the folder question: nothing was asked for, so nothing is said.
+        // Canceled at the folder question: nothing was asked for, so nothing is said.
         if (!outcome) {
           run.value = null;
           return;

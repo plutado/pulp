@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.matchday.head-to-head",
   "name": "Matchday head-to-head",
-  "description": "Two sides compared over three stat rows, bars growing from the centre outward in volt and white with chevron accents.",
+  "description": "Two sides compared over three stat rows, bars growing from the center outward in volt and white with chevron accents.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

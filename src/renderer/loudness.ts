@@ -5,7 +5,7 @@
  *
  * Measured, not live: the number that matters is "how far is this mix from
  * the platform's target", which is a fact about the whole mix, so the main
- * process runs the same measurement a levelled render's first pass runs —
+ * process runs the same measurement a leveled render's first pass runs —
  * once per change to what is heard, debounced, never per frame — and the
  * meter shows the loudness a render would start from. A project with nothing
  * to hear shows no meter at all.
@@ -74,10 +74,10 @@ function paint(): void {
     els.target.style.left = `${along(platform.loudnessLufs) * 100}%`;
     const off = shown.lufs - platform.loudnessLufs;
     const stands = Math.abs(off) < 0.5 ? 'which is on it' : `${Math.abs(off).toFixed(1)} LU ${off > 0 ? 'above' : 'below'} it`;
-    els.root.dataset.tip = `The mix measures ${shown.lufs.toFixed(1)} LUFS${shown.truePeakDb !== null ? `, peaking at ${shown.truePeakDb.toFixed(1)} dBTP` : ''}. A render aimed at ${platform.label} is levelled to ${platform.loudnessLufs} LUFS — ${stands}.`;
+    els.root.dataset.tip = `The mix measures ${shown.lufs.toFixed(1)} LUFS${shown.truePeakDb !== null ? `, peaking at ${shown.truePeakDb.toFixed(1)} dBTP` : ''}. A render aimed at ${platform.label} is leveled to ${platform.loudnessLufs} LUFS — ${stands}.`;
   } else {
     els.target.hidden = true;
-    els.root.dataset.tip = `The mix measures ${shown.lufs.toFixed(1)} LUFS (EBU R128). A render aimed at a platform is levelled to its target.`;
+    els.root.dataset.tip = `The mix measures ${shown.lufs.toFixed(1)} LUFS (EBU R128). A render aimed at a platform is leveled to its target.`;
   }
 }
 

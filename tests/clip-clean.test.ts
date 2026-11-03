@@ -36,7 +36,7 @@ describe('the chroma key', () => {
     expect(sanitizeChromaKey({ color: 'green' }).color).toBe(KEY_DEFAULTS.color);
   });
 
-  it('washes the spill the way of the key colour, and not at all for one that is neither green nor blue', () => {
+  it('washes the spill the way of the key color, and not at all for one that is neither green nor blue', () => {
     expect(despillType('#00ff00')).toBe('green');
     expect(despillType('#1133aa')).toBe('blue');
     expect(despillType('#ff2200')).toBeNull();

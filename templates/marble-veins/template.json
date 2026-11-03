@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.marble-veins",
   "name": "Marble veins",
-  "description": "White marble with soft grey clouding and wandering darker veins; the angle leans the veins and the scale sets their spread.",
+  "description": "White marble with soft gray clouding and wandering darker veins; the angle leans the veins and the scale sets their spread.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

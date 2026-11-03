@@ -45,7 +45,7 @@
     ctx.font = '600 ' + Math.round(30 * u) + 'px Inter';
     var spaced = String(p.kicker).toUpperCase().split('').join(String.fromCharCode(8202));
     ctx.fillText(spaced, W / 2, H * 0.4 + (1 - kickIn) * -12 * u);
-    // The rule draws out from the centre both ways.
+    // The rule draws out from the center both ways.
     ctx.strokeStyle = rgba(p.rule, 0.8); ctx.lineWidth = 1.5 * u;
     ctx.beginPath();
     ctx.moveTo(W / 2 - W * 0.14 * come, H * 0.445);

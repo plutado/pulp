@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.brushed-metal",
   "name": "Brushed metal",
-  "description": "Brushed aluminium: a cool gradient with thousands of fine streaks along the brushing direction and a soft highlight band; the angle sets the brushing.",
+  "description": "Brushed aluminum: a cool gradient with thousands of fine streaks along the brushing direction and a soft highlight band; the angle sets the brushing.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

@@ -59,7 +59,7 @@ function showCache(stats: { summary: string; dir: string; maxMB: number }): void
 /**
  * Where FFmpeg was found, and the offer to fetch one where it was not
  * (milestone 17, ADR 0022). The offer says what would be fetched, from whom,
- * how big it is and under what licence **before** the button is pressed:
+ * how big it is and under what license **before** the button is pressed:
  * Pulp ships no FFmpeg and what arrives is GPL software from its publisher,
  * and neither of those is something to find out afterwards.
  */
@@ -92,7 +92,7 @@ async function showFfmpeg(): Promise<void> {
  * Semantic search (milestone 9, ADR 0024): the toggle, the one line of what
  * stands — the runner, the model, how far the indexing has come — and the
  * offer that says what would be fetched, from whom, how big and under what
- * licence **before** the button exists to press, the speech model's own rule.
+ * license **before** the button exists to press, the speech model's own rule.
  */
 async function showSemantic(): Promise<void> {
   const status = await window.pulp.semanticStatus();

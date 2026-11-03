@@ -132,7 +132,7 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
     await mkdir(dirname(plan.output), { recursive: true });
     const total = plan.timing.totalFrames;
     for (let i = 0; i < plan.stages.length; i += 1) {
-      if (job.signal?.aborted) return { ok: false, cancelled: true, message: 'Render cancelled.' };
+      if (job.signal?.aborted) return { ok: false, cancelled: true, message: 'Render canceled.' };
       const stage = plan.stages[i]!;
       const last = i === plan.stages.length - 1;
       const { code, stderr } = await runStage(ffmpeg.path, stage.args, job, (frame, seconds) => {
@@ -142,7 +142,7 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
       });
       if (job.signal?.aborted) {
         await Promise.all([plan.output, plan.matteOutput].filter((f): f is string => !!f && !/%0?\d*d/.test(f)).map((f) => rm(f, { force: true })));
-        return { ok: false, cancelled: true, message: 'Render cancelled.' };
+        return { ok: false, cancelled: true, message: 'Render canceled.' };
       }
       if (code !== 0) return { ok: false, message: `ffmpeg exited with code ${code}${last ? '' : ' while making the loop unit'}: ${stderr.trim() || 'no error output'}` };
     }

@@ -329,11 +329,11 @@ export function parsePsd(bytes: Uint8Array, options: { inflate?: Inflate } = {})
     if (width === 0 || height === 0 || width > 30_000 || height > 30_000) return { ok: false, message: `an unreadable size, ${width} × ${height}` };
     if (depth !== 8 && depth !== 16) return { ok: false, message: `${depth}-bit channels are not supported (8 and 16 are)` };
     const mode = modeCode === 3 ? 'rgb' : modeCode === 1 ? 'grayscale' : null;
-    if (!mode) return { ok: false, message: `colour mode ${modeCode} is not supported (RGB and grayscale are)` };
+    if (!mode) return { ok: false, message: `color mode ${modeCode} is not supported (RGB and grayscale are)` };
     const gray = mode === 'grayscale';
     const limits: string[] = [];
 
-    r.skip(r.u32()); // colour mode data
+    r.skip(r.u32()); // color mode data
     r.skip(r.u32()); // image resources
 
     const layerMaskLength = r.u32();
@@ -518,7 +518,7 @@ function blendChannel(mode: PsdBlend, cb: number, cs: number): number {
   }
 }
 
-// The non-separable modes work on the whole colour: one of hue, saturation and
+// The non-separable modes work on the whole color: one of hue, saturation and
 // luminosity is taken from the source, the rest kept from the backdrop.
 type Rgb = [number, number, number];
 
@@ -556,7 +556,7 @@ function setSat(c: Rgb, s: number): Rgb {
   return out;
 }
 
-/** One pixel's blended colour: the separable modes per channel, the colour modes on the triple. */
+/** One pixel's blended color: the separable modes per channel, the color modes on the triple. */
 export function blendPixel(mode: PsdBlend, backdrop: Rgb, source: Rgb): Rgb {
   switch (mode) {
     case 'hue': return setLum(setSat(source, sat(backdrop)), lum(backdrop));

@@ -5,7 +5,7 @@ import { SAMPLE_MEDIA, sampleCountsByType, samplesForTypes, unmadeSampleCounts }
 import type { Scope } from '../src/core/app-state';
 
 const category = (id: string) => categoryScope(BROWSE_CATEGORIES.find((c) => c.id === id)!)!;
-/** Nothing made at all: every catalogue file is still to make. */
+/** Nothing made at all: every catalog file is still to make. */
 const nothingMade = sampleCountsByType();
 
 describe('scopeTypes', () => {
@@ -19,18 +19,18 @@ describe('scopeTypes', () => {
   });
 });
 
-describe('the sample-media catalogue by category', () => {
+describe('the sample-media catalog by category', () => {
   it('puts every file in a category the browse tree shows', () => {
     for (const item of SAMPLE_MEDIA) expect(categoryOfType(item.type), `${item.type} (${item.file})`).toBeDefined();
   });
 
-  it('counts a category as the sum of its types, and the whole catalogue over all of them', () => {
+  it('counts a category as the sum of its types, and the whole catalog over all of them', () => {
     const sfx = samplesForTypes(scopeTypes(category('sound-effects')));
     expect(sfx.length).toBeGreaterThan(0);
     expect(sfx.every((i) => scopeTypes(category('sound-effects')).includes(i.type))).toBe(true);
     const everyCategory = BROWSE_CATEGORIES.flatMap((c) => samplesForTypes(c.types));
     expect(everyCategory).toHaveLength(SAMPLE_MEDIA.length);
-    // Asked for nothing, it offers nothing — never the whole catalogue by accident.
+    // Asked for nothing, it offers nothing — never the whole catalog by accident.
     expect(samplesForTypes([])).toEqual([]);
   });
 });
@@ -43,10 +43,10 @@ describe('sampleHint', () => {
     expect(hint.count).toBe(total);
     expect(hint.label).toBe(`${total} more with sample media`);
     expect(hint.action).toBe('Make them');
-    // Just this category, never the catalogue.
+    // Just this category, never the catalog.
     expect(hint.types).toEqual(['full-mix', 'stems', 'sting']);
     expect(hint.tip).toContain('Music');
-    expect(hint.tip).toContain('not the whole catalogue');
+    expect(hint.tip).toContain('not the whole catalog');
   });
 
   it('counts only what is left, and goes once nothing is', () => {
@@ -67,7 +67,7 @@ describe('sampleHint', () => {
   });
 
   it('says nothing where sample media has nothing to add', () => {
-    // The template-only categories: the catalogue holds no files for them, so the line never shows.
+    // The template-only categories: the catalog holds no files for them, so the line never shows.
     for (const id of ['lower-thirds', 'titles-openers', 'end-cards', 'transitions-wipes']) {
       expect(sampleHint(category(id), nothingMade), id).toBeNull();
     }
@@ -95,7 +95,7 @@ describe('sampleHintOutcome', () => {
 
 describe('unmadeSampleCounts', () => {
   it('counts what is not there, and leaves a finished type out', () => {
-    // Nothing made: every type the catalogue fills is counted, at its full depth.
+    // Nothing made: every type the catalog fills is counted, at its full depth.
     expect(unmadeSampleCounts(() => false)).toEqual(sampleCountsByType());
     // Everything made: no keys at all, which the hint reads as nothing to offer.
     expect(unmadeSampleCounts(() => true)).toEqual({});

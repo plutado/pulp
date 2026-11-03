@@ -82,14 +82,14 @@
     {
       "id": "ca",
       "type": "color",
-      "label": "Left colour",
+      "label": "Left color",
       "default": "#ef4444",
       "element": "Bars"
     },
     {
       "id": "cb",
       "type": "color",
-      "label": "Right colour",
+      "label": "Right color",
       "default": "#3b82f6",
       "element": "Bars"
     }

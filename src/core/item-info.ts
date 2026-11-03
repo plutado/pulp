@@ -115,7 +115,7 @@ export function lottieRows(info: LottieInfo): InfoRow[] {
   }
   const texts = info.bindings.filter((b) => b.type === 'text').length;
   const colours = info.bindings.filter((b) => b.type === 'color').length;
-  const editable = [...(texts > 0 ? [`${texts} ${texts === 1 ? 'text' : 'texts'}`] : []), ...(colours > 0 ? [`${colours} ${colours === 1 ? 'colour' : 'colours'}`] : [])];
+  const editable = [...(texts > 0 ? [`${texts} ${texts === 1 ? 'text' : 'texts'}`] : []), ...(colours > 0 ? [`${colours} ${colours === 1 ? 'color' : 'colors'}`] : [])];
   rows.push({ label: 'Editable', value: editable.length > 0 ? editable.join(', ') : 'Nothing the file exposes; only how it fits the frame' });
   if (info.limits.length > 0) rows.push({ label: 'Not drawn', value: info.limits.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join('. ') + '.', tone: 'warn' });
   return rows;

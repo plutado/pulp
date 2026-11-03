@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.tech-hex-burst",
   "name": "Tech hex burst",
-  "description": "A ring of thin hexagons that scales and rotates out from the centre, tied together by hairline spokes and a pulsing core.",
+  "description": "A ring of thin hexagons that scales and rotates out from the center, tied together by hairline spokes and a pulsing core.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

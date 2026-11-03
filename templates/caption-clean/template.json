@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.caption-clean",
   "name": "Caption Clean",
-  "description": "Plain captions set low in the frame, the word being spoken picked out in colour. The style to reach for when the footage should carry the shot.",
+  "description": "Plain captions set low in the frame, the word being spoken picked out in color. The style to reach for when the footage should carry the shot.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

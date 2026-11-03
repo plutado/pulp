@@ -27,7 +27,7 @@ describe('the poster frame (milestone 34)', () => {
     expect(posterCandidateFrames(4, 30)).toEqual([0, 1, 2, 3]); // a short run repeats no frame
   });
 
-  it('measures what a frame shows: nothing, one flat colour, or a picture', () => {
+  it('measures what a frame shows: nothing, one flat color, or a picture', () => {
     const empty = measureFrame(frame(() => null), PROBE_WIDTH, PROBE_HEIGHT);
     expect(empty).toEqual({ coverage: 0, spread: 0, bbox: null });
     expect(isNearlyUniform(empty)).toBe(true);
@@ -70,7 +70,7 @@ describe('the poster frame (milestone 34)', () => {
     expect(crop.y + crop.height).toBe(1080); // clamped at the bottom of the frame
     expect(crop.width).toBeGreaterThanOrEqual(640); // never narrower than a third of the frame
 
-    // A small bug in a corner grows to the floor, about its own centre, and stays inside the frame.
+    // A small bug in a corner grows to the floor, about its own center, and stays inside the frame.
     const bug = contentCrop({ left: 44, top: 1, right: 46, bottom: 3 }, full)!;
     expect(bug.width).toBe(640);
     expect(bug.x + bug.width).toBeLessThanOrEqual(1920);

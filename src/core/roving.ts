@@ -4,7 +4,7 @@
  *
  * Four regions share this arithmetic — the inspector's tabs, the filter chips,
  * the results grid and the tray's cards — so Left in a row of chips and Up in
- * a grid of cards behave the same way everywhere, and the behaviour is pinned
+ * a grid of cards behave the same way everywhere, and the behavior is pinned
  * by tests rather than by four hand-written key handlers.
  *
  * The shapes follow the ARIA practices each region is built on: a **row** of

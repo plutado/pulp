@@ -72,7 +72,7 @@
     ctx.drawImage(small, 0, 0, gw, gh, 0, 0, W, H);
     ctx.imageSmoothingEnabled = true;
 
-    // A gentle lens falloff so the field has a centre.
+    // A gentle lens falloff so the field has a center.
     var v2 = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.8);
     v2.addColorStop(0, 'rgba(0,0,0,0)');
     v2.addColorStop(1, 'rgba(0,0,0,0.45)');

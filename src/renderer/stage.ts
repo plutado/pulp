@@ -184,7 +184,7 @@ function applyPlayer(): void {
   for (const [kind, button] of Object.entries(BACKGROUND_BUTTONS)) button.setAttribute('aria-pressed', String(p.background === kind));
   els.bgCustom.value = p.customBackground;
   els.bgCustom.classList.toggle('active', p.background === 'custom');
-  // The checkerboard is a class so it keeps the stylesheet's pattern; the rest is one colour.
+  // The checkerboard is a class so it keeps the stylesheet's pattern; the rest is one color.
   els.previewFrame.classList.toggle('checker', p.background === 'checker');
   const solid = p.background === 'checker' ? '' : p.background === 'custom' ? p.customBackground : STAGE_BACKGROUND_COLORS[p.background];
   els.previewFrame.style.backgroundColor = solid;
@@ -1033,9 +1033,9 @@ function step(delta: number): void {
  * and right ends sit under the picture's edges, so halfway along the bar is
  * halfway along the picture, and it follows the picture as the window, the
  * stage split, the browse panel or the aspect changes. A tall picture would
- * make it too short to scrub, so it keeps a floor, centred under the picture.
+ * make it too short to scrub, so it keeps a floor, centered under the picture.
  * Measured in viewport coordinates, because the row spans the whole window
- * while the picture lives in the centre column.
+ * while the picture lives in the center column.
  */
 const SCRUB_MIN_WIDTH = 320;
 
@@ -1057,7 +1057,7 @@ function placeScrubLine(): void {
   let left = frame.left;
   let width = frame.width;
   if (width < 1) {
-    // No picture to line up under (the stage collapsed): the centre column stands in; in the
+    // No picture to line up under (the stage collapsed): the center column stands in; in the
     // stage's own window, the window does.
     const column = host === els.row ? document.querySelector('.center')?.getBoundingClientRect() : null;
     if (column) {
@@ -1086,7 +1086,7 @@ let follow: ResizeObserver | null = null;
 /**
  * Follow the picture's box from wherever it is: the window's resize, and a
  * ResizeObserver of the window's own on the picture and on the scrub line's
- * host (the centre column, when that is where the row is).
+ * host (the center column, when that is where the row is).
  */
 function followPicture(win: Window): void {
   follow?.disconnect();
@@ -1131,7 +1131,7 @@ export function initStage(): void {
   (window as unknown as { pulpTrackPicture?: typeof trackPictureDebug }).pulpTrackPicture = trackPictureDebug;
   initLoudness();
   // The picture's box changes with the window, the stage split, the browse panel and the
-  // aspect: the splits resize the centre column, the rest resize the picture itself, so
+  // aspect: the splits resize the center column, the rest resize the picture itself, so
   // observing both covers them all; the pane toggles arrive through the layout.
   followPicture(window);
   onLayoutApplied(placeScrubLine);

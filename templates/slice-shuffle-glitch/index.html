@@ -42,7 +42,7 @@
       var y = (i / slices) * H, sh = H / slices + 1;
       var shear = (at(i * 7 + beat) - 0.5) * W * 0.35 * Math.pow(chaos, 1.5);
       var a = Math.min(1, chaos * 1.6) * (0.75 + at(i + beat) * 0.25);
-      // The slice: a dark veil band, sheared, with a colour fringe at its lead edge.
+      // The slice: a dark veil band, sheared, with a color fringe at its lead edge.
       ctx.fillStyle = rgba(p.veil, a);
       ctx.fillRect(shear, y, W, sh);
       ctx.fillStyle = rgba(p.edge, a * 0.5);

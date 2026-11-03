@@ -8,8 +8,8 @@
  */
 export const ASSET_EFFECTS_JS = `
   /* A bolt: a jagged polyline between two points, forked once. */
-  function bolt(x0, y0, x1, y1, seed, colour, lw, alpha) {
-    ctx.strokeStyle = rgba(colour, alpha); ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  function bolt(x0, y0, x1, y1, seed, color, lw, alpha) {
+    ctx.strokeStyle = rgba(color, alpha); ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.beginPath(); ctx.moveTo(x0, y0);
     var n = 9;
     for (var i = 1; i < n; i++) {
@@ -20,8 +20,8 @@ export const ASSET_EFFECTS_JS = `
     ctx.lineTo(x1, y1); ctx.stroke();
   }
   /* A leaf shape pointing along angle a. */
-  function leaf(x, y, r, a, colour) {
-    ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = colour;
+  function leaf(x, y, r, a, color) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = color;
     ctx.beginPath(); ctx.moveTo(0, -r); ctx.quadraticCurveTo(r * 0.8, -r * 0.2, 0, r); ctx.quadraticCurveTo(-r * 0.8, -r * 0.2, 0, -r); ctx.fill();
     ctx.restore();
   }

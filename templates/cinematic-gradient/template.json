@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.cinematic-gradient",
   "name": "Cinematic gradient",
-  "description": "A deep two-tone gradient with a soft off-centre light and a heavy vignette, teal and amber by default.",
+  "description": "A deep two-tone gradient with a soft off-center light and a heavy vignette, teal and amber by default.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

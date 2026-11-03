@@ -53,7 +53,7 @@
       "id": "logo",
       "type": "image",
       "label": "Logo",
-      "description": "A logo at the centre of the frame while the chevron wipe covers it; nothing is drawn without one.",
+      "description": "A logo at the center of the frame while the chevron wipe covers it; nothing is drawn without one.",
       "box": {
         "x": 0.416,
         "y": 0.35,

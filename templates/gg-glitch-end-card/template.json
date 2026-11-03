@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.gg-glitch-end-card",
   "name": "Good Game",
-  "description": "A huge GG that shivers with a colour-split glitch over scanlines, the next stream beneath. Closes a stream VOD or a match recap.",
+  "description": "A huge GG that shivers with a color-split glitch over scanlines, the next stream beneath. Closes a stream VOD or a match recap.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

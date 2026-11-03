@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.terrazzo-chips",
   "name": "Terrazzo chips",
-  "description": "Terrazzo: angular stone chips in three colours set in a pale ground; the scale sets the chip size and the angle turns the scatter.",
+  "description": "Terrazzo: angular stone chips in three colors set in a pale ground; the scale sets the chip size and the angle turns the scatter.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

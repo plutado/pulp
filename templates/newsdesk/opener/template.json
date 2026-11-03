@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.newsdesk.opener",
   "name": "Newsdesk opener",
-  "description": "A red slash sweeps the frame, then the programme name lands in bold capitals over a navy band with a date tab.",
+  "description": "A red slash sweeps the frame, then the program name lands in bold capitals over a navy band with a date tab.",
   "version": "1.1.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
@@ -28,10 +28,10 @@
     {
       "id": "programme",
       "type": "text",
-      "label": "Programme",
+      "label": "Program",
       "default": "The Evening Report",
       "maxLength": 50,
-      "element": "Programme"
+      "element": "Program"
     },
     {
       "id": "date",

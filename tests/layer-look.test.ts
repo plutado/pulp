@@ -8,7 +8,7 @@ describe('how a layer looks (milestone 28)', () => {
     expect(isDefaultLook(undefined)).toBe(true);
     expect(isDefaultLook(look())).toBe(true);
     expect(isDefaultLook(look({ opacity: 0.5 }))).toBe(false);
-    // A shadow is drawn when it has a distance or a softness; a colour alone is nothing yet.
+    // A shadow is drawn when it has a distance or a softness; a color alone is nothing yet.
     expect(hasShadow(look({ shadowColor: '#ff0000' }))).toBe(false);
     expect(hasShadow(look({ shadowDistance: 0.01 }))).toBe(true);
     expect(hasShadow(look({ shadowSoftness: 0.01 }))).toBe(true);

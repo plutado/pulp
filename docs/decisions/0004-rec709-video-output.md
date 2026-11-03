@@ -9,7 +9,7 @@ Templates draw with Canvas 2D, whose default color space is sRGB, and the render
 
 ## Decision
 
-- The four video presets convert with the BT.709 matrix to limited (video) range, and every frame is tagged BT.709 primaries, BT.709 transfer, BT.709 matrix, limited range. The muxers write this as the `colr` atom in .mov and .mp4 (and H.264 VUI), and as the Colour element in WebM.
+- The four video presets convert with the BT.709 matrix to limited (video) range, and every frame is tagged BT.709 primaries, BT.709 transfer, BT.709 matrix, limited range. The muxers write this as the `colr` atom in .mov and .mp4 (and H.264 VUI), and as the Color element in WebM.
 - The PNG sequence preset stays full-range sRGB RGBA and carries no video tags.
 - When an alpha template is flattened over a background color for a non-alpha preset, the background is treated as sRGB like the template pixels: compositing happens in RGB and the Rec.709 conversion runs on the composite, so both go through the same step.
 - Fixed behavior, not a setting.

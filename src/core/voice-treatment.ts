@@ -13,7 +13,7 @@
  * heard; at zero the chain emits nothing at all, exactly as no treatment
  * does. The steps run on the file's own clock, before a clip's speed and
  * before the loop, the delay and the fades — and so before milestone 52's
- * loudness levelling, which measures the treated mix and still lands the
+ * loudness leveling, which measures the treated mix and still lands the
  * target.
  *
  * Pure: these functions build filtergraph text from fixed numbers and are
@@ -35,7 +35,7 @@ export const VOICE_LABELS: Record<VoiceTreatment, string> = {
 
 /** One line each, shown where the treatment is chosen. */
 export const VOICE_DESCRIPTIONS: Record<VoiceTreatment, string> = {
-  'clean-voice': 'Room noise down, rumble and hum out, gently levelled, a little clarity, the esses softened',
+  'clean-voice': 'Room noise down, rumble and hum out, gently leveled, a little clarity, the esses softened',
   podcast: 'A fuller spoken-word sound: noise down, a firmer level, presence and a touch of warmth',
   'reduce-noise': 'Noise reduction alone: the room’s hiss down, the voice left as it was',
   phone: 'A telephone’s narrow band, the level flattened',

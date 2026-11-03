@@ -24,7 +24,7 @@ ship none and fetch one when asked.
 
 **Pulp ships no FFmpeg. "Use your own" stays the first answer, and where
 there is none, Pulp offers to fetch one — after saying what it would fetch,
-from whom, how big it is and under what licence.**
+from whom, how big it is and under what license.**
 
 The fetch is the pattern ADR 0021 set for the speech model, for the same
 reason: a download is only acceptable when what arrives is pinned to the byte.
@@ -59,16 +59,16 @@ which Pulp reads media with — go into `ffmpeg/` beside the settings, and
   there is none. A renderer whose main format depends on the graphics card is
   not one to ship on purpose.
 - **A GPL build in the installers would mean distributing GPL software.** The
-  GPL's terms are not onerous and Pulp could meet them — the licence text, the
+  GPL's terms are not onerous and Pulp could meet them — the license text, the
   offer of source, the notices — but the result is an MIT application whose
   installer carries GPL software, which is a thing to explain on every page
-  that mentions the licence, and a thing anyone repackaging Pulp inherits.
+  that mentions the license, and a thing anyone repackaging Pulp inherits.
   Fetching at the person's request keeps the two apart: Pulp distributes
   nothing of FFmpeg, and what is fetched is fetched by the person who asked,
   from FFmpeg's own publisher, over their own connection.
 - **It is a separate program either way.** Pulp links nothing of FFmpeg into
   itself: it runs the binary as a child process and reads its output, which is
-  the arrangement the licence question is easiest about and the one Pulp has
+  the arrangement the license question is easiest about and the one Pulp has
   always had. Nothing in this decision changes how a render works — only where
   the binary came from.
 - **A checksum is what makes "fetched from the internet" acceptable.** Each

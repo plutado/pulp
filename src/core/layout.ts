@@ -159,7 +159,7 @@ const DEFAULT_PICTURE_RATIO = 16 / 9;
 /**
  * Whether the browse panel, open at its saved width, would squeeze the stage
  * in a window of this size: the picture is as tall as the stage's share of the
- * centre column allows, and it is squeezed when the column beside the open
+ * center column allows, and it is squeezed when the column beside the open
  * panel is narrower than a 16:9 picture of that height — a tall, narrow
  * window. On a wide one the picture is bounded by its height, and folding the
  * panel would give it nothing.

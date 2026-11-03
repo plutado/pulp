@@ -1,6 +1,6 @@
 /**
- * The bundled fonts (milestone 23, ADR 0014): ten open-licence families a layer
- * can be set in on any machine, shipped in `fonts/` with each one's own licence
+ * The bundled fonts (milestone 23, ADR 0014): ten open-license families a layer
+ * can be set in on any machine, shipped in `fonts/` with each one's own license
  * file, exactly as its upstream published it. This module is the one list: the
  * credits file is checked against it, the test checks the files against it, and
  * both pages that draw type — the app window and every template page — declare
@@ -41,10 +41,10 @@ export interface BundledFont {
   /** What kind of face it is, for the family control. */
   kind: 'sans' | 'serif' | 'display' | 'mono' | 'script';
   files: BundledFontFile[];
-  /** The licence file beside the fonts, as upstream ships it. */
+  /** The license file beside the fonts, as upstream ships it. */
   licenseFile: string;
   license: 'OFL-1.1';
-  /** A Reserved Font Name the licence declares, when it does: the files are then shipped unmodified. */
+  /** A Reserved Font Name the license declares, when it does: the files are then shipped unmodified. */
   reservedFontName?: string;
   /** Where the files came from, and which release or commit. */
   source: string;
@@ -265,7 +265,7 @@ export const IMPORTED_FONT_EXTENSIONS = ['.ttf', '.otf', '.woff2'] as const;
 
 /**
  * A font a person imported: copied into the managed folder, named by what the
- * file calls itself, with the licence note they wrote. The licence is theirs
+ * file calls itself, with the license note they wrote. The license is theirs
  * to know; Pulp records what they said and shows it where the family is chosen.
  */
 export interface ImportedFont {
@@ -276,7 +276,7 @@ export interface ImportedFont {
   style: 'normal' | 'italic';
   /** A variable font's weight range, or a static font's one weight. */
   weight: [number, number] | number;
-  /** What the person wrote about the licence; may be empty. */
+  /** What the person wrote about the license; may be empty. */
   note: string;
   importedAt: string;
 }

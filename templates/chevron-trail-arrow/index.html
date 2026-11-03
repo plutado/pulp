@@ -41,7 +41,7 @@
     var total = gap * (n - 1), x0 = W / 2 - total / 2, y = H * p.y;
     ctx.lineWidth = size * 0.3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (var i = 0; i < n; i++) {
-      // The march: a brightness pulse travelling head-ward, over and over.
+      // The march: a brightness pulse traveling head-ward, over and over.
       var pulse = 0.5 + 0.5 * Math.sin(t * 5 - i * 0.9);
       var fade = 0.35 + 0.65 * (i + 1) / n;
       ctx.strokeStyle = rgba(p.chev, show * fade * (0.55 + 0.45 * pulse));

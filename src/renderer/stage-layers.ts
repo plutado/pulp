@@ -43,7 +43,7 @@ interface DragState {
   start: { x: number; y: number };
   /** The placement the layer had when the gesture began, for this aspect. */
   from: LayerPlacement;
-  /** The placed centre at the gesture's start, for resize. */
+  /** The placed center at the gesture's start, for resize. */
   centre: { x: number; y: number };
   /** Where the layer sat when the gesture began, in frame pixels: the box every candidate is measured from. */
   startBox: { x: number; y: number; width: number; height: number };
@@ -140,9 +140,9 @@ function paintSelection(): void {
   el.style.top = pct(box.y, size.height);
   el.style.width = pct(box.width, size.width);
   el.style.height = pct(box.height, size.height);
-  // The outline is the slot, turned about the centre of what the layer draws — the same point
+  // The outline is the slot, turned about the center of what the layer draws — the same point
   // the canvas turns about (milestone 29) — so the outline is the drawn shape exactly. For a
-  // line aligned in a wide block that centre is well off the slot's middle, which is why the
+  // line aligned in a wide block that center is well off the slot's middle, which is why the
   // origin is set rather than left at the default.
   if (angle) {
     const centre = placedCentre(layer);

@@ -34,7 +34,7 @@ export const CUT_TRACK_LIMITS = {
   seconds: { min: 0, max: 86_400 },
 } as const;
 
-/** What a transition between two cuts may be: a dissolve, a dip to a colour, or a bundled wipe template. */
+/** What a transition between two cuts may be: a dissolve, a dip to a color, or a bundled wipe template. */
 export const CUT_TRANSITIONS = ['dissolve', 'dip', 'wipe'] as const;
 export type CutTransitionType = (typeof CUT_TRANSITIONS)[number];
 
@@ -45,14 +45,14 @@ export const DEFAULT_TRANSITION_SECONDS = 0.5;
  * A transition on a cut (milestone 49): between this cut and the next, its
  * duration taken from both sides — half before the boundary, half after, with
  * neither side asked for more than it has. A dissolve blends across it, a dip
- * fades to its colour and back, and a wipe plays a bundled wipe template over
+ * fades to its color and back, and a wipe plays a bundled wipe template over
  * it, scaled to the duration. On the last cut it means nothing and is kept.
  */
 export interface CutTransition {
   type: CutTransitionType;
   /** Seconds the transition takes, half from each side. */
   seconds: number;
-  /** The dip's colour, #RRGGBB; black when it does not say. */
+  /** The dip's color, #RRGGBB; black when it does not say. */
   color?: string;
   /** The wipe's template, a library template id of a bundled wipe. */
   template?: string;
@@ -388,7 +388,7 @@ export function trackAudio(track: CutTrack): TrackSound[] {
     // Unlinked sound (a J or an L cut): the lead starts it earlier — material before `from`,
     // bounded by what the file has before it — and the tail runs it on after `to`, bounded at
     // use by the file's end, as any out point is. The delay and the span move with it, so it is
-    // heard under the neighbouring shots exactly where it reaches. At a speed, the lead and the
+    // heard under the neighboring shots exactly where it reaches. At a speed, the lead and the
     // tail are file seconds too, and reach as far on the timeline as that speed lets them.
     const lead = Math.min(cut.sound?.lead ?? 0, cut.from, windows[index]!.start * start);
     const tail = cut.sound?.tail ?? 0;
@@ -404,7 +404,7 @@ export function trackAudio(track: CutTrack): TrackSound[] {
 
 /**
  * The transition leaving a cut, as it will play (milestone 49): between cut
- * `index` and the next, centred on their boundary, its duration taken from
+ * `index` and the next, centered on their boundary, its duration taken from
  * both sides — and neither side asked for more than it has, so a short shot
  * shortens the transition rather than being swallowed by it. Null on the last
  * cut, where there is no next shot to go to, and where there is none.

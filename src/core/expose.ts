@@ -1,7 +1,7 @@
 /**
  * Parameters by picking (milestone 55's second piece). A graphic composed on
  * the canvas is layer stacks, so a property someone wants to hand to the next
- * person — a line's words, a colour, a picture — already has one home: the
+ * person — a line's words, a color, a picture — already has one home: the
  * layer that draws it. An **exposure** is therefore pure metadata: a name
  * bound to one property of one layer, never a second copy of the value. The
  * Parameters tab shows the exposures as a form of their own, each control
@@ -20,7 +20,7 @@ import { isValidColor } from './manifest';
 
 export const EXPOSE_KEY = '@expose';
 
-/** What can be picked: a text layer's words, a text or shape layer's colour, an image layer's picture. */
+/** What can be picked: a text layer's words, a text or shape layer's color, an image layer's picture. */
 export const EXPOSABLE_PROPS = ['text', 'color', 'image'] as const;
 export type ExposableProp = (typeof EXPOSABLE_PROPS)[number];
 
@@ -77,7 +77,7 @@ export function withExpose(params: Record<string, unknown>, expose: readonly Exp
   return out;
 }
 
-/** Which of a layer's properties can be picked: words and colour on a line, colour on a shape, the picture on a still. */
+/** Which of a layer's properties can be picked: words and color on a line, color on a shape, the picture on a still. */
 export function exposableProps(layer: Pick<Layer, 'type'>): ExposableProp[] {
   if (layer.type === 'text') return ['text', 'color'];
   if (layer.type === 'shape') return ['color'];
@@ -86,7 +86,7 @@ export function exposableProps(layer: Pick<Layer, 'type'>): ExposableProp[] {
 }
 
 /** What a picked property is called where it is offered and when it is first named. */
-export const PROP_LABELS: Record<ExposableProp, string> = { text: 'Words', color: 'Colour', image: 'Picture' };
+export const PROP_LABELS: Record<ExposableProp, string> = { text: 'Words', color: 'Color', image: 'Picture' };
 
 /** The name a fresh exposure starts with: "Line 1 words" — the person's to change. */
 export function suggestedLabel(layerLabel: string, prop: ExposableProp): string {
@@ -112,7 +112,7 @@ export function pruneExpose(expose: readonly ExposedParam[], layers: LayerValues
   return expose.filter((e) => boundLayer(e, layers) !== undefined);
 }
 
-/** An exposure's current value: the words, the colour, or the picture — read off the layer, never stored twice. */
+/** An exposure's current value: the words, the color, or the picture — read off the layer, never stored twice. */
 export function exposedValue(exposure: ExposedParam, layers: LayerValues): string | ImageValue | null | undefined {
   const layer = boundLayer(exposure, layers);
   if (!layer) return undefined;
@@ -124,7 +124,7 @@ export function exposedValue(exposure: ExposedParam, layers: LayerValues): strin
 
 /**
  * The stacks with an exposure's value set: the bound layer edited in place,
- * everything else untouched. A value the property cannot take — a colour that
+ * everything else untouched. A value the property cannot take — a color that
  * is not one, words for a picture — changes nothing, so a caller can hand
  * anything through and trust the stacks.
  */

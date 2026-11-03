@@ -155,9 +155,9 @@ describe('the menu itself', () => {
     const grey = stageMenu(context({ view: view({ background: 'gray', theater: true }) }));
     const backgrounds = byLabel(grey, 'Background')!.submenu!;
     expect(backgrounds.map((i) => [i.label, i.arg])).toEqual([
-      ['Checkerboard', 'checker'], ['Black', 'black'], ['White', 'white'], ['Grey', 'gray'],
+      ['Checkerboard', 'checker'], ['Black', 'black'], ['White', 'white'], ['Gray', 'gray'],
     ]);
-    expect(backgrounds.filter((i) => i.checked).map((i) => i.label)).toEqual(['Grey']);
+    expect(backgrounds.filter((i) => i.checked).map((i) => i.label)).toEqual(['Gray']);
     expect(byLabel(grey, 'Theater')!.checked).toBe(true);
     const plain = stageMenu(context({ view: view({ background: 'checker' }) }));
     expect(byLabel(plain, 'Background')!.submenu!.filter((i) => i.checked).map((i) => i.label)).toEqual(['Checkerboard']);
@@ -178,7 +178,7 @@ describe('the menu itself', () => {
     expect(stageMenu(context({ item: false, template: false, layerLabel: 'Title', facts: facts({ canEditLayer: true }) }))).toEqual([]);
   });
 
-  it('greys out exactly what cannot act', () => {
+  it('grays out exactly what cannot act', () => {
     const atTheFront = stageMenu(context({ layerLabel: 'Title', facts: facts({ canAddLayer: true, canEditLayer: true, canLayerBackward: true }), assets }));
     // A required layer at the front of its stack: it can be copied, not cut, and not sent forward.
     expect(byLabel(atTheFront, 'Copy')!.enabled).toBe(true);

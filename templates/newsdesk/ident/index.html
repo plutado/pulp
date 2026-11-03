@@ -45,7 +45,7 @@
     return [words.slice(0, best).join(' '), words.slice(best).join(' ')];
   }
 
-  // The fallback: the name in bold capitals, centred in the logo's box and fitted to it by
+  // The fallback: the name in bold capitals, centered in the logo's box and fitted to it by
   // measurement; two balanced lines when one line would shrink the type past half its size.
   function wordmark(text, box, color) {
     text = caps((text || '').trim());
@@ -115,7 +115,7 @@
     ctx.fillStyle = v;
     ctx.fillRect(0, 0, W, H);
 
-    // Where the logo rests: a box about the centre that reads the same tall, square and wide.
+    // Where the logo rests: a box about the center that reads the same tall, square and wide.
     var box = { width: Math.min(500 * s, W * 0.8), height: 324 * s };
     box.x = cx - box.width / 2;
     box.y = cy - box.height / 2;
@@ -140,7 +140,7 @@
     ctx.clip();
 
     // A standing slash at the logo's right shoulder, revealed with it; it snaps up to height once
-    // the sweep has passed the centre.
+    // the sweep has passed the center.
     var stand = easeOutQuart(clamp01((t - 0.2) / 0.3));
     var standH = box.height * 0.9 * stand, standW = 12 * s;
     var standX = box.x + box.width + 36 * s;

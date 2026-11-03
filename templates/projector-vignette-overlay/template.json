@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.projector-vignette-overlay",
   "name": "Projector Vignette",
-  "description": "A hot centre and heavy corners with the slow flutter of a projector lamp. Finishes anything meant for a screening.",
+  "description": "A hot center and heavy corners with the slow flutter of a projector lamp. Finishes anything meant for a screening.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

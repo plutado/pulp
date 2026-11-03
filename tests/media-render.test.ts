@@ -131,7 +131,7 @@ describe('a clip or a still through a video preset', () => {
     expect(() => buildMediaRenderPlan({ source: clip, presetId: 'prores-4444', outputPath: '/out/loop', options: { length: 10 } })).toThrow(/scratch folder/);
   });
 
-  it('writes a matte beside the render, grey in the preset\'s own format, and says when it will be blank', () => {
+  it('writes a matte beside the render, gray in the preset\'s own format, and says when it will be blank', () => {
     const plan = buildMediaRenderPlan({ source: clip, presetId: 'h264-mp4', outputPath: '/out/c.mp4', options: { matte: true } });
     expect(plan.matteOutput).toBe('/out/c-matte.mp4');
     const args = plan.stages[0]!.args;
@@ -156,7 +156,7 @@ describe('a clip or a still through a video preset', () => {
 });
 
 describe('recolor (milestone 15)', () => {
-  it('renders the luminance in one colour, alpha kept, before the size fit', () => {
+  it('renders the luminance in one color, alpha kept, before the size fit', () => {
     expect(tintFilter('#ffffff')).toBe('format=rgba,colorchannelmixer=0.299:0.587:0.114:0:0.299:0.587:0.114:0:0.299:0.587:0.114:0:0:0:0:1');
     // Half red: every luma weight scaled by 0.5 on the red row, zero elsewhere.
     const half = tintFilter('#800000');

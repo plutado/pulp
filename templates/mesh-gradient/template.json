@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.mesh-gradient",
   "name": "Mesh gradient",
-  "description": "Four soft colour blooms blended over a base, the modern mesh gradient; turn them about the centre and scale their spread.",
+  "description": "Four soft color blooms blended over a base, the modern mesh gradient; turn them about the center and scale their spread.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

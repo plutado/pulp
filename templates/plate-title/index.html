@@ -13,7 +13,7 @@
   // Plate Title (milestone 22): a media slot plays a library clip full-frame behind the title. The
   // host decides which frame of the clip belongs to this moment and the bridge draws it; the
   // template only says where (the whole frame, covered) and draws its words over it. With no clip
-  // chosen the plate is a flat colour, so the card still works as a plain title.
+  // chosen the plate is a flat color, so the card still works as a plain title.
   'use strict';
   var canvas = document.getElementById('c');
   var ctx = canvas.getContext('2d');
@@ -25,7 +25,7 @@
     }
     var W = state.width, H = state.height, S = Math.min(W, H), p = state.params, t = state.time;
     ctx.clearRect(0, 0, W, H);
-    // The plate: the chosen clip covering the frame, or the flat colour.
+    // The plate: the chosen clip covering the frame, or the flat color.
     if (!window.pulpDrawMedia(ctx, state, 'plate')) {
       ctx.fillStyle = p.plateColor;
       ctx.fillRect(0, 0, W, H);

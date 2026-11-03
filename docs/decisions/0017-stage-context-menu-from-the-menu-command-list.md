@@ -18,7 +18,7 @@ already is (milestone 27, `src/main/menu-service.ts`).
 **Where does it get its list of things to do?** A context menu that grows its
 own list of actions is a second place to add a feature to, and the two drift:
 an edit reachable by right-click but not by the menu bar, or enabled in one
-and greyed in the other.
+and grayed in the other.
 
 ## Decision
 
@@ -66,7 +66,7 @@ Concretely:
 - **It is testable the way the rest of the window is.** The end-to-end UI test
   right-clicks the real picture over a real template and reads the menu out of
   the DOM. A native menu cannot be driven from the DevTools protocol at all,
-  so the behaviour would have gone unchecked.
+  so the behavior would have gone unchecked.
 - **Every edit is an ordinary edit.** The commands go through the Parameters
   tab's own layer editor, so a cut or a pasted look is one undo step and
   redraws through the one pipeline, exactly as a drag on the stage does.

@@ -52,7 +52,7 @@
     var depth = L / rows * 0.5;
     var band = 36 * (Math.min(W, H) / 1080);
 
-    // Timeline: slam in, hold closed across the midpoint, part. The panels meet at the centre
+    // Timeline: slam in, hold closed across the midpoint, part. The panels meet at the center
     // with the chevrons interlocked, so the frame is fully covered for the whole hold.
     var holdF = Math.round(p.hold);
     var total = Math.max(1, state.totalFrames - 1);
@@ -60,7 +60,7 @@
     var pr = state.progress;
     var tIn = clamp01(pr / (0.5 - holdHalf));
     var tOut = clamp01((pr - 0.5 - holdHalf) / (0.5 - holdHalf));
-    // Closed: each head sits half a tooth past the centre, so the two zig-zags interlock exactly
+    // Closed: each head sits half a tooth past the center, so the two zig-zags interlock exactly
     // (one is shifted by half a step); a hair of overlap hides any seam.
     var closed = travel / 2 + depth / 2 + 1;
     var head;

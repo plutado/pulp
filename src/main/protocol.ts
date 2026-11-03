@@ -60,7 +60,7 @@ export function registerTemplateScheme(): void {
     // The bundled fonts, for the app window's own type (ADR 0014). Template pages get the same files
     // under their own origin instead, which is what their CSP allows.
     // A font load is a CORS request even from the app window, so the scheme is CORS-enabled and
-    // its responses say who may read them (any page: the files are public under their licence).
+    // its responses say who may read them (any page: the files are public under their license).
     { scheme: FONT_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: false, corsEnabled: true } },
   ]);
 }

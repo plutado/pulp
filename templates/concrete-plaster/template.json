@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.concrete-plaster",
   "name": "Concrete plaster",
-  "description": "Poured concrete: grey mottling, faint trowel sweeps and water stains, with heavy grain; the scale sets the size of the blotches.",
+  "description": "Poured concrete: gray mottling, faint trowel sweeps and water stains, with heavy grain; the scale sets the size of the blotches.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

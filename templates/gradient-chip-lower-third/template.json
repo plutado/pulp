@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.gradient-chip-lower-third",
   "name": "Gradient Chip",
-  "description": "A rounded chip whose border runs with a slow two-colour gradient the whole way through. For creator intros, product teasers and short-form reels.",
+  "description": "A rounded chip whose border runs with a slow two-color gradient the whole way through. For creator intros, product teasers and short-form reels.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

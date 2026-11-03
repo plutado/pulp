@@ -17,7 +17,7 @@ export type ImageFit = (typeof IMAGE_FITS)[number];
 export const IMAGE_ALIGNS = ['center', 'left', 'right', 'top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right'] as const;
 export type ImageAlign = (typeof IMAGE_ALIGNS)[number];
 
-/** How the image's colours are treated: as they are, tinted with one colour, or flattened to white or black for contrast. */
+/** How the image's colors are treated: as they are, tinted with one color, or flattened to white or black for contrast. */
 export const IMAGE_TREATMENTS = ['original', 'tinted', 'white', 'black'] as const;
 export type ImageTreatment = (typeof IMAGE_TREATMENTS)[number];
 
@@ -49,7 +49,7 @@ export interface ImageValue {
   /** Library item id (a 24-hex string), never a path; null only when the slot is hidden with nothing chosen. */
   id: string | null;
   treatment: ImageTreatment;
-  /** The colour for the tinted treatment; `#rrggbb`. */
+  /** The color for the tinted treatment; `#rrggbb`. */
   tint: string;
   effect: ImageEffect;
   /** Kept, but not drawn: the slot stays empty and its fallback is not shown either. */

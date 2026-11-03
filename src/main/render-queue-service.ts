@@ -93,7 +93,7 @@ async function enqueueMediaRender(request: RenderRequest & { mediaId: string }):
     defaultPath: join(app.getPath('videos') || homedir(), `${slug(entry.name, 'render')}${facts.extension}`),
     filters: [{ name: facts.label, extensions: [facts.extension.slice(1)] }],
   });
-  if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: 'Render cancelled.' };
+  if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: 'Render canceled.' };
   const job = queue.add({
     templateId: '',
     mediaId: entry.id,
@@ -132,7 +132,7 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
     defaultPath: join(app.getPath('videos') || homedir(), defaultName),
     filters: [{ name: preset.label, extensions: [preset.extension.slice(1)] }],
   });
-  if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: 'Render cancelled.' };
+  if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: 'Render canceled.' };
 
   const job = queue.add({
     templateId: template.manifest.id,
@@ -333,7 +333,7 @@ export async function enqueueBatch(request: BatchRequest): Promise<EnqueueBatchR
     properties: ['openDirectory', 'createDirectory'],
   });
   const folder = pick.filePaths[0];
-  if (pick.canceled || !folder) return { ok: false, cancelled: true, message: 'Batch cancelled.' };
+  if (pick.canceled || !folder) return { ok: false, cancelled: true, message: 'Batch canceled.' };
 
   const jobIds: number[] = [];
   const skipped: string[] = [];
@@ -373,7 +373,7 @@ export function clearFinishedRenders(): void {
   queue.clearFinished();
 }
 
-/** Take one finished card off the tray. A job still running is cancelled instead. */
+/** Take one finished card off the tray. A job still running is canceled instead. */
 export function removeRender(id: number): void {
   queue.remove(id);
 }
@@ -488,7 +488,7 @@ async function pump(): Promise<void> {
       };
       const result = input.media ? await renderMedia({ entry: input.media, ...shared }) : await renderTemplate({ template: input.template, ...shared });
       active = null;
-      // Finished, failed or cancelled: nothing left to recover.
+      // Finished, failed or canceled: nothing left to recover.
       if (!input.forCache) await updateLedger((ledger) => withoutJob(ledger, job.outputPath));
       queue.finish(id, result);
       if (result.ok) {

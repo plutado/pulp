@@ -7,13 +7,13 @@
  * project; the one thing that ever travels is the model file itself, fetched
  * from its publisher on first use *after the person has said yes* and checked
  * against the checksum below before it is kept. Which model, how big it is
- * and under what licence is decision record 0021.
+ * and under what license is decision record 0021.
  *
  * The model is run by whisper.cpp's own command-line program, found on PATH
  * the way ffmpeg is (src/core/ffmpeg.ts) — Pulp bundles no binaries, and an
  * inference engine is the same kind of dependency as an encoder.
  *
- * Pure: the catalogue, the arguments and the parsing are here and tested; the
+ * Pure: the catalog, the arguments and the parsing are here and tested; the
  * downloading and the running are src/main/speech-service.ts.
  */
 
@@ -43,7 +43,7 @@ export interface SpeechModel {
 /** Where the models come from: the whisper.cpp project's own converted weights (MIT; ADR 0021). */
 const MODEL_BASE = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/';
 
-/** The licence every model in the catalogue carries, shown before anything is fetched. */
+/** The license every model in the catalog carries, shown before anything is fetched. */
 export const SPEECH_MODEL_LICENSE = 'MIT';
 
 /**

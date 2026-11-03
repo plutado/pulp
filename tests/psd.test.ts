@@ -196,15 +196,15 @@ describe('the canvas blend set', () => {
     expect(blendPixel('overlay', [0.25, 0.75, 0.5], [0.5, 0.5, 0.5])).toEqual([0.25, 0.75, 0.5]);
   });
 
-  it('computes the non-separable modes on the whole colour', () => {
+  it('computes the non-separable modes on the whole color', () => {
     const red: [number, number, number] = [1, 0, 0];
     const grn: [number, number, number] = [0, 1, 0];
-    // Luminosity: the backdrop's colour at the source's brightness — grey over red is still red, brighter.
+    // Luminosity: the backdrop's color at the source's brightness — gray over red is still red, brighter.
     const lum = blendPixel('luminosity', red, [0.5, 0.5, 0.5]);
     expect(0.3 * lum[0]! + 0.59 * lum[1]! + 0.11 * lum[2]!).toBeCloseTo(0.5, 2);
     expect(lum[0]).toBeGreaterThan(lum[1]);
     expect(lum[1]).toBeCloseTo(lum[2], 5);
-    // Colour: the source's hue and saturation at the backdrop's luminosity — red over green stays as bright as green.
+    // Color: the source's hue and saturation at the backdrop's luminosity — red over green stays as bright as green.
     const col = blendPixel('color', grn, red);
     expect(col[0]).toBeGreaterThan(col[1]);
     expect(0.3 * col[0]! + 0.59 * col[1]! + 0.11 * col[2]!).toBeCloseTo(0.59, 2);
@@ -213,7 +213,7 @@ describe('the canvas blend set', () => {
     expect(0.3 * hue[0]! + 0.59 * hue[1]! + 0.11 * hue[2]!).toBeCloseTo(0.59, 2);
     const sat = blendPixel('saturation', red, [0.5, 0.5, 0.5]);
     expect(Math.max(...sat) - Math.min(...sat)).toBeCloseTo(0, 5);
-    // A grey backdrop has no hue to keep: everything clips back to its luminosity.
+    // A gray backdrop has no hue to keep: everything clips back to its luminosity.
     expect(blendPixel('saturation', [0.5, 0.5, 0.5], red).every((v) => v >= 0 && v <= 1)).toBe(true);
   });
 
@@ -301,8 +301,8 @@ describe('a PNG back to pixels', () => {
     expect([...decodePng(png, inflate).rgba]).toEqual([...plain]);
   });
 
-  it('reads greyscale, grey+alpha and RGB, and refuses what it cannot, by name', () => {
-    // A grey PNG built by hand: the encoder only writes RGBA, so frame one with colour type 0.
+  it('reads greyscale, gray+alpha and RGB, and refuses what it cannot, by name', () => {
+    // A gray PNG built by hand: the encoder only writes RGBA, so frame one with color type 0.
     expect(() => decodePng(new Uint8Array([1, 2, 3]), inflate)).toThrow(/not a PNG/);
     const bad16 = encodePng(new Uint8Array(16), 2, 1, (b) => new Uint8Array(deflateSync(b)));
     bad16[24] = 16; // depth byte inside IHDR

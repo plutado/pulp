@@ -105,7 +105,7 @@ describe('paramCards', () => {
   it('matches an element to a layer however it is cased or spaced', () => {
     const m = manifest({
       blocks: [block()],
-      parameters: [{ id: 'c', type: 'color', label: 'Colour', default: '#ffffff', element: '  tITLE ' }],
+      parameters: [{ id: 'c', type: 'color', label: 'Color', default: '#ffffff', element: '  tITLE ' }],
     });
     expect(paramCards(m, {}).map((c) => `${c.label}:${c.params.length}`)).toEqual(['Name:0', 'Title:1']);
   });

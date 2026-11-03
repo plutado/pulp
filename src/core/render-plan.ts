@@ -85,7 +85,7 @@ export interface OutputPreset {
 
 /** Rec.709 output, step 1: convert RGB to Y'CbCr with the BT.709 matrix at limited (video) range. */
 export const REC709_CONVERT = 'scale=out_color_matrix=bt709:out_range=tv';
-/** Rec.709 output, step 2: tag every frame so the muxer writes colr / VUI / Matroska Colour. */
+/** Rec.709 output, step 2: tag every frame so the muxer writes colr / VUI / Matroska Color. */
 export const REC709_TAGS = 'setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv';
 /**
  * RGB output (PNG, QuickTime Animation): full range, the GBR matrix (meaning
@@ -241,7 +241,7 @@ export interface RenderOptions {
    */
   length?: number;
   /**
-   * A second file beside the render holding the alpha as grey (milestone 15),
+   * A second file beside the render holding the alpha as gray (milestone 15),
    * for codecs and editors without alpha: `<name>-matte<ext>`, encoded with the
    * same codec. Templates and media alike.
    */
@@ -265,7 +265,7 @@ export interface RenderOptions {
   platform?: string;
   /**
    * A `.cube` LUT graded over the whole render (milestone 52), as a file path.
-   * Applied in RGB after any flattening and before the preset's colour
+   * Applied in RGB after any flattening and before the preset's color
    * conversion, so the grade sees the finished picture; the matte beside a
    * render is alpha only and takes no grade.
    */
@@ -281,7 +281,7 @@ export interface RenderOptions {
   captions?: CaptionsMode;
   /** Media only (milestone 15): playback speed of a clip; 1 is as recorded. */
   speed?: number;
-  /** Media only: recolor the picture at render time — its luminance in this colour (`#rrggbb`), alpha kept. */
+  /** Media only: recolor the picture at render time — its luminance in this color (`#rrggbb`), alpha kept. */
   tint?: string;
   /** Media only: seconds of crossfade at the join when a clip is looped past its own length. */
   crossfade?: number;
@@ -312,7 +312,7 @@ export const AUDIO_BIT_DEPTHS = [16, 24] as const;
 
 // ---------------------------------------------------------------- the matte pass (milestone 15)
 
-/** The matte's pixel format: the preset's own without its alpha, since a matte is grey. */
+/** The matte's pixel format: the preset's own without its alpha, since a matte is gray. */
 export const MATTE_PIXEL_FORMATS: Record<PresetId, string> = {
   'prores-4444': 'yuv444p10le',
   'prores-422hq': 'yuv422p10le',
@@ -391,7 +391,7 @@ export function coverArgs(preset: OutputPreset, size: { width: number; height: n
   ];
 }
 
-/** The filter steps that turn a straight-alpha picture into the grey matte in the preset's colour and format. */
+/** The filter steps that turn a straight-alpha picture into the gray matte in the preset's color and format. */
 export function matteFilters(preset: OutputPreset): string {
   const tags = preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [RGB_FULL_TAGS];
   return ['format=rgba', 'alphaextract', ...tags, `format=${MATTE_PIXEL_FORMATS[preset.id]}`].join(',');
@@ -503,7 +503,7 @@ export interface RenderPlan {
   aspect: string;
   width: number;
   height: number;
-  /** The grey matte written beside the render, when one was asked for (milestone 15). */
+  /** The gray matte written beside the render, when one was asked for (milestone 15). */
   matteOutput?: string;
   /** The cover image beside the render, and the frame it is taken at (milestone 20). */
   coverOutput?: string;
@@ -637,7 +637,7 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   const askedCover = input.options?.coverFrame;
   const coverFrame = askedCover === undefined ? undefined : coverFrameWithin(askedCover, timing.fps, timing.length);
   const coverOutput = coverFrame === undefined ? undefined : coverOutputPath(output);
-  // With a matte, the prepared frames are split: one branch to the picture, one to the grey (milestone 15).
+  // With a matte, the prepared frames are split: one branch to the picture, one to the gray (milestone 15).
   const prepared = prepare.length > 0 ? `[0:v]${prepare.join(',')}[src]` : '[0:v]null[src]';
   const split = `${prepared};[src]split[pic][mat];[mat]${matteFilters(preset)}[matte]`;
   const track = input.track && input.track.cuts.length > 0 ? input.track : undefined;
@@ -649,12 +649,12 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
     // in time, so a track shorter than the graphic shows the pad rather than ending the render,
     // and trimmed to the rendered range exactly as the audio mix is. The graphic is composited
     // over it in RGB, as the flatten branch composites, so one conversion serves both; a
-    // flattening render's chosen background is the pad, since that is the colour the graphic
+    // flattening render's chosen background is the pad, since that is the color the graphic
     // would have met. The matte stays the graphic's own alpha — the graphics over the footage are
     // exactly what an editing app wants a matte of.
     //
     // Transitions take their duration from both sides, half each, without moving the timeline: a
-    // **dip** fades the earlier segment out to its colour and the later one in from it, inside the
+    // **dip** fades the earlier segment out to its color and the later one in from it, inside the
     // segments themselves; a **dissolve** clone-pads each side by half the duration — the held
     // edge frame, exactly what the preview holds — and cross-fades over the pad, so the join's
     // length is the two cuts' lengths to the frame; a **wipe** is a bundled wipe template the

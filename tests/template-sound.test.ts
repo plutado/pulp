@@ -137,7 +137,7 @@ describe('templateSoundValue and wipeSoundValue', () => {
     expect(made.value.volume).toBe(1);
   });
 
-  it('spreads a wipe\'s default sound over the transition, centred on the join', () => {
+  it('spreads a wipe\'s default sound over the transition, centered on the join', () => {
     const made = wipeSoundValue(SOUND, { duration: 1.5 }, { at: 4, seconds: 0.5 });
     expect(made).not.toBeNull();
     expect(made!.value.id).toBe('sounds/soft.wav');

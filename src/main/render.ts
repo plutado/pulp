@@ -136,11 +136,11 @@ function detectCaptureFormat(): Promise<CaptureProbe> {
 }
 
 /**
- * How a render aimed at a platform is levelled (milestone 52): the mix is run
+ * How a render aimed at a platform is leveled (milestone 52): the mix is run
  * once to nowhere and measured (EBU R128, `loudnorm`'s first pass), and the
  * measurement makes the render's own pass linear — one gain over the whole
  * mix rather than a limiter chasing it. A mix that cannot be measured is
- * still levelled, dynamically, with a warning saying so; a render aimed
+ * still leveled, dynamically, with a warning saying so; a render aimed
  * nowhere is left exactly as mixed.
  */
 async function mixLoudnessFor(
@@ -159,9 +159,9 @@ async function mixLoudnessFor(
     const run = await runForBuffer(ffmpegPath, measureMixArgs(audible, plan));
     const measured = run.code === 0 ? parseMixLoudness(run.stderr) : null;
     if (measured) return { target, measured };
-    warnings.push(`The mix could not be measured for levelling (${run.code === 0 ? 'nothing to read' : `ffmpeg exited with ${run.code}`}); it is levelled to ${target.lufs} LUFS in one pass instead.`);
+    warnings.push(`The mix could not be measured for leveling (${run.code === 0 ? 'nothing to read' : `ffmpeg exited with ${run.code}`}); it is leveled to ${target.lufs} LUFS in one pass instead.`);
   } catch (err) {
-    warnings.push(`The mix could not be measured for levelling (${(err as Error).message}); it is levelled to ${target.lufs} LUFS in one pass instead.`);
+    warnings.push(`The mix could not be measured for leveling (${(err as Error).message}); it is leveled to ${target.lufs} LUFS in one pass instead.`);
   }
   return { target };
 }
@@ -546,7 +546,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     // trimmed render starts at plan.firstFrame rather than 0.
     const timeline = { ...manifest, fps: plan.fps };
     for (let i = 0; i < plan.totalFrames; i++) {
-      if (job.signal?.aborted) return await fail({ ok: false, cancelled: true, message: 'Render cancelled.' });
+      if (job.signal?.aborted) return await fail({ ok: false, cancelled: true, message: 'Render canceled.' });
       if (child.exitCode !== null) break;
 
       const frame = plan.firstFrame + i;
@@ -817,7 +817,7 @@ const PAINT_DRAIN_CAP_MS = 2000;
  * `paintComposited` resolves on the *next* `paint` event, which it takes to be
  * the frame it just invalidated for. That holds only when nothing else is in
  * flight. Loading the page, and handing a template its images, each queue
- * paints of their own; on a slow machine one of those can still be travelling
+ * paints of their own; on a slow machine one of those can still be traveling
  * when the first frame's wait begins, satisfy it, and leave `capturePage`
  * returning the state from *before* the draw — a blank first frame
  * (docs/platform-notes.md, "macOS CI").
@@ -1032,7 +1032,7 @@ export async function captureTemplateFrames(
     const frameTimeoutMs = options.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS;
     const captured: Buffer[] = [];
     for (const frame of frames) {
-      if (options.signal?.aborted) return { ok: false, message: 'Cancelled.' };
+      if (options.signal?.aborted) return { ok: false, message: 'Canceled.' };
       try {
         captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values, frameSize, layers), frameSize, 'png', { first: captured.length === 0 }), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
       } catch (err) {

@@ -39,7 +39,7 @@ export interface ClipCrop {
   bottom: number;
 }
 
-/** A border drawn on the picture's edge (milestone 57): its width as a fraction of the frame's short side, and its colour. */
+/** A border drawn on the picture's edge (milestone 57): its width as a fraction of the frame's short side, and its color. */
 export interface ClipBorder {
   width: number;
   color: string;
@@ -267,7 +267,7 @@ export function sanitizeCrop(input: unknown): ClipCrop | undefined {
   return crop.left || crop.top || crop.right || crop.bottom ? crop : undefined;
 }
 
-/** A border with its width in range and a six-digit colour, or undefined for none. */
+/** A border with its width in range and a six-digit color, or undefined for none. */
 export function sanitizeBorder(input: unknown): ClipBorder | undefined {
   if (typeof input !== 'object' || input === null) return undefined;
   const r = input as Record<string, unknown>;

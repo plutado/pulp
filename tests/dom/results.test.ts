@@ -196,7 +196,7 @@ describe('the windowed results region', () => {
     const thumbOf = (id: string) => container.querySelector(`[data-id="${id}"]`)!.querySelector('.thumb')!;
     const point = (id: string, kind: string) => thumbOf(id).dispatchEvent(new Event(kind, { bubbles: true }));
 
-    // Moving across cards: each keeps its own dwell, so the first is not cancelled by the second.
+    // Moving across cards: each keeps its own dwell, so the first is not canceled by the second.
     point('id-4', 'pointerenter');
     point('id-5', 'pointerenter');
     await sleep(HOVER_DWELL_MS + 60);

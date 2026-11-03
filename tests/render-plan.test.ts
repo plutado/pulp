@@ -27,7 +27,7 @@ function flag(args: string[], name: string): string | undefined {
 }
 
 describe('a LUT over the whole render (milestone 52)', () => {
-  it('grades in RGB before the colour conversion, in the plain and the flattening graphs alike', () => {
+  it('grades in RGB before the color conversion, in the plain and the flattening graphs alike', () => {
     const plain = buildRenderPlan({ manifest: timing(), presetId: 'prores-4444', outputPath: '/o/t', options: { lut: '/luts/warm.cube' } });
     const chain = plain.args[plain.args.indexOf('-vf') + 1]!;
     expect(chain).toContain("lut3d=file='/luts/warm.cube'");
@@ -95,7 +95,7 @@ describe('the cut track under the graphic (milestone 49)', () => {
     expect(graph).not.toContain('concat');
   });
 
-  it('dips to the colour inside the segments, out of the earlier and into the later', () => {
+  it('dips to the color inside the segments, out of the earlier and into the later', () => {
     const plan = buildRenderPlan({
       manifest: timing(), presetId: 'png-sequence', outputPath: '/o/t',
       track: { cuts: [{ ...track.cuts[0]!, transition: { type: 'dip', seconds: 0.5, color: '#00ff00' } }, track.cuts[1]!] },
@@ -488,7 +488,7 @@ describe('resolveTiming', () => {
 });
 
 describe('the matte pass (milestone 15)', () => {
-  it('writes the alpha as grey beside the render, split from the same frames, with the codec minus its alpha', () => {
+  it('writes the alpha as gray beside the render, split from the same frames, with the codec minus its alpha', () => {
     const plan = buildRenderPlan({ manifest: { ...timing(), alpha: true }, presetId: 'prores-4444', outputPath: '/out/clip.mov', options: { matte: true } });
     expect(plan.matteOutput).toBe('/out/clip-matte.mov');
     const graph = flag(plan.args, '-filter_complex')!;
@@ -501,7 +501,7 @@ describe('the matte pass (milestone 15)', () => {
     const after = plan.args.slice(plan.args.lastIndexOf('[matte]'));
     expect(after).not.toContain('-alpha_bits');
     expect(matteCodecArgs(OUTPUT_PRESETS['hevc-alpha'])).not.toContain('-alpha_quality');
-    // A flattened render keeps its matte: the grey is taken before the overlay.
+    // A flattened render keeps its matte: the gray is taken before the overlay.
     const flat = buildRenderPlan({ manifest: { ...timing(), alpha: true }, presetId: 'h264-mp4', outputPath: '/out/clip.mp4', options: { matte: true } });
     expect(flag(flat.args, '-filter_complex')).toContain('[bg][pic]overlay');
     expect(flat.matteOutput).toBe('/out/clip-matte.mp4');
@@ -627,7 +627,7 @@ describe('speed changes on the cut track (milestone 56)', () => {
   });
 
   it('lays the joins at the cuts\' timeline lengths, not their file lengths', () => {
-    // A 2 s window at 2× is 1 s on the timeline, so a dissolve into the next cut is centred at 1 s.
+    // A 2 s window at 2× is 1 s on the timeline, so a dissolve into the next cut is centered at 1 s.
     const g = graph([
       { path: '/lib/a.mp4', from: 0, to: 2, speed: { rate: 2 }, transition: { type: 'dissolve', seconds: 0.5 } },
       { path: '/lib/b.mov', from: 0, to: 1 },

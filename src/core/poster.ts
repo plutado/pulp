@@ -1,7 +1,7 @@
 /**
  * A template's poster (milestone 34): the frame its card shows. Eighty-four of
  * the 125 bundled posters, taken always from the middle of the timeline, came
- * out nearly one flat colour — overlays caught mid-way with little drawn — so
+ * out nearly one flat color — overlays caught mid-way with little drawn — so
  * cards read as placeholders and as each other. The poster is now chosen from
  * frames spread over the timeline by how much each one shows, a manifest may
  * name its best moment with `posterAt`, and a transparent template's poster is
@@ -37,7 +37,7 @@ export function posterCandidateFrames(totalFrames: number, fps: number, posterAt
 export interface FrameMeasure {
   /** The share of the frame that is drawn at all: 0 to 1. */
   coverage: number;
-  /** How much the drawn part varies in tone — 0 for one flat colour, towards 1 for a picture. */
+  /** How much the drawn part varies in tone — 0 for one flat color, towards 1 for a picture. */
   spread: number;
   /** Where the drawn part is, in probe pixels, inclusive; null when nothing is drawn. */
   bbox: { left: number; top: number; right: number; bottom: number } | null;
@@ -84,7 +84,7 @@ export function posterScore(m: FrameMeasure): number {
   return m.coverage * (0.2 + m.spread);
 }
 
-/** A frame that would read as a placeholder: next to nothing drawn, or one flat colour. */
+/** A frame that would read as a placeholder: next to nothing drawn, or one flat color. */
 export function isNearlyUniform(m: FrameMeasure): boolean {
   return m.coverage < 0.02 || m.spread < 0.03;
 }
@@ -147,7 +147,7 @@ export function contentCrop(
   top -= margin;
   right += margin;
   bottom += margin;
-  // Not smaller than a third of the frame across, grown about the centre.
+  // Not smaller than a third of the frame across, grown about the center.
   const minWidth = frame.width / 3;
   if (right - left < minWidth) {
     const centre = (left + right) / 2;

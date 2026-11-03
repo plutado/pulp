@@ -1,7 +1,7 @@
 /**
  * "N more with sample media" (milestone 34): while a category being browsed
- * has catalogue files that have not been made, the results say how many and
- * offer to make just those — quicker than the whole 626-file catalogue, and
+ * has catalog files that have not been made, the results say how many and
+ * offer to make just those — quicker than the whole 626-file catalog, and
  * the only hint anywhere that a thin-looking category is thin because nothing
  * has been generated yet, not because Pulp has nothing to offer there.
  *
@@ -14,7 +14,7 @@
 import { scopeTypes } from './categories';
 import type { Scope } from './app-state';
 
-/** How many catalogue files are still to make, per taxonomy type; types with none left are absent. */
+/** How many catalog files are still to make, per taxonomy type; types with none left are absent. */
 export type UnmadeByType = Readonly<Record<string, number>>;
 
 export interface SampleHint {
@@ -26,7 +26,7 @@ export interface SampleHint {
   action: string;
   /** Why it is worth pressing, and what it costs. */
   tip: string;
-  /** The taxonomy types to make: what is in view, never the whole catalogue. */
+  /** The taxonomy types to make: what is in view, never the whole catalog. */
   types: readonly string[];
 }
 
@@ -45,7 +45,7 @@ export function sampleHint(scope: Scope | null, unmade: UnmadeByType, label = sc
     count,
     label: `${count} more with sample media`,
     action: 'Make them',
-    tip: `Make ${count} original CC0 ${count === 1 ? 'file' : 'files'} for ${label || 'this category'} and add them to your library. Just these, not the whole catalogue; sounds and clips need FFmpeg.`,
+    tip: `Make ${count} original CC0 ${count === 1 ? 'file' : 'files'} for ${label || 'this category'} and add them to your library. Just these, not the whole catalog; sounds and clips need FFmpeg.`,
     types,
   };
 }

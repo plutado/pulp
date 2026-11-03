@@ -19,7 +19,7 @@
  * full-screen background. Clicking one sets the controls; it writes nothing
  * until the person renders or saves it as the type's default.
  *
- * Pure: the catalogue, the sanitizing and the matching, shared by the window
+ * Pure: the catalog, the sanitizing and the matching, shared by the window
  * and the settings file.
  */
 
@@ -104,7 +104,7 @@ export const ASSET_OUTPUT_PRESETS: readonly AssetOutputPreset[] = [
   {
     id: 'editor-safe',
     label: 'Editor-safe, with matte',
-    tip: 'H.264 flattened over black with the alpha beside it as a grey matte file, for editors and pipelines that cannot read an alpha channel.',
+    tip: 'H.264 flattened over black with the alpha beside it as a gray matte file, for editors and pipelines that cannot read an alpha channel.',
     appliesTo: { alpha: true },
     choices: { presetId: 'h264-mp4', background: '#000000', matte: true },
   },

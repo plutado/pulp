@@ -69,7 +69,7 @@
       "id": "logo",
       "type": "image",
       "label": "Logo",
-      "description": "A mark centred above the kicker, fading up with the text. With none chosen the title is as it always was.",
+      "description": "A mark centered above the kicker, fading up with the text. With none chosen the title is as it always was.",
       "box": {
         "x": 0.471,
         "y": 0.251,

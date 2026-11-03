@@ -191,7 +191,7 @@ export function templateSoundValue(
 /**
  * A wipe on a cut join plays its template's default sound with it (milestone
  * 49 meets 59): the transition is the template's timeline spread over its
- * `seconds` and centred on the join, so the sound is scaled onto the same
+ * `seconds` and centered on the join, so the sound is scaled onto the same
  * window, whatever structure the wipe declares — spreading **is** `scale`.
  */
 export function wipeSoundValue(

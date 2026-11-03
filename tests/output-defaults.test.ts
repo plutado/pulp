@@ -59,7 +59,7 @@ describe('the one-click presets per kind of asset', () => {
   });
 
   it('remembers under type ids the taxonomy knows, so every badge of the kind can find its default', () => {
-    // The guard the settings map leans on: the categories the catalogue names map to built-in types.
+    // The guard the settings map leans on: the categories the catalog names map to built-in types.
     expect(isBuiltInType('lower-third')).toBe(true);
     expect(isBuiltInType('animated-loop')).toBe(true);
   });

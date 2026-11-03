@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "id": "pulp.samples.paper-fibre",
-  "name": "Paper fibre",
-  "description": "Warm handmade paper with fine fibres and a soft vignette; the scale sets the fibre length and the grain its tooth.",
+  "name": "Paper fiber",
+  "description": "Warm handmade paper with fine fibers and a soft vignette; the scale sets the fiber length and the grain its tooth.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
@@ -45,7 +45,7 @@
     {
       "id": "fibre",
       "type": "color",
-      "label": "Fibre color",
+      "label": "Fiber color",
       "default": "#9c8a66",
       "element": "Colors"
     },

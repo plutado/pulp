@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "pulp.samples.slow-orbit",
   "name": "Slow Orbit",
-  "description": "Soft discs circling a warm centre, looping seamlessly. An unhurried background for interviews, podcasts and quiet titles.",
+  "description": "Soft discs circling a warm center, looping seamlessly. An unhurried background for interviews, podcasts and quiet titles.",
   "version": "1.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",

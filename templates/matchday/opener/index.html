@@ -52,7 +52,7 @@
     var cx = W / 2, cy = H / 2;
     var maxW = W - margin * 2;
 
-    // Chevron burst: twelve chevrons fly outward from the centre and fade as they go.
+    // Chevron burst: twelve chevrons fly outward from the center and fade as they go.
     var burst = clamp01(t / (dur * 2.5));
     if (burst < 1) {
       var e = easeOutQuart(burst);
@@ -98,7 +98,7 @@
     ctx.textBaseline = 'middle';
 
     function bar(x, y, w, h, text, grow, from) {
-      // Scales about its centre with overshoot; `from` nudges it in from a side.
+      // Scales about its center with overshoot; `from` nudges it in from a side.
       ctx.save();
       ctx.translate(x + w / 2 + from * (1 - clamp01(grow)) * 120 * s, y + h / 2);
       ctx.scale(Math.max(0, grow) * collapse, Math.max(0, grow) * collapse);

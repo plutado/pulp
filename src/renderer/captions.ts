@@ -12,7 +12,7 @@
  * spoken — and nothing here keeps a second answer of its own.
  *
  * Transcription happens in the main process on this machine. The dialog says
- * which model it would fetch, how big it is and under what licence, and
+ * which model it would fetch, how big it is and under what license, and
  * fetches nothing until the person presses the button (ADR 0021).
  */
 
@@ -301,7 +301,7 @@ function say(text: string): void {
   if (status) status.textContent = text;
 }
 
-/** What the model line says: which model, how big, under what licence, and whether it is here. */
+/** What the model line says: which model, how big, under what license, and whether it is here. */
 async function showStatus(): Promise<void> {
   const line = $('captions-model');
   const fetchButton = $<HTMLButtonElement>('captions-fetch');

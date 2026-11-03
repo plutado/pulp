@@ -3,7 +3,7 @@
  * vocabulary, then the sports, celebration and holiday props. Plain
  * JavaScript for the page's script, spliced in after the effects; the second
  * half is `sample-asset-objects-more.ts`. Every object is drawn about the
- * centre of its square in units of `U` (the shorter side), sits on a soft
+ * center of its square in units of `U` (the shorter side), sits on a soft
  * shadow and carries a dark translucent edge, so the set reads as one hand.
  * `P` is the clip's progress and is 0 for a still.
  */
@@ -19,8 +19,8 @@ export const ASSET_OBJECTS_JS = `
   function oval(x, y, rx, ry, fill, lw, rot) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot || 0, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); edge(lw); }
   function box(x, y, w, h, r, fill, lw) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fillStyle = fill; ctx.fill(); edge(lw); }
   function poly(pts, fill, lw) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (var i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } edge(lw); }
-  function line(pts, colour, lw) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (var i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.strokeStyle = colour; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); }
-  function arc(x, y, r, a0, a1, colour, lw) { ctx.beginPath(); ctx.arc(x, y, r, a0, a1); ctx.strokeStyle = colour; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke(); }
+  function line(pts, color, lw) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (var i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); }
+  function arc(x, y, r, a0, a1, color, lw) { ctx.beginPath(); ctx.arc(x, y, r, a0, a1); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke(); }
   function star(x, y, ro, ri, n, fill, lw, rot) { var pts = []; for (var i = 0; i < n * 2; i++) { var a = -Math.PI / 2 + (rot || 0) + (i / (n * 2)) * Math.PI * 2, r = i % 2 ? ri : ro; pts.push(x + Math.cos(a) * r, y + Math.sin(a) * r); } poly(pts, fill, lw); }
   function heart(x, y, s, fill, lw) {
     ctx.beginPath(); ctx.moveTo(x, y + s * 0.9);
@@ -31,7 +31,7 @@ export const ASSET_OBJECTS_JS = `
   function gloss(x, y, r) { blob(x - r * 0.35, y - r * 0.4, r * 0.4, '255,255,255', 0.45); }
   function ballShade(x, y, r) { var g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.2, x, y, r); g.addColorStop(0, 'rgba(255,255,255,0.25)'); g.addColorStop(1, 'rgba(0,0,0,0.28)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
   function candleFlame(x, baseY, h, w, seed) { flame(x, baseY, h, w, seed, 1); }
-  /* An object: drawn about the centre, with its shadow first. */
+  /* An object: drawn about the center, with its shadow first. */
   function O(fn) { return function (W, H) { var cx = W / 2, cy = H / 2; fn(cx, cy, W, H); }; }
   var OBJECTS = {
     // ===== Sports equipment

@@ -77,7 +77,7 @@ function show(): void {
 /**
  * The live preview: the template's poster inside a box of the chosen shape —
  * over the checkerboard while the transparency is kept, over the flatten
- * colour once a format without alpha drops it — with the size, the rate and
+ * color once a format without alpha drops it — with the size, the rate and
  * the format said underneath.
  */
 function paintPreview(): void {
@@ -259,7 +259,7 @@ function buildFormat(body: HTMLElement): void {
   colour.value = w.choices.background;
   colour.setAttribute('aria-label', 'Background for flattening');
   flatten.append(flattenLabel, colour);
-  const flattenNote = note('This format keeps no transparency, so the graphic is flattened over this colour.');
+  const flattenNote = note('This format keeps no transparency, so the graphic is flattened over this color.');
   const matte = document.createElement('label');
   matte.className = 'field inline guided-choice';
   const matteBox = document.createElement('input');
@@ -288,7 +288,7 @@ function buildFormat(body: HTMLElement): void {
     w.choices.matte = matteBox.checked;
   });
   body.append(selectField('Format', presets), explain, flatten, flattenNote, matte,
-    note('The matte is the alpha as grey, a second file, for editors and pipelines that cannot read an alpha channel.'));
+    note('The matte is the alpha as gray, a second file, for editors and pipelines that cannot read an alpha channel.'));
   follow();
 }
 

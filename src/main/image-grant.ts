@@ -5,7 +5,7 @@
  * image slots reach the page another way — the main process reads exactly
  * those files, by library id, and hands the page their bytes for the length of
  * a preview or a render. There is no URL a template could vary to reach a
- * neighbour, and nothing is read for an id that was not chosen.
+ * neighbor, and nothing is read for an id that was not chosen.
  */
 
 import { readFile } from 'node:fs/promises';

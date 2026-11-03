@@ -18,7 +18,7 @@ and to the rest of the window's state through signals: the layer editor, the
 inspector's parameters, the transport, the context menu built from the
 application menu's own command list (ADR 0017). In Electron a second window
 is normally a second renderer process with a page of its own, and the obvious
-design — a stage page in that window, the state synchronised over IPC — would
+design — a stage page in that window, the state synchronized over IPC — would
 mean rebuilding every one of those wires across a process boundary, and
 keeping them in step forever after. That is the mirror the roadmap ruled out,
 dressed as a move.
@@ -52,7 +52,7 @@ handed its stills and clips again, which the stage already knew how to do.
 
 The main process does only what the main process can: it lets exactly this
 window open and places it where it was last — on a display that is still
-connected, else at its size alone, centred by the platform; it remembers where
+connected, else at its size alone, centered by the platform; it remembers where
 the window goes; it holds the window's close until the renderer has put the
 stage back, so the picture is never lost with its window; and it fills a
 display with the window for theater. At launch the stage comes back out if it
@@ -60,7 +60,7 @@ was left out, unless its display has gone, in which case it stays in the main
 window and the remembered place is dropped, so nothing opens off-screen.
 
 The main window takes the room: with the stage out, the results fill the
-centre and the transport row is its buttons line, so the main monitor is a
+center and the transport row is its buttons line, so the main monitor is a
 large browsing view. The buttons — play, the marks, volume, the drawer's tabs
 and the status — stay in the main window, where the browsing is; the scrub
 bar goes with the picture it is lined up under.
@@ -78,7 +78,7 @@ bar goes with the picture it is lined up under.
   window's viewport — must listen for the stage moving, or it will stop
   working in the popped-out stage. The stage's own module shows the shape.
 - The stylesheet is shared by linking it into the child document; it is
-  serialised into the document if the link fails, so the window is never
+  serialized into the document if the link fails, so the window is never
   unstyled.
 - A view-only copy for a client monitor is not this. If one is wanted later,
   it is a picture of the stage — a capture — rather than a second stage, and

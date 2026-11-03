@@ -66,7 +66,7 @@ export interface UserItemData {
   /**
    * Frames per second for a frame sequence (milestone 30). A folder of frames
    * records no rate, so Pulp states one; this is where a person's own answer
-   * is kept, per item, like a tag or a favourite.
+   * is kept, per item, like a tag or a favorite.
    */
   sequenceFps?: number;
 }

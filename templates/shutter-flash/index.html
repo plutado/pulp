@@ -38,7 +38,7 @@
     var closed = Math.sin(Math.min(1, f) * Math.PI);
     var r = Math.sqrt(W * W + H * H) * 0.5;
     var open = r * (1 - easeInOut(closed));
-    // Six blades, each a chord rotating in toward the centre.
+    // Six blades, each a chord rotating in toward the center.
     ctx.fillStyle = rgba(p.blade, 1);
     for (var i = 0; i < 6; i++) {
       var a = (i / 6) * Math.PI * 2 + closed * 0.5;
