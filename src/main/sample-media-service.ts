@@ -67,7 +67,7 @@ function closeCapturePool(): void {
 async function makeOne(item: SampleMediaItem, out: string, ffmpegPath: string): Promise<string | null> {
   const { recipe } = item;
   if (recipe.kind === 'audio') {
-    const result = await nodeRunner(ffmpegPath, sampleAudioArgs(recipe, out));
+    const result = await nodeRunner(ffmpegPath, sampleAudioArgs(recipe, out, item.moods ?? []));
     return result.code === 0 ? null : `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}`;
   }
   if (recipe.kind === 'still') {

@@ -23,7 +23,7 @@ import { isLottieCandidate } from './lottie';
 import { unreadableDesignNote } from './layered';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
 import { PACK_FILENAME, parsePackManifest, slug } from './pack';
-import { inferMediaType, inferThemes } from './taxonomy';
+import { inferMediaType, inferMoods, inferThemes } from './taxonomy';
 import type { MediaLookup } from './media-serve';
 import type { MediaMetadata } from './media-meta';
 import { thumbUrlFor, wantsThumbnail } from './thumbnails';
@@ -392,6 +392,7 @@ export class LibraryStore {
           // A run of frames is a clip, so it is typed and filtered as video however its frames are stored.
           const inferredType = inferMediaType('video', segments);
           const inferredThemes = inferThemes(segments);
+          const inferredMoods = inferMoods(segments);
           const media: MediaEntry = {
             kind: 'media',
             key,
@@ -407,6 +408,7 @@ export class LibraryStore {
             sequence: seq,
             ...(inferredType ? { type: inferredType } : {}),
             ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
+            ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
           };
           upserts.push({ key, kind: 'media', size, mtimeMs, entry: media });
         }
@@ -492,6 +494,7 @@ export class LibraryStore {
           const segments = folderTags(rootPath, dir);
           const inferredType = inferMediaType(kind, segments);
           const inferredThemes = inferThemes(segments);
+          const inferredMoods = inferMoods(segments);
           const media: MediaEntry = {
             kind: 'media',
             key,
@@ -506,6 +509,7 @@ export class LibraryStore {
             tags: segments,
             ...(inferredType ? { type: inferredType } : {}),
             ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
+            ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
           };
           upserts.push({ key, kind: 'media', size: info.size, mtimeMs: info.mtimeMs, entry: media });
         }

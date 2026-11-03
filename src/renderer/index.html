@@ -27,7 +27,7 @@
         </div>
         <span class="search-field">
           <span class="search-icon" data-icon="magnifying-glass" aria-hidden="true"></span>
-          <input id="search" type="search" list="search-history" placeholder="Search templates and media" aria-label="Search templates and media" autocomplete="off" spellcheck="false" data-tip="Free text, or a filter: tag: type: theme: style: category: pack: duration: width: height: fps: res: codec: alpha: orientation: favorite: recent: — for example type:wipe theme:news duration:>5">
+          <input id="search" type="search" list="search-history" placeholder="Search templates and media" aria-label="Search templates and media" autocomplete="off" spellcheck="false" data-tip="Free text, or a filter: tag: type: theme: style: mood: category: pack: duration: width: height: fps: res: codec: alpha: orientation: favorite: recent: — for example type:wipe theme:news duration:>5">
           <datalist id="search-history"></datalist>
         </span>
         <span id="scope-chip" class="scope-chip" role="status" hidden>
@@ -44,12 +44,15 @@
           <button id="chip-alpha" class="chip" type="button" data-chip="alpha" data-icon="checkerboard" aria-pressed="false" aria-label="Alpha" data-tip="Alpha: transparent items only"><span class="label">Alpha</span></button>
           <button id="chip-favorites" class="chip" type="button" data-chip="favorites" data-icon="star" aria-pressed="false" aria-label="Favorites" data-tip="Favorites only"><span class="label">Favorites</span></button>
         </div>
-        <div class="narrow-chips" role="group" aria-label="Narrow by theme and look">
+        <div class="narrow-chips" role="group" aria-label="Narrow by theme, look and mood">
           <span class="chip-select" data-icon="tag" data-tip="Narrow the results to what they are for: a wedding, sports, news…">
             <select id="for-select" class="chip" aria-label="For"><option value="">For…</option></select>
           </span>
           <span class="chip-select" data-icon="palette" data-tip="Narrow the results by look: clean, elegant, retro…">
             <select id="look-select" class="chip" aria-label="Look"><option value="">Look</option></select>
+          </span>
+          <span class="chip-select" data-icon="speaker-high" data-tip="Narrow sounds and music by how they feel: upbeat, dramatic, calm…">
+            <select id="mood-select" class="chip" aria-label="Mood"><option value="">Mood</option></select>
           </span>
         </div>
       </section>

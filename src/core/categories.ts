@@ -15,7 +15,7 @@
 import type { Scope } from './app-state';
 import { styleLabel, themeLabel, typeLabel } from './display';
 import type { LibraryEntry } from './library-types';
-import { entryType, isBuiltInTheme, STYLES, THEME_GROUPS, TYPES, themeGroupOf } from './taxonomy';
+import { entryMoods, MOODS, entryType, isBuiltInTheme, STYLES, THEME_GROUPS, TYPES, themeGroupOf } from './taxonomy';
 
 export interface BrowseCategory {
   /** Permanent, like a taxonomy id: a tree node is "category:<id>" and a scope carries it as its group. */
@@ -193,6 +193,18 @@ export function lookOptions(entries: readonly LibraryEntry[], chosen: string | n
   const byStyle = new Map<string, number>();
   for (const entry of entries) if (entry.kind === 'template') for (const style of entry.manifest.styles ?? []) byStyle.set(style, (byStyle.get(style) ?? 0) + 1);
   return STYLES.filter((s) => (byStyle.get(s.id) ?? 0) > 0 || s.id === chosen).map((s) => ({ id: s.id, label: styleLabel(s.id), count: byStyle.get(s.id) ?? 0 }));
+}
+
+/**
+ * The Mood chip's choices (milestone 16's moods): how a sound feels, counted
+ * over what the search leaves — a media file's folder-inferred moods with what
+ * its own metadata says. Moods the library has none of are left out, except a
+ * chosen one, which stays so it can be unchosen.
+ */
+export function moodOptions(entries: readonly LibraryEntry[], chosen: string | null = null): ChipOption[] {
+  const byMood = new Map<string, number>();
+  for (const entry of entries) for (const mood of entryMoods(entry)) byMood.set(mood, (byMood.get(mood) ?? 0) + 1);
+  return MOODS.filter((m) => (byMood.get(m.id) ?? 0) > 0 || m.id === chosen).map((m) => ({ id: m.id, label: m.label, count: byMood.get(m.id) ?? 0 }));
 }
 
 /** Every taxonomy type has exactly one category; the test holds this, and the tree relies on it. */

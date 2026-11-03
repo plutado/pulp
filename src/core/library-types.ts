@@ -63,6 +63,8 @@ export interface MediaEntry {
   type?: string;
   /** Folder-inferred themes plus the user's; themes the user added. */
   themes?: string[];
+  /** How it feels (milestone 16's moods), inferred from folder names; the file's own metadata adds more through `meta`. */
+  moods?: string[];
   userThemes?: string[];
   path: string;
   root: string;

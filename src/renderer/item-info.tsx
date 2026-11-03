@@ -26,7 +26,7 @@ import {
   type InfoSectionId,
 } from '../core/item-info';
 import type { LibraryEntry, MediaEntry, TemplateEntry } from '../core/library-types';
-import { entryType, typeInfo } from '../core/taxonomy';
+import { entryMoods, moodLabel, entryType, typeInfo } from '../core/taxonomy';
 import { appState, selectedTemplate, slotNotes } from './store';
 import { Icon, scopeIcon, TYPE_GROUP_ICONS, type IconName } from './icons';
 import { Thumb } from './item-preview';
@@ -320,6 +320,8 @@ function FileSection({ entry }: { entry: LibraryEntry }) {
 function Categories({ entry }: { entry: LibraryEntry }) {
   const myThemes = new Set(entry.userThemes ?? []);
   const styles = entry.kind === 'template' ? (entry.manifest.styles ?? []) : [];
+  // How it feels (milestone 16's moods): from its folders and its file's own genre tag, said rather than edited.
+  const moods = entryMoods(entry);
   const row = typeRow(entry);
   return (
     <>
@@ -346,6 +348,18 @@ function Categories({ entry }: { entry: LibraryEntry }) {
             </span>
           ))}
         </span>
+      )}
+      {moods.length > 0 && (
+        <>
+          <p class="chip-label">Mood</p>
+          <span class="tag-chips">
+            {moods.map((mood) => (
+              <span key={mood} class="tag-chip folder" data-mood={mood}>
+                {moodLabel(mood)}
+              </span>
+            ))}
+          </span>
+        </>
       )}
     </>
   );

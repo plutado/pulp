@@ -4,8 +4,8 @@
  * state. */
 
 import { effect } from '@preact/signals';
-import { FILTER_CHIPS, setFor, setLook, setScope, setSort, toggleFilter, type SortKey } from '../core/app-state';
-import { forOptions, lookOptions, scopeCategory, type ChipOption } from '../core/categories';
+import { FILTER_CHIPS, setFor, setLook, setMood, setScope, setSort, toggleFilter, type SortKey } from '../core/app-state';
+import { forOptions, lookOptions, moodOptions, scopeCategory, type ChipOption } from '../core/categories';
 import { resultsKind, THUMB_SIZES, withThumbSize, withViewMode, type ResultsViewState, type ViewMode } from '../core/results-view';
 import { appState, dispatch, facets, results, resultsView } from './store';
 import { scopeIcon, setIcon } from './icons';
@@ -84,11 +84,13 @@ function optionFor(option: ChipOption): HTMLOptionElement {
 function initNarrowingChips(): void {
   const forSelect = $('for-select') as HTMLSelectElement;
   const lookSelect = $('look-select') as HTMLSelectElement;
+  const moodSelect = $('mood-select') as HTMLSelectElement;
   forSelect.addEventListener('change', () => dispatch((s) => setFor(s, forSelect.value || null)));
   lookSelect.addEventListener('change', () => dispatch((s) => setLook(s, lookSelect.value || null)));
+  moodSelect.addEventListener('change', () => dispatch((s) => setMood(s, moodSelect.value || null)));
   effect(() => {
     const entries = facets.value;
-    const { forTheme, look } = appState.value;
+    const { forTheme, look, mood } = appState.value;
     const head = forSelect.options[0]!;
     forSelect.replaceChildren(head);
     for (const group of forOptions(entries, forTheme)) {
@@ -107,6 +109,17 @@ function initNarrowingChips(): void {
     lookSelect.value = look ?? '';
     lookHead.textContent = look ? 'Look: any' : 'Look';
     lookSelect.parentElement?.classList.toggle('set', look !== null);
+
+    // The Mood chip (milestone 16's moods): how a sound feels, there only while the library has
+    // moods to offer — a library with no tagged audio keeps the bar as it was.
+    const moodHead = moodSelect.options[0]!;
+    moodSelect.replaceChildren(moodHead);
+    const moods = moodOptions(entries, mood);
+    for (const option of moods) moodSelect.append(optionFor(option));
+    moodSelect.value = mood ?? '';
+    moodHead.textContent = mood ? 'Mood: any' : 'Mood';
+    moodSelect.parentElement?.classList.toggle('set', mood !== null);
+    (moodSelect.parentElement as HTMLElement).hidden = moods.length === 0 && mood === null;
   });
 }
 

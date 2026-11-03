@@ -49,6 +49,12 @@ export interface SampleMediaItem {
   type: string;
   /** One line about what it is, for the README. */
   note: string;
+  /**
+   * How it feels (milestone 16's moods), for the audio: built-in mood ids,
+   * written into the file's own genre tag so the library reads them back with
+   * ffprobe — the same channel a person's own tagged music is read by.
+   */
+  moods?: readonly string[];
   recipe: SampleRecipe;
 }
 
@@ -223,12 +229,12 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`lt(mod(t,1),0.5)*${tone(150, 7)}*0.28`, 3), 3),
   },
   // Ambience: shaped noise beds.
-  { folder: ['Sound effects', 'Ambience'], file: 'ambience-room-tone.wav', type: 'ambience', note: 'A quiet room tone, eight seconds.', recipe: audio(evalSrc(`${NOISE}*0.2`, 8), 8, 'lowpass=f=240,volume=0.8') },
+  { folder: ['Sound effects', 'Ambience'], file: 'ambience-room-tone.wav', type: 'ambience', moods: ['calm'], note: 'A quiet room tone, eight seconds.', recipe: audio(evalSrc(`${NOISE}*0.2`, 8), 8, 'lowpass=f=240,volume=0.8') },
   {
-    folder: ['Sound effects', 'Ambience'], file: 'ambience-wind.wav', type: 'ambience', note: 'Wind rising and falling.',
+    folder: ['Sound effects', 'Ambience'], file: 'ambience-wind.wav', type: 'ambience', moods: ['calm'], note: 'Wind rising and falling.',
     recipe: audio(evalSrc(`${NOISE}*(0.5+0.5*sin(2*PI*t/3.7))*(0.6+0.4*sin(2*PI*t/1.3+1))`, 8), 8, 'lowpass=f=420,volume=0.9'),
   },
-  { folder: ['Sound effects', 'Ambience'], file: 'ambience-rain.wav', type: 'ambience', note: 'Steady rain.', recipe: audio(evalSrc(`${NOISE}*0.5`, 8), 8, 'highpass=f=1800,lowpass=f=9000,volume=0.9') },
+  { folder: ['Sound effects', 'Ambience'], file: 'ambience-rain.wav', type: 'ambience', moods: ['calm', 'melancholy'], note: 'Steady rain.', recipe: audio(evalSrc(`${NOISE}*0.5`, 8), 8, 'highpass=f=1800,lowpass=f=9000,volume=0.9') },
   // Nature / weather.
   { folder: ['Sound effects', 'Nature weather'], file: 'thunder.wav', type: 'nature-weather', note: 'A thunder roll.', recipe: audio(evalSrc(`${NOISE}*${env(0, 5, 0.12, 0.8)}*(0.7+0.3*sin(2*PI*2.3*t))`, 5), 5, 'lowpass=f=130,volume=0.95') },
   { folder: ['Sound effects', 'Nature weather'], file: 'gust.wav', type: 'nature-weather', note: 'A single gust of wind.', recipe: audio(evalSrc(`${NOISE}*${bell(1.5, 0.7)}`, 3), 3, 'lowpass=f=500,volume=0.9') },
@@ -352,15 +358,15 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${tone(220, 2)}*lt(mod(t,0.5),0.25)*min(1,mod(t,0.25)*50)*0.4`, 3), 3, 'lowpass=f=2000'),
   },
   {
-    folder: ['Sound effects', 'Ambience'], file: 'ambience-office-hum.wav', type: 'ambience', note: 'A quiet indoor room tone.',
+    folder: ['Sound effects', 'Ambience'], file: 'ambience-office-hum.wav', type: 'ambience', moods: ['calm'], note: 'A quiet indoor room tone.',
     recipe: audio(evalSrc(`${NOISE}*0.06`, 8), 8, 'lowpass=f=900,highpass=f=60'),
   },
   {
-    folder: ['Sound effects', 'Ambience'], file: 'ambience-air-handling.wav', type: 'ambience', note: 'A steady air-handling hum.',
+    folder: ['Sound effects', 'Ambience'], file: 'ambience-air-handling.wav', type: 'ambience', moods: ['calm'], note: 'A steady air-handling hum.',
     recipe: audio(evalSrc(`${NOISE}*0.08+${tone(60, 2)}*0.03`, 8), 8, 'lowpass=f=600'),
   },
   {
-    folder: ['Sound effects', 'Ambience'], file: 'ambience-distant-traffic.wav', type: 'ambience', note: 'Distant traffic behind a window.',
+    folder: ['Sound effects', 'Ambience'], file: 'ambience-distant-traffic.wav', type: 'ambience', moods: ['calm'], note: 'Distant traffic behind a window.',
     recipe: audio(evalSrc(`${NOISE}*(0.07+0.03*sin(2*PI*0.08*t))`, 10), 10, 'lowpass=f=450,highpass=f=40'),
   },
   {
@@ -483,7 +489,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`(gt(mod(t,1.1),0.55)*${tone(960)}+lt(mod(t,1.1),0.55)*${tone(720)})*${bell(3, 1.5)}*0.4+${NOISE}*${bell(3, 1.2)}*0.1`, 6), 6, 'lowpass=f=5000'),
   },
   {
-    folder: ['Sound effects', 'Ambience', 'Medical'], file: 'waiting-room.wav', type: 'ambience', note: 'A quiet waiting room: air, a distant page tone.',
+    folder: ['Sound effects', 'Ambience', 'Medical'], file: 'waiting-room.wav', type: 'ambience', moods: ['calm'], note: 'A quiet waiting room: air, a distant page tone.',
     recipe: audio(evalSrc(`${NOISE}*0.07+${env(3.2, 0.4, 0.01, 6)}*${tone(660, 2)}*0.08`, 8), 8, 'lowpass=f=1400'),
   },
 
@@ -497,7 +503,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${NOISE}*(0.14+0.05*sin(2*PI*0.25*t))*min(1,max(0.3,(6-t)*0.5))`, 7), 7, 'bandpass=f=850:width_type=o:w=2.2'),
   },
   {
-    folder: ['Music', 'Stings', 'Legal'], file: 'verdict.wav', type: 'sting', note: 'Two low chords, stated and answered.',
+    folder: ['Music', 'Stings', 'Legal'], file: 'verdict.wav', type: 'sting', moods: ['dramatic', 'tense'], note: 'Two low chords, stated and answered.',
     recipe: audio(evalSrc(`${env(0, 1.1, 0.01, 2.2)}*(${[41, 48, 53].map((m) => tone(midi(m), 3)).join('+')})*0.1+${env(1, 2.2, 0.01, 1.2)}*(${[36, 43, 48, 55].map((m) => tone(midi(m), 3)).join('+')})*0.09`, 3.4), 3.4),
   },
 
@@ -507,7 +513,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${[0, 1.4, 2.8, 4.2].map((s, i) => `${env(s, 3, 0.004, 1)}*${tone(i % 2 ? 311 : 233, 4)}*0.14`).join('+')}`, 7), 7, 'lowpass=f=5000'),
   },
   {
-    folder: ['Music', 'Stings', 'Faith'], file: 'choir-swell.wav', type: 'sting', note: 'A voiced chord swelling and settling.',
+    folder: ['Music', 'Stings', 'Faith'], file: 'choir-swell.wav', type: 'sting', moods: ['epic'], note: 'A voiced chord swelling and settling.',
     recipe: audio(evalSrc(`min(1,t/1.6)*min(1,max(0,(4-t)*0.8))*(${[48, 55, 60, 64, 67].map((m) => tone(midi(m), 5)).join('+')})*0.05`, 4), 4, 'lowpass=f=2200'),
   },
   {
@@ -515,7 +521,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${NOISE}*(0.08+0.1*min(1,t/2))`, 6), 6, 'bandpass=f=700:width_type=o:w=2'),
   },
   {
-    folder: ['Sound effects', 'Ambience', 'Faith'], file: 'sanctuary.wav', type: 'ambience', note: 'A large stone room: air and a long hush.',
+    folder: ['Sound effects', 'Ambience', 'Faith'], file: 'sanctuary.wav', type: 'ambience', moods: ['calm', 'mysterious'], note: 'A large stone room: air and a long hush.',
     recipe: audio(evalSrc(`${NOISE}*0.05+${NOISE2}*0.04`, 9), 9, 'lowpass=f=900,highpass=f=70'),
   },
 
@@ -525,7 +531,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${[0, 2.2, 4.4].map((s) => `${env(s, 2.6, 0.004, 0.9)}*${tone(196, 4)}*0.15`).join('+')}`, 7), 7, 'lowpass=f=3200'),
   },
   {
-    folder: ['Music', 'Stings', 'Memorial'], file: 'farewell-strings.wav', type: 'sting', note: 'A minor swell that releases into quiet.',
+    folder: ['Music', 'Stings', 'Memorial'], file: 'farewell-strings.wav', type: 'sting', moods: ['melancholy'], note: 'A minor swell that releases into quiet.',
     recipe: audio(evalSrc(`min(1,t/2)*min(1,max(0,(4.5-t)*0.7))*(${[45, 52, 57, 60, 64].map((m) => tone(midi(m), 6)).join('+')})*0.04`, 4.5), 4.5, 'lowpass=f=1800'),
   },
 
@@ -537,7 +543,7 @@ const SFX: SampleMediaItem[] = [
 
   // Space.
   {
-    folder: ['Sound effects', 'Ambience', 'Space'], file: 'deep-drone.wav', type: 'ambience', note: 'A deep ship-hull drone with a slow sweep.',
+    folder: ['Sound effects', 'Ambience', 'Space'], file: 'deep-drone.wav', type: 'ambience', moods: ['mysterious', 'tense'], note: 'A deep ship-hull drone with a slow sweep.',
     recipe: audio(evalSrc(`${tone(55, 3)}*0.18+${tone(82.5, 2)}*(0.08+0.05*sin(2*PI*0.07*t))+${NOISE}*0.03`, 10), 10, 'lowpass=f=800'),
   },
 
@@ -591,7 +597,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${NOISE}*gt(random(2),0.62)*min(1,t*8)*min(1,(2.6-t)*1.6)*0.3`, 2.6), 2.6, 'highpass=f=1100,lowpass=f=6500'),
   },
   {
-    folder: ['Music', 'Stings', 'Golf'], file: 'birdie.wav', type: 'sting', note: 'A small rising figure for a made putt.',
+    folder: ['Music', 'Stings', 'Golf'], file: 'birdie.wav', type: 'sting', moods: ['playful'], note: 'A small rising figure for a made putt.',
     recipe: audio(evalSrc(`${[67, 71, 74].map((m, i) => `${env(i * 0.16, 1.4, 0.006, 3)}*${tone(midi(m), 3)}*0.14`).join('+')}`, 2.2), 2.2),
   },
 
@@ -609,7 +615,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${NOISE}*0.04*lt(t,1.2)+${NOISE2}*gt(random(3),0.55)*gt(t,1.2)*min(1,(t-1.2)*6)*min(1,(4-t)*1.4)*0.35`, 4), 4, 'highpass=f=800,lowpass=f=7000'),
   },
   {
-    folder: ['Music', 'Stings', 'Tennis'], file: 'match-point.wav', type: 'sting', note: 'A taut two-note call and its answer.',
+    folder: ['Music', 'Stings', 'Tennis'], file: 'match-point.wav', type: 'sting', moods: ['tense'], note: 'A taut two-note call and its answer.',
     recipe: audio(evalSrc(`${env(0, 0.5, 0.005, 5)}*${tone(midi(69), 3)}*0.3+${env(0.3, 0.5, 0.005, 5)}*${tone(midi(64), 3)}*0.3+${env(0.7, 1.6, 0.005, 1.6)}*(${[57, 61, 64].map((m) => tone(midi(m), 3)).join('+')})*0.1`, 2.6), 2.6),
   },
 
@@ -643,11 +649,11 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${NOISE}*0.05+${[0.6, 1.7, 2.9, 4.2, 5.1].map((s, i) => `${env(s, 0.18, 0.01, 18)}*${tone(2600 + i * 300, 1)}*0.12`).join('+')}`, 6.5), 6.5, 'highpass=f=300'),
   },
   {
-    folder: ['Music', 'Stings', 'Easter'], file: 'egg-hunt.wav', type: 'sting', note: 'A bright little bell figure, found-it happy.',
+    folder: ['Music', 'Stings', 'Easter'], file: 'egg-hunt.wav', type: 'sting', moods: ['playful', 'upbeat'], note: 'A bright little bell figure, found-it happy.',
     recipe: audio(evalSrc(`${[72, 76, 79, 84].map((m, i) => `${env(i * 0.14, 1.2, 0.004, 4)}*${tone(midi(m), 2)}*0.14`).join('+')}`, 2.2), 2.2),
   },
   {
-    folder: ['Sound effects', 'Ambience', 'Easter'], file: 'meadow-morning.wav', type: 'ambience', note: 'A meadow: soft wind, a bee passing once.',
+    folder: ['Sound effects', 'Ambience', 'Easter'], file: 'meadow-morning.wav', type: 'ambience', moods: ['calm'], note: 'A meadow: soft wind, a bee passing once.',
     recipe: audio(evalSrc(`${NOISE}*(0.06+0.03*sin(2*PI*0.11*t))+${tone(190, 3)}*${bell(3.4, 0.5)}*0.05`, 7), 7, 'lowpass=f=4000'),
   },
 
@@ -661,7 +667,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`sin(2*PI*(170+60*sin(2*PI*0.8*t))*t)*(0.12+0.08*sin(2*PI*2.4*t))*min(1,t*2)*min(1,(2.6-t))`, 2.8), 2.8, 'lowpass=f=1600'),
   },
   {
-    folder: ['Music', 'Stings', 'Halloween'], file: 'something-stirs.wav', type: 'sting', note: 'A wavering minor line over a low pedal.',
+    folder: ['Music', 'Stings', 'Halloween'], file: 'something-stirs.wav', type: 'sting', moods: ['mysterious', 'tense'], note: 'A wavering minor line over a low pedal.',
     recipe: audio(evalSrc(`sin(2*PI*(440+18*sin(2*PI*5*t))*t)*min(1,t/1.2)*min(1,max(0,(3.4-t)))*0.14+${tone(55, 2)}*0.12`, 3.6), 3.6, 'lowpass=f=2600'),
   },
 
@@ -675,7 +681,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${[0, 0.5, 1, 1.5, 2, 2.5].map((s) => `${env(s, 0.22, 0.02, 10)}`).join('+')}*${NOISE}*0.3`, 3.2), 3.2, 'bandpass=f=1900:width_type=o:w=1.6'),
   },
   {
-    folder: ['Music', 'Stings', 'Thanksgiving'], file: 'harvest-home.wav', type: 'sting', note: 'A warm plagal figure, home for the holiday.',
+    folder: ['Music', 'Stings', 'Thanksgiving'], file: 'harvest-home.wav', type: 'sting', moods: ['calm'], note: 'A warm plagal figure, home for the holiday.',
     recipe: audio(evalSrc(`${env(0, 1.4, 0.01, 1.6)}*(${[53, 57, 60].map((m) => tone(midi(m), 4)).join('+')})*0.08+${env(1.1, 2.4, 0.01, 1.1)}*(${[48, 52, 55, 60].map((m) => tone(midi(m), 4)).join('+')})*0.08`, 3.6), 3.6, 'lowpass=f=2400'),
   },
 
@@ -689,7 +695,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${NOISE}*gt(mod(t,0.125),0.095)*lt(t,1.5)*0.3+(${env(1.6, 0.3, 0.002, 22)}+${env(2, 0.5, 0.002, 16)})*${NOISE2}*0.5`, 2.8), 2.8, 'bandpass=f=3200:width_type=o:w=1.6'),
   },
   {
-    folder: ['Music', 'Stings', 'Patriotic'], file: 'fanfare.wav', type: 'sting', note: 'A brass fanfare in two calls.',
+    folder: ['Music', 'Stings', 'Patriotic'], file: 'fanfare.wav', type: 'sting', moods: ['epic', 'dramatic'], note: 'A brass fanfare in two calls.',
     recipe: audio(evalSrc(`${([[60, 0], [67, 0.3], [72, 0.6]] as const).map(([note, start]) => `${env(start, 0.9, 0.01, 3)}*${tone(midi(note), 5)}*0.08`).join('+')}+${env(1.1, 2, 0.01, 1.4)}*(${[55, 60, 64, 67].map((m) => tone(midi(m), 5)).join('+')})*0.06`, 3.2), 3.2, 'lowpass=f=4500'),
   },
 
@@ -703,7 +709,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${[0.4, 1.3, 2.6, 3.2, 4.8].map((s, i) => `${env(s, 0.5, 0.03, 6)}*sin(2*PI*(${num(1500 + (i % 3) * 180)}-500*min(1,max(0,(t-${num(s)})*3)))*t)*0.12`).join('+')}`, 6), 6, 'highpass=f=700'),
   },
   {
-    folder: ['Sound effects', 'Ambience', 'Ocean'], file: 'harbor-morning.wav', type: 'ambience', note: 'A harbor: low water, a far bell buoy.',
+    folder: ['Sound effects', 'Ambience', 'Ocean'], file: 'harbor-morning.wav', type: 'ambience', moods: ['calm'], note: 'A harbor: low water, a far bell buoy.',
     recipe: audio(evalSrc(`${NOISE}*0.08+(${env(2, 2.4, 0.004, 1.2)}+${env(6, 2.4, 0.004, 1.2)})*${tone(415, 3)}*0.06`, 9), 9, 'lowpass=f=2400'),
   },
 
@@ -731,7 +737,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${tone(1050, 1)}*lt(mod(t,0.55),0.05)*lt(t,3.3)*0.3+${tone(1400, 1)}*lt(mod(t,0.14),0.05)*gt(t,3.3)*0.25`, 5.5), 5.5),
   },
   {
-    folder: ['Sound effects', 'Ambience', 'City'], file: 'night-street.wav', type: 'ambience', note: 'A city street at night: hum, one far horn.',
+    folder: ['Sound effects', 'Ambience', 'City'], file: 'night-street.wav', type: 'ambience', moods: ['mysterious', 'calm'], note: 'A city street at night: hum, one far horn.',
     recipe: audio(evalSrc(`${NOISE}*0.1+${tone(72, 2)}*0.05+${env(4.1, 0.5, 0.02, 4)}*(${tone(392, 2)}+${tone(466, 2)})*0.05`, 8), 8, 'lowpass=f=1500'),
   },
 
@@ -780,7 +786,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${env(0, 2, 0.006, 1.6)}*${tone(midi(76), 3)}*0.18+${env(0.35, 2.2, 0.006, 1.4)}*${tone(midi(81), 3)}*0.16`, 2.8), 2.8),
   },
   {
-    folder: ['Sound effects', 'Ambience', 'Valentines'], file: 'heartbeat.wav', type: 'ambience', note: 'A slow, close heartbeat.',
+    folder: ['Sound effects', 'Ambience', 'Valentines'], file: 'heartbeat.wav', type: 'ambience', moods: ['tense'], note: 'A slow, close heartbeat.',
     recipe: audio(evalSrc(`(${env(0, 0.3, 0.01, 14)}+${env(0.33, 0.3, 0.01, 16)})*${tone(52, 2)}*0.5`, 6), 6, 'lowpass=f=320'),
   },
   {
@@ -800,7 +806,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${NOISE}*(0.1+0.26*${bell(1, 0.8)})`, 4), 4, 'bandpass=f=950:width_type=o:w=2.4'),
   },
   {
-    folder: ['Music', 'Stings', 'Graduation'], file: 'pomp-fanfare.wav', type: 'sting', note: 'A processional fanfare in two calls.',
+    folder: ['Music', 'Stings', 'Graduation'], file: 'pomp-fanfare.wav', type: 'sting', moods: ['epic'], note: 'A processional fanfare in two calls.',
     recipe: audio(evalSrc(`${env(0, 1, 0.01, 2.6)}*(${[53, 60, 65].map((m) => tone(midi(m), 5)).join('+')})*0.07+${env(0.9, 2.4, 0.01, 1.2)}*(${[48, 55, 60, 64].map((m) => tone(midi(m), 5)).join('+')})*0.07`, 3.6), 3.6, 'lowpass=f=4200'),
   },
   {
@@ -812,7 +818,7 @@ const SFX: SampleMediaItem[] = [
     recipe: audio(evalSrc(`${NOISE}*pow(sin(PI*min(t,0.8)/0.8),3)*0.4`, 1.2), 1.2, 'bandpass=f=1400:width_type=o:w=1.8'),
   },
   {
-    folder: ['Sound effects', 'Ambience', 'Christmas'], file: 'hearth-crackle.wav', type: 'ambience', note: 'A fire crackling in a quiet room.',
+    folder: ['Sound effects', 'Ambience', 'Christmas'], file: 'hearth-crackle.wav', type: 'ambience', moods: ['calm'], note: 'A fire crackling in a quiet room.',
     recipe: audio(evalSrc(`${NOISE}*0.07+${NOISE2}*gt(random(7),0.86)*0.3`, 8), 8, 'lowpass=f=3200'),
   },
   {
@@ -905,57 +911,57 @@ const SFX: SampleMediaItem[] = [
 ];
 
 const MUSIC: SampleMediaItem[] = [
-  { folder: ['Music', 'Full mix'], file: 'night-drive.wav', type: 'full-mix', note: 'A sixteen-second synth piece at 120 bpm: kick, hat, bass, pad and lead.', recipe: fullMix(NIGHT_DRIVE) },
-  { folder: ['Music', 'Full mix'], file: 'boardroom-calm.wav', type: 'full-mix', note: 'A calm piece at 84 bpm.', recipe: fullMix(BOARDROOM_CALM) },
-  { folder: ['Music', 'Full mix'], file: 'matchday-pulse.wav', type: 'full-mix', note: 'A driving piece at 140 bpm.', recipe: fullMix(MATCHDAY_PULSE) },
-  { folder: ['Music', 'Stems', 'Night drive'], file: 'drums.wav', type: 'stems', note: 'The drums of Night drive.', recipe: stem(NIGHT_DRIVE, 'drums') },
-  { folder: ['Music', 'Stems', 'Night drive'], file: 'bass.wav', type: 'stems', note: 'The bass of Night drive.', recipe: stem(NIGHT_DRIVE, 'bass') },
-  { folder: ['Music', 'Stems', 'Night drive'], file: 'pad.wav', type: 'stems', note: 'The pad of Night drive.', recipe: stem(NIGHT_DRIVE, 'pad') },
+  { folder: ['Music', 'Full mix'], file: 'night-drive.wav', type: 'full-mix', moods: ['mysterious', 'upbeat'], note: 'A sixteen-second synth piece at 120 bpm: kick, hat, bass, pad and lead.', recipe: fullMix(NIGHT_DRIVE) },
+  { folder: ['Music', 'Full mix'], file: 'boardroom-calm.wav', type: 'full-mix', moods: ['calm'], note: 'A calm piece at 84 bpm.', recipe: fullMix(BOARDROOM_CALM) },
+  { folder: ['Music', 'Full mix'], file: 'matchday-pulse.wav', type: 'full-mix', moods: ['upbeat', 'epic'], note: 'A driving piece at 140 bpm.', recipe: fullMix(MATCHDAY_PULSE) },
+  { folder: ['Music', 'Stems', 'Night drive'], file: 'drums.wav', type: 'stems', moods: ['mysterious', 'upbeat'], note: 'The drums of Night drive.', recipe: stem(NIGHT_DRIVE, 'drums') },
+  { folder: ['Music', 'Stems', 'Night drive'], file: 'bass.wav', type: 'stems', moods: ['mysterious', 'upbeat'], note: 'The bass of Night drive.', recipe: stem(NIGHT_DRIVE, 'bass') },
+  { folder: ['Music', 'Stems', 'Night drive'], file: 'pad.wav', type: 'stems', moods: ['mysterious', 'upbeat'], note: 'The pad of Night drive.', recipe: stem(NIGHT_DRIVE, 'pad') },
   {
-    folder: ['Music', 'Stings'], file: 'major-hit.wav', type: 'sting', note: 'A major chord hit with a long decay.',
+    folder: ['Music', 'Stings'], file: 'major-hit.wav', type: 'sting', moods: ['dramatic'], note: 'A major chord hit with a long decay.',
     recipe: audio(evalSrc(`${env(0, 3, 0.005, 1.3)}*(${[48, 55, 60, 64, 72].map((m) => tone(midi(m), 3)).join('+')})*0.1`, 3), 3),
   },
   {
-    folder: ['Music', 'Stings'], file: 'minor-swell.wav', type: 'sting', note: 'A minor swell into a hit.',
+    folder: ['Music', 'Stings'], file: 'minor-swell.wav', type: 'sting', moods: ['dramatic', 'tense'], note: 'A minor swell into a hit.',
     recipe: audio(evalSrc(`min(1,t/1.2)*min(1,max(0,(2.8-t)))*(${[45, 52, 57, 60].map((m) => tone(midi(m), 6)).join('+')})*0.08`, 2.8), 2.8, 'lowpass=f=2500'),
   },
   {
-    folder: ['Music', 'Stings'], file: 'news-ident.wav', type: 'sting', note: 'Two quick notes and a chord, broadcast style.',
+    folder: ['Music', 'Stings'], file: 'news-ident.wav', type: 'sting', moods: ['dramatic'], note: 'Two quick notes and a chord, broadcast style.',
     recipe: audio(evalSrc(`${env(0, 0.5, 0.005, 5)}*${tone(midi(67), 3)}*0.4+${env(0.18, 0.5, 0.005, 5)}*${tone(midi(71), 3)}*0.4+${env(0.36, 2.2, 0.005, 1.5)}*(${[55, 62, 67, 74].map((m) => tone(midi(m), 3)).join('+')})*0.1`, 2.6), 2.6),
   },
 
   // ---- Milestone 24: three more of each, to take every music type to six.
-  { folder: ['Music', 'Full mix'], file: 'festival-lights.wav', type: 'full-mix', note: 'A warm piece at 104 bpm.', recipe: fullMix(FESTIVAL_LIGHTS) },
-  { folder: ['Music', 'Full mix'], file: 'quiet-study.wav', type: 'full-mix', note: 'A slow, spare piece at 72 bpm.', recipe: fullMix(QUIET_STUDY) },
-  { folder: ['Music', 'Full mix'], file: 'city-rush.wav', type: 'full-mix', note: 'A busy piece at 128 bpm.', recipe: fullMix(CITY_RUSH) },
-  { folder: ['Music', 'Stems', 'Night drive'], file: 'lead.wav', type: 'stems', note: 'The lead of Night drive.', recipe: stem(NIGHT_DRIVE, 'lead') },
-  { folder: ['Music', 'Stems', 'City rush'], file: 'drums.wav', type: 'stems', note: 'The drums of City rush.', recipe: stem(CITY_RUSH, 'drums') },
-  { folder: ['Music', 'Stems', 'City rush'], file: 'bass.wav', type: 'stems', note: 'The bass of City rush.', recipe: stem(CITY_RUSH, 'bass') },
+  { folder: ['Music', 'Full mix'], file: 'festival-lights.wav', type: 'full-mix', moods: ['upbeat', 'playful'], note: 'A warm piece at 104 bpm.', recipe: fullMix(FESTIVAL_LIGHTS) },
+  { folder: ['Music', 'Full mix'], file: 'quiet-study.wav', type: 'full-mix', moods: ['calm'], note: 'A slow, spare piece at 72 bpm.', recipe: fullMix(QUIET_STUDY) },
+  { folder: ['Music', 'Full mix'], file: 'city-rush.wav', type: 'full-mix', moods: ['upbeat', 'tense'], note: 'A busy piece at 128 bpm.', recipe: fullMix(CITY_RUSH) },
+  { folder: ['Music', 'Stems', 'Night drive'], file: 'lead.wav', type: 'stems', moods: ['mysterious', 'upbeat'], note: 'The lead of Night drive.', recipe: stem(NIGHT_DRIVE, 'lead') },
+  { folder: ['Music', 'Stems', 'City rush'], file: 'drums.wav', type: 'stems', moods: ['upbeat', 'tense'], note: 'The drums of City rush.', recipe: stem(CITY_RUSH, 'drums') },
+  { folder: ['Music', 'Stems', 'City rush'], file: 'bass.wav', type: 'stems', moods: ['upbeat', 'tense'], note: 'The bass of City rush.', recipe: stem(CITY_RUSH, 'bass') },
   {
-    folder: ['Music', 'Stings'], file: 'soft-reveal.wav', type: 'sting', note: 'A soft chord that blooms and holds.',
+    folder: ['Music', 'Stings'], file: 'soft-reveal.wav', type: 'sting', moods: ['calm'], note: 'A soft chord that blooms and holds.',
     recipe: audio(evalSrc(`min(1,t/0.8)*min(1,max(0,(3.2-t)*0.9))*(${[52, 59, 64, 71].map((m) => tone(midi(m), 4)).join('+')})*0.07`, 3.2), 3.2, 'lowpass=f=3000'),
   },
   {
-    folder: ['Music', 'Stings'], file: 'sports-stab.wav', type: 'sting', note: 'A short, bright stab for a sports cut.',
+    folder: ['Music', 'Stings'], file: 'sports-stab.wav', type: 'sting', moods: ['upbeat'], note: 'A short, bright stab for a sports cut.',
     recipe: audio(evalSrc(`${env(0, 1.2, 0.004, 3.4)}*(${[57, 64, 69, 76].map((m) => tone(midi(m), 3)).join('+')})*0.12+${NOISE}*exp(-40*t)*0.15`, 1.6), 1.6, 'highpass=f=180'),
   },
   {
-    folder: ['Music', 'Stings'], file: 'logo-tag.wav', type: 'sting', note: 'A two-chord tag to close a logo.',
+    folder: ['Music', 'Stings'], file: 'logo-tag.wav', type: 'sting', moods: ['upbeat'], note: 'A two-chord tag to close a logo.',
     recipe: audio(evalSrc(`${env(0, 0.7, 0.005, 3)}*(${[50, 57, 62].map((m) => tone(midi(m), 3)).join('+')})*0.11+${env(0.45, 2.3, 0.005, 1.2)}*(${[55, 62, 67, 71].map((m) => tone(midi(m), 3)).join('+')})*0.1`, 2.8), 2.8),
   },
 
   // ---- Milestone 36: four more pieces, so Full mix reaches ten; Harbor dawn and
   // Neon arcade bring their stems, so the Stems folders deepen with them.
-  { folder: ['Music', 'Full mix'], file: 'harbor-dawn.wav', type: 'full-mix', note: 'A slow, open piece at 76 bpm.', recipe: fullMix(HARBOR_DAWN) },
-  { folder: ['Music', 'Full mix'], file: 'neon-arcade.wav', type: 'full-mix', note: 'A bright, quick piece at 132 bpm.', recipe: fullMix(NEON_ARCADE) },
-  { folder: ['Music', 'Full mix'], file: 'golden-hour.wav', type: 'full-mix', note: 'An easy piece at 92 bpm.', recipe: fullMix(GOLDEN_HOUR) },
-  { folder: ['Music', 'Full mix'], file: 'summit-climb.wav', type: 'full-mix', note: 'A steady, building piece at 112 bpm.', recipe: fullMix(SUMMIT_CLIMB) },
-  { folder: ['Music', 'Stems', 'Harbor dawn'], file: 'drums.wav', type: 'stems', note: 'The drums of Harbor dawn.', recipe: stem(HARBOR_DAWN, 'drums') },
-  { folder: ['Music', 'Stems', 'Harbor dawn'], file: 'bass.wav', type: 'stems', note: 'The bass of Harbor dawn.', recipe: stem(HARBOR_DAWN, 'bass') },
-  { folder: ['Music', 'Stems', 'Harbor dawn'], file: 'pad.wav', type: 'stems', note: 'The pad of Harbor dawn.', recipe: stem(HARBOR_DAWN, 'pad') },
-  { folder: ['Music', 'Stems', 'Neon arcade'], file: 'drums.wav', type: 'stems', note: 'The drums of Neon arcade.', recipe: stem(NEON_ARCADE, 'drums') },
-  { folder: ['Music', 'Stems', 'Neon arcade'], file: 'bass.wav', type: 'stems', note: 'The bass of Neon arcade.', recipe: stem(NEON_ARCADE, 'bass') },
-  { folder: ['Music', 'Stems', 'Neon arcade'], file: 'lead.wav', type: 'stems', note: 'The lead of Neon arcade.', recipe: stem(NEON_ARCADE, 'lead') },
+  { folder: ['Music', 'Full mix'], file: 'harbor-dawn.wav', type: 'full-mix', moods: ['calm'], note: 'A slow, open piece at 76 bpm.', recipe: fullMix(HARBOR_DAWN) },
+  { folder: ['Music', 'Full mix'], file: 'neon-arcade.wav', type: 'full-mix', moods: ['upbeat', 'playful'], note: 'A bright, quick piece at 132 bpm.', recipe: fullMix(NEON_ARCADE) },
+  { folder: ['Music', 'Full mix'], file: 'golden-hour.wav', type: 'full-mix', moods: ['calm'], note: 'An easy piece at 92 bpm.', recipe: fullMix(GOLDEN_HOUR) },
+  { folder: ['Music', 'Full mix'], file: 'summit-climb.wav', type: 'full-mix', moods: ['epic', 'dramatic'], note: 'A steady, building piece at 112 bpm.', recipe: fullMix(SUMMIT_CLIMB) },
+  { folder: ['Music', 'Stems', 'Harbor dawn'], file: 'drums.wav', type: 'stems', moods: ['calm'], note: 'The drums of Harbor dawn.', recipe: stem(HARBOR_DAWN, 'drums') },
+  { folder: ['Music', 'Stems', 'Harbor dawn'], file: 'bass.wav', type: 'stems', moods: ['calm'], note: 'The bass of Harbor dawn.', recipe: stem(HARBOR_DAWN, 'bass') },
+  { folder: ['Music', 'Stems', 'Harbor dawn'], file: 'pad.wav', type: 'stems', moods: ['calm'], note: 'The pad of Harbor dawn.', recipe: stem(HARBOR_DAWN, 'pad') },
+  { folder: ['Music', 'Stems', 'Neon arcade'], file: 'drums.wav', type: 'stems', moods: ['upbeat', 'playful'], note: 'The drums of Neon arcade.', recipe: stem(NEON_ARCADE, 'drums') },
+  { folder: ['Music', 'Stems', 'Neon arcade'], file: 'bass.wav', type: 'stems', moods: ['upbeat', 'playful'], note: 'The bass of Neon arcade.', recipe: stem(NEON_ARCADE, 'bass') },
+  { folder: ['Music', 'Stems', 'Neon arcade'], file: 'lead.wav', type: 'stems', moods: ['upbeat', 'playful'], note: 'The lead of Neon arcade.', recipe: stem(NEON_ARCADE, 'lead') },
 ];
 
 const STILLS: SampleMediaItem[] = [
@@ -1530,13 +1536,14 @@ export function sampleMediaPath(item: SampleMediaItem): string[] {
   return [...item.folder, item.file];
 }
 
-/** ffmpeg arguments that write one audio item to `out`. */
-export function sampleAudioArgs(recipe: Extract<SampleRecipe, { kind: 'audio' }>, out: string): string[] {
+/** ffmpeg arguments that write one audio item to `out`, its moods in the genre tag where it has any. */
+export function sampleAudioArgs(recipe: Extract<SampleRecipe, { kind: 'audio' }>, out: string, moods: readonly string[] = []): string[] {
   return [
     '-hide_banner', '-loglevel', 'error', '-y',
     '-f', 'lavfi', '-i', recipe.graph,
     ...(recipe.filters ? ['-af', recipe.filters] : []),
     '-t', num(recipe.seconds), '-ar', String(SR), '-ac', String(recipe.channels ?? 1), '-c:a', 'pcm_s16le',
+    ...(moods.length > 0 ? ['-metadata', `genre=${moods.join(', ')}`] : []),
     out,
   ];
 }

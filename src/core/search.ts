@@ -8,6 +8,7 @@
  *                        or type group (type:sfx), or untyped; several type: terms are alternatives
  *   theme:news           entry carries this theme (built-in id or a custom word; all theme: terms must match)
  *   style:grunge         template declares this style (templates only; all style: terms must match)
+ *   mood:calm            how a sound feels (media only): a built-in mood from its folders or its file's own genre, mood or comment tag; all mood: terms must match
  *   pack:news-pack       template installed from or found under this pack (its folder slug); pack:any for any pack
  *   category:title       template category
  *   "breaking news"      phrase matched as one term
@@ -29,7 +30,7 @@ import { ORIENTATIONS, orientationOf, templateDefaultSize, templateOrientations,
 import type { LibraryEntry, LibraryIndex, MediaEntry, MediaKind, TemplateEntry } from './library-types';
 import { RESOLUTION_ALIASES, resolutionLabel } from './media-meta';
 import { normalizeTag } from './tags';
-import { entryType, isThemeGroup, normalizeTheme, themesInGroup, typeInfo } from './taxonomy';
+import { entryMoods, entryType, isThemeGroup, normalizeTheme, themesInGroup, typeInfo } from './taxonomy';
 
 export type NumericField = 'duration' | 'width' | 'height' | 'fps';
 
@@ -46,6 +47,8 @@ export interface ParsedQuery {
   types: string[];
   themes: string[];
   styles: string[];
+  /** How it feels (milestone 16's moods): upbeat, calm, dramatic… matched against a media file's folders and metadata. */
+  moods: string[];
   packs: string[];
   categories: string[];
   numeric: { field: NumericField; cmp: Comparison }[];
@@ -99,7 +102,7 @@ export function tokenizeQuery(query: string): string[] {
 }
 
 /** The keys the syntax knows; a colon after anything else is just text (a title with a colon in it). */
-const FILTER_KEYS = new Set(['tag', 'type', 'theme', 'style', 'pack', 'category', 'res', 'codec', 'alpha', 'orientation', 'favorite', 'recent']);
+const FILTER_KEYS = new Set(['tag', 'type', 'theme', 'style', 'mood', 'pack', 'category', 'res', 'codec', 'alpha', 'orientation', 'favorite', 'recent']);
 
 /**
  * A query split into its free text and its filters (milestone 9's semantic
@@ -120,7 +123,7 @@ export function splitFreeText(query: string): { text: string; filters: string } 
 }
 
 export function parseQuery(query: string): ParsedQuery {
-  const parsed: ParsedQuery = { terms: [], tags: [], types: [], themes: [], styles: [], packs: [], categories: [], numeric: [], resolutions: [], codecs: [] };
+  const parsed: ParsedQuery = { terms: [], tags: [], types: [], themes: [], styles: [], packs: [], categories: [], moods: [], numeric: [], resolutions: [], codecs: [] };
   for (const token of tokenizeQuery(query)) {
     const colon = token.indexOf(':');
     const key = colon > 0 ? token.slice(0, colon).toLowerCase() : '';
@@ -130,6 +133,7 @@ export function parseQuery(query: string): ParsedQuery {
     else if (key === 'type' && value) parsed.types.push(normalizeTag(value));
     else if (key === 'theme' && value) parsed.themes.push(normalizeTheme(value));
     else if (key === 'style' && value) parsed.styles.push(normalizeTag(value));
+    else if (key === 'mood' && value) parsed.moods.push(normalizeTag(value));
     else if (key === 'pack' && value) parsed.packs.push(normalizeTag(value));
     else if (key === 'category' && value) parsed.categories.push(value.toLowerCase());
     else if (cmp) parsed.numeric.push({ field: key as NumericField, cmp });
@@ -229,6 +233,7 @@ export function searchLibrary(index: LibraryIndex, query: string): SearchHit[] {
     if (!q.tags.every((t) => entry.tags.includes(t))) continue;
     if (q.themes.length > 0 && !q.themes.every((t) => matchesTheme(entry, t))) continue;
     if (q.styles.length > 0 && (entry.kind !== 'template' || !q.styles.every((s) => entry.manifest.styles?.includes(s)))) continue;
+    if (q.moods.length > 0 && !q.moods.every((m) => entryMoods(entry).includes(m))) continue;
     // `pack:any` is everything that came from a matching set, whichever one (milestone 34's card).
     if (q.packs.length > 0 && (entry.kind !== 'template' || !q.packs.some((p) => p === entry.pack?.slug || (p === 'any' && entry.pack !== undefined)))) continue;
     if (q.favorite !== undefined && (entry.favorite === true) !== q.favorite) continue;

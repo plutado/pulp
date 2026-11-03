@@ -18,7 +18,7 @@
 
 import type { LibraryEntry } from './library-types';
 import type { SearchHit } from './search';
-import { TYPES } from './taxonomy';
+import { entryMoods, TYPES } from './taxonomy';
 
 /**
  * The embedding model Pulp fetches when semantic search is turned on. `bytes`
@@ -89,6 +89,8 @@ export function semanticTextFor(entry: LibraryEntry): string {
     if (entry.type) parts.push(TYPES.find((t) => t.id === entry.type)?.label ?? entry.type);
     parts.push(entry.mediaKind);
     if (entry.themes?.length) parts.push(`themes: ${entry.themes.join(', ')}`);
+    const moods = entryMoods(entry);
+    if (moods.length > 0) parts.push(`moods: ${moods.join(', ')}`);
   }
   if (entry.tags.length > 0) parts.push(`tags: ${entry.tags.join(', ')}`);
   return parts.join('. ').replace(/\s+/g, ' ').trim();

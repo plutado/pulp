@@ -438,6 +438,84 @@ export function inferTemplateType(folderSegments: readonly string[]): string | u
 }
 
 /** Built-in themes named by folders, in path order ("Sports/Hockey/…" → sports, hockey). */
+// ---------------------------------------------------------------- moods (how audio feels)
+
+/**
+ * How a piece of sound feels — upbeat, dramatic, calm — beside what it *is*
+ * (the type) and what it is *about* (the theme). A fixed list like the styles:
+ * a mood is a word two people must reach for the same way, or browsing by it
+ * finds nothing. Moods come from two places, both of them the person's own
+ * words: a folder named for one ("Music/Calm"), and the file's own metadata —
+ * the genre, mood or comment tag ffprobe reads — so a library of real music
+ * tagged "Chill" or "Suspense" browses by feel without renaming a thing.
+ */
+export interface Mood {
+  id: string;
+  label: string;
+  /** Words that mean this mood, matched normalized; the id and label always count. */
+  aliases: readonly string[];
+}
+
+export const MOODS: readonly Mood[] = [
+  { id: 'upbeat', label: 'Upbeat', aliases: ['uplifting', 'energetic', 'driving', 'happy', 'feel-good', 'bouncy'] },
+  { id: 'calm', label: 'Calm', aliases: ['chill', 'relaxed', 'relaxing', 'peaceful', 'serene', 'soothing', 'mellow', 'gentle'] },
+  { id: 'dramatic', label: 'Dramatic', aliases: ['intense', 'drama'] },
+  { id: 'epic', label: 'Epic', aliases: ['heroic', 'triumphant', 'anthemic', 'majestic'] },
+  { id: 'tense', label: 'Tense', aliases: ['suspense', 'suspenseful', 'thriller', 'ominous', 'anxious'] },
+  { id: 'playful', label: 'Playful', aliases: ['fun', 'quirky', 'whimsical', 'lighthearted', 'cheeky'] },
+  { id: 'melancholy', label: 'Melancholy', aliases: ['melancholic', 'sad', 'somber', 'sombre', 'mournful', 'wistful', 'bittersweet'] },
+  { id: 'mysterious', label: 'Mysterious', aliases: ['mystery', 'eerie', 'haunting', 'enigmatic'] },
+];
+
+const moodByAlias = new Map<string, string>();
+for (const m of MOODS) {
+  for (const a of [m.id, normalizeTag(m.label), ...m.aliases.map(normalizeTag)]) if (!moodByAlias.has(a)) moodByAlias.set(a, m.id);
+}
+
+export function isBuiltInMood(id: string): boolean {
+  return MOODS.some((m) => m.id === id);
+}
+
+export function moodLabel(id: string): string {
+  return MOODS.find((m) => m.id === id)?.label ?? id;
+}
+
+/** The moods a path's folders name, in the order found: a folder called "Calm" tags what it holds. */
+export function inferMoods(folderSegments: readonly string[]): string[] {
+  const moods: string[] = [];
+  for (const segment of folderSegments) {
+    const mood = moodByAlias.get(normalizeTag(segment));
+    if (mood && !moods.includes(mood)) moods.push(mood);
+  }
+  return moods;
+}
+
+/**
+ * The moods a metadata string names: a genre of "Chill", a comment of
+ * "suspense, eerie". Split on the separators tags use, matched by alias;
+ * words that are not moods are simply not moods.
+ */
+export function moodsFromText(text: string | undefined): string[] {
+  if (!text) return [];
+  const moods: string[] = [];
+  for (const part of text.split(/[,;/|]|\s+/)) {
+    const mood = moodByAlias.get(normalizeTag(part));
+    if (mood && !moods.includes(mood)) moods.push(mood);
+  }
+  return moods;
+}
+
+/**
+ * Every mood an entry carries: a media file's folder-inferred ones with what
+ * its own metadata says. Templates carry none — a mood is how sound feels.
+ */
+export function entryMoods(entry: { kind: 'template' } | { kind: 'media'; moods?: string[]; meta?: { moods?: string[] } }): string[] {
+  if (entry.kind !== 'media') return [];
+  const fromMeta = entry.meta?.moods ?? [];
+  const own = entry.moods ?? [];
+  return fromMeta.length === 0 ? own : [...new Set([...own, ...fromMeta])];
+}
+
 export function inferThemes(folderSegments: readonly string[]): string[] {
   const themes: string[] = [];
   for (const segment of folderSegments) {

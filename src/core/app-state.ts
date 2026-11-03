@@ -57,6 +57,8 @@ export interface AppState {
   filters: FilterChipId[];
   /** The "For…" chip (milestone 34): a theme the results are narrowed to, or null. */
   forTheme: string | null;
+  /** The Mood chip (milestone 16's moods): how a sound feels, or null for all. */
+  mood: string | null;
   /** The "Look" chip: a style the results are narrowed to, or null. */
   look: string | null;
   sort: SortKey;
@@ -101,6 +103,7 @@ export const initialAppState: AppState = {
   scope: null,
   filters: [],
   forTheme: null,
+  mood: null,
   look: null,
   sort: 'relevance',
   selectedKey: null,
@@ -154,6 +157,10 @@ export function toggleFilter(s: AppState, id: FilterChipId): AppState {
 /** The "For…" chip: narrow to a theme, or null for any. */
 export function setFor(s: AppState, forTheme: string | null): AppState {
   return s.forTheme === forTheme ? s : { ...s, forTheme };
+}
+
+export function setMood(s: AppState, mood: string | null): AppState {
+  return s.mood === mood ? s : { ...s, mood };
 }
 
 /** The "Look" chip: narrow to a style, or null for any. */
@@ -213,9 +220,9 @@ export function itemDetails(entry: LibraryEntry): string {
 // Derived values.
 
 /** Scope filter text, pressed chips, the For… and Look chips and the typed query joined; what the results are searched with. */
-export function effectiveQuery(s: Pick<AppState, 'query' | 'scope' | 'filters'> & Partial<Pick<AppState, 'forTheme' | 'look'>>): string {
+export function effectiveQuery(s: Pick<AppState, 'query' | 'scope' | 'filters'> & Partial<Pick<AppState, 'forTheme' | 'look' | 'mood'>>): string {
   const chipText = FILTER_CHIPS.filter((c) => s.filters.includes(c.id)).map((c) => c.filter);
-  const narrowed = [s.forTheme ? `theme:${s.forTheme}` : '', s.look ? `style:${s.look}` : ''];
+  const narrowed = [s.forTheme ? `theme:${s.forTheme}` : '', s.look ? `style:${s.look}` : '', s.mood ? `mood:${s.mood}` : ''];
   return [s.scope?.filter ?? '', ...chipText, ...narrowed, s.query].join(' ').trim().replace(/\s+/g, ' ');
 }
 
@@ -230,7 +237,7 @@ export interface ResultsView {
 }
 
 /** The only parts of the state the results depend on; a change elsewhere (selection, jobs) must not recompute them. */
-export type ResultsInput = Pick<AppState, 'index' | 'query' | 'scope' | 'filters' | 'forTheme' | 'look' | 'sort' | 'semantic'>;
+export type ResultsInput = Pick<AppState, 'index' | 'query' | 'scope' | 'filters' | 'forTheme' | 'look' | 'mood' | 'sort' | 'semantic'>;
 
 /** What an entry sorts by under each key; missing values go last. */
 function sortValue(entry: LibraryEntry, sort: SortKey): string | number | undefined {
@@ -282,9 +289,9 @@ export function deriveResults(s: ResultsInput): ResultsView {
 export function createResultsSelector(): (s: ResultsInput) => ResultsView {
   let last: (ResultsInput & { view: ResultsView }) | null = null;
   return (s) => {
-    if (last && last.index === s.index && last.query === s.query && last.scope === s.scope && last.filters === s.filters && last.forTheme === s.forTheme && last.look === s.look && last.sort === s.sort && last.semantic === s.semantic) return last.view;
+    if (last && last.index === s.index && last.query === s.query && last.scope === s.scope && last.filters === s.filters && last.forTheme === s.forTheme && last.look === s.look && last.mood === s.mood && last.sort === s.sort && last.semantic === s.semantic) return last.view;
     const view = deriveResults(s);
-    last = { index: s.index, query: s.query, scope: s.scope, filters: s.filters, forTheme: s.forTheme, look: s.look, sort: s.sort, semantic: s.semantic, view };
+    last = { index: s.index, query: s.query, scope: s.scope, filters: s.filters, forTheme: s.forTheme, look: s.look, mood: s.mood, sort: s.sort, semantic: s.semantic, view };
     return view;
   };
 }
@@ -295,14 +302,14 @@ export function createResultsSelector(): (s: ResultsInput) => ResultsView {
  */
 export function facetEntries(s: ResultsInput): LibraryEntry[] {
   if (!s.index) return [];
-  return searchLibrary(s.index, effectiveQuery({ query: s.query, filters: s.filters, forTheme: s.forTheme, look: s.look, scope: null })).map((h) => h.entry);
+  return searchLibrary(s.index, effectiveQuery({ query: s.query, filters: s.filters, forTheme: s.forTheme, look: s.look, mood: s.mood, scope: null })).map((h) => h.entry);
 }
 
 /** The parts of the state the facets depend on: the index, the typed query and every chip, the scope left out. */
-type FacetKey = Pick<ResultsInput, 'index' | 'query' | 'filters' | 'forTheme' | 'look'>;
+type FacetKey = Pick<ResultsInput, 'index' | 'query' | 'filters' | 'forTheme' | 'look' | 'mood'>;
 
 function sameFacetKey(a: FacetKey, b: FacetKey): boolean {
-  return a.index === b.index && a.query === b.query && a.filters === b.filters && a.forTheme === b.forTheme && a.look === b.look;
+  return a.index === b.index && a.query === b.query && a.filters === b.filters && a.forTheme === b.forTheme && a.look === b.look && a.mood === b.mood;
 }
 
 /** The facet entries, searched only when their inputs changed; the same array otherwise. */
@@ -311,7 +318,7 @@ export function createFacetSelector(): (s: ResultsInput) => LibraryEntry[] {
   return (s) => {
     if (last && sameFacetKey(last, s)) return last.entries;
     const entries = facetEntries(s);
-    last = { index: s.index, query: s.query, filters: s.filters, forTheme: s.forTheme, look: s.look, entries };
+    last = { index: s.index, query: s.query, filters: s.filters, forTheme: s.forTheme, look: s.look, mood: s.mood, entries };
     return entries;
   };
 }
@@ -323,7 +330,7 @@ export function createTreeSelector(): (s: ResultsInput) => TreeNode[] {
   return (s) => {
     if (last && sameFacetKey(last, s)) return last.tree;
     const tree = buildBrowseTree(facets(s), s.index?.roots ?? [], s.index?.builtInRoot);
-    last = { index: s.index, query: s.query, filters: s.filters, forTheme: s.forTheme, look: s.look, tree };
+    last = { index: s.index, query: s.query, filters: s.filters, forTheme: s.forTheme, look: s.look, mood: s.mood, tree };
     return tree;
   };
 }

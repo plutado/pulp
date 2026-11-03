@@ -4224,6 +4224,44 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 90_000);
 
+    it('music moods are their own way to browse and search sounds (milestone 16)', async () => {
+      // Two sounds in mood-named folders: the folder is the person's own word for how they feel.
+      const silence = await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'silence.wav'));
+      await mkdir(join(mediaDir, 'Music', 'Calm'), { recursive: true });
+      await mkdir(join(mediaDir, 'Music', 'Upbeat'), { recursive: true });
+      await writeFile(join(mediaDir, 'Music', 'Calm', 'still-water.wav'), silence);
+      await writeFile(join(mediaDir, 'Music', 'Upbeat', 'bright-run.wav'), silence);
+      try {
+        await page.eval(`window.pulp.rescanLibrary()`);
+        // The Mood chip appears beside For… and Look once the library holds moods, offering only
+        // the moods it has, with counts.
+        await until(() => page.eval<boolean>(`!document.getElementById('mood-select').parentElement.hidden`), 'the Mood chip');
+        const options = await page.eval<string[]>(`[...document.getElementById('mood-select').options].map((o) => o.value)`);
+        expect(options).toContain('calm');
+        expect(options).toContain('upbeat');
+        // Choosing a mood narrows the results to what feels that way.
+        await fire('#mood-select', 'calm', 'change');
+        await until(async () => {
+          const names = await page.eval<string[]>(`[...document.querySelectorAll('#results li[data-id] .name')].map((n) => n.textContent)`);
+          return names.includes('still-water') && !names.includes('bright-run');
+        }, 'the calm piece alone');
+        // And mood: is the same fence in the search field's own words.
+        await fire('#mood-select', '', 'change');
+        await fire('#search', 'mood:upbeat', 'input');
+        await until(async () => {
+          const names = await page.eval<string[]>(`[...document.querySelectorAll('#results li[data-id] .name')].map((n) => n.textContent)`);
+          return names.includes('bright-run') && !names.includes('still-water');
+        }, 'the upbeat piece alone');
+      } finally {
+        await fire('#search', '', 'input');
+        await page.eval(`(() => { const m = document.getElementById('mood-select'); if (m.value !== '') { m.value = ''; m.dispatchEvent(new Event('change', { bubbles: true })); } })()`).catch(() => undefined);
+        // The files go, and the library with them, so later counts meet the library they expect.
+        await rm(join(mediaDir, 'Music'), { recursive: true, force: true });
+        await page.eval(`window.pulp.rescanLibrary()`).catch(() => undefined);
+        await until(async () => !(await page.eval<string[]>(`[...document.querySelectorAll('#results li[data-id] .name')].map((n) => n.textContent)`)).includes('still-water'), 'the fixtures gone').catch(() => undefined);
+      }
+    }, 90_000);
+
     it('semantic search finds meaning the words miss, entirely on this machine (milestone 9)', async () => {
       // Gated like the speech test: it needs llama.cpp on PATH and a local copy of the pinned
       // model in PULP_SEMANTIC_TEST_MODEL. CI has neither and says so; this machine ran it.

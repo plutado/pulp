@@ -4,6 +4,8 @@
  * ffprobe lives in media-probe.ts.
  */
 
+import { moodsFromText } from './taxonomy';
+
 export interface MediaMetadata {
   /** Seconds. */
   duration?: number;
@@ -21,6 +23,8 @@ export interface MediaMetadata {
   audioCodec?: string;
   channels?: number;
   sampleRate?: number;
+  /** Moods the file's own metadata names — its genre, mood or comment tag — matched to the built-in list. */
+  moods?: string[];
 }
 
 const ALPHA_PIX_FMT = /^(yuva|rgba|argb|bgra|abgr|gbrap|ya|ayuv|pal8)/;
@@ -70,7 +74,7 @@ function rate(text: string | undefined): number | undefined {
 
 /** Metadata from ffprobe's JSON, or null if it is not ffprobe output. Missing pieces are left undefined. */
 export function parseFfprobe(json: string): MediaMetadata | null {
-  let data: { streams?: ProbeStream[]; format?: { duration?: string } };
+  let data: { streams?: ProbeStream[]; format?: { duration?: string; tags?: Record<string, string> } };
   try {
     data = JSON.parse(json) as typeof data;
   } catch {
@@ -98,6 +102,14 @@ export function parseFfprobe(json: string): MediaMetadata | null {
     if (typeof audio.channels === 'number') meta.channels = audio.channels;
     const sr = Number(audio.sample_rate);
     if (Number.isFinite(sr) && sr > 0) meta.sampleRate = sr;
+  }
+  // How it feels, from the file's own words: the genre, mood or comment tag, matched to the
+  // built-in moods. Tag names arrive in whatever case the container keeps them.
+  const tags = data.format?.tags;
+  if (tags) {
+    const tag = (name: string) => Object.entries(tags).find(([k]) => k.toLowerCase() === name)?.[1];
+    const moods = [...new Set([...moodsFromText(tag('genre')), ...moodsFromText(tag('mood')), ...moodsFromText(tag('comment'))])];
+    if (moods.length > 0) meta.moods = moods;
   }
   return meta;
 }

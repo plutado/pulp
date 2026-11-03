@@ -60,6 +60,7 @@ Free text matches names, tags and themes; several words all have to match. Doubl
 | `type:wipe` | A taxonomy type, a type group (`type:sfx`), or `template`, `media`, `video`, `image`, `audio` |
 | `theme:wedding` | A theme; a group's name finds everything under it |
 | `style:grunge` | Templates declaring this style |
+| `mood:calm` | Sounds and music by how they feel: upbeat, calm, dramatic, epic, tense, playful, melancholy, mysterious — from a folder named for one, or the file's own genre, mood or comment tag |
 | `category:title` | A template category |
 | `pack:newsdesk` | Templates from a pack; `pack:any` for any of them |
 | `duration:>5` | Seconds; `<`, `>`, `<=`, `>=`, `=` and ranges like `5-10` |

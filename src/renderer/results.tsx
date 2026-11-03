@@ -175,7 +175,7 @@ function geometry(entries: readonly LibraryEntry[]) {
  */
 function takeAction(id: EmptyActionId): void {
   if (id === 'clear-search') dispatch((s) => setQuery(s, ''));
-  else if (id === 'clear-filters') dispatch((s) => ({ ...s, filters: [], forTheme: null, look: null }));
+  else if (id === 'clear-filters') dispatch((s) => ({ ...s, filters: [], forTheme: null, look: null, mood: null }));
   else if (id === 'clear-scope') dispatch((s) => ({ ...s, scope: null }));
   else runLibraryAdd(id === 'add-folder' ? 'library.addFolder' : 'library.addSampleMedia');
 }
