@@ -12,17 +12,17 @@
  * written when the bridge starts and removed when it stops.
  */
 
-import { app } from 'electron';
+import { app, type BrowserWindow } from 'electron';
 import { open, realpath, rename, rm } from 'node:fs/promises';
 import { basename, extname, join, sep } from 'node:path';
 import type { Collection, CollectionItem } from '../core/collection';
 import {
   BRIDGE_FILE_NAME, bridgeFileContents, newBridgeToken, startPanelServer,
-  type PanelJobAnswer, type PanelPrepareAnswer, type PanelRenderRequest, type PanelServer,
+  panelQueue, type PanelJobAnswer, type PanelPrepareAnswer, type PanelQueueJob, type PanelRenderRequest, type PanelServer,
 } from '../core/panel-bridge';
 import { getLibrary, lookupThumbnail, thumbnailDir } from './library-service';
 import { dragFileFor } from './render-cache-service';
-import { getRenderQueue, prepareDrag } from './render-queue-service';
+import { allowedDragFiles, cancelRender, getRenderQueue, prepareDrag } from './render-queue-service';
 import { loadSettings, updateSettings } from './settings';
 
 export interface PanelStatus {
@@ -37,6 +37,13 @@ export interface PanelStatus {
 }
 
 let server: PanelServer | null = null;
+
+/** The app window, for "open in Pulp": told which item to show, then brought to the front. */
+let panelWindow: BrowserWindow | null = null;
+
+export function setPanelWindow(window: BrowserWindow | null): void {
+  panelWindow = window;
+}
 
 /** The collection as the window last reported it; empty until the window says otherwise. */
 let panelCollectionState: { name: string; collection: Collection } = { name: '', collection: { items: [] } };
@@ -148,6 +155,39 @@ function panelJob(id: number): PanelJobAnswer | undefined {
   return { state: 'rendering', fraction: job.totalFrames > 0 ? job.frame / job.totalFrames : null };
 }
 
+/**
+ * Open in Pulp (milestone 54's third item): the window is told what to show —
+ * an item on the stage, or a collection card in the inspector — and raised,
+ * so a change made in Pulp is a change the next drop from the panel carries.
+ */
+async function panelOpen(target: { kind: 'item'; id: string } | { kind: 'collection'; uid: string }): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!panelWindow || panelWindow.isDestroyed()) return { ok: false, message: 'Pulp’s window is not open.' };
+  panelWindow.webContents.send('panel:open', target);
+  if (panelWindow.isMinimized()) panelWindow.restore();
+  panelWindow.show();
+  panelWindow.focus();
+  // On macOS a window behind another app's needs the app itself brought forward too.
+  app.focus({ steal: true });
+  return { ok: true };
+}
+
+/** The tray's queue for the panel, each finished job with the file its card would drag, when the app allows it. */
+function panelQueueJobs(): PanelQueueJob[] {
+  const allowed = allowedDragFiles();
+  return panelQueue(getRenderQueue().jobs, (job) => {
+    const file = dragFileFor(job.output ?? job.outputPath, job.firstFrame ?? 0);
+    return allowed.has(file) ? file : undefined;
+  });
+}
+
+/** Cancel a job the queue still holds unfinished; false for anything else. */
+function panelCancel(id: number): boolean {
+  const job = getRenderQueue().jobs.find((j) => j.id === id);
+  if (!job || (job.status !== 'queued' && job.status !== 'running')) return false;
+  cancelRender(id);
+  return true;
+}
+
 async function start(): Promise<void> {
   if (server) return;
   const token = newBridgeToken();
@@ -161,6 +201,9 @@ async function start(): Promise<void> {
     itemFile: panelItemFile,
     prepare: panelPrepare,
     job: panelJob,
+    open: panelOpen,
+    queue: panelQueueJobs,
+    cancel: panelCancel,
   });
   await writeBridgeFile(server.port, token);
 }

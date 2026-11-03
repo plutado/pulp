@@ -16,7 +16,9 @@ import {
   panelCollection,
   panelItemFor,
   panelLibrary,
+  panelOpenTarget,
   panelPrepareTarget,
+  panelQueue,
   parseBridgeFile,
   startPanelServer,
   tokenMatches,
@@ -25,6 +27,7 @@ import {
   type PanelPrepareAnswer,
   type PanelRenderRequest,
 } from '../src/core/panel-bridge';
+import type { RenderQueueJob } from '../src/core/render-queue';
 import { validManifest } from './fixtures';
 
 function template(name: string, overrides: Partial<TemplateEntry> = {}): TemplateEntry {
@@ -170,6 +173,40 @@ describe("what a prepare means: the item's own output settings", () => {
   });
 });
 
+describe('back and forth: what an open means, and the queue as the panel sees it', () => {
+  it('opens a library item or a collection card, and refuses the rest with the status that says why', () => {
+    const gathered = addItem(emptyCollection, itemFor(strap, 'prores-4444'));
+    expect(panelOpenTarget({ id: 'lib-wipe' }, library, gathered)).toEqual({ kind: 'item', id: 'lib-wipe' });
+    expect(panelOpenTarget({ uid: gathered.items[0]!.uid }, library, gathered)).toEqual({ kind: 'collection', uid: gathered.items[0]!.uid });
+    expect(panelOpenTarget({ id: 'lib-gone' }, library, gathered)).toMatchObject({ kind: 'refused', status: 404 });
+    expect(panelOpenTarget({ id: 'lib-clip' }, index([media('clip', { offline: true })]), gathered)).toMatchObject({ kind: 'refused', status: 409 });
+    expect(panelOpenTarget({ uid: 'nope' }, library, gathered)).toMatchObject({ kind: 'refused', status: 404 });
+    expect(panelOpenTarget({ id: 'a', uid: 'b' }, library, gathered)).toMatchObject({ kind: 'refused', status: 400 });
+    expect(panelOpenTarget('strap', library, gathered)).toMatchObject({ kind: 'refused', status: 400 });
+  });
+
+  it('lists the queue newest first with how far each is, and a file only for a finished job the app would drag', () => {
+    const job = (over: Partial<RenderQueueJob>): RenderQueueJob =>
+      ({ id: 1, templateId: 'test.strap', templateName: 'strap', presetId: 'prores-4444', outputPath: '/cache/strap.mov', totalFrames: 60, status: 'queued', frame: 0, warnings: [], ...over });
+    const jobs = [
+      job({ id: 1, status: 'done', frame: 60, output: '/cache/strap.mov' }),
+      job({ id: 2, status: 'running', frame: 15, label: 'strap · Sam' }),
+      job({ id: 3, status: 'failed', frame: 3, message: 'ffmpeg refused' }),
+      job({ id: 4, status: 'done', frame: 60, output: '/elsewhere/strap.mov' }),
+      job({ id: 5, status: 'queued', totalFrames: 0 }),
+    ];
+    const told = panelQueue(jobs, (j) => (j.output === '/cache/strap.mov' ? j.output : undefined));
+    expect(told.map((j) => j.id)).toEqual([5, 4, 3, 2, 1]);
+    expect(told[4]).toEqual({ id: 1, label: 'strap', presetId: 'prores-4444', status: 'done', fraction: 1, file: '/cache/strap.mov', name: 'strap.mov' });
+    expect(told[3]).toEqual({ id: 2, label: 'strap · Sam', presetId: 'prores-4444', status: 'running', fraction: 0.25 });
+    expect(told[2]).toMatchObject({ status: 'failed', message: 'ffmpeg refused' });
+    expect(told[2]!.file).toBeUndefined();
+    // Done, but not a file the app itself would let its card drag: no file.
+    expect(told[1]!.file).toBeUndefined();
+    expect(told[0]!.fraction).toBeNull();
+  });
+});
+
 describe('answering a request', () => {
   const thumbDir = { path: '' };
   beforeAll(async () => {
@@ -179,13 +216,15 @@ describe('answering a request', () => {
   afterAll(() => rm(thumbDir.path, { recursive: true, force: true }));
 
   const token = newBridgeToken();
+  /** One collection for the whole describe, so a uid read in a test is the uid the handler sees. */
+  const gatheredStrap = addItem(emptyCollection, itemFor(strap, 'prores-4444'));
   /** What the stub prepare and job were asked, so a test can read it back. */
-  const asked: { prepare: PanelRenderRequest[]; jobs: number[] } = { prepare: [], jobs: [] };
+  const asked: { prepare: PanelRenderRequest[]; jobs: number[]; opened: unknown[]; cancelled: number[] } = { prepare: [], jobs: [], opened: [], cancelled: [] };
   const ctx: PanelBridgeContext = {
     token,
     version: '0.1.0',
     library: () => Promise.resolve(library),
-    collection: () => ({ name: '', collection: addItem(emptyCollection, itemFor(strap, 'prores-4444')) }),
+    collection: () => ({ name: '', collection: gatheredStrap }),
     thumbnail: (id) => Promise.resolve(id === 'abc123' ? join(thumbDir.path, 'abc123.png') : undefined),
     typeDefaults: () => Promise.resolve({}),
     itemFile: (id) => Promise.resolve(id === 'lib-clip' ? { file: '/cache/clip.mov', name: 'clip' } : undefined),
@@ -196,6 +235,15 @@ describe('answering a request', () => {
     job: (id): PanelJobAnswer | undefined => {
       asked.jobs.push(id);
       return id === 7 ? { state: 'done', file: '/cache/strap.mov', name: 'strap.mov' } : undefined;
+    },
+    open: (target) => {
+      asked.opened.push(target);
+      return Promise.resolve({ ok: true });
+    },
+    queue: () => [{ id: 7, label: 'strap', presetId: 'prores-4444', status: 'done', fraction: 1, file: '/cache/strap.mov', name: 'strap.mov' }],
+    cancel: (id) => {
+      asked.cancelled.push(id);
+      return id === 8;
     },
   };
   const get = (url: string, with_: string | null = token) => handleBridgeRequest({ method: 'GET', url, token: with_ }, ctx);
@@ -275,6 +323,30 @@ describe('answering a request', () => {
     expect((await post('/v1/prepare', { id: 'lib-strap', uid: 'c1' })).status).toBe(400);
   });
 
+  it('opens an item or a collection card in Pulp over POST, and refuses what neither holds', async () => {
+    asked.opened.length = 0;
+    expect((await post('/v1/open', { id: 'lib-wipe' })).status).toBe(200);
+    const uid = ctx.collection().collection.items[0]!.uid;
+    expect((await post('/v1/open', { uid })).status).toBe(200);
+    expect(asked.opened).toEqual([{ kind: 'item', id: 'lib-wipe' }, { kind: 'collection', uid }]);
+    expect((await post('/v1/open', { id: 'lib-gone' })).status).toBe(404);
+    expect((await post('/v1/open', { uid: 'nope' })).status).toBe(404);
+    expect((await post('/v1/open', {})).status).toBe(400);
+    expect((await get('/v1/open')).status).toBe(405);
+    expect((await post('/v1/open', { id: 'lib-wipe' }, null)).status).toBe(401);
+  });
+
+  it('answers the queue, and cancels only what the queue still holds unfinished', async () => {
+    const queued = JSON.parse((await get('/v1/queue')).body as string) as { jobs: { id: number; file?: string }[] };
+    expect(queued.jobs.map((j) => j.id)).toEqual([7]);
+    expect(queued.jobs[0]!.file).toBe('/cache/strap.mov');
+    expect((await post('/v1/queue/8/cancel', {})).status).toBe(200);
+    expect((await post('/v1/queue/7/cancel', {})).status).toBe(404);
+    expect(asked.cancelled).toEqual([8, 7]);
+    expect((await get('/v1/queue/8/cancel')).status).toBe(405);
+    expect((await get('/v1/queue', null)).status).toBe(401);
+  });
+
   it('refuses what it does not speak', async () => {
     expect((await get('/v1/nothing')).status).toBe(404);
     expect((await get('/settings.json')).status).toBe(404);
@@ -298,6 +370,9 @@ describe('the listener', () => {
       itemFile: () => Promise.resolve(undefined),
       prepare: (request) => Promise.resolve({ ready: true, file: `/cache/${request.templateId}.mov`, name: `${request.templateId}.mov` }),
       job: () => undefined,
+      open: () => Promise.resolve({ ok: true }),
+      queue: () => [],
+      cancel: () => false,
     };
     const server = await startPanelServer(ctx);
     try {

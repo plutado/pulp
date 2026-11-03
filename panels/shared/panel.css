@@ -120,3 +120,17 @@ h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: 
 .badge.missing { color: var(--bad); border-color: var(--bad); }
 
 .duration { flex: none; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+/* The render queue as it runs: a bar under the row's name, the state as a badge. */
+.progress {
+  flex-basis: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+  margin: -2px 0 2px;
+}
+.progress > span { display: block; height: 100%; background: var(--accent); transition: width 0.3s; }
+.badge.running { color: var(--accent); border-color: var(--accent); }
+.badge.done { color: #58b368; border-color: #58b368; }
+.badge.failed, .badge.cancelled { color: var(--bad); border-color: var(--bad); }

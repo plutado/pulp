@@ -351,6 +351,8 @@ export interface PulpApi {
   panelStatus(): Promise<PanelStatus>;
   setEditorPanel(enabled: boolean): Promise<PanelStatus>;
   panelCollectionChanged(collection: Collection, name: string): Promise<void>;
+  /** The panel asked for an item to be shown, or a collection card opened for editing (milestone 54's third item). */
+  onPanelOpen(listener: (target: { kind: 'item'; id: string } | { kind: 'collection'; uid: string }) => void): () => void;
   speechStatus(request?: { model?: string }): Promise<SpeechStatus>;
   fetchSpeechModel(request: { model: string }): Promise<{ ok: true; path: string } | { ok: false; message: string }>;
   transcribe(request: { segments: { kind: 'clip' | 'sound'; id: string; from: number; to: number; at: number; speed?: number }[]; model?: string; language?: string }):

@@ -4,8 +4,9 @@ A Pulp panel inside Premiere Pro and inside DaVinci Resolve Studio
 (milestone 54): the library and the collection of the Pulp running on this
 machine, browsed, searched and **dropped into the edit** without leaving the
 editing app — each item rendered on request with its own output settings,
-alpha kept. Showing the render queue's progress in the panel and opening an
-item in Pulp from it are the milestone's later items.
+alpha kept — with **Open** to change an item in Pulp and Pulp's **render
+queue shown in the panel** as it runs. The panels' packaging is the
+milestone's remaining item.
 
 Nothing leaves the machine. The panels talk to Pulp over `127.0.0.1` only,
 and every request carries a token Pulp writes to a file beside its settings —
@@ -114,6 +115,20 @@ the same thing is instant, and the row shows the render's percentage while it
 runs. The render also appears as a card in Pulp's own queue tray, like any
 prepare.
 
+### Back and forth with Pulp
+
+- **Open** on a row shows the item in Pulp's window — on the stage with its
+  parameters, Pulp brought to the front — exactly as clicking it in the
+  results would. On a collection row it opens that card for editing in the
+  inspector. Change what you like there; the panel's drops render a
+  collection card's own settings, so the next Bin or drag carries the change.
+- **The render queue** appears at the top of the panel whenever Pulp's own
+  queue holds anything, as the tray shows it: each job with its state and a
+  bar for how far it has come, read every second while something renders —
+  whether the panel asked for it or the render was started in Pulp. A queued
+  or running job has **Cancel**; a finished one is a row that drops into the
+  edit like any item.
+
 If the panel says Pulp is not reachable: Pulp is not running, or the setting
 is off, or Pulp was restarted (the port and token change each start —
 Reconnect). The bridge file it reads is `panel-bridge.json` beside Pulp's
@@ -128,7 +143,9 @@ must carry the token in the `x-pulp-token` header; anything without it — for
 instance a web page, which can reach 127.0.0.1 but cannot read your files —
 gets a 401 and nothing else. Listings name items by library id and never
 carry paths; the one answer that carries one is a prepared file's own
-(`POST /v1/prepare`, then `GET /v1/prepare/<job>` while it renders), because
-handing that file into the edit is what the panel is for. The protocol is
+(`POST /v1/prepare`, then `GET /v1/prepare/<job>` while it renders), or a
+finished job's in `GET /v1/queue`, because handing that file into the edit is
+what the panel is for. `POST /v1/open` asks Pulp's window to show an item or
+a collection card; `POST /v1/queue/<id>/cancel` cancels a job still running. The protocol is
 versioned; `src/core/panel-bridge.ts` is its one definition, and
 `tests/panel-bridge.test.ts` speaks it end to end over a real socket.

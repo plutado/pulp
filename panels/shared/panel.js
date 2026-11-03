@@ -8,6 +8,11 @@
  * same cache the app's own Prepare for drag fills, so a second drop of the
  * same thing is instant.
  *
+ * And back the other way (the third item): **Open** shows the item in Pulp —
+ * or opens the collection card for editing — so it can be changed before the
+ * next drop, and Pulp's render queue is shown here as it runs, a finished job
+ * dropping like any row.
+ *
  * Plain script over connect.js's window.pulpBridge and host.js's
  * window.pulpHost. The search field speaks Pulp's own query syntax.
  */
@@ -59,7 +64,13 @@
 
   /** A row's target: a library item by id, or a collection item by uid (its own settings). */
   function keyOf(target) {
+    if (target.job !== undefined) return 'job:' + target.job;
     return target.uid ? 'uid:' + target.uid : 'id:' + target.id;
+  }
+
+  /** The body an ask about a target carries: a library id or a collection uid. */
+  function bodyOf(target) {
+    return target.uid ? { uid: target.uid } : { id: target.id };
   }
 
   /** Follow a queued render until it is a file or a reason it is not. */
@@ -86,7 +97,7 @@
     var key = keyOf(target);
     if (files[key]) return Promise.resolve(files[key]);
     if (inFlight[key]) return inFlight[key];
-    var ask = pulpBridge.post(session, '/v1/prepare', target.uid ? { uid: target.uid } : { id: target.id })
+    var ask = pulpBridge.post(session, '/v1/prepare', bodyOf(target))
       .then(function (answer) {
         return answer.ready ? answer.file : followJob(answer.job, onProgress);
       })
@@ -182,6 +193,23 @@
     toTimeline.addEventListener('click', function () { act(target, status, 'insertAtPlayhead'); });
     actions.appendChild(toBin);
     actions.appendChild(toTimeline);
+    if (target.job === undefined) {
+      var open = document.createElement('button');
+      open.type = 'button';
+      open.textContent = 'Open';
+      open.title = target.uid ? 'Open this collection card in Pulp to change its settings' : 'Show this item in Pulp to change it';
+      open.addEventListener('click', function () {
+        if (!session) return;
+        say(status, 'opening…');
+        pulpBridge.post(session, '/v1/open', bodyOf(target)).then(function () {
+          say(status, 'in Pulp');
+          setTimeout(function () { say(status, ''); }, 3000);
+        }).catch(function (err) {
+          say(status, String(err && err.message ? err.message : err), true);
+        });
+      });
+      actions.appendChild(open);
+    }
     li.appendChild(actions);
     li.appendChild(status);
 
@@ -247,15 +275,83 @@
     el('collection-name').textContent = answer.name || '';
   }
 
+  var lastQueue = '';
+  var queueActive = false;
+
+  /** Pulp's render queue as it runs: the bar per job, cancel while it can be, and a finished file that drops. */
+  function showQueue(answer) {
+    var text = JSON.stringify(answer);
+    if (text === lastQueue) return;
+    lastQueue = text;
+    var list = el('queue-list');
+    list.replaceChildren();
+    queueActive = false;
+    for (var i = 0; i < answer.jobs.length; i += 1) {
+      var job = answer.jobs[i];
+      var li;
+      if (job.status === 'done' && job.file) {
+        // A finished render is a file in hand: the row drops exactly as an item's does.
+        files['job:' + job.id] = job.file;
+        li = row({ id: '', name: job.label, kind: job.presetId }, { job: job.id });
+      } else {
+        li = document.createElement('li');
+        var name = document.createElement('span');
+        name.className = 'name';
+        name.textContent = job.label;
+        li.appendChild(name);
+        var state = document.createElement('span');
+        state.className = 'badge ' + job.status;
+        state.textContent = job.status === 'running' && typeof job.fraction === 'number'
+          ? Math.round(job.fraction * 100) + '%'
+          : job.status;
+        li.appendChild(state);
+        if (job.status === 'queued' || job.status === 'running') {
+          queueActive = true;
+          var cancel = document.createElement('button');
+          cancel.type = 'button';
+          cancel.textContent = 'Cancel';
+          cancel.className = 'cancel';
+          cancel.addEventListener('click', (function (id) {
+            return function () {
+              if (session) pulpBridge.post(session, '/v1/queue/' + id + '/cancel', {}).catch(function () { /* already finished */ });
+            };
+          })(job.id));
+          li.appendChild(cancel);
+          var bar = document.createElement('span');
+          bar.className = 'progress';
+          var fill = document.createElement('span');
+          fill.style.width = Math.round((job.fraction || 0) * 100) + '%';
+          bar.appendChild(fill);
+          li.appendChild(bar);
+        }
+        if (job.message) {
+          var why = document.createElement('span');
+          why.className = 'status bad';
+          why.textContent = job.message;
+          li.appendChild(why);
+        }
+      }
+      list.appendChild(li);
+    }
+    el('queue-section').hidden = answer.jobs.length === 0;
+  }
+
+  function refreshQueue() {
+    if (!session) return Promise.resolve();
+    return pulpBridge.get(session, '/v1/queue').then(showQueue).catch(function () { /* the next refresh says */ });
+  }
+
   function refresh() {
     if (!session) return Promise.resolve();
     var query = el('search').value;
     return Promise.all([
       pulpBridge.get(session, '/v1/library?q=' + encodeURIComponent(query)),
       pulpBridge.get(session, '/v1/collection'),
+      pulpBridge.get(session, '/v1/queue'),
     ]).then(function (answers) {
       showLibrary(answers[0]);
       showCollection(answers[1]);
+      showQueue(answers[2]);
     }).catch(function (err) {
       session = null;
       setStatus(false, 'Lost Pulp.');
@@ -271,6 +367,7 @@
       // A new session may be a new Pulp: nothing prepared before it is trusted after it.
       files = {};
       inFlight = {};
+      lastQueue = '';
       setStatus(true, 'Pulp ' + opened.version + ' on 127.0.0.1:' + opened.port + (pulpHost.name ? ' · in ' + pulpHost.name : ''));
       return refresh();
     }).catch(function (err) {
@@ -304,4 +401,9 @@
 
   connect();
   setInterval(tick, 10000);
+  // The queue moves by the second while something renders — a prepare from here, or a render
+  // started in Pulp — so it is re-read that often then, and left alone when nothing is running.
+  setInterval(function () {
+    if (session && (queueActive || Object.keys(inFlight).length > 0)) void refreshQueue();
+  }, 1000);
 })();

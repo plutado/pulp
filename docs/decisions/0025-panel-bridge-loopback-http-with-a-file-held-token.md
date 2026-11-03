@@ -75,6 +75,10 @@ milestone items land in one place.
   file and reconnect, and a stale file from a crash is removed at launch.
 - The protocol carries a version so a panel older than its Pulp says "update
   me" instead of misreading answers.
+- The bridge can also *act on* Pulp — open an item in the window, cancel a
+  queued render — and every such verb is a POST behind the same token, so
+  the fence is the same for a verb as for a listing; none of them reads or
+  writes anything the window's own controls could not.
 - The bridge is plain HTTP, so the milestone's "stand-in host" test needs no
   host at all: the unit tests already speak the connection end to end.
 - Premiere's CEP loads unsigned extensions only with PlayerDebugMode on, and

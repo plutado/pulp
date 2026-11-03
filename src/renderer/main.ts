@@ -1,5 +1,5 @@
 import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
-import { formatBytes, setCollection, setIndex, setJobs, setQuery, setSelection, setShown, shownEntry } from '../core/app-state';
+import { formatBytes, setCollection, setEditing, setIndex, setJobs, setQuery, setSelection, setShown, shownEntry } from '../core/app-state';
 import { addItem, itemFor, type Collection } from '../core/collection';
 import { appState, dispatch, paramsEdited, results, selectedTemplate } from './store';
 import { mountResults } from './results';
@@ -501,6 +501,19 @@ mountCategoryCards($('category-cards'));
     void window.pulp.panelCollectionChanged(collection, collectionName);
   });
 }
+// And the panel asks back (milestone 54's third item): show this item, or open this collection
+// card for editing — the very paths a click in the results or the tray takes, so what the
+// panel opens is edited with the same controls and the next drop carries the change.
+window.pulp.onPanelOpen((target) => {
+  hideStartScreen();
+  if (target.kind === 'collection') {
+    if (appState.value.collection.items.some((i) => i.uid === target.uid)) dispatch((s) => setEditing(s, target.uid));
+    return;
+  }
+  const index = appState.value.index;
+  const entry = index ? [...index.templates, ...index.media].find((e) => e.id === target.id) : undefined;
+  if (entry) select(entry);
+});
 
 // Add to collection: the item on the stage, with whatever the Output tab currently says.
 const addToCollection = $<HTMLButtonElement>('add-to-collection');

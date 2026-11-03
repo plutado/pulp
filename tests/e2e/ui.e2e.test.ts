@@ -6422,5 +6422,49 @@ describe.skipIf(!electron)('inspector UI', () => {
       // What the library cannot answer for is a refusal that says so, not half an answer.
       expect((await fetch(`${base}/v1/prepare`, { method: 'POST', headers, body: JSON.stringify({ id: 'ffffffffffffffffffffffff' }) })).status).toBe(404);
     }, 180_000);
+
+    it('goes back the other way: opens an item or a collection card in Pulp, and shows the queue as it stands', async () => {
+      const bridge = parseBridgeFile(await readFile(join(userData, 'panel-bridge.json'), 'utf8'))!;
+      const headers = { [BRIDGE_TOKEN_HEADER]: bridge.token, 'Content-Type': 'application/json' };
+      const base = `http://127.0.0.1:${bridge.port}`;
+
+      // Open a library item: the stage shows it, as a click in the results would.
+      const found = (await (await fetch(`${base}/v1/library?q=diagonal wipe`, { headers })).json()) as { items: { id: string; name: string }[] };
+      const wipe = found.items.find((i) => i.name === 'Diagonal Wipe')!;
+      expect((await fetch(`${base}/v1/open`, { method: 'POST', headers, body: JSON.stringify({ id: wipe.id }) })).status).toBe(200);
+      await until(
+        () => page.eval<boolean>(`(document.getElementById('preview').getAttribute('src') || '').startsWith('pulp-template://pulp.samples.diagonal-wipe/')`),
+        'the wipe on the stage, opened from the panel',
+      );
+
+      // Open a collection card: gathered in the window, named by uid over the bridge, chosen for editing.
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'Add to collection ready');
+      await page.eval(`document.getElementById('add-to-collection').click()`);
+      let uid = '';
+      await until(async () => {
+        const told = (await (await fetch(`${base}/v1/collection`, { headers })).json()) as { items: { uid: string; name: string }[] };
+        uid = told.items.find((i) => i.name === 'Lower Third Bar')?.uid ?? '';
+        return uid !== '';
+      }, 'the gathered item over the bridge');
+      expect((await fetch(`${base}/v1/open`, { method: 'POST', headers, body: JSON.stringify({ uid }) })).status).toBe(200);
+      await until(() => page.eval<boolean>(`document.querySelectorAll('#region-tray .collection-card.chosen').length === 1`), 'the card chosen for editing');
+
+      // The queue as the tray shows it: whatever the prepare test left is listed, done, with its file.
+      const queue = (await (await fetch(`${base}/v1/queue`, { headers })).json()) as { jobs: { label: string; status: string; file?: string }[] };
+      if ((await detectFfmpeg()).ok) {
+        const prepared = queue.jobs.find((j) => j.label === 'Lower Third Bar');
+        expect(prepared, 'the prepared render in the queue').toBeDefined();
+        expect(prepared!.status).toBe('done');
+        expect(prepared!.file?.endsWith('.mov'), String(prepared!.file)).toBe(true);
+      }
+      // What neither holds is refused with its reason, and a finished job cannot be cancelled.
+      expect((await fetch(`${base}/v1/open`, { method: 'POST', headers, body: JSON.stringify({ uid: 'nope' }) })).status).toBe(404);
+      expect((await fetch(`${base}/v1/queue/999999/cancel`, { method: 'POST', headers })).status).toBe(404);
+
+      // Left as it was found.
+      await page.eval(`document.querySelector('#region-tray .collection-card [aria-label="Remove from the collection"]').click()`);
+      await until(() => page.eval<boolean>(`document.querySelectorAll('#region-tray .collection-card').length === 0`), 'the tray empty again');
+    }, 90_000);
   });
 });

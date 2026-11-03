@@ -156,6 +156,11 @@ const api: PulpApi = {
   panelStatus: () => ipcRenderer.invoke('panel:status'),
   setEditorPanel: (enabled) => ipcRenderer.invoke('panel:set', enabled),
   panelCollectionChanged: (collection, name) => ipcRenderer.invoke('panel:collection', collection, name),
+  onPanelOpen: (listener) => {
+    const handler = (_event: unknown, target: Parameters<typeof listener>[0]) => listener(target);
+    ipcRenderer.on('panel:open', handler);
+    return () => ipcRenderer.removeListener('panel:open', handler);
+  },
   speechStatus: (request) => ipcRenderer.invoke('speech:status', request),
   fetchSpeechModel: (request) => ipcRenderer.invoke('speech:fetch-model', request),
   transcribe: (request) => ipcRenderer.invoke('speech:transcribe', request),

@@ -31,7 +31,7 @@ import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit
 import { sanitizeCacheMaxMB } from '../core/render-cache';
 import { deletePreset, listPresets, savePreset } from './preset-service';
 import { openCollectionFile, readCollectionFile, renderCollection, saveCollectionTo } from './collection-service';
-import { panelStatus, setEditorPanel, setPanelCollection, startPanelBridgeIfEnabled, stopPanelBridge } from './panel-service';
+import { panelStatus, setEditorPanel, setPanelCollection, setPanelWindow, startPanelBridgeIfEnabled, stopPanelBridge } from './panel-service';
 import {
   clearRecovery, forgetProject, missingLibraryFolders, openProjectDialog, readProjectFile, readRecovery,
   recentProjects, recentProjectsDetailed, relinkProjectItem, relinkRecentProject, saveProjectTo, setProjectPinned, writeRecovery,
@@ -179,6 +179,8 @@ function createWindow(): void {
   setSpeechProgressWindow(mainWindow);
   setSemanticProgressWindow(mainWindow);
   setFfmpegProgressWindow(mainWindow);
+  // Where the editor panel's "open in Pulp" lands (milestone 54).
+  setPanelWindow(mainWindow);
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (!app.isPackaged && devUrl) void mainWindow.loadURL(devUrl);
@@ -189,6 +191,7 @@ function createWindow(): void {
     windowListening = false;
     setSpeechProgressWindow(null);
     setFfmpegProgressWindow(null);
+    setPanelWindow(null);
     // The stage's window has no life of its own; it is remembered as it was for the next launch.
     destroyStageWindow();
   });

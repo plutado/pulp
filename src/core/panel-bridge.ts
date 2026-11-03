@@ -28,6 +28,7 @@ import { resolveCollection } from './collection';
 import type { LibraryEntry, LibraryIndex } from './library-types';
 import type { TypeOutputDefault } from './output-defaults';
 import { OUTPUT_PRESETS, type PresetId, type RenderOptions } from './render-plan';
+import type { RenderJobStatus, RenderQueueJob } from './render-queue';
 import { searchLibrary } from './search';
 import { templateType } from './taxonomy';
 
@@ -292,6 +293,68 @@ export type PanelJobAnswer =
   | { state: 'done'; file: string; name: string }
   | { state: 'failed'; message: string };
 
+// ---------------------------------------------------------------- back and forth (milestone 54's third item)
+
+/** What a POST /v1/open body asks for, vouched for: a library item to show, or a collection card to edit. */
+export type PanelOpenTarget =
+  | { kind: 'item'; id: string }
+  | { kind: 'collection'; uid: string }
+  | { kind: 'refused'; status: number; message: string };
+
+/**
+ * Open in Pulp: the window shows the item on the stage with its controls, or
+ * opens the collection card for editing in the inspector, and comes to the
+ * front. Only what the library or the collection really holds; anything else
+ * is a refusal that says so.
+ */
+export function panelOpenTarget(body: unknown, index: LibraryIndex, collection: Collection): PanelOpenTarget {
+  const refused = (status: number, message: string): PanelOpenTarget => ({ kind: 'refused', status, message });
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return refused(400, 'The body must be JSON: {"id": …} or {"uid": …}.');
+  const { id, uid } = body as { id?: unknown; uid?: unknown };
+  if ((typeof id === 'string') === (typeof uid === 'string')) return refused(400, 'Name exactly one of "id" (a library item) or "uid" (a collection item).');
+  if (typeof uid === 'string') {
+    return collection.items.some((i) => i.uid === uid) ? { kind: 'collection', uid } : refused(404, 'That collection item is no longer in the collection.');
+  }
+  const entry = [...index.templates, ...index.media].find((e) => e.id === id);
+  if (!entry) return refused(404, 'That item is not in the library.');
+  if (entry.offline) return refused(409, 'That item’s folder is not reachable right now.');
+  return { kind: 'item', id: entry.id };
+}
+
+/** One render queue job as the panel shows it: what it is, how far, and — once done and draggable — its file. */
+export interface PanelQueueJob {
+  id: number;
+  label: string;
+  presetId: string;
+  status: RenderJobStatus;
+  /** Frames done over frames in all; null while that is not known. */
+  fraction: number | null;
+  message?: string;
+  /** The finished file, when Pulp would let its own card drag it. */
+  file?: string;
+  name?: string;
+}
+
+/**
+ * The queue as the panel lists it: the tray's own jobs, newest first, each
+ * with the file the tray's card would drag once it is done — which the main
+ * process names, held to the files the app itself allows dragging.
+ */
+export function panelQueue(jobs: readonly RenderQueueJob[], fileFor: (job: RenderQueueJob) => string | undefined): PanelQueueJob[] {
+  return [...jobs].reverse().map((job) => {
+    const file = job.status === 'done' ? fileFor(job) : undefined;
+    return {
+      id: job.id,
+      label: job.label ?? job.templateName,
+      presetId: job.presetId,
+      status: job.status,
+      fraction: job.totalFrames > 0 ? Math.min(1, job.frame / job.totalFrames) : null,
+      ...(job.message ? { message: job.message } : {}),
+      ...(file ? { file, name: file.split(/[\\/]/).pop() ?? file } : {}),
+    };
+  });
+}
+
 // ---------------------------------------------------------------- answering a request
 
 /** What the main process supplies: the token, the version, and the live data the answers are made from. */
@@ -310,6 +373,12 @@ export interface PanelBridgeContext {
   prepare(request: PanelRenderRequest): Promise<PanelPrepareAnswer>;
   /** How a queued prepare is going; nothing for a job the queue does not hold. */
   job(id: number): PanelJobAnswer | undefined;
+  /** Show an item, or open a collection card for editing, in Pulp's window, brought to the front. */
+  open(target: { kind: 'item'; id: string } | { kind: 'collection'; uid: string }): Promise<{ ok: true } | { ok: false; message: string }>;
+  /** The render queue as the tray shows it. */
+  queue(): PanelQueueJob[];
+  /** Cancel a queued or running job; false when the queue does not hold it. */
+  cancel(id: number): boolean;
 }
 
 export interface BridgeRequest {
@@ -365,6 +434,27 @@ export async function handleBridgeRequest(req: BridgeRequest, ctx: PanelBridgeCo
     url = new URL(req.url, 'http://bridge');
   } catch {
     return notFound();
+  }
+
+  // Back and forth (the milestone's third item): open in Pulp, the queue, and a cancel.
+  if (url.pathname === '/v1/open') {
+    if (req.method !== 'POST') return { status: 405, headers: { Allow: 'POST, OPTIONS', ...NO_STORE, ...CORS } };
+    let body: unknown;
+    try {
+      body = JSON.parse(req.body ?? '');
+    } catch {
+      body = null;
+    }
+    const target = panelOpenTarget(body, await ctx.library(), ctx.collection().collection);
+    if (target.kind === 'refused') return json(target.status, { error: target.message });
+    const opened = await ctx.open(target);
+    return opened.ok ? json(200, { ok: true }) : json(409, { error: opened.message });
+  }
+  if (url.pathname === '/v1/queue' && req.method === 'GET') return json(200, { jobs: ctx.queue() });
+  const cancelAsked = /^\/v1\/queue\/(\d{1,9})\/cancel$/.exec(url.pathname);
+  if (cancelAsked) {
+    if (req.method !== 'POST') return { status: 405, headers: { Allow: 'POST, OPTIONS', ...NO_STORE, ...CORS } };
+    return ctx.cancel(Number(cancelAsked[1])) ? json(200, { ok: true }) : notFound();
   }
 
   // Preparing a file for the edit (the milestone's drop): POST asks, GET /<job> follows the render.

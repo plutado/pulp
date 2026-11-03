@@ -18,13 +18,19 @@
       <strong>Settings → Serve the editor panel (local)</strong>, then press Reconnect.</p>
     <p class="small">Once connected: <strong>Bin</strong> renders an item with its own output settings
       (alpha kept) and imports it; the timeline button puts it in the edit; dragging a rendered row
-      drops the file wherever it lands.</p>
+      drops the file wherever it lands. <strong>Open</strong> shows the item in Pulp to change it, and
+      Pulp's render queue appears here as it runs.</p>
   </section>
 
   <main id="panel-main" hidden>
     <div class="search-row">
       <input id="search" type="search" placeholder="Search the library — Pulp’s own syntax: type:lower-third, mood:calm…" aria-label="Search the library">
     </div>
+
+    <section id="queue-section" aria-labelledby="queue-head" hidden>
+      <h2 id="queue-head">Render queue</h2>
+      <ul id="queue-list" class="rows"></ul>
+    </section>
 
     <section aria-labelledby="collection-head">
       <h2 id="collection-head">Collection <span id="collection-name" class="small"></span></h2>
