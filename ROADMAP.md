@@ -73,9 +73,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 56. Speed changes on the cut track (post-1.0, **done**) | 10-16 h |
 | 57. A second picture track (post-1.0, **done**) | 16-26 h |
 | 58. Reliability, scale and speed (post-1.0, **done**) | 16-28 h |
+| 59. Languages and locale (post-1.0) | 26-46 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **35-59 h** |
-| **Total including post-1.0 items** | **880-1435 h** |
+| **Total including post-1.0 items** | **906-1481 h** |
 
 ## 0. Foundation (done)
 
@@ -765,3 +766,15 @@ Decided 2026-11-01, from the undecided list in `docs/ideas.md`.
 - [x] **Recovery under load:** the app killed mid-render and mid-save, and the work recovered (3-6 h) *Built 2026-11-02. **Mid-save** was already safe by construction — every project and recovery write is atomic — and is now proved: a child process writing a file over and over is killed with SIGKILL and the file on disk is always one whole payload. **Mid-render** was not: ffmpeg wrote to the final name, so a kill left a file that looked finished. A single-file render now writes to `name.partial.ext` and is renamed when whole (`src/core/render-recovery.ts`); a kill leaves a file that says what it is, and the next run of the same render clears it — the render test kills a render at frame 90 and checks exactly that. The queue keeps a **ledger** of renders in flight beside the settings, written when a job starts and cleared when it ends; the next launch removes their partial files and asks "Render again?", queuing them to the outputs the save dialog had already answered. Renders into the drag cache are left out: they are remade on demand.*
 - [x] **A performance section** in Copy diagnostics: library size, index and search timings, memory (3-5 h) *Built 2026-11-02. `src/core/perf.ts` is the shape and the lines; the main process measures when asked — the library's size, the last scan's numbers, the index built and sized just then, each of Electron's processes' working set — and the window records as it goes what a keystroke's search (results, facets and tree over the whole library), a scroll's window and an arriving index cost it, last and worst with a count (`src/renderer/perf.ts`). The section sits under its own heading before the log's last lines, and a test holds it line for line.*
 
+
+## 59. Languages and locale (26-46 h, after 1.0)
+
+Decided 2026-11-03. Pulp speaks one language today, with its words written into the code. This moves them out so the interface can be shown in the language a person chooses in Settings: US English by default, British English for those who want colour and centre, and other languages as they are translated. Takes over "Localisation" from the undecided list in `docs/ideas.md`.
+
+- [ ] **Words out of the code:** every interface string (menus, buttons, labels, messages, the user guide's in-app help) read from a message catalog keyed by id, with US English as the source; a test fails on a user-facing string written straight into the code (8-14 h)
+- [ ] **A language setting:** Settings → Language, following the system by default, with English (US) and English (UK) offered first; switching redraws the interface without a restart, and the choice is kept with the other settings (4-7 h)
+- [ ] **British English** as the first catalog after the source: only the words that differ (color/colour, center/centre, gray/grey, license/licence and the like), falling back to US English for the rest (2-3 h)
+- [ ] **Formats that follow the locale:** dates, numbers and file sizes shown the way the chosen locale writes them; timecode, frame rates and file formats stay as editors expect them everywhere (2-4 h)
+- [ ] **A first language beyond English**, complete, checked by a fluent speaker before it ships, and a pseudo-locale that lengthens every string so a layout that clips long words is caught by a test (4-8 h)
+- [ ] **Right-to-left and complex scripts:** the interface mirrored for a right-to-left language, and text layers that shape Arabic, Hebrew and Indic scripts correctly in the preview and the render alike (Noto Sans is bundled) (4-7 h)
+- [ ] **For translators:** how to add a language, what a message id means, and how a catalog is checked for missing and unused strings (2-3 h)
