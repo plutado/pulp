@@ -12,6 +12,7 @@ import { basename, join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
 import { CAPTIONS_MODES, FRAME_FORMATS, OUTPUT_PRESETS, STEMS_MODES, type CaptionsMode, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
 import { PLATFORM_IDS, platformPreset } from '../core/platform-presets';
+import { EXIT_CODES, helpText, parseCommandLine, usageErrorText, type ParsedCli } from '../core/cli';
 import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest, SampleMediaOutcome } from '../shared/api';
 import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, libraryPerformance, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
@@ -555,41 +556,15 @@ function registerIpc(): void {
 }
 
 /**
- * Headless mode for scripting and smoke tests:
- *   electron . --render <template-id> --preset <preset-id> --out <path> [--param key=value ...]
- *
- * A parameter may be a layer stack: `--param '@layers={"strap":[{"id":"name","text":"Ada Lovelace"}]}'`.
- *     [--fps <rate>] [--length <seconds|tc>] [--background #RRGGBB] [--in-point <tc|frame>] [--out-point <tc|frame>]
- *     [--cover-at <tc|frame>] [--platform <platform-id>] [--lut <file.cube>] [--captions burn|track|none]
- *     [--aspect 16:9|9:16|1:1|4:5] [--size <width>x<height>]
- *     [--library <folder> ...] [--frame-timeout <seconds>] [--frame-format raw|png] [--batch <file.csv>]
- *   electron . --collection <file.pulpcollection> --out <folder> [--library <folder> ...]
- *   electron . --sample-media <folder> [--types <type,type>]
- *   electron . --visual-hashes <file> [--check]
- * `--sample-media` writes the sample-media catalogue (src/core/sample-media.ts) into the folder:
- * original CC0 sounds, music, stills and clips, at least six per media type, skipping files
- * that exist. Add the folder to a library afterwards.
- * `--collection` renders every template in a saved collection into the --out folder with the settings
- * each item carries; items the library cannot answer for are named and skipped.
- * `--batch` renders one output per CSV row into the folder given by --out, parameters from the row's
- * columns (headers match a parameter id or label, ignoring case) and the file name from its name column.
- * `--fps` samples the template at another standard frame rate; `--background` is the color alpha
- * templates are flattened over in non-alpha presets; `--in-point`/`--out-point` are the first and
- * last frame to render (inclusive), as timecode HH:MM:SS:FF, a frame number, or seconds like "2.5s".
- * `--aspect` picks one of the shapes the template draws for and `--size` the output size in pixels
- * (ADR 0012); without them a template renders at the size it declared, else its first aspect at 1080p.
- * `--platform <id>` (milestone 20) sets the aspect, size, frame rate and preset a platform asks for
- * in one go, and measures the finished file against that platform's length and file-size limits,
- * warning rather than refusing; `--preset`, `--aspect`, `--size` and `--fps` beside it win.
- * `--lut <file.cube>` (milestone 52) grades the whole render through the LUT, after any flattening
- * and before the preset's colour conversion.
- * `--captions` (milestone 50) says how a project's captions (`--param '@captions={…}'`) reach the
- * render: `burn` draws them into the picture (the default), `track` renders them on their own as an
- * alpha caption track beside it (`<name>-captions.mov`), `none` draws them nowhere; the SRT and
- * WebVTT files are written beside the video whichever is chosen.
- * `--library` adds template folders for this run only; they are not saved to settings.
- * `--frame-format png` uses the slower PNG pipe to ffmpeg, for comparison with the raw default.
- * The final line reports the elapsed time and frames per second.
+ * The command line (src/core/cli.ts holds the grammar, the help and the exit codes):
+ *   pulp render <template-id> --out <path> [options]
+ *   pulp collection <file.pulpcollection> --out <folder>
+ *   pulp sample-media <folder> [--types <type,type>]
+ *   pulp visual-hashes <file> [--check]
+ * `pulp help render` lists every option; the older `--render <id>` spelling is still read.
+ * In a checkout the command is `node bin/pulp.js …` (or `pulp …` after `npm link`); a packaged
+ * Pulp takes the same arguments on its own binary. What follows is the main process's half:
+ * values settled against the template, and the runners.
  */
 interface CliRender {
   templateId: string;
@@ -655,24 +630,16 @@ async function runVisualHashes(file: string, check: boolean): Promise<number> {
   return changed.length + missing.length + failed.length > 0 ? 1 : 0;
 }
 
-function parseCliRender(argv: string[]): CliRender | null {
-  const i = argv.indexOf('--render');
-  // --collection renders a saved file and --sample-media makes files; neither names a template of its own.
-  if (i === -1 && argv.indexOf('--collection') === -1 && argv.indexOf('--sample-media') === -1 && argv.indexOf('--visual-hashes') === -1) return null;
-  const get = (flag: string): string | undefined => {
-    const at = argv.indexOf(flag);
-    return at === -1 ? undefined : argv[at + 1];
-  };
-  const params: Record<string, string> = {};
-  const libraries: string[] = [];
-  argv.forEach((arg, idx) => {
-    if (arg === '--param') {
-      const pair = argv[idx + 1] ?? '';
-      const eq = pair.indexOf('=');
-      if (eq > 0) params[pair.slice(0, eq)] = pair.slice(eq + 1);
-    }
-    if (arg === '--library' && argv[idx + 1]) libraries.push(resolve(argv[idx + 1]!));
-  });
+/**
+ * The command the shell asked for (src/core/cli.ts), as the runners below take
+ * it: the syntax is the parser's; what a value means against the template —
+ * a timecode at its rate, a layer stack against its blocks — is settled in
+ * `runCliRender`, where the template is known.
+ */
+function cliRenderFrom(parsed: Extract<ParsedCli, { kind: 'command' }>): CliRender {
+  const get = (flag: string): string | undefined => parsed.values[flag];
+  const params: Record<string, string> = { ...parsed.params };
+  const libraries = parsed.libraries.map((folder) => resolve(folder));
   const frameTimeout = Number(get('--frame-timeout'));
   const frameFormat = get('--frame-format');
   const options: RenderOptions = {};
@@ -728,13 +695,10 @@ function parseCliRender(argv: string[]): CliRender | null {
   }
   const length = get('--length');
   const batch = get('--batch');
-  const collection = get('--collection');
-  const sampleMedia = get('--sample-media');
   const sampleTypes = get('--types');
-  const visualHashes = get('--visual-hashes');
   const exportEditPath = get('--export-edit');
   return {
-    templateId: argv[i + 1] ?? '',
+    templateId: parsed.command === 'render' ? parsed.target : '',
     presetId: get('--preset') ?? platformPresetId ?? 'prores-4444',
     out: get('--out') ?? '',
     ...(platformRaw !== undefined && !platform ? { unknownPlatform: platformRaw } : {}),
@@ -745,11 +709,11 @@ function parseCliRender(argv: string[]): CliRender | null {
     ...(length !== undefined ? { length } : {}),
     ...(inPoint !== undefined ? { inPoint } : {}),
     ...(batch !== undefined ? { batch: resolve(batch) } : {}),
-    ...(collection !== undefined ? { collection: resolve(collection) } : {}),
-    ...(sampleMedia !== undefined ? { sampleMedia: resolve(sampleMedia) } : {}),
+    ...(parsed.command === 'collection' ? { collection: resolve(parsed.target) } : {}),
+    ...(parsed.command === 'sample-media' ? { sampleMedia: resolve(parsed.target) } : {}),
     ...(sampleTypes !== undefined ? { sampleTypes: sampleTypes.split(',').map((t) => t.trim()).filter(Boolean) } : {}),
     ...(coverAt !== undefined ? { coverAt } : {}),
-    ...(visualHashes !== undefined ? { visualHashes: { file: resolve(visualHashes), check: argv.includes('--check') } } : {}),
+    ...(parsed.command === 'visual-hashes' ? { visualHashes: { file: resolve(parsed.target), check: parsed.switches.has('--check') } } : {}),
     ...(exportEditPath !== undefined ? { exportEdit: resolve(exportEditPath) } : {}),
     ...(outPoint !== undefined ? { outPoint } : {}),
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
@@ -1046,9 +1010,14 @@ async function runCliBatch(cli: CliRender, template: NonNullable<Awaited<ReturnT
   return failed === 0 ? 0 : 1;
 }
 
-const cli = parseCliRender(process.argv);
+// The command line (src/core/cli.ts): `pulp render …`, `pulp collection …`, help, the version, or
+// nothing, which opens the window. In development Electron puts the app path before the arguments.
+const parsedCli = parseCommandLine(process.argv.slice(process.defaultApp ? 2 : 1));
+const cli = parsedCli.kind === 'command' ? cliRenderFrom(parsedCli) : null;
+/** Anything asked of the command line — a command, help, the version, or a mistake — runs and exits without a window. */
+const cliMode = parsedCli.kind !== 'none';
 
-if (!cli) {
+if (!cliMode) {
   // macOS hands a double-clicked file over as an event — before `ready` when the file is what
   // launched the app, which is why this is registered here and the path is kept until the
   // window asks for it.
@@ -1088,10 +1057,22 @@ app.whenReady().then(async () => {
   // A build fetched in an earlier session is found from here on, by the window and by a
   // headless render alike — before the command line runs, since that renders too.
   await registerManagedFfmpeg();
-  if (cli) {
+  if (cliMode) {
     app.dock?.hide();
     useInMemoryLibrary();
-    const code = await runCliRender(cli);
+    let code: number;
+    if (parsedCli.kind === 'help') {
+      process.stdout.write(helpText(parsedCli.command));
+      code = EXIT_CODES.ok;
+    } else if (parsedCli.kind === 'version') {
+      process.stdout.write(`pulp ${app.getVersion()}\n`);
+      code = EXIT_CODES.ok;
+    } else if (parsedCli.kind === 'usage-error') {
+      process.stderr.write(usageErrorText(parsedCli));
+      code = EXIT_CODES.usage;
+    } else {
+      code = await runCliRender(cli!);
+    }
     // What was printed reaches the pipe first: a run that prints hundreds of lines in a burst — the
     // sample-media generator skipping a folder that is already made — leaves them queued, and
     // app.exit drops the queue, so the run's own summary line never arrived on the Linux runner.
@@ -1125,6 +1106,6 @@ app.whenReady().then(async () => {
 app.on('will-quit', () => closeLibrary());
 
 app.on('window-all-closed', () => {
-  if (cli) return;
+  if (cliMode) return;
   if (process.platform !== 'darwin') app.quit();
 });

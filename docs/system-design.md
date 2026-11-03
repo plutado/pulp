@@ -98,7 +98,7 @@ No Electron and no DOM. Modules marked "pure" also avoid Node APIs so the render
 
 ### src/main
 
-- `index.ts`: app lifecycle, main window, IPC handlers, headless `--render` mode.
+- `index.ts`: app lifecycle, main window, IPC handlers, and the `pulp` command's runners (the grammar, help and exit codes are `src/core/cli.ts`; `bin/pulp.js` starts the built app with the arguments in a checkout).
 - `protocol.ts`: `pulp-template://<template-id>/<path>` handler. Resolves paths inside the template folder only (rejects traversal), injects the bridge into the entry page, sets the CSP and `no-store`.
 - `library-service.ts`: owns the persistent `LibraryStore`, serializes scans, keeps one watcher per online root, rescans on focus and when an offline root returns, and pushes `library:changed`. Headless mode switches it to an in-memory store.
 - `settings.ts`: `settings.json` in Electron's `userData` folder: library folders, recent colors and recently opened projects. Saved atomically (`core/atomic-file.ts`: temp file, fsync, rename) and changed through a queue (`updateSettings`) so concurrent changes are not lost. `PULP_USER_DATA` overrides the folder (tests).

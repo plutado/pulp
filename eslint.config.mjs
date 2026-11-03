@@ -17,6 +17,12 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser },
   },
   {
+    // The `pulp` command's launcher (bin/pulp.js): plain CommonJS run by Node before Electron starts.
+    files: ['bin/**/*.js'],
+    languageOptions: { globals: globals.node, sourceType: 'commonjs' },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+  {
     // The DOM-level component tests run in happy-dom, not in Node.
     files: ['tests/dom/**/*.ts'],
     languageOptions: { globals: globals.browser },

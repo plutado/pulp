@@ -7,6 +7,9 @@
   "author": "David Fugate",
   "desktopName": "pulp.desktop",
   "main": "out/main/index.js",
+  "bin": {
+    "pulp": "bin/pulp.js"
+  },
   "engines": {
     "node": ">=22"
   },
@@ -14,6 +17,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "pulp": "node bin/pulp.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "vitest run tests/e2e",

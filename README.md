@@ -75,7 +75,7 @@ The lower third animating in, holding and animating out (15 fps preview of the 3
 - Speed changes on the cut track: a **speed per cut** from ¼× to 4× with the **sound kept at its pitch**, **ramps** that rise or fall evenly across a cut, **freeze frames** that hold the frame under the playhead for a chosen time, and **smooth slow motion** that makes up the frames in between in the render — each from the cut's own menu, said on the cut, played in the preview, rendered as one file, and written into the exported edit as a time map and motion lines.
 - A second picture track: clips over the shots — a reaction in a corner, a cutaway, b-roll — dropped on the **picture track** lane at a moment, each a video layer placed and sized with the stage's handles, **cropped** at any edge and given a **border**, its sound in the mix, and written into the exported edit as a lane of its own with its transform and crop (FCPXML) and as V2 events (EDL), the graphics rendered without them so an editor gets the clips in place (decision record 0023).
 - Captions from what was said: a speech model runs **on this machine** — fetched once from its publisher after you say yes, checked against its checksum and kept beside your settings (decision record 0021) — and listens to the project's sound, the cut track's mix, an audio layer or a clip's own track. The words come back with the moment each was said and become a captions layer: lines broken by length and by the pauses between thoughts, each editable in the Parameters tab with its timings kept, split at the caret and merged with the line below. Three bundled caption styles draw them over the picture with the spoken word picked out, inside the band a caption belongs in at every shape; a caption style is an ordinary template, so you can write your own. A render burns them in, or renders them on their own as an alpha caption track for an editing app, and writes SRT and WebVTT beside the video either way. Nothing of your project is sent anywhere.
-- A headless command-line render mode (below).
+- A `pulp` command for scripting: `pulp render`, `pulp collection` and more, with help and exit codes (below).
 
 Not yet: stock library import, the rest of sound in a project, installers and signed builds, and verification on Windows. These are on the [roadmap](ROADMAP.md).
 
@@ -124,30 +124,36 @@ The first `npm run dev` downloads the Electron binary.
 
 If ffmpeg is installed somewhere unusual, set `PULP_FFMPEG_PATH` to the full path of the executable.
 
-### Headless rendering
+### The `pulp` command
 
-After `npm run build`, templates can be rendered without the UI:
-
-```sh
-npx electron . --render pulp.samples.lower-third-bar --preset prores-4444 \
-  --out renders/lower-third.mov --param "name=Sam Okafor" --param side=right
-```
-
-Preset ids: `prores-4444`, `prores-422hq`, `png-sequence`, `png-still`, `qt-animation`, `webm-vp9-alpha`, `h264-mp4`, and on macOS `hevc-alpha`.
-
-`--length <seconds>` runs the graphic for another length, for a template that declares an animate-in, a hold and an animate-out: the entrance and exit keep their designed speed and only the hold stretches. Seconds (`20`, `20s`) or timecode; a template that declares no structure keeps its fixed length and says so. `--in-point` and `--out-point` are then taken within that length. `--fps <rate>` samples the template at another frame rate, one of the standard rates 23.976, 24, 25, 29.97, 30, 47.952, 48, 50, 59.94, 60, 100, 119.88 and 120 (a 30 fps template rendered at 60 fps gets twice the frames, same duration). `--background #RRGGBB` is the color alpha templates are flattened over in presets without alpha (default black). `--in-point` and `--out-point` are the first and last frame to render, inclusive, counted at the output rate: timecode such as `00:00:02:00` (semicolons for drop-frame at 29.97 and 59.94, three frame digits at 100 fps and above), a frame number such as `60`, or seconds such as `2.5s`. PNG sequences are numbered with the frame indices they hold, so a render from frame 60 starts at `_00060.png`. `--batch file.csv` renders one output per CSV row into the `--out` folder: headers match a parameter id or label (any case) or a layer's id or label (its words, or the clip a video layer plays), a `<layer> settings` column takes the rest of what a layer can be given as JSON (`{"span":{"start":2},"look":{"opacity":0.5}}`), a `name` column names the files, and unknown columns are reported before rendering. `--cover-at <tc|frame>` writes a still of that frame beside the render as `<name>-cover.png`, at the render's own size, for a thumbnail. `--platform <id>` (`tiktok`, `instagram-reels`, `instagram-feed`, `youtube-shorts`, `youtube`, `x`, `linkedin`, `facebook-feed`) sets the aspect, size, frame rate and preset that platform asks for in one go and measures the finished file against its length and file-size limits, warning rather than refusing; `--preset`, `--aspect`, `--size` and `--fps` given beside it win. `--library <folder>` adds a template folder for that run only (repeatable; not saved to settings). `--frame-timeout <seconds>` changes how long one frame may take before the template is treated as hung (default 10).
-
-A template declares the shapes it draws for, not a pixel size, so the size is chosen here: `--aspect 9:16` picks one of the aspects the template supports (refused with the list if it does not), and `--size 1080x1920` an exact size, which must be of that aspect. With neither, the template's default size is used.
-
-Two more entry points take no `--render`:
+Everything the window renders can be rendered from a terminal, without opening it. In a checkout, after `npm run build`:
 
 ```sh
-npx electron . --collection show.pulpcollection --out renders/   # each item with its own settings
-npx electron . --sample-media "~/Pulp sample media"              # write the CC0 catalogue
-npx electron . --sample-media "~/Pulp sample media" --types shapes,arrows   # just those types
+node bin/pulp.js help                 # the commands
+npm link && pulp help render          # or make it a real `pulp` on your PATH
 ```
 
-`--collection <file>` renders a saved collection, naming and skipping what the library cannot answer for rather than failing the lot. `--param '@track={"cuts":[…]}'` gives a render its cut track, and `--export-edit <base>` writes the track as FCPXML and an EDL with the graphics rendered with alpha beside them, instead of a render. `--sample-media <folder>` writes the 626-file CC0 catalogue of sounds, music, stills, clips and assets, skipping whatever is already there, so running it again only fills gaps.
+A packaged Pulp takes the same arguments on its own binary (`Pulp.app/Contents/MacOS/Pulp render …`, `Pulp.exe render …`, `pulp.AppImage render …`). The older spelling, `--render <id>` as a flag on the app, is still read.
+
+```sh
+pulp render pulp.samples.lower-third-bar --out renders/strap.mov --param "name=Sam Okafor" --param side=right
+pulp render pulp.samples.diagonal-wipe --preset png-sequence --out renders/wipe --param @sound=sharp
+pulp render pulp.samples.title-card --platform youtube-shorts --out renders/title.mp4
+pulp collection show.pulpcollection --out renders/        # each item with its own settings
+pulp sample-media "~/Pulp sample media" --types shapes,arrows
+```
+
+| Command | What it does |
+|---|---|
+| `pulp render <template-id> --out <path> [options]` | One render: a video, a still, an image sequence, a CSV batch (`--batch file.csv` into the `--out` folder), or the edit exported for an editing app (`--export-edit <base>`). |
+| `pulp collection <file.pulpcollection> --out <folder>` | Every item of a saved collection, each with the settings its card carries; what the library cannot answer for is named and skipped. |
+| `pulp sample-media <folder> [--types <type,type>]` | The CC0 sample-media catalogue — sounds, music, stills, clips, assets — written into a folder, skipping what is already there. |
+| `pulp visual-hashes <file> [--check]` | The visual regression references for the bundled templates, written or checked. |
+| `pulp help [command]`, `pulp version` | The help, and the version. |
+
+`pulp help render` lists every option. The ones you will reach for: `--preset` (`prores-4444` by default, `prores-422hq`, `qt-animation`, `webm-vp9-alpha`, `h264-mp4`, `hevc-alpha` on macOS, `png-sequence`, `png-still`); `--param key=value`, repeatable, with `@layers`, `@track`, `@captions` and `@sound` taking their JSON or value; `--length <seconds|tc>` for a template that declares what may stretch; `--fps <rate>`; `--aspect` and `--size`; `--platform <id>` to set the aspect, size, rate and preset a platform asks for and be warned past its limits; `--background #RRGGBB` for flattening; `--in-point`, `--out-point` and `--cover-at` as timecode, a frame number or seconds such as `2.5s`; `--lut <file.cube>`; `--captions burn|track|none`; `--stems mix|files`; `--library <folder>` to add templates for that run only; `--frame-timeout <seconds>`.
+
+Exit codes are what a script needs: **0** the work was done; **1** the work failed — ffmpeg refused, a template threw, an item of a collection or a row of a batch did not render; **2** the command line was wrong — an unknown command or option, a missing value, a template, preset or platform that is not known. A usage error says which command it was about and where to read more; the last line of a render reports what was written, the frames per second and the main process's peak memory.
 
 ## Project layout
 

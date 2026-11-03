@@ -2246,6 +2246,47 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await probeAudio(join(out, 'swoosh-seq-audio.wav')))?.codec_name).toBe('pcm_s16le');
   }, 240_000);
 
+  it('is a proper pulp command: subcommands, help, the version, and exit codes a script can read (milestone 8)', async () => {
+    const pulp = (args: string[]) => runBounded(electron!, ['.', ...args], { cwd: ROOT, timeoutMs: 120_000 });
+    // Help and the version print and exit clean.
+    const help = await pulp(['help']);
+    expect(help.code, help.stderr).toBe(0);
+    expect(help.stdout).toContain('Usage: pulp <command> [arguments]');
+    expect(help.stdout).toContain('  render ');
+    expect(help.stdout).toContain('Exit codes: 0 the work was done');
+    const renderHelp = await pulp(['help', 'render']);
+    expect(renderHelp.code).toBe(0);
+    expect(renderHelp.stdout).toContain('Usage: pulp render <template-id> --out <path> [options]');
+    expect(renderHelp.stdout).toContain('--stems mix|files');
+    const version = await pulp(['--version']);
+    expect(version.code).toBe(0);
+    expect(version.stdout.trim()).toMatch(/^pulp \d+\.\d+\.\d+/);
+
+    // A wrong command line is exit 2, says what was wrong and where to read more, and renders nothing.
+    const unknown = await pulp(['frobnicate']);
+    expect(unknown.code).toBe(2);
+    expect(unknown.stderr).toContain('pulp: unknown command "frobnicate"');
+    expect(unknown.stderr).toContain('Run "pulp help" for the commands.');
+    const option = await pulp(['render', 'pulp.samples.title-card', '--out', join(out, 'never.mov'), '--bogus', '1']);
+    expect(option.code).toBe(2);
+    expect(option.stderr).toContain('pulp render: unknown option "--bogus"');
+    expect(option.stderr).toContain('Run "pulp help render" for its options.');
+    expect(existsSync(join(out, 'never.mov'))).toBe(false);
+    const missing = await pulp(['render', 'no.such.template', '--out', join(out, 'never.mov')]);
+    expect(missing.code).toBe(2);
+    expect(missing.stderr).toContain('Template "no.such.template" not found.');
+
+    // The subcommand form renders exactly as the older flag form does.
+    const still = await pulp(['render', 'pulp.samples.title-card', '--preset', 'png-still', '--out', join(out, 'command-form.png')]);
+    expect(still.code, still.stderr).toBe(0);
+    expect(still.stdout).toContain('wrote ');
+    expect(existsSync(join(out, 'command-form.png'))).toBe(true);
+    // And a collection that cannot be read is a usage error too, not a crash.
+    const collection = await pulp(['collection', join(out, 'no-such.pulpcollection'), '--out', join(out, 'collection-out')]);
+    expect(collection.code).toBe(2);
+    expect(collection.stderr).toContain('Could not read');
+  }, 300_000);
+
   it('renders H.264 without alpha', async () => {
     const result = await render('pulp.samples.title-card', 'h264-mp4', 'title.mp4');
     expect(result.code, result.stderr).toBe(0);
