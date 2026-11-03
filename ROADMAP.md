@@ -74,9 +74,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 57. A second picture track (post-1.0, **done**) | 16-26 h |
 | 58. Reliability, scale and speed (post-1.0, **done**) | 16-28 h |
 | 59. Languages and locale (post-1.0) | 26-46 h |
+| 60. A start screen with a clear way in (post-1.0) | 12-20 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **35-59 h** |
-| **Total including post-1.0 items** | **906-1481 h** |
+| **Total including post-1.0 items** | **918-1501 h** |
 
 ## 0. Foundation (done)
 
@@ -778,3 +779,14 @@ Decided 2026-11-03. Pulp speaks one language today, with its words written into 
 - [ ] **A first language beyond English**, complete, checked by a fluent speaker before it ships, and a pseudo-locale that lengthens every string so a layout that clips long words is caught by a test (4-8 h)
 - [ ] **Right-to-left and complex scripts:** the interface mirrored for a right-to-left language, and text layers that shape Arabic, Hebrew and Indic scripts correctly in the preview and the render alike (Noto Sans is bundled) (4-7 h)
 - [ ] **For translators:** how to add a language, what a message id means, and how a catalog is checked for missing and unused strings (2-3 h)
+
+## 60. A start screen with a clear way in (12-20 h, after 1.0)
+
+Decided 2026-11-03. Milestone 31's start screen does everything it promised, but it shows it all at once: three equal columns of buttons that look the same, sixteen chips for shapes and platforms, examples with empty thumbnails, and nothing that says where to begin. This redesigns it around the few ways a person actually starts, so it looks balanced, clean and modern and the next step is obvious at a glance. Nothing milestone 31 offers is removed; it is placed by importance.
+
+- [ ] **One lead and a clear order:** a short welcome with one primary action, **New project**, drawn larger and in the accent, with Open beside it as a secondary button; below it, a few clearly separated sections, each with a heading and a one-line description: **Continue** (recent projects), **Start from an idea** (what are you making and the example projects, merged into one gallery), and **Learn**. A type scale with distinct sizes and weights for the page title, section headings, card titles and body text; one primary button style, one secondary, and plain text links for the least important choices; spacing on one grid; the content centered at a readable width and balanced across the window, so nothing sits as a long column of buttons (3-5 h)
+- [ ] **Shapes and platforms without the chips:** New project offers the four shapes as small tiles drawn in their own proportions (16:9, 9:16, 1:1, 4:5), with the platforms in one "For a platform" list beside them, not sixteen separate buttons (2-3 h)
+- [ ] **Visual elements that carry meaning:** every example and idea card shows a real picture of what it makes (its poster frame, and the hover scrub milestone 12 gives the browse cards), recent projects show their thumbnails at a size that can be recognized, and each section has an icon from the bundled icon set; nothing decorative that says nothing (3-5 h)
+- [ ] **First run and returning, each with its own arrangement:** on a first launch the set-up checklist is a single card with its progress ("2 of 3 done") near the top, and Continue is replaced by a short invitation to start; once set up, the checklist leaves the screen (still reachable from Help), and Continue leads with the most recent work. The library at a glance becomes one quiet line, not a block (2-4 h)
+- [ ] **Holds up at every size and in both themes:** at 1280 × 788 the welcome, New project and the first row of every section are visible without scrolling; light and dark themes both read with WCAG AA contrast; the keyboard order follows the visual order (1-2 h)
+- [ ] **Tests:** visual references of the first-run and returning screens in both themes, a unit test that New project is the only primary button, and the UI end-to-end test walking each path from the screen into the window (1 h)
