@@ -24,6 +24,7 @@ import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
+import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
 import { categoryInfo } from '../../src/core/categories';
 import { ffmpegArgs, killTree, runBounded } from './process';
 
@@ -457,8 +458,14 @@ describe.skipIf(!electron)('inspector UI', () => {
     // opening a folder dialog, which cannot be driven from the protocol.
     sampleRoot = join(userData, 'Sample media');
     await mkdir(sampleRoot, { recursive: true });
-    // The editor panel's bridge is on, so its describe can speak to the app from outside (milestone 54).
-    await writeFile(join(userData, 'settings.json'), JSON.stringify({ libraryFolders: [mediaDir], showStartScreen: false, sampleMediaRoot: sampleRoot, editorPanel: true }));
+    // The editor panel's bridge is on, so its describe can speak to the app from outside (milestone 54);
+    // one bundled example is seeded as a recent project, so Continue has a card to lead with (milestone 60).
+    await writeFile(join(userData, 'settings.json'), JSON.stringify({
+      // The empty sample-media folder is a root too, so this install reads as set up (milestone 60's returning arrangement).
+      libraryFolders: [mediaDir, sampleRoot], showStartScreen: false, sampleMediaRoot: sampleRoot, editorPanel: true,
+      recentProjects: [join(ROOT, 'examples', 'interview.pulp')],
+      recentProjectTimes: { [join(ROOT, 'examples', 'interview.pulp')]: new Date().toISOString() },
+    }));
     // A font already imported: a real TTF in the managed folder under a family of its own, with a
     // license note, as fonts:import would leave it. The import dialog itself cannot be driven here.
     await mkdir(join(userData, 'fonts'), { recursive: true });
@@ -6249,76 +6256,138 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 300_000);
   });
 
-  describe('the start screen (milestone 31)', () => {
-    it('shows from File → Home, opens an example as a copy, and leads into browse', async () => {
-      // A clean session first, so nothing below has to answer the unsaved question.
-      await page.eval(`window.pulpMenuCommand('project.new')`);
-      await until(
-        () => page.eval<boolean>(
-          `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
-            return document.querySelectorAll('#collection .collection-card').length === 0; })()`,
-        ),
-        'a clean session',
-      );
-
-      // The suite launches with "show at startup" off (the seeded settings.json); Home shows it anyway.
-      expect(await page.eval<boolean>(`document.getElementById('start-screen').hidden`)).toBe(true);
+  describe('the start screen (milestone 31, redesigned by milestone 60)', () => {
+    const home = async () => {
       await page.eval(`window.pulpMenuCommand('app.home')`);
-      await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'the start screen from File → Home');
-      // The box is filled from the saved preference once it arrives, a moment after the screen shows.
-      await until(() => page.eval<boolean>(`!document.getElementById('start-show-at-startup').checked`), 'show at startup read as off');
-
-      // The bundled examples are listed, and opening one opens a copy: the example's items arrive,
-      // the project takes its name, and there is no path — Save will ask where.
-      await until(async () => (await page.eval<number>(`document.querySelectorAll('#start-examples .start-card').length`)) >= 4, 'the example projects listed');
-      const exampleName = await page.eval<string>(`document.querySelector('#start-examples .start-card .start-card-name').textContent`);
-      await page.eval(`document.querySelector('#start-examples .start-card').click()`);
-      await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'the screen closed by opening an example');
-      await until(async () => (await page.eval<number>(`document.querySelectorAll('#collection .collection-card').length`)) > 0, 'the example items in the tray');
-      expect(await page.eval<string>(`document.querySelector('#project-button .label').textContent`)).toBe(exampleName);
-      expect(await page.eval<string>(`document.getElementById('project-button').title`)).toBe('Not saved anywhere yet');
-
-      // Back home: the setup checklist is there, and "What are you making?" lands on a browse category.
-      await page.eval(`window.pulpMenuCommand('app.home')`);
-      await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'home again');
-      await until(async () => (await page.eval<number>(`document.querySelectorAll('#start-checklist li').length`)) === 3, 'the setup checklist');
-      await until(async () => (await page.eval<number>(`document.querySelectorAll('#start-making .start-card').length`)) >= 4, 'the making choices');
-      await page.eval(`document.querySelector('#start-making .start-card').click()`);
-      await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'the screen closed by a making choice');
-      await until(() => page.eval<boolean>(`!document.getElementById('scope-chip').hidden`), 'the browse scope set');
-      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower thirds');
-
-      // Escape closes it too, and the session is left as the choice set it.
-      await page.eval(`window.pulpMenuCommand('app.home')`);
-      await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'home once more');
-      await page.eval(`document.getElementById('start-close').click()`);
-      await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'closed');
-      await page.eval(`document.getElementById('scope-chip-clear').click()`);
-      await until(() => page.eval<boolean>(`document.getElementById('scope-chip').hidden`), 'the scope cleared again');
-      // The making choice set "For…" as well as the scope, and clearing the scope keeps it; the
-      // tests after this one expect the whole library, so it goes too.
-      await fire('#for-select', '', 'change');
-      await until(() => page.eval<boolean>(`document.getElementById('for-select').value === ''`), 'For… cleared');
+      await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'the start screen');
+    };
+    const cleanSession = async () => {
       await page.eval(`window.pulpMenuCommand('project.new')`);
       await until(
         () => page.eval<boolean>(
           `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
             return document.querySelector('#project-button .label').textContent === 'Untitled'; })()`,
         ),
-        'a clean session left behind',
+        'a clean session',
       );
-    }, 90_000);
+    };
 
-    it('starts a new project for a platform, and every item opens set up for it (milestone 20)', async () => {
-      await page.eval(`window.pulpMenuCommand('app.home')`);
-      await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'the start screen');
-      await until(async () => (await page.eval<number>(`document.querySelectorAll('#start-platforms button').length`)) >= 4, 'the platforms beside the shapes');
+    it('leads with New project — the one primary — and arranges a first run and a returning user differently', async () => {
+      await cleanSession();
+      await home();
+      // One lead action, focused for the keyboard; Open beside it as the one secondary.
+      expect(await page.eval<number>(`document.querySelectorAll('#start-screen .primary').length`)).toBe(1);
+      expect(await page.eval<string>(`document.querySelector('#start-screen .primary').id`)).toBe('start-new-blank');
+      await until(() => page.eval<boolean>(`document.activeElement === document.getElementById('start-new-blank')`), 'the lead focused');
+      expect(await page.eval<boolean>(`!!document.getElementById('start-open')`)).toBe(true);
+      // Nothing on the screen jumps the keyboard order: the DOM order is the visual order.
+      expect(await page.eval<number>(`[...document.querySelectorAll('#start-screen [tabindex]')].filter((el) => Number(el.tabIndex) > 0).length`)).toBe(0);
+
+      // This suite's app is set up (ffmpeg, a folder, sample media root), so the checklist has left
+      // the screen, Continue leads with the seeded recent, and the glance is one quiet line.
+      await until(() => page.eval<boolean>(`document.getElementById('start-setup-card').hidden`), 'the checklist gone once set up');
+      // The suite's own tests may have opened projects of their own; the seeded one is among them.
+      const interviewCard = `[...document.querySelectorAll('#start-recent .start-recent-card')].find((c) => c.querySelector('.start-card-name').textContent === 'interview')`;
+      await until(() => page.eval<boolean>(`!!(${interviewCard})`), 'the seeded recent to continue');
+      expect(await page.eval<string>(`(${interviewCard}).querySelector('.start-card-meta').textContent`)).toBe('Today');
+      expect(await page.eval<boolean>(`document.getElementById('start-invite').hidden`)).toBe(true);
+      expect(await page.eval<string>(`document.getElementById('start-glance').textContent`)).toContain('templates');
+
+      // Help still reaches the checklist once it has left the screen.
+      await page.eval(`window.pulpMenuCommand('help.setup')`);
+      await until(() => page.eval<boolean>(`!document.getElementById('start-setup-card').hidden`), 'the checklist back from Help');
+      expect(await page.eval<string>(`document.getElementById('start-progress').textContent`)).toBe('3 of 3 done');
+      expect(await page.eval<number>(`document.querySelectorAll('#start-checklist li').length`)).toBe(3);
+
+      // A first run, as the forced arrangement the visual references use: the checklist is a card
+      // near the top with its progress, and Continue gives way to a short invitation.
+      await page.eval(`window.pulpStartScreen(true, 'first-run')`);
+      await until(() => page.eval<boolean>(`!document.getElementById('start-setup-card').hidden && !document.getElementById('start-invite').hidden`), 'the first-run arrangement');
+      expect(await page.eval<string>(`document.getElementById('start-progress').textContent`)).toBe('1 of 3 done');
+      expect(await page.eval<number>(`document.querySelectorAll('#start-recent .start-recent-card').length`)).toBe(0);
+      await page.eval(`window.pulpStartScreen(false)`);
+      await home();
+      const interviewBack = `[...document.querySelectorAll('#start-recent .start-recent-card')].find((c) => c.querySelector('.start-card-name').textContent === 'interview')`;
+      await until(() => page.eval<boolean>(`!!(${interviewBack})`), 'Continue back after the forced arrangement');
+
+      // At the default 1280 × 788 the welcome, the lead and the first row of every section are
+      // visible without scrolling.
+      const fits = await page.eval<Record<string, number>>(`(() => {
+        const bottom = (el) => el ? el.getBoundingClientRect().bottom : -1;
+        return {
+          window: window.innerHeight,
+          lead: bottom(document.getElementById('start-new-blank')),
+          continueRow: bottom(document.querySelector('#start-recent .start-recent-card') || document.getElementById('start-invite')),
+          idea: bottom(document.querySelector('#start-ideas .start-idea')),
+          learn: bottom(document.getElementById('start-tour')),
+        };
+      })()`);
+      for (const part of ['lead', 'continueRow', 'idea', 'learn'] as const) {
+        expect(fits[part]!, `${part} visible without scrolling`).toBeGreaterThan(0);
+        expect(fits[part]!, `${part} visible without scrolling`).toBeLessThanOrEqual(fits.window!);
+      }
+
+      // Continue opens the seeded recent.
+      await page.eval(`(${interviewBack}).click()`);
+      await until(
+        () => page.eval<boolean>(
+          `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
+            return document.getElementById('start-screen').hidden && document.querySelector('#project-button .label').textContent === 'interview'; })()`,
+        ),
+        'the recent project open',
+      );
+      await cleanSession();
+    }, 120_000);
+
+    it('starts from an idea: the gallery wears real pictures, an idea lands in browse, an example opens as a copy', async () => {
+      await home();
+      // One gallery: five ideas and the bundled examples, each card wearing a poster.
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#start-ideas .start-idea').length`)) >= 9, 'the merged gallery');
+      // Every card wears a picture well; the idea cards pick a template whose thumbnail is already
+      // made, so theirs are real images at once — the examples' fill in as the queue reaches them.
+      expect(await page.eval<boolean>(`[...document.querySelectorAll('#start-ideas .start-idea')].every((card) => !!card.querySelector('.start-idea-pic'))`)).toBe(true);
+      await until(
+        async () => (await page.eval<number>(`document.querySelectorAll('#start-ideas .start-idea-pic[data-pictured]').length`)) >= 11,
+        'real pictures on every card — the poster, or the hover strip made on demand',
+        120_000,
+      );
+      // An example opens as a copy: the items arrive, the project takes its name, no path yet.
+      const exampleName = await page.eval<string>(`document.querySelector('#start-ideas .start-example .start-card-name').textContent`);
+      await page.eval(`document.querySelector('#start-ideas .start-example').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'the screen closed by the example');
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#collection .collection-card').length`)) > 0, 'the example items in the tray');
+      expect(await page.eval<string>(`document.querySelector('#project-button .label').textContent`)).toBe(exampleName);
+      expect(await page.eval<string>(`document.getElementById('project-button').title`)).toBe('Not saved anywhere yet');
+
+      // An idea lands in browse with its scope set.
+      await home();
+      await page.eval(`document.querySelector('#start-ideas .start-idea:not(.start-example)').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'the screen closed by the idea');
+      await until(() => page.eval<boolean>(`!document.getElementById('scope-chip').hidden`), 'the browse scope set');
+      expect(await page.eval<string>(`document.getElementById('scope-chip-label').textContent`)).toBe('in: Lower thirds');
+      await page.eval(`document.getElementById('scope-chip-clear').click()`);
+      await fire('#for-select', '', 'change');
+
+      // Escape still closes it, and the shapes are tiles drawn in their own proportions.
+      await home();
+      const shapes = await page.eval<{ label: string; ratio: number }[]>(`[...document.querySelectorAll('#start-shapes .start-shape')].map((b) => { const box = b.querySelector('.shape-box').getBoundingClientRect(); return { label: b.textContent.trim(), ratio: box.width / box.height }; })`);
+      expect(shapes.map((s2) => s2.label)).toEqual(['16:9', '9:16', '1:1', '4:5']);
+      expect(shapes[0]!.ratio).toBeGreaterThan(1.3);
+      expect(shapes[1]!.ratio).toBeLessThan(0.8);
+      await page.eval(`document.getElementById('start-close').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'closed');
+      await cleanSession();
+    }, 120_000);
+
+    it('starts a new project for a platform from the one list, and every item opens set up for it (milestone 20)', async () => {
+      await home();
+      await until(async () => (await page.eval<number>(`document.querySelectorAll('#start-platform-select option').length`)) >= 5, 'the platforms as one list');
       expect(
         await page.eval<string>(`document.getElementById('start-platforms-note').textContent`),
         'the date the limits were read',
       ).toContain('limits checked');
 
-      await page.eval(`[...document.querySelectorAll('#start-platforms button')].find((b) => b.textContent === 'TikTok').click()`);
+      await fire('#start-platform-select', 'tiktok', 'change');
       await until(
         () => page.eval<boolean>(
           `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
@@ -6342,15 +6411,57 @@ describe.skipIf(!electron)('inspector UI', () => {
       await fire('#opt-platform', '', 'change');
       await fire('#opt-fps', '', 'change');
       await openTab('parameters');
-      await page.eval(`window.pulpMenuCommand('project.new')`);
-      await until(
-        () => page.eval<boolean>(
-          `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
-            return document.querySelector('#project-button .label').textContent === 'Untitled'; })()`,
-        ),
-        'a clean session left behind',
-      );
+      await cleanSession();
     }, 90_000);
+
+    it('holds its visual references in both themes, first run and returning (milestone 60)', async () => {
+      const REFS = join(ROOT, 'tests', 'visual', 'start-screen.json');
+      // Everything the screen shows settles first, so the capture is the screen, not a race.
+      await home();
+      await until(
+        async () => (await page.eval<number>(`document.querySelectorAll('#start-ideas .start-idea-pic[data-pictured]').length`)) >= 11,
+        'the gallery pictures made',
+        120_000,
+      );
+      await page.send('Page.enable');
+      const capture = async (mode: 'first-run' | 'returning', scheme: 'dark' | 'light') => {
+        await page.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] });
+        await page.eval(`window.pulpStartScreen(true, ${JSON.stringify(mode)})`);
+        await until(() => page.eval<boolean>(`document.getElementById('start-setup-card').hidden === ${mode === 'returning'}`), `the ${mode} arrangement`);
+        await sleep(350); // the paint after the theme and arrangement settle
+        const shot = (await page.send('Page.captureScreenshot', { format: 'png' })).result as { data: string };
+        const rgba = await page.eval<number[]>(`(async () => {
+          const img = new Image();
+          await new Promise((r, j) => { img.onload = r; img.onerror = j; img.src = 'data:image/png;base64,${shot.data}'; });
+          const c = document.createElement('canvas'); c.width = 64; c.height = 36;
+          const x = c.getContext('2d'); x.drawImage(img, 0, 0, 64, 36);
+          return [...x.getImageData(0, 0, 64, 36).data];
+        })()`, undefined, 60_000);
+        return frameHash(Uint8Array.from(rgba), 64, 36);
+      };
+      const hashes: Record<string, string> = {};
+      try {
+        for (const scheme of ['dark', 'light'] as const) {
+          for (const mode of ['first-run', 'returning'] as const) hashes[`${mode}-${scheme}`] = await capture(mode, scheme);
+        }
+      } finally {
+        await page.send('Emulation.setEmulatedMedia', { features: [] });
+        await page.eval(`window.pulpStartScreen(false)`);
+      }
+      // The two palettes really differ, and so do the two arrangements.
+      expect(hammingDistance(hashes['returning-dark']!, hashes['returning-light']!)).toBeGreaterThan(0);
+      expect(hammingDistance(hashes['first-run-dark']!, hashes['returning-dark']!)).toBeGreaterThan(0);
+      if (process.env.PULP_START_REFS === 'write') {
+        await writeFile(REFS, `${JSON.stringify(hashes, null, 2)}\n`);
+      } else if (process.platform === 'darwin') {
+        // The references were made on the platform the visual suite runs on; elsewhere the fonts differ.
+        const refs = JSON.parse(await readFile(REFS, 'utf8')) as Record<string, string>;
+        for (const key of Object.keys(refs)) {
+          expect(looksSame(hashes[key]!, refs[key]!), `${key}: ${hashes[key]!} vs reference ${refs[key]!}`).toBe(true);
+        }
+      }
+      await cleanSession();
+    }, 180_000);
   });
 
   describe('the blank canvas (milestone 55): composing from nothing with layers', () => {

@@ -30,6 +30,7 @@ export type MenuCommand =
   | 'project.new'
   | 'canvas.new'
   | 'canvas.saveTemplate'
+  | 'help.setup'
   | 'project.open'
   | 'project.openRecent'
   | 'project.save'
@@ -614,6 +615,8 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
     items: [
       { command: 'help.userGuide', label: 'User Guide' },
       { command: 'help.tour', label: 'Take the Tour' },
+      // The set-up checklist leaves the start screen once it is done (milestone 60); this is its home after.
+      { command: 'help.setup', label: 'Set-up Checklist' },
       { command: 'help.whatsNew', label: "What's New" },
       sep,
       { command: 'help.shortcuts', label: 'Keyboard Shortcuts' },

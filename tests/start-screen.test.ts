@@ -1,14 +1,18 @@
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ASPECT_IDS } from '../src/core/aspect';
 import { THEME_GROUPS } from '../src/core/taxonomy';
 import { categoryInfo, categoryScope } from '../src/core/categories';
-import type { LibraryEntry } from '../src/core/library-types';
+import type { LibraryEntry, LibraryIndex, TemplateEntry } from '../src/core/library-types';
 import { validManifest } from './fixtures';
 import {
   hasSampleMedia, lastOpenedLabel, MAKING_CHOICES, makingChoiceLanding, orderRecents, PROJECT_SHAPES, projectFileName,
   setupChecklist, TOUR_STEPS, type RecentProjectRow,
+  startArrangement,
+  checklistProgress,
+  ideaPicture,
 } from '../src/core/start-screen';
 
 const row = (over: Partial<RecentProjectRow>): RecentProjectRow => ({
@@ -102,5 +106,100 @@ describe('the start screen (milestone 31)', () => {
       expect(step.title).not.toBe('');
       expect(step.body).not.toBe('');
     }
+  });
+});
+
+describe('the redesigned screen (milestone 60)', () => {
+  const items = (done: boolean[]) => done.map((d, i) => ({ id: (['ffmpeg', 'folder', 'samples'] as const)[i]!, label: '', done: d, action: '' }));
+
+  it('arranges a first run and a returning user differently, and says the progress', () => {
+    const firstRun = startArrangement(items([true, false, false]), 2);
+    expect(firstRun).toEqual({ firstRun: true, showContinue: false, showChecklist: true, progress: '1 of 3 done' });
+    const returning = startArrangement(items([true, true, true]), 2);
+    expect(returning).toEqual({ firstRun: false, showContinue: true, showChecklist: false, progress: '3 of 3 done' });
+    // Set up but nothing opened yet: no Continue, and no checklist either — the invitation carries it.
+    expect(startArrangement(items([true, true, true]), 0)).toMatchObject({ firstRun: false, showContinue: false, showChecklist: false });
+    // Help → Set-up Checklist brings the card back once it has left.
+    expect(startArrangement(items([true, true, true]), 2, true)).toMatchObject({ showChecklist: true });
+    expect(checklistProgress(items([true, false, true]))).toBe('2 of 3 done');
+  });
+
+  it('gives an idea card a real picture: a template from its category, the theme preferred, a thumbnail preferred', () => {
+    const lower = (id: string, over: Partial<TemplateEntry> = {}): TemplateEntry => ({
+      kind: 'template', key: id, id: `lib-${id}`, dir: `/t/${id}`, root: '/t', tags: [], warnings: [],
+      manifest: validManifest({ id: `test.${id}`, name: id, category: 'lower-third' }), ...over,
+    });
+    const index = (templates: TemplateEntry[]): LibraryIndex => ({ roots: ['/t'], templates, media: [], problems: [], builtAt: '' });
+    const interview = MAKING_CHOICES.find((c) => c.id === 'interview')!;
+    const plain = lower('plain');
+    const themed = lower('themed', { themes: ['podcast'] });
+    const themedWithThumb = lower('pictured', { themes: ['podcast'], thumbnail: 'pulp-thumb://lib-pictured/' });
+    expect(ideaPicture(interview, index([plain, themed, themedWithThumb]))?.id).toBe('lib-pictured');
+    expect(ideaPicture(interview, index([plain, themed]))?.id).toBe('lib-themed');
+    expect(ideaPicture(interview, index([plain]))?.id).toBe('lib-plain');
+    expect(ideaPicture(interview, index([]))).toBeUndefined();
+    expect(ideaPicture(interview, null)).toBeUndefined();
+  });
+});
+
+describe('the screen as the markup holds it (milestone 60)', () => {
+  const html = readFileSync(join(__dirname, '..', 'src', 'renderer', 'index.html'), 'utf8');
+  const screen = /<section id="start-screen"[\s\S]*?<\/section>\n(?=  <div id="tour-overlay")/.exec(html)?.[0] ?? '';
+
+  it('has exactly one primary button, and it is New project', () => {
+    expect(screen.length).toBeGreaterThan(0);
+    const primaries = [...screen.matchAll(/class="([^"]*\bprimary\b[^"]*)"/g)];
+    expect(primaries).toHaveLength(1);
+    expect(screen).toContain('id="start-new-blank" type="button" class="primary start-primary"');
+    // And one secondary beside it: Open.
+    expect(screen).toContain('id="start-open" type="button" class="start-secondary"');
+  });
+
+  it('orders the sections as the milestone reads: lead, set up, Continue, ideas, Learn', () => {
+    const order = ['start-lead', 'start-setup-card', 'start-continue', 'start-ideas-head', 'start-learn-head', 'start-foot'];
+    const at = order.map((id) => screen.indexOf(id));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+  });
+});
+
+describe('both palettes read (milestone 60)', () => {
+  const css = readFileSync(join(__dirname, '..', 'src', 'renderer', 'styles.css'), 'utf8');
+  const screenCss = css.slice(css.indexOf('.start-screen {'), css.indexOf('.start-inner'));
+  const darkBlock = screenCss.slice(0, screenCss.indexOf('@media'));
+  const lightBlock = screenCss.slice(screenCss.indexOf('@media'));
+
+  function tokens(block: string): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const m of block.matchAll(/(--s-[a-z0-9-]+):\s*(#[0-9a-fA-F]{6})/g)) out[m[1]!] = m[2]!.toLowerCase();
+    return out;
+  }
+
+  /** WCAG relative luminance and contrast ratio, computed rather than trusted. */
+  function luminance(hex: string): number {
+    const channel = (c: number) => {
+      const v = c / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    const n = parseInt(hex.slice(1), 16);
+    return 0.2126 * channel((n >> 16) & 255) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255);
+  }
+  function contrast(a: string, b: string): number {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  it.each([['dark', darkBlock], ['light', lightBlock]] as const)('%s: text and controls meet WCAG AA on every surface they sit on', (_name, block) => {
+    const t = tokens(block);
+    for (const key of ['--s-bg', '--s-panel', '--s-panel-2', '--s-text', '--s-text-2', '--s-muted', '--s-accent', '--s-on-accent']) {
+      expect(t[key], key).toBeDefined();
+    }
+    for (const surface of ['--s-bg', '--s-panel', '--s-panel-2']) {
+      expect(contrast(t['--s-text']!, t[surface]!), `text on ${surface}`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(t['--s-text-2']!, t[surface]!), `secondary text on ${surface}`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(t['--s-muted']!, t[surface]!), `muted on ${surface}`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(contrast(t['--s-on-accent']!, t['--s-accent']!), 'the primary button').toBeGreaterThanOrEqual(4.5);
+    expect(contrast(t['--s-danger']!, t['--s-panel']!), 'a missing project on its card').toBeGreaterThanOrEqual(4.5);
   });
 });

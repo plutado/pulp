@@ -7,7 +7,7 @@
 
 import { ASPECTS } from './aspect';
 import type { Scope } from './app-state';
-import type { LibraryEntry, LibraryIndex } from './library-types';
+import type { LibraryEntry, LibraryIndex, TemplateEntry } from './library-types';
 import { categoryInfo, categoryScope } from './categories';
 import { entryType } from './taxonomy';
 import { SAMPLE_MEDIA_FOLDER_NAME } from './sample-media';
@@ -121,6 +121,61 @@ export function setupChecklist(facts: SetupFacts): ChecklistItem[] {
       action: hasSampleMedia(facts.roots) ? '' : 'Sample media…',
     },
   ];
+}
+
+/**
+ * First run and returning, each with its own arrangement (milestone 60). The
+ * screen is arranged by two facts: whether the set-up checklist is finished,
+ * and whether there is work to continue. On a first run the checklist is a
+ * card near the top with its progress, and Continue gives way to a short
+ * invitation; once set up, the checklist leaves the screen (Help → Set-up
+ * Checklist still shows it) and Continue leads with the most recent work.
+ */
+export interface StartArrangement {
+  /** The checklist is not finished yet: the screen leads with getting set up. */
+  firstRun: boolean;
+  /** Continue is shown: there is recent work and the screen is not a first run. */
+  showContinue: boolean;
+  /** The set-up card is shown: a first run, or asked for from Help. */
+  showChecklist: boolean;
+  /** "2 of 3 done", for the card's head. */
+  progress: string;
+}
+
+export function checklistProgress(items: readonly ChecklistItem[]): string {
+  return `${items.filter((i) => i.done).length} of ${items.length} done`;
+}
+
+export function startArrangement(items: readonly ChecklistItem[], recents: number, checklistAsked = false): StartArrangement {
+  const firstRun = items.some((i) => !i.done);
+  return {
+    firstRun,
+    showContinue: !firstRun && recents > 0,
+    showChecklist: firstRun || checklistAsked,
+    progress: checklistProgress(items),
+  };
+}
+
+/**
+ * The real picture an idea card wears (milestone 60): a template from the
+ * category the choice leads into — one carrying the choice's theme where the
+ * library has one, any of the category's otherwise — preferring one whose
+ * thumbnail is already made, so the card shows what the idea makes rather
+ * than a label on an empty well.
+ */
+export function ideaPicture(choice: MakingChoice, index: LibraryIndex | null, preferMade = true): TemplateEntry | undefined {
+  if (!index) return undefined;
+  const category = categoryInfo(choice.category);
+  if (!category) return undefined;
+  const types = new Set(category.types);
+  const inCategory = index.templates.filter((t) => {
+    const type = entryType(t);
+    return type !== undefined && types.has(type);
+  });
+  const themed = inCategory.filter((t) => (t.themes ?? []).includes(choice.forTheme));
+  const pool = themed.length > 0 ? themed : inCategory;
+  // The references pin the pick to the pool's first, so a poster arriving later never moves it.
+  return preferMade ? pool.find((t) => t.thumbnail) ?? pool[0] : pool[0];
 }
 
 /** The library at a glance: counts, favorites, and the most common template categories. */

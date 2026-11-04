@@ -172,3 +172,15 @@ The browse panel is the worked example; anything with the same shape follows it.
 ## Enforcement
 
 A unit test, not a hope: it reads `index.html` and the display-name tables and fails on ALL CAPS display text, three-dot ellipses, raw ids in display strings, icon-only buttons without an `aria-label`, and `font-size` literals outside the token block in `styles.css`. Milestone 8's accessibility pass audits icon buttons and focus rings against this guide.
+
+## The start screen's palette (milestone 60)
+
+The working window is one dark palette. The start screen alone carries scoped
+tokens (`--s-*` on `.start-screen`) and follows the system's light or dark
+appearance through `prefers-color-scheme` — it is a welcome page, not an
+editing surface, so it may read like the platform around it while the stage
+keeps the dark surround a picture is judged against. Both palettes are held
+to WCAG AA by a computed unit test (tests/start-screen.test.ts); change a
+token and the test says which pair fell below. New project is the screen's
+only `primary`; Open is the one secondary; everything less important is a
+plain text link.

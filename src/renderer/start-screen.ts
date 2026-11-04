@@ -1,20 +1,28 @@
 /**
- * The start screen (milestone 31): shown at launch and from File → Home. Get
- * going (a new project — blank, by shape, or for a platform (milestone 20) —
- * and the example projects), the
- * recent projects with pins and relinking, Learn (the tour, what's new, the
- * shortcuts), set up and status, and "What are you making?" leading into the
- * browse categories. What it offers is pure (src/core/start-screen.ts); this
- * draws it over the window and runs the choices.
+ * The start screen, redesigned around the few ways a person actually starts
+ * (milestone 60; milestone 31 built what it offers). One lead action — New
+ * project, the screen's only primary button — with Open beside it, the four
+ * shapes as proportion tiles and the platforms as one list; then sections in
+ * reading order: Continue (recent projects with recognizable thumbnails),
+ * Start from an idea (the making choices and the example projects, one
+ * gallery of real pictures with the browse cards' hover scrub), and Learn.
+ * On a first run the set-up checklist is a card near the top with its
+ * progress and Continue gives way to an invitation; once set up the checklist
+ * leaves the screen (Help → Set-up Checklist still shows it). What it offers
+ * is pure (src/core/start-screen.ts); this draws it and runs the choices.
  */
 
 import { effect } from '@preact/signals';
 import { setFor, setLook, setScope } from '../core/app-state';
 import {
-  lastOpenedLabel, libraryGlance, MAKING_CHOICES, makingChoiceLanding, orderRecents, PROJECT_SHAPES, setupChecklist,
+  checklistProgress, ideaPicture, lastOpenedLabel, libraryGlance, MAKING_CHOICES, makingChoiceLanding, orderRecents,
+  PROJECT_SHAPES, setupChecklist, startArrangement,
 } from '../core/start-screen';
 import type { RecentProjectRow } from '../core/start-screen';
+import { HOVER_DWELL_MS, STRIP_FRAMES } from '../core/hover-scrub';
 import { limitsCheckedLabel, PLATFORM_PRESETS, platformSummary } from '../core/platform-presets';
+import { ASPECTS } from '../core/aspect';
+import type { TemplateEntry } from '../core/library-types';
 import { appState, dispatch, facets, preferredAspect, preferredPlatform } from './store';
 import { browseFoldToActive } from './browse';
 import { newProject, openExampleFrom, openProjectFrom } from './project';
@@ -24,7 +32,7 @@ import { runLibraryAdd } from './library-add';
 import { showWhatsNew } from './whats-new';
 import { showUserGuide } from './user-guide';
 import { startTour } from './tour';
-import { setIcon } from './icons';
+import { setIcon, type IconName } from './icons';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -40,67 +48,164 @@ export function hideStartScreen(): void {
   $('start-screen').hidden = true;
 }
 
-// ---------------------------------------------------------------- the lists
+// ---------------------------------------------------------------- pictures
 
-/** The thumbnail the library has for a template, by its manifest id. */
-function thumbnailFor(templateId: string | undefined): string | null {
-  if (!templateId) return null;
-  const entry = appState.value.index?.templates.find((t) => t.manifest.id === templateId);
-  return entry?.thumbnail ?? null;
+/** The library entry behind a template's manifest id, for its thumbnail and its hover strip. */
+function entryFor(templateId: string | undefined): TemplateEntry | undefined {
+  if (!templateId) return undefined;
+  return appState.value.index?.templates.find((t) => t.manifest.id === templateId);
 }
 
-/** A card's picture: the thumbnail where there is one, an empty well otherwise. */
-function thumbWell(templateId: string | undefined): HTMLElement {
-  const well = document.createElement('span');
-  well.className = 'start-thumb';
-  const url = thumbnailFor(templateId);
-  if (url) {
+/**
+ * A card's picture: the entry's poster thumbnail, and — the browse cards' own
+ * hover scrub (milestone 12) — eight frames of it under the pointer, the tile
+ * picked by where the pointer is across the picture.
+ */
+function pictureFor(entry: TemplateEntry | undefined, stripOnly = false): HTMLElement {
+  const pic = document.createElement('span');
+  pic.className = 'start-idea-pic';
+  if (!entry) return pic;
+  if (entry.thumbnail && !stripOnly) {
     const img = document.createElement('img');
-    img.src = url;
+    img.src = entry.thumbnail;
     img.alt = '';
-    well.append(img);
+    img.addEventListener('load', () => { pic.dataset.pictured = '1'; });
+    if (img.complete) pic.dataset.pictured = '1';
+    pic.append(img);
   }
-  return well;
+  const strip = document.createElement('span');
+  strip.className = 'strip';
+  pic.append(strip);
+  // No poster made yet: the hover strip is rendered on demand, and its first frame is the
+  // picture — a card never sits as an empty well waiting for the background queue (milestone 60).
+  if (!entry.thumbnail || stripOnly) {
+    void window.pulp.hoverStrip(entry.id).then((result) => {
+      if (!result.url || pic.querySelector('img')) return;
+      pic.style.backgroundImage = `url("${result.url}")`;
+      pic.style.backgroundSize = `${STRIP_FRAMES * 100}% 100%`;
+      pic.style.backgroundPosition = '0 0';
+      pic.dataset.pictured = '1';
+    });
+  }
+  let dwell: ReturnType<typeof setTimeout> | undefined;
+  let url: string | null | undefined;
+  const place = (e: PointerEvent) => {
+    const box = pic.getBoundingClientRect();
+    const across = Math.max(0, Math.min(0.999, (e.clientX - box.left) / Math.max(1, box.width)));
+    const tile = Math.floor(across * STRIP_FRAMES);
+    strip.style.backgroundPosition = `${(tile / (STRIP_FRAMES - 1)) * 100}% 0`;
+  };
+  pic.addEventListener('pointerenter', () => {
+    dwell = setTimeout(() => {
+      if (url === undefined) {
+        void window.pulp.hoverStrip(entry.id).then((result) => {
+          url = result.url;
+          if (url && pic.matches(':hover')) {
+            strip.style.backgroundImage = `url("${url}")`;
+            pic.classList.add('scrubbing');
+          }
+        });
+      } else if (url) {
+        strip.style.backgroundImage = `url("${url}")`;
+        pic.classList.add('scrubbing');
+      }
+    }, HOVER_DWELL_MS);
+  });
+  pic.addEventListener('pointermove', place);
+  pic.addEventListener('pointerleave', () => {
+    clearTimeout(dwell);
+    pic.classList.remove('scrubbing');
+  });
+  return pic;
 }
 
-async function fillExamples(): Promise<void> {
-  const list = $('start-examples');
-  const examples = await window.pulp.listExamples();
-  list.replaceChildren();
-  $('start-examples-empty').hidden = examples.length > 0;
-  for (const example of examples) {
-    const row = document.createElement('li');
-    const open = document.createElement('button');
-    open.type = 'button';
-    open.className = 'start-card';
-    open.append(thumbWell(example.thumbTemplateId));
-    const text = document.createElement('span');
-    text.className = 'start-card-text';
-    const name = document.createElement('span');
-    name.className = 'start-card-name';
-    name.textContent = example.name;
-    const meta = document.createElement('span');
-    meta.className = 'start-card-meta';
-    meta.textContent = example.description;
-    text.append(name, meta);
-    open.append(text);
-    open.addEventListener('click', () => {
-      void openExampleFrom(example.path).then((opened) => {
-        if (opened) hideStartScreen();
+// ---------------------------------------------------------------- the lead
+
+/** The four shapes as small tiles drawn in their own proportions, each starting a project leaning that way. */
+function fillShapes(): void {
+  const wrap = $('start-shapes');
+  wrap.replaceChildren();
+  for (const shape of PROJECT_SHAPES) {
+    const aspect = ASPECTS.find((a) => a.id === shape.id);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'start-shape';
+    button.setAttribute('aria-label', `New project at ${shape.id} (${shape.hint})`);
+    button.dataset.tip = `${shape.hint} · the Output tab opens set to ${shape.id}`;
+    const box = document.createElement('span');
+    box.className = 'shape-box';
+    const ratio = aspect ? aspect.w / aspect.h : 1;
+    box.style.width = `${Math.round(24 * Math.max(0.5, ratio))}px`;
+    const label = document.createElement('span');
+    label.textContent = shape.id;
+    button.append(box, label);
+    button.addEventListener('click', () => {
+      void newProject().then((made) => {
+        if (!made) return;
+        preferredAspect.value = shape.id;
+        preferredPlatform.value = null;
+        hideStartScreen();
       });
     });
-    row.append(open);
-    list.append(row);
+    wrap.append(button);
   }
 }
+
+/** The platforms as one list (milestone 60), not sixteen buttons: choosing one starts the project leaning on it. */
+function fillPlatforms(): void {
+  const select = $<HTMLSelectElement>('start-platform-select');
+  select.replaceChildren();
+  const head = document.createElement('option');
+  head.value = '';
+  head.textContent = 'Choose…';
+  select.append(head);
+  for (const platform of PLATFORM_PRESETS) {
+    const option = document.createElement('option');
+    option.value = platform.id;
+    option.textContent = platform.label;
+    option.title = `${platform.hint} · ${platformSummary(platform)}`;
+    select.append(option);
+  }
+  select.addEventListener('change', () => {
+    const platform = PLATFORM_PRESETS.find((p) => p.id === select.value);
+    if (!platform) return;
+    select.value = '';
+    void newProject().then((made) => {
+      if (!made) return;
+      preferredAspect.value = platform.aspect;
+      preferredPlatform.value = platform.id;
+      hideStartScreen();
+    });
+  });
+  $('start-platforms-note').textContent = `A platform sets the aspect, size, frame rate and encoder; limits ${limitsCheckedLabel()}.`;
+}
+
+// ---------------------------------------------------------------- continue
 
 function recentRow(row: RecentProjectRow): HTMLLIElement {
   const li = document.createElement('li');
   const open = document.createElement('button');
   open.type = 'button';
-  open.className = 'start-card';
+  open.className = 'start-recent-card';
   open.title = row.path;
-  open.append(thumbWell(row.thumbTemplateId));
+  const well = document.createElement('span');
+  well.className = 'start-thumb';
+  const entry = entryFor(row.thumbTemplateId);
+  if (entry?.thumbnail && !forcedMode) {
+    const img = document.createElement('img');
+    img.src = entry.thumbnail;
+    img.alt = '';
+    well.append(img);
+  } else if (entry) {
+    // The poster is not made yet: the hover strip's first frame stands in, made on demand.
+    void window.pulp.hoverStrip(entry.id).then((result) => {
+      if (!result.url || well.querySelector('img')) return;
+      well.style.backgroundImage = `url("${result.url}")`;
+      well.style.backgroundSize = `${STRIP_FRAMES * 100}% 100%`;
+      well.style.backgroundPosition = '0 0';
+    });
+  }
+  open.append(well);
   const text = document.createElement('span');
   text.className = 'start-card-text';
   const name = document.createElement('span');
@@ -117,10 +222,11 @@ function recentRow(row: RecentProjectRow): HTMLLIElement {
     open.disabled = true;
     const relink = document.createElement('button');
     relink.type = 'button';
+    relink.className = 'start-relink';
     relink.textContent = 'Relink…';
     relink.addEventListener('click', () => {
       void window.pulp.relinkRecentProject(row.path).then((result) => {
-        if (result.ok) void fillRecents();
+        if (result.ok) void arrange();
       });
     });
     li.append(open, relink);
@@ -128,7 +234,7 @@ function recentRow(row: RecentProjectRow): HTMLLIElement {
     open.addEventListener('click', () => {
       void openProjectFrom(row.path).then((opened) => {
         if (opened) hideStartScreen();
-        else void fillRecents(); // a file that has just gone missing is relisted as missing
+        else void arrange(); // a file that has just gone missing is relisted as missing
       });
     });
     li.append(open);
@@ -140,28 +246,25 @@ function recentRow(row: RecentProjectRow): HTMLLIElement {
   pin.setAttribute('aria-pressed', row.pinned ? 'true' : 'false');
   setIcon(pin, row.pinned ? 'push-pin-fill' : 'push-pin');
   pin.addEventListener('click', () => {
-    void window.pulp.setProjectPinned(row.path, !row.pinned).then(() => fillRecents());
+    void window.pulp.setProjectPinned(row.path, !row.pinned).then(() => arrange());
   });
   li.append(pin);
   return li;
 }
 
-async function fillRecents(): Promise<void> {
-  const list = $('start-recent');
-  const rows = orderRecents(await window.pulp.recentProjectsDetailed());
-  list.replaceChildren();
-  $('start-recent-empty').hidden = rows.length > 0;
-  for (const row of rows) list.append(recentRow(row));
-}
+// ---------------------------------------------------------------- start from an idea
 
-function fillMaking(): void {
-  const list = $('start-making');
+/** One gallery: the making choices and the example projects, every card wearing a real picture. */
+async function fillIdeas(): Promise<void> {
+  const list = $('start-ideas');
+  const examples = await window.pulp.listExamples();
   list.replaceChildren();
   for (const choice of MAKING_CHOICES) {
     const li = document.createElement('li');
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'start-card';
+    button.className = 'start-idea';
+    button.append(pictureFor(ideaPicture(choice, appState.value.index, !forcedMode), !!forcedMode));
     const text = document.createElement('span');
     text.className = 'start-card-text';
     const name = document.createElement('span');
@@ -183,66 +286,66 @@ function fillMaking(): void {
     li.append(button);
     list.append(li);
   }
-}
-
-function fillShapes(): void {
-  const wrap = $('start-shapes');
-  wrap.replaceChildren();
-  for (const shape of PROJECT_SHAPES) {
+  for (const example of examples) {
+    const li = document.createElement('li');
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = `${shape.label} · ${shape.hint}`;
+    button.className = 'start-idea start-example';
+    const pic = pictureFor(entryFor(example.thumbTemplateId), !!forcedMode);
+    const badge = document.createElement('span');
+    badge.className = 'start-idea-badge';
+    badge.textContent = 'Example';
+    pic.append(badge);
+    button.append(pic);
+    const text = document.createElement('span');
+    text.className = 'start-card-text';
+    const name = document.createElement('span');
+    name.className = 'start-card-name';
+    name.textContent = example.name;
+    const meta = document.createElement('span');
+    meta.className = 'start-card-meta';
+    meta.textContent = example.description;
+    text.append(name, meta);
+    button.append(text);
     button.addEventListener('click', () => {
-      void newProject().then((made) => {
-        if (!made) return;
-        preferredAspect.value = shape.id;
-        preferredPlatform.value = null;
-        hideStartScreen();
+      void openExampleFrom(example.path).then((opened) => {
+        if (opened) hideStartScreen();
       });
     });
-    wrap.append(button);
+    li.append(button);
+    list.append(li);
   }
 }
 
-/**
- * New project by platform (milestone 20): the same new project as a shape
- * gives, leaning on a platform preset instead — its aspect, size, frame rate
- * and encoder, the way choosing it in the Output tab does. A lean, not a
- * lock: every field stays free, and a template that does not draw the shape
- * keeps its own.
- */
-function fillPlatforms(): void {
-  const wrap = $('start-platforms');
-  wrap.replaceChildren();
-  for (const platform of PLATFORM_PRESETS) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = platform.label;
-    button.dataset.tip = `${platform.hint} · ${platformSummary(platform)}`;
-    button.addEventListener('click', () => {
-      void newProject().then((made) => {
-        if (!made) return;
-        preferredAspect.value = platform.aspect;
-        preferredPlatform.value = platform.id;
-        hideStartScreen();
-      });
-    });
-    wrap.append(button);
-  }
-  $('start-platforms-note').textContent = `Sets the aspect, size, frame rate and encoder; limits ${limitsCheckedLabel()}.`;
-}
+// ---------------------------------------------------------------- set up, and the arrangement
 
-async function fillSetup(): Promise<void> {
+/** Help → Set-up Checklist shows the card even once everything is done. */
+let checklistAsked = false;
+/** The visual references force an arrangement (tests only); undefined is the truth. */
+let forcedMode: 'first-run' | 'returning' | undefined;
+
+async function arrange(): Promise<void> {
   const index = appState.value.index;
-  const [ffmpeg, download] = await Promise.all([window.pulp.ffmpegStatus(), window.pulp.ffmpegDownloadStatus()]);
-  const list = $('start-checklist');
-  list.replaceChildren();
+  const [ffmpeg, download, recents] = await Promise.all([
+    window.pulp.ffmpegStatus(),
+    window.pulp.ffmpegDownloadStatus(),
+    window.pulp.recentProjectsDetailed(),
+  ]);
   const items = setupChecklist({
     ffmpegOk: ffmpeg.ok,
     ffmpegDownloadable: download.build !== null,
     roots: index?.roots ?? [],
     ...(index?.builtInRoot ? { builtInRoot: index.builtInRoot } : {}),
   });
+  let plan = startArrangement(items, recents.length, checklistAsked);
+  if (forcedMode === 'first-run') plan = { ...plan, firstRun: true, showContinue: false, showChecklist: true, progress: checklistProgress(items.map((i, n) => ({ ...i, done: n === 0 }))) };
+  if (forcedMode === 'returning') plan = { ...plan, firstRun: false, showContinue: true, showChecklist: false };
+
+  // The set-up card, with its progress, near the top on a first run.
+  $('start-setup-card').hidden = !plan.showChecklist;
+  $('start-progress').textContent = plan.progress;
+  const list = $('start-checklist');
+  list.replaceChildren();
   for (const item of items) {
     const li = document.createElement('li');
     li.className = item.done ? 'done' : 'todo';
@@ -270,27 +373,38 @@ async function fillSetup(): Promise<void> {
     }
     list.append(li);
   }
+
+  // Continue leads with the most recent work; on a first run it gives way to the invitation.
+  // The forced returning arrangement (the visual references) pins it to one row, the seeded project.
+  let rows = plan.showContinue ? orderRecents(recents) : [];
+  if (forcedMode === 'returning') rows = (rows.some((r) => r.name === 'interview') ? rows.filter((r) => r.name === 'interview') : rows).slice(0, 1);
+  const recentList = $('start-recent');
+  recentList.replaceChildren();
+  for (const row of rows) recentList.append(recentRow(row));
+  $('start-invite').hidden = plan.showContinue;
+
+  // The library at a glance: one quiet line in the foot, not a block.
   $('start-glance').textContent = libraryGlance(index);
 }
 
 // ---------------------------------------------------------------- showing
 
-export function showStartScreen(): void {
+export function showStartScreen(options: { checklist?: boolean } = {}): void {
+  checklistAsked = options.checklist === true;
   const screen = $('start-screen');
   screen.hidden = false;
-  void fillExamples();
-  void fillRecents();
-  void fillSetup();
+  void arrange();
+  void fillIdeas();
   void window.pulp.getStartScreenPrefs().then((prefs) => {
     $<HTMLInputElement>('start-show-at-startup').checked = prefs.showAtStartup;
     // The tour is suggested until it has been taken or skipped once.
     $('start-tour-hint').hidden = prefs.tourSeen;
   });
-  $<HTMLButtonElement>('start-close').focus();
+  // The lead action is where starting begins; the keyboard starts there too.
+  $<HTMLButtonElement>('start-new-blank').focus();
 }
 
 export function initStartScreen(): void {
-  fillMaking();
   fillShapes();
   fillPlatforms();
   $('start-close').addEventListener('click', hideStartScreen);
@@ -308,6 +422,11 @@ export function initStartScreen(): void {
       hideStartScreen();
     });
   });
+  $('start-open').addEventListener('click', () => {
+    void openProjectFrom(null).then((opened) => {
+      if (opened) hideStartScreen();
+    });
+  });
   $('start-tour').addEventListener('click', () => {
     // The tour points at the window, so the screen over it goes first.
     hideStartScreen();
@@ -316,16 +435,28 @@ export function initStartScreen(): void {
   $('start-guide').addEventListener('click', showUserGuide);
   $('start-whats-new').addEventListener('click', showWhatsNew);
   $('start-shortcuts').addEventListener('click', () => void showShortcuts());
-  // The same three the browse panel's Add offers, in the same words (milestone 47).
+  // The same three the browse panel's Add offers, in the same words (milestone 47) — plain
+  // links in the foot now: the least important choices on the screen, but still on it.
   $('start-add-folder').addEventListener('click', () => runLibraryAdd('library.addFolder'));
   $('start-import-pack').addEventListener('click', () => runLibraryAdd('pack.import'));
   $('start-sample-media').addEventListener('click', () => runLibraryAdd('library.addSampleMedia'));
-  // The checklist and glance follow the library: a folder added from here ticks itself off.
+  // The section icons, from the bundled set: nothing decorative that says nothing — each names its section.
+  for (const el of document.querySelectorAll<HTMLElement>('#start-screen [data-start-icon]')) {
+    setIcon(el, el.dataset.startIcon as IconName);
+  }
+  // The checklist, Continue and the glance follow the library: a folder added here ticks itself off.
   effect(() => {
     void appState.value.index;
-    if (startScreenShowing()) void fillSetup();
+    if (startScreenShowing()) {
+      void arrange();
+      void fillIdeas();
+    }
   });
-  // For tests and scripting: show and hide without the menu.
-  const hooks = window as unknown as { pulpStartScreen?: (show: boolean) => void };
-  hooks.pulpStartScreen = (show: boolean) => (show ? showStartScreen() : hideStartScreen());
+  // For tests and scripting: show and hide without the menu, and the visual references' forced arrangements.
+  const hooks = window as unknown as { pulpStartScreen?: (show: boolean, mode?: 'first-run' | 'returning') => void };
+  hooks.pulpStartScreen = (show: boolean, mode?: 'first-run' | 'returning') => {
+    forcedMode = mode;
+    if (show) showStartScreen();
+    else hideStartScreen();
+  };
 }

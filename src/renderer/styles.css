@@ -1407,71 +1407,147 @@ progress { width: 100%; margin: 2px 0; }
 
 /* ---------------------------------------------------------------- the start screen (milestone 31) */
 
+/* ---------------------------------------------------------------- the start screen (milestone 60)
+
+   Redesigned around the few ways a person actually starts: one lead action,
+   clearly separated sections in reading order, real pictures on the cards.
+   The screen follows the system's light or dark appearance through its own
+   scoped tokens — the working window behind it stays the dark editing
+   surface — and both palettes are held to WCAG AA by a unit test. */
+
 .start-screen {
+  --s-bg: #14171f;
+  --s-panel: #1c202a;
+  --s-panel-2: #272c38;
+  --s-border: #333a48;
+  --s-text: #eceef2;
+  --s-text-2: #c6ccd8;
+  --s-muted: #a7aebc;
+  --s-accent: #f59e0b;
+  --s-on-accent: #231a05;
+  --s-danger: #f87171;
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: var(--bg);
+  background: var(--s-bg);
+  color: var(--s-text);
   overflow-y: auto;
+  color-scheme: dark;
 }
-.start-inner { max-width: 1100px; margin: 0 auto; padding: var(--space-5); }
-.start-head { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-5); }
-.start-head > div { flex: 1; }
-.start-head h1 { margin: 0; font-size: var(--font-dialog); }
-.start-head .note { margin: var(--space-1) 0 0; }
-.start-startup { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); }
-.start-columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: var(--space-5);
-  align-items: start;
+@media (prefers-color-scheme: light) {
+  .start-screen {
+    --s-bg: #f3f4f7;
+    --s-panel: #ffffff;
+    --s-panel-2: #e9ebf0;
+    --s-border: #d4d8e0;
+    --s-text: #1b1f27;
+    --s-text-2: #3c4350;
+    --s-muted: #5a6271;
+    --s-accent: #f59e0b;
+    --s-on-accent: #231a05;
+    --s-danger: #b91c1c;
+    color-scheme: light;
+  }
 }
-.start-section h2 { font-size: var(--font-title); font-weight: 600; margin: 0 0 var(--space-3); }
-.start-section h2 + h2, .start-section .start-cards + h2, .start-section .note + h2, .start-section .start-actions + h2 { margin-top: var(--space-5); }
-.start-section h3 { font-size: var(--font-secondary); font-weight: 600; color: var(--muted); margin: var(--space-4) 0 var(--space-2); }
-.start-new { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.start-shapes { display: inline-flex; flex-wrap: wrap; gap: var(--space-2); }
-.start-cards { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-.start-cards li { display: flex; align-items: stretch; gap: var(--space-2); }
-.start-card {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  text-align: left;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-surface);
-  padding: var(--space-2) var(--space-3);
-  min-width: 0;
+.start-inner { max-width: 980px; margin: 0 auto; padding: var(--space-4) var(--space-5); }
+
+/* The head: the mark, the name, the tagline; the quiet corner for leaving. */
+.start-head { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-3); }
+.start-mark { flex: none; width: 40px; height: 40px; border-radius: 9px; background: #262b35; display: grid; grid-template-rows: 1fr 10px 6px 1fr; grid-template-columns: 6px 5px 1fr 8px; }
+.start-mark i, .start-mark b, .start-mark u { border-radius: 1.5px; }
+.start-mark i { grid-area: 2 / 2 / 4 / 3; background: var(--s-accent); }
+.start-mark b { grid-area: 2 / 3 / 3 / 4; margin: 0 4px 2px 3px; background: #e8eaee; }
+.start-mark u { grid-area: 3 / 3 / 4 / 4; margin: 0 14px 0 3px; background: #9aa1ad; }
+.start-title { flex: 1; min-width: 0; }
+.start-title h1 { margin: 0; font-size: var(--font-dialog); letter-spacing: 0.01em; }
+.start-tagline { margin: 2px 0 0; font-size: var(--font-body); color: var(--s-muted); }
+.start-corner { display: flex; align-items: center; gap: var(--space-4); }
+.start-startup { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-secondary); color: var(--s-muted); }
+
+/* One lead action, one secondary, the shapes as proportion tiles, the platforms as one list. */
+.start-lead { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+.start-screen .start-primary {
+  background: var(--s-accent);
+  color: var(--s-on-accent);
+  border: 1px solid transparent;
+  font-size: var(--font-title);
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 7px;
 }
-.start-card:hover:not(:disabled) { background: var(--panel-2); }
-.start-thumb {
-  flex: none;
-  width: 64px;
-  height: 36px;
-  border-radius: var(--radius-control);
-  background: var(--panel-2);
-  overflow: hidden;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.start-screen .start-primary:hover { filter: brightness(1.06); }
+.start-secondary {
+  background: transparent;
+  color: var(--s-text);
+  border: 1px solid var(--s-border);
+  font-size: var(--font-body);
+  padding: 9px 16px;
+  border-radius: 7px;
 }
+.start-secondary:hover { background: var(--s-panel-2); }
+.start-link { background: none; border: 0; padding: 2px 0; color: var(--s-text-2); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); cursor: pointer; font-size: var(--font-body); }
+.start-link:hover { color: var(--s-text); }
+.start-lead-rule { width: 1px; align-self: stretch; margin: 2px 0; background: var(--s-border); }
+.start-shapes { display: inline-flex; gap: var(--space-2); }
+.start-shape { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: 0; padding: 2px; color: var(--s-muted); font-size: var(--font-caption); }
+.start-shape:hover { color: var(--s-text); }
+.start-shape .shape-box { height: 24px; border: 1.5px solid currentColor; border-radius: 3px; background: var(--s-panel); }
+.start-platform { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-secondary); color: var(--s-muted); }
+.start-platform select { background: var(--s-panel); color: var(--s-text); border: 1px solid var(--s-border); border-radius: var(--radius-control); padding: 5px 6px; font-size: var(--font-body); max-width: 170px; }
+.start-caption { margin: var(--space-2) 0 0; font-size: var(--font-caption); color: var(--s-muted); }
+
+/* The type scale: page title above, section headings here, card titles and body below. */
+.start-block { margin-top: var(--space-4); }
+.start-block h2, .start-setup h2 { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--font-title); font-weight: 600; }
+.start-section-icon { display: inline-flex; color: var(--s-accent); }
+.start-section-note { margin: var(--space-1) 0 var(--space-3); font-size: var(--font-secondary); color: var(--s-muted); }
+.start-invite { margin: 0; padding: var(--space-3) 0; font-size: var(--font-body); color: var(--s-text-2); }
+
+/* First run: the checklist as one card near the top, with its progress. */
+.start-setup { margin-top: var(--space-4); background: var(--s-panel); border: 1px solid var(--s-border); border-radius: var(--radius-surface); padding: var(--space-3) var(--space-4) var(--space-4); }
+.start-progress { margin-left: auto; font-size: var(--font-secondary); font-weight: 400; color: var(--s-muted); }
+.start-checklist { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.start-checklist li { display: flex; align-items: center; gap: var(--space-2); color: var(--s-text-2); }
+.start-checklist li.done { color: var(--s-muted); }
+.start-checklist .start-check-mark { display: inline-flex; color: var(--s-muted); }
+.start-checklist li.done .start-check-mark { color: var(--s-accent); }
+.start-checklist button { margin-left: auto; background: transparent; color: var(--s-text); border: 1px solid var(--s-border); border-radius: var(--radius-control); padding: 4px 10px; }
+.start-checklist button:hover { background: var(--s-panel-2); }
+
+/* Continue: recent projects as recognizable cards. */
+.start-recents { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-2) var(--space-3); }
+.start-recents li { display: flex; align-items: stretch; gap: var(--space-2); min-width: 0; }
+.start-recent-card { flex: 1; display: flex; align-items: center; gap: var(--space-3); min-width: 0; text-align: left; background: var(--s-panel); border: 1px solid var(--s-border); border-radius: var(--radius-surface); padding: var(--space-2); color: var(--s-text); }
+.start-recent-card:hover:not(:disabled) { background: var(--s-panel-2); }
+.start-recent-card:disabled { opacity: 0.7; }
+.start-thumb { flex: none; width: 96px; height: 54px; border-radius: var(--radius-control); background: var(--s-panel-2); overflow: hidden; display: inline-flex; align-items: center; justify-content: center; }
 .start-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .start-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.start-card-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.start-card-meta { font-size: var(--font-secondary); color: var(--muted); }
-.start-card-meta.danger { color: var(--danger); }
-.start-pin { align-self: center; }
-.start-pin[aria-pressed="true"] { color: var(--accent); }
-.start-making .start-card { padding: var(--space-2) var(--space-3); }
-.start-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.start-checklist { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-.start-checklist li { display: flex; align-items: center; gap: var(--space-2); }
-.start-checklist li.done { color: var(--text-secondary); }
-.start-checklist .start-check-mark { display: inline-flex; color: var(--muted); }
-.start-checklist li.done .start-check-mark { color: var(--accent); }
-.start-checklist button { margin-left: auto; }
+.start-card-name { font-weight: 600; font-size: var(--font-body); color: var(--s-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.start-card-meta { font-size: var(--font-secondary); color: var(--s-muted); }
+.start-card-meta.danger { color: var(--s-danger); }
+.start-recents .icon-button, .start-recents button.start-relink { align-self: center; }
+.start-relink { background: transparent; color: var(--s-text); border: 1px solid var(--s-border); border-radius: var(--radius-control); padding: 4px 10px; }
+.start-pin { align-self: center; color: var(--s-muted); }
+.start-pin:hover { color: var(--s-text); }
+.start-pin[aria-pressed="true"] { color: var(--s-accent); }
+
+/* Start from an idea: one gallery of picture tiles — the ideas and the examples together. */
+/* One row that scrolls sideways, so Learn stays above the fold whatever the gallery holds. */
+.start-gallery { list-style: none; margin: 0; padding: 0 0 var(--space-1); display: grid; grid-auto-flow: column; grid-auto-columns: 172px; gap: var(--space-3); overflow-x: auto; scrollbar-width: thin; }
+.start-idea { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); width: 100%; text-align: left; background: var(--s-panel); border: 1px solid var(--s-border); border-radius: var(--radius-surface); padding: var(--space-2); color: var(--s-text); }
+.start-idea:hover { background: var(--s-panel-2); }
+.start-idea-pic { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius-control); background: var(--s-panel-2); overflow: hidden; }
+.start-idea-pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.start-idea-pic .strip { position: absolute; inset: 0; background-repeat: no-repeat; background-size: 800% 100%; display: none; }
+.start-idea-pic.scrubbing .strip { display: block; }
+.start-idea-badge { position: absolute; right: 4px; top: 4px; font-size: var(--font-caption); background: color-mix(in srgb, var(--s-bg) 72%, transparent); color: var(--s-text); border-radius: 3px; padding: 0 5px; }
+
+/* Learn: plain links in a row; the glance is one quiet line in the foot. */
+.start-learn { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.start-foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); margin-top: var(--space-5); padding-top: var(--space-3); border-top: 1px solid var(--s-border); }
+.start-foot-add { font-size: var(--font-secondary); color: var(--s-muted); }
+.start-foot .start-caption { margin: 0 0 0 auto; }
 
 /* ---------------------------------------------------------------- the tour (milestone 31) */
 

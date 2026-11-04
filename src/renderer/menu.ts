@@ -117,6 +117,7 @@ function stepCardSize(delta: number): void {
 function run(command: MenuCommand, arg: string | null): void {
   switch (command) {
     case 'app.home': showStartScreen(); return;
+    case 'help.setup': showStartScreen({ checklist: true }); return;
     case 'project.new': void newProject(); return;
     // The blank canvas (milestone 55): the bundled template to compose on, shown as a click on it would.
     case 'canvas.new': openBlankCanvas(); return;
