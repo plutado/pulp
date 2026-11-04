@@ -248,6 +248,9 @@ export const STYLES: readonly { id: string; label: string }[] = [
   { id: 'retro', label: 'Retro / vintage' },
   { id: 'tech', label: 'Tech / digital' },
   { id: 'cinematic', label: 'Cinematic' },
+  // The two looks of Pulp's own art (milestone 61; docs/art-direction.md): polished — soft light,
+  // layered depth, glass and metal, restrained palettes — beside the flat, bright playful set.
+  { id: 'polished', label: 'Polished' },
   { id: 'playful', label: 'Playful / cartoon' },
   { id: 'hand-drawn', label: 'Hand-drawn' },
   { id: 'organic', label: 'Organic / soft' },

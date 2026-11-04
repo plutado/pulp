@@ -45,7 +45,7 @@
     "color": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$" },
     "relativePath": { "type": "string", "minLength": 1, "not": { "anyOf": [ { "pattern": "^[/\\\\]" }, { "pattern": "^[A-Za-z]:" }, { "pattern": "(^|[/\\\\])\\.\\.([/\\\\]|$)" } ] } },
     "aspectId": { "type": "string", "enum": ["16:9", "9:16", "1:1", "4:5"] },
-    "styleId": { "type": "string", "enum": ["clean", "corporate", "elegant", "high-energy", "grunge", "retro", "tech", "cinematic", "playful", "hand-drawn", "organic"] },
+    "styleId": { "type": "string", "enum": ["clean", "corporate", "elegant", "high-energy", "grunge", "retro", "tech", "cinematic", "polished", "playful", "hand-drawn", "organic"] },
     "typeId": {
       "type": "string",
       "enum": [

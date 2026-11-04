@@ -126,7 +126,8 @@ describe('bundled sample templates', async () => {
     // which is what rendering the captions alone as an alpha track needs. Milestone 22's Plate
     // Title holds: its words finish rising at 1.4 s and start fading at 5.2 s, and the clip in its
     // media slot plays against elapsed time as a video layer does, so a stretched hold never slows it.
-    expect(kinds.hold).toHaveLength(144);
+    // Milestone 61's first eight polished objects hold, as every object does: they come in, stay, and go.
+    expect(kinds.hold).toHaveLength(152);
     // Milestone 55 adds the blank canvas, which loops: it draws nothing of its own, so any length holds.
     expect(kinds.loop).toHaveLength(103);
     expect(kinds.scale).toHaveLength(40);

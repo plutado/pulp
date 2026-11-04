@@ -40,7 +40,7 @@ A UTF-8 JSON object.
 | `category` | string | yes | One of `lower-third`, `title`, `transition`, `overlay`, `background`, `other`. When no `type` is declared, the category maps to one (`transition` → `wipe`, `background` → `animated-loop`, the rest keep their name; `other` maps to no type). |
 | `type` | string | no | What the template is, from the built-in type list (see below). More specific than `category`; one per template. |
 | `themes` | string[] | no | What it is about or for: built-in theme ids such as `corporate`, `news`, `sports`, `christmas`, or your own words. Normalized like tags (`"My Show"` → `my-show`); unknown ids are custom themes, not errors. |
-| `styles` | string[] | no | How it looks, from the built-in style list only: `clean`, `corporate`, `elegant`, `high-energy`, `grunge`, `retro`, `tech`, `cinematic`, `playful`, `hand-drawn`, `organic`. Unknown styles are errors. |
+| `styles` | string[] | no | How it looks, from the built-in style list only: `clean`, `corporate`, `elegant`, `high-energy`, `grunge`, `retro`, `tech`, `cinematic`, `polished`, `playful`, `hand-drawn`, `organic`. Unknown styles are errors. |
 | `tags` | string[] | no | Search tags. Normalized to lowercase and de-duplicated. |
 | `duration` | number | yes | Length in seconds, greater than 0 and at most 600. |
 | `sound` | object | no | The template's own sound: variations shipped inside the folder, one chosen in the window, mixed into the render. See **The template's own sound** below. |

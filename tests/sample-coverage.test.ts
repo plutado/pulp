@@ -176,6 +176,38 @@ describe('every category is at least its floor deep', () => {
     }
   });
 
+  it('keeps the two looks of the bundled art apart: every object carries exactly one of Playful and Polished (milestone 61)', () => {
+    // The flat cartoon set stays findable as its own style, and a polished piece is never also playful:
+    // "polished" is a set of rules (docs/art-direction.md), not a flavor a cartoon prop can carry too.
+    const objects = index.templates.filter((t) => categoryInfo('objects')!.types.includes(entryType(t) ?? ''));
+    for (const t of objects) {
+      const styles = t.manifest.styles ?? [];
+      expect(styles.filter((s) => s === 'playful' || s === 'polished'), `${t.manifest.id}: ${styles.join(', ')}`).toHaveLength(1);
+    }
+  });
+
+  it('holds every polished piece to the art direction\'s manifest rules (milestone 61, docs/art-direction.md)', () => {
+    const polished = index.templates.filter((t) => (t.manifest.styles ?? []).includes('polished'));
+    // The first eight reference objects; the set only grows.
+    expect(polished.length).toBeGreaterThanOrEqual(8);
+    for (const t of polished) {
+      const m = t.manifest;
+      const param = (id: string) => m.parameters.find((p) => p.id === id);
+      expect(m.license, `${m.id} is CC0`).toBe('CC0-1.0');
+      expect(m.alpha, `${m.id} draws on transparency`).toBe(true);
+      expect(m.structure && 'holdFrom' in m.structure, `${m.id} declares a hold`).toBe(true);
+      // One light, a named material and the two shadows, each a parameter; the palette follows
+      // the project through at least one color; and the same five entrances as the playful set.
+      expect(param('light')?.type, `${m.id} offers its light angle`).toBe('select');
+      expect(param('material')?.type, `${m.id} offers its material`).toBe('select');
+      const shadows = (param('shadow') as { options?: { value: string }[] } | undefined)?.options?.map((o) => o.value) ?? [];
+      expect(shadows, `${m.id} offers its shadow`).toEqual(expect.arrayContaining(['soft', 'contact', 'none']));
+      expect(m.parameters.filter((p) => p.type === 'color').length, `${m.id} has a color to follow the palette`).toBeGreaterThanOrEqual(1);
+      const entrances = (param('entrance') as { options?: { value: string }[] } | undefined)?.options?.map((o) => o.value) ?? [];
+      expect(entrances, `${m.id} has the light entrances`).toEqual(expect.arrayContaining(['pop', 'drop', 'rise', 'draw', 'fade']));
+    }
+  });
+
   it('gives every bundled effect its color, speed, density and size, and alpha to lay it over anything (milestone 45)', () => {
     const effects = index.templates.filter((t) => categoryInfo('effects')!.types.includes(entryType(t) ?? ''));
     expect(effects.length).toBeGreaterThanOrEqual(32);
