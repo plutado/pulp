@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  APPEARANCES, DEFAULT_APPEARANCE, isAppearance, PALETTE_BACKGROUND, resolveAppearance, sanitizeAppearance,
+  APPEARANCES, DEFAULT_APPEARANCE, frameColorScheme, isAppearance, PALETTE_BACKGROUND, resolveAppearance, sanitizeAppearance, TEMPLATE_PAGE_SCHEME,
 } from '../src/core/appearance';
 import { buildMenu, EMPTY_MENU_STATE, itemChecked, itemEnabled, type MenuState } from '../src/core/menu';
 
@@ -109,13 +109,11 @@ describe('the window\'s palettes (milestone 62)', () => {
   });
 
   it('gives every color token of the window a light counterpart, but for what belongs to the work', () => {
-    // The same in either appearance, on purpose: the stage's checkerboard and chosen backgrounds,
-    // the safe areas over the picture, the backdrops behind a transparent poster, and the mark.
+    // The same in either appearance, on purpose: the stage's chosen backgrounds' buttons, the safe
+    // areas over the picture, and the mark. The checkerboard and the poster backdrops follow it.
     const SAME_IN_BOTH = [
-      '--checker-a', '--checker-b', '--swatch-black', '--swatch-white', '--swatch-gray',
+      '--swatch-black', '--swatch-white', '--swatch-gray',
       '--safe-line', '--safe-zone', '--safe-zone-edge',
-      '--poster-any', '--poster-lower-thirds', '--poster-titles-openers', '--poster-end-cards', '--poster-overlays-frames',
-      '--poster-transitions-wipes', '--poster-design-elements', '--poster-effects', '--poster-objects', '--poster-still-backgrounds',
       '--mark-tile', '--mark-bar', '--mark-sub',
     ];
     const colorTokens = Object.entries(dark).filter(([, v]) => !v.startsWith('url(') && COLOR.test(v)).map(([k]) => k);
@@ -152,5 +150,42 @@ describe('the window\'s palettes (milestone 62)', () => {
     // Each palette says which it is, so form controls and scroll bars are drawn to match.
     expect(dark['--bg']).toBeDefined();
     expect(lightBlock).toMatch(/color-scheme: light;/);
+  });
+});
+
+describe('the frames a template is shown in carry the template\'s own color scheme (milestone 62)', () => {
+  it('takes what the page declares: its root first, then its meta, and light when it declares nothing', () => {
+    expect(frameColorScheme({ root: 'normal', meta: null }), 'every bundled template').toBe('light');
+    expect(TEMPLATE_PAGE_SCHEME).toBe('light');
+    expect(frameColorScheme({ root: 'dark', meta: 'light' }), 'the property outranks the meta').toBe('dark');
+    expect(frameColorScheme({ root: 'normal', meta: 'dark light' })).toBe('dark light');
+    expect(frameColorScheme({ root: 'only  LIGHT', meta: null }), 'spacing and case are the page\'s own business').toBe('only light');
+    expect(frameColorScheme({ root: 'light dark', meta: null })).toBe('light dark');
+  });
+
+  it('reads a page\'s report as what it is — the author\'s own code — and falls back to light on anything else', () => {
+    for (const junk of [undefined, null, 'dark', 7, {}, { root: 'sepia' }, { root: 'dark; background: red' }, { meta: 'light dark light dark' }, { root: ['dark'] }]) {
+      expect(frameColorScheme(junk), JSON.stringify(junk)).toBe('light');
+    }
+  });
+
+  it('gives the frames light before the page reports, never normal: the window\'s meta would make that its own palette', () => {
+    // The regression: with the meta, a frame at `normal` took dark in the dark appearance while the
+    // page stayed light, and Chromium painted solid white behind every transparent graphic.
+    expect(html).toMatch(/<meta name="color-scheme" content="[^"]*dark[^"]*">/);
+    const frames = rules(code).filter((r) => r.selector === '.preview iframe');
+    expect(frames).toHaveLength(1);
+    expect(frames[0]!.declarations.find(([name]) => name === 'color-scheme')?.[1]).toBe(TEMPLATE_PAGE_SCHEME);
+    // Both frames on the stage are under that rule: the template's and the captions'.
+    expect(html).toMatch(/<div[^>]*class="[^"]*\bpreview\b[^"]*"[^>]*>[\s\S]*?<iframe id="preview"[\s\S]*?<iframe id="captions-preview"/);
+  });
+
+  it('lets the checkerboard and the poster backdrops follow the appearance, lighter in light', () => {
+    for (const token of ['--checker-a', '--checker-b', '--poster-any', '--poster-lower-thirds', '--poster-still-backgrounds']) {
+      expect(lightOwn[token], token).toBeDefined();
+      expect(luminance(light[token]!), `${token} lighter in light`).toBeGreaterThan(luminance(dark[token]!));
+    }
+    // The two squares of the board still tell apart, in each.
+    for (const t of [dark, light]) expect(contrast(t['--checker-a']!, t['--checker-b']!)).toBeGreaterThan(1.1);
   });
 });

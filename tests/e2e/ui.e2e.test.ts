@@ -6592,6 +6592,60 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 120_000);
 
+    it('shows a transparent graphic over the checkerboard in either appearance, never on an opaque backdrop, and keeps a chosen background as it is', async () => {
+      type Rgb = [number, number, number];
+      /** The average color of a patch of the stage where the lower third draws nothing: the top-right corner. */
+      const stagePatch = async (): Promise<Rgb> => {
+        const b = await page.eval<{ x: number; y: number }>(`(() => { const r = document.getElementById('preview-frame').getBoundingClientRect(); return { x: Math.round(r.right - 64), y: Math.round(r.top + 24) }; })()`);
+        await sleep(400); // the paint after the palette or the background changes
+        const shot = (await page.send('Page.captureScreenshot', { format: 'png', clip: { x: b.x, y: b.y, width: 32, height: 32, scale: 1 } })).result as { data: string };
+        return page.eval<Rgb>(`(async () => {
+          const img = new Image();
+          await new Promise((r, j) => { img.onload = r; img.onerror = j; img.src = 'data:image/png;base64,${shot.data}'; });
+          const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+          const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+          const d = x.getImageData(0, 0, c.width, c.height).data; const sum = [0, 0, 0];
+          for (let i = 0; i < d.length; i += 4) { sum[0] += d[i]; sum[1] += d[i + 1]; sum[2] += d[i + 2]; }
+          const n = d.length / 4; return sum.map((v) => Math.round(v / n));
+        })()`);
+      };
+      const hex = (h: string): Rgb => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as Rgb;
+      const token = (name: string) => page.eval<string>(`getComputedStyle(document.documentElement).getPropertyValue('${name}').trim()`);
+      const backgroundWas = await page.eval<string>(`['checker', 'black', 'white', 'gray'].find((b) => document.getElementById('bg-' + b).getAttribute('aria-pressed') === 'true') ?? 'checker'`);
+      await page.send('Page.enable');
+      try {
+        await fire('#search', '', 'input');
+        await clickResult('Lower Third Bar');
+        await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
+        await scrubTo(90);
+        await page.eval(`document.getElementById('bg-checker').click()`);
+        // The page declares no color scheme, so its frame carries light — not the window's palette.
+        await until(() => page.eval<boolean>(`document.getElementById('preview').style.colorScheme === 'light'`), 'the frame given the page\'s own scheme');
+        for (const choice of ['dark', 'light'] as const) {
+          await choose(choice);
+          await until(async () => (await bodyBg(page)) === (choice === 'dark' ? DARK_BG : LIGHT_BG), `the window ${choice}`);
+          // The checkerboard shows through, in this appearance's squares: between its two colors, not white.
+          const [a, b] = [hex(await token('--checker-a')), hex(await token('--checker-b'))];
+          const seen = await stagePatch();
+          for (let c = 0; c < 3; c++) {
+            expect(seen[c]!, `${choice}: channel ${c} of the stage ${JSON.stringify(seen)} within the checkerboard's ${JSON.stringify([a, b])}`).toBeGreaterThanOrEqual(Math.min(a[c]!, b[c]!) - 3);
+            expect(seen[c]!).toBeLessThanOrEqual(Math.max(a[c]!, b[c]!) + 3);
+          }
+          // A chosen background is the work's, not the window's: black is black and gray is gray in both.
+          await page.eval(`document.getElementById('bg-black').click()`);
+          expect(await stagePatch(), `${choice}: black`).toEqual([0, 0, 0]);
+          await page.eval(`document.getElementById('bg-gray').click()`);
+          expect(await stagePatch(), `${choice}: gray`).toEqual([128, 128, 128]);
+          await page.eval(`document.getElementById('bg-checker').click()`);
+        }
+        // The two appearances' boards really differ.
+        expect(await token('--checker-a'), 'the light board').not.toBe('#2a2d33');
+      } finally {
+        await choose('dark');
+        await page.eval(`document.getElementById(${JSON.stringify(`bg-${backgroundWas}`)}).click()`);
+      }
+    }, 120_000);
+
     it('holds visual references of the main window in each appearance (milestone 62)', async () => {
       const REFS = join(ROOT, 'tests', 'visual', 'window.json');
       // A settled window: no search, the lower third on the stage at a set frame, the results at their top.

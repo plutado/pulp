@@ -55,6 +55,7 @@ import { layerSoundsClear, layerSoundsDebug, layerSoundsStop, layerSoundsSync, l
 import { initLoudness, loudnessClear, loudnessUpdate } from './loudness';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
+import { frameColorScheme } from '../core/appearance';
 
 /** Element by id. Typed as Element, not HTMLElement: the stage's waveform is an SVG. */
 const $ = <T extends Element>(id: string): T => {
@@ -778,6 +779,8 @@ export function stageShowTemplate(
     els.previewEmpty.hidden = false;
   } else {
     els.previewEmpty.hidden = true;
+    // Back to the stylesheet's scheme until the new page says its own.
+    els.preview.style.colorScheme = '';
     els.preview.src = templateUrlFor(m.id, m.entry);
   }
   els.scrub.max = String(previewFrames() - 1);
@@ -1287,8 +1290,10 @@ export function initStage(): void {
 /** What the template page says, from whichever window the iframe is in. */
 function onPreviewMessage(event: MessageEvent): void {
     if (event.source !== els.preview.contentWindow) return;
-    const data = event.data as { type?: string; message?: string };
+    const data = event.data as { type?: string; message?: string; colorScheme?: unknown };
     if (data?.type === 'pulp:ready') {
+      // The frame carries the page's own color scheme, so nothing opaque is painted behind the picture.
+      els.preview.style.colorScheme = frameColorScheme(data.colorScheme);
       s.previewReady = true;
       s.inFlight = false;
       clearReplyWatchdog();

@@ -19,7 +19,7 @@ Seven regions, from the left:
 
 Every region resizes by the splitter on its edge, collapses from the caret in its heading, and remembers both between sessions. **Theater** (`T`) hides the results and gives the stage the window; **Pop out the stage** puts the picture on a second display.
 
-**Light or dark:** **Settings → Appearance** or **View → Appearance** — System (the default, which follows your computer's setting as it changes), Light or Dark. Every window changes at once, and Pulp opens in it the next time. The stage's checkerboard and its chosen background, the thumbnails and whatever a template draws look the same either way, so a graphic is judged the same in both.
+**Light or dark:** **Settings → Appearance** or **View → Appearance** — System (the default, which follows your computer's setting as it changes), Light or Dark. Every window changes at once, and Pulp opens in it the next time. The checkerboard behind a transparent graphic, on the stage and behind its card in the results, is lighter in Light; a background you choose for the stage — black, white, gray or your own color — and whatever a template draws look the same either way, so for judging a graphic against a set color, choose one.
 
 ## Making something
 

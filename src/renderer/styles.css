@@ -40,17 +40,10 @@
   --chip-dark: rgba(13, 17, 23, 0.7);
   --silence: rgba(239, 68, 68, 0.35);
   --silence-edge: rgba(239, 68, 68, 0.8);
-  /* What belongs to the work, the same in either appearance: the stage's checkerboard and its
-     chosen backgrounds, the safe areas drawn over the picture, the backdrops a transparent
-     graphic's poster is shown on, and Pulp's own mark. */
+  /* The stage's checkerboard and the backdrops a transparent item's poster is shown on in the
+     results: they stand for "nothing here", so they follow the appearance. */
   --checker-a: #2a2d33;
   --checker-b: #34383f;
-  --swatch-black: #000000;
-  --swatch-white: #ffffff;
-  --swatch-gray: #808080;
-  --safe-line: rgba(255, 255, 255, 0.45);
-  --safe-zone: rgba(255, 96, 96, 0.14);
-  --safe-zone-edge: rgba(255, 140, 140, 0.6);
   --poster-any: #20242c;
   --poster-lower-thirds: #1f2a36;
   --poster-titles-openers: #2a2334;
@@ -61,6 +54,15 @@
   --poster-effects: #33211f;
   --poster-objects: #26302a;
   --poster-still-backgrounds: #232a33;
+  /* What belongs to the work, the same in either appearance: the stage's chosen backgrounds (the
+     swatches here are their buttons; the colors themselves are STAGE_BACKGROUND_COLORS and the
+     custom one, set on the stage directly), the safe areas drawn over the picture, and Pulp's mark. */
+  --swatch-black: #000000;
+  --swatch-white: #ffffff;
+  --swatch-gray: #808080;
+  --safe-line: rgba(255, 255, 255, 0.45);
+  --safe-zone: rgba(255, 96, 96, 0.14);
+  --safe-zone-edge: rgba(255, 140, 140, 0.6);
   --mark-tile: #262b35;
   --mark-bar: #e8eaee;
   --mark-sub: #9aa1ad;
@@ -151,6 +153,18 @@
     --chip-dark: rgba(13, 17, 23, 0.7);
     --silence: rgba(239, 68, 68, 0.25);
     --silence-edge: rgba(220, 38, 38, 0.8);
+    --checker-a: #dcdfe4;
+    --checker-b: #c9ced5;
+    --poster-any: #d6dae1;
+    --poster-lower-thirds: #ccd8e6;
+    --poster-titles-openers: #dad1e6;
+    --poster-end-cards: #e0d3dc;
+    --poster-overlays-frames: #cde0d9;
+    --poster-transitions-wipes: #e6d6c5;
+    --poster-design-elements: #e2dbc4;
+    --poster-effects: #e6cdc8;
+    --poster-objects: #d2dfd4;
+    --poster-still-backgrounds: #cfd8e3;
     color-scheme: light;
   }
 }
@@ -741,8 +755,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 }
 .preview iframe {
   position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent;
-  /* Must match the template document's color scheme, or Chromium paints an opaque backdrop behind it. */
-  color-scheme: normal;
+  /* Must match the template page's color scheme, or Chromium paints an opaque backdrop behind the
+     picture — solid white in the dark appearance. Not `normal`: the window's color-scheme meta makes
+     that the window's palette. A page that declares nothing is light; one that declares a scheme
+     says so when it is ready, and the stage puts it here (frameColorScheme, src/core/appearance.ts). */
+  color-scheme: light;
   /* The template page is a picture, never something to interact with: every click, drag and
      right-click on the stage belongs to the frame and the layer overlay over it. Without this a
      pointer event over the picture goes to the iframe's own document instead and is lost —

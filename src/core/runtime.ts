@@ -984,8 +984,15 @@ export const BRIDGE_SCRIPT = `(function () {
       reply.postMessage({ type: 'pulp:error', id: data.id, message: String(err && err.message || err) }, '*');
     });
   });
+  /* What color scheme the page declares, so the frame showing it can carry the same one: a frame
+     whose scheme differs from its page's gets an opaque backdrop behind the picture (milestone 62;
+     frameColorScheme in src/core/appearance.ts reads this). */
+  function declaredScheme() {
+    var meta = document.querySelector('meta[name="color-scheme"]');
+    return { root: getComputedStyle(document.documentElement).colorScheme || '', meta: meta ? meta.getAttribute('content') : null };
+  }
   ready.then(function () {
-    if (window.parent !== window) window.parent.postMessage({ type: 'pulp:ready' }, '*');
+    if (window.parent !== window) window.parent.postMessage({ type: 'pulp:ready', colorScheme: declaredScheme() }, '*');
   });
 })();`;
 

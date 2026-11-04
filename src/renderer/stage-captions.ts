@@ -22,6 +22,7 @@ import { defaultParams } from '../core/params';
 import { templateUrlFor } from '../shared/api';
 import type { TemplateEntry } from '../core/library-types';
 import { appState } from './store';
+import { frameColorScheme } from '../core/appearance';
 
 let frame: HTMLIFrameElement | null = null;
 /** The style the page is showing now, so it is loaded once rather than per frame. */
@@ -33,11 +34,12 @@ let pending: { time: number; size: { width: number; height: number } } | null = 
 export function mountCaptionsPreview(el: HTMLIFrameElement): void {
   frame = el;
   window.addEventListener('message', (event: MessageEvent) => {
-    const data = event.data as { type?: string } | null;
+    const data = event.data as { type?: string; colorScheme?: unknown } | null;
+    if (data?.type !== 'pulp:ready' || !frame || event.source !== frame.contentWindow) return;
+    // The page's own color scheme on its frame, as the template's (src/core/appearance.ts).
+    frame.style.colorScheme = frameColorScheme(data.colorScheme);
     // A page that has just loaded has missed the frame that was asked for before it was there.
-    if (data?.type === 'pulp:ready' && event.source === frame?.contentWindow && pending) {
-      captionsPreviewDraw(pending.time, pending.size);
-    }
+    if (pending) captionsPreviewDraw(pending.time, pending.size);
   });
 }
 
@@ -66,6 +68,7 @@ export function captionsPreviewSync(captions: CaptionsValue | null): void {
   frame.hidden = false;
   if (loaded === entry.id) return;
   loaded = entry.id;
+  frame.style.colorScheme = '';
   frame.src = templateUrlFor(entry.id, entry.manifest.entry);
 }
 

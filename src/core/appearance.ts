@@ -39,6 +39,33 @@ export function resolveAppearance(choice: Appearance, systemDark: boolean): Pale
 }
 
 /**
+ * The color scheme a frame showing a template page must carry: the page's own.
+ * Chromium paints an opaque backdrop — white, or near-black — behind a frame
+ * whose element's color scheme differs from its document's, which turns a
+ * transparent graphic into one on solid white. The window declares
+ * `<meta name="color-scheme" content="dark light">`, so a frame left at
+ * `normal` would take the window's palette; it is given the page's instead.
+ *
+ * The page says what it declares (the bridge's `pulp:ready`): its root's
+ * `color-scheme` where that is not `normal`, else its own color-scheme meta,
+ * else nothing — and a page that declares nothing is light, which is every
+ * bundled template. What the page sends is checked against the property's
+ * grammar, since a template's page is the author's own code.
+ */
+export const TEMPLATE_PAGE_SCHEME = 'light';
+
+const SCHEME_VALUE = /^(?:only )?(?:light|dark)(?: (?:light|dark))?(?: only)?$/;
+
+export function frameColorScheme(report: unknown): string {
+  const declared = report && typeof report === 'object' ? (report as { root?: unknown; meta?: unknown }) : {};
+  for (const value of [declared.root, declared.meta]) {
+    const scheme = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').toLowerCase() : '';
+    if (SCHEME_VALUE.test(scheme)) return scheme;
+  }
+  return TEMPLATE_PAGE_SCHEME;
+}
+
+/**
  * The window's background in each palette: the `--bg` token, which the main
  * process paints a window with before its page has drawn anything and the
  * page's own head sets before its stylesheet arrives, so no frame ever shows
