@@ -804,7 +804,7 @@ Decided 2026-11-03. The bundled objects, icons and design elements (milestone 46
 - [ ] **Thumbnails that show the finish:** the polished items' cards are drawn on a neutral studio backdrop with consistent framing, so the grid reads as one set and the difference from the playful art is visible before anything is opened (1-2 h)
 - [ ] **Found first where it fits, and tested:** a **Polished** look in the browse panel's Look filter; within Objects and Design elements the polished items lead under the default sort; visual references for every new item; a test that each carries a look, a CC0 notice and an entrance (3-4 h)
 
-## 62. Light and dark appearance (8-12 h, after 1.0)
+## 62. Light and dark appearance (done; 8-12 h, after 1.0)
 
 Decided 2026-11-03. Pulp's window is dark only, and for an instant at launch it shows light, before its stylesheet has loaded. This adds a light appearance beside the dark one, a setting to choose between them, and a launch that opens in the chosen one from its first frame. It is also what milestone 60's "in both themes" assumes.
 
