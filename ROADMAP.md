@@ -80,9 +80,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 63. Record a voice with one click (post-1.0) | 8-13 h |
 | 64. Record from a camera with one click (post-1.0) | 10-16 h |
 | 65. Layouts made for vertical video (post-1.0) | 25-40 h |
+| 66. Cards, a dialog and the start screen that read at a glance (post-1.0) | 5-8 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **35-59 h** |
-| **Total including post-1.0 items** | **995-1625 h** |
+| **Total including post-1.0 items** | **1000-1633 h** |
 
 ## 0. Foundation (done)
 
@@ -848,3 +849,12 @@ Decided 2026-11-04. Nearly every bundled template declares 9:16, but almost all 
 - [ ] **Overlays for short video:** small elements placed clear of the app's controls: a progress bar along the top, a "Part 2" or episode tag, a list counter that steps 1 of 5, chat or text-message bubbles that arrive one by one, a reply-to-a-comment card, a question or poll card, a follow-for-more prompt for the end, and a location or product tag. All are generic, not any app's own (6-10 h)
 - [ ] **Found first when the work is tall:** a "Made for vertical" tag on these templates and a browse node for it; when the previewed shape or the project is 9:16, the templates made for it lead the results under the default sort, and the stage's vertical safe zones show by default while one is selected (2-3 h)
 - [ ] **Tests:** visual references at 9:16 for every new template; the safe-box test above; the sort test at 9:16 and 16:9; an end-to-end test that starts a vertical project and finds the vertical templates first (2-3 h)
+
+## 66. Cards, a dialog and the start screen that read at a glance (5-8 h, after 1.0)
+
+Decided 2026-11-04, from a first look at the app. Three places where what is shown is right but hard to read: the facts on a result card run together, a folder picker's button does not say what it does, and the start screen's sections sit too close to tell apart.
+
+- [ ] **Card facts that explain themselves:** the badge row on a result card reads today as one run of gray text: "4 s", "1080p", then icons. The duration becomes a clock reading (0:04, 1:30) in a small dark pill over the bottom-right corner of the thumbnail, the way video sites show length, with no unit and no space to misread; a still shows none. The resolution becomes a short outlined tag (HD for 720p, Full HD for 1080p, 4K for 2160p, otherwise the height, like 1440p), with the exact pixels still in its tooltip. The shape and transparency icons stay, with their tooltips, set apart from the tags. The list view's duration column uses the same clock reading (2-3 h)
+- [ ] **A folder picker that says what happens:** Add sample media's folder picker labels its button "Make sample media here" and explains nothing (its title is not shown on macOS). The button says **Choose Folder**, and the picker's message says Pulp will create a "Sample media" folder there with about 600 example sounds, clips, stills and assets, that it takes a few minutes, and that the folder can be deleted at any time. The same wording on every platform (0.5-1 h)
+- [ ] **Start screen sections that stand apart:** Continue, Start from an idea and Learn (and the set-up card on a first run) get more room above and below each section and a thin horizontal divider between sections, in the screen's own palette in both appearances, so each reads as its own group. The screen still fits at 1280 × 788, with the lead and the first row of every section visible without scrolling (1-2 h)
+- [ ] **Tests:** unit tests of the clock reading and the resolution tags; the end-to-end test finds the pill on a clip's card and none on a still's, and the dividers between the start screen's sections; the start screen's visual references rewritten (1-2 h)
