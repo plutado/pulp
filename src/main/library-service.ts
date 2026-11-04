@@ -45,6 +45,7 @@ import { normalizeTheme } from '../core/taxonomy';
 import { placeableTemplate } from '../core/search';
 import { loadSettings, updateSettings } from './settings';
 import { bundledFontsDir, bundledTemplatesDir } from './resources';
+import { isPolished, studioCrop } from '../core/polished';
 
 export { bundledFontsDir, bundledTemplatesDir };
 
@@ -348,7 +349,8 @@ async function renderPoster(entry: TemplateEntry, out: string): Promise<boolean>
   const pick = choosePosterFrame(measures);
   const chosen = measures[pick]!;
   if (isNearlyUniform(chosen)) console.warn(`Poster for ${manifest.id} is nearly uniform at every frame tried; a posterAt in its manifest may help.`);
-  const crop = manifest.alpha ? contentCrop(chosen.bbox, templateDefaultSize(manifest)) : null;
+  // A polished piece takes the set's one framing (milestone 61); every other transparent poster is cropped to what it draws.
+  const crop = !manifest.alpha ? null : isPolished(entry) ? studioCrop(templateDefaultSize(manifest)) : contentCrop(chosen.bbox, templateDefaultSize(manifest));
   const scaled = await runWithInput(ffmpegPath!, posterFromFrameArgs(out, crop), shot.frames[pick]!);
   return scaled.code === 0 && existsSync(out);
 }

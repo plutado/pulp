@@ -118,16 +118,49 @@ leave ≈ 0.6 s), all four aspects, CC0.
 ## What carries the look
 
 A polished piece's manifest carries the **`polished`** style (and only one of
-`playful`/`polished`, never both); `Light from`, `Material` (where it has
-one) and `Shadow` as parameters; an `Accent` color; and the five-entrance
-select. The browse panel's Look filter lists Polished beside the other looks.
+`playful`/`polished`, never both); `Light from`, `Material` and `Shadow` as
+parameters; an `Accent` color; the five-entrance select; and **`posterAt: 2.5`**,
+the set's one poster moment. The browse panel's Look filter lists Polished
+beside the other looks.
+
+## Glass and depth pieces
+
+Panels, cards, chips and tags float **over** the picture rather than stand on
+a ground, so they cast a floating shadow — the shape's own outline, blurred
+and offset away from the light — in place of the contact ellipse. It is drawn
+from a copy of the shape moved off the frame, with only the shadow brought
+back, so a translucent panel never shows an opaque copy of itself through its
+glass. Flat glass carries a **tint of the accent** washed into it, strongest
+away from the light: frosted white over transparency is otherwise nearly
+colorless, and a panel must carry the project's palette and not only its
+accent bar. A chip or a tag sizes itself to its one word.
+
+## In the results
+
+The polished set's cards are drawn on one **neutral studio backdrop** — a soft
+key from above falling off to the floor, in both appearances — instead of the
+category's tint, and every polished poster takes the same centered crop
+(half the frame's short side tall, at 16:9; `studioCrop` in
+`src/core/polished.ts`) instead of being cropped to what it draws, so every
+piece reads at the size it shares with the others. Within Objects and Design
+elements, under the default order and with nothing typed, the polished pieces
+**lead**; any other order, a search, and the rest of the library are left as
+they are.
 
 ## References
 
-The first eight polished objects — the column chart, the laptop, the
-smartphone, the studio microphone, the mirrorless camera, the map pin, the
-globe and the trophy cup (`templates/polished-*`) — are the reference
-renders: made to this document, approved into `tests/visual/references.json`,
-and held there like every bundled template, so later polished work is
-measured against them. `tests/sample-coverage.test.ts` holds every polished
-piece to the manifest rules above.
+The polished set (`templates/polished-*`, and Boardroom's glass panel) is
+the reference: made to this document, approved into
+`tests/visual/references.json` and held there like every bundled template, so
+later polished work is measured against it. Twenty-four objects — business and
+data (the column chart, the pie chart, the laptop, the smartphone, the report
+document, the ID badge, the desk calendar, the idea bulb), media (the studio
+microphone, the mirrorless camera, the studio headphones, the studio speaker),
+places and travel (the map pin, the globe, the airliner, the travel case),
+sports (the trophy cup, the match ball, the timing stopwatch, the winner's
+medal) and the seasons (the crystal snowflake, the spring tulip, the summer
+sun, the autumn leaf) — and seven glass and depth design elements (the
+frosted glass panel, the glass card, chip and tag, the gradient orbs, the soft
+forms and the fine-line accents). `tests/sample-coverage.test.ts` holds every
+polished piece to the manifest rules above, and `tests/polished.test.ts` its
+framing and its lead.

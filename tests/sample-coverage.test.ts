@@ -188,8 +188,17 @@ describe('every category is at least its floor deep', () => {
 
   it('holds every polished piece to the art direction\'s manifest rules (milestone 61, docs/art-direction.md)', () => {
     const polished = index.templates.filter((t) => (t.manifest.styles ?? []).includes('polished'));
-    // The first eight reference objects; the set only grows.
-    expect(polished.length).toBeGreaterThanOrEqual(8);
+    // Twenty-four objects, seven glass and depth design elements and Boardroom's panel; the set only grows.
+    expect(polished.length).toBeGreaterThanOrEqual(32);
+    const inCategory = (id: string) => polished.filter((t) => categoryInfo(id)!.types.includes(entryType(t) ?? '')).length;
+    expect(inCategory('objects'), 'polished objects').toBeGreaterThanOrEqual(24);
+    expect(inCategory('design-elements'), 'polished design elements').toBeGreaterThanOrEqual(7);
+    // The families people reach for in professional work, and the seasons, are each there.
+    for (const type of ['business-objects', 'media-objects', 'travel-objects', 'sports-objects', 'nature-objects']) {
+      expect(polished.filter((t) => entryType(t) === type).length, type).toBeGreaterThanOrEqual(type === 'business-objects' ? 6 : 3);
+    }
+    // At least one polished piece belongs to a bundled matching set.
+    expect(polished.some((t) => t.pack !== undefined), 'a polished piece in a matching set').toBe(true);
     for (const t of polished) {
       const m = t.manifest;
       const param = (id: string) => m.parameters.find((p) => p.id === id);

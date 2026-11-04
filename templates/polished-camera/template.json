@@ -25,6 +25,7 @@
     "holdFrom": 0.8,
     "holdTo": 4.4
   },
+  "posterAt": 2.5,
   "fps": 30,
   "aspects": [
     "16:9",

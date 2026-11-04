@@ -14,6 +14,7 @@ import { formatTimecode } from './timecode';
 import { isFinished, type RenderJobStatus, type RenderQueueSnapshot } from './render-queue';
 import { searchLibrary, splitFreeText } from './search';
 import { blendSemantic, type SemanticHits } from './semantic';
+import { polishedFirst } from './polished';
 
 /**
  * A browse node narrowing the results: its label for the scope chip, plus either
@@ -276,8 +277,10 @@ export function deriveResults(s: ResultsInput): ResultsView {
     hits = blendSemantic(hits, pool, s.semantic.scores);
   }
   if (s.scope?.root !== undefined) hits = hits.filter((h) => h.entry.root === s.scope?.root);
+  // Within Objects and Design elements the polished set leads under the default order (milestone 61).
+  const ordered = polishedFirst(hits.map((h) => h.entry), { scopeGroup: s.scope?.group, sort: s.sort, freeText: text });
   return {
-    entries: sortEntries(hits.map((h) => h.entry), s.sort),
+    entries: sortEntries(ordered, s.sort),
     canExportPack: hits.some((h) => h.entry.kind === 'template' && !h.entry.offline),
   };
 }

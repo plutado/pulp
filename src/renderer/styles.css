@@ -44,6 +44,8 @@
      results: they stand for "nothing here", so they follow the appearance. */
   --checker-a: #2a2d33;
   --checker-b: #34383f;
+  --studio-key: #4a5059;
+  --studio-floor: #1d2025;
   --poster-any: #20242c;
   --poster-lower-thirds: #1f2a36;
   --poster-titles-openers: #2a2334;
@@ -155,6 +157,8 @@
     --silence-edge: rgba(220, 38, 38, 0.8);
     --checker-a: #dcdfe4;
     --checker-b: #c9ced5;
+    --studio-key: #f4f5f7;
+    --studio-floor: #bcc2ca;
     --poster-any: #d6dae1;
     --poster-lower-thirds: #ccd8e6;
     --poster-titles-openers: #dad1e6;
@@ -1816,6 +1820,10 @@ progress { width: 100%; margin: 2px 0; }
 .results .card[data-alpha="true"][data-category="objects"] { --poster-backdrop: var(--poster-objects); }
 .results .card[data-alpha="true"][data-category="animated-backgrounds"],
 .results .card[data-alpha="true"][data-category="still-backgrounds"] { --poster-backdrop: var(--poster-still-backgrounds); }
+/* The polished set's cards (milestone 61): one neutral studio backdrop — a soft key from above
+   falling off to the floor — rather than the category's tint, so the set reads as one and its
+   finish shows before anything is opened. Its posters share one framing (src/core/polished.ts). */
+.results .card[data-look="polished"] .thumb.checker { background-color: var(--studio-floor); background-image: radial-gradient(ellipse 85% 80% at 50% 32%, var(--studio-key), var(--studio-floor)); background-size: auto; background-position: center; }
 
 /* ---------------------------------------------------------------- layered Photoshop files (milestone 33) */
 

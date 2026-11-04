@@ -42,6 +42,7 @@ import { Thumb } from './item-preview';
 import { appState, dispatch, hasIndex, results, resultsView, selectedKey } from './store';
 import { runLibraryAdd } from './library-add';
 import { rovingTarget } from '../core/roving';
+import { isPolished } from '../core/polished';
 
 /**
  * The id the listbox points `aria-activedescendant` at, so a screen reader
@@ -106,6 +107,7 @@ function Card({ entry, selected, onSelect, gridRatio }: ItemProps & { gridRatio:
       data-kind={entry.kind}
       data-category={categoryOfEntry(entry)?.id}
       data-alpha={hasAlpha(entry) ? 'true' : undefined}
+      data-look={isPolished(entry) ? 'polished' : undefined}
       aria-selected={selected ? 'true' : 'false'}
       draggable
       onDragStart={(e: DragEvent) => {

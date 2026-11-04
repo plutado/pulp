@@ -126,8 +126,9 @@ describe('bundled sample templates', async () => {
     // which is what rendering the captions alone as an alpha track needs. Milestone 22's Plate
     // Title holds: its words finish rising at 1.4 s and start fading at 5.2 s, and the clip in its
     // media slot plays against elapsed time as a video layer does, so a stretched hold never slows it.
-    // Milestone 61's first eight polished objects hold, as every object does: they come in, stay, and go.
-    expect(kinds.hold).toHaveLength(152);
+    // Milestone 61's polished set holds, as every object does: they come in, stay, and go — the
+    // twenty-four objects, the seven glass and depth design elements, and Boardroom's glass panel.
+    expect(kinds.hold).toHaveLength(176);
     // Milestone 55 adds the blank canvas, which loops: it draws nothing of its own, so any length holds.
     expect(kinds.loop).toHaveLength(103);
     expect(kinds.scale).toHaveLength(40);
@@ -194,7 +195,8 @@ describe('bundled sample templates', async () => {
     // Pack defaults reach the templates: the set's themes and its one style, inherited by every member;
     // the five core roles are always there, and every member declares a type.
     const expected: Record<string, { themes: string[]; styles: string[]; types: string[]; size: number; perPiece?: boolean }> = {
-      boardroom: { themes: ['corporate', 'finance', 'technology', 'real-estate'], styles: ['clean'], types: ['animated-loop', 'frame', 'lower-third', 'title', 'wipe'], size: 16 },
+      // Milestone 61 adds the set's frosted glass panel, a polished piece in the set's palette.
+      boardroom: { themes: ['corporate', 'finance', 'technology', 'real-estate'], styles: ['clean'], types: ['animated-loop', 'frame', 'lower-third', 'title', 'wipe'], size: 17 },
       newsdesk: { themes: ['news', 'documentary', 'podcast'], styles: ['high-energy'], types: ['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe'], size: 15 },
       matchday: { themes: ['sports', 'football', 'basketball', 'soccer'], styles: ['high-energy'], types: ['animated-loop', 'logo-bug', 'lower-third', 'title', 'wipe'], size: 14 },
       // Festival is a general celebration look, so the set's pieces are not all of every occasion:
@@ -212,7 +214,9 @@ describe('bundled sample templates', async () => {
           expect(want.themes, t.manifest.id).toContain(t.manifest.themes![0]);
           expect({ styles: t.manifest.styles }, t.manifest.id).toEqual({ styles: want.styles });
         } else {
-          expect({ themes: t.manifest.themes, styles: t.manifest.styles }, t.manifest.id).toEqual({ themes: want.themes, styles: want.styles });
+          // A polished piece in a set wears the polished look as well as the set's own (milestone 61).
+          const own = (t.manifest.styles ?? []).filter((s) => s !== 'polished');
+          expect({ themes: t.manifest.themes, styles: own }, t.manifest.id).toEqual({ themes: want.themes, styles: want.styles });
         }
         expect(t.manifest.type, t.manifest.id).toBeDefined();
       }

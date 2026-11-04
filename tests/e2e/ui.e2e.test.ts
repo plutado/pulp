@@ -6737,6 +6737,66 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 120_000);
   });
 
+  describe('the polished set in the results (milestone 61)', () => {
+    it('leads Objects and Design elements under the default order, on its studio backdrop, and keeps its place under any other', async () => {
+      type Card = { id: string; name: string; look: string | null; backdrop: string };
+      const cards = () => page.eval<Card[]>(`[...document.querySelectorAll('#results .card')].map((c) => ({ id: c.dataset.id, name: c.querySelector('.name').textContent, look: c.dataset.look ?? null, backdrop: getComputedStyle(c.querySelector('.thumb')).backgroundImage }))`);
+      /**
+       * The results in order, past the end of the polished set: the grid renders only the cards in
+       * view, so it is scrolled a screen at a time and each card kept where it first appears.
+       */
+      const inOrder = async (): Promise<Card[]> => {
+        const seen: Card[] = [];
+        await page.eval(`document.getElementById('results').scrollTop = 0`);
+        for (let step = 0; step < 30; step++) {
+          await sleep(250);
+          for (const c of await cards()) if (!seen.some((x) => x.id === c.id)) seen.push(c);
+          if (seen.some((c) => c.look !== 'polished')) break;
+          const moved = await page.eval<boolean>(`(() => { const r = document.getElementById('results'); const before = r.scrollTop; r.scrollTop += r.clientHeight * 0.8; return r.scrollTop > before; })()`);
+          if (!moved) break;
+        }
+        // One more screen, so a polished piece out of place after the first other would show.
+        await page.eval(`(() => { const r = document.getElementById('results'); r.scrollTop += r.clientHeight * 0.8; })()`);
+        await sleep(250);
+        for (const c of await cards()) if (!seen.some((x) => x.id === c.id)) seen.push(c);
+        await page.eval(`document.getElementById('results').scrollTop = 0`);
+        return seen;
+      };
+      const scopeTo = async (label: string) => {
+        await findCategory(label);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#browse-tree .browse-node')].some((b) => b.textContent.trim().startsWith(${JSON.stringify(label)}))`), `${label} in the tree`);
+        await page.eval(`[...document.querySelectorAll('#browse-tree .browse-node')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(label)})).click()`);
+        await until(() => page.eval<string>(`document.getElementById('scope-chip-label').textContent`).then((t) => t.includes(label)), `the scope on ${label}`);
+      };
+      try {
+        await fire('#search', '', 'input');
+        await fire('#sort', 'relevance', 'change');
+        for (const [label, least] of [['Objects', 24], ['Design elements', 7]] as const) {
+          await scopeTo(label);
+          await until(async () => (await cards()).length > 0, `${label}'s cards`);
+          const shown = await inOrder();
+          const lead = shown.findIndex((c) => c.look !== 'polished');
+          expect(lead, `${label}: polished first, then the rest (${shown.map((c) => c.name).join(', ')})`).toBeGreaterThanOrEqual(least);
+          expect(shown.slice(lead).some((c) => c.look === 'polished'), `${label}: none after the first other`).toBe(false);
+          // The set's one studio backdrop, not the category's tint.
+          expect(shown[0]!.backdrop, `${label}: the studio backdrop`).toContain('radial-gradient');
+          expect(shown[lead]!.backdrop, `${label}: the others keep theirs`).not.toContain('radial-gradient');
+          await clearFindField();
+        }
+        // Another order is that order: by name, the Objects' polished pieces sit among the rest.
+        await scopeTo('Objects');
+        await fire('#sort', 'name', 'change');
+        await until(async () => (await cards()).slice(0, 24).some((c) => c.look !== 'polished'), 'the polished pieces among the rest by name');
+        const byName = (await cards()).map((c) => c.name.toLowerCase());
+        expect(byName).toEqual([...byName].sort());
+      } finally {
+        await fire('#sort', 'relevance', 'change');
+        await page.eval(`document.getElementById('scope-chip-clear').click()`);
+        await clearFindField();
+      }
+    }, 90_000);
+  });
+
   describe('the blank canvas (milestone 55): composing from nothing with layers', () => {
     const CANVAS = 'pulp.samples.blank-canvas';
     const overlay = `document.getElementById('layer-overlay')`;
