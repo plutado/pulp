@@ -79,9 +79,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 62. Light and dark appearance (post-1.0, **done**) | 8-12 h |
 | 63. Record a voice with one click (post-1.0) | 8-13 h |
 | 64. Record from a camera with one click (post-1.0) | 10-16 h |
+| 65. Layouts made for vertical video (post-1.0) | 25-40 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **35-59 h** |
-| **Total including post-1.0 items** | **970-1585 h** |
+| **Total including post-1.0 items** | **995-1625 h** |
 
 ## 0. Foundation (done)
 
@@ -835,3 +836,15 @@ Decided 2026-11-04. The same idea for picture: a camera button that records from
 - [ ] **Into the library:** the take saved in the managed Recordings folder at the camera's own size and frame rate, in a format the editors open (converted with the bundled FFmpeg where the browser's recording format is not one), with a poster frame and hover scrub like any clip (3-4 h)
 - [ ] **A choice of camera and microphone:** menus in the preview for the camera and the sound input, remembered; mirrored preview for a front-facing camera, never mirrored in the file (1-3 h)
 - [ ] **Tests:** unit tests of naming, saving and conversion; an end-to-end test that records from a fake camera and finds a playable clip of the right length in the library (2-3 h)
+
+## 65. Layouts made for vertical video (25-40 h, after 1.0)
+
+Decided 2026-11-04. Nearly every bundled template declares 9:16, but almost all were designed wide first: a lower third in the bottom-left corner, a title across the middle, scaled down to a tall frame. That is where the short-video apps put their own caption, buttons and progress bar. Vertical video has its own conventions: a hook headline in the top third, captions in the middle of the frame or just above the app's caption band, a wide clip framed between a title and captions, two shots stacked, a face in a corner, and small overlays (part tags, list counters, chat bubbles, a follow prompt) placed clear of the controls down the right. This adds a set of templates designed tall first, and makes them easy to find when the work is tall. As with milestone 19's safe zones, nothing is named or drawn after any one app, and no app's logo or interface is copied.
+
+- [ ] **The conventions, written down:** `docs/vertical-layouts.md` gives where each kind of element sits in a 9:16 frame and why, measured against milestone 19's vertical safe zones (header strip 12%, controls column 18%, caption band 22%), which the published guides bear out: they put the blocked areas at roughly 5-12% across the top, 8-14% down the right and 13-25% across the bottom, and agree on a centered box of about 900 × 1400 at 1080 × 1920 that is clear everywhere. A test holds every template made for vertical to keeping its text inside that box at 9:16 (2-3 h)
+- [ ] **Hook titles:** six or more headline styles for the top third of a tall frame, made to be read in the first second: a bold two-line hook, a boxed question, a highlighted keyword, a meme-style bar across the top, a numbered "3 things" opener, a quote with attribution; each sized for a phone held at arm's length (4-6 h)
+- [ ] **Captions placed for vertical:** caption styles (milestone 50) that sit mid-frame or just above the caption band instead of along the bottom edge: one big word at a time, two short lines boxed, a sticker-like label, and one that follows a face's side; all with the spoken word highlighted (3-5 h)
+- [ ] **Frame layouts:** templates that arrange the picture itself for a tall frame: a wide clip framed between a title above and captions below, two clips stacked top and bottom, a face in a corner over a full-frame clip (using milestone 57's second picture track), and a full-frame clip with a caption card. Each has its media slots and fills the frame without black bars (6-10 h)
+- [ ] **Overlays for short video:** small elements placed clear of the app's controls: a progress bar along the top, a "Part 2" or episode tag, a list counter that steps 1 of 5, chat or text-message bubbles that arrive one by one, a reply-to-a-comment card, a question or poll card, a follow-for-more prompt for the end, and a location or product tag. All are generic, not any app's own (6-10 h)
+- [ ] **Found first when the work is tall:** a "Made for vertical" tag on these templates and a browse node for it; when the previewed shape or the project is 9:16, the templates made for it lead the results under the default sort, and the stage's vertical safe zones show by default while one is selected (2-3 h)
+- [ ] **Tests:** visual references at 9:16 for every new template; the safe-box test above; the sort test at 9:16 and 16:9; an end-to-end test that starts a vertical project and finds the vertical templates first (2-3 h)
