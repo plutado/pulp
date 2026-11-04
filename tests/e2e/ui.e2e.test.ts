@@ -6548,9 +6548,12 @@ describe.skipIf(!electron)('inspector UI', () => {
         await writeFile(REFS, `${JSON.stringify(hashes, null, 2)}\n`);
       } else if (process.platform === 'darwin') {
         // The references were made on the platform the visual suite runs on; elsewhere the fonts differ.
-        const refs = JSON.parse(await readFile(REFS, 'utf8')) as Record<string, string>;
+        // A key may list more than one capture when two Macs draw it apart (CI's macOS machine draws the
+        // first-run dark screen 11 bits from the maintainer's Mac, the same on every run): any one passes.
+        const refs = JSON.parse(await readFile(REFS, 'utf8')) as Record<string, string | string[]>;
         for (const key of Object.keys(refs)) {
-          expect(looksSame(hashes[key]!, refs[key]!), `${key}: ${hashes[key]!} vs reference ${refs[key]!}`).toBe(true);
+          const accepted = ([] as string[]).concat(refs[key]!);
+          expect(accepted.some((ref) => looksSame(hashes[key]!, ref)), `${key}: ${hashes[key]!} vs reference ${accepted.join(' or ')}`).toBe(true);
         }
       }
       await cleanSession();
