@@ -6310,22 +6310,57 @@ describe.skipIf(!electron)('inspector UI', () => {
       const interviewBack = `[...document.querySelectorAll('#start-recent .start-recent-card')].find((c) => c.querySelector('.start-card-name').textContent === 'interview')`;
       await until(() => page.eval<boolean>(`!!(${interviewBack})`), 'Continue back after the forced arrangement');
 
-      // At the default 1280 × 788 the welcome, the lead and the first row of every section are
-      // visible without scrolling.
-      const fits = await page.eval<Record<string, number>>(`(() => {
-        const bottom = (el) => el ? el.getBoundingClientRect().bottom : -1;
+      // At every window size, from a large display down to the 960 × 600 the window allows, both
+      // arrangements fit: the whole screen without scrolling, Learn and the foot included. The size
+      // is set here rather than left to the machine — a CI runner's small screen opens the window
+      // well short of the default — and Continue holds however many recents the suite has opened
+      // by now, in one row.
+      const fitsAt = () => page.eval<{ window: number; scroll: number; wide: number; across: number; rows: number } & Record<string, number>>(`(() => {
+        const bottom = (el) => el && el.offsetParent ? el.getBoundingClientRect().bottom : -1;
+        const screen = document.getElementById('start-screen');
         return {
           window: window.innerHeight,
+          scroll: screen.scrollHeight,
+          wide: screen.scrollWidth,
+          across: screen.clientWidth,
+          rows: new Set([...document.querySelectorAll('#start-recent .start-recent-card')].map((c) => Math.round(c.getBoundingClientRect().top))).size,
           lead: bottom(document.getElementById('start-new-blank')),
+          setup: document.getElementById('start-setup-card').hidden ? 0 : bottom(document.querySelector('#start-checklist li')),
           continueRow: bottom(document.querySelector('#start-recent .start-recent-card') || document.getElementById('start-invite')),
           idea: bottom(document.querySelector('#start-ideas .start-idea')),
           learn: bottom(document.getElementById('start-tour')),
+          foot: bottom(document.querySelector('#start-screen .start-foot')),
         };
       })()`);
-      for (const part of ['lead', 'continueRow', 'idea', 'learn'] as const) {
-        expect(fits[part]!, `${part} visible without scrolling`).toBeGreaterThan(0);
-        expect(fits[part]!, `${part} visible without scrolling`).toBeLessThanOrEqual(fits.window!);
+      const sizes = [[1920, 1080], [1280, 880], [1280, 788], [1120, 700], [1008, 655], [1280, 645], [960, 600]] as const;
+      try {
+        for (const mode of ['returning', 'first-run'] as const) {
+          if (mode === 'first-run') {
+            await page.eval(`window.pulpStartScreen(true, 'first-run')`);
+            await until(() => page.eval<boolean>(`!document.getElementById('start-setup-card').hidden`), 'the first-run arrangement to measure');
+          } else {
+            expect(await page.eval<number>(`document.querySelectorAll('#start-recent .start-recent-card').length`), 'the real recents, not the pinned one').toBeGreaterThanOrEqual(1);
+          }
+          for (const [width, height] of sizes) {
+            await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+            await until(() => page.eval<boolean>(`window.innerHeight === ${height} && window.innerWidth === ${width}`), `${width} × ${height}`);
+            const fits = await fitsAt();
+            const at = `${mode} at ${width} × ${height}`;
+            for (const part of ['lead', 'continueRow', 'idea', 'learn', 'foot', ...(mode === 'first-run' ? ['setup'] : [])]) {
+              expect(fits[part]!, `${part} shown, ${at}`).toBeGreaterThan(0);
+              expect(fits[part]!, `${part} visible without scrolling, ${at}`).toBeLessThanOrEqual(fits.window);
+            }
+            expect(fits.scroll, `nothing to scroll, ${at}`).toBeLessThanOrEqual(fits.window);
+            expect(fits.wide, `nothing to scroll sideways, ${at}`).toBeLessThanOrEqual(fits.across);
+            if (mode === 'returning') expect(fits.rows, `Continue in one row, ${at}`).toBe(1);
+          }
+        }
+      } finally {
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
+        await page.eval(`window.pulpStartScreen(false)`);
       }
+      await home();
+      await until(() => page.eval<boolean>(`!!(${interviewBack})`), 'Continue back after measuring');
 
       // Continue opens the seeded recent.
       await page.eval(`(${interviewBack}).click()`);
@@ -6424,11 +6459,25 @@ describe.skipIf(!electron)('inspector UI', () => {
         120_000,
       );
       await page.send('Page.enable');
+      // The default window at one pixel per point, whatever this machine's screen: a runner's small
+      // screen opens the window shorter than the default, and a Retina one doubles the capture.
+      await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 788, deviceScaleFactor: 1, mobile: false });
+      await until(() => page.eval<boolean>(`window.innerHeight === 788 && window.innerWidth === 1280 && window.devicePixelRatio === 1`), 'the default window size');
       const capture = async (mode: 'first-run' | 'returning', scheme: 'dark' | 'light') => {
         await page.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] });
+        // The gallery is rebuilt for each arrangement, its pictures arriving a moment later: the cards
+        // there now are marked, and the capture waits for the new ones, every one wearing its picture,
+        // so a slower machine captures the same screen rather than empty wells.
+        await page.eval(`document.querySelectorAll('#start-ideas li').forEach((li) => { li.dataset.stale = '1'; })`);
         await page.eval(`window.pulpStartScreen(true, ${JSON.stringify(mode)})`);
         await until(() => page.eval<boolean>(`document.getElementById('start-setup-card').hidden === ${mode === 'returning'}`), `the ${mode} arrangement`);
-        await sleep(350); // the paint after the theme and arrangement settle
+        await until(
+          () => page.eval<boolean>(`(() => { const pics = document.querySelectorAll('#start-ideas .start-idea-pic');
+            return !document.querySelector('#start-ideas li[data-stale]') && pics.length >= 11 && document.querySelectorAll('#start-ideas .start-idea-pic[data-pictured]').length === pics.length; })()`),
+          `the ${mode} gallery rebuilt with its pictures`,
+          60_000,
+        );
+        await sleep(350); // the paint after the theme, the arrangement and the pictures settle
         const shot = (await page.send('Page.captureScreenshot', { format: 'png' })).result as { data: string };
         const rgba = await page.eval<number[]>(`(async () => {
           const img = new Image();
@@ -6446,6 +6495,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         }
       } finally {
         await page.send('Emulation.setEmulatedMedia', { features: [] });
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
         await page.eval(`window.pulpStartScreen(false)`);
       }
       // The two palettes really differ, and so do the two arrangements.

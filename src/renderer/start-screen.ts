@@ -15,7 +15,7 @@
 import { effect } from '@preact/signals';
 import { setFor, setLook, setScope } from '../core/app-state';
 import {
-  checklistProgress, ideaPicture, lastOpenedLabel, libraryGlance, MAKING_CHOICES, makingChoiceLanding, orderRecents,
+  ideaPicture, lastOpenedLabel, libraryGlance, MAKING_CHOICES, makingChoiceLanding, orderRecents,
   PROJECT_SHAPES, setupChecklist, startArrangement,
 } from '../core/start-screen';
 import type { RecentProjectRow } from '../core/start-screen';
@@ -305,6 +305,8 @@ async function fillIdeas(): Promise<void> {
     const meta = document.createElement('span');
     meta.className = 'start-card-meta';
     meta.textContent = example.description;
+    // The tile shows three lines of it at most; the whole of it is a hover away.
+    button.dataset.tip = example.description;
     text.append(name, meta);
     button.append(text);
     button.addEventListener('click', () => {
@@ -331,14 +333,16 @@ async function arrange(): Promise<void> {
     window.pulp.ffmpegDownloadStatus(),
     window.pulp.recentProjectsDetailed(),
   ]);
-  const items = setupChecklist({
+  // The forced first run (the visual references) draws its steps from fixed facts — FFmpeg found,
+  // nothing added yet — so the card is the same on every machine, whatever this one has set up.
+  const items = setupChecklist(forcedMode === 'first-run' ? { ffmpegOk: true, ffmpegDownloadable: false, roots: [] } : {
     ffmpegOk: ffmpeg.ok,
     ffmpegDownloadable: download.build !== null,
     roots: index?.roots ?? [],
     ...(index?.builtInRoot ? { builtInRoot: index.builtInRoot } : {}),
   });
   let plan = startArrangement(items, recents.length, checklistAsked);
-  if (forcedMode === 'first-run') plan = { ...plan, firstRun: true, showContinue: false, showChecklist: true, progress: checklistProgress(items.map((i, n) => ({ ...i, done: n === 0 }))) };
+  if (forcedMode === 'first-run') plan = { ...plan, firstRun: true, showContinue: false, showChecklist: true };
   if (forcedMode === 'returning') plan = { ...plan, firstRun: false, showContinue: true, showChecklist: false };
 
   // The set-up card, with its progress, near the top on a first run.
@@ -397,8 +401,9 @@ export function showStartScreen(options: { checklist?: boolean } = {}): void {
   void fillIdeas();
   void window.pulp.getStartScreenPrefs().then((prefs) => {
     $<HTMLInputElement>('start-show-at-startup').checked = prefs.showAtStartup;
-    // The tour is suggested until it has been taken or skipped once.
-    $('start-tour-hint').hidden = prefs.tourSeen;
+    // The tour is suggested until it has been taken or skipped once; the forced arrangements pin it
+    // to what each stands for, so a tour taken on this machine does not move the references.
+    $('start-tour-hint').hidden = forcedMode ? forcedMode === 'returning' : prefs.tourSeen;
   });
   // The lead action is where starting begins; the keyboard starts there too.
   $<HTMLButtonElement>('start-new-blank').focus();

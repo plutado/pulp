@@ -1431,6 +1431,9 @@ progress { width: 100%; margin: 2px 0; }
   z-index: 40;
   background: var(--s-bg);
   color: var(--s-text);
+  /* A set line height, not the font's own: Segoe UI's "normal" is a tenth taller than SF's, which
+     made the same screen 20 px taller on Windows. With it, only wrapping differs by platform. */
+  line-height: 1.2;
   overflow-y: auto;
   color-scheme: dark;
 }
@@ -1514,8 +1517,9 @@ progress { width: 100%; margin: 2px 0; }
 .start-checklist button { margin-left: auto; background: transparent; color: var(--s-text); border: 1px solid var(--s-border); border-radius: var(--radius-control); padding: 4px 10px; }
 .start-checklist button:hover { background: var(--s-panel-2); }
 
-/* Continue: recent projects as recognizable cards. */
-.start-recents { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-2) var(--space-3); }
+/* Continue: recent projects as recognizable cards, three to the width, in one row that scrolls
+   sideways like the gallery — ten recents must not push Learn off the screen. */
+.start-recents { list-style: none; margin: 0; padding: 0 0 var(--space-1); display: grid; grid-auto-flow: column; grid-auto-columns: max(280px, calc((100% - 2 * var(--space-3)) / 3)); gap: var(--space-3); overflow-x: auto; scrollbar-width: thin; }
 .start-recents li { display: flex; align-items: stretch; gap: var(--space-2); min-width: 0; }
 .start-recent-card { flex: 1; display: flex; align-items: center; gap: var(--space-3); min-width: 0; text-align: left; background: var(--s-panel); border: 1px solid var(--s-border); border-radius: var(--radius-surface); padding: var(--space-2); color: var(--s-text); }
 .start-recent-card:hover:not(:disabled) { background: var(--s-panel-2); }
@@ -1541,6 +1545,8 @@ progress { width: 100%; margin: 2px 0; }
 .start-idea-pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .start-idea-pic .strip { position: absolute; inset: 0; background-repeat: no-repeat; background-size: 800% 100%; display: none; }
 .start-idea-pic.scrubbing .strip { display: block; }
+/* Three lines of description at most, so a long one (or a wide font) cannot make the row taller. */
+.start-gallery .start-card-meta { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .start-idea-badge { position: absolute; right: 4px; top: 4px; font-size: var(--font-caption); background: color-mix(in srgb, var(--s-bg) 72%, transparent); color: var(--s-text); border-radius: 3px; padding: 0 5px; }
 
 /* Learn: plain links in a row; the glance is one quiet line in the foot. */
@@ -1548,6 +1554,39 @@ progress { width: 100%; margin: 2px 0; }
 .start-foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); margin-top: var(--space-5); padding-top: var(--space-3); border-top: 1px solid var(--s-border); }
 .start-foot-add { font-size: var(--font-secondary); color: var(--s-muted); }
 .start-foot .start-caption { margin: 0 0 0 auto; }
+
+/* A window under 880 px tall — the default 788 among them — down to the 600 px the window
+   allows: the same screen, nothing taken off it, drawn tighter so the whole of it fits without
+   scrolling on every platform — each heading shares its line with its description (or Learn's
+   links), the checklist's three steps sit side by side, the gallery's tiles are a little
+   smaller, and the gaps close up. Measured at seven sizes by the end-to-end test. */
+@media (max-height: 879px) {
+  .start-inner { padding-block: var(--space-3); }
+  .start-head { margin-bottom: var(--space-2); }
+  .start-mark { width: 32px; height: 32px; border-radius: 7px; grid-template-rows: 1fr 8px 5px 1fr; grid-template-columns: 5px 4px 1fr 6px; }
+  .start-mark b { margin: 0 3px 2px 2px; }
+  .start-mark u { margin: 0 11px 0 2px; }
+  .start-caption { margin-top: var(--space-1); }
+  .start-block, .start-setup { margin-top: var(--space-3); display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-2) var(--space-3); }
+  .start-block > *, .start-setup > * { grid-column: 1 / -1; }
+  .start-block > h2, .start-setup > h2 { grid-column: 1; }
+  .start-block > .start-section-note, .start-setup > .start-section-note, .start-block > .start-learn { grid-column: 2; margin: 0; }
+  .start-setup { padding: var(--space-2) var(--space-3); }
+  .start-setup[hidden] { display: none; }
+  .start-checklist { margin: 0; flex-direction: row; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+  .start-checklist li { flex: 1 1 240px; min-width: 0; }
+  .start-checklist button { white-space: nowrap; }
+  .start-invite { padding: 0; }
+  .start-gallery { grid-auto-columns: 148px; }
+  .start-foot { margin-top: var(--space-3); padding-top: var(--space-2); }
+}
+/* Near the floor, only the whitespace gives a little more: the foot fits on a first run too. */
+@media (max-height: 679px) {
+  .start-inner { padding-block: var(--space-2); }
+  .start-head { margin-bottom: var(--space-1); }
+  .start-block, .start-setup { margin-top: var(--space-2); row-gap: 6px; }
+  .start-foot { margin-top: var(--space-2); padding-top: 6px; }
+}
 
 /* ---------------------------------------------------------------- the tour (milestone 31) */
 
