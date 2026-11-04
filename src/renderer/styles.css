@@ -8,6 +8,62 @@
   --accent: #f59e0b;
   --danger: #f87171;
   --text-secondary: #c3c9d4;
+  /* Every color in this file is one of these tokens (milestone 62; tests/appearance.test.ts holds it).
+     This block is the dark palette; the light one, under it, gives each of the window's own
+     tokens its counterpart, and both are held to WCAG AA by the same test. */
+  --accent-text: #f59e0b;
+  --on-accent: #1a1205;
+  --ink: #0d1117;
+  --warn: #92400e;
+  --shadow: rgba(0, 0, 0, 0.35);
+  --shadow-strong: rgba(0, 0, 0, 0.45);
+  --backdrop: rgba(0, 0, 0, 0.5);
+  --tour-dim: rgba(0, 0, 0, 0.55);
+  --meter-track: rgba(148, 163, 184, 0.28);
+  --trimmed: rgba(0, 0, 0, 0.45);
+  --part-motion: rgba(125, 211, 252, 0.28);
+  --part-hold: rgba(125, 211, 252, 0.12);
+  --bar: rgba(148, 163, 184, 0.35);
+  --bar-selected: rgba(125, 211, 252, 0.55);
+  --bar-fade: rgba(255, 255, 255, 0.22);
+  --wave: rgba(255, 255, 255, 0.65);
+  --lane: rgba(255, 255, 255, 0.04);
+  --lane-edge: rgba(255, 255, 255, 0.18);
+  --drop: rgba(125, 211, 252, 0.15);
+  --pip: rgba(180, 148, 212, 0.4);
+  --pip-selected: rgba(200, 160, 240, 0.6);
+  --cut: rgba(134, 180, 148, 0.35);
+  --cut-selected: rgba(134, 213, 166, 0.55);
+  --cut-hold: rgba(180, 160, 134, 0.4);
+  --cut-hold-stripe: rgba(255, 255, 255, 0.08);
+  --cut-hold-selected: rgba(213, 190, 150, 0.6);
+  --chip-dark: rgba(13, 17, 23, 0.7);
+  --silence: rgba(239, 68, 68, 0.35);
+  --silence-edge: rgba(239, 68, 68, 0.8);
+  /* What belongs to the work, the same in either appearance: the stage's checkerboard and its
+     chosen backgrounds, the safe areas drawn over the picture, the backdrops a transparent
+     graphic's poster is shown on, and Pulp's own mark. */
+  --checker-a: #2a2d33;
+  --checker-b: #34383f;
+  --swatch-black: #000000;
+  --swatch-white: #ffffff;
+  --swatch-gray: #808080;
+  --safe-line: rgba(255, 255, 255, 0.45);
+  --safe-zone: rgba(255, 96, 96, 0.14);
+  --safe-zone-edge: rgba(255, 140, 140, 0.6);
+  --poster-any: #20242c;
+  --poster-lower-thirds: #1f2a36;
+  --poster-titles-openers: #2a2334;
+  --poster-end-cards: #2c2730;
+  --poster-overlays-frames: #1f2d2a;
+  --poster-transitions-wipes: #33281f;
+  --poster-design-elements: #2f2b20;
+  --poster-effects: #33211f;
+  --poster-objects: #26302a;
+  --poster-still-backgrounds: #232a33;
+  --mark-tile: #262b35;
+  --mark-bar: #e8eaee;
+  --mark-sub: #9aa1ad;
   /* The type scale, spacing grid and radii from docs/ui-style.md; font sizes outside
      these tokens are a defect the ui-style test catches. */
   --font-caption: 11px;
@@ -52,6 +108,53 @@
   color-scheme: dark;
 }
 
+/* The light appearance (milestone 62): chosen in Settings or View → Appearance, or the system's
+   when that is light. The main process hands the choice to every window as prefers-color-scheme,
+   so this one block redraws the window, the popped-out stage and the dialogs together. */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f3f4f6;
+    --panel: #ffffff;
+    --panel-2: #e8eaee;
+    --border: #c9ced6;
+    --text: #1b1f26;
+    --muted: #555d6a;
+    --accent: #c2680a;
+    --danger: #b91c1c;
+    --text-secondary: #3a414c;
+    --accent-text: #9a4a08;
+    --on-accent: #1a1205;
+    --ink: #0d1117;
+    --warn: #fbbf24;
+    --shadow: rgba(15, 23, 42, 0.14);
+    --shadow-strong: rgba(15, 23, 42, 0.2);
+    --backdrop: rgba(15, 23, 42, 0.35);
+    --tour-dim: rgba(15, 23, 42, 0.45);
+    --meter-track: rgba(100, 116, 139, 0.25);
+    --trimmed: rgba(15, 23, 42, 0.18);
+    --part-motion: rgba(2, 132, 199, 0.22);
+    --part-hold: rgba(2, 132, 199, 0.1);
+    --bar: rgba(100, 116, 139, 0.32);
+    --bar-selected: rgba(2, 132, 199, 0.4);
+    --bar-fade: rgba(15, 23, 42, 0.12);
+    --wave: rgba(15, 23, 42, 0.55);
+    --lane: rgba(15, 23, 42, 0.04);
+    --lane-edge: rgba(15, 23, 42, 0.2);
+    --drop: rgba(2, 132, 199, 0.12);
+    --pip: rgba(124, 58, 237, 0.22);
+    --pip-selected: rgba(124, 58, 237, 0.4);
+    --cut: rgba(22, 163, 74, 0.22);
+    --cut-selected: rgba(22, 163, 74, 0.4);
+    --cut-hold: rgba(180, 83, 9, 0.18);
+    --cut-hold-stripe: rgba(15, 23, 42, 0.06);
+    --cut-hold-selected: rgba(180, 83, 9, 0.34);
+    --chip-dark: rgba(13, 17, 23, 0.7);
+    --silence: rgba(239, 68, 68, 0.25);
+    --silence-edge: rgba(220, 38, 38, 0.8);
+    color-scheme: light;
+  }
+}
+
 * { box-sizing: border-box; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 html, body { margin: 0; height: 100%; }
@@ -68,7 +171,7 @@ button, input, select, textarea {
 }
 button { cursor: pointer; }
 button:disabled { opacity: 0.5; cursor: default; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #1a1205; font-weight: 600; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 input[type="color"] { padding: 2px; height: 28px; width: 48px; }
 input[type="checkbox"] { width: auto; }
 
@@ -115,7 +218,7 @@ input[type="checkbox"] { width: auto; }
   height: min(var(--inspector-h, 320px), 100%);
   padding: 0 12px 12px;
   border-top: 1px solid var(--border);
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 -8px 24px var(--shadow);
   z-index: 3;
 }
 .app:not(.inspector-open) #region-inspector { display: none; }
@@ -124,7 +227,7 @@ input[type="checkbox"] { width: auto; }
 .inspector-head-spacer { flex: 1; }
 .inspector-head .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
 .inspector-head .icon-button:hover { color: var(--text); }
-.inspector-head .icon-button[aria-pressed="true"] { color: var(--accent); }
+.inspector-head .icon-button[aria-pressed="true"] { color: var(--accent-text); }
 /* The panes scroll inside the drawer; the head and the drawer itself never do. */
 .inspector .tab-pane { flex: 1; min-height: 0; overflow-y: auto; }
 .inspector h2 { font-size: var(--font-title); font-weight: 600; color: var(--text); margin: 8px 0 10px; }
@@ -147,7 +250,7 @@ input[type="checkbox"] { width: auto; }
 .section-head .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
 .section-head .icon-button:hover { color: var(--text); }
 /* The funnel lights while the field is open or a filter is in force, so a shortened tree says why. */
-.section-head .icon-button[aria-expanded="true"], .section-head .icon-button[aria-pressed="true"] { color: var(--accent); }
+.section-head .icon-button[aria-expanded="true"], .section-head .icon-button[aria-pressed="true"] { color: var(--accent-text); }
 .browse-tree { flex: 1; min-height: 0; overflow-y: auto; }
 
 /* Filter categories (milestone 24, moved under the funnel in 41): the field filters the tree below. */
@@ -158,7 +261,7 @@ input[type="checkbox"] { width: auto; }
 /* The query filters the tree below, so there is no list beside it: only the field, and a line
    when nothing answers. The letters that matched are lit in the rows themselves. */
 .find-none { color: var(--muted); font-size: var(--font-caption); margin: var(--space-1) 0 0; padding: 0 2px; }
-.browse-tree mark { background: none; color: var(--accent); font-weight: 600; }
+.browse-tree mark { background: none; color: var(--accent-text); font-weight: 600; }
 
 .region-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .region-title { font-size: var(--font-title); font-weight: 600; color: var(--text); }
@@ -184,7 +287,7 @@ input[type="checkbox"] { width: auto; }
 .layer-overlay:focus-visible { outline: none; }
 .layer-overlay.active { cursor: default; }
 .stage-select { position: absolute; border: 1px solid var(--accent); pointer-events: none; }
-.stage-handle { position: absolute; width: 10px; height: 10px; background: var(--accent); border: 1px solid #0d1117; pointer-events: auto; }
+.stage-handle { position: absolute; width: 10px; height: 10px; background: var(--accent); border: 1px solid var(--ink); pointer-events: auto; }
 .stage-handle.nw { left: -5px; top: -5px; cursor: nwse-resize; }
 .stage-handle.se { right: -5px; bottom: -5px; cursor: nwse-resize; }
 .stage-handle.ne { right: -5px; top: -5px; cursor: nesw-resize; }
@@ -197,7 +300,7 @@ input[type="checkbox"] { width: auto; }
 /* The angle while it turns, over the handle and out of the pointer's way. */
 .stage-angle {
   position: absolute; left: 50%; top: -52px; transform: translateX(-50%);
-  padding: 1px 6px; border-radius: 3px; background: var(--accent); color: #0d1117;
+  padding: 1px 6px; border-radius: 3px; background: var(--accent); color: var(--ink);
   font-size: var(--font-caption); font-variant-numeric: tabular-nums; pointer-events: none; white-space: nowrap;
 }
 .stage-guide { position: absolute; background: var(--accent); opacity: 0.8; pointer-events: none; }
@@ -216,7 +319,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .context-menu-layer[hidden] { display: none; }
 .context-menu { position: fixed; z-index: 900; min-width: 180px; max-width: 280px; padding: var(--space-1); margin: 0; list-style: none;
   background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-control);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+  box-shadow: 0 8px 24px var(--shadow-strong); }
 .context-menu > button { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%;
   padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control); background: none; color: inherit;
   font: inherit; font-size: var(--font-body); text-align: left; cursor: default; }
@@ -240,7 +343,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 }
 .context-menu > button.checked::before { opacity: 1; }
 .context-sep { height: 1px; margin: var(--space-1) var(--space-2); background: var(--border); }
-.tooltip { position: fixed; z-index: 1000; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: var(--font-secondary); pointer-events: none; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); max-width: 320px; }
+.tooltip { position: fixed; z-index: 1000; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: var(--font-secondary); pointer-events: none; box-shadow: 0 4px 12px var(--shadow); max-width: 320px; }
 .tooltip[hidden] { display: none; }
 
 /* Collapsed states. The browse panel becomes an icon rail: the same nodes and tools, labels in tooltips. */
@@ -453,7 +556,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .project-button { border: 0; background: none; padding: 0 2px; color: inherit; cursor: pointer; font: inherit; border-radius: 0; }
 .project-button:hover { color: var(--text); }
 .project-button.dirty { color: var(--text); }
-.project-button.dirty .label::before { content: '• '; color: var(--accent); }
+.project-button.dirty .label::before { content: '• '; color: var(--accent-text); }
 .project-dialog .project-actions { justify-content: flex-start; }
 .project-recent-head { font-size: var(--font-secondary); margin: var(--space-2) 0 var(--space-1); }
 .project-recent { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 220px; overflow: auto; }
@@ -478,7 +581,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .transport-status .summary .problem { max-width: 240px; }
 
 .pack-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-surface); padding: var(--space-4); width: min(560px, 90vw); }
-.pack-dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+.pack-dialog::backdrop { background: var(--backdrop); }
 /* Guided setup (milestone 14): two columns, the live preview on the left the whole way through. */
 .guided-dialog { width: min(760px, 94vw); }
 .guided-columns { display: grid; grid-template-columns: 240px 1fr; gap: var(--space-4); align-items: start; margin: var(--space-3) 0; }
@@ -499,11 +602,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .pack-templates { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; max-height: 40vh; overflow-y: auto; }
 .pack-templates li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 6px 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; font-size: var(--font-secondary); }
 .pack-templates .status { color: var(--muted); grid-column: 1 / -1; }
-.pack-templates .status.warn { color: var(--accent); }
+.pack-templates .status.warn { color: var(--accent-text); }
 .pack-templates .status.bad { color: var(--danger); }
 .pack-templates select { font-size: var(--font-caption); padding: 1px 4px; }
 .pack-export { display: grid; gap: 8px; margin: 8px 0; }
-.note.warn { color: var(--accent); }
+.note.warn { color: var(--accent-text); }
 /* Results: a grid of cards or a list of rows (docs/ui-layout.md). The column count
    and the card height arrive as custom properties from the renderer, so the layout
    and the windowing math share one geometry (src/core/results-view.ts). Cards carry
@@ -538,7 +641,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results li[aria-selected="true"] .waveform path { stroke: var(--accent); }
 .results .name-row { display: flex; gap: var(--space-1); align-items: center; min-width: 0; }
 .results .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.results .fav { color: var(--accent); display: inline-flex; }
+.results .fav { color: var(--accent-text); display: inline-flex; }
 .results .fav[hidden] { display: none; }
 
 .results.grid .card { height: var(--card-h, 130px); padding: 4px; display: flex; flex-direction: column; gap: 4px; }
@@ -658,12 +761,12 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .preview-empty[hidden] { display: none; }
 .preview-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
 .checker {
-  background-color: #2a2d33;
+  background-color: var(--checker-a);
   background-image:
-    linear-gradient(45deg, #34383f 25%, transparent 25%),
-    linear-gradient(-45deg, #34383f 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #34383f 75%),
-    linear-gradient(-45deg, transparent 75%, #34383f 75%);
+    linear-gradient(45deg, var(--checker-b) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--checker-b) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--checker-b) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--checker-b) 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0;
 }
@@ -714,7 +817,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .loudness { display: inline-flex; align-items: center; gap: 6px; }
 /* Outweighs .buttons-line .tool-group, which would otherwise keep an empty meter's room. */
 .buttons-line .tool-group.loudness[hidden], .loudness[hidden] { display: none; }
-.loudness-bar { position: relative; width: 56px; height: 6px; border-radius: 3px; background: rgba(148, 163, 184, 0.28); overflow: hidden; }
+.loudness-bar { position: relative; width: 56px; height: 6px; border-radius: 3px; background: var(--meter-track); overflow: hidden; }
 #loudness-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
 #loudness-target { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: var(--text); }
 #loudness-target[hidden] { display: none; }
@@ -746,7 +849,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .transport-tabs .tab { position: relative; display: inline-flex; align-items: center; font-size: var(--font-secondary); padding: 3px 10px; color: var(--muted); background: none; border-color: transparent; }
 .transport-tabs .tab:hover { color: var(--text); }
 .transport-tabs .tab[aria-selected="true"] { color: var(--text); background: var(--panel-2); border-color: var(--border); }
-.app.inspector-open .transport-tabs .tab[aria-selected="true"] { color: var(--accent); border-color: var(--accent); }
+.app.inspector-open .transport-tabs .tab[aria-selected="true"] { color: var(--accent-text); border-color: var(--accent); }
 /* The dot: the shown item has edits behind this tab (milestone 38). */
 .transport-tabs .tab.edited::after { content: ''; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 /* On a narrower window the tabs fold to their icons, so the line keeps room for the status at its
@@ -831,7 +934,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .transport-button { padding: 4px 8px; }
 .transport-row .icon-button { color: var(--muted); background: none; border-color: transparent; }
 .transport-row .icon-button:hover:not(:disabled) { color: var(--text); }
-.transport-row .icon-button[aria-pressed="true"] { color: var(--accent); }
+.transport-row .icon-button[aria-pressed="true"] { color: var(--accent-text); }
 .buttons-line .tool-group { display: inline-flex; align-items: center; gap: var(--space-1); }
 .transport-middle button, .transport-tools button { font-size: var(--font-secondary); padding: 3px 8px; }
 .transport-middle .icon-button, .transport-tools .icon-button { padding: 3px 5px; }
@@ -863,7 +966,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .scrub-wrap { position: relative; flex: 1; display: flex; align-items: center; min-width: 0; }
 .scrub-wrap input[type="range"] { flex: 1; padding: 0; margin: 0; min-width: 0; }
 .scrub-marks { position: absolute; left: 0; right: 0; top: 50%; height: 12px; transform: translateY(-50%); pointer-events: none; }
-.scrub-marks .trimmed { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.45); }
+.scrub-marks .trimmed { position: absolute; top: 0; bottom: 0; background: var(--trimmed); }
 .scrub-marks #trim-before { left: 0; }
 .scrub-marks #trim-after { right: 0; }
 /* The parts of a graphic whose length can be set (milestone 30): the entrance and the exit keep
@@ -871,11 +974,11 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
    so a trim still reads as "this is dropped". */
 .scrub-marks .part { position: absolute; top: 0; bottom: 0; }
 .scrub-marks .part[hidden] { display: none; }
-.scrub-marks .part.entrance, .scrub-marks .part.exit { background: rgba(125, 211, 252, 0.28); }
-.scrub-marks .part.hold { background: rgba(125, 211, 252, 0.12); }
+.scrub-marks .part.entrance, .scrub-marks .part.exit { background: var(--part-motion); }
+.scrub-marks .part.hold { background: var(--part-hold); }
 .length-handle {
   position: absolute; top: 50%; width: 9px; height: 18px; margin: -9px 0 0 -4px; padding: 0;
-  border: 1px solid #0d1117; border-radius: 2px; background: var(--accent); cursor: ew-resize;
+  border: 1px solid var(--ink); border-radius: 2px; background: var(--accent); cursor: ew-resize;
 }
 .length-handle[hidden] { display: none; }
 /* The rate a frame sequence is read at (milestone 30): beside the transport, since it is what
@@ -894,14 +997,14 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .layer-bar { position: relative; height: 12px; }
 .layer-bar .bar-body {
   position: absolute; top: 0; bottom: 0; min-width: 6px; border-radius: 3px; cursor: pointer;
-  background: rgba(148, 163, 184, 0.35); overflow: visible;
+  background: var(--bar); overflow: visible;
 }
-.layer-bar.selected .bar-body { background: rgba(125, 211, 252, 0.55); }
+.layer-bar.selected .bar-body { background: var(--bar-selected); }
 /* The layer's own sound, drawn under the shades and the label (milestone 48). */
 .layer-bar .bar-wave { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .layer-bar .bar-wave[hidden] { display: none; }
-.layer-bar .bar-wave path { stroke: rgba(255, 255, 255, 0.65); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.layer-bar .bar-in, .layer-bar .bar-out { position: absolute; top: 0; bottom: 0; background: rgba(255, 255, 255, 0.22); }
+.layer-bar .bar-wave path { stroke: var(--wave); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.layer-bar .bar-in, .layer-bar .bar-out { position: absolute; top: 0; bottom: 0; background: var(--bar-fade); }
 .layer-bar .bar-in { left: 0; border-radius: 3px 0 0 3px; }
 .layer-bar .bar-out { right: 0; border-radius: 0 3px 3px 0; }
 .layer-bar .bar-label {
@@ -909,7 +1012,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
 }
 .layer-bar .bar-end {
-  position: absolute; top: -2px; width: 7px; height: 16px; margin: 0; padding: 0; border: 1px solid #0d1117; border-radius: 2px;
+  position: absolute; top: -2px; width: 7px; height: 16px; margin: 0; padding: 0; border: 1px solid var(--ink); border-radius: 2px;
   background: var(--muted); cursor: ew-resize;
 }
 .layer-bar.selected .bar-end { background: var(--accent); }
@@ -918,20 +1021,20 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .layer-bar .bar-end:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 /* A stem lane's mixer buttons (milestone 16): M and S on the lane itself, where the sound is read. */
 .layer-bar .bar-stem {
-  position: absolute; top: 0; width: 13px; height: 12px; margin: 0; padding: 0; border: 1px solid #0d1117; border-radius: 2px;
+  position: absolute; top: 0; width: 13px; height: 12px; margin: 0; padding: 0; border: 1px solid var(--ink); border-radius: 2px;
   background: var(--panel); color: var(--muted); font-size: var(--font-caption); line-height: 10px; cursor: pointer;
 }
 .layer-bar .bar-stem.bar-mute { right: 18px; }
 .layer-bar .bar-stem.bar-solo { right: 3px; }
-.layer-bar .bar-stem[aria-pressed='true'].bar-mute { background: var(--warn, #b45309); color: var(--text); }
-.layer-bar .bar-stem[aria-pressed='true'].bar-solo { background: var(--accent); color: #0d1117; }
+.layer-bar .bar-stem[aria-pressed='true'].bar-mute { background: var(--warn); color: var(--text); }
+.layer-bar .bar-stem[aria-pressed='true'].bar-solo { background: var(--accent); color: var(--ink); }
 .layer-bar .bar-stem:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .layer-bar.stem-silent .bar-body { opacity: 0.45; }
 /* A keyframe's mark (milestone 51): a diamond on the row at the key's moment, dragged in time,
    with copy, paste and delete on its own right-click menu. On the row rather than in the body:
    a key sits in the graphic's time and can sit outside the layer's span, still holding the pose
    at its edge, so its mark must not move with the body. */
-.layer-bar .bar-key { position: absolute; top: 2px; width: 8px; height: 8px; margin: 0 0 0 -4px; padding: 0; border: 1px solid #0d1117; border-radius: 2px; background: var(--muted); transform: rotate(45deg); cursor: ew-resize; }
+.layer-bar .bar-key { position: absolute; top: 2px; width: 8px; height: 8px; margin: 0 0 0 -4px; padding: 0; border: 1px solid var(--ink); border-radius: 2px; background: var(--muted); transform: rotate(45deg); cursor: ew-resize; }
 .layer-bar.selected .bar-key { background: var(--accent); }
 .layer-bar .bar-key:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .scrub-marks .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--accent); }
@@ -985,30 +1088,30 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .cut-track[hidden] { display: none; }
 /* The second picture track (milestone 57): the project's video layers as a lane over the cut track —
    a block per clip at its span, selecting its layer; empty, a thin strip that says it takes a drop. */
-.overlay-track { position: relative; height: 16px; margin: 2px 0; border-radius: 3px; background: rgba(255, 255, 255, 0.04); }
+.overlay-track { position: relative; height: 16px; margin: 2px 0; border-radius: 3px; background: var(--lane); }
 .overlay-track[hidden] { display: none; }
-.overlay-track.empty { border: 1px dashed rgba(255, 255, 255, 0.18); }
+.overlay-track.empty { border: 1px dashed var(--lane-edge); }
 .overlay-track.empty::after { content: 'Picture track: drop a clip here for picture-in-picture or b-roll'; position: absolute; inset: 0; padding: 0 6px; font-size: var(--font-caption); line-height: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
-.overlay-track.drop-target { background: rgba(125, 211, 252, 0.15); border-color: var(--accent); }
+.overlay-track.drop-target { background: var(--drop); border-color: var(--accent); }
 .overlay-track .pip { position: absolute; top: 0; bottom: 0; min-width: 6px; }
-.overlay-track .pip-body { position: absolute; inset: 0; width: 100%; margin: 0; padding: 0 6px; border: 1px solid #0d1117; border-radius: 3px; background: rgba(180, 148, 212, 0.4); cursor: pointer; overflow: hidden; text-align: left; }
-.overlay-track .pip.selected .pip-body { background: rgba(200, 160, 240, 0.6); }
+.overlay-track .pip-body { position: absolute; inset: 0; width: 100%; margin: 0; padding: 0 6px; border: 1px solid var(--ink); border-radius: 3px; background: var(--pip); cursor: pointer; overflow: hidden; text-align: left; }
+.overlay-track .pip.selected .pip-body { background: var(--pip-selected); }
 .overlay-track .pip-body:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .overlay-track .pip-label { display: block; font-size: var(--font-caption); line-height: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .cut { position: absolute; top: 0; bottom: 0; min-width: 6px; }
-.cut .cut-body { position: absolute; inset: 0; width: 100%; margin: 0; padding: 0 6px; border: 1px solid #0d1117; border-radius: 3px; background: rgba(134, 180, 148, 0.35); cursor: grab; overflow: hidden; text-align: left; }
-.cut.selected .cut-body { background: rgba(134, 213, 166, 0.55); }
+.cut .cut-body { position: absolute; inset: 0; width: 100%; margin: 0; padding: 0 6px; border: 1px solid var(--ink); border-radius: 3px; background: var(--cut); cursor: grab; overflow: hidden; text-align: left; }
+.cut.selected .cut-body { background: var(--cut-selected); }
 .cut .cut-body:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .cut .cut-label { display: block; position: relative; font-size: var(--font-caption); line-height: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 /* The cut's speed or hold (milestone 56): a small tag at the right of the body, over the sound. */
-.cut .cut-speed { position: absolute; right: 3px; top: 1px; padding: 0 3px; border-radius: 2px; background: rgba(13, 17, 23, 0.7); color: var(--accent); font-size: var(--font-caption); line-height: 12px; pointer-events: none; }
+.cut .cut-speed { position: absolute; right: 3px; top: 1px; padding: 0 3px; border-radius: 2px; background: var(--chip-dark); color: var(--accent); font-size: var(--font-caption); line-height: 12px; pointer-events: none; }
 .cut .cut-speed[hidden] { display: none; }
-.cut.hold .cut-body { background: rgba(180, 160, 134, 0.4); background-image: repeating-linear-gradient(90deg, transparent 0 6px, rgba(255, 255, 255, 0.08) 6px 8px); }
-.cut.hold.selected .cut-body { background-color: rgba(213, 190, 150, 0.6); }
+.cut.hold .cut-body { background: var(--cut-hold); background-image: repeating-linear-gradient(90deg, transparent 0 6px, var(--cut-hold-stripe) 6px 8px); }
+.cut.hold.selected .cut-body { background-color: var(--cut-hold-selected); }
 .cut .cut-wave { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .cut .cut-wave[hidden] { display: none; }
-.cut .cut-wave path { stroke: rgba(255, 255, 255, 0.65); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.cut .cut-trim { position: absolute; top: -1px; width: 7px; height: 18px; margin: 0; padding: 0; border: 1px solid #0d1117; border-radius: 2px; background: var(--muted); cursor: ew-resize; }
+.cut .cut-wave path { stroke: var(--wave); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.cut .cut-trim { position: absolute; top: -1px; width: 7px; height: 18px; margin: 0; padding: 0; border: 1px solid var(--ink); border-radius: 2px; background: var(--muted); cursor: ew-resize; }
 .cut.selected .cut-trim { background: var(--accent); }
 .cut .cut-trim.start { left: -3px; }
 .cut .cut-trim.end { right: -3px; }
@@ -1018,7 +1121,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
   background: var(--accent); clip-path: polygon(0 0, 50% 50%, 0 100%, 100% 100%, 50% 50%, 100% 0); }
 .cut .cut-join[hidden] { display: none; }
 /* A quiet stretch the silence scan found (milestone 49), shaded where the cut will fall. */
-.cut-track .cut-silence { position: absolute; top: -2px; bottom: -2px; background: rgba(239, 68, 68, 0.35); border: 1px solid rgba(239, 68, 68, 0.8); border-radius: 2px; pointer-events: none; z-index: 2; }
+.cut-track .cut-silence { position: absolute; top: -2px; bottom: -2px; background: var(--silence); border: 1px solid var(--silence-edge); border-radius: 2px; pointer-events: none; z-index: 2; }
 .silence-dialog .key-controls label { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--font-secondary); }
 .silence-dialog input[type="number"] { width: 72px; }
 /* A clip dragged from the results over the lanes: the strip says it will take the drop. */
@@ -1037,11 +1140,11 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .stage-view .tool-group { display: inline-flex; align-items: center; gap: var(--space-1); }
 .stage-view .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
 .stage-view .icon-button:hover { color: var(--text); }
-.stage-view .icon-button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--panel-2); }
+.stage-view .icon-button[aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent); background: var(--panel-2); }
 .stage-view .swatch { width: 22px; height: 22px; padding: 0; border-radius: var(--radius-control); border: 1px solid var(--border); }
-.stage-view .swatch.black { background: #000000; }
-.stage-view .swatch.white { background: #ffffff; }
-.stage-view .swatch.gray { background: #808080; }
+.stage-view .swatch.black { background: var(--swatch-black); }
+.stage-view .swatch.white { background: var(--swatch-white); }
+.stage-view .swatch.gray { background: var(--swatch-gray); }
 .stage-view .swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .stage-view #bg-custom { width: 26px; height: 22px; padding: 1px; }
 .stage-view #bg-custom.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
@@ -1051,11 +1154,11 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 /* Safe areas: fractions of the frame (src/core/player.ts), over everything in the preview. */
 .safe-overlay { position: absolute; inset: 0; pointer-events: none; }
 .safe-overlay[hidden] { display: none; }
-.safe-overlay .safe { position: absolute; border: 1px solid rgba(255, 255, 255, 0.45); }
+.safe-overlay .safe { position: absolute; border: 1px solid var(--safe-line); }
 .safe-overlay .safe.title { border-style: dashed; }
 /* Vertical zones: what a tall frame keeps clear, as a tint rather than a line, so they read as areas. */
 .safe-overlay .zones[hidden] { display: none; }
-.safe-overlay .zone { position: absolute; background: rgba(255, 96, 96, 0.14); border: 1px dashed rgba(255, 140, 140, 0.6); }
+.safe-overlay .zone { position: absolute; background: var(--safe-zone); border: 1px dashed var(--safe-zone-edge); }
 .render-options .trim input { font-family: Menlo, Consolas, monospace; }
 /* One-click output presets per kind of asset, and the type's remembered default (milestone 14). */
 .asset-presets .asset-preset-buttons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -1070,7 +1173,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .item-tools .field-name { color: var(--muted); font-size: var(--font-secondary); }
 .item-tools[hidden] { display: none; }
 .item-tools .favorite { display: inline-flex; align-items: center; line-height: 1; padding: 4px 8px; }
-.item-tools .favorite[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.item-tools .favorite[aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent); }
 .tag-chips { display: flex; gap: 4px; flex-wrap: wrap; }
 .tag-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 6px 1px 8px; font-size: var(--font-caption); }
 .tag-chip.folder { opacity: 0.7; }
@@ -1107,13 +1210,13 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .facts dt { color: var(--muted); font-size: var(--font-secondary); }
 .facts dd { margin: 0; min-width: 0; display: flex; align-items: center; gap: var(--space-1); overflow-wrap: anywhere; }
 .facts dd .icon { color: var(--muted); flex-shrink: 0; }
-.facts dd.warn { color: var(--accent); }
+.facts dd.warn { color: var(--accent-text); }
 .facts .tag-chip.license { font-size: var(--font-secondary); }
-.facts .tag-chip.license.warn { border-color: var(--accent); color: var(--accent); }
+.facts .tag-chip.license.warn { border-color: var(--accent); color: var(--accent-text); }
 
 .info-about { margin: 0; line-height: 1.5; }
 .info-about.clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.info-about .more { background: none; border: 0; color: var(--accent); padding: 0 0 0 var(--space-1); font-size: var(--font-secondary); }
+.info-about .more { background: none; border: 0; color: var(--accent-text); padding: 0 0 0 var(--space-1); font-size: var(--font-secondary); }
 .empty-note { color: var(--muted); font-size: var(--font-secondary); }
 .chip-label { margin: 0; color: var(--muted); font-size: var(--font-caption); }
 .chip-row { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
@@ -1149,7 +1252,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .batch { margin-top: 10px; }
 .batch summary { cursor: pointer; color: var(--muted); font-size: var(--font-secondary); }
 .batch textarea { width: 100%; font-family: Menlo, Consolas, monospace; font-size: var(--font-caption); margin-top: 6px; }
-.batch .warning { color: var(--accent); }
+.batch .warning { color: var(--accent-text); }
 .params { display: grid; gap: 10px; }
 .field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
 /* A label that would only repeat the heading above it: kept for the screen reader, not shown. */
@@ -1164,7 +1267,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .number-field input[type="number"] { width: 72px; }
 .text-field { display: grid; gap: 2px; }
 .text-field .counter { color: var(--muted); font-size: var(--font-caption); text-align: right; font-variant-numeric: tabular-nums; }
-.text-field .counter.full { color: var(--accent); }
+.text-field .counter.full { color: var(--accent-text); }
 .field { display: grid; gap: 4px; }
 .field > span { color: var(--muted); font-size: var(--font-secondary); }
 .field input:not([type="checkbox"]):not([type="color"]), .field select, .field textarea { width: 100%; }
@@ -1207,7 +1310,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .layer-actions { display: flex; gap: 2px; flex: 0 0 auto; }
 .layer-actions .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 2px 4px; }
 .layer-actions .icon-button:hover:not(:disabled) { color: var(--text); border-color: var(--border); }
-.layer-actions .icon-button[aria-pressed="true"] { color: var(--accent); }
+.layer-actions .icon-button[aria-pressed="true"] { color: var(--accent-text); }
 .layer-actions .icon-button:disabled { opacity: 0.4; }
 .param-card .layer-text { width: 100%; }
 /* A text layer's type, folded under its words, and a layer's own motion folded under Advanced.
@@ -1234,15 +1337,15 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .family-picker { position: relative; }
 .family-current { width: 100%; text-align: left; display: flex; align-items: center; justify-content: space-between; font-size: var(--font-body); }
 .family-current::after { content: ''; width: 0; height: 0; border: 4px solid transparent; border-top: 5px solid var(--muted); margin-top: 4px; }
-.family-list { position: absolute; z-index: 5; left: 0; right: 0; top: 100%; margin: 2px 0 0; padding: var(--space-1); list-style: none; max-height: 260px; overflow-y: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-control); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); }
+.family-list { position: absolute; z-index: 5; left: 0; right: 0; top: 100%; margin: 2px 0 0; padding: var(--space-1); list-style: none; max-height: 260px; overflow-y: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-control); box-shadow: 0 6px 20px var(--shadow); }
 .family-list[hidden] { display: none; }
 .family-list [role="option"] { padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: var(--font-title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .family-list [role="option"]:hover { background: var(--panel-2); }
-.family-list [role="option"][aria-selected="true"] { color: var(--accent); }
+.family-list [role="option"][aria-selected="true"] { color: var(--accent-text); }
 .family-list .family-divider { color: var(--muted); font-size: var(--font-caption); padding: var(--space-1) 8px 2px; border-top: 1px solid var(--border); margin-top: var(--space-1); }
 /* The last row of the family list: import a font of your own, with the license note asked for in place. */
 .family-list .font-import { padding: 2px 8px var(--space-1); }
-.font-import-start { font-size: var(--font-caption); padding: 2px 0; background: none; border: none; color: var(--accent); cursor: pointer; }
+.font-import-start { font-size: var(--font-caption); padding: 2px 0; background: none; border: none; color: var(--accent-text); cursor: pointer; }
 .font-import-form { display: grid; gap: var(--space-1); padding: var(--space-1) 0; }
 .font-import-family { color: var(--muted); font-size: var(--font-caption); white-space: normal; }
 .font-import-form input { font-size: var(--font-caption); min-width: 0; }
@@ -1267,7 +1370,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .image-field .image-well:hover { border-color: var(--accent); }
 /* A hidden slot: kept, but nothing is drawn there. Dimmed, as a hidden layer is. */
 .image-field .image-well.hidden-slot { opacity: 0.45; }
-.image-field .image-buttons .icon-button[aria-pressed="true"] { color: var(--accent); }
+.image-field .image-buttons .icon-button[aria-pressed="true"] { color: var(--accent-text); }
 .image-field .image-well.empty { background-image: none; background-color: var(--panel-2); border-style: dashed; color: var(--muted); font-size: var(--font-secondary); }
 .image-field .image-well .empty-label { padding: 0 var(--space-2); text-align: center; }
 .image-field .image-well.empty:hover { color: var(--text); }
@@ -1281,8 +1384,8 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .sound-field .stem-row { display: flex; align-items: center; gap: var(--space-2); }
 .sound-field .stem-row .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--font-caption); }
 .sound-field .stem-row .stem-mute, .sound-field .stem-row .stem-solo { width: 22px; padding: 0 4px; }
-.sound-field .stem-row .stem-mute[aria-pressed='true'] { background: var(--warn, #b45309); color: var(--text); }
-.sound-field .stem-row .stem-solo[aria-pressed='true'] { background: var(--accent); color: #0d1117; }
+.sound-field .stem-row .stem-mute[aria-pressed='true'] { background: var(--warn); color: var(--text); }
+.sound-field .stem-row .stem-solo[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
 .sound-field .stem-row .stem-gain { width: 64px; }
 /* min-width 0, or the name's own length sets the row's width and the field overflows a narrow inspector. */
 .image-field .image-name { min-width: 0; color: var(--text-secondary); font-size: var(--font-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1364,7 +1467,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .queue .job-status.done { color: var(--text-secondary); }
 .queue progress { width: 100%; height: 4px; }
 /* The hint only answers a question the pointer has already asked. */
-.queue .drag-hint { color: var(--accent); font-size: var(--font-caption); white-space: nowrap; visibility: hidden; }
+.queue .drag-hint { color: var(--accent-text); font-size: var(--font-caption); white-space: nowrap; visibility: hidden; }
 .queue .job-card:hover .drag-hint, .queue .job-card:focus-within .drag-hint { visibility: visible; }
 .queue .job-actions { display: inline-flex; gap: 2px; opacity: 0; }
 .queue .job-card:hover .job-actions, .queue .job-card:focus-within .job-actions { opacity: 1; }
@@ -1446,8 +1549,8 @@ progress { width: 100%; margin: 2px 0; }
     --s-text: #1b1f27;
     --s-text-2: #3c4350;
     --s-muted: #5a6271;
-    --s-accent: #f59e0b;
-    --s-on-accent: #231a05;
+    --s-accent: #c2680a;
+    --s-on-accent: #1a1205;
     --s-danger: #b91c1c;
     color-scheme: light;
   }
@@ -1456,11 +1559,11 @@ progress { width: 100%; margin: 2px 0; }
 
 /* The head: the mark, the name, the tagline; the quiet corner for leaving. */
 .start-head { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-3); }
-.start-mark { flex: none; width: 40px; height: 40px; border-radius: 9px; background: #262b35; display: grid; grid-template-rows: 1fr 10px 6px 1fr; grid-template-columns: 6px 5px 1fr 8px; }
+.start-mark { flex: none; width: 40px; height: 40px; border-radius: 9px; background: var(--mark-tile); display: grid; grid-template-rows: 1fr 10px 6px 1fr; grid-template-columns: 6px 5px 1fr 8px; }
 .start-mark i, .start-mark b, .start-mark u { border-radius: 1.5px; }
 .start-mark i { grid-area: 2 / 2 / 4 / 3; background: var(--s-accent); }
-.start-mark b { grid-area: 2 / 3 / 3 / 4; margin: 0 4px 2px 3px; background: #e8eaee; }
-.start-mark u { grid-area: 3 / 3 / 4 / 4; margin: 0 14px 0 3px; background: #9aa1ad; }
+.start-mark b { grid-area: 2 / 3 / 3 / 4; margin: 0 4px 2px 3px; background: var(--mark-bar); }
+.start-mark u { grid-area: 3 / 3 / 4 / 4; margin: 0 14px 0 3px; background: var(--mark-sub); }
 .start-title { flex: 1; min-width: 0; }
 .start-title h1 { margin: 0; font-size: var(--font-dialog); letter-spacing: 0.01em; }
 .start-tagline { margin: 2px 0 0; font-size: var(--font-body); color: var(--s-muted); }
@@ -1595,7 +1698,7 @@ progress { width: 100%; margin: 2px 0; }
   position: fixed;
   border: 2px solid var(--accent);
   border-radius: var(--radius-surface);
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 9999px var(--tour-dim);
   pointer-events: none;
 }
 .tour-card {
@@ -1668,17 +1771,17 @@ progress { width: 100%; margin: 2px 0; }
 /* A transparent template's poster sits on a quiet backdrop tinted by its category rather than on
    bare checkerboard (milestone 34): the Alpha badge already says it is transparent, and a tint
    tells overlays, lower thirds and effects apart at a glance. The stage keeps the checkerboard. */
-.results .card[data-alpha="true"] .thumb.checker { background-image: none; background-color: var(--poster-backdrop, #20242c); }
-.results .card[data-alpha="true"][data-category="lower-thirds"] { --poster-backdrop: #1f2a36; }
-.results .card[data-alpha="true"][data-category="titles-openers"] { --poster-backdrop: #2a2334; }
-.results .card[data-alpha="true"][data-category="end-cards"] { --poster-backdrop: #2c2730; }
-.results .card[data-alpha="true"][data-category="overlays-frames"] { --poster-backdrop: #1f2d2a; }
-.results .card[data-alpha="true"][data-category="transitions-wipes"] { --poster-backdrop: #33281f; }
-.results .card[data-alpha="true"][data-category="design-elements"] { --poster-backdrop: #2f2b20; }
-.results .card[data-alpha="true"][data-category="effects"] { --poster-backdrop: #33211f; }
-.results .card[data-alpha="true"][data-category="objects"] { --poster-backdrop: #26302a; }
+.results .card[data-alpha="true"] .thumb.checker { background-image: none; background-color: var(--poster-backdrop, var(--poster-any)); }
+.results .card[data-alpha="true"][data-category="lower-thirds"] { --poster-backdrop: var(--poster-lower-thirds); }
+.results .card[data-alpha="true"][data-category="titles-openers"] { --poster-backdrop: var(--poster-titles-openers); }
+.results .card[data-alpha="true"][data-category="end-cards"] { --poster-backdrop: var(--poster-end-cards); }
+.results .card[data-alpha="true"][data-category="overlays-frames"] { --poster-backdrop: var(--poster-overlays-frames); }
+.results .card[data-alpha="true"][data-category="transitions-wipes"] { --poster-backdrop: var(--poster-transitions-wipes); }
+.results .card[data-alpha="true"][data-category="design-elements"] { --poster-backdrop: var(--poster-design-elements); }
+.results .card[data-alpha="true"][data-category="effects"] { --poster-backdrop: var(--poster-effects); }
+.results .card[data-alpha="true"][data-category="objects"] { --poster-backdrop: var(--poster-objects); }
 .results .card[data-alpha="true"][data-category="animated-backgrounds"],
-.results .card[data-alpha="true"][data-category="still-backgrounds"] { --poster-backdrop: #232a33; }
+.results .card[data-alpha="true"][data-category="still-backgrounds"] { --poster-backdrop: var(--poster-still-backgrounds); }
 
 /* ---------------------------------------------------------------- layered Photoshop files (milestone 33) */
 
@@ -1690,7 +1793,7 @@ progress { width: 100%; margin: 2px 0; }
 .psd-layer.group .name { font-weight: 600; }
 .psd-layer.hidden .name { color: var(--muted); }
 .psd-layer .facts { color: var(--muted); font-size: var(--font-caption); white-space: nowrap; }
-.psd-layer .limits { color: var(--accent); font-size: var(--font-caption); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.psd-layer .limits { color: var(--accent-text); font-size: var(--font-caption); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
 .psd-limits { margin: var(--space-2) 0 0; }
 .empty-note.warn { color: var(--danger); }
 /* The same list under an image field, with its split button after it. */

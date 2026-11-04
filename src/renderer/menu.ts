@@ -23,6 +23,7 @@ import { layerEditor, selectedLayer } from './layer-edit';
 import { currentLayerFacts, recording, runLayerCommand, stageClipboard } from './stage-menu';
 import { registerCommandRunner } from './commands';
 import { sayInTray } from './tray';
+import { appearanceChoice, chooseAppearance } from './appearance';
 
 /**
  * How "New Blank Canvas" shows the canvas: main.ts registers the very select a
@@ -171,6 +172,8 @@ function run(command: MenuCommand, arg: string | null): void {
     // One command for the four choices, with the chosen one as its argument — checked against
     // the four, so the argument can only ever name one of the stage's own buttons.
     case 'view.background': if (STAGE_BACKGROUNDS.some((b) => b.id === arg)) press(`bg-${arg}`); return;
+    // The same call as Settings → Appearance, which checks the argument names one of the three.
+    case 'view.appearance': void chooseAppearance(arg); return;
     case 'collection.add': press('add-to-collection'); return;
     case 'view.bigger': stepCardSize(1); return;
     case 'view.smaller': stepCardSize(-1); return;
@@ -243,6 +246,7 @@ function readState(recent: string[]): MenuState {
     displays: [],
     theater: theaterOn(),
     background: stageBackground(),
+    appearance: appearanceChoice.value,
     canAddToCollection: usable('add-to-collection'),
     // What can be done to a layer, worked out once and read by both menus (milestone 39).
     ...currentLayerFacts(),
@@ -367,6 +371,7 @@ export function initMenu(): void {
     void selectedLayer.value;
     void paramsEdited.value;
     void stageClipboard.value;
+    void appearanceChoice.value;
     refresh();
   });
   // A region toggle, the transport and the view buttons change what the menu may offer without

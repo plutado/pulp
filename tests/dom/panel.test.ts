@@ -291,3 +291,73 @@ describe('the panel with no host around it', () => {
     expect(text('#connect-message')).toContain('Settings → "Serve the editor panel (local)"');
   });
 });
+
+describe("the panel's appearance follows its host's own (milestone 62)", () => {
+  const w = window as unknown as Record<string, unknown>;
+  const hostScript = () => panelPackageEntries(ROOT, 'premiere').find((e) => e.name === 'host.js')!.data.toString('utf8');
+  const palette = () => document.documentElement.dataset.palette;
+  const clear = () => {
+    delete w.__adobe_cep__;
+    delete w.pulpPanelHost;
+    delete document.documentElement.dataset.palette;
+  };
+  afterEach(clear);
+
+  it("takes Premiere's light or dark from its panel color, and again when it changes", () => {
+    clear();
+    let skin = { red: 240, green: 240, blue: 240, alpha: 255 };
+    const listeners: Record<string, () => void> = {};
+    w.__adobe_cep__ = {
+      getHostEnvironment: () => JSON.stringify({ appSkinInfo: { panelBackgroundColor: { color: skin } } }),
+      addEventListener: (type: string, fn: () => void) => { listeners[type] = fn; },
+      evalScript: () => undefined,
+    };
+    (0, eval)(hostScript());
+    expect(palette(), 'the lightest brightness').toBe('light');
+    skin = { red: 35, green: 35, blue: 35, alpha: 255 };
+    listeners['com.adobe.csxs.events.ThemeColorChanged']!();
+    expect(palette(), 'turned back down to the default').toBe('dark');
+  });
+
+  it('is dark where the host says nothing, inside Resolve, and follows the system in a plain browser', () => {
+    clear();
+    w.__adobe_cep__ = { evalScript: () => undefined };
+    (0, eval)(hostScript());
+    expect(palette(), 'a CEP host with no skin to read').toBe('dark');
+    clear();
+    w.pulpPanelHost = { readBridge: () => '' };
+    (0, eval)(hostScript());
+    expect(palette(), "Resolve's window is dark only").toBe('dark');
+    clear();
+    const realMatch = window.matchMedia;
+    try {
+      window.matchMedia = ((query: string) => ({ matches: query.includes('light'), addEventListener: () => undefined })) as unknown as typeof window.matchMedia;
+      (0, eval)(hostScript());
+      expect(palette(), 'a light system').toBe('light');
+    } finally {
+      window.matchMedia = realMatch;
+    }
+  });
+
+  it('holds both palettes to WCAG AA on every surface a row sits on', () => {
+    const css = readFileSync(join(ROOT, 'panels', 'shared', 'panel.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const block = (selector: RegExp) => Object.fromEntries([...selector.exec(css)![1]!.matchAll(/(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/g)].map((m) => [m[1]!, m[2]!]));
+    const dark = block(/:root\s*\{([^}]*)\}/);
+    const light = { ...dark, ...block(/:root\[data-palette="light"\]\s*\{([^}]*)\}/) };
+    const luminance = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)) as [number, number, number];
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const contrast = (a: string, b: string) => {
+      const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    for (const [name, t] of [['dark', dark], ['light', light]] as const) {
+      for (const surface of ['--bg', '--row', '--row-hover']) {
+        for (const fg of ['--text', '--dim', '--accent', '--bad', '--ok']) {
+          expect(contrast(t[fg]!, t[surface]!), `${name}: ${fg} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
+  });
+});

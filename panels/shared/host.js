@@ -17,6 +17,66 @@
  * Plain script, loaded after connect.js and before panel.js.
  */
 
+/**
+ * The panel's appearance follows the host's own (milestone 62), not Pulp's: a
+ * panel is part of the editing app's window. Premiere says its panel color
+ * through CEP — a dark gray by default, lighter at its brighter settings — and
+ * says again when it is changed, so the panel takes the light or dark palette
+ * that color calls for. Not the color itself: the brightness is a slider, and
+ * on a mid gray no secondary text reads at AA, where both palettes are held to
+ * it. Resolve's own window is dark only, and a plain browser has the system's
+ * preference.
+ * The palette is `data-palette` on the page; panel.css has both.
+ */
+(function () {
+  'use strict';
+
+  var root = document.documentElement;
+
+  /** A light panel color wants dark text: the perceived lightness, on 0 to 255. */
+  function paletteFor(color) {
+    return 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue > 128 ? 'light' : 'dark';
+  }
+
+  function premiereSkin() {
+    try {
+      var env = JSON.parse(window.__adobe_cep__.getHostEnvironment());
+      var color = env.appSkinInfo.panelBackgroundColor.color;
+      if (typeof color.red !== 'number' || typeof color.green !== 'number' || typeof color.blue !== 'number') return null;
+      return color;
+    } catch {
+      return null;
+    }
+  }
+
+  function applyPremiere() {
+    var color = premiereSkin();
+    if (!color) {
+      root.dataset.palette = 'dark';
+      return;
+    }
+    root.dataset.palette = paletteFor(color);
+  }
+
+  if (window.__adobe_cep__) {
+    applyPremiere();
+    if (typeof window.__adobe_cep__.addEventListener === 'function') {
+      window.__adobe_cep__.addEventListener('com.adobe.csxs.events.ThemeColorChanged', applyPremiere);
+    }
+    return;
+  }
+  if (window.pulpPanelHost) {
+    root.dataset.palette = 'dark';
+    return;
+  }
+  var light = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+  var follow = function () {
+    root.dataset.palette = light && light.matches ? 'light' : 'dark';
+  };
+  follow();
+  if (light && typeof light.addEventListener === 'function') light.addEventListener('change', follow);
+})();
+
 (function () {
   'use strict';
 

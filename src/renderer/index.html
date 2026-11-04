@@ -6,6 +6,11 @@
     http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: pulp-template: pulp-media: pulp-thumb: pulp-strip:; media-src 'self' pulp-media: pulp-template:; font-src 'self' pulp-font:; frame-src pulp-template:; connect-src 'self' ws:">
   <title>Pulp</title>
+  <!-- Before the stylesheet (milestone 62): the page opens on the chosen palette's background, so
+       no frame shows the other one while styles.css loads. The values are the --bg tokens, held
+       to them and to the main process's window background by tests/appearance.test.ts. -->
+  <meta name="color-scheme" content="dark light">
+  <style>html { background: #16181d; color-scheme: dark; } @media (prefers-color-scheme: light) { html { background: #f3f4f6; color-scheme: light; } }</style>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -554,6 +559,9 @@
         <input id="settings-audition" type="checkbox">
         <span>Play a sound when it is chosen</span>
       </label>
+      <h3 id="settings-appearance-head" class="settings-head">Appearance</h3>
+      <p class="note">How the window looks — every window, the start screen and the dialogs at once. The stage&#8217;s checkerboard, its chosen background and what a template draws stay as they are either way. Also in View &#8594; Appearance.</p>
+      <div id="settings-appearance" class="settings-appearance" role="radiogroup" aria-labelledby="settings-appearance-head"></div>
       <h3 class="settings-head">Semantic search</h3>
       <p class="note">Search by meaning as well as by words: &#8220;something calm for a podcast intro&#8221; finds the right templates. Off by default. Everything runs on this machine — the library is embedded locally and so is every search; the one thing ever fetched is the model file itself, from its publisher, after you say yes here.</p>
       <label class="field inline">

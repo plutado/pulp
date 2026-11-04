@@ -463,6 +463,9 @@ describe.skipIf(!electron)('inspector UI', () => {
     await writeFile(join(userData, 'settings.json'), JSON.stringify({
       // The empty sample-media folder is a root too, so this install reads as set up (milestone 60's returning arrangement).
       libraryFolders: [mediaDir, sampleRoot], showStartScreen: false, sampleMediaRoot: sampleRoot, editorPanel: true,
+      // Dark, whatever the machine's own appearance (milestone 62): a CI runner's desktop is light, and
+      // the suite's tests were written against the dark palette. The appearance tests switch it and put it back.
+      appearance: 'dark',
       recentProjects: [join(ROOT, 'examples', 'interview.pulp')],
       recentProjectTimes: { [join(ROOT, 'examples', 'interview.pulp')]: new Date().toISOString() },
     }));
@@ -6512,6 +6515,129 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
       await cleanSession();
     }, 180_000);
+  });
+
+  describe('light and dark appearance (milestone 62)', () => {
+    const DARK_BG = 'rgb(22, 24, 29)';
+    const LIGHT_BG = 'rgb(243, 244, 246)';
+    const bodyBg = (session: Session) => session.eval<string>(`getComputedStyle(document.body).backgroundColor`);
+    const saved = async () => (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { appearance?: string }).appearance;
+    /** The tick in the real menu, as the main process built it from the window's state. */
+    const ticked = async () => {
+      const sections = await page.eval<{ label: string; items: { label?: string; submenu?: { label?: string; checked?: boolean }[] }[] }[]>(`window.pulp.menuSections()`);
+      const view = sections.find((sec) => sec.label === 'View')!;
+      return view.items.find((i) => i.label === 'Appearance')!.submenu!.filter((i) => i.checked).map((i) => i.label);
+    };
+    const choose = async (choice: 'system' | 'light' | 'dark') => {
+      await page.eval(`window.pulpMenuCommand('view.appearance', ${JSON.stringify(choice)})`);
+      await until(async () => (await page.eval<{ choice: string }>(`window.pulp.getAppearance()`)).choice === choice, `${choice} chosen`);
+    };
+
+    it('switches from Settings and the View menu, and every window redraws at once — the dialogs, the popped-out stage and the start screen', async () => {
+      const stageTarget = async () => (await targets()).find((t) => t.type === 'page' && t.id !== appTargetId && t.title === 'Stage');
+      let stage: Session | null = null;
+      try {
+        // The suite's seeded Dark, from the window's first style pass.
+        expect(await page.eval<boolean>(`matchMedia('(prefers-color-scheme: dark)').matches`)).toBe(true);
+        expect(await bodyBg(page)).toBe(DARK_BG);
+        expect(await ticked()).toEqual(['Dark']);
+
+        // Settings → Appearance → Light: the window, and the dialog it was chosen in, redraw there and then.
+        await page.eval(`window.pulpMenuCommand('app.settings')`);
+        await until(() => page.eval<boolean>(`document.getElementById('settings-dialog').open && document.getElementById('settings-appearance-dark').checked`), 'Settings, showing Dark');
+        expect(await page.eval<string[]>(`[...document.querySelectorAll('#settings-appearance label')].map((l) => l.textContent.trim())`)).toEqual(['System', 'Light', 'Dark']);
+        await page.eval(`document.getElementById('settings-appearance-light').click()`);
+        await until(async () => (await bodyBg(page)) === LIGHT_BG, 'the window redrawn light');
+        expect(await page.eval<boolean>(`matchMedia('(prefers-color-scheme: light)').matches`)).toBe(true);
+        expect(await page.eval<string>(`getComputedStyle(document.getElementById('settings-dialog')).backgroundColor`), 'the dialog on the light panel').toBe('rgb(255, 255, 255)');
+        expect(await page.eval<string>(`getComputedStyle(document.getElementById('settings-dialog')).color`), 'with dark text').toBe('rgb(27, 31, 38)');
+        await until(async () => (await saved()) === 'light', 'Light in settings.json');
+        await until(async () => (await ticked()).join() === 'Light', 'the View menu ticking Light');
+        await page.eval(`document.getElementById('settings-close').click()`);
+
+        // The start screen comes up in the chosen appearance — Light here, though the suite's system may be dark.
+        await page.eval(`window.pulpStartScreen(true)`);
+        await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'the start screen');
+        expect(await page.eval<string>(`getComputedStyle(document.getElementById('start-screen')).backgroundColor`), 'the start screen light').toBe('rgb(243, 244, 247)');
+        await page.eval(`window.pulpStartScreen(false)`);
+
+        // The popped-out stage is in the same appearance, and follows a change made while it is out.
+        await page.eval(`window.pulpMenuCommand('view.popOut')`);
+        await until(async () => (await stageTarget()) !== undefined, 'the stage window');
+        stage = await Session.connect((await stageTarget())!.webSocketDebuggerUrl);
+        await stage.send('Runtime.enable');
+        await until(() => stage!.eval<boolean>(`!!document.getElementById('region-stage') && document.styleSheets.length > 0`), 'the stage window styled');
+        await until(async () => (await bodyBg(stage!)) === LIGHT_BG, 'the stage window light');
+        // The View menu, with the stage out: both windows go dark together, and Settings shows it.
+        await choose('dark');
+        await until(async () => (await bodyBg(page)) === DARK_BG && (await bodyBg(stage!)) === DARK_BG, 'both windows redrawn dark');
+        expect(await page.eval<boolean>(`document.getElementById('settings-appearance-dark').checked`), 'the radio follows the menu').toBe(true);
+        await page.eval(`window.pulpMenuCommand('view.popOut')`);
+        await until(async () => (await stageTarget()) === undefined, 'the stage back');
+        stage.close();
+        stage = null;
+
+        // System: the palette is whatever the operating system says, and saved as the choice, not a palette.
+        await choose('system');
+        const systemDark = (await page.eval<{ palette: string }>(`window.pulp.getAppearance()`)).palette === 'dark';
+        await until(async () => (await bodyBg(page)) === (systemDark ? DARK_BG : LIGHT_BG), "the window in the system's palette");
+        await until(async () => (await saved()) === 'system', 'System in settings.json');
+        expect(await ticked()).toEqual(['System']);
+      } finally {
+        stage?.close();
+        await page.eval(`(() => { if (document.getElementById('app').classList.contains('stage-out')) window.pulpMenuCommand('view.popOut'); })()`);
+        await until(() => page.eval<boolean>(`!!document.getElementById('region-stage')`), 'the stage at home');
+        await choose('dark');
+        await until(async () => (await bodyBg(page)) === DARK_BG, 'the suite back on Dark');
+      }
+    }, 120_000);
+
+    it('holds visual references of the main window in each appearance (milestone 62)', async () => {
+      const REFS = join(ROOT, 'tests', 'visual', 'window.json');
+      // A settled window: no search, the lower third on the stage at a set frame, the results at their top.
+      await fire('#search', '', 'input');
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
+      await scrubTo(90);
+      await page.eval(`document.getElementById('results').scrollTop = 0`);
+      await page.send('Page.enable');
+      await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 788, deviceScaleFactor: 1, mobile: false });
+      await until(() => page.eval<boolean>(`window.innerHeight === 788 && window.innerWidth === 1280 && window.devicePixelRatio === 1`), 'the default window size');
+      const capture = async () => {
+        await sleep(500); // the paint after the palette and the size settle
+        const shot = (await page.send('Page.captureScreenshot', { format: 'png' })).result as { data: string };
+        const rgba = await page.eval<number[]>(`(async () => {
+          const img = new Image();
+          await new Promise((r, j) => { img.onload = r; img.onerror = j; img.src = 'data:image/png;base64,${shot.data}'; });
+          const c = document.createElement('canvas'); c.width = 64; c.height = 36;
+          const x = c.getContext('2d'); x.drawImage(img, 0, 0, 64, 36);
+          return [...x.getImageData(0, 0, 64, 36).data];
+        })()`, undefined, 60_000);
+        return frameHash(Uint8Array.from(rgba), 64, 36);
+      };
+      const hashes: Record<string, string> = {};
+      try {
+        for (const choice of ['dark', 'light'] as const) {
+          await choose(choice);
+          await until(async () => (await bodyBg(page)) === (choice === 'dark' ? DARK_BG : LIGHT_BG), `the window ${choice}`);
+          hashes[choice] = await capture();
+        }
+      } finally {
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
+        await choose('dark');
+      }
+      // The two palettes really differ.
+      expect(hammingDistance(hashes.dark!, hashes.light!)).toBeGreaterThan(0);
+      if (process.env.PULP_WINDOW_REFS === 'write') {
+        await writeFile(REFS, `${JSON.stringify(hashes, null, 2)}\n`);
+      } else if (process.platform === 'darwin') {
+        // Made on the platform the visual suite runs on; elsewhere the fonts differ.
+        const refs = JSON.parse(await readFile(REFS, 'utf8')) as Record<string, string>;
+        for (const key of Object.keys(refs)) {
+          expect(looksSame(hashes[key]!, refs[key]!), `${key}: ${hashes[key]!} vs reference ${refs[key]!}`).toBe(true);
+        }
+      }
+    }, 120_000);
   });
 
   describe('the blank canvas (milestone 55): composing from nothing with layers', () => {

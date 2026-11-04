@@ -23,6 +23,7 @@ import { initLibraryAdd, setLibraryAddBusy } from './library-add';
 import { initProject, openProjectFrom } from './project';
 import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './project-ui';
 import { initMenu, registerBlankCanvasOpener, registerSavedTemplateOpener } from './menu';
+import { initAppearance } from './appearance';
 import { registerExposer } from './stage-menu';
 import { BLANK_CANVAS_ID } from '../core/menu';
 import { initContextMenu } from './context-menu';
@@ -466,6 +467,7 @@ async function openFromSystem(path: string): Promise<void> {
 }
 window.pulp.onOpenFile((path) => void openFromSystem(path));
 // Pulp's own application menu (milestone 27): it does what the window's own buttons do.
+initAppearance();
 initMenu();
 initContextMenu();
 // What the window catches goes to Pulp's own log, which never leaves the machine (milestone 8).

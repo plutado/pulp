@@ -1,4 +1,4 @@
-/* The Pulp panel inside an editing app: dark like its hosts, system face, one column. */
+/* The Pulp panel inside an editing app: in its host's own appearance, system face, one column. */
 
 :root {
   --bg: #1d1d20;
@@ -8,7 +8,27 @@
   --dim: #9a9aa2;
   --line: #38383e;
   --accent: #e8a33d;
-  --bad: #d4645c;
+  --bad: #ee8b83;
+  --ok: #58b368;
+  /* The checkerboard behind a transparent thumbnail is the picture's, the same in either palette. */
+  --checker-a: #333;
+  --checker-b: #222;
+  color-scheme: dark;
+}
+
+/* A light host panel (milestone 62): host.js sets data-palette from the host's own color.
+   Both palettes are held to WCAG AA by tests/dom/panel.test.ts. */
+:root[data-palette="light"] {
+  --bg: #eeeeef;
+  --row: #ffffff;
+  --row-hover: #e4e4e7;
+  --text: #1d1d20;
+  --dim: #55555d;
+  --line: #c4c4ca;
+  --accent: #8f4e06;
+  --bad: #b3261e;
+  --ok: #24692f;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -33,7 +53,7 @@ body { display: flex; flex-direction: column; }
 }
 
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.dot.on { background: #58b368; }
+.dot.on { background: var(--ok); }
 .dot.off { background: var(--bad); }
 
 #status-line { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim); }
@@ -101,8 +121,8 @@ h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: 
   flex: none;
   border-radius: 2px;
   background:
-    linear-gradient(45deg, #333 25%, transparent 25%, transparent 75%, #333 75%) 0 0 / 8px 8px,
-    linear-gradient(45deg, #333 25%, #222 25%, #222 75%, #333 75%) 4px 4px / 8px 8px;
+    linear-gradient(45deg, var(--checker-a) 25%, transparent 25%, transparent 75%, var(--checker-a) 75%) 0 0 / 8px 8px,
+    linear-gradient(45deg, var(--checker-a) 25%, var(--checker-b) 25%, var(--checker-b) 75%, var(--checker-a) 75%) 4px 4px / 8px 8px;
   object-fit: contain;
 }
 
@@ -132,5 +152,5 @@ h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: 
 }
 .progress > span { display: block; height: 100%; background: var(--accent); transition: width 0.3s; }
 .badge.running { color: var(--accent); border-color: var(--accent); }
-.badge.done { color: #58b368; border-color: #58b368; }
+.badge.done { color: var(--ok); border-color: var(--ok); }
 .badge.failed, .badge.cancelled { color: var(--bad); border-color: var(--bad); }

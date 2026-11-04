@@ -1,8 +1,8 @@
 /**
  * The Settings window (milestone 8): what `settings.json` keeps with no other
  * home, in one place — the start screen at launch, audition on choosing a
- * sound, where FFmpeg was found, and the render cache's folder, limit and
- * clearing. Every control writes the very setting the rest of the window
+ * sound, the appearance (milestone 62), where FFmpeg was found, and the render
+ * cache's folder, limit and clearing. Every control writes the very setting the rest of the window
  * reads, through the call that part of the window already uses, so there is
  * one setting and two ways to reach it rather than two settings.
  *
@@ -16,6 +16,9 @@ import { downloadSizeText } from '../core/ffmpeg-download';
 import { semanticSetAvailable } from './semantic';
 import type { PlayerState } from '../core/player';
 import { setCacheSummary } from './status-bar';
+import { effect } from '@preact/signals';
+import { APPEARANCES } from '../core/appearance';
+import { appearanceChoice, chooseAppearance } from './appearance';
 
 /**
  * How audition is set: the stage registers its own setter at mount, so the dialog changes the
@@ -191,7 +194,35 @@ export function showAcknowledgements(): void {
   $<HTMLDialogElement>('notices-dialog').showModal();
 }
 
+/** System, Light and Dark as three radios, from the one list View → Appearance is built from too. */
+function initAppearanceChoice(): void {
+  const group = $('settings-appearance');
+  for (const a of APPEARANCES) {
+    const label = document.createElement('label');
+    label.className = 'field inline';
+    label.dataset.tip = a.hint;
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'settings-appearance';
+    input.id = `settings-appearance-${a.id}`;
+    input.value = a.id;
+    input.addEventListener('change', () => {
+      if (input.checked) void chooseAppearance(a.id);
+    });
+    const text = document.createElement('span');
+    text.textContent = a.label;
+    label.append(input, text);
+    group.append(label);
+  }
+  // Chosen here or in the View menu, the radios show the one that is on.
+  effect(() => {
+    const chosen = appearanceChoice.value;
+    for (const input of group.querySelectorAll<HTMLInputElement>('input[type=radio]')) input.checked = input.value === chosen;
+  });
+}
+
 export function initSettings(): void {
+  initAppearanceChoice();
   // The fetch, and the one line of status it reports through (milestone 17). The button is
   // the asking: nothing is fetched until it is pressed, and what arrives is checked against
   // its published checksum before it is kept (ADR 0022).

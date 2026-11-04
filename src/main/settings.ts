@@ -11,6 +11,7 @@ import { sanitizeRecentColors } from '../core/recent-colors';
 import { sanitizeRecentSearches } from '../core/recent-searches';
 import { DEFAULT_CACHE_MAX_MB, sanitizeCacheMaxMB } from '../core/render-cache';
 import { sanitizeTypeOutputDefaults, type TypeOutputDefault } from '../core/output-defaults';
+import { DEFAULT_APPEARANCE, sanitizeAppearance, type Appearance } from '../core/appearance';
 
 export interface Settings {
   /** User-chosen library folders, in the order they were added. */
@@ -55,6 +56,8 @@ export interface Settings {
   semanticSearch: boolean;
   /** The editor panel's bridge (milestone 54): off by default; on, it listens on 127.0.0.1 only. */
   editorPanel: boolean;
+  /** Light, dark, or the operating system's (milestone 62; src/core/appearance.ts). */
+  appearance: Appearance;
 }
 
 const DEFAULTS: Settings = {
@@ -77,6 +80,7 @@ const DEFAULTS: Settings = {
   typeOutputDefaults: {},
   semanticSearch: false,
   editorPanel: false,
+  appearance: DEFAULT_APPEARANCE,
 };
 
 /** Only string-to-string entries, and only for paths the recent list still holds. */
@@ -129,6 +133,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     typeOutputDefaults: sanitizeTypeOutputDefaults(raw.typeOutputDefaults),
     semanticSearch: raw.semanticSearch === true,
     editorPanel: raw.editorPanel === true,
+    appearance: sanitizeAppearance(raw.appearance),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
     ...(typeof raw.sampleMediaRoot === 'string' && raw.sampleMediaRoot.trim() ? { sampleMediaRoot: raw.sampleMediaRoot } : {}),
   };

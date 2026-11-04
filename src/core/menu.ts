@@ -23,6 +23,7 @@
 
 import { DEFAULT_PLAYER, STAGE_BACKGROUNDS, type StageBackground } from './player';
 import { MOTION_PRESETS } from './motion-presets';
+import { APPEARANCES, DEFAULT_APPEARANCE, type Appearance } from './appearance';
 import type { MenuDisplay } from './stage-window';
 
 export type MenuCommand =
@@ -103,6 +104,7 @@ export type MenuCommand =
   | 'view.popOut'
   | 'view.stageOnDisplay'
   | 'view.background'
+  | 'view.appearance'
   | 'collection.add'
   | 'view.grid'
   | 'view.list'
@@ -199,6 +201,8 @@ export interface MenuState {
   theater: boolean;
   /** What is drawn behind a transparent graphic, so the background choices show which is on. */
   background: StageBackground;
+  /** Light, dark or the system's (milestone 62), so View → Appearance shows which is chosen. */
+  appearance: Appearance;
   /** There is an item on the stage that the collection tray will take. */
   canAddToCollection: boolean;
   /** Recently opened projects, newest first; the Open Recent submenu. */
@@ -241,6 +245,7 @@ export const EMPTY_MENU_STATE: MenuState = {
   canResetLayer: false,
   theater: false,
   background: DEFAULT_PLAYER.background,
+  appearance: DEFAULT_APPEARANCE,
   canAddToCollection: false,
   recent: [],
 };
@@ -269,6 +274,8 @@ export interface MenuItemSpec {
   checkedBy?: Flag;
   /** A radio that is on when the state's background is this one; the only value-valued choice there is. */
   checkedWhenBackground?: StageBackground;
+  /** A radio that is on when this appearance is the one chosen (milestone 62). */
+  checkedWhenAppearance?: Appearance;
   /** True when the item is the opposite of its flag — Play shows Pause while playing. */
   altLabel?: { whenFlag: Flag; label: string };
   /** Built only in a development build. */
@@ -455,6 +462,17 @@ export function backgroundSubmenu(): MenuItemSpec[] {
   }));
 }
 
+/** Light, dark or the system's (milestone 62): one radio per choice, the same three Settings offers. */
+export function appearanceSubmenu(): MenuItemSpec[] {
+  return APPEARANCES.map((a) => ({
+    command: 'view.appearance' as const,
+    label: a.label,
+    arg: a.id,
+    type: 'radio' as const,
+    checkedWhenAppearance: a.id,
+  }));
+}
+
 /**
  * The whole menu for this platform and this state. The order is the one people
  * expect from the platform: the app's own menu first on macOS, File, Edit,
@@ -571,6 +589,9 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       // One item per connected display: the stage fills that one with the picture alone.
       { label: 'Stage on Display', submenu: displaysSubmenu(state.displays) },
       sep,
+      // The window's own look (milestone 62), the same setting as Settings → Appearance.
+      { label: 'Appearance', submenu: appearanceSubmenu() },
+      sep,
       ...(development
         ? [
             // Both are given their own key. Electron would otherwise reload on CmdOrCtrl+R, which
@@ -638,6 +659,7 @@ export function itemEnabled(item: MenuItemSpec, state: MenuState): boolean {
 /** What a checkbox shows, given the state. */
 export function itemChecked(item: MenuItemSpec, state: MenuState): boolean {
   if (item.checkedWhenBackground !== undefined) return state.background === item.checkedWhenBackground;
+  if (item.checkedWhenAppearance !== undefined) return state.appearance === item.checkedWhenAppearance;
   if (item.checkedBy !== undefined) return state[item.checkedBy];
   // "List of Rows" is the other side of "Grid of Cards" rather than a flag of its own.
   return item.command === 'view.list' ? !state.grid : false;

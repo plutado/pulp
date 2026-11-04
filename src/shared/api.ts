@@ -12,6 +12,7 @@ import type { SemanticStatus } from '../main/semantic-service';
 import type { PanelStatus } from '../main/panel-service';
 import type { RenderQueueSnapshot } from '../core/render-queue';
 import type { PlayerState } from '../core/player';
+import type { Appearance, Palette } from '../core/appearance';
 import type { ResultsViewState } from '../core/results-view';
 import type { Collection, CollectionItem } from '../core/collection';
 import type { ExposedParam } from '../core/expose';
@@ -40,6 +41,12 @@ import type { PsdOutline } from '../core/psd';
 export type { PsdOutline } from '../core/psd';
 export type PsdOutlineResult = { ok: true; outline: PsdOutline } | { ok: false; message: string };
 import type { RecentProjectRow } from '../core/start-screen';
+
+/** The appearance chosen in Settings or the View menu, and the palette it comes to (milestone 62). */
+export interface AppearanceState {
+  choice: Appearance;
+  palette: Palette;
+}
 
 /** The start screen's remembered switches (milestone 31). */
 export interface StartScreenPrefs {
@@ -357,6 +364,12 @@ export interface PulpApi {
    */
   panelStatus(): Promise<PanelStatus>;
   setEditorPanel(enabled: boolean): Promise<PanelStatus>;
+  /**
+   * Light and dark appearance (milestone 62): the saved choice and the palette it comes to on this
+   * system now. Setting it redraws every window at once; the pages read it as `prefers-color-scheme`.
+   */
+  getAppearance(): Promise<AppearanceState>;
+  setAppearance(choice: Appearance): Promise<AppearanceState>;
   panelCollectionChanged(collection: Collection, name: string): Promise<void>;
   /**
    * Save the canvas as a template folder (milestone 55): the window sends what

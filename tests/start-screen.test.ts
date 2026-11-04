@@ -200,6 +200,8 @@ describe('both palettes read (milestone 60)', () => {
       expect(contrast(t['--s-muted']!, t[surface]!), `muted on ${surface}`).toBeGreaterThanOrEqual(4.5);
     }
     expect(contrast(t['--s-on-accent']!, t['--s-accent']!), 'the primary button').toBeGreaterThanOrEqual(4.5);
+    // The section icons are drawn in the accent: 3:1 for what is not text (milestone 62).
+    expect(contrast(t['--s-accent']!, t['--s-bg']!), 'the section icons').toBeGreaterThanOrEqual(3);
     expect(contrast(t['--s-danger']!, t['--s-panel']!), 'a missing project on its card').toBeGreaterThanOrEqual(4.5);
   });
 });

@@ -143,13 +143,14 @@ A font is code someone else wrote, under a license of its own. Pulp bundles ten 
 
 ## Tokens
 
-All in `:root`; literal values outside the token block are a defect the enforcement test catches.
+All in `:root`; literal values outside the token block are a defect the enforcement test catches. **Every color is a token too** (milestone 62): a color written anywhere but a custom property on `:root` or `.start-screen` fails tests/appearance.test.ts, which names the rule it found it in.
 
 - **Type scale:** 11 px (captions, badges), 12 (secondary), 13 (body, the default), 15 (region titles), 18 (dialog titles); weights 400 and 600 only.
 - **Text roles:** `--text`, `--text-secondary`, `--muted` (hints, disabled); `--accent` marks the one current thing (selection, active tab, pressed chip) and nothing else; `--danger` for errors.
 - **Spacing:** a 4 px grid — 4, 8, 12, 16, 24.
 - **Radii:** 4 px controls, 8 px cards and dialogs.
 - **Focus:** one ring, 2 px accent with 2 px offset, on `:focus-visible` everywhere.
+- **Accent as text:** `--accent-text`, not `--accent` — the two are one color in the dark palette, but the light one needs a darker amber for small text than for a ring or a fill. Text on an accent fill is `--on-accent`; the borders and labels of marks drawn in the accent (the stage's handles, a key, a trim end) are `--ink`.
 - **Icon sizes:** 16 (inline, chips), 20 (toolbar), 24 (transport).
 
 **Three levels per region:** region title (15 px, 600), content (13 px), supporting text (11–12 px, muted). If a region needs a fourth level, the region is doing too much.
@@ -173,13 +174,29 @@ The browse panel is the worked example; anything with the same shape follows it.
 
 A unit test, not a hope: it reads `index.html` and the display-name tables and fails on ALL CAPS display text, three-dot ellipses, raw ids in display strings, icon-only buttons without an `aria-label`, and `font-size` literals outside the token block in `styles.css`. Milestone 8's accessibility pass audits icon buttons and focus rings against this guide.
 
+## Light and dark (milestone 62)
+
+The window has two palettes: the `:root` tokens are the dark one, and the block under
+them, inside `@media (prefers-color-scheme: light)`, gives each of them its light
+counterpart. **Settings → Appearance** and **View → Appearance** choose System (the
+default), Light or Dark; the main process hands the choice to Electron's
+`nativeTheme.themeSource`, so every page — the window, the popped-out stage, the
+dialogs, the start screen — sees it as `prefers-color-scheme` from its first style
+pass, and a change redraws them all at once. Nothing in the renderer paints by
+palette: a rule that needs a different color in light asks for a token, and the
+token has both values.
+
+- **Both palettes are held to WCAG AA** by tests/appearance.test.ts: the three text roles, `--accent-text` and `--danger` on every surface at 4.5:1, the accent as a ring at 3:1, and the text on an accent or warning fill.
+- **What belongs to the work is the same in either.** The stage's checkerboard and chosen backgrounds, the safe areas drawn over the picture, the backdrops a transparent graphic's poster sits on, and Pulp's mark are tokens defined once and left out of the light block on purpose; the test lists them, so one cannot drift into the light block or out of the list unnoticed. A template's own colors are its own: none of the bundled ones reads `prefers-color-scheme`.
+- **No flash at launch.** The window is made hidden, painted with the chosen palette's `--bg` (`PALETTE_BACKGROUND`, src/core/appearance.ts), and shown when its page is ready; the page's head sets the same background and `color-scheme` in an inline style before `styles.css` loads. The test holds all three to the `--bg` tokens.
+- **The editor panels follow their host, not Pulp:** Premiere's panel color picks the panel's light or dark palette, and changes it when Premiere's brightness changes; Resolve's window is dark only.
+
 ## The start screen's palette (milestone 60)
 
-The working window is one dark palette. The start screen alone carries scoped
-tokens (`--s-*` on `.start-screen`) and follows the system's light or dark
-appearance through `prefers-color-scheme` — it is a welcome page, not an
-editing surface, so it may read like the platform around it while the stage
-keeps the dark surround a picture is judged against. Both palettes are held
+The start screen carries scoped tokens (`--s-*` on `.start-screen`), set a little
+apart from the window's — it is a welcome page, not an editing surface — and has
+followed `prefers-color-scheme` since it was made, so it follows the Appearance
+setting as the rest of the window does (milestone 62). Both palettes are held
 to WCAG AA by a computed unit test (tests/start-screen.test.ts); change a
 token and the test says which pair fell below. New project is the screen's
 only `primary`; Open is the one secondary; everything less important is a

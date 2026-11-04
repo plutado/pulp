@@ -61,9 +61,10 @@ import { sanitizeLayout } from '../core/layout';
 import { sanitizeResultsView } from '../core/results-view';
 import { sanitizePlayer } from '../core/player';
 import { loadSettings, updateSettings } from './settings';
+import { getAppearance, loadAppearance, setAppearance, watchAppearance, windowBackground } from './appearance-service';
 import { sanitizeTypeOutputDefault } from '../core/output-defaults';
 import { isBuiltInType } from '../core/taxonomy';
-import { adoptStageWindow, destroyStageWindow, loadStageWindowSetting, registerStageWindowIpc, stageWindowOptions } from './stage-window-service';
+import { adoptStageWindow, currentStageWindow, destroyStageWindow, loadStageWindowSetting, registerStageWindowIpc, stageWindowOptions } from './stage-window-service';
 import { initCrashLog, registerLogIpc } from './log-service';
 import { DIAGNOSTICS_MAX_CHARS } from '../core/log';
 import { STAGE_WINDOW_NAME } from '../core/stage-window';
@@ -125,7 +126,11 @@ function createWindow(): void {
     minWidth: 960,
     minHeight: 600,
     title,
-    backgroundColor: '#16181d',
+    // Opened in the chosen appearance from its first frame (milestone 62): painted with that
+    // palette's background, and shown once the page has drawn, so neither palette ever shows
+    // the other — the page's head does its part before its stylesheet arrives (index.html).
+    backgroundColor: windowBackground(),
+    show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
@@ -137,6 +142,13 @@ function createWindow(): void {
       backgroundThrottling: false,
     },
   });
+
+  const win = mainWindow;
+  win.once('ready-to-show', () => win.show());
+  // A wait with a bound (docs/platform-notes.md): a page that never reports ready still opens.
+  setTimeout(() => {
+    if (!win.isDestroyed() && !win.isVisible()) win.show();
+  }, 5_000);
 
   // The page's own <title> would replace it the moment the document loads. The window names the
   // project instead (milestone 27), with a mark while it has unsaved changes.
@@ -381,6 +393,9 @@ function registerIpc(): void {
     relinkRecentProject(String(path ?? ''), typeof answer === 'string' && answer ? answer : undefined));
   ipcMain.handle('examples:list', () => listExamples());
   ipcMain.handle('examples:read', (_event, path: unknown) => readExample(String(path ?? '')));
+  // Light, dark or the system's (milestone 62): every window redraws when it is set.
+  ipcMain.handle('appearance:get', () => getAppearance());
+  ipcMain.handle('appearance:set', (_event, choice: unknown) => setAppearance(choice));
   ipcMain.handle('start-screen:get', async () => {
     const s = await loadSettings();
     return { showAtStartup: s.showStartScreen, tourSeen: s.tourSeen };
@@ -1120,6 +1135,9 @@ app.whenReady().then(async () => {
   registerLogIpc();
   registerStageWindowIpc();
   await loadStageWindowSetting();
+  // The appearance is applied before the window is made, so it opens in it (milestone 62).
+  await loadAppearance();
+  watchAppearance(() => [mainWindow, currentStageWindow()].filter((w): w is BrowserWindow => w !== null));
   createWindow();
   startLibraryMonitor();
   // The editor panel's bridge (milestone 54): listening only if Settings says so, never headless.

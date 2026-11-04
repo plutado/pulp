@@ -20,6 +20,7 @@ import {
   type StageWindowState,
 } from '../core/stage-window';
 import { loadSettings, updateSettings } from './settings';
+import { windowBackground } from './appearance-service';
 
 let stageWindow: BrowserWindow | null = null;
 /** The renderer has put the stage back and asked for the close: let it through. */
@@ -60,7 +61,8 @@ export function stageWindowOptions(frameName: string): BrowserWindowConstructorO
     minWidth: STAGE_WINDOW_MIN.width,
     minHeight: STAGE_WINDOW_MIN.height,
     title: 'Stage',
-    backgroundColor: '#16181d',
+    // The palette it opens in, as the main window's (milestone 62).
+    backgroundColor: windowBackground(),
     // The application menu is the main window's; here it would only take a row from the picture.
     autoHideMenuBar: true,
     webPreferences: {
@@ -168,6 +170,11 @@ async function stageWindowSoon(): Promise<BrowserWindow | null> {
 }
 
 /** The main window is going: its stage window goes with it, remembered as it was. */
+/** The stage's window while it is out, so its background can follow the palette. */
+export function currentStageWindow(): BrowserWindow | null {
+  return stageWindow && !stageWindow.isDestroyed() ? stageWindow : null;
+}
+
 export function destroyStageWindow(): void {
   if (!stageWindow || stageWindow.isDestroyed()) return;
   closeAllowed = true;
