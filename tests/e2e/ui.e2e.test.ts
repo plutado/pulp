@@ -771,6 +771,38 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`document.getElementById('mark-out-flag').hidden`)).toBe(true);
     }, 60_000);
 
+    it('puts the stage\'s corner in four buttons of one size, the background one opening a picker that shows the choice', async () => {
+      const corner = await page.eval<{ id: string; w: number; h: number; top: number }[]>(`[...document.querySelectorAll('.stage-view > button, .stage-view > .bg-choice > button')].map((b) => { const r = b.getBoundingClientRect(); return { id: b.id, w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top) }; })`);
+      expect(corner.map((b) => b.id)).toEqual(['bg-button', 'safe-toggle', 'stage-popout', 'theater']);
+      expect(new Set(corner.map((b) => `${b.w}x${b.h}@${b.top}`)).size, `one size, one line: ${JSON.stringify(corner)}`).toBe(1);
+      // The swatches are in the picker, which is shut until the button opens it.
+      const picker = () => page.eval<boolean>(`document.getElementById('bg-picker').hidden`);
+      expect(await picker()).toBe(true);
+      expect(await page.eval<number>(`document.getElementById('bg-checker').getBoundingClientRect().width`), 'no swatch on the corner').toBe(0);
+      await click('bg-button');
+      expect(await picker()).toBe(false);
+      expect(await page.eval<string>(`document.getElementById('bg-button').getAttribute('aria-expanded')`)).toBe('true');
+      expect(await page.eval<string>(`document.activeElement.id`), 'the keyboard on the choice that is on').toBe('bg-checker');
+      // A choice closes it, and the button wears what was chosen.
+      await click('bg-white');
+      expect(await picker()).toBe(true);
+      expect(await page.eval<string>(`document.getElementById('preview-frame').style.backgroundColor`)).toBe('rgb(255, 255, 255)');
+      expect(await page.eval<string>(`getComputedStyle(document.querySelector('#bg-button .bg-current')).backgroundColor`)).toBe('rgb(255, 255, 255)');
+      expect(await page.eval<string>(`document.getElementById('bg-button').getAttribute('aria-label')`)).toBe('Preview background: White');
+      // Escape closes it without choosing, and so does a press anywhere else.
+      await click('bg-button');
+      await page.eval(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))`);
+      expect(await picker()).toBe(true);
+      expect(await page.eval<string>(`document.activeElement.id`), 'focus back on the button').toBe('bg-button');
+      await click('bg-button');
+      await page.eval(`document.getElementById('results').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`);
+      expect(await picker()).toBe(true);
+      // The board drawn small on the button when it is the choice.
+      await click('bg-checker');
+      expect(await page.eval<boolean>(`document.querySelector('#bg-button .bg-current').classList.contains('checker')`)).toBe(true);
+      expect(await page.eval<string>(`document.getElementById('bg-button').dataset.tip`)).toBe('Background: Checkerboard');
+    }, 60_000);
+
     it('keeps the background, safe areas and volume in settings', async () => {
       await click('bg-black');
       expect(await pressed('bg-black')).toBe('true');
@@ -3245,6 +3277,9 @@ describe.skipIf(!electron)('inspector UI', () => {
         // Theater toggles the window the way its own button does, and the menu says which it is.
         await rightClick(40, 40);
         expect(await page.eval<string>(`[...document.querySelectorAll('.context-menu > button')].find((b) => b.textContent === 'Theater').getAttribute('aria-checked')`)).toBe('false');
+        // Theater, the one item here that can be ticked, starts its label where every other item does.
+        const starts = await page.eval<Record<string, number>>(`Object.fromEntries([...document.querySelectorAll('.context-menu:not(.submenu) > button')].map((b) => [b.textContent, Math.round(b.querySelector('.item-label, .item-lines').getBoundingClientRect().left - b.getBoundingClientRect().left)]))`);
+        expect(new Set(Object.values(starts)).size, `the labels' starts ${JSON.stringify(starts)}`).toBe(1);
         await choose('Theater');
         await until(() => page.eval<boolean>(`document.getElementById('theater').getAttribute('aria-pressed') === 'true'`), 'theater on');
         await rightClick(40, 40);
@@ -5099,7 +5134,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       // What plays or moves through time is in the row — with Add to collection and the inspector's
       // tabs (milestone 38); what views the picture is an overlay on the stage's corner.
       const inRow = ['play', 'step-back', 'step-forward', 'loop', 'scrub', 'timecode', 'mark-in', 'mark-out', 'mark-clear', 'volume', 'mute', 'audition', 'layer-bars', 'length-handle', 'sequence-rate', 'add-to-collection', 'tab-parameters', 'tab-output', 'tab-info'];
-      const onStage = ['preview-frame', 'bg-checker', 'bg-black', 'bg-white', 'bg-custom', 'safe-toggle'];
+      const onStage = ['preview-frame', 'bg-button', 'bg-checker', 'bg-black', 'bg-white', 'bg-custom', 'safe-toggle'];
       const where = await page.eval<Record<string, string>>(
         `(() => { const out = {}; for (const id of ${JSON.stringify([...inRow, ...onStage])}) { const el = document.getElementById(id); out[id] = !el ? 'missing' : el.closest('#region-transport') ? 'transport' : el.closest('#region-stage') ? 'stage' : 'elsewhere'; } return out; })()`,
       );
@@ -6318,10 +6353,13 @@ describe.skipIf(!electron)('inspector UI', () => {
       // is set here rather than left to the machine — a CI runner's small screen opens the window
       // well short of the default — and Continue holds however many recents the suite has opened
       // by now, in one row.
-      const fitsAt = () => page.eval<{ window: number; scroll: number; wide: number; across: number; rows: number } & Record<string, number>>(`(() => {
+      const fitsAt = () => page.eval<{ window: number; scroll: number; wide: number; across: number; rows: number; above: number; below: number } & Record<string, number>>(`(() => {
         const bottom = (el) => el && el.offsetParent ? el.getBoundingClientRect().bottom : -1;
         const screen = document.getElementById('start-screen');
+        const inner = screen.querySelector('.start-inner').getBoundingClientRect();
         return {
+          above: Math.round(inner.top),
+          below: Math.round(window.innerHeight - inner.bottom),
           window: window.innerHeight,
           scroll: screen.scrollHeight,
           wide: screen.scrollWidth,
@@ -6354,6 +6392,8 @@ describe.skipIf(!electron)('inspector UI', () => {
               expect(fits[part]!, `${part} visible without scrolling, ${at}`).toBeLessThanOrEqual(fits.window);
             }
             expect(fits.scroll, `nothing to scroll, ${at}`).toBeLessThanOrEqual(fits.window);
+            // In the middle, top to bottom, not against the top edge.
+            expect(Math.abs(fits.above - fits.below), `as much room above as below (${fits.above} and ${fits.below}), ${at}`).toBeLessThanOrEqual(1);
             expect(fits.wide, `nothing to scroll sideways, ${at}`).toBeLessThanOrEqual(fits.across);
             if (mode === 'returning') expect(fits.rows, `Continue in one row, ${at}`).toBe(1);
           }

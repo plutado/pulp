@@ -56,6 +56,7 @@ import { initLoudness, loudnessClear, loudnessUpdate } from './loudness';
 import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
 import { frameColorScheme } from '../core/appearance';
+import { mountBackgroundPicker, showBackgroundChoice } from './stage-background';
 
 /** Element by id. Typed as Element, not HTMLElement: the stage's waveform is an SVG. */
 const $ = <T extends Element>(id: string): T => {
@@ -104,6 +105,8 @@ const els = {
   mute: $<HTMLButtonElement>('mute'),
   volume: $<HTMLInputElement>('volume'),
   bgCustom: $<HTMLInputElement>('bg-custom'),
+  bgButton: $<HTMLButtonElement>('bg-button'),
+  bgPicker: $<HTMLElement>('bg-picker'),
   audition: $<HTMLButtonElement>('audition'),
   safeToggle: $<HTMLButtonElement>('safe-toggle'),
   layerOverlay: $<HTMLDivElement>('layer-overlay'),
@@ -185,6 +188,7 @@ function applyPlayer(): void {
   for (const [kind, button] of Object.entries(BACKGROUND_BUTTONS)) button.setAttribute('aria-pressed', String(p.background === kind));
   els.bgCustom.value = p.customBackground;
   els.bgCustom.classList.toggle('active', p.background === 'custom');
+  showBackgroundChoice(els.bgButton, p);
   // The checkerboard is a class so it keeps the stylesheet's pattern; the rest is one color.
   els.previewFrame.classList.toggle('checker', p.background === 'checker');
   const solid = p.background === 'checker' ? '' : p.background === 'custom' ? p.customBackground : STAGE_BACKGROUND_COLORS[p.background];
@@ -1225,6 +1229,7 @@ export function initStage(): void {
     button.addEventListener('click', () => setPlayer({ background: kind as StageBackground }));
   }
   els.bgCustom.addEventListener('input', () => setPlayer({ background: 'custom', customBackground: els.bgCustom.value }));
+  mountBackgroundPicker(els.bgButton, els.bgPicker);
   els.safeToggle.addEventListener('click', () => setPlayer({ safeAreas: !s.player.safeAreas }));
   mountCaptionsPreview(els.captions);
   // The Settings window (milestone 8) sets audition through the same path the stage's own button does.

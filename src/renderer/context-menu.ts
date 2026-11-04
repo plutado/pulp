@@ -109,6 +109,9 @@ function buildPanel(items: readonly MenuItemSpec[], depth: number): HTMLDivEleme
   panel.setAttribute('role', 'menu');
   panel.dataset.panel = String(++panelCount);
   panel.dataset.depth = String(depth);
+  // A panel with anything that can be ticked keeps the tick's gutter on every row, so Theater and
+  // the items beside it start their labels at one edge, ticked or not.
+  panel.classList.toggle('has-checks', items.some((i) => i.type === 'radio' || i.type === 'checkbox'));
   for (const item of items) {
     if (item.type === 'separator') {
       const line = document.createElement('div');
@@ -141,7 +144,11 @@ function buildPanel(items: readonly MenuItemSpec[], depth: number): HTMLDivEleme
       stack.append(label, detail);
       button.append(stack);
     } else {
-      button.textContent = item.label ?? '';
+      // A span of its own, so the label keeps to the start of the row beside a tick or a caret.
+      const label = document.createElement('span');
+      label.className = 'item-label';
+      label.textContent = item.label ?? '';
+      button.append(label);
     }
     if (item.command) button.dataset.command = item.command;
     if (item.arg !== undefined) button.dataset.arg = item.arg;

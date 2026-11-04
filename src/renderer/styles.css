@@ -342,17 +342,20 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* A choice with a line under it saying what it brings (milestone 47): the label keeps its weight,
    the line reads as the quieter of the two. */
 .context-menu > button .item-lines { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+/* The label keeps to the start of the row; whatever follows it (a submenu's caret) goes to the end. */
+.context-menu > button > .item-label, .context-menu > button > .item-lines { margin-right: auto; }
 .context-menu > button .item-detail { color: var(--muted); font-size: var(--font-caption); }
 .context-menu > button:disabled .item-detail { opacity: 0.8; }
 /* The one caret that says a submenu opens here; drawn rather than an icon, as the tree's twisty is. */
 .context-menu > button.has-submenu::after { content: ''; width: 5px; height: 5px; margin-right: 2px; border-right: 1px solid currentColor;
   border-top: 1px solid currentColor; transform: rotate(45deg); flex: 0 0 auto; }
 .context-menu > button.has-submenu:disabled::after { opacity: 0.5; }
-/* A choice that is on carries a tick in a gutter of its own, so the labels of a group line up
-   whether or not any of them is ticked. */
-.context-menu > button[role="menuitemradio"], .context-menu > button[role="menuitemcheckbox"] { padding-left: var(--space-1); }
-.context-menu > button[role="menuitemradio"]::before, .context-menu > button[role="menuitemcheckbox"]::before {
-  content: ''; flex: 0 0 auto; width: 14px; height: 14px; margin-right: 2px; background: currentColor; opacity: 0;
+/* A choice that is on carries a tick in a gutter of its own, and a panel with any choice in it gives
+   every row that gutter, so the labels line up whether or not an item can be ticked or is. */
+.context-menu.has-checks > button { padding-left: var(--space-1); }
+.context-menu.has-checks > button::before {
+  /* Its margin takes back most of the row's gap, which is there for the label and a submenu's caret. */
+  content: ''; flex: 0 0 auto; width: 14px; height: 14px; margin-right: calc(var(--space-1) - var(--space-3)); background: currentColor; opacity: 0;
   -webkit-mask: var(--check-mask) center / contain no-repeat; mask: var(--check-mask) center / contain no-repeat;
 }
 .context-menu > button.checked::before { opacity: 1; }
@@ -1154,17 +1157,25 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
    (milestone 38), so the stage's box is all picture. Over the letterbox dead space at most sizes;
    above the layer overlay, so its buttons stay clickable. */
 .stage-view { position: absolute; top: 8px; right: 12px; z-index: 2; display: flex; align-items: center; gap: var(--space-2); }
-.stage-view .tool-group { display: inline-flex; align-items: center; gap: var(--space-1); }
-.stage-view .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
+/* Four buttons of one size: the background, the safe areas, pop out and theater. */
+.stage-view .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 28px; padding: 0; color: var(--muted); background: none; border-color: transparent; }
 .stage-view .icon-button:hover { color: var(--text); }
 .stage-view .icon-button[aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent); background: var(--panel-2); }
-.stage-view .swatch { width: 22px; height: 22px; padding: 0; border-radius: var(--radius-control); border: 1px solid var(--border); }
+/* The background button wears the choice that is on, at the icons' size; its picker opens under it. */
+.stage-view .bg-choice { position: relative; display: inline-flex; }
+.stage-view #bg-button[aria-expanded="true"] { background: var(--panel-2); border-color: var(--border); }
+.stage-view .bg-current { width: 18px; height: 18px; border-radius: 3px; border: 1px solid var(--border); }
+.stage-view .bg-picker { position: absolute; z-index: 3; top: calc(100% + var(--space-1)); right: 0; display: flex; gap: var(--space-1); padding: var(--space-1);
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-control); box-shadow: 0 8px 24px var(--shadow-strong); }
+.stage-view .bg-picker[hidden] { display: none; }
+.stage-view .swatch, .stage-view #bg-custom { width: 26px; height: 26px; padding: 0; border-radius: var(--radius-control); border: 1px solid var(--border); }
+.stage-view #bg-custom { padding: 2px; }
 .stage-view .swatch.black { background: var(--swatch-black); }
 .stage-view .swatch.white { background: var(--swatch-white); }
 .stage-view .swatch.gray { background: var(--swatch-gray); }
-.stage-view .swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.stage-view #bg-custom { width: 26px; height: 22px; padding: 1px; }
-.stage-view #bg-custom.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* The board drawn small, in the button and among the choices: the same squares as the stage's, a quarter the size. */
+.stage-view .bg-current.checker, .stage-view .swatch.checker { background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
+.stage-view .swatch[aria-pressed="true"], .stage-view #bg-custom.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 /* A note about the picture lies over its foot rather than taking a row from it. */
 .stage > .note { position: absolute; left: 16px; right: 16px; bottom: 8px; z-index: 2; margin: 0; }
 
@@ -1556,7 +1567,13 @@ progress { width: 100%; margin: 2px 0; }
   line-height: 1.2;
   overflow-y: auto;
   color-scheme: dark;
+  /* The content sits in the middle of the screen, top to bottom, rather than against its top edge:
+     a column whose one child takes auto margins, so a window too short for it starts it at the top
+     and scrolls, with nothing cut off above (a centered flex item would overflow upward). */
+  display: flex;
+  flex-direction: column;
 }
+.start-screen[hidden] { display: none; }
 @media (prefers-color-scheme: light) {
   .start-screen {
     --s-bg: #f3f4f7;
@@ -1572,7 +1589,7 @@ progress { width: 100%; margin: 2px 0; }
     color-scheme: light;
   }
 }
-.start-inner { max-width: 980px; margin: 0 auto; padding: var(--space-4) var(--space-5); }
+.start-inner { width: 100%; max-width: 980px; margin: auto; padding: var(--space-4) var(--space-5); }
 
 /* The head: the mark, the name, the tagline; the quiet corner for leaving. */
 .start-head { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-3); }

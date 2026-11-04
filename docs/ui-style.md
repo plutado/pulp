@@ -87,7 +87,7 @@ Search syntax is the exception by design: what you type in the search field (`ta
 | Left panel, Browse | A funnel in the heading opens the category filter; lit while a filter is in force |
 | Results heading | Upload (Export pack, on the templates listed); sort icon on the sort control; squares-four and rows for grid or list; carets for the stage and results toggles |
 | Results | Type icon as the empty-thumbnail placeholder; badges as small icons with tooltips (alpha, loop, audio) |
-| Stage | Background toggle, safe areas and theater (corners-out, corners-in when on) as icon buttons, a quiet overlay on the stage's corner |
+| Stage | Background, safe areas, pop out and theater (corners-out, corners-in when on) as four icon buttons of one size, a quiet overlay on the stage's corner; the background button wears the choice that is on and opens a picker of the five |
 | Transport row | Two lines: the scrub bar alone on the first, one to one under the picture; the buttons on the second in three clusters. Play/pause, loop, frame step, mute, audition and Add to collection as icon buttons (play at 24, the rest at 20); Set in, Set out and Clear as text buttons; the timecode in monospace; the inspector's three tabs at the row's end, an accent dot when the shown item has edits |
 | Inspector drawer | Pin and close as icon buttons at 16 in the drawer's head; star outline/fill for favorite in the head's item strip |
 | Inspector tabs | Sliders (Parameters), export (Output), info circle (Info) — icon plus label |
