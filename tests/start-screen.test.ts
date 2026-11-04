@@ -144,7 +144,7 @@ describe('the redesigned screen (milestone 60)', () => {
 
 describe('the screen as the markup holds it (milestone 60)', () => {
   const html = readFileSync(join(__dirname, '..', 'src', 'renderer', 'index.html'), 'utf8');
-  const screen = /<section id="start-screen"[\s\S]*?<\/section>\n(?=  <div id="tour-overlay")/.exec(html)?.[0] ?? '';
+  const screen = /<section id="start-screen"[\s\S]*?<\/section>\n(?= {2}<div id="tour-overlay")/.exec(html)?.[0] ?? '';
 
   it('has exactly one primary button, and it is New project', () => {
     expect(screen.length).toBeGreaterThan(0);
