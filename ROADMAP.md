@@ -74,7 +74,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 57. A second picture track (post-1.0, **done**) | 16-26 h |
 | 58. Reliability, scale and speed (post-1.0, **done**) | 16-28 h |
 | 59. Languages and locale (post-1.0) | 26-46 h |
-| 60. A start screen with a clear way in (post-1.0) | 12-20 h |
+| 60. A start screen with a clear way in (post-1.0, **done**) | 12-20 h |
 | 61. A polished set of bundled art (post-1.0) | 26-43 h |
 | 62. Light and dark appearance (post-1.0) | 8-12 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
