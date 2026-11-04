@@ -20,8 +20,7 @@ import { frameState } from '../core/runtime';
 import { framesToCheck, frameHash, hammingDistance, looksSame, type VisualReferences } from '../core/visual-hash';
 import { scanLibrary } from '../core/library';
 import type { TemplateEntry } from '../core/library-types';
-import { drainPaints, paintComposited } from './render';
-import { createCaptureWindow, fitPageToFrame } from './capture-window';
+import { capturePresented, createCaptureWindow, fitPageToFrame } from './capture-window';
 import { withTimeout } from '../core/render-guard';
 
 export interface VisualResult {
@@ -49,16 +48,13 @@ async function hashTemplate(entry: TemplateEntry, aspect: string): Promise<Visua
   try {
     await withTimeout(win.loadURL(`pulp-template://${manifest.id}/`), LOAD_TIMEOUT_MS, 'the template did not load');
     await fitPageToFrame(capture);
-    // The load's own paints, out of the way before the first frame waits for one (see drainPaints):
-    // a stale paint there would hash the blank page instead of the template.
-    await drainPaints(win);
     const params = resolveParams(manifest, defaultParams(manifest)).values;
     const out: VisualResult[] = [];
     for (const frame of frames) {
       const state = frameState(manifest, frame, params, size);
       await withTimeout(win.webContents.executeJavaScript(`window.__pulp.render(${JSON.stringify(state)})`), LOAD_TIMEOUT_MS, `frame ${frame} did not draw`);
-      await paintComposited(win);
-      const image = await win.webContents.capturePage();
+      // Hashed from a frame presented after the draw, never the one before it (capturePresented).
+      const image = await capturePresented(win);
       const got = image.getSize();
       if (got.width !== size.width || got.height !== size.height) return { error: `captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}` };
       out.push({ template: manifest.id, aspect: aspect || 'default', frame, hash: frameHash(image.toBitmap(), size.width, size.height) });

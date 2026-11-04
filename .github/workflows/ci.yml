@@ -86,6 +86,15 @@ jobs:
       - run: npm ci
       - name: Unit and end-to-end tests
         run: npm test
+      - name: Keep what a failed visual check captured
+        # A visual reference that does not match leaves its captures in test-artifacts/ (the start
+        # screen's test does), so a mismatch on this runner can be looked at rather than guessed at.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-macos
+          path: test-artifacts/
+          if-no-files-found: ignore
 
   render-linux:
     # Full render path on Linux under a virtual display, so the end-to-end suite runs here

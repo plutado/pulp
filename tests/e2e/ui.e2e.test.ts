@@ -12,6 +12,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { closeSync, existsSync, openSync } from 'node:fs';
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -174,8 +175,17 @@ function pngOf(pixels: number[]): Buffer {
   ]);
 }
 
+/** A port nothing is listening on, as the system hands one out: a random pick could be another app's. */
+async function freePort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address() as AddressInfo;
+  await new Promise((resolve) => server.close(resolve));
+  return port;
+}
+
 describe.skipIf(!electron)('inspector UI', () => {
-  const port = 9300 + Math.floor(Math.random() * 500);
+  let port = 0;
   let app: ChildProcess | null = null;
   let page: Session;
   /** Scratch userData folder, so the app under test never reads or writes the real settings.json. */
@@ -283,6 +293,15 @@ describe.skipIf(!electron)('inspector UI', () => {
    */
   // The field sits under the funnel in the Browse heading (milestone 41): opened before typing,
   // and the funnel pressed again to put it away, which also clears it.
+  /**
+   * The layer overlay holds the layout of the latest frame the stage asked the page for, and nothing is
+   * in flight or queued. The page lays a frame out before its reply reaches the overlay, so a test that
+   * saw the page draw something can still click an overlay holding the layout from before — and an edit
+   * redraws the frame it is on, so the frame number alone cannot tell the two apart. Each request is
+   * numbered (src/renderer/stage.ts) and the overlay says which one it holds.
+   */
+  const overlayCurrent = `(() => { const o = document.getElementById('layer-overlay'), f = document.getElementById('preview-frame');
+    return !!o && !!f && f.dataset.inFlight === 'false' && f.dataset.pending === '' && o.dataset.laidRequest !== undefined && o.dataset.laidRequest === f.dataset.requested; })()`;
   const findCategory = (text: string) =>
     page.eval(`(() => { if (document.getElementById('browse-find').hidden) document.getElementById('browse-filter-toggle').click();
       const f = document.querySelector('#browse-find input'); f.value = ${JSON.stringify(text)}; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
@@ -480,6 +499,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     // The app's own output goes to a file, so a failing test can print what the main process said.
     appLog = join(userData, 'app.log');
     const logFd = openSync(appLog, 'a');
+    port = await freePort();
     app = spawn(electron!, ['.', `--remote-debugging-port=${port}`], {
       cwd: ROOT,
       stdio: ['ignore', logFd, logFd],
@@ -488,7 +508,9 @@ describe.skipIf(!electron)('inspector UI', () => {
     closeSync(logFd);
     let target: Target | undefined;
     await until(async () => {
-      target = (await targets()).find((t) => t.type === 'page' && /renderer\/index\.html/.test(t.url));
+      // This checkout's window and no other: should the port be taken after all, the app that holds it
+      // is another copy of Pulp, and a test driving it would be testing something else entirely.
+      target = (await targets()).find((t) => t.type === 'page' && decodeURIComponent(t.url).includes(join(ROOT, 'out', 'renderer', 'index.html').replace(/\\/g, '/')));
       return target !== undefined;
     }, 'the app window');
     appTargetId = target!.id;
@@ -2394,7 +2416,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         const pointer = (type: string, x: number, y: number, shift = false, target = overlay) =>
           page.eval(`${target}.dispatchEvent(new PointerEvent(${JSON.stringify(type)}, { clientX: ${x}, clientY: ${y}, pointerId: 9, button: 0, shiftKey: ${shift}, bubbles: true }))`);
         const overlayReady = (frame: number) =>
-          until(() => page.eval<boolean>(`${overlay}.dataset.laidFrame === '${frame}'`), `the overlay holding frame ${frame}`);
+          until(() => page.eval<boolean>(`${overlay}.dataset.laidFrame === '${frame}' && ${overlayCurrent}`), `the overlay holding frame ${frame}, as last asked for`);
 
         // The page reports what the layer draws beside the slot it sits in: for a line of type
         // the two differ, and the turn goes about the words.
@@ -2486,7 +2508,7 @@ describe.skipIf(!electron)('inspector UI', () => {
          * same frame is what makes a click land on what is on screen (docs/platform-notes.md).
          */
         const overlayReady = (frame: number) =>
-          until(() => page.eval<boolean>(`${overlay}.dataset.laidFrame === '${frame}'`), `the overlay holding frame ${frame}`);
+          until(() => page.eval<boolean>(`${overlay}.dataset.laidFrame === '${frame}' && ${overlayCurrent}`), `the overlay holding frame ${frame}, as last asked for`);
         /**
          * The client point of a frame-pixel point, through the overlay's own box and the size the
          * preview really renders at — never an assumed 1920, which a portrait aspect would break.
@@ -2956,7 +2978,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       type Laid = { blocks: Record<string, { layers: { id: string; box: { x: number; y: number; width: number; height: number }; ink?: { x: number; y: number; width: number; height: number }; draw: { dx: number; dy: number } }[] }> };
       const laid = () => inTemplate<Laid>(`window.__pulp.laid`, CARD);
       const laidLayer = async (id: string) => (await laid()).blocks.card?.layers.find((l) => l.id === id) ?? null;
-      const overlayReady = (frame: number) => until(() => page.eval<boolean>(`${overlay}.dataset.laidFrame === '${frame}'`), `the overlay holding frame ${frame}`);
+      const overlayReady = (frame: number) => until(() => page.eval<boolean>(`${overlay}.dataset.laidFrame === '${frame}' && ${overlayCurrent}`), `the overlay holding frame ${frame}, as last asked for`);
       /** The middle of what a layer draws, in frame pixels. */
       const inkCentre = async (id: string) => {
         const l = await laidLayer(id);
@@ -6513,14 +6535,21 @@ describe.skipIf(!electron)('inspector UI', () => {
         // so a slower machine captures the same screen rather than empty wells.
         await page.eval(`document.querySelectorAll('#start-ideas li').forEach((li) => { li.dataset.stale = '1'; })`);
         await page.eval(`window.pulpStartScreen(true, ${JSON.stringify(mode)})`);
-        await until(() => page.eval<boolean>(`document.getElementById('start-setup-card').hidden === ${mode === 'returning'}`), `the ${mode} arrangement`);
+        // Settled: the arrangement, the gallery and the switches all in for this showing (start-screen.ts).
+        await until(() => page.eval<boolean>(`document.getElementById('start-screen').dataset.settled === ${JSON.stringify(mode)}`), `the ${mode} arrangement settled`);
+        expect(await page.eval<boolean>(`document.getElementById('start-setup-card').hidden`)).toBe(mode === 'returning');
+        // Every picture on the screen decoded and on its element — the gallery's, and the recent
+        // project's in the returning arrangement — which is what "pictured" means (start-screen.ts).
         await until(
           () => page.eval<boolean>(`(() => { const pics = document.querySelectorAll('#start-ideas .start-idea-pic');
-            return !document.querySelector('#start-ideas li[data-stale]') && pics.length >= 11 && document.querySelectorAll('#start-ideas .start-idea-pic[data-pictured]').length === pics.length; })()`),
-          `the ${mode} gallery rebuilt with its pictures`,
+            const wells = [...document.querySelectorAll('#start-recent .start-thumb')];
+            return !document.querySelector('#start-ideas li[data-stale]') && pics.length >= 11 && document.querySelectorAll('#start-ideas .start-idea-pic[data-pictured]').length === pics.length
+              && wells.length === ${mode === 'returning' ? 1 : 0} && wells.every((w) => w.dataset.pictured === '1'); })()`),
+          `the ${mode} screen with every picture on it`,
           60_000,
         );
-        await sleep(350); // the paint after the theme, the arrangement and the pictures settle
+        // No pause for the paint: the capture is DevTools' screenshot from the surface, which draws a
+        // fresh frame before copying it, so whatever the page holds now is in it (src/main/capture-window.ts).
         const shot = (await page.send('Page.captureScreenshot', { format: 'png' })).result as { data: string };
         const rgba = await page.eval<number[]>(`(async () => {
           const img = new Image();
@@ -6529,9 +6558,11 @@ describe.skipIf(!electron)('inspector UI', () => {
           const x = c.getContext('2d'); x.drawImage(img, 0, 0, 64, 36);
           return [...x.getImageData(0, 0, 64, 36).data];
         })()`, undefined, 60_000);
+        shots[`${mode}-${scheme}`] = shot.data;
         return frameHash(Uint8Array.from(rgba), 64, 36);
       };
       const hashes: Record<string, string> = {};
+      const shots: Record<string, string> = {};
       try {
         for (const scheme of ['dark', 'light'] as const) {
           for (const mode of ['first-run', 'returning'] as const) hashes[`${mode}-${scheme}`] = await capture(mode, scheme);
@@ -6548,12 +6579,16 @@ describe.skipIf(!electron)('inspector UI', () => {
         await writeFile(REFS, `${JSON.stringify(hashes, null, 2)}\n`);
       } else if (process.platform === 'darwin') {
         // The references were made on the platform the visual suite runs on; elsewhere the fonts differ.
-        // A key may list more than one capture when two Macs draw it apart (CI's macOS machine draws the
-        // first-run dark screen 11 bits from the maintainer's Mac, the same on every run): any one passes.
-        const refs = JSON.parse(await readFile(REFS, 'utf8')) as Record<string, string | string[]>;
+        const refs = JSON.parse(await readFile(REFS, 'utf8')) as Record<string, string>;
+        // A capture that does not match is kept, every one of the four beside it, where CI uploads what a
+        // failed job leaves (test-artifacts/): sixty-four bits say that the screen moved, not how.
+        if (Object.keys(refs).some((key) => !looksSame(hashes[key]!, refs[key]!))) {
+          const dir = join(ROOT, 'test-artifacts', 'start-screen');
+          await mkdir(dir, { recursive: true });
+          for (const [key, data] of Object.entries(shots)) await writeFile(join(dir, `${key}-${hashes[key]}.png`), Buffer.from(data, 'base64'));
+        }
         for (const key of Object.keys(refs)) {
-          const accepted = ([] as string[]).concat(refs[key]!);
-          expect(accepted.some((ref) => looksSame(hashes[key]!, ref)), `${key}: ${hashes[key]!} vs reference ${accepted.join(' or ')}`).toBe(true);
+          expect(looksSame(hashes[key]!, refs[key]!), `${key}: ${hashes[key]!} vs reference ${refs[key]!} (captures in test-artifacts/start-screen)`).toBe(true);
         }
       }
       await cleanSession();
@@ -6806,7 +6841,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     const frameOf = () => page.eval<{ width: number; height: number }>(`(() => { const c = document.getElementById('preview-frame'); const [w, h] = (c.style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`);
     /** Select what is drawn at a frame point: the overlay must hold the current frame first, and a click may need a second go. */
     async function selectOnStage(fx: number, fy: number): Promise<void> {
-      await until(() => page.eval<boolean>(`${overlay}.classList.contains('active') && ${overlay}.dataset.laidFrame === document.getElementById('preview-frame').dataset.frame`), 'the overlay holding the frame');
+      await until(() => page.eval<boolean>(`${overlay}.classList.contains('active') && ${overlay}.dataset.laidFrame === document.getElementById('preview-frame').dataset.frame && ${overlayCurrent}`), 'the overlay holding the frame, as last asked for');
       const b = await page.eval<{ left: number; top: number; width: number; height: number }>(`(() => { const r = ${overlay}.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
       const f = await frameOf();
       const x = b.left + (fx / f.width) * b.width, y = b.top + (fy / f.height) * b.height;

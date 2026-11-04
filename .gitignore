@@ -25,3 +25,6 @@ coverage/
 .DS_Store
 .vscode/
 .idea/
+
+# What a failed visual check captured, uploaded by CI (tests/e2e/ui.e2e.test.ts).
+test-artifacts/

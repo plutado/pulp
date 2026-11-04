@@ -17,7 +17,7 @@
 
 import { BrowserWindow, nativeImage } from 'electron';
 import { stagedOutputPath } from '../core/render-recovery';
-import { createCaptureWindow, fitPageToFrame, screenHint, } from './capture-window';
+import { capturePresented, createCaptureWindow, fitPageToFrame, screenHint } from './capture-window';
 import { withLegacyHold } from '../core/legacy-hold';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -57,7 +57,6 @@ import {
   DEFAULT_FRAME_TIMEOUT_MS,
   DEFAULT_LOAD_TIMEOUT_MS,
   frameCallScript,
-  isBlankCapture,
   frameTimeoutMessage,
   loadTimeoutMessage,
   partialOutputFiles,
@@ -116,9 +115,8 @@ function detectCaptureFormat(): Promise<CaptureProbe> {
     try {
       win.setContentSize(CAPTURE_PROBE_SIZE, CAPTURE_PROBE_SIZE);
       await withTimeout(win.loadURL(CAPTURE_PROBE_URL), 10_000, 'capture probe did not load within 10 s');
-      // Two animation frames so the drawn canvas is composited before capture.
-      await win.webContents.executeJavaScript('new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); })');
-      const image = await win.webContents.capturePage();
+      // Captured once a frame drawn after the load has been presented (capturePresented).
+      const image = await capturePresented(win);
       const size = image.getSize();
       if (size.width !== CAPTURE_PROBE_SIZE || size.height !== CAPTURE_PROBE_SIZE) {
         return { format: null, reason: `probe captured at ${size.width}x${size.height} instead of ${CAPTURE_PROBE_SIZE}x${CAPTURE_PROBE_SIZE}` };
@@ -502,10 +500,6 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       }
     }
 
-    // The page is loaded and its images are in: let the paints that cost queue up arrive before the
-    // first frame waits for one of its own, or it can be handed the frame from before the draw.
-    await drainPaints(win);
-
     // The caption style's own page (milestone 50), the same size, held open for the whole render.
     if (captionStyle && captionsMode === 'burn') {
       const opened = await openStylePage(captionStyle, frameSize, loadTimeoutMs);
@@ -560,13 +554,13 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
           // sees one picture. A moment between lines captures the graphic alone, as always.
           const styleState = frameState(captionStyle.manifest, frame, defaultStyleParams(captionStyle), frameSize, {}, {}, undefined, line);
           pixels = await withTimeout(
-            captureComposited(win, captionWin, state, styleState, frameSize, plan.frameFormat, probe?.format ?? { pixelFormat: 'bgra', premultiplied: true }, { first: i === 0 }),
+            captureComposited(win, captionWin, state, styleState, frameSize, plan.frameFormat, probe?.format ?? { pixelFormat: 'bgra', premultiplied: true }),
             frameTimeoutMs,
             frameTimeoutMessage(manifest.name, frame, frameTimeoutMs),
           );
         } else {
           pixels = await withTimeout(
-            captureFrame(win, state, frameSize, plan.frameFormat, { first: i === 0 }),
+            captureFrame(win, state, frameSize, plan.frameFormat),
             frameTimeoutMs,
             frameTimeoutMessage(manifest.name, frame, frameTimeoutMs),
           );
@@ -686,7 +680,6 @@ async function openStylePage(style: TemplateEntry, size: Size, loadTimeoutMs: nu
       loadTimeoutMessage(style.manifest.name, loadTimeoutMs),
     );
     await fitPageToFrame(capture);
-    await drainPaints(win);
     return { ok: true, win };
   } catch (err) {
     win.destroy();
@@ -708,11 +701,10 @@ async function captureComposited(
   manifest: { name: string; width: number; height: number },
   frameFormat: FrameFormat,
   format: CaptureFormat,
-  options: { first?: boolean } = {},
 ): Promise<Buffer> {
   const [under, over] = await Promise.all([
-    captureFrameImage(win, state, manifest, options),
-    captureFrameImage(captionWin, styleState, manifest, options),
+    captureFrameImage(win, state, manifest),
+    captureFrameImage(captionWin, styleState, manifest),
   ]);
   const pixels = under.toBitmap();
   const expectedBytes = manifest.width * manifest.height * 4;
@@ -740,7 +732,7 @@ async function writeCover(input: {
   const { win, plan, frameSize } = input;
   try {
     const png = await withTimeout(
-      captureFrame(win, input.state, frameSize, 'png', { first: false }),
+      captureFrame(win, input.state, frameSize, 'png'),
       input.frameTimeoutMs,
       `the cover frame did not draw within ${Math.round(input.frameTimeoutMs / 1000)} s`,
     );
@@ -795,123 +787,16 @@ class TemplateError extends Error {
   }
 }
 
-/**
- * Make sure the offscreen backing store holds the frame the page just drew:
- * force a repaint and wait for it to arrive. The renderer-side double
- * requestAnimationFrame (see BRIDGE_SCRIPT) orders the draw before the next
- * commit; this closes the remaining browser-side gap, because capturePage on
- * an offscreen window returns the last painted frame, not a fresh one. The
- * timeout keeps an occluded or otherwise non-painting window from hanging the
- * frame; the capture then behaves as before the wait existed.
- */
-/** How long the paint stream must be quiet before the backlog counts as drained, and the cap on waiting. */
-const PAINT_QUIET_MS = 48;
-
-/** How many times a first capture that came back blank is taken again before it is believed. */
-const BLANK_RECAPTURE_TRIES = 3;
-const PAINT_DRAIN_CAP_MS = 2000;
-
-/**
- * Wait for the offscreen paint stream to go quiet.
- *
- * `paintComposited` resolves on the *next* `paint` event, which it takes to be
- * the frame it just invalidated for. That holds only when nothing else is in
- * flight. Loading the page, and handing a template its images, each queue
- * paints of their own; on a slow machine one of those can still be traveling
- * when the first frame's wait begins, satisfy it, and leave `capturePage`
- * returning the state from *before* the draw — a blank first frame
- * (docs/platform-notes.md, "macOS CI").
- *
- * So the backlog is drained once, after the page is loaded and prepared and
- * before the first frame. The drain asks for a repaint of its own and waits for
- * the paint that answers it: paints arrive in the order they were produced, so
- * that one is behind every paint the load queued, and when it is in, so are
- * they. Only then does the quiet period start counting — paints are watched
- * until none has arrived for PAINT_QUIET_MS — so that a late straggler is
- * taken too. The last one is by definition the newest state, so from then on a
- * paint can only be the frame that was asked for.
- *
- * The first version started the quiet period at once, so on a loaded runner,
- * where a paint of a 1080p surface can take longer than PAINT_QUIET_MS to
- * arrive, the drain could finish *before* its own paint did, and that paint
- * then satisfied the first frame's wait: a blank single-frame render on the
- * macOS runner even after the drain was in place (CI run 40244410162).
- *
- * The cost is one quiet period per render, not per frame; the cap keeps a
- * window that never paints, or paints continuously, from holding the render up.
- */
-export function drainPaints(win: BrowserWindow): Promise<void> {
-  return new Promise((resolve) => {
-    let quiet: NodeJS.Timeout | undefined;
-    const done = (): void => {
-      if (quiet) clearTimeout(quiet);
-      clearTimeout(cap);
-      win.webContents.removeListener('paint', onPaint);
-      resolve();
-    };
-    const onPaint = (): void => {
-      if (quiet) clearTimeout(quiet);
-      quiet = setTimeout(done, PAINT_QUIET_MS);
-    };
-    const cap = setTimeout(done, PAINT_DRAIN_CAP_MS);
-    win.webContents.on('paint', onPaint);
-    win.webContents.invalidate();
-  });
-}
-
-/**
- * Settle the offscreen surface and capture it. `verify` is for the **first**
- * capture after a page is loaded, which is the one that can be taken before
- * the first draw has been composited and so comes back blank: it is taken
- * again, a paint cycle apart, until it holds something or the tries run out.
- * A frame that really is blank answers the same way every time and is
- * believed, so this costs a cycle and never a wrong frame.
- */
-async function captureSettled(win: BrowserWindow, verify: boolean): Promise<Electron.NativeImage> {
-  await paintComposited(win);
-  let image = await win.webContents.capturePage();
-  if (!verify) return image;
-  let tries = 0;
-  for (; tries < BLANK_RECAPTURE_TRIES && isBlankCapture(image.toBitmap()); tries++) {
-    await paintComposited(win);
-    image = await win.webContents.capturePage();
-  }
-  // Said when it mattered: a capture that was blank and then was not is the stale first capture
-  // this guards against, and seeing it in a CI log is how we know the guard is earning its keep.
-  if (tries > 0 && !isBlankCapture(image.toBitmap())) {
-    console.warn(`The first capture came back blank and was taken again (${tries} ${tries === 1 ? 'try' : 'tries'}); see docs/platform-notes.md.`);
-  }
-  return image;
-}
-
-export function paintComposited(win: BrowserWindow): Promise<void> {
-  return new Promise((resolve) => {
-    const done = (): void => {
-      clearTimeout(timer);
-      win.webContents.removeListener('paint', done);
-      resolve();
-    };
-    const timer = setTimeout(done, 500);
-    win.webContents.once('paint', done);
-    win.webContents.invalidate();
-  });
-}
-
 /** Draw one frame in a page and capture it as the image, checked to be exactly the asked size. */
 async function captureFrameImage(
   win: BrowserWindow,
   state: ReturnType<typeof frameState>,
   manifest: { name: string; width: number; height: number },
-  options: { first?: boolean } = {},
 ): Promise<Electron.NativeImage> {
   const result = (await win.webContents.executeJavaScript(frameCallScript(state))) as FrameCallResult;
   if (result?.error) throw new TemplateError(result.error);
-  // The renderer never ran an animation frame, so nothing orders the draw against the capture:
-  // give the compositor a cycle of its own before believing what it holds.
-  if (result?.drawn === 'timeout') await paintComposited(win);
-  // The first capture of a render is the one that can be taken before the first draw has been
-  // composited (docs/platform-notes.md), so it is the one checked.
-  const image = await captureSettled(win, options.first === true);
+  // Captured from a frame presented after the draw, however long that took (capturePresented).
+  const image = await capturePresented(win);
   const size = image.getSize();
   if (size.width !== manifest.width || size.height !== manifest.height) {
     // The window is at scale 1 (see offscreenDeviceScaleFactor), so a different size means the
@@ -932,9 +817,8 @@ async function captureFrame(
   state: ReturnType<typeof frameState>,
   manifest: { name: string; width: number; height: number },
   frameFormat: FrameFormat,
-  options: { first?: boolean } = {},
 ): Promise<Buffer> {
-  const image = await captureFrameImage(win, state, manifest, options);
+  const image = await captureFrameImage(win, state, manifest);
   if (frameFormat === 'png') return image.toPNG();
   const pixels = image.toBitmap();
   const expectedBytes = manifest.width * manifest.height * 4;
@@ -1027,14 +911,12 @@ export async function captureTemplateFrames(
       return { ok: false, message: `Could not load template "${manifest.name}": ${(err as Error).message}` };
     }
     await fitPageToFrame(capture);
-    // The load's own paints, out of the way before the first frame waits for one (see drainPaints).
-    await drainPaints(win);
     const frameTimeoutMs = options.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS;
     const captured: Buffer[] = [];
     for (const frame of frames) {
       if (options.signal?.aborted) return { ok: false, message: 'Canceled.' };
       try {
-        captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values, frameSize, layers), frameSize, 'png', { first: captured.length === 0 }), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
+        captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values, frameSize, layers), frameSize, 'png'), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
       } catch (err) {
         if (err instanceof RenderTimeoutError) {
           win.webContents.forcefullyCrashRenderer();
@@ -1076,14 +958,12 @@ export interface CapturePage {
 export async function openCapturePage(url: string, size: Size, timeoutMs = DEFAULT_LOAD_TIMEOUT_MS): Promise<{ ok: true; page: CapturePage } | { ok: false; message: string }> {
   const capture = createCaptureWindow(size, { backgroundThrottling: false });
   const win = capture.win;
-  let first = true;
   try {
     // The render path's cadence (docs/platform-notes.md): the waits around each draw run at the
     // window's begin-frame rate, and 60 Hz costs two intervals per frame.
     win.webContents.setFrameRate(240);
     await withTimeout(win.loadURL(url), timeoutMs, `the page did not load within ${Math.round(timeoutMs / 1000)} s`);
     await fitPageToFrame(capture);
-    await drainPaints(win);
   } catch (err) {
     win.destroy();
     return { ok: false, message: (err as Error).message };
@@ -1096,8 +976,7 @@ export async function openCapturePage(url: string, size: Size, timeoutMs = DEFAU
       timeoutMs,
       `the page did not draw within ${Math.round(timeoutMs / 1000)} s`,
     );
-    const image = await captureSettled(win, first);
-    first = false;
+    const image = await capturePresented(win);
     const got = image.getSize();
     if (got.width !== size.width || got.height !== size.height) {
       throw new Error(`captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}`);

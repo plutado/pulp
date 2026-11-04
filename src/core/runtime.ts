@@ -979,7 +979,7 @@ export const BRIDGE_SCRIPT = `(function () {
     }
     if (data.type !== 'pulp:render') return;
     render(data.state).then(function () {
-      reply.postMessage({ type: 'pulp:rendered', id: data.id, laid: window.__pulp.laid }, '*');
+      reply.postMessage({ type: 'pulp:rendered', id: data.id, seq: data.seq, laid: window.__pulp.laid }, '*');
     }, function (err) {
       reply.postMessage({ type: 'pulp:error', id: data.id, message: String(err && err.message || err) }, '*');
     });

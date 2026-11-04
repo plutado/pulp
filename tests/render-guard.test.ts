@@ -5,7 +5,6 @@ import {
   expandSequence,
   formatTemplateError,
   frameCallScript,
-  isBlankCapture,
   frameTimeoutMessage,
   loadTimeoutMessage,
   partialOutputFiles,
@@ -73,26 +72,6 @@ describe('frameCallScript', () => {
 
   it('handles non-Error rejections', async () => {
     await expect(run(() => Promise.reject('nope'))).resolves.toEqual({ error: { message: 'nope' } });
-  });
-});
-
-describe('isBlankCapture', () => {
-  const frame = (pixels: number[][]): Buffer => Buffer.from(pixels.flat());
-
-  it('is true only when every pixel is fully transparent', () => {
-    // BGRA: the fourth byte of each pixel is the alpha the test reads.
-    expect(isBlankCapture(frame([[0, 0, 0, 0], [0, 0, 0, 0]]))).toBe(true);
-    // Color with no alpha is still nothing drawn — a premultiplied capture leaves it at zero,
-    // and an unpremultiplied one is invisible either way.
-    expect(isBlankCapture(frame([[9, 9, 9, 0], [0, 0, 0, 0]]))).toBe(true);
-    // One opaque pixel anywhere is enough to call the capture real.
-    expect(isBlankCapture(frame([[0, 0, 0, 0], [0, 0, 0, 1]]))).toBe(false);
-    expect(isBlankCapture(frame([[0, 0, 0, 255], [0, 0, 0, 0]]))).toBe(false);
-    // An empty buffer has nothing drawn in it.
-    expect(isBlankCapture(Buffer.alloc(0))).toBe(true);
-    // It reads a Uint8Array as readily as a Buffer, which is what toBitmap may hand back.
-    expect(isBlankCapture(new Uint8Array([0, 0, 0, 0]))).toBe(true);
-    expect(isBlankCapture(new Uint8Array([0, 0, 0, 7]))).toBe(false);
   });
 });
 

@@ -155,22 +155,3 @@ export function expandSequence(pattern: string, count: number, start = 0): strin
   return Array.from({ length: count }, (_, i) => before + String(start + i).padStart(width, pad) + after);
 }
 
-/**
- * Is a captured frame entirely transparent? Read on the capture's own BGRA
- * bytes, so no image codec runs.
- *
- * It is how a **stale first capture** is told from a real one. `capturePage`
- * on an offscreen window hands back the last painted frame, and on a loaded
- * machine the first capture of a render can be taken before the first draw has
- * been composited — the surface is then still the blank page, and the frame is
- * written empty (docs/platform-notes.md, "macOS CI"). Nothing the host can ask
- * proves a paint carries a given draw, but "the page has drawn and the capture
- * is empty" is a condition worth one more look: a frame that really is empty
- * comes back empty again and is believed, and a stale one comes back right.
- */
-export function isBlankCapture(bgra: Buffer | Uint8Array): boolean {
-  for (let i = 3; i < bgra.length; i += 4) {
-    if (bgra[i] !== 0) return false;
-  }
-  return true;
-}

@@ -478,9 +478,18 @@ function clearReplyWatchdog(): void {
 /** How many times the watchdog has let a frame go this session: a count that should stay at zero. */
 let watchdogFired = 0;
 
+/**
+ * Every render request the page is sent is numbered, and the page's reply carries the number back,
+ * so what the layer overlay holds can be told apart from what was last asked for even when both are
+ * the same frame — an edit redraws the frame it is on. A frame number alone said "the overlay holds
+ * frame 90" of a report from before the edit, and a click was hit-tested against the old layout.
+ */
+let requestSeq = 0;
+
 /** The preview's state, readable from the DOM: what a failing test prints, and what a person can inspect. */
 function noteFrameState(): void {
   els.previewFrame.dataset.frame = String(s.frame);
+  els.previewFrame.dataset.requested = String(requestSeq);
   els.previewFrame.dataset.inFlight = String(s.inFlight);
   els.previewFrame.dataset.pending = s.pendingFrame === null ? '' : String(s.pendingFrame);
   els.previewFrame.dataset.watchdog = String(watchdogFired);
@@ -502,7 +511,7 @@ function postFrame(frame: number): void {
     s.pendingFrame = null;
     requestFrame(next);
   }, FRAME_REPLY_TIMEOUT_MS);
-  win.postMessage({ type: 'pulp:render', id: frame, state: frameState(s.manifest, frame, s.params, previewSize(), s.layers, s.clipSources, s.length) }, '*');
+  win.postMessage({ type: 'pulp:render', id: frame, seq: ++requestSeq, state: frameState(s.manifest, frame, s.params, previewSize(), s.layers, s.clipSources, s.length) }, '*');
   // The footage under the graphic (milestone 49): synced cheaply — one ask per change — and drawn
   // to this frame, so a cut lands in the preview on the frame it lands on in the file.
   trackPictureSync(s.track, els.previewFrame.getBoundingClientRect().height);
@@ -1320,7 +1329,7 @@ function onPreviewMessage(event: MessageEvent): void {
       s.inFlight = false;
       clearReplyWatchdog();
       noteFrameState();
-      if (data.type === 'pulp:rendered') stageLayersUpdate((data as { laid?: LaidReport }).laid ?? null);
+      if (data.type === 'pulp:rendered') stageLayersUpdate((data as { laid?: LaidReport }).laid ?? null, (data as { seq?: number }).seq);
       if (data.type === 'pulp:error') {
         els.note.hidden = false;
         els.note.textContent = `Template error: ${data.message ?? 'unknown'}`;

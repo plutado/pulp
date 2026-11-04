@@ -175,7 +175,7 @@ function paintSelection(): void {
 }
 
 /** The stage reports what the frame laid; the overlay follows it. */
-export function stageLayersUpdate(report: LaidReport | null): void {
+export function stageLayersUpdate(report: LaidReport | null, request?: number): void {
   laid = report ?? EMPTY_LAID;
   // A preview with no room on screen has nothing to click: the overlay stays out of the way
   // rather than swallowing clicks that could never land on a layer.
@@ -186,6 +186,10 @@ export function stageLayersUpdate(report: LaidReport | null): void {
     // The frame this report describes, so anyone waiting for the overlay to catch up with the
     // preview can see that it has (the end-to-end test does; see docs/platform-notes.md).
     overlay.dataset.laidFrame = laid.frame === null ? '' : String(laid.frame);
+    // And which render request it came from: the frame alone cannot tell a report from before an
+    // edit from one after, since an edit redraws the frame it is on (src/renderer/stage.ts).
+    if (request === undefined) delete overlay.dataset.laidRequest;
+    else overlay.dataset.laidRequest = String(request);
     if (!any) clearGuides();
   }
   placePendingDrop();

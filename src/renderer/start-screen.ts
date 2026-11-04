@@ -61,18 +61,38 @@ function entryFor(templateId: string | undefined): TemplateEntry | undefined {
  * hover scrub (milestone 12) — eight frames of it under the pointer, the tile
  * picked by where the pointer is across the picture.
  */
+/**
+ * Put a hover strip's first frame on an element as its picture, and mark it `data-pictured` only once
+ * the image is decoded and on the element. Marked when the strip's address was known, the picture was
+ * still loading: anything waiting for "pictured" — the visual references do — could catch an empty well
+ * on a slow machine and a filled one on a fast one, and the same screen captured two ways.
+ */
+function wearStrip(el: HTMLElement, url: string): void {
+  const img = new Image();
+  img.src = url;
+  void img.decode().then(() => {
+    if (el.querySelector('img')) return;
+    el.style.backgroundImage = `url("${url}")`;
+    el.style.backgroundSize = `${STRIP_FRAMES * 100}% 100%`;
+    el.style.backgroundPosition = '0 0';
+    el.dataset.pictured = '1';
+  }, () => undefined);
+}
+
+/** A poster as an element's picture, marked `data-pictured` once it is decoded (see wearStrip). */
+function posterImage(el: HTMLElement, src: string): HTMLImageElement {
+  const img = document.createElement('img');
+  img.src = src;
+  img.alt = '';
+  void img.decode().then(() => { el.dataset.pictured = '1'; }, () => undefined);
+  return img;
+}
+
 function pictureFor(entry: TemplateEntry | undefined, stripOnly = false): HTMLElement {
   const pic = document.createElement('span');
   pic.className = 'start-idea-pic';
   if (!entry) return pic;
-  if (entry.thumbnail && !stripOnly) {
-    const img = document.createElement('img');
-    img.src = entry.thumbnail;
-    img.alt = '';
-    img.addEventListener('load', () => { pic.dataset.pictured = '1'; });
-    if (img.complete) pic.dataset.pictured = '1';
-    pic.append(img);
-  }
+  if (entry.thumbnail && !stripOnly) pic.append(posterImage(pic, entry.thumbnail));
   const strip = document.createElement('span');
   strip.className = 'strip';
   pic.append(strip);
@@ -80,11 +100,7 @@ function pictureFor(entry: TemplateEntry | undefined, stripOnly = false): HTMLEl
   // picture — a card never sits as an empty well waiting for the background queue (milestone 60).
   if (!entry.thumbnail || stripOnly) {
     void window.pulp.hoverStrip(entry.id).then((result) => {
-      if (!result.url || pic.querySelector('img')) return;
-      pic.style.backgroundImage = `url("${result.url}")`;
-      pic.style.backgroundSize = `${STRIP_FRAMES * 100}% 100%`;
-      pic.style.backgroundPosition = '0 0';
-      pic.dataset.pictured = '1';
+      if (result.url && !pic.querySelector('img')) wearStrip(pic, result.url);
     });
   }
   let dwell: ReturnType<typeof setTimeout> | undefined;
@@ -192,17 +208,11 @@ function recentRow(row: RecentProjectRow): HTMLLIElement {
   well.className = 'start-thumb';
   const entry = entryFor(row.thumbTemplateId);
   if (entry?.thumbnail && !forcedMode) {
-    const img = document.createElement('img');
-    img.src = entry.thumbnail;
-    img.alt = '';
-    well.append(img);
+    well.append(posterImage(well, entry.thumbnail));
   } else if (entry) {
     // The poster is not made yet: the hover strip's first frame stands in, made on demand.
     void window.pulp.hoverStrip(entry.id).then((result) => {
-      if (!result.url || well.querySelector('img')) return;
-      well.style.backgroundImage = `url("${result.url}")`;
-      well.style.backgroundSize = `${STRIP_FRAMES * 100}% 100%`;
-      well.style.backgroundPosition = '0 0';
+      if (result.url && !well.querySelector('img')) wearStrip(well, result.url);
     });
   }
   open.append(well);
@@ -388,22 +398,36 @@ async function arrange(): Promise<void> {
   $('start-invite').hidden = plan.showContinue;
 
   // The library at a glance: one quiet line in the foot, not a block.
-  $('start-glance').textContent = libraryGlance(index);
+  // The forced arrangements (the visual references) count the bundled library alone — no media, no
+  // favorites — so the line does not change with whatever the session has added or starred.
+  const glanced = forcedMode && index
+    ? { ...index, templates: index.templates.filter((t) => t.root === index.builtInRoot).map((t) => ({ ...t, favorite: false })), media: [] }
+    : index;
+  $('start-glance').textContent = libraryGlance(glanced);
 }
 
 // ---------------------------------------------------------------- showing
+
+/** Which showing the screen is on, so a slower one finishing late cannot mark a newer one settled. */
+let showing = 0;
 
 export function showStartScreen(options: { checklist?: boolean } = {}): void {
   checklistAsked = options.checklist === true;
   const screen = $('start-screen');
   screen.hidden = false;
-  void arrange();
-  void fillIdeas();
-  void window.pulp.getStartScreenPrefs().then((prefs) => {
+  const ticket = ++showing;
+  delete screen.dataset.settled;
+  const prefs = window.pulp.getStartScreenPrefs().then((prefs) => {
     $<HTMLInputElement>('start-show-at-startup').checked = prefs.showAtStartup;
     // The tour is suggested until it has been taken or skipped once; the forced arrangements pin it
     // to what each stands for, so a tour taken on this machine does not move the references.
     $('start-tour-hint').hidden = forcedMode ? forcedMode === 'returning' : prefs.tourSeen;
+  });
+  // The screen says when everything it shows has arrived — the arrangement, the gallery and the
+  // switches — as `data-settled` naming the arrangement. The three finish in their own order, and the
+  // visual references once caught a returning screen still wearing the first run's tour hint.
+  void Promise.all([arrange(), fillIdeas(), prefs]).then(() => {
+    if (ticket === showing) screen.dataset.settled = forcedMode ?? 'live';
   });
   // The lead action is where starting begins; the keyboard starts there too.
   $<HTMLButtonElement>('start-new-blank').focus();
@@ -452,7 +476,9 @@ export function initStartScreen(): void {
   // The checklist, Continue and the glance follow the library: a folder added here ticks itself off.
   effect(() => {
     void appState.value.index;
-    if (startScreenShowing()) {
+    // Not under a forced arrangement: its content is pinned (the visual references), and rebuilding the
+    // gallery each time a background thumbnail lands could change the screen between a wait and a capture.
+    if (startScreenShowing() && forcedMode === undefined) {
       void arrange();
       void fillIdeas();
     }

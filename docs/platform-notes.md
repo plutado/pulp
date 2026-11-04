@@ -4,6 +4,16 @@ Findings about Electron, Chromium, ffmpeg, macOS and Windows that cost real time
 
 ## Offscreen rendering and capture
 
+### The capture is ordered by a presented frame (fixed, November 2026)
+
+**Seen.** On macOS CI, the half-speed render check missed in two runs out of three, at different frames each time: "frame 10 at half speed is frame 5 at its own" off by 3.5 a pixel (run 41875112103, attempt 1), "frame 68 … frame 34" off by 0.035 in the next (run 41875451954). Frame 10 against frame 5 by 3.5 is not rounding; it is another picture. The same job's app log says "The first capture came back blank and was taken again" three times in one suite, so stale captures were happening there, and these were the ones mid-render, where the first-frame guard below does not look.
+
+**Cause.** Every entry below this one ordered `capturePage()` against the draw by waiting for something — the page's double `requestAnimationFrame`, a `paint` event after an `invalidate()`, a quiet spell in the paint stream, a blank first capture taken again — and each closed one way a capture could come out a frame early and left another. None of them can prove the surface holds the draw: the renderers run with `--enable-main-frame-before-activation`, so the page's second animation frame can begin before the frame carrying the draw is even activated, let alone presented. Measured here with a template that paints its own frame number as a color and a check of every file: with all of those waits taken out, 37 frames of 5,400 were captured one frame behind ("461 → 460"), idle and under twelve CPU hogs alike.
+
+**Fix.** `capturePresented` (src/main/capture-window.ts) takes the frame only after a frame produced since the call has been presented. The barrier is DevTools' screenshot from the surface, `Page.captureScreenshot` with `fromSurface`: Chromium asks the renderer for a fresh frame and answers once that frame is presented, so anything drawn before the call is in it — ordered by the frame itself, not by how long anything took. Its picture is thrown away and the frame is still copied by `capturePage()`, in the layout the capture probe measured. With the barrier and **no other wait at all**, 0 frames of 7,200 were wrong, idle and loaded; with the production path, 0 of 2,400 under load. Every capture site uses it: renders, posters and strips, stills, asset frames, caption styles, the capture probe and the visual references. `drainPaints`, `paintComposited` and the blank-recapture guard went with it, since there is nothing left for them to order. A page that never presents fails the frame after ten seconds rather than writing one that cannot be shown to hold the draw.
+
+**What it costs, and what does not work.** About 16 ms a frame at 1080p, where the paint wait it replaces took about 4 ms: a 1080p lower third renders at about 32 frames/s here against 52 before. The JPEG made for the barrier is the cost, and it cannot be made smaller — on an offscreen window DevTools refuses any `clip` (`UnknownVizError`), at any size or scale, and WebP is slower still; `fromSurface: false` cannot capture an offscreen window at all.
+
 ### The capture can be one frame stale (fixed, October 2026)
 
 **Seen.** On Windows CI, a trimmed PNG sequence was numbered correctly (00060 onward) but the first file held the start of the template, and a flattened H.264 render's first frame was pure background with no markers. macOS never showed it.
@@ -22,7 +32,7 @@ Findings about Electron, Chromium, ffmpeg, macOS and Windows that cost real time
 
 **Fix.** `drainPaints` in `src/main/render.ts`: after the page is loaded and prepared, and before the first frame, paints are counted until none has arrived for 48 ms (capped at 2 s). The last one is by definition the newest state, so from then on a paint can only be the frame that was asked for. It costs one quiet period per render, not per frame — the batch test's wall time is unchanged — and it is applied at every place that loads an offscreen page and then captures: `renderTemplate`, `captureTemplateFrames`, `captureStillPage`, `captureAssetFrames` and the visual-regression service, where a stale paint would hash the blank page instead of the template.
 
-**Still not closed, and now guarded (October 2026).** After the drain was tightened the macOS job failed the same way again (run 40925965805 on `92704ea`): `set-board_00090.png`, the first frame of a three-frame render, read alpha 0 where the backing tint is. Every instance so far — this one, the 9:16 lower third, the trimmed render, the CSV batch row — is the **first captured frame of a render**, which is the one with no earlier frame to have painted the surface before it.
+**Still not closed, and now guarded (October 2026; superseded by "The capture is ordered by a presented frame", above).** After the drain was tightened the macOS job failed the same way again (run 40925965805 on `92704ea`): `set-board_00090.png`, the first frame of a three-frame render, read alpha 0 where the backing tint is. Every instance so far — this one, the 9:16 lower third, the trimmed render, the CSV batch row — is the **first captured frame of a render**, which is the one with no earlier frame to have painted the surface before it.
 
 It would not reproduce here: twenty runs of the failing render on an idle Mac and under twelve CPU hogs, with the page reporting how each draw settled, never produced a blank frame and never once settled by the timeout. Nothing the host can ask proves that a given paint carries a given draw, so rather than guess at more ordering, the capture now **checks itself**: the first capture of a render is read, and if every pixel is transparent it is taken again a paint cycle later, up to three times (`captureSettled` and `isBlankCapture`). A frame that really is blank — which is most templates' frame 0 — answers the same way each time and is believed, so this costs a few milliseconds once per render and can never write a wrong frame. When a retry does change the answer it says so on stderr, which is how a CI log will show whether the guard is earning its keep.
 
@@ -118,6 +128,30 @@ Four jobs run on every push and pull request: `check` (Ubuntu: dependency audit,
 - **macOS** (`macos-latest`, Apple silicon) takes ffmpeg from Homebrew. The HEVC-with-alpha test skips itself when ffmpeg lists no `hevc_videotoolbox` encoder, so a runner without VideoToolbox passes without pretending to cover it.
 - **Linux** runs under a virtual display (`xvfb-run`, 8192 × 4608, so the window tests have room; a render no longer needs it, see below) and a D-Bus session (`dbus-run-session`). It uses a pinned static ffmpeg 9.0 (BtbN/FFmpeg-Builds, checksum-verified) rather than Ubuntu's 6.1, which rounds the color conversion a step differently and failed the exact color checks. The runner's kernel blocks unprivileged user namespaces, which Chromium's sandbox needs, so the job gives Electron's setuid `chrome-sandbox` helper root ownership and mode 4755, the supported alternative to turning the sandbox off.
 - **The dependency audit** counts development dependencies too: Electron is one, and it is the runtime Pulp ships.
+
+### The layer overlay judged by the frame number alone (fixed, November 2026)
+
+**Seen.** On Linux and Windows CI, two stage tests timed out now and then: "the logo moved left" (the layers test drags a logo it has just given a picture) and "the picked color" (the blank-canvas test selects the blue square it has just drawn, then exposes its color). The stage itself was healthy in both dumps — the frame drawn by an animation frame, nothing in flight.
+
+**Cause.** Both tests waited until the overlay "held the frame", `data-laid-frame` against the preview's frame. But an edit redraws the frame it is on, so a report from before the edit carries the same frame number as one from after; and the page lays a frame out before its reply reaches the overlay, so a test that has seen the page draw something can still click an overlay holding the old layout. The drag then misses the logo, and the click selects the first shape instead of the second. Reproduced on demand by holding the overlay's update back 400 ms: the blank-canvas test failed three runs out of three, exactly as on CI.
+
+**Fix.** The stage numbers every render request it posts (`data-requested` on `#preview-frame`), the page's reply carries the number back, and the overlay says which request it holds (`data-laid-request`). The tests wait for the overlay to hold the latest request with nothing in flight or queued. With the same 400 ms held back, three runs out of three pass.
+
+### Two suites on one machine (November 2026)
+
+The UI suite picked its debugging port at random between 9300 and 9800. Run beside another copy of Pulp that holds the port — a second checkout's suite, say — the app under test logs `bind() failed: Address already in use` and the suite drives the *other* app, failing in ways that have nothing to do with the code under test. It now takes a port the system says is free, and accepts only a window whose page is this checkout's own build.
+
+### The start screen's references raced what it shows (fixed, November 2026)
+
+**Seen.** On macOS CI the start screen's visual references failed with captures that changed from run to run: `first-run-dark` in one, `returning-dark` in the next two (0040707c6e7e1000 against 007040407e7e7000), with nothing between them but roadmap edits. A key accepting a second capture (`be52ee1`) only moved the failure to another key.
+
+**Cause.** The capture waited for things that did not mean what they said, and missed others:
+
+- **The tour hint** is shown or hidden when the screen's preferences arrive, a reply the test never waited for. The captures run first run (hint shown) then returning (hint hidden), so on a slow machine the returning capture still wore the first run's hint. Holding the preferences back 1.5 s reproduces CI's `returning-dark` (0040607c7e7e7000, within tolerance of CI's) every time.
+- **"Pictured"** was set on a card when the address of its picture was known, not when the picture was on it; the recent project's thumbnail was not waited for at all; and a rebuild of the gallery whenever a background thumbnail landed could come between the wait and the capture.
+- **The glance line** counted whatever media and favorites the suite had made by then.
+
+**Fix.** The screen sets `data-settled` to the arrangement once the arrangement, the gallery and the preferences are all in for that showing; a picture is marked only once it is decoded and on its element; the forced arrangements do not rebuild for library changes and count only the bundled library in the glance. The test waits for the screen to settle and every picture to be on it, and no longer pauses before the capture: DevTools' screenshot draws a fresh frame before copying it (the barrier above). With the preferences held back, the captures match the references; idle and under fourteen CPU hogs, all four are the same every run. The second accepted capture is gone. CI's earlier `first-run-dark` (007a14707e7e7000) did not reproduce here from its hash alone, so a mismatch now leaves the four captures in `test-artifacts/start-screen/`, which the macOS job uploads when it fails.
 
 ### The start screen measured at the runner's window size (fixed, November 2026)
 

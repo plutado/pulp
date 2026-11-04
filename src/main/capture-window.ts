@@ -111,3 +111,39 @@ export function screenHint(frame: Size): string {
   if (!size) return '';
   return ` On Linux a window is kept inside the screen (${size.width}x${size.height}); a frame the screen's size or larger is captured from a smaller window at a whole-number scale, which needs a size that divides by one — ${frame.width}x${frame.height} does not.`;
 }
+
+/** How long a page may take to present a frame before a capture of it is refused rather than taken stale. */
+export const PRESENT_TIMEOUT_MS = 10_000;
+
+/**
+ * Capture a capture window's surface **after** a frame produced since this call has been presented,
+ * so whatever the page drew before it is in the picture.
+ *
+ * `capturePage()` alone copies whatever surface the window last presented, and nothing the host can
+ * wait for — the page's double `requestAnimationFrame`, a `paint` event after an `invalidate()`, a
+ * quiet spell in the paint stream — proves that surface holds the draw: each closed one way a capture
+ * came out a frame stale and left another (docs/platform-notes.md, "The capture is ordered by a
+ * presented frame"). With every one of those waits removed, a render captured a frame behind 37 times
+ * in 5,400 frames on a Mac; with this barrier and nothing else, 0 in 7,200.
+ *
+ * The barrier is DevTools' screenshot from the surface: Chromium asks the renderer for a fresh frame
+ * and answers only once that frame has been presented, so the order is established by the frame
+ * itself rather than by how long anything took. Its picture is not used — a JPEG at the lowest
+ * quality, the cheapest to make — and the frame is then copied from the surface as before, in the
+ * layout the capture probe measured. A page that never presents fails the frame after
+ * PRESENT_TIMEOUT_MS: a capture that cannot be shown to hold the draw is not written.
+ */
+export async function capturePresented(win: BrowserWindow, timeoutMs = PRESENT_TIMEOUT_MS): Promise<Electron.NativeImage> {
+  const debug = win.webContents.debugger;
+  if (!debug.isAttached()) debug.attach('1.3');
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([
+      debug.sendCommand('Page.captureScreenshot', { format: 'jpeg', quality: 1, fromSurface: true }),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`the page did not present a frame within ${Math.round(timeoutMs / 1000)} s`)), timeoutMs); }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+  return win.webContents.capturePage();
+}
