@@ -77,9 +77,11 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 60. A start screen with a clear way in (post-1.0, **done**) | 12-20 h |
 | 61. A polished set of bundled art (post-1.0) | 26-43 h |
 | 62. Light and dark appearance (post-1.0, **done**) | 8-12 h |
+| 63. Record a voice with one click (post-1.0) | 8-13 h |
+| 64. Record from a camera with one click (post-1.0) | 10-16 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **35-59 h** |
-| **Total including post-1.0 items** | **952-1556 h** |
+| **Total including post-1.0 items** | **970-1585 h** |
 
 ## 0. Foundation (done)
 
@@ -813,3 +815,23 @@ Decided 2026-11-03. Pulp's window is dark only, and for an instant at launch it 
 - [x] **No flash at launch:** the window opens with the chosen appearance's background (the main process reads the setting before it creates the window, the page sets its background and `color-scheme` before its stylesheet loads, and the window is shown once it is ready), so neither appearance ever shows the other for a frame (1 h)
 - [x] **Every window follows:** the popped-out stage, the Settings window and dialogs take the same appearance; the editor panels follow the host app's own (1-1.5 h)
 - [x] **Tests:** a unit test of the setting and of System following the operating system; an end-to-end test that switches appearance and finds the window redrawn; visual references of the main window in each; a check that no color is written into the styles outside the token list (1-1.5 h)
+
+## 63. Record a voice with one click (8-13 h, after 1.0)
+
+Decided 2026-11-04. Pulp only reads media a person already has. A voice-over, a scratch narration or a quick sound has to be recorded in another app and brought in. This adds a microphone button: click it, speak, click again, and the recording is in the library, ready to use.
+
+- [ ] **One button:** a microphone icon in the window (and Record Audio in the File menu, with a shortcut) starts recording at once from the system's default input; a level meter and the elapsed time show it is listening; click again or press Escape to stop. Nothing to set up first (2-3 h)
+- [ ] **Permission, asked plainly:** the operating system's microphone prompt the first time, a usage description that says what Pulp records and why, and a clear way to Settings when access was refused, on macOS, Windows and Linux (1-2 h)
+- [ ] **Into the library:** the recording is saved as a WAV in a managed Recordings folder, named by date and time, shown at the top of the results with its waveform, and usable everywhere a sound is: dropped on the cut track or a template, rendered, dragged into an editor (2-3 h)
+- [ ] **A choice of input, when wanted:** a small menu beside the button lists the inputs and remembers the one chosen; a recording that loses its input mid-take keeps what it has (1-2 h)
+- [ ] **Tests:** unit tests of naming and saving; an end-to-end test that records from a fake input and finds the file in the library with the right length (2-3 h)
+
+## 64. Record from a camera with one click (10-16 h, after 1.0)
+
+Decided 2026-11-04. The same idea for picture: a camera button that records from a webcam or any camera connected to the computer, with its sound, straight into the library.
+
+- [ ] **One button:** a camera icon beside the microphone (and Record Video in the File menu) opens a live preview from the default camera; click Record to start, again to stop; the elapsed time shows while recording (3-4 h)
+- [ ] **Permission, asked plainly:** the camera prompt the first time, with the microphone's when sound is on; a usage description for each; a clear way to Settings when refused, on every platform (1-2 h)
+- [ ] **Into the library:** the take saved in the managed Recordings folder at the camera's own size and frame rate, in a format the editors open (converted with the bundled FFmpeg where the browser's recording format is not one), with a poster frame and hover scrub like any clip (3-4 h)
+- [ ] **A choice of camera and microphone:** menus in the preview for the camera and the sound input, remembered; mirrored preview for a front-facing camera, never mirrored in the file (1-3 h)
+- [ ] **Tests:** unit tests of naming, saving and conversion; an end-to-end test that records from a fake camera and finds a playable clip of the right length in the library (2-3 h)
