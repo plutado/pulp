@@ -18,6 +18,8 @@ const ROOT = join(__dirname, '..', '..');
 
 async function findElectron(): Promise<string | null> {
   if (process.env.PULP_E2E === '0') return null;
+  // Linux with no display cannot start Electron (CI's check job is one), as in render.e2e.test.ts.
+  if (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return null;
   try {
     const electron = (await import('electron')).default as unknown as string;
     return typeof electron === 'string' && existsSync(electron) ? electron : null;
