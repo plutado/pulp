@@ -81,9 +81,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 64. Record from a camera with one click (post-1.0, **done**) | 10-16 h |
 | 65. Layouts made for vertical video (post-1.0, **done**) | 25-40 h |
 | 66. Cards, a dialog and the start screen that read at a glance (post-1.0, **done**) | 5-8 h |
+| 67. Twice the polished art, and an airliner redone (post-1.0) | 21-35 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **35-59 h** |
-| **Total including post-1.0 items** | **1000-1633 h** |
+| **Total including post-1.0 items** | **1021-1668 h** |
 
 ## 0. Foundation (done)
 
@@ -858,3 +859,13 @@ Decided 2026-11-04, from a first look at the app. Three places where what is sho
 - [x] **A folder picker that says what happens:** Add sample media's folder picker labels its button "Make sample media here" and explains nothing (its title is not shown on macOS). The button says **Choose Folder**, and the picker's message says Pulp will create a "Sample media" folder there with about 600 example sounds, clips, stills and assets, that it takes a few minutes, and that the folder can be deleted at any time. The same wording on every platform (0.5-1 h) *Done 2026-11-04: macOS shows a picker's message and Windows and Linux its title, so the one text is both; the count follows the catalog to the nearest hundred.*
 - [x] **Start screen sections that stand apart:** Continue, Start from an idea and Learn (and the set-up card on a first run) get more room above and below each section and a thin horizontal divider between sections, in the screen's own palette in both appearances, so each reads as its own group. The screen still fits at 1280 × 788, with the lead and the first row of every section visible without scrolling (1-2 h) *Done 2026-11-04. The whole screen still fits at every size the end-to-end test measures, down to 960 × 600; to keep room to spare, the roomy arrangement now starts at 940 px tall rather than 880.*
 - [x] **Tests:** unit tests of the clock reading and the resolution tags; the end-to-end test finds the pill on a clip's card and none on a still's, and the dividers between the start screen's sections; the start screen's visual references rewritten (1-2 h)
+
+## 67. Twice the polished art, and an airliner redone (21-35 h, after 1.0)
+
+Decided 2026-11-05, from a look at milestone 61's set. The polished pieces read well and are the ones worth reaching for, but there are only 31 of them (24 objects and 7 glass and depth elements), and one of them, the airliner, looks cheap and unrealistic beside the rest. This doubles the set to 62 and redoes the airliner, all to `docs/art-direction.md`, with no recolors of existing pieces. New pieces favor what goes into business, explainer, product, social and news video over generic clip art.
+
+- [ ] **The airliner, redone:** a believable modern twin-engine airliner, in true proportion (fuselage, swept wings, engines and tail sized as on a real aircraft), seen in three-quarter view, in painted metal with window rows, a soft sky-light reflection and a contact shadow or vapor trail, its livery following the accent. It keeps its id, so a project that uses it gets the new art (1-2 h)
+- [ ] **Twenty-four more polished objects,** drawn to the art direction and parameterized like milestone 61's (light, material, shadow, accent, five entrances): for data and business, a line graph with a trend arrow, a gauge or KPI dial, a funnel, a donut chart, a tablet showing a dashboard, a briefcase and an office tower; for technology, a cloud, a server rack, a padlock with a shield, a notification bell, a chat bubble, an envelope and a cursor with a click; for commerce, a shopping bag, a credit card, a price tag, a gift box and a shipping box; for media and production, a clapperboard, a film reel, a studio light and a play button; and a rocket for launches (12-20 h)
+- [ ] **Seven more glass and depth design elements:** a glass lower-third bar, glass buttons and a glass call-to-action pill, a glass frame or border for a picture, a glass progress bar, a callout with a leader line, light streaks and bokeh, and a soft gradient-mesh background, each built to sit behind or around words and pictures like milestone 61's (5-8 h)
+- [ ] **One set, checked as a set:** every new piece on the studio backdrop with milestone 61's framing, and a contact sheet of all 62 at the same size (`docs/art-direction.md` names where it is made), so a piece that breaks the look, as the old airliner did, is seen before it ships (1-2 h)
+- [ ] **Tests:** visual references for every new and redone piece; the look test holds each to exactly one look; the polished pieces still lead under the default sort in Objects and Design elements (2-3 h)
