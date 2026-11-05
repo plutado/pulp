@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Place Tag</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Place Tag, made for vertical for Pulp (milestone 65; docs/vertical-layouts.md). CC0-1.0: no rights reserved.
+  //
+  // A white pill with a round icon at its head — a pin for a place, a bag for a product — the name in
+  // bold and the detail under it. It slides out from the left edge and holds, in the middle left of
+  // the frame, away from the controls column down the right.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  document.fonts.load('800 64px Montserrat');
+  document.fonts.load('900 64px Montserrat');
+  document.fonts.load('600 64px Inter');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function fit(state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  function roundRect(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  /** The extent of a laid block's drawn words: left, top, right and bottom over every layer that has room. */
+  function extentOf(laid) {
+    var e = null;
+    laid.layers.forEach(function (l) {
+      if (l.box.width <= 0 && l.box.height <= 0) return;
+      var left = l.box.x, right = l.box.x + l.box.width;
+      if (l.lines && l.lines.length) {
+        left = Infinity; right = -Infinity;
+        l.lines.forEach(function (ln) { if (ln.width > 0) { left = Math.min(left, ln.x); right = Math.max(right, ln.x + ln.width); } });
+        if (!isFinite(left)) return;
+      }
+      if (!e) e = { left: left, top: l.box.y, right: right, bottom: l.box.y + l.box.height };
+      else { e.left = Math.min(e.left, left); e.top = Math.min(e.top, l.box.y); e.right = Math.max(e.right, right); e.bottom = Math.max(e.bottom, l.box.y + l.box.height); }
+    });
+    return e;
+  }
+  /** One line of text in a bundled family, drawn and measured the same way. */
+  function setFont(weight, size, family) { ctx.font = weight + ' ' + Math.round(size) + 'px ' + family; }
+
+  var OUT_FOR = 0.5;
+  function arrive(t, from, over) { return easeOut(clamp01((t - from) / over)); }
+  function leaving(t, d) { return easeInOut(clamp01((t - (d - OUT_FOR)) / OUT_FOR)); }
+
+  function pin(x, y, r, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y - r * 0.25, r * 0.55, Math.PI, 0);
+    ctx.lineTo(x, y + r * 0.7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x, y - r * 0.25, r * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  function bag(x, y, r, color) {
+    ctx.fillStyle = color;
+    roundRect(x - r * 0.55, y - r * 0.3, r * 1.1, r * 0.95, r * 0.12);
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(2, r * 0.14);
+    ctx.beginPath();
+    ctx.arc(x, y - r * 0.3, r * 0.3, Math.PI, 0);
+    ctx.stroke();
+  }
+  window.pulpRender = function (state) {
+    fit(state);
+    var W = state.width, H = state.height, p = state.params, u = Math.min(W, H), t = state.time;
+    var slide = arrive(t, 0, 0.55);
+    var a = Math.min(1, slide * 1.5) * (1 - leaving(t, state.duration));
+    if (a <= 0) return;
+    var size = 0.046 * u, small = 0.04 * u, ic = 0.085 * u, pad = 0.024 * u;
+    setFont(800, size, 'Inter');
+    var tw = ctx.measureText(p.title || '').width;
+    setFont(500, small, 'Inter');
+    var dw = p.detail ? ctx.measureText(p.detail).width : 0;
+    var w = pad + ic + pad + Math.max(tw, dw) + pad * 1.6, h = Math.max(ic, p.detail ? size * 1.25 + small * 1.2 : size * 1.3) + pad * 2;
+    var x = 0.1 * W - (1 - slide) * (0.1 * W + w), y = 0.6 * H;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 0.025 * u;
+    ctx.shadowOffsetY = 0.006 * u;
+    roundRect(x, y, w, h, h / 2);
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+    ctx.shadowColor = 'rgba(0,0,0,0)';
+    var ix = x + pad + ic / 2, iy = y + h / 2;
+    ctx.beginPath();
+    ctx.arc(ix, iy, ic / 2, 0, Math.PI * 2);
+    ctx.fillStyle = rgba(p.accent, 0.14);
+    ctx.fill();
+    if (p.icon === 'product') bag(ix, iy, ic * 0.5, p.accent); else pin(ix, iy, ic * 0.55, p.accent);
+    var tx = x + pad + ic + pad;
+    ctx.fillStyle = p.ink;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    setFont(800, size, 'Inter');
+    ctx.fillText(p.title || '', tx, p.detail ? y + h / 2 - size * 0.1 : y + h / 2 + size * 0.36);
+    if (p.detail) {
+      setFont(500, small, 'Inter');
+      ctx.globalAlpha = a * 0.7;
+      ctx.fillText(p.detail, tx, y + h / 2 + small * 1.05);
+    }
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

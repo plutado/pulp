@@ -21,6 +21,7 @@
  * and needs nothing from a template beyond what it is already handed.
  */
 
+import type { LibraryEntry } from './library-types';
 import type { TemplateManifest } from './manifest';
 import { VERTICAL_ZONES } from './player';
 
@@ -29,6 +30,44 @@ export const MADE_FOR_VERTICAL_TAG = 'made-for-vertical';
 
 export function madeForVertical(manifest: Pick<TemplateManifest, 'tags'>): boolean {
   return (manifest.tags ?? []).includes(MADE_FOR_VERTICAL_TAG);
+}
+
+/** A shape id ("9:16") or a size that is taller than it is wide. */
+export function isTallShape(shape: string | { width: number; height: number } | null | undefined): boolean {
+  if (!shape) return false;
+  if (typeof shape !== 'string') return shape.height > shape.width;
+  const m = /^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/.exec(shape);
+  return !!m && Number(m[2]) > Number(m[1]);
+}
+
+/**
+ * The work is tall, so the templates made for vertical lead (milestone 65): the session leans to
+ * a tall shape — a "New 9:16 project", a platform such as TikTok — or a tall shape was **chosen**
+ * for what is on the stage, in the Output tab of a template that draws more than one. Showing a
+ * template that draws only one shape, or a media file, or nothing, says nothing either way, so the
+ * last answer stands: clicking a hook that draws only 9:16 must not reorder the results under the
+ * click. With nothing on the stage, a wide lean is not tall.
+ */
+export function workIsTall(
+  context: { preferredAspect: string | null; platformAspect: string | null; shown: { size: { width: number; height: number } | null; aspects: readonly string[] } | null },
+  previous: boolean,
+): boolean {
+  if (isTallShape(context.preferredAspect) || isTallShape(context.platformAspect)) return true;
+  const shown = context.shown;
+  if (shown && shown.aspects.length > 1 && shown.size) return isTallShape(shown.size);
+  if (shown) return previous;
+  return context.preferredAspect !== null || context.platformAspect !== null ? false : previous;
+}
+
+/**
+ * Put the templates made for vertical first, keeping each group's own order, when the work is tall
+ * and the results are in the default order with no words typed — as the polished set leads inside
+ * its categories (src/core/polished.ts): there is no ranking then for the lead to disturb.
+ */
+export function verticalFirst(entries: readonly LibraryEntry[], context: { tallWork: boolean; sort: string; freeText: string }): LibraryEntry[] {
+  if (!context.tallWork || context.sort !== 'relevance' || context.freeText.trim() !== '') return [...entries];
+  const made = (e: LibraryEntry) => e.kind === 'template' && madeForVertical(e.manifest);
+  return [...entries.filter(made), ...entries.filter((e) => !made(e))];
 }
 
 /** The frame the check is made at: 9:16 at the size the apps publish their guides for. */

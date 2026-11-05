@@ -1,0 +1,94 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.short-place-tag",
+  "name": "Place Tag",
+  "description": "A tag for where a video was made or what is in it — a pin and a place, or a bag and a product with its price — on a pill in the middle left of a tall frame, clear of the controls down the right.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "callout",
+  "tags": [
+    "made-for-vertical",
+    "short-form",
+    "location",
+    "place",
+    "product",
+    "tag"
+  ],
+  "themes": [
+    "social-media",
+    "travel",
+    "food"
+  ],
+  "styles": [
+    "clean"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "icon",
+      "type": "select",
+      "label": "Tag for",
+      "default": "place",
+      "options": [
+        {
+          "value": "place",
+          "label": "A place (pin)"
+        },
+        {
+          "value": "product",
+          "label": "A product (bag)"
+        }
+      ],
+      "element": "Tag"
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Name",
+      "default": "Lisbon, Portugal",
+      "maxLength": 40,
+      "element": "Tag"
+    },
+    {
+      "id": "detail",
+      "type": "text",
+      "label": "Detail",
+      "default": "Rua Augusta",
+      "maxLength": 40,
+      "element": "Tag"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Pill",
+      "default": "#ffffff",
+      "element": "Tag"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Icon",
+      "default": "#e11d48",
+      "element": "Tag"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Words",
+      "default": "#111827",
+      "element": "Tag"
+    }
+  ]
+}

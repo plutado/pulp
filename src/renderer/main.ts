@@ -1,7 +1,9 @@
 import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../core/library-types';
-import { formatBytes, setCollection, setEditing, setIndex, setJobs, setQuery, setSelection, setShown, shownEntry } from '../core/app-state';
+import { formatBytes, setCollection, setEditing, setIndex, setJobs, setQuery, setSelection, setShown, setTallWork, shownEntry } from '../core/app-state';
 import { addItem, itemFor, type Collection } from '../core/collection';
-import { appState, dispatch, paramsEdited, results, selectedTemplate } from './store';
+import { appState, dispatch, frameSize, paramsEdited, preferredAspect, preferredPlatform, results, selectedTemplate } from './store';
+import { workIsTall } from '../core/vertical-layout';
+import { platformPreset } from '../core/platform-presets';
 import { mountResults, showSelectedResult } from './results';
 import { mountCategoryCards } from './category-cards';
 import { mountItemInfo } from './item-info';
@@ -470,6 +472,17 @@ async function openFromSystem(path: string): Promise<void> {
 window.pulp.onOpenFile((path) => void openFromSystem(path));
 // Pulp's own application menu (milestone 27): it does what the window's own buttons do.
 initAppearance();
+// The work is tall (milestone 65): a vertical lean, a tall platform, or a tall shape chosen in the
+// Output tab puts the templates made for vertical first under the default order.
+effect(() => {
+  const shown = selectedTemplate.value;
+  const tall = workIsTall({
+    preferredAspect: preferredAspect.value,
+    platformAspect: platformPreset(preferredPlatform.value ?? undefined)?.aspect ?? null,
+    shown: shown ? { size: frameSize.value, aspects: shown.manifest.aspects } : null,
+  }, appState.peek().tallWork);
+  if (tall !== appState.peek().tallWork) dispatch((st) => setTallWork(st, tall));
+});
 initRecorder();
 initCameraRecorder();
 // A take the microphone or the camera just saved (milestones 63 and 64): selected once the rescan lands, retried briefly

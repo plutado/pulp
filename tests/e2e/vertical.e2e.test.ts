@@ -38,10 +38,11 @@ describe.skipIf(!electron)('templates made for vertical keep their words where a
     // A line per moment out of place, and one per template that could not be checked: the whole story.
     const noteworthy = report.split('\n').filter((line) => line.startsWith('OUTSIDE') || line.startsWith('could not check')).join('\n');
     expect(result.code, noteworthy || report).toBe(0);
-    // It looked at what it says it did: the six hooks and four caption styles, at every moment.
+    // It looked at what it says it did: the hooks, the caption styles, the frame layouts and the
+    // overlays (milestone 65), at every moment they have words.
     const summary = /(\d+) templates made for vertical, (\d+) moments checked, 0 out of place/.exec(result.stdout);
     expect(summary, report).not.toBeNull();
-    expect(Number(summary![1])).toBeGreaterThanOrEqual(10);
-    expect(Number(summary![2])).toBeGreaterThanOrEqual(30);
+    expect(Number(summary![1])).toBeGreaterThanOrEqual(22);
+    expect(Number(summary![2])).toBeGreaterThanOrEqual(55);
   }, 330_000);
 });

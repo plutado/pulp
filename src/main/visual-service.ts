@@ -159,8 +159,11 @@ async function placeTemplate(entry: TemplateEntry): Promise<PlacementResult[] | 
       : placementFrames(manifest).map((frame) => ({ moment: `frame ${frame}`, state: frameState(manifest, frame, params, size) }));
     const out: PlacementResult[] = [];
     for (const { moment, state } of moments) {
+      const other = withOtherWords(state, textParams);
+      // Nothing to place: a template with no words at all (a progress bar) is clear by having none.
+      if (JSON.stringify(other) === JSON.stringify(state)) continue;
       const as = await draw(state, moment);
-      const changed = await draw(withOtherWords(state, textParams), `${moment} with other words`);
+      const changed = await draw(other, `${moment} with other words`);
       const words = differingRect(as, changed, size.width, size.height);
       out.push({ template: manifest.id, moment, words, problems: words ? placementProblems(words, size.width, size.height) : ['no words found: changing them changed nothing drawn'] });
     }
@@ -173,7 +176,7 @@ async function placeTemplate(entry: TemplateEntry): Promise<PlacementResult[] | 
 }
 
 /** Every bundled template made for vertical, checked for where its words sit at 9:16. */
-export async function checkVerticalPlacement(templatesDir: string, onProgress?: (done: number, total: number, what: string) => void): Promise<{ results: PlacementResult[]; failed: { what: string; error: string }[] }> {
+export async function checkVerticalPlacement(templatesDir: string, onProgress?: (done: number, total: number, what: string) => void): Promise<{ checked: number; results: PlacementResult[]; failed: { what: string; error: string }[] }> {
   const index = await scanLibrary([templatesDir], { builtInRoot: templatesDir });
   const entries = index.templates.filter((t) => madeForVertical(t.manifest));
   const results: PlacementResult[] = [];
@@ -189,5 +192,5 @@ export async function checkVerticalPlacement(templatesDir: string, onProgress?: 
     }
     onProgress?.(++done, entries.length, entry.manifest.id);
   }
-  return { results, failed };
+  return { checked: entries.length, results, failed };
 }

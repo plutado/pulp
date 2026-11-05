@@ -15,6 +15,7 @@ import { isFinished, type RenderJobStatus, type RenderQueueSnapshot } from './re
 import { searchLibrary, splitFreeText } from './search';
 import { blendSemantic, type SemanticHits } from './semantic';
 import { polishedFirst } from './polished';
+import { verticalFirst } from './vertical-layout';
 
 /**
  * A browse node narrowing the results: its label for the scope chip, plus either
@@ -26,7 +27,7 @@ export interface Scope {
   filter?: string;
   root?: string;
   /** What kind of node this is, so the UI can pick its icon. */
-  kind?: 'favorites' | 'recent' | 'built-in' | 'folder' | 'type' | 'group' | 'category' | 'untyped' | 'theme' | 'style' | 'pack';
+  kind?: 'favorites' | 'recent' | 'vertical' | 'built-in' | 'folder' | 'type' | 'group' | 'category' | 'untyped' | 'theme' | 'style' | 'pack';
   /** For a category and its types: the category's id (src/core/categories.ts), which chooses the icon and the description. */
   group?: string;
 }
@@ -63,6 +64,11 @@ export interface AppState {
   /** The "Look" chip: a style the results are narrowed to, or null. */
   look: string | null;
   sort: SortKey;
+  /**
+   * The work is tall (milestone 65): the session leans to a tall shape, or a tall shape was chosen
+   * for what is on the stage. The templates made for vertical then lead under the default order.
+   */
+  tallWork: boolean;
   /** Key of the entry shown as selected in the results, or null. */
   selectedKey: string | null;
   /** Key of the entry the stage and Info tab show (a template or a media item), or null. */
@@ -107,6 +113,7 @@ export const initialAppState: AppState = {
   mood: null,
   look: null,
   sort: 'relevance',
+  tallWork: false,
   selectedKey: null,
   shownKey: null,
   jobs: { jobs: [] },
@@ -171,6 +178,10 @@ export function setLook(s: AppState, look: string | null): AppState {
 
 export function setSort(s: AppState, sort: SortKey): AppState {
   return s.sort === sort ? s : { ...s, sort };
+}
+
+export function setTallWork(s: AppState, tallWork: boolean): AppState {
+  return s.tallWork === tallWork ? s : { ...s, tallWork };
 }
 
 export function setSelection(s: AppState, selectedKey: string | null): AppState {
@@ -238,7 +249,7 @@ export interface ResultsView {
 }
 
 /** The only parts of the state the results depend on; a change elsewhere (selection, jobs) must not recompute them. */
-export type ResultsInput = Pick<AppState, 'index' | 'query' | 'scope' | 'filters' | 'forTheme' | 'look' | 'mood' | 'sort' | 'semantic'>;
+export type ResultsInput = Pick<AppState, 'index' | 'query' | 'scope' | 'filters' | 'forTheme' | 'look' | 'mood' | 'sort' | 'semantic'> & Partial<Pick<AppState, 'tallWork'>>;
 
 /** What an entry sorts by under each key; missing values go last. */
 function sortValue(entry: LibraryEntry, sort: SortKey): string | number | undefined {
@@ -278,7 +289,9 @@ export function deriveResults(s: ResultsInput): ResultsView {
   }
   if (s.scope?.root !== undefined) hits = hits.filter((h) => h.entry.root === s.scope?.root);
   // Within Objects and Design elements the polished set leads under the default order (milestone 61).
-  const ordered = polishedFirst(hits.map((h) => h.entry), { scopeGroup: s.scope?.group, sort: s.sort, freeText: text });
+  const polished = polishedFirst(hits.map((h) => h.entry), { scopeGroup: s.scope?.group, sort: s.sort, freeText: text });
+  // When the work is tall, what was made for it leads, under the same rule (milestone 65).
+  const ordered = verticalFirst(polished, { tallWork: s.tallWork === true, sort: s.sort, freeText: text });
   return {
     entries: sortEntries(ordered, s.sort),
     canExportPack: hits.some((h) => h.entry.kind === 'template' && !h.entry.offline),
@@ -292,9 +305,9 @@ export function deriveResults(s: ResultsInput): ResultsView {
 export function createResultsSelector(): (s: ResultsInput) => ResultsView {
   let last: (ResultsInput & { view: ResultsView }) | null = null;
   return (s) => {
-    if (last && last.index === s.index && last.query === s.query && last.scope === s.scope && last.filters === s.filters && last.forTheme === s.forTheme && last.look === s.look && last.mood === s.mood && last.sort === s.sort && last.semantic === s.semantic) return last.view;
+    if (last && last.index === s.index && last.query === s.query && last.scope === s.scope && last.filters === s.filters && last.forTheme === s.forTheme && last.look === s.look && last.mood === s.mood && last.sort === s.sort && last.semantic === s.semantic && last.tallWork === s.tallWork) return last.view;
     const view = deriveResults(s);
-    last = { index: s.index, query: s.query, scope: s.scope, filters: s.filters, forTheme: s.forTheme, look: s.look, mood: s.mood, sort: s.sort, semantic: s.semantic, view };
+    last = { index: s.index, query: s.query, scope: s.scope, filters: s.filters, forTheme: s.forTheme, look: s.look, mood: s.mood, sort: s.sort, semantic: s.semantic, tallWork: s.tallWork, view };
     return view;
   };
 }

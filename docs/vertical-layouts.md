@@ -33,7 +33,11 @@ Pictures, bars and shades may run to the edges. A full-bleed bar across the top 
 | **Captions** | Mid-frame (about 56% down), or just above the caption band (bottom near y 1475). Kept between 18% and 82% of the width. | The bottom of the frame is the app's. A caption set where a wide video puts it lands under the app's own. Mid-frame sits beside the face, where the viewer is already looking. Above the band is the closest to the traditional place that stays clear. The 18–82% column keeps clear of the controls column and stays centered. |
 | **A caption beside a face** | The side away from the face, at the face's height, between y 290 and 1420. | It follows the speaker without covering them. On the right it stops at 80%, short of the column. |
 | **Lower third** | Not at the bottom. A name strap on a tall frame goes above the caption band, on the left, as the bundled Lower Third Bar re-lays itself at 9:16. | The bottom-left corner of a wide frame is the caption band of a tall one. |
-| **Small overlays** (a part tag, a list counter, a follow prompt) | The top-left of the clear area, or mid-left. Never the right half below mid-frame. | The column owns the lower right. *(Milestone 65's overlays item; not built yet.)* |
+| **Small overlays** (a part tag, a list counter, a reply-to card, a place tag) | The top-left of the clear area (y 280 onward, x from 108), or mid-left. Never the right half below mid-frame. | The column owns the lower right, and the top left is read first. |
+| **Conversation and polls** (chat bubbles, a poll card) | The middle of the frame, 10–80% of the width: bubbles alternate sides inside that. | They are read like the frame's main content, so they sit where the eye rests; the right-hand bubbles stop short of the column. |
+| **An end prompt** (follow for more) | Low in the middle, its bottom at 75%, centered on the clear width (10–82%), never wider than it. | Just above where the app prints its own caption, the last thing the eye passes on the way down, as the video ends. |
+| **A progress bar** | The very top edge, full width, a few pixels tall. | It has no words to read and nothing to tap, so it may sit in the header strip; along the top is where a viewer expects one. |
+| **The picture itself** (frame layouts) | A wide clip in a full-width 16:9 band from 27% to 59%, the same clip blurred behind it; two clips each covering half; a face in the top left over a full-frame clip. | A tall frame shows a wide clip as a strip with bars, which the apps then crop or letterbox badly. Blurring the clip into the bars fills the frame with its own colors; covering crops rather than shrinks. |
 
 ## Type at arm's length
 
@@ -58,4 +62,22 @@ Hook Bold (two heavy lines over a shade), Hook Question (a card sized to the que
 **Caption styles** (`captions: true`, docs/template-format.md "Caption styles"):
 Caption One Word (the spoken word alone, mid-frame), Caption Duo (two short rows on a card just above the band, paging as it is said), Caption Sticker (a tilted sticker, three rows at a time), Caption Beside (a column beside the speaker, on the side and at the height its parameters give).
 
+**Frame layouts** (`category: overlay`, `type: frame`, opaque, `alpha: false`): they arrange the picture itself. Each has media slots set to `cover`, so a clip fills its box with no black bars, and a flat color stands in while none is chosen. Their words do not move, so they loop for any length and only the clip plays.
+Frame Wide Clip (a wide clip sharp in a 16:9 band across the middle, the same clip blurred behind it, a title above and a line under it, then room for the project's captions), Frame Stacked (two clips, top and bottom, each with a label), Frame Corner Face (a face in the top left over a full-frame clip), Frame Caption Card (a full-frame clip with a card sized to its words).
+
+The corner face is a **video layer**, not a media slot. A video layer is milestone 57's second picture track: the face shows on the picture track, takes the stage's handles, and has its own crop, border, span and sound.
+
+**Overlays for short video** (`category: overlay`, transparent). Each is generic, drawn after no one app's interface:
+Progress Bar Top, Part Tag ("Part 2 of 3"), List Counter ("2 / 5" with a row of dots), Chat Bubbles (a block of lines that arrive one by one, alternating sides; a line added is the next bubble), Comment Reply (the comment a video answers, with who asked), Poll Card (a question, two answers and their shares filling in), Follow Prompt (an end-of-video "follow for part 3" with a plus that turns to a tick) and Place Tag (a pin and a place, or a bag and a product).
+
+All but the progress bar come in, **hold** and go, each hold measured with a line added to every open block. The progress bar is the one loop that does not meet its first frame: it draws against `state.frame` over `state.totalFrames`, the length it is asked for, so a 45-second video's bar takes 45 seconds to fill. A bar that repeated every ten seconds would say nothing about how far through the video a viewer is. Its words-free picture is why `pulp safe-box` reports it checked with no moment to place.
+
 A fresh set of captions still starts on the first by name of the styles drawn for every shape, so a wide project is never started on one placed for a tall frame alone.
+
+## Found first when the work is tall
+
+The templates made for vertical have a **Made for vertical** node under Quick access in the browse panel, and they lead the results when the work is tall (`workIsTall` and `verticalFirst` in `src/core/vertical-layout.ts`):
+
+- **The work is tall** when the session leans to a tall shape (the start screen's 9:16 tile, or a tall platform such as TikTok), or a tall shape was **chosen** in the Output tab for a template that draws more than one. A template that draws only one shape, a media file, or nothing on the stage says nothing either way and the last answer stands. Clicking a hook that draws only 9:16 must not reorder the results under the click.
+- **They lead under the default order with no words typed**, each group in its own order, as the polished set leads inside its categories. A chosen sort, or a ranking by typed words, is left alone.
+- **The stage shows the safe areas** while a template made for vertical is on it, since the zones it is designed around are the point of it. Turned off by hand, they stay off for the rest of the session. The saved preference is not changed either way.

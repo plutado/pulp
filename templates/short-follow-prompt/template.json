@@ -1,0 +1,84 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.short-follow-prompt",
+  "name": "Follow Prompt",
+  "description": "An end-of-video prompt low in the middle of a tall frame: a round avatar, \"Follow for part 3\" and the handle, and a plus that turns to a tick. Above where the apps print their own caption.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "social",
+  "tags": [
+    "made-for-vertical",
+    "short-form",
+    "follow",
+    "subscribe",
+    "end"
+  ],
+  "themes": [
+    "social-media",
+    "education",
+    "gaming"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "line",
+      "type": "text",
+      "label": "Prompt",
+      "default": "Follow for part 3",
+      "maxLength": 32,
+      "element": "Prompt"
+    },
+    {
+      "id": "handle",
+      "type": "text",
+      "label": "Handle",
+      "default": "@yourname",
+      "maxLength": 32,
+      "element": "Prompt"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Pill",
+      "default": "#111827",
+      "element": "Prompt"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Words",
+      "default": "#ffffff",
+      "element": "Prompt"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Button",
+      "default": "#ef4444",
+      "element": "Prompt"
+    },
+    {
+      "id": "avatar",
+      "type": "color",
+      "label": "Avatar",
+      "default": "#facc15",
+      "element": "Prompt"
+    }
+  ]
+}

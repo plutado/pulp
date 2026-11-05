@@ -1,0 +1,120 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.frame-caption-card",
+  "name": "Frame Caption Card",
+  "description": "A full-frame clip with a white card low in the middle of a tall frame — a small kicker and a line — sized to its words and kept above where the apps print their own caption.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "frame",
+  "tags": [
+    "made-for-vertical",
+    "short-form",
+    "layout",
+    "footage",
+    "card"
+  ],
+  "themes": [
+    "social-media",
+    "food",
+    "travel"
+  ],
+  "styles": [
+    "clean"
+  ],
+  "duration": 6,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "card",
+      "label": "Card",
+      "box": {
+        "default": {
+          "x": 0.1,
+          "y": 0.56,
+          "width": 0.7,
+          "height": 0.2
+        }
+      },
+      "gap": 0.01,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Montserrat",
+        "size": 0.056,
+        "weight": 800,
+        "color": "#111827",
+        "align": "left",
+        "lineHeight": 1.12,
+        "maxLines": 3
+      },
+      "layers": [
+        {
+          "id": "kicker",
+          "type": "text",
+          "label": "Kicker",
+          "text": "Step 3",
+          "size": 0.04,
+          "weight": 700,
+          "case": "upper",
+          "letterSpacing": 0.1,
+          "color": "#e11d48"
+        },
+        {
+          "id": "line",
+          "type": "text",
+          "label": "Line",
+          "text": "Let the dough rest for an hour",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "clip",
+      "type": "media",
+      "label": "Clip",
+      "element": "Clip",
+      "description": "Fills the frame; cropped to it. It loops by default.",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "fit": "cover",
+      "align": "center"
+    },
+    {
+      "id": "clipColor",
+      "type": "color",
+      "label": "Color without a clip",
+      "default": "#334155",
+      "element": "Clip"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Card",
+      "default": "#ffffff",
+      "element": "Card"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#e11d48",
+      "element": "Card"
+    }
+  ]
+}

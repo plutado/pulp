@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>List Counter</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // List Counter, made for vertical for Pulp (milestone 65; docs/vertical-layouts.md). CC0-1.0: no rights reserved.
+  //
+  // The step is read from the Step field ("2 / 5", "3 of 10"): the first number is where the list is,
+  // the second how long it is, which sets the dots. The number rolls up into place; the dots fill up
+  // to the step one after another.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  document.fonts.load('800 64px Montserrat');
+  document.fonts.load('900 64px Montserrat');
+  document.fonts.load('600 64px Inter');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function fit(state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  function roundRect(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  /** The extent of a laid block's drawn words: left, top, right and bottom over every layer that has room. */
+  function extentOf(laid) {
+    var e = null;
+    laid.layers.forEach(function (l) {
+      if (l.box.width <= 0 && l.box.height <= 0) return;
+      var left = l.box.x, right = l.box.x + l.box.width;
+      if (l.lines && l.lines.length) {
+        left = Infinity; right = -Infinity;
+        l.lines.forEach(function (ln) { if (ln.width > 0) { left = Math.min(left, ln.x); right = Math.max(right, ln.x + ln.width); } });
+        if (!isFinite(left)) return;
+      }
+      if (!e) e = { left: left, top: l.box.y, right: right, bottom: l.box.y + l.box.height };
+      else { e.left = Math.min(e.left, left); e.top = Math.min(e.top, l.box.y); e.right = Math.max(e.right, right); e.bottom = Math.max(e.bottom, l.box.y + l.box.height); }
+    });
+    return e;
+  }
+  /** One line of text in a bundled family, drawn and measured the same way. */
+  function setFont(weight, size, family) { ctx.font = weight + ' ' + Math.round(size) + 'px ' + family; }
+
+  var OUT_FOR = 0.5;
+  function arrive(t, from, over) { return easeOut(clamp01((t - from) / over)); }
+  function leaving(t, d) { return easeInOut(clamp01((t - (d - OUT_FOR)) / OUT_FOR)); }
+
+  window.pulpRender = function (state) {
+    fit(state);
+    var W = state.width, H = state.height, p = state.params, u = Math.min(W, H), t = state.time;
+    var gone = leaving(t, state.duration);
+    if (gone >= 1) return;
+    var m = /(\d+)\D+(\d+)/.exec(p.count || '');
+    var step = m ? Number(m[1]) : 1, total = m ? Math.max(1, Math.min(20, Number(m[2]))) : 1;
+    var x = 0.1 * W, top = 0.15 * H;
+    var size = 0.11 * u;
+    var roll = arrive(t, 0, 0.55);
+    ctx.save();
+    ctx.globalAlpha = roll * (1 - gone);
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = size * 0.12;
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+    setFont(900, size, 'Montserrat');
+    ctx.fillStyle = p.accent;
+    ctx.fillText(p.count || '', x, top + size * 0.86 + (1 - roll) * size * 0.4);
+    var cw = ctx.measureText(p.count || '').width;
+    if (p.label) {
+      var ls = 0.044 * u;
+      setFont(700, ls, 'Inter');
+      ctx.fillStyle = p.ink;
+      ctx.globalAlpha = arrive(t, 0.25, 0.5) * (1 - gone);
+      ctx.fillText(p.label, x + cw + size * 0.25, top + size * 0.72);
+    }
+    ctx.restore();
+    // The dots: one per step of the list, filled up to this one.
+    var r = 0.011 * u, gap = r * 3, dy = top + size * 1.2;
+    for (var i = 0; i < total; i++) {
+      var on = i < step;
+      var at = arrive(t, 0.35 + i * 0.06, 0.3) * (1 - gone);
+      ctx.beginPath();
+      ctx.arc(x + r + i * gap, dy, r, 0, Math.PI * 2);
+      ctx.fillStyle = on ? rgba(p.accent, at) : rgba('#ffffff', 0.35 * at);
+      ctx.fill();
+    }
+  };
+</script>
+</body>
+</html>

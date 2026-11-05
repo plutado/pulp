@@ -1,0 +1,132 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.short-chat-bubbles",
+  "name": "Chat Bubbles",
+  "description": "Text-message bubbles that arrive one by one in the middle of a tall frame, alternating sides: the conversation a story video is told through. Add a line and it is the next bubble.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "social",
+  "tags": [
+    "made-for-vertical",
+    "short-form",
+    "chat",
+    "message",
+    "conversation"
+  ],
+  "themes": [
+    "social-media",
+    "entertainment",
+    "family"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "duration": 7,
+  "structure": {
+    "holdFrom": 2.6,
+    "holdTo": 6.4
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "chat",
+      "label": "Messages",
+      "box": {
+        "default": {
+          "x": 0.12,
+          "y": 0.34,
+          "width": 0.66,
+          "height": 0.4
+        }
+      },
+      "gap": 0.07,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Inter",
+        "size": 0.046,
+        "weight": 600,
+        "color": "#111827",
+        "align": "left",
+        "lineHeight": 1.22,
+        "maxLines": 4
+      },
+      "layers": [
+        {
+          "id": "one",
+          "type": "text",
+          "label": "Message",
+          "text": "did you actually try it?",
+          "required": true
+        },
+        {
+          "id": "two",
+          "type": "text",
+          "label": "Reply",
+          "text": "yes!! it worked the first time"
+        },
+        {
+          "id": "three",
+          "type": "text",
+          "label": "Message",
+          "text": "ok I'm doing this tonight"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "them",
+      "type": "color",
+      "label": "Their bubbles",
+      "default": "#e5e7eb",
+      "element": "Bubbles"
+    },
+    {
+      "id": "themInk",
+      "type": "color",
+      "label": "Their words",
+      "default": "#111827",
+      "element": "Bubbles"
+    },
+    {
+      "id": "me",
+      "type": "color",
+      "label": "My bubbles",
+      "default": "#2563eb",
+      "element": "Bubbles"
+    },
+    {
+      "id": "meInk",
+      "type": "color",
+      "label": "My words",
+      "default": "#ffffff",
+      "element": "Bubbles"
+    },
+    {
+      "id": "firstSide",
+      "type": "select",
+      "label": "First bubble is",
+      "default": "them",
+      "options": [
+        {
+          "value": "them",
+          "label": "Theirs, on the left"
+        },
+        {
+          "value": "me",
+          "label": "Mine, on the right"
+        }
+      ],
+      "element": "Bubbles"
+    }
+  ]
+}

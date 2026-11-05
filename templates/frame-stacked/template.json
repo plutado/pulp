@@ -1,0 +1,112 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.frame-stacked",
+  "name": "Frame Stacked",
+  "description": "Two clips stacked in a tall frame, each filling its half, with a line between them and a label on each: before and after, a reaction over the thing reacted to, two takes side by side.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "frame",
+  "tags": [
+    "made-for-vertical",
+    "short-form",
+    "layout",
+    "footage",
+    "split"
+  ],
+  "themes": [
+    "social-media",
+    "education",
+    "food"
+  ],
+  "styles": [
+    "clean"
+  ],
+  "duration": 6,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "top",
+      "type": "media",
+      "label": "Top clip",
+      "element": "Top",
+      "description": "Fills the top half; cropped to it.",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 0.5
+      },
+      "fit": "cover",
+      "align": "center"
+    },
+    {
+      "id": "topLabel",
+      "type": "text",
+      "label": "Top label",
+      "default": "Before",
+      "maxLength": 24,
+      "element": "Top"
+    },
+    {
+      "id": "topColor",
+      "type": "color",
+      "label": "Color without a clip",
+      "default": "#334155",
+      "element": "Top"
+    },
+    {
+      "id": "bottom",
+      "type": "media",
+      "label": "Bottom clip",
+      "element": "Bottom",
+      "description": "Fills the bottom half; cropped to it.",
+      "box": {
+        "x": 0,
+        "y": 0.5,
+        "width": 1,
+        "height": 0.5
+      },
+      "fit": "cover",
+      "align": "center"
+    },
+    {
+      "id": "bottomLabel",
+      "type": "text",
+      "label": "Bottom label",
+      "default": "After",
+      "maxLength": 24,
+      "element": "Bottom"
+    },
+    {
+      "id": "bottomColor",
+      "type": "color",
+      "label": "Color without a clip",
+      "default": "#1e293b",
+      "element": "Bottom"
+    },
+    {
+      "id": "line",
+      "type": "color",
+      "label": "Line and labels",
+      "default": "#facc15",
+      "element": "Line"
+    },
+    {
+      "id": "lineInk",
+      "type": "color",
+      "label": "Label words",
+      "default": "#111827",
+      "element": "Line"
+    }
+  ]
+}

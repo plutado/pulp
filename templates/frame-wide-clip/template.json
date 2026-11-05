@@ -1,0 +1,159 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.frame-wide-clip",
+  "name": "Frame Wide Clip",
+  "description": "A wide clip framed for a tall video: sharp across the middle, the same clip blurred behind it so there are no black bars, a title above and a line under it, and room below that for the captions.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "frame",
+  "tags": [
+    "made-for-vertical",
+    "short-form",
+    "layout",
+    "footage"
+  ],
+  "themes": [
+    "social-media",
+    "education",
+    "gaming"
+  ],
+  "styles": [
+    "clean"
+  ],
+  "duration": 6,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "title",
+      "label": "Title",
+      "box": {
+        "default": {
+          "x": 0.1,
+          "y": 0.14,
+          "width": 0.8,
+          "height": 0.115
+        }
+      },
+      "gap": 0.008,
+      "align": "center",
+      "verticalAlign": "bottom",
+      "typography": {
+        "family": "Montserrat",
+        "size": 0.074,
+        "weight": 800,
+        "color": "#ffffff",
+        "align": "center",
+        "lineHeight": 1.08,
+        "maxLines": 2
+      },
+      "layers": [
+        {
+          "id": "headline",
+          "type": "text",
+          "label": "Title",
+          "text": "How we built it",
+          "required": true,
+          "look": {
+            "shadowColor": "#000000a6",
+            "shadowDistance": 0.004,
+            "shadowSoftness": 0.014
+          }
+        }
+      ]
+    },
+    {
+      "id": "below",
+      "label": "Under the clip",
+      "box": {
+        "default": {
+          "x": 0.1,
+          "y": 0.6,
+          "width": 0.7,
+          "height": 0.06
+        }
+      },
+      "align": "center",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Inter",
+        "size": 0.044,
+        "weight": 600,
+        "color": "#e2e8f0",
+        "align": "center",
+        "maxLines": 1,
+        "overflow": "shrink"
+      },
+      "layers": [
+        {
+          "id": "subtitle",
+          "type": "text",
+          "label": "Line under the clip",
+          "text": "Part one: the idea",
+          "look": {
+            "shadowColor": "#000000a6",
+            "shadowDistance": 0.004,
+            "shadowSoftness": 0.014
+          }
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "clip",
+      "type": "media",
+      "label": "Clip",
+      "element": "Clip",
+      "description": "The wide clip in the middle; the same clip, blurred, fills the frame behind it. It loops by default.",
+      "box": {
+        "x": 0,
+        "y": 0.27,
+        "width": 1,
+        "height": 0.3164
+      },
+      "fit": "cover",
+      "align": "center"
+    },
+    {
+      "id": "top",
+      "type": "color",
+      "label": "Color without a clip, top",
+      "default": "#1e293b",
+      "element": "Clip"
+    },
+    {
+      "id": "bottom",
+      "type": "color",
+      "label": "Color without a clip, bottom",
+      "default": "#0f172a",
+      "element": "Clip"
+    },
+    {
+      "id": "blur",
+      "type": "number",
+      "label": "Blur behind",
+      "default": 0.04,
+      "min": 0,
+      "max": 0.1,
+      "step": 0.005,
+      "element": "Clip"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent",
+      "default": "#facc15",
+      "element": "Title"
+    }
+  ]
+}

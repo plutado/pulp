@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Frame Caption Card</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Frame Caption Card, made for vertical for Pulp (milestone 65; docs/vertical-layouts.md). CC0-1.0: no rights reserved.
+  //
+  // A full-frame clip with a white card low in the middle, sized to the words it holds and kept above
+  // the band where the apps print their own caption. The kicker takes the accent. Still, so it loops.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  document.fonts.load('800 64px Montserrat');
+  document.fonts.load('900 64px Montserrat');
+  document.fonts.load('600 64px Inter');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function fit(state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  function roundRect(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  /** The extent of a laid block's drawn words: left, top, right and bottom over every layer that has room. */
+  function extentOf(laid) {
+    var e = null;
+    laid.layers.forEach(function (l) {
+      if (l.box.width <= 0 && l.box.height <= 0) return;
+      var left = l.box.x, right = l.box.x + l.box.width;
+      if (l.lines && l.lines.length) {
+        left = Infinity; right = -Infinity;
+        l.lines.forEach(function (ln) { if (ln.width > 0) { left = Math.min(left, ln.x); right = Math.max(right, ln.x + ln.width); } });
+        if (!isFinite(left)) return;
+      }
+      if (!e) e = { left: left, top: l.box.y, right: right, bottom: l.box.y + l.box.height };
+      else { e.left = Math.min(e.left, left); e.top = Math.min(e.top, l.box.y); e.right = Math.max(e.right, right); e.bottom = Math.max(e.bottom, l.box.y + l.box.height); }
+    });
+    return e;
+  }
+  /** One line of text in a bundled family, drawn and measured the same way. */
+  function setFont(weight, size, family) { ctx.font = weight + ' ' + Math.round(size) + 'px ' + family; }
+
+  window.pulpRender = function (state) {
+    fit(state);
+    var W = state.width, H = state.height, p = state.params, u = Math.min(W, H);
+    if (!window.pulpDrawMedia(ctx, state, 'clip')) { ctx.fillStyle = p.clipColor; ctx.fillRect(0, 0, W, H); }
+    var block = state.blocks.card.box;
+    var pad = 0.036 * u;
+    var probe = window.pulpLayoutBlock(ctx, state, 'card', { box: { x: 0, y: 0, width: block.width - pad * 2, height: H } });
+    var e = extentOf(probe);
+    if (!e) return;
+    var w = e.right - e.left + pad * 2, h = e.bottom - e.top + pad * 2;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = 0.03 * u;
+    ctx.shadowOffsetY = 0.01 * u;
+    roundRect(block.x, block.y, w, h, 0.026 * u);
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(block.x, block.y + 0.02 * u, Math.max(3, 0.008 * u), h - 0.04 * u);
+    window.pulpDrawBlock(ctx, window.pulpLayoutBlock(ctx, state, 'card', { box: { x: block.x + pad, y: block.y + pad, width: block.width - pad * 2, height: h } }));
+  };
+</script>
+</body>
+</html>

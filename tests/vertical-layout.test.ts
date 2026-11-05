@@ -10,9 +10,11 @@ import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 import { scanLibrary } from '../src/core/library';
 import { searchLibrary } from '../src/core/search';
+import { deriveResults, initialAppState } from '../src/core/app-state';
+import { buildBrowseTree } from '../src/core/browse-tree';
 import { VERTICAL_ZONES } from '../src/core/player';
 import {
-  ARM_LENGTH_TYPE, differingRect, MADE_FOR_VERTICAL_TAG, madeForVertical, otherWords, placementCaptions, placementFrames,
+  ARM_LENGTH_TYPE, differingRect, isTallShape, MADE_FOR_VERTICAL_TAG, madeForVertical, verticalFirst, workIsTall, otherWords, placementCaptions, placementFrames,
   placementProblems, VERTICAL_CHECK_SIZE, VERTICAL_SAFE_BOX, withOtherWords,
 } from '../src/core/vertical-layout';
 
@@ -180,6 +182,146 @@ describe('the bundled templates made for vertical', async () => {
       if (size?.type !== 'number') continue;
       expect(size.min!, t.manifest.id).toBeGreaterThanOrEqual(ARM_LENGTH_TYPE.smallest);
       expect(t.manifest.alpha, `${t.manifest.id}: a caption style is drawn over the shot`).toBe(true);
+    }
+  });
+});
+
+describe('when the work is tall', () => {
+  const lean = { preferredAspect: null as string | null, platformAspect: null as string | null, shown: null as { size: { width: number; height: number } | null; aspects: string[] } | null };
+
+  it('reads a tall shape from an id or a size', () => {
+    expect(isTallShape('9:16')).toBe(true);
+    expect(isTallShape('4:5')).toBe(true);
+    expect(isTallShape('16:9')).toBe(false);
+    expect(isTallShape('1:1')).toBe(false);
+    expect(isTallShape({ width: 1080, height: 1920 })).toBe(true);
+    expect(isTallShape(null)).toBe(false);
+  });
+
+  it('is tall when the session leans tall — a 9:16 project, a tall platform — whatever is shown', () => {
+    expect(workIsTall({ ...lean, preferredAspect: '9:16' }, false)).toBe(true);
+    expect(workIsTall({ ...lean, platformAspect: '9:16' }, false)).toBe(true);
+    expect(workIsTall({ ...lean, preferredAspect: '9:16', shown: { size: { width: 1920, height: 1080 }, aspects: ['16:9', '9:16'] } }, false)).toBe(true);
+  });
+
+  it('follows a shape chosen for a template that draws more than one', () => {
+    const lowerThird = (size: { width: number; height: number }) => ({ ...lean, shown: { size, aspects: ['16:9', '9:16', '1:1'] } });
+    expect(workIsTall(lowerThird({ width: 1080, height: 1920 }), false)).toBe(true);
+    expect(workIsTall(lowerThird({ width: 1920, height: 1080 }), true)).toBe(false);
+  });
+
+  it('keeps its last answer for a template with no shape to choose, so clicking one does not reorder the results', () => {
+    const hook = { ...lean, shown: { size: { width: 1080, height: 1920 }, aspects: ['9:16'] } };
+    expect(workIsTall(hook, false)).toBe(false);
+    expect(workIsTall(hook, true)).toBe(true);
+    // Even with a wide lean: what is on the stage was not a choice.
+    expect(workIsTall({ ...hook, preferredAspect: '16:9' }, true)).toBe(true);
+    // Nothing shown: a wide lean is not tall; no lean keeps the last answer.
+    expect(workIsTall({ ...lean, preferredAspect: '16:9' }, true)).toBe(false);
+    expect(workIsTall(lean, true)).toBe(true);
+  });
+});
+
+describe('the results when the work is tall, and when it is wide', async () => {
+  const index = await scanLibrary([join(__dirname, '..', 'templates')]);
+  const made = (e: { kind: string; manifest?: { tags?: string[] } }) => e.kind === 'template' && !!e.manifest?.tags?.includes(MADE_FOR_VERTICAL_TAG);
+  const count = index.templates.filter((t) => madeForVertical(t.manifest)).length;
+  const results = (change: Partial<typeof initialAppState>) => deriveResults({ ...initialAppState, index, ...change }).entries;
+
+  it('at 9:16, under the default order, puts every template made for vertical first, the rest in their own order after', () => {
+    const tall = results({ tallWork: true });
+    const wide = results({ tallWork: false });
+    expect(tall.slice(0, count).every(made), 'the first are all made for vertical').toBe(true);
+    expect(tall.slice(count).some(made), 'and none is left behind').toBe(false);
+    expect(tall.length).toBe(wide.length);
+    // Each group keeps the order it had: nothing else is reshuffled.
+    expect(tall.slice(count).map((e) => e.id)).toEqual(wide.filter((e) => !made(e)).map((e) => e.id));
+    expect(tall.slice(0, count).map((e) => e.id)).toEqual(wide.filter(made).map((e) => e.id));
+  });
+
+  it('at 16:9 leaves the default order alone: those made for vertical are not first', () => {
+    const wide = results({ tallWork: false });
+    expect(wide.slice(0, count).every(made)).toBe(false);
+  });
+
+  it('within a category too: the titles open on the hooks when the work is tall', () => {
+    const scope = { label: 'Titles', filter: 'type:title', kind: 'type' as const };
+    const tall = results({ tallWork: true, scope });
+    expect(tall.slice(0, 6).map((e) => e.kind === 'template' && e.manifest.name).sort()).toEqual(['Hook Bar', 'Hook Bold', 'Hook Keyword', 'Hook List', 'Hook Question', 'Hook Quote']);
+  });
+
+  it('does not disturb an order someone chose or a ranking by typed words', () => {
+    expect(results({ tallWork: true, sort: 'name' }).map((e) => e.id)).toEqual(results({ tallWork: false, sort: 'name' }).map((e) => e.id));
+    expect(results({ tallWork: true, query: 'lower third' }).map((e) => e.id)).toEqual(results({ tallWork: false, query: 'lower third' }).map((e) => e.id));
+    expect(verticalFirst([], { tallWork: true, sort: 'relevance', freeText: '' })).toEqual([]);
+  });
+
+  it('has a Made for vertical node in Quick access that scopes to them all', () => {
+    const quick = buildBrowseTree(index.templates, index.roots, index.builtInRoot).find((n) => n.id === 'quick')!;
+    const node = quick.children.find((n) => n.id === 'vertical')!;
+    expect(node.label).toBe('Made for vertical');
+    expect(node.count).toBe(count);
+    expect(results({ scope: node.scope }).length).toBe(count);
+    expect(results({ scope: node.scope }).every(made)).toBe(true);
+  });
+});
+
+describe('the frame layouts and the overlays for short video', async () => {
+  const index = await scanLibrary([join(__dirname, '..', 'templates')]);
+  const vertical = index.templates.filter((t) => madeForVertical(t.manifest));
+  const frames = vertical.filter((t) => t.manifest.type === 'frame');
+  const overlays = vertical.filter((t) => t.manifest.id.startsWith('pulp.samples.short-'));
+  type Box = { x: number; y: number; width: number; height: number };
+  const slotsOf = (t: (typeof vertical)[number]) => t.manifest.parameters.filter((p) => p.type === 'media') as unknown as { box: Record<string, Box> | Box; fit: string }[];
+  const boxOf = (b: Record<string, Box> | Box): Box => ('x' in b ? (b as Box) : (b as Record<string, Box>).default!);
+
+  it('are four frame layouts that draw the picture, each with its media slots set to fill', () => {
+    expect(frames.map((t) => t.manifest.name).sort()).toEqual(['Frame Caption Card', 'Frame Corner Face', 'Frame Stacked', 'Frame Wide Clip']);
+    for (const t of frames) {
+      expect(t.manifest.alpha, `${t.manifest.id}: it is the picture, not over one`).toBe(false);
+      expect(slotsOf(t).length, t.manifest.id).toBeGreaterThan(0);
+      for (const slot of slotsOf(t)) expect(slot.fit, `${t.manifest.id}: fills its box, no bars`).toBe('cover');
+      // Words still, so it loops for any length and only the clip plays.
+      expect(t.manifest.structure).toEqual({ kind: 'loop' });
+    }
+  });
+
+  it('fill the whole frame with their slots — or, for the wide clip, a full-width 16:9 band the clip also fills behind', () => {
+    for (const t of frames) {
+      const boxes = slotsOf(t).map((s) => boxOf(s.box));
+      const area = boxes.reduce((n, b) => n + b.width * b.height, 0);
+      if (t.manifest.name === 'Frame Wide Clip') {
+        const band = boxes[0]!;
+        expect(band.width).toBe(1);
+        expect((band.width * 1080) / (band.height * 1920)).toBeCloseTo(16 / 9, 2);
+      } else {
+        expect(area, t.manifest.id).toBeCloseTo(1, 6);
+      }
+    }
+  });
+
+  it("put a corner face on the picture track: a video layer, not a slot, so it is moved and timed like any clip", () => {
+    const corner = frames.find((t) => t.manifest.name === 'Frame Corner Face')!;
+    const layers = (corner.manifest.blocks ?? []).flatMap((b) => b.layers ?? []);
+    expect(layers.map((l) => l.type)).toEqual(['video']);
+  });
+
+  it('are eight overlays drawn over the shot, each a generic element, none an app\'s own', () => {
+    expect(overlays.map((t) => t.manifest.name).sort()).toEqual(['Chat Bubbles', 'Comment Reply', 'Follow Prompt', 'List Counter', 'Part Tag', 'Place Tag', 'Poll Card', 'Progress Bar Top']);
+    for (const t of overlays) {
+      expect(t.manifest.alpha, t.manifest.id).toBe(true);
+      expect(t.manifest.category).toBe('overlay');
+    }
+  });
+
+  it('set nothing a viewer must read under 4% of the short side', () => {
+    for (const t of [...frames, ...overlays]) {
+      for (const b of t.manifest.blocks ?? []) {
+        for (const l of (b.layers ?? []).filter((x) => x.type === 'text')) {
+          const size = 'size' in l && typeof l.size === 'number' ? l.size : b.typography?.size ?? 0.06;
+          expect(size, `${t.manifest.id}: ${l.id}`).toBeGreaterThanOrEqual(ARM_LENGTH_TYPE.smallest);
+        }
+      }
     }
   });
 });

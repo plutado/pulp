@@ -1,0 +1,127 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.short-poll-card",
+  "name": "Poll Card",
+  "description": "A question with two answers on a card in the middle of a tall frame, each answer's bar filling to its share: a poll to ask the viewer, or the result of one.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "social",
+  "tags": [
+    "made-for-vertical",
+    "short-form",
+    "poll",
+    "question",
+    "vote"
+  ],
+  "themes": [
+    "social-media",
+    "education",
+    "sports"
+  ],
+  "styles": [
+    "clean"
+  ],
+  "duration": 6,
+  "structure": {
+    "holdFrom": 1.8,
+    "holdTo": 5.4
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "poll",
+      "label": "Question",
+      "box": {
+        "default": {
+          "x": 0.1,
+          "y": 0.36,
+          "width": 0.7,
+          "height": 0.12
+        }
+      },
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Montserrat",
+        "size": 0.056,
+        "weight": 800,
+        "color": "#111827",
+        "align": "left",
+        "lineHeight": 1.12,
+        "maxLines": 2
+      },
+      "layers": [
+        {
+          "id": "question",
+          "type": "text",
+          "label": "Question",
+          "text": "How often do you train?",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "a",
+      "type": "text",
+      "label": "First answer",
+      "default": "Every day",
+      "maxLength": 32,
+      "element": "Answers"
+    },
+    {
+      "id": "share",
+      "type": "number",
+      "label": "First answer's share, %",
+      "default": 64,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "element": "Answers"
+    },
+    {
+      "id": "b",
+      "type": "text",
+      "label": "Second answer",
+      "default": "Only on weekends",
+      "maxLength": 32,
+      "element": "Answers"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Card",
+      "default": "#ffffff",
+      "element": "Card"
+    },
+    {
+      "id": "bar",
+      "type": "color",
+      "label": "Leading answer",
+      "default": "#22c55e",
+      "element": "Answers"
+    },
+    {
+      "id": "other",
+      "type": "color",
+      "label": "Other answer",
+      "default": "#cbd5e1",
+      "element": "Answers"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Words",
+      "default": "#111827",
+      "element": "Card"
+    }
+  ]
+}

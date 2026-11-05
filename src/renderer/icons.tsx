@@ -228,6 +228,7 @@ export function scopeIcon(kind: string | undefined, group: string | undefined): 
   switch (kind) {
     case 'favorites': return 'star';
     case 'recent': return 'clock';
+    case 'vertical': return 'device-mobile';
     case 'built-in':
     case 'pack': return 'package';
     case 'folder': return 'folder';

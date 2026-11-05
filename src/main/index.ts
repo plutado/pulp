@@ -730,15 +730,15 @@ async function runVisualHashes(file: string, check: boolean): Promise<number> {
  */
 async function runSafeBox(): Promise<number> {
   const { checkVerticalPlacement } = await import('./visual-service');
-  const { results, failed } = await checkVerticalPlacement(join(app.getAppPath(), 'templates'));
+  const { checked, results, failed } = await checkVerticalPlacement(join(app.getAppPath(), 'templates'));
   for (const f of failed) process.stderr.write(`could not check ${f.what}: ${f.error}\n`);
   const outside = results.filter((r) => r.problems.length > 0);
   for (const r of outside) {
     const at = r.words ? ` (words at ${r.words.x},${r.words.y} ${r.words.width}×${r.words.height})` : '';
     process.stdout.write(`OUTSIDE ${r.template} ${r.moment}${at}: ${r.problems.join('; ')}\n`);
   }
-  const templates = new Set(results.map((r) => r.template)).size;
-  process.stdout.write(`${templates} templates made for vertical, ${results.length} moments checked, ${outside.length} out of place\n`);
+  // A template with no words (a progress bar) is checked and has no moment to place.
+  process.stdout.write(`${checked} templates made for vertical, ${results.length} moments checked, ${outside.length} out of place\n`);
   return outside.length + failed.length > 0 ? 1 : 0;
 }
 

@@ -3,7 +3,7 @@
  * what things are: plain categories — Lower thirds, Titles and openers,
  * Matching sets, Animated backgrounds, Overlays and frames, Music — with the
  * taxonomy's types beneath the ones that gather several (src/core/categories.ts).
- * Then Quick access (Favorites, Recently used) and My folders. Themes and
+ * Then Quick access (Favorites, Recently used, Made for vertical) and My folders. Themes and
  * styles are not trees here: they are the "For…" and "Look" chips in the
  * search bar, which narrow whatever category is chosen.
  *
@@ -20,6 +20,7 @@ import { BROWSE_CATEGORIES, categoryScope, MATCHING_SETS, typeScope } from './ca
 import { rootLabel } from './display';
 import type { LibraryEntry } from './library-types';
 import { entryType } from './taxonomy';
+import { MADE_FOR_VERTICAL_TAG } from './vertical-layout';
 
 export interface TreeNode {
   /** Unique within the tree: "category:lower-thirds", "type:wipe", "pack:news", "root:/path", "untyped"… */
@@ -49,6 +50,7 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
   let untyped = 0;
   let favorites = 0;
   let recent = 0;
+  let vertical = 0;
 
   for (const entry of entries) {
     const type = entryType(entry);
@@ -62,6 +64,7 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     }
     if (entry.favorite) favorites += 1;
     if (entry.lastUsed) recent += 1;
+    if (entry.kind === 'template' && entry.manifest.tags?.includes(MADE_FOR_VERTICAL_TAG)) vertical += 1;
   }
 
   // What it is, at the top. A category of one type is the type with the plainer name; one of
@@ -103,6 +106,12 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     children: [
       { id: 'favorites', label: 'Favorites', count: favorites, scope: { label: 'Favorites', filter: 'favorite:yes', kind: 'favorites' }, children: [] },
       { id: 'recent', label: 'Recently used', count: recent, scope: { label: 'Recently used', filter: 'recent:yes', kind: 'recent' }, children: [] },
+      // Designed tall first (milestone 65, docs/vertical-layouts.md): there when the library has any.
+      ...(vertical > 0 ? [{
+        id: 'vertical', label: 'Made for vertical', count: vertical,
+        description: 'Designed for a tall 9:16 frame first: hook titles, captions, frame layouts and overlays placed clear of what the short-video apps lay over the picture.',
+        scope: { label: 'Made for vertical', filter: `tag:${MADE_FOR_VERTICAL_TAG}`, kind: 'vertical' as const }, children: [],
+      }] : []),
     ],
   };
 

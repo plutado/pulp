@@ -1,0 +1,69 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.short-part-tag",
+  "name": "Part Tag",
+  "description": "A bold \"Part 2\" tag that slides into the top left of a tall frame, under the header strip: which episode of a series this is, read before anything else.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "callout",
+  "tags": [
+    "made-for-vertical",
+    "short-form",
+    "part",
+    "series",
+    "episode"
+  ],
+  "themes": [
+    "social-media",
+    "education",
+    "entertainment"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "part",
+      "type": "text",
+      "label": "Tag",
+      "default": "Part 2",
+      "maxLength": 24,
+      "element": "Tag"
+    },
+    {
+      "id": "of",
+      "type": "text",
+      "label": "After it",
+      "default": "of 3",
+      "maxLength": 24,
+      "element": "Tag"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Tag",
+      "default": "#facc15",
+      "element": "Tag"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Words",
+      "default": "#111827",
+      "element": "Tag"
+    }
+  ]
+}

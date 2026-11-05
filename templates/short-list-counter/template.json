@@ -1,0 +1,70 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.short-list-counter",
+  "name": "List Counter",
+  "description": "Where a list video is — \"2 / 5\" — big in the top left of a tall frame, with a row of dots that fill to the step and the list's name beside it. The number rolls in as the step arrives.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "counter",
+  "tags": [
+    "made-for-vertical",
+    "short-form",
+    "list",
+    "counter",
+    "step"
+  ],
+  "themes": [
+    "social-media",
+    "education",
+    "fitness"
+  ],
+  "styles": [
+    "clean",
+    "high-energy"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "count",
+      "type": "text",
+      "label": "Step, as \"2 / 5\"",
+      "default": "2 / 5",
+      "maxLength": 12,
+      "element": "Counter"
+    },
+    {
+      "id": "label",
+      "type": "text",
+      "label": "List",
+      "default": "Things to try",
+      "maxLength": 32,
+      "element": "Counter"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Number and dots",
+      "default": "#facc15",
+      "element": "Counter"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Words",
+      "default": "#ffffff",
+      "element": "Counter"
+    }
+  ]
+}

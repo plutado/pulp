@@ -6340,12 +6340,16 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`window.pulpMenuCommand('app.home')`);
       await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'the start screen');
     };
+    // The start screen's own New project, not File → New Project: it also clears the shape and the
+    // platform a test leaned the session to, which would otherwise reorder the results for every test
+    // after it (milestone 65: the work is tall).
     const cleanSession = async () => {
-      await page.eval(`window.pulpMenuCommand('project.new')`);
+      await page.eval(`window.pulpStartScreen(true)`);
+      await page.eval(`document.getElementById('start-new-blank').click()`);
       await until(
         () => page.eval<boolean>(
           `(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
-            return document.querySelector('#project-button .label').textContent === 'Untitled'; })()`,
+            return document.getElementById('start-screen').hidden && document.querySelector('#project-button .label').textContent === 'Untitled'; })()`,
         ),
         'a clean session',
       );
@@ -6543,6 +6547,83 @@ describe.skipIf(!electron)('inspector UI', () => {
       await openTab('parameters');
       await cleanSession();
     }, 90_000);
+
+    it('finds the templates made for vertical first in a vertical project, with their safe areas on, and not in a wide one (milestone 65)', async () => {
+      // Which templates are made for vertical, read from their own manifests.
+      const vertical = new Set<string>();
+      for (const dir of await readdir(join(ROOT, 'templates'))) {
+        const file = join(ROOT, 'templates', dir, 'template.json');
+        if (!existsSync(file)) continue;
+        const m = JSON.parse(await readFile(file, 'utf8')) as { name: string; tags?: string[] };
+        if (m.tags?.includes('made-for-vertical')) vertical.add(m.name);
+      }
+      expect(vertical.size).toBeGreaterThanOrEqual(22);
+      const clearNarrowing = async () => {
+        await fire('#search', '', 'input');
+        await page.eval(`(() => { const f = document.getElementById('for-select'); if (f.value !== '') { f.value = ''; f.dispatchEvent(new Event('change', { bubbles: true })); } if (!document.getElementById('scope-chip').hidden) document.getElementById('scope-chip-clear').click(); })()`);
+        await until(() => page.eval<boolean>(`document.getElementById('scope-chip').hidden`), 'no scope');
+      };
+      const firstNames = async () => (await resultNames()).slice(0, vertical.size);
+
+      // A wide session first: the default order, with what is made for vertical among the rest. The test
+      // before leaves a lower third on the stage at the platform's 9:16 — a tall shape chosen for what is
+      // shown, which counts — so it is set wide here.
+      await cleanSession();
+      await clearNarrowing();
+      await clickResult('Lower Third Bar');
+      await openTab('output');
+      await fire('#opt-aspect', '16:9', 'change');
+      await openTab('parameters');
+      expect((await firstNames()).every((n) => vertical.has(n)), 'not first in a wide session').toBe(false);
+
+      // A new 9:16 project from the start screen's shape tiles.
+      await home();
+      await page.eval(`[...document.querySelectorAll('#start-shapes .start-shape')].find((b) => b.textContent.trim() === '9:16').click()`);
+      await until(
+        () => page.eval<boolean>(`(() => { const d = document.getElementById('unsaved-dialog'); if (d.open) { document.getElementById('unsaved-discard').click(); return false; }
+          return document.getElementById('start-screen').hidden; })()`),
+        'the start screen closed by a new 9:16 project',
+      );
+      await clearNarrowing();
+      await until(async () => (await firstNames()).every((n) => vertical.has(n)), 'every template made for vertical first, under the default order');
+
+      // The browse panel has them in one place, under Quick access.
+      const quickWasFolded = await page.eval<boolean>(`document.querySelector('#browse-tree [data-node="quick"]')?.getAttribute('aria-expanded') === 'false'`);
+      if (quickWasFolded) await page.eval(`document.querySelector('#browse-tree [data-node="quick"]').click()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree [data-node="vertical"]')`), 'the Made for vertical node');
+      expect(await page.eval<string>(`document.querySelector('#browse-tree [data-node="vertical"]')?.textContent ?? ''`)).toContain('Made for vertical');
+      if (quickWasFolded) await page.eval(`document.querySelector('#browse-tree [data-node="quick"]').click()`);
+
+      // One chosen: the stage shows the vertical safe areas without being asked, and the saved preference is untouched.
+      const shown = () => page.eval<boolean>(`!document.getElementById('safe-overlay').hidden && document.getElementById('safe-toggle').getAttribute('aria-pressed') === 'true'`);
+      const savedSafe = async () => (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { player?: { safeAreas?: boolean } }).player?.safeAreas === true;
+      const before = await savedSafe();
+      expect(before, 'the suite runs with the safe areas off').toBe(false);
+      await clickResult('Hook Bold');
+      await until(shown, 'the safe areas on for a template made for vertical');
+      // Turned off by hand, they stay off for the session — another vertical template too — and the preference is not changed.
+      await page.eval(`document.getElementById('safe-toggle').click()`);
+      await until(async () => !(await shown()), 'off by hand');
+      await clickResult('Caption Duo');
+      await until(() => page.eval<boolean>(`(() => { const id = document.getElementById('results').getAttribute('aria-activedescendant'); return document.getElementById(id)?.querySelector('.name')?.textContent === 'Caption Duo'; })()`), 'the next one chosen');
+      expect(await shown(), 'still off: the choice is kept for the session').toBe(false);
+      expect(await savedSafe()).toBe(before);
+      // And back on for the rest of the session's vertical work, still without touching the preference.
+      await page.eval(`document.getElementById('safe-toggle').click()`);
+      await until(shown, 'back on');
+      expect(await savedSafe()).toBe(before);
+      // A wide template: the preference again, which is off.
+      await clickResult('Lower Third Bar');
+      await until(async () => !(await shown()), 'off for a template drawn wide');
+
+      // Clicking a template that draws only 9:16 never reorders the results under it, lean or no lean.
+      await cleanSession();
+      await clearNarrowing();
+      const wide = await resultNames();
+      await clickResult('Hook Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the hook on the stage');
+      expect(await resultNames(), 'the same order after the click').toEqual(wide);
+    }, 180_000);
 
     it('holds its visual references in both themes, first run and returning (milestone 60)', async () => {
       const REFS = join(ROOT, 'tests', 'visual', 'start-screen.json');
@@ -6765,6 +6846,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       // A settled window: no search, the lower third on the stage at a set frame, the results at their top.
       await fire('#search', '', 'input');
       await clickResult('Lower Third Bar');
+      // At the shape it is meant at, whatever an earlier test chose: the reference was once made with
+      // a 9:16 the platform test leaked into every test after it (milestone 65, cleanSession).
+      await fire('#opt-aspect', '16:9', 'change');
       await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
       await scrubTo(90);
       await page.eval(`document.getElementById('results').scrollTop = 0`);

@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Poll Card</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Poll Card, made for vertical for Pulp (milestone 65; docs/vertical-layouts.md). CC0-1.0: no rights reserved.
+  //
+  // The question at the top of a card, two answers under it, each on a bar that fills to its share
+  // from 0.6 s to 1.6 s, the leading one in its own color, the share printed at the bar's end. The
+  // card holds the answers inside it; all of it in the middle of the frame, left of the controls.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  document.fonts.load('800 64px Montserrat');
+  document.fonts.load('900 64px Montserrat');
+  document.fonts.load('600 64px Inter');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function fit(state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  function roundRect(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  /** The extent of a laid block's drawn words: left, top, right and bottom over every layer that has room. */
+  function extentOf(laid) {
+    var e = null;
+    laid.layers.forEach(function (l) {
+      if (l.box.width <= 0 && l.box.height <= 0) return;
+      var left = l.box.x, right = l.box.x + l.box.width;
+      if (l.lines && l.lines.length) {
+        left = Infinity; right = -Infinity;
+        l.lines.forEach(function (ln) { if (ln.width > 0) { left = Math.min(left, ln.x); right = Math.max(right, ln.x + ln.width); } });
+        if (!isFinite(left)) return;
+      }
+      if (!e) e = { left: left, top: l.box.y, right: right, bottom: l.box.y + l.box.height };
+      else { e.left = Math.min(e.left, left); e.top = Math.min(e.top, l.box.y); e.right = Math.max(e.right, right); e.bottom = Math.max(e.bottom, l.box.y + l.box.height); }
+    });
+    return e;
+  }
+  /** One line of text in a bundled family, drawn and measured the same way. */
+  function setFont(weight, size, family) { ctx.font = weight + ' ' + Math.round(size) + 'px ' + family; }
+
+  var OUT_FOR = 0.5;
+  function arrive(t, from, over) { return easeOut(clamp01((t - from) / over)); }
+  function leaving(t, d) { return easeInOut(clamp01((t - (d - OUT_FOR)) / OUT_FOR)); }
+
+  window.pulpRender = function (state) {
+    fit(state);
+    var W = state.width, H = state.height, p = state.params, u = Math.min(W, H), t = state.time;
+    var a = arrive(t, 0, 0.5) * (1 - leaving(t, state.duration));
+    if (a <= 0) return;
+    var block = state.blocks.poll.box;
+    var pad = 0.036 * u, rowH = 0.085 * u, rowGap = 0.022 * u, size = 0.042 * u;
+    var q = window.pulpLayoutBlock(ctx, state, 'poll', { box: { x: block.x + pad, y: block.y + pad, width: block.width - pad * 2, height: block.height } });
+    var e = extentOf(q);
+    var qBottom = e ? e.bottom : block.y + pad;
+    var h = qBottom - block.y + pad * 0.8 + (rowH + rowGap) * 2 + pad * 0.6;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, a * 1.4);
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 0.03 * u;
+    ctx.shadowOffsetY = 0.008 * u;
+    roundRect(block.x, block.y, block.width, h, 0.03 * u);
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = Math.min(1, a * 1.4);
+    window.pulpDrawBlock(ctx, q);
+    var fill = easeOut(clamp01((t - 0.6) / 1.0));
+    var shares = [p.share, 100 - p.share], words = [p.a, p.b];
+    var lead = shares[0] >= shares[1] ? 0 : 1;
+    for (var i = 0; i < 2; i++) {
+      var x = block.x + pad, y = qBottom + pad * 0.8 + i * (rowH + rowGap), w = block.width - pad * 2;
+      roundRect(x, y, w, rowH, rowH / 2);
+      ctx.fillStyle = rgba('#e2e8f0', 1);
+      ctx.fill();
+      var bw = Math.max(rowH, w * shares[i] / 100 * fill);
+      roundRect(x, y, bw, rowH, rowH / 2);
+      ctx.fillStyle = i === lead ? p.bar : p.other;
+      ctx.fill();
+      setFont(700, size, 'Inter');
+      ctx.fillStyle = p.ink;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillText(words[i] || '', x + rowH * 0.4, y + rowH / 2);
+      ctx.textAlign = 'right';
+      setFont(800, size, 'Inter');
+      ctx.fillText(Math.round(shares[i] * fill) + '%', x + w - rowH * 0.4, y + rowH / 2);
+    }
+    ctx.globalAlpha = 1;
+  };
+</script>
+</body>
+</html>

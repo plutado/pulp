@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Frame Stacked</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Frame Stacked, made for vertical for Pulp (milestone 65; docs/vertical-layouts.md). CC0-1.0: no rights reserved.
+  //
+  // Two clips, each covering its half of a tall frame, a line between them and a label pill on each
+  // half's top left — inside the safe box and clear of the controls column down the right. Still
+  // words, so it loops for any length.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  document.fonts.load('800 64px Montserrat');
+  document.fonts.load('900 64px Montserrat');
+  document.fonts.load('600 64px Inter');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function fit(state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  function roundRect(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  /** The extent of a laid block's drawn words: left, top, right and bottom over every layer that has room. */
+  function extentOf(laid) {
+    var e = null;
+    laid.layers.forEach(function (l) {
+      if (l.box.width <= 0 && l.box.height <= 0) return;
+      var left = l.box.x, right = l.box.x + l.box.width;
+      if (l.lines && l.lines.length) {
+        left = Infinity; right = -Infinity;
+        l.lines.forEach(function (ln) { if (ln.width > 0) { left = Math.min(left, ln.x); right = Math.max(right, ln.x + ln.width); } });
+        if (!isFinite(left)) return;
+      }
+      if (!e) e = { left: left, top: l.box.y, right: right, bottom: l.box.y + l.box.height };
+      else { e.left = Math.min(e.left, left); e.top = Math.min(e.top, l.box.y); e.right = Math.max(e.right, right); e.bottom = Math.max(e.bottom, l.box.y + l.box.height); }
+    });
+    return e;
+  }
+  /** One line of text in a bundled family, drawn and measured the same way. */
+  function setFont(weight, size, family) { ctx.font = weight + ' ' + Math.round(size) + 'px ' + family; }
+
+  function label(text, x, y, size, p) {
+    if (!text) return;
+    setFont(800, size, 'Montserrat');
+    var w = ctx.measureText(text.toUpperCase()).width, padX = size * 0.5, h = size * 1.5;
+    roundRect(x, y, w + padX * 2, h, h / 2);
+    ctx.fillStyle = p.line;
+    ctx.fill();
+    ctx.fillStyle = p.lineInk;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(text.toUpperCase(), x + padX, y + h / 2 + size * 0.04);
+  }
+  window.pulpRender = function (state) {
+    fit(state);
+    var W = state.width, H = state.height, p = state.params, u = Math.min(W, H);
+    if (!window.pulpDrawMedia(ctx, state, 'top')) { ctx.fillStyle = p.topColor; ctx.fillRect(0, 0, W, H / 2); }
+    if (!window.pulpDrawMedia(ctx, state, 'bottom')) { ctx.fillStyle = p.bottomColor; ctx.fillRect(0, H / 2, W, H / 2); }
+    var t = Math.max(4, 0.008 * u);
+    ctx.fillStyle = p.line;
+    ctx.fillRect(0, H / 2 - t / 2, W, t);
+    var size = 0.044 * u;
+    label(p.topLabel, 0.1 * W, 0.15 * H, size, p);
+    label(p.bottomLabel, 0.1 * W, 0.52 * H, size, p);
+  };
+</script>
+</body>
+</html>

@@ -40,6 +40,7 @@ import type { CaptionsValue } from '../core/captions';
 import { layerBarsUpdate, mountLayerBars } from './stage-bars';
 import { layerEditor, selectedLayer } from './layer-edit';
 import type { LaidReport } from '../core/stage-place';
+import { madeForVertical } from '../core/vertical-layout';
 import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, STAGE_BACKGROUND_COLORS, steppedFrame, trimmedAway, VERTICAL_ZONES, verticalZonesFor, type PlayerState, type StageBackground } from '../core/player';
 import { frameState } from '../core/runtime';
 import { formatTimecode } from '../core/timecode';
@@ -125,6 +126,8 @@ const BACKGROUND_BUTTONS: Record<Exclude<StageBackground, 'custom'>, HTMLButtonE
 
 const s = {
   manifest: null as TemplateManifest | null,
+  /** A template made for vertical is shown (milestone 65): its safe areas show unless turned off by hand. */
+  vertical: false,
   params: {} as ResolvedParams,
   /** The layer stacks the person built, or none: the template's own then (src/core/layers.ts). */
   layers: {} as LayerValues,
@@ -194,8 +197,7 @@ function applyPlayer(): void {
   const solid = p.background === 'checker' ? '' : p.background === 'custom' ? p.customBackground : STAGE_BACKGROUND_COLORS[p.background];
   els.previewFrame.style.backgroundColor = solid;
   els.audition.setAttribute('aria-pressed', String(p.audition));
-  els.safeToggle.setAttribute('aria-pressed', String(p.safeAreas));
-  els.safeOverlay.hidden = !p.safeAreas;
+  applySafeAreas();
   for (const area of SAFE_AREAS) {
     const el = area.id === 'action' ? els.safeAction : els.safeTitle;
     el.style.inset = `${area.inset * 100}%`;
@@ -771,6 +773,8 @@ export function stageShowTemplate(
   stageLayersUpdate(null);
   const m = entry.manifest;
   s.manifest = m;
+  s.vertical = madeForVertical(m);
+  applySafeAreas();
   s.params = params;
   s.layers = layers;
   s.track = track;
@@ -808,6 +812,8 @@ export function stageShowTemplate(
 
 /** Show a media item, served by id through pulp-media://. */
 export function stageShowMedia(entry: MediaEntry): void {
+  s.vertical = false;
+  applySafeAreas();
   // A media item is its own picture: the cut track belongs to a project, and its canvas goes.
   trackPictureSync(null, 0);
   // So do the captions, for the same reason: they are the project's, not this file's.
@@ -882,6 +888,8 @@ export function stageShowMedia(entry: MediaEntry): void {
 /** Empty stage: nothing selected. */
 export function stageClear(): void {
   s.manifest = null;
+  s.vertical = false;
+  applySafeAreas();
   s.captions = null;
   captionsPreviewSync(null);
   s.psd = null;
@@ -919,6 +927,41 @@ function setPreviewShape(width: number, height: number): void {
 function applyPreviewShape(): void {
   const size = previewSize();
   setPreviewShape(size.width, size.height);
+}
+
+/**
+ * The safe areas are the player's preference — and, while a template made for vertical is shown,
+ * on by default (milestone 65): the zones it is designed around are the point of it. Turned off by
+ * hand while one is shown, they stay off for the session; the saved preference is not changed.
+ */
+let verticalSafeDismissed = false;
+
+function safeAreasShown(): boolean {
+  return s.player.safeAreas || (s.vertical && !verticalSafeDismissed);
+}
+
+/**
+ * The toggle, as the person sees it: off turns them off — the session's default for vertical
+ * included — and on turns them on. Over a template made for vertical, on is the default coming
+ * back rather than a change to the saved preference.
+ */
+function toggleSafeAreas(): void {
+  if (safeAreasShown()) {
+    if (s.vertical) verticalSafeDismissed = true;
+    if (s.player.safeAreas) setPlayer({ safeAreas: false });
+    else applySafeAreas();
+  } else if (s.vertical) {
+    verticalSafeDismissed = false;
+    applySafeAreas();
+  } else {
+    setPlayer({ safeAreas: true });
+  }
+}
+
+function applySafeAreas(): void {
+  const on = safeAreasShown();
+  els.safeToggle.setAttribute('aria-pressed', String(on));
+  els.safeOverlay.hidden = !on;
 }
 
 /**
@@ -1239,7 +1282,7 @@ export function initStage(): void {
   }
   els.bgCustom.addEventListener('input', () => setPlayer({ background: 'custom', customBackground: els.bgCustom.value }));
   mountBackgroundPicker(els.bgButton, els.bgPicker);
-  els.safeToggle.addEventListener('click', () => setPlayer({ safeAreas: !s.player.safeAreas }));
+  els.safeToggle.addEventListener('click', () => toggleSafeAreas());
   mountCaptionsPreview(els.captions);
   // The Settings window (milestone 8) sets audition through the same path the stage's own button does.
   registerPlayerSetter(setPlayer);

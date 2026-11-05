@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Follow Prompt</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Follow Prompt, made for vertical for Pulp (milestone 65; docs/vertical-layouts.md). CC0-1.0: no rights reserved.
+  //
+  // A dark pill sized to its words, centered a little above the caption band: an avatar on the left,
+  // the prompt and the handle, a round button on the right whose plus turns to a tick at 0.9 s.
+  // It pops in once and then holds — no pulse, which would not survive a stretched hold.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  document.fonts.load('800 64px Montserrat');
+  document.fonts.load('900 64px Montserrat');
+  document.fonts.load('600 64px Inter');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function fit(state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  function roundRect(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  /** The extent of a laid block's drawn words: left, top, right and bottom over every layer that has room. */
+  function extentOf(laid) {
+    var e = null;
+    laid.layers.forEach(function (l) {
+      if (l.box.width <= 0 && l.box.height <= 0) return;
+      var left = l.box.x, right = l.box.x + l.box.width;
+      if (l.lines && l.lines.length) {
+        left = Infinity; right = -Infinity;
+        l.lines.forEach(function (ln) { if (ln.width > 0) { left = Math.min(left, ln.x); right = Math.max(right, ln.x + ln.width); } });
+        if (!isFinite(left)) return;
+      }
+      if (!e) e = { left: left, top: l.box.y, right: right, bottom: l.box.y + l.box.height };
+      else { e.left = Math.min(e.left, left); e.top = Math.min(e.top, l.box.y); e.right = Math.max(e.right, right); e.bottom = Math.max(e.bottom, l.box.y + l.box.height); }
+    });
+    return e;
+  }
+  /** One line of text in a bundled family, drawn and measured the same way. */
+  function setFont(weight, size, family) { ctx.font = weight + ' ' + Math.round(size) + 'px ' + family; }
+
+  var OUT_FOR = 0.5;
+  function arrive(t, from, over) { return easeOut(clamp01((t - from) / over)); }
+  function leaving(t, d) { return easeInOut(clamp01((t - (d - OUT_FOR)) / OUT_FOR)); }
+
+  window.pulpRender = function (state) {
+    fit(state);
+    var W = state.width, H = state.height, p = state.params, u = Math.min(W, H), t = state.time;
+    var pop = arrive(t, 0, 0.45);
+    var a = Math.min(1, pop * 1.6) * (1 - leaving(t, state.duration));
+    if (a <= 0) return;
+    var size = 0.05 * u, small = 0.04 * u, av = 0.11 * u, btn = 0.085 * u, pad = 0.026 * u;
+    setFont(800, size, 'Montserrat');
+    var lw = ctx.measureText(p.line || '').width;
+    setFont(600, small, 'Inter');
+    var hw = ctx.measureText(p.handle || '').width;
+    // The pill never grows past the clear width beside the controls column (10% to 82%): a longer
+    // prompt is set smaller instead.
+    var room = 0.72 * W - (pad + av + pad * 1.2 + pad * 1.2 + btn + pad);
+    var shrink = Math.min(1, room / Math.max(1, lw, hw));
+    size *= shrink; small *= shrink; lw *= shrink; hw *= shrink;
+    var w = pad + av + pad * 1.2 + Math.max(lw, hw) + pad * 1.2 + btn + pad, h = av + pad * 2;
+    // Centered in the clear width beside the controls column: 10% to 82%.
+    var cx = 0.46 * W, x = cx - w / 2, y = 0.75 * H - h;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(cx, y + h / 2);
+    ctx.scale(0.85 + 0.15 * pop, 0.85 + 0.15 * pop);
+    ctx.translate(-cx, -(y + h / 2));
+    roundRect(x, y, w, h, h / 2);
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + pad + av / 2, y + h / 2, av / 2, 0, Math.PI * 2);
+    ctx.fillStyle = p.avatar;
+    ctx.fill();
+    var tx = x + pad + av + pad * 1.2;
+    ctx.fillStyle = p.ink;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    setFont(800, size, 'Montserrat');
+    ctx.fillText(p.line || '', tx, y + h / 2 - size * 0.05);
+    setFont(600, small, 'Inter');
+    ctx.globalAlpha = a * 0.75;
+    ctx.fillText(p.handle || '', tx, y + h / 2 + small * 1.05);
+    ctx.globalAlpha = a;
+    var bx = x + w - pad - btn / 2, by = y + h / 2;
+    ctx.beginPath();
+    ctx.arc(bx, by, btn / 2, 0, Math.PI * 2);
+    ctx.fillStyle = p.accent;
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(3, btn * 0.1);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    var k = btn * 0.22;
+    if (t < 0.9) { ctx.moveTo(bx - k, by); ctx.lineTo(bx + k, by); ctx.moveTo(bx, by - k); ctx.lineTo(bx, by + k); }
+    else { ctx.moveTo(bx - k, by); ctx.lineTo(bx - k * 0.25, by + k * 0.75); ctx.lineTo(bx + k, by - k * 0.7); }
+    ctx.stroke();
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

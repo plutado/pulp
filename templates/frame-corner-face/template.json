@@ -1,0 +1,110 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.frame-corner-face",
+  "name": "Frame Corner Face",
+  "description": "A full-frame clip with a face in the top-left corner: the face is a video layer, so it sits on the picture track and can be moved, sized, cropped and timed on the stage. Its name sits under it.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "frame",
+  "tags": [
+    "made-for-vertical",
+    "short-form",
+    "layout",
+    "footage",
+    "reaction",
+    "picture-in-picture"
+  ],
+  "themes": [
+    "social-media",
+    "gaming",
+    "podcast"
+  ],
+  "styles": [
+    "clean"
+  ],
+  "duration": 6,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": false,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "corner",
+      "label": "Corner",
+      "open": false,
+      "box": {
+        "default": {
+          "x": 0.1,
+          "y": 0.145,
+          "width": 0.42,
+          "height": 0.25
+        }
+      },
+      "align": "left",
+      "verticalAlign": "top",
+      "layers": [
+        {
+          "id": "face",
+          "type": "video",
+          "label": "Face",
+          "size": 0.3,
+          "align": "left",
+          "look": {
+            "corners": 0.03,
+            "outlineColor": "#ffffff",
+            "outlineWidth": 0.006,
+            "shadowColor": "#00000080",
+            "shadowDistance": 0.006,
+            "shadowSoftness": 0.02
+          }
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "scene",
+      "type": "media",
+      "label": "Clip",
+      "element": "Clip",
+      "description": "Fills the frame behind the face; cropped to it.",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "fit": "cover",
+      "align": "center"
+    },
+    {
+      "id": "sceneColor",
+      "type": "color",
+      "label": "Color without a clip",
+      "default": "#1f2937",
+      "element": "Clip"
+    },
+    {
+      "id": "name",
+      "type": "text",
+      "label": "Name",
+      "default": "Alex Rivera",
+      "maxLength": 32,
+      "element": "Face"
+    },
+    {
+      "id": "ring",
+      "type": "color",
+      "label": "Frame around the face",
+      "default": "#ffffff",
+      "element": "Face"
+    }
+  ]
+}

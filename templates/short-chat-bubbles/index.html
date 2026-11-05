@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Chat Bubbles</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Chat Bubbles, made for vertical for Pulp (milestone 65; docs/vertical-layouts.md). CC0-1.0: no rights reserved.
+  //
+  // Each line of the block is a bubble: theirs on the left, mine on the right, alternating from the
+  // side the first one is on. The block is laid out twice, left- and right-aligned, and each bubble
+  // takes its line from the layout on its side; the stack is the same in both. A bubble pops in from
+  // its own corner 0.55 s after the one above, up to four of them, so the hold from 2.6 s holds with
+  // a line added. The words stay inside 12-78% of the width: clear of the controls column.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  document.fonts.load('800 64px Montserrat');
+  document.fonts.load('900 64px Montserrat');
+  document.fonts.load('600 64px Inter');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+  function fit(state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  function roundRect(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  /** The extent of a laid block's drawn words: left, top, right and bottom over every layer that has room. */
+  function extentOf(laid) {
+    var e = null;
+    laid.layers.forEach(function (l) {
+      if (l.box.width <= 0 && l.box.height <= 0) return;
+      var left = l.box.x, right = l.box.x + l.box.width;
+      if (l.lines && l.lines.length) {
+        left = Infinity; right = -Infinity;
+        l.lines.forEach(function (ln) { if (ln.width > 0) { left = Math.min(left, ln.x); right = Math.max(right, ln.x + ln.width); } });
+        if (!isFinite(left)) return;
+      }
+      if (!e) e = { left: left, top: l.box.y, right: right, bottom: l.box.y + l.box.height };
+      else { e.left = Math.min(e.left, left); e.top = Math.min(e.top, l.box.y); e.right = Math.max(e.right, right); e.bottom = Math.max(e.bottom, l.box.y + l.box.height); }
+    });
+    return e;
+  }
+  /** One line of text in a bundled family, drawn and measured the same way. */
+  function setFont(weight, size, family) { ctx.font = weight + ' ' + Math.round(size) + 'px ' + family; }
+
+  var OUT_FOR = 0.5;
+  function arrive(t, from, over) { return easeOut(clamp01((t - from) / over)); }
+  function leaving(t, d) { return easeInOut(clamp01((t - (d - OUT_FOR)) / OUT_FOR)); }
+
+  window.pulpRender = function (state) {
+    fit(state);
+    var W = state.width, H = state.height, p = state.params, u = Math.min(W, H), t = state.time;
+    var gone = leaving(t, state.duration);
+    if (gone >= 1) return;
+    var left = window.pulpLayoutBlock(ctx, state, 'chat', { align: 'left' });
+    var right = window.pulpLayoutBlock(ctx, state, 'chat', { align: 'right' });
+    var padX = 0.03 * u, padY = 0.02 * u, radius = 0.034 * u;
+    for (var i = 0; i < left.layers.length; i++) {
+      var mine = (i % 2 === 0) === (p.firstSide === 'me');
+      var layer = (mine ? right : left).layers[i];
+      if (!layer.lines || layer.lines.length === 0) continue;
+      var e = extentOf({ layers: [layer] });
+      var pop = arrive(t, Math.min(i, 3) * 0.55, 0.35);
+      var a = Math.min(1, pop * 1.6) * (1 - gone);
+      if (a <= 0) continue;
+      var bx = e.left - padX, by = e.top - padY, bw = e.right - e.left + padX * 2, bh = e.bottom - e.top + padY * 2;
+      // From its own lower corner: the side it speaks from.
+      var ox = mine ? bx + bw : bx, oy = by + bh, s = 0.7 + 0.3 * pop;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.translate(ox, oy);
+      ctx.scale(s, s);
+      ctx.translate(-ox, -oy);
+      roundRect(bx, by, bw, bh, radius);
+      ctx.fillStyle = mine ? p.me : p.them;
+      ctx.fill();
+      layer.color = mine ? p.meInk : p.themInk;
+      window.pulpDrawBlock(ctx, { id: 'chat', box: left.box, layers: [layer] });
+      ctx.restore();
+    }
+  };
+</script>
+</body>
+</html>
