@@ -25,6 +25,7 @@ import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './proj
 import { initMenu, registerBlankCanvasOpener, registerSavedTemplateOpener } from './menu';
 import { initAppearance } from './appearance';
 import { initRecorder, registerRecordingOpener } from './recorder';
+import { initCameraRecorder } from './camera-recorder';
 import { registerExposer } from './stage-menu';
 import { BLANK_CANVAS_ID } from '../core/menu';
 import { initContextMenu } from './context-menu';
@@ -470,7 +471,8 @@ window.pulp.onOpenFile((path) => void openFromSystem(path));
 // Pulp's own application menu (milestone 27): it does what the window's own buttons do.
 initAppearance();
 initRecorder();
-// A take the microphone just saved (milestone 63): selected once the rescan lands, retried briefly
+initCameraRecorder();
+// A take the microphone or the camera just saved (milestones 63 and 64): selected once the rescan lands, retried briefly
 // since the index arrives as a broadcast after the save answers — as a saved canvas template is.
 registerRecordingOpener((id) => {
   const started = Date.now();

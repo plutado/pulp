@@ -42,8 +42,11 @@ export type { PsdOutline } from '../core/psd';
 export type PsdOutlineResult = { ok: true; outline: PsdOutline } | { ok: false; message: string };
 import type { RecentProjectRow } from '../core/start-screen';
 
-/** Whether the microphone may be used (milestone 63): yes, or why not and whether settings can open. */
-export type MicrophoneAccess = { ok: true } | { ok: false; message: string; canOpenSettings: boolean };
+/** The two devices Pulp records from: the microphone (milestone 63) and the camera (milestone 64). */
+export type MediaDevice = 'microphone' | 'camera';
+
+/** Whether a device may be used: yes, or which one was refused, why, and whether its settings can open. */
+export type DeviceAccess = { ok: true } | { ok: false; device: MediaDevice; message: string; canOpenSettings: boolean };
 
 /** A saved take: where it landed, and the library's id for it once the rescan found it. */
 export interface SavedRecording {
@@ -53,6 +56,25 @@ export interface SavedRecording {
 
 /** The microphone chosen for recording; null follows the system's default. */
 export type RecordingInput = { id: string; label: string } | null;
+
+/** What the camera's preview remembers (milestone 64); src/core/video-take.ts. */
+export type { VideoInputs } from '../core/video-take';
+import type { VideoInputs } from '../core/video-take';
+
+/** What the window knows of a take that the file alone does not say: the camera's size and rate, and whether sound was on. */
+export interface VideoTakeFacts {
+  width: number;
+  height: number;
+  /** The rate the camera reports it was opened at; the file is written at the steady rate nearest it. */
+  frameRate: number | undefined;
+  sound: boolean;
+}
+
+/** A camera's take in the library: an MP4 when it could be converted, the recorder's WebM — and why — when not. */
+export interface SavedVideoTake extends SavedRecording {
+  converted: boolean;
+  note: string | null;
+}
 
 /** The appearance chosen in Settings or the View menu, and the palette it comes to (milestone 62). */
 export interface AppearanceState {
@@ -387,11 +409,23 @@ export interface PulpApi {
    * into the managed Recordings folder, open the system's microphone page after a refusal, and the
    * remembered input.
    */
-  microphoneAccess(): Promise<MicrophoneAccess>;
+  microphoneAccess(): Promise<DeviceAccess>;
   saveRecording(wav: ArrayBuffer): Promise<SavedRecording>;
-  openMicrophoneSettings(): Promise<void>;
+  openPrivacySettings(device: MediaDevice): Promise<void>;
   getRecordingInput(): Promise<RecordingInput>;
   setRecordingInput(input: RecordingInput): Promise<void>;
+  /**
+   * Recording from a camera (milestone 64): may the camera — and, with sound, the microphone — be
+   * used; a take begun, sent a piece at a time, then finished (converted and into the library) or
+   * abandoned; and the preview's remembered camera, microphone and sound.
+   */
+  cameraAccess(sound: boolean): Promise<DeviceAccess>;
+  beginVideoTake(): Promise<string>;
+  appendVideoTake(id: string, piece: ArrayBuffer): Promise<void>;
+  finishVideoTake(id: string, facts: VideoTakeFacts): Promise<SavedVideoTake>;
+  abandonVideoTake(id: string): Promise<void>;
+  getVideoInputs(): Promise<VideoInputs>;
+  setVideoInputs(inputs: VideoInputs): Promise<void>;
   panelCollectionChanged(collection: Collection, name: string): Promise<void>;
   /**
    * Save the canvas as a template folder (milestone 55): the window sends what

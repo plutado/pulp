@@ -28,6 +28,7 @@
             <button id="record-audio" type="button" class="icon-button" data-icon="microphone" data-icon-size="20" aria-pressed="false" aria-label="Record a voice" data-tip="Record a voice from the microphone; click again or press Escape to stop"><span class="label">Record</span></button>
             <button id="record-input" type="button" class="icon-button record-input" data-icon="caret-down" data-icon-size="12" aria-haspopup="menu" aria-label="Choose the microphone" data-tip="Which microphone records"></button>
           </span>
+          <button id="record-video" type="button" class="icon-button" data-icon="video-camera" data-icon-size="20" aria-haspopup="dialog" aria-label="Record from a camera" data-tip="Record from a camera: opens a live preview, with its sound"><span class="label">Camera</span></button>
         </div>
       </div>
       <section id="region-search" class="panel-section search-section" aria-label="Search">
@@ -709,6 +710,31 @@
         <span class="dialog-spacer"></span>
         <button id="captions-run" type="button" disabled>Transcribe</button>
         <button id="captions-close" value="cancel">Close</button>
+      </div>
+    </form>
+  </dialog>
+  <!-- Recording from a camera (milestone 64): the live preview, the camera and the sound it records
+       from, and Record. The preview is mirrored for a camera facing the person; the file never is. -->
+  <dialog id="camera-dialog" class="pack-dialog camera-dialog" aria-labelledby="camera-title">
+    <form method="dialog">
+      <h2 id="camera-title">Record from a camera</h2>
+      <div class="camera-well">
+        <video id="camera-preview" muted playsinline aria-label="The camera's live picture"></video>
+        <span id="camera-live" class="camera-live" hidden><span class="rec-dot" aria-hidden="true"></span><span id="camera-time" class="rec-time">0:00</span></span>
+      </div>
+      <p id="camera-denied" class="note camera-denied" role="alert" hidden>
+        <span id="camera-denied-note"></span>
+        <button id="camera-open-settings" type="button" hidden>Open Settings</button>
+      </p>
+      <div class="key-controls">
+        <label>Camera <select id="camera-source"></select></label>
+        <label>Sound <select id="camera-sound"></select></label>
+      </div>
+      <div class="dialog-actions render-actions">
+        <span id="camera-status" class="note" role="status"></span>
+        <span class="dialog-spacer"></span>
+        <button id="camera-record" type="button" class="primary" aria-pressed="false" disabled>Record</button>
+        <button id="camera-close" value="cancel">Close</button>
       </div>
     </form>
   </dialog>

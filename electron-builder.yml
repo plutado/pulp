@@ -122,7 +122,10 @@ mac:
     NSDownloadsFolderUsageDescription: Pulp reads the template and media folders you add to its library.
     # Recording a voice (milestone 63): what Pulp records, and why — this is the sentence the
     # system's own microphone prompt shows the first time the Record button is pressed.
-    NSMicrophoneUsageDescription: Pulp records from the microphone only while its Record button is pressed, and saves the take into your library on this computer.
+    NSMicrophoneUsageDescription: Pulp records from the microphone only while you are recording a voice or a video, and saves the take into your library on this computer.
+    # Recording from a camera (milestone 64): the sentence the camera prompt shows the first time
+    # the camera button is pressed. The microphone's is asked after it when the take has sound.
+    NSCameraUsageDescription: Pulp uses the camera only while its camera preview is open, and saves what you record into your library on this computer.
 
 dmg:
   # The window a .dmg opens: the app, and the Applications folder to drag it into.

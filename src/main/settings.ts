@@ -12,6 +12,7 @@ import { sanitizeRecentSearches } from '../core/recent-searches';
 import { DEFAULT_CACHE_MAX_MB, sanitizeCacheMaxMB } from '../core/render-cache';
 import { sanitizeTypeOutputDefaults, type TypeOutputDefault } from '../core/output-defaults';
 import { DEFAULT_APPEARANCE, sanitizeAppearance, type Appearance } from '../core/appearance';
+import { sanitizeVideoInputs, type VideoInputs } from '../core/video-take';
 
 export interface Settings {
   /** User-chosen library folders, in the order they were added. */
@@ -60,6 +61,8 @@ export interface Settings {
   appearance: Appearance;
   /** The microphone chosen for recording (milestone 63); absent means the system's default. */
   recordingInput?: { id: string; label: string };
+  /** The camera preview's camera, microphone and sound (milestone 64); absent is the defaults, sound on. */
+  videoInputs?: VideoInputs;
 }
 
 const DEFAULTS: Settings = {
@@ -139,6 +142,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     ...(raw.recordingInput && typeof raw.recordingInput === 'object' && typeof raw.recordingInput.id === 'string' && typeof raw.recordingInput.label === 'string'
       ? { recordingInput: { id: raw.recordingInput.id, label: raw.recordingInput.label } }
       : {}),
+    ...(raw.videoInputs ? { videoInputs: sanitizeVideoInputs(raw.videoInputs) } : {}),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
     ...(typeof raw.sampleMediaRoot === 'string' && raw.sampleMediaRoot.trim() ? { sampleMediaRoot: raw.sampleMediaRoot } : {}),
   };

@@ -53,6 +53,22 @@ export function registerRecordingOpener(fn: (id: string) => void): void {
   opener = fn;
 }
 
+/** A saved take shown the same way, whichever recorder made it (the camera's too, milestone 64). */
+export function showSavedTake(id: string): void {
+  opener(id);
+}
+
+/**
+ * Why a voice cannot be recorded right now, or null: the camera's preview registers its own, so a
+ * voice take and a camera take never hold the microphone at once — File → Record Audio still
+ * answers with the preview up, where the button is behind it.
+ */
+let blocker: () => string | null = () => null;
+
+export function registerVoiceBlocker(fn: () => string | null): void {
+  blocker = fn;
+}
+
 function paint(): void {
   const recording = take !== null;
   $('record-audio').setAttribute('aria-pressed', String(recording));
@@ -83,6 +99,11 @@ function onEscape(e: KeyboardEvent): void {
 }
 
 async function startRecording(): Promise<void> {
+  const blocked = blocker();
+  if (blocked) {
+    sayInTray(blocked);
+    return;
+  }
   dismissRefusal();
   const access = await window.pulp.microphoneAccess();
   if (!access.ok) {
@@ -201,6 +222,6 @@ export function initRecorder(): void {
   $('record-audio').addEventListener('click', toggleRecording);
   $('rec-stop').addEventListener('click', () => void stopRecording());
   $('record-input').addEventListener('click', () => void openInputMenu());
-  $('rec-open-settings').addEventListener('click', () => void window.pulp.openMicrophoneSettings());
+  $('rec-open-settings').addEventListener('click', () => void window.pulp.openPrivacySettings('microphone'));
   $('rec-dismiss').addEventListener('click', dismissRefusal);
 }

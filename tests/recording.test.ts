@@ -4,12 +4,12 @@
  * folder — including a second take within the same second.
  */
 
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
-  encodeWav, RECORDING_SAMPLE_RATE, RECORDINGS_FOLDER_NAME, recordingFileName, wavDurationSeconds, writeRecordingFile,
+  encodeWav, freeRecordingPath, RECORDING_SAMPLE_RATE, RECORDINGS_FOLDER_NAME, recordingFileName, wavDurationSeconds, writeRecordingFile,
 } from '../src/core/recording';
 import { mediaKindForPath } from '../src/core/library-scan';
 
@@ -24,6 +24,12 @@ describe('naming a take', () => {
     const early = recordingFileName(new Date(2026, 0, 2, 3, 4, 5));
     expect(early).toBe('Recording 2026-01-02 03-04-05.wav');
     expect(early).not.toMatch(/[:<>"/\\|?*]/);
+  });
+
+  it("names a camera's take the same way with its own extension, so a session's takes sort together (milestone 64)", () => {
+    expect(recordingFileName(at, 'mp4')).toBe('Recording 2026-11-04 14-30-05.mp4');
+    expect(mediaKindForPath(recordingFileName(at, 'mp4'))).toBe('video');
+    expect(mediaKindForPath(recordingFileName(at, 'webm')), 'the unconverted take too').toBe('video');
   });
 
   it('is a file the library scans as audio, in the folder the service manages', () => {
@@ -88,5 +94,16 @@ describe('writing a take into the folder', () => {
     const third = await writeRecordingFile(folder, wav, at);
     expect(basename(third)).toBe('Recording 2026-11-04 14-30-05 (3).wav');
     expect((await readdir(folder)).sort()).toHaveLength(3);
+  });
+
+  it("finds a free name for any extension, a voice and a camera's take in the same second keeping theirs (milestone 64)", async () => {
+    const base = await mkdtemp(join(tmpdir(), 'pulp-rec-'));
+    dirs.push(base);
+    expect(basename(freeRecordingPath(base, at, 'mp4'))).toBe('Recording 2026-11-04 14-30-05.mp4');
+    await writeRecordingFile(base, encodeWav(new Float32Array(8), 8000), at);
+    // The voice's .wav does not take the video's name; a second video does.
+    expect(basename(freeRecordingPath(base, at, 'mp4'))).toBe('Recording 2026-11-04 14-30-05.mp4');
+    await writeFile(freeRecordingPath(base, at, 'mp4'), 'x');
+    expect(basename(freeRecordingPath(base, at, 'mp4'))).toBe('Recording 2026-11-04 14-30-05 (2).mp4');
   });
 });

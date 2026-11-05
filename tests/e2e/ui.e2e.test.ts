@@ -21,6 +21,7 @@ import { solid, writePsd } from '../psd-fixture';
 import { writePdf } from '../pdf-fixture';
 import { encodePng } from '../../src/core/png';
 import { detectFfmpeg } from '../../src/core/ffmpeg';
+import { ffprobePathFor } from '../../src/core/media-probe';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
@@ -503,9 +504,9 @@ describe.skipIf(!electron)('inspector UI', () => {
     app = spawn(electron!, ['.', `--remote-debugging-port=${port}`], {
       cwd: ROOT,
       stdio: ['ignore', logFd, logFd],
-      // The fake microphone (milestone 63): a steady tone from Chromium itself, so recording needs
-      // no device and no permission prompt on any runner.
-      env: { ...process.env, PULP_USER_DATA: userData, PULP_FAKE_MIC: '1' },
+      // The fake devices: a microphone's steady tone (milestone 63) and a camera's moving test card
+      // (milestone 64), from Chromium itself, so recording needs no device and no prompt on any runner.
+      env: { ...process.env, PULP_USER_DATA: userData, PULP_FAKE_MEDIA: '1' },
     });
     closeSync(logFd);
     let target: Target | undefined;
@@ -5318,10 +5319,10 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 90_000);
 
     it('brings things in through one Add menu that names them, and sends them out from the results (milestone 47)', async () => {
-      // The browse panel's header is Add, Rescan and Record (milestone 63): the four add/import/export
-      // buttons are gone, and the microphone — a live act, not a chooser — stands beside Add.
+      // The browse panel's header is Add, Rescan, Record (milestone 63) and the camera (milestone 64): the
+      // four add/import/export buttons are gone, and the live acts — not choosers — stand beside Add.
       const toolbar = await page.eval<string[]>(`[...document.querySelectorAll('.sidebar-actions button')].map((b) => b.id)`);
-      expect(toolbar).toEqual(['library-add', 'rescan', 'record-audio', 'record-input']);
+      expect(toolbar).toEqual(['library-add', 'rescan', 'record-audio', 'record-input', 'record-video']);
       // Export is not among them; it acts on the templates the results list, so it is in their heading.
       expect(await page.eval<boolean>(`!!document.querySelector('#region-results .results-head #export-pack')`), 'Export in the results heading').toBe(true);
 
@@ -6899,6 +6900,136 @@ describe.skipIf(!electron)('inspector UI', () => {
       // Put the chosen input back to the default for whatever runs after.
       await page.eval(`window.pulp.setRecordingInput(null)`);
     }, 90_000);
+  });
+
+  describe('recording from a camera (milestone 64)', () => {
+    const recordingsDir = () => join(userData, 'Recordings');
+    const takes = async () => (existsSync(recordingsDir()) ? (await readdir(recordingsDir())).filter((f) => /\.(mp4|webm)$/.test(f)).sort() : []);
+    const previewOpen = () => page.eval<boolean>(`document.getElementById('camera-dialog').open`);
+    const recordingVideo = () => page.eval<boolean>(`document.getElementById('camera-record').getAttribute('aria-pressed') === 'true'`);
+    const cameraLive = () => page.eval<boolean>(`(() => { const v = document.getElementById('camera-preview'); return !document.getElementById('camera-record').disabled && v.videoWidth > 0; })()`);
+    const clock = () => page.eval<string>(`document.getElementById('camera-time').textContent`);
+    const fileItems = async () => {
+      const sections = await page.eval<{ label: string; items: { label?: string }[] }[]>(`window.pulp.menuSections()`);
+      return sections.find((sec) => sec.label === 'File')!.items.map((i) => i.label);
+    };
+    /** What ffprobe reads of a take: its streams and its length. */
+    const probeTake = async (file: string) => {
+      const ffmpeg = await detectFfmpeg();
+      expect(ffmpeg.ok).toBe(true);
+      if (!ffmpeg.ok) throw new Error('no ffmpeg');
+      const result = await runBounded(ffprobePathFor(ffmpeg.path), ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', join(recordingsDir(), file)], { timeoutMs: 60_000 });
+      return JSON.parse(result.stdout) as { streams: { codec_type: string; codec_name: string; width?: number; height?: number; avg_frame_rate?: string; r_frame_rate?: string }[]; format: { duration: string } };
+    };
+    /** A real Escape, from the input pipeline: a dialog's cancel is not fired by a synthetic event. */
+    const pressEscape = async () => {
+      for (const type of ['keyDown', 'keyUp'] as const) await page.send('Input.dispatchKeyEvent', { type, key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    };
+
+    it('records from the camera button: a mirrored live preview, Record and Stop, and a playable clip at the camera size and rate in the library', async () => {
+      await fire('#search', '', 'input');
+      const before = await takes();
+      await page.eval(`document.getElementById('record-video').click()`);
+      await until(previewOpen, 'the preview open');
+      await until(cameraLive, "the fake camera's picture in the preview", 30_000);
+      // A computer's camera faces the person, so the preview is a mirror; the file is not (checked below by the picture's size alone,
+      // since the recorder takes the camera's track — the mirror is the preview's styling).
+      expect(await page.eval<string>(`getComputedStyle(document.getElementById('camera-preview')).transform`), 'mirrored').toMatch(/^matrix\(-1, 0, 0, 1, 0, 0\)$/);
+      // The menus: the cameras, default first; the sound, No sound first, then the default microphone.
+      const cameras = await page.eval<string[]>(`[...document.getElementById('camera-source').options].map((o) => o.textContent)`);
+      expect(cameras[0]).toBe('System default');
+      expect(cameras.length, 'the fake camera listed').toBeGreaterThanOrEqual(2);
+      const sounds = await page.eval<string[]>(`[...document.getElementById('camera-sound').options].map((o) => o.textContent)`);
+      expect(sounds.slice(0, 2)).toEqual(['No sound', 'System default microphone']);
+      expect(await page.eval<string>(`document.getElementById('camera-sound').value`), 'sound on by default').toBe('');
+      // What the camera opened at — its own size and rate — is what the file must hold.
+      const camera = await page.eval<{ width: number; height: number; frameRate: number }>(`(() => { const s = document.getElementById('camera-preview').srcObject.getVideoTracks()[0].getSettings(); return { width: s.width, height: s.height, frameRate: s.frameRate }; })()`);
+      expect(await page.eval<string>(`document.getElementById('camera-status').textContent`)).toContain(`${camera.width} × ${camera.height}`);
+
+      await page.eval(`document.getElementById('camera-record').click()`);
+      await until(recordingVideo, 'recording');
+      expect(await page.eval<string>(`document.getElementById('camera-record').textContent`)).toBe('Stop');
+      expect(await page.eval<boolean>(`!document.getElementById('camera-live').hidden`), 'the clock over the picture').toBe(true);
+      expect(await page.eval<boolean>(`document.getElementById('camera-source').disabled && document.getElementById('camera-sound').disabled`), 'the menus held while recording').toBe(true);
+      await until(async () => (await fileItems()).includes('Stop Recording'), 'File reading Stop Recording');
+      await until(async () => (await clock()) >= '0:02', 'two seconds on the clock', 30_000);
+
+      await page.eval(`document.getElementById('camera-record').click()`);
+      await until(async () => !(await previewOpen()), 'the preview closed when the take ended');
+      // The camera off at once, not when the save finishes: its light is the person's to trust.
+      expect(await page.eval<boolean>(`document.getElementById('camera-preview').srcObject === null`)).toBe(true);
+      await until(async () => (await takes()).length === before.length + 1, 'the take converted into Recordings', 90_000);
+      const [file] = (await takes()).filter((f) => !before.includes(f));
+      expect(file, 'an MP4, converted from the recorder\'s WebM').toMatch(/^Recording \d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}( \(\d+\))?\.mp4$/);
+      expect(existsSync(join(userData, 'Recordings in progress')) ? await readdir(join(userData, 'Recordings in progress')) : [], 'nothing left staged').toEqual([]);
+      expect(await fileItems(), 'the item reads Record Video again').toContain('Record Video');
+
+      // Playable, at the camera's own size and a steady rate at its own, with its sound, for the length recorded.
+      const info = await probeTake(file!);
+      const video = info.streams.find((st) => st.codec_type === 'video')!;
+      expect(video.codec_name).toBe('h264');
+      expect([video.width, video.height]).toEqual([camera.width - (camera.width % 2), camera.height - (camera.height % 2)]);
+      expect(video.avg_frame_rate, 'a constant rate: its average is its rate').toBe(video.r_frame_rate);
+      const [num, den] = video.avg_frame_rate!.split('/').map(Number);
+      expect(Math.abs(num! / den! - camera.frameRate) / camera.frameRate, `${video.avg_frame_rate} against the camera's ${camera.frameRate}`).toBeLessThanOrEqual(0.02);
+      expect(info.streams.find((st) => st.codec_type === 'audio')?.codec_name, 'its sound, as AAC').toBe('aac');
+      expect(Number(info.format.duration)).toBeGreaterThanOrEqual(1.8);
+      expect(Number(info.format.duration)).toBeLessThanOrEqual(15);
+
+      // Into the library like any clip: chosen in the results, with a poster and a hover strip.
+      const activeId = () => page.eval<string>(`(() => { const id = document.getElementById('results').getAttribute('aria-activedescendant'); return id ? (document.getElementById(id)?.dataset.id ?? document.getElementById(id)?.closest('[data-id]')?.dataset.id ?? '') : ''; })()`);
+      const activeName = () => page.eval<string>(`(() => { const id = document.getElementById('results').getAttribute('aria-activedescendant'); return id ? (document.getElementById(id)?.querySelector('.name')?.textContent ?? '') : ''; })()`);
+      await until(async () => (await activeName()) === file!.replace(/\.mp4$/, ''), 'the take chosen and in view in the results', 30_000);
+      await until(
+        () => page.eval<boolean>(`(() => { const id = document.getElementById('results').getAttribute('aria-activedescendant'); return !!document.getElementById(id)?.querySelector('.thumb img[src^="pulp-thumb://"]'); })()`),
+        'its poster on the card',
+        60_000,
+      );
+      const id = await activeId();
+      expect(id).toMatch(/^[0-9a-f]{24}$/);
+      const strip = await page.eval<{ url: string | null; reason?: string }>(`window.pulp.hoverStrip(${JSON.stringify(id)})`, undefined, 60_000);
+      expect(strip.url, strip.reason ?? 'a hover strip').toMatch(/^pulp-strip:\/\//);
+    }, 180_000);
+
+    it('records from the menu with No sound remembered, stops with Escape, and keeps a voice off the microphone meanwhile', async () => {
+      const before = await takes();
+      await page.eval(`window.pulpMenuCommand('record.video')`);
+      await until(previewOpen, 'the preview open from File → Record Video');
+      await until(cameraLive, 'the picture');
+      // A voice cannot start while the camera is open, from the menu that still answers with the preview up.
+      await page.eval(`window.pulpMenuCommand('record.audio')`);
+      await until(() => page.eval<boolean>(`document.getElementById('collection-note').textContent.includes('The camera is open')`), 'the voice refused, and why');
+      expect(await page.eval<string>(`document.getElementById('record-audio').getAttribute('aria-pressed')`)).toBe('false');
+
+      // No sound, chosen and remembered.
+      await fire('#camera-sound', 'off', 'change');
+      await until(async () => {
+        const settings = JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { videoInputs?: { sound?: boolean } };
+        return settings.videoInputs?.sound === false;
+      }, 'No sound in settings.json');
+      await until(async () => (await cameraLive()) && (await page.eval<number>(`document.getElementById('camera-preview').srcObject.getAudioTracks().length`)) === 0, 'the camera reopened without its microphone');
+
+      // The menu's second press records, a real Escape stops — and the preview under it closes with the take.
+      await page.eval(`window.pulpMenuCommand('record.video')`);
+      await until(recordingVideo, 'recording from the menu');
+      await until(async () => (await clock()) >= '0:01', 'a second on the clock', 30_000);
+      await pressEscape();
+      await until(async () => !(await previewOpen()), 'Escape ended the take');
+      await until(async () => (await takes()).length === before.length + 1, 'the silent take saved', 90_000);
+      const [file] = (await takes()).filter((f) => !before.includes(f));
+      expect((await probeTake(file!)).streams.map((st) => st.codec_type), 'picture only').toEqual(['video']);
+
+      // Reopened, the preview remembers No sound; Escape with nothing recording just closes it, the camera off.
+      await page.eval(`document.getElementById('record-video').click()`);
+      await until(cameraLive, 'the preview again');
+      expect(await page.eval<string>(`document.getElementById('camera-sound').value`)).toBe('off');
+      await pressEscape();
+      await until(async () => !(await previewOpen()), 'closed by Escape');
+      expect(await page.eval<boolean>(`document.getElementById('camera-preview').srcObject === null`), 'the camera off').toBe(true);
+      expect((await takes()).length, 'nothing recorded by closing').toBe(before.length + 1);
+      // Sound back on for whatever runs after.
+      await page.eval(`window.pulp.setVideoInputs({ camera: null, microphone: null, sound: true })`);
+    }, 180_000);
   });
 
   describe('the polished set in the results (milestone 61)', () => {

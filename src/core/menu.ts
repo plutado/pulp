@@ -107,6 +107,7 @@ export type MenuCommand =
   | 'view.appearance'
   | 'record.audio'
   | 'record.input'
+  | 'record.video'
   | 'collection.add'
   | 'view.grid'
   | 'view.list'
@@ -207,6 +208,8 @@ export interface MenuState {
   appearance: Appearance;
   /** A voice is being recorded (milestone 63), so File → Record Audio reads Stop Recording. */
   recordingAudio: boolean;
+  /** A camera's take is being recorded (milestone 64), so File → Record Video reads Stop Recording. */
+  recordingVideo: boolean;
   /** There is an item on the stage that the collection tray will take. */
   canAddToCollection: boolean;
   /** Recently opened projects, newest first; the Open Recent submenu. */
@@ -251,6 +254,7 @@ export const EMPTY_MENU_STATE: MenuState = {
   background: DEFAULT_PLAYER.background,
   appearance: DEFAULT_APPEARANCE,
   recordingAudio: false,
+  recordingVideo: false,
   canAddToCollection: false,
   recent: [],
 };
@@ -527,6 +531,8 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       // A voice from the microphone, into the library (milestone 63): the menu is the window's own
       // button, so it says what pressing it does next, as Play says Pause.
       { command: 'record.audio', label: 'Record Audio', accelerator: 'CmdOrCtrl+Shift+A', altLabel: { whenFlag: 'recordingAudio', label: 'Stop Recording' } },
+      // The camera button (milestone 64): opens the preview; with the preview up, records; recording, stops.
+      { command: 'record.video', label: 'Record Video', altLabel: { whenFlag: 'recordingVideo', label: 'Stop Recording' } },
       { command: 'pack.export', label: 'Export as Pack…', enabledBy: 'canExportPack' },
       sep,
       { command: 'collection.add', label: 'Add to Collection', enabledBy: 'canAddToCollection' },

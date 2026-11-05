@@ -62,7 +62,8 @@ import { sanitizeResultsView } from '../core/results-view';
 import { sanitizePlayer } from '../core/player';
 import { loadSettings, updateSettings } from './settings';
 import { getAppearance, loadAppearance, setAppearance, watchAppearance, windowBackground } from './appearance-service';
-import { microphoneAccess, openMicrophoneSettings, saveRecording } from './recording-service';
+import { abandonVideoTake, appendVideoTake, beginVideoTake, cameraAccess, finishVideoTake, microphoneAccess, openPrivacySettings, saveRecording } from './recording-service';
+import { DEFAULT_VIDEO_INPUTS, sanitizeVideoInputs } from '../core/video-take';
 import { sanitizeTypeOutputDefault } from '../core/output-defaults';
 import { isBuiltInType } from '../core/taxonomy';
 import { adoptStageWindow, currentStageWindow, destroyStageWindow, loadStageWindowSetting, registerStageWindowIpc, stageWindowOptions } from './stage-window-service';
@@ -88,9 +89,10 @@ function grantRequestsFrom(raw: unknown): ImageGrantRequest[] {
 
 // Tests point this at a scratch folder so they never touch the user's settings.json.
 if (process.env.PULP_USER_DATA) app.setPath('userData', resolve(process.env.PULP_USER_DATA));
-// The tests record from Chromium's fake microphone — a steady tone, no device and no permission
-// prompt — so a take can be made and measured on any machine, CI runners included (milestone 63).
-if (process.env.PULP_FAKE_MIC) {
+// The tests record from Chromium's fake devices — a microphone playing a steady tone (milestone 63)
+// and a camera drawing a moving test card (milestone 64), with no permission prompt — so a take
+// can be made and measured on any machine, CI runners included.
+if (process.env.PULP_FAKE_MEDIA) {
   app.commandLine.appendSwitch('use-fake-device-for-media-stream');
   app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 }
@@ -409,13 +411,38 @@ function registerIpc(): void {
     if (!(wav instanceof ArrayBuffer) || wav.byteLength === 0) throw new Error('A recording arrived empty.');
     return saveRecording(new Uint8Array(wav));
   });
-  ipcMain.handle('recording:open-settings', () => openMicrophoneSettings());
+  ipcMain.handle('recording:open-settings', (_event, device: unknown) => openPrivacySettings(device === 'camera' ? 'camera' : 'microphone'));
   ipcMain.handle('recording:input', async () => (await loadSettings()).recordingInput ?? null);
   ipcMain.handle('recording:set-input', async (_event, input: unknown) => {
     const chosen = input && typeof input === 'object' && typeof (input as { id?: unknown }).id === 'string' && typeof (input as { label?: unknown }).label === 'string'
       ? { id: (input as { id: string }).id, label: (input as { label: string }).label }
       : undefined;
     await updateSettings((s) => { const { recordingInput, ...rest } = s; void recordingInput; return chosen ? { ...rest, recordingInput: chosen } : rest; });
+  });
+  // Recording from a camera (milestone 64): its permission (and the microphone's, with sound), the
+  // take a piece at a time into a staging file, converted and into the library once it ends.
+  ipcMain.handle('video:access', (_event, sound: unknown) => cameraAccess(sound !== false));
+  ipcMain.handle('video:begin', () => beginVideoTake());
+  ipcMain.handle('video:append', (_event, id: unknown, piece: unknown) => {
+    if (typeof id !== 'string' || !(piece instanceof ArrayBuffer)) throw new Error('A piece of a recording arrived malformed.');
+    return appendVideoTake(id, new Uint8Array(piece));
+  });
+  ipcMain.handle('video:finish', (_event, id: unknown, facts: unknown) => {
+    if (typeof id !== 'string' || !facts || typeof facts !== 'object') throw new Error('A recording ended malformed.');
+    const f = facts as { width?: unknown; height?: unknown; frameRate?: unknown; sound?: unknown };
+    const whole = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.round(n) : 0);
+    return finishVideoTake(id, {
+      width: whole(f.width),
+      height: whole(f.height),
+      frameRate: typeof f.frameRate === 'number' ? f.frameRate : undefined,
+      sound: f.sound === true,
+    });
+  });
+  ipcMain.handle('video:abandon', (_event, id: unknown) => (typeof id === 'string' ? abandonVideoTake(id) : undefined));
+  ipcMain.handle('video:inputs', async () => (await loadSettings()).videoInputs ?? DEFAULT_VIDEO_INPUTS);
+  ipcMain.handle('video:set-inputs', async (_event, inputs: unknown) => {
+    const chosen = sanitizeVideoInputs(inputs);
+    await updateSettings((s) => ({ ...s, videoInputs: chosen }));
   });
   ipcMain.handle('start-screen:get', async () => {
     const s = await loadSettings();

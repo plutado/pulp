@@ -1,7 +1,8 @@
 /**
  * Recording a voice (milestone 63), the shareable part: how a take is named,
  * how its samples become a WAV file, and how that file is written into the
- * managed Recordings folder. The renderer captures the microphone (it is the
+ * managed Recordings folder. A camera's take (milestone 64) is named and
+ * placed by the same rules; what is its own is in src/core/video-take.ts. The renderer captures the microphone (it is the
  * process with `getUserMedia`) and encodes here; the main process owns the
  * folder and the library. Everything here is testable without a microphone.
  */
@@ -22,12 +23,26 @@ const two = (n: number): string => String(n).padStart(2, '0');
  * A take is named by when it was made — "Recording 2026-11-04 14-30-05.wav" —
  * so a folder of them sorts into the order they were spoken. Dashes in the
  * time, not colons, which Windows forbids in a file name; local time, since
- * "the take from half past two" is how a person remembers it.
+ * "the take from half past two" is how a person remembers it. A camera's take
+ * is named the same way with its own extension, so voices and pictures made
+ * in one session sort together.
  */
-export function recordingFileName(at: Date): string {
+export function recordingFileName(at: Date, extension = 'wav'): string {
   const date = `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())}`;
   const time = `${two(at.getHours())}-${two(at.getMinutes())}-${two(at.getSeconds())}`;
-  return `Recording ${date} ${time}.wav`;
+  return `Recording ${date} ${time}.${extension}`;
+}
+
+/**
+ * Where a take made at this moment goes in the folder: its name, or — a second
+ * take within the same second — the name with " (2)", " (3)" and so on, so no
+ * take is ever written over another.
+ */
+export function freeRecordingPath(folder: string, at: Date, extension = 'wav'): string {
+  const stem = recordingFileName(at, extension).slice(0, -(extension.length + 1));
+  let path = join(folder, `${stem}.${extension}`);
+  for (let n = 2; existsSync(path); n++) path = join(folder, `${stem} (${n}).${extension}`);
+  return path;
 }
 
 /**
@@ -77,9 +92,7 @@ export function wavDurationSeconds(bytes: Uint8Array): number | null {
  */
 export async function writeRecordingFile(folder: string, wav: Uint8Array, at: Date): Promise<string> {
   await mkdir(folder, { recursive: true });
-  const name = recordingFileName(at);
-  let path = join(folder, name);
-  for (let n = 2; existsSync(path); n++) path = join(folder, name.replace(/\.wav$/, ` (${n}).wav`));
+  const path = freeRecordingPath(folder, at);
   await writeFile(path, wav);
   return path;
 }

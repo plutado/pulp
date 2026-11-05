@@ -20,5 +20,8 @@
          before the person is even asked. -->
     <key>com.apple.security.device.audio-input</key>
     <true/>
+    <!-- Recording from a camera (milestone 64): the same, for the camera. -->
+    <key>com.apple.security.device.camera</key>
+    <true/>
   </dict>
 </plist>

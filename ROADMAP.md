@@ -78,7 +78,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 61. A polished set of bundled art (post-1.0, **done**) | 26-43 h |
 | 62. Light and dark appearance (post-1.0, **done**) | 8-12 h |
 | 63. Record a voice with one click (post-1.0, **done**) | 8-13 h |
-| 64. Record from a camera with one click (post-1.0) | 10-16 h |
+| 64. Record from a camera with one click (post-1.0, **done**) | 10-16 h |
 | 65. Layouts made for vertical video (post-1.0) | 25-40 h |
 | 66. Cards, a dialog and the start screen that read at a glance (post-1.0, **done**) | 5-8 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
@@ -828,15 +828,15 @@ Decided 2026-11-04. Pulp only reads media a person already has. A voice-over, a 
 - [x] **A choice of input, when wanted:** a small menu beside the button lists the inputs and remembers the one chosen; a recording that loses its input mid-take keeps what it has (1-2 h) *Done 2026-11-04: the remembered microphone is asked for as ideal, so one that is unplugged today falls back to the default rather than refusing.*
 - [x] **Tests:** unit tests of naming and saving; an end-to-end test that records from a fake input and finds the file in the library with the right length (2-3 h)
 
-## 64. Record from a camera with one click (10-16 h, after 1.0)
+## 64. Record from a camera with one click (done; 10-16 h, after 1.0)
 
 Decided 2026-11-04. The same idea for picture: a camera button that records from a webcam or any camera connected to the computer, with its sound, straight into the library.
 
-- [ ] **One button:** a camera icon beside the microphone (and Record Video in the File menu) opens a live preview from the default camera; click Record to start, again to stop; the elapsed time shows while recording (3-4 h)
-- [ ] **Permission, asked plainly:** the camera prompt the first time, with the microphone's when sound is on; a usage description for each; a clear way to Settings when refused, on every platform (1-2 h)
-- [ ] **Into the library:** the take saved in the managed Recordings folder at the camera's own size and frame rate, in a format the editors open (converted with the bundled FFmpeg where the browser's recording format is not one), with a poster frame and hover scrub like any clip (3-4 h)
-- [ ] **A choice of camera and microphone:** menus in the preview for the camera and the sound input, remembered; mirrored preview for a front-facing camera, never mirrored in the file (1-3 h)
-- [ ] **Tests:** unit tests of naming, saving and conversion; an end-to-end test that records from a fake camera and finds a playable clip of the right length in the library (2-3 h)
+- [x] **One button:** a camera icon beside the microphone (and Record Video in the File menu) opens a live preview from the default camera; click Record to start, again to stop; the elapsed time shows while recording (3-4 h) *Done 2026-11-05: File → Record Video is the button's whole cycle — open the preview, record, stop — and reads Stop Recording while a take runs; Escape or Close ends a take and keeps it. No shortcut: the free ones near Cmd/Ctrl+Shift+A are taken by the editors' own habits (Ctrl+Shift+V pastes plain text in a field). A voice and a camera's take never hold the microphone at once.*
+- [x] **Permission, asked plainly:** the camera prompt the first time, with the microphone's when sound is on; a usage description for each; a clear way to Settings when refused, on every platform (1-2 h) *Done 2026-11-05: the camera's own usage description and hardened-runtime entitlement beside the microphone's; a refusal says which device in the preview, with Open Settings on macOS and Windows (Linux has no central gate), and a refused microphone points at No sound.*
+- [x] **Into the library:** the take saved in the managed Recordings folder at the camera's own size and frame rate, in a format the editors open (converted with the bundled FFmpeg where the browser's recording format is not one), with a poster frame and hover scrub like any clip (3-4 h) *Done 2026-11-05: the window records WebM — the one format Chromium's recorder writes everywhere, and at a variable rate — sent a second at a time to a staging file outside the library, then converted to H.264 and AAC in an MP4 at a constant rate at the camera's own (`src/core/video-take.ts`), libx264 first and the platforms' encoders after. The camera is asked for up to 1080p at 30 frames/s, since Chromium opens one at 640 × 480 otherwise. Without an FFmpeg that can convert, the WebM is kept and the tray says why.*
+- [x] **A choice of camera and microphone:** menus in the preview for the camera and the sound input, remembered; mirrored preview for a front-facing camera, never mirrored in the file (1-3 h) *Done 2026-11-05: the Sound menu offers No sound too, remembered apart from the voice recorder's microphone; a camera is mirrored unless it says it faces away, since a computer's camera faces whoever is at it.*
+- [x] **Tests:** unit tests of naming, saving and conversion; an end-to-end test that records from a fake camera and finds a playable clip of the right length in the library (2-3 h) *Done 2026-11-05: the conversion is tested on a real variable-rate WebM wherever FFmpeg is installed.*
 
 ## 65. Layouts made for vertical video (25-40 h, after 1.0)
 
