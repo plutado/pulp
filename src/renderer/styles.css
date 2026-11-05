@@ -1708,7 +1708,7 @@ progress { width: 100%; margin: 2px 0; }
 .start-recent-card { flex: 1; display: flex; align-items: center; gap: var(--space-3); min-width: 0; text-align: left; background: var(--s-panel); border: 1px solid var(--s-border); border-radius: var(--radius-surface); padding: var(--space-2); color: var(--s-text); }
 .start-recent-card:hover:not(:disabled) { background: var(--s-panel-2); }
 .start-recent-card:disabled { opacity: 0.7; }
-.start-thumb { flex: none; width: 96px; height: 54px; border-radius: var(--radius-control); background: var(--s-panel-2); overflow: hidden; display: inline-flex; align-items: center; justify-content: center; }
+.start-thumb { position: relative; flex: none; width: 96px; height: 54px; border-radius: var(--radius-control); background: var(--s-panel-2); overflow: hidden; display: inline-flex; align-items: center; justify-content: center; }
 .start-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .start-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .start-card-name { font-weight: 600; font-size: var(--font-body); color: var(--s-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1727,6 +1727,8 @@ progress { width: 100%; margin: 2px 0; }
 .start-idea:hover { background: var(--s-panel-2); }
 .start-idea-pic { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius-control); background: var(--s-panel-2); overflow: hidden; }
 .start-idea-pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* A hover strip standing in as the picture (start-screen.ts wearStrip): eight tiles wide, pinned left so only the first shows. */
+.start-idea-pic img.strip-first, .start-thumb img.strip-first { position: absolute; left: 0; top: 0; width: 800%; height: 100%; object-fit: fill; }
 .start-idea-pic .strip { position: absolute; inset: 0; background-repeat: no-repeat; background-size: 800% 100%; display: none; }
 .start-idea-pic.scrubbing .strip { display: block; }
 /* Three lines of description at most, so a long one (or a wide font) cannot make the row taller. */

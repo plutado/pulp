@@ -6557,6 +6557,11 @@ describe.skipIf(!electron)('inspector UI', () => {
       // screen opens the window shorter than the default, and a Retina one doubles the capture.
       await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 788, deviceScaleFactor: 1, mobile: false });
       await until(() => page.eval<boolean>(`window.innerHeight === 788 && window.innerWidth === 1280 && window.devicePixelRatio === 1`), 'the default window size');
+      // The gallery scrolls sideways, and what its scrollbar looks like is the machine's, not the
+      // screen's: a Mac without a trackpad — CI's virtual machine — draws a classic bar that takes
+      // room and shines across the dark palette, where a Mac with one overlays it only while
+      // scrolling. Hidden for the capture, so every Mac draws the same screen.
+      await page.eval(`(() => { const s = document.createElement('style'); s.id = 'start-refs-style'; s.textContent = '#start-ideas { scrollbar-width: none; }'; document.head.append(s); })()`);
       const capture = async (mode: 'first-run' | 'returning', scheme: 'dark' | 'light') => {
         await page.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] });
         // The gallery is rebuilt for each arrangement, its pictures arriving a moment later: the cards
@@ -6599,6 +6604,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       } finally {
         await page.send('Emulation.setEmulatedMedia', { features: [] });
         await page.send('Emulation.clearDeviceMetricsOverride', {});
+        await page.eval(`(() => { document.getElementById('start-refs-style')?.remove(); })()`);
         await page.eval(`window.pulpStartScreen(false)`);
       }
       // The two palettes really differ, and so do the two arrangements.

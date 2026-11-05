@@ -63,18 +63,20 @@ function entryFor(templateId: string | undefined): TemplateEntry | undefined {
  */
 /**
  * Put a hover strip's first frame on an element as its picture, and mark it `data-pictured` only once
- * the image is decoded and on the element. Marked when the strip's address was known, the picture was
- * still loading: anything waiting for "pictured" — the visual references do — could catch an empty well
- * on a slow machine and a filled one on a fast one, and the same screen captured two ways.
+ * the image is decoded and on the element. The decoded element itself goes on the card — the URL as a
+ * CSS background would not reuse it: the strip protocol answers no-store, so the background starts a
+ * second fetch after "pictured" is already set, and anything waiting on it — the visual references
+ * do — could catch an empty well on a slow machine and a filled one on a fast one, the same screen
+ * captured two ways.
  */
 function wearStrip(el: HTMLElement, url: string): void {
   const img = new Image();
   img.src = url;
+  img.alt = '';
+  img.className = 'strip-first';
   void img.decode().then(() => {
     if (el.querySelector('img')) return;
-    el.style.backgroundImage = `url("${url}")`;
-    el.style.backgroundSize = `${STRIP_FRAMES * 100}% 100%`;
-    el.style.backgroundPosition = '0 0';
+    el.prepend(img);
     el.dataset.pictured = '1';
   }, () => undefined);
 }
