@@ -33,7 +33,11 @@ const $ = <T extends HTMLElement>(id: string): T => {
 type Phase = 'off' | 'preview' | 'recording' | 'saving';
 
 interface Take {
-  id: string;
+  /**
+   * The main process's id for the take, which arrives a round trip after Record is pressed. The take
+   * does not wait for it — the recorder starts at the press — so a piece waits for it instead.
+   */
+  id: Promise<string>;
   recorder: MediaRecorder;
   facts: VideoTakeFacts;
   started: number;
@@ -214,55 +218,42 @@ function startTake(): void {
   const facts: VideoTakeFacts = { width: settings.width ?? 0, height: settings.height ?? 0, frameRate: settings.frameRate, sound };
   const fps = cameraFrameRate(settings.frameRate).fps;
   const recorder = new MediaRecorder(opened, { mimeType, videoBitsPerSecond: takeBitrate(facts.width, facts.height, fps, 0.2), audioBitsPerSecond: 192_000 });
-  phase = 'recording';
-  paint();
-  void window.pulp.beginVideoTake().then((id) => {
-    if (phase !== 'recording' || stream !== opened) {
-      // Ended (or the camera lost) before the take could begin: nothing was recorded.
-      void window.pulp.abandonVideoTake(id);
-      return;
-    }
-    const started = performance.now();
-    const current: Take = {
-      id, recorder, facts, started, sent: Promise.resolve(), pieces: 0, failed: null, closing: false,
-      // A live clock floors, as the voice's does: 0:01 only once a whole second has gone by.
-      clock: setInterval(() => {
-        const whole = Math.floor((performance.now() - started) / 1000);
-        $('camera-time').textContent = whole <= 0 ? '0:00' : runningTime(whole);
-      }, 250),
-    };
-    take = current;
-    recorder.addEventListener('dataavailable', (e) => {
-      if (e.data.size === 0) return;
-      current.pieces += 1;
-      current.sent = current.sent
-        .then(async () => window.pulp.appendVideoTake(id, await e.data.arrayBuffer()))
-        .catch((err: Error) => { current.failed ??= err; });
-    });
-    recorder.addEventListener('stop', () => void saveTake(current));
-    recorder.addEventListener('error', () => stopTake());
-    // The camera or the microphone dying mid-take — unplugged, or taken by the system — ends the take and keeps what it has.
-    for (const t of opened.getTracks()) t.addEventListener('ended', () => stopTake());
-    $('camera-time').textContent = '0:00';
-    recorder.start(1000);
-  }, (err: Error) => {
-    phase = 'preview';
-    say(`The recording could not begin: ${err.message}`);
-    paint();
+  // The take begins at the press: the recorder starts now and the clock reads from now. Waiting for
+  // the main process to open the take first lost its first moments, and a Stop pressed inside that
+  // round trip — a slow machine's half second — found no take and dropped the recording.
+  const id = window.pulp.beginVideoTake();
+  const started = performance.now();
+  const current: Take = {
+    id, recorder, facts, started, pieces: 0, failed: null, closing: false,
+    sent: id.then(() => undefined, (err: Error) => { current.failed ??= new Error(`the recording could not begin: ${err.message}`); }),
+    // A live clock floors, as the voice's does: 0:01 only once a whole second has gone by.
+    clock: setInterval(() => {
+      const whole = Math.floor((performance.now() - started) / 1000);
+      $('camera-time').textContent = whole <= 0 ? '0:00' : runningTime(whole);
+    }, 250),
+  };
+  take = current;
+  recorder.addEventListener('dataavailable', (e) => {
+    if (e.data.size === 0) return;
+    current.pieces += 1;
+    // In order, each after the one before and after the take has its id.
+    current.sent = current.sent
+      .then(async () => { if (!current.failed) await window.pulp.appendVideoTake(await id, await e.data.arrayBuffer()); })
+      .catch((err: Error) => { current.failed ??= err; });
   });
+  recorder.addEventListener('stop', () => void saveTake(current));
+  recorder.addEventListener('error', () => stopTake());
+  // The camera or the microphone dying mid-take — unplugged, or taken by the system — ends the take and keeps what it has.
+  for (const t of opened.getTracks()) t.addEventListener('ended', () => stopTake());
+  $('camera-time').textContent = '0:00';
+  phase = 'recording';
+  recorder.start(1000);
+  paint();
 }
 
 /** End the take: the recorder hands over its last piece, then 'stop' saves it. */
 function stopTake(): void {
-  if (!take) {
-    // Stopped before the take had begun in the main process: back to the preview.
-    if (phase === 'recording') {
-      phase = 'preview';
-      paint();
-    }
-    return;
-  }
-  if (take.closing) return;
+  if (!take || take.closing) return;
   take.closing = true;
   if (take.recorder.state !== 'inactive') take.recorder.stop();
   else void saveTake(take);
@@ -281,15 +272,17 @@ async function saveTake(done: Take): Promise<void> {
   await done.sent;
   phase = 'off';
   paint();
-  if (done.pieces === 0 || done.failed) {
-    await window.pulp.abandonVideoTake(done.id).catch(() => undefined);
+  // Nothing to finish when the take never began: there is no id to abandon either.
+  const id = await done.id.catch(() => null);
+  if (id === null || done.pieces === 0 || done.failed) {
+    if (id !== null) await window.pulp.abandonVideoTake(id).catch(() => undefined);
     if (done.failed) sayInTray(`The recording could not be saved: ${done.failed.message}`, true);
     else sayInTray('Nothing was recorded.');
     return;
   }
   sayInTray('Saving the take into Recordings…');
   try {
-    const saved = await window.pulp.finishVideoTake(done.id, done.facts);
+    const saved = await window.pulp.finishVideoTake(id, done.facts);
     sayInTray(saved.note ?? `Recorded ${runningTime(seconds)} of video into Recordings.`);
     if (saved.id) showSavedTake(saved.id);
   } catch (err) {
@@ -327,17 +320,20 @@ export function initCameraRecorder(): void {
     else choose({ sound: true, microphone: select.value ? { id: select.value, label: select.selectedOptions[0]?.textContent ?? 'Microphone' } : null });
   });
   // Escape while recording ends the take rather than the preview under it.
+  // Escape with nothing recording turns the camera off at the key, not a task later when 'close' runs.
   dialog().addEventListener('cancel', (e) => {
     if (phase === 'recording') {
       e.preventDefault();
       stopTake();
+    } else if (phase === 'preview') {
+      opening += 1;
+      release();
     }
   });
   // However the preview closes — Close, Escape — a take running is ended and kept, never dropped.
   dialog().addEventListener('close', () => {
-    if (phase === 'recording' && take) stopTake();
-    else if (phase === 'preview' || phase === 'recording') {
-      // Closed before a take had begun (it is abandoned when it does): the camera off, nothing kept.
+    if (phase === 'recording') stopTake();
+    else if (phase === 'preview') {
       opening += 1;
       release();
       phase = 'off';
