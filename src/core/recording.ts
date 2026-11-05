@@ -7,9 +7,9 @@
  * folder and the library. Everything here is testable without a microphone.
  */
 
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 /** The managed folder recordings land in, under the app's own data, beside the managed fonts. */
 export const RECORDINGS_FOLDER_NAME = 'Recordings';
@@ -89,10 +89,17 @@ export function wavDurationSeconds(bytes: Uint8Array): number | null {
 /**
  * Write a take into the folder, named by its moment; a second take within the
  * same second keeps both, as " (2)". Resolves to the file's path.
+ *
+ * The bytes go to a hidden partial file first and are renamed into place once
+ * whole, so the folder never holds a take that is still being written: on
+ * Windows a file written in place is listed before its bytes are, and the
+ * library's watcher (or a test) could read a header that is not there yet.
  */
 export async function writeRecordingFile(folder: string, wav: Uint8Array, at: Date): Promise<string> {
   await mkdir(folder, { recursive: true });
   const path = freeRecordingPath(folder, at);
-  await writeFile(path, wav);
+  const partial = join(dirname(path), `.${basename(path)}.part`);
+  await writeFile(partial, wav);
+  await rename(partial, path);
   return path;
 }
