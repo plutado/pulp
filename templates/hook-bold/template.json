@@ -1,0 +1,101 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.hook-bold",
+  "name": "Hook Bold",
+  "description": "Two heavy lines that punch in across the top third of a tall frame, the second in a color of its own, over a shade that keeps them legible on any shot. Made for the first second of a short video.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": [
+    "hook",
+    "made-for-vertical",
+    "headline",
+    "short-form"
+  ],
+  "themes": [
+    "social-media",
+    "education",
+    "fitness"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "hook",
+      "label": "Hook",
+      "box": {
+        "default": {
+          "x": 0.1,
+          "y": 0.15,
+          "width": 0.8,
+          "height": 0.2
+        }
+      },
+      "gap": 0.01,
+      "align": "center",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Montserrat",
+        "size": 0.105,
+        "weight": 900,
+        "color": "#ffffff",
+        "align": "center",
+        "case": "upper",
+        "lineHeight": 1.02,
+        "overflow": "shrink"
+      },
+      "layers": [
+        {
+          "id": "first",
+          "type": "text",
+          "label": "First line",
+          "text": "Stop scrolling",
+          "required": true,
+          "look": {
+            "shadowColor": "#000000a6",
+            "shadowDistance": 0.004,
+            "shadowSoftness": 0.014
+          }
+        },
+        {
+          "id": "second",
+          "type": "text",
+          "label": "Second line",
+          "text": "you need this",
+          "color": "#facc15",
+          "look": {
+            "shadowColor": "#000000a6",
+            "shadowDistance": 0.004,
+            "shadowSoftness": 0.014
+          }
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "shade",
+      "type": "number",
+      "label": "Shade behind",
+      "default": 0.45,
+      "min": 0,
+      "max": 0.85,
+      "step": 0.05,
+      "element": "Shade"
+    }
+  ]
+}

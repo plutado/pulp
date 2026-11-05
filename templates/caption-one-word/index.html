@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Caption One Word</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Caption One Word, a caption style for Pulp made for vertical (milestone 65; docs/vertical-layouts.md). CC0-1.0: no rights reserved.
+  //
+  // Only the word being said, large, a little below the middle of the frame; it pops in from a size
+  // larger as it is spoken and shrinks to fit the width a long word needs.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  document.fonts.load('900 64px Montserrat');
+  document.fonts.load('800 64px Montserrat');
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+
+  // Drawn with no captions at all — a card's poster, the library preview, the visual references.
+  var SPECIMEN = {
+    time: 1.3, spoken: 3, box: null,
+    line: { start: 0, end: 2.2, words: [
+      { text: 'This', start: 0, end: 0.3 }, { text: 'is', start: 0.3, end: 0.45 }, { text: 'the', start: 0.45, end: 0.6 },
+      { text: 'part', start: 1.2, end: 1.5 }, { text: 'that', start: 1.5, end: 1.7 }, { text: 'matters', start: 1.7, end: 2.2 }
+    ] }
+  };
+
+  /** The words in rows no wider than maxWidth at the font already set; each keeps its index in the line. */
+  function wrap(words, maxWidth, space, upper) {
+    var rows = [[]], width = 0;
+    for (var i = 0; i < words.length; i++) {
+      var text = upper ? words[i].text.toUpperCase() : words[i].text;
+      var w = ctx.measureText(text).width;
+      var row = rows[rows.length - 1];
+      if (row.length > 0 && width + space + w > maxWidth) { rows.push([]); row = rows[rows.length - 1]; width = 0; }
+      row.push({ index: i, text: text, width: w, start: words[i].start });
+      width += (row.length > 1 ? space : 0) + w;
+    }
+    return rows;
+  }
+  function rowWidth(row, space) { var w = 0; for (var i = 0; i < row.length; i++) w += row[i].width + (i > 0 ? space : 0); return w; }
+  /** The rows shown now: `per` at a time, the page holding the word being said (the first page before any is). */
+  function page(rows, spoken, per) {
+    var at = 0;
+    for (var r = 0; r < rows.length; r++) for (var k = 0; k < rows[r].length; k++) if (rows[r][k].index === spoken) at = r;
+    var first = Math.floor(at / per) * per;
+    return rows.slice(first, first + per);
+  }
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function fit(state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) { canvas.width = state.width; canvas.height = state.height; }
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  // Every style here keeps its words between 18% and 82% of the width — clear of the controls column
+  // down the right, and centered — so the words sit in the middle of the picture, not beside it.
+  var LEFT = 0.18, RIGHT = 0.82;
+
+  window.pulpRender = function (state) {
+    fit(state);
+    var W = state.width, H = state.height, p = state.params, u = Math.min(W, H);
+    var caps = state.captions || SPECIMEN;
+    var line = caps.line;
+    if (!line || !line.words || caps.spoken < 0 || caps.spoken >= line.words.length) return;
+    var word = line.words[caps.spoken];
+    var text = word.text.toUpperCase();
+    var size = p.size * u;
+    ctx.font = '900 ' + Math.round(size) + 'px Montserrat';
+    // Fitted at its largest: the pop and the outline both widen it, so the room is shared out to them first.
+    var POP = 0.18, OUTLINE = 0.14;
+    var room = (RIGHT - LEFT) * W / (1 + POP);
+    var w = ctx.measureText(text).width + size * OUTLINE;
+    if (w > room) { size *= room / w; ctx.font = '900 ' + Math.round(size) + 'px Montserrat'; }
+    var since = caps.time - word.start;
+    var pop = 1 + POP * (1 - easeOut(clamp01(since / 0.12)));
+    ctx.save();
+    ctx.translate(W / 2, H * 0.56);
+    ctx.scale(pop, pop);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(3, size * OUTLINE);
+    ctx.globalAlpha = clamp01(since / 0.05 + 0.4);
+    ctx.strokeStyle = rgba(p.outline, 1);
+    ctx.strokeText(text, 0, 0);
+    ctx.fillStyle = rgba(p.spoken, 1);
+    ctx.fillText(text, 0, 0);
+    ctx.restore();
+  };
+</script>
+</body>
+</html>

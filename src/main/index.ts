@@ -650,6 +650,7 @@ function registerIpc(): void {
  *   pulp collection <file.pulpcollection> --out <folder>
  *   pulp sample-media <folder> [--types <type,type>]
  *   pulp visual-hashes <file> [--check]
+ *   pulp safe-box
  * `pulp help render` lists every option; the older `--render <id>` spelling is still read.
  * In a checkout the command is `node bin/pulp.js …` (or `pulp …` after `npm link`); a packaged
  * Pulp takes the same arguments on its own binary. What follows is the main process's half:
@@ -675,6 +676,8 @@ interface CliRender {
   unknownPlatform?: string;
   /** `--visual-hashes <file>`: write or check the visual references. */
   visualHashes?: { file: string; check: boolean };
+  /** `safe-box`: where the templates made for vertical put their words at 9:16 (milestone 65). */
+  safeBox?: true;
   options: RenderOptions;
   /** The length as typed; read as seconds once the frame rate is known (milestone 30). */
   length?: string;
@@ -717,6 +720,26 @@ async function runVisualHashes(file: string, check: boolean): Promise<number> {
   for (const m of missing) process.stdout.write(`NEW ${m.template} ${m.aspect} frame ${m.frame}: ${m.hash}\n`);
   process.stdout.write(`${results.length} frames checked, ${changed.length} changed, ${missing.length} without a reference\n`);
   return changed.length + missing.length + failed.length > 0 ? 1 : 0;
+}
+
+/**
+ * `safe-box`: every bundled template made for vertical, drawn at 9:16 where it
+ * has settled, and its words found by drawing them changed (milestone 65;
+ * src/core/vertical-layout.ts). A line per moment whose words are out of
+ * place, and exit 1 on any — or on a template that could not be checked.
+ */
+async function runSafeBox(): Promise<number> {
+  const { checkVerticalPlacement } = await import('./visual-service');
+  const { results, failed } = await checkVerticalPlacement(join(app.getAppPath(), 'templates'));
+  for (const f of failed) process.stderr.write(`could not check ${f.what}: ${f.error}\n`);
+  const outside = results.filter((r) => r.problems.length > 0);
+  for (const r of outside) {
+    const at = r.words ? ` (words at ${r.words.x},${r.words.y} ${r.words.width}×${r.words.height})` : '';
+    process.stdout.write(`OUTSIDE ${r.template} ${r.moment}${at}: ${r.problems.join('; ')}\n`);
+  }
+  const templates = new Set(results.map((r) => r.template)).size;
+  process.stdout.write(`${templates} templates made for vertical, ${results.length} moments checked, ${outside.length} out of place\n`);
+  return outside.length + failed.length > 0 ? 1 : 0;
 }
 
 /**
@@ -803,6 +826,7 @@ function cliRenderFrom(parsed: Extract<ParsedCli, { kind: 'command' }>): CliRend
     ...(sampleTypes !== undefined ? { sampleTypes: sampleTypes.split(',').map((t) => t.trim()).filter(Boolean) } : {}),
     ...(coverAt !== undefined ? { coverAt } : {}),
     ...(parsed.command === 'visual-hashes' ? { visualHashes: { file: resolve(parsed.target), check: parsed.switches.has('--check') } } : {}),
+    ...(parsed.command === 'safe-box' ? { safeBox: true as const } : {}),
     ...(exportEditPath !== undefined ? { exportEdit: resolve(exportEditPath) } : {}),
     ...(outPoint !== undefined ? { outPoint } : {}),
     ...(frameTimeout > 0 ? { frameTimeoutMs: frameTimeout * 1000 } : {}),
@@ -814,6 +838,7 @@ async function runCliRender(cli: CliRender): Promise<number> {
   if (cli.libraries.length > 0) await rescan(cli.libraries);
   if (cli.sampleMedia !== undefined) return runCliSampleMedia(cli.sampleMedia, cli.sampleTypes);
   if (cli.visualHashes !== undefined) return runVisualHashes(cli.visualHashes.file, cli.visualHashes.check);
+  if (cli.safeBox) return runSafeBox();
   if (cli.collection !== undefined) return runCliCollection(cli);
   const template = await findTemplate(cli.templateId);
   if (!template) {

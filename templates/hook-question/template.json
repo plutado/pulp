@@ -1,0 +1,100 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.hook-question",
+  "name": "Hook Question",
+  "description": "A question on a card that pops into the top third of a tall frame, a small kicker over it and a question badge on its corner, sized to the words. For openers that make a viewer want the answer.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": [
+    "hook",
+    "made-for-vertical",
+    "question",
+    "headline",
+    "short-form"
+  ],
+  "themes": [
+    "social-media",
+    "education",
+    "podcast"
+  ],
+  "styles": [
+    "clean",
+    "playful"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "card",
+      "label": "Card",
+      "box": {
+        "default": {
+          "x": 0.1,
+          "y": 0.15,
+          "width": 0.8,
+          "height": 0.2
+        }
+      },
+      "gap": 0.012,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Montserrat",
+        "size": 0.078,
+        "weight": 800,
+        "color": "#0f172a",
+        "align": "left",
+        "lineHeight": 1.08,
+        "maxLines": 3
+      },
+      "layers": [
+        {
+          "id": "kicker",
+          "type": "text",
+          "label": "Kicker",
+          "text": "Real question",
+          "size": 0.042,
+          "weight": 700,
+          "case": "upper",
+          "letterSpacing": 0.12,
+          "color": "#ea580c"
+        },
+        {
+          "id": "question",
+          "type": "text",
+          "label": "Question",
+          "text": "Why does nobody talk about this?",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Card",
+      "default": "#ffffff",
+      "element": "Card"
+    },
+    {
+      "id": "badge",
+      "type": "color",
+      "label": "Badge",
+      "default": "#ea580c",
+      "element": "Card"
+    }
+  ]
+}

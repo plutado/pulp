@@ -1,0 +1,103 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.hook-list",
+  "name": "Hook List",
+  "description": "A big number in a ring that draws itself, over the promise it makes — \"3 things I wish I knew sooner\" — in the top third of a tall frame. The opener for a list video.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": [
+    "hook",
+    "made-for-vertical",
+    "list",
+    "number",
+    "headline",
+    "short-form"
+  ],
+  "themes": [
+    "social-media",
+    "education",
+    "fitness"
+  ],
+  "styles": [
+    "high-energy",
+    "clean"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "list",
+      "label": "List",
+      "box": {
+        "default": {
+          "x": 0.1,
+          "y": 0.145,
+          "width": 0.8,
+          "height": 0.26
+        }
+      },
+      "gap": 0.014,
+      "align": "center",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Montserrat",
+        "size": 0.075,
+        "weight": 800,
+        "color": "#ffffff",
+        "align": "center",
+        "lineHeight": 1.08,
+        "maxLines": 2
+      },
+      "layers": [
+        {
+          "id": "count",
+          "type": "text",
+          "label": "Number",
+          "text": "3",
+          "size": 0.2,
+          "weight": 900,
+          "color": "#facc15",
+          "overflow": "shrink",
+          "required": true,
+          "look": {
+            "shadowColor": "#000000a6",
+            "shadowDistance": 0.004,
+            "shadowSoftness": 0.014
+          }
+        },
+        {
+          "id": "promise",
+          "type": "text",
+          "label": "Promise",
+          "text": "things I wish I knew sooner",
+          "look": {
+            "shadowColor": "#000000a6",
+            "shadowDistance": 0.004,
+            "shadowSoftness": 0.014
+          }
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "ring",
+      "type": "color",
+      "label": "Ring",
+      "default": "#facc15",
+      "element": "Ring"
+    }
+  ]
+}

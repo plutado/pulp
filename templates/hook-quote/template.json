@@ -1,0 +1,104 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.hook-quote",
+  "name": "Hook Quote",
+  "description": "A line someone said, in large italic type under an oversized quotation mark, with who said it beneath a short rule. In the top third of a tall frame, for interviews and podcasts cut short.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": [
+    "hook",
+    "made-for-vertical",
+    "quote",
+    "headline",
+    "short-form"
+  ],
+  "themes": [
+    "podcast",
+    "news",
+    "education"
+  ],
+  "styles": [
+    "elegant",
+    "clean"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "quote",
+      "label": "Quote",
+      "box": {
+        "default": {
+          "x": 0.1,
+          "y": 0.235,
+          "width": 0.8,
+          "height": 0.18
+        }
+      },
+      "gap": 0.036,
+      "align": "left",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Playfair",
+        "size": 0.08,
+        "weight": 600,
+        "italic": true,
+        "color": "#ffffff",
+        "align": "left",
+        "lineHeight": 1.14,
+        "maxLines": 4
+      },
+      "layers": [
+        {
+          "id": "words",
+          "type": "text",
+          "label": "Quote",
+          "text": "Nobody tells you the first year is the hardest.",
+          "required": true,
+          "look": {
+            "shadowColor": "#000000a6",
+            "shadowDistance": 0.004,
+            "shadowSoftness": 0.014
+          }
+        },
+        {
+          "id": "who",
+          "type": "text",
+          "label": "Who said it",
+          "text": "Maya Chen, founder",
+          "family": "Inter",
+          "size": 0.042,
+          "weight": 600,
+          "italic": false,
+          "color": "#e2e8f0",
+          "look": {
+            "shadowColor": "#000000a6",
+            "shadowDistance": 0.004,
+            "shadowSoftness": 0.014
+          }
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "mark",
+      "type": "color",
+      "label": "Quotation mark",
+      "default": "#f472b6",
+      "element": "Mark"
+    }
+  ]
+}

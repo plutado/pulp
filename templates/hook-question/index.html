@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hook Question</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Hook Question, a hook title for Pulp made for vertical (milestone 65; docs/vertical-layouts.md). CC0-1.0: no rights reserved.
+  //
+  // A card sized to the question pops up from a little smaller; the kicker and the question rise
+  // into it a step apart, and a round badge with a question mark sits inside its top-right corner.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+
+  // One clock for every hook: a line arrives over half a second, a step after the line above it —
+  // three steps at most, so a line added in the tab is in by 1.04 s and the hold from 1.2 s holds
+  // with it. Everything leaves together from 4.4 s.
+  var STEP = 0.18, ARRIVE = 0.5, OUT_AT = 4.4, OUT_FOR = 0.5;
+  function arrival(t, position) { return easeOut(clamp01((t - Math.min(position, 3) * STEP) / ARRIVE)); }
+  function leaving(t) { return easeInOut(clamp01((t - OUT_AT) / OUT_FOR)); }
+  function fit(state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  /** The extent of a laid block's drawn words: left, top, right and bottom over every layer that has room. */
+  function extentOf(laid) {
+    var e = null;
+    laid.layers.forEach(function (l) {
+      if (l.box.width <= 0 && l.box.height <= 0) return;
+      var left = l.box.x, right = l.box.x + l.box.width;
+      if (l.lines && l.lines.length) {
+        left = Infinity; right = -Infinity;
+        l.lines.forEach(function (ln) { if (ln.width > 0) { left = Math.min(left, ln.x); right = Math.max(right, ln.x + ln.width); } });
+        if (!isFinite(left)) return;
+      }
+      if (!e) e = { left: left, top: l.box.y, right: right, bottom: l.box.y + l.box.height };
+      else { e.left = Math.min(e.left, left); e.top = Math.min(e.top, l.box.y); e.right = Math.max(e.right, right); e.bottom = Math.max(e.bottom, l.box.y + l.box.height); }
+    });
+    return e;
+  }
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    fit(state);
+    var W = state.width, H = state.height, t = state.time, p = state.params;
+    var u = Math.min(W, H) / 1080;
+    var gone = leaving(t);
+    if (gone >= 1) return;
+    var block = state.blocks.card.box;
+    var pad = 40 * u, badgeR = 34 * u;
+    // Measured first, at the room the card leaves inside the safe width, then laid in place.
+    var room = block.width - pad * 2 - badgeR * 2;
+    var each = function (layer, position) {
+      var a = arrival(t, position + 1);
+      return { alpha: a * (1 - gone), dy: (1 - a) * 22 * u };
+    };
+    var probe = window.pulpLayoutBlock(ctx, state, 'card', { box: { x: 0, y: 0, width: room, height: H }, each: each });
+    var e = extentOf(probe);
+    if (!e) return;
+    var cardW = Math.min(block.width, e.right - e.left + pad * 2 + badgeR * 2);
+    var cardH = e.bottom - e.top + pad * 2;
+    var x = block.x + (block.width - cardW) / 2, y = block.y;
+    var pop = arrival(t, 0);
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, pop * 1.6) * (1 - gone);
+    ctx.translate(x + cardW / 2, y + cardH / 2 - gone * 24 * u);
+    ctx.scale(0.86 + 0.14 * pop, 0.86 + 0.14 * pop);
+    ctx.translate(-(x + cardW / 2), -(y + cardH / 2));
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = 30 * u;
+    ctx.shadowOffsetY = 10 * u;
+    roundRect(x, y, cardW, cardH, 28 * u);
+    ctx.fillStyle = p.panel;
+    ctx.fill();
+    ctx.shadowColor = 'rgba(0,0,0,0)';
+    var bx = x + cardW - pad * 0.6 - badgeR, by = y + pad * 0.6 + badgeR;
+    ctx.beginPath();
+    ctx.arc(bx, by, badgeR, 0, Math.PI * 2);
+    ctx.fillStyle = p.badge;
+    ctx.fill();
+    ctx.fillStyle = p.panel;
+    ctx.font = '900 ' + Math.round(badgeR * 1.3) + 'px Montserrat';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('?', bx, by + badgeR * 0.06);
+    ctx.restore();
+    var card = window.pulpLayoutBlock(ctx, state, 'card', { box: { x: x + pad, y: y + pad, width: room, height: cardH }, each: function (layer, position) {
+      var a = arrival(t, position + 1);
+      return { alpha: a * (1 - gone), dy: (1 - a) * 22 * u - gone * 24 * u };
+    } });
+    window.pulpDrawBlock(ctx, card);
+  };
+</script>
+</body>
+</html>

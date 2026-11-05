@@ -428,7 +428,11 @@ Three rules, and a caption style is otherwise a template like any other:
   is a different thing — a real moment between two lines — and draws nothing.)
 
 The three bundled styles (`templates/caption-clean`, `caption-block`,
-`caption-pop`, CC0) are the worked examples.
+`caption-pop`, CC0) are the worked examples. Four more are made for vertical
+(`caption-one-word`, `caption-duo`, `caption-sticker`, `caption-beside`,
+milestone 65): they declare only `9:16`, carry the `made-for-vertical` tag,
+and place their words mid-frame or just above `box` rather than inside it.
+Where, and the check they are held to, is docs/vertical-layouts.md.
 
 **How the captions reach a render.** Burned into the picture by default — the
 style's page is captured beside the template's and laid over it, frame by

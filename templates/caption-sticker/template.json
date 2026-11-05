@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.caption-sticker",
+  "name": "Caption Sticker",
+  "description": "The words on a sticker, tilted a little, with a colored edge and a shadow, low in the middle of a tall frame; the spoken word takes the edge's color. Three rows at a time.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "callout",
+  "captions": true,
+  "tags": [
+    "caption",
+    "subtitle",
+    "speech",
+    "made-for-vertical",
+    "sticker",
+    "short-form"
+  ],
+  "themes": [
+    "social-media",
+    "kids",
+    "food"
+  ],
+  "styles": [
+    "playful"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Words",
+      "default": "#111827",
+      "element": "Caption"
+    },
+    {
+      "id": "edge",
+      "type": "color",
+      "label": "Sticker edge",
+      "default": "#e11d48",
+      "element": "Caption"
+    },
+    {
+      "id": "paper",
+      "type": "color",
+      "label": "Sticker",
+      "default": "#ffffff",
+      "element": "Caption"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 0.062,
+      "min": 0.04,
+      "max": 0.09,
+      "step": 0.005,
+      "element": "Caption"
+    }
+  ]
+}

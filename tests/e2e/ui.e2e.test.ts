@@ -2694,7 +2694,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await clickResult('Title Card');
       await until(() => page.eval<boolean>(`!!document.querySelector('#params .param-card[data-card="@captions"]')`), 'the captions card');
       expect(await page.eval<string[]>(`[...document.querySelectorAll('#params .captions-card select option')].map((o) => o.textContent)`))
-        .toEqual(['None (not drawn)', 'Caption Block', 'Caption Clean', 'Caption Pop']);
+        .toEqual(['None (not drawn)', 'Caption Beside', 'Caption Block', 'Caption Clean', 'Caption Duo', 'Caption One Word', 'Caption Pop', 'Caption Sticker']);
       // Nothing captioned yet: the card says where the words would come from, and says it plainly.
       expect(await page.eval<string>(`document.querySelector('#params .captions-card .caption-actions .note').textContent`))
         .toContain('nothing is sent anywhere');
@@ -7025,7 +7025,8 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<string>(`document.getElementById('camera-sound').value`)).toBe('off');
       await pressEscape();
       await until(async () => !(await previewOpen()), 'closed by Escape');
-      expect(await page.eval<boolean>(`document.getElementById('camera-preview').srcObject === null`), 'the camera off').toBe(true);
+      // The dialog's close event, which turns the camera off, is queued after it closes: waited for, not raced.
+      await until(() => page.eval<boolean>(`document.getElementById('camera-preview').srcObject === null`), 'the camera off');
       expect((await takes()).length, 'nothing recorded by closing').toBe(before.length + 1);
       // Sound back on for whatever runs after.
       await page.eval(`window.pulp.setVideoInputs({ camera: null, microphone: null, sound: true })`);

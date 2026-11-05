@@ -1,0 +1,82 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.hook-bar",
+  "name": "Hook Bar",
+  "description": "A bar across the top of a tall frame, under the header strip, with dark words on it: the meme-style caption short videos open on. It drops in and grows to the words.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "title",
+  "type": "title",
+  "tags": [
+    "hook",
+    "made-for-vertical",
+    "meme",
+    "headline",
+    "short-form"
+  ],
+  "themes": [
+    "social-media",
+    "gaming",
+    "entertainment"
+  ],
+  "styles": [
+    "playful",
+    "high-energy"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 1.2,
+    "holdTo": 4.4
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "blocks": [
+    {
+      "id": "bar",
+      "label": "Bar",
+      "box": {
+        "default": {
+          "x": 0.1,
+          "y": 0.16,
+          "width": 0.8,
+          "height": 0.18
+        }
+      },
+      "gap": 0.008,
+      "align": "center",
+      "verticalAlign": "top",
+      "typography": {
+        "family": "Montserrat",
+        "size": 0.074,
+        "weight": 800,
+        "color": "#0b0b0f",
+        "align": "center",
+        "lineHeight": 1.1,
+        "maxLines": 3
+      },
+      "layers": [
+        {
+          "id": "caption",
+          "type": "text",
+          "label": "Caption",
+          "text": "When it works on the first try",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Bar",
+      "default": "#ffffff",
+      "element": "Bar"
+    }
+  ]
+}

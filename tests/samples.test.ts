@@ -128,9 +128,12 @@ describe('bundled sample templates', async () => {
     // media slot plays against elapsed time as a video layer does, so a stretched hold never slows it.
     // Milestone 61's polished set holds, as every object does: they come in, stay, and go — the
     // twenty-four objects, the seven glass and depth design elements, and Boardroom's glass panel.
-    expect(kinds.hold).toHaveLength(176);
+    // Milestone 65's six hook titles hold: every line is in by 1.04 s, the hold runs from 1.2 s, and
+    // they leave together from 4.4 s.
+    expect(kinds.hold).toHaveLength(182);
     // Milestone 55 adds the blank canvas, which loops: it draws nothing of its own, so any length holds.
-    expect(kinds.loop).toHaveLength(103);
+    // Milestone 65's four caption styles made for vertical loop, as every caption style does.
+    expect(kinds.loop).toHaveLength(107);
     expect(kinds.scale).toHaveLength(40);
     expect(kinds.none).toHaveLength(73);
   });

@@ -25,6 +25,7 @@ import { soundAudible, soundWindow, type SoundValue } from '../core/sound-layer'
 import { trackAudio } from '../core/cut-track';
 import { DEFAULT_SPEECH_MODEL, modelSizeText, SPEECH_LANGUAGE_AUTO, SPEECH_LANGUAGES, type SpeechSegment } from '../core/speech';
 import type { Layer } from '../core/layers';
+import { madeForVertical } from '../core/vertical-layout';
 import { layerEditor } from './layer-edit';
 import { appState } from './store';
 
@@ -114,16 +115,21 @@ function speechSources(): { id: string; label: string; segments: SpeechSegment[]
 // ---------------------------------------------------------------- the card
 
 /** The caption styles the library holds: templates whose manifest says they draw captions. */
-function captionStyles(): { id: string; name: string }[] {
+function captionStyles(): { id: string; name: string; vertical: boolean }[] {
   return (appState.value.index?.templates ?? [])
     .filter((t) => t.manifest.captions === true)
-    .map((t) => ({ id: t.id, name: t.manifest.name }))
+    .map((t) => ({ id: t.id, name: t.manifest.name, vertical: madeForVertical(t.manifest) }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** The style a fresh set of captions is drawn with: the first bundled one, by name. */
+/**
+ * The style a fresh set of captions is drawn with: the first by name of those drawn for every shape.
+ * Not one made for vertical (milestone 65), which is placed for a tall frame alone: a wide project
+ * must not start on it just because its name sorts first.
+ */
 function defaultCaptionStyle(): string | null {
-  return captionStyles()[0]?.id ?? null;
+  const styles = captionStyles();
+  return (styles.find((s) => !s.vertical) ?? styles[0])?.id ?? null;
 }
 
 function setCaptions(next: CaptionsValue | null): void {

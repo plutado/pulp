@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hook List</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Hook List, a hook title for Pulp made for vertical (milestone 65; docs/vertical-layouts.md). CC0-1.0: no rights reserved.
+  //
+  // The number lands from a size larger and a ring draws itself around it; the promise rises in under
+  // it a step later. The number shrinks to fit rather than wrapping, so "10" sits in the ring as "3" does.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+
+  // One clock for every hook: a line arrives over half a second, a step after the line above it —
+  // three steps at most, so a line added in the tab is in by 1.04 s and the hold from 1.2 s holds
+  // with it. Everything leaves together from 4.4 s.
+  var STEP = 0.18, ARRIVE = 0.5, OUT_AT = 4.4, OUT_FOR = 0.5;
+  function arrival(t, position) { return easeOut(clamp01((t - Math.min(position, 3) * STEP) / ARRIVE)); }
+  function leaving(t) { return easeInOut(clamp01((t - OUT_AT) / OUT_FOR)); }
+  function fit(state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  /** The extent of a laid block's drawn words: left, top, right and bottom over every layer that has room. */
+  function extentOf(laid) {
+    var e = null;
+    laid.layers.forEach(function (l) {
+      if (l.box.width <= 0 && l.box.height <= 0) return;
+      var left = l.box.x, right = l.box.x + l.box.width;
+      if (l.lines && l.lines.length) {
+        left = Infinity; right = -Infinity;
+        l.lines.forEach(function (ln) { if (ln.width > 0) { left = Math.min(left, ln.x); right = Math.max(right, ln.x + ln.width); } });
+        if (!isFinite(left)) return;
+      }
+      if (!e) e = { left: left, top: l.box.y, right: right, bottom: l.box.y + l.box.height };
+      else { e.left = Math.min(e.left, left); e.top = Math.min(e.top, l.box.y); e.right = Math.max(e.right, right); e.bottom = Math.max(e.bottom, l.box.y + l.box.height); }
+    });
+    return e;
+  }
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    fit(state);
+    var W = state.width, H = state.height, t = state.time, p = state.params;
+    var u = Math.min(W, H) / 1080;
+    var gone = leaving(t);
+    if (gone >= 1) return;
+    var list = window.pulpLayoutBlock(ctx, state, 'list', {
+      each: function (layer, position) {
+        var a = arrival(t, position);
+        return position === 0
+          ? { alpha: Math.min(1, a * 1.8) * (1 - gone), scale: 1 + 0.3 * (1 - a), dy: -gone * 24 * u }
+          : { alpha: a * (1 - gone), dy: (1 - a) * 26 * u - gone * 24 * u };
+      }
+    });
+    var first = list.layers[0];
+    if (first && first.lines && first.lines.length) {
+      var ln = first.lines[0];
+      var cx = ln.x + ln.width / 2, cy = first.box.y + first.box.height / 2;
+      var r = Math.max(ln.width * 0.5, first.box.height * 0.42) + 18 * u;
+      var draw = easeOut(clamp01((t - 0.2) / 0.7));
+      if (draw > 0) {
+        ctx.save();
+        ctx.globalAlpha = 1 - gone;
+        ctx.strokeStyle = p.ring;
+        ctx.lineWidth = Math.max(3, 12 * u);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(cx, cy - gone * 24 * u, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * draw);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+    window.pulpDrawBlock(ctx, list);
+  };
+</script>
+</body>
+</html>

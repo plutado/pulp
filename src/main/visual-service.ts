@@ -22,6 +22,10 @@ import { scanLibrary } from '../core/library';
 import type { TemplateEntry } from '../core/library-types';
 import { capturePresented, createCaptureWindow, fitPageToFrame } from './capture-window';
 import { withTimeout } from '../core/render-guard';
+import { captionBandFor } from '../core/player';
+import {
+  differingRect, madeForVertical, placementCaptions, placementFrames, placementProblems, VERTICAL_CHECK_SIZE, withOtherWords, type PixelRect,
+} from '../core/vertical-layout';
 
 export interface VisualResult {
   template: string;
@@ -109,4 +113,81 @@ export function compare(results: readonly VisualResult[], references: VisualRefe
     else if (!looksSame(r.hash, reference)) changed.push({ ...r, reference, apart: hammingDistance(r.hash, reference) });
   }
   return { changed, missing };
+}
+
+// ---------------------------------------------------------------- words in a tall frame (milestone 65)
+
+export interface PlacementResult {
+  template: string;
+  /** "frame 45", or "caption, word 4 spoken" for a caption style. */
+  moment: string;
+  /** Where the words were found, in pixels of the 1080 × 1920 check frame; null when none were. */
+  words: PixelRect | null;
+  problems: string[];
+}
+
+/**
+ * Where one template made for vertical draws its words at 9:16, at each
+ * moment it has settled (`placementFrames`) — or, for a caption style, with
+ * the first, a middle and the last word of a long line being spoken — and
+ * what is wrong with where they are. Each moment is drawn twice, the second
+ * time with every word changed, and the words are where the two differ
+ * (src/core/vertical-layout.ts).
+ */
+async function placeTemplate(entry: TemplateEntry): Promise<PlacementResult[] | { error: string }> {
+  const manifest = entry.manifest;
+  const size = { ...VERTICAL_CHECK_SIZE };
+  const capture = createCaptureWindow(size, { backgroundThrottling: false });
+  const win = capture.win;
+  const textParams = manifest.parameters.filter((p) => p.type === 'text').map((p) => p.id);
+  const draw = async (state: unknown, what: string) => {
+    await withTimeout(win.webContents.executeJavaScript(`window.__pulp.render(${JSON.stringify(state)})`), LOAD_TIMEOUT_MS, `${what} did not draw`);
+    const image = await capturePresented(win);
+    const got = image.getSize();
+    if (got.width !== size.width || got.height !== size.height) throw new Error(`captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}`);
+    return new Uint8Array(image.toBitmap());
+  };
+  try {
+    await withTimeout(win.loadURL(`pulp-template://${manifest.id}/`), LOAD_TIMEOUT_MS, 'the template did not load');
+    await fitPageToFrame(capture);
+    const params = resolveParams(manifest, defaultParams(manifest)).values;
+    const moments = manifest.captions
+      ? placementCaptions(captionBandFor(size.width, size.height)).map((captions) => ({
+          moment: `caption, word ${captions.spoken + 1} spoken`,
+          state: frameState(manifest, 0, params, size, {}, {}, undefined, captions),
+        }))
+      : placementFrames(manifest).map((frame) => ({ moment: `frame ${frame}`, state: frameState(manifest, frame, params, size) }));
+    const out: PlacementResult[] = [];
+    for (const { moment, state } of moments) {
+      const as = await draw(state, moment);
+      const changed = await draw(withOtherWords(state, textParams), `${moment} with other words`);
+      const words = differingRect(as, changed, size.width, size.height);
+      out.push({ template: manifest.id, moment, words, problems: words ? placementProblems(words, size.width, size.height) : ['no words found: changing them changed nothing drawn'] });
+    }
+    return out;
+  } catch (err) {
+    return { error: (err as Error).message };
+  } finally {
+    if (!win.isDestroyed()) win.destroy();
+  }
+}
+
+/** Every bundled template made for vertical, checked for where its words sit at 9:16. */
+export async function checkVerticalPlacement(templatesDir: string, onProgress?: (done: number, total: number, what: string) => void): Promise<{ results: PlacementResult[]; failed: { what: string; error: string }[] }> {
+  const index = await scanLibrary([templatesDir], { builtInRoot: templatesDir });
+  const entries = index.templates.filter((t) => madeForVertical(t.manifest));
+  const results: PlacementResult[] = [];
+  const failed: { what: string; error: string }[] = [];
+  let done = 0;
+  for (const entry of entries) {
+    if (!entry.manifest.aspects.includes('9:16')) {
+      failed.push({ what: entry.manifest.id, error: 'made for vertical, but does not declare 9:16' });
+    } else {
+      const got = await placeTemplate(entry);
+      if ('error' in got) failed.push({ what: entry.manifest.id, error: got.error });
+      else results.push(...got);
+    }
+    onProgress?.(++done, entries.length, entry.manifest.id);
+  }
+  return { results, failed };
 }

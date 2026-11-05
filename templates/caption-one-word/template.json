@@ -1,0 +1,64 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.caption-one-word",
+  "name": "Caption One Word",
+  "description": "One word at a time, the word being said, large in the middle of a tall frame and popping in as it is spoken. The fastest caption to read, for speech cut quickly.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "callout",
+  "captions": true,
+  "tags": [
+    "caption",
+    "subtitle",
+    "speech",
+    "made-for-vertical",
+    "one-word",
+    "short-form"
+  ],
+  "themes": [
+    "social-media",
+    "fitness",
+    "gaming"
+  ],
+  "styles": [
+    "high-energy"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "spoken",
+      "type": "color",
+      "label": "Word being spoken",
+      "default": "#facc15",
+      "element": "Caption"
+    },
+    {
+      "id": "outline",
+      "type": "color",
+      "label": "Outline",
+      "default": "#0b1020",
+      "element": "Caption"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 0.15,
+      "min": 0.08,
+      "max": 0.22,
+      "step": 0.005,
+      "element": "Caption"
+    }
+  ]
+}

@@ -32,7 +32,7 @@ import { isProjectFile } from './open-file';
 
 export const EXIT_CODES = { ok: 0, failed: 1, usage: 2 } as const;
 
-export const CLI_COMMANDS = ['render', 'collection', 'sample-media', 'visual-hashes', 'help', 'version'] as const;
+export const CLI_COMMANDS = ['render', 'collection', 'sample-media', 'visual-hashes', 'safe-box', 'help', 'version'] as const;
 export type CliCommand = (typeof CLI_COMMANDS)[number];
 
 /** One flag a command takes: its spelling, whether it takes a value (and what to call it), and the help line. */
@@ -126,6 +126,12 @@ export const CLI_SPECS: readonly CliCommandSpec[] = [
       { name: '--check', help: 'Compare with the references in <file> instead of writing them; exit 1 on any change.' },
       LIBRARY_FLAG,
     ],
+  },
+  {
+    name: 'safe-box',
+    summary: 'Check that every template made for vertical keeps its words inside the safe box and clear of the vertical zones at 9:16.',
+    flags: [],
+    notes: ['Prints a line per moment whose words are out of place and exits 1 if there is any (docs/vertical-layouts.md).'],
   },
   {
     name: 'help',

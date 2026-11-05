@@ -1,0 +1,78 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.caption-duo",
+  "name": "Caption Duo",
+  "description": "Two short lines at most on a dark card just above where the apps print their own caption, the spoken word on a bright chip; a long line pages along two rows at a time as it is said.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "callout",
+  "captions": true,
+  "tags": [
+    "caption",
+    "subtitle",
+    "speech",
+    "made-for-vertical",
+    "boxed",
+    "short-form"
+  ],
+  "themes": [
+    "social-media",
+    "education",
+    "podcast"
+  ],
+  "styles": [
+    "clean"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Words",
+      "default": "#ffffff",
+      "element": "Caption"
+    },
+    {
+      "id": "spoken",
+      "type": "color",
+      "label": "Word being spoken",
+      "default": "#22d3ee",
+      "element": "Caption"
+    },
+    {
+      "id": "spokenInk",
+      "type": "color",
+      "label": "Spoken word's ink",
+      "default": "#0b1020",
+      "element": "Caption"
+    },
+    {
+      "id": "panel",
+      "type": "color",
+      "label": "Card",
+      "default": "#0b1020",
+      "element": "Caption"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 0.062,
+      "min": 0.04,
+      "max": 0.09,
+      "step": 0.005,
+      "element": "Caption"
+    }
+  ]
+}

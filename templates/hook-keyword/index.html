@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hook Keyword</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Hook Keyword, a hook title for Pulp made for vertical (milestone 65; docs/vertical-layouts.md). CC0-1.0: no rights reserved.
+  //
+  // The headline rises in; then a marker sweeps behind the word named in Keyword, and that word turns
+  // the marker's ink. The word is found in the lines as the bridge laid them, so it follows a wrap.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeInOut(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function hex(c, i) { return parseInt(c.substr(i, 2), 16); }
+  function rgba(c, a) { return 'rgba(' + hex(c, 1) + ',' + hex(c, 3) + ',' + hex(c, 5) + ',' + a.toFixed(4) + ')'; }
+
+  // One clock for every hook: a line arrives over half a second, a step after the line above it —
+  // three steps at most, so a line added in the tab is in by 1.04 s and the hold from 1.2 s holds
+  // with it. Everything leaves together from 4.4 s.
+  var STEP = 0.18, ARRIVE = 0.5, OUT_AT = 4.4, OUT_FOR = 0.5;
+  function arrival(t, position) { return easeOut(clamp01((t - Math.min(position, 3) * STEP) / ARRIVE)); }
+  function leaving(t) { return easeInOut(clamp01((t - OUT_AT) / OUT_FOR)); }
+  function fit(state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    ctx.clearRect(0, 0, state.width, state.height);
+  }
+  /** The extent of a laid block's drawn words: left, top, right and bottom over every layer that has room. */
+  function extentOf(laid) {
+    var e = null;
+    laid.layers.forEach(function (l) {
+      if (l.box.width <= 0 && l.box.height <= 0) return;
+      var left = l.box.x, right = l.box.x + l.box.width;
+      if (l.lines && l.lines.length) {
+        left = Infinity; right = -Infinity;
+        l.lines.forEach(function (ln) { if (ln.width > 0) { left = Math.min(left, ln.x); right = Math.max(right, ln.x + ln.width); } });
+        if (!isFinite(left)) return;
+      }
+      if (!e) e = { left: left, top: l.box.y, right: right, bottom: l.box.y + l.box.height };
+      else { e.left = Math.min(e.left, left); e.top = Math.min(e.top, l.box.y); e.right = Math.max(e.right, right); e.bottom = Math.max(e.bottom, l.box.y + l.box.height); }
+    });
+    return e;
+  }
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  window.pulpRender = function (state) {
+    fit(state);
+    var W = state.width, H = state.height, t = state.time, p = state.params;
+    var u = Math.min(W, H) / 1080;
+    var gone = leaving(t);
+    if (gone >= 1) return;
+    var each = function (layer, position) {
+      var a = arrival(t, position);
+      return { alpha: a * (1 - gone), dy: (1 - a) * 30 * u - gone * 24 * u };
+    };
+    var hook = window.pulpLayoutBlock(ctx, state, 'hook', { each: each });
+    // The marker sweeps from 0.5 s to 1.0 s, under the words; the highlighted word is redrawn over it.
+    var sweep = easeOut(clamp01((t - 0.5) / 0.5)) * (1 - gone);
+    var keyword = String(p.keyword || '').trim().toLowerCase();
+    var hits = [];
+    if (keyword) {
+      hook.layers.forEach(function (layer, position) {
+        if (!layer.lines) return;
+        // The font the bridge drew the line in (layerFont in src/core/runtime.ts), at the size it ended up at.
+        var font = (layer.italic ? 'italic ' : '') + layer.weight + ' ' + layer.size + 'px "' + layer.family + '"';
+        ctx.font = font;
+        layer.lines.forEach(function (line) {
+          var at = line.text.toLowerCase().indexOf(keyword);
+          if (at < 0) return;
+          var word = line.text.substr(at, keyword.length);
+          var before = ctx.measureText(line.text.substr(0, at)).width;
+          var wide = ctx.measureText(word).width;
+          hits.push({ font: font, word: word, x: line.x + before, width: wide, baseline: line.baseline, size: layer.size, dy: each(layer, position).dy });
+        });
+      });
+    }
+    hits.forEach(function (h) {
+      if (sweep <= 0) return;
+      var padX = h.size * 0.12;
+      ctx.fillStyle = rgba(p.marker, 0.95);
+      ctx.save();
+      ctx.translate(0, h.dy);
+      ctx.beginPath();
+      ctx.rect(h.x - padX, h.baseline - h.size * 0.86, (h.width + padX * 2) * sweep, h.size * 1.06);
+      ctx.fill();
+      ctx.restore();
+    });
+    window.pulpDrawBlock(ctx, hook);
+    hits.forEach(function (h) {
+      if (sweep <= 0) return;
+      // The word in the marker's ink, only as far as the marker has swept.
+      ctx.save();
+      ctx.translate(0, h.dy);
+      ctx.beginPath();
+      ctx.rect(h.x - h.size, h.baseline - h.size * 1.2, h.size + (h.width + h.size * 0.24) * sweep, h.size * 1.8);
+      ctx.clip();
+      ctx.font = h.font;
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = rgba(p.markerInk, 1 - gone);
+      ctx.fillText(h.word, h.x, h.baseline);
+      ctx.restore();
+    });
+  };
+</script>
+</body>
+</html>

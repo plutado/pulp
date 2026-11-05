@@ -1,0 +1,92 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.caption-beside",
+  "name": "Caption Beside",
+  "description": "A narrow column of words beside the person speaking: say which side of a tall frame the face is on and how high, and the words take the other side at that height, the spoken word underlined.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "callout",
+  "captions": true,
+  "tags": [
+    "caption",
+    "subtitle",
+    "speech",
+    "made-for-vertical",
+    "side",
+    "short-form"
+  ],
+  "themes": [
+    "social-media",
+    "podcast",
+    "news"
+  ],
+  "styles": [
+    "clean",
+    "elegant"
+  ],
+  "duration": 4,
+  "structure": {
+    "loop": true
+  },
+  "fps": 30,
+  "aspects": [
+    "9:16"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "face",
+      "type": "select",
+      "label": "Face is on the",
+      "default": "left",
+      "options": [
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "element": "Placement"
+    },
+    {
+      "id": "level",
+      "type": "number",
+      "label": "Face height",
+      "default": 0.4,
+      "min": 0.25,
+      "max": 0.65,
+      "step": 0.01,
+      "element": "Placement"
+    },
+    {
+      "id": "ink",
+      "type": "color",
+      "label": "Words",
+      "default": "#ffffff",
+      "element": "Caption"
+    },
+    {
+      "id": "spoken",
+      "type": "color",
+      "label": "Word being spoken",
+      "default": "#a3e635",
+      "element": "Caption"
+    },
+    {
+      "id": "size",
+      "type": "number",
+      "label": "Size",
+      "default": 0.058,
+      "min": 0.04,
+      "max": 0.08,
+      "step": 0.005,
+      "element": "Caption"
+    }
+  ]
+}
