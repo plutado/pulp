@@ -12,6 +12,7 @@ import { sanitizeRecentSearches } from '../core/recent-searches';
 import { DEFAULT_CACHE_MAX_MB, sanitizeCacheMaxMB } from '../core/render-cache';
 import { sanitizeTypeOutputDefaults, type TypeOutputDefault } from '../core/output-defaults';
 import { DEFAULT_APPEARANCE, sanitizeAppearance, type Appearance } from '../core/appearance';
+import { DEFAULT_LANGUAGE, sanitizeLanguage, type LanguageChoice } from '../core/i18n';
 import { sanitizeVideoInputs, type VideoInputs } from '../core/video-take';
 
 export interface Settings {
@@ -59,6 +60,8 @@ export interface Settings {
   editorPanel: boolean;
   /** Light, dark, or the operating system's (milestone 62; src/core/appearance.ts). */
   appearance: Appearance;
+  /** The interface's language: the system's, or one chosen in Settings → Language (milestone 59; src/core/i18n.ts). */
+  language: LanguageChoice;
   /** The microphone chosen for recording (milestone 63); absent means the system's default. */
   recordingInput?: { id: string; label: string };
   /** The camera preview's camera, microphone and sound (milestone 64); absent is the defaults, sound on. */
@@ -86,6 +89,7 @@ const DEFAULTS: Settings = {
   semanticSearch: false,
   editorPanel: false,
   appearance: DEFAULT_APPEARANCE,
+  language: DEFAULT_LANGUAGE,
 };
 
 /** Only string-to-string entries, and only for paths the recent list still holds. */
@@ -139,6 +143,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     semanticSearch: raw.semanticSearch === true,
     editorPanel: raw.editorPanel === true,
     appearance: sanitizeAppearance(raw.appearance),
+    language: sanitizeLanguage(raw.language),
     ...(raw.recordingInput && typeof raw.recordingInput === 'object' && typeof raw.recordingInput.id === 'string' && typeof raw.recordingInput.label === 'string'
       ? { recordingInput: { id: raw.recordingInput.id, label: raw.recordingInput.label } }
       : {}),

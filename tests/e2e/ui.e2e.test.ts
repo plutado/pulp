@@ -486,6 +486,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       // Dark, whatever the machine's own appearance (milestone 62): a CI runner's desktop is light, and
       // the suite's tests were written against the dark palette. The appearance tests switch it and put it back.
       appearance: 'dark',
+      // US English, whatever the machine's own language (milestone 59): the suite reads the window's
+      // words, written in the source catalog's. The language test switches it and puts it back.
+      language: 'en-US',
       recentProjects: [join(ROOT, 'examples', 'interview.pulp')],
       recentProjectTimes: { [join(ROOT, 'examples', 'interview.pulp')]: new Date().toISOString() },
     }));
@@ -6890,6 +6893,69 @@ describe.skipIf(!electron)('inspector UI', () => {
         }
       }
     }, 120_000);
+  });
+
+  describe("the interface's language (milestone 59)", () => {
+    const savedLanguage = async () => (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { language?: string }).language;
+    const menuWords = async () => {
+      const sections = await page.eval<{ label: string; items: { label?: string }[] }[]>(`window.pulp.menuSections()`);
+      return sections.flatMap((sec) => [sec.label, ...sec.items.map((i) => i.label ?? '')]);
+    };
+    const stageTarget = async () => (await targets()).find((t) => t.type === 'page' && t.id !== appTargetId && t.title === 'Stage');
+
+    it('switches from Settings without a restart: the window, the menu and the popped-out stage in the new words, the choice kept', async () => {
+      let stage: Session | null = null;
+      try {
+        await page.eval(`window.pulpMenuCommand('app.settings')`);
+        await until(() => page.eval<boolean>(`document.getElementById('settings-dialog').open`), 'Settings');
+        // The system's language first, naming the one it comes to; then each language under its own name.
+        const options = await page.eval<{ value: string; text: string }[]>(`[...document.getElementById('settings-language').options].map((o) => ({ value: o.value, text: o.textContent }))`);
+        expect(options.map((o) => o.value)).toEqual(['system', 'en-US', 'en-GB']);
+        expect(options[0]!.text).toMatch(/^Same as the system \(English \((US|UK)\)\)$/);
+        expect(options.slice(1).map((o) => o.text)).toEqual(['English (US)', 'English (UK)']);
+        expect(await page.eval<string>(`document.getElementById('settings-language').value`), 'the suite runs in US English').toBe('en-US');
+        expect(await page.eval<string>(`document.getElementById('bg-gray').getAttribute('aria-label')`)).toBe('Gray background');
+
+        // The stage out first, so a change reaches the window it is in as well as this one.
+        await page.eval(`window.pulpMenuCommand('view.popOut')`);
+        await until(async () => (await stageTarget()) !== undefined, 'the stage window');
+        stage = await Session.connect((await stageTarget())!.webSocketDebuggerUrl);
+        await stage.send('Runtime.enable');
+        await until(() => stage!.eval<boolean>(`!!document.getElementById('bg-gray')`), "the stage's elements in its window");
+
+        await fire('#settings-language', 'en-GB', 'change');
+        await until(() => page.eval<boolean>(`document.documentElement.lang === 'en-GB'`), 'the window in British English');
+        expect(await page.eval<string>(`document.querySelector('[data-i18n="ui.chip-favorites.favorites"]').textContent`)).toBe('Favourites');
+        expect(await page.eval<string>(`document.getElementById('chip-favorites').getAttribute('data-tip')`)).toBe('Favourites only');
+        // The popped-out stage's words follow, in its own document.
+        await until(() => stage!.eval<boolean>(`document.getElementById('bg-gray').getAttribute('aria-label') === 'Grey background' && document.documentElement.lang === 'en-GB'`), 'the stage window in British English');
+        // The application menu, built by the main process, is rebuilt in the new words.
+        await until(async () => (await menuWords()).includes('Theatre'), 'the View menu saying Theatre');
+        expect(await menuWords()).not.toContain('Theater');
+        // Words that are not British spelling stay as they are.
+        expect(await menuWords()).toContain('Render…');
+        await until(async () => (await savedLanguage()) === 'en-GB', 'English (UK) in settings.json');
+
+        // Back to US English, the same way.
+        await fire('#settings-language', 'en-US', 'change');
+        await until(() => page.eval<boolean>(`document.documentElement.lang === 'en-US'`), 'the window in US English');
+        await until(() => stage!.eval<boolean>(`document.getElementById('bg-gray').getAttribute('aria-label') === 'Gray background'`), 'the stage window back');
+        await until(async () => (await menuWords()).includes('Theater'), 'the menu back');
+        await until(async () => (await savedLanguage()) === 'en-US', 'English (US) in settings.json');
+        // The system's: saved as the choice, not as a language, and showing the one it comes to.
+        await fire('#settings-language', 'system', 'change');
+        await until(async () => (await savedLanguage()) === 'system', 'the system in settings.json');
+        const followed = await page.eval<{ locale: string }>(`window.pulp.getLanguage()`);
+        await until(() => page.eval<boolean>(`document.documentElement.lang === ${JSON.stringify(followed.locale)}`), "the window in the system's language");
+      } finally {
+        stage?.close();
+        await page.eval(`(() => { if (document.getElementById('app').classList.contains('stage-out')) window.pulpMenuCommand('view.popOut'); })()`);
+        await until(() => page.eval<boolean>(`!!document.getElementById('region-stage')`), 'the stage at home');
+        await page.eval(`window.pulp.setLanguage('en-US')`);
+        await until(() => page.eval<boolean>(`document.documentElement.lang === 'en-US'`), 'the suite back in US English');
+        await page.eval(`document.getElementById('settings-dialog').close()`);
+      }
+    }, 90_000);
   });
 
   describe('recording a voice (milestone 63)', () => {

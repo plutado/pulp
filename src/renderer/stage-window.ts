@@ -19,6 +19,7 @@
  * (src/main/stage-window-service.ts).
  */
 
+import { t, translateAlso } from './i18n';
 import { STAGE_WINDOW_NAME } from '../core/stage-window';
 import { watchContextMenuIn } from './context-menu';
 import { setIcon } from './icons';
@@ -40,6 +41,8 @@ let out: {
   stageNext: Node | null;
   rowParent: HTMLElement;
   rowNext: Node | null;
+  /** Stops putting the interface's words in place in its document (milestone 59). */
+  untranslate: () => void;
 } | null = null;
 
 /**
@@ -104,8 +107,7 @@ export function popOutStage(): boolean {
   const win = window.open('about:blank', STAGE_WINDOW_NAME);
   if (!win) return false;
   const doc = win.document;
-  doc.documentElement.lang = 'en';
-  doc.title = 'Stage';
+  doc.title = t('window.stage.title');
   // The same stylesheet as this page's, by the same link; serialized in place should the link fail.
   const link = doc.createElement('link');
   link.rel = 'stylesheet';
@@ -130,6 +132,8 @@ export function popOutStage(): boolean {
     stageNext: stage.nextSibling,
     rowParent: scrubLine.parentElement!,
     rowNext: lanes.nextSibling,
+    // Its language, direction and title follow the window's, a change of language included.
+    untranslate: translateAlso(doc, 'window.stage.title'),
   };
   // The timeline under the picture: the row's first line, in a host of its own that the scrub
   // bar is placed against as it was against the row.
@@ -158,6 +162,7 @@ export function popInStage(): void {
   if (!out) return;
   const was = out;
   out = null;
+  was.untranslate();
   was.stageParent.insertBefore(was.stage, was.stageNext);
   was.rowParent.insertBefore(was.scrubLine, was.rowNext);
   was.rowParent.insertBefore(was.lanes, was.rowNext);

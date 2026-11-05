@@ -9,11 +9,11 @@
  * `tests/roving.test.ts`, and the end-to-end suite drives the real window.
  */
 
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { shownMarkup } from './markup';
 
-const html = await readFile(join(__dirname, '..', 'src', 'renderer', 'index.html'), 'utf8');
+// As the window shows it: the markup's words are in the catalog (milestone 59; tests/markup.ts).
+const html = shownMarkup();
 
 /** Every opening tag in the markup, as its tag name and its attribute text. */
 const tags = [...html.matchAll(/<([a-zA-Z][\w-]*)\b([^>]*)>/g)].map((m) => ({ tag: m[1]!, attrs: m[2]! }));

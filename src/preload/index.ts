@@ -157,6 +157,13 @@ const api: PulpApi = {
   setEditorPanel: (enabled) => ipcRenderer.invoke('panel:set', enabled),
   getAppearance: () => ipcRenderer.invoke('appearance:get'),
   setAppearance: (choice) => ipcRenderer.invoke('appearance:set', choice),
+  getLanguage: () => ipcRenderer.invoke('language:get'),
+  setLanguage: (choice) => ipcRenderer.invoke('language:set', choice),
+  onLanguageChanged: (listener) => {
+    const handler = (_event: unknown, state: Parameters<typeof listener>[0]) => listener(state);
+    ipcRenderer.on('language:changed', handler);
+    return () => ipcRenderer.removeListener('language:changed', handler);
+  },
   microphoneAccess: () => ipcRenderer.invoke('recording:access'),
   saveRecording: (wav) => ipcRenderer.invoke('recording:save', wav),
   openPrivacySettings: (device) => ipcRenderer.invoke('recording:open-settings', device),

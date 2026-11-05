@@ -14,6 +14,7 @@ import { queueCard } from '../src/core/queue-card';
 import { aboutRows, creditsRows, fileRows, formatRows, INFO_SECTIONS, usageRows } from '../src/core/item-info';
 import type { TemplateEntry } from '../src/core/library-types';
 import { validManifest } from './fixtures';
+import { shownMarkup } from './markup';
 import type { RenderQueueJob } from '../src/core/render-queue';
 
 const ROOT = join(__dirname, '..');
@@ -40,13 +41,13 @@ describe('stylesheet', () => {
 
 describe('markup', () => {
   it('uses the ellipsis character, never three dots', async () => {
-    const html = await read('src/renderer/index.html');
+    const html = shownMarkup(); // as the window shows it (milestone 59; tests/markup.ts)
     expect(html.includes('...')).toBe(false);
   });
 
   it('shows no ALL CAPS text outside the official-styling list', async () => {
     const official = new Set(await officialStyling());
-    const html = await read('src/renderer/index.html');
+    const html = shownMarkup(); // as the window shows it (milestone 59; tests/markup.ts)
     const text = html
       .replace(/<!--[\s\S]*?-->/g, ' ')
       .replace(/<[^>]*>/g, ' '); // attributes go with their tags; what remains is what the user reads
@@ -55,7 +56,7 @@ describe('markup', () => {
   });
 
   it('gives every icon-only button an accessible name', async () => {
-    const html = await read('src/renderer/index.html');
+    const html = shownMarkup(); // as the window shows it (milestone 59; tests/markup.ts)
     const buttons = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [];
     const offenders = buttons.filter((b) => {
       const open = b.slice(0, b.indexOf('>') + 1);

@@ -25,6 +25,7 @@ import { DEFAULT_PLAYER, STAGE_BACKGROUNDS, type StageBackground } from './playe
 import { MOTION_PRESETS } from './motion-presets';
 import { APPEARANCES, DEFAULT_APPEARANCE, type Appearance } from './appearance';
 import type { MenuDisplay } from './stage-window';
+import { SOURCE_TRANSLATOR, type Translator } from './i18n';
 
 export type MenuCommand =
   | 'app.home'
@@ -313,6 +314,8 @@ export interface MenuOptions {
   development: boolean;
   appName: string;
   state: MenuState;
+  /** The words, in the interface's language (milestone 59); US English when not given. */
+  t?: Translator;
 }
 
 const sep: MenuItemSpec = { type: 'separator' };
@@ -329,25 +332,25 @@ const sep: MenuItemSpec = { type: 'separator' };
  * cannot drift apart in their words or in what they do (ADR 0017's rule for
  * the stage's menu, which this follows).
  */
-export function libraryAddItems(state: Pick<MenuState, 'canAddSampleMedia'> = EMPTY_MENU_STATE): MenuItemSpec[] {
+export function libraryAddItems(state: Pick<MenuState, 'canAddSampleMedia'> = EMPTY_MENU_STATE, t: Translator = SOURCE_TRANSLATOR): MenuItemSpec[] {
   return [
-    { command: 'library.addFolder', label: 'Your Media Folder…', detail: 'Footage, stills and sounds, indexed where they are' },
-    { command: 'pack.import', label: 'Templates from a Pack…', detail: 'A .zip or a folder of templates, installed' },
+    { command: 'library.addFolder', label: t('menu.library.addFolder'), detail: t('menu.library.addFolder.detail') },
+    { command: 'pack.import', label: t('menu.pack.import'), detail: t('menu.pack.import.detail') },
     // Offered only while some of the catalog is unmade: once it is all there, there is nothing
     // to bring in (milestone 34 counts what is left).
-    ...(state.canAddSampleMedia ? [{ command: 'library.addSampleMedia' as const, label: 'Sample Media', detail: 'Original CC0 sounds, music, stills and clips, made and added' }] : []),
+    ...(state.canAddSampleMedia ? [{ command: 'library.addSampleMedia' as const, label: t('menu.library.addSampleMedia'), detail: t('menu.library.addSampleMedia.detail') }] : []),
   ];
 }
 
 /** The connected displays as a submenu (milestone 43), or one disabled line while none is known. */
-function displaysSubmenu(displays: readonly MenuDisplay[]): MenuItemSpec[] {
-  if (displays.length === 0) return [{ label: 'No display found', disabled: true }];
+function displaysSubmenu(displays: readonly MenuDisplay[], t: Translator): MenuItemSpec[] {
+  if (displays.length === 0) return [{ label: t('menu.displays.none'), disabled: true }];
   return displays.map((d) => ({ command: 'view.stageOnDisplay' as const, label: d.label, arg: String(d.id) }));
 }
 
 /** The recently-opened projects as a submenu, or one disabled line saying there are none. */
-function recentSubmenu(recent: readonly string[]): MenuItemSpec[] {
-  if (recent.length === 0) return [{ label: 'Nothing opened yet', disabled: true }];
+function recentSubmenu(recent: readonly string[], t: Translator): MenuItemSpec[] {
+  if (recent.length === 0) return [{ label: t('menu.recent.none'), disabled: true }];
   return recent.map((path) => ({ command: 'project.openRecent' as const, label: recentLabel(path), arg: path }));
 }
 
@@ -379,47 +382,47 @@ export function motionSubmenu(): MenuItemSpec[] {
   return MOTION_PRESETS.map((p) => ({ command: 'layer.motion' as const, label: p.label, arg: p.id, enabledBy: 'canEditLayer' as const }));
 }
 
-export function layerSubmenu(): MenuItemSpec[] {
+export function layerSubmenu(t: Translator = SOURCE_TRANSLATOR): MenuItemSpec[] {
   return [
     // What the selected layer itself holds, before what can be added beside it.
-    { command: 'layer.editText', label: 'Edit Text', enabledBy: 'canEditText' },
-    { command: 'layer.replaceImage', label: 'Replace Image…', enabledBy: 'canReplaceImage' },
-    { command: 'layer.replaceClip', label: 'Replace Clip…', enabledBy: 'canReplaceClip' },
+    { command: 'layer.editText', label: t('menu.layer.editText'), enabledBy: 'canEditText' },
+    { command: 'layer.replaceImage', label: t('menu.layer.replaceImage'), enabledBy: 'canReplaceImage' },
+    { command: 'layer.replaceClip', label: t('menu.layer.replaceClip'), enabledBy: 'canReplaceClip' },
     sep,
     // Parameters by picking (milestone 55): the property becomes a named parameter in the Parameters tab.
-    { command: 'layer.exposeText', label: 'Make Words a Parameter', enabledBy: 'canEditText' },
-    { command: 'layer.exposeColor', label: 'Make Color a Parameter', enabledBy: 'canExposeColor' },
-    { command: 'layer.exposeImage', label: 'Make Picture a Parameter', enabledBy: 'canReplaceImage' },
+    { command: 'layer.exposeText', label: t('menu.layer.exposeText'), enabledBy: 'canEditText' },
+    { command: 'layer.exposeColor', label: t('menu.layer.exposeColor'), enabledBy: 'canExposeColor' },
+    { command: 'layer.exposeImage', label: t('menu.layer.exposeImage'), enabledBy: 'canReplaceImage' },
     sep,
     // Motion (milestone 55): a ready-made motion from the presets, and keyframe recording on the selected layer.
-    { label: 'Animate', submenu: motionSubmenu() },
-    { command: 'layer.keyframing', label: 'Record Keyframes', type: 'checkbox', checkedBy: 'keyframing', enabledBy: 'canEditLayer' },
+    { label: t('menu.animate'), submenu: motionSubmenu() },
+    { command: 'layer.keyframing', label: t('menu.layer.keyframing'), type: 'checkbox', checkedBy: 'keyframing', enabledBy: 'canEditLayer' },
     sep,
-    { command: 'layer.addText', label: 'Add Text Layer', enabledBy: 'canAddLayer' },
+    { command: 'layer.addText', label: t('menu.layer.addText'), enabledBy: 'canAddLayer' },
     // Both take a library item as their argument, as Open Recent takes a path: with one they add
     // a layer showing it (the stage's Add Asset Here), with none a blank layer to be filled in.
-    { command: 'layer.addImage', label: 'Add Image Layer', enabledBy: 'canAddLayer' },
-    { command: 'layer.addVideo', label: 'Add Video Layer', enabledBy: 'canAddLayer' },
-    { command: 'layer.addShape', label: 'Add Shape Layer', enabledBy: 'canAddLayer' },
+    { command: 'layer.addImage', label: t('menu.layer.addImage'), enabledBy: 'canAddLayer' },
+    { command: 'layer.addVideo', label: t('menu.layer.addVideo'), enabledBy: 'canAddLayer' },
+    { command: 'layer.addShape', label: t('menu.layer.addShape'), enabledBy: 'canAddLayer' },
     sep,
-    { command: 'layer.cut', label: 'Cut', enabledBy: 'canDeleteLayer' },
-    { command: 'layer.copy', label: 'Copy', enabledBy: 'canEditLayer' },
-    { command: 'layer.paste', label: 'Paste', enabledBy: 'canPasteLayer' },
-    { command: 'layer.duplicate', label: 'Duplicate', enabledBy: 'canEditLayer' },
-    { command: 'layer.delete', label: 'Delete', enabledBy: 'canDeleteLayer' },
+    { command: 'layer.cut', label: t('menu.layer.cut'), enabledBy: 'canDeleteLayer' },
+    { command: 'layer.copy', label: t('menu.layer.copy'), enabledBy: 'canEditLayer' },
+    { command: 'layer.paste', label: t('menu.layer.paste'), enabledBy: 'canPasteLayer' },
+    { command: 'layer.duplicate', label: t('menu.layer.duplicate'), enabledBy: 'canEditLayer' },
+    { command: 'layer.delete', label: t('menu.layer.delete'), enabledBy: 'canDeleteLayer' },
     sep,
-    { command: 'layer.forward', label: 'Bring Forward', enabledBy: 'canLayerForward' },
-    { command: 'layer.backward', label: 'Send Backward', enabledBy: 'canLayerBackward' },
-    { command: 'layer.front', label: 'Bring to Front', enabledBy: 'canLayerForward' },
-    { command: 'layer.back', label: 'Send to Back', enabledBy: 'canLayerBackward' },
+    { command: 'layer.forward', label: t('menu.layer.forward'), enabledBy: 'canLayerForward' },
+    { command: 'layer.backward', label: t('menu.layer.backward'), enabledBy: 'canLayerBackward' },
+    { command: 'layer.front', label: t('menu.layer.front'), enabledBy: 'canLayerForward' },
+    { command: 'layer.back', label: t('menu.layer.back'), enabledBy: 'canLayerBackward' },
     sep,
-    { command: 'layer.copyLook', label: 'Copy Look', enabledBy: 'canEditLayer' },
-    { command: 'layer.pasteLook', label: 'Paste Look', enabledBy: 'canPasteLook' },
+    { command: 'layer.copyLook', label: t('menu.layer.copyLook'), enabledBy: 'canEditLayer' },
+    { command: 'layer.pasteLook', label: t('menu.layer.pasteLook'), enabledBy: 'canPasteLook' },
     sep,
-    { command: 'layer.startHere', label: 'Start at Playhead', enabledBy: 'canEditLayer' },
-    { command: 'layer.endHere', label: 'End at Playhead', enabledBy: 'canEditLayer' },
+    { command: 'layer.startHere', label: t('menu.layer.startHere'), enabledBy: 'canEditLayer' },
+    { command: 'layer.endHere', label: t('menu.layer.endHere'), enabledBy: 'canEditLayer' },
     sep,
-    { command: 'layer.reset', label: 'Reset Layer', enabledBy: 'canResetLayer' },
+    { command: 'layer.reset', label: t('menu.layer.reset'), enabledBy: 'canResetLayer' },
   ];
 }
 
@@ -489,69 +492,70 @@ export function appearanceSubmenu(): MenuItemSpec[] {
  */
 export function buildMenu(options: MenuOptions): MenuSection[] {
   const { mac, development, appName, state } = options;
+  const t = options.t ?? SOURCE_TRANSLATOR;
   const sections: MenuSection[] = [];
 
   if (mac) {
     sections.push({
       label: appName,
       items: [
-        { role: 'about', label: `About ${appName}` },
+        { role: 'about', label: t('menu.role.about-app', { app: appName }) },
         sep,
         // The Settings window (milestone 8): where the platform puts it, under the app's own menu.
-        { command: 'app.settings', label: 'Settings…', accelerator: 'CmdOrCtrl+,' },
+        { command: 'app.settings', label: t('menu.app.settings'), accelerator: 'CmdOrCtrl+,' },
         sep,
-        { role: 'hide', label: `Hide ${appName}` },
+        { role: 'hide', label: t('menu.role.hide-app', { app: appName }) },
         { role: 'hideOthers' },
         { role: 'unhide' },
         sep,
-        { role: 'quit', label: `Quit ${appName}` },
+        { role: 'quit', label: t('menu.role.quit-app', { app: appName }) },
       ],
     });
   }
 
   sections.push({
-    label: 'File',
+    label: t('menu.file'),
     items: [
       // The start screen (milestone 31): also shown at launch, so this is the way back to it.
-      { command: 'app.home', label: 'Home' },
+      { command: 'app.home', label: t('menu.app.home') },
       sep,
-      { command: 'project.new', label: 'New Project', accelerator: 'CmdOrCtrl+N' },
+      { command: 'project.new', label: t('menu.project.new'), accelerator: 'CmdOrCtrl+N' },
       // The visual template editor's first piece (milestone 55): the bundled blank canvas, opened to compose on.
-      { command: 'canvas.new', label: 'New Blank Canvas', accelerator: 'CmdOrCtrl+Shift+N' },
+      { command: 'canvas.new', label: t('menu.canvas.new'), accelerator: 'CmdOrCtrl+Shift+N' },
       // And its other end (milestone 55): what was composed on the canvas, saved in the open format.
-      { command: 'canvas.saveTemplate', label: 'Save as Template…', enabledBy: 'canSaveCanvas' },
-      { command: 'project.open', label: 'Open…', accelerator: 'CmdOrCtrl+O' },
-      { label: 'Open Recent', submenu: recentSubmenu(state.recent) },
+      { command: 'canvas.saveTemplate', label: t('menu.canvas.saveTemplate'), enabledBy: 'canSaveCanvas' },
+      { command: 'project.open', label: t('menu.project.open'), accelerator: 'CmdOrCtrl+O' },
+      { label: t('menu.open-recent'), submenu: recentSubmenu(state.recent, t) },
       sep,
-      { command: 'project.save', label: 'Save', accelerator: 'CmdOrCtrl+S' },
-      { command: 'project.saveAs', label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S' },
+      { command: 'project.save', label: t('menu.project.save'), accelerator: 'CmdOrCtrl+S' },
+      { command: 'project.saveAs', label: t('menu.project.saveAs'), accelerator: 'CmdOrCtrl+Shift+S' },
       sep,
       // The same list the browse panel's Add button offers, in the same words (milestone 47).
-      { label: 'Add', submenu: libraryAddItems(state) },
+      { label: t('menu.add'), submenu: libraryAddItems(state, t) },
       // A voice from the microphone, into the library (milestone 63): the menu is the window's own
       // button, so it says what pressing it does next, as Play says Pause.
-      { command: 'record.audio', label: 'Record Audio', accelerator: 'CmdOrCtrl+Shift+A', altLabel: { whenFlag: 'recordingAudio', label: 'Stop Recording' } },
+      { command: 'record.audio', label: t('menu.record.audio'), accelerator: 'CmdOrCtrl+Shift+A', altLabel: { whenFlag: 'recordingAudio', label: t('menu.record.audio.alt') } },
       // The camera button (milestone 64): opens the preview; with the preview up, records; recording, stops.
-      { command: 'record.video', label: 'Record Video', altLabel: { whenFlag: 'recordingVideo', label: 'Stop Recording' } },
-      { command: 'pack.export', label: 'Export as Pack…', enabledBy: 'canExportPack' },
+      { command: 'record.video', label: t('menu.record.video'), altLabel: { whenFlag: 'recordingVideo', label: t('menu.record.video.alt') } },
+      { command: 'pack.export', label: t('menu.pack.export'), enabledBy: 'canExportPack' },
       sep,
-      { command: 'collection.add', label: 'Add to Collection', enabledBy: 'canAddToCollection' },
+      { command: 'collection.add', label: t('menu.collection.add'), enabledBy: 'canAddToCollection' },
       sep,
-      { command: 'render.one', label: 'Render…', accelerator: 'CmdOrCtrl+R', enabledBy: 'canRender' },
-      { command: 'render.all', label: 'Render All', accelerator: 'CmdOrCtrl+Shift+R', enabledBy: 'canRenderAll' },
+      { command: 'render.one', label: t('menu.render.one'), accelerator: 'CmdOrCtrl+R', enabledBy: 'canRender' },
+      { command: 'render.all', label: t('menu.render.all'), accelerator: 'CmdOrCtrl+Shift+R', enabledBy: 'canRenderAll' },
       sep,
-      { role: 'close', label: 'Close Window', accelerator: 'CmdOrCtrl+W' },
-      ...(mac ? [] : [{ role: 'quit', label: 'Quit', accelerator: 'CmdOrCtrl+Q' }]),
+      { role: 'close', label: t('menu.role.close'), accelerator: 'CmdOrCtrl+W' },
+      ...(mac ? [] : [{ role: 'quit', label: t('menu.role.quit'), accelerator: 'CmdOrCtrl+Q' }]),
     ],
   });
 
   sections.push({
-    label: 'Edit',
+    label: t('menu.edit'),
     items: [
       // The window owns these keys: inside a text field the field's own undo must win, so the
       // accelerator is shown and not registered.
-      { command: 'edit.undo', label: 'Undo', accelerator: 'CmdOrCtrl+Z', displayOnly: true, enabledBy: 'canUndo' },
-      { command: 'edit.redo', label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', displayOnly: true, enabledBy: 'canRedo' },
+      { command: 'edit.undo', label: t('menu.edit.undo'), accelerator: 'CmdOrCtrl+Z', displayOnly: true, enabledBy: 'canUndo' },
+      { command: 'edit.redo', label: t('menu.edit.redo'), accelerator: 'CmdOrCtrl+Shift+Z', displayOnly: true, enabledBy: 'canRedo' },
       sep,
       { role: 'cut' },
       { role: 'copy' },
@@ -561,57 +565,57 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       // The layer edits (milestone 39), in a submenu of their own so the four roles above keep
       // Cut, Copy and Paste for whatever text field has the caret. None takes a key: an
       // accelerator is registered and would fire inside a text field (see the note at the top).
-      { label: 'Layer', submenu: layerSubmenu() },
+      { label: t('menu.layer'), submenu: layerSubmenu(t) },
       sep,
       // Cmd/Ctrl+F is the Search field (milestone 41), wherever the panel is; the category filter
       // is reached from the funnel in the Browse heading, and has no key of its own.
-      { command: 'search.focus', label: 'Search', accelerator: 'CmdOrCtrl+F' },
-      { command: 'browse.filter', label: 'Filter Categories' },
+      { command: 'search.focus', label: t('menu.search.focus'), accelerator: 'CmdOrCtrl+F' },
+      { command: 'browse.filter', label: t('menu.browse.filter') },
       // Settings lives in Edit everywhere but macOS, which keeps it in the app's own menu.
-      ...(mac ? [] : [sep, { command: 'app.settings' as const, label: 'Settings…', accelerator: 'CmdOrCtrl+,' }]),
+      ...(mac ? [] : [sep, { command: 'app.settings' as const, label: t('menu.app.settings'), accelerator: 'CmdOrCtrl+,' }]),
     ],
   });
 
   sections.push({
-    label: 'View',
+    label: t('menu.view'),
     items: [
       // The drawer's tabs first, on the plain digits (milestone 38): they are the keys reached for
       // while editing, so the panels move to the shifted ones.
-      { command: 'view.parameters', label: 'Parameters', accelerator: 'CmdOrCtrl+1', type: 'checkbox', checkedBy: 'parametersOpen' },
-      { command: 'view.output', label: 'Output', accelerator: 'CmdOrCtrl+2', type: 'checkbox', checkedBy: 'outputOpen' },
-      { command: 'view.info', label: 'Info', accelerator: 'CmdOrCtrl+3', type: 'checkbox', checkedBy: 'infoOpen' },
+      { command: 'view.parameters', label: t('menu.view.parameters'), accelerator: 'CmdOrCtrl+1', type: 'checkbox', checkedBy: 'parametersOpen' },
+      { command: 'view.output', label: t('menu.view.output'), accelerator: 'CmdOrCtrl+2', type: 'checkbox', checkedBy: 'outputOpen' },
+      { command: 'view.info', label: t('menu.view.info'), accelerator: 'CmdOrCtrl+3', type: 'checkbox', checkedBy: 'infoOpen' },
       sep,
-      { command: 'view.browse', label: 'Browse Panel', accelerator: 'CmdOrCtrl+Shift+1', type: 'checkbox', checkedBy: 'browseVisible' },
-      { command: 'view.stage', label: 'Preview', accelerator: 'CmdOrCtrl+Shift+2', type: 'checkbox', checkedBy: 'stageVisible' },
-      { command: 'view.results', label: 'Results', accelerator: 'CmdOrCtrl+Shift+3', type: 'checkbox', checkedBy: 'resultsVisible' },
-      { command: 'view.tray', label: 'Collection Tray', accelerator: 'CmdOrCtrl+Shift+4', type: 'checkbox', checkedBy: 'trayVisible' },
+      { command: 'view.browse', label: t('menu.view.browse'), accelerator: 'CmdOrCtrl+Shift+1', type: 'checkbox', checkedBy: 'browseVisible' },
+      { command: 'view.stage', label: t('menu.view.stage'), accelerator: 'CmdOrCtrl+Shift+2', type: 'checkbox', checkedBy: 'stageVisible' },
+      { command: 'view.results', label: t('menu.view.results'), accelerator: 'CmdOrCtrl+Shift+3', type: 'checkbox', checkedBy: 'resultsVisible' },
+      { command: 'view.tray', label: t('menu.view.tray'), accelerator: 'CmdOrCtrl+Shift+4', type: 'checkbox', checkedBy: 'trayVisible' },
       sep,
       // Two sides of one setting, so they are a pair of radios rather than two ticks.
-      { command: 'view.grid', label: 'Grid of Cards', type: 'radio', checkedBy: 'grid' },
-      { command: 'view.list', label: 'List of Rows', type: 'radio' },
+      { command: 'view.grid', label: t('menu.view.grid'), type: 'radio', checkedBy: 'grid' },
+      { command: 'view.list', label: t('menu.view.list'), type: 'radio' },
       sep,
-      { command: 'view.bigger', label: 'Bigger Cards', accelerator: 'CmdOrCtrl+]' },
-      { command: 'view.smaller', label: 'Smaller Cards', accelerator: 'CmdOrCtrl+[' },
+      { command: 'view.bigger', label: t('menu.view.bigger'), accelerator: 'CmdOrCtrl+]' },
+      { command: 'view.smaller', label: t('menu.view.smaller'), accelerator: 'CmdOrCtrl+[' },
       sep,
       // The stage's own two (milestone 39), offered here as well as on the picture itself.
-      { label: 'Stage Background', submenu: backgroundSubmenu() },
+      { label: t('menu.stage-background'), submenu: backgroundSubmenu() },
       // `T` is the window's, not the menu's: a bare key registered here would fire inside a text
       // field (see the note at the top), so it is shown and left to src/renderer/theater.ts.
-      { command: 'view.theater', label: 'Theater', accelerator: 'T', displayOnly: true, type: 'checkbox', checkedBy: 'theater' },
+      { command: 'view.theater', label: t('menu.view.theater'), accelerator: 'T', displayOnly: true, type: 'checkbox', checkedBy: 'theater' },
       // The stage in a window of its own, on any display (milestone 43); again to bring it back.
-      { command: 'view.popOut', label: 'Pop Out Stage', accelerator: 'CmdOrCtrl+Shift+P', type: 'checkbox', checkedBy: 'stageOut' },
+      { command: 'view.popOut', label: t('menu.view.popOut'), accelerator: 'CmdOrCtrl+Shift+P', type: 'checkbox', checkedBy: 'stageOut' },
       // One item per connected display: the stage fills that one with the picture alone.
-      { label: 'Stage on Display', submenu: displaysSubmenu(state.displays) },
+      { label: t('menu.stage-on-display'), submenu: displaysSubmenu(state.displays, t) },
       sep,
       // The window's own look (milestone 62), the same setting as Settings → Appearance.
-      { label: 'Appearance', submenu: appearanceSubmenu() },
+      { label: t('menu.appearance'), submenu: appearanceSubmenu() },
       sep,
       ...(development
         ? [
             // Both are given their own key. Electron would otherwise reload on CmdOrCtrl+R, which
             // is Render, and open the tools on Ctrl+Shift+I, which is Set In.
             { role: 'reload', accelerator: 'F5', devOnly: true as const },
-            { role: 'toggleDevTools', label: 'Developer Tools', accelerator: 'F12', devOnly: true as const },
+            { role: 'toggleDevTools', label: t('menu.role.toggleDevTools'), accelerator: 'F12', devOnly: true as const },
             sep,
           ]
         : []),
@@ -620,44 +624,44 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
   });
 
   sections.push({
-    label: 'Playback',
+    label: t('menu.playback'),
     items: [
       {
-        command: 'play.toggle', label: 'Play', accelerator: 'CmdOrCtrl+Return', enabledBy: 'canPlay',
-        altLabel: { whenFlag: 'playing', label: 'Pause' }, listAs: 'Play or pause',
+        command: 'play.toggle', label: t('menu.play.toggle'), accelerator: 'CmdOrCtrl+Return', enabledBy: 'canPlay',
+        altLabel: { whenFlag: 'playing', label: t('menu.play.toggle.alt') }, listAs: t('menu.play.toggle.list'),
       },
-      { command: 'play.previous', label: 'Previous Frame', accelerator: 'CmdOrCtrl+Shift+,', enabledBy: 'canPlay' },
-      { command: 'play.next', label: 'Next Frame', accelerator: 'CmdOrCtrl+Shift+.', enabledBy: 'canPlay' },
+      { command: 'play.previous', label: t('menu.play.previous'), accelerator: 'CmdOrCtrl+Shift+,', enabledBy: 'canPlay' },
+      { command: 'play.next', label: t('menu.play.next'), accelerator: 'CmdOrCtrl+Shift+.', enabledBy: 'canPlay' },
       sep,
-      { command: 'play.setIn', label: 'Set In', accelerator: 'CmdOrCtrl+Shift+I', enabledBy: 'canPlay' },
-      { command: 'play.setOut', label: 'Set Out', accelerator: 'CmdOrCtrl+Shift+O', enabledBy: 'canPlay' },
+      { command: 'play.setIn', label: t('menu.play.setIn'), accelerator: 'CmdOrCtrl+Shift+I', enabledBy: 'canPlay' },
+      { command: 'play.setOut', label: t('menu.play.setOut'), accelerator: 'CmdOrCtrl+Shift+O', enabledBy: 'canPlay' },
       sep,
-      { command: 'play.loop', label: 'Loop', accelerator: 'CmdOrCtrl+Shift+L', type: 'checkbox', checkedBy: 'loop' },
+      { command: 'play.loop', label: t('menu.play.loop'), accelerator: 'CmdOrCtrl+Shift+L', type: 'checkbox', checkedBy: 'loop' },
     ],
   });
 
   sections.push({
-    label: 'Window',
+    label: t('menu.window'),
     items: [
       { role: 'minimize' },
       // Closing the window lives in File everywhere; macOS alone adds the two it expects here.
-      ...(mac ? [{ role: 'zoom' }, sep, { role: 'front', label: 'Bring All to Front' }] : []),
+      ...(mac ? [{ role: 'zoom' }, sep, { role: 'front', label: t('menu.bring-all-to-front') }] : []),
     ],
   });
 
   sections.push({
-    label: 'Help',
+    label: t('menu.help'),
     items: [
-      { command: 'help.userGuide', label: 'User Guide' },
-      { command: 'help.tour', label: 'Take the Tour' },
+      { command: 'help.userGuide', label: t('menu.help.userGuide') },
+      { command: 'help.tour', label: t('menu.help.tour') },
       // The set-up checklist leaves the start screen once it is done (milestone 60); this is its home after.
-      { command: 'help.setup', label: 'Set-up Checklist' },
-      { command: 'help.whatsNew', label: "What's New" },
+      { command: 'help.setup', label: t('menu.help.setup') },
+      { command: 'help.whatsNew', label: t('menu.help.whatsNew') },
       sep,
-      { command: 'help.shortcuts', label: 'Keyboard Shortcuts' },
+      { command: 'help.shortcuts', label: t('menu.help.shortcuts') },
       // The third-party notices (milestone 8): what Pulp is built on, each under its own license.
-      { command: 'help.acknowledgements', label: 'Acknowledgements' },
-      { command: 'help.diagnostics', label: 'Copy Diagnostics' },
+      { command: 'help.acknowledgements', label: t('menu.help.acknowledgements') },
+      { command: 'help.diagnostics', label: t('menu.help.diagnostics') },
     ],
   });
 

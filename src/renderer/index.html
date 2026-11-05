@@ -15,83 +15,83 @@
 </head>
 <body>
   <div id="app" class="app">
-    <aside id="region-browse" class="sidebar" aria-label="Browse">
+    <aside id="region-browse" class="sidebar" data-i18n-attr="aria-label:ui.region-browse.aria-label">
       <div class="sidebar-head">
         <div class="region-head">
-          <span class="region-title">Library</span>
-          <button id="browse-toggle" type="button" class="region-toggle icon-button" data-icon="caret-left" aria-label="Hide the browse panel" aria-expanded="true"></button>
+          <span class="region-title" data-i18n="ui.region-browse.library"></span>
+          <button id="browse-toggle" type="button" class="region-toggle icon-button" data-icon="caret-left" aria-expanded="true" data-i18n-attr="aria-label:ui.browse-toggle.aria-label"></button>
         </div>
-        <div class="sidebar-actions" role="toolbar" aria-label="Library tools">
-          <button id="library-add" type="button" class="icon-button" data-icon="plus" data-icon-size="20" aria-haspopup="menu" aria-label="Add to the library" data-tip="Add to the library: your media folder, templates from a pack, or sample media"><span class="label">Add</span></button>
-          <button id="rescan" type="button" class="icon-button" data-icon="arrow-clockwise" data-icon-size="20" aria-label="Rescan"><span class="label">Rescan</span></button>
+        <div class="sidebar-actions" role="toolbar" data-i18n-attr="aria-label:ui.region-browse.library-tools.aria-label">
+          <button id="library-add" type="button" class="icon-button" data-icon="plus" data-icon-size="20" aria-haspopup="menu" data-i18n-attr="aria-label:ui.library-add.aria-label;data-tip:ui.library-add.data-tip"><span class="label" data-i18n="ui.library-add.add"></span></button>
+          <button id="rescan" type="button" class="icon-button" data-icon="arrow-clockwise" data-icon-size="20" data-i18n-attr="aria-label:ui.rescan.aria-label"><span class="label" data-i18n="ui.rescan.rescan"></span></button>
           <span class="record-group">
-            <button id="record-audio" type="button" class="icon-button" data-icon="microphone" data-icon-size="20" aria-pressed="false" aria-label="Record a voice" data-tip="Record a voice from the microphone; click again or press Escape to stop"><span class="label">Record</span></button>
-            <button id="record-input" type="button" class="icon-button record-input" data-icon="caret-down" data-icon-size="12" aria-haspopup="menu" aria-label="Choose the microphone" data-tip="Which microphone records"></button>
+            <button id="record-audio" type="button" class="icon-button" data-icon="microphone" data-icon-size="20" aria-pressed="false" data-i18n-attr="aria-label:ui.record-audio.aria-label;data-tip:ui.record-audio.data-tip"><span class="label" data-i18n="ui.record-audio.record"></span></button>
+            <button id="record-input" type="button" class="icon-button record-input" data-icon="caret-down" data-icon-size="12" aria-haspopup="menu" data-i18n-attr="aria-label:ui.record-input.aria-label;data-tip:ui.record-input.data-tip"></button>
           </span>
-          <button id="record-video" type="button" class="icon-button" data-icon="video-camera" data-icon-size="20" aria-haspopup="dialog" aria-label="Record from a camera" data-tip="Record from a camera: opens a live preview, with its sound"><span class="label">Camera</span></button>
+          <button id="record-video" type="button" class="icon-button" data-icon="video-camera" data-icon-size="20" aria-haspopup="dialog" data-i18n-attr="aria-label:ui.record-video.aria-label;data-tip:ui.record-video.data-tip"><span class="label" data-i18n="ui.record-video.camera"></span></button>
         </div>
       </div>
-      <section id="region-search" class="panel-section search-section" aria-label="Search">
+      <section id="region-search" class="panel-section search-section" data-i18n-attr="aria-label:ui.region-search.aria-label">
         <div class="section-head">
-          <span class="section-title">Search</span>
+          <span class="section-title" data-i18n="ui.region-search.search"></span>
         </div>
         <span class="search-field">
           <span class="search-icon" data-icon="magnifying-glass" aria-hidden="true"></span>
-          <input id="search" type="search" list="search-history" placeholder="Search templates and media" aria-label="Search templates and media" autocomplete="off" spellcheck="false" data-tip="Free text, or a filter: tag: type: theme: style: mood: category: pack: duration: width: height: fps: res: codec: alpha: orientation: favorite: recent: — for example type:wipe theme:news duration:>5">
+          <input id="search" type="search" list="search-history" autocomplete="off" spellcheck="false" data-i18n-attr="aria-label:ui.search.aria-label;data-tip:ui.search.data-tip;placeholder:ui.search.placeholder">
           <datalist id="search-history"></datalist>
         </span>
         <span id="scope-chip" class="scope-chip" role="status" hidden>
           <span id="scope-chip-icon" class="icon-slot" aria-hidden="true"></span>
           <span id="scope-chip-label"></span>
-          <button id="scope-chip-clear" type="button" class="icon-button" data-icon="x" aria-label="Clear the search scope" data-tip="Search the whole library again"></button>
+          <button id="scope-chip-clear" type="button" class="icon-button" data-icon="x" data-i18n-attr="aria-label:ui.scope-chip-clear.aria-label;data-tip:ui.scope-chip-clear.data-tip"></button>
         </span>
-        <div id="filter-chips" class="filter-chips" role="toolbar" aria-label="Filters">
-          <button id="chip-templates" class="chip" type="button" data-chip="templates" data-icon="shapes" aria-pressed="false" aria-label="Templates" data-tip="Templates only"><span class="label">Templates</span></button>
-          <button id="chip-video" class="chip" type="button" data-chip="video" data-icon="film-strip" aria-pressed="false" aria-label="Video" data-tip="Video only"><span class="label">Video</span></button>
-          <button id="chip-image" class="chip" type="button" data-chip="image" data-icon="image" aria-pressed="false" aria-label="Images" data-tip="Images only"><span class="label">Images</span></button>
-          <button id="chip-audio" class="chip" type="button" data-chip="audio" data-icon="music-notes" aria-pressed="false" aria-label="Audio" data-tip="Audio only"><span class="label">Audio</span></button>
-          <button id="chip-vertical" class="chip" type="button" data-chip="vertical" data-icon="device-mobile" aria-pressed="false" aria-label="Vertical" data-tip="Vertical: portrait items, and templates that draw tall"><span class="label">Vertical</span></button>
-          <button id="chip-alpha" class="chip" type="button" data-chip="alpha" data-icon="checkerboard" aria-pressed="false" aria-label="Alpha" data-tip="Alpha: transparent items only"><span class="label">Alpha</span></button>
-          <button id="chip-favorites" class="chip" type="button" data-chip="favorites" data-icon="star" aria-pressed="false" aria-label="Favorites" data-tip="Favorites only"><span class="label">Favorites</span></button>
+        <div id="filter-chips" class="filter-chips" role="toolbar" data-i18n-attr="aria-label:ui.filter-chips.aria-label">
+          <button id="chip-templates" class="chip" type="button" data-chip="templates" data-icon="shapes" aria-pressed="false" data-i18n-attr="aria-label:ui.chip-templates.aria-label;data-tip:ui.chip-templates.data-tip"><span class="label" data-i18n="ui.chip-templates.templates"></span></button>
+          <button id="chip-video" class="chip" type="button" data-chip="video" data-icon="film-strip" aria-pressed="false" data-i18n-attr="aria-label:ui.chip-video.aria-label;data-tip:ui.chip-video.data-tip"><span class="label" data-i18n="ui.chip-video.video"></span></button>
+          <button id="chip-image" class="chip" type="button" data-chip="image" data-icon="image" aria-pressed="false" data-i18n-attr="aria-label:ui.chip-image.aria-label;data-tip:ui.chip-image.data-tip"><span class="label" data-i18n="ui.chip-image.images"></span></button>
+          <button id="chip-audio" class="chip" type="button" data-chip="audio" data-icon="music-notes" aria-pressed="false" data-i18n-attr="aria-label:ui.chip-audio.aria-label;data-tip:ui.chip-audio.data-tip"><span class="label" data-i18n="ui.chip-audio.audio"></span></button>
+          <button id="chip-vertical" class="chip" type="button" data-chip="vertical" data-icon="device-mobile" aria-pressed="false" data-i18n-attr="aria-label:ui.chip-vertical.aria-label;data-tip:ui.chip-vertical.data-tip"><span class="label" data-i18n="ui.chip-vertical.vertical"></span></button>
+          <button id="chip-alpha" class="chip" type="button" data-chip="alpha" data-icon="checkerboard" aria-pressed="false" data-i18n-attr="aria-label:ui.chip-alpha.aria-label;data-tip:ui.chip-alpha.data-tip"><span class="label" data-i18n="ui.chip-alpha.alpha"></span></button>
+          <button id="chip-favorites" class="chip" type="button" data-chip="favorites" data-icon="star" aria-pressed="false" data-i18n-attr="aria-label:ui.chip-favorites.aria-label;data-tip:ui.chip-favorites.data-tip"><span class="label" data-i18n="ui.chip-favorites.favorites"></span></button>
         </div>
-        <div class="narrow-chips" role="group" aria-label="Narrow by theme, look and mood">
-          <span class="chip-select" data-icon="tag" data-tip="Narrow the results to what they are for: a wedding, sports, news…">
-            <select id="for-select" class="chip" aria-label="For"><option value="">For…</option></select>
+        <div class="narrow-chips" role="group" data-i18n-attr="aria-label:ui.region-search.narrow-by-theme-look-and.aria-label">
+          <span class="chip-select" data-icon="tag" data-i18n-attr="data-tip:ui.region-search.narrow-the-results-to-what.data-tip">
+            <select id="for-select" class="chip" data-i18n-attr="aria-label:ui.for-select.aria-label"><option value="" data-i18n="ui.for-select.for"></option></select>
           </span>
-          <span class="chip-select" data-icon="palette" data-tip="Narrow the results by look: clean, elegant, retro…">
-            <select id="look-select" class="chip" aria-label="Look"><option value="">Look</option></select>
+          <span class="chip-select" data-icon="palette" data-i18n-attr="data-tip:ui.region-search.narrow-the-results-by-look.data-tip">
+            <select id="look-select" class="chip" data-i18n-attr="aria-label:ui.look-select.aria-label"><option value="" data-i18n="ui.look-select.look"></option></select>
           </span>
-          <span class="chip-select" data-icon="speaker-high" data-tip="Narrow sounds and music by how they feel: upbeat, dramatic, calm…">
-            <select id="mood-select" class="chip" aria-label="Mood"><option value="">Mood</option></select>
+          <span class="chip-select" data-icon="speaker-high" data-i18n-attr="data-tip:ui.region-search.narrow-sounds-and-music-by.data-tip">
+            <select id="mood-select" class="chip" data-i18n-attr="aria-label:ui.mood-select.aria-label"><option value="" data-i18n="ui.mood-select.mood"></option></select>
           </span>
         </div>
       </section>
-      <section class="panel-section browse-section" aria-label="Browse">
+      <section class="panel-section browse-section" data-i18n-attr="aria-label:ui.region-browse.browse.aria-label">
         <div class="section-head">
-          <span class="section-title">Browse</span>
-          <button id="browse-filter-toggle" type="button" class="icon-button" data-icon="funnel-simple" aria-expanded="false" aria-pressed="false" aria-label="Filter categories" data-tip="Filter the categories below as you type"></button>
+          <span class="section-title" data-i18n="ui.region-browse.browse"></span>
+          <button id="browse-filter-toggle" type="button" class="icon-button" data-icon="funnel-simple" aria-expanded="false" aria-pressed="false" data-i18n-attr="aria-label:ui.browse-filter-toggle.aria-label;data-tip:ui.browse-filter-toggle.data-tip"></button>
         </div>
         <div id="browse-find" class="browse-find" hidden></div>
-        <div id="browse-tree" class="browse-tree" role="tree" aria-label="Browse"></div>
+        <div id="browse-tree" class="browse-tree" role="tree" data-i18n-attr="aria-label:ui.browse-tree.aria-label"></div>
       </section>
-      <button id="browse-expand" type="button" class="region-expand icon-button" data-icon="caret-right" aria-label="Show the browse panel" hidden></button>
-      <button id="rail-search" type="button" class="region-expand rail-search icon-button" data-icon="magnifying-glass" data-icon-size="20" aria-label="Search" data-tip="Search templates and media (Ctrl+F or ⌘F)" hidden></button>
+      <button id="browse-expand" type="button" class="region-expand icon-button" data-icon="caret-right" hidden data-i18n-attr="aria-label:ui.browse-expand.aria-label"></button>
+      <button id="rail-search" type="button" class="region-expand rail-search icon-button" data-icon="magnifying-glass" data-icon-size="20" hidden data-i18n-attr="aria-label:ui.rail-search.aria-label;data-tip:ui.rail-search.data-tip"></button>
     </aside>
-    <div id="split-browse" class="splitter v" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize the browse panel"></div>
+    <div id="split-browse" class="splitter v" role="separator" tabindex="0" aria-orientation="vertical" data-i18n-attr="aria-label:ui.split-browse.aria-label"></div>
 
     <main class="center">
-      <section id="region-stage" class="stage" aria-label="Stage">
+      <section id="region-stage" class="stage" data-i18n-attr="aria-label:ui.region-stage.aria-label">
         <div class="preview-wrap">
-          <p class="preview-no-room" role="status">No room for the preview. Make the window taller, or collapse the collection tray.</p>
+          <p class="preview-no-room" role="status" data-i18n="ui.region-stage.no-room-for-the-preview"></p>
           <div id="preview-frame" class="preview checker">
             <canvas id="track-picture" class="media track-picture" aria-hidden="true" hidden></canvas>
-            <iframe id="preview" title="Template preview" sandbox="allow-scripts allow-same-origin"></iframe>
-            <iframe id="captions-preview" class="captions-preview" title="Captions preview" sandbox="allow-scripts allow-same-origin" aria-hidden="true" hidden></iframe>
+            <iframe id="preview" sandbox="allow-scripts allow-same-origin" data-i18n-attr="title:ui.preview.title"></iframe>
+            <iframe id="captions-preview" class="captions-preview" sandbox="allow-scripts allow-same-origin" aria-hidden="true" hidden data-i18n-attr="title:ui.captions-preview.title"></iframe>
             <video id="media-video" class="media" preload="metadata" hidden></video>
             <img id="media-image" class="media" alt="" hidden>
             <audio id="media-audio" class="media" preload="metadata" hidden></audio>
             <svg id="media-waveform" class="media waveform" viewBox="0 0 1000 200" preserveAspectRatio="none" aria-hidden="true" hidden><path></path></svg>
-            <div id="layer-overlay" class="layer-overlay" tabindex="0" role="application" aria-label="Layers on the stage: click to select, drag to move, corners to resize, arrows to nudge"></div>
+            <div id="layer-overlay" class="layer-overlay" tabindex="0" role="application" data-i18n-attr="aria-label:ui.layer-overlay.aria-label"></div>
             <div id="safe-overlay" class="safe-overlay" aria-hidden="true" hidden>
               <div id="safe-action" class="safe action"></div>
               <div id="safe-title" class="safe title"></div>
@@ -101,239 +101,239 @@
                 <div class="zone" data-zone="caption"></div>
               </div>
             </div>
-            <div id="preview-empty" class="preview-empty">Select a template</div>
+            <div id="preview-empty" class="preview-empty" data-i18n="ui.preview-empty"></div>
           </div>
         </div>
-        <div class="stage-view" role="toolbar" aria-label="Preview tools">
+        <div class="stage-view" role="toolbar" data-i18n-attr="aria-label:ui.region-stage.preview-tools.aria-label">
           <span class="bg-choice">
-            <button id="bg-button" type="button" class="icon-button" aria-haspopup="true" aria-expanded="false" aria-controls="bg-picker" aria-label="Preview background: Checkerboard" data-tip="Background: Checkerboard"><span class="bg-current checker" aria-hidden="true"></span></button>
-            <span id="bg-picker" class="bg-picker" role="group" aria-label="Preview background" hidden>
-              <button id="bg-checker" type="button" class="swatch checker" aria-pressed="true" aria-label="Checkerboard background" data-tip="Checkerboard"></button>
-              <button id="bg-black" type="button" class="swatch black" aria-pressed="false" aria-label="Black background" data-tip="Black"></button>
-              <button id="bg-white" type="button" class="swatch white" aria-pressed="false" aria-label="White background" data-tip="White"></button>
-              <button id="bg-gray" type="button" class="swatch gray" aria-pressed="false" aria-label="Gray background" data-tip="Mid-gray: the neutral a soft edge is judged against"></button>
-              <input id="bg-custom" type="color" value="#808080" aria-label="Custom background color" data-tip="A color of your own">
+            <button id="bg-button" type="button" class="icon-button" aria-haspopup="true" aria-expanded="false" aria-controls="bg-picker" data-i18n-attr="aria-label:ui.bg-button.aria-label;data-tip:ui.bg-button.data-tip"><span class="bg-current checker" aria-hidden="true"></span></button>
+            <span id="bg-picker" class="bg-picker" role="group" hidden data-i18n-attr="aria-label:ui.bg-picker.aria-label">
+              <button id="bg-checker" type="button" class="swatch checker" aria-pressed="true" data-i18n-attr="aria-label:ui.bg-checker.aria-label;data-tip:ui.bg-checker.data-tip"></button>
+              <button id="bg-black" type="button" class="swatch black" aria-pressed="false" data-i18n-attr="aria-label:ui.bg-black.aria-label;data-tip:ui.bg-black.data-tip"></button>
+              <button id="bg-white" type="button" class="swatch white" aria-pressed="false" data-i18n-attr="aria-label:ui.bg-white.aria-label;data-tip:ui.bg-white.data-tip"></button>
+              <button id="bg-gray" type="button" class="swatch gray" aria-pressed="false" data-i18n-attr="aria-label:ui.bg-gray.aria-label;data-tip:ui.bg-gray.data-tip"></button>
+              <input id="bg-custom" type="color" value="#808080" data-i18n-attr="aria-label:ui.bg-custom.aria-label;data-tip:ui.bg-custom.data-tip">
             </span>
           </span>
-          <button id="safe-toggle" type="button" class="icon-button" data-icon="frame-corners" data-icon-size="20" aria-pressed="false" aria-label="Title-safe and action-safe areas"></button>
-          <button id="stage-popout" type="button" class="icon-button" data-icon="arrow-square-out" data-icon-size="20" aria-pressed="false" aria-label="Pop out the stage" data-tip="Pop out the stage into a window of its own, for any display"></button>
-          <button id="theater" type="button" class="icon-button" data-icon="corners-out" data-icon-size="20" aria-pressed="false" aria-label="Theater: hide the results" data-tip="Theater: the stage takes the window (T)"></button>
+          <button id="safe-toggle" type="button" class="icon-button" data-icon="frame-corners" data-icon-size="20" aria-pressed="false" data-i18n-attr="aria-label:ui.safe-toggle.aria-label"></button>
+          <button id="stage-popout" type="button" class="icon-button" data-icon="arrow-square-out" data-icon-size="20" aria-pressed="false" data-i18n-attr="aria-label:ui.stage-popout.aria-label;data-tip:ui.stage-popout.data-tip"></button>
+          <button id="theater" type="button" class="icon-button" data-icon="corners-out" data-icon-size="20" aria-pressed="false" data-i18n-attr="aria-label:ui.theater.aria-label;data-tip:ui.theater.data-tip"></button>
         </div>
         <p id="stage-note" class="note error" hidden></p>
       </section>
-      <div id="split-stage" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the stage"></div>
-      <section id="region-results" class="results-region" aria-label="Results">
+      <div id="split-stage" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" data-i18n-attr="aria-label:ui.split-stage.aria-label"></div>
+      <section id="region-results" class="results-region" data-i18n-attr="aria-label:ui.region-results.aria-label">
         <div class="results-head">
-          <span id="results-label" class="region-count">Results</span>
+          <span id="results-label" class="region-count" data-i18n="ui.results-label"></span>
           <span id="results-description" class="results-description"></span>
           <span id="results-empty" class="results-empty-note" role="status" hidden></span>
           <span class="results-tools">
-            <button id="export-pack" type="button" class="icon-button" disabled data-icon="upload-simple" data-icon-size="20" aria-label="Export as pack" data-tip="Export as pack… (the templates the results are listing)"></button>
+            <button id="export-pack" type="button" class="icon-button" disabled data-icon="upload-simple" data-icon-size="20" data-i18n-attr="aria-label:ui.export-pack.aria-label;data-tip:ui.export-pack.data-tip"></button>
             <span class="sort-wrap">
               <span data-icon="sort-ascending" aria-hidden="true"></span>
-              <select id="sort" aria-label="Sort results">
-                <option value="relevance">Relevance</option>
-                <option value="name">Name</option>
-                <option value="recent">Recently used</option>
-                <option value="duration">Duration</option>
+              <select id="sort" data-i18n-attr="aria-label:ui.sort.aria-label">
+                <option value="relevance" data-i18n="ui.sort.relevance"></option>
+                <option value="name" data-i18n="ui.sort.name"></option>
+                <option value="recent" data-i18n="ui.sort.recently-used"></option>
+                <option value="duration" data-i18n="ui.sort.duration"></option>
               </select>
             </span>
-            <span class="view-controls" role="group" aria-label="Result view">
-              <button id="view-grid" type="button" class="icon-button" data-icon="squares-four" data-icon-size="20" aria-pressed="false" aria-label="Grid of cards"></button>
-              <button id="view-list" type="button" class="icon-button" data-icon="rows" data-icon-size="20" aria-pressed="false" aria-label="List of rows"></button>
-              <input id="thumb-size" type="range" min="0" max="3" step="1" value="1" aria-label="Thumbnail size" data-tip="Thumbnail size">
+            <span class="view-controls" role="group" data-i18n-attr="aria-label:ui.region-results.result-view.aria-label">
+              <button id="view-grid" type="button" class="icon-button" data-icon="squares-four" data-icon-size="20" aria-pressed="false" data-i18n-attr="aria-label:ui.view-grid.aria-label"></button>
+              <button id="view-list" type="button" class="icon-button" data-icon="rows" data-icon-size="20" aria-pressed="false" data-i18n-attr="aria-label:ui.view-list.aria-label"></button>
+              <input id="thumb-size" type="range" min="0" max="3" step="1" value="1" data-i18n-attr="aria-label:ui.thumb-size.aria-label;data-tip:ui.thumb-size.data-tip">
             </span>
-            <button id="stage-toggle" type="button" class="region-toggle icon-button" data-icon="caret-up" aria-label="Hide the preview" aria-expanded="true"></button>
-            <button id="results-toggle" type="button" class="region-toggle icon-button" data-icon="caret-down" aria-label="Hide the results" aria-expanded="true"></button>
+            <button id="stage-toggle" type="button" class="region-toggle icon-button" data-icon="caret-up" aria-expanded="true" data-i18n-attr="aria-label:ui.stage-toggle.aria-label"></button>
+            <button id="results-toggle" type="button" class="region-toggle icon-button" data-icon="caret-down" aria-expanded="true" data-i18n-attr="aria-label:ui.results-toggle.aria-label"></button>
           </span>
         </div>
         <div id="category-cards" class="category-cards" hidden></div>
-        <ul id="results" class="results grid" role="listbox" aria-label="Library"></ul>
+        <ul id="results" class="results grid" role="listbox" data-i18n-attr="aria-label:ui.results.aria-label"></ul>
         <div id="results-hint" class="results-hint" role="status" hidden>
           <span id="results-hint-text" class="hint-text"></span>
-          <button id="results-hint-make" type="button" class="hint-make">Make them</button>
+          <button id="results-hint-make" type="button" class="hint-make" data-i18n="ui.results-hint-make"></button>
         </div>
-      <section id="region-inspector" class="inspector" aria-label="Inspector">
-        <div id="split-inspector" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the inspector"></div>
+      <section id="region-inspector" class="inspector" data-i18n-attr="aria-label:ui.region-inspector.aria-label">
+        <div id="split-inspector" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" data-i18n-attr="aria-label:ui.split-inspector.aria-label"></div>
         <div class="inspector-head">
           <div id="item-tools" class="item-tools" hidden></div>
           <span class="inspector-head-spacer"></span>
-          <button id="inspector-pin" type="button" class="icon-button" data-icon="push-pin" data-icon-size="16" aria-pressed="false" aria-label="Keep the drawer open" data-tip="Keep the drawer open while choosing other items"></button>
-          <button id="inspector-close" type="button" class="icon-button" data-icon="x" data-icon-size="16" aria-label="Close the inspector" data-tip="Close (Esc)"></button>
+          <button id="inspector-pin" type="button" class="icon-button" data-icon="push-pin" data-icon-size="16" aria-pressed="false" data-i18n-attr="aria-label:ui.inspector-pin.aria-label;data-tip:ui.inspector-pin.data-tip"></button>
+          <button id="inspector-close" type="button" class="icon-button" data-icon="x" data-icon-size="16" data-i18n-attr="aria-label:ui.inspector-close.aria-label;data-tip:ui.inspector-close.data-tip"></button>
         </div>
       <div id="pane-parameters" class="tab-pane" role="tabpanel" aria-labelledby="tab-parameters">
       <div class="params-head">
         <div class="params-actions">
-          <button id="undo" type="button" disabled title="Undo (Ctrl+Z or Cmd+Z outside a text field)">Undo</button>
-          <button id="redo" type="button" disabled title="Redo (Shift+Ctrl+Z, Ctrl+Y or Shift+Cmd+Z)">Redo</button>
-          <button id="reset-all" type="button" disabled title="Reset every parameter to the template's defaults">Reset all</button>
+          <button id="undo" type="button" disabled data-i18n="ui.undo" data-i18n-attr="title:ui.undo.title"></button>
+          <button id="redo" type="button" disabled data-i18n="ui.redo" data-i18n-attr="title:ui.redo.title"></button>
+          <button id="reset-all" type="button" disabled data-i18n="ui.reset-all" data-i18n-attr="title:ui.reset-all.title"></button>
         </div>
       </div>
       <div class="param-presets">
-        <select id="param-preset-list" aria-label="Saved presets"><option value="">Saved presets…</option></select>
-        <input id="param-preset-name" type="text" placeholder="Preset name" aria-label="Preset name" autocomplete="off" spellcheck="false">
-        <button id="param-preset-save" type="button" disabled title="Save the current values that differ from the defaults under this name">Save</button>
-        <button id="param-preset-delete" type="button" disabled title="Delete the selected preset">Delete</button>
+        <select id="param-preset-list" data-i18n-attr="aria-label:ui.param-preset-list.aria-label"><option value="" data-i18n="ui.param-preset-list.saved-presets"></option></select>
+        <input id="param-preset-name" type="text" autocomplete="off" spellcheck="false" data-i18n-attr="aria-label:ui.param-preset-name.aria-label;placeholder:ui.param-preset-name.placeholder">
+        <button id="param-preset-save" type="button" disabled data-i18n="ui.param-preset-save" data-i18n-attr="title:ui.param-preset-save.title"></button>
+        <button id="param-preset-delete" type="button" disabled data-i18n="ui.param-preset-delete" data-i18n-attr="title:ui.param-preset-delete.title"></button>
       </div>
       <div id="param-preset-confirm" class="note confirm" hidden>
         <span id="param-preset-confirm-text"></span>
-        <button id="param-preset-replace" type="button">Replace</button>
-        <button id="param-preset-cancel" type="button">Cancel</button>
+        <button id="param-preset-replace" type="button" data-i18n="ui.param-preset-replace"></button>
+        <button id="param-preset-cancel" type="button" data-i18n="ui.param-preset-cancel"></button>
       </div>
       <form id="params" class="params"></form>
       </div>
       <div id="pane-output" class="tab-pane" role="tabpanel" aria-labelledby="tab-output" hidden>
-      <h2>Render</h2>
-      <p id="editing-note" class="note editing" hidden><span id="editing-note-text"></span><button id="editing-done" type="button">Done</button></p>
-      <label class="field" id="opt-platform-field" data-tip="Sets the aspect, size, frame rate and encoder for where this is going; every field below stays free to change">
-        <span>Platform</span>
+      <h2 data-i18n="ui.pane-output.render"></h2>
+      <p id="editing-note" class="note editing" hidden><span id="editing-note-text"></span><button id="editing-done" type="button" data-i18n="ui.editing-done"></button></p>
+      <label class="field" id="opt-platform-field" data-i18n-attr="data-tip:ui.opt-platform-field.data-tip">
+        <span data-i18n="ui.opt-platform-field.platform"></span>
         <select id="opt-platform"></select>
       </label>
       <p id="platform-note" class="note"></p>
       <div class="field inline guided-field" id="guided-field" hidden>
-        <button id="guided-open" type="button" class="ghost" aria-haspopup="dialog" data-tip="Walk through these settings step by step, with a live preview over a checkerboard">Guided setup…</button>
+        <button id="guided-open" type="button" class="ghost" aria-haspopup="dialog" data-i18n="ui.guided-open" data-i18n-attr="data-tip:ui.guided-open.data-tip"></button>
       </div>
       <div class="field asset-presets" id="asset-presets" hidden>
-        <span>Quick setup</span>
-        <div class="asset-preset-buttons" id="asset-preset-buttons" role="group" aria-label="Output presets for this kind of asset"></div>
+        <span data-i18n="ui.asset-presets.quick-setup"></span>
+        <div class="asset-preset-buttons" id="asset-preset-buttons" role="group" data-i18n-attr="aria-label:ui.asset-preset-buttons.aria-label"></div>
       </div>
       <label class="field">
-        <span>Output preset</span>
+        <span data-i18n="ui.pane-output.output-preset"></span>
         <select id="preset"></select>
       </label>
       <p id="preset-note" class="note"></p>
       <p id="preset-unavailable" class="note" hidden></p>
       <div class="type-default" id="type-default-row" hidden>
-        <button id="type-default-save" type="button" class="ghost" data-tip="Remember the preset, shape, size, rate, background and matte as the default this kind of template opens with">Save as default for this type</button>
-        <button id="type-default-clear" type="button" class="ghost" hidden>Clear the saved default</button>
+        <button id="type-default-save" type="button" class="ghost" data-i18n="ui.type-default-save" data-i18n-attr="data-tip:ui.type-default-save.data-tip"></button>
+        <button id="type-default-clear" type="button" class="ghost" hidden data-i18n="ui.type-default-clear"></button>
         <p id="type-default-note" class="note" hidden></p>
       </div>
       <div class="render-options">
         <label class="field" id="opt-aspect-field" hidden>
-          <span>Aspect</span>
+          <span data-i18n="ui.opt-aspect-field.aspect"></span>
           <select id="opt-aspect"></select>
         </label>
         <label class="field">
-          <span>Resolution</span>
+          <span data-i18n="ui.pane-output.resolution"></span>
           <select id="opt-resolution"></select>
         </label>
         <div class="size-custom" id="opt-size-custom" hidden>
           <label class="field">
-            <span>Width</span>
+            <span data-i18n="ui.opt-size-custom.width"></span>
             <input id="opt-width" type="number" inputmode="numeric" min="16" max="8192" step="2" placeholder="1920">
           </label>
           <label class="field">
-            <span>Height</span>
+            <span data-i18n="ui.opt-size-custom.height"></span>
             <input id="opt-height" type="number" inputmode="numeric" min="16" max="8192" step="2" placeholder="1080">
           </label>
         </div>
         <label class="field">
-          <span>Frame rate</span>
+          <span data-i18n="ui.pane-output.frame-rate"></span>
           <select id="opt-fps"></select>
         </label>
         <label class="field" id="opt-background-field" hidden>
-          <span>Background for flattening</span>
+          <span data-i18n="ui.opt-background-field.background-for-flattening"></span>
           <input id="opt-background" type="color" value="#000000">
         </label>
-        <div class="field" id="opt-lut-field" data-tip="A .cube color grade over the whole render, applied before the preset's color conversion">
-          <span>LUT</span>
+        <div class="field" id="opt-lut-field" data-i18n-attr="data-tip:ui.opt-lut-field.data-tip">
+          <span data-i18n="ui.opt-lut-field.lut"></span>
           <span class="lut-row">
-            <button id="opt-lut" type="button" class="ghost">Choose…</button>
+            <button id="opt-lut" type="button" class="ghost" data-i18n="ui.opt-lut"></button>
             <span id="opt-lut-name" class="lut-name"></span>
-            <button id="opt-lut-clear" type="button" class="icon-button" data-icon="x" aria-label="Clear the LUT" hidden></button>
+            <button id="opt-lut-clear" type="button" class="icon-button" data-icon="x" hidden data-i18n-attr="aria-label:ui.opt-lut-clear.aria-label"></button>
           </span>
         </div>
         <div id="media-options" class="media-options" hidden>
           <label class="field" id="opt-length-field">
-            <span>Length</span>
-            <input id="opt-length" type="number" inputmode="decimal" min="0.04" step="0.5" placeholder="as it is" data-tip="Seconds. A clip or a sound longer than itself loops; a still is held this long">
+            <span data-i18n="ui.opt-length-field.length"></span>
+            <input id="opt-length" type="number" inputmode="decimal" min="0.04" step="0.5" data-i18n-attr="data-tip:ui.opt-length.data-tip;placeholder:ui.opt-length.placeholder">
           </label>
           <label class="field" id="opt-speed-field">
-            <span>Speed</span>
-            <input id="opt-speed" type="number" inputmode="decimal" min="0.1" max="10" step="0.1" placeholder="1" data-tip="1 plays as recorded, 2 twice as fast, 0.5 at half">
+            <span data-i18n="ui.opt-speed-field.speed"></span>
+            <input id="opt-speed" type="number" inputmode="decimal" min="0.1" max="10" step="0.1" placeholder="1" data-i18n-attr="data-tip:ui.opt-speed.data-tip">
           </label>
           <label class="field" id="opt-crossfade-field">
-            <span>Loop crossfade</span>
-            <input id="opt-crossfade" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0.5" data-tip="Seconds the end fades into the start at each loop join; 0 for a plain repeat">
+            <span data-i18n="ui.opt-crossfade-field.loop-crossfade"></span>
+            <input id="opt-crossfade" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0.5" data-i18n-attr="data-tip:ui.opt-crossfade.data-tip">
           </label>
           <label class="field" id="opt-tint-field">
-            <span>Recolor</span>
+            <span data-i18n="ui.opt-tint-field.recolor"></span>
             <span class="tint-row">
-              <input id="opt-tint-on" type="checkbox" aria-label="Recolor the picture" data-tip="Render the picture's luminance in one color, alpha kept — to match a palette">
-              <input id="opt-tint" type="color" value="#f59e0b" aria-label="Recolor color" hidden>
+              <input id="opt-tint-on" type="checkbox" data-i18n-attr="aria-label:ui.opt-tint-on.aria-label;data-tip:ui.opt-tint-on.data-tip">
+              <input id="opt-tint" type="color" value="#f59e0b" hidden data-i18n-attr="aria-label:ui.opt-tint.aria-label">
             </span>
           </label>
           <div id="audio-options" class="audio-options" hidden>
-            <label class="field"><span>Sample rate</span>
-              <select id="opt-sample-rate"><option value="">As it is</option><option value="44100">44.1 kHz</option><option value="48000">48 kHz</option><option value="96000">96 kHz</option></select>
+            <label class="field"><span data-i18n="ui.audio-options.sample-rate"></span>
+              <select id="opt-sample-rate"><option value="" data-i18n="ui.opt-sample-rate.as-it-is"></option><option value="44100" data-i18n="ui.opt-sample-rate.44-1-khz"></option><option value="48000" data-i18n="ui.opt-sample-rate.48-khz"></option><option value="96000" data-i18n="ui.opt-sample-rate.96-khz"></option></select>
             </label>
-            <label class="field"><span>Channels</span>
-              <select id="opt-channels"><option value="">As it is</option><option value="1">Mono</option><option value="2">Stereo</option></select>
+            <label class="field"><span data-i18n="ui.audio-options.channels"></span>
+              <select id="opt-channels"><option value="" data-i18n="ui.opt-channels.as-it-is"></option><option value="1" data-i18n="ui.opt-channels.mono"></option><option value="2" data-i18n="ui.opt-channels.stereo"></option></select>
             </label>
-            <label class="field"><span>Bit depth</span>
-              <select id="opt-bit-depth"><option value="16">16 bit</option><option value="24">24 bit</option></select>
+            <label class="field"><span data-i18n="ui.audio-options.bit-depth"></span>
+              <select id="opt-bit-depth"><option value="16" data-i18n="ui.opt-bit-depth.16-bit"></option><option value="24" data-i18n="ui.opt-bit-depth.24-bit"></option></select>
             </label>
           </div>
         </div>
         <div class="trim">
           <label class="field">
-            <span>In point</span>
-            <input id="opt-in" type="text" inputmode="numeric" spellcheck="false" placeholder="00:00:00:00" title="Timecode HH:MM:SS:FF, a frame number, or seconds such as 2.5s">
+            <span data-i18n="ui.pane-output.in-point"></span>
+            <input id="opt-in" type="text" inputmode="numeric" spellcheck="false" placeholder="00:00:00:00" data-i18n-attr="title:ui.opt-in.title">
           </label>
           <label class="field">
-            <span>Out point (inclusive)</span>
-            <input id="opt-out" type="text" inputmode="numeric" spellcheck="false" placeholder="last frame" title="Timecode HH:MM:SS:FF, a frame number, or seconds such as 2.5s">
+            <span data-i18n="ui.pane-output.out-point-inclusive"></span>
+            <input id="opt-out" type="text" inputmode="numeric" spellcheck="false" data-i18n-attr="title:ui.opt-out.title;placeholder:ui.opt-out.placeholder">
           </label>
         </div>
-        <label class="field inline matte-field" id="opt-matte-field" data-tip="A second file beside the render with the alpha as gray, for codecs and editors without alpha">
+        <label class="field inline matte-field" id="opt-matte-field" data-i18n-attr="data-tip:ui.opt-matte-field.data-tip">
           <input id="opt-matte" type="checkbox">
-          <span>Matte file beside the render</span>
+          <span data-i18n="ui.opt-matte-field.matte-file-beside-the-render"></span>
         </label>
-        <label class="field inline stems-field" id="opt-stems-field" hidden data-tip="Music that came in as stems: folded into the mix, or left out of it and written one audio file per stem beside the render, cut to the rendered range, for remixing in an editor">
-          <span>Music stems</span>
-          <select id="opt-stems" aria-label="Music stems in the render">
-            <option value="mix">In the mix</option>
-            <option value="files">One file per stem beside the render</option>
+        <label class="field inline stems-field" id="opt-stems-field" hidden data-i18n-attr="data-tip:ui.opt-stems-field.data-tip">
+          <span data-i18n="ui.opt-stems-field.music-stems"></span>
+          <select id="opt-stems" data-i18n-attr="aria-label:ui.opt-stems.aria-label">
+            <option value="mix" data-i18n="ui.opt-stems.in-the-mix"></option>
+            <option value="files" data-i18n="ui.opt-stems.one-file-per-stem-beside"></option>
           </select>
         </label>
-        <label class="field inline captions-field" id="opt-captions-field" hidden data-tip="How the project's captions reach the render. SRT and WebVTT files are written beside the video whichever is chosen">
-          <span>Captions</span>
-          <select id="opt-captions" aria-label="Captions in the render">
-            <option value="burn">Burned into the picture</option>
-            <option value="track">An alpha caption track beside the render</option>
-            <option value="none">Not drawn (subtitle files only)</option>
+        <label class="field inline captions-field" id="opt-captions-field" hidden data-i18n-attr="data-tip:ui.opt-captions-field.data-tip">
+          <span data-i18n="ui.opt-captions-field.captions"></span>
+          <select id="opt-captions" data-i18n-attr="aria-label:ui.opt-captions.aria-label">
+            <option value="burn" data-i18n="ui.opt-captions.burned-into-the-picture"></option>
+            <option value="track" data-i18n="ui.opt-captions.an-alpha-caption-track-beside"></option>
+            <option value="none" data-i18n="ui.opt-captions.not-drawn-subtitle-files-only"></option>
           </select>
         </label>
         <div class="cover-field" id="opt-cover-field">
-          <label class="field inline" data-tip="A still of one frame beside the render, at the same size, for the thumbnail a platform asks for separately">
+          <label class="field inline" data-i18n-attr="data-tip:ui.opt-cover-field.a-still-of-one-frame.data-tip">
             <input id="opt-cover" type="checkbox">
-            <span>Cover image beside the render</span>
+            <span data-i18n="ui.opt-cover-field.cover-image-beside-the-render"></span>
           </label>
           <div id="opt-cover-row" class="cover-row" hidden>
             <label class="field">
-              <span>Cover frame</span>
-              <input id="opt-cover-at" type="text" inputmode="numeric" spellcheck="false" placeholder="00:00:00:00" title="Timecode HH:MM:SS:FF, a frame number, or seconds such as 2.5s">
+              <span data-i18n="ui.opt-cover-row.cover-frame"></span>
+              <input id="opt-cover-at" type="text" inputmode="numeric" spellcheck="false" placeholder="00:00:00:00" data-i18n-attr="title:ui.opt-cover-at.title">
             </label>
-            <button id="opt-cover-here" type="button" data-tip="Take the cover at the frame the playhead is on">At the playhead</button>
+            <button id="opt-cover-here" type="button" data-i18n="ui.opt-cover-here" data-i18n-attr="data-tip:ui.opt-cover-here.data-tip"></button>
           </div>
         </div>
         <p id="options-note" class="note"></p>
         <p id="platform-warnings" class="note warn" role="status" hidden></p>
       </div>
       <div class="render-actions">
-        <button id="render" type="button" class="primary" disabled>Render…</button>
-        <button id="drag-prepare" type="button" disabled data-tip="Render into the cache and add a card to the tray you can drag into your editor">Prepare for drag</button>
+        <button id="render" type="button" class="primary" disabled data-i18n="ui.render"></button>
+        <button id="drag-prepare" type="button" disabled data-i18n="ui.drag-prepare" data-i18n-attr="data-tip:ui.drag-prepare.data-tip"></button>
       </div>
       <p id="drag-status" class="note" role="status"></p>
       <details id="batch" class="batch">
-        <summary>Batch from CSV</summary>
-        <p class="note">One render per row. Column headers match a parameter id or label (any case); a <code>file</code> (or <code>name</code>, when that is not a parameter) column names the jobs and files.</p>
-        <textarea id="batch-csv" rows="5" placeholder="file,Name,Title&#10;Alex,Alex Rivera,Director of Photography&#10;Sam,Sam Lee,Editor" spellcheck="false" aria-label="CSV"></textarea>
+        <summary data-i18n="ui.batch.batch-from-csv"></summary>
+        <p class="note" data-i18n-rich="ui.batch.one-render-per-row-column"></p>
+        <textarea id="batch-csv" rows="5" spellcheck="false" data-i18n-attr="aria-label:ui.batch-csv.aria-label;placeholder:ui.batch-csv.placeholder"></textarea>
         <div class="render-actions">
-          <button id="batch-file" type="button">Choose CSV file…</button>
+          <button id="batch-file" type="button" data-i18n="ui.batch-file"></button>
           <input id="batch-file-input" type="file" accept=".csv,text/csv" hidden>
-          <button id="batch-preview" type="button" disabled>Preview</button>
-          <button id="batch-queue" type="button" class="primary" disabled>Queue</button>
+          <button id="batch-preview" type="button" disabled data-i18n="ui.batch-preview"></button>
+          <button id="batch-queue" type="button" class="primary" disabled data-i18n="ui.batch-queue"></button>
         </div>
         <div id="batch-summary" class="note"></div>
       </details>
@@ -345,40 +345,40 @@
       </section>
       </section>
     </main>
-    <div id="region-tray" class="tray" aria-label="Render tray">
-      <div id="split-tray" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the tray"></div>
+    <div id="region-tray" class="tray" data-i18n-attr="aria-label:ui.region-tray.aria-label">
+      <div id="split-tray" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" data-i18n-attr="aria-label:ui.split-tray.aria-label"></div>
       <div class="tray-head">
-        <button id="tray-toggle" type="button" class="region-toggle" data-icon="caret-up" aria-label="Show or hide the collection" aria-expanded="false"><span class="label">Collection</span></button>
-        <span id="tray-summary" class="tray-summary" aria-live="polite">Nothing collected yet.</span>
-        <progress id="tray-progress" class="tray-progress" max="1" value="0" aria-label="Total render progress" hidden></progress>
-        <button id="collection-render" type="button" class="primary" disabled data-tip="Render every item into one folder">Render all</button>
-        <button id="collection-apply" type="button" disabled data-tip="Give every item the output settings of the one being edited">Apply to all</button>
-        <button id="collection-open" type="button" data-icon="download-simple" aria-label="Open project or collection" data-tip="Open a saved project or collection"></button>
-        <button id="collection-save" type="button" disabled data-icon="upload-simple" aria-label="Save collection" data-tip="Save just these items as a collection file, which an older Pulp can open"></button>
-        <button id="clear-finished" type="button" disabled data-icon="trash" aria-label="Clear finished"><span class="label">Clear finished</span></button>
+        <button id="tray-toggle" type="button" class="region-toggle" data-icon="caret-up" aria-expanded="false" data-i18n-attr="aria-label:ui.tray-toggle.aria-label"><span class="label" data-i18n="ui.tray-toggle.collection"></span></button>
+        <span id="tray-summary" class="tray-summary" aria-live="polite" data-i18n="ui.tray-summary"></span>
+        <progress id="tray-progress" class="tray-progress" max="1" value="0" hidden data-i18n-attr="aria-label:ui.tray-progress.aria-label"></progress>
+        <button id="collection-render" type="button" class="primary" disabled data-i18n="ui.collection-render" data-i18n-attr="data-tip:ui.collection-render.data-tip"></button>
+        <button id="collection-apply" type="button" disabled data-i18n="ui.collection-apply" data-i18n-attr="data-tip:ui.collection-apply.data-tip"></button>
+        <button id="collection-open" type="button" data-icon="download-simple" data-i18n-attr="aria-label:ui.collection-open.aria-label;data-tip:ui.collection-open.data-tip"></button>
+        <button id="collection-save" type="button" disabled data-icon="upload-simple" data-i18n-attr="aria-label:ui.collection-save.aria-label;data-tip:ui.collection-save.data-tip"></button>
+        <button id="clear-finished" type="button" disabled data-icon="trash" data-i18n-attr="aria-label:ui.clear-finished.aria-label"><span class="label" data-i18n="ui.clear-finished.clear-finished"></span></button>
       </div>
       <div class="tray-body">
         <div id="drag-notice" class="note notice" role="status" hidden>
           <span id="drag-notice-text"></span>
-          <button id="drag-notice-dismiss" type="button">Got it</button>
+          <button id="drag-notice-dismiss" type="button" data-i18n="ui.drag-notice-dismiss"></button>
         </div>
         <p id="collection-note" class="note" role="status"></p>
         <div class="tray-lists">
-          <ul id="collection" class="queue collection" role="listbox" aria-label="Collection"></ul>
-          <ul id="queue" class="queue" aria-label="Renders" aria-live="polite" data-tip="A finished render: drag it into your editor, or press Enter to show it in the file manager and Cmd+C or Ctrl+C to copy its path"></ul>
+          <ul id="collection" class="queue collection" role="listbox" data-i18n-attr="aria-label:ui.collection.aria-label"></ul>
+          <ul id="queue" class="queue" aria-live="polite" data-i18n-attr="aria-label:ui.queue.aria-label;data-tip:ui.queue.data-tip"></ul>
         </div>
         <div class="tray-foot">
-          <span id="link-info" class="icon-slot" tabindex="0" role="img" data-icon="info" data-icon-size="16" aria-label="How editors use a dragged file" data-tip="An editor links to the file rather than copying it. Keep a render while a project uses it: clearing the cache, or the cache dropping its oldest files, takes those clips offline in the editor."></span>
-          <button id="cache-open" type="button" class="ghost cache-open" aria-haspopup="dialog" data-tip="The render cache: how full it is, clear it, move it, set its limit">Render cache…</button>
+          <span id="link-info" class="icon-slot" tabindex="0" role="img" data-icon="info" data-icon-size="16" data-i18n-attr="aria-label:ui.link-info.aria-label;data-tip:ui.link-info.data-tip"></span>
+          <button id="cache-open" type="button" class="ghost cache-open" aria-haspopup="dialog" data-i18n="ui.cache-open" data-i18n-attr="data-tip:ui.cache-open.data-tip"></button>
         </div>
       </div>
     </div>
 
-    <section id="region-transport" class="transport-row" aria-label="Transport">
-      <div id="split-transport" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize the transport row"></div>
+    <section id="region-transport" class="transport-row" data-i18n-attr="aria-label:ui.region-transport.aria-label">
+      <div id="split-transport" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" data-i18n-attr="aria-label:ui.split-transport.aria-label"></div>
       <div id="scrub-line" class="scrub-line">
         <span class="scrub-wrap">
-          <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Frame">
+          <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled data-i18n-attr="aria-label:ui.scrub.aria-label">
           <span id="scrub-marks" class="scrub-marks" aria-hidden="true">
             <span id="part-entrance" class="part entrance" hidden></span>
             <span id="part-hold" class="part hold" hidden></span>
@@ -390,61 +390,61 @@
             <span id="cover-flag" class="mark cover" hidden></span>
           </span>
           <button id="length-handle" class="length-handle" type="button" hidden
-                  role="slider" aria-label="Graphic length, seconds" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"
-                  data-tip="Drag to set how long the graphic runs; only the hold stretches"></button>
+                  role="slider" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"
+                  data-i18n-attr="aria-label:ui.length-handle.aria-label;data-tip:ui.length-handle.data-tip"></button>
         </span>
       </div>
       <div id="transport-lanes" class="transport-lanes">
-        <div id="layer-bars" class="layer-bars" role="group" aria-label="When each layer is on screen" hidden></div>
-        <div id="overlay-track" class="overlay-track" role="group" aria-label="The picture track: clips over the shots" hidden></div>
-        <div id="cut-track" class="cut-track" role="group" aria-label="The cut track" hidden></div>
+        <div id="layer-bars" class="layer-bars" role="group" hidden data-i18n-attr="aria-label:ui.layer-bars.aria-label"></div>
+        <div id="overlay-track" class="overlay-track" role="group" hidden data-i18n-attr="aria-label:ui.overlay-track.aria-label"></div>
+        <div id="cut-track" class="cut-track" role="group" hidden data-i18n-attr="aria-label:ui.cut-track.aria-label"></div>
       </div>
       <div class="buttons-line">
-        <div class="transport-buttons" role="group" aria-label="Playback">
-          <button id="step-back" type="button" class="icon-button" data-icon="caret-left" data-icon-size="20" aria-label="Previous frame" data-tip="Previous frame" disabled></button>
-          <button id="play" type="button" class="icon-button transport-button" data-icon="play" data-icon-size="24" aria-label="Play" disabled></button>
-          <button id="step-forward" type="button" class="icon-button" data-icon="caret-right" data-icon-size="20" aria-label="Next frame" data-tip="Next frame" disabled></button>
-          <button id="loop" type="button" class="icon-button" data-icon="repeat" data-icon-size="20" aria-pressed="true" aria-label="Loop playback"></button>
+        <div class="transport-buttons" role="group" data-i18n-attr="aria-label:ui.region-transport.playback.aria-label">
+          <button id="step-back" type="button" class="icon-button" data-icon="caret-left" data-icon-size="20" disabled data-i18n-attr="aria-label:ui.step-back.aria-label;data-tip:ui.step-back.data-tip"></button>
+          <button id="play" type="button" class="icon-button transport-button" data-icon="play" data-icon-size="24" disabled data-i18n-attr="aria-label:ui.play.aria-label"></button>
+          <button id="step-forward" type="button" class="icon-button" data-icon="caret-right" data-icon-size="20" disabled data-i18n-attr="aria-label:ui.step-forward.aria-label;data-tip:ui.step-forward.data-tip"></button>
+          <button id="loop" type="button" class="icon-button" data-icon="repeat" data-icon-size="20" aria-pressed="true" data-i18n-attr="aria-label:ui.loop.aria-label"></button>
         </div>
-        <div class="transport-middle" role="group" aria-label="Playhead and marks">
+        <div class="transport-middle" role="group" data-i18n-attr="aria-label:ui.region-transport.playhead-and-marks.aria-label">
           <span id="timecode" class="timecode">--</span>
           <span class="tool-group marks">
-            <button id="mark-in" type="button" disabled data-tip="Set the in point of the render to this frame"><span class="label">Set in</span></button>
-            <button id="mark-out" type="button" disabled data-tip="Set the out point of the render to this frame"><span class="label">Set out</span></button>
-            <button id="mark-clear" type="button" disabled data-tip="Render the whole thing again"><span class="label">Clear</span></button>
+            <button id="mark-in" type="button" disabled data-i18n-attr="data-tip:ui.mark-in.data-tip"><span class="label" data-i18n="ui.mark-in.set-in"></span></button>
+            <button id="mark-out" type="button" disabled data-i18n-attr="data-tip:ui.mark-out.data-tip"><span class="label" data-i18n="ui.mark-out.set-out"></span></button>
+            <button id="mark-clear" type="button" disabled data-i18n-attr="data-tip:ui.mark-clear.data-tip"><span class="label" data-i18n="ui.mark-clear.clear"></span></button>
           </span>
           <span id="loudness" class="tool-group loudness" role="img" hidden>
             <span class="loudness-bar" aria-hidden="true"><span id="loudness-fill"></span><span id="loudness-target" hidden></span></span>
           </span>
           <span id="sequence-rate" class="tool-group sequence-rate" hidden>
-            <label for="sequence-fps">Frames per second</label>
+            <label for="sequence-fps" data-i18n="ui.sequence-rate.frames-per-second"></label>
             <input id="sequence-fps" type="number" min="1" max="240" step="1" value="30"
-                   data-tip="A folder of frames records no rate, so Pulp reads it at this one">
-            <button id="sequence-fps-reset" type="button" class="ghost" hidden>Reset</button>
+                   data-i18n-attr="data-tip:ui.sequence-fps.data-tip">
+            <button id="sequence-fps-reset" type="button" class="ghost" hidden data-i18n="ui.sequence-fps-reset"></button>
           </span>
         </div>
-        <div class="transport-tools" role="toolbar" aria-label="Transport tools">
+        <div class="transport-tools" role="toolbar" data-i18n-attr="aria-label:ui.region-transport.transport-tools.aria-label">
           <span class="tool-group volume">
-            <button id="mute" type="button" class="icon-button" data-icon="speaker-high" data-icon-size="20" aria-pressed="false" aria-label="Mute"></button>
-            <input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">
+            <button id="mute" type="button" class="icon-button" data-icon="speaker-high" data-icon-size="20" aria-pressed="false" data-i18n-attr="aria-label:ui.mute.aria-label"></button>
+            <input id="volume" type="range" min="0" max="100" step="1" value="100" data-i18n-attr="aria-label:ui.volume.aria-label">
           </span>
-          <button id="audition" type="button" class="icon-button" data-icon="play-circle" data-icon-size="20" aria-pressed="false" aria-label="Audition mode" data-tip="Audition: choosing a sound plays it, and the arrow keys move through the results"></button>
-          <button id="add-to-collection" type="button" class="icon-button" disabled data-icon="stack" data-icon-size="20" aria-label="Add to collection" data-tip="Add this item to the collection in the tray"></button>
-          <span id="transport-tabs" class="transport-tabs" role="tablist" aria-label="Inspector sections">
-            <button id="tab-parameters" class="tab" type="button" role="tab" aria-selected="true" aria-controls="pane-parameters" data-icon="sliders-horizontal" data-tip="The template's own settings; choosing again closes the drawer"><span class="label">Parameters</span></button>
-            <button id="tab-output" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-output" data-icon="export" data-tip="Format, size and trim of a render; choosing again closes the drawer"><span class="label">Output</span></button>
-            <button id="tab-info" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-info" data-icon="info" data-tip="What the item is; choosing again closes the drawer"><span class="label">Info</span></button>
+          <button id="audition" type="button" class="icon-button" data-icon="play-circle" data-icon-size="20" aria-pressed="false" data-i18n-attr="aria-label:ui.audition.aria-label;data-tip:ui.audition.data-tip"></button>
+          <button id="add-to-collection" type="button" class="icon-button" disabled data-icon="stack" data-icon-size="20" data-i18n-attr="aria-label:ui.add-to-collection.aria-label;data-tip:ui.add-to-collection.data-tip"></button>
+          <span id="transport-tabs" class="transport-tabs" role="tablist" data-i18n-attr="aria-label:ui.transport-tabs.aria-label">
+            <button id="tab-parameters" class="tab" type="button" role="tab" aria-selected="true" aria-controls="pane-parameters" data-icon="sliders-horizontal" data-i18n-attr="data-tip:ui.tab-parameters.data-tip"><span class="label" data-i18n="ui.tab-parameters.parameters"></span></button>
+            <button id="tab-output" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-output" data-icon="export" data-i18n-attr="data-tip:ui.tab-output.data-tip"><span class="label" data-i18n="ui.tab-output.output"></span></button>
+            <button id="tab-info" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pane-info" data-icon="info" data-i18n-attr="data-tip:ui.tab-info.data-tip"><span class="label" data-i18n="ui.tab-info.info"></span></button>
           </span>
         </div>
-        <div id="region-status" class="transport-status" aria-label="Status">
+        <div id="region-status" class="transport-status" data-i18n-attr="aria-label:ui.region-status.aria-label">
           <button id="project-button" type="button" class="note status-item project-button" data-icon="folder-open" data-icon-size="14"
-                  aria-haspopup="dialog" data-tip="The project: New, Open, Save, Save As"><span class="label">Untitled</span></button>
+                  aria-haspopup="dialog" data-i18n-attr="data-tip:ui.project-button.data-tip"><span class="label" data-i18n="ui.project-button.untitled"></span></button>
           <p id="ffmpeg-status" class="note status-item"><span class="label"></span></p>
           <div id="library-summary" class="summary"></div>
           <span id="status-scan" class="note status-item" role="status"><span class="label"></span></span>
           <span id="status-renders" class="note status-item" role="status"><span class="label"></span></span>
-          <button id="status-cache" type="button" class="note status-item icon-button" data-icon="hard-drive" data-icon-size="14" aria-haspopup="dialog" aria-label="Render cache"><span class="label"></span></button>
-          <button id="status-diagnostics" type="button" class="note status-item icon-button" data-icon="lifebuoy" data-icon-size="14" aria-label="Copy diagnostics" data-tip="Copy diagnostics: what Pulp knows about this machine and the last of its log, for a bug report. Nothing leaves your computer"><span class="label"></span></button>
+          <button id="status-cache" type="button" class="note status-item icon-button" data-icon="hard-drive" data-icon-size="14" aria-haspopup="dialog" data-i18n-attr="aria-label:ui.status-cache.aria-label"><span class="label"></span></button>
+          <button id="status-diagnostics" type="button" class="note status-item icon-button" data-icon="lifebuoy" data-icon-size="14" data-i18n-attr="aria-label:ui.status-diagnostics.aria-label;data-tip:ui.status-diagnostics.data-tip"><span class="label"></span></button>
         </div>
       </div>
     </section>
@@ -457,75 +457,75 @@
       <span class="rec-dot" aria-hidden="true"></span>
       <span id="rec-time" class="rec-time">0:00</span>
       <span class="rec-meter" aria-hidden="true"><span id="rec-level"></span></span>
-      <button id="rec-stop" type="button">Stop</button>
+      <button id="rec-stop" type="button" data-i18n="ui.rec-stop"></button>
     </span>
     <span id="rec-denied" class="rec-denied" hidden>
       <span id="rec-denied-note"></span>
-      <button id="rec-open-settings" type="button" hidden>Open Settings</button>
-      <button id="rec-dismiss" type="button">Close</button>
+      <button id="rec-open-settings" type="button" hidden data-i18n="ui.rec-open-settings"></button>
+      <button id="rec-dismiss" type="button" data-i18n="ui.rec-dismiss"></button>
     </span>
   </div>
-  <section id="start-screen" class="start-screen" aria-label="Home" hidden>
+  <section id="start-screen" class="start-screen" hidden data-i18n-attr="aria-label:ui.start-screen.aria-label">
     <div class="start-inner">
       <header class="start-head">
         <span class="start-mark" aria-hidden="true"><i></i><b></b><u></u></span>
         <div class="start-title">
-          <h1>Pulp</h1>
-          <p class="start-tagline">Browse, customize and render motion-graphics templates.</p>
+          <h1 data-i18n="ui.start-screen.pulp"></h1>
+          <p class="start-tagline" data-i18n="ui.start-screen.browse-customize-and-render-motion"></p>
         </div>
         <div class="start-corner">
-          <label class="start-startup"><input id="start-show-at-startup" type="checkbox" checked> Show at startup</label>
-          <button id="start-close" type="button" class="start-link">Close</button>
+          <label class="start-startup" data-i18n="ui.start-screen.show-at-startup" data-i18n-at="end"><input id="start-show-at-startup" type="checkbox" checked> </label>
+          <button id="start-close" type="button" class="start-link" data-i18n="ui.start-close"></button>
         </div>
       </header>
 
       <div class="start-lead">
-        <button id="start-new-blank" type="button" class="primary start-primary">New project</button>
-        <button id="start-open" type="button" class="start-secondary">Open&#8230;</button>
+        <button id="start-new-blank" type="button" class="primary start-primary" data-i18n="ui.start-new-blank"></button>
+        <button id="start-open" type="button" class="start-secondary" data-i18n="ui.start-open"></button>
         <span class="start-lead-rule" aria-hidden="true"></span>
-        <span id="start-shapes" class="start-shapes" role="group" aria-label="New project by shape"></span>
+        <span id="start-shapes" class="start-shapes" role="group" data-i18n-attr="aria-label:ui.start-shapes.aria-label"></span>
         <label class="start-platform">
-          <span>For a platform</span>
-          <select id="start-platform-select" aria-label="New project for a platform"></select>
+          <span data-i18n="ui.start-screen.for-a-platform"></span>
+          <select id="start-platform-select" data-i18n-attr="aria-label:ui.start-platform-select.aria-label"></select>
         </label>
       </div>
       <p id="start-platforms-note" class="start-caption"></p>
 
       <section id="start-setup-card" class="start-setup" aria-labelledby="start-setup-head" hidden>
-        <h2 id="start-setup-head"><span class="start-section-icon" data-start-icon="check-circle"></span>Set up <span id="start-progress" class="start-progress"></span></h2>
-        <p class="start-section-note">Three short steps and everything works; each button does its own.</p>
+        <h2 id="start-setup-head" data-i18n="ui.start-setup-head" data-i18n-at="end"><span class="start-section-icon" data-start-icon="check-circle"></span><span id="start-progress" class="start-progress"></span></h2>
+        <p class="start-section-note" data-i18n="ui.start-setup-card.three-short-steps-and-everything"></p>
         <ul id="start-checklist" class="start-checklist"></ul>
       </section>
 
       <section id="start-continue" class="start-block" aria-labelledby="start-continue-head">
-        <h2 id="start-continue-head"><span class="start-section-icon" data-start-icon="folder-open"></span>Continue</h2>
-        <p class="start-section-note">Your recent projects; pin the ones you keep reaching for.</p>
-        <p id="start-invite" class="start-invite" hidden>Nothing to continue yet &#8212; press <strong>New project</strong>, or start from an idea below.</p>
+        <h2 id="start-continue-head" data-i18n="ui.start-continue-head" data-i18n-at="end"><span class="start-section-icon" data-start-icon="folder-open"></span></h2>
+        <p class="start-section-note" data-i18n="ui.start-continue.your-recent-projects-pin-the"></p>
+        <p id="start-invite" class="start-invite" hidden data-i18n-rich="ui.start-invite"></p>
         <ul id="start-recent" class="start-recents"></ul>
       </section>
 
       <section class="start-block" aria-labelledby="start-ideas-head">
-        <h2 id="start-ideas-head"><span class="start-section-icon" data-start-icon="film-slate"></span>Start from an idea</h2>
-        <p class="start-section-note">What are you making? An idea opens the library on the right shelf; an example opens as a copy, so it stays as it was.</p>
+        <h2 id="start-ideas-head" data-i18n="ui.start-ideas-head" data-i18n-at="end"><span class="start-section-icon" data-start-icon="film-slate"></span></h2>
+        <p class="start-section-note" data-i18n="ui.start-screen.what-are-you-making-an"></p>
         <ul id="start-ideas" class="start-gallery"></ul>
       </section>
 
       <section class="start-block" aria-labelledby="start-learn-head">
-        <h2 id="start-learn-head"><span class="start-section-icon" data-start-icon="play-circle"></span>Learn</h2>
+        <h2 id="start-learn-head" data-i18n="ui.start-learn-head" data-i18n-at="end"><span class="start-section-icon" data-start-icon="play-circle"></span></h2>
         <div class="start-learn">
-          <button id="start-tour" type="button" class="start-link">Take the tour</button>
-          <button id="start-whats-new" type="button" class="start-link">What&#8217;s new</button>
-          <button id="start-guide" type="button" class="start-link">User guide</button>
-          <button id="start-shortcuts" type="button" class="start-link">Keyboard shortcuts</button>
+          <button id="start-tour" type="button" class="start-link" data-i18n="ui.start-tour"></button>
+          <button id="start-whats-new" type="button" class="start-link" data-i18n="ui.start-whats-new"></button>
+          <button id="start-guide" type="button" class="start-link" data-i18n="ui.start-guide"></button>
+          <button id="start-shortcuts" type="button" class="start-link" data-i18n="ui.start-shortcuts"></button>
         </div>
-        <p id="start-tour-hint" class="start-caption" hidden>New here? The tour shows the window in seven short steps.</p>
+        <p id="start-tour-hint" class="start-caption" hidden data-i18n="ui.start-tour-hint"></p>
       </section>
 
       <footer class="start-foot">
-        <span class="start-foot-add">Add to the library:</span>
-        <button id="start-add-folder" type="button" class="start-link">Your media folder&#8230;</button>
-        <button id="start-import-pack" type="button" class="start-link">Templates from a pack&#8230;</button>
-        <button id="start-sample-media" type="button" class="start-link">Sample media&#8230;</button>
+        <span class="start-foot-add" data-i18n="ui.start-screen.add-to-the-library"></span>
+        <button id="start-add-folder" type="button" class="start-link" data-i18n="ui.start-add-folder"></button>
+        <button id="start-import-pack" type="button" class="start-link" data-i18n="ui.start-import-pack"></button>
+        <button id="start-sample-media" type="button" class="start-link" data-i18n="ui.start-sample-media"></button>
         <span id="start-glance" class="start-caption"></span>
       </footer>
     </div>
@@ -537,105 +537,111 @@
       <p id="tour-body"></p>
       <div class="tour-foot">
         <span id="tour-count" class="note"></span>
-        <button id="tour-skip" type="button">Skip</button>
-        <button id="tour-back" type="button">Back</button>
-        <button id="tour-next" type="button" class="primary">Next</button>
+        <button id="tour-skip" type="button" data-i18n="ui.tour-skip"></button>
+        <button id="tour-back" type="button" data-i18n="ui.tour-back"></button>
+        <button id="tour-next" type="button" class="primary" data-i18n="ui.tour-next"></button>
       </div>
     </div>
   </div>
   <dialog id="whats-new-dialog" class="pack-dialog whats-new-dialog">
     <form method="dialog">
-      <h2 id="whats-new-title">What&#8217;s new</h2>
+      <h2 id="whats-new-title" data-i18n="ui.whats-new-title"></h2>
       <div id="whats-new-body" class="whats-new-body"></div>
       <div class="render-actions">
-        <button id="whats-new-close" type="button">Close</button>
+        <button id="whats-new-close" type="button" data-i18n="ui.whats-new-close"></button>
       </div>
     </form>
   </dialog>
   <dialog id="project-dialog" class="pack-dialog project-dialog">
     <form method="dialog">
-      <h2>Project</h2>
+      <h2 data-i18n="ui.project-dialog.project"></h2>
       <p id="project-where" class="note"></p>
       <div class="render-actions project-actions">
-        <button id="project-new" type="button">New</button>
-        <button id="project-open" type="button">Open…</button>
-        <button id="project-save" type="button" class="primary">Save</button>
-        <button id="project-save-as" type="button">Save As…</button>
+        <button id="project-new" type="button" data-i18n="ui.project-new"></button>
+        <button id="project-open" type="button" data-i18n="ui.project-open"></button>
+        <button id="project-save" type="button" class="primary" data-i18n="ui.project-save"></button>
+        <button id="project-save-as" type="button" data-i18n="ui.project-save-as"></button>
       </div>
-      <h3 class="project-recent-head">Open Recent</h3>
+      <h3 class="project-recent-head" data-i18n="ui.project-dialog.open-recent"></h3>
       <ul id="project-recent" class="project-recent"></ul>
-      <p id="project-recent-empty" class="note">Nothing opened yet.</p>
+      <p id="project-recent-empty" class="note" data-i18n="ui.project-recent-empty"></p>
       <div class="render-actions">
-        <button id="project-close" type="button">Close</button>
+        <button id="project-close" type="button" data-i18n="ui.project-close"></button>
       </div>
     </form>
   </dialog>
   <dialog id="settings-dialog" class="pack-dialog settings-dialog" aria-labelledby="settings-title">
     <form method="dialog">
-      <h2 id="settings-title">Settings</h2>
-      <p class="note">What the window remembers between sessions, kept beside the library in your settings file. Every control here is the same setting the rest of the window reads.</p>
+      <h2 id="settings-title" data-i18n="ui.settings-title"></h2>
+      <p class="note" data-i18n="ui.settings-dialog.what-the-window-remembers-between"></p>
       <label class="field inline">
         <input id="settings-start-screen" type="checkbox">
-        <span>Show the start screen at launch</span>
+        <span data-i18n="ui.settings-dialog.show-the-start-screen-at"></span>
       </label>
-      <label class="field inline" data-tip="Choosing a sound in the results plays it, so a list can be heard by arrowing through it">
+      <label class="field inline" data-i18n-attr="data-tip:ui.settings-dialog.choosing-a-sound-in-the.data-tip">
         <input id="settings-audition" type="checkbox">
-        <span>Play a sound when it is chosen</span>
+        <span data-i18n="ui.settings-dialog.play-a-sound-when-it"></span>
       </label>
-      <h3 id="settings-appearance-head" class="settings-head">Appearance</h3>
-      <p class="note">How the window looks — every window, the start screen and the dialogs at once. The stage&#8217;s checkerboard follows it too; a chosen black, white, gray or custom background and what a template draws stay as they are. Also in View &#8594; Appearance.</p>
+      <h3 id="settings-appearance-head" class="settings-head" data-i18n="ui.settings-appearance-head"></h3>
+      <p class="note" data-i18n="ui.settings-dialog.how-the-window-looks-every"></p>
       <div id="settings-appearance" class="settings-appearance" role="radiogroup" aria-labelledby="settings-appearance-head"></div>
-      <h3 class="settings-head">Semantic search</h3>
-      <p class="note">Search by meaning as well as by words: &#8220;something calm for a podcast intro&#8221; finds the right templates. Off by default. Everything runs on this machine — the library is embedded locally and so is every search; the one thing ever fetched is the model file itself, from its publisher, after you say yes here.</p>
+      <h3 id="settings-language-head" class="settings-head" data-i18n="ui.settings-language-head"></h3>
+      <p class="note" data-i18n="ui.settings-dialog.language-note"></p>
+      <label class="field inline settings-language">
+        <span data-i18n="ui.settings-language.label"></span>
+        <select id="settings-language" aria-labelledby="settings-language-head"></select>
+      </label>
+      <h3 class="settings-head" data-i18n="ui.settings-dialog.semantic-search"></h3>
+      <p class="note" data-i18n="ui.settings-dialog.search-by-meaning-as-well"></p>
       <label class="field inline">
         <input id="settings-semantic" type="checkbox">
-        <span>Search by meaning (local)</span>
+        <span data-i18n="ui.settings-dialog.search-by-meaning-local"></span>
       </label>
       <p id="settings-semantic-note" class="note" role="status"></p>
       <div class="key-controls">
-        <button id="settings-semantic-get" type="button" class="ghost" hidden>Download the model</button>
+        <button id="settings-semantic-get" type="button" class="ghost" hidden data-i18n="ui.settings-semantic-get"></button>
       </div>
-      <h3 class="settings-head">Editor panel</h3>
-      <p class="note">A Pulp panel inside Premiere Pro or DaVinci Resolve lists this library and collection without leaving the editing app. Off by default. On, Pulp answers on this machine only (127.0.0.1), and only requests carrying the token from a file beside your settings &#8212; nothing is sent anywhere. Installing the panels is described in docs/editor-panels.md (Help &#8594; User Guide links it).</p>
+      <h3 class="settings-head" data-i18n="ui.settings-dialog.editor-panel"></h3>
+      <p class="note" data-i18n="ui.settings-dialog.a-pulp-panel-inside-premiere"></p>
       <label class="field inline">
         <input id="settings-panel" type="checkbox">
-        <span>Serve the editor panel (local)</span>
+        <span data-i18n="ui.settings-dialog.serve-the-editor-panel-local"></span>
       </label>
       <p id="settings-panel-note" class="note" role="status"></p>
-      <h3 class="settings-head">FFmpeg</h3>
+      <h3 class="settings-head" data-i18n="ui.settings-dialog.ffmpeg"></h3>
       <p id="settings-ffmpeg" class="note" role="status"></p>
-      <p class="note">Pulp finds FFmpeg on your path, or where the PULP_FFMPEG_PATH environment variable points, when it starts. Renders need it; the rest of Pulp does not.</p>
+      <p class="note" data-i18n="ui.settings-dialog.pulp-finds-ffmpeg-on-your"></p>
       <p id="settings-ffmpeg-offer" class="note" hidden></p>
       <div class="key-controls">
-        <button id="settings-ffmpeg-get" type="button" class="ghost" hidden>Download FFmpeg</button>
+        <button id="settings-ffmpeg-get" type="button" class="ghost" hidden data-i18n="ui.settings-ffmpeg-get"></button>
       </div>
-      <h3 class="settings-head">Render cache</h3>
+      <h3 class="settings-head" data-i18n="ui.settings-dialog.render-cache"></h3>
       <p id="settings-cache-summary" class="note"></p>
       <div class="key-controls">
-        <label>Limit, MB <input id="settings-cache-limit" type="number" min="100" max="100000" step="100"></label>
-        <button id="settings-cache-dir" type="button" class="ghost">Choose folder…</button>
-        <button id="settings-cache-clear" type="button" class="ghost">Clear cache</button>
+        <label data-i18n="ui.settings-dialog.limit-mb" data-i18n-at="start"> <input id="settings-cache-limit" type="number" min="100" max="100000" step="100"></label>
+        <button id="settings-cache-dir" type="button" class="ghost" data-i18n="ui.settings-cache-dir"></button>
+        <button id="settings-cache-clear" type="button" class="ghost" data-i18n="ui.settings-cache-clear"></button>
       </div>
       <div class="dialog-actions render-actions">
         <span class="dialog-spacer"></span>
-        <button id="settings-close" value="cancel">Close</button>
+        <button id="settings-close" value="cancel" data-i18n="ui.settings-close"></button>
       </div>
     </form>
   </dialog>
   <dialog id="guide-dialog" class="pack-dialog guide-dialog" aria-labelledby="guide-title">
     <form method="dialog">
-      <h2 id="guide-title">Using Pulp</h2>
-      <nav id="guide-contents" class="guide-contents" aria-label="Sections of the guide"></nav>
+      <h2 id="guide-title" data-i18n="ui.guide-title"></h2>
+      <nav id="guide-contents" class="guide-contents" data-i18n-attr="aria-label:ui.guide-contents.aria-label"></nav>
       <div id="guide-body" class="notices-body guide-body" tabindex="0" role="document"></div>
       <div class="dialog-actions render-actions">
         <span class="dialog-spacer"></span>
-        <button id="guide-close" value="cancel">Close</button>
+        <button id="guide-close" value="cancel" data-i18n="ui.guide-close"></button>
       </div>
     </form>
   </dialog>
   <dialog id="guided-dialog" class="pack-dialog guided-dialog" aria-labelledby="guided-dialog-title">
     <form method="dialog">
-      <h2 id="guided-dialog-title">Set up the output</h2>
+      <h2 id="guided-dialog-title" data-i18n="ui.guided-dialog-title"></h2>
       <p id="guided-step-head" class="note" role="status"></p>
       <div class="guided-columns">
         <div class="guided-preview">
@@ -647,69 +653,69 @@
         <div id="guided-step-body" class="guided-step-body"></div>
       </div>
       <div class="dialog-actions render-actions guided-actions">
-        <button id="guided-back" type="button" class="ghost">Back</button>
+        <button id="guided-back" type="button" class="ghost" data-i18n="ui.guided-back"></button>
         <span class="dialog-spacer"></span>
-        <button id="guided-cancel" value="cancel">Cancel</button>
-        <button id="guided-collect" type="button" hidden data-tip="Apply these settings and add the item to the collection tray">Add to collection</button>
-        <button id="guided-next" type="button" class="primary">Next</button>
+        <button id="guided-cancel" value="cancel" data-i18n="ui.guided-cancel"></button>
+        <button id="guided-collect" type="button" hidden data-i18n="ui.guided-collect" data-i18n-attr="data-tip:ui.guided-collect.data-tip"></button>
+        <button id="guided-next" type="button" class="primary" data-i18n="ui.guided-next"></button>
       </div>
     </form>
   </dialog>
   <dialog id="notices-dialog" class="pack-dialog notices-dialog" aria-labelledby="notices-title">
     <form method="dialog">
-      <h2 id="notices-title">Acknowledgements</h2>
+      <h2 id="notices-title" data-i18n="ui.notices-title"></h2>
       <div id="notices-body" class="notices-body"></div>
       <div class="dialog-actions render-actions">
         <span class="dialog-spacer"></span>
-        <button id="notices-close" value="cancel">Close</button>
+        <button id="notices-close" value="cancel" data-i18n="ui.notices-close"></button>
       </div>
     </form>
   </dialog>
   <dialog id="cache-dialog" class="pack-dialog cache-dialog" aria-labelledby="cache-title">
     <form method="dialog">
-      <h2 id="cache-title">Render cache</h2>
-      <p class="note">Renders prepared for dragging into an editor are kept here. An editor links to the file rather than copying it, so clearing the cache, or the cache dropping its oldest files, takes those clips offline there.</p>
+      <h2 id="cache-title" data-i18n="ui.cache-title"></h2>
+      <p class="note" data-i18n="ui.cache-dialog.renders-prepared-for-dragging-into"></p>
       <p id="cache-summary" class="note"></p>
       <div class="render-actions">
-        <button id="cache-clear" type="button">Clear cache</button>
-        <button id="cache-dir" type="button">Change folder…</button>
-        <label class="field inline"><span>Limit (MB)</span><input id="cache-limit" type="number" min="64" step="64"></label>
+        <button id="cache-clear" type="button" data-i18n="ui.cache-clear"></button>
+        <button id="cache-dir" type="button" data-i18n="ui.cache-dir"></button>
+        <label class="field inline"><span data-i18n="ui.cache-dialog.limit-mb"></span><input id="cache-limit" type="number" min="64" step="64"></label>
         <span class="dialog-spacer"></span>
-        <button id="cache-close" type="button">Close</button>
+        <button id="cache-close" type="button" data-i18n="ui.cache-close"></button>
       </div>
     </form>
   </dialog>
   <dialog id="silence-dialog" class="pack-dialog silence-dialog" aria-labelledby="silence-title">
     <form method="dialog">
-      <h2 id="silence-title">Remove silences</h2>
-      <p class="note">The quiet stretches of the track's sound, found before anything is cut: they shade on the track below, and one edit cuts them all — one undo step.</p>
+      <h2 id="silence-title" data-i18n="ui.silence-title"></h2>
+      <p class="note" data-i18n="ui.silence-dialog.the-quiet-stretches-of-the"></p>
       <div class="key-controls">
-        <label>Quieter than, dB <input id="silence-threshold" type="number" min="-90" max="-6" step="1" value="-40"></label>
-        <label>At least, s <input id="silence-min" type="number" min="0.1" max="30" step="0.1" value="0.5"></label>
-        <button id="silence-find" type="button">Find</button>
+        <label data-i18n="ui.silence-dialog.quieter-than-db" data-i18n-at="start"> <input id="silence-threshold" type="number" min="-90" max="-6" step="1" value="-40"></label>
+        <label data-i18n="ui.silence-dialog.at-least-s" data-i18n-at="start"> <input id="silence-min" type="number" min="0.1" max="30" step="0.1" value="0.5"></label>
+        <button id="silence-find" type="button" data-i18n="ui.silence-find"></button>
         <span id="silence-found" class="note" role="status"></span>
       </div>
       <div class="dialog-actions render-actions">
-        <button id="silence-cut" type="button" disabled>Cut them</button>
-        <button id="silence-close" value="cancel">Close</button>
+        <button id="silence-cut" type="button" disabled data-i18n="ui.silence-cut"></button>
+        <button id="silence-close" value="cancel" data-i18n="ui.silence-close"></button>
       </div>
     </form>
   </dialog>
   <dialog id="captions-dialog" class="pack-dialog captions-dialog" aria-labelledby="captions-title">
     <form method="dialog">
-      <h2 id="captions-title">Transcribe speech</h2>
-      <p class="note">The speech model runs on this machine and nothing of your project is sent anywhere. The model file itself is fetched once, from its publisher, checked against its checksum and kept beside your settings.</p>
+      <h2 id="captions-title" data-i18n="ui.captions-title"></h2>
+      <p class="note" data-i18n="ui.captions-dialog.the-speech-model-runs-on"></p>
       <div class="key-controls">
-        <label>Listen to <select id="captions-source" aria-label="What to transcribe"></select></label>
-        <label>Language <select id="captions-language" aria-label="The language spoken"></select></label>
+        <label data-i18n="ui.captions-dialog.listen-to" data-i18n-at="start"> <select id="captions-source" data-i18n-attr="aria-label:ui.captions-source.aria-label"></select></label>
+        <label data-i18n="ui.captions-dialog.language" data-i18n-at="start"> <select id="captions-language" data-i18n-attr="aria-label:ui.captions-language.aria-label"></select></label>
       </div>
       <p id="captions-model" class="note"></p>
       <div class="dialog-actions render-actions">
-        <button id="captions-fetch" type="button" hidden>Get the model</button>
+        <button id="captions-fetch" type="button" hidden data-i18n="ui.captions-fetch"></button>
         <span id="captions-status" class="note" role="status"></span>
         <span class="dialog-spacer"></span>
-        <button id="captions-run" type="button" disabled>Transcribe</button>
-        <button id="captions-close" value="cancel">Close</button>
+        <button id="captions-run" type="button" disabled data-i18n="ui.captions-run"></button>
+        <button id="captions-close" value="cancel" data-i18n="ui.captions-close"></button>
       </div>
     </form>
   </dialog>
@@ -717,108 +723,108 @@
        from, and Record. The preview is mirrored for a camera facing the person; the file never is. -->
   <dialog id="camera-dialog" class="pack-dialog camera-dialog" aria-labelledby="camera-title">
     <form method="dialog">
-      <h2 id="camera-title">Record from a camera</h2>
+      <h2 id="camera-title" data-i18n="ui.camera-title"></h2>
       <div class="camera-well">
-        <video id="camera-preview" muted playsinline aria-label="The camera's live picture"></video>
+        <video id="camera-preview" muted playsinline data-i18n-attr="aria-label:ui.camera-preview.aria-label"></video>
         <span id="camera-live" class="camera-live" hidden><span class="rec-dot" aria-hidden="true"></span><span id="camera-time" class="rec-time">0:00</span></span>
       </div>
       <p id="camera-denied" class="note camera-denied" role="alert" hidden>
         <span id="camera-denied-note"></span>
-        <button id="camera-open-settings" type="button" hidden>Open Settings</button>
+        <button id="camera-open-settings" type="button" hidden data-i18n="ui.camera-open-settings"></button>
       </p>
       <div class="key-controls">
-        <label>Camera <select id="camera-source"></select></label>
-        <label>Sound <select id="camera-sound"></select></label>
+        <label data-i18n="ui.camera-dialog.camera" data-i18n-at="start"> <select id="camera-source"></select></label>
+        <label data-i18n="ui.camera-dialog.sound" data-i18n-at="start"> <select id="camera-sound"></select></label>
       </div>
       <div class="dialog-actions render-actions">
         <span id="camera-status" class="note" role="status"></span>
         <span class="dialog-spacer"></span>
-        <button id="camera-record" type="button" class="primary" aria-pressed="false" disabled>Record</button>
-        <button id="camera-close" value="cancel">Close</button>
+        <button id="camera-record" type="button" class="primary" aria-pressed="false" disabled data-i18n="ui.camera-record"></button>
+        <button id="camera-close" value="cancel" data-i18n="ui.camera-close"></button>
       </div>
     </form>
   </dialog>
   <dialog id="key-dialog" class="pack-dialog key-dialog" aria-labelledby="key-title">
     <form method="dialog">
-      <h2 id="key-title">Key out a color</h2>
-      <p class="note">The color becomes transparency and its cast is washed from what remains. Pick it from the frame on the left, or choose it below; the result is written beside the original as an alpha clip, its sound kept.</p>
+      <h2 id="key-title" data-i18n="ui.key-title"></h2>
+      <p class="note" data-i18n="ui.key-dialog.the-color-becomes-transparency-and"></p>
       <div class="key-previews">
-        <figure><img id="key-plain" alt="A frame of the clip; choosing a point on it picks the color to key out" title="Choose the color here"><figcaption>The frame</figcaption></figure>
-        <figure class="checker"><img id="key-keyed" alt="The same frame with the color keyed out"><figcaption>Keyed</figcaption></figure>
+        <figure><img id="key-plain" data-i18n-attr="title:ui.key-plain.title;alt:ui.key-plain.alt"><figcaption data-i18n="ui.key-dialog.the-frame"></figcaption></figure>
+        <figure class="checker"><img id="key-keyed" data-i18n-attr="alt:ui.key-keyed.alt"><figcaption data-i18n="ui.key-dialog.keyed"></figcaption></figure>
       </div>
       <div class="key-controls">
-        <label class="field inline"><span>Color</span><input id="key-color" type="color" value="#00ff00"></label>
-        <button id="key-green" type="button" class="ghost">Green</button>
-        <button id="key-blue" type="button" class="ghost">Blue</button>
-        <label class="field inline"><span>Tolerance</span><input id="key-tolerance" type="range" min="1" max="90" step="1" value="18"></label>
-        <label class="field inline"><span>Spill</span><input id="key-spill" type="range" min="0" max="100" step="5" value="50"></label>
+        <label class="field inline"><span data-i18n="ui.key-dialog.color"></span><input id="key-color" type="color" value="#00ff00"></label>
+        <button id="key-green" type="button" class="ghost" data-i18n="ui.key-green"></button>
+        <button id="key-blue" type="button" class="ghost" data-i18n="ui.key-blue"></button>
+        <label class="field inline"><span data-i18n="ui.key-dialog.tolerance"></span><input id="key-tolerance" type="range" min="1" max="90" step="1" value="18"></label>
+        <label class="field inline"><span data-i18n="ui.key-dialog.spill"></span><input id="key-spill" type="range" min="0" max="100" step="5" value="50"></label>
       </div>
       <p id="key-status" class="note" role="status"></p>
       <div class="render-actions">
-        <button id="key-make" type="button" class="primary">Make alpha clip</button>
+        <button id="key-make" type="button" class="primary" data-i18n="ui.key-make"></button>
         <span class="dialog-spacer"></span>
-        <button id="key-close" type="button">Close</button>
+        <button id="key-close" type="button" data-i18n="ui.key-close"></button>
       </div>
     </form>
   </dialog>
   <dialog id="shortcuts-dialog" class="pack-dialog shortcuts-dialog">
     <form method="dialog">
-      <h2>Keyboard shortcuts</h2>
-      <p class="note">The same keys the menu shows, read from the menu itself.</p>
+      <h2 data-i18n="ui.shortcuts-dialog.keyboard-shortcuts"></h2>
+      <p class="note" data-i18n="ui.shortcuts-dialog.the-same-keys-the-menu"></p>
       <div id="shortcuts-list" class="shortcuts-list"></div>
       <p id="shortcuts-copied" class="note" role="status" hidden></p>
       <div class="render-actions">
-        <button id="shortcuts-close" type="button">Close</button>
+        <button id="shortcuts-close" type="button" data-i18n="ui.shortcuts-close"></button>
       </div>
     </form>
   </dialog>
   <dialog id="unsaved-dialog" class="pack-dialog unsaved-dialog">
     <form method="dialog">
-      <h2>Unsaved changes</h2>
+      <h2 data-i18n="ui.unsaved-dialog.unsaved-changes"></h2>
       <p id="unsaved-text" class="note"></p>
       <div class="render-actions">
-        <button id="unsaved-save" type="button" class="primary">Save</button>
-        <button id="unsaved-discard" type="button">Discard</button>
-        <button id="unsaved-cancel" type="button">Cancel</button>
+        <button id="unsaved-save" type="button" class="primary" data-i18n="ui.unsaved-save"></button>
+        <button id="unsaved-discard" type="button" data-i18n="ui.unsaved-discard"></button>
+        <button id="unsaved-cancel" type="button" data-i18n="ui.unsaved-cancel"></button>
       </div>
     </form>
   </dialog>
   <dialog id="interrupted-dialog" class="pack-dialog unsaved-dialog">
     <form method="dialog">
-      <h2>Render again?</h2>
+      <h2 data-i18n="ui.interrupted-dialog.render-again"></h2>
       <p id="interrupted-text" class="note"></p>
       <div class="render-actions">
-        <button id="interrupted-render" type="button" class="primary">Render again</button>
-        <button id="interrupted-skip" type="button">Not now</button>
+        <button id="interrupted-render" type="button" class="primary" data-i18n="ui.interrupted-render"></button>
+        <button id="interrupted-skip" type="button" data-i18n="ui.interrupted-skip"></button>
       </div>
     </form>
   </dialog>
   <dialog id="recovery-dialog" class="pack-dialog unsaved-dialog">
     <form method="dialog">
-      <h2>Recover unsaved changes?</h2>
+      <h2 data-i18n="ui.recovery-dialog.recover-unsaved-changes"></h2>
       <p id="recovery-text" class="note"></p>
       <div class="render-actions">
-        <button id="recovery-open" type="button" class="primary">Recover</button>
-        <button id="recovery-discard" type="button">Discard</button>
+        <button id="recovery-open" type="button" class="primary" data-i18n="ui.recovery-open"></button>
+        <button id="recovery-discard" type="button" data-i18n="ui.recovery-discard"></button>
       </div>
     </form>
   </dialog>
   <dialog id="pack-dialog" class="pack-dialog">
     <form method="dialog">
-      <h2 id="pack-title">Template pack</h2>
+      <h2 id="pack-title" data-i18n="ui.pack-title"></h2>
       <p id="pack-meta" class="note"></p>
       <p id="pack-license" class="note" hidden></p>
       <ul id="pack-templates" class="pack-templates"></ul>
       <div id="pack-problems" class="note error"></div>
       <div id="pack-export-fields" class="pack-export" hidden>
-        <label class="field"><span>Pack name</span><input id="pack-export-name" type="text" autocomplete="off" spellcheck="false"></label>
-        <label class="field"><span>Author</span><input id="pack-export-author" type="text" autocomplete="off" spellcheck="false"></label>
-        <label class="field" title="An SPDX license identifier, e.g. CC0-1.0 or MIT"><span>License</span><input id="pack-export-license" type="text" value="CC0-1.0" autocomplete="off" spellcheck="false"></label>
+        <label class="field"><span data-i18n="ui.pack-export-fields.pack-name"></span><input id="pack-export-name" type="text" autocomplete="off" spellcheck="false"></label>
+        <label class="field"><span data-i18n="ui.pack-export-fields.author"></span><input id="pack-export-author" type="text" autocomplete="off" spellcheck="false"></label>
+        <label class="field" data-i18n-attr="title:ui.pack-export-fields.an-spdx-license-identifier-e.title"><span data-i18n="ui.pack-export-fields.license"></span><input id="pack-export-license" type="text" value="CC0-1.0" autocomplete="off" spellcheck="false"></label>
       </div>
       <div id="pack-result" class="note"></div>
       <div class="render-actions">
-        <button id="pack-confirm" type="button" class="primary">Install</button>
-        <button id="pack-close" type="button">Close</button>
+        <button id="pack-confirm" type="button" class="primary" data-i18n="ui.pack-confirm"></button>
+        <button id="pack-close" type="button" data-i18n="ui.pack-close"></button>
       </div>
     </form>
   </dialog>

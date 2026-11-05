@@ -40,7 +40,7 @@ import {
 import { listExamples, readExample } from './examples-service';
 import { projectFileArg } from '../core/open-file';
 import type { Project } from '../core/project';
-import { initMenu, menuSections, setMenuState } from './menu-service';
+import { initMenu, menuSections, rebuildMenu, setMenuState } from './menu-service';
 import type { MenuState } from '../core/menu';
 import type { Collection, CollectionItem } from '../core/collection';
 import { chooseExportFile, choosePackFile, exportPackTo, installPack, listInstalledPacks, previewPack } from './pack-service';
@@ -62,6 +62,7 @@ import { sanitizeResultsView } from '../core/results-view';
 import { sanitizePlayer } from '../core/player';
 import { loadSettings, updateSettings } from './settings';
 import { getAppearance, loadAppearance, setAppearance, watchAppearance, windowBackground } from './appearance-service';
+import { getLanguage, loadLanguage, onLanguageChange, setLanguage } from './language-service';
 import { abandonVideoTake, appendVideoTake, beginVideoTake, cameraAccess, finishVideoTake, microphoneAccess, openPrivacySettings, saveRecording } from './recording-service';
 import { DEFAULT_VIDEO_INPUTS, sanitizeVideoInputs } from '../core/video-take';
 import { sanitizeTypeOutputDefault } from '../core/output-defaults';
@@ -405,6 +406,9 @@ function registerIpc(): void {
   // Light, dark or the system's (milestone 62): every window redraws when it is set.
   ipcMain.handle('appearance:get', () => getAppearance());
   ipcMain.handle('appearance:set', (_event, choice: unknown) => setAppearance(choice));
+  // The interface's language (milestone 59): every window is told of a change, and the menu rebuilt.
+  ipcMain.handle('language:get', () => getLanguage());
+  ipcMain.handle('language:set', (_event, choice: unknown) => setLanguage(choice));
   // Recording a voice (milestone 63): the microphone's permission, the finished take, the chosen input.
   ipcMain.handle('recording:access', () => microphoneAccess());
   ipcMain.handle('recording:save', (_event, wav: unknown) => {
@@ -1210,6 +1214,9 @@ app.whenReady().then(async () => {
   await loadStageWindowSetting();
   // The appearance is applied before the window is made, so it opens in it (milestone 62).
   await loadAppearance();
+  // So is the language, so the menu is built in it before the window loads (milestone 59).
+  await loadLanguage();
+  onLanguageChange(rebuildMenu);
   watchAppearance(() => [mainWindow, currentStageWindow()].filter((w): w is BrowserWindow => w !== null));
   createWindow();
   startLibraryMonitor();

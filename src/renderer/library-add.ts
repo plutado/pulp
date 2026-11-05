@@ -17,6 +17,7 @@
 
 import { libraryAddItems, type MenuCommand } from '../core/menu';
 import { openContextMenu } from './context-menu';
+import { t } from './i18n';
 import { someSampleMediaUnmade } from './sample-hint';
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -63,7 +64,7 @@ export function openLibraryAddMenu(): void {
   openContextMenu({
     x: box.left,
     y: box.bottom + 2,
-    items: libraryAddItems(libraryAddState()),
+    items: libraryAddItems(libraryAddState(), t),
     run: (command) => runLibraryAdd(command),
     focusBack: button,
   });

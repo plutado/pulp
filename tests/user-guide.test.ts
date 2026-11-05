@@ -6,6 +6,7 @@
  * ways it would.
  */
 
+import { shownMarkup } from './markup';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -15,7 +16,8 @@ import { docSections } from '../src/core/doc-page';
 
 const ROOT = join(__dirname, '..');
 const guide = await readFile(join(ROOT, 'docs', 'user-guide.md'), 'utf8');
-const html = await readFile(join(ROOT, 'src', 'renderer', 'index.html'), 'utf8');
+// As the window shows it: the markup's words are in the catalog (milestone 59; tests/markup.ts).
+const html = shownMarkup();
 
 /** Every accelerator the menu registers, on either platform's wording. */
 function menuAccelerators(): Set<string> {

@@ -82,6 +82,17 @@ export interface AppearanceState {
   palette: Palette;
 }
 
+/**
+ * The interface's language (milestone 59): what Settings → Language holds, the locale it comes to,
+ * and the system's own preferred languages, which "Same as the system" follows.
+ */
+export interface LanguageState {
+  choice: LanguageChoice;
+  locale: LocaleId;
+  system: string[];
+}
+import type { LanguageChoice, LocaleId } from '../core/i18n';
+
 /** The start screen's remembered switches (milestone 31). */
 export interface StartScreenPrefs {
   /** The screen is shown at launch; File → Home shows it either way. */
@@ -403,6 +414,10 @@ export interface PulpApi {
    * system now. Setting it redraws every window at once; the pages read it as `prefers-color-scheme`.
    */
   getAppearance(): Promise<AppearanceState>;
+  /** The interface's language (milestone 59): read it, choose it, and hear when it changes in any window. */
+  getLanguage(): Promise<LanguageState>;
+  setLanguage(choice: LanguageChoice): Promise<LanguageState>;
+  onLanguageChanged(listener: (state: LanguageState) => void): () => void;
   setAppearance(choice: Appearance): Promise<AppearanceState>;
   /**
    * Recording a voice (milestone 63): may the microphone be used, save a finished take's WAV bytes

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { shownMarkup } from './markup';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -8,7 +9,8 @@ import { buildMenu, EMPTY_MENU_STATE, itemChecked, itemEnabled, type MenuState }
 
 const root = join(__dirname, '..');
 const css = readFileSync(join(root, 'src', 'renderer', 'styles.css'), 'utf8');
-const html = readFileSync(join(root, 'src', 'renderer', 'index.html'), 'utf8');
+// As the window shows it: the markup's words are in the catalog (milestone 59; tests/markup.ts).
+const html = shownMarkup();
 
 /** The stylesheet without its comments, which may name a color without using one, or what is inside a url(). */
 const code = css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/url\((['"]).*?\1\)/g, 'url()');
@@ -90,7 +92,7 @@ describe('the appearance setting (milestone 62)', () => {
 
   it('offers the same words in Settings as in the menu: the radios are built from the one list', () => {
     expect(html).toContain('id="settings-appearance"');
-    expect(html).toMatch(/<h3 id="settings-appearance-head" class="settings-head">Appearance<\/h3>/);
+    expect(html).toMatch(/<h3 id="settings-appearance-head" class="settings-head"[^>]*>Appearance<\/h3>/);
   });
 });
 

@@ -19,6 +19,8 @@ import { setCacheSummary } from './status-bar';
 import { effect } from '@preact/signals';
 import { APPEARANCES } from '../core/appearance';
 import { appearanceChoice, chooseAppearance } from './appearance';
+import { chooseLanguage, languageState, locale, t } from './i18n';
+import { isLocaleId, LOCALES, resolveLocale } from '../core/i18n';
 
 /**
  * How audition is set: the stage registers its own setter at mount, so the dialog changes the
@@ -221,8 +223,39 @@ function initAppearanceChoice(): void {
   });
 }
 
+/**
+ * Settings → Language (milestone 59): the system's language first — naming the one it comes to —
+ * then each language under its own name, so a person can find theirs whatever the window is in.
+ * Rebuilt when the language changes, since the first line is in the window's language.
+ */
+function initLanguageChoice(): void {
+  const select = $<HTMLSelectElement>('settings-language');
+  select.addEventListener('change', () => void chooseLanguage(select.value === 'system' ? 'system' : isLocaleId(select.value) ? select.value : 'system'));
+  effect(() => {
+    const state = languageState.value;
+    void locale.value;
+    const system = resolveLocale('system', state?.system ?? []);
+    const option = (value: string, text: string) => {
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = text;
+      return o;
+    };
+    select.replaceChildren(
+      option('system', t('settings.language.system', { language: LOCALES.find((l) => l.id === system)!.label })),
+      ...LOCALES.map((l) => {
+        const o = option(l.id, l.label);
+        o.lang = l.id;
+        return o;
+      }),
+    );
+    select.value = state?.choice ?? 'system';
+  });
+}
+
 export function initSettings(): void {
   initAppearanceChoice();
+  initLanguageChoice();
   // The fetch, and the one line of status it reports through (milestone 17). The button is
   // the asking: nothing is fetched until it is pressed, and what arrives is checked against
   // its published checksum before it is kept (ADR 0022).

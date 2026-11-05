@@ -17,6 +17,7 @@ import {
   buildMenu, EMPTY_MENU_STATE, itemChecked, itemEnabled, itemLabel, resolveMenu,
   type MenuCommand, type MenuItemSpec, type MenuSection, type MenuState,
 } from '../core/menu';
+import { mainTranslator } from './language-service';
 
 let current: MenuState = EMPTY_MENU_STATE;
 let target: BrowserWindow | null = null;
@@ -64,6 +65,7 @@ function install(pushed: MenuState): void {
     // The name people know it by, not the package name: `app.getName()` answers "pulp".
     appName: APP_NAME,
     state,
+    t: mainTranslator(),
   });
   Menu.setApplicationMenu(Menu.buildFromTemplate(sections.map((s) => ({ label: s.label, submenu: toElectron(s.items, state) }))));
 }
@@ -79,6 +81,11 @@ export function initMenu(window: BrowserWindow): void {
   screen.on('display-metrics-changed', refresh);
 }
 
+/** The language changed (milestone 59): the same menu, in the new words. */
+export function rebuildMenu(): void {
+  install(current);
+}
+
 /** The window says what it can do now; the menu follows. */
 export function setMenuState(state: MenuState): void {
   current = state;
@@ -88,6 +95,6 @@ export function setMenuState(state: MenuState): void {
 /** The menu as it stands — labels, enabled, checked — for the window's shortcut list. */
 export function menuSections(): MenuSection[] {
   const state = withDisplays(current);
-  const sections = buildMenu({ mac: process.platform === 'darwin', development: !app.isPackaged, appName: APP_NAME, state });
+  const sections = buildMenu({ mac: process.platform === 'darwin', development: !app.isPackaged, appName: APP_NAME, state, t: mainTranslator() });
   return resolveMenu(sections, state);
 }

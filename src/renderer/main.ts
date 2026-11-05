@@ -26,6 +26,7 @@ import { initProject, openProjectFrom } from './project';
 import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './project-ui';
 import { initMenu, registerBlankCanvasOpener, registerSavedTemplateOpener } from './menu';
 import { initAppearance } from './appearance';
+import { initI18n } from './i18n';
 import { initRecorder, registerRecordingOpener } from './recorder';
 import { initCameraRecorder } from './camera-recorder';
 import { registerExposer } from './stage-menu';
@@ -47,6 +48,9 @@ import { mountIcons } from './icons';
 import { initTooltips } from './tooltip';
 import { effect } from '@preact/signals';
 import type { CollisionChoice, PackPreview } from '../core/pack';
+
+// The interface's language first, so whatever is drawn from code after it is in it (milestone 59).
+initI18n();
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
