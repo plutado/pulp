@@ -24,6 +24,7 @@ import { STILL_PAGES } from './sample-stills';
 import { normalizeTag } from './tags';
 import { inferMediaType } from './taxonomy';
 import type { MediaKind } from './library-types';
+import { alphaModeTag, UNPREMULTIPLY, type RawInput } from './render-plan';
 
 export const SAMPLE_MEDIA_FOLDER_NAME = 'Sample media';
 
@@ -1502,6 +1503,18 @@ const ASSETS: SampleMediaItem[] = [
 /** Every sample file, in the order they are made. */
 export const SAMPLE_MEDIA: readonly SampleMediaItem[] = [...CLIPS, ...STILLS, ...MUSIC, ...SFX, ...ASSETS];
 
+/**
+ * What the folder picker for Add sample media says (milestone 66): a button that names the act it
+ * performs, and a message saying what will happen there — a folder of its own, how much goes in it,
+ * how long it takes, and that it can go again. One text for every platform: macOS shows a picker's
+ * message and not its title, Windows and Linux the title and not the message, so it is both.
+ */
+export function sampleFolderPicker(count: number = SAMPLE_MEDIA.length): { title: string; message: string; buttonLabel: string } {
+  const about = Math.max(100, Math.round(count / 100) * 100);
+  const text = `Pulp will create a "${SAMPLE_MEDIA_FOLDER_NAME}" folder here with about ${about} example sounds, clips, stills and assets. It takes a few minutes, and the folder can be deleted at any time.`;
+  return { title: text, message: text, buttonLabel: 'Choose Folder' };
+}
+
 /** The file's media kind, from its extension. */
 export function sampleMediaKind(item: SampleMediaItem): MediaKind {
   const { recipe } = item;
@@ -1518,8 +1531,20 @@ export function sampleMediaKind(item: SampleMediaItem): MediaKind {
  * takes as it takes any clip. Tuned for speed over size — these are generated
  * on demand, not shipped.
  */
-export function sampleAssetArgs(recipe: Extract<SampleRecipe, { kind: 'asset' }>, out: string): string[] {
-  const pipe = ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'image2pipe', '-vcodec', 'png', '-framerate', String(recipe.fps), '-i', '-'];
+export function sampleAssetArgs(
+  recipe: Extract<SampleRecipe, { kind: 'asset' }>,
+  out: string,
+  raw?: { rawInput: RawInput; tagAlphaMode: boolean },
+): string[] {
+  // Raw bitmaps as captured, in the layout the capture probe measured — what a render pipes, and
+  // far cheaper than a PNG encoded per frame only for ffmpeg to decode it again. Premultiplied
+  // colors are undone first, so a semi-transparent edge keeps its color in the WebM and an opaque
+  // MP4 reads the same colors a PNG would have carried (src/core/render-plan.ts).
+  const input = raw
+    ? ['-f', 'rawvideo', '-pixel_format', raw.rawInput.pixelFormat, '-video_size', `${recipe.width}x${recipe.height}`, '-framerate', String(recipe.fps), '-i', 'pipe:0']
+    : ['-f', 'image2pipe', '-vcodec', 'png', '-framerate', String(recipe.fps), '-i', '-'];
+  const prepare = raw ? [...(raw.tagAlphaMode ? [alphaModeTag(raw.rawInput.premultiplied)] : []), ...(raw.rawInput.premultiplied ? [UNPREMULTIPLY] : [])] : [];
+  const pipe = ['-hide_banner', '-loglevel', 'error', '-y', ...input, ...(prepare.length > 0 ? ['-vf', prepare.join(',')] : [])];
   if (recipe.format === 'mp4') {
     return [...pipe, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-crf', '21', '-movflags', '+faststart', out];
   }

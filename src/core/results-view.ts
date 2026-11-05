@@ -8,9 +8,9 @@
 
 import { entryLabel } from './app-state';
 import { orientationOf, templateDefaultSize, templateOrientations } from './aspect';
-import { clockLabel, dimensionsLabel, mediaKindLabel, themeLabel, typeLabel } from './display';
+import { dimensionsLabel, mediaKindLabel, runningTime, themeLabel, typeLabel } from './display';
 import type { LibraryEntry } from './library-types';
-import { resolutionLabel } from './media-meta';
+import { resolutionTag } from './media-meta';
 import { entryType } from './taxonomy';
 
 export type ViewMode = 'grid' | 'list';
@@ -201,7 +201,14 @@ export function columnsFor(width: number, cardWidth: number): number {
 
 // What a card and a row show.
 
-export type BadgeId = 'alpha' | 'loop' | 'duration' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound';
+export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound';
+
+/**
+ * The badges that are words, drawn as outlined tags; the rest are icons with their meaning in the
+ * tooltip, set apart after the tags (milestone 66). Only the resolution is a word now: the duration
+ * left the row for a pill over the thumbnail (entryRunningTime).
+ */
+export const TAG_BADGES: readonly BadgeId[] = ['resolution'];
 
 export interface ResultBadge {
   id: BadgeId;
@@ -224,19 +231,26 @@ export function hasAlpha(entry: LibraryEntry): boolean {
 }
 
 /**
- * The badges on a card, in a fixed order. "Loop" comes from the taxonomy type
- * rather than a manifest field: an animated loop is what a looping item declares
- * itself to be, for templates and for media typed from their folders alike.
+ * How long an item runs, as the clock reading a card shows over its thumbnail ("0:04"); undefined
+ * for a still or anything with no length yet (milestone 66).
+ */
+export function entryRunningTime(entry: LibraryEntry): string | undefined {
+  const seconds = entryDuration(entry);
+  return seconds !== undefined && seconds > 0 ? runningTime(seconds) : undefined;
+}
+
+/**
+ * The badges on a card, in a fixed order: the tags first (TAG_BADGES), then the icons. "Loop" comes
+ * from the taxonomy type rather than a manifest field: an animated loop is what a looping item
+ * declares itself to be, for templates and for media typed from their folders alike.
  */
 export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   const badges: ResultBadge[] = [];
+  const { width, height } = entrySize(entry);
+  const tag = resolutionTag(width, height);
+  if (tag && width && height) badges.push({ id: 'resolution', label: tag, tip: dimensionsLabel(width, height) });
   if (hasAlpha(entry)) badges.push({ id: 'alpha', label: 'Alpha', tip: 'Transparent background' });
   if (entryType(entry) === 'animated-loop') badges.push({ id: 'loop', label: 'Loop', tip: 'Made to loop seamlessly' });
-  const seconds = entryDuration(entry);
-  if (seconds !== undefined && seconds > 0) badges.push({ id: 'duration', label: clockLabel(seconds), tip: 'Duration' });
-  const { width, height } = entrySize(entry);
-  const short = resolutionLabel(width, height);
-  if (short && width && height) badges.push({ id: 'resolution', label: short, tip: dimensionsLabel(width, height) });
   const orientation = entryOrientationBadge(entry);
   if (orientation) badges.push(orientation);
   if (entry.kind === 'template' && entry.pack) badges.push({ id: 'pack', label: entry.pack.name, tip: `From the pack ${entry.pack.name}` });
@@ -284,7 +298,7 @@ export function listRow(entry: LibraryEntry): ListRow {
   const type = entryType(entry);
   return {
     name: entryLabel(entry).name,
-    duration: seconds !== undefined && seconds > 0 ? clockLabel(seconds) : '',
+    duration: seconds !== undefined && seconds > 0 ? runningTime(seconds) : '',
     // An untyped media file still says what kind it is; an untyped template says nothing rather than guessing.
     type: type ? typeLabel(type) : entry.kind === 'media' ? mediaKindLabel(entry.mediaKind) : '',
     themes: (entry.themes ?? []).map(themeLabel).join(', '),

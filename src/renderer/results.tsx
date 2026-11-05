@@ -21,6 +21,8 @@ import {
   cardHeight,
   columnsFor,
   entryBadges,
+  entryRunningTime,
+  TAG_BADGES,
   hasAlpha,
   listRow,
   gridRatio,
@@ -60,18 +62,23 @@ const scrollTop = signal(0);
 
 const BADGE_ICONS: Partial<Record<BadgeId, IconName>> = { alpha: 'checkerboard', loop: 'repeat', vertical: 'device-mobile', square: 'square', pack: 'package', sound: 'speaker-high' };
 
+/** The words as outlined tags, then the icons in a group of their own (milestone 66). */
 function Badges({ badges }: { badges: ResultBadge[] }) {
+  const one = (badge: ResultBadge) => {
+    const icon = BADGE_ICONS[badge.id];
+    return (
+      <span key={badge.id} class={`badge ${badge.id}${TAG_BADGES.includes(badge.id) ? ' tag' : ''}`} data-badge={badge.id} data-tip={badge.tip}>
+        {icon && <Icon name={icon} />}
+        <span class="label">{badge.label}</span>
+      </span>
+    );
+  };
+  const tags = badges.filter((b) => TAG_BADGES.includes(b.id));
+  const icons = badges.filter((b) => !TAG_BADGES.includes(b.id));
   return (
     <span class="badges">
-      {badges.map((badge) => {
-        const icon = BADGE_ICONS[badge.id];
-        return (
-          <span key={badge.id} class={`badge ${badge.id}`} data-badge={badge.id} data-tip={badge.tip}>
-            {icon && <Icon name={icon} />}
-            <span class="label">{badge.label}</span>
-          </span>
-        );
-      })}
+      {tags.map(one)}
+      {icons.length > 0 && <span class="badge-icons">{icons.map(one)}</span>}
     </span>
   );
 }
@@ -117,7 +124,7 @@ function Card({ entry, selected, onSelect, gridRatio }: ItemProps & { gridRatio:
       }}
       onClick={() => onSelect(entry)}
     >
-      <Thumb entry={entry} scrubbable gridRatio={gridRatio} />
+      <Thumb entry={entry} scrubbable gridRatio={gridRatio} runningTime={entryRunningTime(entry)} />
       <span class="card-text">
         <span class="name-row">
           <Favorite entry={entry} />
@@ -299,8 +306,28 @@ export interface ResultsActions {
   onStop: () => void;
 }
 
+let mounted: HTMLElement | null = null;
+
+/**
+ * Bring the shown item into view: a recording just saved is chosen from code rather than by a
+ * click, and only the rows in view are in the DOM, so the scroll is the arithmetic the keyboard's
+ * own moves use. Keyed on `shownKey`, which marks the chosen item for media and templates alike
+ * (milestone 63).
+ */
+export function showSelectedResult(): void {
+  const container = mounted;
+  if (!container) return;
+  const entries = results.value.entries;
+  const index = entries.findIndex((e) => e.key === appState.value.shownKey);
+  if (index < 0) return;
+  const { columns, rowHeight } = geometry(entries);
+  scrollRowIntoView(container, index, columns, rowHeight);
+  scrollTop.value = container.scrollTop;
+}
+
 /** Mounts into the existing #results element, which from then on belongs to Preact. */
 export function mountResults(container: HTMLElement, actions: ResultsActions): void {
+  mounted = container;
   container.tabIndex = 0;
   container.addEventListener('keydown', (e) => onKeyDown(e, actions, container));
   // What the arrows are on: the card a screen reader should read as the listbox's active one.

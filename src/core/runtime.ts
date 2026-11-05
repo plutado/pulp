@@ -898,7 +898,7 @@ export const BRIDGE_SCRIPT = `(function () {
       new Promise(function (resolve) { setTimeout(resolve, FONT_WAIT_MS); }),
     ]);
   }
-  function render(state) {
+  function render(state, options) {
     return ready.then(function () {
       if (typeof window.pulpRender !== 'function') {
         throw new Error('Template does not define window.pulpRender(state)');
@@ -906,6 +906,13 @@ export const BRIDGE_SCRIPT = `(function () {
       window.__pulp.laid = { frame: state && state.frame, blocks: {} };
       return Promise.all([attachPictures(state), loadLayerFonts(state)]).then(function () { return window.pulpRender(state); });
     }).then(function () {
+      /* A host capture orders itself after a presented frame (capturePresented in
+         src/main/capture-window.ts), which no wait here can prove and none is needed for: the draw
+         has happened, so the frame is reported drawn at once rather than two animation frames on. */
+      if (options && options.presented) {
+        window.__pulp.drawn = { frame: state && state.frame, at: Date.now(), by: 'host', layers: countLayers(state), pictures: picturesIn(state) };
+        return 'host';
+      }
       /* Two animation frames: the first callback runs before the frame holding the draw is
          committed to the compositor, so resolving there can let a capture see the previous frame
          (observed on Windows CI as a blank or one-frame-stale first capture). The second callback

@@ -97,7 +97,7 @@ function Waveform({ entry }: { entry: LibraryEntry }) {
  * picture is contained inside it. Anywhere else — the Info tab's poster, a
  * list row — a picture keeps its own shape, which is the default.
  */
-export function Thumb({ entry, scrubbable, gridRatio }: { entry: LibraryEntry; scrubbable?: boolean; gridRatio?: number }) {
+export function Thumb({ entry, scrubbable, gridRatio, runningTime }: { entry: LibraryEntry; scrubbable?: boolean; gridRatio?: number; runningTime?: string }) {
   const at = scrubbable ? scrub.value : null;
   const strip = at?.id === entry.id ? strips.value.get(entry.id) : undefined;
   const handlers = scrubbable
@@ -117,6 +117,8 @@ export function Thumb({ entry, scrubbable, gridRatio }: { entry: LibraryEntry; s
           style={{ backgroundImage: `url("${strip}")`, backgroundSize: `${stripWidthPercent()}% 100%`, backgroundPositionX: `${tilePercent(at!.tile)}%` }}
         />
       )}
+      {/* How long it runs, as a clock reading in the corner (milestone 66); a still has none. */}
+      {runningTime && <span class="thumb-time" data-tip="Duration">{runningTime}</span>}
     </span>
   );
 }

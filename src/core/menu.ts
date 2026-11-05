@@ -105,6 +105,8 @@ export type MenuCommand =
   | 'view.stageOnDisplay'
   | 'view.background'
   | 'view.appearance'
+  | 'record.audio'
+  | 'record.input'
   | 'collection.add'
   | 'view.grid'
   | 'view.list'
@@ -203,6 +205,8 @@ export interface MenuState {
   background: StageBackground;
   /** Light, dark or the system's (milestone 62), so View → Appearance shows which is chosen. */
   appearance: Appearance;
+  /** A voice is being recorded (milestone 63), so File → Record Audio reads Stop Recording. */
+  recordingAudio: boolean;
   /** There is an item on the stage that the collection tray will take. */
   canAddToCollection: boolean;
   /** Recently opened projects, newest first; the Open Recent submenu. */
@@ -246,6 +250,7 @@ export const EMPTY_MENU_STATE: MenuState = {
   theater: false,
   background: DEFAULT_PLAYER.background,
   appearance: DEFAULT_APPEARANCE,
+  recordingAudio: false,
   canAddToCollection: false,
   recent: [],
 };
@@ -519,6 +524,9 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       sep,
       // The same list the browse panel's Add button offers, in the same words (milestone 47).
       { label: 'Add', submenu: libraryAddItems(state) },
+      // A voice from the microphone, into the library (milestone 63): the menu is the window's own
+      // button, so it says what pressing it does next, as Play says Pause.
+      { command: 'record.audio', label: 'Record Audio', accelerator: 'CmdOrCtrl+Shift+A', altLabel: { whenFlag: 'recordingAudio', label: 'Stop Recording' } },
       { command: 'pack.export', label: 'Export as Pack…', enabledBy: 'canExportPack' },
       sep,
       { command: 'collection.add', label: 'Add to Collection', enabledBy: 'canAddToCollection' },

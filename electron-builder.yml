@@ -120,7 +120,9 @@ mac:
     NSDocumentsFolderUsageDescription: Pulp reads the template and media folders you add to its library.
     NSDesktopFolderUsageDescription: Pulp reads the template and media folders you add to its library.
     NSDownloadsFolderUsageDescription: Pulp reads the template and media folders you add to its library.
-    NSMicrophoneUsageDescription: Pulp does not record; it only reads the media files you give it.
+    # Recording a voice (milestone 63): what Pulp records, and why — this is the sentence the
+    # system's own microphone prompt shows the first time the Record button is pressed.
+    NSMicrophoneUsageDescription: Pulp records from the microphone only while its Record button is pressed, and saves the take into your library on this computer.
 
 dmg:
   # The window a .dmg opens: the app, and the Applications folder to drag it into.

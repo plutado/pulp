@@ -2,7 +2,7 @@ import type { LibraryEntry, LibraryIndex, MediaEntry, TemplateEntry } from '../c
 import { formatBytes, setCollection, setEditing, setIndex, setJobs, setQuery, setSelection, setShown, shownEntry } from '../core/app-state';
 import { addItem, itemFor, type Collection } from '../core/collection';
 import { appState, dispatch, paramsEdited, results, selectedTemplate } from './store';
-import { mountResults } from './results';
+import { mountResults, showSelectedResult } from './results';
 import { mountCategoryCards } from './category-cards';
 import { mountItemInfo } from './item-info';
 import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback } from './stage';
@@ -24,6 +24,7 @@ import { initProject, openProjectFrom } from './project';
 import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './project-ui';
 import { initMenu, registerBlankCanvasOpener, registerSavedTemplateOpener } from './menu';
 import { initAppearance } from './appearance';
+import { initRecorder, registerRecordingOpener } from './recorder';
 import { registerExposer } from './stage-menu';
 import { BLANK_CANVAS_ID } from '../core/menu';
 import { initContextMenu } from './context-menu';
@@ -468,6 +469,22 @@ async function openFromSystem(path: string): Promise<void> {
 window.pulp.onOpenFile((path) => void openFromSystem(path));
 // Pulp's own application menu (milestone 27): it does what the window's own buttons do.
 initAppearance();
+initRecorder();
+// A take the microphone just saved (milestone 63): selected once the rescan lands, retried briefly
+// since the index arrives as a broadcast after the save answers — as a saved canvas template is.
+registerRecordingOpener((id) => {
+  const started = Date.now();
+  const show = () => {
+    const entry = appState.value.index?.media.find((m) => m.id === id);
+    if (entry) {
+      select(entry);
+      showSelectedResult();
+      return;
+    }
+    if (Date.now() - started < 5000) setTimeout(show, 200);
+  };
+  show();
+});
 initMenu();
 initContextMenu();
 // What the window catches goes to Pulp's own log, which never leaves the machine (milestone 8).

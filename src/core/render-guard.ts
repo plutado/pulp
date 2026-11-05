@@ -38,20 +38,17 @@ export interface TemplateErrorDetail {
  */
 export function frameCallScript(state: FrameState): string {
   return (
-    `window.__pulp.render(${JSON.stringify(state)}).then(function (by) { return { drawn: by === 'timeout' ? 'timeout' : 'raf' }; }, function (e) {` +
+    `window.__pulp.render(${JSON.stringify(state)}, { presented: true }).then(function () { return {}; }, function (e) {` +
     ` return { error: e instanceof Error ? { name: e.name, message: e.message, stack: String(e.stack || '') } : { message: String(e) } }; })`
   );
 }
 
-/** What one frame call answered: the draw settled this way, or the template threw. */
+/**
+ * What one frame call answered: nothing when the page drew, or the template's error. The call asks
+ * the bridge for no wait after the draw (`presented: true`): the host's capture is ordered by a
+ * presented frame (capturePresented), which an animation-frame wait in the page could not prove.
+ */
 export interface FrameCallResult {
-  /**
-   * How the page's after-draw wait ended. `raf` means the frame holding the
-   * draw has been committed and a capture may be taken; `timeout` means the
-   * renderer never ran an animation frame, so the draw's place in the order is
-   * not established and the capture needs more care (docs/platform-notes.md).
-   */
-  drawn?: 'raf' | 'timeout';
   error?: TemplateErrorDetail;
 }
 

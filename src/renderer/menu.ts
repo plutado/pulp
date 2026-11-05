@@ -24,6 +24,7 @@ import { currentLayerFacts, recording, runLayerCommand, stageClipboard } from '.
 import { registerCommandRunner } from './commands';
 import { sayInTray } from './tray';
 import { appearanceChoice, chooseAppearance } from './appearance';
+import { recordingActive } from './recorder';
 
 /**
  * How "New Blank Canvas" shows the canvas: main.ts registers the very select a
@@ -174,6 +175,7 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'view.background': if (STAGE_BACKGROUNDS.some((b) => b.id === arg)) press(`bg-${arg}`); return;
     // The same call as Settings → Appearance, which checks the argument names one of the three.
     case 'view.appearance': void chooseAppearance(arg); return;
+    case 'record.audio': press('record-audio'); return;
     case 'collection.add': press('add-to-collection'); return;
     case 'view.bigger': stepCardSize(1); return;
     case 'view.smaller': stepCardSize(-1); return;
@@ -247,6 +249,7 @@ function readState(recent: string[]): MenuState {
     theater: theaterOn(),
     background: stageBackground(),
     appearance: appearanceChoice.value,
+    recordingAudio: recordingActive(),
     canAddToCollection: usable('add-to-collection'),
     // What can be done to a layer, worked out once and read by both menus (milestone 39).
     ...currentLayerFacts(),
@@ -340,6 +343,11 @@ function refresh(): void {
     scheduled = false;
     push();
   });
+}
+
+/** Something the menu reads changed outside a click or a key — a recording started or stopped. */
+export function menuStateChanged(): void {
+  refresh();
 }
 
 /** The recent list changed — a project was saved or opened — so Open Recent follows. */

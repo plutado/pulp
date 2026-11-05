@@ -38,6 +38,9 @@
   --cut-hold-stripe: rgba(255, 255, 255, 0.08);
   --cut-hold-selected: rgba(213, 190, 150, 0.6);
   --chip-dark: rgba(13, 17, 23, 0.7);
+  /* The running time over a card's thumbnail: dark in either appearance, since it sits on a picture. */
+  --time-pill: rgba(8, 10, 14, 0.78);
+  --time-pill-text: #f2f4f7;
   --silence: rgba(239, 68, 68, 0.35);
   --silence-edge: rgba(239, 68, 68, 0.8);
   /* The stage's checkerboard and the backdrops a transparent item's poster is shown on in the
@@ -153,6 +156,8 @@
     --cut-hold-stripe: rgba(15, 23, 42, 0.06);
     --cut-hold-selected: rgba(180, 83, 9, 0.34);
     --chip-dark: rgba(13, 17, 23, 0.7);
+    --time-pill: rgba(8, 10, 14, 0.78);
+    --time-pill-text: #f2f4f7;
     --silence: rgba(239, 68, 68, 0.25);
     --silence-edge: rgba(220, 38, 38, 0.8);
     --checker-a: #dcdfe4;
@@ -649,7 +654,9 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results.list .slot { margin: 2px var(--space-1); }
 /* A picture that has not been drawn yet is the same hint, not a filled box, so a loading grid
    reads as slots waiting to fill rather than as a wall of empty panels. */
-.results .thumb.empty { background-image: none; background-color: transparent; opacity: 0.55; }
+.results .thumb.empty { background-image: none; background-color: transparent; }
+/* What stands in for a poster not made yet is dimmed; the running time over it is not. */
+.results .thumb.empty > :not(.thumb-time) { opacity: 0.55; }
 
 .results .thumb { position: relative; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--muted); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
 /* Hover-scrub: one frame of the cached strip, over the poster so the checkerboard shows through alpha. */
@@ -673,14 +680,22 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results.grid .card-text { height: 40px; display: grid; gap: 1px; align-content: center; min-width: 0; }
 
 /* Badges are small icons with tooltips (docs/ui-style.md); what they stand for stays
-   in the markup for assistive tech. Duration and resolution are the text ones. */
+   in the markup for assistive tech. The resolution is the one word, as a tag; the
+   duration is the pill over the thumbnail. */
 .results .badges { display: flex; gap: var(--space-1); align-items: center; overflow: hidden; color: var(--muted); font-size: var(--font-caption); }
+/* A word is a short outlined tag (milestone 66): "Full HD", "4K", "1440p", read as one thing, not as more gray text. */
+.results .badge.tag { border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; line-height: 14px; color: var(--text-secondary); }
+/* The icons sit together, set apart from the tags. */
+.results .badge-icons { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: var(--space-1); }
+.results .badge-icons:first-child { margin-left: 0; }
+/* The running time over the thumbnail's bottom-right corner, as video sites print a length: a small dark
+   pill that reads on any poster in either appearance (milestone 66). */
+.results .thumb .thumb-time { position: absolute; right: 4px; bottom: 4px; padding: 0 4px; border-radius: 3px; background: var(--time-pill); color: var(--time-pill-text); font-size: var(--font-caption); line-height: 15px; font-variant-numeric: tabular-nums; pointer-events: none; }
 .results .badge { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
-.results .badge.alpha, .results .badge.loop, .results .badge.vertical, .results .badge.square, .results .badge.pack { color: var(--text-secondary); }
-.results .badge.alpha .label, .results .badge.loop .label, .results .badge.vertical .label, .results .badge.square .label, .results .badge.pack .label {
+.results .badge-icons .badge { color: var(--text-secondary); }
+.results .badge-icons .badge .label {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
-.results .badge.duration { font-variant-numeric: tabular-nums; }
 
 .results.list .row { height: var(--row-h, 44px); display: grid; grid-template-columns: minmax(0, 3fr) 64px minmax(0, 1.4fr) minmax(0, 1.6fr) minmax(0, 1.6fr); align-items: center; gap: var(--space-2); padding: 0 var(--space-2); }
 /* Rows keep one small picture box whatever the shape; the inline aspect-ratio only applies where a side is auto. */
@@ -1540,6 +1555,30 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .note.notice button { font-size: var(--font-secondary); padding: 3px 8px; margin-left: auto; white-space: nowrap; }
 progress { width: 100%; margin: 2px 0; }
 
+/* ---------------------------------------------------------------- recording a voice (milestone 63) */
+
+/* The microphone and its input chooser sit as one group in the library tools; the chooser is a
+   slim chevron, pressed far less often than the button it serves. */
+.sidebar-actions .record-group { display: inline-flex; align-items: center; }
+.sidebar-actions .record-input { padding: 4px 2px; margin-left: -2px; }
+#record-audio[aria-pressed="true"] { color: var(--danger); border-color: var(--danger); }
+
+/* The strip over the window while a take runs: the level, the elapsed time, the way to stop —
+   and, after a refusal, why and the way to the settings. Above the start screen (z 40), under
+   menus (900): recording is startable from the File menu with the start screen up. */
+.rec-strip { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 60;
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-1) var(--space-3);
+  background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 8px 24px var(--shadow-strong); }
+.rec-strip[hidden] { display: none; }
+.rec-live, .rec-denied { display: inline-flex; align-items: center; gap: var(--space-2); }
+.rec-live[hidden], .rec-denied[hidden] { display: none; }
+.rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.rec-time { font-variant-numeric: tabular-nums; min-width: 34px; }
+.rec-meter { width: 90px; height: 6px; border-radius: 3px; background: var(--meter-track); overflow: hidden; }
+.rec-meter > span { display: block; height: 100%; width: 0; background: var(--accent); }
+.rec-strip button { padding: 2px 10px; border-radius: 10px; }
+.rec-denied { color: var(--text-secondary); max-width: 480px; }
+
 /* ---------------------------------------------------------------- the start screen (milestone 31) */
 
 /* ---------------------------------------------------------------- the start screen (milestone 60)
@@ -1642,6 +1681,10 @@ progress { width: 100%; margin: 2px 0; }
 
 /* The type scale: page title above, section headings here, card titles and body below. */
 .start-block { margin-top: var(--space-4); }
+/* Each section stands apart (milestone 66): a thin divider above Continue, Start from an idea and
+   Learn, in the screen's own palette, with room on both sides of it. The room is set per height
+   below, so the whole screen still fits at every size the end-to-end test measures. */
+.start-block { border-top: 1px solid var(--s-border); margin-top: 14px; padding-top: 14px; }
 .start-block h2, .start-setup h2 { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--font-title); font-weight: 600; }
 .start-section-icon { display: inline-flex; color: var(--s-accent); }
 .start-section-note { margin: var(--space-1) 0 var(--space-3); font-size: var(--font-secondary); color: var(--s-muted); }
@@ -1696,12 +1739,12 @@ progress { width: 100%; margin: 2px 0; }
 .start-foot-add { font-size: var(--font-secondary); color: var(--s-muted); }
 .start-foot .start-caption { margin: 0 0 0 auto; }
 
-/* A window under 880 px tall — the default 788 among them — down to the 600 px the window
+/* A window under 940 px tall — the default 788 among them — down to the 600 px the window
    allows: the same screen, nothing taken off it, drawn tighter so the whole of it fits without
    scrolling on every platform — each heading shares its line with its description (or Learn's
    links), the checklist's three steps sit side by side, the gallery's tiles are a little
    smaller, and the gaps close up. Measured at seven sizes by the end-to-end test. */
-@media (max-height: 879px) {
+@media (max-height: 939px) {
   .start-inner { padding-block: var(--space-3); }
   .start-head { margin-bottom: var(--space-2); }
   .start-mark { width: 32px; height: 32px; border-radius: 7px; grid-template-rows: 1fr 8px 5px 1fr; grid-template-columns: 5px 4px 1fr 6px; }
@@ -1709,6 +1752,7 @@ progress { width: 100%; margin: 2px 0; }
   .start-mark u { margin: 0 11px 0 2px; }
   .start-caption { margin-top: var(--space-1); }
   .start-block, .start-setup { margin-top: var(--space-3); display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-2) var(--space-3); }
+  .start-block { margin-top: 10px; padding-top: 10px; }
   .start-block > *, .start-setup > * { grid-column: 1 / -1; }
   .start-block > h2, .start-setup > h2 { grid-column: 1; }
   .start-block > .start-section-note, .start-setup > .start-section-note, .start-block > .start-learn { grid-column: 2; margin: 0; }
@@ -1726,6 +1770,7 @@ progress { width: 100%; margin: 2px 0; }
   .start-inner { padding-block: var(--space-2); }
   .start-head { margin-bottom: var(--space-1); }
   .start-block, .start-setup { margin-top: var(--space-2); row-gap: 6px; }
+  .start-block { margin-top: 6px; padding-top: 6px; }
   .start-foot { margin-top: var(--space-2); padding-top: 6px; }
 }
 

@@ -24,7 +24,9 @@ import { detectFfmpeg, nodeRunner, runWithInput } from '../core/ffmpeg';
 import { SAMPLE_MEDIA, SAMPLE_MEDIA_LICENSE, sampleAssetArgs, sampleAudioArgs, sampleJpegArgs, sampleMediaPath, sampleMediaReadme, samplesForTypes, unmadeSampleCounts, type SampleMediaItem } from '../core/sample-media';
 import { stillPageUrl } from '../core/sample-stills';
 import { findTemplate } from './library-service';
-import { openCapturePage, renderTemplate, type CapturePage } from './render';
+import { detectCaptureFormat, openCapturePage, renderTemplate, type CapturePage } from './render';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 
 export interface SampleMediaProgress {
   done: number;
@@ -64,7 +66,41 @@ function closeCapturePool(): void {
   capturePool.clear();
 }
 
-async function makeOne(item: SampleMediaItem, out: string, ffmpegPath: string): Promise<string | null> {
+/** How ffmpeg was found, as far as the drawn clips need it: where it is, and whether it reads an alpha-mode tag. */
+interface Encoder {
+  path: string;
+  alphaModeAware: boolean;
+}
+
+/**
+ * Capture a clip straight into ffmpeg: started first, then fed each frame as it is captured — raw,
+ * in the layout the capture probe measured — so the encoder works while the next frame draws and no
+ * frame is ever held as a PNG. A PNG per frame, encoded only for ffmpeg to decode it again, was the
+ * largest single cost of a sample-media run (docs/platform-notes.md). If the layout could not be
+ * measured, PNG frames are always right.
+ */
+async function encodeClip(page: CapturePage, recipe: Extract<SampleMediaItem['recipe'], { kind: 'asset' }>, out: string, encoder: Encoder): Promise<string | null> {
+  const probe = await detectCaptureFormat();
+  const raw = probe.format ? { rawInput: probe.format, tagAlphaMode: encoder.alphaModeAware } : undefined;
+  const child = spawn(encoder.path, sampleAssetArgs(recipe, out, raw), { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });
+  let stderr = '';
+  child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+  child.stdin.on('error', () => undefined);
+  const exited = new Promise<number | null>((resolve) => {
+    child.once('error', () => resolve(-1));
+    child.once('close', (code) => resolve(code));
+  });
+  const shot = await page.frames({ variant: recipe.variant }, { seconds: recipe.seconds, fps: recipe.fps }, async (image) => {
+    if (!child.stdin.write(raw ? image.toBitmap() : image.toPNG())) await Promise.race([once(child.stdin, 'drain'), exited]);
+  });
+  child.stdin.end();
+  const code = await exited;
+  if (!shot.ok) return shot.message;
+  return code === 0 ? null : `ffmpeg exited with ${code}: ${stderr.trim() || 'no error output'}`;
+}
+
+async function makeOne(item: SampleMediaItem, out: string, encoder: Encoder): Promise<string | null> {
+  const ffmpegPath = encoder.path;
   const { recipe } = item;
   if (recipe.kind === 'audio') {
     const result = await nodeRunner(ffmpegPath, sampleAudioArgs(recipe, out, item.moods ?? []));
@@ -93,10 +129,7 @@ async function makeOne(item: SampleMediaItem, out: string, ffmpegPath: string): 
       await writeFile(out, shot.png);
       return null;
     }
-    const shot = await opened.page.frames({ variant: recipe.variant }, { seconds: recipe.seconds, fps: recipe.fps });
-    if (!shot.ok) return shot.message;
-    const encoded = await runWithInput(ffmpegPath, sampleAssetArgs(recipe, out), Buffer.concat(shot.frames));
-    return encoded.code === 0 ? null : `ffmpeg exited with ${encoded.code}: ${encoded.stderr.trim() || 'no error output'}`;
+    return encodeClip(opened.page, recipe, out, encoder);
   }
   const template = await findTemplate(recipe.templateId);
   if (!template) return `template "${recipe.templateId}" is not in the library`;
@@ -170,7 +203,7 @@ export async function generateSampleMedia(
       await mkdir(join(root, ...item.folder), { recursive: true });
       let reason: string | null;
       try {
-        reason = await makeOne(item, out, ffmpeg.path);
+        reason = await makeOne(item, out, { path: ffmpeg.path, alphaModeAware: ffmpeg.alphaModeAware });
       } catch (err) {
         reason = (err as Error).message;
       }

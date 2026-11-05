@@ -41,3 +41,27 @@ describe('the bridge says its page\'s color scheme when it is ready (milestone 6
     expect(frameColorScheme((await readyFrom('', 'color-scheme: light dark')).colorScheme)).toBe('light dark');
   });
 });
+
+describe('a host capture asks for no wait after the draw (capturePresented orders it)', () => {
+  it('resolves as soon as the page has drawn, reporting it drawn by the host, with no animation frame', async () => {
+    document.head.innerHTML = '';
+    let drawnFrame = -1;
+    (window as unknown as { pulpRender: (s: { frame: number }) => void }).pulpRender = (s) => { drawnFrame = s.frame; };
+    // No animation frame ever runs: a host render must not wait on one.
+    const realRaf = window.requestAnimationFrame;
+    window.requestAnimationFrame = (() => 0) as unknown as typeof window.requestAnimationFrame;
+    try {
+      new Function(BRIDGE_SCRIPT)();
+      const bridge = (window as unknown as { __pulp: { render: (s: unknown, o?: unknown) => Promise<string>; drawn: { by: string; frame: number } } }).__pulp;
+      const started = Date.now();
+      const by = await bridge.render({ frame: 7, params: {} }, { presented: true });
+      expect(by).toBe('host');
+      expect(drawnFrame).toBe(7);
+      expect(bridge.drawn).toMatchObject({ frame: 7, by: 'host' });
+      // Not the 250 ms the page's own wait gives up after.
+      expect(Date.now() - started).toBeLessThan(200);
+    } finally {
+      window.requestAnimationFrame = realRaf;
+    }
+  });
+});

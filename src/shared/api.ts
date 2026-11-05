@@ -42,6 +42,18 @@ export type { PsdOutline } from '../core/psd';
 export type PsdOutlineResult = { ok: true; outline: PsdOutline } | { ok: false; message: string };
 import type { RecentProjectRow } from '../core/start-screen';
 
+/** Whether the microphone may be used (milestone 63): yes, or why not and whether settings can open. */
+export type MicrophoneAccess = { ok: true } | { ok: false; message: string; canOpenSettings: boolean };
+
+/** A saved take: where it landed, and the library's id for it once the rescan found it. */
+export interface SavedRecording {
+  path: string;
+  id: string | null;
+}
+
+/** The microphone chosen for recording; null follows the system's default. */
+export type RecordingInput = { id: string; label: string } | null;
+
 /** The appearance chosen in Settings or the View menu, and the palette it comes to (milestone 62). */
 export interface AppearanceState {
   choice: Appearance;
@@ -370,6 +382,16 @@ export interface PulpApi {
    */
   getAppearance(): Promise<AppearanceState>;
   setAppearance(choice: Appearance): Promise<AppearanceState>;
+  /**
+   * Recording a voice (milestone 63): may the microphone be used, save a finished take's WAV bytes
+   * into the managed Recordings folder, open the system's microphone page after a refusal, and the
+   * remembered input.
+   */
+  microphoneAccess(): Promise<MicrophoneAccess>;
+  saveRecording(wav: ArrayBuffer): Promise<SavedRecording>;
+  openMicrophoneSettings(): Promise<void>;
+  getRecordingInput(): Promise<RecordingInput>;
+  setRecordingInput(input: RecordingInput): Promise<void>;
   panelCollectionChanged(collection: Collection, name: string): Promise<void>;
   /**
    * Save the canvas as a template folder (milestone 55): the window sends what

@@ -2,7 +2,7 @@ import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ProcessRunner } from '../src/core/ffmpeg';
 import { ffprobeArgs, ffprobePathFor, probeMedia } from '../src/core/media-probe';
-import { parseFfprobe, resolutionLabel } from '../src/core/media-meta';
+import { parseFfprobe, resolutionLabel, resolutionTag } from '../src/core/media-meta';
 
 // Real ffprobe 8 output for a 2 s VP9+Opus WebM made from testsrc and sine.
 const WEBM = `{
@@ -110,5 +110,17 @@ describe('probeMedia and helpers', () => {
     expect(resolutionLabel(1080, 1920)).toBe('1080p');
     expect(resolutionLabel(3840, 2160)).toBe('2160p');
     expect(resolutionLabel(undefined, 1080)).toBeUndefined();
+  });
+});
+
+describe('resolutionTag (milestone 66)', () => {
+  it('names the common sizes and gives the short side for the rest', () => {
+    expect(resolutionTag(1280, 720)).toBe('HD');
+    expect(resolutionTag(1920, 1080)).toBe('Full HD');
+    expect(resolutionTag(1080, 1920), 'by the short side, tall or wide').toBe('Full HD');
+    expect(resolutionTag(3840, 2160)).toBe('4K');
+    expect(resolutionTag(2560, 1440)).toBe('1440p');
+    expect(resolutionTag(64, 36)).toBe('36p');
+    expect(resolutionTag(undefined, 1080)).toBeUndefined();
   });
 });

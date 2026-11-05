@@ -5,6 +5,8 @@ import {
   columnsFor,
   DEFAULT_RESULTS_VIEW,
   entryBadges,
+  entryRunningTime,
+  TAG_BADGES,
   entryDuration,
   LANDSCAPE_RATIO,
   listRow,
@@ -144,18 +146,27 @@ describe('card geometry', () => {
 });
 
 describe('badges', () => {
-  it('shows alpha, loop, duration, resolution and pack for a template', () => {
+  it('shows the resolution as a tag first, then the icons — loop, alpha, pack — and no duration (milestone 66)', () => {
     const entry = template('Background', { category: 'background', alpha: false, duration: 6, width: 1920, height: 1080 }, { pack: { name: 'Boardroom', slug: 'boardroom' } });
     expect(entryBadges(entry).map((b) => [b.id, b.label])).toEqual([
+      ['resolution', 'Full HD'],
       // "background" maps to the animated-loop type, which is what the loop badge reads.
       ['loop', 'Loop'],
-      ['duration', '6 s'],
-      ['resolution', '1080p'],
       ['pack', 'Boardroom'],
     ]);
     const alpha = template('Strap', { category: 'lower-third', alpha: true, duration: 6, width: 1920, height: 1080 }, { pack: undefined });
-    expect(entryBadges(alpha).map((b) => b.id)).toEqual(['alpha', 'duration', 'resolution']);
+    expect(entryBadges(alpha).map((b) => b.id)).toEqual(['resolution', 'alpha']);
+    // The exact pixels stay in the tag's tooltip.
     expect(entryBadges(alpha).find((b) => b.id === 'resolution')?.tip).toBe('1920 × 1080');
+    // Only the resolution is a word; everything else is an icon with its meaning in the tooltip.
+    expect(TAG_BADGES).toEqual(['resolution']);
+  });
+
+  it('puts the running time over the thumbnail as a clock reading, and none on a still (milestone 66)', () => {
+    expect(entryRunningTime(template('Strap', { duration: 6 }))).toBe('0:06');
+    expect(entryRunningTime(media('clip', { meta: { duration: 95.4 } as MediaEntry['meta'] }))).toBe('1:35');
+    expect(entryRunningTime(media('still', { mediaKind: 'image', meta: { width: 640, height: 480 } as MediaEntry['meta'] }))).toBeUndefined();
+    expect(entryRunningTime(media('unprobed'))).toBeUndefined();
   });
 
   it('badges vertical and square shapes, so a tall item is recognizable without reading its size', () => {
@@ -178,9 +189,8 @@ describe('badges', () => {
     expect(entryBadges(bare)).toEqual([]);
     const probed = media('clip', { meta: { duration: 95.4, width: 1920, height: 1080, alpha: true } as MediaEntry['meta'] });
     expect(entryBadges(probed).map((b) => [b.id, b.label])).toEqual([
+      ['resolution', 'Full HD'],
       ['alpha', 'Alpha'],
-      ['duration', '1:35'],
-      ['resolution', '1080p'],
     ]);
     // A folder-typed loop badges as one, like a template of the same type.
     expect(entryBadges(media('loop', { type: 'animated-loop' })).map((b) => b.id)).toEqual(['loop']);
@@ -196,13 +206,13 @@ describe('badges', () => {
 describe('list columns', () => {
   it('names, times and types a template, and says which folder it is in', () => {
     const entry = template('Strap', { category: 'lower-third', duration: 6, themes: ['corporate'] }, { themes: ['corporate', 'my-show'] });
-    expect(listRow(entry)).toEqual({ name: 'Strap', duration: '6 s', type: 'Lower third', themes: 'Corporate, My show', file: 'Strap' });
+    expect(listRow(entry)).toEqual({ name: 'Strap', duration: '0:06', type: 'Lower third', themes: 'Corporate, My show', file: 'Strap' });
   });
 
   it('falls back to the media kind when no folder typed the file', () => {
     expect(listRow(media('clip'))).toEqual({ name: 'clip', duration: '', type: 'Video', themes: '', file: 'clip.mov' });
     const typed = media('swipe', { mediaKind: 'audio', ext: '.wav', path: '/lib/sfx/whoosh/swipe.wav', type: 'whoosh', meta: { duration: 1.25 } as MediaEntry['meta'] });
-    expect(listRow(typed)).toMatchObject({ duration: '1.3 s', type: 'Whoosh / transition', file: 'swipe.wav' });
+    expect(listRow(typed)).toMatchObject({ duration: '0:01', type: 'Whoosh / transition', file: 'swipe.wav' });
   });
 });
 

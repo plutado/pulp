@@ -77,10 +77,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 60. A start screen with a clear way in (post-1.0, **done**) | 12-20 h |
 | 61. A polished set of bundled art (post-1.0, **done**) | 26-43 h |
 | 62. Light and dark appearance (post-1.0, **done**) | 8-12 h |
-| 63. Record a voice with one click (post-1.0) | 8-13 h |
+| 63. Record a voice with one click (post-1.0, **done**) | 8-13 h |
 | 64. Record from a camera with one click (post-1.0) | 10-16 h |
 | 65. Layouts made for vertical video (post-1.0) | 25-40 h |
-| 66. Cards, a dialog and the start screen that read at a glance (post-1.0) | 5-8 h |
+| 66. Cards, a dialog and the start screen that read at a glance (post-1.0, **done**) | 5-8 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **35-59 h** |
 | **Total including post-1.0 items** | **1000-1633 h** |
@@ -818,15 +818,15 @@ Decided 2026-11-03. Pulp's window is dark only, and for an instant at launch it 
 - [x] **Every window follows:** the popped-out stage, the Settings window and dialogs take the same appearance; the editor panels follow the host app's own (1-1.5 h)
 - [x] **Tests:** a unit test of the setting and of System following the operating system; an end-to-end test that switches appearance and finds the window redrawn; visual references of the main window in each; a check that no color is written into the styles outside the token list (1-1.5 h)
 
-## 63. Record a voice with one click (8-13 h, after 1.0)
+## 63. Record a voice with one click (done; 8-13 h, after 1.0)
 
 Decided 2026-11-04. Pulp only reads media a person already has. A voice-over, a scratch narration or a quick sound has to be recorded in another app and brought in. This adds a microphone button: click it, speak, click again, and the recording is in the library, ready to use.
 
-- [ ] **One button:** a microphone icon in the window (and Record Audio in the File menu, with a shortcut) starts recording at once from the system's default input; a level meter and the elapsed time show it is listening; click again or press Escape to stop. Nothing to set up first (2-3 h)
-- [ ] **Permission, asked plainly:** the operating system's microphone prompt the first time, a usage description that says what Pulp records and why, and a clear way to Settings when access was refused, on macOS, Windows and Linux (1-2 h)
-- [ ] **Into the library:** the recording is saved as a WAV in a managed Recordings folder, named by date and time, shown at the top of the results with its waveform, and usable everywhere a sound is: dropped on the cut track or a template, rendered, dragged into an editor (2-3 h)
-- [ ] **A choice of input, when wanted:** a small menu beside the button lists the inputs and remembers the one chosen; a recording that loses its input mid-take keeps what it has (1-2 h)
-- [ ] **Tests:** unit tests of naming and saving; an end-to-end test that records from a fake input and finds the file in the library with the right length (2-3 h)
+- [x] **One button:** a microphone icon in the window (and Record Audio in the File menu, with a shortcut) starts recording at once from the system's default input; a level meter and the elapsed time show it is listening; click again or press Escape to stop. Nothing to set up first (2-3 h) *Done 2026-11-04: the button sits with the library tools, File → Record Audio (Cmd/Ctrl+Shift+A) reads Stop Recording while it runs, and the strip's clock and meter are read from the samples themselves.*
+- [x] **Permission, asked plainly:** the operating system's microphone prompt the first time, a usage description that says what Pulp records and why, and a clear way to Settings when access was refused, on macOS, Windows and Linux (1-2 h) *Done 2026-11-04: the usage description says Pulp records only while the button is pressed; the hardened runtime gets the audio-input entitlement; a refusal shows in the strip with Open Settings on macOS and Windows (Linux has no central gate to open).*
+- [x] **Into the library:** the recording is saved as a WAV in a managed Recordings folder, named by date and time, shown at the top of the results with its waveform, and usable everywhere a sound is: dropped on the cut track or a template, rendered, dragged into an editor (2-3 h) *Done 2026-11-04: shown by being chosen — scrolled into view, on the stage, marked Recently used — since the results keep their order.*
+- [x] **A choice of input, when wanted:** a small menu beside the button lists the inputs and remembers the one chosen; a recording that loses its input mid-take keeps what it has (1-2 h) *Done 2026-11-04: the remembered microphone is asked for as ideal, so one that is unplugged today falls back to the default rather than refusing.*
+- [x] **Tests:** unit tests of naming and saving; an end-to-end test that records from a fake input and finds the file in the library with the right length (2-3 h)
 
 ## 64. Record from a camera with one click (10-16 h, after 1.0)
 
@@ -850,11 +850,11 @@ Decided 2026-11-04. Nearly every bundled template declares 9:16, but almost all 
 - [ ] **Found first when the work is tall:** a "Made for vertical" tag on these templates and a browse node for it; when the previewed shape or the project is 9:16, the templates made for it lead the results under the default sort, and the stage's vertical safe zones show by default while one is selected (2-3 h)
 - [ ] **Tests:** visual references at 9:16 for every new template; the safe-box test above; the sort test at 9:16 and 16:9; an end-to-end test that starts a vertical project and finds the vertical templates first (2-3 h)
 
-## 66. Cards, a dialog and the start screen that read at a glance (5-8 h, after 1.0)
+## 66. Cards, a dialog and the start screen that read at a glance (done; 5-8 h, after 1.0)
 
 Decided 2026-11-04, from a first look at the app. Three places where what is shown is right but hard to read: the facts on a result card run together, a folder picker's button does not say what it does, and the start screen's sections sit too close to tell apart.
 
-- [ ] **Card facts that explain themselves:** the badge row on a result card reads today as one run of gray text: "4 s", "1080p", then icons. The duration becomes a clock reading (0:04, 1:30) in a small dark pill over the bottom-right corner of the thumbnail, the way video sites show length, with no unit and no space to misread; a still shows none. The resolution becomes a short outlined tag (HD for 720p, Full HD for 1080p, 4K for 2160p, otherwise the height, like 1440p), with the exact pixels still in its tooltip. The shape and transparency icons stay, with their tooltips, set apart from the tags. The list view's duration column uses the same clock reading (2-3 h)
-- [ ] **A folder picker that says what happens:** Add sample media's folder picker labels its button "Make sample media here" and explains nothing (its title is not shown on macOS). The button says **Choose Folder**, and the picker's message says Pulp will create a "Sample media" folder there with about 600 example sounds, clips, stills and assets, that it takes a few minutes, and that the folder can be deleted at any time. The same wording on every platform (0.5-1 h)
-- [ ] **Start screen sections that stand apart:** Continue, Start from an idea and Learn (and the set-up card on a first run) get more room above and below each section and a thin horizontal divider between sections, in the screen's own palette in both appearances, so each reads as its own group. The screen still fits at 1280 × 788, with the lead and the first row of every section visible without scrolling (1-2 h)
-- [ ] **Tests:** unit tests of the clock reading and the resolution tags; the end-to-end test finds the pill on a clip's card and none on a still's, and the dividers between the start screen's sections; the start screen's visual references rewritten (1-2 h)
+- [x] **Card facts that explain themselves:** the badge row on a result card reads today as one run of gray text: "4 s", "1080p", then icons. The duration becomes a clock reading (0:04, 1:30) in a small dark pill over the bottom-right corner of the thumbnail, the way video sites show length, with no unit and no space to misread; a still shows none. The resolution becomes a short outlined tag (HD for 720p, Full HD for 1080p, 4K for 2160p, otherwise the height, like 1440p), with the exact pixels still in its tooltip. The shape and transparency icons stay, with their tooltips, set apart from the tags. The list view's duration column uses the same clock reading (2-3 h) *Done 2026-11-04. A sound of its own, the one icon that also showed its word, is an icon with its tooltip like the others.*
+- [x] **A folder picker that says what happens:** Add sample media's folder picker labels its button "Make sample media here" and explains nothing (its title is not shown on macOS). The button says **Choose Folder**, and the picker's message says Pulp will create a "Sample media" folder there with about 600 example sounds, clips, stills and assets, that it takes a few minutes, and that the folder can be deleted at any time. The same wording on every platform (0.5-1 h) *Done 2026-11-04: macOS shows a picker's message and Windows and Linux its title, so the one text is both; the count follows the catalog to the nearest hundred.*
+- [x] **Start screen sections that stand apart:** Continue, Start from an idea and Learn (and the set-up card on a first run) get more room above and below each section and a thin horizontal divider between sections, in the screen's own palette in both appearances, so each reads as its own group. The screen still fits at 1280 × 788, with the lead and the first row of every section visible without scrolling (1-2 h) *Done 2026-11-04. The whole screen still fits at every size the end-to-end test measures, down to 960 × 600; to keep room to spare, the roomy arrangement now starts at 940 px tall rather than 880.*
+- [x] **Tests:** unit tests of the clock reading and the resolution tags; the end-to-end test finds the pill on a clip's card and none on a still's, and the dividers between the start screen's sections; the start screen's visual references rewritten (1-2 h)

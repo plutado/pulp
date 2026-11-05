@@ -503,7 +503,9 @@ describe.skipIf(!electron)('inspector UI', () => {
     app = spawn(electron!, ['.', `--remote-debugging-port=${port}`], {
       cwd: ROOT,
       stdio: ['ignore', logFd, logFd],
-      env: { ...process.env, PULP_USER_DATA: userData },
+      // The fake microphone (milestone 63): a steady tone from Chromium itself, so recording needs
+      // no device and no permission prompt on any runner.
+      env: { ...process.env, PULP_USER_DATA: userData, PULP_FAKE_MIC: '1' },
     });
     closeSync(logFd);
     let target: Target | undefined;
@@ -5316,9 +5318,10 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 90_000);
 
     it('brings things in through one Add menu that names them, and sends them out from the results (milestone 47)', async () => {
-      // The browse panel's header is Add and Rescan: the four add/import/export buttons are gone.
+      // The browse panel's header is Add, Rescan and Record (milestone 63): the four add/import/export
+      // buttons are gone, and the microphone — a live act, not a chooser — stands beside Add.
       const toolbar = await page.eval<string[]>(`[...document.querySelectorAll('.sidebar-actions button')].map((b) => b.id)`);
-      expect(toolbar).toEqual(['library-add', 'rescan']);
+      expect(toolbar).toEqual(['library-add', 'rescan', 'record-audio', 'record-input']);
       // Export is not among them; it acts on the templates the results list, so it is in their heading.
       expect(await page.eval<boolean>(`!!document.querySelector('#region-results .results-head #export-pack')`), 'Export in the results heading').toBe(true);
 
@@ -5577,7 +5580,15 @@ describe.skipIf(!electron)('inspector UI', () => {
       // Probing runs in the background; the card badges what it found as soon as it lands.
       await until(() => onResult<boolean>('clip', '(li) => !!li.querySelector(".badge.resolution")'), 'probed metadata to reach the results', 30_000);
       const badges = await onResult<string[]>('clip', '(li) => [...li.querySelectorAll(".badge")].map((b) => b.textContent)');
-      expect(badges).toEqual(['2 s', '36p']);
+      expect(badges, 'the resolution as a tag; the length is not in the row any more').toEqual(['36p']);
+      // The length is a clock reading in a pill over the thumbnail's corner (milestone 66), and a still has none.
+      const pill = (name: string) => onResult<{ text: string; inThumb: boolean; corner: boolean } | null>(name, `(li) => {
+        const p = li.querySelector('.thumb-time'); if (!p) return null;
+        const t = li.querySelector('.thumb').getBoundingClientRect(), b = p.getBoundingClientRect();
+        return { text: p.textContent, inThumb: !!p.closest('.thumb'), corner: t.right - b.right < 8 && t.bottom - b.bottom < 8 && b.left > t.left + t.width / 2 };
+      }`);
+      expect(await pill('clip'), "the clip's running time over its thumbnail's bottom-right corner").toEqual({ text: '0:02', inThumb: true, corner: true });
+      expect(await pill('tiny'), 'a still shows none').toBeNull();
       // The whole of what ffprobe read is in the Info tab.
       await selectMedia('clip');
       await openTab('info');
@@ -6058,12 +6069,19 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(await page.eval<boolean>(`document.getElementById('results').classList.contains('grid')`)).toBe(true);
       expect(await page.eval<string>(`document.getElementById('view-grid').getAttribute('aria-pressed')`)).toBe('true');
       const cardBadges = await onResult<string[]>('Lower Third Bar', '(li) => [...li.querySelectorAll(".badge")].map((b) => b.dataset.badge)');
-      expect(cardBadges).toEqual(['alpha', 'duration', 'resolution', 'vertical']); // every bundled template now draws tall as well
+      expect(cardBadges).toEqual(['resolution', 'alpha', 'vertical']); // every bundled template now draws tall as well
+      // The resolution is an outlined tag with the pixels in its tooltip; the icons sit apart, after it (milestone 66).
+      const tag = await onResult<{ text: string; tip: string; border: string; iconsApart: boolean }>('Lower Third Bar', `(li) => {
+        const t = li.querySelector('.badge.tag');
+        return { text: t.textContent, tip: t.dataset.tip, border: getComputedStyle(t).borderTopStyle, iconsApart: !!li.querySelector('.badge-icons .badge.alpha') && !li.querySelector('.badge-icons .badge.tag') };
+      }`);
+      expect(tag).toEqual({ text: 'Full HD', tip: '1920 × 1080', border: 'solid', iconsApart: true });
+      expect(await onResult<string>('Lower Third Bar', `(li) => li.querySelector('.thumb-time')?.textContent ?? ''`), 'a template runs for its declared length').toMatch(/^\d+:\d\d$/);
 
       await page.eval(`document.getElementById('view-list').click()`);
       await until(() => page.eval<boolean>(`document.getElementById('results').classList.contains('list')`), 'the list view');
       const row = await onResult<string[]>('Boardroom title', '(li) => [...li.querySelectorAll(".col")].map((c) => c.textContent)');
-      expect(row).toEqual(['Boardroom title', '5 s', 'Title', 'Corporate, Finance, Technology, Real estate', 'title']);
+      expect(row).toEqual(['Boardroom title', '0:05', 'Title', 'Corporate, Finance, Technology, Real estate', 'title']);
       // The thumbnail size only means anything for cards.
       expect(await page.eval<boolean>(`document.getElementById('thumb-size').disabled`)).toBe(true);
 
@@ -6395,7 +6413,7 @@ describe.skipIf(!electron)('inspector UI', () => {
           foot: bottom(document.querySelector('#start-screen .start-foot')),
         };
       })()`);
-      const sizes = [[1920, 1080], [1280, 880], [1280, 788], [1120, 700], [1008, 655], [1280, 645], [960, 600]] as const;
+      const sizes = [[1920, 1080], [1280, 940], [1280, 880], [1280, 788], [1120, 700], [1008, 655], [1280, 645], [960, 600]] as const;
       try {
         for (const mode of ['returning', 'first-run'] as const) {
           if (mode === 'first-run') {
@@ -6418,6 +6436,17 @@ describe.skipIf(!electron)('inspector UI', () => {
             expect(Math.abs(fits.above - fits.below), `as much room above as below (${fits.above} and ${fits.below}), ${at}`).toBeLessThanOrEqual(1);
             expect(fits.wide, `nothing to scroll sideways, ${at}`).toBeLessThanOrEqual(fits.across);
             if (mode === 'returning') expect(fits.rows, `Continue in one row, ${at}`).toBe(1);
+            // A thin divider above Continue, Start from an idea and Learn, in the screen's own palette (milestone 66).
+            const dividers = await page.eval<{ width: string; color: string; room: number }[]>(`(() => {
+              const probe = document.createElement('span'); probe.style.color = 'var(--s-border)'; document.getElementById('start-screen').append(probe);
+              const want = getComputedStyle(probe).color; probe.remove();
+              return [...document.querySelectorAll('#start-screen .start-block')].map((b) => { const st = getComputedStyle(b); return { width: st.borderTopWidth, color: st.borderTopColor === want ? 'the screen border' : st.borderTopColor, room: parseFloat(st.paddingTop) }; });
+            })()`);
+            expect(dividers.map((d) => d.width), `three sections, each with its divider, ${at}`).toEqual(['1px', '1px', '1px']);
+            for (const d of dividers) {
+              expect(d.color, at).toBe('the screen border');
+              expect(d.room, `room under the divider, ${at}`).toBeGreaterThanOrEqual(6);
+            }
           }
         }
       } finally {
@@ -6770,6 +6799,100 @@ describe.skipIf(!electron)('inspector UI', () => {
         }
       }
     }, 120_000);
+  });
+
+  describe('recording a voice (milestone 63)', () => {
+    const recordingsDir = () => join(userData, 'Recordings');
+    const wavFiles = async () => (existsSync(recordingsDir()) ? (await readdir(recordingsDir())).filter((f) => f.endsWith('.wav')).sort() : []);
+    /** A saved WAV's length, read from its own header: data bytes over bytes-per-second. */
+    const wavSeconds = async (file: string) => {
+      const bytes = await readFile(join(recordingsDir(), file));
+      return bytes.readUInt32LE(40) / bytes.readUInt32LE(28);
+    };
+    const recording = () => page.eval<boolean>(`document.getElementById('record-audio').getAttribute('aria-pressed') === 'true'`);
+    const stripTime = () => page.eval<string>(`document.getElementById('rec-time').textContent`);
+
+    it('records from the button: the strip shows the level and the time, the take lands in the library with its length', async () => {
+      await fire('#search', '', 'input');
+      expect(await wavFiles()).toHaveLength(0);
+      await page.eval(`document.getElementById('record-audio').click()`);
+      await until(recording, 'the button pressed and listening');
+      expect(await page.eval<boolean>(`!document.getElementById('rec-strip').hidden && !document.getElementById('rec-live').hidden`), 'the strip up').toBe(true);
+      // The time and the meter are read from the samples themselves: the fake input is a steady tone.
+      // The clock floors, so 0:01 means a whole second is really on tape.
+      await until(async () => (await stripTime()) >= '0:01', 'a second of samples on the clock');
+      await until(() => page.eval<number>(`parseFloat(document.getElementById('rec-level').style.width) || 0`).then((w) => w > 5), 'the level meter moving');
+      // While it records, the File menu's item is the way to stop, and says so.
+      const fileItems = async () => {
+        const sections = await page.eval<{ label: string; items: { label?: string }[] }[]>(`window.pulp.menuSections()`);
+        return sections.find((sec) => sec.label === 'File')!.items.map((i) => i.label);
+      };
+      await until(async () => (await fileItems()).includes('Stop Recording'), 'File reading Stop Recording');
+
+      await page.eval(`document.getElementById('record-audio').click()`);
+      await until(async () => !(await recording()), 'the take ended');
+      await until(async () => (await wavFiles()).length === 1, 'the take saved into Recordings');
+      const [file] = await wavFiles();
+      expect(file).toMatch(/^Recording \d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}\.wav$/);
+      // The right length: at least the second the strip showed, and nothing runaway.
+      expect(await wavSeconds(file!)).toBeGreaterThanOrEqual(1);
+      expect(await wavSeconds(file!)).toBeLessThanOrEqual(10);
+      expect(await fileItems(), 'the item reads Record Audio again').toContain('Record Audio');
+
+      // Into the library: the Recordings folder joined it, and the take is selected in the results.
+      await until(async () => {
+        const settings = JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { libraryFolders?: string[] };
+        return settings.libraryFolders?.includes(recordingsDir()) === true;
+      }, 'the Recordings folder in the library');
+      // Chosen and scrolled into view: the results' active descendant is the take, by name.
+      const activeCard = () => page.eval<string>(`(() => { const id = document.getElementById('results').getAttribute('aria-activedescendant'); return id ? (document.getElementById(id)?.querySelector('.name')?.textContent ?? '') : ''; })()`);
+      await until(async () => (await activeCard()).startsWith('Recording '), 'the take chosen and in view in the results');
+      // Usable everywhere a sound is: it is an audio card with a waveform drawn from the file itself.
+      await until(
+        () => page.eval<boolean>(`(() => { const id = document.getElementById('results').getAttribute('aria-activedescendant'); return !!document.getElementById(id)?.querySelector('.thumb svg path'); })()`),
+        'its waveform on the card',
+      );
+    }, 90_000);
+
+    it('records from the menu, stops with Escape, and the chosen input is remembered from the small menu', async () => {
+      await page.eval(`window.pulpMenuCommand('record.audio')`);
+      await until(recording, 'listening, started from the menu');
+      await until(async () => (await stripTime()) >= '0:01', 'a second on the clock');
+      await page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))`);
+      await until(async () => !(await recording()), 'Escape ended the take');
+      await until(async () => (await wavFiles()).length === 2, 'the second take saved');
+
+      // The small menu beside the button: the inputs, the default first; a choice is remembered.
+      await page.eval(`document.getElementById('record-input').click()`);
+      await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu')`), 'the input menu');
+      const options = await page.eval<string[]>(`[...document.querySelectorAll('.context-menu > button')].map((b) => b.textContent)`);
+      expect(options[0]).toBe('System default');
+      expect(await page.eval<string>(`document.querySelector('.context-menu > button').getAttribute('aria-checked')`), 'the default ticked until one is chosen').toBe('true');
+      if (options.length > 1) {
+        const picked = options[options.length - 1]!;
+        await page.eval(`[...document.querySelectorAll('.context-menu > button')].at(-1).click()`);
+        await until(async () => {
+          const settings = JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { recordingInput?: { label?: string } };
+          return settings.recordingInput?.label === picked;
+        }, 'the chosen input in settings.json');
+        // Reopened, the choice is the one ticked.
+        await page.eval(`document.getElementById('record-input').click()`);
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu')`), 'the menu again');
+        expect(await page.eval<string>(`[...document.querySelectorAll('.context-menu > button')].at(-1).getAttribute('aria-checked')`)).toBe('true');
+        await page.eval(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+        await until(() => page.eval<boolean>(`!document.querySelector('.context-menu')`), 'the menu closed');
+        // A take still records with the remembered input asked for.
+        await page.eval(`document.getElementById('record-audio').click()`);
+        await until(recording, 'listening on the chosen input');
+        await page.eval(`document.getElementById('rec-stop').click()`);
+        await until(async () => !(await recording()), 'stopped from the strip');
+        await until(async () => (await wavFiles()).length === 3, 'the third take saved');
+      } else {
+        await page.eval(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+      }
+      // Put the chosen input back to the default for whatever runs after.
+      await page.eval(`window.pulp.setRecordingInput(null)`);
+    }, 90_000);
   });
 
   describe('the polished set in the results (milestone 61)', () => {

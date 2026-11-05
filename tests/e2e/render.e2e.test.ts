@@ -359,8 +359,8 @@ describe.skipIf(!available)('end-to-end render', () => {
   it('makes the whole sample-media folder, and every file lands with the type its folder means', async () => {
     const folder = join(out, 'Sample media');
     const makeAll = async () => {
-      // 481 files, 55 of them transparent clips captured frame by frame: about three minutes on a
-      // Mac, two and a half times that on a CI runner, so the bound sits well above both.
+      // 626 files, 120 of them clips captured frame by frame and streamed raw into ffmpeg: about three
+      // minutes on a Mac, under three times that on the macOS runner, so the bound sits well above both.
       const r = await runBounded(electron, ['.', '--sample-media', folder], { cwd: ROOT, timeoutMs: 840_000 });
       return { code: r.code ?? -1, stdout: r.stdout, stderr: r.stderr };
     };

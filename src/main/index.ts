@@ -1,5 +1,5 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, ShareMenu, shell } from 'electron';
-import { SAMPLE_MEDIA_FOLDER_NAME } from '../core/sample-media';
+import { SAMPLE_MEDIA_FOLDER_NAME, sampleFolderPicker } from '../core/sample-media';
 import { generateSampleMedia, samplesToMake, unmadeSamplesByType } from './sample-media-service';
 import { readSlotImages, resolveRowImages } from './image-grant';
 import { layeredOutlineFor } from './layered-service';
@@ -62,6 +62,7 @@ import { sanitizeResultsView } from '../core/results-view';
 import { sanitizePlayer } from '../core/player';
 import { loadSettings, updateSettings } from './settings';
 import { getAppearance, loadAppearance, setAppearance, watchAppearance, windowBackground } from './appearance-service';
+import { microphoneAccess, openMicrophoneSettings, saveRecording } from './recording-service';
 import { sanitizeTypeOutputDefault } from '../core/output-defaults';
 import { isBuiltInType } from '../core/taxonomy';
 import { adoptStageWindow, currentStageWindow, destroyStageWindow, loadStageWindowSetting, registerStageWindowIpc, stageWindowOptions } from './stage-window-service';
@@ -87,6 +88,12 @@ function grantRequestsFrom(raw: unknown): ImageGrantRequest[] {
 
 // Tests point this at a scratch folder so they never touch the user's settings.json.
 if (process.env.PULP_USER_DATA) app.setPath('userData', resolve(process.env.PULP_USER_DATA));
+// The tests record from Chromium's fake microphone — a steady tone, no device and no permission
+// prompt — so a take can be made and measured on any machine, CI runners included (milestone 63).
+if (process.env.PULP_FAKE_MIC) {
+  app.commandLine.appendSwitch('use-fake-device-for-media-stream');
+  app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
+}
 
 // Before anything else runs (milestone 8): a failure while the app is still coming up is written
 // to the log like any other, rather than disappearing with the process.
@@ -272,9 +279,9 @@ function registerIpc(): void {
 
   /** Ask where the folder should go; null when the question is dismissed. */
   const askForSampleFolder = async (): Promise<string | null> => {
+    // Says what will happen there, on every platform (src/core/sample-media.ts).
     const result = await dialog.showOpenDialog({
-      title: `Choose where to make the "${SAMPLE_MEDIA_FOLDER_NAME}" folder`,
-      buttonLabel: 'Make sample media here',
+      ...sampleFolderPicker(),
       properties: ['openDirectory', 'createDirectory'],
     });
     const parent = result.filePaths[0];
@@ -396,6 +403,20 @@ function registerIpc(): void {
   // Light, dark or the system's (milestone 62): every window redraws when it is set.
   ipcMain.handle('appearance:get', () => getAppearance());
   ipcMain.handle('appearance:set', (_event, choice: unknown) => setAppearance(choice));
+  // Recording a voice (milestone 63): the microphone's permission, the finished take, the chosen input.
+  ipcMain.handle('recording:access', () => microphoneAccess());
+  ipcMain.handle('recording:save', (_event, wav: unknown) => {
+    if (!(wav instanceof ArrayBuffer) || wav.byteLength === 0) throw new Error('A recording arrived empty.');
+    return saveRecording(new Uint8Array(wav));
+  });
+  ipcMain.handle('recording:open-settings', () => openMicrophoneSettings());
+  ipcMain.handle('recording:input', async () => (await loadSettings()).recordingInput ?? null);
+  ipcMain.handle('recording:set-input', async (_event, input: unknown) => {
+    const chosen = input && typeof input === 'object' && typeof (input as { id?: unknown }).id === 'string' && typeof (input as { label?: unknown }).label === 'string'
+      ? { id: (input as { id: string }).id, label: (input as { label: string }).label }
+      : undefined;
+    await updateSettings((s) => { const { recordingInput, ...rest } = s; void recordingInput; return chosen ? { ...rest, recordingInput: chosen } : rest; });
+  });
   ipcMain.handle('start-screen:get', async () => {
     const s = await loadSettings();
     return { showAtStartup: s.showStartScreen, tourSeen: s.tourSeen };

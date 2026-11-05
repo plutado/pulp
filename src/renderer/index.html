@@ -24,6 +24,10 @@
         <div class="sidebar-actions" role="toolbar" aria-label="Library tools">
           <button id="library-add" type="button" class="icon-button" data-icon="plus" data-icon-size="20" aria-haspopup="menu" aria-label="Add to the library" data-tip="Add to the library: your media folder, templates from a pack, or sample media"><span class="label">Add</span></button>
           <button id="rescan" type="button" class="icon-button" data-icon="arrow-clockwise" data-icon-size="20" aria-label="Rescan"><span class="label">Rescan</span></button>
+          <span class="record-group">
+            <button id="record-audio" type="button" class="icon-button" data-icon="microphone" data-icon-size="20" aria-pressed="false" aria-label="Record a voice" data-tip="Record a voice from the microphone; click again or press Escape to stop"><span class="label">Record</span></button>
+            <button id="record-input" type="button" class="icon-button record-input" data-icon="caret-down" data-icon-size="12" aria-haspopup="menu" aria-label="Choose the microphone" data-tip="Which microphone records"></button>
+          </span>
         </div>
       </div>
       <section id="region-search" class="panel-section search-section" aria-label="Search">
@@ -444,6 +448,21 @@
       </div>
     </section>
 
+  </div>
+  <!-- Recording a voice (milestone 63): the strip that shows the microphone is listening — the level,
+       the elapsed time, the way to stop — and, when access was refused, the way to the settings. -->
+  <div id="rec-strip" class="rec-strip" role="status" hidden>
+    <span id="rec-live" class="rec-live">
+      <span class="rec-dot" aria-hidden="true"></span>
+      <span id="rec-time" class="rec-time">0:00</span>
+      <span class="rec-meter" aria-hidden="true"><span id="rec-level"></span></span>
+      <button id="rec-stop" type="button">Stop</button>
+    </span>
+    <span id="rec-denied" class="rec-denied" hidden>
+      <span id="rec-denied-note"></span>
+      <button id="rec-open-settings" type="button" hidden>Open Settings</button>
+      <button id="rec-dismiss" type="button">Close</button>
+    </span>
   </div>
   <section id="start-screen" class="start-screen" aria-label="Home" hidden>
     <div class="start-inner">

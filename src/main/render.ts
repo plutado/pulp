@@ -100,7 +100,7 @@ let captureProbe: Promise<CaptureProbe> | null = null;
  * Measure what capturePage().toBitmap() returns on this platform, once per
  * process: draw known pixels in a tiny offscreen window and classify the bytes.
  */
-function detectCaptureFormat(): Promise<CaptureProbe> {
+export function detectCaptureFormat(): Promise<CaptureProbe> {
   captureProbe ??= (async () => {
     const win = new BrowserWindow({
       show: false,
@@ -932,26 +932,24 @@ export async function captureTemplateFrames(
 }
 
 /**
- * Draw one picture from a self-contained page (a data URL defining
- * `window.pulpRender`, like the sample-media stills) at an exact size and
- * return it as PNG. The page is not a library template, so there is no bridge:
- * the call goes straight to the function, then two animation frames and a
- * paint settle the capture the same way as a template frame.
- */
-/**
- * A capture page held open: the window, loaded and drained once, that many
- * stills or clips can be taken through in turn. The sample-media generator
- * makes hundreds of drawn files from a handful of pages, and a window per
- * file paid the load and its drain every time — most of the macOS runner's
- * minutes (docs/platform-notes.md). Reuse changes none of the ordering the
- * capture relies on: every draw after the first follows the same
- * invalidate-and-wait path a multi-frame clip's later frames always took,
- * and only the first capture after the load needs the blank-frame check.
- * One page is used at a time, as the drawn lane always was.
+ * A capture page held open: a self-contained page (a data URL defining
+ * `window.pulpRender`, like the sample-media stills and clips) loaded once at
+ * an exact size, that many stills or clips can be taken through in turn. The
+ * page is not a library template, so there is no bridge: the call goes
+ * straight to the function, and each capture is ordered by a presented frame
+ * (capturePresented) — no wait in the page, which could not prove it. The
+ * sample-media generator makes hundreds of drawn files from a handful of
+ * pages; a window per file paid the load every time. One page is used at a
+ * time, as the drawn lane always was.
  */
 export interface CapturePage {
   still(params: Record<string, unknown>): Promise<{ ok: true; png: Buffer } | { ok: false; message: string }>;
-  frames(params: Record<string, unknown>, clip: { seconds: number; fps: number }): Promise<{ ok: true; frames: Buffer[] } | { ok: false; message: string }>;
+  /**
+   * Every frame of the clip, each handed to `onFrame` as it is captured — not gathered — so a caller
+   * can stream it to ffmpeg while the next one draws, and choose its own form: the raw bitmap, which
+   * costs nothing, or a PNG.
+   */
+  frames(params: Record<string, unknown>, clip: { seconds: number; fps: number }, onFrame: (image: Electron.NativeImage) => Promise<void> | void): Promise<{ ok: true } | { ok: false; message: string }>;
   close(): void;
 }
 
@@ -971,7 +969,8 @@ export async function openCapturePage(url: string, size: Size, timeoutMs = DEFAU
   const draw = async (state: Record<string, unknown>): Promise<Electron.NativeImage> => {
     await withTimeout(
       win.webContents.executeJavaScript(
-        `Promise.resolve(window.pulpRender(${JSON.stringify(state)})).then(function () { return new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); }); })`,
+        // No animation-frame wait after the draw: the capture is ordered by a presented frame (capturePresented).
+        `Promise.resolve(window.pulpRender(${JSON.stringify(state)})).then(function () { return true; })`,
       ),
       timeoutMs,
       `the page did not draw within ${Math.round(timeoutMs / 1000)} s`,
@@ -992,16 +991,14 @@ export async function openCapturePage(url: string, size: Size, timeoutMs = DEFAU
         return { ok: false, message: (err as Error).message };
       }
     },
-    async frames(params, clip) {
+    async frames(params, clip, onFrame) {
       const total = Math.max(1, Math.round(clip.seconds * clip.fps));
       try {
-        const frames: Buffer[] = [];
         for (let frame = 0; frame < total; frame++) {
           const time = frame / clip.fps;
-          const image = await draw({ frame, time, progress: time / clip.seconds, fps: clip.fps, duration: clip.seconds, totalFrames: total, width: size.width, height: size.height, params });
-          frames.push(image.toPNG());
+          await onFrame(await draw({ frame, time, progress: time / clip.seconds, fps: clip.fps, duration: clip.seconds, totalFrames: total, width: size.width, height: size.height, params }));
         }
-        return { ok: true, frames };
+        return { ok: true };
       } catch (err) {
         return { ok: false, message: (err as Error).message };
       }
@@ -1040,7 +1037,9 @@ export async function captureAssetFrames(
   const opened = await openCapturePage(url, size, timeoutMs);
   if (!opened.ok) return opened;
   try {
-    return await opened.page.frames(params, clip);
+    const frames: Buffer[] = [];
+    const shot = await opened.page.frames(params, clip, (image) => { frames.push(image.toPNG()); });
+    return shot.ok ? { ok: true, frames } : shot;
   } finally {
     opened.page.close();
   }

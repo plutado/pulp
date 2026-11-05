@@ -54,14 +54,13 @@ describe('frameCallScript', () => {
     expect(frameCallScript(state)).toContain(JSON.stringify(state));
   });
 
-  it('says how the draw settled when the frame renders', async () => {
-    // The page answers 'raf' when the frame holding the draw was committed, and 'timeout' when
-    // the renderer never ran an animation frame — which is what tells the host to take more care
-    // before it captures (docs/platform-notes.md).
-    await expect(run(() => Promise.resolve('raf'))).resolves.toEqual({ drawn: 'raf' });
-    await expect(run(() => Promise.resolve('timeout'))).resolves.toEqual({ drawn: 'timeout' });
-    // A page from before this answered `true`; it is read as the ordinary case rather than as a warning.
-    await expect(run(() => Promise.resolve(true))).resolves.toEqual({ drawn: 'raf' });
+  it('asks the bridge for no wait after the draw, and answers nothing but an error', async () => {
+    // The capture is ordered by a presented frame, so the page reports the draw at once.
+    expect(frameCallScript(state)).toContain('{ presented: true }');
+    let options: unknown;
+    const window = { __pulp: { render: (_s: unknown, o: unknown) => { options = o; return Promise.resolve('host'); } } };
+    await expect(new Function('window', `return ${frameCallScript(state)};`)(window)).resolves.toEqual({});
+    expect(options).toEqual({ presented: true });
   });
 
   it('turns a thrown Error into data instead of rejecting', async () => {

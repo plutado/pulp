@@ -16,5 +16,9 @@
     <!-- ffmpeg and whisper.cpp are the person's own programs, run as children of Pulp. -->
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
+    <!-- Recording a voice (milestone 63): without this the hardened runtime refuses the microphone
+         before the person is even asked. -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
   </dict>
 </plist>

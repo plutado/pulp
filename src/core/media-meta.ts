@@ -120,6 +120,19 @@ export function resolutionLabel(width: number | undefined, height: number | unde
   return `${Math.min(width, height)}p`;
 }
 
+/**
+ * The short tag a card wears for its resolution (milestone 66): the names people use for the
+ * common sizes — HD, Full HD, 4K — and the short side as a number for the rest ("1440p").
+ * The exact pixels are the tag's tooltip.
+ */
+export function resolutionTag(width: number | undefined, height: number | undefined): string | undefined {
+  const label = resolutionLabel(width, height);
+  if (label === undefined) return undefined;
+  return RESOLUTION_NAMES[label] ?? label;
+}
+
+const RESOLUTION_NAMES: Record<string, string> = { '720p': 'HD', '1080p': 'Full HD', '2160p': '4K' };
+
 /** Common names for resolution filters: 4k, uhd, 8k, hd, fhd. */
 export const RESOLUTION_ALIASES: Record<string, string> = {
   '4k': '2160p',

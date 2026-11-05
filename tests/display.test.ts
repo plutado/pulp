@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { audioLabel, categoryLabel, clockLabel, codecLabel, dimensionsLabel, durationLabel, extensionLabel, frameRateLabel, humanize, itemCount, mediaKindLabel, rootLabel, sizeLabel, styleLabel, tagLabel, themeLabel, typeLabel, windowTitle } from '../src/core/display';
+import { audioLabel, categoryLabel, clockLabel, runningTime, codecLabel, dimensionsLabel, durationLabel, extensionLabel, frameRateLabel, humanize, itemCount, mediaKindLabel, rootLabel, sizeLabel, styleLabel, tagLabel, themeLabel, typeLabel, windowTitle } from '../src/core/display';
 
 describe('humanize and tags', () => {
   it('turns stored slugs into sentence-case words', () => {
@@ -91,5 +91,21 @@ describe('itemCount', () => {
     expect(itemCount(0)).toBe('0 items');
     expect(itemCount(1)).toBe('1 item');
     expect(itemCount(5)).toBe('5 items');
+  });
+});
+
+describe('runningTime (milestone 66)', () => {
+  it('reads a length as a clock does, with no unit and no space', () => {
+    expect(runningTime(4)).toBe('0:04');
+    expect(runningTime(90)).toBe('1:30');
+    expect(runningTime(59.6)).toBe('1:00');
+    expect(runningTime(3723)).toBe('1:02:03');
+    expect(runningTime(36000)).toBe('10:00:00');
+  });
+
+  it('never reads 0:00 for something that runs, and says nothing for what does not', () => {
+    expect(runningTime(0.4)).toBe('0:01');
+    expect(runningTime(1.5)).toBe('0:02');
+    for (const none of [0, -3, Number.NaN, Number.POSITIVE_INFINITY]) expect(runningTime(none)).toBe('');
   });
 });

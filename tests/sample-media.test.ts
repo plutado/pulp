@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { detectFfmpeg, nodeRunner } from '../src/core/ffmpeg';
 import {
   SAMPLE_MEDIA,
+  SAMPLE_MEDIA_FOLDER_NAME,
+  sampleFolderPicker,
   SAMPLE_MEDIA_LICENSE,
   sampleAssetArgs,
   sampleAudioArgs,
@@ -104,6 +106,23 @@ describe('the sample-media catalog', () => {
     }
   });
 
+  it('reads the clips as raw bitmaps in the measured layout, undoing premultiplied alpha first, rather than a PNG per frame', () => {
+    const clip = SAMPLE_MEDIA.find((i) => i.recipe.kind === 'asset' && i.recipe.format === 'webm')!.recipe as Extract<(typeof SAMPLE_MEDIA)[number]['recipe'], { kind: 'asset' }>;
+    const raw = sampleAssetArgs(clip, '/out/a.webm', { rawInput: { pixelFormat: 'bgra', premultiplied: true }, tagAlphaMode: true });
+    const at = (flag: string) => raw[raw.indexOf(flag) + 1];
+    expect(at('-f')).toBe('rawvideo');
+    expect(at('-pixel_format')).toBe('bgra');
+    expect(at('-video_size')).toBe(`${clip.width}x${clip.height}`);
+    expect(at('-framerate')).toBe(String(clip.fps));
+    // Said what the alpha is (ffmpeg 8.1+ would assume straight), then unpremultiplied, before the encoder.
+    expect(at('-vf')).toBe('setparams=alpha_mode=premultiplied,format=gbrap,unpremultiply=inplace=1');
+    expect(raw.indexOf('-vf')).toBeLessThan(raw.indexOf('-c:v'));
+    // Straight bitmaps on an ffmpeg that predates alpha modes need no filter at all.
+    expect(sampleAssetArgs(clip, '/out/a.webm', { rawInput: { pixelFormat: 'rgba', premultiplied: false }, tagAlphaMode: false })).not.toContain('-vf');
+    // And without a measured layout, PNG frames as before.
+    expect(sampleAssetArgs(clip, '/out/a.webm').join(' ')).toContain('image2pipe -vcodec png');
+  });
+
   it('draws stills from pages that are deterministic and size themselves from the state', () => {
     for (const [name, html] of Object.entries(STILL_PAGES)) {
       expect(html, name).toContain('window.pulpRender');
@@ -153,4 +172,20 @@ describe.skipIf(!ffmpeg.ok)('ffmpeg accepts every sound recipe', () => {
     const result = await nodeRunner(ffmpeg.path, args);
     expect(result.code, result.stderr).toBe(0);
   }, 20_000);
+});
+
+describe('the folder picker for Add sample media (milestone 66)', () => {
+  it('names its act on the button and says what will happen there, in one text on every platform', () => {
+    const picker = sampleFolderPicker();
+    expect(picker.buttonLabel).toBe('Choose Folder');
+    // macOS shows the message and not the title; Windows and Linux the title and not the message.
+    expect(picker.title).toBe(picker.message);
+    expect(picker.message).toBe(
+      `Pulp will create a "${SAMPLE_MEDIA_FOLDER_NAME}" folder here with about 600 example sounds, clips, stills and assets. It takes a few minutes, and the folder can be deleted at any time.`,
+    );
+    // The count follows the catalog, to the nearest hundred.
+    expect(SAMPLE_MEDIA.length).toBeGreaterThanOrEqual(550);
+    expect(sampleFolderPicker(1240).message).toContain('about 1200 example');
+    expect(sampleFolderPicker(30).message, 'never "about 0"').toContain('about 100 example');
+  });
 });

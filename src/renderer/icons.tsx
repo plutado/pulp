@@ -11,6 +11,7 @@ import arrowSquareIn from '@phosphor-icons/core/assets/regular/arrow-square-in.s
 import arrowSquareOut from '@phosphor-icons/core/assets/regular/arrow-square-out.svg?raw';
 import arrowsLeftRight from '@phosphor-icons/core/assets/regular/arrows-left-right.svg?raw';
 import caretDown from '@phosphor-icons/core/assets/regular/caret-down.svg?raw';
+import microphone from '@phosphor-icons/core/assets/regular/microphone.svg?raw';
 import caretLeft from '@phosphor-icons/core/assets/regular/caret-left.svg?raw';
 import caretRight from '@phosphor-icons/core/assets/regular/caret-right.svg?raw';
 import caretUp from '@phosphor-icons/core/assets/regular/caret-up.svg?raw';
@@ -85,6 +86,7 @@ const ICONS = {
   'arrow-clockwise': arrowClockwise,
   'arrows-left-right': arrowsLeftRight,
   'caret-down': caretDown,
+  microphone,
   'caret-left': caretLeft,
   'caret-right': caretRight,
   'caret-up': caretUp,

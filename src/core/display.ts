@@ -118,6 +118,20 @@ export function clockLabel(seconds: number): string {
   return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}`;
 }
 
+/**
+ * A running time as a clock reads it, the way a video site prints a length over a thumbnail:
+ * "0:04", "1:30", "1:02:03" — no unit, nothing to misread (milestone 66). Whole seconds,
+ * rounded, and never "0:00" for something that runs at all.
+ */
+export function runningTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '';
+  const whole = Math.max(1, Math.round(seconds));
+  const minutes = Math.floor(whole / 60);
+  const ss = String(whole % 60).padStart(2, '0');
+  if (minutes < 60) return `${minutes}:${ss}`;
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${ss}`;
+}
+
 export function sizeLabel(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} KB`;

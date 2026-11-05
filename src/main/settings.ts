@@ -58,6 +58,8 @@ export interface Settings {
   editorPanel: boolean;
   /** Light, dark, or the operating system's (milestone 62; src/core/appearance.ts). */
   appearance: Appearance;
+  /** The microphone chosen for recording (milestone 63); absent means the system's default. */
+  recordingInput?: { id: string; label: string };
 }
 
 const DEFAULTS: Settings = {
@@ -134,6 +136,9 @@ function sanitize(raw: Partial<Settings>): Settings {
     semanticSearch: raw.semanticSearch === true,
     editorPanel: raw.editorPanel === true,
     appearance: sanitizeAppearance(raw.appearance),
+    ...(raw.recordingInput && typeof raw.recordingInput === 'object' && typeof raw.recordingInput.id === 'string' && typeof raw.recordingInput.label === 'string'
+      ? { recordingInput: { id: raw.recordingInput.id, label: raw.recordingInput.label } }
+      : {}),
     ...(typeof raw.renderCacheDir === 'string' && raw.renderCacheDir.trim() ? { renderCacheDir: raw.renderCacheDir } : {}),
     ...(typeof raw.sampleMediaRoot === 'string' && raw.sampleMediaRoot.trim() ? { sampleMediaRoot: raw.sampleMediaRoot } : {}),
   };
