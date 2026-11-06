@@ -11,7 +11,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { closeSync, existsSync, openSync } from 'node:fs';
-import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -24,6 +24,7 @@ import { detectFfmpeg } from '../../src/core/ffmpeg';
 import { ffprobePathFor } from '../../src/core/media-probe';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
+import { snapshotTree, STOCK_FIXTURE_FILES, writeStockFixture } from '../stock-fixture';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
@@ -200,6 +201,8 @@ describe.skipIf(!electron)('inspector UI', () => {
   /** A library folder with a tiny PNG and, when ffmpeg is available, a 2 s MP4. */
   let mediaDir = '';
   let haveVideo = false;
+  /** The synthetic stock library (tests/stock-fixture.ts). */
+  let stockDir = '';
   let appLog = '';
 
   // 2x2 opaque PNG (red, green / blue, white), built here so it is a valid file: a hand-written base64
@@ -527,6 +530,10 @@ describe.skipIf(!electron)('inspector UI', () => {
       await mkdir(sampleRoot, { recursive: true });
       // The editor panel's bridge is on, so its describe can speak to the app from outside (milestone 54);
       // one bundled example is seeded as a recent project, so Continue has a card to lead with (milestone 60).
+      // A stock library (milestone 32), generated here, outside Pulp's data where a bought collection
+      // would be. Not in settings: its test adds it through Add, the folder picker answered by PULP_TEST_PICK_FOLDER.
+      stockDir = join(await mkdtemp(join(tmpdir(), 'pulp-stock-')), 'Motion Stock');
+      await writeStockFixture(stockDir);
       await writeFile(join(userData, 'settings.json'), JSON.stringify({
         // The empty sample-media folder is a root too, so this install reads as set up (milestone 60's returning arrangement).
         libraryFolders: [mediaDir, sampleRoot], showStartScreen: false, sampleMediaRoot: sampleRoot, editorPanel: true,
@@ -556,7 +563,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         stdio: ['ignore', logFd, logFd],
         // The fake devices: a microphone's steady tone (milestone 63) and a camera's moving test card
         // (milestone 64), from Chromium itself, so recording needs no device and no prompt on any runner.
-        env: { ...process.env, PULP_USER_DATA: userData, PULP_FAKE_MEDIA: '1' },
+        env: { ...process.env, PULP_USER_DATA: userData, PULP_FAKE_MEDIA: '1', PULP_TEST_PICK_FOLDER: stockDir },
       });
       closeSync(logFd);
       let target: Target | undefined;
@@ -639,6 +646,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await Promise.race([exited, new Promise((r) => setTimeout(r, 10_000))]);
     }
     if (userData) await rm(userData, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    if (stockDir) await rm(join(stockDir, '..'), { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   it('shows the lower third with its 85% panel at the default color', async () => {
@@ -5391,12 +5399,13 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.getElementById('library-add').click()`);
       await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu button')`), 'the Add menu');
       const items = await page.eval<string[]>(`[...document.querySelectorAll('.context-menu > button .item-label')].map((b) => b.textContent.trim())`);
-      expect(items).toEqual(['Your Media Folder…', 'Templates from a Pack…', 'Sample Media']);
+      expect(items).toEqual(['Your Media Folder…', 'Stock Library…', 'Templates from a Pack…', 'Sample Media']);
       // Each says what it brings, under its name.
       const details = await page.eval<string[]>(`[...document.querySelectorAll('.context-menu > button .item-detail')].map((b) => b.textContent.trim())`);
       expect(details[0]).toContain('indexed where they are');
-      expect(details[1]).toContain('installed');
-      expect(details[2]).toContain('made and added');
+      expect(details[1]).toContain('read where it is');
+      expect(details[2]).toContain('installed');
+      expect(details[3]).toContain('made and added');
       // And it is the same list File → Add offers.
       type Item = { label?: string; submenu?: Item[] };
       const fileAdd = (await page.eval<{ label: string; items: Item[] }[]>(`window.pulp.menuSections()`))
@@ -7197,6 +7206,70 @@ describe.skipIf(!electron)('inspector UI', () => {
         }
       }, 120_000);
     }
+  });
+
+  describe('stock libraries (milestone 32)', () => {
+    // The path is read when asked: the suite's setup makes the folder after this describe is defined.
+    const stockRow = () => page.eval<{ text: string; tip: string; offline: boolean; count: number } | null>(`(() => {
+      const b = [...document.querySelectorAll('#browse-tree .browse-node')].find((n) => n.dataset.node === 'stock:' + ${JSON.stringify(stockDir || '')});
+      return b ? { text: b.textContent.trim(), tip: b.dataset.tip ?? '', offline: b.classList.contains('offline'), count: Number(b.dataset.count) } : null; })()`);
+    const saved = async () => (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { stockLibraries?: { path: string }[] }).stockLibraries ?? [];
+
+    it('lists a stock library read where it lies, keeps it listed while its drive is away, and brings it back by itself', async () => {
+      const away = `${stockDir} (unplugged)`;
+      const before = await snapshotTree(stockDir);
+      try {
+        // Added the way a person adds one: Add → Stock Library…, the folder chosen.
+        expect(await stockRow(), 'not there before it is added').toBeNull();
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add offering a stock library');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+        await until(async () => (await saved()).some((l) => l.path === stockDir), 'the library kept in settings');
+        // Adding the same one again is refused, and said.
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add open again');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+        await until(() => page.eval<boolean>(`document.body.textContent.includes('That stock library is already added.')`), 'a second add refused, in words');
+        expect((await saved()).filter((l) => l.path === stockDir)).toHaveLength(1);
+        await page.eval(`(() => { const h = document.querySelector('#browse-tree .section-heading[data-node="stock"]'); if (h && h.getAttribute('aria-expanded') === 'false') h.click(); })()`);
+        await until(async () => (await stockRow())?.count === STOCK_FIXTURE_FILES.length, 'the stock library listed with its items');
+        expect((await stockRow())!.offline).toBe(false);
+        expect((await stockRow())!.tip).toContain('never copies');
+        // Its items are in the results, served from where they are.
+        await fire('#search', 'whoosh', 'input');
+        await until(async () => (await resultNames()).includes('Whoosh Soft'), 'its sound in the results');
+
+        // The drive is ejected. Nothing is asked to rescan: the app notices.
+        await rename(stockDir, away);
+        await until(async () => (await stockRow())?.offline === true, 'the library saying it is not connected', 45_000);
+        const gone = (await stockRow())!;
+        expect(gone.text).toContain('Not connected');
+        expect(gone.tip).toContain(`its ${STOCK_FIXTURE_FILES.length} items stay listed`);
+        expect(await resultNames(), 'and still found').toContain('Whoosh Soft');
+        expect(await page.eval<boolean>(`!![...document.querySelectorAll('#results li[data-id]')].find((li) => li.querySelector('.name')?.textContent === 'Whoosh Soft')?.classList.contains('offline')`), 'shown offline').toBe(true);
+        await fire('#search', '', 'input');
+        await until(async () => (await stockRow())?.count === STOCK_FIXTURE_FILES.length, 'every item still listed under it');
+
+        // Plugged back in: it comes back by itself.
+        await rename(away, stockDir);
+        await until(async () => (await stockRow())?.offline === false, 'the library back', 45_000);
+        expect((await stockRow())!.text).not.toContain('Not connected');
+        // Read, previewed and listed, and not one byte of it changed or added.
+        expect(await snapshotTree(stockDir)).toEqual(before);
+
+        // Removed from Pulp: gone from the window and from settings, its files where they were.
+        const box = await page.eval<{ x: number; y: number }>(`(() => { const b = [...document.querySelectorAll('#browse-tree .browse-node')].find((n) => n.dataset.node === 'stock:' + ${JSON.stringify(stockDir)}).getBoundingClientRect(); return { x: b.left + 10, y: b.top + 5 }; })()`);
+        await page.eval(`[...document.querySelectorAll('#browse-tree .browse-node')].find((n) => n.dataset.node === 'stock:' + ${JSON.stringify(stockDir)}).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: ${box.x}, clientY: ${box.y} }))`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Remove from Pulp'))`), 'the library\'s menu');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Remove from Pulp')).click()`);
+        await until(async () => (await stockRow()) === null, 'the library gone from the tree');
+        await until(async () => (await saved()).length === 0, 'and from settings');
+        expect(await snapshotTree(stockDir)).toEqual(before);
+      } finally {
+        if (existsSync(away)) await rename(away, stockDir);
+        await fire('#search', '', 'input');
+      }
+    }, 150_000);
   });
 
   describe('recording a voice (milestone 63)', () => {

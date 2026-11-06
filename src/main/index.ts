@@ -16,7 +16,7 @@ import { PLATFORM_IDS, platformPreset } from '../core/platform-presets';
 import { EXIT_CODES, helpText, parseCommandLine, usageErrorText, type ParsedCli } from '../core/cli';
 import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest, SampleMediaOutcome } from '../shared/api';
-import { addLibraryFolder, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, libraryPerformance, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
+import { addLibraryFolder, addStockLibrary, removeStockLibrary, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, libraryPerformance, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { mixLoudness } from './mix-loudness';
@@ -305,6 +305,23 @@ function registerIpc(): void {
     const folder = (await sampleMediaRoot()) ?? (await askForSampleFolder());
     return folder === null ? null : makeSampleMedia(folder, wanted);
   });
+  // A stock library (milestone 32): a folder or a whole drive, read where it lies.
+  ipcMain.handle('library:add-stock', async () => {
+    // The end-to-end suite answers the folder picker this way, since a native dialog cannot be
+    // driven from the test protocol; everything after the choice is the real path.
+    const picked = process.env.PULP_TEST_PICK_FOLDER;
+    if (picked) return addStockLibrary(picked);
+    const result = await dialog.showOpenDialog({
+      title: tr('dialog.library.add-stock'),
+      message: tr('dialog.library.add-stock.message'),
+      buttonLabel: tr('dialog.library.add-stock.button'),
+      properties: ['openDirectory'],
+    });
+    const folder = result.filePaths[0];
+    if (result.canceled || !folder) return null;
+    return addStockLibrary(folder);
+  });
+  ipcMain.handle('library:remove-stock', (_event, path: unknown) => removeStockLibrary(String(path)));
   ipcMain.handle('library:add-folder', async () => {
     const result = await dialog.showOpenDialog({
       title: tr('dialog.library.add-folder'),

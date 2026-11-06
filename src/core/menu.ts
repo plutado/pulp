@@ -38,6 +38,8 @@ export type MenuCommand =
   | 'project.save'
   | 'project.saveAs'
   | 'library.addFolder'
+  | 'library.addStock'
+  | 'library.removeStock'
   | 'library.addSampleMedia'
   | 'pack.import'
   | 'pack.export'
@@ -335,6 +337,7 @@ const sep: MenuItemSpec = { type: 'separator' };
 export function libraryAddItems(state: Pick<MenuState, 'canAddSampleMedia'> = EMPTY_MENU_STATE, t: Translator = SOURCE_TRANSLATOR): MenuItemSpec[] {
   return [
     { command: 'library.addFolder', label: t('menu.library.addFolder'), detail: t('menu.library.addFolder.detail') },
+    { command: 'library.addStock', label: t('menu.library.addStock'), detail: t('menu.library.addStock.detail') },
     { command: 'pack.import', label: t('menu.pack.import'), detail: t('menu.pack.import.detail') },
     // Offered only while some of the catalog is unmade: once it is all there, there is nothing
     // to bring in (milestone 34 counts what is left).

@@ -1,5 +1,6 @@
 /** Library index data types. Pure; shared with the renderer over IPC. */
 
+import type { StockLibraryState } from './stock-library';
 import type { TemplateManifest, ValidationIssue } from './manifest';
 import type { MediaMetadata } from './media-meta';
 import type { MediaSequence } from './media-sequence';
@@ -106,5 +107,7 @@ export interface LibraryIndex {
   builtAt: string;
   /** The root holding the bundled sample templates, shown as "Built-in templates". */
   builtInRoot?: string;
+  /** The stock libraries added (milestone 32), each with whether it can be reached now. */
+  stockLibraries?: StockLibraryState[];
 }
 

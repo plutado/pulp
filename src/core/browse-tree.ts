@@ -19,6 +19,7 @@
  * changes, so a change of language must reach it when it is drawn, not built.
  */
 
+import { samePlace, type StockLibraryState } from './stock-library';
 import type { Scope } from './app-state';
 import { BROWSE_CATEGORIES, categoryScope, MATCHING_SETS, typeScope } from './categories';
 import { rootLabel, typeLabel } from './display';
@@ -41,6 +42,8 @@ export interface TreeNode {
   description?: string;
   /** Never folds and draws no heading: the categories are the panel's top level, not a section of it. */
   fixed?: true;
+  /** A stock library that cannot be reached now (milestone 32): listed, and saying so on the row. */
+  offline?: true;
   children: TreeNode[];
 }
 
@@ -48,7 +51,7 @@ function bump(map: Map<string, number>, key: string): void {
   map.set(key, (map.get(key) ?? 0) + 1);
 }
 
-export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonly string[], builtInRoot: string | undefined): TreeNode[] {
+export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonly string[], builtInRoot: string | undefined, stock: readonly StockLibraryState[] = []): TreeNode[] {
   const byType = new Map<string, number>();
   const byRoot = new Map<string, number>();
   const byPack = new Map<string, { name: string; count: number }>();
@@ -123,17 +126,47 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     ],
   };
 
+  // A stock library is a section of its own, not one of My folders.
+  const stockRoot = (root: string) => stock.find((l) => samePlace(l.path, root));
+  const plainRoots = roots.filter((root) => !stockRoot(root));
+  const libraries: TreeNode[] = stock.map((l) => {
+    const root = roots.find((r) => samePlace(r, l.path)) ?? l.path;
+    const count = byRoot.get(root) ?? l.items;
+    return {
+      id: `stock:${l.path}`,
+      label: l.name,
+      count,
+      scope: { label: l.name, root, kind: 'stock' as const },
+      // What a person needs to hear about a library on a drive that is not there: which drive, and that nothing is lost.
+      get description() {
+        if (l.online) return tr('browse.stock.online', { path: l.path });
+        // The whole library, whatever a search narrows the row's count to.
+        return l.drive ? tr('browse.stock.offline.drive', { drive: l.drive, count: l.items }) : tr('browse.stock.offline.folder', { path: l.path, count: l.items });
+      },
+      ...(l.online ? {} : { offline: true as const }),
+      children: [],
+    };
+  });
+  const stockSection: TreeNode[] = libraries.length === 0 ? [] : [{
+    id: 'stock',
+    get label() { return tr('browse.stock'); },
+    count: libraries.reduce((n, l) => n + l.count, 0),
+    scope: null,
+    iconKind: 'stock',
+    children: libraries,
+  }];
+
   const folders: TreeNode = {
     id: 'folders',
     get label() { return tr('browse.folders'); },
-    count: roots.length,
+    count: plainRoots.length,
     scope: null,
-    children: roots.map((root) => {
+    children: plainRoots.map((root) => {
       // The bundled root is named in the interface's language; a folder's own name is the same in any.
       const label = () => rootLabel(root, builtInRoot);
       return { id: `root:${root}`, get label() { return label(); }, count: byRoot.get(root) ?? 0, scope: { get label() { return label(); }, root, kind: root === builtInRoot ? 'built-in' : 'folder' }, children: [] };
     }),
   };
 
-  return [categories, quick, folders];
+  return [categories, quick, ...stockSection, folders];
 }

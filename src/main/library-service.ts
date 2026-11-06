@@ -15,7 +15,8 @@ import type { MainPerformance } from '../core/perf';
 import { tr } from '../core/i18n';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, stat } from 'node:fs/promises';
-import { basename, extname, join } from 'node:path';
+import { basename, extname, join, resolve } from 'node:path';
+import { canAddLibrary, defaultLibraryName, driveOf, samePlace, type StockLibrary, type StockLibraryState } from '../core/stock-library';
 import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput, runWithInputForBuffer } from '../core/ffmpeg';
 import { MAX_IMAGE_FILE_BYTES, type ImportedImage } from '../core/image-slot';
 import { itemId, mediaKindForPath } from '../core/library-scan';
@@ -188,14 +189,35 @@ export async function importImageFile(source: string): Promise<{ id: string } | 
 
 async function configuredRoots(): Promise<string[]> {
   const settings = await loadSettings();
-  const roots = [bundledTemplatesDir(), ...settings.libraryFolders, ...extraRoots];
+  const roots = [bundledTemplatesDir(), ...settings.libraryFolders, ...settings.stockLibraries.map((l) => l.path), ...extraRoots];
   if (persistent && existsSync(packsRoot())) roots.splice(1, 0, packsRoot());
   // The Imported folder joins headless runs too: a CSV batch names its logos from it.
   if (existsSync(importedRoot())) roots.splice(1, 0, importedRoot());
   return [...new Set(roots)];
 }
 
+/**
+ * The index as the window gets it: the store's, and every stock library with whether it is there
+ * now and how many items Pulp knows in it, so one on a drive that is not connected stays listed.
+ */
+async function withLibraries(index: LibraryIndex): Promise<LibraryIndex> {
+  const settings = await loadSettings();
+  if (settings.stockLibraries.length === 0) return index;
+  const roots = new Map(getStore().roots().map((r) => [resolve(r.path), r.online]));
+  const counted = new Map<string, number>();
+  for (const e of [...index.templates, ...index.media]) counted.set(e.root, (counted.get(e.root) ?? 0) + 1);
+  const stockLibraries: StockLibraryState[] = settings.stockLibraries.map((l) => {
+    const drive = driveOf(l.path);
+    return { ...l, online: roots.get(resolve(l.path)) ?? existsSync(l.path), items: counted.get(resolve(l.path)) ?? 0, ...(drive ? { drive: drive.name } : {}) };
+  });
+  return { ...index, stockLibraries };
+}
+
 function broadcast(index: LibraryIndex): void {
+  void withLibraries(index).then(send);
+}
+
+function send(index: LibraryIndex): void {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) win.webContents.send('library:changed', index);
     // A scan may have brought or changed items: the semantic pass catches up (milestone 9),
@@ -618,8 +640,8 @@ export function rescan(extraFolders: string[] = []): Promise<LibraryIndex> {
     lastStats = await st.scanRoots(roots);
     lastScanAt = Date.now();
     syncWatchers();
-    const index = st.toIndex();
-    broadcast(index);
+    const index = await withLibraries(st.toIndex());
+    send(index);
     void probePendingMetadata();
     return index;
   });
@@ -645,12 +667,16 @@ export async function rescanIfStale(maxAgeMs = FOCUS_RESCAN_AGE_MS): Promise<voi
   await rescan();
 }
 
-/** Rescan when a root that was offline exists again. */
+/**
+ * Rescan when a root has come or gone: one that was offline exists again (a drive plugged back in),
+ * or one that was online does not (a drive ejected). Either way the window is told at once, so a
+ * stock library says it is not connected while it is not, and comes back when it is.
+ */
 export async function rescanIfRootReturned(): Promise<void> {
-  const returned = getStore()
+  const changed = getStore()
     .roots()
-    .filter((r) => !r.online && existsSync(r.path));
-  if (returned.length > 0) await rescan();
+    .filter((r) => r.online !== existsSync(r.path));
+  if (changed.length > 0) await rescan();
 }
 
 /**
@@ -662,8 +688,33 @@ export async function getLibrary(): Promise<LibraryIndex> {
   const st = getStore();
   st.setRoots(await configuredRoots());
   const scan = firstScan ?? rescan();
-  if (st.itemCount() > 0) return st.toIndex();
+  if (st.itemCount() > 0) return withLibraries(st.toIndex());
   return scan;
+}
+
+/** Pulp's own folders, which are never a stock library: its data and the bundled templates. */
+function ownFolders(): string[] {
+  return [app.getPath('userData'), bundledTemplatesDir()];
+}
+
+/**
+ * Add a stock library (milestone 32): remembered by its path and read where it lies. Nothing in it
+ * is copied, moved or written: the scan reads it, and what Pulp learns stays in its own data.
+ */
+export async function addStockLibrary(path: string): Promise<{ ok: true; index: LibraryIndex } | { ok: false; why: 'already' | 'inside' | 'contains' | 'own' | 'missing' }> {
+  if (!existsSync(path)) return { ok: false, why: 'missing' };
+  const settings = await loadSettings();
+  const allowed = canAddLibrary(path, settings.stockLibraries, ownFolders());
+  if (!allowed.ok) return allowed;
+  const library: StockLibrary = { path, name: defaultLibraryName(path), addedAt: new Date().toISOString() };
+  await updateSettings((s) => ({ ...s, stockLibraries: [...s.stockLibraries, library] }));
+  return { ok: true, index: await rescan() };
+}
+
+/** Forget a stock library: its items leave the window. Its files are not touched. */
+export async function removeStockLibrary(path: string): Promise<LibraryIndex> {
+  await updateSettings((s) => ({ ...s, stockLibraries: s.stockLibraries.filter((l) => !samePlace(l.path, path)) }));
+  return rescan();
 }
 
 export async function addLibraryFolder(folder: string): Promise<LibraryIndex> {

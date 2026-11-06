@@ -29,6 +29,7 @@ const $ = <T extends HTMLElement>(id: string): T => {
 /** What the three choices do; the window's own wiring hands them over, dialogs and all. */
 export interface LibraryAddActions {
   addFolder: () => void;
+  addStock: () => void;
   importPack: () => void;
   addSampleMedia: () => void;
 }
@@ -43,6 +44,7 @@ export function libraryAddState(): { canAddSampleMedia: boolean } {
 /** Run one of the three, from the Add menu or from the application menu's File → Add. */
 export function runLibraryAdd(command: MenuCommand): void {
   if (command === 'library.addFolder') actions?.addFolder();
+  else if (command === 'library.addStock') actions?.addStock();
   else if (command === 'pack.import') actions?.importPack();
   else if (command === 'library.addSampleMedia') actions?.addSampleMedia();
 }

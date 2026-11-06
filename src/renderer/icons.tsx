@@ -232,6 +232,7 @@ export function scopeIcon(kind: string | undefined, group: string | undefined): 
     case 'built-in':
     case 'pack': return 'package';
     case 'folder': return 'folder';
+    case 'stock': return 'hard-drive';
     case 'category':
     case 'type':
     case 'group': return group ? (CATEGORY_ICONS[group] ?? TYPE_GROUP_ICONS[group] ?? 'shapes') : 'shapes';

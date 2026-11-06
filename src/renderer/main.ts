@@ -431,6 +431,15 @@ els.packClose.addEventListener('click', () => els.packDialog.close());
 // What the browse panel's one Add button brings in, and what File → Add runs (milestone 47).
 initLibraryAdd({
   addFolder: () => void loadLibrary(window.pulp.addLibraryFolder()),
+  // A stock library (milestone 32): added where it is; a refusal is said rather than ignored.
+  addStock: () => void loadLibrary(window.pulp.addStockLibrary().then((outcome) => {
+    if (!outcome) return null;
+    if (!outcome.ok) {
+      sayInTray(t(`library.stock.refused.${outcome.why}`));
+      return null;
+    }
+    return outcome.index;
+  })),
   importPack: () => {
     void window.pulp.choosePackFile().then((path) => {
       if (path) void showPackPreview(path);

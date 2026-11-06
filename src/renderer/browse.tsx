@@ -34,6 +34,7 @@ import { appState, browseTree, dispatch } from './store';
 import { Icon, scopeIcon } from './icons';
 import { itemCount } from '../core/display';
 import { t } from './i18n';
+import { openContextMenu } from './context-menu';
 
 const activeScope = computed(() => appState.value.scope);
 /** Folded sections and groups, by node id; the tree starts fully open. */
@@ -185,6 +186,22 @@ interface RowProps {
   depth: 1 | 2;
 }
 
+/** A stock library's own menu: take it out of Pulp, leaving every file where it is. */
+function stockLibraryMenu(e: MouseEvent, node: FilteredNode): void {
+  const path = node.id.slice('stock:'.length);
+  openContextMenu({
+    x: e.clientX,
+    y: e.clientY,
+    items: [{ command: 'library.removeStock', label: t('browse.stock.remove'), detail: t('browse.stock.remove.detail') }],
+    run: () => {
+      if (sameScope(activeScope.value, node.scope)) dispatch((s) => setScope(s, null));
+      // The library comes back from the main process as library:changed, without it.
+      void window.pulp.removeStockLibrary(path);
+    },
+    focusBack: e.currentTarget as HTMLElement,
+  });
+}
+
 /** The selectable part of a row; the wrapper around it carries the highlight. */
 function NodeButton({ node, depth, open }: RowProps & { open?: boolean }) {
   const scope = node.scope;
@@ -193,16 +210,19 @@ function NodeButton({ node, depth, open }: RowProps & { open?: boolean }) {
   return (
     <button
       type="button"
-      class={`browse-node${active ? ' active' : ''}${node.count === 0 ? ' empty' : ''}`}
+      class={`browse-node${active ? ' active' : ''}${node.count === 0 ? ' empty' : ''}${node.offline ? ' offline' : ''}`}
       role="treeitem"
       aria-pressed={scope ? active : undefined}
       aria-expanded={foldable ? open : undefined}
-      aria-label={t('browse.node.aria-label', { label: node.label, items: itemCount(node.count) })}
+      aria-label={node.offline
+        ? t('browse.node.aria-label', { label: `${node.label}, ${t('browse.stock.offline')}`, items: itemCount(node.count) })
+        : t('browse.node.aria-label', { label: node.label, items: itemCount(node.count) })}
       data-node={node.id}
       data-filter={scope?.filter}
       data-count={node.count}
       data-foldable={foldable ? 'true' : undefined}
       data-tip={node.description ?? scope?.root}
+      onContextMenu={scope?.kind === 'stock' ? (e: MouseEvent) => { e.preventDefault(); stockLibraryMenu(e, node); } : undefined}
       onClick={() => {
         if (!scope) {
           toggleFold(node.id);
@@ -215,6 +235,8 @@ function NodeButton({ node, depth, open }: RowProps & { open?: boolean }) {
     >
       {depth === 1 && <Icon name={groupIcon(node)} />}
       <Label node={node} />
+      {/* Said on the row, not only in a tooltip: the library is listed, and it is not there now. */}
+      {node.offline && <span class="node-status">{t('browse.stock.offline')}</span>}
       <span class="count" aria-hidden="true">{node.count}</span>
     </button>
   );

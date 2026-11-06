@@ -202,17 +202,17 @@ describe('the application menu (milestone 27)', () => {
     expect(add!.submenu).toEqual(libraryAddItems({ canAddSampleMedia: true }));
     // It names what arrives, not the act of adding: no item begins with "Add" or "Import".
     const offered = libraryAddItems({ canAddSampleMedia: true });
-    expect(offered.map((i) => i.label)).toEqual(['Your Media Folder…', 'Templates from a Pack…', 'Sample Media']);
+    expect(offered.map((i) => i.label)).toEqual(['Your Media Folder…', 'Stock Library…', 'Templates from a Pack…', 'Sample Media']);
     for (const item of offered) expect(item.label, item.command).not.toMatch(/^(Add|Import)\b/);
     // Each says what it brings, under its name.
     for (const item of offered) expect(item.detail, item.command).toBeTruthy();
-    // The two that ask for a file or a folder every time carry the ellipsis; sample media asks
+    // The three that ask for a file or a folder every time carry the ellipsis; sample media asks
     // only the first time, so it does not.
-    expect(offered.filter((i) => i.label!.endsWith('…')).map((i) => i.command)).toEqual(['library.addFolder', 'pack.import']);
+    expect(offered.filter((i) => i.label!.endsWith('…')).map((i) => i.command)).toEqual(['library.addFolder', 'library.addStock', 'pack.import']);
     // Every command the panel offers is one the application menu offers too, and nothing else.
-    expect(offered.map((i) => i.command).sort()).toEqual(['library.addFolder', 'library.addSampleMedia', 'pack.import']);
+    expect(offered.map((i) => i.command).sort()).toEqual(['library.addFolder', 'library.addSampleMedia', 'library.addStock', 'pack.import']);
     // Once the catalog is all made there is no sample media to bring in, and the choice goes.
-    expect(libraryAddItems({ canAddSampleMedia: false }).map((i) => i.command)).toEqual(['library.addFolder', 'pack.import']);
+    expect(libraryAddItems({ canAddSampleMedia: false }).map((i) => i.command)).toEqual(['library.addFolder', 'library.addStock', 'pack.import']);
     // Export is not one of them: it sends templates out rather than bringing any in.
     expect(offered.some((i) => i.command === 'pack.export')).toBe(false);
     expect(file.some((i) => i.command === 'pack.export'), 'File keeps Export as Pack…').toBe(true);

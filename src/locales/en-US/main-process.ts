@@ -287,6 +287,9 @@ export const mainProcess = {
   // ---------------------------------------------------------------- the main process (src/main/index.ts)
   'import.no-file': 'No file was chosen.',
   'dialog.library.add-folder': 'Add library folder',
+  'dialog.library.add-stock': 'Add stock library',
+  'dialog.library.add-stock.message': 'Choose the folder or the drive that holds your stock media. Pulp reads it where it is and never copies it.',
+  'dialog.library.add-stock.button': 'Add library',
   'dialog.project.none-chosen': 'No project was chosen.',
   'pack.export.lottie-skipped': '{name} is a Lottie animation, which a pack cannot carry; share the .json or .lottie file itself.',
   'pack.export.nothing': 'No templates to export.',

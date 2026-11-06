@@ -28,7 +28,7 @@ export interface Scope {
   filter?: string;
   root?: string;
   /** What kind of node this is, so the UI can pick its icon. */
-  kind?: 'favorites' | 'recent' | 'vertical' | 'built-in' | 'folder' | 'type' | 'group' | 'category' | 'untyped' | 'theme' | 'style' | 'pack';
+  kind?: 'favorites' | 'recent' | 'vertical' | 'built-in' | 'folder' | 'stock' | 'type' | 'group' | 'category' | 'untyped' | 'theme' | 'style' | 'pack';
   /** For a category and its types: the category's id (src/core/categories.ts), which chooses the icon and the description. */
   group?: string;
 }
@@ -346,7 +346,7 @@ export function createTreeSelector(): (s: ResultsInput) => TreeNode[] {
   const facets = createFacetSelector();
   return (s) => {
     if (last && sameFacetKey(last, s)) return last.tree;
-    const tree = buildBrowseTree(facets(s), s.index?.roots ?? [], s.index?.builtInRoot);
+    const tree = buildBrowseTree(facets(s), s.index?.roots ?? [], s.index?.builtInRoot, s.index?.stockLibraries ?? []);
     last = { index: s.index, query: s.query, filters: s.filters, forTheme: s.forTheme, look: s.look, mood: s.mood, tree };
     return tree;
   };

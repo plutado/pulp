@@ -461,6 +461,13 @@ export interface PulpApi {
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if canceled. */
   addLibraryFolder(): Promise<LibraryIndex | null>;
+  /**
+   * Add a stock library from a folder or a drive (milestone 32), read in place and never copied.
+   * Null when the picker is dismissed; a refusal says why (already added, inside one, Pulp's own).
+   */
+  addStockLibrary(): Promise<{ ok: true; index: LibraryIndex } | { ok: false; why: 'already' | 'inside' | 'contains' | 'own' | 'missing' } | null>;
+  /** Forget a stock library. Its files are not touched. */
+  removeStockLibrary(path: string): Promise<LibraryIndex>;
   /** Make the sample-media folder inside a chosen folder, add it to the library, and say what was written. Null when canceled. */
   addSampleMedia(): Promise<SampleMediaOutcome | null>;
   /**

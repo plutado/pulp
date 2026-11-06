@@ -15,6 +15,8 @@ const api: PulpApi = {
     return () => ipcRenderer.removeListener('library:changed', handler);
   },
   addLibraryFolder: () => ipcRenderer.invoke('library:add-folder'),
+  addStockLibrary: () => ipcRenderer.invoke('library:add-stock'),
+  removeStockLibrary: (path: string) => ipcRenderer.invoke('library:remove-stock', path),
   addSampleMedia: () => ipcRenderer.invoke('library:add-sample-media'),
   stageWindowState: () => ipcRenderer.invoke('stage-window:state'),
   closeStageWindow: () => ipcRenderer.invoke('stage-window:close'),

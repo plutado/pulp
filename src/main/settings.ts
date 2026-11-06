@@ -14,10 +14,13 @@ import { sanitizeTypeOutputDefaults, type TypeOutputDefault } from '../core/outp
 import { DEFAULT_APPEARANCE, sanitizeAppearance, type Appearance } from '../core/appearance';
 import { DEFAULT_LANGUAGE, sanitizeLanguage, type LanguageChoice } from '../core/i18n';
 import { sanitizeVideoInputs, type VideoInputs } from '../core/video-take';
+import { sanitizeStockLibraries, type StockLibrary } from '../core/stock-library';
 
 export interface Settings {
   /** User-chosen library folders, in the order they were added. */
   libraryFolders: string[];
+  /** Stock libraries (milestone 32): folders and drives of owned stock media, read in place. */
+  stockLibraries: StockLibrary[];
   /** Recently used parameter colors, shared across templates, most recent first. */
   recentColors: string[];
   /** The last committed searches, most recent first. */
@@ -70,6 +73,7 @@ export interface Settings {
 
 const DEFAULTS: Settings = {
   libraryFolders: [],
+  stockLibraries: [],
   recentColors: [],
   recentSearches: [],
   recentProjects: [],
@@ -122,6 +126,7 @@ function sanitize(raw: Partial<Settings>): Settings {
   const recentProjects = Array.isArray(raw.recentProjects) ? raw.recentProjects.filter((p): p is string => typeof p === 'string' && p.trim() !== '').slice(0, 20) : [];
   return {
     libraryFolders: Array.isArray(raw.libraryFolders) ? raw.libraryFolders.filter((f): f is string => typeof f === 'string') : [],
+    stockLibraries: sanitizeStockLibraries(raw.stockLibraries),
     recentColors: sanitizeRecentColors(raw.recentColors),
     recentSearches: sanitizeRecentSearches(raw.recentSearches),
     // Paths, kept as they were written: a file that has gone is said when it is opened, not dropped here.

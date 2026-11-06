@@ -506,6 +506,10 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .browse-tree .node-row:hover .browse-node, .browse-tree .node-row.active .browse-node { color: var(--text); }
 .browse-tree .node-row.active .browse-node { font-weight: 600; }
 .browse-tree .browse-node.empty .label, .browse-tree .browse-node.empty .count { opacity: 0.55; }
+/* A stock library that is not connected (milestone 32): still listed, dimmed, and saying so in words
+   on the row, not only in a tooltip. The tag yields its width last, after the name. */
+.browse-tree .browse-node.offline .label, .browse-tree .browse-node.offline .count { opacity: 0.6; }
+.browse-tree .browse-node .node-status { flex: 0 0 auto; margin-left: var(--space-1); padding: 0 5px; border-radius: 8px; font-size: var(--font-caption); color: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
 .browse-tree .count { margin-left: auto; padding-left: var(--space-1); font-size: var(--font-caption); color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* The guide line runs down the middle of the parent row's icon:

@@ -30,6 +30,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- **Stock libraries** (milestone 32). Add → Stock Library… adds a folder or a whole drive of stock media you own, and lists it under Stock libraries in the browse panel. Pulp reads it where it is: nothing in it is copied, moved or written, and what Pulp learns about it (thumbnails, metadata) stays in Pulp's own data. When its drive is not connected, the library stays listed with all its items, says "Not connected" on its row, and names the drive to connect. It comes back by itself when the drive does, with favorites and tags kept. Right-click → Remove from Pulp forgets a library without touching its files.
+
 - **Numbers, file sizes and dates follow the chosen language** (milestone 59). German writes "1.234 Elemente", "1,5 MB" and "1. November 2026", Chinese "2026年11月1日", and US English now writes dates the US way ("November 1, 2026", "Oct 24, 2026, 2:05 PM"). Timecode, frame rates and resolutions stay as editors read them. The render cache's summary follows a change of language at once.
 - **The queue's and the tray's cards name a template in the window's language.** Projects and render jobs keep the English name, so a project opens in any language, and a name you typed yourself stays as you typed it.
 
