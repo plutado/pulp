@@ -2,8 +2,8 @@
   "formatVersion": 1,
   "id": "pulp.samples.polished-airliner",
   "name": "Airliner",
-  "description": "An airliner in flight, side on: a metal fuselage, swept wings, an engine and a cheatline in the accent.",
-  "version": "1.0.0",
+  "description": "A modern twin-engine airliner in flight, in three-quarter view and true proportion: a painted fuselage with its window rows, swept wings with winglets, two engines, vapor trails, and a tail and engines in the accent.",
+  "version": "2.0.0",
   "author": "David Fugate",
   "license": "CC0-1.0",
   "category": "overlay",
@@ -18,8 +18,10 @@
     "object",
     "prop",
     "plane",
+    "aircraft",
     "flight",
-    "airline"
+    "airline",
+    "aviation"
   ],
   "duration": 5,
   "structure": {
@@ -48,16 +50,12 @@
       "id": "material",
       "type": "select",
       "label": "Material",
-      "default": "brushed-metal",
+      "default": "painted",
       "element": "Finish",
       "options": [
         {
-          "value": "frosted-glass",
-          "label": "Frosted glass"
-        },
-        {
-          "value": "clear-glass",
-          "label": "Clear glass"
+          "value": "painted",
+          "label": "Painted metal"
         },
         {
           "value": "brushed-metal",
@@ -70,6 +68,14 @@
         {
           "value": "matte",
           "label": "Matte"
+        },
+        {
+          "value": "frosted-glass",
+          "label": "Frosted glass"
+        },
+        {
+          "value": "clear-glass",
+          "label": "Clear glass"
         }
       ]
     },

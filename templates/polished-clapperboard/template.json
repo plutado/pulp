@@ -1,0 +1,154 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.polished-clapperboard",
+  "name": "Clapperboard",
+  "description": "A film clapperboard with its clapper stick raised a little: diagonal stripes on both sticks, a hinge, and a slate with ruled fields, accented in the stripes.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "media-objects",
+  "themes": [
+    "media",
+    "cinema"
+  ],
+  "styles": [
+    "polished"
+  ],
+  "tags": [
+    "object",
+    "prop",
+    "clapperboard",
+    "slate",
+    "film",
+    "movie",
+    "production",
+    "take",
+    "scene",
+    "cinema"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "posterAt": 2.5,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Stripe color",
+      "default": "#d9dde3",
+      "element": "Colors"
+    },
+    {
+      "id": "material",
+      "type": "select",
+      "label": "Material",
+      "default": "matte",
+      "element": "Finish",
+      "options": [
+        {
+          "value": "frosted-glass",
+          "label": "Frosted glass"
+        },
+        {
+          "value": "clear-glass",
+          "label": "Clear glass"
+        },
+        {
+          "value": "brushed-metal",
+          "label": "Brushed metal"
+        },
+        {
+          "value": "polished-metal",
+          "label": "Polished metal"
+        },
+        {
+          "value": "matte",
+          "label": "Matte"
+        }
+      ]
+    },
+    {
+      "id": "light",
+      "type": "select",
+      "label": "Light from",
+      "default": "left",
+      "element": "Lighting",
+      "options": [
+        {
+          "value": "left",
+          "label": "Upper left"
+        },
+        {
+          "value": "top",
+          "label": "Top"
+        },
+        {
+          "value": "right",
+          "label": "Upper right"
+        }
+      ]
+    },
+    {
+      "id": "shadow",
+      "type": "select",
+      "label": "Shadow",
+      "default": "soft",
+      "element": "Lighting",
+      "options": [
+        {
+          "value": "soft",
+          "label": "Soft"
+        },
+        {
+          "value": "contact",
+          "label": "Contact only"
+        },
+        {
+          "value": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "pop",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}

@@ -4,6 +4,7 @@
  * default order — held against the real bundled library.
  */
 
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { scanLibrary } from '../src/core/library';
@@ -28,7 +29,7 @@ describe('the polished posters share one framing (milestone 61)', () => {
 
   it('is what every polished piece can take: one poster moment and a drawing in the shared box', () => {
     const polished = index.templates.filter(isPolished);
-    expect(polished.length).toBeGreaterThanOrEqual(32);
+    expect(polished.length).toBeGreaterThanOrEqual(63);
     for (const t of polished) {
       expect(t.manifest.posterAt, `${t.manifest.id} names the set's poster moment`).toBe(2.5);
       expect(t.manifest.alpha, t.manifest.id).toBe(true);
@@ -42,7 +43,7 @@ describe('the polished set leads within Objects and Design elements (milestone 6
     it(`puts every polished piece first in ${category} under the default order, each group in its own order`, () => {
       const entries = deriveResults(scoped(category)).entries;
       const polished = entries.filter(isPolished);
-      expect(polished.length, 'polished pieces in the category').toBeGreaterThanOrEqual(category === 'objects' ? 24 : 7);
+      expect(polished.length, 'polished pieces in the category').toBeGreaterThanOrEqual(category === 'objects' ? 48 : 14);
       expect(entries.slice(0, polished.length).every(isPolished), 'the polished pieces lead').toBe(true);
       // Nothing is lost or added, and the rest keep the order they had.
       const unled = deriveResults(scoped(category, { sort: 'name' })).entries;
@@ -76,5 +77,53 @@ describe('the polished set leads within Objects and Design elements (milestone 6
       const list = deriveResults(base).entries.filter((e) => categoryOfEntry(e)?.id === other.id);
       expect(polishedFirst(list, { scopeGroup: other.id, sort: 'relevance', freeText: '' }).map((e) => e.id), other.id).toEqual(list.map((e) => e.id));
     }
+  });
+});
+
+describe('twice the polished art, and an airliner redone (milestone 67)', () => {
+  const TEMPLATES = join(__dirname, '..', 'templates');
+  const MILESTONE_67 = [
+    // Data and business, technology, commerce, media and production, and a rocket for launches.
+    'line-graph', 'gauge', 'funnel', 'donut-chart', 'tablet', 'briefcase', 'office-tower',
+    'cloud', 'server-rack', 'padlock', 'notification-bell', 'chat-bubble', 'envelope', 'cursor-click',
+    'shopping-bag', 'credit-card', 'price-tag', 'gift-box', 'shipping-box',
+    'clapperboard', 'film-reel', 'studio-light', 'play-button', 'rocket',
+    // The glass and depth design elements.
+    'glass-lower-third', 'glass-button', 'glass-frame', 'glass-progress', 'callout', 'light-streaks', 'gradient-mesh',
+  ];
+  const polishedId = (folder: string) => `pulp.samples.polished-${folder}`;
+
+  it('adds the twenty-four objects and seven design elements the milestone names, each polished', () => {
+    expect(MILESTONE_67).toHaveLength(31);
+    for (const folder of MILESTONE_67) {
+      const t = index.templates.find((e) => e.manifest.id === polishedId(folder));
+      expect(t, folder).toBeDefined();
+      expect(isPolished(t!), folder).toBe(true);
+    }
+    const inCategory = (category: string) => MILESTONE_67.filter((f) => categoryOfEntry(index.templates.find((e) => e.manifest.id === polishedId(f))!)?.id === category).length;
+    expect(inCategory('objects')).toBe(24);
+    expect(inCategory('design-elements')).toBe(7);
+  });
+
+  it('draws every polished piece anew: no two share a drawing, so none is a recolor of another', () => {
+    const drawings = new Map<string, string>();
+    for (const t of index.templates.filter(isPolished)) {
+      const html = readFileSync(join(t.dir, t.manifest.entry), 'utf8');
+      const body = html.slice(html.indexOf('function draw(p)'));
+      expect(body.length, `${t.manifest.id} has a drawing`).toBeGreaterThan(200);
+      expect(drawings.get(body), `${t.manifest.id} draws what ${drawings.get(body)} draws`).toBeUndefined();
+      drawings.set(body, t.manifest.id);
+    }
+  });
+
+  it('redraws the airliner under its old id, so a project that uses it gets the new art', () => {
+    const t = index.templates.find((e) => e.manifest.id === polishedId('airliner'))!;
+    expect(t).toBeDefined();
+    expect(Number(t.manifest.version.split('.')[0]), 'a new drawing is a new major version').toBeGreaterThanOrEqual(2);
+    const html = readFileSync(join(TEMPLATES, 'polished-airliner', 'index.html'), 'utf8');
+    // Modeled in meters and turned to a three-quarter view, with two engines and its window rows.
+    expect(html).toMatch(/function view\(az, el\)/);
+    expect(html).toMatch(/engine\(1,/);
+    expect(html).toMatch(/engine\(-1,/);
   });
 });

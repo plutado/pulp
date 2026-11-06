@@ -7244,7 +7244,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 180_000);
   });
 
-  describe('the polished set in the results (milestone 61)', () => {
+  describe('the polished set in the results (milestones 61 and 67)', () => {
     it('leads Objects and Design elements under the default order, on its studio backdrop, and keeps its place under any other', async () => {
       type Card = { id: string; name: string; look: string | null; backdrop: string };
       const cards = () => page.eval<Card[]>(`[...document.querySelectorAll('#results .card')].map((c) => ({ id: c.dataset.id, name: c.querySelector('.name').textContent, look: c.dataset.look ?? null, backdrop: getComputedStyle(c.querySelector('.thumb')).backgroundImage }))`);
@@ -7278,7 +7278,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       try {
         await fire('#search', '', 'input');
         await fire('#sort', 'relevance', 'change');
-        for (const [label, least] of [['Objects', 24], ['Design elements', 7]] as const) {
+        for (const [label, least] of [['Objects', 48], ['Design elements', 14]] as const) {
           await scopeTo(label);
           await until(async () => (await cards()).length > 0, `${label}'s cards`);
           const shown = await inOrder();

@@ -131,8 +131,9 @@ describe('bundled sample templates', async () => {
     // Milestone 65's six hook titles hold: every line is in by 1.04 s, the hold runs from 1.2 s, and
     // they leave together from 4.4 s. Its seven holding overlays for short video (a part tag, a list
     // counter, chat bubbles, a comment reply, a poll, a follow prompt, a place tag) were measured with
-    // a line added to every open block.
-    expect(kinds.hold).toHaveLength(189);
+    // a line added to every open block. Milestone 67's thirty-one polished pieces hold, as milestone
+    // 61's do.
+    expect(kinds.hold).toHaveLength(220);
     // Milestone 55 adds the blank canvas, which loops: it draws nothing of its own, so any length holds.
     // Milestone 65's four caption styles made for vertical loop, as every caption style does; so do its
     // four frame layouts, whose words are still and whose clips play against elapsed time, and its

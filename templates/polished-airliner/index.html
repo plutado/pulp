@@ -11,7 +11,7 @@
 <body>
 <canvas id="c"></canvas>
 <script>
-  // A polished object on transparency (milestone 61, docs/art-direction.md). CC0-1.0: no rights reserved.
+  // A polished object on transparency (milestone 67, docs/art-direction.md). CC0-1.0: no rights reserved.
   // A vector drawing in a box of 100 units, scaled to the frame, so it stays sharp at any size.
   // One soft light (the Light from parameter), layered depth from gradients, a named material,
   // a contact and a soft shadow, and a light entrance that settles without a bounce.
@@ -140,30 +140,166 @@
   }
   /* Where the light sits along x for a highlight: left, middle or right of a span. */
   function lit(span) { return LX === 0 ? 0 : LX * span; }
-  function body() { rrPath(-46, -8, 92, 16, 8); }
+  /* The aircraft is modeled in meters, as a real one is: x forward (the nose at +19), y to the
+     right wing, z up — a 38 m fuselage 4 m across, a 34 m span swept 25°, engines 2 m across under
+     the wings, a fin 6 m tall. It is turned to a three-quarter view from ahead, to the left and a
+     little above, and projected flat, so every part keeps its true size against the others. */
+  var VW, RT, UP, K = 2.2, OX = 0, OY = 0;
+  function view(az, el) {
+    var ce = Math.cos(el); VW = [ce * Math.cos(az), ce * Math.sin(az), Math.sin(el)];
+    RT = [Math.sin(az), -Math.cos(az), 0];
+    UP = [RT[1] * VW[2], -RT[0] * VW[2], RT[0] * VW[1] - RT[1] * VW[0]];
+  }
+  function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function P(q) { return [OX + K * dot(q, RT), OY - K * dot(q, UP)]; }
+  function path3(pts) { ctx.beginPath(); for (var i = 0; i < pts.length; i++) { var s = P(pts[i]); if (i) ctx.lineTo(s[0], s[1]); else ctx.moveTo(s[0], s[1]); } ctx.closePath(); }
+  /* A body of revolution along x — the fuselage, a nacelle — from its stations [x, y, z, r]. Seen
+     flat, each round section shows its full radius across the drawn axis, so the outline is the
+     axis offset by the radius to either side. Returns the outline's two edges and a fill span. */
+  function tube(st) {
+    var top = [], bot = [];
+    for (var i = 0; i < st.length; i++) {
+      var a = P(st[Math.max(0, i - 1)]), b = P(st[Math.min(st.length - 1, i + 1)]), dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
+      var nx = dy / l, ny = -dx / l; if (ny > 0) { nx = -nx; ny = -ny; }
+      var c = P(st[i]), r = st[i][3] * K;
+      top.push([c[0] + nx * r, c[1] + ny * r]); bot.push([c[0] - nx * r, c[1] - ny * r]);
+    }
+    return { top: top, bot: bot };
+  }
+  function tubePath(t) { ctx.beginPath(); ctx.moveTo(t.top[0][0], t.top[0][1]); for (var i = 1; i < t.top.length; i++) ctx.lineTo(t.top[i][0], t.top[i][1]); for (var j = t.bot.length - 1; j >= 0; j--) ctx.lineTo(t.bot[j][0], t.bot[j][1]); ctx.closePath(); }
+  /* A point on the skin of a round body: theta from the crown (0) down the near, left side (+). */
+  function skin(x, zc, r, th, y0) { return [x, (y0 || 0) - r * Math.sin(th), zc + r * Math.cos(th)]; }
+  /* The fuselage's centerline and radius at x: a rounded nose, a long parallel barrel, and a tail
+     cone that tapers and sweeps up to the fin. */
+  function fus(x) {
+    if (x > 14) { var t = (19 - x) / 5; return [-0.35 * (1 - t) * (1 - t), 2 * Math.sqrt(Math.max(0, 1 - (1 - t) * (1 - t)))]; }
+    if (x > -7) return [0, 2];
+    var u = (-7 - x) / 12; return [1.45 * u * u + 0.15 * u, 2 * (1 - 0.82 * Math.pow(u, 1.25))];
+  }
+  /* What a painted, metal or glass skin is filled with across a body, lit from above and from the
+     light's side: the crown catches the sky, the belly holds the ground's darker light. */
+  function skinFill(x1, y1, x2, y2, m, a) {
+    var st;
+    if (m === 'painted') st = [[0, '#fbfcfd'], [0.35, '#e6eaee'], [0.75, '#b9c0c8'], [1, '#7f8892']];
+    else if (m === 'brushed-metal') st = [[0, '#e1e5e9'], [0.4, '#b3bac1'], [0.8, '#868d96'], [1, '#6a717a']];
+    else if (m === 'polished-metal') st = [[0, '#ffffff'], [0.22, '#9aa2ab'], [0.5, '#eef1f4'], [0.8, '#636b75'], [1, '#4a515a']];
+    else if (m === 'frosted-glass') st = [[0, 'rgba(255,255,255,0.62)'], [0.5, rgba(shade(a, 0.55), 0.45)], [1, rgba(shade(a, 0.05), 0.5)]];
+    else if (m === 'clear-glass') st = [[0, 'rgba(255,255,255,0.4)'], [0.5, rgba(shade(a, 0.5), 0.2)], [1, rgba(shade(a, 0), 0.3)]];
+    else st = [[0, shade(a, 0.35)], [0.45, shade(a, 0.05)], [1, shade(a, -0.35)]];
+    return lin(x1, y1, x2, y2, st);
+  }
+  /* A flat surface — a wing, a tailplane — in the skin's finish, lighter toward the light. */
+  function plateFill(pts, m, a, k) {
+    var s = pts.map(P), xs = s.map(function (q) { return q[0]; }), ys = s.map(function (q) { return q[1]; });
+    var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+    var c = m === 'painted' ? ['#eef1f4', '#c3cad1', '#9aa3ad'] : m === 'brushed-metal' ? ['#d4d9de', '#a7aeb6', '#7f868f'] : m === 'polished-metal' ? ['#f0f3f6', '#8c949d', '#c9ced4'] : null;
+    if (!c) return matFill(x0, y0, x1 - x0, y1 - y0, m, a);
+    var dk = function (h) { return shade(h, k || 0); };
+    return litG(x0, y0, x1 - x0, y1 - y0, [[0, dk(c[0])], [0.6, dk(c[1])], [1, dk(c[2])]]);
+  }
+  function wing(s) { return [[3.2, s * 1.9, -1.15], [-4.2, s * 17, 0.2], [-5.8, s * 17, 0.2], [-4.6, s * 6.3, -0.75], [-4.5, s * 1.9, -1.15]]; }
+  function winglet(s) { return [[-4.2, s * 17, 0.2], [-5.8, s * 17, 0.2], [-7.5, s * 17.5, 2.6], [-6.7, s * 17.5, 2.6]]; }
+  function tailplane(s) { return [[-14.6, s * 0.8, 1.15], [-18.2, s * 6.3, 1.65], [-19.4, s * 6.3, 1.65], [-18.6, s * 0.8, 1.15]]; }
+  function engineSt(s) {
+    var y = s * 5.9, z = -2.45, st = [];
+    var prof = [[7.6, 0.86], [7.3, 1.0], [6.4, 1.06], [4.6, 1.02], [3.4, 0.82], [2.6, 0.6], [1.9, 0.38]];
+    for (var i = 0; i < prof.length; i++) st.push([prof[i][0], y, z, prof[i][1]]);
+    return st;
+  }
+  /* An engine: the pylon up to the wing, the nacelle in the accent, the intake with its fan. */
+  function engine(s, m, a, near) {
+    var y = s * 5.9, z = -2.45;
+    path3([[5.2, y, z + 0.8], [1.2, y, -0.85], [-1.6, y, -0.95], [2.4, y, z + 0.6]]); ctx.fillStyle = plateFill([[5.2, y, z], [-1.6, y, -0.9]], m === 'painted' ? 'painted' : m, a, -0.15); ctx.fill();
+    var st = engineSt(s), t = tube(st);
+    tubePath(t);
+    var mid = Math.floor(t.top.length / 2);
+    ctx.fillStyle = lin(t.top[mid][0], t.top[mid][1], t.bot[mid][0], t.bot[mid][1], m.indexOf('glass') >= 0
+      ? [[0, rgba(shade(a, 0.6), 0.55)], [1, rgba(shade(a, -0.1), 0.6)]]
+      : [[0, shade(a, 0.42)], [0.4, shade(a, 0.05)], [1, shade(a, -0.42)]]);
+    ctx.fill();
+    // The exhaust cone, a darker metal at the back.
+    var ex = tube([[2.7, y, z, 0.62], [1.9, y, z, 0.4], [1.0, y, z, 0.12]]); tubePath(ex); ctx.fillStyle = lin(ex.top[1][0], ex.top[1][1], ex.bot[1][0], ex.bot[1][1], [[0, '#a7aeb6'], [1, '#3e444c']]); ctx.fill();
+    // The intake: the lip, a polished ring, then the dark duct and the fan's spinner.
+    var ring = function (r, x) { var pts = []; for (var k = 0; k < 28; k++) { var th = k / 28 * TAU; pts.push([x, y + r * Math.sin(th), z + r * Math.cos(th)]); } return pts; };
+    path3(ring(0.88, 7.6)); ctx.fillStyle = lin(P([7.6, y, z + 0.9])[0], P([7.6, y, z + 0.9])[1], P([7.6, y, z - 0.9])[0], P([7.6, y, z - 0.9])[1], [[0, '#f2f4f6'], [1, '#7b838c']]); ctx.fill();
+    path3(ring(0.74, 7.55)); ctx.fillStyle = '#1b1f25'; ctx.fill();
+    var sp = P([7.4, y, z]); ctx.save(); path3(ring(0.74, 7.55)); ctx.clip();
+    var g = ctx.createRadialGradient(sp[0] - 0.3, sp[1] - 0.3, 0.1, sp[0], sp[1], 1.8); g.addColorStop(0, '#5a626c'); g.addColorStop(1, '#22262c'); ell(sp[0] + 0.3, sp[1], 1.25, 1.55, g);
+    ctx.restore();
+    if (near) spec(t.top[2][0] + 0.6, t.top[2][1] + 0.8, 1.6, 0.35 + specAlpha(m) * 0.3);
+  }
+  function plate(pts, m, a, k, edge) {
+    path3(pts); ctx.fillStyle = plateFill(pts, m, a, k); ctx.fill();
+    if (m === 'brushed-metal') { path3(pts); var s = pts.map(P); brushed(Math.min(s[0][0], s[1][0], s[2][0]) - 5, Math.min(s[0][1], s[1][1], s[2][1]) - 5, 60, 40); }
+    if (edge) { var a0 = P(pts[0]), a1 = P(pts[1]); seg(a0[0], a0[1], a1[0], a1[1], 'rgba(255,255,255,' + (m.indexOf('glass') >= 0 ? 0.65 : 0.5) + ')', 0.45); }
+  }
+  /* A vapor trail from an engine: a soft white streak drawn out behind it, thinning to nothing. */
+  function trail(s) {
+    var a0 = P([-1, s * 5.9, -2.45]), a1 = P([-46, s * 5.9, -2.45]);
+    var g = lin(a0[0], a0[1], a1[0], a1[1], [[0, 'rgba(255,255,255,0)'], [0.12, 'rgba(255,255,255,0.32)'], [1, 'rgba(255,255,255,0)']]);
+    ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.strokeStyle = g; ctx.lineCap = 'round'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.lineWidth = 3.6; ctx.strokeStyle = lin(a0[0], a0[1], a1[0], a1[1], [[0, 'rgba(255,255,255,0)'], [0.25, 'rgba(255,255,255,0.1)'], [1, 'rgba(255,255,255,0)']]); ctx.stroke();
+  }
   function draw(p) {
     var m = p.material, a = p.accent;
-    ground(38, 54, p.shadow);
-    // The far wing and the far tailplane, behind the fuselage and a shade darker.
-    poly([[-2, -4], [10, -4], [-8, -22], [-13, -22]], tone(m, a, -0.35));
-    poly([[-38, -4], [-31, -4], [-40, -12], [-43, -12]], tone(m, a, -0.35));
-    // The fin, in the accent.
-    poly([[-44, -6], [-31, -6], [-38, -30], [-45, -30]], litG(-45, -30, 14, 24, [[0, shade(a, 0.2)], [1, shade(a, -0.25)]]));
-    // The fuselage, in the material, with its windows and the cheatline.
-    body(); ctx.fillStyle = matFill(-46, -8, 92, 16, m, a); ctx.fill();
-    if (m === 'brushed-metal') { body(); brushed(-46, -8, 92, 16); }
-    ctx.save(); body(); ctx.clip();
-    ctx.fillStyle = lin(0, -8, 0, 8, [[0, 'rgba(255,255,255,0.25)'], [0.45, 'rgba(255,255,255,0)'], [1, 'rgba(8,10,14,0.22)']]); ctx.fillRect(-46, -8, 92, 16);
+    view(-0.88, 0.36);
+    K = 2.5; OX = -7; OY = 2;
+    // A plane is in the air: its shadow is far below it, wide and faint, and its contact shadow
+    // becomes the trails it draws behind it.
+    if (p.shadow !== 'none') { ctx.save(); ctx.globalAlpha *= p.shadow === 'soft' ? 0.8 : 0.45; ground(40, 40, 'soft'); ctx.restore(); }
+    if (p.shadow !== 'none') { trail(1); trail(-1); }
+    // The far wing and engine, behind the fuselage.
+    engine(1, m, a, false);
+    plate(wing(1), m, a, -0.12); plate(winglet(1), m, a, -0.2);
+    plate(tailplane(1), m, a, -0.12);
+    // The fuselage.
+    var st = []; for (var x = 19; x >= -19; x -= 0.5) { var f = fus(x); st.push([x, 0, f[0], Math.max(0.12, f[1])]); }
+    var t = tube(st), mi = Math.floor(st.length * 0.45);
+    tubePath(t); ctx.fillStyle = skinFill(t.top[mi][0], t.top[mi][1], t.bot[mi][0], t.bot[mi][1], m, a); ctx.fill();
+    ctx.save(); tubePath(t); ctx.clip();
+    if (m === 'brushed-metal') { tubePath(t); brushed(-60, -40, 120, 80); }
+    // The livery: an accent cheatline under the windows and a belly a shade darker.
+    var band = function (th0, th1, x0, x1) { var pts = []; for (var x = x0; x >= x1; x -= 0.5) { var f = fus(x); pts.push(skin(x, f[0], f[1], th0)); } for (var x2 = x1; x2 <= x0; x2 += 0.5) { var f2 = fus(x2); pts.push(skin(x2, f2[0], f2[1], th1)); } path3(pts); };
+    band(1.5, 1.78, 18.6, -18.5); ctx.fillStyle = m.indexOf('glass') >= 0 ? rgba(a, 0.55) : shade(a, 0.08); ctx.fill();
+    band(1.8, 1.86, 18.4, -18.5); ctx.fillStyle = m.indexOf('glass') >= 0 ? rgba(shade(a, 0.5), 0.4) : shade(a, 0.55); ctx.fill();
+    // The window row: small rounded windows along the cabin, and the doors fore and aft.
+    for (var wx = 12.6; wx > -10.6; wx -= 0.82) {
+      if (Math.abs(wx - 1.6) < 0.5) continue;
+      var c = P(skin(wx, 0, 2, 1.16)); ell(c[0], c[1], 0.36, 0.5, 'rgba(22,28,38,0.78)');
+    }
+    var door = function (x) { var q = [skin(x + 0.45, 0, 2, 0.75), skin(x - 0.45, 0, 2, 0.75), skin(x - 0.45, 0, 2, 1.55), skin(x + 0.45, 0, 2, 1.55)]; path3(q); ctx.strokeStyle = 'rgba(60,70,82,0.28)'; ctx.lineWidth = 0.22; ctx.stroke(); };
+    door(14.3); door(1.6); door(-11.6);
+    // The flight deck's windows wrap the nose.
+    var fd = [skin(17.6, -0.12, 1.55, 0.55), skin(16.7, -0.05, 1.86, 0.5), skin(16.6, -0.05, 1.88, 0.95), skin(17.5, -0.12, 1.6, 1.0)];
+    path3(fd); ctx.fillStyle = 'rgba(20,26,36,0.88)'; ctx.fill();
+    var fd2 = [skin(17.5, -0.12, 1.6, 0.05), skin(16.6, -0.05, 1.88, 0.05), skin(16.7, -0.05, 1.86, 0.45), skin(17.6, -0.12, 1.55, 0.5)];
+    path3(fd2); ctx.fillStyle = 'rgba(20,26,36,0.85)'; ctx.fill();
+    // The sky in the paint: a soft bright reflection along the crown, placed by the light.
+    var r0 = P(skin(14 + LX * 4, 0, 2, 0.45)), r1 = P(skin(-12 + LX * 4, 0, 2, 0.45));
+    ctx.beginPath(); ctx.moveTo(r0[0], r0[1]); ctx.lineTo(r1[0], r1[1]);
+    ctx.strokeStyle = lin(r0[0], r0[1], r1[0], r1[1], [[0, 'rgba(255,255,255,0)'], [0.35, 'rgba(255,255,255,' + (0.25 + specAlpha(m) * 0.5).toFixed(3) + ')'], [1, 'rgba(255,255,255,0)']]);
+    ctx.lineWidth = 1.5; ctx.stroke();
     ctx.restore();
-    rr(-44, 1.4, 88, 1.6, 0.8, shade(a, 0.05));
-    for (var i = 0; i < 11; i++) circ(-28 + i * 5.4, -2.4, 1.25, 'rgba(20,26,36,0.6)');
-    poly([[34, -5], [40, -4.6], [42.5, -1.8], [35, -1.8]], 'rgba(20,26,36,0.7)');
-    // The near wing and its engine, in front.
-    poly([[-8, 2], [10, 2], [-14, 28], [-21, 28]], matFill(-21, 2, 31, 26, m, a));
-    occlude(-8, 2, 18);
-    rr(-12, 9, 15, 6.6, 3.3, matFill(-12, 9, 15, 6.6, 'polished-metal', a));
-    ell(3, 12.3, 1.4, 3.1, '#2a2f36');
-    spec(lit(20), -6, 6, specAlpha(m) * 0.7);
+    // The wing-to-body fairing's soft shade, where the near wing meets the fuselage.
+    // The fin, on its near face, in the accent, and its far-side tailplane already behind.
+    var fin = [[-9.6, 0, 1.95], [-15.9, 0, 8.3], [-19.0, 0, 8.3], [-18.2, 0, 1.75]];
+    path3(fin);
+    var f0 = P(fin[0]), f2 = P(fin[2]);
+    ctx.fillStyle = m.indexOf('glass') >= 0 ? lin(f0[0], f0[1], f2[0], f2[1], [[0, rgba(shade(a, 0.5), 0.55)], [1, rgba(shade(a, -0.1), 0.6)]]) : lin(f0[0], f0[1], f2[0], f2[1], [[0, shade(a, 0.3)], [1, shade(a, -0.3)]]); ctx.fill();
+    var fe0 = P(fin[0]), fe1 = P(fin[1]); seg(fe0[0], fe0[1], fe1[0], fe1[1], 'rgba(255,255,255,0.4)', 0.45);
+    // A simple mark on the fin, a ring in a light tint of the accent: the airline's, whoever it is.
+    var mc = P([-16, -0.05, 5.4]); ctx.beginPath(); ctx.ellipse(mc[0], mc[1], 2.3, 2.6, -0.25, 0, TAU); ctx.strokeStyle = rgba(shade(a, 0.75), 0.85); ctx.lineWidth = 0.8; ctx.stroke();
+    plate(tailplane(-1), m, a, 0, true);
+    // The near engine, then the near wing over its rear, and the winglet.
+    engine(-1, m, a, true);
+    plate(wing(-1), m, a, 0, true);
+    var wr = P([1.0, -1.9, -1.1]); spec(wr[0], wr[1], 3.2, 0);
+    plate(winglet(-1), m, a, 0.02);
+    var wl = winglet(-1); path3(wl); ctx.fillStyle = m.indexOf('glass') >= 0 ? rgba(a, 0.45) : rgba(shade(a, 0.05), 0.9); ctx.fill();
+    // The flap line along the near wing's trailing edge.
+    var fl0 = P([-3.7, -2.4, -1.05]), fl1 = P([-5.2, -15.5, 0.08]); seg(fl0[0], fl0[1], fl1[0], fl1[1], 'rgba(70,80,92,0.35)', 0.3);
+    // The one specular catch: the sun on the nose.
+    var sn = P(skin(16.2, 0, 1.95, LX < 0 ? 0.55 : LX > 0 ? 1.0 : 0.3)); spec(sn[0], sn[1], 2.4, specAlpha(m) * 0.9 + 0.15);
   }
 </script>
 </body>

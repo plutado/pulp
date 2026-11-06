@@ -176,10 +176,11 @@ describe('every category is at least its floor deep', () => {
     }
   });
 
-  it('keeps the two looks of the bundled art apart: every object carries exactly one of Playful and Polished (milestone 61)', () => {
+  it('keeps the two looks of the bundled art apart: every object and every polished piece carries exactly one of Playful and Polished (milestones 61 and 67)', () => {
     // The flat cartoon set stays findable as its own style, and a polished piece is never also playful:
     // "polished" is a set of rules (docs/art-direction.md), not a flavor a cartoon prop can carry too.
-    const objects = index.templates.filter((t) => categoryInfo('objects')!.types.includes(entryType(t) ?? ''));
+    // Milestone 67's design elements are held to it as its objects are.
+    const objects = index.templates.filter((t) => categoryInfo('objects')!.types.includes(entryType(t) ?? '') || (t.manifest.styles ?? []).includes('polished'));
     for (const t of objects) {
       const styles = t.manifest.styles ?? [];
       expect(styles.filter((s) => s === 'playful' || s === 'polished'), `${t.manifest.id}: ${styles.join(', ')}`).toHaveLength(1);
@@ -188,14 +189,15 @@ describe('every category is at least its floor deep', () => {
 
   it('holds every polished piece to the art direction\'s manifest rules (milestone 61, docs/art-direction.md)', () => {
     const polished = index.templates.filter((t) => (t.manifest.styles ?? []).includes('polished'));
-    // Twenty-four objects, seven glass and depth design elements and Boardroom's panel; the set only grows.
-    expect(polished.length).toBeGreaterThanOrEqual(32);
+    // Forty-eight objects, fourteen glass and depth design elements and Boardroom's panel (milestone
+    // 61's set, doubled by milestone 67); the set only grows.
+    expect(polished.length).toBeGreaterThanOrEqual(63);
     const inCategory = (id: string) => polished.filter((t) => categoryInfo(id)!.types.includes(entryType(t) ?? '')).length;
-    expect(inCategory('objects'), 'polished objects').toBeGreaterThanOrEqual(24);
-    expect(inCategory('design-elements'), 'polished design elements').toBeGreaterThanOrEqual(7);
+    expect(inCategory('objects'), 'polished objects').toBeGreaterThanOrEqual(48);
+    expect(inCategory('design-elements'), 'polished design elements').toBeGreaterThanOrEqual(14);
     // The families people reach for in professional work, and the seasons, are each there.
     for (const type of ['business-objects', 'media-objects', 'travel-objects', 'sports-objects', 'nature-objects']) {
-      expect(polished.filter((t) => entryType(t) === type).length, type).toBeGreaterThanOrEqual(type === 'business-objects' ? 6 : 3);
+      expect(polished.filter((t) => entryType(t) === type).length, type).toBeGreaterThanOrEqual(type === 'business-objects' ? 24 : type === 'media-objects' ? 8 : 3);
     }
     // At least one polished piece belongs to a bundled matching set.
     expect(polished.some((t) => t.pack !== undefined), 'a polished piece in a matching set').toBe(true);

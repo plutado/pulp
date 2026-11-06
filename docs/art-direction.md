@@ -1,4 +1,4 @@
-# Art direction: the Polished look (milestone 61)
+# Art direction: the Polished look (milestones 61 and 67)
 
 Pulp bundles two looks for its own art, and a piece belongs to one of them.
 The **Playful** look is the flat, bright, cartoon-like drawing the bundled
@@ -147,20 +147,63 @@ elements, under the default order and with nothing typed, the polished pieces
 **lead**; any other order, a search, and the rest of the library are left as
 they are.
 
+## Drawn to scale
+
+A piece that stands for a real thing is drawn in that thing's **true
+proportions**. Where the shape is complex — a vehicle, a building, anything
+seen turned — it is modeled in its real units and projected, rather than
+assembled from flat shapes by eye: milestone 61's airliner, a capsule with a
+wing stuck to it, was the piece that looked cheap beside the rest, and its
+redraw (milestone 67) models a 38 m twin-jet in meters — fuselage stations,
+25° swept wings with winglets, engines 2 m across, a 6 m fin — and turns it to
+a three-quarter view. Its livery follows the accent; its shadow, for a plane
+in the air, is a faint one far below it and two vapor trails.
+
+## The contact sheet
+
+The set is checked **as a set**: every polished piece at its poster moment,
+on the studio backdrop, in the results' framing, at one size, in one picture.
+
+    npx electron scripts/polished-contact-sheet.mjs
+
+writes `test-artifacts/polished-contact-sheet.png` (a working picture, not
+committed). `--only line-graph,gauge` limits it to some pieces, `--light`
+draws each lit from the left, the top and the right, `--set material=clear-glass`
+tries a parameter on every piece, and `--appearance light` uses the light
+appearance's backdrop. Look at it before a new or redrawn piece ships: a piece
+that breaks the look, as the old airliner did, shows at once beside the others.
+
 ## References
 
 The polished set (`templates/polished-*`, and Boardroom's glass panel) is
 the reference: made to this document, approved into
 `tests/visual/references.json` and held there like every bundled template, so
-later polished work is measured against it. Twenty-four objects — business and
-data (the column chart, the pie chart, the laptop, the smartphone, the report
-document, the ID badge, the desk calendar, the idea bulb), media (the studio
-microphone, the mirrorless camera, the studio headphones, the studio speaker),
-places and travel (the map pin, the globe, the airliner, the travel case),
-sports (the trophy cup, the match ball, the timing stopwatch, the winner's
-medal) and the seasons (the crystal snowflake, the spring tulip, the summer
-sun, the autumn leaf) — and seven glass and depth design elements (the
-frosted glass panel, the glass card, chip and tag, the gradient orbs, the soft
-forms and the fine-line accents). `tests/sample-coverage.test.ts` holds every
-polished piece to the manifest rules above, and `tests/polished.test.ts` its
-framing and its lead.
+later polished work is measured against it.
+
+Milestone 61 made twenty-four objects —
+business and data (the column chart, the pie chart, the laptop, the
+smartphone, the report document, the ID badge, the desk calendar, the idea
+bulb), media (the studio microphone, the mirrorless camera, the studio
+headphones, the studio speaker), places and travel (the map pin, the globe,
+the airliner, the travel case), sports (the trophy cup, the match ball, the
+timing stopwatch, the winner's medal) and the seasons (the crystal snowflake,
+the spring tulip, the summer sun, the autumn leaf) — and seven glass and depth
+design elements (the frosted glass panel, the glass card, chip and tag, the
+gradient orbs, the soft forms and the fine-line accents).
+
+Milestone 67 doubled it to sixty-two, favoring what goes into business,
+explainer, product, social and news video: twenty-four more objects — data and
+business (the line graph, the KPI gauge, the funnel, the donut chart, the
+dashboard tablet, the briefcase, the office tower), technology (the cloud, the
+server rack, the padlock and shield, the notification bell, the chat bubble,
+the envelope, the cursor with a click), commerce (the shopping bag, the credit
+card, the price tag, the gift box, the shipping box), media and production
+(the clapperboard, the film reel, the studio light, the play button) and the
+rocket — and seven more glass and depth design elements (the glass lower
+third, the glass button, the glass frame, the glass progress bar, the callout,
+the light streaks and bokeh, and the gradient mesh). It redrew the airliner
+under its old id.
+
+`tests/sample-coverage.test.ts` holds every polished piece to the manifest
+rules above and to exactly one look, and `tests/polished.test.ts` its framing,
+its lead, milestone 67's pieces and that no two pieces share a drawing.

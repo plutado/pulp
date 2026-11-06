@@ -1,0 +1,160 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.polished-gift-box",
+  "name": "Gift Box",
+  "description": "A wrapped gift box in three-quarter view with a lid, tied with a satin ribbon and a full bow in the accent.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "business-objects",
+  "themes": [
+    "business"
+  ],
+  "styles": [
+    "polished"
+  ],
+  "tags": [
+    "object",
+    "prop",
+    "gift",
+    "present",
+    "box",
+    "ribbon",
+    "bow",
+    "reward",
+    "offer",
+    "commerce"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "posterAt": 2.5,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Ribbon color",
+      "default": "#c23b4f",
+      "element": "Colors"
+    },
+    {
+      "id": "wrap",
+      "type": "color",
+      "label": "Wrap color",
+      "default": "#f1ece4",
+      "element": "Colors"
+    },
+    {
+      "id": "material",
+      "type": "select",
+      "label": "Material",
+      "default": "matte",
+      "element": "Finish",
+      "options": [
+        {
+          "value": "frosted-glass",
+          "label": "Frosted glass"
+        },
+        {
+          "value": "clear-glass",
+          "label": "Clear glass"
+        },
+        {
+          "value": "brushed-metal",
+          "label": "Brushed metal"
+        },
+        {
+          "value": "polished-metal",
+          "label": "Polished metal"
+        },
+        {
+          "value": "matte",
+          "label": "Matte"
+        }
+      ]
+    },
+    {
+      "id": "light",
+      "type": "select",
+      "label": "Light from",
+      "default": "left",
+      "element": "Lighting",
+      "options": [
+        {
+          "value": "left",
+          "label": "Upper left"
+        },
+        {
+          "value": "top",
+          "label": "Top"
+        },
+        {
+          "value": "right",
+          "label": "Upper right"
+        }
+      ]
+    },
+    {
+      "id": "shadow",
+      "type": "select",
+      "label": "Shadow",
+      "default": "soft",
+      "element": "Lighting",
+      "options": [
+        {
+          "value": "soft",
+          "label": "Soft"
+        },
+        {
+          "value": "contact",
+          "label": "Contact only"
+        },
+        {
+          "value": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "pop",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}

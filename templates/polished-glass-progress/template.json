@@ -1,0 +1,163 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.polished-glass-progress",
+  "name": "Glass Progress Bar",
+  "description": "A glass progress bar whose accent fill grows over the entrance and holds at the set percentage, with the figure shown above its end.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "infographic",
+  "themes": [
+    "corporate",
+    "business",
+    "technology",
+    "education"
+  ],
+  "styles": [
+    "polished"
+  ],
+  "tags": [
+    "infographic",
+    "glass",
+    "progress",
+    "bar",
+    "percent",
+    "loading",
+    "goal"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "posterAt": 2.5,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "progress",
+      "type": "number",
+      "label": "Progress",
+      "default": 68,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "element": "Data"
+    },
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#3b5f7f",
+      "element": "Colors"
+    },
+    {
+      "id": "material",
+      "type": "select",
+      "label": "Material",
+      "default": "frosted-glass",
+      "element": "Finish",
+      "options": [
+        {
+          "value": "frosted-glass",
+          "label": "Frosted glass"
+        },
+        {
+          "value": "clear-glass",
+          "label": "Clear glass"
+        },
+        {
+          "value": "brushed-metal",
+          "label": "Brushed metal"
+        },
+        {
+          "value": "polished-metal",
+          "label": "Polished metal"
+        },
+        {
+          "value": "matte",
+          "label": "Matte"
+        }
+      ]
+    },
+    {
+      "id": "light",
+      "type": "select",
+      "label": "Light from",
+      "default": "left",
+      "element": "Lighting",
+      "options": [
+        {
+          "value": "left",
+          "label": "Upper left"
+        },
+        {
+          "value": "top",
+          "label": "Top"
+        },
+        {
+          "value": "right",
+          "label": "Upper right"
+        }
+      ]
+    },
+    {
+      "id": "shadow",
+      "type": "select",
+      "label": "Shadow",
+      "default": "soft",
+      "element": "Lighting",
+      "options": [
+        {
+          "value": "soft",
+          "label": "Soft"
+        },
+        {
+          "value": "contact",
+          "label": "Contact only"
+        },
+        {
+          "value": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "pop",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}

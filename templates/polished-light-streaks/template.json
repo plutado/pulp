@@ -1,0 +1,151 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.polished-light-streaks",
+  "name": "Light Streaks and Bokeh",
+  "description": "Soft diagonal light streaks and out-of-focus bokeh discs in tints of the accent, added onto the picture as light and drifting gently over time.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "shapes",
+  "themes": [
+    "corporate",
+    "technology",
+    "entertainment",
+    "media",
+    "cinema"
+  ],
+  "styles": [
+    "polished"
+  ],
+  "tags": [
+    "shape",
+    "light",
+    "streaks",
+    "bokeh",
+    "glow",
+    "flare",
+    "background",
+    "depth"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "posterAt": 2.5,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#3b5f7f",
+      "element": "Colors"
+    },
+    {
+      "id": "material",
+      "type": "select",
+      "label": "Material",
+      "default": "frosted-glass",
+      "element": "Finish",
+      "options": [
+        {
+          "value": "frosted-glass",
+          "label": "Frosted glass"
+        },
+        {
+          "value": "clear-glass",
+          "label": "Clear glass"
+        },
+        {
+          "value": "polished-metal",
+          "label": "Polished metal"
+        },
+        {
+          "value": "matte",
+          "label": "Matte"
+        }
+      ]
+    },
+    {
+      "id": "light",
+      "type": "select",
+      "label": "Light from",
+      "default": "left",
+      "element": "Lighting",
+      "options": [
+        {
+          "value": "left",
+          "label": "Upper left"
+        },
+        {
+          "value": "top",
+          "label": "Top"
+        },
+        {
+          "value": "right",
+          "label": "Upper right"
+        }
+      ]
+    },
+    {
+      "id": "shadow",
+      "type": "select",
+      "label": "Shadow",
+      "default": "soft",
+      "element": "Lighting",
+      "options": [
+        {
+          "value": "soft",
+          "label": "Soft"
+        },
+        {
+          "value": "contact",
+          "label": "Contact only"
+        },
+        {
+          "value": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "pop",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}

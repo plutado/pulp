@@ -1,0 +1,155 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.samples.polished-tablet",
+  "name": "Tablet",
+  "description": "A tablet in landscape, turned slightly in three-quarter view and leaning on its stand, its screen showing a small dashboard: a header, three figure cards, a bar chart and a donut in tints of the accent.",
+  "version": "1.0.0",
+  "author": "David Fugate",
+  "license": "CC0-1.0",
+  "category": "overlay",
+  "type": "business-objects",
+  "themes": [
+    "business",
+    "technology",
+    "finance",
+    "corporate"
+  ],
+  "styles": [
+    "polished"
+  ],
+  "tags": [
+    "object",
+    "prop",
+    "tablet",
+    "device",
+    "screen",
+    "dashboard",
+    "analytics",
+    "report",
+    "data"
+  ],
+  "duration": 5,
+  "structure": {
+    "holdFrom": 0.8,
+    "holdTo": 4.4
+  },
+  "posterAt": 2.5,
+  "fps": 30,
+  "aspects": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "alpha": true,
+  "entry": "index.html",
+  "parameters": [
+    {
+      "id": "accent",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#3b5f7f",
+      "element": "Colors"
+    },
+    {
+      "id": "material",
+      "type": "select",
+      "label": "Material",
+      "default": "brushed-metal",
+      "element": "Finish",
+      "options": [
+        {
+          "value": "brushed-metal",
+          "label": "Brushed metal"
+        },
+        {
+          "value": "polished-metal",
+          "label": "Polished metal"
+        },
+        {
+          "value": "matte",
+          "label": "Matte"
+        },
+        {
+          "value": "frosted-glass",
+          "label": "Frosted glass"
+        },
+        {
+          "value": "clear-glass",
+          "label": "Clear glass"
+        }
+      ]
+    },
+    {
+      "id": "light",
+      "type": "select",
+      "label": "Light from",
+      "default": "left",
+      "element": "Lighting",
+      "options": [
+        {
+          "value": "left",
+          "label": "Upper left"
+        },
+        {
+          "value": "top",
+          "label": "Top"
+        },
+        {
+          "value": "right",
+          "label": "Upper right"
+        }
+      ]
+    },
+    {
+      "id": "shadow",
+      "type": "select",
+      "label": "Shadow",
+      "default": "soft",
+      "element": "Lighting",
+      "options": [
+        {
+          "value": "soft",
+          "label": "Soft"
+        },
+        {
+          "value": "contact",
+          "label": "Contact only"
+        },
+        {
+          "value": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "id": "entrance",
+      "type": "select",
+      "label": "Entrance",
+      "default": "pop",
+      "element": "Entrance",
+      "options": [
+        {
+          "value": "pop",
+          "label": "Pop"
+        },
+        {
+          "value": "drop",
+          "label": "Drop"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "draw",
+          "label": "Draw on"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ]
+}
