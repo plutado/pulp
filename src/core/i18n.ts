@@ -19,6 +19,8 @@
 import { signal } from '@preact/signals-core';
 import { enUS, type MessageId } from '../locales/en-US';
 import { enGB } from '../locales/en-GB';
+import { de } from '../locales/de';
+import { zhCN } from '../locales/zh-CN';
 
 export type { MessageId } from '../locales/en-US';
 
@@ -35,10 +37,17 @@ export type Catalog = Partial<Record<MessageId, Message>>;
  * A `variant` of the source (British English) holds only what it says differently and falls back
  * for the rest by design. Any other language holds every message: one that fell back would show
  * the window half in English, so the tests refuse a catalog with a message missing.
+ *
+ * A `preview` language (milestone 68) is complete but not yet read through by a fluent speaker:
+ * Settings offers it under a heading that says so, with `previewLabel` — "preview" in its own
+ * language — and the system's language never comes to it, so nobody is put into an unchecked
+ * translation they did not choose. A speaker's check is what turns `preview` off; docs/translating.md.
  */
 export const LOCALES = [
-  { id: 'en-US', label: 'English (US)', dir: 'ltr', variant: false }, // i18n-exempt(content): a language's own name for itself
-  { id: 'en-GB', label: 'English (UK)', dir: 'ltr', variant: true }, // i18n-exempt(content): a language's own name for itself
+  { id: 'en-US', label: 'English (US)', dir: 'ltr', variant: false, preview: false, previewLabel: '' }, // i18n-exempt(content): a language's own name for itself
+  { id: 'en-GB', label: 'English (UK)', dir: 'ltr', variant: true, preview: false, previewLabel: '' }, // i18n-exempt(content): a language's own name for itself
+  { id: 'de', label: 'Deutsch', dir: 'ltr', variant: false, preview: true, previewLabel: 'Deutsch (Vorschau)' }, // i18n-exempt(content): a language's own name for itself
+  { id: 'zh-CN', label: '中文（简体）', dir: 'ltr', variant: false, preview: true, previewLabel: '中文（简体）（预览）' }, // i18n-exempt(content): a language's own name for itself
 ] as const;
 
 /** The catalog a locale brings, before the source fills in what it does not say: for checking one. */
@@ -51,7 +60,7 @@ export type LocaleId = (typeof LOCALES)[number]['id'];
 /** The source: what every other catalog falls back to, and the one used when nothing else matches. */
 export const SOURCE_LOCALE: LocaleId = 'en-US';
 
-const CATALOGS: Record<LocaleId, Catalog> = { 'en-US': enUS, 'en-GB': enGB };
+const CATALOGS: Record<LocaleId, Catalog> = { 'en-US': enUS, 'en-GB': enGB, de, 'zh-CN': zhCN };
 
 /** What Settings → Language holds: the system's language, or one chosen. */
 export type LanguageChoice = 'system' | LocaleId;
@@ -80,21 +89,33 @@ const BRITISH_SPELLING_REGIONS = new Set(['GB', 'UK', 'IE', 'AU', 'NZ', 'ZA', 'I
  * the first one offered: an exact match, else the language's own family — English
  * from Australia is shown English (UK), English with no region or from the US
  * English (US). Nothing offered is US English, the source.
+ *
+ * German from any region — Germany, Austria, Switzerland — is Deutsch: German has one standard
+ * written form. Chinese is Simplified only where Simplified is written: `zh-Hans`, or a mainland
+ * China or Singapore region. Traditional Chinese (`zh-Hant`, Taiwan, Hong Kong, Macau) is passed
+ * over — whoever reads Traditional may not want Simplified chosen for them — and the walk goes on
+ * to the system's next language, or English. A bare `zh` is taken as Simplified, as systems mean it.
+ *
+ * A language still in preview is never the system's: only a person choosing it gets it. The
+ * `previews` option is for tests, to check the rules a language will follow once it is checked.
  */
-export function resolveLocale(choice: LanguageChoice, systemLanguages: readonly string[]): LocaleId {
+export function resolveLocale(choice: LanguageChoice, systemLanguages: readonly string[], options: { previews?: boolean } = {}): LocaleId {
   if (choice !== 'system') return choice;
+  const offered = (id: LocaleId) => options.previews === true || !LOCALES.find((l) => l.id === id)!.preview;
   for (const raw of systemLanguages) {
-    const tag = raw.replace('_', '-');
-    const exact = LOCALES.find((l) => l.id.toLowerCase() === tag.toLowerCase());
-    if (exact) return exact.id;
-    const [language, ...rest] = tag.split('-');
-    if (language?.toLowerCase() === 'en') {
-      const region = rest.find((part) => /^[A-Za-z]{2}$/.test(part))?.toUpperCase();
-      return region && BRITISH_SPELLING_REGIONS.has(region) ? 'en-GB' : 'en-US';
-    }
+    const [language, ...rest] = raw.replace(/_/g, '-').split('-');
+    const lang = language?.toLowerCase();
+    const region = rest.find((part) => /^[A-Za-z]{2}$/.test(part))?.toUpperCase();
+    const script = rest.find((part) => /^[A-Za-z]{4}$/.test(part))?.toLowerCase();
+    if (lang === 'en') return region && BRITISH_SPELLING_REGIONS.has(region) ? 'en-GB' : 'en-US';
+    if (lang === 'de' && offered('de')) return 'de';
+    if (lang === 'zh' && offered('zh-CN') && (script ? script === 'hans' : !region || SIMPLIFIED_CHINESE_REGIONS.has(region))) return 'zh-CN';
   }
   return SOURCE_LOCALE;
 }
+
+/** Where Chinese is written in Simplified characters: mainland China and Singapore. */
+const SIMPLIFIED_CHINESE_REGIONS = new Set(['CN', 'SG']);
 
 /** The catalog of a locale, with the source's words for whatever it does not say. */
 export function catalogFor(locale: LocaleId): Catalog {

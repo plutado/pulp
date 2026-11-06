@@ -181,6 +181,21 @@
 * { box-sizing: border-box; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 html, body { margin: 0; height: 100%; }
+
+/* Languages beyond English (milestone 68). <html lang> is the interface's language
+   (src/renderer/i18n.ts), so these follow a change of language with the rest.
+   Chinese is drawn in the system's own Chinese face, which comes first so it draws the Latin in a
+   label too and no label mixes two faces: PingFang SC on macOS, Microsoft YaHei on Windows, Noto
+   Sans CJK SC on Linux. Lines break between characters and never put closing punctuation first
+   (line-break: strict), and nothing is synthesized: no faux bold or italic, and no letter spacing,
+   which pulls Chinese apart. */
+:root:lang(zh) {
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", sans-serif;
+  font-synthesis: none;
+}
+:lang(zh) * { line-break: strict; word-break: normal; letter-spacing: normal !important; font-style: normal; }
+/* German's long compounds: a word that must wrap is hyphenated by the page's language. */
+:root:lang(de) { hyphens: auto; -webkit-hyphens: auto; overflow-wrap: break-word; }
 /* The page itself never scrolls (milestone 38): every region scrolls inside its own pane. */
 body { background: var(--bg); overflow: hidden; }
 
@@ -577,7 +592,10 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* The name yields with an ellipsis before it can spill over the row's tabs — a long name, or the
    unsaved dot widening it, once reached out of the status region's own box. The whole name is in
    the dialog the button opens. */
-.transport-status #project-button { flex: 0 1 auto; min-width: 0; }
+/* It yields, but not to nothing: a row whose other labels run long — German's — once took it
+   to a few pixels, the name gone (milestone 68). The icon and the start of the name stay — about
+   what English leaves it in the narrowest window — and the rest of the row gives way first. */
+.transport-status #project-button { flex: 0 1 auto; min-width: 3.25em; }
 .transport-status #project-button .label { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .project-button { border: 0; background: none; padding: 0 2px; color: inherit; cursor: pointer; font: inherit; border-radius: 0; }
 .project-button:hover { color: var(--text); }
@@ -913,6 +931,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
    the Help menu too, and the project, ffmpeg and the cache are what must stay. */
 @media (max-width: 1040px) {
   .transport-status #library-summary, .transport-status #status-diagnostics { display: none; }
+  /* And ffmpeg's icon when all is well — only its warning must stay — with the status's items
+     closer: a language whose transport labels run longer than English's (German's, Chinese's)
+     otherwise took the project's name out of the region (milestone 68). */
+  .transport-status #ffmpeg-status:not(.error) { display: none; }
+  .transport-status { gap: 6px; }
 }
 /* At the window's minimum (960 px) the line needs its last slack: the timecode gives up the floor
    that steadies it against other items — it is monospaced, so it cannot jitter while playing —

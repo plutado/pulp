@@ -11,6 +11,8 @@
  */
 
 import guideText from '../../docs/user-guide.md?raw';
+import guideDe from '../../docs/user-guide.de.md?raw';
+import guideZhCN from '../../docs/user-guide.zh-CN.md?raw';
 import { britishSpelling } from '../core/spelling';
 import type { LocaleId } from '../core/i18n';
 import { locale, whenLocaleChanges } from './i18n';
@@ -78,7 +80,7 @@ function renderSection(section: DocSection, body: HTMLElement): void {
  * guide to keep rather than a copy that drifts. A language translated in full brings its own file,
  * `docs/user-guide.<locale>.md`, added to GUIDES (docs/translating.md).
  */
-const GUIDES: Partial<Record<LocaleId, string>> = {};
+const GUIDES: Partial<Record<LocaleId, string>> = { de: guideDe, 'zh-CN': guideZhCN };
 
 export function guideFor(locale: LocaleId): string {
   const own = GUIDES[locale];

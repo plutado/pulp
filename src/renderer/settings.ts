@@ -260,13 +260,20 @@ function initLanguageChoice(): void {
       o.textContent = text;
       return o;
     };
+    const language = (l: (typeof LOCALES)[number]) => {
+      const o = option(l.id, l.preview ? l.previewLabel : l.label);
+      o.lang = l.id;
+      return o;
+    };
+    // A language not yet read through by a fluent speaker is offered apart, under a heading that
+    // says so, and named as a preview in its own words (milestone 68).
+    const previews = document.createElement('optgroup');
+    previews.label = t('settings.language.previews');
+    previews.append(...LOCALES.filter((l) => l.preview).map(language));
     select.replaceChildren(
       option('system', t('settings.language.system', { language: LOCALES.find((l) => l.id === system)!.label })),
-      ...LOCALES.map((l) => {
-        const o = option(l.id, l.label);
-        o.lang = l.id;
-        return o;
-      }),
+      ...LOCALES.filter((l) => !l.preview).map(language),
+      ...(previews.childElementCount > 0 ? [previews] : []),
     );
     select.value = state?.choice ?? 'system';
   });

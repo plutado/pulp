@@ -2,5 +2,7 @@
   "first-run-dark": "00407e706e007000",
   "returning-dark": "0040607c7e7e7000",
   "first-run-light": "bfbfb78fe7ff8fff",
-  "returning-light": "ffbf9fab81b98fff"
+  "returning-light": "ffbf9fab81b98fff",
+  "first-run-dark-de": "00787e606e067800",
+  "first-run-dark-zh-CN": "00707e606e7e6000"
 }

@@ -8,4 +8,5 @@ export const settings = {
   'ui.settings-dialog.language-note': 'The language the window, the menus and the dialogs are shown in. Same as the system follows the language your computer is set to; each language is listed under its own name. Changes at once, without a restart.',
   'ui.settings-language.label': 'Show Pulp in',
   'settings.language.system': 'Same as the system ({language})',
+  'settings.language.previews': 'Previews, not yet checked by a fluent speaker',
 } as const;

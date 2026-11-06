@@ -28,6 +28,7 @@ import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
 import { categoryInfo } from '../../src/core/categories';
+import { catalogFor, type LocaleId } from '../../src/core/i18n';
 import { ffmpegArgs, killTree, runBounded } from './process';
 
 const ROOT = join(__dirname, '..', '..');
@@ -6702,7 +6703,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       // room and shines across the dark palette, where a Mac with one overlays it only while
       // scrolling. Hidden for the capture, so every Mac draws the same screen.
       await page.eval(`(() => { const s = document.createElement('style'); s.id = 'start-refs-style'; s.textContent = '#start-ideas { scrollbar-width: none; }'; document.head.append(s); })()`);
-      const capture = async (mode: 'first-run' | 'returning', scheme: 'dark' | 'light') => {
+      const capture = async (mode: 'first-run' | 'returning', scheme: 'dark' | 'light', key = `${mode}-${scheme}`) => {
         await page.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] });
         // The gallery is rebuilt for each arrangement, its pictures arriving a moment later: the cards
         // there now are marked, and the capture waits for the new ones, every one wearing its picture,
@@ -6732,7 +6733,7 @@ describe.skipIf(!electron)('inspector UI', () => {
           const x = c.getContext('2d'); x.drawImage(img, 0, 0, 64, 36);
           return [...x.getImageData(0, 0, 64, 36).data];
         })()`, undefined, 60_000);
-        shots[`${mode}-${scheme}`] = shot.data;
+        shots[key] = shot.data;
         return frameHash(Uint8Array.from(rgba), 64, 36);
       };
       const hashes: Record<string, string> = {};
@@ -6741,7 +6742,15 @@ describe.skipIf(!electron)('inspector UI', () => {
         for (const scheme of ['dark', 'light'] as const) {
           for (const mode of ['first-run', 'returning'] as const) hashes[`${mode}-${scheme}`] = await capture(mode, scheme);
         }
+        // And in each language beyond English (milestone 68): the first run, in the dark palette.
+        for (const locale of ['de', 'zh-CN'] as const) {
+          await page.eval(`window.pulp.setLanguage(${JSON.stringify(locale)})`);
+          await until(() => page.eval<boolean>(`document.documentElement.lang === ${JSON.stringify(locale)}`), `the window in ${locale}`);
+          hashes[`first-run-dark-${locale}`] = await capture('first-run', 'dark', `first-run-dark-${locale}`);
+        }
       } finally {
+        await page.eval(`window.pulp.setLanguage('en-US')`);
+        await until(() => page.eval<boolean>(`document.documentElement.lang === 'en-US'`), 'the suite back in US English');
         await page.send('Emulation.setEmulatedMedia', { features: [] });
         await page.send('Emulation.clearDeviceMetricsOverride', {});
         await page.eval(`(() => { document.getElementById('start-refs-style')?.remove(); })()`);
@@ -6750,6 +6759,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       // The two palettes really differ, and so do the two arrangements.
       expect(hammingDistance(hashes['returning-dark']!, hashes['returning-light']!)).toBeGreaterThan(0);
       expect(hammingDistance(hashes['first-run-dark']!, hashes['returning-dark']!)).toBeGreaterThan(0);
+      for (const locale of ['de', 'zh-CN']) expect(hashes[`first-run-dark-${locale}`], `the start screen in ${locale}`).toBeDefined();
       if (process.env.PULP_START_REFS === 'write') {
         await writeFile(REFS, `${JSON.stringify(hashes, null, 2)}\n`);
       } else if (process.platform === 'darwin') {
@@ -6932,7 +6942,17 @@ describe.skipIf(!electron)('inspector UI', () => {
           await until(async () => (await bodyBg(page)) === (choice === 'dark' ? DARK_BG : LIGHT_BG), `the window ${choice}`);
           hashes[choice] = await capture();
         }
+        // And in each language beyond English (milestone 68), in the dark palette.
+        await choose('dark');
+        await until(async () => (await bodyBg(page)) === DARK_BG, 'the window dark');
+        for (const locale of ['de', 'zh-CN'] as const) {
+          await page.eval(`window.pulp.setLanguage(${JSON.stringify(locale)})`);
+          await until(() => page.eval<boolean>(`document.documentElement.lang === ${JSON.stringify(locale)}`), `the window in ${locale}`);
+          hashes[`dark-${locale}`] = await capture();
+        }
       } finally {
+        await page.eval(`window.pulp.setLanguage('en-US')`);
+        await until(() => page.eval<boolean>(`document.documentElement.lang === 'en-US'`), 'the suite back in US English');
         await page.send('Emulation.clearDeviceMetricsOverride', {});
         await choose('dark');
       }
@@ -6965,9 +6985,13 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(() => page.eval<boolean>(`document.getElementById('settings-dialog').open`), 'Settings');
         // The system's language first, naming the one it comes to; then each language under its own name.
         const options = await page.eval<{ value: string; text: string }[]>(`[...document.getElementById('settings-language').options].map((o) => ({ value: o.value, text: o.textContent }))`);
-        expect(options.map((o) => o.value)).toEqual(['system', 'en-US', 'en-GB']);
+        expect(options.map((o) => o.value)).toEqual(['system', 'en-US', 'en-GB', 'de', 'zh-CN']);
         expect(options[0]!.text).toMatch(/^Same as the system \(English \((US|UK)\)\)$/);
-        expect(options.slice(1).map((o) => o.text)).toEqual(['English (US)', 'English (UK)']);
+        // Each in its own language and script; the two not yet checked by a fluent speaker apart,
+        // under a heading that says so, and called a preview in their own words (milestone 68).
+        expect(options.slice(1).map((o) => o.text)).toEqual(['English (US)', 'English (UK)', 'Deutsch (Vorschau)', '中文（简体）（预览）']);
+        expect(await page.eval<string[]>(`[...document.querySelectorAll('#settings-language optgroup option')].map((o) => o.value)`)).toEqual(['de', 'zh-CN']);
+        expect(await page.eval<string>(`document.querySelector('#settings-language optgroup').label`)).toBe('Previews, not yet checked by a fluent speaker');
         expect(await page.eval<string>(`document.getElementById('settings-language').value`), 'the suite runs in US English').toBe('en-US');
         expect(await page.eval<string>(`document.getElementById('bg-gray').getAttribute('aria-label')`)).toBe('Gray background');
 
@@ -7028,6 +7052,103 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`document.getElementById('settings-dialog').close()`);
       }
     }, 90_000);
+  });
+
+  describe('Chinese and German (milestone 68)', () => {
+    /**
+     * Words in the window that a translation cut or stacked: a label, button, tab, chip or heading
+     * whose text is wider than its box where the box hides what overflows, one that runs out of a
+     * box that clips it, and two controls side by side that cover each other. Content's own names
+     * (results, collection cards) are cut with an ellipsis by design and are not the interface's.
+     */
+    const cramped = () =>
+      page.eval<string[]>(`(() => {
+        const out = [];
+        const name = (el) => (el.id ? '#' + el.id : el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : '')) + ' "' + el.textContent.trim().slice(0, 40) + '"';
+        const shown = (el) => { const r = el.getBoundingClientRect(); return r.width >= 1 && r.height >= 1 && el.checkVisibility({ visibilityProperty: true, opacityProperty: true }); };
+        const els = [...document.querySelectorAll('button, [role=tab], .chip, label, h1, h2, h3, .section-title, summary')]
+          .filter((el) => shown(el) && el.textContent.trim() !== '' && !el.closest('#results, #collection, .collection-card, #category-cards, #guide-body'));
+        for (const el of els) {
+          const cs = getComputedStyle(el);
+          if ((cs.overflowX !== 'visible' || cs.textOverflow === 'ellipsis') && el.scrollWidth > el.clientWidth + 1) out.push('cut: ' + name(el));
+          // Out of an ancestor that clips without scrolling.
+          for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+            const o = getComputedStyle(a).overflowX;
+            if (o === 'visible') continue;
+            if (o === 'hidden' || o === 'clip') {
+              const r = el.getBoundingClientRect(), b = a.getBoundingClientRect();
+              if (r.right > b.right + 1 || r.left < b.left - 1) out.push('out of ' + name(a).split(' ')[0] + ': ' + name(el));
+            }
+            break;
+          }
+        }
+        const controls = els.filter((el) => el.matches('button, [role=tab], .chip'));
+        for (let i = 0; i < controls.length; i++) for (let j = i + 1; j < controls.length; j++) {
+          const a = controls[i], b = controls[j];
+          if (a.contains(b) || b.contains(a) || a.parentElement !== b.parentElement) continue;
+          const p = a.getBoundingClientRect(), q = b.getBoundingClientRect();
+          const area = Math.max(0, Math.min(p.right, q.right) - Math.max(p.left, q.left)) * Math.max(0, Math.min(p.bottom, q.bottom) - Math.max(p.top, q.top));
+          if (area > 4) out.push('overlap: ' + name(a) + ' / ' + name(b));
+        }
+        return [...new Set(out)];
+      })()`);
+    const menuLabels = async () => (await page.eval<{ label: string }[]>(`window.pulp.menuSections()`)).map((sec) => sec.label);
+    const home = async () => {
+      await page.eval(`window.pulpMenuCommand('app.home')`);
+      await until(() => page.eval<boolean>(`!document.getElementById('start-screen').hidden`), 'the start screen');
+    };
+    const leaveHome = () => page.eval(`(() => { if (!document.getElementById('start-screen').hidden) document.getElementById('start-close').click(); return true; })()`);
+
+    const LANGUAGES: [LocaleId, string[]][] = [
+      ['de', ['Datei', 'Bearbeiten', 'Ansicht']],
+      ['zh-CN', ['文件', '编辑', '视图']],
+    ];
+    for (const [locale, menus] of LANGUAGES) {
+      it(`shows the window in ${locale}: the menus and the start screen translated, nothing cut or stacked at 1280 × 788 and 960 × 600`, async () => {
+        const words = catalogFor(locale);
+        try {
+          await page.eval(`window.pulp.setLanguage(${JSON.stringify(locale)})`);
+          await until(() => page.eval<boolean>(`document.documentElement.lang === ${JSON.stringify(locale)}`), `the window in ${locale}`);
+          await until(async () => { const labels = await menuLabels(); return menus.every((m) => labels.includes(m)); }, `the menu bar reading ${menus.join(', ')}`);
+          for (const [width, height] of [[1280, 788], [960, 600]] as const) {
+            await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+            await until(() => page.eval<boolean>(`window.innerWidth === ${width} && window.innerHeight === ${height}`), `${width} × ${height}`);
+            await home();
+            expect(await page.eval<string>(`document.getElementById('start-new-blank').textContent.trim()`)).toBe(words['ui.start-new-blank']);
+            expect(await page.eval<string>(`document.querySelector('.start-tagline').textContent.trim()`)).toBe(words['ui.start-screen.browse-customize-and-render-motion']);
+            // A frame for layout to settle in the new words, then the start screen, then the window.
+            await sleep(300);
+            expect(await cramped(), `the start screen at ${width} × ${height}`).toEqual([]);
+            await leaveHome();
+            await until(() => page.eval<boolean>(`document.getElementById('start-screen').hidden`), 'the window');
+            await sleep(300);
+            expect(await cramped(), `the window at ${width} × ${height}`).toEqual([]);
+            expect(await page.eval<number>(`document.documentElement.scrollWidth`), 'the page never scrolls sideways').toBeLessThanOrEqual(width);
+          }
+          if (locale === 'zh-CN') {
+            // Chinese is drawn in a Chinese face, not boxes: the first face of the stack the system has
+            // draws 中, and a character no face has (a private-use one) is not the width 中 is drawn at.
+            const face = await page.eval<{ family: string; has: string | null; tofu: boolean }>(`(() => {
+              const family = getComputedStyle(document.body).fontFamily;
+              const faces = family.split(',').map((f) => f.trim().replace(/"/g, '')).filter((f) => f !== 'sans-serif');
+              const has = faces.find((f) => document.fonts.check('13px "' + f + '"', '中')) ?? null;
+              const c = document.createElement('canvas').getContext('2d'); c.font = '40px ' + family;
+              const tofu = Math.abs(c.measureText('中').width - c.measureText('\uE000').width) < 0.5 && c.measureText('中').width < 30;
+              return { family, has, tofu };
+            })()`);
+            expect(face.family, 'the Chinese stack first').toMatch(/^"?PingFang SC/);
+            expect(face.has, `a Chinese face installed from ${face.family}`).not.toBeNull();
+            expect(face.tofu, 'Chinese drawn, not boxes').toBe(false);
+            expect(await page.eval<string>(`getComputedStyle(document.body).fontSynthesis`), 'no synthesized bold or italic').toBe('none');
+          }
+        } finally {
+          await leaveHome();
+          await page.send('Emulation.clearDeviceMetricsOverride', {});
+          await page.eval(`window.pulp.setLanguage('en-US')`);
+          await until(() => page.eval<boolean>(`document.documentElement.lang === 'en-US'`), 'the suite back in US English');
+        }
+      }, 120_000);
+    }
   });
 
   describe('recording a voice (milestone 63)', () => {

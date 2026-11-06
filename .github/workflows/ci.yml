@@ -109,8 +109,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Install a virtual display and a session bus
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb dbus dbus-x11
+      - name: Install a virtual display, a session bus and a Chinese face
+        # fonts-noto-cjk is the Noto Sans CJK SC the interface's Chinese stack names for Linux
+        # (milestone 68); a desktop install has it, the runner's image does not.
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb dbus dbus-x11 fonts-noto-cjk
       - name: Install ffmpeg 9.0
         # Ubuntu's own ffmpeg is 6.1, which rounds the color conversion a step differently from the
         # 8.x and 9.x series the other platforms use, so the exact color checks failed only here.

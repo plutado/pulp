@@ -1,8 +1,10 @@
 # Translating Pulp
 
-How the interface's words are kept, how a language is added, and how a catalog is checked (milestone 59).
+How the interface's words are kept, how a language is added, and how a catalog is checked (milestones 59 and 68).
 
 Every word the window and the menus show is read from a **message catalog** keyed by id. US English is the source: 2,344 messages in `src/locales/en-US/`. Every other language is a catalog of its own, and a person chooses one in **Settings → Language**. "Same as the system" is the default, and English (US) and English (UK) are listed first. A change redraws every window and the menus at once, with no restart.
+
+Beyond English (milestone 68) there are **German** (`src/locales/de.ts`, offered as Deutsch) and **Simplified Chinese** (`src/locales/zh-CN.ts`, offered as 中文（简体）), each a complete catalog with its own user guide. They were picked to stretch the interface in opposite directions: Chinese is short and needs its own fonts and line breaking; German has long compound words that find any label too narrow for them. Both are **previews** until a fluent speaker has read them in the window (see "Previews" below).
 
 The first language after the source is British English (`src/locales/en-GB.ts`). It is a *variant* of the source: 106 messages in British spelling (colour, grey, centre, favourite, theatre, licence, customise, cancelled), falling back to US English for the rest.
 
@@ -74,7 +76,59 @@ An id names **where** a string sits, not what it says, so it stays put when the 
    Then add it to `CATALOGS` in the same file.
 3. If its speakers' systems report a region that should come to it, `resolveLocale` is where the system's languages are matched.
 4. If it is not a variant, translate the user guide as `docs/user-guide.<locale>.md` and register it in `GUIDES` in `src/renderer/user-guide.ts`.
-5. Check it (next section), then ask a fluent speaker to read it in the window before it ships.
+5. Add it with `preview: true` and a `previewLabel` in its own language (see "Previews"), and give Pulp's terms their words in the glossary.
+6. Check it (below), add it to the end-to-end language test, then ask a fluent speaker to read it in the window. Their check is what turns `preview` off.
+
+## Previews
+
+A complete catalog is not yet a checked one. A language is offered as a **preview** (`preview: true` in `LOCALES`) until a fluent speaker has read it in the window, every screen and dialog, and corrected it:
+
+- Settings → Language lists previews apart, under "Previews, not yet checked by a fluent speaker", each named as a preview in its own language (`previewLabel`: "Deutsch (Vorschau)", "中文（简体）（预览）").
+- "Same as the system" never comes to a preview. A person gets one only by choosing it, so nobody is put into an unchecked translation they did not ask for.
+- When the speaker's check is done, set `preview: false`. From then on a system in that language gets it: German for any German-speaking region (Germany, Austria, Switzerland and the rest: German has one standard written form), Simplified Chinese for `zh-Hans`, mainland China and Singapore. A system set to Traditional Chinese (`zh-Hant`, Taiwan, Hong Kong, Macau) is never given Simplified: it goes on to its next language, or English, until a Traditional catalog exists. `resolveLocale` in `src/core/i18n.ts` holds these rules, and `tests/i18n.test.ts` checks them with `{ previews: true }`.
+
+## Glossary
+
+Pulp's own terms are translated the same way everywhere. A translator adding or changing a message uses these, and `tests/i18n.test.ts` holds the catalogs to the first four.
+
+| English | Deutsch | 中文（简体） |
+|---|---|---|
+| template | Vorlage | 模板 |
+| lower third | Bauchbinde | 下方字幕条 |
+| layer | Ebene | 图层 |
+| safe area | sicherer Bereich | 安全区域 |
+| render (verb / noun) | rendern / Rendering | 渲染 |
+| alpha, alpha channel | Alpha, Alphakanal | Alpha、Alpha 通道 |
+| pack (template pack) | Paket, Vorlagenpaket | 模板包 |
+| matching set | passendes Set | 配套组合 |
+| stage | Bühne | 舞台 |
+| inspector | Inspektor | 检查器 |
+| collection | Sammlung | 合集 |
+| tray | Ablage | 收集栏 |
+| project | Projekt | 项目 |
+| library | Bibliothek | 素材库 |
+| clip | Clip | 片段 |
+| keyframe | Keyframe | 关键帧 |
+| preset | Vorgabe | 预设 |
+| poster (a result's picture) | Vorschaubild | 封面图 |
+| caption | Untertitel | 字幕 |
+| frame (of video) | Frame | 帧 |
+| aspect | Seitenverhältnis | 画面比例 |
+| favorite | Favorit | 收藏 |
+| Polished / Playful (the looks) | Edel / Verspielt | 精致 / 活泼 |
+| File / Edit / View / Window / Help | Datei / Bearbeiten / Ansicht / Fenster / Hilfe | 文件 / 编辑 / 视图 / 窗口 / 帮助 |
+
+**German** addresses the person as "Sie", follows the conventions of German software (Datei, Bearbeiten, Ansicht, Abbrechen, Speichern), and uses „…" quotes. A plural message gives `one` and `other`.
+
+**Simplified Chinese** uses full-width punctuation (，。：；！？“ ”（）), one plural form (`other` only), and a space around Latin words and placeholders ("已保存为 {name}。"). It is never set in italic.
+
+## Room for the words
+
+German makes labels long, and Chinese needs its own face. The window allows for both:
+
+- **Chinese is drawn in the system's Chinese face:** PingFang SC on macOS, Microsoft YaHei on Windows, Noto Sans CJK SC on Linux (CI installs `fonts-noto-cjk`). The face comes first in the stack under `:lang(zh)`, so it draws the Latin in a label too and no label mixes two faces. Lines break between characters and never start with closing punctuation (`line-break: strict`). Nothing is synthesized (`font-synthesis: none`), and there is no letter spacing.
+- **German is hyphenated by the page's language** (`hyphens: auto` under `:lang(de)`; `<html lang>` is the interface's language), and buttons grow rather than cut their words.
+- **The end-to-end suite switches to each language** at 1280 × 788 and 960 × 600 and fails on a label, button, tab, chip or heading that is cut, runs out of a box that clips it, or overlaps its neighbor ("Chinese and German (milestone 68)" in `tests/e2e/ui.e2e.test.ts`). The suite itself runs in US English.
 
 ## How a catalog is checked
 

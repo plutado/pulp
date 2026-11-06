@@ -52,6 +52,73 @@ describe('choosing a language', () => {
   });
 });
 
+describe('Chinese and German (milestone 68)', () => {
+  it('lists every language in its own language and script, the two not yet checked by a speaker as previews', () => {
+    expect(LOCALES.map((l) => l.label)).toEqual(['English (US)', 'English (UK)', 'Deutsch', '中文（简体）']);
+    expect(LOCALES.filter((l) => l.preview).map((l) => [l.id, l.previewLabel])).toEqual([['de', 'Deutsch (Vorschau)'], ['zh-CN', '中文（简体）（预览）']]);
+    for (const l of LOCALES) expect(l.variant && l.preview, `${l.id}: a variant is never a preview`).toBe(false);
+  });
+
+  it('never puts a person into a preview they did not choose: the system passes over it, a choice does not', () => {
+    expect(resolveLocale('system', ['de-DE'])).toBe('en-US');
+    expect(resolveLocale('system', ['zh-CN', 'en-GB'])).toBe('en-GB');
+    expect(resolveLocale('de', ['en-US'])).toBe('de');
+    expect(resolveLocale('zh-CN', [])).toBe('zh-CN');
+  });
+
+  it('once checked, gives German to any German-speaking region and Simplified Chinese only where it is written', () => {
+    const once = (tags: string[]) => resolveLocale('system', tags, { previews: true });
+    for (const tag of ['de', 'de-DE', 'de-AT', 'de-CH', 'de_LI', 'de-Latn-DE']) expect(once([tag]), tag).toBe('de');
+    for (const tag of ['zh', 'zh-CN', 'zh_SG', 'zh-Hans', 'zh-Hans-CN', 'zh-Hans-HK']) expect(once([tag]), tag).toBe('zh-CN');
+    // Traditional Chinese gets English until a Traditional catalog exists — or the system's next language.
+    for (const tag of ['zh-TW', 'zh-HK', 'zh-MO', 'zh-Hant', 'zh-Hant-CN']) expect(once([tag]), tag).toBe('en-US');
+    expect(once(['zh-TW', 'de-DE'])).toBe('de');
+    expect(once(['zh-TW', 'en-AU'])).toBe('en-GB');
+  });
+
+  it('writes Chinese as Chinese is written: one plural form, full-width punctuation, no italic or ASCII quotes', () => {
+    const zh = ownCatalog('zh-CN');
+    const bad: string[] = [];
+    for (const [id, m] of Object.entries(zh)) {
+      if (typeof m === 'object' && Object.keys(m).some((form) => form !== 'other')) bad.push(`${id}: plural forms`);
+      for (const text of typeof m === 'string' ? [m] : Object.values(m)) {
+        if (/[\u4e00-\u9fff][,.:;!?](?=\s|$)/.test(text ?? '')) bad.push(`${id}: half-width punctuation after Chinese: ${text}`);
+        if (/<em>/.test(text ?? '')) bad.push(`${id}: italic in Chinese`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('addresses the person as "Sie" in German, never "du"', () => {
+    const informal = Object.entries(ownCatalog('de')).filter(([, m]) => /\b(du|dich|dir|dein\w*)\b/i.test((typeof m === 'string' ? m : m.other).replace(/\{\w+\}/g, '')));
+    expect(informal.map(([id]) => id)).toEqual([]);
+  });
+
+  it('keeps the translators\' glossary: Pulp\'s own terms the same everywhere', () => {
+    const terms: [string, RegExp, RegExp][] = [
+      // [the source's word, its German, its Chinese]
+      ['template', /Vorlage/, /模板/],
+      ['lower third', /Bauchbinde/, /下方字幕条/],
+      ['layer', /Ebene/, /图层/],
+      ['safe area', /sicher/, /安全区域/],
+    ];
+    const de = catalogFor('de'), zh = catalogFor('zh-CN');
+    const text = (m: unknown) => (typeof m === 'string' ? m : (m as { other: string }).other);
+    const off: string[] = [];
+    for (const [id, m] of Object.entries(enUS)) {
+      const en = text(m).toLowerCase();
+      for (const [word, inDe, inZh] of terms) {
+        // Only where the source's word is a word of its own, not part of an id or a longer name.
+        if (!new RegExp(`\\b${word}s?\\b`).test(en) || en.includes('{')) continue;
+        if (!inDe.test(text(de[id as keyof typeof de]))) off.push(`de ${id}: "${word}"`);
+        if (!inZh.test(text(zh[id as keyof typeof zh]))) off.push(`zh-CN ${id}: "${word}"`);
+      }
+    }
+    // A handful may say it another way where the sentence asks for it; the glossary holds the rest.
+    expect(off.length, off.join('\n')).toBeLessThanOrEqual(Math.ceil(Object.keys(enUS).length * 0.01));
+  });
+});
+
 describe('reading a message', () => {
   it('fills placeholders, and leaves one with no value showing so it is seen', () => {
     expect(formatMessage('Quit {app}', 'en-US', { app: 'Pulp' })).toBe('Quit Pulp');
