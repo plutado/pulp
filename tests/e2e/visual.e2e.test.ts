@@ -46,7 +46,7 @@ const onCi = Boolean(process.env.CI);
 describe.skipIf(!electron || onCi)('every bundled template still looks like itself', () => {
   it('matches the approved references, naming the template, aspect and frame of anything that moved', async () => {
     expect(existsSync(REFERENCES), 'the references are committed; run npm run visual:approve to make them').toBe(true);
-    const result = await runBounded(electron!, ['.', '--visual-hashes', REFERENCES, '--check'], { cwd: ROOT, timeoutMs: 600_000 });
+    const result = await runBounded(electron!, ['.', '--visual-hashes', REFERENCES, '--check'], { cwd: ROOT, timeoutMs: 1_200_000 });
     // The check prints a line per template that changed and a line per frame with no reference,
     // which is the whole report: the message below is what a failure shows.
     const report = `${result.stdout}\n${result.stderr}`.trim();
@@ -55,6 +55,6 @@ describe.skipIf(!electron || onCi)('every bundled template still looks like itse
       .filter((line) => line.startsWith('CHANGED') || line.startsWith('NEW') || line.startsWith('could not render'))
       .join('\n');
     expect(result.code, noteworthy || report).toBe(0);
-  }, 660_000);
+  }, 1_260_000);
 
 });

@@ -26,6 +26,10 @@ import { panelPackageEntries } from '../../scripts/panel-package.mjs';
 
 const ROOT = join(__dirname, '..', '..');
 
+// What a mounted panel has running, for unmountPanel.
+const panelTicks: ReturnType<typeof setInterval>[] = [];
+const panelRequests = new Set<Promise<unknown>>();
+
 function template(name: string): TemplateEntry {
   return { kind: 'template', key: name, id: `ab${name.length}${'0'.repeat(10)}`, dir: `/lib/${name}`, root: '/lib', manifest: validManifest({ id: `test.${name.toLowerCase()}`, name }), tags: [], warnings: [] };
 }
@@ -128,7 +132,55 @@ function mountPanel(kind: 'premiere' | 'resolve'): void {
   const html = file('panel.html');
   document.body.innerHTML = /<body>([\s\S]*)<\/body>/.exec(html)![1]!.replace(/<script[^>]*><\/script>/g, '');
   // The scripts in the order the page lists them, run in the page's own global scope.
-  for (const name of [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]!)) (0, eval)(file(name));
+  for (const name of [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]!)) {
+    runPageScript(file(name));
+    if (name.endsWith('connect.js')) noteBridgeCalls();
+  }
+}
+
+/** Run a script of the page. A page lives as long as its host's panel, so its ticks never stop by themselves: they are noted, for unmountPanel. */
+function runPageScript(code: string): void {
+  const realSetInterval = globalThis.setInterval;
+  globalThis.setInterval = ((...args: Parameters<typeof setInterval>) => {
+    const timer = realSetInterval(...args);
+    panelTicks.push(timer);
+    return timer;
+  }) as typeof setInterval;
+  try {
+    (0, eval)(code);
+  } finally {
+    globalThis.setInterval = realSetInterval;
+  }
+}
+
+/** Every call the page makes to the bridge is noted as it goes, before the page has made any. */
+function noteBridgeCalls(): void {
+  const bridge = (window as unknown as { pulpBridge: Record<string, (...args: unknown[]) => unknown> }).pulpBridge;
+  for (const verb of ['connect', 'get', 'post', 'thumb']) {
+    const real = bridge[verb]!;
+    bridge[verb] = (...args) => {
+      const answer = Promise.resolve(real(...args));
+      const settled = answer.then(() => undefined, () => undefined).finally(() => panelRequests.delete(settled));
+      panelRequests.add(settled);
+      return answer;
+    };
+  }
+}
+
+/**
+ * Take the page away the way nothing in a host ever does. Its ten-second tick, left running, once
+ * reached an emptied document on a slow runner and threw an unhandled "Cannot set properties of
+ * null" from setStatus after every test had passed; so the ticks stop first, and whatever the page
+ * has asked of the bridge is answered before its elements go.
+ */
+async function unmountPanel(): Promise<void> {
+  for (const timer of panelTicks.splice(0)) clearInterval(timer);
+  // Until nothing is asked for a moment: an answer can start the page's next request.
+  do {
+    await Promise.allSettled([...panelRequests]);
+    await new Promise((r) => setTimeout(r, 25));
+  } while (panelRequests.size > 0);
+  document.body.innerHTML = '';
 }
 
 async function until(check: () => boolean, what: string, budgetMs = 5000): Promise<void> {
@@ -165,9 +217,7 @@ beforeEach(() => {
   prepareAnswer = 'ready';
 });
 
-afterEach(() => {
-  document.body.innerHTML = '';
-});
+afterEach(unmountPanel);
 
 describe('the panel in a stand-in Premiere Pro (CEP)', () => {
   beforeEach(() => mountPanel('premiere'));
@@ -286,7 +336,7 @@ describe('the panel with no host around it', () => {
     delete w.__adobe_cep__;
     delete w.cep;
     (0, eval)(panelPackageEntries(ROOT, 'premiere').find((e) => e.name === 'host.js')!.data.toString('utf8'));
-    (0, eval)(panelPackageEntries(ROOT, 'premiere').find((e) => e.name === 'panel.js')!.data.toString('utf8'));
+    runPageScript(panelPackageEntries(ROOT, 'premiere').find((e) => e.name === 'panel.js')!.data.toString('utf8'));
     await until(() => text('#connect-message') !== '', 'the message');
     expect(text('#connect-message')).toContain('Settings → "Serve the editor panel (local)"');
   });
