@@ -7373,6 +7373,11 @@ describe.skipIf(!electron)('inspector UI', () => {
     const recordingVideo = () => page.eval<boolean>(`document.getElementById('camera-record').getAttribute('aria-pressed') === 'true'`);
     const cameraLive = () => page.eval<boolean>(`(() => { const v = document.getElementById('camera-preview'); return !document.getElementById('camera-record').disabled && v.videoWidth > 0; })()`);
     const clock = () => page.eval<string>(`document.getElementById('camera-time').textContent`);
+    // The preview is modal: left open by a test that failed, it holds the window behind it inert, and a
+    // later test's focus goes nowhere.
+    afterEach(async () => {
+      if (await previewOpen()) await page.eval(`document.getElementById('camera-close').click()`);
+    });
     const fileItems = async () => {
       const sections = await page.eval<{ label: string; items: { label?: string }[] }[]>(`window.pulp.menuSections()`);
       return sections.find((sec) => sec.label === 'File')!.items.map((i) => i.label);
@@ -7425,7 +7430,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await takes()).length === before.length + 1, 'the take converted into Recordings', 90_000);
       const [file] = (await takes()).filter((f) => !before.includes(f));
       expect(file, 'an MP4, converted from the recorder\'s WebM').toMatch(/^Recording \d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}( \(\d+\))?\.mp4$/);
-      expect(existsSync(join(userData, 'Recordings in progress')) ? await readdir(join(userData, 'Recordings in progress')) : [], 'nothing left staged').toEqual([]);
+      // The MP4 lands in Recordings a moment before the recorder's WebM is removed from beside it.
+      const staged = async () => (existsSync(join(userData, 'Recordings in progress')) ? await readdir(join(userData, 'Recordings in progress')) : []);
+      await until(async () => (await staged()).length === 0, 'nothing left staged');
       expect(await fileItems(), 'the item reads Record Video again').toContain('Record Video');
 
       // Playable, at the camera's own size and a steady rate at its own, with its sound, for the length recorded.
