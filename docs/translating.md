@@ -39,7 +39,16 @@ The bundled templates' words are translated too: every name, description, parame
 - **Search** reads an item's words in the window's language and its US English, which ranks as its name too, so a typed English word still finds things in German or Chinese.
 - **A template from anywhere else** (a pack, a folder) stays as its author wrote it.
 
-Not yet covered: the editor panels inside Premiere Pro and DaVinci Resolve (`panels/`), which have their own interface and follow their host; and dates, numbers and file sizes, which still use US forms. "Formats that follow the locale" is the next item of milestone 59.
+## Numbers, sizes and dates
+
+Numbers, file sizes, durations in seconds and dates are written the way the interface's language writes them (`src/core/locale-format.ts`, with `Intl`). German writes "1.234", "1,5 MB", "1,5 s" and "1. November 2026". Chinese writes "2026年11月1日". US English writes "November 1, 2026", and British English "1 November 2026".
+
+- **In a message**, a `{count}` is written as the locale writes numbers. Every other value is filled as it is given, so a size, a duration or a date passes through `formatNumber`, `sizeLabel`, `durationLabel`, `formatDate` or `formatDateTime` first. A catalog never spells out a month or a date's order: the locale's own format does.
+- **Never localized:** timecode, frame rates ("29.97 fps"), resolutions ("1920 × 1080"), aspect ratios, codecs and file formats. Editors read these the same everywhere.
+- **Words the main process writes for the window** (the render cache's summary) are made in the window from their numbers instead, so they follow a change of language too.
+- **A name Pulp stored for a template** (a collection item's, a render job's) is the template's English name. Every window shows it in its own language (`shownTemplateName`), and a name a person typed is shown as they typed it.
+
+Not yet covered: the editor panels inside Premiere Pro and DaVinci Resolve (`panels/`), which have their own interface and follow their host.
 
 ## Where the words are
 

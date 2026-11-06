@@ -8,6 +8,7 @@
  * how a keyboard reaches a render, since dragging needs a pointer.
  */
 
+import { shownTemplateName } from '../core/library-words';
 import { render } from 'preact';
 import { computed, effect, signal } from '@preact/signals';
 import { revealLabel } from '../core/display';
@@ -88,7 +89,8 @@ function Actions({ card }: { card: QueueCard }) {
 }
 
 function Job({ job }: { job: RenderQueueJob }) {
-  const card = queueCard(job);
+  // The template's name in the window's language: the job keeps the English the main process gave it.
+  const card = { ...queueCard(job), name: shownTemplateName(job.label ?? job.templateName, job.templateId, appState.value.index) };
   const thumbnail = thumbnails.value.get(job.mediaId ? `media:${job.mediaId}` : job.templateId);
   return (
     <li

@@ -582,6 +582,10 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .transport-status #status-cache .label { display: none; }
 /* The counts yield before the rest. */
 .transport-status .summary { flex: 0 1 auto; min-width: 0; }
+/* So does what is rendering: in a long language, or with a queue behind it, the line once pushed
+   the project's name out of the row. It shortens to an ellipsis; the tray says it whole. */
+.transport-status #status-renders { flex: 0 1 auto; min-width: 0; }
+.transport-status #status-renders .label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 /* An item with nothing to say takes no room, not even its gap — but the two that are buttons
    rather than readouts stay, since a button with nothing to report is still a button. */
 .transport-status .status-item:not(#project-button):not(#status-diagnostics):not(:has(.label:not(:empty))) { display: none; }

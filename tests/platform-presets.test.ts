@@ -74,8 +74,8 @@ describe('the built-in list', () => {
 
   it('carries the date its limits were checked, and says it in words', () => {
     expect(PLATFORM_LIMITS_CHECKED).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(limitsCheckedLabel('2026-11-01')).toBe('checked 1 November 2026');
-    expect(limitsCheckedLabel('2026-03-14')).toBe('checked 14 March 2026');
+    expect(limitsCheckedLabel('2026-11-01')).toBe('checked November 1, 2026');
+    expect(limitsCheckedLabel('2026-03-14')).toBe('checked March 14, 2026');
     // A date that is not a date is still said rather than swallowed.
     expect(limitsCheckedLabel('soon')).toBe('checked soon');
   });
@@ -117,7 +117,7 @@ describe('what a preset says in the window', () => {
   });
 
   it('says what the platform takes, with the date it was read', () => {
-    expect(platformLimitsLabel(tiktok, '2026-11-01')).toBe('up to 10:00 and 287 MB (limits checked 1 November 2026)');
+    expect(platformLimitsLabel(tiktok, '2026-11-01')).toBe('up to 10:00 and 287 MB (limits checked November 1, 2026)');
   });
 });
 
@@ -138,14 +138,14 @@ describe('length and file-size warnings', () => {
   it('warns before a render that runs past the length limit', () => {
     // Shorts takes 3 minutes and 256 GB, so a long render is past the one limit and not the other.
     expect(platformWarningsBefore(platformPreset('youtube-shorts')!, 200, '2026-11-01')).toEqual([
-      'Longer than YouTube Shorts takes: 3:20, against 3:00 (limits checked 1 November 2026).',
+      'Longer than YouTube Shorts takes: 3:20, against 3:00 (limits checked November 1, 2026).',
     ]);
   });
 
   it('warns before a render the bitrate target would make too large, saying it is an estimate', () => {
     // Inside TikTok's 10 minutes, but 400 s at 10 Mb/s is well past the 287 MB it takes.
     expect(platformWarningsBefore(tiktok, 400, '2026-11-01')).toEqual([
-      'Likely larger than TikTok takes: about 476.8 MB at 10 Mb/s, against 287 MB (limits checked 1 November 2026).',
+      'Likely larger than TikTok takes: about 476.8 MB at 10 Mb/s, against 287 MB (limits checked November 1, 2026).',
     ]);
   });
 
@@ -155,7 +155,7 @@ describe('length and file-size warnings', () => {
 
   it('warns about the file that was written, from its real size', () => {
     expect(platformWarningsAfter(tiktok, 60, 300 * 1024 ** 2, '2026-11-01')).toEqual([
-      'Larger than TikTok takes: 300 MB, against 287 MB (limits checked 1 November 2026).',
+      'Larger than TikTok takes: 300 MB, against 287 MB (limits checked November 1, 2026).',
     ]);
   });
 

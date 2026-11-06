@@ -7126,14 +7126,30 @@ describe.skipIf(!electron)('inspector UI', () => {
           await openTab('parameters');
           const entrance = names[locale]['Entrance']!;
           await until(() => page.eval<boolean>(`document.getElementById('params').textContent.includes(${JSON.stringify(entrance)})`), `the ${entrance} card`);
+          // Its render's card in the queue, and its card in the tray, under the same name.
+          const cardNames = (list: string) => page.eval<string[]>(`[...document.querySelectorAll('${list} .job-name')].map((n) => n.textContent.trim())`);
+          await until(() => page.eval<boolean>(`!document.getElementById('drag-prepare').disabled`), 'the render button');
+          await page.eval(`document.getElementById('drag-prepare').click()`);
+          await until(async () => (await cardNames('#queue')).includes(own), `the queue's card named ${own}`, 60_000);
+          await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button');
+          await page.eval(`document.getElementById('add-to-collection').click()`);
+          await until(async () => (await cardNames('#collection')).includes(own), `the tray's card named ${own}`);
+          expect(await cardNames('#queue'), 'nothing left in English').not.toContain('Airliner');
         }
+        // Back in English, the same cards say the English name: the job and the project kept it.
+        await page.eval(`window.pulp.setLanguage('en-US')`);
+        await until(async () => (await page.eval<string[]>(`[...document.querySelectorAll('#queue .job-name, #collection .job-name')].map((n) => n.textContent.trim())`)).filter((n) => n === 'Airliner').length >= 2, 'the cards back in English');
+        await page.eval(`[...document.querySelectorAll('#collection .collection-card button[aria-label="Remove from the collection"]')].forEach((b) => b.click())`);
+        // The renders run out before the next test measures the window, and their cards go.
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#queue .job-card')].every((c) => c.classList.contains('done') || c.classList.contains('failed'))`), 'the renders finished', 90_000);
+        await page.eval(`window.pulp.clearFinishedRenders()`);
       } finally {
         await fire('#search', '', 'input');
         await page.eval(`window.pulp.setLanguage('en-US')`);
         await until(() => page.eval<boolean>(`document.documentElement.lang === 'en-US'`), 'the suite back in US English');
         await until(async () => (await resultNames()).includes('Airliner'), 'the library back in US English');
       }
-    }, 120_000);
+    }, 240_000);
 
     for (const [locale, menus] of LANGUAGES) {
       it(`shows the window in ${locale}: the menus and the start screen translated, nothing cut or stacked at 1280 × 788 and 960 × 600`, async () => {

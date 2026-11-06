@@ -110,3 +110,19 @@ export function localizeIndex(index: LibraryIndex, locale: LocaleId): LibraryInd
   const t = translator(locale);
   return { ...index, templates: index.templates.map((e) => localizeEntry(e, locale, index.builtInRoot !== undefined && e.root === index.builtInRoot, t)) };
 }
+
+/**
+ * A name Pulp stored for a template — a collection item's, a render job's — as the window shows it:
+ * the template's name in the interface's language where the stored one is its English name, or that
+ * name and a detail after it ("Lower Third Bar · Alex", a batch row). A name the person gave it
+ * themselves is theirs and is shown as it is.
+ */
+export function shownTemplateName(stored: string, templateId: string | undefined, index: LibraryIndex | null): string {
+  if (!templateId || !index) return stored;
+  const entry = index.templates.find((t) => t.manifest.id === templateId);
+  if (!entry?.source || entry.source.name === entry.manifest.name) return stored;
+  const english = entry.source.name;
+  if (stored === english) return entry.manifest.name;
+  if (stored.startsWith(`${english} · `)) return entry.manifest.name + stored.slice(english.length);
+  return stored;
+}

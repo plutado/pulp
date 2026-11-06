@@ -8,6 +8,7 @@
  * formatted as they were; only the words and units around them are messages.
  */
 
+import { formatNumber } from './locale-format';
 import { tr, type MessageId } from './i18n';
 import { THEME_GROUPS, STYLES, typeInfo } from './taxonomy';
 
@@ -131,7 +132,7 @@ export function frameRateLabel(fps: number): string {
 
 /** Seconds as a template declares them: "6 s", "1.5 s". */
 export function durationLabel(seconds: number): string {
-  return tr('display.duration', { seconds });
+  return tr('display.duration', { seconds: formatNumber(seconds, 3) });
 }
 
 /**
@@ -163,10 +164,11 @@ export function runningTime(seconds: number): string {
 }
 
 export function sizeLabel(bytes: number): string {
-  if (bytes < 1024) return tr('display.size.bytes', { size: bytes });
-  if (bytes < 1024 ** 2) return tr('display.size.kb', { size: (bytes / 1024).toFixed(0) });
-  if (bytes < 1024 ** 3) return tr('display.size.mb', { size: (bytes / 1024 ** 2).toFixed(1).replace(/\.0$/, '') });
-  return tr('display.size.gb', { size: (bytes / 1024 ** 3).toFixed(2).replace(/\.?0+$/, '') });
+  // The number in the interface's language: "1.5 MB", "1,5 MB".
+  if (bytes < 1024) return tr('display.size.bytes', { size: formatNumber(bytes, 0) });
+  if (bytes < 1024 ** 2) return tr('display.size.kb', { size: formatNumber(bytes / 1024, 0) });
+  if (bytes < 1024 ** 3) return tr('display.size.mb', { size: formatNumber(bytes / 1024 ** 2, 1) });
+  return tr('display.size.gb', { size: formatNumber(bytes / 1024 ** 3, 2) });
 }
 
 /** Audio facts: "PCM 16-bit · 2 ch · 48 kHz" (parts that are known). */

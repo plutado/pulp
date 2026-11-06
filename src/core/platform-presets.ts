@@ -20,10 +20,11 @@
  */
 
 import { aspectById } from './aspect';
+import { formatDate } from './locale-format';
 import { clockLabel, sizeLabel } from './display';
 import { isStandardFrameRate } from './timecode';
 import { OUTPUT_PRESETS, type PresetId } from './render-plan';
-import { tr, type MessageId } from './i18n';
+import { tr } from './i18n';
 
 /** Bumped when an entry's meaning changes rather than its numbers; a saved render records the id, not the row. */
 export const PLATFORM_LIST_VERSION = 1;
@@ -142,18 +143,13 @@ export function platformPreset(id: string | undefined): PlatformPreset | undefin
   return id === undefined ? undefined : PLATFORM_PRESETS.find((p) => p.id === id);
 }
 
-const MONTHS = [
-  'platform.month.january', 'platform.month.february', 'platform.month.march', 'platform.month.april',
-  'platform.month.may', 'platform.month.june', 'platform.month.july', 'platform.month.august',
-  'platform.month.september', 'platform.month.october', 'platform.month.november', 'platform.month.december',
-] as const satisfies readonly MessageId[];
 
-/** The date the limits were checked, in words: "1 November 2026" (or the text as given, when it is not a date). */
+/** The date the limits were checked, in words, as the interface's language writes a day: "November 1, 2026", "1. November 2026" (or the text as given, when it is not a date). */
 export function limitsCheckedDate(checked: string = PLATFORM_LIMITS_CHECKED): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(checked);
   if (!m) return checked;
-  const month = MONTHS[Number(m[2]) - 1];
-  return tr('platform.date', { day: Number(m[3]), month: month ? tr(month) : String(month), year: m[1]! });
+  // Noon, so no time zone moves the day.
+  return formatDate(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12).getTime());
 }
 
 /** The date the limits were checked, as a sentence fragment: "checked 1 November 2026". */

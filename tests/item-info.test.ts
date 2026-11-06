@@ -146,7 +146,7 @@ describe('labels', () => {
   });
 
   it('writes a date a reader can scan', () => {
-    expect(dateLabel(Date.UTC(2026, 9, 24, 12, 5))).toMatch(/^24 Oct 2026, \d\d:\d\d$/);
+    expect(dateLabel(Date.UTC(2026, 9, 24, 12, 5))).toMatch(/^Oct 2[45], 2026, \d{1,2}:05\s?[AP]M$/);
     expect(dateLabel(0)).toBe('');
     expect(dateLabel(Number.NaN)).toBe('');
   });

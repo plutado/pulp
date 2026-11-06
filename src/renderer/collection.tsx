@@ -8,6 +8,7 @@
  * anything else rather than a second, smaller copy of them inside the card.
  */
 
+import { shownTemplateName } from '../core/library-words';
 import { render } from 'preact';
 import { computed, effect } from '@preact/signals';
 import { editingItem, setCollection, setEditing } from '../core/app-state';
@@ -104,7 +105,7 @@ function Item({ r, first, last }: { r: ResolvedItem; first: boolean; last: boole
       <span class="job-thumb checker">{thumbnail ? <img src={thumbnail} alt="" /> : <Icon name={item.kind === 'media' ? 'film-strip' : 'shapes'} />}</span>
       <span class="job-text">
         <span class="job-head">
-          <span class="job-name">{item.name}</span>
+          <span class="job-name">{shownTemplateName(item.name, item.templateId, appState.value.index)}</span>
           {r.entry?.kind === 'template' && <span class="badge preset">{durationLabel(r.entry.manifest.duration)}</span>}
         </span>
         <span class={`job-status ${trouble ? 'failed' : 'done'}`}>{trouble || settingsLine(r)}</span>
@@ -114,7 +115,7 @@ function Item({ r, first, last }: { r: ResolvedItem; first: boolean; last: boole
           <button
             type="button"
             class="icon-button"
-            aria-label={t('collection.relink.aria-label', { name: item.name })}
+            aria-label={t('collection.relink.aria-label', { name: shownTemplateName(item.name, item.templateId, appState.value.index) })}
             data-tip={t('collection.relink.data-tip', { path: item.path })}
             onClick={(e: MouseEvent) => {
               e.stopPropagation();

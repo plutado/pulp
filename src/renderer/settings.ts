@@ -10,12 +10,13 @@
  * `THIRD_PARTY_NOTICES.md` inlined at build time so the dialog is the file.
  */
 
+import { formatBytes } from '../core/app-state';
 import noticesText from '../../THIRD_PARTY_NOTICES.md?raw';
 import { docSections, isDocTable } from '../core/doc-page';
 import { downloadSizeText } from '../core/ffmpeg-download';
 import { semanticSetAvailable } from './semantic';
 import type { PlayerState } from '../core/player';
-import { setCacheSummary } from './status-bar';
+import { showCacheStats } from './tray';
 import { effect } from '@preact/signals';
 import { APPEARANCES } from '../core/appearance';
 import { appearanceChoice, chooseAppearance } from './appearance';
@@ -63,13 +64,14 @@ function sayPlain(el: HTMLElement, text: string): void {
   el.textContent = text;
 }
 
-function showCache(stats: { summary: string; dir: string; maxMB: number }): void {
+function showCache(stats: { files: number; bytes: number; dir: string; maxMB: number }): void {
   const summary = $('settings-cache-summary');
-  summary.textContent = stats.summary;
+  // Written here, in the window's language, from the numbers (the tray does the same).
+  summary.textContent = t('render-cache.summary', { count: stats.files, size: formatBytes(stats.bytes), max: formatBytes(stats.maxMB * 1024 * 1024) });
   // The folder's path lives in the tooltip, where the rest of the window keeps paths.
   summary.dataset.tip = stats.dir;
   $<HTMLInputElement>('settings-cache-limit').value = String(stats.maxMB);
-  setCacheSummary(stats.summary);
+  showCacheStats(stats);
 }
 
 /**

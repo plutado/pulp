@@ -30,6 +30,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- **Numbers, file sizes and dates follow the chosen language** (milestone 59). German writes "1.234 Elemente", "1,5 MB" and "1. November 2026", Chinese "2026年11月1日", and US English now writes dates the US way ("November 1, 2026", "Oct 24, 2026, 2:05 PM"). Timecode, frame rates and resolutions stay as editors read them. The render cache's summary follows a change of language at once.
+- **The queue's and the tray's cards name a template in the window's language.** Projects and render jobs keep the English name, so a project opens in any language, and a name you typed yourself stays as you typed it.
+
+### Fixed
+
+- **The status bar's project name stays in view while renders are queued.** "Rendering, 1 more queued…" (and its longer German and Chinese) could push the name out of the row. It now shortens to an ellipsis first.
+
 - **The library in German and Simplified Chinese.** With the window in either language, the bundled templates are shown in it: their names, descriptions, parameter labels and help, cards, dropdown options and matching sets, about 1,800 strings each. So is everything Pulp writes about a Lottie file: its description, what the player cannot draw, the labels Pulp gives its texts and colors, and the Fit setting. A typed English word still finds things ("airliner" finds the Verkehrsflugzeug and the 客机), and so does a word in the language. Renders, exports and saved projects keep the English names and ids, so a project opens in any language. Templates from elsewhere stay as their authors wrote them.
 
 - **Pulp in German and Simplified Chinese** (milestone 68), as previews. Every interface message — menus, buttons, labels, dialogs, the start screen — and the in-app user guide are translated, offered in Settings → Language as „Deutsch (Vorschau)" and 中文（简体）（预览） under a heading that says they are not yet checked by a fluent speaker; until they are, "Same as the system" never chooses them. German addresses you as "Sie" in the conventions of German software, is hyphenated by the page's language, and is checked at 1280 × 788 and 960 × 600 for anything cut or overlapping. Chinese is drawn in the system's own Chinese face (PingFang SC, Microsoft YaHei, Noto Sans CJK SC) with Chinese line breaking, full-width punctuation and no synthesized bold or italic. Once checked, a system in German (any region) or Simplified Chinese (mainland China, Singapore) gets its language; a system in Traditional Chinese keeps English. `docs/translating.md` gains a glossary of Pulp's terms in both languages and says how a preview becomes a language.

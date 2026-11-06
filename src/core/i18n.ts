@@ -139,7 +139,20 @@ export function formatMessage(message: Message, locale: LocaleId, values: Messag
     const form = new Intl.PluralRules(locale).select(count);
     text = message[form] ?? message.other;
   }
-  return text.replace(/\{(\w+)\}/g, (whole, name: string) => (name in values ? String(values[name]) : whole));
+  // A count is a number a reader reads: written as the locale writes numbers ("1,234", "1.234").
+  // Other values are filled as given — a resolution, a frame rate or a timecode is the same everywhere.
+  return text.replace(/\{(\w+)\}/g, (whole, name: string) => {
+    if (!(name in values)) return whole;
+    const value = values[name]!;
+    return name === 'count' && typeof value === 'number' ? countFormat(locale).format(value) : String(value);
+  });
+}
+
+const counts = new Map<LocaleId, Intl.NumberFormat>();
+function countFormat(locale: LocaleId): Intl.NumberFormat {
+  let f = counts.get(locale);
+  if (!f) counts.set(locale, (f = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 })));
+  return f;
 }
 
 /** Read a message out of a catalog. An id that is not in it at all is shown as itself, so a missing one is seen, not hidden. */

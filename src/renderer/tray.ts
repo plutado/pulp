@@ -4,7 +4,7 @@
  * themselves (`queue.tsx`); this file no longer owns a handle of its own.
  */
 
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 import { hasFinishedJobs, setCollection } from '../core/app-state';
 import { applyToAll, COLLECTION_DRAG_TYPE, renderableItems } from '../core/collection';
 import { noteAfterChange, noteFades, NOTE_MS, NO_NOTE, sayNote, type TrayNote } from '../core/tray-note';
@@ -13,7 +13,8 @@ import { editing, mountCollection, resolved } from './collection';
 import { openProjectFrom, rememberRenderFolder } from './project';
 import { dragNotice, mountQueue } from './queue';
 import { setCacheSummary } from './status-bar';
-import { bindText, t } from './i18n';
+import { bindText, t, whenLocaleChanges } from './i18n';
+import { formatBytes } from '../core/app-state';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -21,12 +22,32 @@ const $ = <T extends HTMLElement>(id: string): T => {
   return el as T;
 };
 
+/**
+ * The cache's summary, made here from its numbers rather than taken as the main process wrote it,
+ * so it is in the window's language and its sizes are written as that language writes them, and
+ * made again when the language changes.
+ */
+let lastStats: { files: number; bytes: number; maxMB: number } | null = null;
+function cacheSummary(stats: { files: number; bytes: number; maxMB: number }): string {
+  return t('render-cache.summary', { count: stats.files, size: formatBytes(stats.bytes), max: formatBytes(stats.maxMB * 1024 * 1024) });
+}
+whenLocaleChanges(() => untracked(() => {
+  if (lastStats) showCacheStats(lastStats);
+}));
+
+/** The cache's numbers on the tray's line and the status bar's button. */
+export function showCacheStats(stats: { files: number; bytes: number; maxMB: number }): void {
+  lastStats = { files: stats.files, bytes: stats.bytes, maxMB: stats.maxMB };
+  const summary = cacheSummary(stats);
+  $('cache-summary').textContent = summary;
+  setCacheSummary(summary);
+}
+
 async function refreshCacheStats(): Promise<void> {
   const stats = await window.pulp.renderCacheStats();
-  $('cache-summary').textContent = stats.summary;
+  showCacheStats(stats);
   $('cache-summary').dataset.tip = stats.dir;
   $<HTMLInputElement>('cache-limit').value = String(stats.maxMB);
-  setCacheSummary(stats.summary);
 }
 
 /** Said once, the first time a render leaves for an editor; the setting remembers it. */
@@ -186,23 +207,20 @@ export function initTray(onDropItem: (id: string) => void): void {
 
   $('cache-clear').addEventListener('click', () => {
     void window.pulp.clearRenderCache().then((stats) => {
-      $('cache-summary').textContent = stats.summary;
-      setCacheSummary(stats.summary);
+      showCacheStats(stats);
     });
   });
   $('cache-dir').addEventListener('click', () => {
     void window.pulp.chooseRenderCacheDir().then((stats) => {
       if (!stats) return;
-      $('cache-summary').textContent = stats.summary;
+      showCacheStats(stats);
       $('cache-summary').dataset.tip = stats.dir;
-      setCacheSummary(stats.summary);
     });
   });
   $<HTMLInputElement>('cache-limit').addEventListener('change', () => {
     void window.pulp.setRenderCacheLimit(Number($<HTMLInputElement>('cache-limit').value)).then((stats) => {
-      $('cache-summary').textContent = stats.summary;
+      showCacheStats(stats);
       $<HTMLInputElement>('cache-limit').value = String(stats.maxMB);
-      setCacheSummary(stats.summary);
     });
   });
 

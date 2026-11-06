@@ -75,7 +75,9 @@ export function itemFor(entry: LibraryEntry, presetId: string, options: RenderOp
     uid: newUid(),
     id: entry.id,
     kind: entry.kind,
-    name: entry.kind === 'template' ? entry.manifest.name : entry.name,
+    // The template's US English name, whatever language the window shows it in: the project keeps the
+    // English and every window says it in its own (shownTemplateName, src/core/library-words.ts).
+    name: entry.kind === 'template' ? (entry.source?.name ?? entry.manifest.name) : entry.name,
     ...(entry.kind === 'template' ? { templateId: entry.manifest.id } : {}),
     ...(entryPath(entry) ? { path: entryPath(entry) } : {}),
     presetId,

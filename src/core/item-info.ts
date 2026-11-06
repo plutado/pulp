@@ -28,6 +28,7 @@ import { entryType } from './taxonomy';
 import { formatTimecode } from './timecode';
 import { lottieFormatLabel } from './lottie-types';
 import { tr } from './i18n';
+import { formatDateTime, formatNumber } from './locale-format';
 
 /** The sections of the panel, in the order they are shown; each named in the interface's language now (a getter). */
 export const INFO_SECTIONS = [
@@ -193,24 +194,15 @@ export function creditsRows(entry: LibraryEntry): InfoRow[] {
 export function usageRows(entry: LibraryEntry, presets: number): InfoRow[] {
   const rows: InfoRow[] = [];
   rows.push({ label: tr('info.row.last-used'), value: entry.lastUsed ? dateLabel(Date.parse(entry.lastUsed)) : tr('info.value.not-yet') });
-  rows.push({ label: tr('info.row.renders'), value: entry.renderCount ? `${entry.renderCount}` : tr('info.value.none-yet') });
-  if (entry.kind === 'template') rows.push({ label: tr('info.row.saved-presets'), value: presets > 0 ? `${presets}` : tr('info.value.none-yet') });
+  rows.push({ label: tr('info.row.renders'), value: entry.renderCount ? formatNumber(entry.renderCount, 0) : tr('info.value.none-yet') });
+  if (entry.kind === 'template') rows.push({ label: tr('info.row.saved-presets'), value: presets > 0 ? formatNumber(presets, 0) : tr('info.value.none-yet') });
   return rows;
 }
 
-/** The months as a date shows them, short, in the interface's language. */
-const MONTHS = [
-  'info.date.month.jan', 'info.date.month.feb', 'info.date.month.mar', 'info.date.month.apr', 'info.date.month.may', 'info.date.month.jun',
-  'info.date.month.jul', 'info.date.month.aug', 'info.date.month.sep', 'info.date.month.oct', 'info.date.month.nov', 'info.date.month.dec',
-] as const;
-
-/** A date as a reader scans it: "24 Oct 2026, 14:05". The numbers are formatted here; the order and the month are the catalog's. */
+/** A date as a reader scans it, the way the interface's language writes it (src/core/locale-format.ts). */
 export function dateLabel(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return '';
-  const d = new Date(ms);
-  const month = tr(MONTHS[d.getMonth()]!);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return tr('info.date', { day: d.getDate(), month, year: d.getFullYear(), hours: pad(d.getHours()), minutes: pad(d.getMinutes()) });
+  return formatDateTime(ms);
 }
 
 /**

@@ -10,6 +10,7 @@
  */
 
 import { effect } from '@preact/signals';
+import { formatDateTime } from '../core/locale-format';
 import { appState } from './store';
 import { isDirty, newProject, offerRecovery, openProjectFrom, projectDirty, relinkMissing, saveProject, setUnsavedPrompt, shownProjectName } from './project';
 import { bindAttr, bindText, t } from './i18n';
@@ -104,7 +105,7 @@ function askUnsaved(name: string): Promise<'save' | 'discard' | 'cancel'> {
 function askRecovery(name: string, savedAt: string): Promise<boolean> {
   const when = savedAt ? new Date(savedAt) : null;
   const text = $('recovery-text');
-  if (when && !Number.isNaN(when.getTime())) bindText(text, 'recover.text.dated', { name, when: when.toLocaleString() });
+  if (when && !Number.isNaN(when.getTime())) bindText(text, 'recover.text.dated', { name, when: formatDateTime(when.getTime()) });
   else bindText(text, 'recover.text', { name });
   return ask('recovery-dialog', { 'recovery-open': true, 'recovery-discard': false }, false);
 }
