@@ -20,7 +20,7 @@ import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
 import { initTray, sayInTray } from './tray';
-import { initSampleHint, refreshSampleHint } from './sample-hint';
+import { initSampleHint, refreshSampleHint, sayUnderResults } from './sample-hint';
 import { initLibraryAdd, setLibraryAddBusy } from './library-add';
 import { initProject, openProjectFrom } from './project';
 import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './project-ui';
@@ -435,7 +435,8 @@ initLibraryAdd({
   addStock: () => void loadLibrary(window.pulp.addStockLibrary().then((outcome) => {
     if (!outcome) return null;
     if (!outcome.ok) {
-      sayInTray(t(`library.stock.refused.${outcome.why}`));
+      const { why } = outcome;
+      sayUnderResults(() => t(`library.stock.refused.${why}`));
       return null;
     }
     return outcome.index;

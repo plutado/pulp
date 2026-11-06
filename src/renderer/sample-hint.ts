@@ -13,6 +13,7 @@
 
 import { computed, effect, signal } from '@preact/signals';
 import { sampleHint, sampleHintOutcome, type UnmadeByType } from '../core/sample-hint';
+import { NOTE_MS } from '../core/tray-note';
 import type { Scope } from '../core/app-state';
 import type { LibraryIndex } from '../core/library-types';
 import { appState } from './store';
@@ -48,6 +49,18 @@ const note = computed(() => {
   const current = run.value;
   return current && current.scope === appState.value.scope ? current : null;
 });
+
+/**
+ * A sentence on this line that nothing else in the window can carry: the collection's own line is in
+ * the tray, which is not in the window while the collection is empty. Brief, like that line's notes.
+ */
+export function sayUnderResults(say: () => string): void {
+  const mine = { scope: appState.value.scope, say, busy: false };
+  run.value = mine;
+  setTimeout(() => {
+    if (run.value === mine) run.value = null;
+  }, NOTE_MS);
+}
 
 export async function refreshSampleHint(): Promise<void> {
   unmade.value = (await window.pulp.sampleMediaStatus()).unmade;

@@ -7231,7 +7231,9 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`document.getElementById('library-add').click()`);
         await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add open again');
         await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
-        await until(() => page.eval<boolean>(`document.body.textContent.includes('That stock library is already added.')`), 'a second add refused, in words');
+        // On the line under the results, in view: the tray's line is not in the window with nothing collected.
+        await until(() => page.eval<boolean>(`(() => { const hint = document.getElementById('results-hint'); return hint.getBoundingClientRect().height > 0 && hint.textContent.includes('That stock library is already added.'); })()`), 'a second add refused, in words');
+        await until(() => page.eval<boolean>(`!document.getElementById('results-hint').textContent.includes('That stock library is already added.')`), 'the refusal gone after a moment');
         expect((await saved()).filter((l) => l.path === stockDir)).toHaveLength(1);
         await page.eval(`(() => { const h = document.querySelector('#browse-tree .section-heading[data-node="stock"]'); if (h && h.getAttribute('aria-expanded') === 'false') h.click(); })()`);
         await until(async () => (await stockRow())?.count === STOCK_FIXTURE_FILES.length, 'the stock library listed with its items');
