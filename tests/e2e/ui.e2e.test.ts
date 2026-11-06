@@ -241,32 +241,56 @@ describe.skipIf(!electron)('inspector UI', () => {
    * under SWEEP_MIN_STEP px, and the pass is bounded by how many such steps the list holds, not by
    * a fixed count: a results box squeezed to a few pixels once made 200 steps fall short of the
    * last rows on Windows CI (docs/platform-notes.md). The end is reached within a pixel, since a
-   * fractional layout can leave scrollTop just under scrollHeight - clientHeight for ever.
+   * fractional layout can leave scrollTop just under scrollHeight - clientHeight for ever, and a step
+   * that does not move the list is the end too.
+   *
+   * A pass runs in slices of SWEEP_SLICE_MS, each a page call of its own that carries on from where
+   * the last stopped (`resume`). Each step waits two frames for the list to draw what it scrolled to,
+   * so a pass costs steps × frames: one whole pass in one call was held to a single call's limit,
+   * and on a slow Linux runner, just after launch, a pass of 36 steps outran it — the suite's setup
+   * failed and every test was skipped (docs/platform-notes.md, "Slow frames at launch"). A window
+   * whose frames are slow now takes longer; one whose frames have stopped still fails, at the call.
    */
   const SWEEP_MIN_STEP = 40;
-  const sweep = `
+  const SWEEP_SLICE_MS = 2_500;
+  const sweep = (resume: boolean) => `
     const box = document.getElementById('results');
     const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const step = Math.max(${SWEEP_MIN_STEP}, box.clientHeight * 0.8);
     const atEnd = () => box.scrollTop >= box.scrollHeight - box.clientHeight - 1;
     const steps = Math.ceil(box.scrollHeight / step) + 2;
-    box.scrollTop = 0;
-    await settle();`;
+    const started = performance.now();
+    const outOfTime = () => performance.now() - started > ${SWEEP_SLICE_MS};
+    /** One step down; false when the list did not move, which is its end. */
+    const down = async () => {
+      const was = box.scrollTop;
+      box.scrollTop = Math.min(box.scrollHeight - box.clientHeight, box.scrollTop + step);
+      await settle();
+      return box.scrollTop !== was;
+    };
+    ${resume ? '' : 'box.scrollTop = 0; await settle();'}`;
 
-  /** One pass down the results, a screen at a time, stopping where the named item is rendered. */
-  const sweepTo = (name: string) =>
-    page.eval<boolean>(
+  /** One slice of a pass down the results: the named item found, the end reached, or more to go. */
+  const sweepSlice = (name: string, resume: boolean) =>
+    page.eval<'found' | 'end' | 'more'>(
       `(async () => {
-        ${sweep}
+        ${sweep(resume)}
         for (let i = 0; i < steps; i++) {
-          if (${liFor(name)}) return true;
-          if (atEnd()) return false;
-          box.scrollTop = Math.min(box.scrollHeight - box.clientHeight, box.scrollTop + step);
-          await settle();
+          if (${liFor(name)}) return 'found';
+          if (atEnd()) return 'end';
+          if (outOfTime()) return 'more';
+          if (!(await down())) return ${liFor(name)} ? 'found' : 'end';
         }
-        return false;
+        return ${liFor(name)} ? 'found' : 'end';
       })()`,
     );
+
+  /** One pass down the results, a screen at a time, stopping where the named item is rendered. */
+  async function sweepTo(name: string): Promise<boolean> {
+    for (let slice = await sweepSlice(name, false); ; slice = await sweepSlice(name, true)) {
+      if (slice !== 'more') return slice === 'found';
+    }
+  }
 
   /** Scrolls the results until the named item is rendered, waiting for one that has not arrived yet. */
   const scrollToResult = (name: string, budgetMs = DEFAULT_WAIT_MS) => until(() => sweepTo(name), `the result "${name}"`, budgetMs);
@@ -314,23 +338,30 @@ describe.skipIf(!electron)('inspector UI', () => {
    * Every result name, in list order, collected by scrolling through the window.
    * Items are kept apart by their library id, so two items of the same name both count.
    */
-  function resultNames(): Promise<string[]> {
-    return page.eval<string[]>(
+  /** Every result's name in order, from one pass down the list in slices (see `sweep`). */
+  async function resultNames(): Promise<string[]> {
+    const slice = (resume: boolean) => page.eval<string[] | null>(
       `(async () => {
-        ${sweep}
-        const seen = new Map();
+        ${sweep(resume)}
+        if (!${resume}) window.__pulpSweepNames = new Map();
+        const seen = window.__pulpSweepNames;
         const collect = () => { for (const li of box.querySelectorAll('li[data-id]')) seen.set(li.dataset.id, li.querySelector('.name').textContent); };
         collect();
         for (let i = 0; i < steps && !atEnd(); i++) {
-          box.scrollTop += step;
-          await settle();
+          if (outOfTime()) return null;
+          const moved = await down();
           collect();
+          if (!moved) break;
         }
         box.scrollTop = 0;
         await settle();
+        delete window.__pulpSweepNames;
         return [...seen.values()];
       })()`,
     );
+    for (let names = await slice(false); ; names = await slice(true)) {
+      if (names !== null) return names;
+    }
   }
 
   /**
@@ -369,166 +400,173 @@ describe.skipIf(!electron)('inspector UI', () => {
   };
 
   beforeAll(async () => {
-    const built = await runBounded(process.execPath, [join(ROOT, 'node_modules', 'electron-vite', 'bin', 'electron-vite.js'), 'build'], { cwd: ROOT, timeoutMs: 100_000 });
-    if (built.code !== 0) throw new Error(`build failed: ${built.stderr}`);
-    userData = await mkdtemp(join(tmpdir(), 'pulp-ui-'));
-    mediaDir = join(userData, 'media-library');
-    await mkdir(mediaDir, { recursive: true });
-    await writeFile(join(mediaDir, 'tiny.png'), TINY_PNG);
-    // A solid red 2 × 2 as well: a picture whose every pixel says where it is, with no white to read as text.
-    await writeFile(join(mediaDir, 'mark.png'), solidPng([255, 0, 0]));
-    // A template of one declared size, now that every bundled template draws for all four shapes:
-    // the Output tab's "no aspect to choose" case and the orientation filter's landscape-only case.
-    await mkdir(join(mediaDir, 'wide-only'), { recursive: true });
-    await writeFile(
-      join(mediaDir, 'wide-only', 'template.json'),
-      JSON.stringify({ formatVersion: 1, id: 'pulp.test.wide-only', name: 'Wide only', version: '1.0.0', license: 'CC0-1.0', category: 'title', duration: 1, fps: 30, width: 320, height: 180, alpha: true, parameters: [] }),
-    );
-    await writeFile(
-      join(mediaDir, 'wide-only', 'index.html'),
-      '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent}canvas{display:block;width:100%;height:100%}</style></head><body><canvas id="c"></canvas><script>var c=document.getElementById("c"),x=c.getContext("2d");window.pulpRender=function(s){if(c.width!==s.width||c.height!==s.height){c.width=s.width;c.height=s.height;}x.clearRect(0,0,s.width,s.height);x.fillStyle="#4f7cac";x.fillRect(s.width*0.1,s.height*0.6,s.width*0.5,s.height*0.2);};</script></body></html>',
-    );
-    await writeFile(join(mediaDir, 'silence.wav'), await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'silence.wav')));
-    // A spoken sample (milestone 50): a sentence synthesised with the system voice, 16 kHz mono, for the transcription test.
-    await writeFile(join(mediaDir, 'spoken.wav'), await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'spoken.wav')));
-    // The other layered stills (milestone 33), generated like the Photoshop one: an OpenRaster of
-    // the same picture, an SVG whose top-level groups are the layers, a PDF with two optional
-    // content groups (one off), and a Sketch file Pulp names rather than reads.
-    const oraPng = (rgba: Uint8Array, w: number, h: number) => Buffer.from(encodePng(rgba, w, h, (b) => new Uint8Array(deflateSync(b))));
-    await writeFile(join(mediaDir, 'painted.ora'), writeZip([
-      { name: 'mimetype', data: Buffer.from('image/openraster') },
-      { name: 'stack.xml', data: Buffer.from('<image w="8" h="6"><stack><stack name="Marks"><layer name="Green mark" src="data/green.png" visibility="hidden" x="4" y="3"/><layer name="Blue mark" src="data/blue.png"/></stack><layer name="Backdrop" src="data/backdrop.png"/></stack></image>') },
-      { name: 'data/backdrop.png', data: oraPng(solid(8, 6, [255, 0, 0, 255]), 8, 6) },
-      { name: 'data/blue.png', data: oraPng(solid(4, 3, [0, 0, 255, 255]), 4, 3) },
-      { name: 'data/green.png', data: oraPng(solid(4, 3, [0, 255, 0, 255]), 4, 3) },
-      { name: 'mergedimage.png', data: oraPng(solid(8, 6, [255, 0, 0, 255]), 8, 6) },
-    ]));
-    await writeFile(join(mediaDir, 'grouped.svg'),
-      '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="60"><g id="Backplate"><rect width="80" height="60" fill="#f00"/></g><g id="Badge" display="none"><circle cx="40" cy="30" r="20" fill="#00f"/></g></svg>');
-    await writeFile(join(mediaDir, 'drawn.pdf'), writePdf());
-    await writeFile(join(mediaDir, 'design.sketch'), Buffer.from('not really a sketch file'));
-    // A layered Photoshop file (milestone 33), generated: a red backdrop and a group holding a shown blue mark and a hidden green one.
-    await writeFile(join(mediaDir, 'layered.psd'), writePsd({
-      width: 8, height: 6,
-      layers: [
-        { name: 'Backdrop', left: 0, top: 0, width: 8, height: 6, rgba: solid(8, 6, [255, 0, 0, 255]) },
-        { group: 'Marks', layers: [
-          { name: 'Blue mark', left: 0, top: 0, width: 4, height: 3, rgba: solid(4, 3, [0, 0, 255, 255]) },
-          { name: 'Green mark', left: 4, top: 3, width: 4, height: 3, rgba: solid(4, 3, [0, 255, 0, 255]), visible: false },
-        ] },
-      ],
-      composite: solid(8, 6, [255, 0, 0, 255]),
-    }));
-    const ffmpeg = await detectFfmpeg();
-    if (ffmpeg.ok) {
-      const wide = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'clip.mp4')]), { timeoutMs: 60_000 });
-      // A tall clip too, for the orientation filter and the portrait cards.
-      const tall = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=36x64:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'tall.mp4')]), { timeoutMs: 60_000 });
-      // A clip with its own sound (milestone 48), so a video layer has something to keep.
-      await runBounded(ffmpeg.path, ffmpegArgs([
-        '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2',
-        '-t', '2', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(mediaDir, 'noisy.mp4'),
-      ]), { timeoutMs: 60_000 });
-      // A clip whose sound goes quiet after 0.8 s (milestone 49), for the silence removal flow —
-      // named to sort after everything else, like the clean-up fixtures, so the stage menu's
-      // first eight assets stay what they were, and mpeg4 like them, so the codec searches keep
-      // counting only what they counted.
-      await runBounded(ffmpeg.path, ffmpegArgs([
-        '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-f', 'lavfi', '-i', 'sine=frequency=660:duration=2',
-        '-af', "volume=enable='gte(t,0.8)':volume=0", '-t', '2', '-c:v', 'mpeg4', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(mediaDir, 'zz-gappy.mp4'),
-      ]), { timeoutMs: 60_000 });
-      // A green-screen take and footage with two hard cuts (milestone 52) — mpeg4, so the codec
-      // searches keep counting only what they counted, and named to sort after everything else,
-      // so the stage menu's first eight assets stay what they were.
-      await runBounded(ffmpeg.path, ffmpegArgs([
-        '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=green:s=64x36:d=0.9:r=10',
-        '-f', 'lavfi', '-i', 'color=c=red:s=16x16:d=0.9:r=10',
-        '-filter_complex', '[0][1]overlay=x=24:y=10', '-c:v', 'mpeg4', '-qscale:v', '2', join(mediaDir, 'weathercast.mp4'),
-      ]), { timeoutMs: 60_000 });
-      await runBounded(ffmpeg.path, ffmpegArgs([
-        '-v', 'error', '-y',
-        '-f', 'lavfi', '-i', 'color=c=red:s=64x36:d=2:r=10',
-        '-f', 'lavfi', '-i', 'color=c=blue:s=64x36:d=2:r=10',
-        '-f', 'lavfi', '-i', 'color=c=green:s=64x36:d=2:r=10',
-        '-filter_complex', '[0][1][2]concat=n=3:v=1:a=0', '-c:v', 'mpeg4', '-qscale:v', '2', '-g', '5', join(mediaDir, 'yearbook.mp4'),
-      ]), { timeoutMs: 60_000 });
-      // A run of numbered frames (milestone 26), so the stage has a sequence to step through.
-      await mkdir(join(mediaDir, 'frames'), { recursive: true });
-      await runBounded(ffmpeg.path, ffmpegArgs([
-        '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '1.2',
-        '-start_number', '1', join(mediaDir, 'frames', 'walk_%04d.png'),
-      ]), { timeoutMs: 60_000 });
-      haveVideo = wide.code === 0 && tall.code === 0;
+    // A setup that fails skips every test in the suite, and no afterEach runs to say why: so it says
+    // what the app was doing itself, then fails (docs/platform-notes.md, "Slow frames at launch").
+    try {
+      const built = await runBounded(process.execPath, [join(ROOT, 'node_modules', 'electron-vite', 'bin', 'electron-vite.js'), 'build'], { cwd: ROOT, timeoutMs: 100_000 });
+      if (built.code !== 0) throw new Error(`build failed: ${built.stderr}`);
+      userData = await mkdtemp(join(tmpdir(), 'pulp-ui-'));
+      mediaDir = join(userData, 'media-library');
+      await mkdir(mediaDir, { recursive: true });
+      await writeFile(join(mediaDir, 'tiny.png'), TINY_PNG);
+      // A solid red 2 × 2 as well: a picture whose every pixel says where it is, with no white to read as text.
+      await writeFile(join(mediaDir, 'mark.png'), solidPng([255, 0, 0]));
+      // A template of one declared size, now that every bundled template draws for all four shapes:
+      // the Output tab's "no aspect to choose" case and the orientation filter's landscape-only case.
+      await mkdir(join(mediaDir, 'wide-only'), { recursive: true });
+      await writeFile(
+        join(mediaDir, 'wide-only', 'template.json'),
+        JSON.stringify({ formatVersion: 1, id: 'pulp.test.wide-only', name: 'Wide only', version: '1.0.0', license: 'CC0-1.0', category: 'title', duration: 1, fps: 30, width: 320, height: 180, alpha: true, parameters: [] }),
+      );
+      await writeFile(
+        join(mediaDir, 'wide-only', 'index.html'),
+        '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent}canvas{display:block;width:100%;height:100%}</style></head><body><canvas id="c"></canvas><script>var c=document.getElementById("c"),x=c.getContext("2d");window.pulpRender=function(s){if(c.width!==s.width||c.height!==s.height){c.width=s.width;c.height=s.height;}x.clearRect(0,0,s.width,s.height);x.fillStyle="#4f7cac";x.fillRect(s.width*0.1,s.height*0.6,s.width*0.5,s.height*0.2);};</script></body></html>',
+      );
+      await writeFile(join(mediaDir, 'silence.wav'), await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'silence.wav')));
+      // A spoken sample (milestone 50): a sentence synthesised with the system voice, 16 kHz mono, for the transcription test.
+      await writeFile(join(mediaDir, 'spoken.wav'), await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'spoken.wav')));
+      // The other layered stills (milestone 33), generated like the Photoshop one: an OpenRaster of
+      // the same picture, an SVG whose top-level groups are the layers, a PDF with two optional
+      // content groups (one off), and a Sketch file Pulp names rather than reads.
+      const oraPng = (rgba: Uint8Array, w: number, h: number) => Buffer.from(encodePng(rgba, w, h, (b) => new Uint8Array(deflateSync(b))));
+      await writeFile(join(mediaDir, 'painted.ora'), writeZip([
+        { name: 'mimetype', data: Buffer.from('image/openraster') },
+        { name: 'stack.xml', data: Buffer.from('<image w="8" h="6"><stack><stack name="Marks"><layer name="Green mark" src="data/green.png" visibility="hidden" x="4" y="3"/><layer name="Blue mark" src="data/blue.png"/></stack><layer name="Backdrop" src="data/backdrop.png"/></stack></image>') },
+        { name: 'data/backdrop.png', data: oraPng(solid(8, 6, [255, 0, 0, 255]), 8, 6) },
+        { name: 'data/blue.png', data: oraPng(solid(4, 3, [0, 0, 255, 255]), 4, 3) },
+        { name: 'data/green.png', data: oraPng(solid(4, 3, [0, 255, 0, 255]), 4, 3) },
+        { name: 'mergedimage.png', data: oraPng(solid(8, 6, [255, 0, 0, 255]), 8, 6) },
+      ]));
+      await writeFile(join(mediaDir, 'grouped.svg'),
+        '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="60"><g id="Backplate"><rect width="80" height="60" fill="#f00"/></g><g id="Badge" display="none"><circle cx="40" cy="30" r="20" fill="#00f"/></g></svg>');
+      await writeFile(join(mediaDir, 'drawn.pdf'), writePdf());
+      await writeFile(join(mediaDir, 'design.sketch'), Buffer.from('not really a sketch file'));
+      // A layered Photoshop file (milestone 33), generated: a red backdrop and a group holding a shown blue mark and a hidden green one.
+      await writeFile(join(mediaDir, 'layered.psd'), writePsd({
+        width: 8, height: 6,
+        layers: [
+          { name: 'Backdrop', left: 0, top: 0, width: 8, height: 6, rgba: solid(8, 6, [255, 0, 0, 255]) },
+          { group: 'Marks', layers: [
+            { name: 'Blue mark', left: 0, top: 0, width: 4, height: 3, rgba: solid(4, 3, [0, 0, 255, 255]) },
+            { name: 'Green mark', left: 4, top: 3, width: 4, height: 3, rgba: solid(4, 3, [0, 255, 0, 255]), visible: false },
+          ] },
+        ],
+        composite: solid(8, 6, [255, 0, 0, 255]),
+      }));
+      const ffmpeg = await detectFfmpeg();
+      if (ffmpeg.ok) {
+        const wide = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'clip.mp4')]), { timeoutMs: 60_000 });
+        // A tall clip too, for the orientation filter and the portrait cards.
+        const tall = await runBounded(ffmpeg.path, ffmpegArgs(['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=36x64:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', join(mediaDir, 'tall.mp4')]), { timeoutMs: 60_000 });
+        // A clip with its own sound (milestone 48), so a video layer has something to keep.
+        await runBounded(ffmpeg.path, ffmpegArgs([
+          '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2',
+          '-t', '2', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(mediaDir, 'noisy.mp4'),
+        ]), { timeoutMs: 60_000 });
+        // A clip whose sound goes quiet after 0.8 s (milestone 49), for the silence removal flow —
+        // named to sort after everything else, like the clean-up fixtures, so the stage menu's
+        // first eight assets stay what they were, and mpeg4 like them, so the codec searches keep
+        // counting only what they counted.
+        await runBounded(ffmpeg.path, ffmpegArgs([
+          '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-f', 'lavfi', '-i', 'sine=frequency=660:duration=2',
+          '-af', "volume=enable='gte(t,0.8)':volume=0", '-t', '2', '-c:v', 'mpeg4', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', join(mediaDir, 'zz-gappy.mp4'),
+        ]), { timeoutMs: 60_000 });
+        // A green-screen take and footage with two hard cuts (milestone 52) — mpeg4, so the codec
+        // searches keep counting only what they counted, and named to sort after everything else,
+        // so the stage menu's first eight assets stay what they were.
+        await runBounded(ffmpeg.path, ffmpegArgs([
+          '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=green:s=64x36:d=0.9:r=10',
+          '-f', 'lavfi', '-i', 'color=c=red:s=16x16:d=0.9:r=10',
+          '-filter_complex', '[0][1]overlay=x=24:y=10', '-c:v', 'mpeg4', '-qscale:v', '2', join(mediaDir, 'weathercast.mp4'),
+        ]), { timeoutMs: 60_000 });
+        await runBounded(ffmpeg.path, ffmpegArgs([
+          '-v', 'error', '-y',
+          '-f', 'lavfi', '-i', 'color=c=red:s=64x36:d=2:r=10',
+          '-f', 'lavfi', '-i', 'color=c=blue:s=64x36:d=2:r=10',
+          '-f', 'lavfi', '-i', 'color=c=green:s=64x36:d=2:r=10',
+          '-filter_complex', '[0][1][2]concat=n=3:v=1:a=0', '-c:v', 'mpeg4', '-qscale:v', '2', '-g', '5', join(mediaDir, 'yearbook.mp4'),
+        ]), { timeoutMs: 60_000 });
+        // A run of numbered frames (milestone 26), so the stage has a sequence to step through.
+        await mkdir(join(mediaDir, 'frames'), { recursive: true });
+        await runBounded(ffmpeg.path, ffmpegArgs([
+          '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x36:rate=10', '-t', '1.2',
+          '-start_number', '1', join(mediaDir, 'frames', 'walk_%04d.png'),
+        ]), { timeoutMs: 60_000 });
+        haveVideo = wide.code === 0 && tall.code === 0;
+      }
+      // A template that declares an animate-in, a hold and an animate-out (milestone 30), so the
+      // Length control has something to act on; the bundled ones do not declare their parts yet.
+      await mkdir(join(mediaDir, 'structure'), { recursive: true });
+      for (const file of ['template.json', 'index.html']) {
+        await writeFile(join(mediaDir, 'structure', file), await readFile(join(__dirname, 'templates', 'structure', file)));
+      }
+      // The hand-written twin of a composition the editor builds (milestone 55's test).
+      await mkdir(join(mediaDir, 'twin-canvas'), { recursive: true });
+      for (const file of ['template.json', 'index.html']) {
+        await writeFile(join(mediaDir, 'twin-canvas', file), await readFile(join(__dirname, 'templates', 'twin-canvas', file)));
+      }
+      // The start screen stays out of the way: this suite drives the window underneath it,
+      // and the screen has its own test, which shows it through File → Home.
+      // Where sample media would go (milestone 34): the folder exists and is empty, so the results'
+      // hint counts the whole catalog as still to make and its button writes here rather than
+      // opening a folder dialog, which cannot be driven from the protocol.
+      sampleRoot = join(userData, 'Sample media');
+      await mkdir(sampleRoot, { recursive: true });
+      // The editor panel's bridge is on, so its describe can speak to the app from outside (milestone 54);
+      // one bundled example is seeded as a recent project, so Continue has a card to lead with (milestone 60).
+      await writeFile(join(userData, 'settings.json'), JSON.stringify({
+        // The empty sample-media folder is a root too, so this install reads as set up (milestone 60's returning arrangement).
+        libraryFolders: [mediaDir, sampleRoot], showStartScreen: false, sampleMediaRoot: sampleRoot, editorPanel: true,
+        // Dark, whatever the machine's own appearance (milestone 62): a CI runner's desktop is light, and
+        // the suite's tests were written against the dark palette. The appearance tests switch it and put it back.
+        appearance: 'dark',
+        // US English, whatever the machine's own language (milestone 59): the suite reads the window's
+        // words, written in the source catalog's. The language test switches it and puts it back.
+        language: 'en-US',
+        recentProjects: [join(ROOT, 'examples', 'interview.pulp')],
+        recentProjectTimes: { [join(ROOT, 'examples', 'interview.pulp')]: new Date().toISOString() },
+      }));
+      // A font already imported: a real TTF in the managed folder under a family of its own, with a
+      // license note, as fonts:import would leave it. The import dialog itself cannot be driven here.
+      await mkdir(join(userData, 'fonts'), { recursive: true });
+      await writeFile(join(userData, 'fonts', 'PulpTestFace.ttf'), await readFile(join(ROOT, 'fonts', 'bebas-neue', 'BebasNeue-Regular.ttf')));
+      await writeFile(
+        join(userData, 'fonts', 'fonts.json'),
+        JSON.stringify([{ family: 'Pulp Test Face', file: 'PulpTestFace.ttf', style: 'normal', weight: 400, note: 'Bought from the foundry, desktop license', importedAt: '2026-10-24T00:00:00Z' }]),
+      );
+      // The app's own output goes to a file, so a failing test can print what the main process said.
+      appLog = join(userData, 'app.log');
+      const logFd = openSync(appLog, 'a');
+      port = await freePort();
+      app = spawn(electron!, ['.', `--remote-debugging-port=${port}`], {
+        cwd: ROOT,
+        stdio: ['ignore', logFd, logFd],
+        // The fake devices: a microphone's steady tone (milestone 63) and a camera's moving test card
+        // (milestone 64), from Chromium itself, so recording needs no device and no prompt on any runner.
+        env: { ...process.env, PULP_USER_DATA: userData, PULP_FAKE_MEDIA: '1' },
+      });
+      closeSync(logFd);
+      let target: Target | undefined;
+      await until(async () => {
+        // This checkout's window and no other: should the port be taken after all, the app that holds it
+        // is another copy of Pulp, and a test driving it would be testing something else entirely.
+        target = (await targets()).find((t) => t.type === 'page' && decodeURIComponent(t.url).includes(join(ROOT, 'out', 'renderer', 'index.html').replace(/\\/g, '/')));
+        return target !== undefined;
+      }, 'the app window');
+      appTargetId = target!.id;
+      page = await Session.connect(target!.webSocketDebuggerUrl);
+      await page.send('Runtime.enable');
+      await until(() => page.eval<boolean>(`document.querySelectorAll('#results li[data-id]').length > 0`), 'the library list');
+      // On a display small enough that the browse panel would squeeze the stage, the window opens with
+      // the panel folded to its rail (milestone 42); the tests drive the panel, so they want it open.
+      await page.eval(`(() => { if (document.getElementById('app').classList.contains('browse-collapsed')) document.getElementById('browse-expand').click(); return true; })()`);
+      await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('browse-collapsed')`), 'the browse panel open');
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview to be ready');
+    } catch (err) {
+      await dumpState(`--- state after the suite's setup failed at ${new Date().toISOString()}: ${(err as Error).message} ---`);
+      throw err;
     }
-    // A template that declares an animate-in, a hold and an animate-out (milestone 30), so the
-    // Length control has something to act on; the bundled ones do not declare their parts yet.
-    await mkdir(join(mediaDir, 'structure'), { recursive: true });
-    for (const file of ['template.json', 'index.html']) {
-      await writeFile(join(mediaDir, 'structure', file), await readFile(join(__dirname, 'templates', 'structure', file)));
-    }
-    // The hand-written twin of a composition the editor builds (milestone 55's test).
-    await mkdir(join(mediaDir, 'twin-canvas'), { recursive: true });
-    for (const file of ['template.json', 'index.html']) {
-      await writeFile(join(mediaDir, 'twin-canvas', file), await readFile(join(__dirname, 'templates', 'twin-canvas', file)));
-    }
-    // The start screen stays out of the way: this suite drives the window underneath it,
-    // and the screen has its own test, which shows it through File → Home.
-    // Where sample media would go (milestone 34): the folder exists and is empty, so the results'
-    // hint counts the whole catalog as still to make and its button writes here rather than
-    // opening a folder dialog, which cannot be driven from the protocol.
-    sampleRoot = join(userData, 'Sample media');
-    await mkdir(sampleRoot, { recursive: true });
-    // The editor panel's bridge is on, so its describe can speak to the app from outside (milestone 54);
-    // one bundled example is seeded as a recent project, so Continue has a card to lead with (milestone 60).
-    await writeFile(join(userData, 'settings.json'), JSON.stringify({
-      // The empty sample-media folder is a root too, so this install reads as set up (milestone 60's returning arrangement).
-      libraryFolders: [mediaDir, sampleRoot], showStartScreen: false, sampleMediaRoot: sampleRoot, editorPanel: true,
-      // Dark, whatever the machine's own appearance (milestone 62): a CI runner's desktop is light, and
-      // the suite's tests were written against the dark palette. The appearance tests switch it and put it back.
-      appearance: 'dark',
-      // US English, whatever the machine's own language (milestone 59): the suite reads the window's
-      // words, written in the source catalog's. The language test switches it and puts it back.
-      language: 'en-US',
-      recentProjects: [join(ROOT, 'examples', 'interview.pulp')],
-      recentProjectTimes: { [join(ROOT, 'examples', 'interview.pulp')]: new Date().toISOString() },
-    }));
-    // A font already imported: a real TTF in the managed folder under a family of its own, with a
-    // license note, as fonts:import would leave it. The import dialog itself cannot be driven here.
-    await mkdir(join(userData, 'fonts'), { recursive: true });
-    await writeFile(join(userData, 'fonts', 'PulpTestFace.ttf'), await readFile(join(ROOT, 'fonts', 'bebas-neue', 'BebasNeue-Regular.ttf')));
-    await writeFile(
-      join(userData, 'fonts', 'fonts.json'),
-      JSON.stringify([{ family: 'Pulp Test Face', file: 'PulpTestFace.ttf', style: 'normal', weight: 400, note: 'Bought from the foundry, desktop license', importedAt: '2026-10-24T00:00:00Z' }]),
-    );
-    // The app's own output goes to a file, so a failing test can print what the main process said.
-    appLog = join(userData, 'app.log');
-    const logFd = openSync(appLog, 'a');
-    port = await freePort();
-    app = spawn(electron!, ['.', `--remote-debugging-port=${port}`], {
-      cwd: ROOT,
-      stdio: ['ignore', logFd, logFd],
-      // The fake devices: a microphone's steady tone (milestone 63) and a camera's moving test card
-      // (milestone 64), from Chromium itself, so recording needs no device and no prompt on any runner.
-      env: { ...process.env, PULP_USER_DATA: userData, PULP_FAKE_MEDIA: '1' },
-    });
-    closeSync(logFd);
-    let target: Target | undefined;
-    await until(async () => {
-      // This checkout's window and no other: should the port be taken after all, the app that holds it
-      // is another copy of Pulp, and a test driving it would be testing something else entirely.
-      target = (await targets()).find((t) => t.type === 'page' && decodeURIComponent(t.url).includes(join(ROOT, 'out', 'renderer', 'index.html').replace(/\\/g, '/')));
-      return target !== undefined;
-    }, 'the app window');
-    appTargetId = target!.id;
-    page = await Session.connect(target!.webSocketDebuggerUrl);
-    await page.send('Runtime.enable');
-    await until(() => page.eval<boolean>(`document.querySelectorAll('#results li[data-id]').length > 0`), 'the library list');
-    // On a display small enough that the browse panel would squeeze the stage, the window opens with
-    // the panel folded to its rail (milestone 42); the tests drive the panel, so they want it open.
-    await page.eval(`(() => { if (document.getElementById('app').classList.contains('browse-collapsed')) document.getElementById('browse-expand').click(); return true; })()`);
-    await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('browse-collapsed')`), 'the browse panel open');
-    await clickResult('Lower Third Bar');
-    await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview to be ready');
   }, 120_000);
 
   /**
@@ -538,6 +576,11 @@ describe.skipIf(!electron)('inspector UI', () => {
    */
   afterEach(async (ctx) => {
     if (ctx.task.result?.state !== 'fail' || !page) return;
+    await dumpState(`--- state after "${ctx.task.name}" failed at ${new Date().toISOString()} ---`);
+  });
+
+  /** What the app was doing, for a failed test or a failed setup; see the comment above afterEach. */
+  async function dumpState(heading: string): Promise<void> {
     const probe = async <T,>(what: string, fn: () => Promise<T>): Promise<T | string> => {
       try {
         return await fn();
@@ -545,8 +588,9 @@ describe.skipIf(!electron)('inspector UI', () => {
         return `${what}: ${(err as Error).message}`;
       }
     };
-    const lines: string[] = [`--- state after "${ctx.task.name}" failed at ${new Date().toISOString()} ---`];
-    lines.push(`window: ${JSON.stringify(await probe('window', () => page.eval(`({ visibility: document.visibilityState, hidden: document.hidden, focus: document.hasFocus(), inner: [window.innerWidth, window.innerHeight], screen: [screen.width, screen.height], results: document.querySelectorAll('#results li[data-id]').length, search: document.getElementById('search').value })`, undefined, 5_000)))}`);
+    const lines: string[] = [heading];
+    if (!page) lines.push('window: never connected');
+    else lines.push(`window: ${JSON.stringify(await probe('window', () => page.eval(`({ visibility: document.visibilityState, hidden: document.hidden, focus: document.hasFocus(), inner: [window.innerWidth, window.innerHeight], screen: [screen.width, screen.height], results: document.querySelectorAll('#results li[data-id]').length, search: document.getElementById('search').value })`, undefined, 5_000)))}`);
     // The results box: a list squeezed to a few pixels is what made the sweeps fall short on Windows CI.
     lines.push(`results box: ${JSON.stringify(await probe('results box', () => page.eval(`(() => { const b = document.getElementById('results'); return { clientHeight: b.clientHeight, scrollHeight: b.scrollHeight, scrollTop: b.scrollTop, cols: b.style.getPropertyValue('--cols'), rowHeight: b.style.getPropertyValue('--card-h'), stage: document.getElementById('region-stage').clientHeight, tray: document.getElementById('region-tray').clientHeight }; })()`, undefined, 5_000)))}`);
     lines.push(`frame callback: ${JSON.stringify(await probe('rAF', () => page.eval(`new Promise((r) => { const t = performance.now(); const timer = setTimeout(() => r('no frame callback within 3 s'), 3000); requestAnimationFrame(() => { clearTimeout(timer); r(Math.round(performance.now() - t) + ' ms'); }); })`, undefined, 5_000)))}`);
@@ -567,7 +611,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       lines.push('app log (last 40 lines):', ...tail.map((l) => `  ${l}`));
     }
     console.error(lines.join('\n'));
-  });
+  }
 
   afterAll(async () => {
     page?.close();
