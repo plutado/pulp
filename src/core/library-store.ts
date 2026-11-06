@@ -23,6 +23,7 @@ import { isLottieCandidate } from './lottie';
 import { unreadableDesignNote } from './layered';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
 import { groupClipSets } from './clip-set';
+import { listZipFile, unpackedPath } from './zip-archive';
 import { PACK_FILENAME, parsePackManifest, slug } from './pack';
 import { inferMediaType, inferMoods, inferThemes } from './taxonomy';
 import type { MediaLookup } from './media-serve';
@@ -293,6 +294,8 @@ export class LibraryStore {
       const problems: LibraryProblem[] = [];
       const upserts: { key: string; kind: string; size: number; mtimeMs: number; entry: LibraryEntry }[] = [];
       let truncated = false;
+      /** Files that are an archive's members unpacked (milestone 32): listed once, as the archive's. */
+      const archiveTargets = new Set<string>();
 
       const walk = async (dir: string, depth: number, pack?: PackContext): Promise<void> => {
         if (fileCount >= maxFiles) return;
@@ -415,6 +418,76 @@ export class LibraryStore {
           upserts.push({ key, kind: 'media', size, mtimeMs, entry: media });
         }
 
+        // A zip in the library (milestone 32) is browsed without unpacking it: each media file in its
+        // central directory is an item of its own, whose path is where it unpacks to — beside the
+        // archive, in a folder named after it. Files already unpacked there are those same items,
+        // so the walk below skips them rather than listing them twice.
+        for (const zip of entries.filter((e) => e.isFile() && !e.name.startsWith('.') && /\.zip$/i.test(e.name))) {
+          const zipPath = join(dir, zip.name);
+          let zipInfo;
+          let members;
+          try {
+            zipInfo = await stat(zipPath);
+            members = await listZipFile(zipPath);
+          } catch (err) {
+            problems.push({ path: zipPath, message: `could not read archive: ${(err as Error).message}` });
+            continue;
+          }
+          const zipTags = [...folderTags(rootPath, dir), ...folderTags(dir, join(dir, zip.name.replace(/\.zip$/i, '')))];
+          for (const member of members) {
+            const kind = mediaKindForPath(member.name);
+            if (!kind) continue;
+            if (fileCount >= maxFiles) {
+              if (!truncated) problems.push({ path: rootPath, message: `stopped after ${maxFiles} files` });
+              truncated = true;
+              return;
+            }
+            fileCount += 1;
+            stats.visited += 1;
+            const target = unpackedPath(zipPath, member.name);
+            archiveTargets.add(target);
+            const key = itemKey('media', `${zipPath}!/${member.name}`, this.builtInRoot);
+            seen.add(key);
+            // Its signature is the member's own size and the archive's time: a new download reads again.
+            let unpacked = false;
+            try {
+              unpacked = (await stat(target)).size === member.size;
+            } catch {
+              // Not unpacked yet.
+            }
+            const storedMember = existing.get(key);
+            if (storedMember && storedMember.size === member.size && storedMember.mtime_ms === zipInfo.mtimeMs && (JSON.parse(storedMember.entry) as MediaEntry).archive?.unpacked === unpacked) {
+              stats.kept += 1;
+              continue;
+            }
+            stats.loaded += 1;
+            const inside = member.name.split('/');
+            const segments = [...new Set([...zipTags, ...folderTags(dir, join(dir, ...inside.slice(0, -1)))])];
+            const fileName = inside.at(-1)!;
+            const inferredType = inferMediaType(kind, segments);
+            const inferredThemes = inferThemes(segments);
+            const inferredMoods = inferMoods(segments);
+            const media: MediaEntry = {
+              kind: 'media',
+              key,
+              id: itemId(key),
+              path: target,
+              root: rootPath,
+              name: basename(fileName, extname(fileName)),
+              mediaKind: kind,
+              ext: extname(fileName).toLowerCase(),
+              size: member.size,
+              mtimeMs: zipInfo.mtimeMs,
+              tags: segments,
+              archive: { zip: zipPath, member: member.name, unpacked },
+              ...(inferredType ? { type: inferredType } : {}),
+              ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
+              ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
+            };
+            upserts.push({ key, kind: 'media', size: member.size, mtimeMs: zipInfo.mtimeMs, entry: media });
+          }
+        }
+
         // An intro, a loop and an outro that belong together are one item that stretches
         // (milestone 32). Their files are skipped by the loop below, as a sequence's frames are.
         const setMembers = new Set<string>();
@@ -482,6 +555,8 @@ export class LibraryStore {
           if (entry.name.startsWith('.')) continue;
           if (sequenceFrames.has(entry.name)) continue;
           if (setMembers.has(entry.name)) continue;
+          // An archive's unpacked file is the archive's item, not a second one; a part being written is nothing yet.
+          if (archiveTargets.has(join(dir, entry.name)) || entry.name.endsWith('.pulp-part')) continue;
           const full = join(dir, entry.name);
           // Symlinks are skipped to avoid cycles and surprising scans outside the chosen roots.
           if (entry.isSymbolicLink()) continue;

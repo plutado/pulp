@@ -102,7 +102,15 @@ export function parseRange(header: string | null | undefined, size: number): { s
   return { start, end };
 }
 
-export async function serveMedia(req: ServeRequest, lookup: (id: string) => MediaLookup | undefined): Promise<ServeResult> {
+export async function serveMedia(
+  req: ServeRequest,
+  lookup: (id: string) => MediaLookup | undefined,
+  /**
+   * For a file inside an archive not unpacked yet (milestone 32): the scratch copy to serve and the
+   * folder it must lie in, so browsing previews it without writing into the library.
+   */
+  archived?: (entry: MediaEntry) => Promise<{ file: string; root: string } | null>,
+): Promise<ServeResult> {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return { status: 405, headers: { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' } };
   }
@@ -134,10 +142,15 @@ export async function serveMedia(req: ServeRequest, lookup: (id: string) => Medi
     file = join(seq.dir, sequenceFrameName(seq, frame));
   }
 
+  let root = found.root;
+  if (found.entry.archive && archived) {
+    const scratch = await archived(found.entry).catch(() => null);
+    if (scratch) [file, root] = [scratch.file, scratch.root];
+  }
   let real: string;
   let realRoot: string;
   try {
-    [real, realRoot] = await Promise.all([realpath(file), realpath(found.root)]);
+    [real, realRoot] = await Promise.all([realpath(file), realpath(root)]);
   } catch {
     return notFound();
   }

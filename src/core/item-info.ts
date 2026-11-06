@@ -95,6 +95,11 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
     const fps = meta.fps ?? 25;
     rows.push({ label: tr('info.row.duration'), value: `${clockLabel(meta.duration)} · ${formatTimecode(Math.round(meta.duration * fps), fps)}`, icon: 'duration' });
   }
+  // Where a file inside an archive lives, and whether it has been unpacked yet (milestone 32).
+  if (entry.archive) {
+    const zip = entry.archive.zip.split(/[\\/]/).pop()!;
+    rows.push({ label: tr('info.row.archive'), value: entry.archive.unpacked ? tr('info.value.archive.unpacked', { zip, member: entry.archive.member }) : tr('info.value.archive.packed', { zip, member: entry.archive.member }) });
+  }
   // A clip set's parts, each with its own length, and what it does with a length (milestone 32).
   if (entry.clipSet) {
     const p = meta?.parts;

@@ -10,6 +10,7 @@
  * out first.
  */
 
+import { browsableFile } from './archive-service';
 import { readFile, stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { deflateSync, inflateSync } from 'node:zlib';
@@ -66,7 +67,7 @@ export async function readPsdItem(id: string): Promise<PsdRead> {
   const found = lookupMedia(id);
   if (!found || found.entry.kind !== 'media' || !isPsdPath(found.entry.path)) return { ok: false, message: tr('layered.read.not-in-library') };
   if (!found.online) return { ok: false, message: tr('layered.read.offline') };
-  return readPsdFile(found.entry.path);
+  return readPsdFile(await browsableFile(found.entry));
 }
 
 export type PsdOutlineResult = { ok: true; outline: PsdOutline } | { ok: false; message: string };

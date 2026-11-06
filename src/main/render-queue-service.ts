@@ -29,7 +29,7 @@ import { existsSync } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
 import { writeFileAtomic } from '../core/atomic-file';
 import { EMPTY_LEDGER, interruptedFiles, parseLedger, serializeLedger, withJob, withoutJob, type InterruptedRender, type RenderLedger } from '../core/render-recovery';
-import { findTemplate, lookupMedia, markItemRendered, markItemUsed } from './library-service';
+import { findTemplate, lookupMedia, markItemRendered, markItemUsed, unpackIfArchived } from './library-service';
 import { renderTemplate } from './render';
 import { planMediaRender, renderMedia } from './media-render';
 import { AUDIO_PRESETS, isAudioPresetId } from '../core/media-render';
@@ -83,6 +83,8 @@ export function getRenderQueue(): RenderQueueSnapshot {
 
 /** Ask where to save, then queue a media item's own render (milestone 15). */
 async function enqueueMediaRender(request: RenderRequest & { mediaId: string }): Promise<EnqueueResult> {
+  // An archive's file is unpacked into the library the first time it is used (milestone 32).
+  await unpackIfArchived([request.mediaId]);
   const entry = mediaFor(request.mediaId);
   if (!entry) return { ok: false, message: tr('queue.item-missing') };
   const facts = presetFacts(request.presetId);
@@ -156,6 +158,8 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
  */
 /** A media item rendered into the cache for dragging (milestone 15), or found there already. */
 async function prepareMediaDrag(request: RenderRequest & { mediaId: string }): Promise<PrepareDragResult> {
+  // An archive's file is unpacked into the library the first time it is used (milestone 32).
+  await unpackIfArchived([request.mediaId]);
   const entry = mediaFor(request.mediaId);
   if (!entry) return { ok: false, message: tr('queue.item-missing') };
   const facts = presetFacts(request.presetId);
@@ -252,6 +256,8 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
  * silently dropped, and whatever can render still does.
  */
 export async function enqueueCollectionItems(items: readonly CollectionItem[], folder: string): Promise<RenderCollectionResult> {
+  // Media from an archive is unpacked into the library before it is rendered (milestone 32).
+  await unpackIfArchived(items.map((i) => i.id));
   const jobIds: number[] = [];
   const skipped: string[] = [];
   const used = new Map<string, number>();

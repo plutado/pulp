@@ -106,3 +106,26 @@ export async function writeClipSetFixture(
     if (run.status !== 0) throw new Error(`could not make ${out}: ${run.stderr}`);
   }
 }
+
+/** The media a synthetic zipped download holds, by its path inside the archive. */
+export const ZIP_FIXTURE_MEDIA = [
+  'Backgrounds/Ocean Wash.png',
+  'Backgrounds/Ember Glow.png',
+  'Sound Effects/Riser Short.wav',
+] as const;
+
+/**
+ * Write a synthetic zipped download (milestone 32), as a stock site delivers one: media in its own
+ * folders, a license, and the macOS resource-fork junk zips often carry, which is not media.
+ */
+export async function writeZipFixture(path: string): Promise<void> {
+  const { writeZip } = await import('../src/core/zip');
+  await mkdir(join(path, '..'), { recursive: true });
+  await writeFile(path, writeZip([
+    { name: 'Backgrounds/Ocean Wash.png', data: stillPng(10, 90, 170) },
+    { name: 'Backgrounds/Ember Glow.png', data: stillPng(200, 80, 30) },
+    { name: 'Sound Effects/Riser Short.wav', data: toneWav(660) },
+    { name: 'License.txt', data: Buffer.from('Synthetic test download.\n') },
+    { name: '__MACOSX/Backgrounds/._Ocean Wash.png', data: Buffer.from('resource fork') },
+  ]));
+}

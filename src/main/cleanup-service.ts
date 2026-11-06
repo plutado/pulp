@@ -18,7 +18,7 @@ import {
 } from '../core/clip-clean';
 import { detectFfmpeg, runForBuffer } from '../core/ffmpeg';
 import { tr } from '../core/i18n';
-import { lookupMedia, rescan } from './library-service';
+import { lookupMedia, rescan, unpackIfArchived } from './library-service';
 
 /** Keying or splitting a long file decodes the whole of it; generous, but an end. */
 const CLEANUP_TIMEOUT_MS = 20 * 60 * 1000;
@@ -49,6 +49,8 @@ async function run(ffmpeg: string, args: string[]): Promise<{ code: number; stdo
  * sliders do is seen before a long encode is asked for.
  */
 export async function chromaKeyPreview(id: string, rawSettings: unknown, atSeconds: unknown): Promise<{ ok: true; plain: string; keyed: string } | { ok: false; message: string }> {
+  // An archive's file is unpacked into the library the first time it is used (milestone 32).
+  await unpackIfArchived([id]);
   const clip = clipFor(id);
   if (!clip) return { ok: false, message: tr('cleanup.not-a-clip') };
   const ffmpeg = await ffmpegPath();
@@ -81,6 +83,8 @@ export async function chromaKeyPreview(id: string, rawSettings: unknown, atSecon
  * original, its sound kept, and the library rescanned so it is there to place.
  */
 export async function chromaKeyClip(id: string, rawSettings: unknown): Promise<{ ok: true; path: string } | { ok: false; message: string }> {
+  // An archive's file is unpacked into the library the first time it is used (milestone 32).
+  await unpackIfArchived([id]);
   const clip = clipFor(id);
   if (!clip) return { ok: false, message: tr('cleanup.not-a-clip') };
   const ffmpeg = await ffmpegPath();
@@ -104,6 +108,8 @@ export async function chromaKeyClip(id: string, rawSettings: unknown): Promise<{
  * is said rather than split into one piece.
  */
 export async function splitScenes(id: string): Promise<{ ok: true; clips: number; folder: string } | { ok: false; message: string }> {
+  // An archive's file is unpacked into the library the first time it is used (milestone 32).
+  await unpackIfArchived([id]);
   const clip = clipFor(id);
   if (!clip) return { ok: false, message: tr('cleanup.not-a-clip') };
   const ffmpeg = await ffmpegPath();

@@ -2409,4 +2409,10 @@ export const zhCN: Catalog = {
   'info.value.clip-set.loop': '循环 {file}（{seconds}）',
   'info.value.clip-set.outro': '结尾 {file}（{seconds}）',
   'info.value.clip-set.stretches': '可拉伸到任意时长：开场一次，循环重复，结尾在最后',
+  // ---------------------------------------------------------------- zipped downloads (milestone 32)
+  'results.badge.archive': '压缩包内',
+  'results.badge.archive.tip': '位于 {zip} 中，无需解压即可浏览。首次使用时会解压到素材库中',
+  'info.row.archive': '压缩包',
+  'info.value.archive.packed': '{member}（位于 {zip}），尚未解压：使用时会解压到压缩包旁边',
+  'info.value.archive.unpacked': '{member}（来自 {zip}），已解压到其旁边',
 };

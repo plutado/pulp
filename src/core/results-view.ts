@@ -202,7 +202,7 @@ export function columnsFor(width: number, cardWidth: number): number {
 
 // What a card and a row show.
 
-export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set';
+export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set' | 'archive';
 
 /**
  * The badges that are words, drawn as outlined tags; the rest are icons with their meaning in the
@@ -252,6 +252,8 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   if (tag && width && height) badges.push({ id: 'resolution', label: tag, tip: dimensionsLabel(width, height) });
   if (hasAlpha(entry)) badges.push({ id: 'alpha', label: tr('results.badge.alpha'), tip: tr('results.badge.alpha.tip') });
   if (entryType(entry) === 'animated-loop') badges.push({ id: 'loop', label: tr('results.badge.loop'), tip: tr('results.badge.loop.tip') });
+  // In a zip archive, not unpacked yet (milestone 32): browsed as it is, unpacked when it is used.
+  if (entry.kind === 'media' && entry.archive && !entry.archive.unpacked) badges.push({ id: 'archive', label: tr('results.badge.archive'), tip: tr('results.badge.archive.tip', { zip: entry.archive.zip.split(/[\\/]/).pop()! }) });
   // A clip set (milestone 32): one item made of an intro, a loop and an outro, that stretches.
   if (entry.kind === 'media' && entry.clipSet) badges.push({ id: 'clip-set', label: tr('results.badge.clip-set'), tip: tr('results.badge.clip-set.tip', { parts: clipSetPartsLabel(entry.clipSet) }) });
   const orientation = entryOrientationBadge(entry);

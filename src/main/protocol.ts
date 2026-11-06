@@ -6,6 +6,7 @@ import { bundledFontFile, FONT_SCHEME, fontMimeType, IMPORTED_FONTS_SLUG, import
 import { importedFontPath, listImportedFonts } from './font-service';
 import { MEDIA_SCHEME, serveClipSetPreview, serveMedia, serveVoicePreview } from '../core/media-serve';
 import { clipSetPreviewDir } from './clip-set-service';
+import { archiveScratchDir, browsableFile } from './archive-service';
 import { voicePreviewDir } from './voice-service';
 import { THUMB_SCHEME } from '../core/thumbnails';
 import { STRIP_SCHEME } from '../core/hover-scrub';
@@ -225,7 +226,11 @@ export function handleMediaProtocol(): void {
     // A treated voice preview (milestone 53) is served from the voice cache, by the name the
     // service made up; everything else is a library item by id.
     // A clip set's stitched preview (milestone 32) likewise, from its own cache.
-    const result = (await serveVoicePreview(serveRequest, voicePreviewDir())) ?? (await serveClipSetPreview(serveRequest, clipSetPreviewDir())) ?? (await serveMedia(serveRequest, lookupMedia));
+    const result = (await serveVoicePreview(serveRequest, voicePreviewDir())) ?? (await serveClipSetPreview(serveRequest, clipSetPreviewDir())) ?? (await serveMedia(serveRequest, lookupMedia, async (entry) => {
+      // A file inside an archive is previewed from Pulp's scratch copy until it is used (milestone 32).
+      const file = await browsableFile(entry);
+      return { file, root: file === entry.path ? entry.root : archiveScratchDir() };
+    }));
     const body = result.body ? (Readable.toWeb(result.body) as ReadableStream) : null;
     return new Response(body, { status: result.status, headers: result.headers });
   });

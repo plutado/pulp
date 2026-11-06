@@ -96,6 +96,12 @@ export interface MediaEntry {
    * makes its poster, and `meta.parts` says how long each part runs once probed.
    */
   clipSet?: ClipSetFiles;
+  /**
+   * Set when this entry is a file inside a zip archive (milestone 32), listed without unpacking it.
+   * `path` is where it is unpacked to — beside the archive, in a folder named after it — which
+   * happens the first time it is used (src/main/archive-service.ts); `unpacked` says it is there now.
+   */
+  archive?: { zip: string; member: string; unpacked: boolean };
 }
 
 export type LibraryEntry = TemplateEntry | MediaEntry;

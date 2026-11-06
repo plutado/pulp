@@ -61,7 +61,7 @@ function optionId(entry: LibraryEntry): string {
 const viewport = signal({ width: 0, height: 0 });
 const scrollTop = signal(0);
 
-const BADGE_ICONS: Partial<Record<BadgeId, IconName>> = { alpha: 'checkerboard', loop: 'repeat', vertical: 'device-mobile', square: 'square', pack: 'package', sound: 'speaker-high', 'clip-set': 'repeat' };
+const BADGE_ICONS: Partial<Record<BadgeId, IconName>> = { alpha: 'checkerboard', loop: 'repeat', vertical: 'device-mobile', square: 'square', pack: 'package', sound: 'speaker-high', 'clip-set': 'repeat', archive: 'package' };
 
 /** The words as outlined tags, then the icons in a group of their own (milestone 66). */
 function Badges({ badges }: { badges: ResultBadge[] }) {

@@ -17,6 +17,7 @@ import { existsSync } from 'node:fs';
 import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
 import { clipSetNaturalSeconds } from '../core/clip-set';
+import { browsable, browsableFile, unpackForUse, whenUnpacked } from './archive-service';
 import { canAddLibrary, defaultLibraryName, driveOf, samePlace, type StockLibrary, type StockLibraryState } from '../core/stock-library';
 import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput, runWithInputForBuffer } from '../core/ffmpeg';
 import { MAX_IMAGE_FILE_BYTES, type ImportedImage } from '../core/image-slot';
@@ -278,7 +279,9 @@ async function probePendingMetadata(): Promise<void> {
               st.setMetadata(entry, await probeClipSet(ffprobe!, entry));
               return;
             }
-            const probed = isLayeredPath(entry.path) ? await layeredMetadata(entry.path) : await probeMedia(ffprobe!, entry.path, nodeRunner);
+            // A file inside an archive is read from Pulp's scratch copy: browsing never unpacks (milestone 32).
+            const file = await browsableFile(entry).catch(() => entry.path);
+            const probed = isLayeredPath(file) ? await layeredMetadata(file) : await probeMedia(ffprobe!, file, nodeRunner);
             const meta = entry.sequence ? sequenceMetadata(probed, entry.sequence) : probed;
             st.setMetadata(entry, meta);
           }),
@@ -336,7 +339,9 @@ async function generatePendingThumbnails(): Promise<void> {
       // (Windows CI, October 2026). Selection (markItemUsed) asks for that item's turn.
       const ahead = thumbnailsFirst.length > 0 ? st.pendingThumbnails(2000).filter((e) => thumbnailsFirst.includes(e.id)) : [];
       thumbnailsFirst.length = 0;
-      for (const entry of ahead.length > 0 ? ahead : pending) {
+      for (const listed of ahead.length > 0 ? ahead : pending) {
+        // An archive's file is thumbnailed from the scratch copy (milestone 32).
+        const entry = listed.kind === 'media' ? await browsable(listed).catch(() => listed) : listed;
         const out = join(dir, thumbFileName(entry.id));
         let ok = false;
         try {
@@ -576,7 +581,8 @@ async function makeStrip(id: string): Promise<HoverStripResult> {
   return { url: stripUrlFor(id) };
 }
 
-async function mediaStrip(entry: MediaEntry, out: string): Promise<HoverStripResult> {
+async function mediaStrip(listed: MediaEntry, out: string): Promise<HoverStripResult> {
+  const entry = await browsable(listed);
   const duration = entry.meta?.duration ?? 0;
   const seq = entry.sequence;
   const args = seq
@@ -639,7 +645,7 @@ async function makeWaveform(id: string): Promise<WaveformResult> {
   let result: WaveformResult;
   try {
     result = await heavyWork(async () => {
-      const decoded = await runForBuffer(ffmpegPath!, waveformArgs((entry as Extract<LibraryEntry, { kind: 'media' }>).path));
+      const decoded = await runForBuffer(ffmpegPath!, waveformArgs(await browsableFile(entry as Extract<LibraryEntry, { kind: 'media' }>)));
       if (decoded.code !== 0) return { peaks: null, reason: `ffmpeg exited with ${decoded.code}: ${decoded.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
       if (decoded.stdout.length === 0) return { peaks: null, reason: 'the file decoded to no audio' }; // i18n-exempt(diagnostic)
       return { peaks: encodePeaks(peaksFromPcm(decoded.stdout)) };
@@ -745,6 +751,21 @@ export async function addLibraryFolder(folder: string): Promise<LibraryIndex> {
   return rescan();
 }
 
+/**
+ * Unpack any archive members among `ids` into the library's folder, because they are being used:
+ * placed in a graphic, rendered, exported (milestone 32). Ids that are not archive members, or are
+ * not media at all, are left alone. Returns the ids that could not be unpacked.
+ */
+export async function unpackIfArchived(ids: readonly (string | null | undefined)[]): Promise<string[]> {
+  const failed: string[] = [];
+  for (const id of new Set(ids.filter((i): i is string => typeof i === 'string' && i !== ''))) {
+    const found = getStore().findMediaById(id);
+    if (!found?.entry.archive || !found.online) continue;
+    if (!(await unpackForUse(found.entry))) failed.push(id);
+  }
+  return failed;
+}
+
 /** For the pulp-media:// handler: the stored media item behind an id, if any. */
 export function lookupMedia(id: string): MediaLookup | undefined {
   return getStore().findMediaById(id);
@@ -798,6 +819,14 @@ export function semanticStoreAll(model: string): { id: string; vec: Uint8Array }
 export function semanticStoreSet(key: string, model: string, vec: Uint8Array): void {
   getStore().setEmbedding(key, model, vec);
 }
+
+// A member unpacked because it was used (milestone 32): the library reads its folder again, so
+// the item says it is there. Coalesced: a render that uses a dozen files rescans once.
+let unpackRescan: ReturnType<typeof setTimeout> | null = null;
+whenUnpacked(() => {
+  if (unpackRescan) clearTimeout(unpackRescan);
+  unpackRescan = setTimeout(() => { unpackRescan = null; void rescan(); }, 500);
+});
 
 export function startLibraryMonitor(): void {
   monitor ??= setInterval(() => void rescanIfRootReturned(), OFFLINE_ROOT_POLL_MS);

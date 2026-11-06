@@ -24,7 +24,7 @@ import { detectFfmpeg } from '../../src/core/ffmpeg';
 import { ffprobePathFor } from '../../src/core/media-probe';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
-import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture } from '../stock-fixture';
+import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
@@ -7339,6 +7339,53 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`);
       await until(async () => !(await resultNames()).includes('Swoosh'), 'the set gone with its library', 30_000);
     }
+  });
+
+  describe('zipped downloads (milestone 32)', () => {
+    it('browses a zip without unpacking it, previews a file from it, and unpacks only that file when it is used', async () => {
+      const zip = join(stockDir, 'Downloads', 'Motion Pack.zip');
+      const folder = join(stockDir, 'Downloads', 'Motion Pack');
+      await writeZipFixture(zip);
+      const hasBadge = (name: string) => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-id]')].some((li) => li.querySelector('.name')?.textContent === ${JSON.stringify(name)} && li.textContent.includes('In archive'))`);
+      try {
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+
+        // What is inside is browsable and searchable at once, each file an item saying where it is.
+        await fire('#search', 'motion pack', 'input');
+        await until(async () => (await resultNames()).filter((n) => ZIP_FIXTURE_MEDIA.map((f) => f.split("/").pop()!.replace(/\.\w+$/, "")).includes(n)).length === ZIP_FIXTURE_MEDIA.length, 'the archive\'s three files listed', 30_000);
+        expect(await resultNames(), 'not its license or its junk').not.toEqual(expect.arrayContaining(['License', '._Ocean Wash']));
+        await fire('#search', 'ocean', 'input');
+        await until(async () => (await resultNames()).includes('Ocean Wash'), 'found by its own name');
+        expect(await hasBadge('Ocean Wash'), 'In archive on its card').toBe(true);
+
+        // Previewed on the stage from the archive, with nothing unpacked into the library.
+        await clickResult('Ocean Wash');
+        await until(() => page.eval<boolean>(`(document.getElementById('media-image')?.naturalWidth ?? 0) > 0`), 'the picture on the stage', 30_000);
+        expect(existsSync(folder), 'browsing unpacks nothing').toBe(false);
+        // Its Info tab says where it is.
+        await page.eval(`document.getElementById('tab-info').click()`);
+        await until(() => page.eval<boolean>(`document.getElementById('region-inspector').textContent.includes('not unpacked yet')`), 'the Info tab on the archive');
+
+        // Used — rendered — it is unpacked, alone, beside the archive in a folder named after it.
+        await page.eval(`document.getElementById('tab-output').click()`);
+        await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'png-still'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await page.eval(`document.getElementById('drag-prepare').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].some((c) => c.querySelector('.job-name').textContent === 'Ocean Wash')`), 'the render of it', 60_000);
+        expect(existsSync(join(folder, 'Backgrounds', 'Ocean Wash.png')), 'unpacked where it belongs').toBe(true);
+        expect((await readdir(join(folder, 'Backgrounds'))).sort(), 'and only it').toEqual(['Ocean Wash.png']);
+        expect(existsSync(join(folder, 'Sound Effects')), 'the rest stays in the archive').toBe(false);
+        // The library reads it again: still one Ocean Wash, no longer in the archive.
+        await until(async () => !(await hasBadge('Ocean Wash')) && (await resultNames()).filter((n) => n === 'Ocean Wash').length === 1, 'the item unpacked, and listed once', 30_000);
+      } finally {
+        await fire('#search', '', 'input');
+        await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`);
+        await page.eval(`window.pulp.clearFinishedRenders()`);
+        await rm(zip, { force: true });
+        await rm(folder, { recursive: true, force: true });
+      }
+    }, 180_000);
   });
 
   describe('recording a voice (milestone 63)', () => {

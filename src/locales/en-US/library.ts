@@ -523,4 +523,10 @@ export const library = {
   'info.value.clip-set.loop': 'Loop {file} ({seconds})',
   'info.value.clip-set.outro': 'Outro {file} ({seconds})',
   'info.value.clip-set.stretches': 'Stretches to any length: the intro once, the loop repeated, the outro at the end',
+  // ---------------------------------------------------------------- zipped downloads (milestone 32)
+  'results.badge.archive': 'In archive',
+  'results.badge.archive.tip': 'Inside {zip}, browsed without unpacking it. It is unpacked into the library the first time you use it',
+  'info.row.archive': 'Archive',
+  'info.value.archive.packed': '{member} in {zip}, not unpacked yet: it is unpacked beside the archive when you use it',
+  'info.value.archive.unpacked': '{member} from {zip}, unpacked beside it',
 } as const;

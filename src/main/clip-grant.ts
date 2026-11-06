@@ -21,7 +21,7 @@ import { sequencePatternName, SEQUENCE_FPS } from '../core/media-sequence';
 import { clipProxySize, clipWindow, EMPTY_CLIP, sanitizeClipValue, type ClipSource, type ClipValue } from '../core/video-layer';
 import { isCubeFile, lutFilter } from '../core/clip-clean';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
-import { lookupClipItem, probeClipSet } from './library-service';
+import { lookupClipItem, probeClipSet, unpackIfArchived } from './library-service';
 import { clipSetFramesArgs } from '../core/clip-set';
 import { templateDefaultSize } from '../core/aspect';
 
@@ -78,6 +78,8 @@ export function clipSourceFor(id: string): ClipSource | null {
  * the library's own pass fills its cache in its own time.
  */
 export async function resolveClipSource(ffprobePath: string, id: string): Promise<ClipSource | null> {
+  // An archive's file is unpacked into the library the first time it is used (milestone 32).
+  await unpackIfArchived([id]);
   const found = lookupClipItem(id);
   if (!found) return null;
   // A drawn template states its own rate and length in its manifest: nothing to probe.
@@ -97,6 +99,8 @@ export async function resolveClipSource(ffprobePath: string, id: string): Promis
  * reason `resolveClipSource` probes.
  */
 export async function resolveClipAudio(ffprobePath: string, id: string): Promise<{ path: string; hasAudio: boolean } | null> {
+  // An archive's file is unpacked into the library the first time it is used (milestone 32).
+  await unpackIfArchived([id]);
   const found = lookupClipItem(id);
   // A clip set's layer is silent for now: its parts' sounds are not stitched (milestone 32).
   if (!found || found.kind !== 'media' || found.entry.sequence || found.entry.clipSet) return null;
@@ -228,6 +232,8 @@ export async function readClipFrames(
   source: ClipSource,
   drawnHeight: number,
 ): Promise<{ ok: true; data: ClipFrameData } | { ok: false; problem: ClipReadProblem }> {
+  // An archive's file is unpacked into the library the first time it is used (milestone 32).
+  await unpackIfArchived([id]);
   const found = lookupClipItem(id);
   if (!found) return { ok: false, problem: { kind: 'not-a-clip' } };
   const window = clipWindow(value, source);

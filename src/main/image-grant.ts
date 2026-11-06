@@ -15,7 +15,7 @@ import { imageGrantKey, MAX_IMAGE_FILE_BYTES, type ImageGrantRequest, type Image
 import { MEDIA_MIME } from '../core/media-serve';
 import { resolveImageCell, sanitizeImageValue } from '../core/image-slot';
 import type { TemplateManifest } from '../core/manifest';
-import { importedImages, lookupMedia } from './library-service';
+import { importedImages, lookupMedia, unpackIfArchived } from './library-service';
 import { isLayeredPath, layeredFileFor } from './layered-service';
 
 /** One still, ready to be handed to a template page: a data URL the bridge decodes through an <img>. */
@@ -75,6 +75,8 @@ export function checkImages(ids: readonly string[]): { ok: string[]; missing: st
  * (milestone 33).
  */
 export async function readSlotImages(requests: readonly (string | ImageGrantRequest)[]): Promise<{ images: SlotImageData[]; missing: string[] }> {
+  // An archive's file is unpacked into the library the first time it is used (milestone 32).
+  await unpackIfArchived(requests.map((r) => (typeof r === 'string' ? r : r.id)));
   const wanted = requests.map((r) => (typeof r === 'string' ? { id: r } : r));
   const { ok, missing } = checkImages(wanted.map((r) => r.id));
   const okSet = new Set(ok);

@@ -2410,4 +2410,10 @@ export const de: Catalog = {
   'info.value.clip-set.loop': 'Loop {file} ({seconds})',
   'info.value.clip-set.outro': 'Outro {file} ({seconds})',
   'info.value.clip-set.stretches': 'Lässt sich auf jede Länge dehnen: Intro einmal, Loop wiederholt, Outro am Ende',
+  // ---------------------------------------------------------------- zipped downloads (milestone 32)
+  'results.badge.archive': 'Im Archiv',
+  'results.badge.archive.tip': 'In {zip}, ohne Entpacken durchsuchbar. Es wird beim ersten Verwenden in die Bibliothek entpackt',
+  'info.row.archive': 'Archiv',
+  'info.value.archive.packed': '{member} in {zip}, noch nicht entpackt: Es wird beim Verwenden neben das Archiv entpackt',
+  'info.value.archive.unpacked': '{member} aus {zip}, daneben entpackt',
 };

@@ -10,6 +10,7 @@
  * as the Photoshop service keeps its own.
  */
 
+import { browsableFile } from './archive-service';
 import { readFile, stat } from 'node:fs/promises';
 import { basename, dirname, extname, resolve, sep } from 'node:path';
 import { inflateSync } from 'node:zlib';
@@ -211,7 +212,8 @@ export async function layeredOutlineFor(id: string): Promise<{ ok: true; outline
   const found = lookupMedia(id);
   if (!found || found.entry.kind !== 'media' || !isLayeredPath(found.entry.path)) return { ok: false, message: tr('layered.read.not-in-library') };
   if (!found.online) return { ok: false, message: tr('layered.read.offline') };
-  const read = await layeredFileFor(found.entry.path);
+  // Inside an archive, read from the scratch copy (milestone 32).
+  const read = await layeredFileFor(await browsableFile(found.entry));
   return read.ok ? { ok: true, outline: read.handle.outline } : read;
 }
 
