@@ -106,8 +106,11 @@ describe('twice the polished art, and an airliner redone (milestone 67)', () => 
   });
 
   it('draws every polished piece anew: no two share a drawing, so none is a recolor of another', () => {
+    // A matching set may carry a set piece under its own defaults — Boardroom offers the frosted
+    // glass panel, the same drawing in the set's palette (milestone 61) — so pack copies are not
+    // each other's recolors and are left out here.
     const drawings = new Map<string, string>();
-    for (const t of index.templates.filter(isPolished)) {
+    for (const t of index.templates.filter((e) => isPolished(e) && e.pack === undefined)) {
       const html = readFileSync(join(t.dir, t.manifest.entry), 'utf8');
       const body = html.slice(html.indexOf('function draw(p)'));
       expect(body.length, `${t.manifest.id} has a drawing`).toBeGreaterThan(200);
