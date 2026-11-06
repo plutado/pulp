@@ -240,7 +240,7 @@ export async function serveVoicePreview(req: ServeRequest, dir: string): Promise
 export const CLIP_SET_PREVIEW_HOST = 'clipset';
 
 /** The file names the clip-set preview cache writes and the only shape the handler serves. */
-export const CLIP_SET_PREVIEW_FILE = /^[a-f0-9]{40}\.webm$/;
+export const CLIP_SET_PREVIEW_FILE = /^[a-f0-9]{40}\.(webm|m4a)$/;
 
 /** pulp-media://clipset/<hash>.webm — a preview the main process stitched into its own cache folder. */
 export function clipSetPreviewUrlFor(file: string): string {
@@ -265,5 +265,5 @@ export async function serveClipSetPreview(req: ServeRequest, dir: string): Promi
   if (url.search || url.username || url.password) return notFound();
   const name = url.pathname.replace(/^\/+/, '');
   if (!CLIP_SET_PREVIEW_FILE.test(name)) return notFound();
-  return serveFile(join(dir, name), req.method, req.range, 'video/webm');
+  return serveFile(join(dir, name), req.method, req.range, name.endsWith('.m4a') ? MEDIA_MIME['.m4a']! : 'video/webm');
 }

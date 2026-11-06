@@ -8,6 +8,7 @@
  * a panel of "Unknown" tells the reader nothing they could not already see.
  */
 
+import { versionLabel } from './music-groups';
 import {
   audioLabel,
   clockLabel,
@@ -95,6 +96,10 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
     const fps = meta.fps ?? 25;
     rows.push({ label: tr('info.row.duration'), value: `${clockLabel(meta.duration)} · ${formatTimecode(Math.round(meta.duration * fps), fps)}`, icon: 'duration' });
   }
+  // A track's cuts, a song's stems, a transition's sound (milestone 32).
+  if (entry.versions?.length) rows.push({ label: tr('info.row.versions'), value: tr('info.value.versions', { lengths: entry.versions.map((v) => versionLabel(v.label, tr('music.version.full'))).join(' · ') }) });
+  if (entry.stemParts?.length) rows.push({ label: tr('info.row.stems'), value: tr('info.value.stems', { stems: entry.stemParts.map((v) => v.label).join(' · ') }) });
+  if (entry.pairedSound) rows.push({ label: tr('info.row.paired-sound'), value: tr('info.value.paired-sound') });
   // Where a file inside an archive lives, and whether it has been unpacked yet (milestone 32).
   if (entry.archive) {
     const zip = entry.archive.zip.split(/[\\/]/).pop()!;

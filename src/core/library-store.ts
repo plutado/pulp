@@ -14,7 +14,7 @@
  */
 
 import { readdir, stat, readFile } from 'node:fs/promises';
-import { basename, extname, isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
@@ -23,6 +23,7 @@ import { isLottieCandidate } from './lottie';
 import { unreadableDesignNote } from './layered';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
 import { groupClipSets } from './clip-set';
+import { groupMusicVersions, groupStems, pairTransitionSounds } from './music-groups';
 import { listZipFile, unpackedPath } from './zip-archive';
 import { PACK_FILENAME, parsePackManifest, slug } from './pack';
 import { inferMediaType, inferMoods, inferThemes } from './taxonomy';
@@ -551,6 +552,53 @@ export class LibraryStore {
           upserts.push({ key, kind: 'media', size, mtimeMs, entry: media });
         }
 
+        // Music and sound effects (milestone 32): a track's cuts and a song's stems are one item
+        // each, their files kept as items marked part of it; a sound made for a clip is paired.
+        const plainFiles = entries.filter((e) => e.isFile() && !e.name.startsWith('.') && !sequenceFrames.has(e.name) && !setMembers.has(e.name)).map((e) => e.name);
+        const fileExtras = new Map<string, Pick<MediaEntry, 'partOf' | 'pairedSound'>>();
+        const groupOf = (name: string, label: string) => itemKey('media', join(dir, `${name} [${label}]`), this.builtInRoot);
+        const memberId = (file: string) => itemId(itemKey('media', join(dir, file), this.builtInRoot));
+        const groups: { key: string; name: string; files: string[]; entry: Partial<MediaEntry> }[] = [];
+        for (const found of groupStems(basename(dir), basename(dirname(dir)), plainFiles)) {
+          const key = groupOf(found.name, 'stems');
+          groups.push({ key, name: found.name, files: found.stems.map((s) => s.file), entry: { stemParts: found.stems.map((s) => ({ id: memberId(s.file), label: s.label })) } });
+        }
+        const inStems = new Set(groups.flatMap((g) => g.files));
+        for (const found of groupMusicVersions(plainFiles.filter((f) => !inStems.has(f)))) {
+          const key = groupOf(found.name, 'versions');
+          groups.push({ key, name: found.name, files: found.versions.map((v) => v.file), entry: { versions: found.versions.map((v) => ({ id: memberId(v.file), label: v.label, ...(v.seconds !== undefined ? { seconds: v.seconds } : {}) })) } });
+        }
+        for (const g of groups) for (const f of g.files) fileExtras.set(f, { partOf: g.key });
+        const kindOf = (f: string) => mediaKindForPath(f);
+        for (const [clip, sound] of pairTransitionSounds(plainFiles.filter((f) => kindOf(f) === 'video'), plainFiles.filter((f) => kindOf(f) === 'audio' && !fileExtras.has(f)))) {
+          fileExtras.set(clip, { pairedSound: memberId(sound) });
+        }
+        for (const g of groups) {
+          if (fileCount >= maxFiles) break;
+          stats.visited += 1;
+          seen.add(g.key);
+          const infos = await Promise.all(g.files.map((f) => stat(join(dir, f)).catch(() => null)));
+          if (infos.some((i) => i === null)) { seen.delete(g.key); continue; }
+          const size = infos.reduce((n, i) => n + i!.size, 0);
+          const mtimeMs = Math.max(...infos.map((i) => i!.mtimeMs));
+          const stored = existing.get(g.key);
+          if (stored && stored.size === size && stored.mtime_ms === mtimeMs) { stats.kept += 1; continue; }
+          stats.loaded += 1;
+          const segments = folderTags(rootPath, dir);
+          const inferredThemes = inferThemes(segments);
+          const inferredMoods = inferMoods(segments);
+          const inferredType = inferMediaType('audio', segments);
+          const first = join(dir, g.files[0]!);
+          const media: MediaEntry = {
+            kind: 'media', key: g.key, id: itemId(g.key), path: first, root: rootPath, name: g.name, mediaKind: 'audio',
+            ext: extname(first).toLowerCase(), size, mtimeMs, tags: segments, ...g.entry,
+            ...(inferredType ? { type: inferredType } : {}),
+            ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
+            ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
+          };
+          upserts.push({ key: g.key, kind: 'media', size, mtimeMs, entry: media });
+        }
+
         for (const entry of entries) {
           if (entry.name.startsWith('.')) continue;
           if (sequenceFrames.has(entry.name)) continue;
@@ -627,7 +675,13 @@ export class LibraryStore {
             continue;
           }
           const stored = existing.get(key);
-          if (stored && stored.size === info.size && stored.mtime_ms === info.mtimeMs) {
+          const extras = fileExtras.get(entry.name) ?? {};
+          // Unchanged, and still in the same group or pairing: kept as it is.
+          const sameExtras = (row: ItemRow) => {
+            const was = JSON.parse(row.entry) as MediaEntry;
+            return was.partOf === extras.partOf && was.pairedSound === extras.pairedSound;
+          };
+          if (stored && stored.size === info.size && stored.mtime_ms === info.mtimeMs && sameExtras(stored)) {
             stats.kept += 1;
             continue;
           }
@@ -648,6 +702,7 @@ export class LibraryStore {
             size: info.size,
             mtimeMs: info.mtimeMs,
             tags: segments,
+            ...extras,
             ...(inferredType ? { type: inferredType } : {}),
             ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
             ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),

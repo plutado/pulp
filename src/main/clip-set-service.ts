@@ -100,3 +100,36 @@ async function prune(dir: string): Promise<void> {
   dated.sort((a, b) => b.t - a.t);
   await Promise.all(dated.slice(CACHE_KEEP).map((d) => rm(join(dir, d.n), { force: true })));
 }
+
+/**
+ * A song's stems mixed for the stage (milestone 32): the stage plays one element, so the stems are
+ * heard together through one short AAC file in the same cache, made again when a stem changes.
+ */
+export async function stemsPreview(id: string): Promise<ClipSetPreview> {
+  const found = lookupMedia(id);
+  if (!found?.entry.stemParts?.length) return { ok: false, message: tr('render.media.stems-missing') };
+  if (!found.online) return { ok: false, message: tr('stage.empty.file-offline') };
+  const ffmpeg = await detectFfmpeg();
+  if (!ffmpeg.ok) return { ok: false, message: ffmpeg.message };
+  const stems = found.entry.stemParts.map((s) => lookupMedia(s.id)?.entry.path).filter((p): p is string => p !== undefined);
+  const stamps = await Promise.all(stems.map(async (p) => `${p}|${(await stat(p)).mtimeMs}`)).catch(() => null);
+  if (!stamps || stems.length === 0) return { ok: false, message: tr('render.media.stems-missing') };
+  const name = `${createHash('sha1').update(`stems|${stamps.join('|')}`).digest('hex')}.m4a`;
+  const dir = clipSetPreviewDir();
+  const file = join(dir, name);
+  const url = clipSetPreviewUrlFor(name);
+  if (await stat(file).then(() => true, () => false)) return { ok: true, url, seconds: 0 };
+  await mkdir(dir, { recursive: true });
+  const partial = `${file}.part`;
+  const run = await runForBuffer(ffmpeg.path, [
+    '-v', 'error', '-nostdin', ...stems.flatMap((p) => ['-i', p]),
+    '-filter_complex', `${stems.map((_, i) => `[${i}:a]`).join('')}amix=inputs=${stems.length}:duration=longest:normalize=0[mix]`,
+    '-map', '[mix]', '-c:a', 'aac', '-b:a', '160k', '-f', 'mp4', '-y', partial,
+  ]);
+  if (run.code !== 0) {
+    await rm(partial, { force: true });
+    return { ok: false, message: tr('render.media.stems-failed', { reason: run.stderr.trim().split('\n').slice(-2).join(' ') }) };
+  }
+  await rename(partial, file);
+  return { ok: true, url, seconds: 0 };
+}

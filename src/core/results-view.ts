@@ -6,6 +6,7 @@
  * stylesheet sizes cards from these numbers rather than the other way round.
  */
 
+import { versionLabel } from './music-groups';
 import { entryLabel } from './app-state';
 import { orientationOf, templateDefaultSize, templateOrientations } from './aspect';
 import { dimensionsLabel, mediaKindLabel, runningTime, themeLabel, typeLabel } from './display';
@@ -202,7 +203,7 @@ export function columnsFor(width: number, cardWidth: number): number {
 
 // What a card and a row show.
 
-export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set' | 'archive';
+export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set' | 'archive' | 'versions' | 'stems';
 
 /**
  * The badges that are words, drawn as outlined tags; the rest are icons with their meaning in the
@@ -252,6 +253,10 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   if (tag && width && height) badges.push({ id: 'resolution', label: tag, tip: dimensionsLabel(width, height) });
   if (hasAlpha(entry)) badges.push({ id: 'alpha', label: tr('results.badge.alpha'), tip: tr('results.badge.alpha.tip') });
   if (entryType(entry) === 'animated-loop') badges.push({ id: 'loop', label: tr('results.badge.loop'), tip: tr('results.badge.loop.tip') });
+  // Music and sound effects in a stock library (milestone 32).
+  if (entry.kind === 'media' && entry.versions?.length) badges.push({ id: 'versions', label: tr('results.badge.versions', { count: entry.versions.length }), tip: tr('results.badge.versions.tip', { lengths: entry.versions.map((v) => versionLabel(v.label, tr('music.version.full'))).join(', ') }) });
+  if (entry.kind === 'media' && entry.stemParts?.length) badges.push({ id: 'stems', label: tr('results.badge.stems', { count: entry.stemParts.length }), tip: tr('results.badge.stems.tip', { stems: entry.stemParts.map((v) => v.label).join(', ') }) });
+  if (entry.kind === 'media' && entry.pairedSound) badges.push({ id: 'sound', label: tr('results.badge.sound'), tip: tr('results.badge.paired-sound.tip') });
   // In a zip archive, not unpacked yet (milestone 32): browsed as it is, unpacked when it is used.
   if (entry.kind === 'media' && entry.archive && !entry.archive.unpacked) badges.push({ id: 'archive', label: tr('results.badge.archive'), tip: tr('results.badge.archive.tip', { zip: entry.archive.zip.split(/[\\/]/).pop()! }) });
   // A clip set (milestone 32): one item made of an intro, a loop and an outro, that stretches.

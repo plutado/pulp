@@ -20,11 +20,11 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { solid, writePsd } from '../psd-fixture';
 import { writePdf } from '../pdf-fixture';
 import { encodePng } from '../../src/core/png';
-import { detectFfmpeg } from '../../src/core/ffmpeg';
-import { ffprobePathFor } from '../../src/core/media-probe';
+import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
+import { ffprobePathFor, probeMedia } from '../../src/core/media-probe';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
-import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
+import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture, writeMusicFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
@@ -7388,6 +7388,92 @@ describe.skipIf(!electron)('inspector UI', () => {
         await rm(folder, { recursive: true, force: true });
       }
     }, 180_000);
+  });
+
+  describe('music and sound effects in a stock library (milestone 32)', () => {
+    it('shows a track in several lengths and a song\'s stems as one item each, renders the cut that fits, mixes the stems, and plays a transition\'s own sound with it', async () => {
+      const ffmpeg = await detectFfmpeg();
+      if (!haveVideo || !ffmpeg.ok || !ffmpeg.encoders.includes('qtrle')) {
+        console.info('ffmpeg not available; music check skipped.');
+        return;
+      }
+      await writeMusicFixture(stockDir, ffmpeg.path);
+      const before = await snapshotTree(stockDir);
+      const cardWith = (name: string, text: string) => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-id]')].some((li) => li.querySelector('.name')?.textContent === ${JSON.stringify(name)} && li.textContent.includes(${JSON.stringify(text)}))`);
+      const optLength = (v: string) => page.eval(`(() => { const l = document.getElementById('opt-length'); l.value = ${JSON.stringify(v)}; l.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      const preset = (id: string) => page.eval(`(() => { const s = document.getElementById('preset'); s.value = ${JSON.stringify(id)}; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      const renderedFile = async (name: string, nth: number) => {
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].filter((c) => c.querySelector('.job-name').textContent === ${JSON.stringify(name)}).length >= ${nth}`), `the render of ${name}`, 90_000);
+        return page.eval<string>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].filter((c) => c.querySelector('.job-name').textContent === ${JSON.stringify(name)})[0].dataset.file`);
+      };
+      const probe = async (file: string) => (await probeMedia(ffprobePathFor(ffmpeg.path), file, nodeRunner))!;
+      try {
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+
+        // One item for the three cuts, one for the stems; their files are not cards of their own.
+        await fire('#search', 'sunrise', 'input');
+        await until(async () => (await resultNames()).filter((n) => n === 'Sunrise').length === 2, 'two Sunrise items', 30_000);
+        expect(await resultNames()).not.toEqual(expect.arrayContaining(['Sunrise 6s', 'Sunrise 15s', 'Sunrise Drums', 'Sunrise Bass']));
+        await until(async () => (await cardWith('Sunrise', '3 lengths')) && (await cardWith('Sunrise', '3 stems')), 'their badges');
+
+        // The stems, chosen, are heard together on the stage.
+        await page.eval(`[...document.querySelectorAll('#results li[data-id]')].find((li) => li.querySelector('.name')?.textContent === 'Sunrise' && li.textContent.includes('3 stems')).click()`);
+        await until(() => page.eval<boolean>(`document.getElementById('media-audio')?.dataset.stems === 'mixed'`), 'the stems mixed for the stage', 30_000);
+        // Rendered, they are one mixed sound as long as the longest stem.
+        await page.eval(`document.getElementById('tab-output').click()`);
+        await preset('wav-pcm');
+        await page.eval(`document.getElementById('drag-prepare').click()`);
+        const mixed = await probe(await renderedFile('Sunrise', 1));
+        expect(mixed.duration).toBeCloseTo(4, 0);
+
+        // The cuts: asked for 10 s, the 15 s cut renders (cut to 10), not the 30 s track looped or cut.
+        // Each cut is its own pitch (330, 220, 165 Hz), so the render's pitch says which it was.
+        const pitch = (file: string) => {
+          const pcm = spawnSync(ffmpeg.path, ['-v', 'error', '-i', file, '-t', '1', '-ac', '1', '-ar', '8000', '-f', 's16le', 'pipe:1'], { maxBuffer: 16 * 1024 * 1024 }).stdout;
+          let crossings = 0;
+          for (let i = 2; i + 1 < pcm.length; i += 2) if ((pcm.readInt16LE(i - 2) < 0) !== (pcm.readInt16LE(i) < 0)) crossings += 1;
+          return crossings / 2;
+        };
+        const files = new Set<string>();
+        for (const [length, hz] of [['10', 220], ['4', 330], ['45', 165]] as const) {
+          await page.eval(`[...document.querySelectorAll('#results li[data-id]')].find((li) => li.querySelector('.name')?.textContent === 'Sunrise' && li.textContent.includes('3 lengths')).click()`);
+          await page.eval(`document.getElementById('tab-output').click()`);
+          await preset('wav-pcm');
+          await optLength(length);
+          await until(() => page.eval<boolean>(`document.getElementById('options-note').textContent.length > 0 && !document.getElementById('options-note').classList.contains('error')`), 'the note');
+          const known = new Set(await page.eval<string[]>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].map((c) => c.dataset.file)`));
+          await page.eval(`document.getElementById('drag-prepare').click()`);
+          await until(() => page.eval<boolean>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].some((c) => !${JSON.stringify([...known])}.includes(c.dataset.file))`), `the render at ${length} s`, 90_000);
+          const file = await page.eval<string>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].map((c) => c.dataset.file).find((f) => !${JSON.stringify([...known])}.includes(f))`);
+          files.add(file);
+          expect((await probe(file)).duration, `${length} s long`).toBeCloseTo(Number(length), 0);
+          expect(Math.abs(pitch(file) - hz), `at ${length} s, the cut at ${hz} Hz`).toBeLessThan(15);
+        }
+        await optLength('');
+
+        // A transition clip with no sound of its own renders with the sound made for it.
+        await fire('#search', 'swipe left', 'input');
+        await until(async () => cardWith('Swipe Left', 'Sound'), 'the transition with its Sound badge', 30_000);
+        await page.eval(`[...document.querySelectorAll('#results li[data-id]')].find((li) => li.querySelector('.name')?.textContent === 'Swipe Left' && li.textContent.includes('Sound')).click()`);
+        await page.eval(`document.getElementById('tab-output').click()`);
+        await preset('prores-4444');
+        await page.eval(`document.getElementById('drag-prepare').click()`);
+        const withSound = await probe(await renderedFile('Swipe Left', 1));
+        expect(withSound.audioCodec, 'the clip renders with its whoosh').toBeTruthy();
+        // Nothing written into the stock library.
+        expect(await snapshotTree(stockDir)).toEqual(before);
+      } finally {
+        await optLength('');
+        await fire('#search', '', 'input');
+        // A rescan while probes run can take longer than one call's usual limit.
+        await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`, undefined, 60_000);
+        await page.eval(`window.pulp.clearFinishedRenders()`);
+        await rm(join(stockDir, 'Music'), { recursive: true, force: true });
+        await rm(join(stockDir, 'Transitions'), { recursive: true, force: true });
+      }
+    }, 300_000);
   });
 
   describe('recording a voice (milestone 63)', () => {

@@ -129,3 +129,33 @@ export async function writeZipFixture(path: string): Promise<void> {
     { name: '__MACOSX/Backgrounds/._Ocean Wash.png', data: Buffer.from('resource fork') },
   ]));
 }
+
+/** A WAV tone of `seconds` at `hz`: a track's cut, a stem, a whoosh. */
+export function toneOf(hz: number, seconds: number): Buffer {
+  return toneWav(hz, seconds);
+}
+
+/**
+ * Music and sound effects as a stock library delivers them (milestone 32): one track in three cuts,
+ * a song's stems in a Stems folder, and a transition clip with the sound made for it (when ffmpeg
+ * is given, to make the clip). Every file is generated.
+ */
+export async function writeMusicFixture(root: string, ffmpegPath?: string): Promise<void> {
+  const music = join(root, 'Music', 'Sunrise');
+  await mkdir(join(music, 'Sunrise Stems'), { recursive: true });
+  // Each cut its own pitch, so a render says which one it was made from.
+  await writeFile(join(music, 'Sunrise 6s.wav'), toneWav(330, 6));
+  await writeFile(join(music, 'Sunrise 15s.wav'), toneWav(220, 15));
+  await writeFile(join(music, 'Sunrise.wav'), toneWav(165, 30));
+  await writeFile(join(music, 'Sunrise Stems', 'Sunrise Drums.wav'), toneWav(110, 4));
+  await writeFile(join(music, 'Sunrise Stems', 'Sunrise Bass.wav'), toneWav(55, 4));
+  await writeFile(join(music, 'Sunrise Stems', 'Sunrise Keys.wav'), toneWav(440, 4));
+  const transitions = join(root, 'Transitions');
+  await mkdir(transitions, { recursive: true });
+  await writeFile(join(transitions, 'Swipe Left.wav'), toneWav(880, 1));
+  if (ffmpegPath) {
+    const { spawnSync } = await import('node:child_process');
+    const run = spawnSync(ffmpegPath, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x8040c0:s=64x36:r=10:d=1', '-c:v', 'qtrle', join(transitions, 'Swipe Left.mov')]);
+    if (run.status !== 0) throw new Error(`could not make the transition clip: ${run.stderr}`);
+  }
+}

@@ -102,6 +102,18 @@ export interface MediaEntry {
    * happens the first time it is used (src/main/archive-service.ts); `unpacked` says it is there now.
    */
   archive?: { zip: string; member: string; unpacked: boolean };
+  /**
+   * Music and sound effects (milestone 32). `partOf` marks a file that is one cut or one stem of a
+   * group item: it stays in the library, with its own id, for whatever plays it, but the results
+   * show the group once. A group item lists its members: `versions`, a track's cuts, longest
+   * first, of which the one that fits the work is played (`pickVersion`); or `stemParts`, a song's
+   * stems, placed as one audio layer whose stems switch on and off. `pairedSound` is the id of a
+   * sound made for this clip — a transition's whoosh — which plays with it.
+   */
+  partOf?: string;
+  versions?: { id: string; label: string; seconds?: number }[];
+  stemParts?: { id: string; label: string }[];
+  pairedSound?: string;
 }
 
 export type LibraryEntry = TemplateEntry | MediaEntry;

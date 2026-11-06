@@ -6,6 +6,7 @@
  * its API. Nothing here touches another region's DOM.
  */
 
+import { soundIdsFor } from '../core/music-groups';
 import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
 import { History } from '../core/history';
 import type { TemplateEntry } from '../core/library-types';
@@ -1906,7 +1907,8 @@ function soundField(
     emptyLibrary: 'params.sound-layer.picker.empty',
     chosen: () => value?.id ?? undefined,
     // A new sound starts from the whole of it: in and out points of the one before mean nothing here.
-    onPick: (entry) => set({ ...EMPTY_SOUND, id: entry.id, ending: value?.ending ?? EMPTY_SOUND.ending, delay: value?.delay ?? 0, volume: value?.volume ?? 1, ...(value?.voice ? { voice: value.voice } : {}) }),
+    // A track's cuts give the one that fits the graphic; a song's stems arrive as stems (milestone 32).
+    onPick: (entry) => set({ ...EMPTY_SOUND, ...placedSound(entry.id), ending: value?.ending ?? EMPTY_SOUND.ending, delay: value?.delay ?? 0, volume: value?.volume ?? 1, ...(value?.voice ? { voice: value.voice } : {}) }),
   });
 
   const settings = document.createElement('div');
@@ -2162,6 +2164,17 @@ const DIRECTION_LABELS: Readonly<Record<TransitionDirection, string>> = {
 };
 
 /** The length the graphic is running at, which a layer's own start and end are set within. */
+/**
+ * A library sound as an audio layer holds it (milestone 32): a track's cut that fits the graphic's
+ * length, a song's stems each on its own lane, or the file itself.
+ */
+function placedSound(id: string): { id: string; stems?: SoundStem[] } {
+  const media = appState.value.index?.media ?? [];
+  const byId = (x: string) => media.find((m) => m.id === x);
+  const entry = byId(id);
+  return entry ? soundIdsFor(entry, graphicLength(), byId) : { id };
+}
+
 function graphicLength(): number {
   const selected = selectedTemplate.value;
   if (!selected) return 0;
@@ -3038,7 +3051,7 @@ function acceptItemDrop(section: HTMLElement, block: string, layer: ImageLayer |
       l.type === 'video'
         ? { ...l, clip: { ...EMPTY_CLIP, id } }
         : l.type === 'audio'
-          ? { ...l, sound: { ...EMPTY_SOUND, id } }
+          ? { ...l, sound: { ...EMPTY_SOUND, ...placedSound(id) } }
           : { ...l, image: { id, treatment: 'original', tint: '#ffffff', effect: 'none', hidden: false, ...browsedPsdChoice(id) } },
     true);
     commitParams();
@@ -3362,7 +3375,7 @@ export function initInspectorParams(): void {
         : type === 'video'
           ? { ...fresh, clip: { ...EMPTY_CLIP, id: itemId } }
           : type === 'audio'
-            ? { ...fresh, sound: { ...EMPTY_SOUND, id: itemId } }
+            ? { ...fresh, sound: { ...EMPTY_SOUND, ...placedSound(itemId) } }
             : { ...fresh, image: { id: itemId, treatment: 'original' as const, tint: '#ffffff', effect: 'none' as const, hidden: false, ...browsedPsdChoice(itemId) } };
       setLayers({ ...layers, [block.id]: [...stack, layer as Layer] }, true);
       return { block: block.id, id: fresh.id };

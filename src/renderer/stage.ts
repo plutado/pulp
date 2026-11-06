@@ -932,7 +932,18 @@ export function stageShowMedia(entry: MediaEntry): void {
     s.frame = 0;
     els.scrub.max = '0';
     els.mediaAudio.onloadedmetadata = () => setMediaLength(els.mediaAudio.duration);
-    els.mediaAudio.src = url;
+    // A song's stems are heard together (milestone 32), through a mix the main process makes.
+    if (entry.stemParts?.length) {
+      els.mediaAudio.dataset.stems = 'making';
+      void window.pulp.stemsPreview(entry.id).then((made) => {
+        if (s.audio?.id !== entry.id) return;
+        els.mediaAudio.dataset.stems = made.ok ? 'mixed' : 'failed';
+        els.mediaAudio.src = made.ok ? made.url : url;
+      });
+    } else {
+      delete els.mediaAudio.dataset.stems;
+      els.mediaAudio.src = url;
+    }
     s.audio = entry;
     drawWaveform(entry);
     updateTransport();

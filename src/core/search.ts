@@ -233,7 +233,8 @@ function scoreTerm(h: ReturnType<typeof entryHaystack>, term: string): number {
 
 export function searchLibrary(index: LibraryIndex, query: string): SearchHit[] {
   const q = parseQuery(query);
-  const entries: LibraryEntry[] = [...index.templates, ...index.media];
+  // A track's cut or a song's stem is shown as its group, once (milestone 32); it stays in the index for what plays it.
+  const entries: LibraryEntry[] = [...index.templates, ...index.media.filter((m) => !m.partOf)];
   const hits: SearchHit[] = [];
 
   for (const entry of entries) {

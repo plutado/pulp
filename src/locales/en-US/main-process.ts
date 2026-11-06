@@ -309,5 +309,7 @@ export const mainProcess = {
   'render.warning.parameter': 'parameter {id}: {detail}',
   'clip-set.preview.not-a-set': 'That item is not a clip set.',
   'clip-set.preview.unreadable': 'The clip set\'s parts could not be read.',
+  'render.media.stems-missing': 'The song\'s stems are not in the library.',
+  'render.media.stems-failed': 'The song\'s stems could not be mixed: {reason}',
   'render.media.clip-set-failed': 'The clip set\'s parts could not be put together: {reason}',
 } as const;

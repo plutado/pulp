@@ -64,7 +64,7 @@ import { sanitizePlayer } from '../core/player';
 import { loadSettings, updateSettings } from './settings';
 import { getAppearance, loadAppearance, setAppearance, watchAppearance, windowBackground } from './appearance-service';
 import { getLanguage, loadLanguage, onLanguageChange, setLanguage } from './language-service';
-import { clipSetPreview } from './clip-set-service';
+import { clipSetPreview, stemsPreview } from './clip-set-service';
 import { abandonVideoTake, appendVideoTake, beginVideoTake, cameraAccess, finishVideoTake, microphoneAccess, openPrivacySettings, saveRecording } from './recording-service';
 import { DEFAULT_VIDEO_INPUTS, sanitizeVideoInputs } from '../core/video-take';
 import { sanitizeTypeOutputDefault } from '../core/output-defaults';
@@ -323,6 +323,7 @@ function registerIpc(): void {
     return addStockLibrary(folder);
   });
   ipcMain.handle('clip-set:preview', (_event, id: unknown, length: unknown) => clipSetPreview(String(id), typeof length === 'number' ? length : undefined));
+  ipcMain.handle('stems:preview', (_event, id: unknown) => stemsPreview(String(id)));
   ipcMain.handle('library:remove-stock', (_event, path: unknown) => removeStockLibrary(String(path)));
   ipcMain.handle('library:add-folder', async () => {
     const result = await dialog.showOpenDialog({

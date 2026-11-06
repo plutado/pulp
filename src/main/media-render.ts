@@ -30,7 +30,8 @@ import { nodeRunner } from '../core/ffmpeg';
 import type { RenderProgress, RenderResult } from '../shared/api';
 import { isLayeredPath, layeredFileFor } from './layered-service';
 import { finishedFileWarnings } from './platform-check';
-import { probeClipSet } from './library-service';
+import { lookupMedia, probeClipSet } from './library-service';
+import { soundIdsFor } from '../core/music-groups';
 
 export interface MediaRenderJob {
   entry: MediaEntry;
@@ -47,6 +48,32 @@ export interface MediaRenderJob {
 /** What the planner needs to know about an item: the library's measurements, or a probe now; a layered file as its collected composite. */
 export async function mediaSourceFor(entry: MediaEntry, ffmpeg: FfmpegStatus & { ok: true }, scratchDir?: string, params: Record<string, unknown> = {}, target?: { width?: number; height?: number }, options: RenderOptions = {}): Promise<MediaSource> {
   if (entry.clipSet) return clipSetSource(entry, ffmpeg, scratchDir, options);
+  // A track in several lengths renders the cut that fits the length asked (milestone 32).
+  if (entry.versions && entry.versions.length > 0) {
+    // Each cut measured, on the spot where the library has not yet, so the pick is by real lengths.
+    const lengths = new Map(await Promise.all(entry.versions.map(async (v) => {
+      const cut = lookupMedia(v.id)?.entry;
+      const seconds = cut?.meta?.duration ?? (cut ? (await probeMedia(ffprobePathFor(ffmpeg.path), cut.path, nodeRunner))?.duration : undefined);
+      return [v.id, seconds] as const;
+    })));
+    const pick = soundIdsFor(entry, options.length, (id) => ({ meta: { duration: lengths.get(id) } }));
+    const cut = lookupMedia(pick.id)?.entry;
+    if (cut) return mediaSourceFor(cut, ffmpeg, scratchDir, params, target, options);
+  }
+  // A song's stems render as their mix, every stem at full gain.
+  if (entry.stemParts && entry.stemParts.length > 0) return stemsSource(entry, ffmpeg, scratchDir);
+  // A clip with no sound of its own carries the sound made for it.
+  if (entry.pairedSound && entry.mediaKind === 'video') {
+    const own = await mediaSourceFor({ ...entry, pairedSound: undefined } as MediaEntry, ffmpeg, scratchDir, params, target, options);
+    const paired = lookupMedia(entry.pairedSound)?.entry;
+    if (own.hasAudio || !paired || !('path' in own.input)) return own;
+    if (!scratchDir) return { ...own, hasAudio: true };
+    // The source's own container family: QuickTime codecs (Animation, ProRes) need QuickTime's.
+    const muxed = join(scratchDir, /\.(webm|mkv)$/i.test(own.input.path) ? 'with-sound.mkv' : 'with-sound.mov');
+    const run = await runForBuffer(ffmpeg.path, ['-v', 'error', '-nostdin', '-i', own.input.path, '-i', paired.path, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'pcm_s16le', '-af', 'apad', '-shortest', '-y', muxed]);
+    if (run.code !== 0) return own;
+    return { ...own, input: { path: muxed }, hasAudio: true };
+  }
   if (isLayeredPath(entry.path)) {
     const read = await layeredFileFor(entry.path);
     if (!read.ok) throw new RenderPlanError(tr('render.media.layered-unreadable', { reason: read.message }));
@@ -93,6 +120,25 @@ async function clipSetSource(entry: MediaEntry, ffmpeg: FfmpegStatus & { ok: tru
   const run = await runForBuffer(ffmpeg.path, args);
   if (run.code !== 0) throw new RenderPlanError(tr('render.media.clip-set-failed', { reason: run.stderr.trim().split('\n').slice(-3).join(' ') }));
   return { ...measured, input: { path: stitched } };
+}
+
+/** A song's stems as one sound: mixed in the render's scratch folder, each at full gain. */
+async function stemsSource(entry: MediaEntry, ffmpeg: FfmpegStatus & { ok: true }, scratchDir: string | undefined): Promise<MediaSource> {
+  const stems = entry.stemParts!.map((s) => lookupMedia(s.id)?.entry).filter((e): e is MediaEntry => e !== undefined);
+  if (stems.length === 0) throw new RenderPlanError(tr('render.media.stems-missing'));
+  // Measured on the spot where the library's own pass has not reached them yet, as any clip is.
+  const lengths = await Promise.all(stems.map(async (s) => s.meta?.duration ?? (await probeMedia(ffprobePathFor(ffmpeg.path), s.path, nodeRunner))?.duration ?? 0));
+  const longest = Math.max(...lengths);
+  const measured: MediaSource = { kind: 'audio', input: { path: stems[0]!.path }, ...(longest > 0 ? { duration: longest } : {}), alpha: false, hasAudio: true };
+  if (!scratchDir) return measured;
+  const mixed = join(scratchDir, 'stems.wav');
+  const run = await runForBuffer(ffmpeg.path, [
+    '-v', 'error', '-nostdin', ...stems.flatMap((s) => ['-i', s.path]),
+    '-filter_complex', `${stems.map((_, i) => `[${i}:a]`).join('')}amix=inputs=${stems.length}:duration=longest:normalize=0[mix]`,
+    '-map', '[mix]', '-c:a', 'pcm_s24le', '-y', mixed,
+  ]);
+  if (run.code !== 0) throw new RenderPlanError(tr('render.media.stems-failed', { reason: run.stderr.trim().split('\n').slice(-2).join(' ') }));
+  return { ...measured, input: { path: mixed } };
 }
 
 /** The planner's answer for an item without running anything: what the Output tab and the queue validate with. */

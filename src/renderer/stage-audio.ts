@@ -95,7 +95,14 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
       if (layer.type === 'video' && clipAudible(layer.clip)) {
         const source = sources[layer.clip.id!];
         const entry = entryFor(layer.clip.id!);
-        if (!source || !entry || entry.sequence || (entry.meta && !entry.meta.audioCodec)) continue;
+        if (!source || !entry || entry.sequence) continue;
+        if (entry.meta && !entry.meta.audioCodec) {
+          // No sound of its own: the sound made for it, if there is one (milestone 32), on the clip's
+          // timing, exactly as the render mixes it (resolveClipAudio in src/main/clip-grant.ts).
+          const paired = entry.pairedSound ? entryFor(entry.pairedSound) : undefined;
+          if (!paired || paired.offline) continue;
+          urls.set(key, mediaUrlFor(paired.id));
+        }
         wanted.set(key, { kind: 'clip', path: '', value: layer.clip, source, ...(span ? { span } : {}) });
       } else if (layer.type === 'audio' && soundAudible(layer.sound)) {
         // Music as stems (milestone 16) plays as one element per heard stem, so a mute or a solo

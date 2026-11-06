@@ -529,4 +529,17 @@ export const library = {
   'info.row.archive': 'Archive',
   'info.value.archive.packed': '{member} in {zip}, not unpacked yet: it is unpacked beside the archive when you use it',
   'info.value.archive.unpacked': '{member} from {zip}, unpacked beside it',
+  // ---------------------------------------------------------------- music and sound effects (milestone 32)
+  'results.badge.versions': { one: '{count} length', other: '{count} lengths' },
+  'results.badge.versions.tip': 'One track in several cuts ({lengths}): the one that fits your work is used',
+  'results.badge.stems': { one: '{count} stem', other: '{count} stems' },
+  'results.badge.stems.tip': 'Layered music ({stems}): placed as one sound whose stems switch on and off',
+  'results.badge.paired-sound.tip': 'Has a sound effect made for it, which plays with it',
+  'info.row.versions': 'Lengths',
+  'info.value.versions': '{lengths}. The shortest that covers your work is used, else the longest',
+  'info.row.stems': 'Stems',
+  'info.value.stems': '{stems}. Placed as one sound; switch each stem on and off on its lane',
+  'info.row.paired-sound': 'Sound',
+  'info.value.paired-sound': 'A sound effect made for this clip plays with it, wherever it is placed or rendered',
+  'music.version.full': 'Full',
 } as const;

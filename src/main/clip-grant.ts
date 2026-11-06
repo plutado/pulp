@@ -21,7 +21,7 @@ import { sequencePatternName, SEQUENCE_FPS } from '../core/media-sequence';
 import { clipProxySize, clipWindow, EMPTY_CLIP, sanitizeClipValue, type ClipSource, type ClipValue } from '../core/video-layer';
 import { isCubeFile, lutFilter } from '../core/clip-clean';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
-import { lookupClipItem, probeClipSet, unpackIfArchived } from './library-service';
+import { lookupClipItem, lookupMedia, probeClipSet, unpackIfArchived } from './library-service';
 import { clipSetFramesArgs } from '../core/clip-set';
 import { templateDefaultSize } from '../core/aspect';
 
@@ -106,6 +106,12 @@ export async function resolveClipAudio(ffprobePath: string, id: string): Promise
   if (!found || found.kind !== 'media' || found.entry.sequence || found.entry.clipSet) return null;
   const meta = found.entry.meta ?? (ffprobePath ? await probeMedia(ffprobePath, found.entry.path, nodeRunner) : null);
   if (!meta) return null;
+  // A clip with no sound of its own plays the sound made for it — a transition's whoosh
+  // (milestone 32) — on the clip's own timing, as the stage plays it (src/renderer/stage-audio.ts).
+  if (!meta.audioCodec && found.entry.pairedSound) {
+    const paired = lookupMedia(found.entry.pairedSound);
+    if (paired?.online) return { path: paired.entry.path, hasAudio: true };
+  }
   return { path: found.entry.path, hasAudio: Boolean(meta.audioCodec) };
 }
 

@@ -468,6 +468,8 @@ export interface PulpApi {
   addStockLibrary(): Promise<{ ok: true; index: LibraryIndex } | { ok: false; why: 'already' | 'inside' | 'contains' | 'own' | 'missing' } | null>;
   /** A clip set stitched to `length` seconds (its own when undefined) for the stage to play (milestone 32). */
   clipSetPreview(id: string, length?: number): Promise<{ ok: true; url: string; seconds: number } | { ok: false; message: string }>;
+  /** A song's stems mixed for the stage to play (milestone 32). */
+  stemsPreview(id: string): Promise<{ ok: true; url: string; seconds: number } | { ok: false; message: string }>;
   /** Forget a stock library. Its files are not touched. */
   removeStockLibrary(path: string): Promise<LibraryIndex>;
   /** Make the sample-media folder inside a chosen folder, add it to the library, and say what was written. Null when canceled. */
