@@ -7225,6 +7225,8 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add offering a stock library');
         await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
         await until(async () => (await saved()).some((l) => l.path === stockDir), 'the library kept in settings');
+        // Settings are written before the scan that follows: that add ends when the section appears.
+        await until(() => page.eval<boolean>(`!!document.querySelector('#browse-tree .section-heading[data-node="stock"]')`), 'the stock section in the tree', 60_000);
         // Adding the same one again is refused, and said.
         await page.eval(`document.getElementById('library-add').click()`);
         await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add open again');
