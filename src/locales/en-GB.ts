@@ -125,4 +125,9 @@ export const enGB: Catalog = {
   'queue.collection.canceled': 'Render all cancelled.',
   'pack.export.canceled': 'Export cancelled.',
   'about.credits': 'Built on Electron, Chromium and open-source work under their own licences: Help → Acknowledgements.',
+  // ---------------------------------------------------------------- what Pulp writes about a Lottie file (src/locales/en-US/library.ts)
+  'lottie.limit.themes': 'its themes are not read; colours are edited one by one',
+  'lottie.param.color.text': '{name} text colour',
+  'lottie.element.colors': 'Colours',
+  'lottie.fit.center': 'Its own size, centred',
 };

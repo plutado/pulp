@@ -12,7 +12,7 @@ import { initCleanup } from './cleanup';
 import { initShell } from './shell';
 import { closeInspectorUnlessPinned, initInspectorTabs, openInspector, showInspectorTab } from './inspector-tabs';
 import { mountCaptions } from './captions';
-import { chosenLibraryItems, currentCaptions, currentLayers, currentRawParams, currentSound, currentTrack, exposeLayerProperty, initInspectorParams, paramsClear, paramsShow } from './inspector-params';
+import { chosenLibraryItems, currentCaptions, currentLayers, currentRawParams, currentSound, currentTrack, exposeLayerProperty, initInspectorParams, paramsClear, paramsRelabel, paramsShow } from './inspector-params';
 import { currentOptions, currentPresetId, initInspectorOutput, outputClear, outputEdited, outputSetFfmpeg, outputShow, outputShowMedia, setTemplateShower, updateRenderControls } from './inspector-output';
 import { initGuidedSetup } from './guided-setup';
 import { initSemantic } from './semantic';
@@ -26,7 +26,8 @@ import { initProject, openProjectFrom } from './project';
 import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './project-ui';
 import { initMenu, registerBlankCanvasOpener, registerSavedTemplateOpener } from './menu';
 import { initAppearance } from './appearance';
-import { bindText, initI18n, t, whenLocaleChanges } from './i18n';
+import { bindText, initI18n, locale, t, whenLocaleChanges } from './i18n';
+import { localizeIndex } from '../core/library-words';
 import type { MessageId, MessageValues } from '../core/i18n';
 import { initRecorder, registerRecordingOpener } from './recorder';
 import { initCameraRecorder } from './camera-recorder';
@@ -47,7 +48,7 @@ import { FONT_SCHEME, fontFaceCss, importedFontFaceCss } from '../core/fonts';
 import { importedFonts } from './store';
 import { mountIcons } from './icons';
 import { initTooltips } from './tooltip';
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 import type { CollisionChoice, PackPreview } from '../core/pack';
 
 // The interface's language first, so whatever is drawn from code after it is in it (milestone 59).
@@ -114,6 +115,26 @@ function paintSummary(): void {
   }
 }
 
+/**
+ * The library as the main process sent it, in US English; what the state holds is it in the
+ * interface's language (src/core/library-words.ts), made again when the language changes.
+ */
+let sourceIndex: LibraryIndex | null = null;
+// Untracked: inside the language's effect, reading the state would tie every later dispatch back to it.
+whenLocaleChanges(() => untracked(() => {
+  if (!sourceIndex) return;
+  const shown = localizeIndex(sourceIndex, locale.value);
+  dispatch((s) => setIndex(s, shown));
+  // The template on the stage is the same one in other words: its tab is drawn again from them,
+  // keeping what was set on it.
+  const selected = selectedTemplate.value;
+  const fresh = selected ? shown.templates.find((t) => t.key === selected.key) : undefined;
+  if (fresh && fresh !== selected) {
+    selectedTemplate.value = fresh;
+    paramsRelabel();
+  }
+}));
+
 async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
   setScanning(true);
   let index: LibraryIndex | null;
@@ -127,7 +148,8 @@ async function loadLibrary(next: Promise<LibraryIndex | null>): Promise<void> {
   // Timed for Copy diagnostics (milestone 58): the index landing in the state, which recomputes
   // the results, the facets and the tree over the whole library.
   const started = performance.now();
-  dispatch((s) => setIndex(s, index));
+  sourceIndex = index;
+  dispatch((s) => setIndex(s, localizeIndex(index, locale.value)));
   receiveTiming.record(performance.now() - started);
   // A session that ended suddenly is offered back once the library is in, since the items it
   // holds mean nothing without one. Recovering it is choosing to work, so the start screen goes.

@@ -173,15 +173,24 @@ function entryName(entry: LibraryEntry): string {
   return entry.kind === 'template' ? entry.manifest.name : entry.name;
 }
 
-function entryHaystack(entry: LibraryEntry): { name: string; words: string[]; tags: string[]; text: string } {
+/**
+ * What a term is matched against. An entry shown in another language (src/core/library-words.ts)
+ * is found by its words in that language and by its US English too — the English name ranks as a
+ * name — so a typed English word still finds it, whatever the window is in.
+ */
+function entryHaystack(entry: LibraryEntry): { name: string; names: string[]; words: string[]; tags: string[]; text: string } {
   const name = entryName(entry).toLowerCase();
+  const source = entry.kind === 'template' ? entry.source : undefined;
+  const names = source ? [name, source.name.toLowerCase()] : [name];
   const extra =
     entry.kind === 'template'
       ? [entry.manifest.id, entry.manifest.description ?? '', entry.manifest.category, entry.manifest.author ?? '', ...(entry.manifest.styles ?? [])]
       : [entry.ext, entry.mediaKind, entry.meta?.codec ?? '', resolutionLabel(entry.meta?.width, entry.meta?.height) ?? ''];
+  if (source) extra.push(source.name, source.description);
   extra.push(entryType(entry) ?? '', ...(entry.themes ?? []));
   const text = [name, ...entry.tags, ...extra].join(' ').toLowerCase();
-  return { name, words: name.split(/[^a-z0-9]+/).filter(Boolean), tags: entry.tags, text };
+  // Words in any script: an umlaut is part of a German word, not a break in it.
+  return { name, names, words: names.flatMap((n) => n.split(/[^\p{L}\p{N}]+/u)).filter(Boolean), tags: entry.tags, text };
 }
 
 /**
@@ -214,7 +223,7 @@ function matchesType(entry: LibraryEntry, type: string): boolean {
  * so a term that is both a tag and a word in the name outranks either alone.
  */
 function scoreTerm(h: ReturnType<typeof entryHaystack>, term: string): number {
-  if (h.name === term) return 10;
+  if (h.names.includes(term)) return 10;
   let score = 0;
   if (h.tags.includes(term) || h.tags.includes(normalizeTag(term))) score += 5;
   if (h.words.some((w) => w.startsWith(term))) score += 3;

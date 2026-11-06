@@ -29,6 +29,7 @@ import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridg
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
 import { categoryInfo } from '../../src/core/categories';
 import { catalogFor, type LocaleId } from '../../src/core/i18n';
+import { libraryWordsFor as libraryWords } from '../../src/core/library-words';
 import { ffmpegArgs, killTree, runBounded } from './process';
 
 const ROOT = join(__dirname, '..', '..');
@@ -7103,6 +7104,34 @@ describe.skipIf(!electron)('inspector UI', () => {
       ['de', ['Datei', 'Bearbeiten', 'Ansicht']],
       ['zh-CN', ['文件', '编辑', '视图']],
     ];
+    it('shows the bundled library in the language, and still finds it by a typed English word', async () => {
+      const names = { de: libraryWords('de'), 'zh-CN': libraryWords('zh-CN') };
+      try {
+        for (const locale of ['de', 'zh-CN'] as const) {
+          await page.eval(`window.pulp.setLanguage(${JSON.stringify(locale)})`);
+          await until(() => page.eval<boolean>(`document.documentElement.lang === ${JSON.stringify(locale)}`), `the window in ${locale}`);
+          // An English word, typed as anyone would: the airliner is found, under its name in the language.
+          await fire('#search', 'airliner', 'input');
+          const own = names[locale]['Airliner']!;
+          await until(async () => (await resultNames()).includes(own), `the airliner found by "airliner", named ${own}`);
+          expect(await resultNames()).not.toContain('Airliner');
+          // And by its name in the language.
+          await fire('#search', own, 'input');
+          await until(async () => (await resultNames()).includes(own), `the airliner found by "${own}"`);
+          // Its parameters in the language too.
+          await clickResult(own);
+          await openTab('parameters');
+          const entrance = names[locale]['Entrance']!;
+          await until(() => page.eval<boolean>(`document.getElementById('params').textContent.includes(${JSON.stringify(entrance)})`), `the ${entrance} card`);
+        }
+      } finally {
+        await fire('#search', '', 'input');
+        await page.eval(`window.pulp.setLanguage('en-US')`);
+        await until(() => page.eval<boolean>(`document.documentElement.lang === 'en-US'`), 'the suite back in US English');
+        await until(async () => (await resultNames()).includes('Airliner'), 'the library back in US English');
+      }
+    }, 120_000);
+
     for (const [locale, menus] of LANGUAGES) {
       it(`shows the window in ${locale}: the menus and the start screen translated, nothing cut or stacked at 1280 × 788 and 960 × 600`, async () => {
         const words = catalogFor(locale);

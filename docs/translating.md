@@ -24,10 +24,20 @@ The first language after the source is British English (`src/locales/en-GB.ts`).
 |---|---|---|
 | `terminal` | The command line's help, usage errors and reports (`pulp render`, `pulp safe-box`); the release script. | Read in a shell and parsed by scripts. The command line always runs in US English. |
 | `diagnostic` | Detail for a template's author or a bug report: manifest, layer, look, timing, XML, zip and PNG validation; "ffmpeg exited with …"; Copy Diagnostics; the log. | Read by the people who fix things, and searched for on the web. Where the window shows one, it sits inside a translated sentence ("parameter {id}: {detail}"). |
-| `content` | Library content: template manifests' names, descriptions and parameter labels, and the manifest Pulp writes for a Lottie file; the sample-media catalog's names and notes; words drawn into a picture; font provenance; the first words of a new text layer; a language's own name ("English (UK)"). | The template's or the file's, not the window's. Templates are translated, if at all, by their authors. |
+| `content` | Library content in the code: a template manifest as it is read, and a Lottie file's own names (layers, markers, the file's name); the sample-media catalog's names and notes; words drawn into a picture; font provenance; the first words of a new text layer; a language's own name ("English (UK)"). | The template's or the file's, not the window's. A template from anywhere else is translated, if at all, by its author. The **bundled** library is Pulp's and is translated (see "The library" below). |
 | `technical` | SQL, CSS classes and selectors, MIME types, FFmpeg filter graphs, FCPXML, HTML, SVG or JavaScript in strings; ids and stored values; file and folder names on disk (`Recordings`, `Sample media`). | Not words. A name on disk must stay the same whatever language wrote it. |
 
 Also never translated: the search field's filter keywords (`favorite:`, `type:`, `duration:`), keyboard shortcuts, timecode, frame rates and file format names. These are typed or read as editors expect them, and the same in every language.
+
+## The library
+
+The bundled templates' words are translated too: every name, description, parameter label and help text, card heading, dropdown option and matching set under `templates/`. So is everything Pulp writes about a Lottie file. 
+
+- **The bundled templates** are translated in a library catalog per language (`src/locales/library/de.ts`, `zh-CN.ts`), keyed by the US English the manifest says. A string many templates share ("Accent color") is translated once. A word that reads the same in both languages ("Logo") is in the catalog too, so a missing one can be told apart. `tests/library-words.test.ts` fails on a bundled word with no entry and on an entry no template uses any more, so a new or changed template asks for its words.
+- **A Lottie file** keeps its own names: its layers, its markers, and the name made from its file. What Pulp says around them is in the interface catalog as `lottie.*` messages: the description ("A Lottie animation: 512 × 512, 60 frames at 30 fps."), what the player cannot draw, the labels Pulp gives ("Text", "{name} fill", "Layer 3"), and the Fit setting. The scan keeps these as messages and their values (`LottieNote`), so they are said again in whatever language the window is in. A bundled Lottie's file name is translated through the library catalog.
+- **Only in the window.** The manifests on disk, the library store, renders, exports and file names keep the US English. A project saved in one language opens in another: ids and option values are never translated.
+- **Search** reads an item's words in the window's language and its US English, which ranks as its name too, so a typed English word still finds things in German or Chinese.
+- **A template from anywhere else** (a pack, a folder) stays as its author wrote it.
 
 Not yet covered: the editor panels inside Premiere Pro and DaVinci Resolve (`panels/`), which have their own interface and follow their host; and dates, numbers and file sizes, which still use US forms. "Formats that follow the locale" is the next item of milestone 59.
 

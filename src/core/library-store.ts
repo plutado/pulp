@@ -158,7 +158,8 @@ CREATE TABLE IF NOT EXISTS user_items (
 
 // 4: templates re-read so pack defaults apply; 5: re-read so manifests carry aspects;
 // 6: the bundled library is keyed by its path inside the app, so every bundled item has a new id.
-export const SCHEMA_VERSION = 6;
+// 7: a Lottie's limits and Pulp's labels kept as messages, so they are said in the interface's language.
+export const SCHEMA_VERSION = 7;
 
 export class LibraryStore {
   private readonly db: DatabaseSync;

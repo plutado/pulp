@@ -3,6 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { itemId } from '../src/core/library-scan';
+import { SOURCE_TRANSLATOR } from '../src/core/i18n';
+import type { LottieNote } from '../src/core/lottie-types';
+
+/** Limits as US English says them: they are kept as messages. */
+const said = (notes: readonly LottieNote[]) => notes.map((n) => SOURCE_TRANSLATOR(n.id, n.values));
 import { LibraryStore } from '../src/core/library-store';
 import { scanLibrary } from '../src/core/library';
 import {
@@ -74,7 +79,7 @@ describe('readDotLottie', () => {
     expect(read.animations).toEqual(['first', 'second']);
     expect(read.author).toBe('Someone');
     expect(read.images.get('img_0.png')?.toString()).toBe('png');
-    expect(read.limits).toEqual(['the archive holds 2 animations; the first (first) is shown']);
+    expect(said(read.limits)).toEqual(['the archive holds 2 animations; the first (first) is shown']);
   });
 
   it('finds the animation without a manifest, and refuses an archive without one', () => {
@@ -121,7 +126,7 @@ describe('what the file exposes', () => {
     expect(bindings.find((b) => b.id === accent.id)!.targets).toEqual([{ kind: 'rgb', path: ['slots', 'accent', 'p', 'k'] }]);
     // The square's own fill carries `sid` and is not bound twice.
     expect(bindings.flatMap((b) => b.targets).filter((t) => t.path.includes('shapes'))).toEqual([]);
-    expect(limits).toEqual(['text that changes over time is not editable: Ticker']);
+    expect(said(limits)).toEqual(['text that changes over time is not editable: Ticker']);
   });
 
   it('reads older files whose channels run to 255, and animated colors are not offered', () => {
@@ -157,7 +162,7 @@ describe('what the file exposes', () => {
 describe('limits', () => {
   it('names expressions, effects, 3D, web fonts, and nothing for a plain file', () => {
     expect(lottieLimits(lottieFixture())).toEqual([]);
-    const limits = lottieLimits(lottieFixture({ withLimits: true }));
+    const limits = said(lottieLimits(lottieFixture({ withLimits: true })));
     expect(limits).toEqual([
       'expressions on 1 property are not run; those properties keep their keyframed values',
       'layer effects on 1 layer are not drawn',
@@ -178,14 +183,14 @@ describe('limits', () => {
     const web = lottieFixture({ withImage: 'pic.png' });
     ((web.assets as Record<string, unknown>[])[0]!).u = 'https://example.com/';
     expect(lottieAssetPaths(web)).toEqual([]);
-    expect(lottieLimits(web)).toContain('1 picture the file would fetch from the web is not drawn');
+    expect(said(lottieLimits(web))).toContain('1 picture the file would fetch from the web is not drawn');
   });
 });
 
 describe('the manifest', () => {
   const doc = parseLottie(text(lottieFixture({ width: 375, height: 667, fps: 25, frames: 50 })));
   const editables = lottieEditables(doc.data);
-  const result = lottieManifest(doc, { id: itemId('lottie:/lib/a.json'), name: 'Lower third', format: 'json', type: 'lower-third', themes: ['news'], tags: ['titles'], editables, limits: ['x'] });
+  const result = lottieManifest(doc, { id: itemId('lottie:/lib/a.json'), name: 'Lower third', format: 'json', type: 'lower-third', themes: ['news'], tags: ['titles'], editables, limits: [{ id: 'lottie.limit.three-d' }] });
 
   it('is a valid template manifest made from the file', () => {
     expect(result.ok).toBe(true);
@@ -203,7 +208,7 @@ describe('the manifest', () => {
     expect(m.parameters.at(-1)).toMatchObject({ type: 'select', default: 'fit' });
     expect(m.description).toContain('375 × 667, 50 frames at 25 fps');
     expect(m.description).toContain('Markers: intro, loop, end');
-    expect(m.description).toContain('Not drawn: x.');
+    expect(m.description).toContain('Not drawn: 3D layers and cameras are drawn flat.');
   });
 
   it('maps types to categories, and a file with none is "other"', () => {

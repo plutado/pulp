@@ -37,6 +37,11 @@ export interface TemplateEntry {
   /** The pack this template was found under (a folder with a pack.json), if any. */
   pack?: { name: string; slug: string };
   manifest: TemplateManifest;
+  /**
+   * The manifest's US English name and description, set when the window shows the entry in
+   * another language (src/core/library-words.ts), so search still finds it by its English words.
+   */
+  source?: { name: string; description: string };
   /** Manifest tags plus folder-derived tags. */
   tags: string[];
   warnings: ValidationIssue[];

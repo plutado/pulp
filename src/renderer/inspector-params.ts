@@ -3390,13 +3390,7 @@ export function initInspectorParams(): void {
   });
 
   // A change of language draws the tab again: every word on it is read as it is built (milestone 59).
-  whenLocaleChanges(() => untracked(() => {
-    const selected = selectedTemplate.value;
-    if (!selected) return;
-    const head = els.presetList.options[0];
-    if (head) head.textContent = presetListHead();
-    buildParamForm(selected.manifest);
-  }));
+  whenLocaleChanges(relabel);
 
   // The stage's selection lights the layer's card and brings it into view, both ways.
   effect(() => {
@@ -3409,4 +3403,20 @@ export function initInspectorParams(): void {
       card.scrollIntoView({ block: 'nearest' });
     }
   });
+}
+
+/**
+ * Draw the tab again in the interface's language, for the template now selected: on a change of
+ * language, and when the selected template's own words change with it (src/core/library-words.ts).
+ */
+const relabel = (): void => untracked(() => {
+  const selected = selectedTemplate.value;
+  if (!selected) return;
+  const head = els.presetList.options[0];
+  if (head) head.textContent = presetListHead();
+  buildParamForm(selected.manifest);
+});
+
+export function paramsRelabel(): void {
+  relabel();
 }

@@ -11,6 +11,7 @@ import { type TemplateManifest, MANIFEST_FILENAME, parseManifest } from './manif
 import type { TemplateSound } from './template-sound';
 import type { LibraryProblem, MediaKind, TemplateEntry } from './library-types';
 import { normalizeTag } from './tags';
+import type { LottieNote } from './lottie-types';
 import { humanizeFileName, lottieEditables, lottieExtras, lottieInfo, lottieLimits, lottieManifest, parseLottie, readDotLottie, sniffLottieJson, type LottieDocument } from './lottie';
 import type { LottieFormat } from './lottie-types';
 import { inferTemplateType, inferThemes } from './taxonomy';
@@ -252,7 +253,7 @@ export async function loadLottie(path: string, root: string, folderSegments: rea
   let document: LottieDocument;
   let animations: string[] | undefined;
   let author: string | undefined;
-  const limits: string[] = [];
+  const limits: LottieNote[] = [];
   try {
     if (format === 'lottie') {
       const archive = readDotLottie(await readFile(path));

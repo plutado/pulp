@@ -10,6 +10,8 @@
  * (src/core/lottie-page.ts).
  */
 
+import type { MessageId } from './i18n';
+
 import { tr } from './i18n';
 
 export type LottieFormat = 'json' | 'lottie';
@@ -27,11 +29,27 @@ export interface LottieTarget {
   path: LottiePath;
 }
 
+/**
+ * Something Pulp says about a Lottie file in its own words (a limit, a parameter's label): kept as
+ * a message and its values rather than as English, so the window says it in the interface's
+ * language whenever it shows it (src/core/library-words.ts). The manifest carries the US English.
+ */
+export interface LottieNote {
+  id: MessageId;
+  values?: Record<string, string | number>;
+}
+
 /** A parameter of the synthesized manifest and everywhere its value lands. */
 export interface LottieBinding {
   id: string;
   type: 'text' | 'color';
   targets: LottieTarget[];
+  /** The parameter's label, its help and its card, where Pulp named them rather than the file. */
+  label?: LottieNote;
+  description?: LottieNote;
+  element?: LottieNote;
+  /** A color's name when Pulp gave it ("Layer 3"), so its label can be said again in another language. */
+  nameNote?: LottieNote;
 }
 
 export interface LottieMarker {
@@ -55,7 +73,7 @@ export interface LottieInfo {
   outPoint: number;
   markers: LottieMarker[];
   /** Features the player cannot draw, named rather than dropped silently. */
-  limits: string[];
+  limits: LottieNote[];
   /** Every animation a `.lottie` holds, by id, when there is more than one; the first is the one shown. */
   animations?: string[];
   bindings: LottieBinding[];

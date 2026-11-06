@@ -127,10 +127,13 @@ export function lottieRows(info: LottieInfo): InfoRow[] {
     ? tr('info.value.editable-both', { texts: tr('info.value.editable-texts', { count: texts }), colors: tr('info.value.editable-colors', { count: colours }) })
     : texts > 0 ? tr('info.value.editable-texts', { count: texts }) : colours > 0 ? tr('info.value.editable-colors', { count: colours }) : '';
   rows.push({ label: tr('info.row.editable'), value: editable !== '' ? editable : tr('info.value.editable-none') });
-  // What the player cannot draw is the lottie reader's own detail (src/core/lottie.ts), shown under a translated label.
-  if (info.limits.length > 0) rows.push({ label: tr('info.row.not-drawn'), value: info.limits.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join('. ') + '.', tone: 'warn' });
+  // What the player cannot draw, each said in the interface's language (src/core/lottie.ts).
+  if (info.limits.length > 0) rows.push({ label: tr('info.row.not-drawn'), value: info.limits.map((l) => tr('lottie.limit.sentence', { limit: capitalized(tr(l.id, l.values)) })).join(tr('lottie.description.separator')), tone: 'warn' });
   return rows;
 }
+
+/** A clause as the start of a sentence: its first letter capitalized, where its script has capitals. */
+const capitalized = (s: string): string => s.charAt(0).toLocaleUpperCase() + s.slice(1);
 
 const trimSeconds = (s: number): string => String(Math.round(s * 100) / 100);
 

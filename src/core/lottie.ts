@@ -22,7 +22,8 @@
 
 import { ASPECT_IDS, aspectOf, MAX_DIMENSION, MIN_DIMENSION } from './aspect';
 import { STRUCTURE_LIMITS, type TemplateStructure } from './timing';
-import type { LottieBinding, LottieDocumentMeta, LottieFormat, LottieInfo, LottieMarker, LottiePath, LottieTarget } from './lottie-types';
+import type { LottieBinding, LottieDocumentMeta, LottieFormat, LottieInfo, LottieMarker, LottieNote, LottiePath, LottieTarget } from './lottie-types';
+import { SOURCE_TRANSLATOR, type MessageId, type Translator } from './i18n';
 import { LOTTIE_FIT_PARAM } from './lottie-types';
 import { validateManifest, type TemplateParameter, type ValidationResult } from './manifest';
 import { typeInfo } from './taxonomy';
@@ -150,7 +151,7 @@ export interface DotLottie {
   /** The archive's author, when its manifest says. */
   author?: string;
   /** What the archive carries that is not read: themes, states. */
-  limits: string[];
+  limits: LottieNote[];
 }
 
 const fileName = (path: string): string => path.split('/').pop() ?? path;
@@ -165,7 +166,7 @@ export function readDotLottie(bytes: Buffer): DotLottie {
   const byName = new Map(entries.map((e) => [e.name, e.data]));
   let ids: string[] = [];
   let author: string | undefined;
-  const limits: string[] = [];
+  const limits: LottieNote[] = [];
   const manifestBytes = byName.get('manifest.json');
   if (manifestBytes) {
     try {
@@ -175,11 +176,11 @@ export function readDotLottie(bytes: Buffer): DotLottie {
           ids = manifest.animations.map((a) => (isRecord(a) && typeof a.id === 'string' ? a.id : '')).filter(Boolean);
         }
         if (typeof manifest.author === 'string' && manifest.author.trim()) author = manifest.author.trim();
-        if ((Array.isArray(manifest.themes) && manifest.themes.length > 0) || entries.some((e) => /^(themes|t)\//.test(e.name))) limits.push('its themes are not read; colors are edited one by one'); // i18n-exempt(content)
-        if ((Array.isArray(manifest.states) && manifest.states.length > 0) || entries.some((e) => /^(states|s)\//.test(e.name))) limits.push('its interactive states are not read; the animation plays as one'); // i18n-exempt(content)
+        if ((Array.isArray(manifest.themes) && manifest.themes.length > 0) || entries.some((e) => /^(themes|t)\//.test(e.name))) limits.push({ id: 'lottie.limit.themes' });
+        if ((Array.isArray(manifest.states) && manifest.states.length > 0) || entries.some((e) => /^(states|s)\//.test(e.name))) limits.push({ id: 'lottie.limit.states' });
       }
     } catch {
-      limits.push('its manifest.json could not be read; the first animation found is shown'); // i18n-exempt(content)
+      limits.push({ id: 'lottie.limit.manifest' });
     }
   }
   const animationFile = (id: string): string | undefined => [`animations/${id}.json`, `a/${id}.json`].find((n) => byName.has(n));
@@ -194,7 +195,7 @@ export function readDotLottie(bytes: Buffer): DotLottie {
   for (const e of entries) {
     if (/^(images|i)\//.test(e.name)) images.set(fileName(e.name), e.data);
   }
-  if (ids.length > 1) limits.push(`the archive holds ${ids.length} animations; the first (${first.id}) is shown`); // i18n-exempt(content)
+  if (ids.length > 1) limits.push({ id: 'lottie.limit.animations', values: { count: ids.length, first: first.id } });
   return { document, animations: [first.id, ...ids.filter((id) => id !== first.id)], images, ...(author ? { author } : {}), limits };
 }
 
@@ -204,13 +205,29 @@ export interface LottieEditables {
   parameters: TemplateParameter[];
   bindings: LottieBinding[];
   /** What was found but left alone, said on the item. */
-  limits: string[];
+  limits: LottieNote[];
 }
+
+/** A layer's name: the file's own, or Pulp's ("Layer 3") with the message it is said by. */
+interface LayerName {
+  name: string;
+  note?: LottieNote;
+}
+
+/** What a color parameter is called, by what the color is: "{name} fill", "{name} text color". */
+const COLOR_LABELS: Record<'fill' | 'stroke' | 'solid' | 'text', MessageId> = {
+  fill: 'lottie.param.color.fill',
+  stroke: 'lottie.param.color.stroke',
+  solid: 'lottie.param.color.solid',
+  text: 'lottie.param.color.text',
+};
 
 interface ColorUse {
   hex: string;
   /** The first place it was seen, for the label. */
   name: string;
+  /** Set when that name is Pulp's own ("Layer 3"), so it can be said in another language. */
+  nameNote?: LottieNote;
   what: 'fill' | 'stroke' | 'solid' | 'text';
   targets: LottieTarget[];
 }
@@ -269,16 +286,16 @@ function staticTextDoc(prop: unknown, at: LottiePath): { doc: Record<string, unk
 export function lottieEditables(data: LottieData): LottieEditables {
   const parameters: TemplateParameter[] = [];
   const bindings: LottieBinding[] = [];
-  const limits: string[] = [];
+  const limits: LottieNote[] = [];
   const colours: ColorUse[] = [];
-  const texts: { label: string; element: string; value: string; target: LottieTarget }[] = [];
+  const texts: { element: string; elementNote?: LottieNote; value: string; target: LottieTarget }[] = [];
   const animatedTexts: string[] = [];
 
-  const addColour = (components: number[], target: LottieTarget, name: string, what: ColorUse['what']): void => {
+  const addColour = (components: number[], target: LottieTarget, name: string, what: ColorUse['what'], nameNote?: LottieNote): void => {
     const hex = rgbHex(components);
     const existing = colours.find((c) => c.hex === hex);
     if (existing) existing.targets.push(target);
-    else colours.push({ hex, name, what, targets: [target] });
+    else colours.push({ hex, name, ...(nameNote ? { nameNote } : {}), what, targets: [target] });
   };
 
   // Slots first (Lottie 1.0 theming): what the author chose to expose.
@@ -289,7 +306,7 @@ export function lottieEditables(data: LottieData): LottieEditables {
       const label = usefulName(sid) ?? sid;
       const text = staticTextDoc(slot.p, at);
       if (text) {
-        texts.push({ label: 'Text', element: label, value: String(text.doc.t).replace(/\r/g, '\n'), target: { kind: 'text', path: text.path } }); // i18n-exempt(content)
+        texts.push({ element: label, value: String(text.doc.t).replace(/\r/g, '\n'), target: { kind: 'text', path: text.path } });
         continue;
       }
       const colour = staticColor(slot.p);
@@ -297,7 +314,7 @@ export function lottieEditables(data: LottieData): LottieEditables {
     }
   }
 
-  const walkShapes = (shapes: unknown, at: LottiePath, layerName: string, groupName: string | undefined): void => {
+  const walkShapes = (shapes: unknown, at: LottiePath, layerName: LayerName, groupName: string | undefined): void => {
     if (!Array.isArray(shapes)) return;
     shapes.forEach((shape, i) => {
       if (!isRecord(shape)) return;
@@ -309,8 +326,8 @@ export function lottieEditables(data: LottieData): LottieEditables {
       if (shape.ty !== 'fl' && shape.ty !== 'st') return;
       const colour = staticColor(shape.c);
       if (!colour) return;
-      const name = usefulName(shape.nm) ?? groupName ?? layerName;
-      addColour(colour, { kind: colour.length === 4 ? 'rgba' : 'rgb', path: [...here, 'c', 'k'] }, name, shape.ty === 'fl' ? 'fill' : 'stroke');
+      const own = usefulName(shape.nm) ?? groupName;
+      addColour(colour, { kind: colour.length === 4 ? 'rgba' : 'rgb', path: [...here, 'c', 'k'] }, own ?? layerName.name, shape.ty === 'fl' ? 'fill' : 'stroke', own ? undefined : layerName.note);
     });
   };
 
@@ -319,23 +336,26 @@ export function lottieEditables(data: LottieData): LottieEditables {
     layers.forEach((layer, i) => {
       if (!isRecord(layer)) return;
       const here: LottiePath = [...at, i];
-      const layerName = usefulName(layer.nm) ?? `Layer ${i + 1}`;
+      // A layer the file leaves unnamed is named by Pulp, in Pulp's words.
+      const own = usefulName(layer.nm);
+      const note: LottieNote | undefined = own ? undefined : { id: 'lottie.layer', values: { n: i + 1 } };
+      const layerName: LayerName = { name: own ?? SOURCE_TRANSLATOR(note!.id, note!.values), ...(note ? { note } : {}) };
       if (layer.ty === 5 && isRecord(layer.t)) {
         const text = staticTextDoc(layer.t.d, [...here, 't', 'd']);
         if (text) {
-          texts.push({ label: 'Text', element: layerName, value: String(text.doc.t).replace(/\r/g, '\n'), target: { kind: 'text', path: text.path } }); // i18n-exempt(content)
+          texts.push({ element: layerName.name, ...(layerName.note ? { elementNote: layerName.note } : {}), value: String(text.doc.t).replace(/\r/g, '\n'), target: { kind: 'text', path: text.path } });
           const fill = text.doc.fc;
           if (Array.isArray(fill) && (fill.length === 3 || fill.length === 4) && fill.every(finite)) {
-            addColour(fill.map((v) => Math.max(0, Math.min(1, v))), { kind: fill.length === 4 ? 'rgba' : 'rgb', path: [...text.path.slice(0, -1), 'fc'] }, layerName, 'text');
+            addColour(fill.map((v) => Math.max(0, Math.min(1, v))), { kind: fill.length === 4 ? 'rgba' : 'rgb', path: [...text.path.slice(0, -1), 'fc'] }, layerName.name, 'text', layerName.note);
           }
         } else if (isRecord(layer.t.d) && Array.isArray(layer.t.d.k) && layer.t.d.k.length > 1) {
-          animatedTexts.push(layerName);
+          animatedTexts.push(layerName.name);
         }
         return;
       }
       if (layer.ty === 1 && typeof layer.sc === 'string') {
         const c = hexComponents(layer.sc);
-        if (c) addColour([c.r, c.g, c.b], { kind: 'hex', path: [...here, 'sc'] }, layerName, 'solid');
+        if (c) addColour([c.r, c.g, c.b], { kind: 'hex', path: [...here, 'sc'] }, layerName.name, 'solid', layerName.note);
         return;
       }
       if (layer.ty === 4) walkShapes(layer.shapes, [...here, 'shapes'], layerName, undefined);
@@ -351,40 +371,44 @@ export function lottieEditables(data: LottieData): LottieEditables {
 
   texts.forEach((t, i) => {
     const id = `text${i + 1}`;
-    parameters.push({ id, type: 'text', label: t.label, element: t.element, default: t.value, ...(t.value.includes('\n') ? { multiline: true } : {}) });
-    bindings.push({ id, type: 'text', targets: [t.target] });
+    const label: LottieNote = { id: 'lottie.param.text' };
+    parameters.push({ id, type: 'text', label: SOURCE_TRANSLATOR(label.id), element: t.element, default: t.value, ...(t.value.includes('\n') ? { multiline: true } : {}) });
+    bindings.push({ id, type: 'text', targets: [t.target], label, ...(t.elementNote ? { element: t.elementNote } : {}) });
   });
   colours.forEach((c, i) => {
     const id = `color${i + 1}`;
     const others = c.targets.length - 1;
-    const what = c.what === 'text' ? 'text color' : c.what === 'solid' ? 'solid' : c.what;
+    // The name is the file's (a layer or a shape); what it colors, and the sentence around it, are Pulp's.
+    const label: LottieNote = { id: COLOR_LABELS[c.what], values: { name: c.name } };
+    const element: LottieNote = { id: 'lottie.element.colors' };
+    const description: LottieNote | undefined = others > 0 ? { id: 'lottie.param.color.also', values: { count: others } } : undefined;
     parameters.push({
       id,
       type: 'color',
-      label: `${c.name} ${what}`,
-      element: 'Colors',
+      label: SOURCE_TRANSLATOR(label.id, label.values),
+      element: SOURCE_TRANSLATOR(element.id),
       default: c.hex,
-      ...(others > 0 ? { description: `Also used in ${others} other ${others === 1 ? 'place' : 'places'}.` } : {}), // i18n-exempt(content)
+      ...(description ? { description: SOURCE_TRANSLATOR(description.id, description.values) } : {}),
     });
-    bindings.push({ id, type: 'color', targets: c.targets });
+    bindings.push({ id, type: 'color', targets: c.targets, label, element, ...(description ? { description } : {}), ...(c.nameNote ? { nameNote: c.nameNote } : {}) });
   });
-  if (animatedTexts.length > 0) limits.push(`text that changes over time is not editable: ${animatedTexts.join(', ')}`); // i18n-exempt(content)
+  if (animatedTexts.length > 0) limits.push({ id: 'lottie.limit.animated-text', values: { layers: animatedTexts.join(', ') } });
   return { parameters, bindings, limits };
 }
 
-/** The Fit setting every Lottie gets: how it sits in a frame of another shape or size. */
-export function lottieFitParameter(): TemplateParameter {
+/** The Fit setting every Lottie gets: how it sits in a frame of another shape or size, in a language. */
+export function lottieFitParameter(t: Translator = SOURCE_TRANSLATOR): TemplateParameter {
   return {
     id: LOTTIE_FIT_PARAM,
     type: 'select',
-    label: 'Fit', // i18n-exempt(content)
-    element: 'Frame',
-    description: 'How the animation sits in a frame of another shape or size.', // i18n-exempt(content)
+    label: t('lottie.fit'),
+    element: t('lottie.element.frame'),
+    description: t('lottie.fit.description'),
     default: 'fit',
     options: [
-      { value: 'fit', label: 'Fit inside the frame' }, // i18n-exempt(content)
-      { value: 'fill', label: 'Fill the frame' }, // i18n-exempt(content)
-      { value: 'center', label: 'Its own size, centered' }, // i18n-exempt(content)
+      { value: 'fit', label: t('lottie.fit.fit') },
+      { value: 'fill', label: t('lottie.fit.fill') },
+      { value: 'center', label: t('lottie.fit.center') },
     ],
   };
 }
@@ -453,8 +477,8 @@ const isWebPath = (v: unknown): boolean => typeof v === 'string' && /^(?:https?:
 // ---------------------------------------------------------------- limits
 
 /** Features of the file the player cannot draw, each named once. */
-export function lottieLimits(data: LottieData): string[] {
-  const limits: string[] = [];
+export function lottieLimits(data: LottieData): LottieNote[] {
+  const limits: LottieNote[] = [];
   let expressions = 0;
   let effects = 0;
   let threeD = false;
@@ -484,17 +508,17 @@ export function lottieLimits(data: LottieData): string[] {
   walk(data, false);
   layersOf(data.layers);
   if (Array.isArray(data.assets)) for (const a of data.assets) if (isRecord(a)) layersOf(a.layers);
-  if (expressions > 0) limits.push(`expressions on ${expressions} ${expressions === 1 ? 'property are' : 'properties are'} not run; those properties keep their keyframed values`); // i18n-exempt(content)
-  if (effects > 0) limits.push(`layer effects on ${effects} ${effects === 1 ? 'layer are' : 'layers are'} not drawn`); // i18n-exempt(content)
-  if (threeD || cameras > 0) limits.push('3D layers and cameras are drawn flat'); // i18n-exempt(content)
-  if (audio > 0) limits.push(`${audio} audio ${audio === 1 ? 'layer is' : 'layers are'} silent`); // i18n-exempt(content)
+  if (expressions > 0) limits.push({ id: 'lottie.limit.expressions', values: { count: expressions } });
+  if (effects > 0) limits.push({ id: 'lottie.limit.effects', values: { count: effects } });
+  if (threeD || cameras > 0) limits.push({ id: 'lottie.limit.three-d' });
+  if (audio > 0) limits.push({ id: 'lottie.limit.audio', values: { count: audio } });
   if (isRecord(data.fonts) && Array.isArray(data.fonts.list)) {
     const web = data.fonts.list.filter((f) => isRecord(f) && (isWebPath(f.fPath) || f.origin === 1 || f.origin === 2 || f.origin === 3)).map((f) => String((f as Record<string, unknown>).fFamily ?? (f as Record<string, unknown>).fName ?? 'a font'));
-    if (web.length > 0) limits.push(`fonts the file would fetch from the web are not loaded (${[...new Set(web)].join(', ')}); their text draws in an installed font of that name or the browser's fallback`); // i18n-exempt(content)
+    if (web.length > 0) limits.push({ id: 'lottie.limit.web-fonts', values: { fonts: [...new Set(web)].join(', ') } });
   }
   if (Array.isArray(data.assets)) {
     const web = data.assets.filter((a) => isRecord(a) && typeof a.p === 'string' && a.e !== 1 && (isWebPath(a.u) || isWebPath(a.p)));
-    if (web.length > 0) limits.push(`${web.length} ${web.length === 1 ? 'picture' : 'pictures'} the file would fetch from the web ${web.length === 1 ? 'is' : 'are'} not drawn`); // i18n-exempt(content)
+    if (web.length > 0) limits.push({ id: 'lottie.limit.web-pictures', values: { count: web.length } });
   }
   return limits;
 }
@@ -594,7 +618,7 @@ export interface LottieManifestInput {
   /** What the file said about itself under its own key, where it said anything (`lottieExtras`). */
   extras?: LottieExtras;
   editables: LottieEditables;
-  limits: string[];
+  limits: LottieNote[];
 }
 
 /** The manifest id a Lottie item gets from its library id: a valid template id and URL host. */
@@ -626,8 +650,34 @@ const even = (n: number): number => (n % 2 === 0 ? n : n + 1);
 /** A file name as a title: "my-lower_third.json" reads "My lower third". */
 export function humanizeFileName(name: string): string {
   const stem = name.replace(/\.(json|lottie)$/i, '').replace(/[-_.]+/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!stem) return 'Lottie animation'; // i18n-exempt(content)
+  if (!stem) return SOURCE_TRANSLATOR('lottie.name.untitled');
   return stem.charAt(0).toUpperCase() + stem.slice(1);
+}
+
+/**
+ * What Pulp says about a Lottie file, in a language: its kind, size, length and rate, its markers,
+ * whether they let it stretch, and what the player cannot draw. Made from what the scan records
+ * (LottieInfo), so the window can say it again in whatever language it is in.
+ */
+export function lottieDescription(
+  doc: Pick<LottieInfo, 'format' | 'width' | 'height' | 'fps' | 'inPoint' | 'outPoint' | 'markers'>,
+  limits: readonly LottieNote[],
+  t: Translator,
+): string {
+  const frames = doc.outPoint - doc.inPoint;
+  const stretches = lottieStructure(doc.markers, round3(frames / doc.fps));
+  const size = { width: doc.width, height: doc.height, frames, fps: doc.fps };
+  return [
+    t(doc.format === 'lottie' ? 'lottie.description.archive' : 'lottie.description.animation', size),
+    ...(doc.markers.length > 0 ? [t('lottie.description.markers', { markers: doc.markers.map((m) => m.name).join(t('lottie.list.separator')) })] : []),
+    ...(stretches ? [t(stretches.kind === 'loop' ? 'lottie.description.loops' : 'lottie.description.holds')] : []),
+    ...(limits.length > 0 ? [t('lottie.description.not-drawn', { limits: lottieLimitsText(limits, t) })] : []),
+  ].join(t('lottie.description.separator'));
+}
+
+/** What the player cannot draw, as one list in a language. */
+export function lottieLimitsText(limits: readonly LottieNote[], t: Translator): string {
+  return limits.map((l) => t(l.id, l.values)).join(t('lottie.limits.separator'));
 }
 
 /**
@@ -642,13 +692,7 @@ export function lottieManifest(doc: LottieDocumentMeta, input: LottieManifestInp
   const height = even(doc.height);
   const own = aspectOf(width, height);
   const frames = doc.outPoint - doc.inPoint;
-  const stretches = lottieStructure(doc.markers, round3(frames / doc.fps));
-  const description = [
-    `${input.format === 'lottie' ? 'A dotLottie archive' : 'A Lottie animation'}: ${doc.width} × ${doc.height}, ${frames} frames at ${doc.fps} fps.`, // i18n-exempt(content)
-    ...(doc.markers.length > 0 ? [`Markers: ${doc.markers.map((m) => m.name).join(', ')}.`] : []),
-    ...(stretches ? [stretches.kind === 'loop' ? 'Its markers say it loops, so it stretches to any length.' : 'Its markers hold between the intro and the outro, so it stretches to any length.'] : []), // i18n-exempt(content)
-    ...(input.limits.length > 0 ? [`Not drawn: ${input.limits.join('; ')}.`] : []), // i18n-exempt(content)
-  ].join(' ');
+  const description = lottieDescription({ ...doc, format: input.format }, input.limits, SOURCE_TRANSLATOR);
   // What its markers say may stretch (milestone 35), in milestone 30's terms: an icon with an
   // intro and an outro holds between them, a seamless one loops, and one that says nothing keeps
   // the length it was drawn at.
@@ -681,7 +725,7 @@ export function lottieManifest(doc: LottieDocumentMeta, input: LottieManifestInp
 }
 
 /** Everything the library keeps about the file beside its manifest. */
-export function lottieInfo(doc: LottieDocumentMeta, path: string, format: LottieFormat, bindings: LottieBinding[], limits: string[], animations?: string[]): LottieInfo {
+export function lottieInfo(doc: LottieDocumentMeta, path: string, format: LottieFormat, bindings: LottieBinding[], limits: LottieNote[], animations?: string[]): LottieInfo {
   return {
     path,
     format,
