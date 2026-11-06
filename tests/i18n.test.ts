@@ -1,20 +1,22 @@
 /**
  * Languages and locale (milestone 59): the catalogs, how a language is chosen,
  * how a message is read, the catalog used and nothing in it unused — and the
- * ratchet that holds the code to the catalog. Words still written straight into
- * the code are counted per file in tests/i18n-baseline.json: a file may not
- * gain one, and a file that loses some must lower its count, so the list only
- * ever shrinks until every word is in the catalog.
+ * code holding no word of the interface's outside the catalog: every string the
+ * scan finds (tests/i18n-scan.ts) is read from src/locales/, or exempt as a
+ * command line's, a diagnostic's, library content or technical, by a reason
+ * stated in tests/i18n-exempt.json or beside the string.
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  catalogFor, formatMessage, LOCALES, placeholdersOf, resolveLocale, sanitizeLanguage, SOURCE_LOCALE, translate, translator, type Catalog,
+  catalogFor, formatMessage, LOCALES, ownCatalog, placeholdersOf, resolveLocale, sanitizeLanguage, SOURCE_LOCALE, translate, translator, type Catalog,
 } from '../src/core/i18n';
 import { enUS } from '../src/locales/en-US';
+import { EXEMPT_REASONS, findWords } from './i18n-scan';
 import { enGB } from '../src/locales/en-GB';
+import { britishSpelling } from '../src/core/spelling';
 import { buildMenu, EMPTY_MENU_STATE as MENU_STATE } from '../src/core/menu';
 
 const ROOT = join(__dirname, '..');
@@ -82,19 +84,34 @@ describe('the catalogs', () => {
     }
   });
 
-  it('spell the British catalog as Britain does: no US spelling left in what it says', () => {
-    for (const [id, words] of Object.entries(enGB)) {
-      expect(String(words), id).not.toMatch(/\b(colors?|gray|centers?|favorites?|theater|license|customize)\b/i);
-    }
-  });
-
-  it('give British English every source message that has a US spelling in it, so a word moved into the catalog is never left American', () => {
-    const US_SPELLING = /\b(colors?|recolor|gray|centers?|centered|favorites?|theater|license|customiz\w*|behaviors?|canceled|organiz\w*|recogniz\w*)\b/i;
+  it('give British English exactly the source in British spelling: an entry where the rules change a message, none where they do not', () => {
     // Syntax, not words: the search field's filter keywords are typed as they are in every language.
     const SYNTAX = new Set(['ui.search.data-tip']);
-    const text = (words: string | object) => (typeof words === 'string' ? words : Object.values(words).join(' '));
-    const missing = Object.entries(enUS).filter(([id, words]) => !SYNTAX.has(id) && US_SPELLING.test(text(words)) && !(id in enGB)).map(([id]) => id);
-    expect(missing, 'add these to src/locales/en-GB.ts').toEqual([]);
+    const wrong: string[] = [];
+    for (const [id, us] of Object.entries(enUS) as [keyof typeof enUS, string | Record<string, string>][]) {
+      const british = typeof us === 'string' ? britishSpelling(us) : Object.fromEntries(Object.entries(us).map(([form, words]) => [form, britishSpelling(words)]));
+      const differs = JSON.stringify(british) !== JSON.stringify(us);
+      const has = id in enGB;
+      if (SYNTAX.has(id)) {
+        if (has) wrong.push(`${id}: syntax, keep it out of en-GB`);
+      } else if (differs && !has) wrong.push(`${id}: missing — ${JSON.stringify(british)}`);
+      else if (!differs && has) wrong.push(`${id}: says nothing the rules change`);
+      else if (differs && JSON.stringify(enGB[id]) !== JSON.stringify(british)) wrong.push(`${id}: ${JSON.stringify(enGB[id])} ≠ ${JSON.stringify(british)}`);
+    }
+    expect(wrong, 'src/locales/en-GB.ts against src/core/spelling.ts').toEqual([]);
+  });
+
+  it('are complete for every language that is not a variant of the source, and hold nothing the source does not', () => {
+    // A translator checking one: I18N_LOCALE=de npx vitest run tests/i18n.test.ts -t complete
+    const asked = process.env.I18N_LOCALE;
+    for (const l of LOCALES.filter((x) => !asked || x.id === asked)) {
+      const own = ownCatalog(l.id);
+      const extra = Object.keys(own).filter((id) => !(id in enUS));
+      expect(extra, `${l.id}: ids the source does not have (unused)`).toEqual([]);
+      if (l.id === SOURCE_LOCALE || l.variant) continue;
+      const missing = Object.keys(enUS).filter((id) => !(id in own));
+      expect(missing, `${l.id}: messages not yet translated`).toEqual([]);
+    }
   });
 
   it('leave the search field\'s filter keywords alone in every language: they are typed, not read', () => {
@@ -123,60 +140,99 @@ function sources(dir: string): string[] {
   return out;
 }
 
-/**
- * Where a word for the interface is written straight into code: the places a
- * string goes on screen. A heuristic, kept deliberately narrow so it does not
- * cry wolf — a label, a tooltip, a title, a tray line, an element's text, a
- * hint or a detail, each a quoted string with a letter in it.
- */
-const USER_FACING = [
-  /\b(?:label|hint|detail|description|placeholder|listAs|note|summary|tip):\s*(['"`])(?=[^'"`]*\p{L})/u,
-  /\.(?:textContent|title|placeholder|ariaLabel)\s*=\s*(['"`])(?=[^'"`]*\p{L})/u,
-  /\.dataset\.tip\s*=\s*(['"`])(?=[^'"`]*\p{L})/u,
-  /setAttribute\(\s*'(?:aria-label|title|placeholder|data-tip)'\s*,\s*(['"`])(?=[^'"`]*\p{L})/u,
-  /\b(?:sayInTray|say|sayNote)\(\s*(['"`])(?=[^'"`]*\p{L})/u,
-];
+const EXEMPT = JSON.parse(readFileSync(join(ROOT, 'tests', 'i18n-exempt.json'), 'utf8')) as { files: Record<string, { reason: string; why: string }> };
 
-function countUserFacing(text: string): number {
-  let n = 0;
-  for (const line of text.split('\n')) {
-    const code = line.replace(/^\s*(\/\/|\*|\/\*).*$/, '');
-    for (const re of USER_FACING) if (re.test(code)) n += 1;
+/** The interface's words still in the code, by file: none, once every word is in the catalog. */
+function wordsInCode(): Record<string, { line: number; text: string }[]> {
+  // I18N_ONLY=src/renderer/stage.ts,src/core/ narrows the check while moving one part's words.
+  const only = (process.env.I18N_ONLY ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const found: Record<string, { line: number; text: string }[]> = {};
+  for (const file of sources(join(ROOT, 'src'))) {
+    const rel = relative(ROOT, file).split('\\').join('/');
+    if (rel.startsWith('src/locales/') || rel in EXEMPT.files) continue;
+    if (only.length > 0 && !only.some((prefix) => rel.startsWith(prefix))) continue;
+    const words = findWords(rel, readFileSync(file, 'utf8'));
+    if (words.length > 0) found[rel] = words;
   }
-  return n;
+  return found;
 }
 
-describe('words written straight into the code', () => {
-  const baseline = JSON.parse(readFileSync(join(ROOT, 'tests', 'i18n-baseline.json'), 'utf8')) as { total: number; files: Record<string, number> };
-  const counts: Record<string, number> = {};
-  for (const file of [...sources(join(ROOT, 'src', 'renderer')), ...sources(join(ROOT, 'src', 'core')), ...sources(join(ROOT, 'src', 'main'))]) {
-    const n = countUserFacing(readFileSync(file, 'utf8'));
-    if (n > 0) counts[relative(ROOT, file).split('\\').join('/')] = n;
-  }
-
-  it('are not added to: a file has no more than tests/i18n-baseline.json says, and a new file has none', () => {
-    const grown = Object.entries(counts).filter(([file, n]) => n > (baseline.files[file] ?? 0)).map(([file, n]) => `${file}: ${n}, baseline ${baseline.files[file] ?? 0}`);
-    expect(grown, 'put the new words in src/locales/en-US.ts and read them with t()').toEqual([]);
+describe('words written straight into the code (tests/i18n-scan.ts)', () => {
+  it('are none: every word the window or the menus show is in the catalog, or exempt for a stated reason', () => {
+    const found = wordsInCode();
+    const report = Object.entries(found).flatMap(([file, words]) => words.map((w) => `${file}:${w.line}  ${w.text}`));
+    expect(report, 'read these with t()/tr() from a message in src/locales/en-US/, or mark one i18n-exempt(<reason>) — docs/translating.md').toEqual([]);
   });
 
-  it('only shrink: a file that has lost some lowers its count in the baseline, so the list stays true', () => {
-    const shrunk = Object.entries(baseline.files).filter(([file, n]) => (counts[file] ?? 0) < n).map(([file, n]) => `${file}: ${counts[file] ?? 0}, baseline ${n}`);
-    expect(shrunk, 'lower these in tests/i18n-baseline.json').toEqual([]);
+  it('exempt whole files only for one of the four reasons, each file there and each with something to exempt', () => {
+    for (const [file, { reason, why }] of Object.entries(EXEMPT.files)) {
+      expect(EXEMPT_REASONS as readonly string[], file).toContain(reason);
+      expect(why.length, `${file}: say why`).toBeGreaterThan(10);
+      const path = join(ROOT, file);
+      expect(existsSync(path), `${file} is gone: take it out of tests/i18n-exempt.json`).toBe(true);
+      expect(findWords(file, readFileSync(path, 'utf8')).length, `${file} has nothing left to exempt: take it out of tests/i18n-exempt.json`).toBeGreaterThan(0);
+    }
   });
 
-  it('keep the baseline\'s total true to its files', () => {
-    expect(baseline.total).toBe(Object.values(baseline.files).reduce((a, b) => a + b, 0));
+  it('mark a string exempt only for one of the four reasons', () => {
+    const bad: string[] = [];
+    for (const file of sources(join(ROOT, 'src'))) {
+      const text = readFileSync(file, 'utf8');
+      for (const m of text.matchAll(/i18n-exempt\(([^)]*)\)/g)) if (!(EXEMPT_REASONS as readonly string[]).includes(m[1]!)) bad.push(`${relative(ROOT, file)}: i18n-exempt(${m[1]})`);
+    }
+    expect(bad).toEqual([]);
+  });
+});
+
+describe('the scan itself', () => {
+  const words = (code: string, file = 'x.ts') => findWords(file, code).map((w) => w.text);
+
+  it('finds a sentence anywhere, and any word where the window reads it — a one-word button too', () => {
+    expect(words(`const a = 'Nothing was recorded.';`)).toEqual(['Nothing was recorded.']);
+    expect(words(`el.textContent = 'Stop';`)).toEqual(['Stop']);
+    expect(words(`const item = { label: 'Save' };`)).toEqual(['Save']);
+    expect(words(`button.setAttribute('aria-label', 'Close');`)).toEqual(['Close']);
+    expect(words(`sayInTray(\`Recorded \${n} s\`);`)).toEqual(['Recorded ${n} s']);
+    expect(words(`const x = ok ? 'Done' : 'Failed';\nel.title = ok ? 'All done' : 'It failed';`)).toEqual(['All done', 'It failed']);
+    expect(words(`const v = <span title="Copy path">Looking for cuts…</span>;`, 'x.tsx')).toEqual(['Copy path', 'Looking for cuts…']);
   });
 
-  it('are gone from the application menu, whose every word is in the catalog', () => {
-    expect(counts['src/core/menu.ts'] ?? 0).toBe(0);
+  it('leaves alone what is not words for a person', () => {
+    expect(words(`import { x } from './some module';`)).toEqual([]);
+    expect(words(`console.warn('Hover-scrub strip failed: no reason');`)).toEqual([]);
+    expect(words(`el.className = 'badge tag';\ndocument.querySelector('#a .b');\nif (kind === 'Lower third') {}`)).toEqual([]);
+    expect(words(`const t = { 'Big Key': 1 };\ntype K = 'Some Words';`)).toEqual([]);
+    expect(words(`const n = t('menu.project.new');`)).toEqual([]);
+  });
+
+  it('takes an i18n-exempt comment on the line or the line before', () => {
+    expect(words(`const a = 'Usage: pulp render'; // i18n-exempt(terminal)`)).toEqual([]);
+    expect(words(`// i18n-exempt(diagnostic): for the template's author\nconst a = 'must be a non-empty string';`)).toEqual([]);
+  });
+});
+
+describe('the source catalog\'s parts', () => {
+  it('define each id once: a second part saying the same id would win silently', () => {
+    const dir = join(ROOT, 'src', 'locales', 'en-US');
+    const seen = new Map<string, string>();
+    const twice: string[] = [];
+    for (const name of readdirSync(dir).filter((n) => n !== 'index.ts')) {
+      for (const m of readFileSync(join(dir, name), 'utf8').matchAll(/^ {2}'([^']+)':/gm)) {
+        if (seen.has(m[1]!)) twice.push(`${m[1]} in ${seen.get(m[1]!)} and ${name}`);
+        else seen.set(m[1]!, name);
+      }
+    }
+    expect(twice).toEqual([]);
+    expect(seen.size, 'every part is put together in index.ts').toBe(Object.keys(enUS).length);
   });
 });
 
 describe('the catalog has nothing unused', () => {
-  it('every id in the source catalog is read somewhere: by the markup, or by name in the code', () => {
+  it('every id in the source catalog is read somewhere: by the markup, by name in the code, or by a template of ids', () => {
     const corpus = MARKUP + sources(join(ROOT, 'src')).filter((f) => !f.includes(`${join('src', 'locales')}`)).map((f) => readFileSync(f, 'utf8')).join('\n');
-    const unused = Object.keys(enUS).filter((id) => !corpus.includes(`'${id}'`) && !corpus.includes(`"${id}"`) && !corpus.includes(`:${id}`) && !corpus.includes(`:${id};`));
-    expect(unused).toEqual([]);
+    // A type-checked template id, `start.shape.${shape}`, reads every id under its fixed prefix.
+    const prefixes = [...corpus.matchAll(/`([a-z][\w-]*(?:\.[\w-]+)*\.)\$\{/g)].map((m) => m[1]!);
+    const read = (id: string) => corpus.includes(`'${id}'`) || corpus.includes(`"${id}"`) || corpus.includes(`:${id}`) || prefixes.some((p) => id.startsWith(p));
+    expect(Object.keys(enUS).filter((id) => !read(id))).toEqual([]);
   });
 });

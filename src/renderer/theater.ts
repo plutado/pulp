@@ -17,6 +17,7 @@
  * stage's own window listens for the key too, since its keys reach no other.
  */
 
+import { bindAttr } from './i18n';
 import { setIcon } from './icons';
 import { closeInspector, openInspector } from './inspector-tabs';
 import { patchLayout } from './shell';
@@ -48,7 +49,7 @@ function apply(): void {
   const button = findControl('theater');
   if (!button) return;
   button.setAttribute('aria-pressed', String(on));
-  button.setAttribute('aria-label', on ? 'Theater off: bring the panels back' : stageIsOut() ? 'Theater: the stage fills its display' : 'Theater: the stage takes the window');
+  bindAttr(button, 'aria-label', on ? 'theater.button.off.aria-label' : stageIsOut() ? 'theater.button.display.aria-label' : 'theater.button.window.aria-label');
   setIcon(button, on ? 'corners-in' : 'corners-out', 20);
 }
 
@@ -85,7 +86,7 @@ function toggleTheater(): void {
 function onKey(e: KeyboardEvent): void {
   if ((e.key !== 't' && e.key !== 'T') || e.metaKey || e.ctrlKey || e.altKey) return;
   const target = e.target as HTMLElement | null;
-  if (target?.closest?.('input, textarea, select, [contenteditable]') || target?.closest?.('dialog[open]')) return;
+  if (target?.closest?.('input, textarea, select, [contenteditable]') || target?.closest?.('dialog[open]')) return; // i18n-exempt(technical)
   if (!document.getElementById('start-screen')?.hidden) return;
   toggleTheater();
   e.preventDefault();

@@ -1,0 +1,109 @@
+{
+  "note": "Source files whose strings are not the interface's words, by reason (milestone 59; tests/i18n.test.ts, docs/translating.md). Anything else the window or the menus show is in src/locales/.",
+  "files": {
+    "src/core/capture-format.ts": {
+      "reason": "technical",
+      "why": "The capture probe's page and its measurement."
+    },
+    "src/core/cli.ts": {
+      "reason": "terminal",
+      "why": "The command line's help, usage errors and grammar: read in a shell and parsed by scripts."
+    },
+    "src/core/edit-export.ts": {
+      "reason": "technical",
+      "why": "FCPXML and EDL written for an editing app."
+    },
+    "src/core/fonts.ts": {
+      "reason": "content",
+      "why": "The bundled fonts' provenance and credits: versions, archives and licenses, as their publishers give them."
+    },
+    "src/core/layer-audio.ts": {
+      "reason": "technical",
+      "why": "FFmpeg filter graphs."
+    },
+    "src/core/library-store.ts": {
+      "reason": "technical",
+      "why": "SQL for the library index."
+    },
+    "src/core/log.ts": {
+      "reason": "diagnostic",
+      "why": "The diagnostics report and the log: pasted into bug reports, read by maintainers."
+    },
+    "src/core/lottie-page.ts": {
+      "reason": "technical",
+      "why": "The page a Lottie animation is drawn in."
+    },
+    "src/core/lottie-starter.ts": {
+      "reason": "content",
+      "why": "The words of a generated starter template: what the template says, not the window."
+    },
+    "src/core/media-serve.ts": {
+      "reason": "technical",
+      "why": "HTTP headers for the media protocol."
+    },
+    "src/core/panel-bridge.ts": {
+      "reason": "technical",
+      "why": "The editor panel bridge's HTTP answers: an API's words; the panels in panels/ have their own interface."
+    },
+    "src/core/perf.ts": {
+      "reason": "diagnostic",
+      "why": "Performance lines for Copy Diagnostics: pasted into bug reports, read by maintainers."
+    },
+    "src/core/release.ts": {
+      "reason": "terminal",
+      "why": "The release script's checks, run by the maintainer from a shell."
+    },
+    "src/core/render-guard.ts": {
+      "reason": "technical",
+      "why": "Script run inside a template page to catch its errors."
+    },
+    "src/core/runtime.ts": {
+      "reason": "technical",
+      "why": "The bridge script and the content security policy injected into template pages."
+    },
+    "src/core/sample-asset-effects.ts": {
+      "reason": "technical",
+      "why": "JavaScript spliced into the sample asset page's script: drawing code, not words."
+    },
+    "src/core/sample-asset-objects-more.ts": {
+      "reason": "technical",
+      "why": "JavaScript spliced into the sample asset page's script: drawing code, not words."
+    },
+    "src/core/sample-asset-objects.ts": {
+      "reason": "technical",
+      "why": "JavaScript spliced into the sample asset page's script: drawing code, not words."
+    },
+    "src/core/sample-asset-ten.ts": {
+      "reason": "technical",
+      "why": "JavaScript spliced into the sample asset page's script: drawing code, not words."
+    },
+    "src/core/sample-media.ts": {
+      "reason": "content",
+      "why": "The sample-media catalog: generated files' folders (paths on disk), names and notes, library content like a template's description."
+    },
+    "src/core/sample-stills.ts": {
+      "reason": "content",
+      "why": "Words drawn into generated sample stills, part of the picture."
+    },
+    "src/core/subtitles.ts": {
+      "reason": "technical",
+      "why": "SRT and WebVTT written from the captions: the words are the person's own."
+    },
+    "src/core/waveform.ts": {
+      "reason": "technical",
+      "why": "SVG path data."
+    },
+    "src/main/protocol.ts": {
+      "reason": "technical",
+      "why": "MIME types and HTTP answers for the app's protocols."
+    },
+    "src/main/visual-service.ts": {
+      "reason": "terminal",
+      "why": "The visual-hash and safe-box checks, run from the command line and the test suite."
+    },
+    "src/renderer/icons.tsx": {
+      "reason": "technical",
+      "why": "SVG markup for the icons."
+    }
+  }
+}

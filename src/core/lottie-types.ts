@@ -10,6 +10,8 @@
  * (src/core/lottie-page.ts).
  */
 
+import { tr } from './i18n';
+
 export type LottieFormat = 'json' | 'lottie';
 
 /** A step into the animation's JSON: object keys and array indices. */
@@ -69,7 +71,7 @@ export type LottieFit = (typeof LOTTIE_FITS)[number];
 
 /** Which of the player's features the limits speak of, in plain words. */
 export function lottieFormatLabel(format: LottieFormat): string {
-  return format === 'lottie' ? 'Lottie animation · dotLottie archive' : 'Lottie animation · JSON';
+  return format === 'lottie' ? tr('info.lottie.format.dotlottie') : tr('info.lottie.format.json');
 }
 
 /** What a Lottie document states about itself, apart from its contents. */

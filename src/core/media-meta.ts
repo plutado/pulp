@@ -4,6 +4,7 @@
  * ffprobe lives in media-probe.ts.
  */
 
+import { tr } from './i18n';
 import { moodsFromText } from './taxonomy';
 
 export interface MediaMetadata {
@@ -128,10 +129,12 @@ export function resolutionLabel(width: number | undefined, height: number | unde
 export function resolutionTag(width: number | undefined, height: number | undefined): string | undefined {
   const label = resolutionLabel(width, height);
   if (label === undefined) return undefined;
+  if (label === '1080p') return tr('results.resolution.full-hd');
   return RESOLUTION_NAMES[label] ?? label;
 }
 
-const RESOLUTION_NAMES: Record<string, string> = { '720p': 'HD', '1080p': 'Full HD', '2160p': '4K' };
+/** The names that are names in every language; Full HD, which has a word in it, is the catalog's. */
+const RESOLUTION_NAMES: Record<string, string> = { '720p': 'HD', '2160p': '4K' };
 
 /** Common names for resolution filters: 4k, uhd, 8k, hd, fhd. */
 export const RESOLUTION_ALIASES: Record<string, string> = {

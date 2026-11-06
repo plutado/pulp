@@ -19,7 +19,7 @@ import { setCacheSummary } from './status-bar';
 import { effect } from '@preact/signals';
 import { APPEARANCES } from '../core/appearance';
 import { appearanceChoice, chooseAppearance } from './appearance';
-import { chooseLanguage, languageState, locale, t } from './i18n';
+import { bindAttr, bindText, chooseLanguage, languageState, locale, t, whenLocaleChanges } from './i18n';
 import { isLocaleId, LOCALES, resolveLocale } from '../core/i18n';
 
 /**
@@ -52,6 +52,17 @@ const $ = <T extends HTMLElement>(id: string): T => {
   return el as T;
 };
 
+/**
+ * Words that are not one of ours — a line the main process wrote, already in the interface's
+ * language — put in an element that may carry a message's stamp from an earlier write, so a change
+ * of language does not put that message back over them (milestone 59).
+ */
+function sayPlain(el: HTMLElement, text: string): void {
+  delete el.dataset.i18n;
+  delete el.dataset.i18nValues;
+  el.textContent = text;
+}
+
 function showCache(stats: { summary: string; dir: string; maxMB: number }): void {
   const summary = $('settings-cache-summary');
   summary.textContent = stats.summary;
@@ -71,7 +82,9 @@ function showCache(stats: { summary: string; dir: string; maxMB: number }): void
 async function showFfmpeg(): Promise<void> {
   const [ffmpeg, download] = await Promise.all([window.pulp.ffmpegStatus(), window.pulp.ffmpegDownloadStatus()]);
   const line = $('settings-ffmpeg');
-  line.textContent = ffmpeg.ok ? `FFmpeg ${ffmpeg.version ?? ''} found.`.replace('  ', ' ') : 'FFmpeg was not found, so renders are off.';
+  if (!ffmpeg.ok) bindText(line, 'settings.ffmpeg.not-found');
+  else if (ffmpeg.version) bindText(line, 'settings.ffmpeg.found', { version: ffmpeg.version });
+  else bindText(line, 'settings.ffmpeg.found.no-version');
   if (ffmpeg.ok && ffmpeg.path) line.dataset.tip = ffmpeg.path;
   else delete line.dataset.tip;
   const offer = $('settings-ffmpeg-offer');
@@ -82,15 +95,15 @@ async function showFfmpeg(): Promise<void> {
   const canFetch = !ffmpeg.ok && download.build !== null && !download.installed;
   offer.hidden = !canFetch && !download.installed;
   if (download.installed) {
-    offer.textContent = 'This is a build Pulp fetched, kept beside your settings. An FFmpeg of your own still comes first.';
+    bindText(offer, 'settings.ffmpeg.fetched');
     offer.dataset.tip = download.path ?? '';
   } else if (canFetch) {
     delete offer.dataset.tip;
-    offer.textContent = download.build!.note;
+    sayPlain(offer, download.build!.note);
   }
   button.hidden = !canFetch;
   button.disabled = false;
-  if (canFetch) button.textContent = `Download FFmpeg (${downloadSizeText(download.build!.bytes)})`;
+  if (canFetch) bindText(button, 'settings.ffmpeg.download', { size: downloadSizeText(download.build!.bytes) });
 }
 
 /**
@@ -105,17 +118,22 @@ async function showSemantic(): Promise<void> {
   const note = $('settings-semantic-note');
   const get = $<HTMLButtonElement>('settings-semantic-get');
   if (!status.runner.ok) {
-    note.textContent = status.runner.message ?? 'llama.cpp was not found.';
+    if (status.runner.message !== undefined) sayPlain(note, status.runner.message);
+    else bindText(note, 'settings.semantic.no-runner');
     get.hidden = true;
   } else if (!status.model.installed) {
-    note.textContent = `${status.model.label} (${downloadSizeText(status.model.bytes)}, ${status.model.license}) would be fetched from its publisher. ${status.model.note}`;
+    bindText(note, 'settings.semantic.offer', {
+      model: status.model.label,
+      size: downloadSizeText(status.model.bytes),
+      licenseId: status.model.license,
+      note: status.model.note,
+    });
     get.hidden = !status.enabled;
     get.disabled = false;
-    get.textContent = `Download the model (${downloadSizeText(status.model.bytes)})`;
+    bindText(get, 'settings.semantic.download', { size: downloadSizeText(status.model.bytes) });
   } else {
-    note.textContent = status.indexing.total > 0
-      ? `Indexing the library… ${status.indexing.done} of ${status.indexing.total}.`
-      : `${status.model.label} is here; the library is indexed as it changes. Everything runs on this machine.`;
+    if (status.indexing.total > 0) bindText(note, 'settings.semantic.indexing', { done: status.indexing.done, total: status.indexing.total });
+    else bindText(note, 'settings.semantic.ready', { model: status.model.label });
     get.hidden = true;
   }
   semanticSetAvailable(status.enabled, status.runner.ok && status.model.installed);
@@ -131,10 +149,10 @@ async function showPanel(): Promise<void> {
   $<HTMLInputElement>('settings-panel').checked = status.enabled;
   const note = $('settings-panel-note');
   if (status.running && status.port !== undefined) {
-    note.textContent = `Listening on 127.0.0.1:${status.port}. The panels find it through panel-bridge.json beside your settings.`;
+    bindText(note, 'settings.panel.listening', { port: status.port });
     note.dataset.tip = status.bridgeFile;
   } else {
-    note.textContent = 'Not listening. Panels inside the editing apps will say Pulp is not reachable.';
+    bindText(note, 'settings.panel.off');
     delete note.dataset.tip;
   }
 }
@@ -202,7 +220,8 @@ function initAppearanceChoice(): void {
   for (const a of APPEARANCES) {
     const label = document.createElement('label');
     label.className = 'field inline';
-    label.dataset.tip = a.hint;
+    // Built once at start: bound to their messages, so a change of language rewrites them.
+    bindAttr(label, 'data-tip', `appearance.${a.id}.hint`);
     const input = document.createElement('input');
     input.type = 'radio';
     input.name = 'settings-appearance';
@@ -212,7 +231,7 @@ function initAppearanceChoice(): void {
       if (input.checked) void chooseAppearance(a.id);
     });
     const text = document.createElement('span');
-    text.textContent = a.label;
+    bindText(text, `appearance.${a.id}`);
     label.append(input, text);
     group.append(label);
   }
@@ -265,16 +284,16 @@ export function initSettings(): void {
     if (get.hidden && offer.hidden) return;
     const percent = progress.fraction === null ? '' : ` ${Math.round(progress.fraction * 100)}%`;
     offer.hidden = false;
-    offer.textContent = `${progress.note}${percent}`;
+    sayPlain(offer, `${progress.note}${percent}`);
   });
   get.addEventListener('click', () => {
     get.disabled = true;
     offer.hidden = false;
-    offer.textContent = 'Fetching FFmpeg…';
+    bindText(offer, 'settings.ffmpeg.fetching');
     void window.pulp.fetchFfmpeg().then(async (result) => {
       if (!result.ok) {
         get.disabled = false;
-        offer.textContent = result.message;
+        sayPlain(offer, result.message);
         return;
       }
       // Renders work from here on, with no restart: the status bar and the Output tab are
@@ -294,7 +313,7 @@ export function initSettings(): void {
     void window.pulp.fetchSemanticModel().then(async (result) => {
       if (!result.ok) {
         semanticGet.disabled = false;
-        $('settings-semantic-note').textContent = result.message;
+        sayPlain($('settings-semantic-note'), result.message);
         return;
       }
       await showSemantic();
@@ -304,7 +323,7 @@ export function initSettings(): void {
     const dialog = $<HTMLDialogElement>('settings-dialog');
     if (!dialog.open) return;
     const percent = progress.fraction === null ? '' : ` ${Math.round(progress.fraction * 100)}%`;
-    $('settings-semantic-note').textContent = `${progress.note}${percent}`;
+    sayPlain($('settings-semantic-note'), `${progress.note}${percent}`);
   });
 
   // The editor panel: the toggle starts or stops the listener there and then, and the line says where it landed.
@@ -328,6 +347,14 @@ export function initSettings(): void {
   });
   $('settings-cache-clear').addEventListener('click', () => {
     void window.pulp.clearRenderCache().then(showCache);
+  });
+  // A change of language made here (Settings → Language) or elsewhere: the lines the main process
+  // wrote — the FFmpeg offer, the model's note — are asked for again, in the new language, unless a
+  // fetch is under way and its progress is what the line is saying.
+  whenLocaleChanges(() => {
+    if (!$<HTMLDialogElement>('settings-dialog').open) return;
+    if (!get.disabled) void showFfmpeg();
+    if (!semanticGet.disabled) void showSemantic();
   });
   $('settings-close').addEventListener('click', () => $<HTMLDialogElement>('settings-dialog').close());
   $('notices-close').addEventListener('click', () => $<HTMLDialogElement>('notices-dialog').close());

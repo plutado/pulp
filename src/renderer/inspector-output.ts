@@ -5,13 +5,15 @@
  * possible through the renderBlocked signal, which the tray's Prepare button follows.
  */
 
-import { effect, signal } from '@preact/signals';
+import { effect, signal, untracked } from '@preact/signals';
+import { bindAttr, bindText, t, whenLocaleChanges } from './i18n';
+import type { MessageId } from '../core/i18n';
 import { AspectError, aspectById, defaultAspect, orientationOf, resolutionsFor, resolveRenderSize, templateDefaultSize, type Size } from '../core/aspect';
 import { planBatch, type BatchPlan } from '../core/batch-csv';
 import { dimensionsLabel } from '../core/display';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
 import { coverFrameWithin, OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type AudioOptions, type CaptionsMode, type PresetId, type RenderOptions } from '../core/render-plan';
-import { AUDIO_PRESET_IDS, AUDIO_PRESETS, DEFAULT_STILL_SECONDS, isAudioPresetId, mediaDefaultFps, NOT_MEASURED, resolveMediaTiming, sourceFromEntry } from '../core/media-render';
+import { AUDIO_PRESET_IDS, AUDIO_PRESETS, DEFAULT_STILL_SECONDS, isAudioPresetId, MediaNotMeasuredError, mediaDefaultFps, resolveMediaTiming, sourceFromEntry } from '../core/media-render';
 import type { MediaEntry } from '../core/library-types';
 import { browsedHiddenChoice } from './psd-state';
 import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, timecodePattern } from '../core/timecode';
@@ -117,6 +119,21 @@ const els = {
   batchSummary: $<HTMLDivElement>('batch-summary'),
 };
 
+/** Words that are not a message — the main process's, a path — where a message's stamp may be left from before. */
+function setPlain(el: HTMLElement, text: string): void {
+  delete el.dataset.i18n;
+  delete el.dataset.i18nValues;
+  el.textContent = text;
+}
+
+/** An attribute this code fills with something other than a message: the markup's stamp for it is taken off, so a change of language leaves it be. */
+function setPlainAttr(el: HTMLElement, name: string, value: string): void {
+  const pairs = (el.dataset.i18nAttr ?? '').split(';').filter((p) => p && p.split(':')[0] !== name);
+  if (pairs.length > 0) el.dataset.i18nAttr = pairs.join(';');
+  else delete el.dataset.i18nAttr;
+  el.setAttribute(name, value);
+}
+
 const o = {
   ffmpegOk: false,
   /** The .cube graded over the whole render (milestone 52), as chosen; null is no grade. */
@@ -142,6 +159,12 @@ const o = {
   typeDefaults: {} as Record<string, TypeOutputDefault>,
   /** Which list the preset select holds now. */
   presetKind: 'video' as 'video' | 'audio',
+  /** What the chosen platform could not set, said under it; kept as words to say, so a change of language says them again. */
+  platformMissed: [] as readonly (() => string)[],
+  /** The CSV the last preview was planned from, so a change of language can plan it again in the new words. */
+  batchCsv: '',
+  /** The line a queued batch left under the preview, as words to say. */
+  batchQueued: null as null | { say: () => string; warning: boolean },
 };
 
 /** The orchestrator owns selection, so it lends the Output tab a way to show a card's template. */
@@ -192,7 +215,7 @@ function populatePresets(): void {
 function populateFrameRates(): void {
   const own = document.createElement('option');
   own.value = '';
-  own.textContent = 'Template rate';
+  bindText(own, 'output.fps.template');
   els.optFps.append(own);
   for (const rate of STANDARD_FRAME_RATES) {
     const opt = document.createElement('option');
@@ -206,10 +229,14 @@ function populateFrameRates(): void {
 
 const CUSTOM_SIZE = 'custom';
 
-function orientationWord(aspectId: string): string {
+/** An aspect as the select lists it, "16:9 · Landscape", or null for one that is not built in (listed as its bare ratio). */
+function orientationOption(aspectId: string): MessageId | null {
   const a = aspectById(aspectId);
-  if (!a) return '';
-  return { landscape: 'Landscape', portrait: 'Portrait', square: 'Square' }[orientationOf(a.w, a.h)];
+  if (!a) return null;
+  const options: Record<ReturnType<typeof orientationOf>, MessageId> = {
+    landscape: 'output.aspect.landscape', portrait: 'output.aspect.portrait', square: 'output.aspect.square',
+  };
+  return options[orientationOf(a.w, a.h)];
 }
 
 /** The aspect select lists what the template draws for; it is shown only when there is a choice to make. */
@@ -218,8 +245,9 @@ function populateAspects(m: { aspects: readonly string[]; size?: Size }): void {
   for (const id of m.aspects) {
     const opt = document.createElement('option');
     opt.value = id;
-    const word = orientationWord(id);
-    opt.textContent = word ? `${id} · ${word}` : id;
+    const option = orientationOption(id);
+    if (option) bindText(opt, option, { aspect: id });
+    else opt.textContent = id;
     els.optAspect.append(opt);
   }
   // The session's preferred shape wins where the template draws it (milestone 31).
@@ -235,7 +263,7 @@ function populateResolutions(m: { aspects: readonly string[]; size?: Size }): vo
   els.optResolution.replaceChildren();
   const def = document.createElement('option');
   def.value = '';
-  def.textContent = `${m.size && defaultAspect(m) === aspect ? 'Template size' : 'Default'} · ${dimensionsLabel(fallback.width, fallback.height)}`;
+  bindText(def, m.size && defaultAspect(m) === aspect ? 'output.size.template' : 'output.size.default', { size: dimensionsLabel(fallback.width, fallback.height) });
   els.optResolution.append(def);
   for (const r of resolutionsFor(m, aspect)) {
     if (r.width === fallback.width && r.height === fallback.height) continue;
@@ -246,7 +274,7 @@ function populateResolutions(m: { aspects: readonly string[]; size?: Size }): vo
   }
   const custom = document.createElement('option');
   custom.value = CUSTOM_SIZE;
-  custom.textContent = 'Custom size…';
+  bindText(custom, 'output.size.custom');
   els.optResolution.append(custom);
   els.optResolution.value = '';
   els.optSizeCustom.hidden = true;
@@ -334,7 +362,7 @@ function showSizeChoice(m: { aspects: readonly string[]; size?: Size }, options:
 function populatePlatforms(): void {
   const none = document.createElement('option');
   none.value = '';
-  none.textContent = 'No platform';
+  bindText(none, 'output.platform.none');
   els.optPlatform.append(none);
   for (const p of PLATFORM_PRESETS) {
     const opt = document.createElement('option');
@@ -351,9 +379,11 @@ function chosenPlatform(): PlatformPreset | undefined {
 }
 
 /** What the platform amounts to and what it takes, with the date those limits were read; `missed` is whatever could not be set. */
-function showPlatformNote(missed = ''): void {
+function showPlatformNote(missed: readonly (() => string)[] = []): void {
+  o.platformMissed = missed;
   const p = chosenPlatform();
-  els.platformNote.textContent = p ? [platformSummary(p), platformLimitsLabel(p), missed].filter(Boolean).join(' · ') : '';
+  const unset = missed.map((say) => say()).join('; ');
+  els.platformNote.textContent = p ? [platformSummary(p), platformLimitsLabel(p), unset].filter(Boolean).join(' · ') : '';
 }
 
 /** Put a size into the resolution field: the default entry, a standard one, or a custom size typed in. */
@@ -395,7 +425,7 @@ function applyPlatform(): void {
     showPlatformNote();
     return;
   }
-  const missed: string[] = [];
+  const missed: (() => string)[] = [];
   // A media item has no aspects of its own to choose from, so every shape is its shape.
   const m = selectedTemplate.value?.manifest;
   const drawsIt = !m || m.aspects.includes(p.aspect);
@@ -403,7 +433,7 @@ function applyPlatform(): void {
     els.optAspect.value = p.aspect;
     populateResolutions(m);
   } else if (m) {
-    missed.push(`this template does not draw ${p.aspect}, so the shape is unchanged`);
+    missed.push(() => t('output.platform.missed.aspect', { aspect: p.aspect }));
   }
   if (drawsIt) selectResolution(m, p.width, p.height);
   els.optFps.value = String(p.fps);
@@ -412,9 +442,9 @@ function applyPlatform(): void {
     els.preset.value = p.presetId;
     showPresetNote();
   } else if (option) {
-    missed.push(`this FFmpeg cannot write ${OUTPUT_PRESETS[p.presetId].label}, so the output preset is unchanged`);
+    missed.push(() => t('output.platform.missed.preset', { preset: OUTPUT_PRESETS[p.presetId].label }));
   }
-  showPlatformNote(missed.join('; '));
+  showPlatformNote(missed);
 }
 
 /**
@@ -500,10 +530,10 @@ function refreshTypeDefaultRow(manifest: TemplateManifest | null): void {
   const saved = o.typeDefaults[type] !== undefined;
   els.typeDefaultClear.hidden = !saved;
   els.typeDefaultNote.hidden = !saved;
-  els.typeDefaultSave.setAttribute('aria-label', `Save these output settings as the default for ${typeLabelFor(type)}`);
+  els.typeDefaultSave.setAttribute('aria-label', t('output.type-default.save.aria-label', { type: typeLabelFor(type) }));
   if (saved) {
     const d = o.typeDefaults[type]!;
-    els.typeDefaultNote.textContent = `${typeLabelFor(type)} items open with the saved default (${OUTPUT_PRESETS[d.presetId]?.label ?? d.presetId}).`;
+    els.typeDefaultNote.textContent = t('output.type-default.note', { type: typeLabelFor(type), preset: OUTPUT_PRESETS[d.presetId]?.label ?? d.presetId });
   }
 }
 
@@ -645,16 +675,16 @@ export function readRenderOptions(): RenderOptions {
   const options: RenderOptions = {};
   const fps = chosenFps();
   if (els.optFps.value !== '') options.fps = Number(els.optFps.value);
-  const point = (el: HTMLInputElement, name: string): number | undefined => {
+  const point = (el: HTMLInputElement, field: MessageId): number | undefined => {
     if (el.value.trim() === '' || fps === undefined) return undefined;
     try {
       return parseTimecode(el.value, fps);
     } catch (err) {
-      throw err instanceof TimecodeError ? new TimecodeError(`${name}: ${err.message}`) : err;
+      throw err instanceof TimecodeError ? new TimecodeError(t(field, { reason: err.message })) : err;
     }
   };
-  const inFrame = point(els.optIn, 'In point');
-  const outFrame = point(els.optOut, 'Out point');
+  const inFrame = point(els.optIn, 'output.trim.in.error');
+  const outFrame = point(els.optOut, 'output.trim.out.error');
   if (inFrame !== undefined) options.inFrame = inFrame;
   if (outFrame !== undefined) options.outFrame = outFrame;
   const preset = OUTPUT_PRESETS[els.preset.value as PresetId];
@@ -677,7 +707,7 @@ export function readRenderOptions(): RenderOptions {
   // The cover image (milestone 20): a still of one frame beside the render. The frame is whatever
   // the field holds — filled from the playhead when the box is ticked, and editable after.
   if (preset && !els.optCoverField.hidden && els.optCover.checked) {
-    const at = point(els.optCoverAt, 'Cover frame');
+    const at = point(els.optCoverAt, 'output.cover.error');
     options.coverFrame = at ?? Math.max(0, Math.round(playheadSeconds.peek() * (fps ?? 30)));
   }
   if (o.media) {
@@ -791,24 +821,25 @@ function updateOptionsNote(): void {
   // Placeholders show the range at the chosen rate, in that rate's timecode form.
   const lastFrame = Math.max(1, Math.round(length * fps)) - 1;
   els.optIn.placeholder = formatTimecode(0, fps);
-  els.optOut.placeholder = formatTimecode(lastFrame, fps);
-  els.optIn.title = els.optOut.title = `Timecode ${timecodePattern(fps)}, a frame number, or seconds such as 2.5s`;
+  setPlainAttr(els.optOut, 'placeholder', formatTimecode(lastFrame, fps));
+  bindAttr(els.optIn, 'title', 'output.trim.title', { pattern: timecodePattern(fps) });
+  bindAttr(els.optOut, 'title', 'output.trim.title', { pattern: timecodePattern(fps) });
   try {
     const options = { ...readRenderOptions(), ...(length !== m.duration ? { length } : {}) };
-    const t = resolveTiming(m, options);
+    const timing = resolveTiming(m, options);
     const size = resolveRenderSize(m, options);
     const own = templateDefaultSize(m);
-    const seconds = t.totalFrames / t.fps;
+    const seconds = timing.totalFrames / timing.fps;
     const parts: string[] = [];
     if (size.width !== own.width || size.height !== own.height) parts.push(`${dimensionsLabel(size.width, size.height)} (${size.aspect})`);
     // A length set in the Parameters tab is said here too, since this is where a render is set up.
-    if (t.length !== m.duration) parts.push(`${t.length} s long (designed at ${m.duration} s)`);
-    if (t.fps !== m.fps || t.totalFrames !== lengthFrameCount(t.length, t.fps) || t.firstFrame !== 0) {
-      const last = t.firstFrame + t.totalFrames - 1;
-      parts.push(`${t.totalFrames} frames at ${t.fps} fps (${seconds.toFixed(2)} s), ${formatTimecode(t.firstFrame, t.fps)} to ${formatTimecode(last, t.fps)}`);
+    if (timing.length !== m.duration) parts.push(t('output.note.length', { length: timing.length, designed: m.duration }));
+    if (timing.fps !== m.fps || timing.totalFrames !== lengthFrameCount(timing.length, timing.fps) || timing.firstFrame !== 0) {
+      const last = timing.firstFrame + timing.totalFrames - 1;
+      parts.push(t('output.note.frames', { frames: timing.totalFrames, fps: timing.fps, seconds: seconds.toFixed(2), from: formatTimecode(timing.firstFrame, timing.fps), to: formatTimecode(last, timing.fps) }));
     }
     // The cover beside it, and which frame it is taken at (milestone 20).
-    if (options.coverFrame !== undefined) parts.push(`with a cover image at ${formatTimecode(coverFrameWithin(options.coverFrame, t.fps, t.length), t.fps)}`);
+    if (options.coverFrame !== undefined) parts.push(t('output.note.cover-at', { at: formatTimecode(coverFrameWithin(options.coverFrame, timing.fps, timing.length), timing.fps) }));
     els.optionsNote.classList.remove('error');
     els.optionsNote.textContent = parts.join(' · ');
     showPlatformWarnings(seconds);
@@ -833,40 +864,43 @@ function updateMediaOptionsNote(entry: MediaEntry): void {
   const source = sourceFromEntry(entry);
   const fps = chosenFps() ?? mediaDefaultFps(entry);
   els.optIn.placeholder = formatTimecode(0, fps);
-  els.optIn.title = els.optOut.title = `Timecode ${timecodePattern(fps)}, a frame number, or seconds such as 2.5s`;
-  els.optLength.placeholder = source.kind === 'image' ? `${DEFAULT_STILL_SECONDS} s` : source.duration ? `${source.duration.toFixed(2)} s, as it is` : 'as it is';
+  bindAttr(els.optIn, 'title', 'output.trim.title', { pattern: timecodePattern(fps) });
+  bindAttr(els.optOut, 'title', 'output.trim.title', { pattern: timecodePattern(fps) });
+  if (source.kind === 'image') bindAttr(els.optLength, 'placeholder', 'output.media.length.still', { seconds: DEFAULT_STILL_SECONDS });
+  else if (source.duration) bindAttr(els.optLength, 'placeholder', 'output.media.length.as-is', { seconds: source.duration.toFixed(2) });
+  else bindAttr(els.optLength, 'placeholder', 'ui.opt-length.placeholder');
   try {
     const options = readRenderOptions();
-    const t = resolveMediaTiming(source, options);
-    const last = t.firstFrame + t.totalFrames - 1;
-    els.optOut.placeholder = formatTimecode(Math.max(1, Math.round(t.length * t.fps)) - 1, t.fps);
+    const timing = resolveMediaTiming(source, options);
+    const last = timing.firstFrame + timing.totalFrames - 1;
+    setPlainAttr(els.optOut, 'placeholder', formatTimecode(Math.max(1, Math.round(timing.length * timing.fps)) - 1, timing.fps));
     const parts: string[] = [];
-    if (t.loops) parts.push(t.crossfade > 0 ? `loops to ${t.length} s with a ${t.crossfade} s crossfade` : `loops to ${t.length} s`);
-    else if (options.length !== undefined && source.kind !== 'image') parts.push(`cut to ${t.length} s`);
-    if (t.speed !== 1) parts.push(`at ×${t.speed}`);
+    if (timing.loops) parts.push(timing.crossfade > 0 ? t('output.media.loops-crossfade', { length: timing.length, crossfade: timing.crossfade }) : t('output.media.loops', { length: timing.length }));
+    else if (options.length !== undefined && source.kind !== 'image') parts.push(t('output.media.cut', { length: timing.length }));
+    if (timing.speed !== 1) parts.push(t('output.media.speed', { speed: timing.speed }));
     if (source.kind !== 'audio') {
       const size = options.width && options.height ? dimensionsLabel(options.width, options.height) : source.width && source.height ? dimensionsLabel(source.width, source.height) : '';
       if (size && (options.width || options.height)) parts.push(size);
-      parts.push(`${t.totalFrames} frames at ${t.fps} fps (${(t.totalFrames / t.fps).toFixed(2)} s), ${formatTimecode(t.firstFrame, t.fps)} to ${formatTimecode(last, t.fps)}`);
+      parts.push(t('output.note.frames', { frames: timing.totalFrames, fps: timing.fps, seconds: (timing.totalFrames / timing.fps).toFixed(2), from: formatTimecode(timing.firstFrame, timing.fps), to: formatTimecode(last, timing.fps) }));
     } else {
-      parts.push(`${(t.totalFrames / t.fps).toFixed(2)} s of sound`);
+      parts.push(t('output.media.sound-seconds', { seconds: (timing.totalFrames / timing.fps).toFixed(2) }));
     }
-    if (options.tint) parts.push(`recoloured ${options.tint}`);
-    if (options.matte) parts.push('with a matte file');
-    if (!els.optCaptionsField.hidden) parts.push(options.captions === 'track' ? 'captions as an alpha track, with SRT and WebVTT' : options.captions === 'none' ? 'captions as SRT and WebVTT only' : 'captions burned in, with SRT and WebVTT');
-    if (options.coverFrame !== undefined) parts.push('with a cover image');
-    if (options.stems === 'files') parts.push('music stems as files beside the render');
+    if (options.tint) parts.push(t('output.media.tint', { color: options.tint }));
+    if (options.matte) parts.push(t('output.media.matte'));
+    if (!els.optCaptionsField.hidden) parts.push(options.captions === 'track' ? t('output.media.captions.track') : options.captions === 'none' ? t('output.media.captions.none') : t('output.media.captions.burn'));
+    if (options.coverFrame !== undefined) parts.push(t('output.media.cover'));
+    if (options.stems === 'files') parts.push(t('output.media.stems'));
     els.optionsNote.classList.remove('error');
     els.optionsNote.textContent = parts.join(' · ');
-    showPlatformWarnings(t.totalFrames / t.fps);
+    showPlatformWarnings(timing.totalFrames / timing.fps);
     o.optionsValid = true;
   } catch (err) {
     showPlatformWarnings(null);
     const message = err instanceof RenderPlanError || err instanceof TimecodeError ? err.message : String(err);
-    const unmeasured = message.includes(NOT_MEASURED);
+    const unmeasured = err instanceof MediaNotMeasuredError;
     // Not measured yet is not wrong: the render reads the file itself.
     els.optionsNote.classList.toggle('error', !unmeasured);
-    els.optionsNote.textContent = unmeasured ? 'Not measured yet; the render reads the file as it starts.' : message;
+    els.optionsNote.textContent = unmeasured ? t('output.media.not-measured') : message;
     o.optionsValid = unmeasured;
   }
   updateRenderControls();
@@ -881,15 +915,15 @@ function markPresetAvailability(encoders: readonly string[]): void {
     if (isAudioPresetId(opt.value)) {
       const preset = AUDIO_PRESETS[opt.value];
       label = preset.label;
-      reason = preset.encoder.startsWith('pcm') || encoders.includes(preset.encoder) ? null : `needs the ${preset.encoder} encoder`;
+      reason = preset.encoder.startsWith('pcm') || encoders.includes(preset.encoder) ? null : t('output.preset.needs-encoder', { encoder: preset.encoder });
     } else {
       const preset = OUTPUT_PRESETS[opt.value as PresetId];
       label = preset.label;
       reason = presetUnavailableReason(encoders, preset);
     }
     opt.disabled = reason !== null;
-    opt.textContent = reason ? `${label} (unavailable)` : label;
-    if (reason) reasons.push(`${label}: ${reason}.`);
+    opt.textContent = reason ? t('output.preset.unavailable-option', { preset: label }) : label;
+    if (reason) reasons.push(t('output.preset.unavailable-reason', { preset: label, reason }));
   }
   if (els.preset.selectedOptions[0]?.disabled) {
     const first = Array.from(els.preset.options).find((opt) => !opt.disabled);
@@ -899,7 +933,7 @@ function markPresetAvailability(encoders: readonly string[]): void {
     }
   }
   els.presetUnavailable.hidden = reasons.length === 0;
-  els.presetUnavailable.textContent = reasons.length ? `Unavailable: ${reasons.join(' ')}` : '';
+  els.presetUnavailable.textContent = reasons.length ? t('output.preset.unavailable', { reasons: reasons.join(' ') }) : '';
 }
 
 /**
@@ -932,17 +966,17 @@ async function prepareForDrag(): Promise<void> {
   if (!request) return;
   o.preparing = true;
   els.dragStatus.classList.remove('error');
-  els.dragStatus.textContent = '';
+  setPlain(els.dragStatus, '');
   updateRenderControls();
   try {
     const result = await window.pulp.prepareDrag(request);
     if (!result.ok) {
       els.dragStatus.classList.add('error');
-      els.dragStatus.textContent = result.message;
+      setPlain(els.dragStatus, result.message);
       return;
     }
     // Either way a card is waiting in the tray; the card says the rest.
-    els.dragStatus.textContent = result.cached ? 'Ready to drag, in the tray.' : 'Rendering for drag; the tray shows it.';
+    bindText(els.dragStatus, result.cached ? 'output.drag.ready' : 'output.drag.rendering');
   } finally {
     o.preparing = false;
     updateRenderControls();
@@ -990,15 +1024,15 @@ async function queueRender(): Promise<void> {
   stageStop();
   o.choosingOutput = true;
   els.renderStatus.classList.remove('error');
-  els.renderStatus.textContent = 'Choose where to save…';
+  bindText(els.renderStatus, 'output.render.choosing');
   updateRenderControls();
   try {
     const result = await window.pulp.render(request);
     if (result.ok) {
-      els.renderStatus.textContent = '';
+      setPlain(els.renderStatus, '');
     } else {
       els.renderStatus.classList.toggle('error', !result.cancelled);
-      els.renderStatus.textContent = result.cancelled ? '' : result.message;
+      setPlain(els.renderStatus, result.cancelled ? '' : result.message);
     }
   } finally {
     o.choosingOutput = false;
@@ -1008,16 +1042,21 @@ async function queueRender(): Promise<void> {
 
 // ---------------------------------------------------------------- batch from CSV
 
-function previewBatch(): void {
+function previewBatch(csv = els.batchCsv.value): void {
   const selected = selectedTemplate.value;
   if (!selected) return;
-  const plan = planBatch(selected.manifest, els.batchCsv.value);
+  const plan = planBatch(selected.manifest, csv);
   o.batch = plan;
+  o.batchCsv = csv;
+  o.batchQueued = null;
   els.batchSummary.replaceChildren();
   const lines: { text: string; warning?: boolean }[] = [];
   if (plan.rows.length > 0) {
-    lines.push({ text: `${plan.rows.length} row${plan.rows.length === 1 ? '' : 's'}, columns: ${plan.columns.map((c) => `${c.header} → ${c.paramId}`).join(', ') || 'none'}${plan.nameColumn ? `; names from "${plan.nameColumn}"` : ''}.` });
-    lines.push({ text: `Files: ${plan.rows.slice(0, 5).map((r) => r.fileName).join(', ')}${plan.rows.length > 5 ? ', …' : ''}` });
+    const columns = plan.columns.map((c) => `${c.header} → ${c.paramId}`).join(', ') || t('output.batch.columns.none');
+    lines.push({ text: plan.nameColumn
+      ? t('output.batch.summary.names', { count: plan.rows.length, columns, name: plan.nameColumn })
+      : t('output.batch.summary', { count: plan.rows.length, columns }) });
+    lines.push({ text: t('output.batch.files', { files: `${plan.rows.slice(0, 5).map((r) => r.fileName).join(', ')}${plan.rows.length > 5 ? ', …' : ''}` }) });
   }
   for (const w of plan.warnings) lines.push({ text: w, warning: true });
   for (const line of lines) {
@@ -1026,8 +1065,18 @@ function previewBatch(): void {
     div.textContent = line.text;
     els.batchSummary.append(div);
   }
-  els.batchQueue.textContent = plan.rows.length > 0 ? `Queue ${plan.rows.length} render${plan.rows.length === 1 ? '' : 's'}` : 'Queue';
+  if (plan.rows.length > 0) bindText(els.batchQueue, 'output.batch.queue', { count: plan.rows.length });
+  else bindText(els.batchQueue, 'ui.batch-queue');
   els.batchQueue.disabled = plan.rows.length === 0 || plan.columns.length === 0 || !o.ffmpegOk || !o.optionsValid;
+}
+
+/** The line a queued batch leaves under the preview. */
+function showBatchQueued(queued: { say: () => string; warning: boolean }): void {
+  o.batchQueued = queued;
+  const div = document.createElement('div');
+  div.className = queued.warning ? 'warning' : '';
+  div.textContent = queued.say();
+  els.batchSummary.append(div);
 }
 
 async function queueBatch(): Promise<void> {
@@ -1041,13 +1090,19 @@ async function queueBatch(): Promise<void> {
       options: readRenderOptions(),
       rows: o.batch.rows.map((r) => ({ label: r.label, fileName: r.fileName, params: r.params })),
     });
-    const div = document.createElement('div');
-    if (result.ok) div.textContent = `Queued ${result.jobIds.length} renders into ${result.folder}.${result.skipped?.length ? ` Skipped ${result.skipped.length}: ${result.skipped.join('; ')}` : ''}`;
-    else {
-      div.className = result.cancelled ? '' : 'warning';
-      div.textContent = result.cancelled ? '' : result.message;
+    if (result.ok) {
+      const queued = { count: result.jobIds.length, folder: result.folder };
+      const skipped = result.skipped ?? [];
+      showBatchQueued({
+        say: () => (skipped.length
+          ? t('output.batch.queued.skipped', { ...queued, skipped: skipped.length, names: skipped.join('; ') })
+          : t('output.batch.queued', queued)),
+        warning: false,
+      });
+    } else {
+      const message = result.cancelled ? '' : result.message;
+      showBatchQueued({ say: () => message, warning: !result.cancelled });
     }
-    els.batchSummary.append(div);
   } finally {
     els.batchQueue.disabled = false;
   }
@@ -1102,17 +1157,22 @@ export function outputShowMedia(entry: MediaEntry): void {
   els.optResolution.replaceChildren();
   const own = document.createElement('option');
   own.value = '';
-  own.textContent = entry.meta?.width && entry.meta.height ? `As it is · ${dimensionsLabel(entry.meta.width, entry.meta.height)}` : 'As it is';
+  if (entry.meta?.width && entry.meta.height) bindText(own, 'output.size.as-is.dims', { size: dimensionsLabel(entry.meta.width, entry.meta.height) });
+  else bindText(own, 'output.size.as-is');
   const custom = document.createElement('option');
   custom.value = CUSTOM_SIZE;
-  custom.textContent = 'Custom size…';
+  bindText(custom, 'output.size.custom');
   els.optResolution.append(own, custom);
   els.optResolution.value = '';
   els.optSizeCustom.hidden = true;
   els.optWidth.value = '';
   els.optHeight.value = '';
   const source = sourceFromEntry(entry);
-  els.optFps.options[0]!.textContent = kind === 'image' ? 'Still (30 fps)' : kind === 'audio' ? 'Timecode at 25 fps' : `Clip rate${source.fps ? ` (${source.fps} fps)` : ''}`;
+  const ownRate = els.optFps.options[0]!;
+  if (kind === 'image') bindText(ownRate, 'output.fps.still');
+  else if (kind === 'audio') bindText(ownRate, 'output.fps.sound');
+  else if (source.fps) bindText(ownRate, 'output.fps.clip.rate', { fps: source.fps });
+  else bindText(ownRate, 'output.fps.clip');
   els.optFps.value = '';
   els.optIn.value = '';
   els.optOut.value = '';
@@ -1125,7 +1185,7 @@ export function outputShowMedia(entry: MediaEntry): void {
   els.optSampleRate.value = '';
   els.optChannels.value = '';
   els.optBitDepth.value = '16';
-  els.dragStatus.textContent = '';
+  setPlain(els.dragStatus, '');
   setLut(null);
   trim.value = { inFrame: null, outFrame: null };
   showMediaFields(entry);
@@ -1153,15 +1213,16 @@ export function outputShow(entry: TemplateEntry): void {
   populateResolutions(entry.manifest);
   els.optWidth.value = '';
   els.optHeight.value = '';
-  els.optFps.options[0]!.textContent = `Template rate (${entry.manifest.fps} fps)`;
+  bindText(els.optFps.options[0]!, 'output.fps.template.rate', { fps: entry.manifest.fps });
   els.optFps.value = '';
   els.optIn.value = '';
   els.optOut.value = '';
   els.optStems.value = 'mix';
-  els.dragStatus.textContent = '';
+  setPlain(els.dragStatus, '');
   setLut(null);
   trim.value = { inFrame: null, outFrame: null };
   o.batch = null;
+  o.batchQueued = null;
   els.batchSummary.textContent = '';
   els.batchQueue.disabled = true;
   // The kind's own answers (milestone 14): the one-click presets this template can take, and the
@@ -1203,7 +1264,7 @@ function initCollectionEditing(): void {
     if (!item) return;
     o.loadingCard = true;
     try {
-      $('editing-note-text').textContent = `Editing ${item.name} in the collection.`;
+      $('editing-note-text').textContent = t('output.editing', { name: item.name });
       // Show the item itself, so the Parameters tab is this card's template and not whatever was last clicked.
       if (item.templateId) o.showTemplate?.(item.templateId);
       // A media card (milestone 15): the tab is set up for the item, then its settings fill the fields.
@@ -1276,11 +1337,40 @@ export function saveParamsToEditedCard(params: Record<string, unknown>): void {
   o.writeToCard?.({ params });
 }
 
+/**
+ * A change of language (milestone 59): the lists' names, the notes and the batch preview said again
+ * in the new words. Read untracked, so the repaint follows the language and nothing else.
+ */
+function repaintWords(): void {
+  for (const opt of Array.from(els.optFps.options)) {
+    const rate = opt.value ? STANDARD_FRAME_RATES.find((r) => String(r.fps) === opt.value) : undefined;
+    if (rate) opt.textContent = rate.label;
+  }
+  for (const opt of Array.from(els.optPlatform.options)) {
+    const platform = platformPreset(opt.value || undefined);
+    if (platform) opt.textContent = platform.label;
+  }
+  listPresets(o.presetKind);
+  showPlatformNote(o.platformMissed);
+  const manifest = selectedTemplate.value?.manifest ?? null;
+  if (!o.media) {
+    renderAssetPresets(manifest);
+    refreshTypeDefaultRow(manifest);
+  }
+  updateOptionsNote();
+  if (o.batch && manifest) {
+    const queued = o.batchQueued;
+    previewBatch(o.batchCsv);
+    if (queued) showBatchQueued(queued);
+  }
+}
+
 export function initInspectorOutput(): void {
   initCollectionEditing();
   populatePresets();
   populateFrameRates();
   populatePlatforms();
+  whenLocaleChanges(() => untracked(repaintWords));
   // The remembered defaults per type (milestone 14), in before the first item is shown.
   void window.pulp.getTypeOutputDefaults().then((defaults) => {
     o.typeDefaults = defaults;
@@ -1412,7 +1502,7 @@ export function initInspectorOutput(): void {
       previewBatch();
     });
   });
-  els.batchPreview.addEventListener('click', previewBatch);
+  els.batchPreview.addEventListener('click', () => previewBatch());
   els.batchQueue.addEventListener('click', () => void queueBatch());
   updateRenderControls();
 }

@@ -20,27 +20,29 @@
  * pinned string-for-string by tests/voice-treatment.test.ts.
  */
 
+import { tr } from './i18n';
+
 /** The treatments, in the order they are offered. */
 export const VOICE_TREATMENTS = ['clean-voice', 'podcast', 'reduce-noise', 'phone', 'radio', 'warm'] as const;
 export type VoiceTreatment = (typeof VOICE_TREATMENTS)[number];
 
-export const VOICE_LABELS: Record<VoiceTreatment, string> = {
-  'clean-voice': 'Clean voice',
-  podcast: 'Podcast',
-  'reduce-noise': 'Reduce noise',
-  phone: 'Phone',
-  radio: 'Radio',
-  warm: 'Warm',
+export const VOICE_LABELS: Readonly<Record<VoiceTreatment, string>> = {
+  get 'clean-voice'() { return tr('voice.clean-voice'); },
+  get podcast() { return tr('voice.podcast'); },
+  get 'reduce-noise'() { return tr('voice.reduce-noise'); },
+  get phone() { return tr('voice.phone'); },
+  get radio() { return tr('voice.radio'); },
+  get warm() { return tr('voice.warm'); },
 };
 
 /** One line each, shown where the treatment is chosen. */
-export const VOICE_DESCRIPTIONS: Record<VoiceTreatment, string> = {
-  'clean-voice': 'Room noise down, rumble and hum out, gently leveled, a little clarity, the esses softened',
-  podcast: 'A fuller spoken-word sound: noise down, a firmer level, presence and a touch of warmth',
-  'reduce-noise': 'Noise reduction alone: the room’s hiss down, the voice left as it was',
-  phone: 'A telephone’s narrow band, the level flattened',
-  radio: 'Broadcast-style: no rumble, a tight level and a bright presence',
-  warm: 'A softer, rounder tone: the low end lifted, the highs eased',
+export const VOICE_DESCRIPTIONS: Readonly<Record<VoiceTreatment, string>> = {
+  get 'clean-voice'() { return tr('voice.clean-voice.description'); },
+  get podcast() { return tr('voice.podcast.description'); },
+  get 'reduce-noise'() { return tr('voice.reduce-noise.description'); },
+  get phone() { return tr('voice.phone.description'); },
+  get radio() { return tr('voice.radio.description'); },
+  get warm() { return tr('voice.warm.description'); },
 };
 
 /** A treatment with how much of it is heard, carried on a sound or a clip value. */

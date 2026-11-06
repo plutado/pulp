@@ -53,28 +53,28 @@ export const STRUCTURE_LIMITS = {
  */
 export function readStructure(raw: unknown, duration: number): { structure: TemplateStructure | null; problem?: string } {
   if (raw === undefined || raw === null) return { structure: null };
-  if (typeof raw !== 'object') return { structure: null, problem: 'must be an object with holdFrom and holdTo, or loop, or scale' };
+  if (typeof raw !== 'object') return { structure: null, problem: 'must be an object with holdFrom and holdTo, or loop, or scale' }; // i18n-exempt(diagnostic)
   const r = raw as Record<string, unknown>;
   // A graphic that repeats, or one that plays faster and slower, says so instead of naming a hold.
   if (r.loop !== undefined || r.scale !== undefined) {
     if (r.holdFrom !== undefined || r.holdTo !== undefined) {
-      return { structure: null, problem: 'names a hold as well as loop or scale; it can only be one of the three' };
+      return { structure: null, problem: 'names a hold as well as loop or scale; it can only be one of the three' }; // i18n-exempt(diagnostic)
     }
-    if (r.loop !== undefined && r.scale !== undefined) return { structure: null, problem: 'is both loop and scale; it can only be one' };
-    if (r.loop !== undefined && r.loop !== true) return { structure: null, problem: 'loop must be true, or left out' };
-    if (r.scale !== undefined && r.scale !== true) return { structure: null, problem: 'scale must be true, or left out' };
+    if (r.loop !== undefined && r.scale !== undefined) return { structure: null, problem: 'is both loop and scale; it can only be one' }; // i18n-exempt(diagnostic)
+    if (r.loop !== undefined && r.loop !== true) return { structure: null, problem: 'loop must be true, or left out' }; // i18n-exempt(diagnostic)
+    if (r.scale !== undefined && r.scale !== true) return { structure: null, problem: 'scale must be true, or left out' }; // i18n-exempt(diagnostic)
     return { structure: r.loop === true ? { kind: 'loop' } : { kind: 'scale' } };
   }
   const holdFrom = r.holdFrom;
   const holdTo = r.holdTo;
   if (typeof holdFrom !== 'number' || !Number.isFinite(holdFrom) || holdFrom < 0) {
-    return { structure: null, problem: 'holdFrom must be a number of seconds from 0' };
+    return { structure: null, problem: 'holdFrom must be a number of seconds from 0' }; // i18n-exempt(diagnostic)
   }
   if (typeof holdTo !== 'number' || !Number.isFinite(holdTo) || holdTo > duration) {
-    return { structure: null, problem: `holdTo must be a number of seconds up to the duration (${duration})` };
+    return { structure: null, problem: `holdTo must be a number of seconds up to the duration (${duration})` }; // i18n-exempt(diagnostic)
   }
   if (holdTo - holdFrom < STRUCTURE_LIMITS.minHold) {
-    return { structure: null, problem: `holdTo must be at least ${STRUCTURE_LIMITS.minHold} s after holdFrom, so there is a hold to stretch` };
+    return { structure: null, problem: `holdTo must be at least ${STRUCTURE_LIMITS.minHold} s after holdFrom, so there is a hold to stretch` }; // i18n-exempt(diagnostic)
   }
   return { structure: { kind: 'hold', holdFrom, holdTo } };
 }

@@ -28,6 +28,7 @@ import {
 } from './render-plan';
 import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
 import { isCubeFile, lutFilter } from './clip-clean';
+import { tr } from './i18n';
 
 // ---------------------------------------------------------------- audio presets
 
@@ -43,9 +44,9 @@ export interface AudioPreset {
 }
 
 export const AUDIO_PRESETS: Record<AudioPresetId, AudioPreset> = {
-  'wav-pcm': { id: 'wav-pcm', label: 'WAV (PCM)', description: 'Uncompressed audio, 16 or 24 bit. Edits anywhere.', extension: '.wav', encoder: 'pcm_s16le' },
-  'aac-m4a': { id: 'aac-m4a', label: 'AAC (M4A)', description: 'Compressed audio at 256 kb/s for delivery and review.', extension: '.m4a', encoder: 'aac' },
-  mp3: { id: 'mp3', label: 'MP3', description: 'Compressed audio that plays everywhere, high quality setting.', extension: '.mp3', encoder: 'libmp3lame' },
+  'wav-pcm': { id: 'wav-pcm', get label() { return tr('media-format.wav-pcm'); }, get description() { return tr('media-format.wav-pcm.description'); }, extension: '.wav', encoder: 'pcm_s16le' },
+  'aac-m4a': { id: 'aac-m4a', get label() { return tr('media-format.aac-m4a'); }, get description() { return tr('media-format.aac-m4a.description'); }, extension: '.m4a', encoder: 'aac' },
+  mp3: { id: 'mp3', get label() { return tr('media-format.mp3'); }, get description() { return tr('media-format.mp3.description'); }, extension: '.mp3', encoder: 'libmp3lame' },
 };
 
 export const AUDIO_PRESET_IDS = Object.keys(AUDIO_PRESETS) as AudioPresetId[];
@@ -118,8 +119,8 @@ export function sourceFromEntry(entry: MediaEntry): MediaSource {
   };
 }
 
-/** The message resolveMediaTiming gives for an item the library has not measured; the window treats it as "wait", not "wrong". */
-export const NOT_MEASURED = 'the item has not been measured yet';
+/** What resolveMediaTiming throws for an item the library has not measured; the window treats it as "wait", not "wrong". */
+export class MediaNotMeasuredError extends RenderPlanError {}
 
 /** How long a still is held when no length is asked for. */
 export const DEFAULT_STILL_SECONDS = 5;
@@ -170,40 +171,40 @@ export function resolveMediaTiming(source: MediaSource, options: RenderOptions =
   const isStill = source.kind === 'image';
   const isAudio = source.kind === 'audio';
   if (options.fps !== undefined && !isStandardFrameRate(options.fps)) {
-    throw new RenderPlanError(`frame rate must be one of ${STANDARD_FRAME_RATES.map((r) => r.fps).join(', ')}, got ${String(options.fps)}`);
+    throw new RenderPlanError(tr('render-plan.error.fps', { rates: STANDARD_FRAME_RATES.map((r) => r.fps).join(', '), got: String(options.fps) }));
   }
   const fps = options.fps ?? (isAudio ? AUDIO_TIMECODE_FPS : isStill ? DEFAULT_MEDIA_FPS : source.fps ?? DEFAULT_MEDIA_FPS);
   const speed = options.speed ?? 1;
   if (!Number.isFinite(speed) || speed < SPEED_LIMITS.min || speed > SPEED_LIMITS.max) {
-    throw new RenderPlanError(`speed must be from ${SPEED_LIMITS.min} to ${SPEED_LIMITS.max}, got ${String(options.speed)}`);
+    throw new RenderPlanError(tr('media-render.error.speed', { min: SPEED_LIMITS.min, max: SPEED_LIMITS.max, got: String(options.speed) }));
   }
-  if (isStill && speed !== 1) throw new RenderPlanError('a still has no speed');
-  if (!isStill && !(source.duration && source.duration > 0)) throw new RenderPlanError(`${NOT_MEASURED}; its length is not known`);
+  if (isStill && speed !== 1) throw new RenderPlanError(tr('media-render.error.still-speed'));
+  if (!isStill && !(source.duration && source.duration > 0)) throw new MediaNotMeasuredError(tr('media-render.error.not-measured.length'));
   const natural = isStill ? DEFAULT_STILL_SECONDS : source.duration! / speed;
   if (options.length !== undefined && (!Number.isFinite(options.length) || options.length <= 0)) {
-    throw new RenderPlanError(`length must be a number of seconds greater than 0, got ${String(options.length)}`);
+    throw new RenderPlanError(tr('render-plan.error.length', { got: String(options.length) }));
   }
   const length = options.length ?? natural;
   const loops = !isStill && length > natural + 1e-6;
   let crossfade = 0;
   if (loops) {
     const asked = options.crossfade ?? Math.min(DEFAULT_CROSSFADE_SECONDS, natural / 4);
-    if (!Number.isFinite(asked) || asked < 0) throw new RenderPlanError(`crossfade must be a number of seconds, 0 or more, got ${String(options.crossfade)}`);
-    if (asked >= natural / 2) throw new RenderPlanError(`a crossfade of ${asked} s needs a clip longer than ${(asked * 2).toFixed(2)} s; this one runs ${natural.toFixed(2)} s`);
+    if (!Number.isFinite(asked) || asked < 0) throw new RenderPlanError(tr('media-render.error.crossfade', { got: String(options.crossfade) }));
+    if (asked >= natural / 2) throw new RenderPlanError(tr('media-render.error.crossfade-too-long', { asked, needed: (asked * 2).toFixed(2), natural: natural.toFixed(2) }));
     crossfade = asked;
   }
   const unitSeconds = loops ? natural - crossfade : natural;
   const repeats = loops ? Math.max(0, Math.ceil(length / unitSeconds) - 1) : 0;
   const lastFrame = Math.max(1, Math.round(length * fps)) - 1;
   const inFrame = options.inFrame ?? 0;
-  if (!Number.isInteger(inFrame) || inFrame < 0) throw new RenderPlanError(`in point must be a frame number of 0 or more, got ${String(options.inFrame)}`);
+  if (!Number.isInteger(inFrame) || inFrame < 0) throw new RenderPlanError(tr('render-plan.error.in-point', { got: String(options.inFrame) }));
   // A still image output (milestone 44): the one frame at the in point, held within the length.
   if (shape.still) {
     return { fps, speed, natural, length, loops, crossfade, unitSeconds, repeats, firstFrame: Math.min(inFrame, lastFrame), totalFrames: 1 };
   }
   const outFrame = options.outFrame ?? lastFrame;
-  if (!Number.isInteger(outFrame) || outFrame > lastFrame) throw new RenderPlanError(`out point must be at most the last frame (${lastFrame} at ${fps} fps), got ${String(options.outFrame)}`);
-  if (outFrame < inFrame) throw new RenderPlanError(`out point (frame ${outFrame}) must not be before the in point (frame ${inFrame})`);
+  if (!Number.isInteger(outFrame) || outFrame > lastFrame) throw new RenderPlanError(tr('render-plan.error.out-point', { last: lastFrame, fps, got: String(options.outFrame) }));
+  if (outFrame < inFrame) throw new RenderPlanError(tr('render-plan.error.out-before-in', { out: outFrame, in: inFrame }));
   return { fps, speed, natural, length, loops, crossfade, unitSeconds, repeats, firstFrame: inFrame, totalFrames: outFrame - inFrame + 1 };
 }
 
@@ -292,11 +293,11 @@ function sizeOf(source: MediaSource, options: RenderOptions, preset: OutputPrese
   if (asked) {
     const width = options.width ?? Math.round((own.width / Math.max(1, own.height)) * (options.height ?? own.height));
     const height = options.height ?? Math.round((own.height / Math.max(1, own.width)) * width);
-    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 2 || height < 2) throw new RenderPlanError(`width and height must be whole numbers of at least 2, got ${String(options.width)} × ${String(options.height)}`);
-    if (preset.requiresEvenDimensions && (width % 2 !== 0 || height % 2 !== 0)) throw new RenderPlanError(`${preset.label} needs even width and height; the output size is ${width}x${height}`);
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 2 || height < 2) throw new RenderPlanError(tr('media-render.error.size', { width: String(options.width), height: String(options.height) }));
+    if (preset.requiresEvenDimensions && (width % 2 !== 0 || height % 2 !== 0)) throw new RenderPlanError(tr('render-plan.error.even-size', { preset: preset.label, width, height }));
     return { width, height, fitted: true };
   }
-  if (own.width === 0 || own.height === 0) throw new RenderPlanError(`${NOT_MEASURED}; its size is not known`);
+  if (own.width === 0 || own.height === 0) throw new MediaNotMeasuredError(tr('media-render.error.not-measured.size'));
   if (preset.requiresEvenDimensions && (own.width % 2 !== 0 || own.height % 2 !== 0)) {
     // An odd source is not a mistake the person made: it is fitted to the even size just under it.
     return { width: own.width - (own.width % 2), height: own.height - (own.height % 2), fitted: true };
@@ -343,11 +344,11 @@ const PROGRESS = ['-progress', 'pipe:1', '-nostats'];
 function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPlan {
   const { source } = input;
   const options = input.options ?? {};
-  if (source.kind === 'audio') throw new RenderPlanError(`a sound renders with an audio preset, not ${preset.label}`);
+  if (source.kind === 'audio') throw new RenderPlanError(tr('media-render.error.sound-needs-audio-preset', { preset: preset.label }));
   const timing = resolveMediaTiming(source, options, { still: preset.still === true });
   const fps = fpsToRational(timing.fps);
   const background = options.background ?? '#000000';
-  if (!isValidColor(background)) throw new RenderPlanError(`background must be #RRGGBB, got "${background}"`);
+  if (!isValidColor(background)) throw new RenderPlanError(tr('render-plan.error.background', { got: background }));
   const { width, height, fitted } = sizeOf(source, options, preset);
   const output = normalizeOutputPath(input.outputPath, preset);
   const matte = options.matte === true;
@@ -356,14 +357,14 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
   const audioArgs = audioCodecArgsFor(preset);
   const withAudio = source.hasAudio && audioArgs !== null;
   const crossfaded = timing.loops && timing.crossfade > 0;
-  if (crossfaded && !input.scratchDir) throw new RenderPlanError('a crossfaded loop needs a scratch folder to write its loop unit to');
+  if (crossfaded && !input.scratchDir) throw new RenderPlanError(tr('media-render.error.no-scratch'));
   const overwrite = input.overwrite ? '-y' : '-n';
   const head = ['-hide_banner', '-loglevel', 'error', overwrite, ...PROGRESS];
 
   const tint = options.tint;
-  if (tint !== undefined && !isValidColor(tint)) throw new RenderPlanError(`tint must be #RRGGBB, got "${tint}"`);
+  if (tint !== undefined && !isValidColor(tint)) throw new RenderPlanError(tr('media-render.error.tint', { got: tint }));
   const lut = options.lut;
-  if (lut !== undefined && !isCubeFile(lut)) throw new RenderPlanError(`a LUT must be a .cube file, got "${lut}"`);
+  if (lut !== undefined && !isCubeFile(lut)) throw new RenderPlanError(tr('render-plan.error.lut', { got: lut }));
   // What every path normalises the picture to first: speed, a constant output rate, the grade, the recolor, the size.
   const normalise = (speedToo: boolean): string[] => [
     ...(speedToo && timing.speed !== 1 ? [`setpts=PTS/${timing.speed}`] : []),
@@ -425,17 +426,17 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
     args.push('-frames:v', String(timing.totalFrames), '-r', fps, matteOutput);
   }
   stages.push({ output, args });
-  if (preset.alpha && !source.alpha) warnings.push('the item has no alpha; the output carries an alpha channel that is fully opaque');
-  if (matte && !source.alpha) warnings.push('the item has no alpha, so its matte is all white');
+  if (preset.alpha && !source.alpha) warnings.push(tr('media-render.warning.no-alpha'));
+  if (matte && !source.alpha) warnings.push(tr('media-render.warning.no-alpha-matte'));
   return { kind: 'video', preset, stages, output, ...(matteOutput ? { matteOutput } : {}), timing, width, height, warnings };
 }
 
 /** The encoder arguments for an audio preset with the asked bit depth. */
 export function audioPresetArgs(preset: AudioPreset, audio: AudioOptions = {}): string[] {
   const bitDepth = audio.bitDepth ?? 16;
-  if (!(AUDIO_BIT_DEPTHS as readonly number[]).includes(bitDepth)) throw new RenderPlanError(`bit depth must be ${AUDIO_BIT_DEPTHS.join(' or ')}, got ${String(audio.bitDepth)}`);
-  if (audio.sampleRate !== undefined && !(AUDIO_SAMPLE_RATES as readonly number[]).includes(audio.sampleRate)) throw new RenderPlanError(`sample rate must be one of ${AUDIO_SAMPLE_RATES.join(', ')}, got ${String(audio.sampleRate)}`);
-  if (audio.channels !== undefined && ![1, 2].includes(audio.channels)) throw new RenderPlanError(`channels must be 1 or 2, got ${String(audio.channels)}`);
+  if (!(AUDIO_BIT_DEPTHS as readonly number[]).includes(bitDepth)) throw new RenderPlanError(tr('media-render.error.bit-depth', { depths: AUDIO_BIT_DEPTHS.join(' or '), got: String(audio.bitDepth) }));
+  if (audio.sampleRate !== undefined && !(AUDIO_SAMPLE_RATES as readonly number[]).includes(audio.sampleRate)) throw new RenderPlanError(tr('media-render.error.sample-rate', { rates: AUDIO_SAMPLE_RATES.join(', '), got: String(audio.sampleRate) }));
+  if (audio.channels !== undefined && ![1, 2].includes(audio.channels)) throw new RenderPlanError(tr('media-render.error.channels', { got: String(audio.channels) }));
   const codec = preset.id === 'wav-pcm' ? ['-c:a', bitDepth === 24 ? 'pcm_s24le' : 'pcm_s16le'] : preset.id === 'aac-m4a' ? ['-c:a', 'aac', '-b:a', '256k'] : ['-c:a', 'libmp3lame', '-q:a', '2'];
   return [...codec, ...(audio.sampleRate ? ['-ar', String(audio.sampleRate)] : []), ...(audio.channels ? ['-ac', String(audio.channels)] : [])];
 }
@@ -443,12 +444,12 @@ export function audioPresetArgs(preset: AudioPreset, audio: AudioOptions = {}): 
 function audioPlan(input: MediaRenderInput, preset: AudioPreset): MediaRenderPlan {
   const { source } = input;
   const options = input.options ?? {};
-  if (source.kind !== 'audio' && !source.hasAudio) throw new RenderPlanError(`${preset.label} writes sound, and this item has none`);
+  if (source.kind !== 'audio' && !source.hasAudio) throw new RenderPlanError(tr('media-render.error.no-sound', { preset: preset.label }));
   const timing = resolveMediaTiming({ ...source, kind: 'audio' }, options);
   const output = normalizeOutputPath(input.outputPath, { extension: preset.extension, sequence: false } as OutputPreset);
   const codec = audioPresetArgs(preset, options.audio);
   const crossfaded = timing.loops && timing.crossfade > 0;
-  if (crossfaded && !input.scratchDir) throw new RenderPlanError('a crossfaded loop needs a scratch folder to write its loop unit to');
+  if (crossfaded && !input.scratchDir) throw new RenderPlanError(tr('media-render.error.no-scratch'));
   const head = ['-hide_banner', '-loglevel', 'error', input.overwrite ? '-y' : '-n', ...PROGRESS];
   const stages: MediaRenderStage[] = [];
   let finalInput: string[];
@@ -473,7 +474,7 @@ function audioPlan(input: MediaRenderInput, preset: AudioPreset): MediaRenderPla
 export function buildMediaRenderPlan(input: MediaRenderInput): MediaRenderPlan {
   if (isAudioPresetId(input.presetId)) return audioPlan(input, AUDIO_PRESETS[input.presetId]);
   const preset = OUTPUT_PRESETS[input.presetId as PresetId];
-  if (!preset) throw new RenderPlanError(`unknown output preset "${input.presetId}"`);
+  if (!preset) throw new RenderPlanError(tr('media-render.error.unknown-preset', { preset: input.presetId }));
   return videoPlan(input, preset);
 }
 

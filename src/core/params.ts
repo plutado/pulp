@@ -137,7 +137,7 @@ export interface ResolveResult {
 
 function resolveOne(param: TemplateParameter, input: unknown, issues: ParamIssue[]): ParamValue {
   const fallback = (message: string): ParamValue => {
-    issues.push({ id: param.id, message: `${message}; using default` });
+    issues.push({ id: param.id, message: `${message}; using default` }); // i18n-exempt(diagnostic)
     return param.default;
   };
 
@@ -146,18 +146,18 @@ function resolveOne(param: TemplateParameter, input: unknown, issues: ParamIssue
       if (typeof input !== 'string') return fallback('expected a string');
       let value = param.multiline ? input : input.replace(/[\r\n]+/g, ' ');
       if (param.maxLength !== undefined && value.length > param.maxLength) {
-        issues.push({ id: param.id, message: `truncated to ${param.maxLength} characters` });
+        issues.push({ id: param.id, message: `truncated to ${param.maxLength} characters` }); // i18n-exempt(diagnostic)
         value = value.slice(0, param.maxLength);
       }
       return value;
     }
     case 'color': {
-      if (!isValidColor(input)) return fallback('expected #RRGGBB or #RRGGBBAA');
+      if (!isValidColor(input)) return fallback('expected #RRGGBB or #RRGGBBAA'); // i18n-exempt(diagnostic)
       return input.toLowerCase();
     }
     case 'number': {
       const n = typeof input === 'string' && input.trim() !== '' ? Number(input) : input;
-      if (typeof n !== 'number' || !Number.isFinite(n)) return fallback('expected a finite number');
+      if (typeof n !== 'number' || !Number.isFinite(n)) return fallback('expected a finite number'); // i18n-exempt(diagnostic)
       let value = n;
       if (param.step !== undefined) {
         const base = param.min ?? 0;
@@ -167,7 +167,7 @@ function resolveOne(param: TemplateParameter, input: unknown, issues: ParamIssue
       }
       if (param.min !== undefined && value < param.min) value = param.min;
       if (param.max !== undefined && value > param.max) value = param.max;
-      if (value !== n) issues.push({ id: param.id, message: `adjusted from ${n} to ${value}` });
+      if (value !== n) issues.push({ id: param.id, message: `adjusted from ${n} to ${value}` }); // i18n-exempt(diagnostic)
       return value;
     }
     case 'boolean': {
@@ -178,19 +178,19 @@ function resolveOne(param: TemplateParameter, input: unknown, issues: ParamIssue
     }
     case 'select': {
       if (typeof input !== 'string' || !param.options.some((o) => o.value === input)) {
-        return fallback('not one of the allowed options');
+        return fallback('not one of the allowed options'); // i18n-exempt(diagnostic)
       }
       return input;
     }
     case 'font': {
-      if (typeof input !== 'string' || input.trim() === '') return fallback('expected a font family');
-      if (param.options && !param.options.includes(input)) return fallback('not one of the allowed fonts');
+      if (typeof input !== 'string' || input.trim() === '') return fallback('expected a font family'); // i18n-exempt(diagnostic)
+      if (param.options && !param.options.includes(input)) return fallback('not one of the allowed fonts'); // i18n-exempt(diagnostic)
       return input;
     }
     case 'image': {
       // A library id (with its treatment), or nothing; never a path.
       const value = sanitizeImageValue(input);
-      if (value === undefined) return fallback('expected a library image id');
+      if (value === undefined) return fallback('expected a library image id'); // i18n-exempt(diagnostic)
       return value;
     }
     case 'media': {
@@ -205,7 +205,7 @@ function resolveOne(param: TemplateParameter, input: unknown, issues: ParamIssue
         }
       } else if (typeof input === 'string') value = clipValueFromText(input);
       else value = sanitizeClipValue(input);
-      if (value === undefined) return fallback('expected a library clip id');
+      if (value === undefined) return fallback('expected a library clip id'); // i18n-exempt(diagnostic)
       return value;
     }
   }
@@ -236,7 +236,7 @@ export function resolveParams(
     // The layers, the length and the cut track ride in the same bag; a parameter id can never
     // start with "@", so everything that does is a passenger rather than an unknown.
     if (key.startsWith('@')) continue;
-    if (!known.has(key)) issues.push({ id: key, message: 'unknown parameter; ignored' });
+    if (!known.has(key)) issues.push({ id: key, message: 'unknown parameter; ignored' }); // i18n-exempt(diagnostic)
   }
   return { values, issues };
 }

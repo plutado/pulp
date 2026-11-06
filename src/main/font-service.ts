@@ -14,6 +14,7 @@ import { copyFile, mkdir, readFile, stat } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
 import { familyFromFileName, fontFileNames, IMPORTED_FONT_EXTENSIONS, isImportedFontFile, sanitizeImportedFonts, type ImportedFont } from '../core/fonts';
+import { tr } from '../core/i18n';
 
 /** A font file over this is refused: a text face has no business being bigger. */
 const MAX_FONT_FILE_BYTES = 32 * 1024 * 1024;
@@ -42,9 +43,9 @@ export async function importedFontPath(file: string): Promise<string | null> {
 /** A file dialog for a font; what it names is read for its family so the person can be asked about the license. */
 export async function chooseFontFile(): Promise<{ path: string; family: string; file: string } | { error: string } | null> {
   const result = await dialog.showOpenDialog({
-    title: 'Import a font',
+    title: tr('dialog.font.title'),
     properties: ['openFile'],
-    filters: [{ name: 'Fonts', extensions: IMPORTED_FONT_EXTENSIONS.map((e) => e.slice(1)) }],
+    filters: [{ name: tr('dialog.font.filter'), extensions: IMPORTED_FONT_EXTENSIONS.map((e) => e.slice(1)) }],
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   const path = result.filePaths[0]!;
@@ -54,22 +55,22 @@ export async function chooseFontFile(): Promise<{ path: string; family: string; 
 }
 
 async function readFontFile(source: string): Promise<{ family: string; style: 'normal' | 'italic'; weight: number } | { error: string }> {
-  if (!isImportedFontFile(source)) return { error: `Only ${IMPORTED_FONT_EXTENSIONS.map((e) => e.slice(1).toUpperCase()).join(', ')} fonts can be imported.` };
+  if (!isImportedFontFile(source)) return { error: tr('fonts.import.wrong-type', { types: IMPORTED_FONT_EXTENSIONS.map((e) => e.slice(1).toUpperCase()).join(', ') }) };
   let info;
   try {
     info = await stat(source);
   } catch {
-    return { error: 'That file could not be read.' };
+    return { error: tr('fonts.import.unreadable') };
   }
-  if (!info.isFile()) return { error: 'That is not a file.' };
-  if (info.size > MAX_FONT_FILE_BYTES) return { error: `Fonts over ${MAX_FONT_FILE_BYTES / 1048576} MB are not imported.` };
+  if (!info.isFile()) return { error: tr('fonts.import.not-a-file') };
+  if (info.size > MAX_FONT_FILE_BYTES) return { error: tr('fonts.import.too-large', { max: MAX_FONT_FILE_BYTES / 1048576 }) };
   const bytes = new Uint8Array(await readFile(source));
   if (source.toLowerCase().endsWith('.woff2')) {
     // Compressed: its tables cannot be read here, so the family is taken from the file name.
     return { family: familyFromFileName(basename(source)), style: /italic|oblique/i.test(basename(source)) ? 'italic' : 'normal', weight: 400 };
   }
   const names = fontFileNames(bytes);
-  if (!names) return { error: 'That file is not a TrueType or OpenType font.' };
+  if (!names) return { error: tr('fonts.import.not-a-font') };
   return { family: names.family, style: names.italic ? 'italic' : 'normal', weight: names.weight };
 }
 

@@ -11,6 +11,8 @@
  * Pure: no Node, no DOM.
  */
 
+import { tr } from './i18n';
+
 export interface Size {
   width: number;
   height: number;
@@ -170,29 +172,30 @@ export function resolveRenderSize(template: ShapeDeclaration, choice: SizeChoice
   const supported = template.aspects.length > 0 ? template.aspects : ['16:9'];
   const hasW = choice.width !== undefined;
   const hasH = choice.height !== undefined;
-  if (hasW !== hasH) throw new AspectError('width and height must be given together');
+  if (hasW !== hasH) throw new AspectError(tr('aspect.error.width-height-together'));
   if (hasW) {
     for (const [name, v] of [['width', choice.width], ['height', choice.height]] as const) {
       if (!Number.isInteger(v) || (v as number) < MIN_DIMENSION || (v as number) > MAX_DIMENSION) {
-        throw new AspectError(`${name} must be a whole number of pixels between ${MIN_DIMENSION} and ${MAX_DIMENSION}${Number.isNaN(v) ? '' : `, got ${String(v)}`}`);
+        const range = { min: MIN_DIMENSION, max: MAX_DIMENSION, got: String(v) };
+        throw new AspectError(name === 'width'
+          ? tr(Number.isNaN(v) ? 'aspect.error.width-range' : 'aspect.error.width-range.got', range)
+          : tr(Number.isNaN(v) ? 'aspect.error.height-range' : 'aspect.error.height-range.got', range));
       }
     }
   }
   const sizeAspect = hasW ? aspectOf(choice.width!, choice.height!) : undefined;
   const aspect = choice.aspect ?? sizeAspect ?? defaultAspect(template);
   if (!supported.includes(aspect)) {
-    throw new AspectError(
-      `aspect ${aspect} is not one the template draws for (${supported.join(', ')})`,
-    );
+    throw new AspectError(tr('aspect.error.unsupported', { aspect, supported: supported.join(', ') }));
   }
   if (sizeAspect !== undefined && sizeAspect !== aspect) {
-    throw new AspectError(`${choice.width} × ${choice.height} is ${sizeAspect}, not ${aspect}`);
+    throw new AspectError(tr('aspect.error.size-mismatch', { width: String(choice.width), height: String(choice.height), sizeAspect, aspect }));
   }
   if (hasW) return { aspect, width: choice.width!, height: choice.height! };
   if (template.size && aspectOf(template.size.width, template.size.height) === aspect) {
     return { aspect, width: template.size.width, height: template.size.height };
   }
   const known = aspectById(aspect);
-  if (!known) throw new AspectError(`aspect ${aspect} has no standard sizes; give a width and height`);
+  if (!known) throw new AspectError(tr('aspect.error.no-standard-sizes', { aspect }));
   return { aspect, width: known.default.width, height: known.default.height };
 }

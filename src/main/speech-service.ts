@@ -26,11 +26,12 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { spawn } from 'node:child_process';
 import { detectFfmpeg, nodeRunner, type ProcessRunner } from '../core/ffmpeg';
+import { tr } from '../core/i18n';
 import { ffprobePathFor } from '../core/media-probe';
 import type { CaptionWord } from '../core/captions';
 import {
   DEFAULT_SPEECH_MODEL, speechLanguage, speechMixFilter, speechModel, speechRunnerPaths,
-  SPEECH_MODEL_LICENSE, SPEECH_RUNNER_MISSING_MESSAGE, SPEECH_SAMPLE_RATE, whisperArgs, whisperProgress, wordsFromWhisperJson,
+  SPEECH_MODEL_LICENSE, SPEECH_SAMPLE_RATE, speechRunnerMissingMessage, whisperArgs, whisperProgress, wordsFromWhisperJson,
   type SpeechSegment,
 } from '../core/speech';
 import { resolveClipAudio } from './clip-grant';
@@ -78,7 +79,7 @@ async function detectRunner(run: ProcessRunner = nodeRunner): Promise<{ ok: bool
       continue;
     }
   }
-  return { ok: false, message: SPEECH_RUNNER_MISSING_MESSAGE };
+  return { ok: false, message: speechRunnerMissingMessage() };
 }
 
 async function modelFile(id: string): Promise<{ path: string; installed: boolean }> {
@@ -131,29 +132,29 @@ export async function fetchSpeechModel(raw: unknown): Promise<{ ok: true; path: 
     // corporate certificate store and the app's network settings all hold for this one request.
     const response = await net.fetch(model.url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), redirect: 'follow' });
     if (!response.ok || !response.body) {
-      return { ok: false, message: `The model could not be fetched: the server answered ${response.status}.` };
+      return { ok: false, message: tr('fetch.speech.server', { status: response.status }) };
     }
     const body = Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]);
     body.on('data', (chunk: Buffer) => {
       hash.update(chunk);
       received += chunk.length;
-      report(`Fetching ${model.label}…`, Math.min(1, received / model.bytes));
+      report(tr('fetch.speech.fetching', { model: model.label }), Math.min(1, received / model.bytes));
     });
     await pipeline(body, createWriteStream(partial));
   } catch (error) {
     await rm(partial, { force: true }).catch(() => undefined);
-    return { ok: false, message: `The model could not be fetched: ${(error as Error).message}` };
+    return { ok: false, message: tr('fetch.speech.failed', { reason: (error as Error).message }) };
   }
   const digest = hash.digest('hex');
   if (received !== model.bytes || digest !== model.sha256) {
     await rm(partial, { force: true }).catch(() => undefined);
     return {
       ok: false,
-      message: 'What arrived is not the model Pulp expects: its checksum does not match the published one, so it was thrown away.',
+      message: tr('fetch.speech.checksum'),
     };
   }
   await rename(partial, target);
-  report(`${model.label} is ready.`, 1);
+  report(tr('fetch.speech.ready', { model: model.label }), 1);
   return { ok: true, path: target };
 }
 
@@ -169,7 +170,7 @@ export type TranscribeResult = { ok: true; words: CaptionWord[]; language: strin
 let running: Promise<TranscribeResult> | null = null;
 
 export async function transcribe(raw: unknown): Promise<TranscribeResult> {
-  if (running) return { ok: false, message: 'A transcription is already running.' };
+  if (running) return { ok: false, message: tr('speech.running') };
   const work = run(raw).catch((error: Error): TranscribeResult => ({ ok: false, message: error.message }));
   running = work;
   return work.finally(() => {
@@ -199,14 +200,14 @@ async function run(raw: unknown): Promise<TranscribeResult> {
   const model = speechModel(request?.model);
   const [runner, file, ffmpeg] = await Promise.all([detectRunner(), modelFile(model.id), detectFfmpeg()]);
   if (!ffmpeg.ok) return { ok: false, message: ffmpeg.message };
-  if (!runner.ok || !runner.path) return { ok: false, message: runner.message ?? SPEECH_RUNNER_MISSING_MESSAGE };
-  if (!file.installed) return { ok: false, message: `${model.label} is not on this machine yet.` };
+  if (!runner.ok || !runner.path) return { ok: false, message: runner.message ?? speechRunnerMissingMessage() };
+  if (!file.installed) return { ok: false, message: tr('speech.model-missing', { model: model.label }) };
   const resolved = await resolveSegments(ffprobePathFor(ffmpeg.path), asked);
-  if (resolved.length === 0) return { ok: false, message: 'There is no sound in this project to transcribe.' };
+  if (resolved.length === 0) return { ok: false, message: tr('speech.no-sound') };
 
   const work = await mkdtemp(join(tmpdir(), 'pulp-speech-'));
   try {
-    report('Reading the sound…', null);
+    report(tr('speech.reading'), null);
     const wav = join(work, 'speech.wav');
     const inputs = resolved.flatMap(({ path, segment }) => [
       '-ss', String(Math.max(0, segment.from)),
@@ -218,22 +219,24 @@ async function run(raw: unknown): Promise<TranscribeResult> {
       '-filter_complex', speechMixFilter(resolved.map(({ segment }) => segment)),
       '-map', '[speech]', '-ac', '1', '-ar', String(SPEECH_SAMPLE_RATE), '-c:a', 'pcm_s16le', wav,
     ], TRANSCRIBE_TIMEOUT_MS);
-    if (extract.code !== 0) return { ok: false, message: 'The project\'s sound could not be read for transcription.' };
+    if (extract.code !== 0) return { ok: false, message: tr('speech.sound-unreadable') };
 
-    report('Listening…', 0);
+    report(tr('speech.listening'), 0);
     const outBase = join(work, 'speech');
     const listen = await runProcess(runner.path, whisperArgs({
       modelPath: file.path, wavPath: wav, outBase, language,
     }), TRANSCRIBE_TIMEOUT_MS, (line) => {
       const fraction = whisperProgress(line);
-      if (fraction !== null) report('Listening…', fraction);
+      if (fraction !== null) report(tr('speech.listening'), fraction);
     });
     if (listen.code !== 0) {
-      return { ok: false, message: `The speech model could not finish: ${listen.stderr.split('\n').filter(Boolean).slice(-1)[0] ?? `exit ${listen.code}`}` };
+      // i18n-exempt(diagnostic): the program's last line, or its exit code
+      const detail = listen.stderr.split('\n').filter(Boolean).slice(-1)[0] ?? `exit ${listen.code}`;
+      return { ok: false, message: tr('speech.failed', { detail }) };
     }
     const words = wordsFromWhisperJson(await readFile(`${outBase}.json`, 'utf8'));
     report('', null);
-    if (words.length === 0) return { ok: false, message: 'Nothing was heard in this project\'s sound.' };
+    if (words.length === 0) return { ok: false, message: tr('speech.nothing-heard') };
     return { ok: true, words, language };
   } finally {
     await rm(work, { recursive: true, force: true }).catch(() => undefined);
@@ -259,7 +262,7 @@ function runProcess(command: string, args: string[], timeoutMs: number, onLine?:
     child.stdout?.on('data', read);
     const timer = setTimeout(() => {
       child.kill();
-      reject(new Error('Transcription took too long and was stopped.'));
+      reject(new Error(tr('speech.timeout')));
     }, timeoutMs);
     child.on('error', (error) => {
       clearTimeout(timer);

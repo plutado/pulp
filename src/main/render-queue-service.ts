@@ -7,6 +7,7 @@
 import { app, BrowserWindow, dialog } from 'electron';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { tr } from '../core/i18n';
 import type { TemplateEntry } from '../core/library';
 import { OUTPUT_PRESETS, resolveTiming, type PresetId, type RenderOptions } from '../core/render-plan';
 import { RenderQueue, type RenderQueueSnapshot } from '../core/render-queue';
@@ -83,17 +84,17 @@ export function getRenderQueue(): RenderQueueSnapshot {
 /** Ask where to save, then queue a media item's own render (milestone 15). */
 async function enqueueMediaRender(request: RenderRequest & { mediaId: string }): Promise<EnqueueResult> {
   const entry = mediaFor(request.mediaId);
-  if (!entry) return { ok: false, message: 'That item is not in the library, or its folder is offline.' };
+  if (!entry) return { ok: false, message: tr('queue.item-missing') };
   const facts = presetFacts(request.presetId);
-  if (!facts) return { ok: false, message: `Unknown preset "${request.presetId}".` };
+  if (!facts) return { ok: false, message: tr('queue.unknown-preset', { preset: request.presetId }) };
   const planned = await planMediaRender(entry, request.presetId, request.options, request.params, join(homedir(), `render${facts.extension}`));
   if (!planned.ok) return { ok: false, message: planned.message };
   const save = await dialog.showSaveDialog({
-    title: `Render ${entry.name}`,
+    title: tr('dialog.render.title', { name: entry.name }),
     defaultPath: join(app.getPath('videos') || homedir(), `${slug(entry.name, 'render')}${facts.extension}`),
     filters: [{ name: facts.label, extensions: [facts.extension.slice(1)] }],
   });
-  if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: 'Render canceled.' };
+  if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: tr('render.canceled') };
   const job = queue.add({
     templateId: '',
     mediaId: entry.id,
@@ -113,11 +114,11 @@ async function enqueueMediaRender(request: RenderRequest & { mediaId: string }):
 /** Ask where to save, then queue the render. Resolves as soon as the job is queued. */
 export async function enqueueRender(request: RenderRequest): Promise<EnqueueResult> {
   if (request.mediaId) return enqueueMediaRender({ ...request, mediaId: request.mediaId });
-  if (!request.templateId) return { ok: false, message: 'Nothing to render: the request names no template and no item.' };
+  if (!request.templateId) return { ok: false, message: tr('queue.nothing') };
   const template = await findTemplate(request.templateId);
-  if (!template) return { ok: false, message: `Template "${request.templateId}" not found.` };
+  if (!template) return { ok: false, message: tr('queue.template-missing', { template: request.templateId }) };
   const preset = OUTPUT_PRESETS[request.presetId as PresetId];
-  if (!preset) return { ok: false, message: `Unknown preset "${request.presetId}".` };
+  if (!preset) return { ok: false, message: tr('queue.unknown-preset', { preset: request.presetId }) };
   // Validate the options before asking where to save.
   let timing;
   try {
@@ -128,11 +129,11 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
 
   const defaultName = `${template.manifest.id.split('.').pop() ?? 'render'}${preset.extension}`;
   const save = await dialog.showSaveDialog({
-    title: `Render ${template.manifest.name}`,
+    title: tr('dialog.render.title', { name: template.manifest.name }),
     defaultPath: join(app.getPath('videos') || homedir(), defaultName),
     filters: [{ name: preset.label, extensions: [preset.extension.slice(1)] }],
   });
-  if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: 'Render canceled.' };
+  if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: tr('render.canceled') };
 
   const job = queue.add({
     templateId: template.manifest.id,
@@ -156,9 +157,9 @@ export async function enqueueRender(request: RenderRequest): Promise<EnqueueResu
 /** A media item rendered into the cache for dragging (milestone 15), or found there already. */
 async function prepareMediaDrag(request: RenderRequest & { mediaId: string }): Promise<PrepareDragResult> {
   const entry = mediaFor(request.mediaId);
-  if (!entry) return { ok: false, message: 'That item is not in the library, or its folder is offline.' };
+  if (!entry) return { ok: false, message: tr('queue.item-missing') };
   const facts = presetFacts(request.presetId);
-  if (!facts) return { ok: false, message: `Unknown preset "${request.presetId}".` };
+  if (!facts) return { ok: false, message: tr('queue.unknown-preset', { preset: request.presetId }) };
   const planned = await planMediaRender(entry, request.presetId, request.options, request.params, join(homedir(), `render${facts.extension}`));
   if (!planned.ok) return { ok: false, message: planned.message };
   const timing = planned.plan.timing;
@@ -181,11 +182,11 @@ async function prepareMediaDrag(request: RenderRequest & { mediaId: string }): P
 
 export async function prepareDrag(request: RenderRequest): Promise<PrepareDragResult> {
   if (request.mediaId) return prepareMediaDrag({ ...request, mediaId: request.mediaId });
-  if (!request.templateId) return { ok: false, message: 'Nothing to render: the request names no template and no item.' };
+  if (!request.templateId) return { ok: false, message: tr('queue.nothing') };
   const template = await findTemplate(request.templateId);
-  if (!template) return { ok: false, message: `Template "${request.templateId}" not found.` };
+  if (!template) return { ok: false, message: tr('queue.template-missing', { template: request.templateId }) };
   const preset = OUTPUT_PRESETS[request.presetId as PresetId];
-  if (!preset) return { ok: false, message: `Unknown preset "${request.presetId}".` };
+  if (!preset) return { ok: false, message: tr('queue.unknown-preset', { preset: request.presetId }) };
   let timing;
   try {
     timing = resolveTiming(template.manifest, request.options);
@@ -267,7 +268,7 @@ export async function enqueueCollectionItems(items: readonly CollectionItem[], f
       const entry = mediaFor(item.id);
       const facts = presetFacts(item.presetId);
       if (!entry || !facts) {
-        skipped.push(`${item.name}: ${entry ? `unknown preset "${item.presetId}"` : 'it is not in the library, or its folder is offline'}`);
+        skipped.push(entry ? tr('queue.skip.unknown-preset', { name: item.name, preset: item.presetId }) : tr('queue.skip.item-missing', { name: item.name }));
         continue;
       }
       const outputPath = join(folder, `${fileNameFor()}${facts.extension}`);
@@ -285,7 +286,7 @@ export async function enqueueCollectionItems(items: readonly CollectionItem[], f
     const template = item.templateId ? await findTemplate(item.templateId) : null;
     const preset = OUTPUT_PRESETS[item.presetId as PresetId];
     if (!template || !preset) {
-      skipped.push(`${item.name}: ${template ? `unknown preset "${item.presetId}"` : 'its template is not in the library'}`);
+      skipped.push(template ? tr('queue.skip.unknown-preset', { name: item.name, preset: item.presetId }) : tr('queue.skip.template-missing', { name: item.name }));
       continue;
     }
     let timing;
@@ -309,7 +310,7 @@ export async function enqueueCollectionItems(items: readonly CollectionItem[], f
     jobIds.push(job.id);
     markItemUsed(template.id);
   }
-  if (jobIds.length === 0) return { ok: false, message: skipped.join('; ') || 'Nothing could be queued.' };
+  if (jobIds.length === 0) return { ok: false, message: skipped.join('; ') || tr('queue.nothing-queued') };
   void pump();
   return { ok: true, jobIds, folder, skipped };
 }
@@ -317,10 +318,10 @@ export async function enqueueCollectionItems(items: readonly CollectionItem[], f
 /** Ask for a folder once, then queue one job per row, named and filed by the row. */
 export async function enqueueBatch(request: BatchRequest): Promise<EnqueueBatchResult> {
   const template = await findTemplate(request.templateId);
-  if (!template) return { ok: false, message: `Template "${request.templateId}" not found.` };
+  if (!template) return { ok: false, message: tr('queue.template-missing', { template: request.templateId }) };
   const preset = OUTPUT_PRESETS[request.presetId as PresetId];
-  if (!preset) return { ok: false, message: `Unknown preset "${request.presetId}".` };
-  if (request.rows.length === 0) return { ok: false, message: 'The batch has no rows.' };
+  if (!preset) return { ok: false, message: tr('queue.unknown-preset', { preset: request.presetId }) };
+  if (request.rows.length === 0) return { ok: false, message: tr('queue.batch.no-rows') };
   let timing;
   try {
     timing = resolveTiming(template.manifest, request.options);
@@ -328,12 +329,12 @@ export async function enqueueBatch(request: BatchRequest): Promise<EnqueueBatchR
     return { ok: false, message: (err as Error).message };
   }
   const pick = await dialog.showOpenDialog({
-    title: `Folder for ${request.rows.length} renders of ${template.manifest.name}`,
+    title: tr('dialog.batch.title', { count: request.rows.length, name: template.manifest.name }),
     defaultPath: app.getPath('videos') || homedir(),
     properties: ['openDirectory', 'createDirectory'],
   });
   const folder = pick.filePaths[0];
-  if (pick.canceled || !folder) return { ok: false, cancelled: true, message: 'Batch canceled.' };
+  if (pick.canceled || !folder) return { ok: false, cancelled: true, message: tr('queue.batch.canceled') };
 
   const jobIds: number[] = [];
   const skipped: string[] = [];
@@ -357,7 +358,7 @@ export async function enqueueBatch(request: BatchRequest): Promise<EnqueueBatchR
     inputs.set(job.id, { template, params: images.params, ...(request.options ? { options: request.options } : {}) });
     jobIds.push(job.id);
   }
-  if (jobIds.length === 0) return { ok: false, message: skipped.join('; ') || 'Nothing could be queued.' };
+  if (jobIds.length === 0) return { ok: false, message: skipped.join('; ') || tr('queue.nothing-queued') };
   markItemUsed(template.id);
   void pump();
   return { ok: true, jobIds, folder, ...(skipped.length > 0 ? { skipped } : {}) };
@@ -460,7 +461,7 @@ async function pump(): Promise<void> {
       const input = inputs.get(job.id);
       inputs.delete(job.id);
       if (!input) {
-        queue.finish(job.id, { ok: false, message: 'Render inputs were lost before the job started.' });
+        queue.finish(job.id, { ok: false, message: tr('queue.inputs-lost') });
         continue;
       }
       // In the ledger while it runs, so a session killed now leaves it to be offered again. A render

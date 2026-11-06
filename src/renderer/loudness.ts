@@ -21,6 +21,7 @@ import { playableSounds } from '../core/sound-layer';
 import type { Layer, LayerValues } from '../core/layers';
 import { platformPreset } from '../core/platform-presets';
 import { preferredPlatform } from './store';
+import { t, whenLocaleChanges } from './i18n';
 
 const SCALE = { from: -36, to: -6 } as const;
 
@@ -68,16 +69,22 @@ function paint(): void {
   els.fill.style.width = `${along(shown.lufs) * 100}%`;
   // The reading itself lives in the tooltip and the accessible name, where this row keeps its
   // detail: the packed 1280 px line has no room for a second numeric readout beside the timecode.
-  els.root.setAttribute('aria-label', `Mix loudness ${shown.lufs.toFixed(1)} LUFS`);
+  const lufs = shown.lufs.toFixed(1);
+  els.root.setAttribute('aria-label', t('loudness.aria-label', { lufs }));
   if (platform) {
     els.target.hidden = false;
     els.target.style.left = `${along(platform.loudnessLufs) * 100}%`;
     const off = shown.lufs - platform.loudnessLufs;
-    const stands = Math.abs(off) < 0.5 ? 'which is on it' : `${Math.abs(off).toFixed(1)} LU ${off > 0 ? 'above' : 'below'} it`;
-    els.root.dataset.tip = `The mix measures ${shown.lufs.toFixed(1)} LUFS${shown.truePeakDb !== null ? `, peaking at ${shown.truePeakDb.toFixed(1)} dBTP` : ''}. A render aimed at ${platform.label} is leveled to ${platform.loudnessLufs} LUFS — ${stands}.`;
+    // One whole sentence for each way the mix stands against the target, with the peak and without.
+    const values = { lufs, platform: platform.label, target: platform.loudnessLufs, off: Math.abs(off).toFixed(1) };
+    const peak = shown.truePeakDb !== null ? shown.truePeakDb.toFixed(1) : null;
+    const on = Math.abs(off) < 0.5;
+    els.root.dataset.tip = peak === null
+      ? t(on ? 'loudness.tip.on' : off > 0 ? 'loudness.tip.above' : 'loudness.tip.below', values)
+      : t(on ? 'loudness.tip.peak.on' : off > 0 ? 'loudness.tip.peak.above' : 'loudness.tip.peak.below', { ...values, peak });
   } else {
     els.target.hidden = true;
-    els.root.dataset.tip = `The mix measures ${shown.lufs.toFixed(1)} LUFS (EBU R128). A render aimed at a platform is leveled to its target.`;
+    els.root.dataset.tip = t('loudness.tip.no-platform', { lufs });
   }
 }
 
@@ -138,4 +145,6 @@ export function initLoudness(): void {
     void preferredPlatform.value;
     paint();
   });
+  // The reading's words, and the platform's name in them, in the new language when it changes.
+  whenLocaleChanges(paint);
 }

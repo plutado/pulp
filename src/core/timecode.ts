@@ -14,6 +14,8 @@
  *   from the picture; only numbers are skipped.
  */
 
+import { tr } from './i18n';
+
 export interface FrameRate {
   fps: number;
   label: string;
@@ -26,19 +28,19 @@ export interface FrameRate {
 }
 
 export const STANDARD_FRAME_RATES: readonly FrameRate[] = [
-  { fps: 23.976, label: '23.976 fps (NTSC film)', rational: '24000/1001', nominal: 24, dropPerMinute: 0 },
-  { fps: 24, label: '24 fps (film, DCI)', rational: '24', nominal: 24, dropPerMinute: 0 },
-  { fps: 25, label: '25 fps (PAL, SECAM)', rational: '25', nominal: 25, dropPerMinute: 0 },
-  { fps: 29.97, label: '29.97 fps (NTSC)', rational: '30000/1001', nominal: 30, dropPerMinute: 2 },
-  { fps: 30, label: '30 fps', rational: '30', nominal: 30, dropPerMinute: 0 },
-  { fps: 47.952, label: '47.952 fps (NTSC HFR film)', rational: '48000/1001', nominal: 48, dropPerMinute: 0 },
-  { fps: 48, label: '48 fps (HFR film)', rational: '48', nominal: 48, dropPerMinute: 0 },
-  { fps: 50, label: '50 fps (PAL HFR)', rational: '50', nominal: 50, dropPerMinute: 0 },
-  { fps: 59.94, label: '59.94 fps (NTSC HFR)', rational: '60000/1001', nominal: 60, dropPerMinute: 4 },
-  { fps: 60, label: '60 fps', rational: '60', nominal: 60, dropPerMinute: 0 },
-  { fps: 100, label: '100 fps (PAL double rate)', rational: '100', nominal: 100, dropPerMinute: 0 },
-  { fps: 119.88, label: '119.88 fps (NTSC double rate)', rational: '120000/1001', nominal: 120, dropPerMinute: 8 },
-  { fps: 120, label: '120 fps', rational: '120', nominal: 120, dropPerMinute: 0 },
+  { fps: 23.976, get label() { return tr('timecode.rate.23-976'); }, rational: '24000/1001', nominal: 24, dropPerMinute: 0 },
+  { fps: 24, get label() { return tr('timecode.rate.24'); }, rational: '24', nominal: 24, dropPerMinute: 0 },
+  { fps: 25, get label() { return tr('timecode.rate.25'); }, rational: '25', nominal: 25, dropPerMinute: 0 },
+  { fps: 29.97, get label() { return tr('timecode.rate.29-97'); }, rational: '30000/1001', nominal: 30, dropPerMinute: 2 },
+  { fps: 30, get label() { return tr('timecode.rate.30'); }, rational: '30', nominal: 30, dropPerMinute: 0 },
+  { fps: 47.952, get label() { return tr('timecode.rate.47-952'); }, rational: '48000/1001', nominal: 48, dropPerMinute: 0 },
+  { fps: 48, get label() { return tr('timecode.rate.48'); }, rational: '48', nominal: 48, dropPerMinute: 0 },
+  { fps: 50, get label() { return tr('timecode.rate.50'); }, rational: '50', nominal: 50, dropPerMinute: 0 },
+  { fps: 59.94, get label() { return tr('timecode.rate.59-94'); }, rational: '60000/1001', nominal: 60, dropPerMinute: 4 },
+  { fps: 60, get label() { return tr('timecode.rate.60'); }, rational: '60', nominal: 60, dropPerMinute: 0 },
+  { fps: 100, get label() { return tr('timecode.rate.100'); }, rational: '100', nominal: 100, dropPerMinute: 0 },
+  { fps: 119.88, get label() { return tr('timecode.rate.119-88'); }, rational: '120000/1001', nominal: 120, dropPerMinute: 8 },
+  { fps: 120, get label() { return tr('timecode.rate.120'); }, rational: '120', nominal: 120, dropPerMinute: 0 },
 ];
 
 /** The standard entry for a rate, matched to three decimals, or undefined for a non-standard rate. */
@@ -82,22 +84,22 @@ export function parseTimecode(text: string, fps: number): number {
   const seconds = /^(\d+(?:\.\d+)?)\s*s$/i.exec(s);
   if (seconds) return Math.round(Number(seconds[1]) * fps);
   if (!/^\d+(?:[:;]\d+){1,3}$/.test(s)) {
-    throw new TimecodeError(`"${text}" is not a frame number, seconds ("2.5s") or timecode (${timecodePattern(fps)})`);
+    throw new TimecodeError(tr('timecode.error.not-a-point', { text, pattern: timecodePattern(fps) }));
   }
   const dropFrame = s.includes(';');
   const parts = s.split(/[:;]/).map(Number);
   while (parts.length < 4) parts.unshift(0);
   const [hh, mm, ss, ff] = parts as [number, number, number, number];
   const nominal = nominalRate(fps);
-  if (mm > 59 || ss > 59) throw new TimecodeError(`"${text}": minutes and seconds must be below 60`);
-  if (ff >= nominal) throw new TimecodeError(`"${text}": the frames field must be below ${nominal} at ${fps} fps`);
+  if (mm > 59 || ss > 59) throw new TimecodeError(tr('timecode.error.minutes-seconds', { text }));
+  if (ff >= nominal) throw new TimecodeError(tr('timecode.error.frames-field', { text, nominal, fps }));
   const drop = standardFrameRate(fps)?.dropPerMinute ?? 0;
-  if (dropFrame && drop === 0) throw new TimecodeError(`"${text}": drop-frame timecode (semicolons) is only defined for 29.97, 59.94 and 119.88 fps`);
+  if (dropFrame && drop === 0) throw new TimecodeError(tr('timecode.error.drop-frame-rate', { text }));
   let frames = ((hh * 60 + mm) * 60 + ss) * nominal + ff;
   if (dropFrame) {
     const minutes = hh * 60 + mm;
     if (ss === 0 && mm % 10 !== 0 && ff < drop) {
-      throw new TimecodeError(`"${text}" does not exist in drop-frame timecode: frames 0-${drop - 1} are skipped at the start of this minute`);
+      throw new TimecodeError(tr('timecode.error.drop-frame-skipped', { text, last: drop - 1 }));
     }
     frames -= drop * (minutes - Math.floor(minutes / 10));
   }

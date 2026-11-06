@@ -16,10 +16,11 @@
 
 import type { MenuItemSpec } from '../core/menu';
 import { runningTime } from '../core/display';
-import { encodeWav, RECORDING_SAMPLE_RATE } from '../core/recording';
+import { encodeWav, RECORDING_SAMPLE_RATE, RECORDINGS_FOLDER_NAME } from '../core/recording';
 import { openContextMenu } from './context-menu';
 import { menuStateChanged } from './menu';
 import { sayInTray } from './tray';
+import { t } from './i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -118,7 +119,7 @@ async function startRecording(): Promise<void> {
     stream = await navigator.mediaDevices.getUserMedia({ audio: chosen ? { deviceId: { ideal: chosen.id } } : true });
   } catch (err) {
     const wasRefused = err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
-    sayRefused(wasRefused ? 'Pulp may not use the microphone. Allow it in the system settings, then record again.' : 'No microphone could be opened.', wasRefused);
+    sayRefused(t(wasRefused ? 'recorder.denied' : 'recorder.no-microphone'), wasRefused);
     return;
   }
   if (take) {
@@ -171,7 +172,7 @@ async function stopRecording(): Promise<void> {
   take = null;
   paint();
   if (done.samples === 0) {
-    sayInTray('Nothing was recorded.');
+    sayInTray(t('recorder.nothing'));
     return;
   }
   const samples = new Float32Array(done.samples);
@@ -183,10 +184,10 @@ async function stopRecording(): Promise<void> {
   const wav = encodeWav(samples, done.context.sampleRate || RECORDING_SAMPLE_RATE);
   try {
     const saved = await window.pulp.saveRecording(wav.buffer as ArrayBuffer);
-    sayInTray(`Recorded ${runningTime(done.samples / (done.context.sampleRate || RECORDING_SAMPLE_RATE))} into Recordings.`);
+    sayInTray(t('recorder.saved', { time: runningTime(done.samples / (done.context.sampleRate || RECORDING_SAMPLE_RATE)), folder: RECORDINGS_FOLDER_NAME }));
     if (saved.id) opener(saved.id);
   } catch (err) {
-    sayInTray(`The recording could not be saved: ${(err as Error).message}`, true);
+    sayInTray(t('recorder.save-failed', { reason: (err as Error).message }), true);
   }
 }
 
@@ -201,9 +202,9 @@ async function openInputMenu(): Promise<void> {
   const button = $('record-input');
   const [devices, chosen] = await Promise.all([navigator.mediaDevices.enumerateDevices(), window.pulp.getRecordingInput()]);
   const inputs = devices.filter((d) => d.kind === 'audioinput' && d.deviceId !== 'default' && d.deviceId !== 'communications');
-  const labels = new Map(inputs.map((d, i) => [d.deviceId, d.label || `Microphone ${i + 1}`]));
+  const labels = new Map(inputs.map((d, i) => [d.deviceId, d.label || t('recorder.input.unnamed', { number: i + 1 })]));
   const items: MenuItemSpec[] = [
-    { command: 'record.input', label: 'System default', arg: '', type: 'radio', checked: chosen === null, enabled: true },
+    { command: 'record.input', label: t('recorder.input.default'), arg: '', type: 'radio', checked: chosen === null, enabled: true },
     ...inputs.map((d): MenuItemSpec => ({ command: 'record.input', label: labels.get(d.deviceId)!, arg: d.deviceId, type: 'radio', checked: chosen?.id === d.deviceId, enabled: true })),
   ];
   const box = button.getBoundingClientRect();
@@ -212,7 +213,7 @@ async function openInputMenu(): Promise<void> {
     y: box.bottom + 2,
     items,
     run: (_command, arg) => {
-      void window.pulp.setRecordingInput(arg ? { id: arg, label: labels.get(arg) ?? 'Microphone' } : null);
+      void window.pulp.setRecordingInput(arg ? { id: arg, label: labels.get(arg) ?? t('recorder.input.fallback') } : null);
     },
     focusBack: button,
   });

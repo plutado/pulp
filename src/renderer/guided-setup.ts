@@ -19,6 +19,8 @@ import { OUTPUT_PRESETS, type PresetId } from '../core/render-plan';
 import { STANDARD_FRAME_RATES } from '../core/timecode';
 import { thumbUrlFor } from '../core/thumbnails';
 import { outputApplyGuided, outputGuidedContext, type GuidedContext } from './inspector-output';
+import { untracked } from '@preact/signals';
+import { bindText, t, whenLocaleChanges } from './i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -59,10 +61,10 @@ export function openGuidedSetup(): void {
 function show(): void {
   if (!walk) return;
   const step = GUIDED_STEPS[walk.step]!;
-  els.head().textContent = `Step ${walk.step + 1} of ${GUIDED_STEPS.length} · ${step.title}`;
+  els.head().textContent = t('guided.head', { step: walk.step + 1, steps: GUIDED_STEPS.length, title: step.title });
   els.back().disabled = walk.step === 0;
   const last = walk.step === GUIDED_STEPS.length - 1;
-  els.next().textContent = last ? 'Use these settings' : 'Next';
+  bindText(els.next(), last ? 'guided.finish' : 'ui.guided-next');
   els.collect().hidden = !last;
   const body = els.body();
   body.replaceChildren();
@@ -90,7 +92,7 @@ function paintPreview(): void {
   box.classList.toggle('checker', backdrop === 'checker');
   box.style.backgroundColor = backdrop === 'color' ? walk.choices.background : '';
   const fps = walk.choices.fps ?? manifest.fps;
-  els.caption().textContent = `${dimensionsLabel(size.width, size.height)} · ${fps} fps · ${OUTPUT_PRESETS[walk.choices.presetId].label}`;
+  els.caption().textContent = t('guided.preview.caption', { size: dimensionsLabel(size.width, size.height), fps, preset: OUTPUT_PRESETS[walk.choices.presetId].label });
 }
 
 function heading(text: string): HTMLHeadingElement {
@@ -138,9 +140,9 @@ function selectField(label: string, select: HTMLSelectElement): HTMLLabelElement
 
 function buildPurpose(body: HTMLElement): void {
   const w = walk!;
-  body.append(note('What the render is for decides most of the rest. Every answer can still be changed on the next steps.'));
+  body.append(note(t('guided.purpose.note')));
   const platforms = document.createElement('select');
-  platforms.setAttribute('aria-label', 'Platform');
+  platforms.setAttribute('aria-label', t('guided.platform'));
   for (const p of guidedPlatforms()) {
     const opt = document.createElement('option');
     opt.value = p.id;
@@ -148,7 +150,7 @@ function buildPurpose(body: HTMLElement): void {
     platforms.append(opt);
   }
   platforms.value = w.choices.platform && guidedPlatforms().some((p) => p.id === w.choices.platform) ? w.choices.platform : guidedPlatforms()[0]!.id;
-  const platformField = selectField('Platform', platforms);
+  const platformField = selectField(t('guided.platform'), platforms);
   const repick = () => {
     w.choices = withPurpose(w.choices, w.context.manifest, w.choices.purpose, platforms.value);
     platformField.hidden = w.choices.purpose !== 'social';
@@ -168,16 +170,16 @@ function buildPurpose(body: HTMLElement): void {
 function buildShape(body: HTMLElement): void {
   const w = walk!;
   const m = w.context.manifest;
-  body.append(note('A template draws for the shapes it declares; the pixel size is chosen per render.'));
-  body.append(heading('Shape'));
+  body.append(note(t('guided.shape.note')));
+  body.append(heading(t('guided.shape.heading')));
   const sizes = document.createElement('select');
-  sizes.setAttribute('aria-label', 'Size in pixels');
+  sizes.setAttribute('aria-label', t('guided.size.aria-label'));
   const fillSizes = () => {
     sizes.replaceChildren();
     const fallback = guidedSize(m, { ...w.choices, width: undefined, height: undefined } as GuidedChoices);
     const def = document.createElement('option');
     def.value = '';
-    def.textContent = `Default · ${dimensionsLabel(fallback.width, fallback.height)}`;
+    def.textContent = t('guided.size.default', { size: dimensionsLabel(fallback.width, fallback.height) });
     sizes.append(def);
     for (const r of resolutionsFor(m, w.choices.aspect)) {
       if (r.width === fallback.width && r.height === fallback.height) continue;
@@ -190,8 +192,8 @@ function buildShape(body: HTMLElement): void {
     if (sizes.selectedIndex < 0) sizes.value = '';
   };
   for (const aspect of m.aspects) {
-    body.append(choice('guided-aspect', aspect, `${aspectName(aspect, m.size)} (${aspect})`,
-      aspect === m.aspects[0] ? 'The first shape the template names; its poster is drawn for it.' : 'The template draws this shape natively, not letterboxed.',
+    body.append(choice('guided-aspect', aspect, t('guided.aspect.option', { name: aspectName(aspect, m.size), aspect }),
+      aspect === m.aspects[0] ? t('guided.aspect.first.tip') : t('guided.aspect.other.tip'),
       w.choices.aspect === aspect, () => {
         w.choices.aspect = aspect;
         delete w.choices.width;
@@ -212,12 +214,12 @@ function buildShape(body: HTMLElement): void {
     }
     paintPreview();
   });
-  body.append(selectField('Size', sizes));
+  body.append(selectField(t('guided.size'), sizes));
   const rates = document.createElement('select');
-  rates.setAttribute('aria-label', 'Frame rate');
+  rates.setAttribute('aria-label', t('guided.fps'));
   const own = document.createElement('option');
   own.value = '';
-  own.textContent = `Template rate (${m.fps} fps)`;
+  own.textContent = t('guided.fps.template', { fps: m.fps });
   rates.append(own);
   for (const rate of STANDARD_FRAME_RATES) {
     const opt = document.createElement('option');
@@ -232,15 +234,15 @@ function buildShape(body: HTMLElement): void {
     else w.choices.fps = Number(rates.value);
     paintPreview();
   });
-  body.append(selectField('Frame rate', rates));
-  body.append(note('A higher rate samples the same animation more often: twice the frames, the same seconds.'));
+  body.append(selectField(t('guided.fps'), rates));
+  body.append(note(t('guided.fps.note')));
 }
 
 function buildFormat(body: HTMLElement): void {
   const w = walk!;
   const m = w.context.manifest;
   const presets = document.createElement('select');
-  presets.setAttribute('aria-label', 'Output preset');
+  presets.setAttribute('aria-label', t('guided.preset.aria-label'));
   for (const preset of Object.values(OUTPUT_PRESETS)) {
     const opt = document.createElement('option');
     opt.value = preset.id;
@@ -253,20 +255,20 @@ function buildFormat(body: HTMLElement): void {
   const flatten = document.createElement('label');
   flatten.className = 'field';
   const flattenLabel = document.createElement('span');
-  flattenLabel.textContent = 'Background for flattening';
+  flattenLabel.textContent = t('guided.flatten');
   const colour = document.createElement('input');
   colour.type = 'color';
   colour.value = w.choices.background;
-  colour.setAttribute('aria-label', 'Background for flattening');
+  colour.setAttribute('aria-label', t('guided.flatten'));
   flatten.append(flattenLabel, colour);
-  const flattenNote = note('This format keeps no transparency, so the graphic is flattened over this color.');
+  const flattenNote = note(t('guided.flatten.note'));
   const matte = document.createElement('label');
   matte.className = 'field inline guided-choice';
   const matteBox = document.createElement('input');
   matteBox.type = 'checkbox';
   matteBox.checked = w.choices.matte;
   const matteText = document.createElement('span');
-  matteText.textContent = 'Matte file beside the render';
+  matteText.textContent = t('guided.matte');
   matte.append(matteBox, matteText);
   const follow = () => {
     const preset = OUTPUT_PRESETS[w.choices.presetId];
@@ -287,8 +289,8 @@ function buildFormat(body: HTMLElement): void {
   matteBox.addEventListener('change', () => {
     w.choices.matte = matteBox.checked;
   });
-  body.append(selectField('Format', presets), explain, flatten, flattenNote, matte,
-    note('The matte is the alpha as gray, a second file, for editors and pipelines that cannot read an alpha channel.'));
+  body.append(selectField(t('guided.format'), presets), explain, flatten, flattenNote, matte,
+    note(t('guided.matte.note')));
   follow();
 }
 
@@ -297,8 +299,8 @@ function buildSound(body: HTMLElement): void {
   for (const line of guidedSoundLines(w.context.manifest, w.context)) body.append(note(line));
   if (w.context.hasStems) {
     const stems = document.createElement('select');
-    stems.setAttribute('aria-label', 'Music stems in the render');
-    for (const [value, label] of [['mix', 'In the mix'], ['files', 'One file per stem beside the render']] as const) {
+    stems.setAttribute('aria-label', t('guided.stems.aria-label'));
+    for (const [value, label] of [['mix', t('guided.stems.mix')], ['files', t('guided.stems.files')]] as const) {
       const opt = document.createElement('option');
       opt.value = value;
       opt.textContent = label;
@@ -308,7 +310,7 @@ function buildSound(body: HTMLElement): void {
     stems.addEventListener('change', () => {
       w.choices.stems = stems.value as 'mix' | 'files';
     });
-    body.append(selectField('Music stems', stems));
+    body.append(selectField(t('guided.stems'), stems));
   }
 }
 
@@ -330,9 +332,9 @@ function buildSummary(body: HTMLElement): void {
     w.saveDefault = box.checked;
   });
   const text = document.createElement('span');
-  text.textContent = 'Save as the default for this type';
+  text.textContent = t('guided.save-default');
   save.append(box, text);
-  body.append(save, note('Use these settings puts everything here on the Output tab; Render then asks where to save, as ever.'));
+  body.append(save, note(t('guided.summary.note')));
 }
 
 // ---------------------------------------------------------------- the walk itself
@@ -348,6 +350,8 @@ function finish(collect: boolean): void {
 }
 
 export function initGuidedSetup(): void {
+  // A change of language paints the open step again; its choices live in the walk, not the elements (milestone 59).
+  whenLocaleChanges(() => untracked(show));
   els.back().addEventListener('click', () => {
     if (!walk || walk.step === 0) return;
     walk.step -= 1;

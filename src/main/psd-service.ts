@@ -13,6 +13,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { deflateSync, inflateSync } from 'node:zlib';
+import { tr } from '../core/i18n';
 import { encodePng } from '../core/png';
 import { compositePsd, fileHiddenLayers, layerOnCanvas, parsePsd, PSD_EXTENSION, psdOutline, type PsdDocument, type PsdOutline } from '../core/psd';
 import { lookupMedia } from './library-service';
@@ -35,7 +36,7 @@ export async function readPsdFile(path: string): Promise<PsdRead> {
     const info = await stat(path);
     signature = `${info.size}:${info.mtimeMs}`;
   } catch (err) {
-    return { ok: false, message: `could not read the file: ${(err as Error).message}` };
+    return { ok: false, message: tr('layered.read.file-unreadable', { reason: (err as Error).message }) };
   }
   const held = documents.get(path);
   if (held && held.signature === signature) {
@@ -47,7 +48,7 @@ export async function readPsdFile(path: string): Promise<PsdRead> {
   try {
     bytes = await readFile(path);
   } catch (err) {
-    return { ok: false, message: `could not read the file: ${(err as Error).message}` };
+    return { ok: false, message: tr('layered.read.file-unreadable', { reason: (err as Error).message }) };
   }
   const parsed = parsePsd(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength), { inflate: (b) => new Uint8Array(inflateSync(b)) });
   if (!parsed.ok) return parsed;
@@ -63,8 +64,8 @@ export async function readPsdFile(path: string): Promise<PsdRead> {
 /** A library item's document, by id: only an online `.psd` the library has. */
 export async function readPsdItem(id: string): Promise<PsdRead> {
   const found = lookupMedia(id);
-  if (!found || found.entry.kind !== 'media' || !isPsdPath(found.entry.path)) return { ok: false, message: 'not a layered file in the library' };
-  if (!found.online) return { ok: false, message: 'its folder is offline' };
+  if (!found || found.entry.kind !== 'media' || !isPsdPath(found.entry.path)) return { ok: false, message: tr('layered.read.not-in-library') };
+  if (!found.online) return { ok: false, message: tr('layered.read.offline') };
   return readPsdFile(found.entry.path);
 }
 

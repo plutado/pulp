@@ -20,6 +20,7 @@
  */
 
 import { emptyCollection, parseCollection, type Collection, type CollectionItem } from './collection';
+import { tr } from './i18n';
 
 export const PROJECT_FORMAT_VERSION = 1;
 
@@ -64,12 +65,12 @@ export function parseProject(text: string): ParsedProject {
   try {
     raw = JSON.parse(text);
   } catch {
-    return { ok: false, error: 'That file is not a project: it is not readable JSON.' };
+    return { ok: false, error: tr('project-file.error.not-json') };
   }
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, error: 'That file is not a project.' };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, error: tr('project-file.error.not-project') };
   const r = raw as { formatVersion?: unknown; items?: unknown; libraryFolders?: unknown; renderFolder?: unknown };
   if (r.formatVersion !== PROJECT_FORMAT_VERSION) {
-    return { ok: false, error: `This project was written in format ${String(r.formatVersion)}; this version of Pulp reads ${PROJECT_FORMAT_VERSION}.` };
+    return { ok: false, error: tr('project-file.error.format', { found: String(r.formatVersion), reads: PROJECT_FORMAT_VERSION }) };
   }
   // The items are a collection's items, so they are read by the collection's reader.
   const items = parseCollection(JSON.stringify({ formatVersion: 1, items: Array.isArray(r.items) ? r.items : [] }));

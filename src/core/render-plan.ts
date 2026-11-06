@@ -33,6 +33,7 @@ import { resolveLength, type TemplateStructure } from './timing';
 import { isValidColor, type TemplateManifest } from './manifest';
 import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
 import { isCubeFile, lutFilter } from './clip-clean';
+import { tr } from './i18n';
 
 export { fpsToRational } from './timecode';
 
@@ -99,8 +100,8 @@ export const RGB_FULL_TAGS = 'setparams=range=pc:color_primaries=bt709:color_trc
 export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   'prores-4444': {
     id: 'prores-4444',
-    label: 'ProRes 4444 (alpha)',
-    description: 'QuickTime .mov with alpha. Edits well in Premiere Pro and DaVinci Resolve. Large files.',
+    get label() { return tr('preset.prores-4444'); },
+    get description() { return tr('preset.prores-4444.description'); },
     extension: '.mov',
     alpha: true,
     sequence: false,
@@ -112,8 +113,8 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   },
   'prores-422hq': {
     id: 'prores-422hq',
-    label: 'ProRes 422 HQ',
-    description: 'QuickTime .mov without alpha. Transparent areas are flattened over the background color.',
+    get label() { return tr('preset.prores-422hq'); },
+    get description() { return tr('preset.prores-422hq.description'); },
     extension: '.mov',
     alpha: false,
     sequence: false,
@@ -125,8 +126,8 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   },
   'png-sequence': {
     id: 'png-sequence',
-    label: 'PNG sequence (alpha)',
-    description: 'Numbered RGBA PNG files. Lossless and universally supported; import as an image sequence.',
+    get label() { return tr('preset.png-sequence'); },
+    get description() { return tr('preset.png-sequence.description'); },
     extension: '.png',
     alpha: true,
     sequence: true,
@@ -139,8 +140,8 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   },
   'png-still': {
     id: 'png-still',
-    label: 'Still image (PNG, alpha)',
-    description: 'One RGBA PNG of the frame at the playhead, or at the in point when one is set: a still background, a poster or a thumbnail as a picture rather than a clip.',
+    get label() { return tr('preset.png-still'); },
+    get description() { return tr('preset.png-still.description'); },
     extension: '.png',
     alpha: true,
     sequence: false,
@@ -154,8 +155,8 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   },
   'webm-vp9-alpha': {
     id: 'webm-vp9-alpha',
-    label: 'WebM VP9 (alpha)',
-    description: 'Small files with alpha for web use and some editors. Not supported for alpha by every NLE.',
+    get label() { return tr('preset.webm-vp9-alpha'); },
+    get description() { return tr('preset.webm-vp9-alpha.description'); },
     extension: '.webm',
     alpha: true,
     sequence: false,
@@ -167,8 +168,8 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   },
   'h264-mp4': {
     id: 'h264-mp4',
-    label: 'H.264 MP4',
-    description: 'Universal delivery or review file without alpha. Transparent areas are flattened over the background color.',
+    get label() { return tr('preset.h264-mp4'); },
+    get description() { return tr('preset.h264-mp4.description'); },
     extension: '.mp4',
     alpha: false,
     sequence: false,
@@ -180,8 +181,8 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   },
   'qt-animation': {
     id: 'qt-animation',
-    label: 'QuickTime Animation (alpha)',
-    description: 'Lossless RLE .mov with alpha for older workflows. Small with lots of transparency, large for full-frame content.',
+    get label() { return tr('preset.qt-animation'); },
+    get description() { return tr('preset.qt-animation.description'); },
     extension: '.mov',
     alpha: true,
     sequence: false,
@@ -193,8 +194,8 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
   },
   'hevc-alpha': {
     id: 'hevc-alpha',
-    label: 'HEVC (alpha, macOS only)',
-    description: '.mov with alpha encoded by Apple VideoToolbox. Small files for recent macOS apps; DaVinci Resolve reads it with Alpha Mode set to Straight, Premiere Pro does not read the alpha. Quality 80, alpha quality 0.9.',
+    get label() { return tr('preset.hevc-alpha'); },
+    get description() { return tr('preset.hevc-alpha.description'); },
     extension: '.mov',
     alpha: true,
     sequence: false,
@@ -205,7 +206,7 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
     pixelFormat: 'ayuv',
     color: 'rec709',
     codecArgs: ['-c:v', 'hevc_videotoolbox', '-q:v', '80', '-alpha_quality', '0.9', '-tag:v', 'hvc1'],
-    platformNote: 'macOS only: Apple VideoToolbox',
+    get platformNote() { return tr('preset.hevc-alpha.platform-note'); },
   },
 };
 
@@ -416,23 +417,21 @@ export interface RenderTiming {
 export function resolveTiming(manifest: Pick<TemplateManifest, 'fps' | 'duration'> & { structure?: TemplateStructure }, options: RenderOptions = {}, shape: { still?: boolean } = {}): RenderTiming {
   const fps = options.fps ?? manifest.fps;
   if (options.fps !== undefined && !isStandardFrameRate(options.fps)) {
-    throw new RenderPlanError(
-      `frame rate must be one of ${STANDARD_FRAME_RATES.map((r) => r.fps).join(', ')}, got ${String(options.fps)}`,
-    );
+    throw new RenderPlanError(tr('render-plan.error.fps', { rates: STANDARD_FRAME_RATES.map((r) => r.fps).join(', '), got: String(options.fps) }));
   }
   // The length the graphic runs for: what was asked, held to what the structure allows, or the
   // template's own duration. A trim is then taken within that, as it always was.
   if (options.length !== undefined && (!Number.isFinite(options.length) || options.length <= 0)) {
-    throw new RenderPlanError(`length must be a number of seconds greater than 0, got ${String(options.length)}`);
+    throw new RenderPlanError(tr('render-plan.error.length', { got: String(options.length) }));
   }
   if (options.length !== undefined && !manifest.structure) {
-    throw new RenderPlanError('this template does not declare an animate-in, hold and animate-out, so its length is fixed');
+    throw new RenderPlanError(tr('render-plan.error.length-fixed'));
   }
   const length = resolveLength(manifest.duration, manifest.structure ?? null, options.length);
   // Like frameCount: a template shorter than one frame still has one frame.
   const lastFrame = Math.max(1, Math.round(length * fps)) - 1;
   const inFrame = options.inFrame ?? 0;
-  if (!Number.isInteger(inFrame) || inFrame < 0) throw new RenderPlanError(`in point must be a frame number of 0 or more, got ${String(options.inFrame)}`);
+  if (!Number.isInteger(inFrame) || inFrame < 0) throw new RenderPlanError(tr('render-plan.error.in-point', { got: String(options.inFrame) }));
   // A still (milestone 44) is the one frame at the in point, held within the timeline: a playhead
   // read at another rate can round a frame past the end, and the end is what was meant.
   if (shape.still) {
@@ -441,9 +440,9 @@ export function resolveTiming(manifest: Pick<TemplateManifest, 'fps' | 'duration
   }
   const outFrame = options.outFrame ?? lastFrame;
   if (!Number.isInteger(outFrame) || outFrame > lastFrame) {
-    throw new RenderPlanError(`out point must be at most the last frame (${lastFrame} at ${fps} fps), got ${String(options.outFrame)}`);
+    throw new RenderPlanError(tr('render-plan.error.out-point', { last: lastFrame, fps, got: String(options.outFrame) }));
   }
-  if (outFrame < inFrame) throw new RenderPlanError(`out point (frame ${outFrame}) must not be before the in point (frame ${inFrame})`);
+  if (outFrame < inFrame) throw new RenderPlanError(tr('render-plan.error.out-before-in', { out: outFrame, in: inFrame }));
   return { fps, firstFrame: inFrame, totalFrames: outFrame - inFrame + 1, length };
 }
 
@@ -520,7 +519,7 @@ export function normalizeOutputPath(outputPath: string, preset: OutputPreset): s
   const lastSlash = Math.max(outputPath.lastIndexOf('/'), outputPath.lastIndexOf('\\'));
   const dir = outputPath.slice(0, lastSlash + 1);
   let file = outputPath.slice(lastSlash + 1);
-  if (file.length === 0) throw new RenderPlanError('output path must include a file name');
+  if (file.length === 0) throw new RenderPlanError(tr('render-plan.error.no-file-name'));
 
   const dot = file.lastIndexOf('.');
   const ext = dot > 0 ? file.slice(dot).toLowerCase() : '';
@@ -576,7 +575,7 @@ export function cutSpeedSteps(cut: { from: number; to: number; speed?: CutSpeed;
 export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   const preset = OUTPUT_PRESETS[input.presetId as PresetId];
   if (!preset) {
-    throw new RenderPlanError(`unknown output preset "${input.presetId}" (expected one of: ${PRESET_IDS.join(', ')})`);
+    throw new RenderPlanError(tr('render-plan.error.unknown-preset', { preset: input.presetId, presets: PRESET_IDS.join(', ') }));
   }
   const { manifest } = input;
   const warnings: string[] = [];
@@ -590,16 +589,16 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   }
   const { width, height } = frameSize;
   if (preset.requiresEvenDimensions && (width % 2 !== 0 || height % 2 !== 0)) {
-    throw new RenderPlanError(`${preset.label} needs even width and height; the output size is ${width}x${height}`);
+    throw new RenderPlanError(tr('render-plan.error.even-size', { preset: preset.label, width, height }));
   }
   if (preset.alpha && !manifest.alpha) {
-    warnings.push('template does not declare alpha; output will carry an alpha channel but is likely fully opaque');
+    warnings.push(tr('render-plan.warning.no-alpha'));
   }
 
   const background = input.options?.background ?? '#000000';
-  if (!isValidColor(background)) throw new RenderPlanError(`background must be #RRGGBB, got "${background}"`);
+  if (!isValidColor(background)) throw new RenderPlanError(tr('render-plan.error.background', { got: background }));
   const lut = input.options?.lut;
-  if (lut !== undefined && !isCubeFile(lut)) throw new RenderPlanError(`a LUT must be a .cube file, got "${lut}"`);
+  if (lut !== undefined && !isCubeFile(lut)) throw new RenderPlanError(tr('render-plan.error.lut', { got: lut }));
 
   const timing = resolveTiming(manifest, input.options, { still: preset.still === true });
   const fps = fpsToRational(timing.fps);

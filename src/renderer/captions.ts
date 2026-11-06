@@ -27,13 +27,21 @@ import { DEFAULT_SPEECH_MODEL, modelSizeText, SPEECH_LANGUAGE_AUTO, SPEECH_LANGU
 import type { Layer } from '../core/layers';
 import { madeForVertical } from '../core/vertical-layout';
 import { layerEditor } from './layer-edit';
+import { bindAttr, bindText, locale, t, whenLocaleChanges } from './i18n';
+import type { MessageId, MessageValues } from '../core/i18n';
 import { appState } from './store';
 
 /** Open or folded, kept across rebuilds of the form as the parameter cards' own state is. */
 let cardOpen = true;
 
+/** A source's name, as the message it is and the values that fill it, so its option follows a change of language. */
+interface SourceLabel {
+  id: MessageId;
+  values?: MessageValues;
+}
+
 /** What the dialog is working with while it is open: the sources it found, and how it is going. */
-let sources: { id: string; label: string; segments: SpeechSegment[] }[] = [];
+let sources: { id: string; label: SourceLabel; segments: SpeechSegment[] }[] = [];
 
 const media = (id: string) => appState.value.index?.media.find((m) => m.id === id);
 
@@ -62,8 +70,8 @@ function projectLayers(): { block: string; layer: Layer }[] {
  * was taken from, not where it is heard — and so is anything muted or hidden,
  * which is not in the project's sound at all.
  */
-function speechSources(): { id: string; label: string; segments: SpeechSegment[] }[] {
-  const found: { id: string; label: string; segments: SpeechSegment[] }[] = [];
+function speechSources(): { id: string; label: SourceLabel; segments: SpeechSegment[] }[] {
+  const found: { id: string; label: SourceLabel; segments: SpeechSegment[] }[] = [];
   const track = layerEditor()?.track() ?? null;
   if (track && track.cuts.length > 0) {
     const segments = trackAudio(track).map(({ value, speed }): SpeechSegment => ({
@@ -75,7 +83,7 @@ function speechSources(): { id: string; label: string; segments: SpeechSegment[]
       // A cut at a speed (milestone 56) is heard at that speed, so its words must be too.
       ...(speed !== undefined && speed !== 1 ? { speed } : {}),
     }));
-    if (segments.length > 0) found.push({ id: 'track', label: `The cut track (${track.cuts.length} ${track.cuts.length === 1 ? 'shot' : 'shots'})`, segments });
+    if (segments.length > 0) found.push({ id: 'track', label: { id: 'captions.source.track', values: { count: track.cuts.length } }, segments });
   }
   for (const { block, layer } of projectLayers()) {
     if (layer.type === 'audio') {
@@ -86,7 +94,7 @@ function speechSources(): { id: string; label: string; segments: SpeechSegment[]
       if (window.seconds <= 0) continue;
       found.push({
         id: `${block}.${layer.id}`,
-        label: `${layer.label} (sound)`,
+        label: { id: 'captions.source.sound', values: { label: layer.label } },
         segments: [{ kind: 'sound', id: sound.id!, from: window.from, to: window.to, at: sound.delay }],
       });
       continue;
@@ -102,12 +110,12 @@ function speechSources(): { id: string; label: string; segments: SpeechSegment[]
     if (window.frames <= 0) continue;
     found.push({
       id: `${block}.${layer.id}`,
-      label: `${layer.label} (clip)`,
+      label: { id: 'captions.source.clip', values: { label: layer.label } },
       segments: [{ kind: 'clip', id: clip.id!, from: window.first / fps, to: (window.last + 1) / fps, at: clip.delay }],
     });
   }
   if (found.length > 1) {
-    found.unshift({ id: 'all', label: 'Everything with sound', segments: found.flatMap((s) => s.segments) });
+    found.unshift({ id: 'all', label: { id: 'captions.source.all' }, segments: found.flatMap((s) => s.segments) });
   }
   return found;
 }
@@ -160,14 +168,14 @@ function lineRow(value: CaptionsValue, index: number): HTMLElement {
   const at = document.createElement('span');
   at.className = 'note caption-at';
   at.textContent = captionTime(lineStart(line));
-  at.title = `${captionTime(lineStart(line))} to ${captionTime(lineEnd(line))}`;
+  bindAttr(at, 'title', 'captions.line.at.title', { start: captionTime(lineStart(line)), end: captionTime(lineEnd(line)) });
   row.append(at);
 
   const text = document.createElement('input');
   text.type = 'text';
   text.className = 'caption-text';
   text.value = lineText(line);
-  text.setAttribute('aria-label', `Caption at ${captionTime(lineStart(line))}`);
+  bindAttr(text, 'aria-label', 'captions.line.text.aria-label', { time: captionTime(lineStart(line)) });
   const commit = (): void => {
     const current = now();
     if (!current || text.value.trim() === lineText(line)) return;
@@ -185,8 +193,8 @@ function lineRow(value: CaptionsValue, index: number): HTMLElement {
   const split = document.createElement('button');
   split.type = 'button';
   split.className = 'ghost';
-  split.textContent = 'Split';
-  split.title = 'Break this line in two at the caret, both halves keeping their timings';
+  bindText(split, 'captions.line.split');
+  bindAttr(split, 'title', 'captions.line.split.title');
   split.addEventListener('click', () => {
     const current = now();
     if (!current) return;
@@ -198,8 +206,8 @@ function lineRow(value: CaptionsValue, index: number): HTMLElement {
   const merge = document.createElement('button');
   merge.type = 'button';
   merge.className = 'ghost';
-  merge.textContent = 'Merge';
-  merge.title = 'Join this line with the one below it';
+  bindText(merge, 'captions.line.merge');
+  bindAttr(merge, 'title', 'captions.line.merge.title');
   merge.disabled = index >= value.lines.length - 1;
   merge.addEventListener('click', () => {
     const current = now();
@@ -227,7 +235,7 @@ export function captionsCard(captions: CaptionsValue | null): HTMLElement {
   toggle.setAttribute('aria-expanded', String(cardOpen));
   const name = document.createElement('span');
   name.className = 'layer-label';
-  name.textContent = 'Captions';
+  bindText(name, 'captions.card.name');
   toggle.append(name);
   head.append(toggle);
   section.append(head);
@@ -244,8 +252,12 @@ export function captionsCard(captions: CaptionsValue | null): HTMLElement {
 
   const styles = captionStyles();
   const style = document.createElement('select');
-  style.setAttribute('aria-label', 'Caption style');
-  for (const option of [{ id: '', name: 'None (not drawn)' }, ...styles]) {
+  bindAttr(style, 'aria-label', 'captions.card.style.aria-label');
+  const none = document.createElement('option');
+  none.value = '';
+  bindText(none, 'captions.card.style.none');
+  style.append(none);
+  for (const option of styles) {
     const el = document.createElement('option');
     el.value = option.id;
     el.textContent = option.name;
@@ -260,7 +272,7 @@ export function captionsCard(captions: CaptionsValue | null): HTMLElement {
   const field = document.createElement('label');
   field.className = 'type-field wide';
   const label = document.createElement('span');
-  label.textContent = 'Style';
+  bindText(label, 'captions.card.style');
   field.append(label, style);
   body.append(field);
 
@@ -268,24 +280,23 @@ export function captionsCard(captions: CaptionsValue | null): HTMLElement {
   actions.className = 'caption-actions';
   const transcribe = document.createElement('button');
   transcribe.type = 'button';
-  transcribe.textContent = captions ? 'Transcribe again…' : 'Transcribe…';
-  transcribe.title = 'Listen to the project\'s sound on this machine and write the captions from it';
+  bindText(transcribe, captions ? 'captions.card.transcribe-again' : 'captions.card.transcribe');
+  bindAttr(transcribe, 'title', 'captions.card.transcribe.title');
   transcribe.addEventListener('click', () => openCaptionsDialog());
   actions.append(transcribe);
   if (captions) {
     const clear = document.createElement('button');
     clear.type = 'button';
     clear.className = 'ghost';
-    clear.textContent = 'Remove';
-    clear.title = 'Take the captions off this project';
+    bindText(clear, 'captions.card.remove');
+    bindAttr(clear, 'title', 'captions.card.remove.title');
     clear.addEventListener('click', () => setCaptions(null));
     actions.append(clear);
   }
   const count = document.createElement('span');
   count.className = 'note';
-  count.textContent = captions
-    ? `${captions.lines.length} ${captions.lines.length === 1 ? 'line' : 'lines'}, ${captionsWordCount(captions)} words`
-    : 'None yet. Transcription runs on this machine; nothing is sent anywhere.';
+  if (captions) bindText(count, 'captions.card.count', { count: captions.lines.length, words: captionsWordCount(captions) });
+  else bindText(count, 'captions.card.empty');
   actions.append(count);
   body.append(actions);
 
@@ -302,9 +313,19 @@ export function captionsCard(captions: CaptionsValue | null): HTMLElement {
 
 const $ = <T extends HTMLElement>(id: string): T | null => document.getElementById(id) as T | null;
 
+/** The dialog's status line in words already worked out — the main process's, or none — clearing any message stamped on it. */
 function say(text: string): void {
   const status = $('captions-status');
-  if (status) status.textContent = text;
+  if (!status) return;
+  delete status.dataset.i18n;
+  delete status.dataset.i18nValues;
+  status.textContent = text;
+}
+
+/** The dialog's status line from the catalog: a change of language rewrites it while it shows. */
+function sayMessage(id: MessageId, values?: MessageValues): void {
+  const status = $('captions-status');
+  if (status) bindText(status, id, values);
 }
 
 /** What the model line says: which model, how big, under what license, and whether it is here. */
@@ -315,14 +336,16 @@ async function showStatus(): Promise<void> {
   if (!line || !fetchButton || !run) return;
   const status = await window.pulp.speechStatus({});
   const { model } = status;
-  line.textContent = `${model.label} · ${modelSizeText(model.bytes)} · ${model.license} — ${model.installed ? 'on this machine' : 'not fetched yet'}. ${model.note}`;
+  // The model's name and note come translated from the main process; the dialog asks again when the language changes.
+  const said = { model: model.label, size: modelSizeText(model.bytes), licenseName: model.license, note: model.note };
+  line.textContent = t(model.installed ? 'captions.model.installed' : 'captions.model.missing', said);
   fetchButton.hidden = model.installed;
-  fetchButton.textContent = `Get the model (${modelSizeText(model.bytes)})`;
+  bindText(fetchButton, 'captions.fetch.size', { size: modelSizeText(model.bytes) });
   run.disabled = !model.installed || !status.runner.ok || !status.ffmpeg || sources.length === 0;
-  if (!status.ffmpeg) say('ffmpeg is needed to read the project\'s sound; install it and restart Pulp.');
+  if (!status.ffmpeg) sayMessage('captions.status.no-ffmpeg');
   else if (!status.runner.ok) say(status.runner.message ?? '');
-  else if (sources.length === 0) say('Nothing in this project has sound yet.');
-  else if (!model.installed) say('The model is fetched once, from its publisher, and kept beside your settings. Nothing else ever leaves this machine.');
+  else if (sources.length === 0) sayMessage('captions.status.no-sound');
+  else if (!model.installed) sayMessage('captions.status.not-fetched');
   else say('');
 }
 
@@ -335,12 +358,24 @@ function openCaptionsDialog(): void {
   for (const source of sources) {
     const option = document.createElement('option');
     option.value = source.id;
-    option.textContent = source.label;
+    bindText(option, source.label.id, source.label.values);
     select.append(option);
   }
   select.disabled = sources.length <= 1;
   void showStatus();
   dialog.showModal();
+}
+
+/** The language menu: Detect first, then the model's languages by the names the interface gives them now. */
+function fillLanguages(select: HTMLSelectElement): void {
+  const option = (code: string, name: string): HTMLOptionElement => {
+    const el = document.createElement('option');
+    el.value = code;
+    el.textContent = name;
+    return el;
+  };
+  const named = SPEECH_LANGUAGES.map((l) => ({ code: l.code, name: l.name })).sort((a, b) => a.name.localeCompare(b.name, locale.value));
+  select.replaceChildren(option(SPEECH_LANGUAGE_AUTO, t('captions.language.detect')), ...named.map((l) => option(l.code, l.name)));
 }
 
 /** Wire the dialog once, at startup: the fetch, the run, and the progress the main process sends. */
@@ -353,17 +388,20 @@ export function mountCaptions(): void {
   // The model's languages (milestone 50), with "Detect" first: whisper decides unless told. The
   // choice is kept for the session, since a project is rarely in two languages.
   const language = $<HTMLSelectElement>('captions-language')!;
-  for (const option of [{ code: SPEECH_LANGUAGE_AUTO, name: 'Detect the language' }, ...SPEECH_LANGUAGES]) {
-    const el = document.createElement('option');
-    el.value = option.code;
-    el.textContent = option.name;
-    language.append(el);
-  }
+  fillLanguages(language);
   language.value = SPEECH_LANGUAGE_AUTO;
+  // The languages are named, and so sorted, in the interface's language: a change lists them again,
+  // the choice kept. The model line names the model in it too, so an open dialog asks for it again.
+  whenLocaleChanges(() => {
+    const chosen = language.value;
+    fillLanguages(language);
+    language.value = chosen;
+    if (dialog.open) void showStatus();
+  });
 
   fetchButton.addEventListener('click', () => {
     fetchButton.disabled = true;
-    say('Fetching the model…');
+    sayMessage('captions.status.fetching');
     void window.pulp.fetchSpeechModel({ model: DEFAULT_SPEECH_MODEL }).then(async (result) => {
       fetchButton.disabled = false;
       if (!result.ok) say(result.message);
@@ -375,7 +413,7 @@ export function mountCaptions(): void {
     const source = sources.find((s) => s.id === select.value) ?? sources[0];
     if (!source) return;
     run.disabled = true;
-    say('Listening…');
+    sayMessage('captions.status.listening');
     void window.pulp.transcribe({ segments: source.segments, language: language.value }).then((result) => {
       run.disabled = false;
       if (!result.ok) {
@@ -391,13 +429,14 @@ export function mountCaptions(): void {
       const captions = captionsFromWords(result.words, style);
       setCaptions(captions);
       const lines = captions.lines.length;
-      say(`${result.words.length} words in ${lines} ${lines === 1 ? 'line' : 'lines'}.`);
+      sayMessage('captions.status.done', { count: lines, words: result.words.length });
       dialog.close();
     });
   });
 
   window.pulp.onSpeechProgress(({ note, fraction }) => {
     if (!dialog.open) return;
-    say(fraction === null ? note : `${note} ${Math.round(fraction * 100)}%`);
+    if (fraction === null) say(note);
+    else say(t('captions.status.progress', { note, percent: Math.round(fraction * 100) }));
   });
 }

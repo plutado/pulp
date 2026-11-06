@@ -25,6 +25,7 @@ import {
   type FfmpegArchive, type FfmpegBuild,
 } from '../core/ffmpeg-download';
 import { nodeRunner, parseFfmpegVersion, setManagedFfmpeg } from '../core/ffmpeg';
+import { tr } from '../core/i18n';
 import { readZip } from '../core/zip';
 // What the window is told — the build on offer for this machine, and whether it is already
 // here — is the shape the preload hands it, so there is one declaration of it, not two.
@@ -100,7 +101,7 @@ export type FfmpegFetchResult =
 let running: Promise<FfmpegFetchResult> | null = null;
 
 export function fetchFfmpeg(): Promise<FfmpegFetchResult> {
-  if (running) return Promise.resolve({ ok: false, message: 'FFmpeg is already being fetched.' });
+  if (running) return Promise.resolve({ ok: false, message: tr('fetch.ffmpeg.running') });
   const work = run().catch((error: Error): FfmpegFetchResult => ({ ok: false, message: error.message }));
   running = work;
   return work.finally(() => {
@@ -125,7 +126,7 @@ async function fetchArchive(
     // corporate certificate store and the app's network settings all hold for this request.
     const response = await net.fetch(archive.url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), redirect: 'follow' });
     if (!response.ok || !response.body) {
-      return { ok: false, message: `FFmpeg could not be fetched: the server answered ${response.status}.` };
+      return { ok: false, message: tr('fetch.ffmpeg.server', { status: response.status }) };
     }
     const body = Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]);
     body.on('data', (chunk: Buffer) => {
@@ -135,12 +136,12 @@ async function fetchArchive(
     });
     await pipeline(body, createWriteStream(to));
   } catch (error) {
-    return { ok: false, message: `FFmpeg could not be fetched: ${(error as Error).message}` };
+    return { ok: false, message: tr('fetch.ffmpeg.failed', { reason: (error as Error).message }) };
   }
   if (received !== archive.bytes || hash.digest('hex') !== archive.sha256) {
     return {
       ok: false,
-      message: 'What arrived is not the build Pulp expects: its checksum does not match the published one, so it was thrown away.',
+      message: tr('fetch.ffmpeg.checksum'),
     };
   }
   return { ok: true };
@@ -149,7 +150,7 @@ async function fetchArchive(
 /** Take one named file out of a zip. Nothing else in the archive is inflated or looked at. */
 async function unpack(archivePath: string, member: string, to: string): Promise<void> {
   const [entry] = readZip(await readFile(archivePath), { wanted: (name) => name === member });
-  if (!entry) throw new Error(`The archive does not hold ${member}, so it is not the build Pulp expects.`);
+  if (!entry) throw new Error(tr('fetch.ffmpeg.member-missing', { member }));
   await writeFile(to, entry.data);
   // Unpacked from a zip, so nothing carries a mode: it has to be made runnable here.
   if (process.platform !== 'win32') await chmod(to, 0o755);
@@ -158,7 +159,7 @@ async function unpack(archivePath: string, member: string, to: string): Promise<
 async function run(): Promise<FfmpegFetchResult> {
   const build: FfmpegBuild | null = ffmpegBuildFor(process.platform, process.arch);
   if (!build) {
-    return { ok: false, message: `Pulp has no FFmpeg build to fetch for this machine (${process.platform} ${process.arch}). Install one yourself and Pulp will find it.` };
+    return { ok: false, message: tr('fetch.ffmpeg.no-build', { platform: process.platform, arch: process.arch }) };
   }
   const dir = managedFfmpegDir();
   await mkdir(dir, { recursive: true });
@@ -175,14 +176,14 @@ async function run(): Promise<FfmpegFetchResult> {
     for (const [url, archive] of archives) {
       const file = join(staging, `archive-${files.size}.zip`);
       const fetched = await fetchArchive(archive, file, (received) => {
-        report(`Fetching FFmpeg ${build.version}…`, Math.min(1, (done + received) / total));
+        report(tr('fetch.ffmpeg.fetching', { version: build.version }), Math.min(1, (done + received) / total));
       });
       if (!fetched.ok) return fetched;
       done += archive.bytes;
       files.set(url, file);
     }
 
-    report('Unpacking…', null);
+    report(tr('fetch.ffmpeg.unpacking'), null);
     for (const archive of build.archives) {
       await unpack(files.get(archive.url)!, archive.member, join(staging, ffmpegBinaryName(archive.binary, process.platform)));
     }
@@ -194,7 +195,7 @@ async function run(): Promise<FfmpegFetchResult> {
     // better said here than at the end of somebody's first render. The staged file is asked
     // directly rather than through `detectFfmpeg`, which would answer for whatever ffmpeg
     // the machine already has — the very thing that is missing here.
-    report('Checking it runs…', null);
+    report(tr('fetch.ffmpeg.checking'), null);
     const staged = join(staging, ffmpegBinaryName('ffmpeg', process.platform));
     let version: string | null = null;
     try {
@@ -204,7 +205,7 @@ async function run(): Promise<FfmpegFetchResult> {
       version = null;
     }
     if (version === null) {
-      return { ok: false, message: 'The fetched FFmpeg would not run on this machine, so it was thrown away.' };
+      return { ok: false, message: tr('fetch.ffmpeg.would-not-run') };
     }
 
     for (const binary of ['ffmpeg', 'ffprobe'] as const) {
@@ -213,7 +214,7 @@ async function run(): Promise<FfmpegFetchResult> {
       await rename(join(staging, name), join(dir, name));
     }
     setManagedFfmpeg(managedPath('ffmpeg'));
-    report(`FFmpeg ${version} is ready.`, 1);
+    report(tr('fetch.ffmpeg.ready', { version }), 1);
     return { ok: true, path: managedPath('ffmpeg'), version };
   } finally {
     await rm(staging, { recursive: true, force: true }).catch(() => undefined);

@@ -1503,17 +1503,9 @@ const ASSETS: SampleMediaItem[] = [
 /** Every sample file, in the order they are made. */
 export const SAMPLE_MEDIA: readonly SampleMediaItem[] = [...CLIPS, ...STILLS, ...MUSIC, ...SFX, ...ASSETS];
 
-/**
- * What the folder picker for Add sample media says (milestone 66): a button that names the act it
- * performs, and a message saying what will happen there — a folder of its own, how much goes in it,
- * how long it takes, and that it can go again. One text for every platform: macOS shows a picker's
- * message and not its title, Windows and Linux the title and not the message, so it is both.
- */
-export function sampleFolderPicker(count: number = SAMPLE_MEDIA.length): { title: string; message: string; buttonLabel: string } {
-  const about = Math.max(100, Math.round(count / 100) * 100);
-  const text = `Pulp will create a "${SAMPLE_MEDIA_FOLDER_NAME}" folder here with about ${about} example sounds, clips, stills and assets. It takes a few minutes, and the folder can be deleted at any time.`;
-  return { title: text, message: text, buttonLabel: 'Choose Folder' };
-}
+// The folder picker's words are the interface's, not the catalog's: src/core/sample-folder-picker.ts,
+// kept out of this file because this file's strings are library content (tests/i18n-exempt.json).
+export { sampleFolderPicker } from './sample-folder-picker';
 
 /** The file's media kind, from its extension. */
 export function sampleMediaKind(item: SampleMediaItem): MediaKind {

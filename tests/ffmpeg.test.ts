@@ -3,7 +3,7 @@ import {
   candidatePaths,
   checkPresetSupport,
   detectFfmpeg,
-  FFMPEG_MISSING_MESSAGE,
+  ffmpegMissingMessage,
   parseAlphaModeSupport,
   parseEncoders,
   parseFfmpegVersion,
@@ -102,9 +102,9 @@ describe('detectFfmpeg', () => {
 
   it('returns a clear, actionable error when ffmpeg is missing', async () => {
     const status = await detectFfmpeg(fakeRunner('nowhere'), {});
-    expect(status).toEqual({ ok: false, message: FFMPEG_MISSING_MESSAGE });
-    expect(FFMPEG_MISSING_MESSAGE).toMatch(/brew install ffmpeg/);
-    expect(FFMPEG_MISSING_MESSAGE).toMatch(/PULP_FFMPEG_PATH/);
+    expect(status).toEqual({ ok: false, message: ffmpegMissingMessage() });
+    expect(ffmpegMissingMessage()).toMatch(/brew install ffmpeg/);
+    expect(ffmpegMissingMessage()).toMatch(/PULP_FFMPEG_PATH/);
   });
 
   it('skips candidates that exit non-zero', async () => {

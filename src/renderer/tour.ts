@@ -10,6 +10,7 @@
  */
 
 import { TOUR_STEPS, type TourStep } from '../core/start-screen';
+import { bindText, whenLocaleChanges } from './i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -66,9 +67,10 @@ function show(steps: TourStep[]): void {
   }
   $('tour-title').textContent = step.title;
   $('tour-body').textContent = step.body;
-  $('tour-count').textContent = `${at + 1} of ${steps.length}`;
+  bindText($('tour-count'), 'tour.count', { step: at + 1, total: steps.length });
   $<HTMLButtonElement>('tour-back').disabled = at === 0;
-  $('tour-next').textContent = at === steps.length - 1 ? 'Done' : 'Next';
+  // Bound, so the markup's own Next does not come back over Done when the language changes.
+  bindText($('tour-next'), at === steps.length - 1 ? 'tour.done' : 'ui.tour-next');
   place(step);
 }
 
@@ -107,6 +109,11 @@ export function initTour(): void {
   $('tour-skip').addEventListener('click', endTour);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && tourRunning()) endTour();
+  });
+  // A change of language mid-tour: the step's words (getters on TOUR_STEPS) are shown again, and the
+  // card is placed again around their new length.
+  whenLocaleChanges(() => {
+    if (tourRunning()) show(visibleSteps());
   });
   // The window changing shape moves every region, so the highlight follows.
   window.addEventListener('resize', () => {

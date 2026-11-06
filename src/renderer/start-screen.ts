@@ -33,6 +33,7 @@ import { showWhatsNew } from './whats-new';
 import { showUserGuide } from './user-guide';
 import { startTour } from './tour';
 import { setIcon, type IconName } from './icons';
+import { bindAttr, bindText, t, whenLocaleChanges } from './i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -148,8 +149,9 @@ function fillShapes(): void {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'start-shape';
-    button.setAttribute('aria-label', `New project at ${shape.id} (${shape.hint})`);
-    button.dataset.tip = `${shape.hint} · the Output tab opens set to ${shape.id}`;
+    // Rebuilt when the language changes (initStartScreen), since the hint is words of the moment.
+    button.setAttribute('aria-label', t('start.shape.aria-label', { shape: shape.id, hint: shape.hint }));
+    button.dataset.tip = t('start.shape.tip', { hint: shape.hint, shape: shape.id });
     const box = document.createElement('span');
     box.className = 'shape-box';
     const ratio = aspect ? aspect.w / aspect.h : 1;
@@ -169,13 +171,16 @@ function fillShapes(): void {
   }
 }
 
-/** The platforms as one list (milestone 60), not sixteen buttons: choosing one starts the project leaning on it. */
+/**
+ * The platforms as one list (milestone 60), not sixteen buttons: choosing one starts the project leaning on it.
+ * The options are built again when the language changes (initStartScreen); the listener is added once.
+ */
 function fillPlatforms(): void {
   const select = $<HTMLSelectElement>('start-platform-select');
   select.replaceChildren();
   const head = document.createElement('option');
   head.value = '';
-  head.textContent = 'Choose…';
+  head.textContent = t('start.platform.choose');
   select.append(head);
   for (const platform of PLATFORM_PRESETS) {
     const option = document.createElement('option');
@@ -184,6 +189,11 @@ function fillPlatforms(): void {
     option.title = `${platform.hint} · ${platformSummary(platform)}`;
     select.append(option);
   }
+  $('start-platforms-note').textContent = t('start.platforms-note', { checked: limitsCheckedLabel() });
+}
+
+function listenToPlatforms(): void {
+  const select = $<HTMLSelectElement>('start-platform-select');
   select.addEventListener('change', () => {
     const platform = PLATFORM_PRESETS.find((p) => p.id === select.value);
     if (!platform) return;
@@ -195,7 +205,6 @@ function fillPlatforms(): void {
       hideStartScreen();
     });
   });
-  $('start-platforms-note').textContent = `A platform sets the aspect, size, frame rate and encoder; limits ${limitsCheckedLabel()}.`;
 }
 
 // ---------------------------------------------------------------- continue
@@ -225,7 +234,8 @@ function recentRow(row: RecentProjectRow): HTMLLIElement {
   name.textContent = row.name;
   const meta = document.createElement('span');
   meta.className = 'start-card-meta';
-  meta.textContent = row.missing ? 'Missing — the file is not where it was' : lastOpenedLabel(row.lastOpened);
+  if (row.missing) bindText(meta, 'start.recent.missing');
+  else meta.textContent = lastOpenedLabel(row.lastOpened);
   if (row.missing) meta.classList.add('danger');
   text.append(name, meta);
   open.append(text);
@@ -235,7 +245,7 @@ function recentRow(row: RecentProjectRow): HTMLLIElement {
     const relink = document.createElement('button');
     relink.type = 'button';
     relink.className = 'start-relink';
-    relink.textContent = 'Relink…';
+    bindText(relink, 'start.recent.relink');
     relink.addEventListener('click', () => {
       void window.pulp.relinkRecentProject(row.path).then((result) => {
         if (result.ok) void arrange();
@@ -254,7 +264,7 @@ function recentRow(row: RecentProjectRow): HTMLLIElement {
   const pin = document.createElement('button');
   pin.type = 'button';
   pin.className = 'icon-button start-pin';
-  pin.setAttribute('aria-label', row.pinned ? `Unpin ${row.name}` : `Pin ${row.name}`);
+  bindAttr(pin, 'aria-label', row.pinned ? 'start.recent.unpin' : 'start.recent.pin', { name: row.name });
   pin.setAttribute('aria-pressed', row.pinned ? 'true' : 'false');
   setIcon(pin, row.pinned ? 'push-pin-fill' : 'push-pin');
   pin.addEventListener('click', () => {
@@ -306,7 +316,7 @@ async function fillIdeas(): Promise<void> {
     const pic = pictureFor(entryFor(example.thumbTemplateId), !!forcedMode);
     const badge = document.createElement('span');
     badge.className = 'start-idea-badge';
-    badge.textContent = 'Example';
+    bindText(badge, 'start.example.badge');
     pic.append(badge);
     button.append(pic);
     const text = document.createElement('span');
@@ -438,6 +448,17 @@ export function showStartScreen(options: { checklist?: boolean } = {}): void {
 export function initStartScreen(): void {
   fillShapes();
   fillPlatforms();
+  listenToPlatforms();
+  // A change of language: the lead's tiles and list, and — while the screen is up — what it shows,
+  // drawn again in the new language (the checklist, the recents' dates, the ideas, the glance).
+  whenLocaleChanges(() => {
+    fillShapes();
+    fillPlatforms();
+    if (startScreenShowing()) {
+      void arrange();
+      void fillIdeas();
+    }
+  });
   $('start-close').addEventListener('click', hideStartScreen);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && startScreenShowing()) hideStartScreen();
@@ -472,7 +493,7 @@ export function initStartScreen(): void {
   $('start-import-pack').addEventListener('click', () => runLibraryAdd('pack.import'));
   $('start-sample-media').addEventListener('click', () => runLibraryAdd('library.addSampleMedia'));
   // The section icons, from the bundled set: nothing decorative that says nothing — each names its section.
-  for (const el of document.querySelectorAll<HTMLElement>('#start-screen [data-start-icon]')) {
+  for (const el of document.querySelectorAll<HTMLElement>('#start-screen [data-start-icon]')) { // i18n-exempt(technical): a selector
     setIcon(el, el.dataset.startIcon as IconName);
   }
   // The checklist, Continue and the glance follow the library: a folder added here ticks itself off.

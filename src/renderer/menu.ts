@@ -26,6 +26,7 @@ import { sayInTray } from './tray';
 import { appearanceChoice, chooseAppearance } from './appearance';
 import { recordingActive } from './recorder';
 import { cameraRecording, toggleCamera } from './camera-recorder';
+import { t } from './i18n';
 
 /**
  * How "New Blank Canvas" shows the canvas: main.ts registers the very select a
@@ -226,16 +227,16 @@ function tabOpen(tab: 'parameters' | 'output' | 'info'): boolean {
 function readState(recent: string[]): MenuState {
   // The transport is the stage's own fact, published as a signal, because a preview becoming
   // ready changes nothing else in the window and so would otherwise go unnoticed here.
-  const t = transport.value;
+  const now = transport.value;
   return {
     canRender: usable('render'),
     canRenderAll: usable('collection-render'),
     canExportPack: usable('export-pack'),
     canUndo: usable('undo'),
     canRedo: usable('redo'),
-    canPlay: t.canPlay,
-    playing: t.playing,
-    loop: t.loop,
+    canPlay: now.canPlay,
+    playing: now.playing,
+    loop: now.loop,
     browseVisible: visible('browse'),
     stageVisible: visible('stage'),
     resultsVisible: visible('results'),
@@ -285,15 +286,21 @@ export async function copyDiagnostics(): Promise<void> {
     window.pulp.appPerformance(),
   ]);
   const index = appState.value.index;
+  // The report itself is for a bug report, pasted where a developer reads it: it stays in English.
   const text = diagnosticsText({
     at: new Date().toISOString(),
     platform: window.pulp.platform,
     version,
+    // i18n-exempt(diagnostic): the next line
     ffmpeg: ffmpeg.ok ? `${ffmpeg.version ?? 'found'} at ${ffmpeg.path ?? 'unknown'}` : `not found (${ffmpeg.message ?? 'no reason given'})`,
+    // i18n-exempt(diagnostic): the next line
     library: index ? `${index.templates.length} templates, ${index.media.length} media, ${index.problems.length} problems` : 'not scanned yet',
+    // i18n-exempt(diagnostic): the next line
     roots: diagnostics.roots.map((r) => `${r.path}${r.online ? '' : ' (offline)'}`),
+    // i18n-exempt(diagnostic): the next line
     background: `${diagnostics.pendingThumbnails} thumbnails, ${diagnostics.pendingMetadata} probes, ${diagnostics.heavyWaiting} waiting`,
     renderCache: cache.summary,
+    // i18n-exempt(diagnostic): the next line
     project: `${appState.value.project.name}${appState.value.project.path ? ` (${appState.value.project.path})` : ' (not saved)'}`,
     renders: appState.value.jobs.jobs.length,
     logPath: log.path,
@@ -303,7 +310,7 @@ export async function copyDiagnostics(): Promise<void> {
     performance: performanceLines(mainPerformance, windowPerformance()),
   });
   const ok = await window.pulp.copyDiagnostics(text);
-  sayInStatus(ok ? 'Diagnostics copied' : 'Could not reach the clipboard');
+  sayInStatus(ok ? t('diagnostics.copied') : t('diagnostics.copy-failed'));
 }
 
 /** The status item says what just happened, then goes back to being a button. */

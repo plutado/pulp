@@ -109,7 +109,7 @@ export function screenHint(frame: Size): string {
   if (process.platform !== 'linux') return '';
   const size = primaryScreenSize();
   if (!size) return '';
-  return ` On Linux a window is kept inside the screen (${size.width}x${size.height}); a frame the screen's size or larger is captured from a smaller window at a whole-number scale, which needs a size that divides by one — ${frame.width}x${frame.height} does not.`;
+  return ` On Linux a window is kept inside the screen (${size.width}x${size.height}); a frame the screen's size or larger is captured from a smaller window at a whole-number scale, which needs a size that divides by one — ${frame.width}x${frame.height} does not.`; // i18n-exempt(diagnostic)
 }
 
 /** How long a page may take to present a frame before a capture of it is refused rather than taken stale. */
@@ -140,7 +140,7 @@ export async function capturePresented(win: BrowserWindow, timeoutMs = PRESENT_T
   try {
     await Promise.race([
       debug.sendCommand('Page.captureScreenshot', { format: 'jpeg', quality: 1, fromSurface: true }),
-      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`the page did not present a frame within ${Math.round(timeoutMs / 1000)} s`)), timeoutMs); }),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`the page did not present a frame within ${Math.round(timeoutMs / 1000)} s`)), timeoutMs); }), // i18n-exempt(diagnostic)
     ]);
   } finally {
     clearTimeout(timer);

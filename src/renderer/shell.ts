@@ -21,6 +21,7 @@ import {
 } from '../core/layout';
 import { appState, hasIndex, results } from './store';
 import { categoryCardCount } from './category-cards';
+import { bindAttr } from './i18n';
 import { setIcon } from './icons';
 
 const $ = (id: string): HTMLElement => {
@@ -54,14 +55,14 @@ function apply(app: HTMLElement): void {
   $('browse-toggle').setAttribute('aria-expanded', String(!layout.browseCollapsed));
   const stage = $('stage-toggle');
   stage.setAttribute('aria-expanded', String(!layout.stageCollapsed));
-  stage.setAttribute('aria-label', layout.stageCollapsed ? 'Show the preview' : 'Hide the preview');
+  bindAttr(stage, 'aria-label', layout.stageCollapsed ? 'shell.stage-toggle.show.aria-label' : 'ui.stage-toggle.aria-label');
   setIcon(stage, layout.stageCollapsed ? 'caret-down' : 'caret-up');
   const tray = $('tray-toggle');
   tray.setAttribute('aria-expanded', String(!layout.trayCollapsed));
   setIcon(tray, layout.trayCollapsed ? 'caret-up' : 'caret-down');
   const results = $('results-toggle');
   results.setAttribute('aria-expanded', String(!layout.resultsCollapsed));
-  results.setAttribute('aria-label', layout.resultsCollapsed ? 'Show the results' : 'Hide the results');
+  bindAttr(results, 'aria-label', layout.resultsCollapsed ? 'shell.results-toggle.show.aria-label' : 'ui.results-toggle.aria-label');
   setIcon(results, layout.resultsCollapsed ? 'caret-up' : 'caret-down');
   for (const follow of followers) follow(layout);
 }

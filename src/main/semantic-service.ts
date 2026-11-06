@@ -21,10 +21,11 @@ import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { runForBuffer } from '../core/ffmpeg';
+import { tr } from '../core/i18n';
 import type { LibraryEntry } from '../core/library-types';
 import {
   cosine, embeddingArgs, packVector, parseEmbeddings, SEMANTIC_LIMIT, SEMANTIC_MIN_QUERY, SEMANTIC_MODEL,
-  SEMANTIC_QUERY_PREFIX, SEMANTIC_RUNNER_MISSING_MESSAGE, semanticRunnerPaths, semanticTextFor, unpackVector,
+  SEMANTIC_QUERY_PREFIX, semanticRunnerMissingMessage, semanticRunnerPaths, semanticTextFor, unpackVector,
   type SemanticHit,
 } from '../core/semantic';
 import { getLibrary, semanticStoreAll, semanticStoreMissing, semanticStoreSet } from './library-service';
@@ -68,7 +69,7 @@ async function detectRunner(): Promise<{ ok: boolean; path?: string; message?: s
       continue;
     }
   }
-  return { ok: false, message: SEMANTIC_RUNNER_MISSING_MESSAGE };
+  return { ok: false, message: semanticRunnerMissingMessage() };
 }
 
 export interface SemanticStatus {
@@ -119,26 +120,26 @@ export async function fetchSemanticModel(): Promise<{ ok: true; path: string } |
   try {
     const response = await net.fetch(SEMANTIC_MODEL.url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), redirect: 'follow' });
     if (!response.ok || !response.body) {
-      return { ok: false, message: `The model could not be fetched: the server answered ${response.status}.` };
+      return { ok: false, message: tr('fetch.semantic.server', { status: response.status }) };
     }
     const body = Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]);
     body.on('data', (chunk: Buffer) => {
       hash.update(chunk);
       received += chunk.length;
-      report(`Fetching ${SEMANTIC_MODEL.label}…`, Math.min(1, received / SEMANTIC_MODEL.bytes));
+      report(tr('fetch.semantic.fetching', { model: SEMANTIC_MODEL.label }), Math.min(1, received / SEMANTIC_MODEL.bytes));
     });
     await pipeline(body, createWriteStream(partial));
   } catch (error) {
     await rm(partial, { force: true }).catch(() => undefined);
-    return { ok: false, message: `The model could not be fetched: ${(error as Error).message}` };
+    return { ok: false, message: tr('fetch.semantic.failed', { reason: (error as Error).message }) };
   }
   const digest = hash.digest('hex');
   if (received !== SEMANTIC_MODEL.bytes || digest !== SEMANTIC_MODEL.sha256) {
     await rm(partial, { force: true }).catch(() => undefined);
-    return { ok: false, message: 'What arrived is not the model Pulp expects: its checksum does not match the published one, so it was thrown away.' };
+    return { ok: false, message: tr('fetch.semantic.checksum') };
   }
   await rename(partial, target);
-  report(`${SEMANTIC_MODEL.label} is ready.`, 1);
+  report(tr('fetch.semantic.ready', { model: SEMANTIC_MODEL.label }), 1);
   void indexLibrary();
   return { ok: true, path: target };
 }
@@ -190,9 +191,9 @@ export async function indexLibrary(): Promise<void> {
       batch.forEach((m, i) => semanticStoreSet(m.key, SEMANTIC_MODEL.id, packVector(vectors[i]!)));
       matrix = null;
       indexing = { done: Math.min(missing.length, at + BATCH), total: missing.length };
-      report(`Indexing the library for semantic search… ${indexing.done} of ${indexing.total}`, indexing.done / indexing.total);
+      report(tr('semantic.indexing', { done: indexing.done, total: indexing.total }), indexing.done / indexing.total);
     }
-    report('The library is indexed for semantic search.', null);
+    report(tr('semantic.indexed'), null);
   } finally {
     indexing = { done: 0, total: 0 };
     passRunning = false;

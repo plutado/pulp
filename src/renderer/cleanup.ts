@@ -12,6 +12,8 @@
 
 import { KEY_DEFAULTS, sanitizeChromaKey, type ChromaKeySettings } from '../core/clip-clean';
 import { playheadSeconds } from './store';
+import { bindText } from './i18n';
+import type { MessageId, MessageValues } from '../core/i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -44,6 +46,19 @@ const state = {
   keying: false,
 };
 
+/** The status line in words already worked out — the main process's, or none — letting go of any message stamped on it. */
+function statusText(text: string): void {
+  if (!els) return;
+  delete els.status.dataset.i18n;
+  delete els.status.dataset.i18nValues;
+  els.status.textContent = text;
+}
+
+/** The status line from the catalog: a change of language rewrites it while it shows. */
+function statusMessage(id: MessageId, values?: MessageValues): void {
+  if (els) bindText(els.status, id, values);
+}
+
 function readSettings(): ChromaKeySettings {
   if (!els) return { ...KEY_DEFAULTS };
   return sanitizeChromaKey({
@@ -71,11 +86,11 @@ function refreshPreview(): void {
       if (asked !== state.asked || !els || state.id !== id) return;
       if (!result.ok) {
         els.status.classList.add('error');
-        els.status.textContent = result.message;
+        statusText(result.message);
         return;
       }
       els.status.classList.remove('error');
-      if (!state.keying) els.status.textContent = '';
+      if (!state.keying) statusText('');
       els.plain.src = result.plain;
       els.keyed.src = result.keyed;
     });
@@ -112,18 +127,18 @@ async function makeClip(): Promise<void> {
   state.keying = true;
   els.make.disabled = true;
   els.status.classList.remove('error');
-  els.status.textContent = 'Keying the whole clip…';
+  statusMessage('cleanup.keying');
   const result = await window.pulp.chromaKeyClip(id, state.settings);
   state.keying = false;
   if (!els || state.id !== id) return;
   els.make.disabled = false;
   if (!result.ok) {
     els.status.classList.add('error');
-    els.status.textContent = result.message;
+    statusText(result.message);
     return;
   }
   // The name, never the path (docs/ui-style.md): the clip is in the results now, beside the original.
-  els.status.textContent = `Made ${result.path.split(/[\\/]/).pop()}, in the library beside the original.`;
+  statusMessage('cleanup.made', { name: result.path.split(/[\\/]/).pop() ?? '' });
 }
 
 /** Open the key dialog on a clip, with the previews at the playhead's frame. */
@@ -133,7 +148,7 @@ export function openChromaKey(id: string): void {
   state.at = Math.max(0, playheadSeconds.peek());
   state.settings = { ...KEY_DEFAULTS };
   state.keying = false;
-  els.status.textContent = 'Reading the frame…';
+  statusMessage('cleanup.reading');
   els.status.classList.remove('error');
   els.plain.removeAttribute('src');
   els.keyed.removeAttribute('src');

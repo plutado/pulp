@@ -212,14 +212,14 @@ export async function readClipFrames(
   value: ClipValue,
   source: ClipSource,
   drawnHeight: number,
-): Promise<{ ok: true; data: ClipFrameData } | { ok: false; message: string }> {
+): Promise<{ ok: true; data: ClipFrameData } | { ok: false; problem: ClipReadProblem }> {
   const found = lookupClipItem(id);
-  if (!found) return { ok: false, message: 'is not a clip in the library' };
+  if (!found) return { ok: false, problem: { kind: 'not-a-clip' } };
   const window = clipWindow(value, source);
-  if (window.frames === 0) return { ok: false, message: 'has no frames' };
+  if (window.frames === 0) return { ok: false, problem: { kind: 'no-frames' } };
   if (window.frames > MAX_CLIP_FRAMES) {
     const seconds = Math.round(MAX_CLIP_FRAMES / Math.max(1, source.fps));
-    return { ok: false, message: `plays ${window.frames} frames, more than the ${MAX_CLIP_FRAMES} a layer may hold (about ${seconds} s); set an in and out point` };
+    return { ok: false, problem: { kind: 'too-long', frames: window.frames, max: MAX_CLIP_FRAMES, seconds } };
   }
   // Twice the drawn height, rounded up to a proxy step: sharp enough for a scaled or rotated
   // layer, and stable while a window is resized, so nothing is decoded twice for a few pixels.
@@ -230,19 +230,30 @@ export async function readClipFrames(
   const frames = found.kind === 'drawn'
     ? await drawnClipFrames(found.entry, window, side)
     : await ffmpegClipFrames(ffmpegPath, found.entry, source, window, side, value.lut);
-  if (!frames.ok) return frames;
+  if (!frames.ok) return { ok: false, problem: { kind: 'failed', detail: frames.message } };
   const data: ClipFrameData = { id, kind: 'clip', srcs: frames.pngs.map((f) => `data:image/png;base64,${f.toString('base64')}`) };
   cachePut(key, data);
   return { ok: true, data };
 }
 
+/**
+ * Why a clip's frames could not be read, for the render to say in a whole sentence of its own
+ * (src/main/render.ts): which layer or slot it was is the sentence's, not this module's.
+ */
+export type ClipReadProblem =
+  | { kind: 'not-a-clip' }
+  | { kind: 'no-frames' }
+  | { kind: 'too-long'; frames: number; max: number; seconds: number }
+  /** ffmpeg's or the drawing page's own account: a diagnostic, said as it came. */
+  | { kind: 'failed'; detail: string };
+
 type FramesRead = { ok: true; pngs: Buffer[] } | { ok: false; message: string };
 
 async function ffmpegClipFrames(ffmpegPath: string, entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, side: number, lut?: string): Promise<FramesRead> {
   const result = await runForBuffer(ffmpegPath, clipFramesArgs(entry, source, window, side, lut));
-  if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
+  if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
   const pngs = splitPngStream(result.stdout);
-  if (pngs.length === 0) return { ok: false, message: 'ffmpeg decoded no frames from it' };
+  if (pngs.length === 0) return { ok: false, message: 'ffmpeg decoded no frames from it' }; // i18n-exempt(diagnostic)
   return { ok: true, pngs };
 }
 
@@ -264,7 +275,7 @@ async function drawnClipFrames(entry: TemplateEntry, window: { first: number; fr
   const { captureTemplateFrames } = await import('./render');
   const shot = await captureTemplateFrames(entry, wanted, { size, frameTimeoutMs: 10_000 });
   if (!shot.ok) return { ok: false, message: shot.message };
-  if (shot.frames.length === 0) return { ok: false, message: 'drew no frames' };
+  if (shot.frames.length === 0) return { ok: false, message: 'drew no frames' }; // i18n-exempt(diagnostic)
   return { ok: true, pngs: shot.frames };
 }
 

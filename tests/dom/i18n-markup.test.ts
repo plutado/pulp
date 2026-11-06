@@ -87,3 +87,52 @@ describe('the markup as the tests read it (tests/markup.ts)', () => {
   });
 });
 
+
+describe('words built in code, following a change of language (milestone 59)', () => {
+  it('rewrites an element bound in code, its placeholders and its attributes with the rest', async () => {
+    const { bindAttr, bindText } = await import('../../src/renderer/i18n');
+    const el = document.createElement('span');
+    document.body.append(el);
+    bindText(el, 'appearance.system');
+    bindAttr(el, 'data-tip', 'settings.language.system', { language: 'English (UK)' });
+    expect(el.getAttribute('data-tip')).toBe('Same as the system (English (UK))');
+    setLocale('en-GB');
+    // The one message here British English spells differently, rewritten in place; the placeholder kept.
+    const gray = document.createElement('button');
+    document.body.append(gray);
+    bindAttr(gray, 'aria-label', 'ui.bg-gray.aria-label');
+    expect(gray.getAttribute('aria-label')).toBe('Grey background');
+    setLocale('en-US');
+    expect(gray.getAttribute('aria-label')).toBe('Gray background');
+    expect(el.textContent).toBe('System');
+    expect(el.getAttribute('data-tip')).toBe('Same as the system (English (UK))');
+    el.remove();
+    gray.remove();
+  });
+
+  it('reads a table\'s label in the language now, through its getter', async () => {
+    const { STAGE_BACKGROUNDS } = await import('../../src/core/player');
+    const gray = STAGE_BACKGROUNDS.find((b) => b.id === 'gray')!;
+    expect(gray.label).toBe('Gray');
+    setLocale('en-GB');
+    expect(gray.label).toBe('Grey');
+    setLocale('en-US');
+    expect(gray.label).toBe('Gray');
+  });
+
+  it('leaves a line an effect writes over a markup default showing, not the default', async () => {
+    const { effect } = await import('@preact/signals');
+    const { t } = await import('../../src/renderer/i18n');
+    const line = document.createElement('span');
+    line.dataset.i18n = 'ui.tray-summary';
+    document.body.append(line);
+    // As the tray's summary does: the markup names a default, and an effect writes what is true now.
+    const stop = effect(() => { line.textContent = t('ui.bg-gray.aria-label'); });
+    setLocale('en-GB');
+    expect(line.textContent).toBe('Grey background');
+    setLocale('en-US');
+    expect(line.textContent).toBe('Gray background');
+    stop();
+    line.remove();
+  });
+});

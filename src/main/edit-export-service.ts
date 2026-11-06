@@ -11,6 +11,7 @@
 import { dialog } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
+import { tr } from '../core/i18n';
 import { homedir } from 'node:os';
 import { healedTrack, trackDuration } from '../core/cut-track';
 import { edlEdit, fcpxmlEdit, type EditClip, type EditOverlay } from '../core/edit-export';
@@ -38,16 +39,16 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
   const params = (typeof request?.params === 'object' && request.params !== null ? request.params : {}) as Record<string, unknown>;
   // The command line hands the entry it already found; the window names an id for the library.
   const template = found ?? (typeof request?.templateId === 'string' ? await findTemplate(request.templateId) : undefined);
-  if (!template) return { ok: false, message: 'The template being edited is not in the library.' };
+  if (!template) return { ok: false, message: tr('export-edit.no-template') };
   let track = trackIn(params);
-  if (!track || track.cuts.length === 0) return { ok: false, message: 'The project has no cut track to export.' };
+  if (!track || track.cuts.length === 0) return { ok: false, message: tr('export-edit.no-track') };
 
   let base = answer;
   if (!base) {
     const pick = await dialog.showSaveDialog({
-      title: 'Export the edit for an editing app',
+      title: tr('dialog.export-edit.title'),
       defaultPath: join(homedir(), `${request?.name ?? template.manifest.name}.fcpxml`),
-      filters: [{ name: 'Final Cut Pro XML', extensions: ['fcpxml'] }],
+      filters: [{ name: tr('dialog.export-edit.filter'), extensions: ['fcpxml'] }],
     });
     if (pick.canceled || !pick.filePath) return { ok: false, cancelled: true, message: '' };
     base = pick.filePath;
@@ -55,7 +56,7 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
   base = base.replace(/\.(fcpxml|edl)$/i, '');
 
   const ffmpeg = await detectFfmpeg();
-  if (!ffmpeg.ok) return { ok: false, message: 'FFmpeg was not found, so the graphics cannot be rendered.' };
+  if (!ffmpeg.ok) return { ok: false, message: tr('export-edit.no-ffmpeg') };
 
   // A saved project's clips may have moved: heal each cut by the path it remembers before anything
   // is referenced, the same healing a render runs.
@@ -70,7 +71,7 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
     if (clips[cut.id]) continue;
     const found = lookupClipItem(cut.id);
     if (!found || found.kind !== 'media' || found.entry.sequence) {
-      return { ok: false, message: 'A clip on the cut track is not in the library, is offline, or is not a file an editor can reference.' };
+      return { ok: false, message: tr('export-edit.clip-unreadable') };
     }
     const source = await resolveClipSource(ffprobePathFor(ffmpeg.path), cut.id);
     const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), cut.id);
@@ -143,7 +144,7 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
     outputPath: graphics,
     overwrite: true,
   });
-  if (!rendered.ok) return { ok: false, message: `The graphics could not be rendered: ${rendered.message}` };
+  if (!rendered.ok) return { ok: false, message: tr('export-edit.render-failed', { reason: rendered.message }) };
 
   const name = (request?.name ?? template.manifest.name) || basename(base);
   const seconds = resolveLength(manifest.duration, manifest.structure ?? null, lengthIn(params) ?? trackDuration(track));
@@ -158,7 +159,7 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
     await writeFile(fcpxml, fcpxmlEdit(input));
     await writeFile(edl, edlEdit(input));
   } catch (err) {
-    return { ok: false, message: `The edit could not be written beside ${basename(dirname(base))}: ${(err as Error).message}` };
+    return { ok: false, message: tr('export-edit.write-failed', { folder: basename(dirname(base)), reason: (err as Error).message }) };
   }
   return { ok: true, fcpxml, edl, graphics };
 }

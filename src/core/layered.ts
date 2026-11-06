@@ -12,6 +12,7 @@
  * pdf.js in the rasterizer page (PDF).
  */
 
+import { tr } from './i18n';
 import { decodePng } from './png';
 import { PSD_BLENDS, type Inflate, type PsdBlend, type PsdDocument, type PsdLayer } from './psd';
 import { findElement, parseXml, type XmlElement } from './xml';
@@ -21,21 +22,48 @@ export { isLayeredExtension, LAYERED_EXTENSIONS } from './psd';
 
 // ---------------------------------------------------------------- what Pulp does not read
 
-/** Design formats Pulp does not read, each named with the export that works instead. */
-export const UNREADABLE_DESIGN_FORMATS: Record<string, { what: string; exportAs: string }> = {
-  '.afdesign': { what: 'an Affinity Designer file', exportAs: 'export it as PSD, SVG or PDF from Affinity Designer' },
-  '.afphoto': { what: 'an Affinity Photo file', exportAs: 'export it as PSD from Affinity Photo' },
-  '.xcf': { what: 'a GIMP file', exportAs: 'export it as PSD (File → Export As) from GIMP' },
-  '.sketch': { what: 'a Sketch file', exportAs: 'export its artboards as SVG or PDF from Sketch' },
-  '.procreate': { what: 'a Procreate canvas', exportAs: 'share it as PSD from Procreate' },
-  '.eps': { what: 'an EPS file', exportAs: 'save it as .ai with "Create PDF Compatible File" on, or export SVG or PDF' },
+/**
+ * Design formats Pulp does not read, each named with the export that works instead: in the
+ * interface's language now (milestone 59), and the library's line for one a whole sentence of its own.
+ */
+export const UNREADABLE_DESIGN_FORMATS: Record<string, { readonly what: string; readonly exportAs: string; note(fileName: string): string }> = {
+  '.afdesign': {
+    get what() { return tr('layered.unreadable.afdesign.what'); },
+    get exportAs() { return tr('layered.unreadable.afdesign.export-as'); },
+    note: (file) => tr('layered.unreadable.afdesign.note', { file }),
+  },
+  '.afphoto': {
+    get what() { return tr('layered.unreadable.afphoto.what'); },
+    get exportAs() { return tr('layered.unreadable.afphoto.export-as'); },
+    note: (file) => tr('layered.unreadable.afphoto.note', { file }),
+  },
+  '.xcf': {
+    get what() { return tr('layered.unreadable.xcf.what'); },
+    get exportAs() { return tr('layered.unreadable.xcf.export-as'); },
+    note: (file) => tr('layered.unreadable.xcf.note', { file }),
+  },
+  '.sketch': {
+    get what() { return tr('layered.unreadable.sketch.what'); },
+    get exportAs() { return tr('layered.unreadable.sketch.export-as'); },
+    note: (file) => tr('layered.unreadable.sketch.note', { file }),
+  },
+  '.procreate': {
+    get what() { return tr('layered.unreadable.procreate.what'); },
+    get exportAs() { return tr('layered.unreadable.procreate.export-as'); },
+    note: (file) => tr('layered.unreadable.procreate.note', { file }),
+  },
+  '.eps': {
+    get what() { return tr('layered.unreadable.eps.what'); },
+    get exportAs() { return tr('layered.unreadable.eps.export-as'); },
+    note: (file) => tr('layered.unreadable.eps.note', { file }),
+  },
 };
 
 /** The library's one line for a file Pulp cannot read, or null for any other extension. */
 export function unreadableDesignNote(fileName: string, ext: string): string | null {
   const known = UNREADABLE_DESIGN_FORMATS[ext.toLowerCase()];
   if (!known) return null;
-  return `${fileName} is ${known.what}, which Pulp does not read; ${known.exportAs} and add that instead.`;
+  return known.note(fileName);
 }
 
 // ---------------------------------------------------------------- a PDF, or an .ai that carries one
@@ -50,9 +78,10 @@ export function sniffPdf(bytes: Uint8Array): PdfSniff {
   return 'neither';
 }
 
-/** Why an `.ai` without PDF compatibility is refused, with how to re-save it. */
-export const AI_NO_PDF_MESSAGE =
-  'this .ai was saved without PDF compatibility, so only Illustrator can read it; re-save it with "Create PDF Compatible File" on (Illustrator has it on by default)';
+/** Why an `.ai` without PDF compatibility is refused, with how to re-save it: in the interface's language now. */
+export function aiNoPdfMessage(): string {
+  return tr('layered.ai.no-pdf');
+}
 
 // ---------------------------------------------------------------- OpenRaster
 
@@ -83,11 +112,12 @@ export function parseOra(bytes: Buffer, inflate: Inflate): PsdDocument {
   const entries = readZip(bytes);
   const byName = new Map(entries.map((e) => [e.name, e.data]));
   const stackXml = byName.get('stack.xml');
-  if (!stackXml) throw new Error('not an OpenRaster file (no stack.xml)');
+  if (!stackXml) throw new Error('not an OpenRaster file (no stack.xml)'); // i18n-exempt(diagnostic)
   const root = parseXml(stackXml.toString('utf8'));
-  if (root.name !== 'image') throw new Error('stack.xml does not hold an image');
+  if (root.name !== 'image') throw new Error('stack.xml does not hold an image'); // i18n-exempt(diagnostic)
   const width = Math.round(Number(root.attrs.w));
   const height = Math.round(Number(root.attrs.h));
+  // i18n-exempt(diagnostic)
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new Error('an unreadable canvas size');
 
   const flat: FlatLayer[] = [];
@@ -98,7 +128,7 @@ export function parseOra(bytes: Buffer, inflate: Inflate): PsdDocument {
         flat.push({
           parentAt,
           layer: {
-            name: child.attrs.name ?? 'Group', kind: 'group', visible: child.attrs.visibility !== 'hidden',
+            name: child.attrs.name ?? tr('layered.layer.default-group'), kind: 'group', visible: child.attrs.visibility !== 'hidden',
             opacity: child.attrs.opacity === undefined ? 1 : Math.max(0, Math.min(1, Number(child.attrs.opacity))),
             blend: 'normal', blendKey: child.attrs['composite-op'] ?? 'svg:src-over', left: 0, top: 0, width: 0, height: 0, depth, limits: [],
           },
@@ -118,16 +148,16 @@ export function parseOra(bytes: Buffer, inflate: Inflate): PsdDocument {
             w = png.width;
             h = png.height;
           } catch (err) {
-            limits.push(`its picture could not be read: ${(err as Error).message}`);
+            limits.push(tr('layered.limit.picture-unreadable', { reason: (err as Error).message }));
           }
-        } else if (src) limits.push(`the archive is missing its picture (${src})`);
+        } else if (src) limits.push(tr('layered.limit.picture-missing', { src }));
         const op = child.attrs['composite-op'] ?? 'svg:src-over';
         const blend = ORA_BLENDS[op];
-        if (blend === undefined && op) limits.push(`blend mode "${op.replace(/^svg:/, '')}" drawn as normal`);
+        if (blend === undefined && op) limits.push(tr('psd.limit.blend', { mode: op.replace(/^svg:/, '') }));
         flat.push({
           parentAt,
           layer: {
-            name: child.attrs.name ?? 'Layer', kind: 'layer', visible: child.attrs.visibility !== 'hidden',
+            name: child.attrs.name ?? tr('layered.layer.default-name'), kind: 'layer', visible: child.attrs.visibility !== 'hidden',
             opacity: child.attrs.opacity === undefined ? 1 : Math.max(0, Math.min(1, Number(child.attrs.opacity))),
             blend: blend ?? 'normal', blendKey: op,
             left: Math.round(Number(child.attrs.x ?? 0)) || 0, top: Math.round(Number(child.attrs.y ?? 0)) || 0,
@@ -155,9 +185,10 @@ export function parseOra(bytes: Buffer, inflate: Inflate): PsdDocument {
 
 // ---------------------------------------------------------------- Krita
 
-/** What a Krita file's layers cannot do here, said once on the document. */
-export const KRA_PIXELS_LIMIT =
-  'Krita keeps layer pixels in its own tile format, which Pulp does not read: the merged picture stands in, and layers cannot be shown or hidden here. Export OpenRaster (.ora) from Krita for workable layers.';
+/** What a Krita file's layers cannot do here, said once on the document: in the interface's language now. */
+export function kraPixelsLimit(): string {
+  return tr('layered.kra.pixels');
+}
 
 /**
  * Read a Krita file: `maindoc.xml` names the layers (top first, groups nested),
@@ -169,12 +200,13 @@ export function parseKra(bytes: Buffer, inflate: Inflate): PsdDocument {
   const entries = readZip(bytes);
   const byName = new Map(entries.map((e) => [e.name, e.data]));
   const main = byName.get('maindoc.xml');
-  if (!main) throw new Error('not a Krita file (no maindoc.xml)');
+  if (!main) throw new Error('not a Krita file (no maindoc.xml)'); // i18n-exempt(diagnostic)
   const doc = parseXml(main.toString('utf8'));
   const image = findElement(doc, 'IMAGE');
-  if (!image) throw new Error('maindoc.xml holds no image');
+  if (!image) throw new Error('maindoc.xml holds no image'); // i18n-exempt(diagnostic)
   const width = Math.round(Number(image.attrs.width));
   const height = Math.round(Number(image.attrs.height));
+  // i18n-exempt(diagnostic)
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new Error('an unreadable canvas size');
 
   const flat: FlatLayer[] = [];
@@ -186,7 +218,7 @@ export function parseKra(bytes: Buffer, inflate: Inflate): PsdDocument {
       flat.push({
         parentAt,
         layer: {
-          name: child.attrs.name ?? (group ? 'Group' : 'Layer'), kind: group ? 'group' : 'layer',
+          name: child.attrs.name ?? tr(group ? 'layered.layer.default-group' : 'layered.layer.default-name'), kind: group ? 'group' : 'layer',
           visible: child.attrs.visible !== '0', opacity: child.attrs.opacity === undefined ? 1 : Math.max(0, Math.min(1, Number(child.attrs.opacity) / 255)),
           blend: 'normal', blendKey: child.attrs.compositeop ?? 'normal',
           left: Math.round(Number(child.attrs.x ?? 0)) || 0, top: Math.round(Number(child.attrs.y ?? 0)) || 0,
@@ -208,9 +240,9 @@ export function parseKra(bytes: Buffer, inflate: Inflate): PsdDocument {
     try {
       composite = decodePng(new Uint8Array(merged.buffer, merged.byteOffset, merged.byteLength), inflate).rgba;
     } catch (err) {
-      throw new Error(`the merged picture could not be read: ${(err as Error).message}`, { cause: err });
+      throw new Error(`the merged picture could not be read: ${(err as Error).message}`, { cause: err }); // i18n-exempt(diagnostic)
     }
   }
-  if (!composite) throw new Error('the file holds no merged picture to show');
-  return { width, height, depth: 8, mode: 'rgb', layers: toDocumentLayers(flat), composite, limits: [KRA_PIXELS_LIMIT] };
+  if (!composite) throw new Error('the file holds no merged picture to show'); // i18n-exempt(diagnostic)
+  return { width, height, depth: 8, mode: 'rgb', layers: toDocumentLayers(flat), composite, limits: [kraPixelsLimit()] };
 }

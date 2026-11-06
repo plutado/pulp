@@ -125,7 +125,7 @@ export function chromaKeyStillArgs(input: string, settings: ChromaKeySettings | 
     '-hide_banner', '-loglevel', 'error', '-nostdin',
     '-ss', String(at), '-i', input,
     '-frames:v', '1',
-    '-vf', `${settings ? `${chromaKeyFilter(settings)},` : ''}scale=w='min(iw,640)':h='min(ih,640)':force_original_aspect_ratio=decrease,format=rgba`,
+    '-vf', `${settings ? `${chromaKeyFilter(settings)},` : ''}scale=w='min(iw,640)':h='min(ih,640)':force_original_aspect_ratio=decrease,format=rgba`, // i18n-exempt(technical)
     '-f', 'image2pipe', '-c:v', 'png', 'pipe:1',
   ];
 }
@@ -136,7 +136,7 @@ export function keyedClipPath(input: string): string {
   const dir = input.slice(0, slash + 1);
   const file = input.slice(slash + 1);
   const dot = file.lastIndexOf('.');
-  return `${dir}${dot > 0 ? file.slice(0, dot) : file} alpha.mov`;
+  return `${dir}${dot > 0 ? file.slice(0, dot) : file} alpha.mov`; // i18n-exempt(content)
 }
 
 // ---------------------------------------------------------------- scene detection
@@ -202,7 +202,7 @@ export function sceneFolder(input: string): string {
   const dir = input.slice(0, slash + 1);
   const file = input.slice(slash + 1);
   const dot = file.lastIndexOf('.');
-  return `${dir}${dot > 0 ? file.slice(0, dot) : file} scenes`;
+  return `${dir}${dot > 0 ? file.slice(0, dot) : file} scenes`; // i18n-exempt(content)
 }
 
 /** The clips' own names inside the folder: "<name>_001.<ext>", numbered in order. */

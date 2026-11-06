@@ -11,13 +11,16 @@
  * `:root` tokens and their light counterpart in src/renderer/styles.css.
  */
 
+import { tr } from './i18n';
+
 export type Appearance = 'system' | 'light' | 'dark';
 export type Palette = 'light' | 'dark';
 
-export const APPEARANCES: readonly { id: Appearance; label: string; hint: string }[] = [
-  { id: 'system', label: 'System', hint: 'Follows the operating system, and changes when it does' },
-  { id: 'light', label: 'Light', hint: 'Light surfaces and dark text, whatever the system uses' },
-  { id: 'dark', label: 'Dark', hint: 'Dark surfaces and light text, whatever the system uses' },
+/** The three, named in the interface's language now: a getter reads the catalog each time (milestone 59). */
+export const APPEARANCES: readonly { id: Appearance; readonly label: string; readonly hint: string }[] = [
+  { id: 'system', get label() { return tr('appearance.system'); }, get hint() { return tr('appearance.system.hint'); } },
+  { id: 'light', get label() { return tr('appearance.light'); }, get hint() { return tr('appearance.light.hint'); } },
+  { id: 'dark', get label() { return tr('appearance.dark'); }, get hint() { return tr('appearance.dark.hint'); } },
 ];
 
 /** A first launch follows the system. */

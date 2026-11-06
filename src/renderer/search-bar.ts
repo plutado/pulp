@@ -10,6 +10,7 @@ import { resultsKind, THUMB_SIZES, withThumbSize, withViewMode, type ResultsView
 import { appState, dispatch, facets, results, resultsView } from './store';
 import { scopeIcon, setIcon } from './icons';
 import { mountRovingGroup } from './roving';
+import { bindText, t } from './i18n';
 
 const $ = (id: string): HTMLElement => {
   const el = document.getElementById(id);
@@ -71,7 +72,7 @@ function initViewControls(): void {
 function optionFor(option: ChipOption): HTMLOptionElement {
   const el = document.createElement('option');
   el.value = option.id;
-  el.textContent = option.count > 0 ? `${option.label} (${option.count})` : option.label;
+  el.textContent = option.count > 0 ? t('search.option.count', { label: option.label, count: option.count }) : option.label;
   return el;
 }
 
@@ -100,14 +101,15 @@ function initNarrowingChips(): void {
       forSelect.append(optgroup);
     }
     forSelect.value = forTheme ?? '';
-    head.textContent = forTheme ? 'For: any' : 'For…';
+    // The head option names its message (the markup's own when nothing is chosen), so a change of language keeps the right one.
+    bindText(head, forTheme ? 'search.for.any' : 'ui.for-select.for');
     forSelect.parentElement?.classList.toggle('set', forTheme !== null);
 
     const lookHead = lookSelect.options[0]!;
     lookSelect.replaceChildren(lookHead);
     for (const option of lookOptions(entries, look)) lookSelect.append(optionFor(option));
     lookSelect.value = look ?? '';
-    lookHead.textContent = look ? 'Look: any' : 'Look';
+    bindText(lookHead, look ? 'search.look.any' : 'ui.look-select.look');
     lookSelect.parentElement?.classList.toggle('set', look !== null);
 
     // The Mood chip (milestone 16's moods): how a sound feels, there only while the library has
@@ -117,7 +119,7 @@ function initNarrowingChips(): void {
     const moods = moodOptions(entries, mood);
     for (const option of moods) moodSelect.append(optionFor(option));
     moodSelect.value = mood ?? '';
-    moodHead.textContent = mood ? 'Mood: any' : 'Mood';
+    bindText(moodHead, mood ? 'search.mood.any' : 'ui.mood-select.mood');
     moodSelect.parentElement?.classList.toggle('set', mood !== null);
     (moodSelect.parentElement as HTMLElement).hidden = moods.length === 0 && mood === null;
   });
@@ -144,10 +146,11 @@ export function initSearchBar(): void {
   effect(() => {
     const scope = appState.value.scope;
     chip.hidden = scope === null;
-    chipLabel.textContent = scope ? `in: ${scope.label}` : '';
+    // Inside an effect, so the words follow a change of language (the scope's label is a getter).
+    chipLabel.textContent = scope ? t('search.scope-chip', { label: scope.label }) : '';
     // One line on what the chosen category holds, under the results heading (milestone 34).
     const category = scopeCategory(scope);
-    description.textContent = category ? (scope?.kind === 'type' ? `${category.label} · ${category.description}` : category.description) : '';
+    description.textContent = category ? (scope?.kind === 'type' ? t('search.description.type', { category: category.label, description: category.description }) : category.description) : '';
     description.title = description.textContent ?? '';
     // A folder scope shows its humanized name; the full path is in the tooltip.
     if (scope?.root) chipLabel.dataset.tip = scope.root;

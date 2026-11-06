@@ -17,19 +17,17 @@
  * in the popped-out stage, whose elements are this page's own moved there.
  */
 
-import { signal } from '@preact/signals';
-import { catalogFor, directionOf, SOURCE_LOCALE, translate, type Catalog, type LanguageChoice, type LocaleId, type MessageId, type MessageValues } from '../core/i18n';
+import { batch, effect, signal } from '@preact/signals';
+import { currentLocale, directionOf, setCurrentLocale, tr, type LanguageChoice, type LocaleId, type MessageId, type MessageValues } from '../core/i18n';
 import type { LanguageState } from '../shared/api';
 
-export const locale = signal<LocaleId>(SOURCE_LOCALE);
+/** The interface's language in this window: core's own signal, so a word read through `tr` in core follows it too. */
+export const locale = currentLocale;
 /** What Settings → Language shows: the choice, and the system's languages it follows when it is the system's. */
 export const languageState = signal<LanguageState | null>(null);
-let catalog: Catalog = catalogFor(SOURCE_LOCALE);
-
-/** A message in the interface's language now. Read inside an effect, it follows a change of language. */
+/** A message in the interface's language now. Read inside an effect or a component, it follows a change of language. */
 export function t(id: MessageId, values?: MessageValues): string {
-  const current = locale.value;
-  return translate(catalog, current, id, values);
+  return tr(id, values);
 }
 
 const RICH_TAGS = new Set(['strong', 'em', 'code']);
@@ -67,22 +65,34 @@ function placeText(el: Element, text: string, at: 'start' | 'end'): void {
   else el.append(node);
 }
 
+/** The values an element's message is filled with, as `bindText` and `bindAttr` keep them: `{}` for none. */
+function valuesOf(raw: string | undefined): Record<string, MessageValues> | MessageValues {
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as Record<string, MessageValues>;
+  } catch {
+    return {};
+  }
+}
+
 /** Every element under `root` that names a message, given its words in the current language. */
 export function applyTranslations(root: Document | Element = document): void {
   const current = locale.value;
-  const say = (id: string) => translate(catalog, current, id as MessageId);
+  const say = (id: string, values?: MessageValues) => tr(id as MessageId, values);
   for (const el of root.querySelectorAll<HTMLElement>('[data-i18n]')) {
     const at = el.dataset.i18nAt;
-    if (at === 'start' || at === 'end') placeText(el, say(el.dataset.i18n!), at);
-    else el.textContent = say(el.dataset.i18n!);
+    const text = say(el.dataset.i18n!, valuesOf(el.dataset.i18nValues) as MessageValues);
+    if (at === 'start' || at === 'end') placeText(el, text, at);
+    else el.textContent = text;
   }
   for (const el of root.querySelectorAll<HTMLElement>('[data-i18n-rich]')) {
-    el.replaceChildren(...richNodes(el.ownerDocument, say(el.dataset.i18nRich!)));
+    el.replaceChildren(...richNodes(el.ownerDocument, say(el.dataset.i18nRich!, valuesOf(el.dataset.i18nValues) as MessageValues)));
   }
   for (const el of root.querySelectorAll<HTMLElement>('[data-i18n-attr]')) {
+    const values = valuesOf(el.dataset.i18nAttrValues) as Record<string, MessageValues>;
     for (const pair of el.dataset.i18nAttr!.split(';')) {
       const [name, id] = pair.split(':');
-      if (name && id) el.setAttribute(name.trim(), say(id.trim()));
+      if (name && id) el.setAttribute(name.trim(), say(id.trim(), values[name.trim()]));
     }
   }
   const doc = 'documentElement' in root ? root : root.ownerDocument;
@@ -103,12 +113,58 @@ export function translateAlso(doc: Document, title?: MessageId): () => void {
   return () => others.delete(doc);
 }
 
-/** Show the interface in a language: the catalog swapped, every element of the markup put in place again. */
+/**
+ * An element built in code, given its words and told which message they are, so a change of
+ * language puts them in place again with the rest: the code-built equivalent of the markup's
+ * `data-i18n`. `values` are kept with it, so a message with placeholders follows too.
+ */
+export function bindText(el: HTMLElement, id: MessageId, values?: MessageValues): void {
+  el.dataset.i18n = id;
+  if (values && Object.keys(values).length > 0) el.dataset.i18nValues = JSON.stringify(values);
+  else delete el.dataset.i18nValues;
+  el.textContent = tr(id, values);
+}
+
+/** `bindText` for an attribute — a tooltip, an accessible name — beside any the element already names. */
+export function bindAttr(el: HTMLElement, name: string, id: MessageId, values?: MessageValues): void {
+  const pairs = (el.dataset.i18nAttr ?? '').split(';').filter((p) => p && p.split(':')[0] !== name);
+  pairs.push(`${name}:${id}`);
+  el.dataset.i18nAttr = pairs.join(';');
+  const all = valuesOf(el.dataset.i18nAttrValues) as Record<string, MessageValues>;
+  if (values && Object.keys(values).length > 0) all[name] = values;
+  else delete all[name];
+  if (Object.keys(all).length > 0) el.dataset.i18nAttrValues = JSON.stringify(all);
+  else delete el.dataset.i18nAttrValues;
+  el.setAttribute(name, tr(id, values));
+}
+
+/**
+ * Run `paint` again whenever the language changes (not now): for code that writes words when its
+ * own state changes rather than inside an effect, so the words on screen do not wait for the next
+ * change of that state to come into the new language.
+ */
+export function whenLocaleChanges(paint: () => void): () => void {
+  let first = true;
+  return effect(() => {
+    void locale.value;
+    if (first) {
+      first = false;
+      return;
+    }
+    paint();
+  });
+}
+
+/** Show the interface in a language: every element that names a message put in place again, here and in the stage's window. */
 export function setLocale(next: LocaleId): void {
-  catalog = catalogFor(next);
-  locale.value = next;
-  applyTranslations(document);
-  for (const doc of others) applyTranslations(doc);
+  // In one batch: the markup's words go in first, and the effects that write words from code run
+  // after it — so a line an effect writes over a markup default (the tray's summary) is the one
+  // left showing, not the default the markup names.
+  batch(() => {
+    setCurrentLocale(next);
+    applyTranslations(document);
+    for (const doc of others) applyTranslations(doc);
+  });
 }
 
 export function initI18n(): void {

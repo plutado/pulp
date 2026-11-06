@@ -18,14 +18,15 @@ import type { TemplateManifest } from './manifest';
 import { ASSET_OUTPUT_PRESETS, assetPresetsFor } from './output-defaults';
 import { PLATFORM_PRESETS, platformPreset } from './platform-presets';
 import { OUTPUT_PRESETS, type PresetId } from './render-plan';
+import { tr } from './i18n';
 
 /** The steps, in the order they are walked. Every template gets all five. */
 export const GUIDED_STEPS = [
-  { id: 'purpose', title: 'What is it for?' },
-  { id: 'shape', title: 'Shape and size' },
-  { id: 'format', title: 'Format' },
-  { id: 'sound', title: 'Sound' },
-  { id: 'summary', title: 'Summary' },
+  { id: 'purpose', get title() { return tr('guided.step.purpose'); } },
+  { id: 'shape', get title() { return tr('guided.step.shape'); } },
+  { id: 'format', get title() { return tr('guided.step.format'); } },
+  { id: 'sound', get title() { return tr('guided.step.sound'); } },
+  { id: 'summary', get title() { return tr('guided.step.summary'); } },
 ] as const;
 export type GuidedStepId = (typeof GUIDED_STEPS)[number]['id'];
 
@@ -60,8 +61,8 @@ export interface GuidedPurpose {
 export function guidedPurposes(manifest: Pick<TemplateManifest, 'alpha' | 'category'>): GuidedPurpose[] {
   return [
     ...assetPresetsFor(manifest).map((p) => ({ id: p.id, label: p.label, tip: p.tip })),
-    { id: 'social', label: 'A social post', tip: 'Aim it at a platform: the shape, size, rate and format it asks for, set together, with its limits checked.' },
-    { id: 'custom', label: 'Something else', tip: 'Choose each setting yourself on the next steps.' },
+    { id: 'social', label: tr('guided.purpose.social'), tip: tr('guided.purpose.social.tip') },
+    { id: 'custom', label: tr('guided.purpose.custom'), tip: tr('guided.purpose.custom.tip') },
   ];
 }
 
@@ -148,13 +149,13 @@ export function guidedSoundLines(
   if (manifest.sound) {
     const count = manifest.sound.variants.length;
     lines.push(count > 1
-      ? `This template carries its own sound, in ${count} variations; the one chosen on the Parameters tab renders into the mix.`
-      : 'This template carries its own sound; it renders into the mix unless it is set to None on the Parameters tab.');
+      ? tr('guided.sound.template-variants', { count })
+      : tr('guided.sound.template'));
   }
-  if (project.hasLayerSound) lines.push('The layers’ sound — music, voice-overs, clips’ own audio — renders into the mix at the levels set on their cards.');
-  if (project.hasStems) lines.push('The music came in as stems: fold them into the mix, or write one file per stem beside the render for remixing in an editor.');
-  if (lines.length === 0) lines.push('Nothing here makes sound yet. A render of this project carries no audio; sound is added on the Parameters tab, as audio layers or clips.');
-  lines.push('An image sequence or a still has no room for an audio stream, so any mix is written beside it as a .wav file.');
+  if (project.hasLayerSound) lines.push(tr('guided.sound.layers'));
+  if (project.hasStems) lines.push(tr('guided.sound.stems'));
+  if (lines.length === 0) lines.push(tr('guided.sound.none'));
+  lines.push(tr('guided.sound.sequence'));
   return lines;
 }
 
@@ -167,21 +168,23 @@ export function guidedSummary(
   const preset = OUTPUT_PRESETS[choices.presetId];
   const size = guidedSize(manifest, choices);
   const lines: string[] = [];
-  lines.push(`${preset.label}: ${preset.description}`);
-  const rate = choices.fps !== undefined && choices.fps !== manifest.fps ? `${choices.fps} fps` : `${manifest.fps} fps, the template’s own rate`;
-  lines.push(`${size.aspect}, ${size.width} × ${size.height} pixels, at ${rate}.`);
+  lines.push(tr('guided.summary.preset', { preset: preset.label, description: preset.description }));
+  const dimensions = { aspect: size.aspect, width: size.width, height: size.height };
+  lines.push(choices.fps !== undefined && choices.fps !== manifest.fps
+    ? tr('guided.summary.size', { ...dimensions, fps: choices.fps })
+    : tr('guided.summary.size.own-rate', { ...dimensions, fps: manifest.fps }));
   if (manifest.alpha) {
     lines.push(preset.alpha
-      ? 'The transparency is kept, so the graphic drops onto footage in an editor.'
-      : `The transparency is flattened over ${choices.background}.`);
+      ? tr('guided.summary.alpha-kept')
+      : tr('guided.summary.alpha-flattened', { color: choices.background }));
   }
-  if (choices.matte) lines.push('A gray matte file is written beside the render, for pipelines that cannot read an alpha channel.');
+  if (choices.matte) lines.push(tr('guided.summary.matte'));
   const platform = platformPreset(choices.platform);
-  if (platform) lines.push(`Aimed at ${platform.label}: the length and file size are checked against its limits, before the render and from the file.`);
+  if (platform) lines.push(tr('guided.summary.platform', { platform: platform.label }));
   if (project.hasStems) {
     lines.push(choices.stems === 'files'
-      ? 'The music’s stems are left out of the render’s own audio and written one file each beside it.'
-      : 'The music’s stems fold into the mix.');
+      ? tr('guided.summary.stems-files')
+      : tr('guided.summary.stems-mix'));
   }
   return lines;
 }
@@ -189,10 +192,10 @@ export function guidedSummary(
 /** A friendly name for an aspect id, said beside the bare ratio. */
 export function aspectName(id: string, size?: Size): string {
   switch (id) {
-    case '16:9': return 'Wide';
-    case '9:16': return 'Vertical';
-    case '1:1': return 'Square';
-    case '4:5': return 'Portrait';
-    default: return size && aspectOf(size.width, size.height) === id ? 'Its own shape' : 'Custom';
+    case '16:9': return tr('guided.aspect.wide');
+    case '9:16': return tr('guided.aspect.vertical');
+    case '1:1': return tr('guided.aspect.square');
+    case '4:5': return tr('guided.aspect.portrait');
+    default: return size && aspectOf(size.width, size.height) === id ? tr('guided.aspect.own') : tr('guided.aspect.custom');
   }
 }

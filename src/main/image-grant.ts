@@ -10,6 +10,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
+import { tr } from '../core/i18n';
 import { imageGrantKey, MAX_IMAGE_FILE_BYTES, type ImageGrantRequest, type ImageStamp } from '../core/image-slot';
 import { MEDIA_MIME } from '../core/media-serve';
 import { resolveImageCell, sanitizeImageValue } from '../core/image-slot';
@@ -38,7 +39,7 @@ export function resolveRowImages(manifest: Pick<TemplateManifest, 'parameters'>,
     if (sanitizeImageValue(out[p.id]) !== undefined) continue;
     imported ??= importedImages();
     const value = resolveImageCell(out[p.id], imported);
-    if (value === undefined) problems.push(`${p.label}: "${String(out[p.id])}" is not a library id or a file in the Imported folder`);
+    if (value === undefined) problems.push(tr('import.batch.image-unresolved', { label: p.label, value: String(out[p.id]) }));
     else out[p.id] = value;
   }
   return { params: out, problems };

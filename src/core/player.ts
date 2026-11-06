@@ -6,6 +6,8 @@
  * elements and the main process stores the settings.
  */
 
+import { tr } from './i18n';
+
 /** What shows behind a preview with transparency. */
 export type StageBackground = 'checker' | 'black' | 'white' | 'gray' | 'custom';
 
@@ -23,12 +25,12 @@ export const STAGE_BACKGROUND_COLORS: Record<Exclude<StageBackground, 'checker' 
   gray: '#808080',
 };
 
-/** The backgrounds offered as a set of choices, in the order they are shown. */
-export const STAGE_BACKGROUNDS: readonly { id: StageBackground; label: string }[] = [
-  { id: 'checker', label: 'Checkerboard' },
-  { id: 'black', label: 'Black' },
-  { id: 'white', label: 'White' },
-  { id: 'gray', label: 'Gray' },
+/** The backgrounds offered as a set of choices, in the order they are shown; named in the interface's language now (milestone 59). */
+export const STAGE_BACKGROUNDS: readonly { id: StageBackground; readonly label: string }[] = [
+  { id: 'checker', get label() { return tr('background.checker'); } },
+  { id: 'black', get label() { return tr('background.black'); } },
+  { id: 'white', get label() { return tr('background.white'); } },
+  { id: 'gray', get label() { return tr('background.gray'); } },
 ];
 
 export interface PlayerState {
@@ -79,8 +81,8 @@ export function sanitizePlayer(raw: unknown): PlayerState {
  * at any size.
  */
 export const SAFE_AREAS = [
-  { id: 'action', label: 'Action safe', inset: 0.035 },
-  { id: 'title', label: 'Title safe', inset: 0.05 },
+  { id: 'action', get label() { return tr('safe-areas.action'); }, inset: 0.035 },
+  { id: 'title', get label() { return tr('safe-areas.title'); }, inset: 0.05 },
 ] as const;
 
 /**
@@ -92,9 +94,9 @@ export const SAFE_AREAS = [
  * are; offered only for portrait shapes, from the same toggle.
  */
 export const VERTICAL_ZONES = [
-  { id: 'header', label: 'Header strip', left: 0, top: 0, width: 1, height: 0.12 },
-  { id: 'controls', label: 'Controls column', left: 0.82, top: 0.42, width: 0.18, height: 0.44 },
-  { id: 'caption', label: 'Caption band', left: 0, top: 0.78, width: 0.82, height: 0.22 },
+  { id: 'header', get label() { return tr('safe-areas.zone.header'); }, left: 0, top: 0, width: 1, height: 0.12 },
+  { id: 'controls', get label() { return tr('safe-areas.zone.controls'); }, left: 0.82, top: 0.42, width: 0.18, height: 0.44 },
+  { id: 'caption', get label() { return tr('safe-areas.zone.caption'); }, left: 0, top: 0.78, width: 0.82, height: 0.22 },
 ] as const;
 
 /** The vertical zones apply to a tall frame and to nothing else. */

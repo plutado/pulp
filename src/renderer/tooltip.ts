@@ -9,7 +9,7 @@
  */
 
 const DELAY_MS = 500;
-const SELECTOR = '[data-tip], button[aria-label]';
+const SELECTOR = '[data-tip], button[aria-label]'; // i18n-exempt(technical): a selector
 
 export function initTooltips(document: Document = window.document): void {
   const view = document.defaultView ?? window;

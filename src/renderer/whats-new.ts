@@ -6,6 +6,7 @@
 
 import changelogText from '../../CHANGELOG.md?raw';
 import { latestRelease } from '../core/changelog';
+import { bindText } from './i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -19,15 +20,16 @@ export function showWhatsNew(): void {
   const body = $('whats-new-body');
   body.replaceChildren();
   if (!notes) {
-    title.textContent = "What's new";
+    bindText(title, 'whats-new.title');
     const p = document.createElement('p');
     p.className = 'note';
-    p.textContent = 'Nothing to tell yet.';
+    bindText(p, 'whats-new.empty');
     body.append(p);
   } else {
-    title.textContent = notes.version.toLowerCase() === 'unreleased'
-      ? "What's new"
-      : `What's new in ${notes.version}${notes.date ? ` — ${notes.date}` : ''}`;
+    // The dialog's own words follow the language; the notes are the changelog's, a document as it was written.
+    if (notes.version.toLowerCase() === 'unreleased') bindText(title, 'whats-new.title');
+    else if (notes.date) bindText(title, 'whats-new.title.version-date', { version: notes.version, date: notes.date });
+    else bindText(title, 'whats-new.title.version', { version: notes.version });
     for (const section of notes.sections) {
       const head = document.createElement('h3');
       head.textContent = section.title;

@@ -95,24 +95,24 @@ export function parseLottie(text: string): LottieDocument {
   try {
     raw = JSON.parse(text);
   } catch (err) {
-    throw new Error(`not valid JSON: ${(err as Error).message}`, { cause: err });
+    throw new Error(`not valid JSON: ${(err as Error).message}`, { cause: err }); // i18n-exempt(diagnostic)
   }
   return lottieDocument(raw);
 }
 
 /** The document from already-parsed JSON. */
 export function lottieDocument(raw: unknown): LottieDocument {
-  if (!isRecord(raw)) throw new Error('not a Lottie animation (the document is not an object)');
-  if (!Array.isArray(raw.layers)) throw new Error('not a Lottie animation (no layers)');
+  if (!isRecord(raw)) throw new Error('not a Lottie animation (the document is not an object)'); // i18n-exempt(diagnostic)
+  if (!Array.isArray(raw.layers)) throw new Error('not a Lottie animation (no layers)'); // i18n-exempt(diagnostic)
   const fps = raw.fr;
   const ip = raw.ip ?? 0;
   const op = raw.op;
   const w = raw.w;
   const h = raw.h;
-  if (!finite(fps) || fps <= 0 || fps > 240) throw new Error('an unusable frame rate ("fr")');
-  if (!finite(ip) || !finite(op) || op <= ip) throw new Error('an unusable length ("ip" and "op")');
+  if (!finite(fps) || fps <= 0 || fps > 240) throw new Error('an unusable frame rate ("fr")'); // i18n-exempt(diagnostic)
+  if (!finite(ip) || !finite(op) || op <= ip) throw new Error('an unusable length ("ip" and "op")'); // i18n-exempt(diagnostic)
   if (!finite(w) || !finite(h) || w < MIN_DIMENSION || h < MIN_DIMENSION || w > MAX_DIMENSION || h > MAX_DIMENSION) {
-    throw new Error(`an unusable size (${String(w)} × ${String(h)}; ${MIN_DIMENSION} to ${MAX_DIMENSION} pixels a side)`);
+    throw new Error(`an unusable size (${String(w)} × ${String(h)}; ${MIN_DIMENSION} to ${MAX_DIMENSION} pixels a side)`); // i18n-exempt(diagnostic)
   }
   const markers: LottieMarker[] = [];
   if (Array.isArray(raw.markers)) {
@@ -175,11 +175,11 @@ export function readDotLottie(bytes: Buffer): DotLottie {
           ids = manifest.animations.map((a) => (isRecord(a) && typeof a.id === 'string' ? a.id : '')).filter(Boolean);
         }
         if (typeof manifest.author === 'string' && manifest.author.trim()) author = manifest.author.trim();
-        if ((Array.isArray(manifest.themes) && manifest.themes.length > 0) || entries.some((e) => /^(themes|t)\//.test(e.name))) limits.push('its themes are not read; colors are edited one by one');
-        if ((Array.isArray(manifest.states) && manifest.states.length > 0) || entries.some((e) => /^(states|s)\//.test(e.name))) limits.push('its interactive states are not read; the animation plays as one');
+        if ((Array.isArray(manifest.themes) && manifest.themes.length > 0) || entries.some((e) => /^(themes|t)\//.test(e.name))) limits.push('its themes are not read; colors are edited one by one'); // i18n-exempt(content)
+        if ((Array.isArray(manifest.states) && manifest.states.length > 0) || entries.some((e) => /^(states|s)\//.test(e.name))) limits.push('its interactive states are not read; the animation plays as one'); // i18n-exempt(content)
       }
     } catch {
-      limits.push('its manifest.json could not be read; the first animation found is shown');
+      limits.push('its manifest.json could not be read; the first animation found is shown'); // i18n-exempt(content)
     }
   }
   const animationFile = (id: string): string | undefined => [`animations/${id}.json`, `a/${id}.json`].find((n) => byName.has(n));
@@ -188,13 +188,13 @@ export function readDotLottie(bytes: Buffer): DotLottie {
     ids = entries.filter((e) => /^(animations|a)\/[^/]+\.json$/.test(e.name)).map((e) => fileName(e.name).replace(/\.json$/, ''));
   }
   const first = ids.map((id) => ({ id, file: animationFile(id) })).find((a) => a.file !== undefined);
-  if (!first) throw new Error('not a dotLottie archive (no animation inside)');
+  if (!first) throw new Error('not a dotLottie archive (no animation inside)'); // i18n-exempt(diagnostic)
   const document = parseLottie(byName.get(first.file!)!.toString('utf8'));
   const images = new Map<string, Buffer>();
   for (const e of entries) {
     if (/^(images|i)\//.test(e.name)) images.set(fileName(e.name), e.data);
   }
-  if (ids.length > 1) limits.push(`the archive holds ${ids.length} animations; the first (${first.id}) is shown`);
+  if (ids.length > 1) limits.push(`the archive holds ${ids.length} animations; the first (${first.id}) is shown`); // i18n-exempt(content)
   return { document, animations: [first.id, ...ids.filter((id) => id !== first.id)], images, ...(author ? { author } : {}), limits };
 }
 
@@ -289,7 +289,7 @@ export function lottieEditables(data: LottieData): LottieEditables {
       const label = usefulName(sid) ?? sid;
       const text = staticTextDoc(slot.p, at);
       if (text) {
-        texts.push({ label: 'Text', element: label, value: String(text.doc.t).replace(/\r/g, '\n'), target: { kind: 'text', path: text.path } });
+        texts.push({ label: 'Text', element: label, value: String(text.doc.t).replace(/\r/g, '\n'), target: { kind: 'text', path: text.path } }); // i18n-exempt(content)
         continue;
       }
       const colour = staticColor(slot.p);
@@ -323,7 +323,7 @@ export function lottieEditables(data: LottieData): LottieEditables {
       if (layer.ty === 5 && isRecord(layer.t)) {
         const text = staticTextDoc(layer.t.d, [...here, 't', 'd']);
         if (text) {
-          texts.push({ label: 'Text', element: layerName, value: String(text.doc.t).replace(/\r/g, '\n'), target: { kind: 'text', path: text.path } });
+          texts.push({ label: 'Text', element: layerName, value: String(text.doc.t).replace(/\r/g, '\n'), target: { kind: 'text', path: text.path } }); // i18n-exempt(content)
           const fill = text.doc.fc;
           if (Array.isArray(fill) && (fill.length === 3 || fill.length === 4) && fill.every(finite)) {
             addColour(fill.map((v) => Math.max(0, Math.min(1, v))), { kind: fill.length === 4 ? 'rgba' : 'rgb', path: [...text.path.slice(0, -1), 'fc'] }, layerName, 'text');
@@ -364,11 +364,11 @@ export function lottieEditables(data: LottieData): LottieEditables {
       label: `${c.name} ${what}`,
       element: 'Colors',
       default: c.hex,
-      ...(others > 0 ? { description: `Also used in ${others} other ${others === 1 ? 'place' : 'places'}.` } : {}),
+      ...(others > 0 ? { description: `Also used in ${others} other ${others === 1 ? 'place' : 'places'}.` } : {}), // i18n-exempt(content)
     });
     bindings.push({ id, type: 'color', targets: c.targets });
   });
-  if (animatedTexts.length > 0) limits.push(`text that changes over time is not editable: ${animatedTexts.join(', ')}`);
+  if (animatedTexts.length > 0) limits.push(`text that changes over time is not editable: ${animatedTexts.join(', ')}`); // i18n-exempt(content)
   return { parameters, bindings, limits };
 }
 
@@ -377,14 +377,14 @@ export function lottieFitParameter(): TemplateParameter {
   return {
     id: LOTTIE_FIT_PARAM,
     type: 'select',
-    label: 'Fit',
+    label: 'Fit', // i18n-exempt(content)
     element: 'Frame',
-    description: 'How the animation sits in a frame of another shape or size.',
+    description: 'How the animation sits in a frame of another shape or size.', // i18n-exempt(content)
     default: 'fit',
     options: [
-      { value: 'fit', label: 'Fit inside the frame' },
-      { value: 'fill', label: 'Fill the frame' },
-      { value: 'center', label: 'Its own size, centered' },
+      { value: 'fit', label: 'Fit inside the frame' }, // i18n-exempt(content)
+      { value: 'fill', label: 'Fill the frame' }, // i18n-exempt(content)
+      { value: 'center', label: 'Its own size, centered' }, // i18n-exempt(content)
     ],
   };
 }
@@ -484,17 +484,17 @@ export function lottieLimits(data: LottieData): string[] {
   walk(data, false);
   layersOf(data.layers);
   if (Array.isArray(data.assets)) for (const a of data.assets) if (isRecord(a)) layersOf(a.layers);
-  if (expressions > 0) limits.push(`expressions on ${expressions} ${expressions === 1 ? 'property are' : 'properties are'} not run; those properties keep their keyframed values`);
-  if (effects > 0) limits.push(`layer effects on ${effects} ${effects === 1 ? 'layer are' : 'layers are'} not drawn`);
-  if (threeD || cameras > 0) limits.push('3D layers and cameras are drawn flat');
-  if (audio > 0) limits.push(`${audio} audio ${audio === 1 ? 'layer is' : 'layers are'} silent`);
+  if (expressions > 0) limits.push(`expressions on ${expressions} ${expressions === 1 ? 'property are' : 'properties are'} not run; those properties keep their keyframed values`); // i18n-exempt(content)
+  if (effects > 0) limits.push(`layer effects on ${effects} ${effects === 1 ? 'layer are' : 'layers are'} not drawn`); // i18n-exempt(content)
+  if (threeD || cameras > 0) limits.push('3D layers and cameras are drawn flat'); // i18n-exempt(content)
+  if (audio > 0) limits.push(`${audio} audio ${audio === 1 ? 'layer is' : 'layers are'} silent`); // i18n-exempt(content)
   if (isRecord(data.fonts) && Array.isArray(data.fonts.list)) {
     const web = data.fonts.list.filter((f) => isRecord(f) && (isWebPath(f.fPath) || f.origin === 1 || f.origin === 2 || f.origin === 3)).map((f) => String((f as Record<string, unknown>).fFamily ?? (f as Record<string, unknown>).fName ?? 'a font'));
-    if (web.length > 0) limits.push(`fonts the file would fetch from the web are not loaded (${[...new Set(web)].join(', ')}); their text draws in an installed font of that name or the browser's fallback`);
+    if (web.length > 0) limits.push(`fonts the file would fetch from the web are not loaded (${[...new Set(web)].join(', ')}); their text draws in an installed font of that name or the browser's fallback`); // i18n-exempt(content)
   }
   if (Array.isArray(data.assets)) {
     const web = data.assets.filter((a) => isRecord(a) && typeof a.p === 'string' && a.e !== 1 && (isWebPath(a.u) || isWebPath(a.p)));
-    if (web.length > 0) limits.push(`${web.length} ${web.length === 1 ? 'picture' : 'pictures'} the file would fetch from the web ${web.length === 1 ? 'is' : 'are'} not drawn`);
+    if (web.length > 0) limits.push(`${web.length} ${web.length === 1 ? 'picture' : 'pictures'} the file would fetch from the web ${web.length === 1 ? 'is' : 'are'} not drawn`); // i18n-exempt(content)
   }
   return limits;
 }
@@ -626,7 +626,7 @@ const even = (n: number): number => (n % 2 === 0 ? n : n + 1);
 /** A file name as a title: "my-lower_third.json" reads "My lower third". */
 export function humanizeFileName(name: string): string {
   const stem = name.replace(/\.(json|lottie)$/i, '').replace(/[-_.]+/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!stem) return 'Lottie animation';
+  if (!stem) return 'Lottie animation'; // i18n-exempt(content)
   return stem.charAt(0).toUpperCase() + stem.slice(1);
 }
 
@@ -644,10 +644,10 @@ export function lottieManifest(doc: LottieDocumentMeta, input: LottieManifestInp
   const frames = doc.outPoint - doc.inPoint;
   const stretches = lottieStructure(doc.markers, round3(frames / doc.fps));
   const description = [
-    `${input.format === 'lottie' ? 'A dotLottie archive' : 'A Lottie animation'}: ${doc.width} × ${doc.height}, ${frames} frames at ${doc.fps} fps.`,
+    `${input.format === 'lottie' ? 'A dotLottie archive' : 'A Lottie animation'}: ${doc.width} × ${doc.height}, ${frames} frames at ${doc.fps} fps.`, // i18n-exempt(content)
     ...(doc.markers.length > 0 ? [`Markers: ${doc.markers.map((m) => m.name).join(', ')}.`] : []),
-    ...(stretches ? [stretches.kind === 'loop' ? 'Its markers say it loops, so it stretches to any length.' : 'Its markers hold between the intro and the outro, so it stretches to any length.'] : []),
-    ...(input.limits.length > 0 ? [`Not drawn: ${input.limits.join('; ')}.`] : []),
+    ...(stretches ? [stretches.kind === 'loop' ? 'Its markers say it loops, so it stretches to any length.' : 'Its markers hold between the intro and the outro, so it stretches to any length.'] : []), // i18n-exempt(content)
+    ...(input.limits.length > 0 ? [`Not drawn: ${input.limits.join('; ')}.`] : []), // i18n-exempt(content)
   ].join(' ');
   // What its markers say may stretch (milestone 35), in milestone 30's terms: an icon with an
   // intro and an outro holds between them, a seamless one loops, and one that says nothing keeps

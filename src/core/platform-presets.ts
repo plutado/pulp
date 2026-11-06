@@ -23,6 +23,7 @@ import { aspectById } from './aspect';
 import { clockLabel, sizeLabel } from './display';
 import { isStandardFrameRate } from './timecode';
 import { OUTPUT_PRESETS, type PresetId } from './render-plan';
+import { tr, type MessageId } from './i18n';
 
 /** Bumped when an entry's meaning changes rather than its numbers; a saved render records the id, not the row. */
 export const PLATFORM_LIST_VERSION = 1;
@@ -78,56 +79,56 @@ export interface PlatformPreset {
  */
 export const PLATFORM_PRESETS: readonly PlatformPreset[] = [
   {
-    id: 'tiktok', label: 'TikTok', hint: 'Vertical, up to 10 min',
+    id: 'tiktok', get label() { return tr('platform.tiktok'); }, get hint() { return tr('platform.tiktok.hint'); },
     aspect: '9:16', width: 1080, height: 1920, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 600, maxFileMB: 287,
     uploadUrl: 'https://www.tiktok.com/upload',
     loudnessLufs: -14, truePeakDb: -1,
   },
   {
-    id: 'instagram-reels', label: 'Instagram Reels', hint: 'Vertical, up to 3 min',
+    id: 'instagram-reels', get label() { return tr('platform.instagram-reels'); }, get hint() { return tr('platform.instagram-reels.hint'); },
     aspect: '9:16', width: 1080, height: 1920, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 180, maxFileMB: 4096,
     uploadUrl: 'https://www.instagram.com/',
     loudnessLufs: -14, truePeakDb: -1,
   },
   {
-    id: 'instagram-feed', label: 'Instagram feed', hint: 'Tall 4:5, up to 60 min',
+    id: 'instagram-feed', get label() { return tr('platform.instagram-feed'); }, get hint() { return tr('platform.instagram-feed.hint'); },
     aspect: '4:5', width: 1080, height: 1350, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 3600, maxFileMB: 4096,
     uploadUrl: 'https://www.instagram.com/',
     loudnessLufs: -14, truePeakDb: -1,
   },
   {
-    id: 'youtube-shorts', label: 'YouTube Shorts', hint: 'Vertical, up to 3 min',
+    id: 'youtube-shorts', get label() { return tr('platform.youtube-shorts'); }, get hint() { return tr('platform.youtube-shorts.hint'); },
     aspect: '9:16', width: 1080, height: 1920, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 10, maxSeconds: 180, maxFileMB: 262_144,
     uploadUrl: 'https://www.youtube.com/upload',
     loudnessLufs: -14, truePeakDb: -1,
   },
   {
-    id: 'youtube', label: 'YouTube', hint: 'Widescreen 1080p',
+    id: 'youtube', get label() { return tr('platform.youtube'); }, get hint() { return tr('platform.youtube.hint'); },
     aspect: '16:9', width: 1920, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 43_200, maxFileMB: 262_144,
     uploadUrl: 'https://www.youtube.com/upload',
     loudnessLufs: -14, truePeakDb: -1,
   },
   {
-    id: 'x', label: 'X', hint: 'Widescreen, up to 2:20',
+    id: 'x', get label() { return tr('platform.x'); }, get hint() { return tr('platform.x.hint'); },
     aspect: '16:9', width: 1920, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 140, maxFileMB: 512,
     uploadUrl: 'https://x.com/compose/post',
     loudnessLufs: -14, truePeakDb: -1,
   },
   {
-    id: 'linkedin', label: 'LinkedIn', hint: 'Widescreen, up to 10 min',
+    id: 'linkedin', get label() { return tr('platform.linkedin'); }, get hint() { return tr('platform.linkedin.hint'); },
     aspect: '16:9', width: 1920, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 600, maxFileMB: 5120,
     uploadUrl: 'https://www.linkedin.com/feed/?shareActive=true',
     loudnessLufs: -14, truePeakDb: -1,
   },
   {
-    id: 'facebook-feed', label: 'Facebook feed', hint: 'Square, up to 2 h',
+    id: 'facebook-feed', get label() { return tr('platform.facebook-feed'); }, get hint() { return tr('platform.facebook-feed.hint'); },
     aspect: '1:1', width: 1080, height: 1080, fps: 30,
     presetId: 'h264-mp4', audioCodec: 'aac', bitrateMbps: 8, maxSeconds: 7200, maxFileMB: 10_240,
     uploadUrl: 'https://www.facebook.com/',
@@ -141,22 +142,33 @@ export function platformPreset(id: string | undefined): PlatformPreset | undefin
   return id === undefined ? undefined : PLATFORM_PRESETS.find((p) => p.id === id);
 }
 
+const MONTHS = [
+  'platform.month.january', 'platform.month.february', 'platform.month.march', 'platform.month.april',
+  'platform.month.may', 'platform.month.june', 'platform.month.july', 'platform.month.august',
+  'platform.month.september', 'platform.month.october', 'platform.month.november', 'platform.month.december',
+] as const satisfies readonly MessageId[];
+
+/** The date the limits were checked, in words: "1 November 2026" (or the text as given, when it is not a date). */
+export function limitsCheckedDate(checked: string = PLATFORM_LIMITS_CHECKED): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(checked);
+  if (!m) return checked;
+  const month = MONTHS[Number(m[2]) - 1];
+  return tr('platform.date', { day: Number(m[3]), month: month ? tr(month) : String(month), year: m[1]! });
+}
+
 /** The date the limits were checked, as a sentence fragment: "checked 1 November 2026". */
 export function limitsCheckedLabel(checked: string = PLATFORM_LIMITS_CHECKED): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(checked);
-  if (!m) return `checked ${checked}`;
-  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  return `checked ${Number(m[3])} ${months[Number(m[2]) - 1]} ${m[1]}`;
+  return tr('platform.limits.checked', { date: limitsCheckedDate(checked) });
 }
 
 /** What a preset amounts to, under the chooser: "9:16 · 1080 × 1920 · 30 fps · H.264 MP4 · leveled to -14 LUFS". */
 export function platformSummary(preset: PlatformPreset): string {
-  return `${preset.aspect} · ${preset.width} × ${preset.height} · ${preset.fps} fps · ${OUTPUT_PRESETS[preset.presetId].label} · leveled to ${preset.loudnessLufs} LUFS`;
+  return tr('platform.summary', { aspect: preset.aspect, width: preset.width, height: preset.height, fps: preset.fps, preset: OUTPUT_PRESETS[preset.presetId].label, lufs: preset.loudnessLufs });
 }
 
 /** What the platform takes, in words: "up to 10:00 and 287 MB (limits checked 1 November 2026)". */
 export function platformLimitsLabel(preset: PlatformPreset, checked: string = PLATFORM_LIMITS_CHECKED): string {
-  return `up to ${clockLabel(preset.maxSeconds)} and ${sizeLabel(preset.maxFileMB * 1024 ** 2)} (limits ${limitsCheckedLabel(checked)})`;
+  return tr('platform.limits', { length: clockLabel(preset.maxSeconds), size: sizeLabel(preset.maxFileMB * 1024 ** 2), date: limitsCheckedDate(checked) });
 }
 
 // ---------------------------------------------------------------- length and file size
@@ -174,7 +186,7 @@ export function maxFileBytes(preset: PlatformPreset): number {
 
 function tooLong(preset: PlatformPreset, seconds: number, checked: string): string | null {
   if (!Number.isFinite(seconds) || seconds <= preset.maxSeconds) return null;
-  return `Longer than ${preset.label} takes: ${clockLabel(seconds)}, against ${clockLabel(preset.maxSeconds)} (limits ${limitsCheckedLabel(checked)}).`;
+  return tr('platform.warning.too-long', { platform: preset.label, length: clockLabel(seconds), limit: clockLabel(preset.maxSeconds), date: limitsCheckedDate(checked) });
 }
 
 /**
@@ -189,10 +201,9 @@ export function platformWarningsBefore(preset: PlatformPreset, seconds: number, 
   if (long) out.push(long);
   const bytes = expectedBytes(preset, seconds);
   if (bytes > maxFileBytes(preset)) {
-    out.push(
-      `Likely larger than ${preset.label} takes: about ${sizeLabel(bytes)} at ${preset.bitrateMbps} Mb/s, ` +
-      `against ${sizeLabel(maxFileBytes(preset))} (limits ${limitsCheckedLabel(checked)}).`,
-    );
+    out.push(tr('platform.warning.likely-too-large', {
+      platform: preset.label, size: sizeLabel(bytes), bitrate: preset.bitrateMbps, limit: sizeLabel(maxFileBytes(preset)), date: limitsCheckedDate(checked),
+    }));
   }
   return out;
 }
@@ -203,7 +214,7 @@ export function platformWarningsAfter(preset: PlatformPreset, seconds: number, b
   const long = tooLong(preset, seconds, checked);
   if (long) out.push(long);
   if (bytes > maxFileBytes(preset)) {
-    out.push(`Larger than ${preset.label} takes: ${sizeLabel(bytes)}, against ${sizeLabel(maxFileBytes(preset))} (limits ${limitsCheckedLabel(checked)}).`);
+    out.push(tr('platform.warning.too-large', { platform: preset.label, size: sizeLabel(bytes), limit: sizeLabel(maxFileBytes(preset)), date: limitsCheckedDate(checked) }));
   }
   return out;
 }
@@ -218,32 +229,32 @@ export function platformWarningsAfter(preset: PlatformPreset, seconds: number, b
  */
 export function platformPresetProblems(presets: readonly PlatformPreset[] = PLATFORM_PRESETS, checked: string = PLATFORM_LIMITS_CHECKED): string[] {
   const problems: string[] = [];
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(checked)) problems.push(`the checked date "${checked}" is not YYYY-MM-DD`);
-  if (presets.length === 0) problems.push('the list is empty');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(checked)) problems.push(`the checked date "${checked}" is not YYYY-MM-DD`); // i18n-exempt(diagnostic)
+  if (presets.length === 0) problems.push('the list is empty'); // i18n-exempt(diagnostic)
   const seen = new Set<string>();
   for (const p of presets) {
-    const where = p.id || '(no id)';
-    if (!/^[a-z0-9][a-z0-9-]*$/.test(p.id)) problems.push(`${where}: an id is lowercase letters, digits and dashes`);
-    if (seen.has(p.id)) problems.push(`${where}: the id is used twice`);
+    const where = p.id || '(no id)'; // i18n-exempt(diagnostic)
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(p.id)) problems.push(`${where}: an id is lowercase letters, digits and dashes`); // i18n-exempt(diagnostic)
+    if (seen.has(p.id)) problems.push(`${where}: the id is used twice`); // i18n-exempt(diagnostic)
     seen.add(p.id);
-    if (!p.label.trim()) problems.push(`${where}: no label`);
-    if (!p.hint.trim()) problems.push(`${where}: no hint`);
+    if (!p.label.trim()) problems.push(`${where}: no label`); // i18n-exempt(diagnostic)
+    if (!p.hint.trim()) problems.push(`${where}: no hint`); // i18n-exempt(diagnostic)
     const aspect = aspectById(p.aspect);
-    if (!aspect) problems.push(`${where}: ${p.aspect} is not one of the built-in aspects`);
-    else if (p.width * aspect.h !== p.height * aspect.w) problems.push(`${where}: ${p.width} × ${p.height} is not ${p.aspect}`);
-    if (!Number.isInteger(p.width) || !Number.isInteger(p.height) || p.width <= 0 || p.height <= 0) problems.push(`${where}: the resolution is not whole pixels`);
-    if (p.width % 2 !== 0 || p.height % 2 !== 0) problems.push(`${where}: ${p.width} × ${p.height} is odd, which H.264 cannot encode`);
-    if (!isStandardFrameRate(p.fps)) problems.push(`${where}: ${p.fps} is not one of the standard frame rates`);
-    if (!OUTPUT_PRESETS[p.presetId]) problems.push(`${where}: "${p.presetId}" is not an output preset`);
-    else if (OUTPUT_PRESETS[p.presetId].sequence || OUTPUT_PRESETS[p.presetId].still) problems.push(`${where}: a platform takes one video file, not ${OUTPUT_PRESETS[p.presetId].label}`);
-    for (const [name, value] of [['bitrate', p.bitrateMbps], ['length limit', p.maxSeconds], ['file-size limit', p.maxFileMB]] as const) {
-      if (!Number.isFinite(value) || value <= 0) problems.push(`${where}: the ${name} must be more than 0`);
+    if (!aspect) problems.push(`${where}: ${p.aspect} is not one of the built-in aspects`); // i18n-exempt(diagnostic)
+    else if (p.width * aspect.h !== p.height * aspect.w) problems.push(`${where}: ${p.width} × ${p.height} is not ${p.aspect}`); // i18n-exempt(diagnostic)
+    if (!Number.isInteger(p.width) || !Number.isInteger(p.height) || p.width <= 0 || p.height <= 0) problems.push(`${where}: the resolution is not whole pixels`); // i18n-exempt(diagnostic)
+    if (p.width % 2 !== 0 || p.height % 2 !== 0) problems.push(`${where}: ${p.width} × ${p.height} is odd, which H.264 cannot encode`); // i18n-exempt(diagnostic)
+    if (!isStandardFrameRate(p.fps)) problems.push(`${where}: ${p.fps} is not one of the standard frame rates`); // i18n-exempt(diagnostic)
+    if (!OUTPUT_PRESETS[p.presetId]) problems.push(`${where}: "${p.presetId}" is not an output preset`); // i18n-exempt(diagnostic)
+    else if (OUTPUT_PRESETS[p.presetId].sequence || OUTPUT_PRESETS[p.presetId].still) problems.push(`${where}: a platform takes one video file, not ${OUTPUT_PRESETS[p.presetId].label}`); // i18n-exempt(diagnostic)
+    for (const [name, value] of [['bitrate', p.bitrateMbps], ['length limit', p.maxSeconds], ['file-size limit', p.maxFileMB]] as const) { // i18n-exempt(diagnostic)
+      if (!Number.isFinite(value) || value <= 0) problems.push(`${where}: the ${name} must be more than 0`); // i18n-exempt(diagnostic)
     }
     // The hand-off opens this in the browser, so nothing but https may ever be typed in here.
-    if (!/^https:\/\/[^\s]+$/.test(p.uploadUrl)) problems.push(`${where}: the upload page must be an https URL`);
+    if (!/^https:\/\/[^\s]+$/.test(p.uploadUrl)) problems.push(`${where}: the upload page must be an https URL`); // i18n-exempt(diagnostic)
     // Loudness targets live in the range the platforms and broadcasters actually use; a typo outside it would crush or blast a mix.
-    if (!Number.isFinite(p.loudnessLufs) || p.loudnessLufs < -36 || p.loudnessLufs > -6) problems.push(`${where}: the loudness target must be between -36 and -6 LUFS`);
-    if (!Number.isFinite(p.truePeakDb) || p.truePeakDb > 0 || p.truePeakDb < -9) problems.push(`${where}: the true-peak ceiling must be between -9 and 0 dBTP`);
+    if (!Number.isFinite(p.loudnessLufs) || p.loudnessLufs < -36 || p.loudnessLufs > -6) problems.push(`${where}: the loudness target must be between -36 and -6 LUFS`); // i18n-exempt(diagnostic)
+    if (!Number.isFinite(p.truePeakDb) || p.truePeakDb > 0 || p.truePeakDb < -9) problems.push(`${where}: the true-peak ceiling must be between -9 and 0 dBTP`); // i18n-exempt(diagnostic)
   }
   return problems;
 }

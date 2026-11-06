@@ -19,7 +19,7 @@
  * (src/main/stage-window-service.ts).
  */
 
-import { t, translateAlso } from './i18n';
+import { bindAttr, t, translateAlso } from './i18n';
 import { STAGE_WINDOW_NAME } from '../core/stage-window';
 import { watchContextMenuIn } from './context-menu';
 import { setIcon } from './icons';
@@ -93,8 +93,8 @@ function paintButton(): void {
   if (!button) return;
   const isOut = stageIsOut();
   button.setAttribute('aria-pressed', String(isOut));
-  button.setAttribute('aria-label', isOut ? 'Bring the stage back' : 'Pop out the stage');
-  button.dataset.tip = isOut ? 'Bring the stage back into the main window' : 'Pop out the stage into a window of its own, for any display';
+  bindAttr(button, 'aria-label', isOut ? 'stage-window.popout.back.aria-label' : 'ui.stage-popout.aria-label');
+  bindAttr(button, 'data-tip', isOut ? 'stage-window.popout.back.data-tip' : 'ui.stage-popout.data-tip');
   setIcon(button, isOut ? 'arrow-square-in' : 'arrow-square-out', 20);
 }
 

@@ -1,20 +1,9 @@
 /**
- * The interface's words in US English (milestone 59): the source catalog.
- * Every message id the interface reads is here, and every other catalog
- * (src/locales/en-GB.ts and those after it) holds only what it says
- * differently, falling back to these for the rest.
- *
- * An id names **where** a string sits, not what it says, so it stays put when
- * the words change: `ui.<element id>` for an element of the window's markup
- * (src/renderer/index.html), `ui.<container>.<slug>` for one with no id of
- * its own, a `.<attribute>` suffix for its tooltip or accessible name, and
- * `menu.<command>` for the application menu (src/core/menu.ts). A value may
- * hold `{name}` placeholders, and plural forms as `{ one, other }`.
- * docs/translating.md says how to add a language.
+ * US English, the source catalog: the window's markup (src/renderer/index.html). Part of src/locales/en-US/, which
+ * src/locales/en-US/index.ts puts together; docs/translating.md says what an id names.
  */
 
-export const enUS = {
-  // ---------------------------------------------------------------- the window's markup (src/renderer/index.html)
+export const markup = {
   'ui.region-browse.aria-label': 'Browse',
   'ui.region-browse.library': 'Library',
   'ui.browse-toggle.aria-label': 'Hide the browse panel',
@@ -433,118 +422,4 @@ export const enUS = {
   'ui.pack-export-fields.license': 'License',
   'ui.pack-confirm': 'Install',
   'ui.pack-close': 'Close',
-
-  // ---------------------------------------------------------------- the application menu (src/core/menu.ts)
-  'menu.library.addFolder.detail': 'Footage, stills and sounds, indexed where they are',
-  'menu.library.addFolder': 'Your Media Folder…',
-  'menu.pack.import.detail': 'A .zip or a folder of templates, installed',
-  'menu.pack.import': 'Templates from a Pack…',
-  'menu.library.addSampleMedia.detail': 'Original CC0 sounds, music, stills and clips, made and added',
-  'menu.library.addSampleMedia': 'Sample Media',
-  'menu.displays.none': 'No display found',
-  'menu.recent.none': 'Nothing opened yet',
-  'menu.layer.editText': 'Edit Text',
-  'menu.layer.replaceImage': 'Replace Image…',
-  'menu.layer.replaceClip': 'Replace Clip…',
-  'menu.layer.exposeText': 'Make Words a Parameter',
-  'menu.layer.exposeColor': 'Make Color a Parameter',
-  'menu.layer.exposeImage': 'Make Picture a Parameter',
-  'menu.animate': 'Animate',
-  'menu.layer.keyframing': 'Record Keyframes',
-  'menu.layer.addText': 'Add Text Layer',
-  'menu.layer.addImage': 'Add Image Layer',
-  'menu.layer.addVideo': 'Add Video Layer',
-  'menu.layer.addShape': 'Add Shape Layer',
-  'menu.layer.cut': 'Cut',
-  'menu.layer.copy': 'Copy',
-  'menu.layer.paste': 'Paste',
-  'menu.layer.duplicate': 'Duplicate',
-  'menu.layer.delete': 'Delete',
-  'menu.layer.forward': 'Bring Forward',
-  'menu.layer.backward': 'Send Backward',
-  'menu.layer.front': 'Bring to Front',
-  'menu.layer.back': 'Send to Back',
-  'menu.layer.copyLook': 'Copy Look',
-  'menu.layer.pasteLook': 'Paste Look',
-  'menu.layer.startHere': 'Start at Playhead',
-  'menu.layer.endHere': 'End at Playhead',
-  'menu.layer.reset': 'Reset Layer',
-  'menu.role.about-app': 'About {app}',
-  'menu.app.settings': 'Settings…',
-  'menu.role.hide-app': 'Hide {app}',
-  'menu.role.quit-app': 'Quit {app}',
-  'menu.file': 'File',
-  'menu.app.home': 'Home',
-  'menu.project.new': 'New Project',
-  'menu.canvas.new': 'New Blank Canvas',
-  'menu.canvas.saveTemplate': 'Save as Template…',
-  'menu.project.open': 'Open…',
-  'menu.open-recent': 'Open Recent',
-  'menu.project.save': 'Save',
-  'menu.project.saveAs': 'Save As…',
-  'menu.add': 'Add',
-  'menu.record.audio.alt': 'Stop Recording',
-  'menu.record.audio': 'Record Audio',
-  'menu.record.video.alt': 'Stop Recording',
-  'menu.record.video': 'Record Video',
-  'menu.pack.export': 'Export as Pack…',
-  'menu.collection.add': 'Add to Collection',
-  'menu.render.one': 'Render…',
-  'menu.render.all': 'Render All',
-  'menu.role.close': 'Close Window',
-  'menu.role.quit': 'Quit',
-  'menu.edit': 'Edit',
-  'menu.edit.undo': 'Undo',
-  'menu.edit.redo': 'Redo',
-  'menu.layer': 'Layer',
-  'menu.search.focus': 'Search',
-  'menu.browse.filter': 'Filter Categories',
-  'menu.view': 'View',
-  'menu.view.parameters': 'Parameters',
-  'menu.view.output': 'Output',
-  'menu.view.info': 'Info',
-  'menu.view.browse': 'Browse Panel',
-  'menu.view.stage': 'Preview',
-  'menu.view.results': 'Results',
-  'menu.view.tray': 'Collection Tray',
-  'menu.view.grid': 'Grid of Cards',
-  'menu.view.list': 'List of Rows',
-  'menu.view.bigger': 'Bigger Cards',
-  'menu.view.smaller': 'Smaller Cards',
-  'menu.stage-background': 'Stage Background',
-  'menu.view.theater': 'Theater',
-  'menu.view.popOut': 'Pop Out Stage',
-  'menu.stage-on-display': 'Stage on Display',
-  'menu.appearance': 'Appearance',
-  'menu.role.toggleDevTools': 'Developer Tools',
-  'menu.playback': 'Playback',
-  'menu.play.toggle': 'Play',
-  'menu.play.toggle.alt': 'Pause',
-  'menu.play.toggle.list': 'Play or pause',
-  'menu.play.previous': 'Previous Frame',
-  'menu.play.next': 'Next Frame',
-  'menu.play.setIn': 'Set In',
-  'menu.play.setOut': 'Set Out',
-  'menu.play.loop': 'Loop',
-  'menu.window': 'Window',
-  'menu.bring-all-to-front': 'Bring All to Front',
-  'menu.help': 'Help',
-  'menu.help.userGuide': 'User Guide',
-  'menu.help.tour': 'Take the Tour',
-  'menu.help.setup': 'Set-up Checklist',
-  'menu.help.whatsNew': 'What\'s New',
-  'menu.help.shortcuts': 'Keyboard Shortcuts',
-  'menu.help.acknowledgements': 'Acknowledgements',
-  'menu.help.diagnostics': 'Copy Diagnostics',
-
-  // ---------------------------------------------------------------- windows
-  'window.stage.title': 'Stage',
-
-  // ---------------------------------------------------------------- Settings → Language (src/renderer/settings.ts)
-  'ui.settings-language-head': 'Language',
-  'ui.settings-dialog.language-note': 'The language the window, the menus and the dialogs are shown in. Same as the system follows the language your computer is set to; each language is listed under its own name. Changes at once, without a restart.',
-  'ui.settings-language.label': 'Show Pulp in',
-  'settings.language.system': 'Same as the system ({language})',
-} as const satisfies Record<string, string | ({ other: string } & Partial<Record<'zero' | 'one' | 'two' | 'few' | 'many', string>>)>;
-
-export type MessageId = keyof typeof enUS;
+} as const;

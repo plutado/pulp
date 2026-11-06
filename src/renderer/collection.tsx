@@ -23,6 +23,7 @@ import { mountRovingGroup, paintRovingStops } from './roving';
 import { relinkMissing } from './project';
 import { sanitizePsdChoice } from '../core/image-slot';
 import { psdCompositeUrlFor } from '../core/media-url';
+import { t } from './i18n';
 
 /** Each item paired with what the library has for it now. */
 export const resolved = computed(() => resolveCollection(appState.value.collection, appState.value.index, [...BUNDLED_FAMILIES, ...importedFamilies(importedFonts.value)]));
@@ -34,21 +35,20 @@ function settingsLine(r: ResolvedItem): string {
   const { options, presetId } = r.item;
   const parts = [isAudioPresetId(presetId) ? AUDIO_PRESETS[presetId].label : OUTPUT_PRESETS[presetId as PresetId]?.label ?? presetId];
   // What a media item renders with, beyond the preset (milestone 15).
-  if (options.length !== undefined) parts.push(`${options.length} s`);
+  if (options.length !== undefined) parts.push(durationLabel(options.length));
   if (options.speed !== undefined && options.speed !== 1) parts.push(`×${options.speed}`);
-  if (options.tint) parts.push('recoloured');
-  if (options.matte) parts.push('matte');
+  if (options.tint) parts.push(t('collection.settings.tint'));
+  if (options.matte) parts.push(t('collection.settings.matte'));
   const fps = options.fps;
   if (fps !== undefined) parts.push(frameRateLabel(fps));
   if (options.inFrame !== undefined || options.outFrame !== undefined) {
     const rate = fps ?? (r.entry?.kind === 'template' ? r.entry.manifest.fps : 25);
     const from = formatTimecode(options.inFrame ?? 0, rate);
-    const to = options.outFrame === undefined ? 'end' : formatTimecode(options.outFrame, rate);
-    parts.push(`${from} to ${to}`);
+    parts.push(options.outFrame === undefined ? t('collection.settings.range-to-end', { from }) : t('collection.settings.range', { from, to: formatTimecode(options.outFrame, rate) }));
   }
-  if (r.entry?.kind === 'template' && Object.keys(r.item.params).length > 0) parts.push('edited');
+  if (r.entry?.kind === 'template' && Object.keys(r.item.params).length > 0) parts.push(t('collection.settings.edited'));
   const psd = collectedHide(r.item);
-  if (psd) parts.push(`${psd.length} ${psd.length === 1 ? 'layer' : 'layers'} hidden`);
+  if (psd) parts.push(t('collection.settings.layers-hidden', { count: psd.length }));
   return parts.join(' · ');
 }
 
@@ -61,10 +61,10 @@ function collectedHide(item: ResolvedItem['item']): string[] | null {
 
 /** Why a card cannot render, in a few words, or an empty string when it can. */
 function problem(r: ResolvedItem): string {
-  if (r.missing) return r.item.path ? 'Not in the library any more; relink it to where it is now' : 'Not in the library any more';
-  if (r.offline) return 'Its folder is offline';
-  if (r.missingImages.length > 0) return `${r.missingImages.join(', ')}: the chosen image is not in the library`;
-  if (r.missingFonts.length > 0) return `Set in ${r.missingFonts.join(' and ')}, which is not on this computer; it would render in a fallback face`;
+  if (r.missing) return r.item.path ? t('collection.problem.missing-relink') : t('collection.problem.missing');
+  if (r.offline) return t('collection.problem.offline');
+  if (r.missingImages.length > 0) return t('collection.problem.images', { images: r.missingImages.join(t('collection.problem.images.separator')) });
+  if (r.missingFonts.length > 0) return t('collection.problem.fonts', { fonts: r.missingFonts.join(t('collection.problem.fonts.separator')) });
   return '';
 }
 
@@ -94,10 +94,10 @@ function Item({ r, first, last }: { r: ResolvedItem; first: boolean; last: boole
       onClick={() => dispatch((s) => setEditing(s, chosen ? null : item.uid))}
     >
       <span class="order">
-        <button type="button" class="icon-button" aria-label="Move up" disabled={first} onClick={(e: MouseEvent) => { e.stopPropagation(); move(-1); }}>
+        <button type="button" class="icon-button" aria-label={t('collection.move-up.aria-label')} disabled={first} onClick={(e: MouseEvent) => { e.stopPropagation(); move(-1); }}>
           <Icon name="caret-up" />
         </button>
-        <button type="button" class="icon-button" aria-label="Move down" disabled={last} onClick={(e: MouseEvent) => { e.stopPropagation(); move(1); }}>
+        <button type="button" class="icon-button" aria-label={t('collection.move-down.aria-label')} disabled={last} onClick={(e: MouseEvent) => { e.stopPropagation(); move(1); }}>
           <Icon name="caret-down" />
         </button>
       </span>
@@ -114,8 +114,8 @@ function Item({ r, first, last }: { r: ResolvedItem; first: boolean; last: boole
           <button
             type="button"
             class="icon-button"
-            aria-label={`Relink ${item.name}`}
-            data-tip={`It was at ${item.path}. Choose it where it is now; anything that moved with it follows.`}
+            aria-label={t('collection.relink.aria-label', { name: item.name })}
+            data-tip={t('collection.relink.data-tip', { path: item.path })}
             onClick={(e: MouseEvent) => {
               e.stopPropagation();
               void relinkMissing(item.uid);
@@ -127,7 +127,7 @@ function Item({ r, first, last }: { r: ResolvedItem; first: boolean; last: boole
         <button
           type="button"
           class="icon-button"
-          aria-label="Remove from the collection"
+          aria-label={t('collection.remove.aria-label')}
           onClick={(e: MouseEvent) => {
             e.stopPropagation();
             dispatch((s) => setEditing(setCollection(s, removeItem(s.collection, item.uid)), s.editing === item.uid ? null : s.editing));

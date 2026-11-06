@@ -6927,6 +6927,12 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(() => page.eval<boolean>(`document.documentElement.lang === 'en-GB'`), 'the window in British English');
         expect(await page.eval<string>(`document.querySelector('[data-i18n="ui.chip-favorites.favorites"]').textContent`)).toBe('Favourites');
         expect(await page.eval<string>(`document.getElementById('chip-favorites').getAttribute('data-tip')`)).toBe('Favourites only');
+        // Words built in code follow too, not only the markup's: the browse tree's Quick access, drawn by
+        // a component from a table whose labels read the catalog.
+        const quickFolded = await page.eval<boolean>(`document.querySelector('#browse-tree [data-node="quick"]')?.getAttribute('aria-expanded') === 'false'`);
+        if (quickFolded) await page.eval(`document.querySelector('#browse-tree [data-node="quick"]').click()`);
+        await until(() => page.eval<boolean>(`(document.querySelector('#browse-tree [data-node="favorites"]')?.textContent ?? '').includes('Favourites')`), "the browse tree's Favourites in British English");
+        if (quickFolded) await page.eval(`document.querySelector('#browse-tree [data-node="quick"]').click()`);
         // The popped-out stage's words follow, in its own document.
         await until(() => stage!.eval<boolean>(`document.getElementById('bg-gray').getAttribute('aria-label') === 'Grey background' && document.documentElement.lang === 'en-GB'`), 'the stage window in British English');
         // The application menu, built by the main process, is rebuilt in the new words.
@@ -6935,6 +6941,17 @@ describe.skipIf(!electron)('inspector UI', () => {
         // Words that are not British spelling stay as they are.
         expect(await menuWords()).toContain('Render…');
         await until(async () => (await savedLanguage()) === 'en-GB', 'English (UK) in settings.json');
+
+        // The in-app user guide is the source guide in British spelling, made again for the language.
+        await page.eval(`document.getElementById('settings-dialog').close()`);
+        await page.eval(`window.pulpMenuCommand('help.userGuide')`);
+        await until(() => page.eval<boolean>(`document.getElementById('guide-dialog').open`), 'the user guide');
+        const guideWords = () => page.eval<string>(`document.getElementById('guide-body').textContent`);
+        expect(await guideWords()).toContain('Theatre: the stage takes the window');
+        expect(await guideWords()).not.toContain('Theater: the stage takes the window');
+        await page.eval(`document.getElementById('guide-dialog').close()`);
+        await page.eval(`window.pulpMenuCommand('app.settings')`);
+        await until(() => page.eval<boolean>(`document.getElementById('settings-dialog').open`), 'Settings again');
 
         // Back to US English, the same way.
         await fire('#settings-language', 'en-US', 'change');

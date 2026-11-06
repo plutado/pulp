@@ -16,6 +16,7 @@ import { sampleHint, sampleHintOutcome, type UnmadeByType } from '../core/sample
 import type { Scope } from '../core/app-state';
 import type { LibraryIndex } from '../core/library-types';
 import { appState } from './store';
+import { bindText, t } from './i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -37,9 +38,10 @@ export const someSampleMediaUnmade = computed(() => Object.values(unmade.value).
 /**
  * What a run is doing or did, and where it was started. Kept with its scope so
  * "Made 20 files." is still readable afterwards, and goes when somewhere else
- * is browsed — where the count speaks for itself.
+ * is browsed — where the count speaks for itself. Its words are worked out when
+ * they are shown, so a change of language reaches them too.
  */
-const run = signal<{ scope: Scope | null; text: string; busy: boolean } | null>(null);
+const run = signal<{ scope: Scope | null; say: () => string; busy: boolean } | null>(null);
 
 const hint = computed(() => sampleHint(appState.value.scope, unmade.value));
 const note = computed(() => {
@@ -70,12 +72,13 @@ export function initSampleHint(actions: SampleHintActions): void {
     // The window's own floor counts this line when the results fold to their heading (milestone 42).
     app.classList.toggle('sample-hint', show);
     if (!show) return;
-    text.textContent = running?.text ?? offer!.label;
+    text.textContent = running ? running.say() : offer!.label;
     // Nothing left to make and nothing running: the button goes and the line is the outcome alone.
     button.hidden = offer === null;
     if (!offer) return;
     const busy = running?.busy === true;
-    button.textContent = busy ? 'Making…' : offer.action;
+    // Bound, not merely written: the markup names this button's message, which a change of language would put back.
+    bindText(button, busy ? 'sample-hint.making' : 'ui.results-hint-make');
     button.dataset.tip = offer.tip;
     button.disabled = busy;
     button.setAttribute('aria-busy', String(busy));
@@ -85,7 +88,8 @@ export function initSampleHint(actions: SampleHintActions): void {
     const offer = hint.value;
     if (!offer || note.value?.busy) return;
     const scope = appState.value.scope;
-    run.value = { scope, text: `Making ${offer.count} ${offer.count === 1 ? 'file' : 'files'}…`, busy: true };
+    const count = offer.count;
+    run.value = { scope, say: () => t('sample-hint.making-files', { count }), busy: true };
     void window.pulp
       .makeSampleMedia(offer.types)
       .then(async (outcome) => {
@@ -95,12 +99,15 @@ export function initSampleHint(actions: SampleHintActions): void {
           return;
         }
         if (outcome.failed.length > 0) console.warn(`Sample media: ${outcome.failed.length} file(s) could not be made: ${outcome.failed.join('; ')}`);
-        run.value = { scope, text: sampleHintOutcome(outcome.written, outcome.failed.length), busy: false };
+        const written = outcome.written;
+        const failed = outcome.failed.length;
+        run.value = { scope, say: () => sampleHintOutcome(written, failed), busy: false };
         actions.onIndex(outcome.index);
         await refreshSampleHint();
       })
       .catch((err: Error) => {
-        run.value = { scope, text: `Could not make them: ${err.message}`, busy: false };
+        // The reason is the main process's own detail, in a frame of this window's.
+        run.value = { scope, say: () => t('sample-hint.failed', { reason: err.message }), busy: false };
       });
   });
 

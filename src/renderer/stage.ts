@@ -58,6 +58,8 @@ import { peaksFor, waveforms } from './waveforms';
 import { waveformPath } from '../core/waveform';
 import { frameColorScheme } from '../core/appearance';
 import { mountBackgroundPicker, showBackgroundChoice } from './stage-background';
+import { bindAttr, bindText, whenLocaleChanges } from './i18n';
+import type { MessageId, MessageValues } from '../core/i18n';
 
 /** Element by id. Typed as Element, not HTMLElement: the stage's waveform is an SVG. */
 const $ = <T extends Element>(id: string): T => {
@@ -201,13 +203,13 @@ function applyPlayer(): void {
   for (const area of SAFE_AREAS) {
     const el = area.id === 'action' ? els.safeAction : els.safeTitle;
     el.style.inset = `${area.inset * 100}%`;
-    el.title = area.label;
   }
+  applySafeAreaNames();
   applyZones();
   publishTransport();
   els.volume.value = String(Math.round(p.volume * 100));
   els.mute.setAttribute('aria-pressed', String(p.muted));
-  els.mute.setAttribute('aria-label', p.muted ? 'Unmute' : 'Mute');
+  bindAttr(els.mute, 'aria-label', p.muted ? 'stage.mute.unmute.aria-label' : 'ui.mute.aria-label');
   setIcon(els.mute, p.muted ? 'speaker-slash' : 'speaker-high', 20);
   for (const el of [els.mediaVideo, els.mediaAudio]) {
     el.volume = p.volume;
@@ -381,7 +383,7 @@ function applyParts(): void {
   els.lengthHandle.setAttribute('aria-valuemin', String(minimumLength(structure, duration)));
   els.lengthHandle.setAttribute('aria-valuemax', String(MAX_LENGTH_SECONDS));
   els.lengthHandle.setAttribute('aria-valuenow', String(length));
-  els.lengthHandle.setAttribute('aria-valuetext', `${length} seconds`);
+  bindAttr(els.lengthHandle, 'aria-valuetext', 'stage.length-handle.aria-valuetext', { seconds: length });
 }
 
 /** The in and out marks over the scrub bar, and what a render would drop. */
@@ -445,8 +447,30 @@ function publishTransport(): void {
 }
 
 function clearNote(): void {
+  showNoteText('');
   els.note.hidden = true;
-  els.note.textContent = '';
+}
+
+/**
+ * A line under the stage in words already worked out — a module's own note, or a message from
+ * elsewhere — so whatever message the line was last stamped with does not come back over it.
+ */
+function showNoteText(text: string): void {
+  delete els.note.dataset.i18n;
+  delete els.note.dataset.i18nValues;
+  els.note.hidden = false;
+  els.note.textContent = text;
+}
+
+/** A line under the stage from the catalog: a change of language rewrites it while it shows. */
+function showNote(id: MessageId, values?: MessageValues): void {
+  els.note.hidden = false;
+  bindText(els.note, id, values);
+}
+
+/** The safe areas' names, in the interface's language now. */
+function applySafeAreaNames(): void {
+  for (const area of SAFE_AREAS) (area.id === 'action' ? els.safeAction : els.safeTitle).title = area.label;
 }
 
 function updateTimecode(frame: number): void {
@@ -563,11 +587,9 @@ function syncImages(): void {
   ]).then(([handed, clips]) => {
     if (id !== s.prepareId || !s.manifest || els.preview.contentWindow !== win) return;
     if (handed.missing.length > 0) {
-      els.note.hidden = false;
-      els.note.textContent = 'An image chosen for this template is not in the library; its slot shows the fallback.';
+      showNote('stage.note.image-missing');
     } else if (clips.missing.length > 0) {
-      els.note.hidden = false;
-      els.note.textContent = 'A clip chosen for a layer could not be read; that layer draws nothing.';
+      showNote('stage.note.clip-unreadable');
     }
     s.clipSources = clips.sources;
     // The sources are what the layer sounds follow the playhead by (milestone 48).
@@ -673,7 +695,7 @@ function play(): void {
   playStart = performance.now();
   playStartFrame = s.frame;
   setIcon(els.play, 'pause', 24);
-  els.play.setAttribute('aria-label', 'Pause');
+  bindAttr(els.play, 'aria-label', 'stage.play.pause.aria-label');
   publishTransport();
   layerSoundsUpdate(soundTime(), true, soundMaster(), soundLength());
   rafId = requestAnimationFrame(tick);
@@ -690,7 +712,7 @@ export function stageStop(): void {
   layerSoundsStop();
   cancelAnimationFrame(rafId);
   setIcon(els.play, 'play', 24);
-  els.play.setAttribute('aria-label', 'Play');
+  bindAttr(els.play, 'aria-label', 'ui.play.aria-label');
   publishTransport();
   if (s.media && !s.media.el.paused) s.media.el.pause();
 }
@@ -700,7 +722,7 @@ function startFollowing(el: HTMLMediaElement): void {
   if (s.media?.el !== el) return;
   s.playing = true;
   setIcon(els.play, 'pause', 24);
-  els.play.setAttribute('aria-label', 'Pause');
+  bindAttr(els.play, 'aria-label', 'stage.play.pause.aria-label');
   publishTransport();
   cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(tick);
@@ -792,7 +814,7 @@ export function stageShowTemplate(
   if (entry.offline) {
     // The folder is not reachable; keep the item (and its edits) but do not try to load it.
     els.preview.removeAttribute('src');
-    els.previewEmpty.textContent = 'This template\'s folder is offline. It will load again when the folder is back.';
+    bindText(els.previewEmpty, 'stage.empty.template-offline');
     els.previewEmpty.hidden = false;
   } else {
     els.previewEmpty.hidden = true;
@@ -824,7 +846,7 @@ export function stageShowMedia(entry: MediaEntry): void {
   // Volume and mute are the player's, not each file's.
   applyPlayer();
   if (entry.offline) {
-    els.previewEmpty.textContent = 'This file\'s folder is offline.';
+    bindText(els.previewEmpty, 'stage.empty.file-offline');
     return;
   }
   els.previewEmpty.hidden = true;
@@ -902,7 +924,7 @@ export function stageClear(): void {
   els.preview.removeAttribute('src');
   clearMediaPreview();
   clearNote();
-  els.previewEmpty.textContent = 'Select a template';
+  bindText(els.previewEmpty, 'ui.preview-empty');
   els.previewEmpty.hidden = false;
   updateTransport();
   applyLayerBars();
@@ -1227,8 +1249,7 @@ export function initStage(): void {
     if (s.manifest) trackPictureDraw(s.frame / Math.max(1, previewFps()), previewSize());
   });
   mountCutTrack($<HTMLDivElement>('cut-track'), $<HTMLDivElement>('transport-lanes'), (text) => {
-    els.note.hidden = false;
-    els.note.textContent = text;
+    showNoteText(text);
   });
   // Choosing a layer lights its clip on the picture track too.
   effect(() => {
@@ -1237,8 +1258,7 @@ export function initStage(): void {
   });
   // The picture track's own drop, ahead of the lanes' drop onto the cut track (milestone 57).
   mountOverlayTrack($<HTMLDivElement>('overlay-track'), (text) => {
-    els.note.hidden = false;
-    els.note.textContent = text;
+    showNoteText(text);
   });
   els.lengthHandle.addEventListener('pointerdown', onLengthPointerDown);
   els.lengthHandle.addEventListener('pointermove', onLengthPointerMove);
@@ -1300,8 +1320,7 @@ export function initStage(): void {
     // theater, adding it to the collection — are about whatever is shown.
     hasItem: () => s.manifest !== null || s.sequence !== null || s.media !== null || s.still || s.psd !== null,
     note: (text) => {
-      els.note.hidden = false;
-      els.note.textContent = text;
+      showNoteText(text);
     },
   });
   // Dropping a picture or a clip from the results makes it a layer where it was dropped
@@ -1320,8 +1339,7 @@ export function initStage(): void {
       return entry ? { kind: 'other', name: entry.name } : null;
     },
     (text) => {
-      els.note.hidden = false;
-      els.note.textContent = text;
+      showNoteText(text);
     },
     cutTrackTakeDrop,
   );
@@ -1335,6 +1353,13 @@ export function initStage(): void {
   });
 
   applyPlayer();
+  // Words built from the player's tables (the background's name, the safe areas', the zones'):
+  // put in the new language when it changes, as the markup's own are.
+  whenLocaleChanges(() => {
+    showBackgroundChoice(els.bgButton, s.player);
+    applySafeAreaNames();
+    applyZones();
+  });
   void window.pulp.getPlayer().then((saved) => {
     s.player = saved;
     applyPlayer();
@@ -1360,8 +1385,7 @@ function onPreviewMessage(event: MessageEvent): void {
       if ((data as { id?: number }).id !== s.prepareId) return;
       s.imagesReady = true;
       if (data.message) {
-        els.note.hidden = false;
-        els.note.textContent = `Image slot: ${data.message}`;
+        showNote('stage.note.image-slot', { message: data.message });
       }
       if (s.pendingFrame !== null) {
         const next = s.pendingFrame;
@@ -1374,8 +1398,8 @@ function onPreviewMessage(event: MessageEvent): void {
       noteFrameState();
       if (data.type === 'pulp:rendered') stageLayersUpdate((data as { laid?: LaidReport }).laid ?? null, (data as { seq?: number }).seq);
       if (data.type === 'pulp:error') {
-        els.note.hidden = false;
-        els.note.textContent = `Template error: ${data.message ?? 'unknown'}`;
+        if ((data.message ?? null) === null) showNote('stage.note.template-error.unknown');
+        else showNote('stage.note.template-error', { message: data.message! });
       }
       if (s.pendingFrame !== null) {
         const next = s.pendingFrame;

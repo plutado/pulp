@@ -15,6 +15,7 @@ import { readFile, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, join } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
+import { tr } from '../core/i18n';
 import { COLLECTION_EXTENSION, PROJECT_EXTENSION } from '../core/open-file';
 import { parseCollection, serializeCollection, type CollectionItem } from '../core/collection';
 import { itemId } from '../core/library-scan';
@@ -29,10 +30,11 @@ import { addLibraryFolder, getLibrary } from './library-service';
 import { loadSettings, updateSettings } from './settings';
 
 // The two extensions live in src/core/open-file.ts, which reads them off a double-clicked file too.
-const OPEN_FILTERS = [
-  { name: 'Pulp project or collection', extensions: [PROJECT_EXTENSION, COLLECTION_EXTENSION] },
-  { name: 'Pulp project', extensions: [PROJECT_EXTENSION] },
-  { name: 'Pulp collection', extensions: [COLLECTION_EXTENSION] },
+/** The open dialogs' file types, named in the interface's language when the dialog opens. */
+const openFilters = (): Electron.FileFilter[] => [
+  { name: tr('dialog.project.filter.either'), extensions: [PROJECT_EXTENSION, COLLECTION_EXTENSION] },
+  { name: tr('dialog.project.filter.project'), extensions: [PROJECT_EXTENSION] },
+  { name: tr('dialog.project.filter.collection'), extensions: [COLLECTION_EXTENSION] },
 ];
 
 /** How many recently-opened projects are remembered. */
@@ -126,9 +128,9 @@ export async function relinkRecentProject(oldPath: string, answer?: string): Pro
   let chosen = answer;
   if (!chosen) {
     const pick = await dialog.showOpenDialog({
-      title: `Where is "${projectName(oldPath)}" now?`,
+      title: tr('dialog.relink.where-now', { name: projectName(oldPath) }),
       defaultPath: dirname(oldPath) || homedir(),
-      filters: OPEN_FILTERS,
+      filters: openFilters(),
       properties: ['openFile'],
     });
     chosen = pick.filePaths[0];
@@ -154,11 +156,11 @@ export async function saveProjectTo(project: Project, path: string | null, sugge
   let target = path;
   if (!target) {
     const save = await dialog.showSaveDialog({
-      title: 'Save project',
+      title: tr('dialog.project.save.title'),
       defaultPath: join(app.getPath('documents') || homedir(), `${slug(suggested, 'project')}.${PROJECT_EXTENSION}`),
       filters: [
-        { name: 'Pulp project', extensions: [PROJECT_EXTENSION] },
-        { name: 'Pulp collection', extensions: [COLLECTION_EXTENSION] },
+        { name: tr('dialog.project.filter.project'), extensions: [PROJECT_EXTENSION] },
+        { name: tr('dialog.project.filter.collection'), extensions: [COLLECTION_EXTENSION] },
       ],
     });
     if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: '' };
@@ -168,7 +170,7 @@ export async function saveProjectTo(project: Project, path: string | null, sugge
   try {
     await writeFileAtomic(target, asCollection ? serializeCollection(project.collection) : serializeProject(project));
   } catch (err) {
-    return { ok: false, message: `Could not save the project: ${(err as Error).message}` };
+    return { ok: false, message: tr('dialog.project.save.failed', { reason: (err as Error).message }) };
   }
   // Saved is saved: the recovery copy has nothing left to recover.
   await clearRecovery();
@@ -177,9 +179,9 @@ export async function saveProjectTo(project: Project, path: string | null, sugge
 
 export async function openProjectDialog(): Promise<ProjectFileResult> {
   const pick = await dialog.showOpenDialog({
-    title: 'Open project',
+    title: tr('dialog.project.open.title'),
     defaultPath: app.getPath('documents') || homedir(),
-    filters: OPEN_FILTERS,
+    filters: openFilters(),
     properties: ['openFile'],
   });
   const path = pick.filePaths[0];
@@ -197,7 +199,7 @@ export async function readProjectFile(path: string): Promise<ProjectFileResult> 
   try {
     text = await readFile(path, 'utf8');
   } catch (err) {
-    return { ok: false, message: `Could not read ${basename(path)}: ${(err as Error).message}`, missing: true };
+    return { ok: false, message: tr('dialog.project.open.failed', { file: basename(path), reason: (err as Error).message }), missing: true };
   }
   const asCollection = extname(path).toLowerCase() === `.${COLLECTION_EXTENSION}`;
   if (asCollection) {
@@ -291,7 +293,7 @@ export async function relinkProjectItem(
   let chosen = answer;
   if (!chosen) {
     const pick = await dialog.showOpenDialog({
-      title: folder ? `Where is the template folder for "${target.name}"?` : `Where is "${target.name}" now?`,
+      title: folder ? tr('dialog.relink.template-folder', { name: target.name }) : tr('dialog.relink.where-now', { name: target.name }),
       defaultPath: dirname(target.path) || homedir(),
       properties: [folder ? 'openDirectory' : 'openFile'],
     });
@@ -307,7 +309,7 @@ export async function relinkProjectItem(
   try {
     index = await addLibraryFolder(root);
   } catch (err) {
-    return { ok: false, message: `Could not add ${basename(root)} to the library: ${(err as Error).message}` };
+    return { ok: false, message: tr('dialog.relink.add-failed', { folder: basename(root), reason: (err as Error).message }) };
   }
   const known = idsByPath(index);
   const relinked: { uid: string; id: string; path: string }[] = [];

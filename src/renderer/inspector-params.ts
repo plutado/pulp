@@ -73,7 +73,9 @@ import { registerLayerEditor, selectedLayer } from './layer-edit';
 import { openInspector } from './inspector-tabs';
 import { mediaPicker } from './media-picker';
 import { addedLayer } from '../core/stage-menu';
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
+import { bindText, t, whenLocaleChanges } from './i18n';
+import type { MessageId } from '../core/i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -300,7 +302,7 @@ function showPresets(): void {
   els.presetList.replaceChildren();
   const head = document.createElement('option');
   head.value = '';
-  head.textContent = Object.keys(p.presets).length ? 'Saved presets…' : 'No saved presets';
+  head.textContent = presetListHead();
   els.presetList.append(head);
   for (const name of Object.keys(p.presets).sort((a, b) => a.localeCompare(b))) {
     const opt = document.createElement('option');
@@ -311,6 +313,11 @@ function showPresets(): void {
   els.presetList.value = current in p.presets ? current : '';
   els.presetConfirm.hidden = true;
   updatePresetButtons();
+}
+
+/** The saved-presets list's first line: what the list holds, or that it holds nothing. */
+function presetListHead(): string {
+  return Object.keys(p.presets).length ? t('params.presets.saved') : t('params.presets.none');
 }
 
 function updatePresetButtons(): void {
@@ -325,7 +332,7 @@ async function savePresetAs(name: string, replace: boolean): Promise<void> {
   const trimmed = name.trim();
   if (!trimmed) return;
   if (trimmed in p.presets && !replace) {
-    els.presetConfirmText.textContent = `Replace the preset "${trimmed}" with the current values?`;
+    bindText(els.presetConfirmText, 'params.presets.replace-confirm', { name: trimmed });
     els.presetConfirm.hidden = false;
     return;
   }
@@ -466,17 +473,22 @@ function inputFor(param: TemplateParameter): HTMLElement {
 // ---------------------------------------------------------------- image slots (milestone 22)
 
 /** Short enough for a segmented control; the long form is the button's tooltip. */
-const TREATMENT_LABELS: Record<ImageValue['treatment'], string> = { original: 'Original', tinted: 'Tinted', white: 'White', black: 'Black' };
-const TREATMENT_TIPS: Record<ImageValue['treatment'], string> = {
-  original: 'Draw the image as it is',
-  tinted: 'Flatten the image to one color',
-  white: 'Flatten the image to white, for a dark background',
-  black: 'Flatten the image to black, for a light background',
+const TREATMENT_LABELS: Readonly<Record<ImageValue['treatment'], string>> = {
+  get original() { return t('params.image.treatment.original'); },
+  get tinted() { return t('params.image.treatment.tinted'); },
+  get white() { return t('params.image.treatment.white'); },
+  get black() { return t('params.image.treatment.black'); },
+};
+const TREATMENT_TIPS: Readonly<Record<ImageValue['treatment'], string>> = {
+  get original() { return t('params.image.treatment.original.tip'); },
+  get tinted() { return t('params.image.treatment.tinted.tip'); },
+  get white() { return t('params.image.treatment.white.tip'); },
+  get black() { return t('params.image.treatment.black.tip'); },
 };
 /** The two effects are toggles; neither pressed is "none". */
-const EFFECT_TOGGLES: { id: Exclude<ImageValue['effect'], 'none'>; label: string; tip: string }[] = [
-  { id: 'shadow', label: 'Shadow', tip: 'Drop a soft shadow behind the image' },
-  { id: 'glow', label: 'Glow', tip: 'Spread a soft glow behind the image' },
+const EFFECT_TOGGLES: { id: Exclude<ImageValue['effect'], 'none'>; readonly label: string; readonly tip: string }[] = [
+  { id: 'shadow', get label() { return t('params.image.effect.shadow'); }, get tip() { return t('params.image.effect.shadow.tip'); } },
+  { id: 'glow', get label() { return t('params.image.effect.glow'); }, get tip() { return t('params.image.effect.glow.tip'); } },
 ];
 
 /**
@@ -544,7 +556,7 @@ function splitPsdLayer(blockId: string, layerId: string, outline: PsdOutline): v
     while (taken.has(id)) id = `${layerId}_${++n}`;
     taken.add(id);
     const base = original.image!;
-    return { ...original, id, label: part.name || `Layer ${i + 1}`, required: false, image: { id: base.id, treatment: base.treatment, tint: base.tint, effect: base.effect, hidden: false, psd: { layer: part.id } } } as Layer;
+    return { ...original, id, label: part.name || t('params.psd.split-layer-name', { n: i + 1 }), required: false, image: { id: base.id, treatment: base.treatment, tint: base.tint, effect: base.effect, hidden: false, psd: { layer: part.id } } } as Layer;
   });
   setLayers({ ...layers, [blockId]: [...stack.slice(0, at), ...made, ...stack.slice(at + 1)] }, true);
   selectedLayer.value = { block: blockId, id: made[0]!.id };
@@ -570,10 +582,10 @@ function imageField(
   const well = document.createElement('button');
   well.type = 'button';
   well.className = 'image-well checker picker-toggle';
-  well.setAttribute('aria-label', `${slot.label}: choose an image`);
+  well.setAttribute('aria-label', t('params.image.well.aria-label', { slot: slot.label }));
   const emptyLabel = document.createElement('span');
   emptyLabel.className = 'empty-label';
-  emptyLabel.textContent = 'Choose or drop an image';
+  emptyLabel.textContent = t('params.image.empty');
   const img = document.createElement('img');
   img.alt = '';
 
@@ -586,18 +598,18 @@ function imageField(
   dims.className = 'image-dims';
   const buttons = document.createElement('span');
   buttons.className = 'image-buttons';
-  const replace = iconButton('swap', 'Replace image', 'Choose another image');
+  const replace = iconButton('swap', t('params.image.replace'), t('params.image.replace.tip'));
   // Hiding is not clearing: the choice is kept, and nothing is drawn there at all — not even the fallback.
-  const hide = iconButton('eye', `Hide ${slot.label}`, 'Draw nothing here, keeping the image for later');
-  const clear = iconButton('x', 'Clear image', options.layer ? 'Use no image: the layer takes no room' : 'Use no image: the slot shows its fallback');
+  const hide = iconButton('eye', t('params.slot.hide', { slot: slot.label }), t('params.image.hide.tip'));
+  const clear = iconButton('x', t('params.image.clear'), options.layer ? t('params.image.clear.tip.layer') : t('params.image.clear.tip.slot'));
   buttons.append(...(options.layer ? [replace, clear] : [hide, replace, clear]));
   meta.append(caption, dims, buttons);
 
   const fromFile = document.createElement('button');
   fromFile.type = 'button';
   fromFile.className = 'from-file';
-  fromFile.textContent = 'File…';
-  fromFile.dataset.tip = 'Copy an image file into the library\'s Imported folder and use it';
+  fromFile.textContent = t('params.image.from-file');
+  fromFile.dataset.tip = t('params.image.from-file.tip');
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.accept = 'image/*,.svg';
@@ -607,7 +619,7 @@ function imageField(
     layers: ['image'],
     noun: 'stills',
     label: slot.label,
-    emptyLibrary: 'No stills in the library yet. Add a folder with images, or use File….',
+    emptyLibrary: 'params.image.picker.empty',
     chosen: () => value?.id ?? undefined,
     onPick: (entry) => pick(entry.id),
     head: [fromFile, fileInput],
@@ -619,7 +631,7 @@ function imageField(
   const segmented = document.createElement('div');
   segmented.className = 'segmented';
   segmented.setAttribute('role', 'group');
-  segmented.setAttribute('aria-label', 'Color treatment');
+  segmented.setAttribute('aria-label', t('params.image.treatment.aria-label'));
   const treatmentButtons = IMAGE_TREATMENTS.map((t) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -633,11 +645,11 @@ function imageField(
   const tint = document.createElement('input');
   tint.type = 'color';
   tint.className = 'tint';
-  tint.setAttribute('aria-label', 'Tint color');
+  tint.setAttribute('aria-label', t('params.image.tint.aria-label'));
   const effects = document.createElement('div');
   effects.className = 'image-effects';
   effects.setAttribute('role', 'group');
-  effects.setAttribute('aria-label', 'Effect');
+  effects.setAttribute('aria-label', t('params.image.effect.aria-label'));
   const effectButtons = EFFECT_TOGGLES.map((e) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -684,7 +696,7 @@ function imageField(
     if (!state.ok) {
       const p = document.createElement('p');
       p.className = 'note';
-      p.textContent = `This file could not be read as layers: ${state.message}. Its stored picture is used.`;
+      p.textContent = t('params.psd.unreadable', { reason: state.message });
       psdBox.append(p);
       return;
     }
@@ -693,7 +705,7 @@ function imageField(
       const which = document.createElement('p');
       which.className = 'psd-which';
       const layer = outline.layers.find((l) => l.id === value!.psd!.layer);
-      which.textContent = layer ? `Layer “${layer.name}” of ${layeredEntry.name}` : `A layer ${layeredEntry.name} no longer has`;
+      which.textContent = layer ? t('params.psd.which', { layer: layer.name, file: layeredEntry.name }) : t('params.psd.which.gone', { file: layeredEntry.name });
       psdBox.append(which);
       return;
     }
@@ -710,7 +722,7 @@ function imageField(
       box.type = 'checkbox';
       box.checked = !hidden.has(layer.id);
       box.disabled = layer.hasPixels === false;
-      box.setAttribute('aria-label', `Show ${layer.name || 'layer'}`);
+      box.setAttribute('aria-label', layer.name ? t('params.psd.show-layer', { layer: layer.name }) : t('params.psd.show-unnamed'));
       box.addEventListener('change', () => {
         const next = new Set(hidden);
         if (box.checked) next.delete(layer.id);
@@ -723,12 +735,12 @@ function imageField(
       });
       const name = document.createElement('span');
       name.className = 'name';
-      name.textContent = layer.name || (layer.kind === 'group' ? 'Group' : 'Layer');
+      name.textContent = layer.name || (layer.kind === 'group' ? t('params.psd.unnamed-group') : t('params.psd.unnamed-layer'));
       label.append(box, name);
       if (layer.limits.length > 0) {
         const limits = document.createElement('span');
         limits.className = 'limits';
-        limits.textContent = layer.limits.length === 1 ? layer.limits[0]! : `${layer.limits.length} things not reproduced`;
+        limits.textContent = layer.limits.length === 1 ? layer.limits[0]! : t('params.psd.limits', { count: layer.limits.length });
         limits.dataset.tip = layer.limits.join('; ');
         li.append(label, limits);
       } else li.append(label);
@@ -748,8 +760,8 @@ function imageField(
       actions.className = 'psd-actions';
       const split = document.createElement('button');
       split.type = 'button';
-      split.textContent = `Split into ${placeable.length} layers`;
-      split.dataset.tip = 'One image layer per shown layer, each keeping its place, to be moved and styled on their own';
+      split.textContent = t('params.psd.split', { count: placeable.length });
+      split.dataset.tip = t('params.psd.split.tip');
       split.addEventListener('click', () => options.onSplit?.());
       actions.append(split);
       psdBox.append(actions);
@@ -763,8 +775,8 @@ function imageField(
     well.classList.toggle('empty', !entry);
     well.classList.toggle('hidden-slot', isHidden);
     setIcon(hide, isHidden ? 'eye-slash' : 'eye');
-    hide.setAttribute('aria-label', `${isHidden ? 'Show' : 'Hide'} ${slot.label}`);
-    hide.dataset.tip = isHidden ? 'Draw it here again' : 'Draw nothing here, keeping the image for later';
+    hide.setAttribute('aria-label', isHidden ? t('params.slot.show', { slot: slot.label }) : t('params.slot.hide', { slot: slot.label }));
+    hide.dataset.tip = isHidden ? t('params.slot.show.tip') : t('params.image.hide.tip');
     hide.setAttribute('aria-pressed', String(isHidden));
     if (value && entry) {
       // The poster when the library has made one; the still itself otherwise, so the box is never a broken image.
@@ -776,16 +788,16 @@ function imageField(
       // Said only once it is known: a size the library has not probed yet is left out, not guessed.
       dims.textContent = width && height ? dimensionsLabel(width, height) : '';
     } else {
-      emptyLabel.textContent = value?.id ? 'Image not found — choose another' : 'Choose or drop an image';
+      emptyLabel.textContent = value?.id ? t('params.image.not-found') : t('params.image.empty');
       well.append(emptyLabel);
       well.title = '';
-      caption.textContent = value?.id ? '' : options.layer ? 'No image; the layer takes no room' : 'No image; the slot shows its fallback';
+      caption.textContent = value?.id ? '' : options.layer ? t('params.image.none.layer') : t('params.image.none.slot');
       dims.textContent = '';
     }
     clear.hidden = value === null || (isHidden && !value.id);
     // A hidden slot draws nothing, so how it would be treated is not a question worth asking.
     treat.hidden = value === null || !value.id || isHidden;
-    if (isHidden) caption.textContent = entry ? `${entry.name} · not drawn` : 'Nothing drawn here';
+    if (isHidden) caption.textContent = entry ? t('params.slot.not-drawn', { name: entry.name }) : t('params.slot.nothing-drawn');
     const treatment = value?.treatment ?? 'original';
     for (const button of treatmentButtons) button.setAttribute('aria-pressed', String(button.dataset.treatment === treatment));
     tint.value = value?.tint ?? '#ffffff';
@@ -797,12 +809,12 @@ function imageField(
       // Nothing to report: a hidden slot draws nothing, so an image it no longer has is no problem.
     } else if (value?.id && !entry) {
       note.hidden = false;
-      note.textContent = 'The chosen image is no longer in the library. The slot shows its fallback until another is picked.';
-      slotProblems.set(slot.id, { label: slot.label, note: 'Not in the library; the slot shows its fallback' });
+      note.textContent = t('params.image.missing');
+      slotProblems.set(slot.id, { label: slot.label, note: t('params.image.missing.short') });
     } else if (entry?.offline) {
       note.hidden = false;
-      note.textContent = 'The chosen image\'s folder is offline.';
-      slotProblems.set(slot.id, { label: slot.label, note: 'Its folder is offline' });
+      note.textContent = t('params.image.offline');
+      slotProblems.set(slot.id, { label: slot.label, note: t('params.slot.offline.short') });
     }
     publishSlotNotes();
   };
@@ -911,21 +923,21 @@ function colorField(initial: string, onChange: (hex: string) => void): HTMLEleme
   swatch.append(fill);
   const picker = document.createElement('input');
   picker.type = 'color';
-  picker.title = 'Color';
+  picker.title = t('params.color.picker.title');
   const slider = document.createElement('input');
   slider.type = 'range';
   slider.min = '0';
   slider.max = '100';
   slider.step = '1';
   slider.className = 'alpha';
-  slider.title = 'Alpha';
+  slider.title = t('params.color.alpha.title');
   const percent = document.createElement('span');
   percent.className = 'alpha-value';
   const text = document.createElement('input');
   text.type = 'text';
   text.className = 'hex';
   text.spellcheck = false;
-  text.title = '#RRGGBB or #RRGGBBAA';
+  text.title = t('params.color.hex.title');
 
   const show = () => {
     const hex = joinColor(rgb, alpha);
@@ -1154,21 +1166,19 @@ function lengthField(): HTMLElement | null {
 
   const wrap = document.createElement('div');
   wrap.className = 'length-field';
-  const input = numberOf(current, { min: floor, max: MAX_LENGTH_SECONDS }, 0.5, (v) => setLength(v === duration ? undefined : v), 'Length, seconds');
-  wrap.append(typeField('Length, seconds', input));
+  const input = numberOf(current, { min: floor, max: MAX_LENGTH_SECONDS }, 0.5, (v) => setLength(v === duration ? undefined : v), t('params.length'));
+  wrap.append(typeField(t('params.length'), input));
   const note = document.createElement('p');
   note.className = 'note';
   const parts = lengthParts(duration, structure, current);
-  note.textContent =
-    `In ${parts.entrance} s, hold ${Math.round((parts.holdTo - parts.holdFrom) * 10) / 10} s, out ${parts.exit} s. ` +
-    'Only the hold stretches; the entrance and the exit keep the speed they were designed at.';
+  note.textContent = t('params.length.note', { entrance: parts.entrance, hold: Math.round((parts.holdTo - parts.holdFrom) * 10) / 10, exit: parts.exit });
   wrap.append(note);
   if (current !== duration) {
     const reset = document.createElement('button');
     reset.type = 'button';
     reset.className = 'field-reset';
-    reset.textContent = `Reset to ${duration} s`;
-    reset.title = 'Back to the length this template was designed at';
+    reset.textContent = t('params.length.reset', { duration });
+    reset.title = t('params.length.reset.title');
     reset.addEventListener('click', (e) => {
       e.preventDefault();
       setLength(undefined);
@@ -1214,16 +1224,16 @@ function templateSoundField(): HTMLElement | null {
   if (!selected || !sound) return null;
   const values = [TEMPLATE_SOUND_NONE, ...sound.variants.map((v) => v.value)];
   const labels = Object.fromEntries([
-    [TEMPLATE_SOUND_NONE, 'None'],
+    [TEMPLATE_SOUND_NONE, t('params.sound.none')],
     ...sound.variants.map((v) => [v.value, v.label]),
   ]) as Record<string, string>;
   const current = resolveTemplateSoundChoice(sound, soundIn(p.raw))?.value ?? TEMPLATE_SOUND_NONE;
   const wrap = document.createElement('div');
   wrap.className = 'sound-field';
-  wrap.append(typeField('Sound', selectOf(values, labels, current, (v) => setSound(v), `${selected.manifest.name} sound`)));
+  wrap.append(typeField(t('params.sound'), selectOf(values, labels, current, (v) => setSound(v), t('params.sound.aria-label', { template: selected.manifest.name }))));
   const note = document.createElement('p');
   note.className = 'note';
-  note.textContent = 'This template\'s own sound, mixed into the render — or written beside an image sequence as a WAV.';
+  note.textContent = t('params.sound.note');
   wrap.append(note);
   return wrap;
 }
@@ -1319,8 +1329,8 @@ function exposedRow(exposure: ExposedParam): HTMLElement {
   name.type = 'text';
   name.className = 'exposed-name';
   name.value = exposure.label;
-  name.setAttribute('aria-label', `${exposure.label} parameter name`);
-  name.title = 'The parameter\u2019s name, shown wherever it is offered';
+  name.setAttribute('aria-label', t('params.expose.name.aria-label', { parameter: exposure.label }));
+  name.title = t('params.expose.name.title');
   name.addEventListener('change', () => {
     const label = name.value.trim();
     if (label === '' || label === exposure.label) {
@@ -1353,7 +1363,7 @@ function exposedRow(exposure: ExposedParam): HTMLElement {
     }, { id: `expose.${exposure.id}`, label: exposure.label }, { layer: true }));
   }
 
-  const remove = iconButton('trash', `Stop ${exposure.label} being a parameter`, 'The layer keeps its value; only the parameter goes');
+  const remove = iconButton('trash', t('params.expose.remove', { parameter: exposure.label }), t('params.expose.remove.tip'));
   remove.addEventListener('click', () => {
     const selected = selectedTemplate.value;
     if (!selected) return;
@@ -1389,10 +1399,10 @@ function exposedParamsSection(): HTMLElement | null {
   section.className = 'param-card exposed-params';
   const head = document.createElement('div');
   head.className = 'group-label';
-  head.textContent = 'Template parameters';
+  head.textContent = t('params.expose.heading');
   const note = document.createElement('p');
   note.className = 'note';
-  note.textContent = 'Picked off the layers and named here. Each edits the property it was picked from; saving the canvas as a template carries them as its parameters.';
+  note.textContent = t('params.expose.note');
   section.append(head, note);
   for (const exposure of live) section.append(exposedRow(exposure));
   return section;
@@ -1422,10 +1432,14 @@ export function exposeLayerProperty(blockId: string, layerId: string, prop: Expo
     buildParamForm(selected.manifest);
     commitParams();
   }
-  const name = els.params.querySelector<HTMLInputElement>(`[data-expose="${id}"] .exposed-name`);
+  const name = els.params.querySelector<HTMLInputElement>(`[data-expose="${id}"] .exposed-name`); // i18n-exempt(technical)
   name?.focus();
   name?.select();
 }
+
+/** What picking each property says, as one sentence each rather than the property's name lowered into one. */
+const EXPOSE_ARIA: Record<ExposableProp, MessageId> = { text: 'params.expose.text.aria-label', color: 'params.expose.color.aria-label', image: 'params.expose.image.aria-label' };
+const EXPOSE_TITLES: Record<ExposableProp, MessageId> = { text: 'params.expose.text.title', color: 'params.expose.color.title', image: 'params.expose.image.title' };
 
 /** The card's own way to pick (milestone 55): one small button per property not yet a parameter. */
 function exposeButtons(blockId: string, layer: Layer): HTMLElement | null {
@@ -1437,15 +1451,15 @@ function exposeButtons(blockId: string, layer: Layer): HTMLElement | null {
   const row = document.createElement('div');
   row.className = 'layer-expose';
   const label = document.createElement('span');
-  label.textContent = 'Make a parameter:';
+  label.textContent = t('params.expose.make');
   row.append(label);
   for (const prop of free) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'ghost';
     button.textContent = PROP_LABELS[prop];
-    button.setAttribute('aria-label', `${layer.label}: make ${PROP_LABELS[prop].toLowerCase()} a parameter`);
-    button.title = `Expose the ${PROP_LABELS[prop].toLowerCase()} as a template parameter, named and edited at the top of this tab`;
+    button.setAttribute('aria-label', t(EXPOSE_ARIA[prop], { layer: layer.label }));
+    button.title = t(EXPOSE_TITLES[prop]);
     button.addEventListener('click', () => exposeLayerProperty(blockId, layer.id, prop));
     row.append(button);
   }
@@ -1458,7 +1472,7 @@ function blockFooter(manifest: TemplateManifest, blockId: string, label: string,
   const foot = document.createElement('div');
   foot.className = 'layer-add';
   const addLabel = document.createElement('span');
-  addLabel.textContent = showLabel ? `Add layer to ${label}` : 'Add layer';
+  addLabel.textContent = showLabel ? t('params.layers.add-to', { block: label }) : t('params.layers.add');
   foot.append(addLabel);
   // Video sits beside Text and Image: a clip is as much a layer as a line or a picture (milestone 26).
   for (const type of LAYER_TYPES as readonly LayerType[]) {
@@ -1473,8 +1487,8 @@ function blockFooter(manifest: TemplateManifest, blockId: string, label: string,
   const reset = document.createElement('button');
   reset.type = 'button';
   reset.className = 'field-reset layers-reset';
-  reset.textContent = 'Reset layers';
-  reset.title = 'Put this template\'s own layers back';
+  reset.textContent = t('params.layers.reset');
+  reset.title = t('params.layers.reset.title');
   reset.hidden = sameLayers(currentLayers(), defaultLayers(manifest));
   reset.addEventListener('click', (e) => {
     e.preventDefault();
@@ -1489,14 +1503,14 @@ function layerActions(blockId: string, layer: Layer, index: number, count: numbe
   const actions = document.createElement('span');
   actions.className = 'layer-actions';
 
-  const hide = iconButton(layer.hidden ? 'eye-slash' : 'eye', layer.hidden ? `Show ${layer.label}` : `Hide ${layer.label}`,
-    layer.hidden ? 'Kept, but not drawn: show it again' : 'Keep the layer but stop drawing it; the stack closes up');
+  const hide = iconButton(layer.hidden ? 'eye-slash' : 'eye', layer.hidden ? t('params.slot.show', { slot: layer.label }) : t('params.slot.hide', { slot: layer.label }),
+    layer.hidden ? t('params.layer.show.tip') : t('params.layer.hide.tip'));
   hide.setAttribute('aria-pressed', String(layer.hidden));
   hide.addEventListener('click', () => editLayer(blockId, layer.id, (l) => ({ ...l, hidden: !l.hidden }), true));
 
   // A placed layer can be put back where its stack places it (milestone 25).
   if (layer.placement) {
-    const resetPos = iconButton('frame-corners', `Reset ${layer.label} position`, 'Put the layer back where the stack places it');
+    const resetPos = iconButton('frame-corners', t('params.layer.reset-position', { layer: layer.label }), t('params.layer.reset-position.tip'));
     resetPos.addEventListener('click', () => {
       editLayer(blockId, layer.id, (l) => {
         const rest = { ...l };
@@ -1508,17 +1522,17 @@ function layerActions(blockId: string, layer: Layer, index: number, count: numbe
     actions.append(resetPos);
   }
 
-  const up = iconButton('caret-up', `Move ${layer.label} up`);
+  const up = iconButton('caret-up', t('params.layer.move-up', { layer: layer.label }));
   up.disabled = index === 0;
   up.addEventListener('click', () => moveLayer(blockId, layer.id, -1));
-  const down = iconButton('caret-down', `Move ${layer.label} down`);
+  const down = iconButton('caret-down', t('params.layer.move-down', { layer: layer.label }));
   down.disabled = index === count - 1;
   down.addEventListener('click', () => moveLayer(blockId, layer.id, 1));
   actions.append(hide, up, down);
 
   // A layer the template marks required stays: there is no Remove for it.
   if (!layer.required) {
-    const remove = iconButton('trash', `Remove ${layer.label}`);
+    const remove = iconButton('trash', t('params.layer.remove', { layer: layer.label }));
     remove.addEventListener('click', () => removeLayer(blockId, layer.id));
     actions.append(remove);
   }
@@ -1532,7 +1546,7 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
     input.type = 'text';
     input.className = 'layer-text';
     input.value = layer.text;
-    input.setAttribute('aria-label', `${layer.label} text`);
+    input.setAttribute('aria-label', t('params.layer.text.aria-label', { layer: layer.label }));
     input.addEventListener('input', () => editLayer(blockId, layer.id, (l) => ({ ...l, text: input.value }), false));
     input.addEventListener('change', () => commitParams());
     const parts: HTMLElement[] = [input, typographyControls(blockId, layer)];
@@ -1540,7 +1554,7 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
       // A preset or a collection set in a font that has gone: said, not silently drawn in a fallback.
       const gone = document.createElement('p');
       gone.className = 'note font-missing';
-      gone.textContent = `"${familyLabel(layer.family)}" is not on this computer, so the line is drawn in a fallback face. Import it, or choose another family.`;
+      gone.textContent = t('params.layer.font-missing', { family: familyLabel(layer.family) });
       parts.push(gone);
     }
     parts.push(motionControls(blockId, layer), keyControls(blockId, layer), lookControls(blockId, layer));
@@ -1598,11 +1612,15 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
   ];
 }
 
-const ENDING_LABELS: Record<ClipEnding, string> = { loop: 'Loop', once: 'Play once' };
+const ENDING_LABELS: Readonly<Record<ClipEnding, string>> = {
+  get loop() { return t('params.clip.ending.loop'); },
+  get once() { return t('params.clip.ending.once'); },
+};
 
 /** 'none' beside the treatments: the choice a voice select offers, and what clears it. */
 const VOICE_CHOICES = ['none', ...VOICE_TREATMENTS] as const;
-const VOICE_CHOICE_LABELS: Record<(typeof VOICE_CHOICES)[number], string> = { none: 'As recorded', ...VOICE_LABELS };
+/** Read when a select is built, so the treatments' names are the language's now. */
+const voiceChoiceLabels = (): Record<(typeof VOICE_CHOICES)[number], string> => ({ none: t('params.voice.none'), ...VOICE_LABELS });
 
 /**
  * A voice treatment on a layer's sound (milestone 53): the treatment, said in
@@ -1612,12 +1630,12 @@ const VOICE_CHOICE_LABELS: Record<(typeof VOICE_CHOICES)[number], string> = { no
  * clip's own track, which is every layer with sound.
  */
 function voiceControls(current: VoiceValue | undefined, onChange: (voice: VoiceValue | undefined) => void, label: string): HTMLElement[] {
-  const chosen = selectOf(VOICE_CHOICES, VOICE_CHOICE_LABELS, current?.treatment ?? 'none', (v) => {
+  const chosen = selectOf(VOICE_CHOICES, voiceChoiceLabels(), current?.treatment ?? 'none', (v) => {
     onChange(v === 'none' ? undefined : { treatment: v, amount: current?.amount ?? DEFAULT_VOICE_AMOUNT });
-  }, `${label} voice treatment`);
-  const out: HTMLElement[] = [typeField('Voice', chosen)];
+  }, t('params.voice.aria-label', { layer: label }));
+  const out: HTMLElement[] = [typeField(t('params.voice'), chosen)];
   if (current) {
-    out.push(typeField('Amount, %', numberOf(current.amount, VOICE_LIMITS.amount, 5, (v) => onChange({ ...current, amount: v }), `${label} voice amount`, 100)));
+    out.push(typeField(t('params.voice.amount'), numberOf(current.amount, VOICE_LIMITS.amount, 5, (v) => onChange({ ...current, amount: v }), t('params.voice.amount.aria-label', { layer: label }), 100)));
     const said = document.createElement('p');
     said.className = 'note voice-note';
     said.textContent = VOICE_DESCRIPTIONS[current.treatment];
@@ -1627,10 +1645,20 @@ function voiceControls(current: VoiceValue | undefined, onChange: (voice: VoiceV
 }
 
 /** What the Add layer buttons say, and what a new layer of each type is called. */
-const ADD_LAYER_LABELS: Record<LayerType, string> = { text: 'Text', image: 'Image', video: 'Video', audio: 'Audio', shape: 'Shape' };
+const ADD_LAYER_LABELS: Readonly<Record<LayerType, string>> = {
+  get text() { return t('params.layers.add.type.text'); },
+  get image() { return t('params.layers.add.type.image'); },
+  get video() { return t('params.layers.add.type.video'); },
+  get audio() { return t('params.layers.add.type.audio'); },
+  get shape() { return t('params.layers.add.type.shape'); },
+};
 
 /** What each shape is called where one is chosen. */
-const SHAPE_LABELS: Record<ShapeKind, string> = { rectangle: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' };
+const SHAPE_LABELS: Readonly<Record<ShapeKind, string>> = {
+  get rectangle() { return t('params.shape.kind.rectangle'); },
+  get ellipse() { return t('params.shape.kind.ellipse'); },
+  get triangle() { return t('params.shape.kind.triangle'); },
+};
 
 /**
  * A video layer's clip: which clip, and how it plays. Chosen from the library
@@ -1665,10 +1693,10 @@ function clipField(
   const choose = document.createElement('button');
   choose.type = 'button';
   choose.className = 'ghost picker-toggle';
-  choose.textContent = 'Choose…';
-  choose.setAttribute('aria-label', `${slot.label}: choose a clip`);
-  const hide = iconButton('eye', `Hide ${slot.label}`);
-  const clear = iconButton('trash', `Clear ${slot.label}`);
+  choose.textContent = t('params.media.choose');
+  choose.setAttribute('aria-label', t('params.clip.choose.aria-label', { slot: slot.label }));
+  const hide = iconButton('eye', t('params.slot.hide', { slot: slot.label }));
+  const clear = iconButton('trash', t('params.slot.clear', { slot: slot.label }));
   actions.append(choose, hide, clear);
   meta.append(caption, dims, actions);
 
@@ -1678,7 +1706,7 @@ function clipField(
     layers: ['video'],
     noun: 'clips',
     label: slot.label,
-    emptyLibrary: 'No clips or animations in the library yet. Add a folder with video, or make the sample media.',
+    emptyLibrary: 'params.clip.picker.empty',
     chosen: () => value?.id ?? undefined,
     // A new clip starts from the whole of it: in and out points of the one before mean nothing here.
     onPick: (entry) => set({ ...EMPTY_CLIP, id: entry.id, ending: value?.ending ?? 'loop', speed: value?.speed ?? 1, delay: value?.delay ?? 0, ...(value?.voice ? { voice: value.voice } : {}) }),
@@ -1709,24 +1737,27 @@ function clipField(
     const frames = entry?.meta?.duration && entry.meta.fps ? Math.round(entry.meta.duration * entry.meta.fps) : 0;
     const lastFrame = Math.max(0, frames - 1);
     settings.append(
-      typeField('In point, frame', numberOf(value.inPoint, { min: 0, max: Math.max(0, lastFrame) }, 1, (v) => patch({ inPoint: Math.round(v) }), `${slot.label} in point`)),
+      typeField(t('params.clip.in'), numberOf(value.inPoint, { min: 0, max: Math.max(0, lastFrame) }, 1, (v) => patch({ inPoint: Math.round(v) }), t('params.media.in.aria-label', { slot: slot.label }))),
       // -1 is "to the end", and stays that way unless a frame is named.
-      typeField('Out point, frame', numberOf(value.outPoint < 0 ? lastFrame : value.outPoint, { min: 0, max: Math.max(0, lastFrame) }, 1, (v) => patch({ outPoint: Math.round(v) }), `${slot.label} out point`)),
-      typeField('At the end', selectOf(CLIP_ENDINGS, ENDING_LABELS, value.ending, (v) => patch({ ending: v }), `${slot.label} ending`)),
-      typeField('Speed', numberOf(value.speed, CLIP_LIMITS.speed, 0.1, (v) => patch({ speed: v }), `${slot.label} speed`)),
-      typeField('Start delay, s', numberOf(value.delay, CLIP_LIMITS.delay, 0.1, (v) => patch({ delay: v }), `${slot.label} start delay`)),
+      typeField(t('params.clip.out'), numberOf(value.outPoint < 0 ? lastFrame : value.outPoint, { min: 0, max: Math.max(0, lastFrame) }, 1, (v) => patch({ outPoint: Math.round(v) }), t('params.media.out.aria-label', { slot: slot.label }))),
+      typeField(t('params.media.ending'), selectOf(CLIP_ENDINGS, ENDING_LABELS, value.ending, (v) => patch({ ending: v }), t('params.media.ending.aria-label', { slot: slot.label }))),
+      typeField(t('params.clip.speed'), numberOf(value.speed, CLIP_LIMITS.speed, 0.1, (v) => patch({ speed: v }), t('params.clip.speed.aria-label', { slot: slot.label }))),
+      typeField(t('params.media.delay'), numberOf(value.delay, CLIP_LIMITS.delay, 0.1, (v) => patch({ delay: v }), t('params.media.delay.aria-label', { slot: slot.label }))),
     );
     // The picture's framing for picture-in-picture (milestone 57): each edge cropped away as a
     // share of the shot, and a border on what is left. Position and size are the stage's handles.
     const crop = value.crop ?? { left: 0, top: 0, right: 0, bottom: 0 };
-    const cropField = (edge: 'left' | 'top' | 'right' | 'bottom', label: string) =>
-      typeField(`Crop ${label}, %`, numberOf(crop[edge], CLIP_FRAME_LIMITS.crop, 1, (v) => patch({ crop: sanitizeCrop({ ...crop, [edge]: v }) }), `${slot.label} crop ${label}`, 100));
+    const cropField = (edge: 'left' | 'top' | 'right' | 'bottom', label: MessageId, name: MessageId) =>
+      typeField(t(label), numberOf(crop[edge], CLIP_FRAME_LIMITS.crop, 1, (v) => patch({ crop: sanitizeCrop({ ...crop, [edge]: v }) }), t(name, { slot: slot.label }), 100));
     const border = value.border;
     if (framing) settings.append(
-      cropField('left', 'left'), cropField('right', 'right'), cropField('top', 'top'), cropField('bottom', 'bottom'),
-      typeField('Border, % of frame', numberOf(border?.width ?? 0, { min: 0, max: CLIP_FRAME_LIMITS.border.max }, 0.1,
-        (v) => patch({ border: v > 0 ? { width: v, color: border?.color ?? DEFAULT_BORDER_COLOR } : undefined }), `${slot.label} border width`, 100)),
-      typeField('Border color', colorField(border?.color ?? DEFAULT_BORDER_COLOR,
+      cropField('left', 'params.clip.crop.left', 'params.clip.crop.left.aria-label'),
+      cropField('right', 'params.clip.crop.right', 'params.clip.crop.right.aria-label'),
+      cropField('top', 'params.clip.crop.top', 'params.clip.crop.top.aria-label'),
+      cropField('bottom', 'params.clip.crop.bottom', 'params.clip.crop.bottom.aria-label'),
+      typeField(t('params.clip.border'), numberOf(border?.width ?? 0, { min: 0, max: CLIP_FRAME_LIMITS.border.max }, 0.1,
+        (v) => patch({ border: v > 0 ? { width: v, color: border?.color ?? DEFAULT_BORDER_COLOR } : undefined }), t('params.clip.border.aria-label', { slot: slot.label }), 100)),
+      typeField(t('params.clip.border-color'), colorField(border?.color ?? DEFAULT_BORDER_COLOR,
         (hex) => patch({ border: { width: border?.width ?? DEFAULT_BORDER_WIDTH, color: hex.slice(0, 7).toLowerCase() } }))),
     );
     // The clip's own grade (milestone 52): a .cube decoded into its frames, so the preview and
@@ -1736,13 +1767,13 @@ function clipField(
     const lutChoose = document.createElement('button');
     lutChoose.type = 'button';
     lutChoose.className = 'ghost';
-    lutChoose.textContent = 'Choose…';
-    lutChoose.setAttribute('aria-label', `${slot.label}: choose a LUT`);
+    lutChoose.textContent = t('params.media.choose');
+    lutChoose.setAttribute('aria-label', t('params.clip.lut.choose.aria-label', { slot: slot.label }));
     const lutName = document.createElement('span');
     lutName.className = 'lut-name';
     lutName.textContent = value.lut ? (value.lut.split(/[\\/]/).pop() ?? value.lut) : '';
     if (value.lut) lutName.dataset.tip = value.lut;
-    const lutClear = iconButton('x', `${slot.label}: clear the LUT`);
+    const lutClear = iconButton('x', t('params.clip.lut.clear', { slot: slot.label }));
     lutClear.hidden = !value.lut;
     lutChoose.addEventListener('click', () => {
       void window.pulp.chooseLutFile().then((path) => {
@@ -1756,26 +1787,26 @@ function clipField(
       set(cleared);
     });
     lutRow.append(lutChoose, lutName, lutClear);
-    settings.append(typeField('LUT', lutRow));
+    settings.append(typeField(t('params.clip.lut'), lutRow));
     // The clip's own sound (milestone 48): volume and mute where it has an audio stream, and said
     // plainly where it has none rather than a dead pair of controls. A clip the library has not
     // read yet gets the controls — there may well be sound there once it is.
     if (entry && (entry.sequence || (entry.meta && !entry.meta.audioCodec))) {
       const silent = document.createElement('p');
       silent.className = 'note clip-no-sound';
-      silent.textContent = 'This clip has no sound.';
+      silent.textContent = t('params.clip.no-sound');
       settings.append(silent);
     } else if (entry) {
       settings.append(
-        typeField('Volume, %', numberOf(value.volume, { min: 0, max: 1 }, 5, (v) => patch({ volume: v }), `${slot.label} volume`, 100)),
-        typeField('Muted', checkOf(value.muted, (v) => patch({ muted: v }), `${slot.label} muted`)),
+        typeField(t('params.media.volume'), numberOf(value.volume, { min: 0, max: 1 }, 5, (v) => patch({ volume: v }), t('params.media.volume.aria-label', { slot: slot.label }), 100)),
+        typeField(t('params.media.muted'), checkOf(value.muted, (v) => patch({ muted: v }), t('params.media.muted.aria-label', { slot: slot.label }))),
         ...voiceControls(value.voice, (voice) => patch({ voice }), slot.label),
       );
     }
     if (frames === 0) {
       const waiting = document.createElement('p');
       waiting.className = 'note';
-      waiting.textContent = 'Its length is not known yet, so the whole clip plays; set in and out once the library has read it.';
+      waiting.textContent = t('params.clip.length-unknown');
       settings.append(waiting);
     }
   }
@@ -1787,8 +1818,8 @@ function clipField(
     well.classList.toggle('empty', !entry);
     well.classList.toggle('hidden-slot', isHidden);
     setIcon(hide, isHidden ? 'eye-slash' : 'eye');
-    hide.setAttribute('aria-label', `${isHidden ? 'Show' : 'Hide'} ${slot.label}`);
-    hide.dataset.tip = isHidden ? 'Draw it here again' : 'Draw nothing here, keeping the clip for later';
+    hide.setAttribute('aria-label', isHidden ? t('params.slot.show', { slot: slot.label }) : t('params.slot.hide', { slot: slot.label }));
+    hide.dataset.tip = isHidden ? t('params.slot.show.tip') : t('params.clip.hide.tip');
     hide.setAttribute('aria-pressed', String(isHidden));
     if (value && entry) {
       // A clip's poster, never the file: a <video> here would decode a whole clip for one picture.
@@ -1798,13 +1829,13 @@ function clipField(
       const { width, height } = entry.meta ?? {};
       dims.textContent = width && height ? dimensionsLabel(width, height) : '';
     } else {
-      emptyLabel.textContent = value?.id ? 'Clip not found — choose another' : 'Choose a clip';
+      emptyLabel.textContent = value?.id ? t('params.clip.not-found') : t('params.clip.empty');
       well.append(emptyLabel);
-      caption.textContent = value?.id ? '' : 'No clip; the layer takes no room';
+      caption.textContent = value?.id ? '' : t('params.clip.none');
       dims.textContent = '';
     }
     clear.hidden = value === null || (isHidden && !value.id);
-    if (isHidden) caption.textContent = entry ? `${entry.name} · not drawn` : 'Nothing drawn here';
+    if (isHidden) caption.textContent = entry ? t('params.slot.not-drawn', { name: entry.name }) : t('params.slot.nothing-drawn');
     buildSettings(entry);
     note.hidden = true;
     slotProblems.delete(slot.id);
@@ -1812,12 +1843,12 @@ function clipField(
       // A hidden layer draws nothing, so a clip it no longer has is no problem.
     } else if (value?.id && !entry) {
       note.hidden = false;
-      note.textContent = 'The chosen clip is no longer in the library. The layer draws nothing until another is picked.';
-      slotProblems.set(slot.id, { label: slot.label, note: 'Not in the library; the layer draws nothing' });
+      note.textContent = t('params.clip.missing');
+      slotProblems.set(slot.id, { label: slot.label, note: t('params.clip.missing.short') });
     } else if (entry?.offline) {
       note.hidden = false;
-      note.textContent = 'The chosen clip\'s folder is offline.';
-      slotProblems.set(slot.id, { label: slot.label, note: 'Its folder is offline' });
+      note.textContent = t('params.clip.offline');
+      slotProblems.set(slot.id, { label: slot.label, note: t('params.slot.offline.short') });
     }
     publishSlotNotes();
   }
@@ -1829,7 +1860,10 @@ function clipField(
   return wrap;
 }
 
-const SOUND_ENDING_LABELS: Record<SoundEnding, string> = { loop: 'Loop', once: 'Play once' };
+const SOUND_ENDING_LABELS: Readonly<Record<SoundEnding, string>> = {
+  get loop() { return t('params.sound-layer.ending.loop'); },
+  get once() { return t('params.sound-layer.ending.once'); },
+};
 
 /**
  * An audio layer's sound: which sound, and how it plays (milestone 48).
@@ -1858,10 +1892,10 @@ function soundField(
   const choose = document.createElement('button');
   choose.type = 'button';
   choose.className = 'ghost picker-toggle';
-  choose.textContent = 'Choose…';
-  choose.setAttribute('aria-label', `${slot.label}: choose a sound`);
-  const hide = iconButton('eye', `Hide ${slot.label}`);
-  const clear = iconButton('trash', `Clear ${slot.label}`);
+  choose.textContent = t('params.media.choose');
+  choose.setAttribute('aria-label', t('params.sound-layer.choose.aria-label', { slot: slot.label }));
+  const hide = iconButton('eye', t('params.slot.hide', { slot: slot.label }));
+  const clear = iconButton('trash', t('params.slot.clear', { slot: slot.label }));
   actions.append(choose, hide, clear);
   meta.append(caption, dims, actions);
 
@@ -1869,7 +1903,7 @@ function soundField(
     layers: ['audio'],
     noun: 'sounds',
     label: slot.label,
-    emptyLibrary: 'No sounds or music in the library yet. Add a folder with audio, or make the sample media.',
+    emptyLibrary: 'params.sound-layer.picker.empty',
     chosen: () => value?.id ?? undefined,
     // A new sound starts from the whole of it: in and out points of the one before mean nothing here.
     onPick: (entry) => set({ ...EMPTY_SOUND, id: entry.id, ending: value?.ending ?? EMPTY_SOUND.ending, delay: value?.delay ?? 0, volume: value?.volume ?? 1, ...(value?.voice ? { voice: value.voice } : {}) }),
@@ -1884,8 +1918,8 @@ function soundField(
   const stemChooser = mediaPicker({
     layers: ['audio'],
     noun: 'stems',
-    label: `${slot.label} stems`,
-    emptyLibrary: 'No sounds or music in the library yet. Add a folder with audio, or make the sample media.',
+    label: t('params.stems.picker.label', { slot: slot.label }),
+    emptyLibrary: 'params.sound-layer.picker.empty',
     chosen: () => undefined,
     onPick: (entry) => addStem(entry),
   });
@@ -1908,7 +1942,7 @@ function soundField(
   /** A new stem: the current single sound becomes stem one, or the picked file joins the list. */
   function addStem(picked: { id: string; name: string }): void {
     if (!value?.id) return;
-    const stemOf = (id: string, name?: string): SoundStem => ({ id, label: name ?? entryFor(id)?.name ?? 'Stem', muted: false, solo: false, gain: 1 });
+    const stemOf = (id: string, name?: string): SoundStem => ({ id, label: name ?? entryFor(id)?.name ?? t('params.stems.unnamed'), muted: false, solo: false, gain: 1 });
     const existing = value.stems ?? [stemOf(value.id)];
     if (existing.length >= SOUND_LIMITS.stems) return;
     set({ ...value, stems: [...existing, stemOf(picked.id, picked.name)] });
@@ -1941,20 +1975,20 @@ function soundField(
       const mute = document.createElement('button');
       mute.type = 'button';
       mute.className = 'ghost stem-mute';
-      mute.textContent = 'M';
+      mute.textContent = t('params.stems.mute');
       mute.setAttribute('aria-pressed', String(stem.muted));
-      mute.setAttribute('aria-label', `Mute ${slot.label} stem ${stem.label}`);
+      mute.setAttribute('aria-label', t('params.stems.mute.aria-label', { slot: slot.label, stem: stem.label }));
       mute.addEventListener('click', () => setStems(list.map((s, i) => (i === index ? { ...s, muted: !s.muted } : s))));
       const solo = document.createElement('button');
       solo.type = 'button';
       solo.className = 'ghost stem-solo';
-      solo.textContent = 'S';
+      solo.textContent = t('params.stems.solo');
       solo.setAttribute('aria-pressed', String(stem.solo));
-      solo.setAttribute('aria-label', `Solo ${slot.label} stem ${stem.label}`);
+      solo.setAttribute('aria-label', t('params.stems.solo.aria-label', { slot: slot.label, stem: stem.label }));
       solo.addEventListener('click', () => setStems(list.map((s, i) => (i === index ? { ...s, solo: !s.solo } : s))));
-      const gain = numberOf(stem.gain, { min: 0, max: 1 }, 5, (v) => setStems(list.map((s, i) => (i === index ? { ...s, gain: v } : s))), `${slot.label} stem ${stem.label} gain`, 100);
+      const gain = numberOf(stem.gain, { min: 0, max: 1 }, 5, (v) => setStems(list.map((s, i) => (i === index ? { ...s, gain: v } : s))), t('params.stems.gain.aria-label', { slot: slot.label, stem: stem.label }), 100);
       gain.classList.add('stem-gain');
-      const remove = iconButton('trash', `Remove ${slot.label} stem ${stem.label}`);
+      const remove = iconButton('trash', t('params.stems.remove', { slot: slot.label, stem: stem.label }));
       remove.addEventListener('click', () => setStems(list.filter((_, i) => i !== index)));
       row.append(name, mute, solo, gain, remove);
       stems.append(row);
@@ -1962,8 +1996,8 @@ function soundField(
     const add = document.createElement('button');
     add.type = 'button';
     add.className = 'ghost picker-toggle';
-    add.textContent = list.length === 0 ? 'Add stem… (splits this sound into stems)' : 'Add stem…';
-    add.setAttribute('aria-label', `${slot.label}: add a stem`);
+    add.textContent = list.length === 0 ? t('params.stems.add.first') : t('params.stems.add');
+    add.setAttribute('aria-label', t('params.stems.add.aria-label', { slot: slot.label }));
     add.addEventListener('click', () => stemChooser.toggle());
     stems.append(add);
   }
@@ -1975,21 +2009,21 @@ function soundField(
     const duration = entry?.meta?.duration ?? 0;
     const limit = { min: 0, max: duration > 0 ? duration : SOUND_LIMITS.point.max };
     settings.append(
-      typeField('In point, s', numberOf(value.inPoint, limit, 0.1, (v) => patch({ inPoint: v }), `${slot.label} in point`)),
+      typeField(t('params.sound-layer.in'), numberOf(value.inPoint, limit, 0.1, (v) => patch({ inPoint: v }), t('params.media.in.aria-label', { slot: slot.label }))),
       // -1 is "to the end", and stays that way unless a point is named.
-      typeField('Out point, s', numberOf(value.outPoint < 0 ? limit.max : value.outPoint, limit, 0.1, (v) => patch({ outPoint: v }), `${slot.label} out point`)),
-      typeField('At the end', selectOf(SOUND_ENDINGS, SOUND_ENDING_LABELS, value.ending, (v) => patch({ ending: v }), `${slot.label} ending`)),
-      typeField('Start delay, s', numberOf(value.delay, SOUND_LIMITS.delay, 0.1, (v) => patch({ delay: v }), `${slot.label} start delay`)),
-      typeField('Volume, %', numberOf(value.volume, { min: 0, max: 1 }, 5, (v) => patch({ volume: v }), `${slot.label} volume`, 100)),
-      typeField('Muted', checkOf(value.muted, (v) => patch({ muted: v }), `${slot.label} muted`)),
-      typeField('Fade in, s', numberOf(value.fadeIn, SOUND_LIMITS.fade, 0.1, (v) => patch({ fadeIn: v }), `${slot.label} fade in`)),
-      typeField('Fade out, s', numberOf(value.fadeOut, SOUND_LIMITS.fade, 0.1, (v) => patch({ fadeOut: v }), `${slot.label} fade out`)),
+      typeField(t('params.sound-layer.out'), numberOf(value.outPoint < 0 ? limit.max : value.outPoint, limit, 0.1, (v) => patch({ outPoint: v }), t('params.media.out.aria-label', { slot: slot.label }))),
+      typeField(t('params.media.ending'), selectOf(SOUND_ENDINGS, SOUND_ENDING_LABELS, value.ending, (v) => patch({ ending: v }), t('params.media.ending.aria-label', { slot: slot.label }))),
+      typeField(t('params.media.delay'), numberOf(value.delay, SOUND_LIMITS.delay, 0.1, (v) => patch({ delay: v }), t('params.media.delay.aria-label', { slot: slot.label }))),
+      typeField(t('params.media.volume'), numberOf(value.volume, { min: 0, max: 1 }, 5, (v) => patch({ volume: v }), t('params.media.volume.aria-label', { slot: slot.label }), 100)),
+      typeField(t('params.media.muted'), checkOf(value.muted, (v) => patch({ muted: v }), t('params.media.muted.aria-label', { slot: slot.label }))),
+      typeField(t('params.sound-layer.fade-in'), numberOf(value.fadeIn, SOUND_LIMITS.fade, 0.1, (v) => patch({ fadeIn: v }), t('params.sound-layer.fade-in.aria-label', { slot: slot.label }))),
+      typeField(t('params.sound-layer.fade-out'), numberOf(value.fadeOut, SOUND_LIMITS.fade, 0.1, (v) => patch({ fadeOut: v }), t('params.sound-layer.fade-out.aria-label', { slot: slot.label }))),
       ...voiceControls(value.voice, (voice) => patch({ voice }), slot.label),
     );
     if (duration === 0) {
       const waiting = document.createElement('p');
       waiting.className = 'note';
-      waiting.textContent = 'Its length is not known yet, so the whole sound plays; set in and out once the library has read it.';
+      waiting.textContent = t('params.sound-layer.length-unknown');
       settings.append(waiting);
     }
   }
@@ -1998,18 +2032,18 @@ function soundField(
     const entry = value?.id ? entryFor(value.id) : undefined;
     const isHidden = value?.hidden === true;
     setIcon(hide, isHidden ? 'eye-slash' : 'eye');
-    hide.setAttribute('aria-label', `${isHidden ? 'Play' : 'Hide'} ${slot.label}`);
-    hide.dataset.tip = isHidden ? 'Play it again' : 'Keep the sound but do not play it';
+    hide.setAttribute('aria-label', isHidden ? t('params.sound-layer.play', { slot: slot.label }) : t('params.slot.hide', { slot: slot.label }));
+    hide.dataset.tip = isHidden ? t('params.sound-layer.play.tip') : t('params.sound-layer.hide.tip');
     hide.setAttribute('aria-pressed', String(isHidden));
     if (value && entry) {
       caption.textContent = entry.name;
       dims.textContent = entry.meta?.duration ? clockLabel(entry.meta.duration) : '';
     } else {
-      caption.textContent = value?.id ? 'Sound not found — choose another' : 'No sound; the layer is silent';
+      caption.textContent = value?.id ? t('params.sound-layer.not-found') : t('params.sound-layer.none');
       dims.textContent = '';
     }
     clear.hidden = value === null || (isHidden && !value.id);
-    if (isHidden) caption.textContent = entry ? `${entry.name} · not played` : 'Nothing played here';
+    if (isHidden) caption.textContent = entry ? t('params.sound-layer.not-played', { name: entry.name }) : t('params.sound-layer.nothing-played');
     buildSettings(entry);
     note.hidden = true;
     slotProblems.delete(slot.id);
@@ -2017,12 +2051,12 @@ function soundField(
       // A hidden layer plays nothing, so a sound it no longer has is no problem.
     } else if (value?.id && !entry) {
       note.hidden = false;
-      note.textContent = 'The chosen sound is no longer in the library. The layer is silent until another is picked.';
-      slotProblems.set(slot.id, { label: slot.label, note: 'Not in the library; the layer is silent' });
+      note.textContent = t('params.sound-layer.missing');
+      slotProblems.set(slot.id, { label: slot.label, note: t('params.sound-layer.missing.short') });
     } else if (entry?.offline) {
       note.hidden = false;
-      note.textContent = 'The chosen sound\'s folder is offline.';
-      slotProblems.set(slot.id, { label: slot.label, note: 'Its folder is offline' });
+      note.textContent = t('params.sound-layer.offline');
+      slotProblems.set(slot.id, { label: slot.label, note: t('params.slot.offline.short') });
     }
     publishSlotNotes();
   }
@@ -2047,15 +2081,15 @@ function shapeLayerControls(blockId: string, layer: ShapeLayer): HTMLElement {
     commitParams();
   };
   grid.append(
-    typeField('Shape', selectOf(SHAPE_KINDS, SHAPE_LABELS, layer.shape, (v) => set('shape', v), `${layer.label} shape`)),
-    typeField('Color', colorField(layer.color, (hex) => set('color', hex))),
-    typeField('Size, % of frame', numberOf(layer.size, LAYER_LIMITS.size, 0.5, (v) => set('size', v), `${layer.label} size`, 100)),
-    typeField('Width over height', numberOf(layer.ratio, LAYER_LIMITS.ratio, 0.1, (v) => set('ratio', v), `${layer.label} ratio`)),
+    typeField(t('params.shape'), selectOf(SHAPE_KINDS, SHAPE_LABELS, layer.shape, (v) => set('shape', v), t('params.shape.aria-label', { layer: layer.label }))),
+    typeField(t('params.layer.color'), colorField(layer.color, (hex) => set('color', hex))),
+    typeField(t('params.layer.size'), numberOf(layer.size, LAYER_LIMITS.size, 0.5, (v) => set('size', v), t('params.layer.size.aria-label', { layer: layer.label }), 100)),
+    typeField(t('params.shape.ratio'), numberOf(layer.ratio, LAYER_LIMITS.ratio, 0.1, (v) => set('ratio', v), t('params.shape.ratio.aria-label', { layer: layer.label }))),
   );
   const align = document.createElement('div');
   align.className = 'segmented';
   align.setAttribute('role', 'group');
-  align.setAttribute('aria-label', `${layer.label} alignment`);
+  align.setAttribute('aria-label', t('params.layer.align.aria-label', { layer: layer.label }));
   const buttons = LAYER_ALIGNS.map((a) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -2069,7 +2103,7 @@ function shapeLayerControls(blockId: string, layer: ShapeLayer): HTMLElement {
     return b;
   });
   align.append(...buttons);
-  grid.append(typeField('Align', align));
+  grid.append(typeField(t('params.shape.align'), align));
   return grid;
 }
 
@@ -2081,11 +2115,11 @@ function imageLayerControls(blockId: string, layer: PictureLayer): HTMLElement {
     editLayer(blockId, layer.id, (l) => ({ ...l, [prop]: value }) as Layer, false);
     commitParams();
   };
-  grid.append(typeField('Size, % of frame', numberOf(layer.size, LAYER_LIMITS.size, 0.5, (v) => set('size', v), `${layer.label} size`, 100)));
+  grid.append(typeField(t('params.layer.size'), numberOf(layer.size, LAYER_LIMITS.size, 0.5, (v) => set('size', v), t('params.layer.size.aria-label', { layer: layer.label }), 100)));
   const align = document.createElement('div');
   align.className = 'segmented';
   align.setAttribute('role', 'group');
-  align.setAttribute('aria-label', `${layer.label} alignment`);
+  align.setAttribute('aria-label', t('params.layer.align.aria-label', { layer: layer.label }));
   const buttons = LAYER_ALIGNS.map((a) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -2099,7 +2133,7 @@ function imageLayerControls(blockId: string, layer: PictureLayer): HTMLElement {
     align.append(b);
     return b;
   });
-  grid.append(typeField('Alignment', align));
+  grid.append(typeField(t('params.layer.alignment'), align));
   return grid;
 }
 
@@ -2111,8 +2145,21 @@ const openTypography = new Set<string>();
 /** The same for the Advanced disclosure, which holds a layer's own motion. */
 const openAdvanced = new Set<string>();
 
-const MOTION_LABELS: Record<LayerTransitionType, string> = { template: 'Template', fade: 'Fade', slide: 'Slide', scale: 'Scale', wipe: 'Wipe', none: 'None' };
-const DIRECTION_LABELS: Record<TransitionDirection, string> = { auto: 'With the stack', top: 'The top', bottom: 'The bottom', left: 'The left', right: 'The right' };
+const MOTION_LABELS: Readonly<Record<LayerTransitionType, string>> = {
+  get template() { return t('params.motion.type.template'); },
+  get fade() { return t('params.motion.type.fade'); },
+  get slide() { return t('params.motion.type.slide'); },
+  get scale() { return t('params.motion.type.scale'); },
+  get wipe() { return t('params.motion.type.wipe'); },
+  get none() { return t('params.motion.type.none'); },
+};
+const DIRECTION_LABELS: Readonly<Record<TransitionDirection, string>> = {
+  get auto() { return t('params.motion.direction.auto'); },
+  get top() { return t('params.motion.direction.top'); },
+  get bottom() { return t('params.motion.direction.bottom'); },
+  get left() { return t('params.motion.direction.left'); },
+  get right() { return t('params.motion.direction.right'); },
+};
 
 /** The length the graphic is running at, which a layer's own start and end are set within. */
 function graphicLength(): number {
@@ -2121,22 +2168,23 @@ function graphicLength(): number {
   return resolveLength(selected.manifest.duration, selected.manifest.structure ?? null, lengthIn(p.raw));
 }
 
-/** "2-8 s", or nothing at all while the layer is on screen for the whole graphic. */
-function spanSummary(span: LayerSpan | undefined, length: number): string {
-  if (isWholeGraphic(span)) return '';
+/** The seconds a layer is on, "2" and "8", or nothing at all while it is on screen for the whole graphic. */
+function spanSummary(span: LayerSpan | undefined, length: number): { from: number; to: number } | null {
+  if (isWholeGraphic(span)) return null;
   const { from, to } = spanWindow(span, length);
-  return ` · ${roundSeconds(from)}-${roundSeconds(to)} s`;
+  return { from: roundSeconds(from), to: roundSeconds(to) };
 }
 
 /** What the folded Advanced line says: nothing of its own while the template owns both ends. */
 function motionSummary(transition: LayerTransitions | undefined, span: LayerSpan | undefined, length: number): string {
   const timing = spanSummary(span, length);
-  if (isTemplateMovement(transition) || !transition) return `Advanced${timing}`;
+  if (isTemplateMovement(transition) || !transition) return timing ? t('params.motion.summary.timing', timing) : t('params.motion.summary');
+  // Each end that is the person's own, as a phrase of its own, listed (milestone 59: kept as list items).
   const ends = [
-    transition.in.type === 'template' ? '' : `in ${MOTION_LABELS[transition.in.type]}`,
-    transition.out.type === 'template' ? '' : `out ${MOTION_LABELS[transition.out.type]}`,
-  ].filter(Boolean).join(', ');
-  return `Advanced · ${ends}${timing}`;
+    transition.in.type === 'template' ? '' : t('params.motion.summary.in', { motion: MOTION_LABELS[transition.in.type] }),
+    transition.out.type === 'template' ? '' : t('params.motion.summary.out', { motion: MOTION_LABELS[transition.out.type] }),
+  ].filter(Boolean).join(t('params.list.separator'));
+  return timing ? t('params.motion.summary.ends-timing', { ends, ...timing }) : t('params.motion.summary.ends', { ends });
 }
 
 /**
@@ -2158,10 +2206,10 @@ function spanControls(blockId: string, layer: Layer, onChange: () => void): HTML
   };
   const window = spanWindow(layer.span, length);
   const limit = { min: 0, max: Math.max(0, length) };
-  const start = numberOf(window.from, limit, 0.1, (v) => set({ start: v, end: current?.end ?? null }), `${layer.label} start`);
+  const start = numberOf(window.from, limit, 0.1, (v) => set({ start: v, end: current?.end ?? null }), t('params.span.start.aria-label', { layer: layer.label }));
   // An end at or past the graphic's end is no end of its own: the layer runs as long as the graphic does.
-  const end = numberOf(window.to, limit, 0.1, (v) => set({ start: current?.start ?? 0, end: v >= length ? null : v }), `${layer.label} end`);
-  return [typeField('Start, s', start), typeField('End, s', end)];
+  const end = numberOf(window.to, limit, 0.1, (v) => set({ start: current?.start ?? 0, end: v >= length ? null : v }), t('params.span.end.aria-label', { layer: layer.label }));
+  return [typeField(t('params.span.start'), start), typeField(t('params.span.end'), end)];
 }
 
 /**
@@ -2171,16 +2219,30 @@ function spanControls(blockId: string, layer: Layer, onChange: () => void): HTML
  * layer cannot be left on screen after the design has cleared
  * (src/core/layer-time.ts).
  */
-function transitionFields(label: string, end: 'in' | 'out', layer: Layer, read: () => LayerTransitions, set: (t: LayerTransitions) => void): HTMLElement[] {
+/** What each end's three fields say, and what they are called to a screen reader. */
+const TRANSITION_WORDS: Record<'in' | 'out', Record<'type' | 'seconds' | 'direction' | 'typeName' | 'secondsName' | 'directionName', MessageId>> = {
+  in: {
+    type: 'params.motion.in', seconds: 'params.motion.in.seconds', direction: 'params.motion.in.direction',
+    typeName: 'params.motion.in.aria-label', secondsName: 'params.motion.in.seconds.aria-label', directionName: 'params.motion.in.direction.aria-label',
+  },
+  out: {
+    type: 'params.motion.out', seconds: 'params.motion.out.seconds', direction: 'params.motion.out.direction',
+    typeName: 'params.motion.out.aria-label', secondsName: 'params.motion.out.seconds.aria-label', directionName: 'params.motion.out.direction.aria-label',
+  },
+};
+
+function transitionFields(end: 'in' | 'out', layer: Layer, read: () => LayerTransitions, set: (t: LayerTransitions) => void): HTMLElement[] {
   const current = () => read()[end];
   const put = (over: Partial<LayerTransition>) => {
     const next = read();
     set({ ...next, [end]: { ...next[end], ...over } });
     follow();
   };
-  const type = typeField(label, selectOf(LAYER_TRANSITIONS, MOTION_LABELS, current().type, (v) => put({ type: v }), `${layer.label} ${end === 'in' ? 'entrance' : 'exit'}`));
-  const seconds = typeField(`${label}, s`, numberOf(current().seconds, TRANSITION_LIMITS.seconds, 0.05, (v) => put({ seconds: v }), `${layer.label} ${end === 'in' ? 'entrance' : 'exit'} seconds`));
-  const direction = typeField(`${label} from`, selectOf(TRANSITION_DIRECTIONS, DIRECTION_LABELS, current().direction, (v) => put({ direction: v }), `${layer.label} ${end === 'in' ? 'entrance' : 'exit'} direction`));
+  const words = TRANSITION_WORDS[end];
+  const named = { layer: layer.label };
+  const type = typeField(t(words.type), selectOf(LAYER_TRANSITIONS, MOTION_LABELS, current().type, (v) => put({ type: v }), t(words.typeName, named)));
+  const seconds = typeField(t(words.seconds), numberOf(current().seconds, TRANSITION_LIMITS.seconds, 0.05, (v) => put({ seconds: v }), t(words.secondsName, named)));
+  const direction = typeField(t(words.direction), selectOf(TRANSITION_DIRECTIONS, DIRECTION_LABELS, current().direction, (v) => put({ direction: v }), t(words.directionName, named)));
   /** Seconds mean nothing while the template owns the end, and an edge means nothing to a fade. */
   function follow(): void {
     const t = current().type;
@@ -2230,7 +2292,7 @@ function motionControls(blockId: string, layer: Layer): HTMLElement {
     const window = { start: layer.span?.start ?? 0, end: layer.span?.end ?? length };
     const standing = motionPresetOf(layer, window);
     const choices = ['template', ...MOTION_PRESET_IDS, 'custom'] as const;
-    const labels = { template: 'Template\u2019s own', custom: 'Custom', ...Object.fromEntries(MOTION_PRESETS.map((p) => [p.id, p.label])) } as Record<(typeof choices)[number], string>;
+    const labels = { template: t('params.motion.preset.template'), custom: t('params.motion.preset.custom'), ...Object.fromEntries(MOTION_PRESETS.map((p) => [p.id, p.label])) } as Record<(typeof choices)[number], string>;
     const select = selectOf(choices, labels, standing, (choice) => {
       if (choice === 'custom') return;
       editLayer(blockId, layer.id, (l) => {
@@ -2242,14 +2304,14 @@ function motionControls(blockId: string, layer: Layer): HTMLElement {
         }
         return applyMotionPreset(l, choice, window);
       }, true);
-    }, `${layer.label} motion`);
+    }, t('params.motion.aria-label', { layer: layer.label }));
     // Custom is where a hand-shaped layer is, never somewhere to go.
     const custom = [...select.options].find((o) => o.value === 'custom');
     if (custom) custom.disabled = true;
-    grid.append(typeField('Motion', select, true));
+    grid.append(typeField(t('params.motion'), select, true));
   }
-  grid.append(...transitionFields('In', 'in', layer, readTransition, setTransition));
-  grid.append(...transitionFields('Out', 'out', layer, readTransition, setTransition));
+  grid.append(...transitionFields('in', layer, readTransition, setTransition));
+  grid.append(...transitionFields('out', layer, readTransition, setTransition));
   grid.append(angleField(blockId, layer));
   // A layout per aspect (milestone 55): a placement is kept per shape, and this makes the one on
   // screen the starting point for the shapes not laid out yet — their own placements stay theirs.
@@ -2257,15 +2319,15 @@ function motionControls(blockId: string, layer: Layer): HTMLElement {
     const everyShape = document.createElement('button');
     everyShape.type = 'button';
     everyShape.className = 'ghost layout-every-shape';
-    everyShape.textContent = 'Use this layout on every shape';
-    everyShape.setAttribute('aria-label', `${layer.label}: use this layout on every shape`);
-    everyShape.dataset.tip = 'The placement on screen now becomes the starting point at every aspect; a shape laid out on its own keeps its own';
+    everyShape.textContent = t('params.layout.every-shape');
+    everyShape.setAttribute('aria-label', t('params.layout.every-shape.aria-label', { layer: layer.label }));
+    everyShape.dataset.tip = t('params.layout.every-shape.tip');
     everyShape.addEventListener('click', () => {
       // Read at the click, not at the card's build: the aspect may have turned since.
       const here = placementFor(currentLayer(blockId, layer.id)?.placement, currentAspectId());
       editLayer(blockId, layer.id, (l) => ({ ...l, placement: { ...(l.placement ?? {}), default: { ...here } } }), true);
     });
-    grid.append(typeField('Layout', everyShape, true));
+    grid.append(typeField(t('params.layout'), everyShape, true));
   }
   grid.append(...spanControls(blockId, layer, () => { span = currentLayer(blockId, layer.id)?.span; retitle(); }));
   details.append(grid);
@@ -2280,8 +2342,13 @@ function currentLayer(blockId: string, layerId: string): Layer | undefined {
 /** Which layers have their Animate open, across rebuilds of the form; keyed block.layer. */
 const openAnimate = new Set<string>();
 
-const EASING_LABELS: Record<KeyEasing, string> = {
-  linear: 'Linear', 'ease-in': 'Ease in', 'ease-out': 'Ease out', 'ease-in-out': 'Ease in and out', hold: 'Hold', curve: 'Curve',
+const EASING_LABELS: Readonly<Record<KeyEasing, string>> = {
+  get linear() { return t('params.keys.easing.linear'); },
+  get 'ease-in'() { return t('params.keys.easing.ease-in'); },
+  get 'ease-out'() { return t('params.keys.easing.ease-out'); },
+  get 'ease-in-out'() { return t('params.keys.easing.ease-in-out'); },
+  get hold() { return t('params.keys.easing.hold'); },
+  get curve() { return t('params.keys.easing.curve'); },
 };
 
 /**
@@ -2302,7 +2369,7 @@ function keyControls(blockId: string, layer: Layer): HTMLElement {
   });
   const summary = document.createElement('summary');
   const count = layer.keys?.length ?? 0;
-  summary.textContent = count > 0 ? `Animate · ${count} ${count === 1 ? 'key' : 'keys'}` : 'Animate';
+  summary.textContent = count > 0 ? t('params.keys.summary.count', { count }) : t('params.keys.summary');
   details.append(summary);
 
   const body = document.createElement('div');
@@ -2312,9 +2379,9 @@ function keyControls(blockId: string, layer: Layer): HTMLElement {
   const toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'ghost keyframing-toggle';
-  toggle.textContent = 'Keyframing';
+  toggle.textContent = t('params.keys.keyframing');
   toggle.setAttribute('aria-pressed', String(keyframing.has(key)));
-  toggle.dataset.tip = 'While it is on, moving, scaling, turning or fading this layer writes a key at the playhead';
+  toggle.dataset.tip = t('params.keys.keyframing.tip');
   toggle.addEventListener('click', () => {
     if (keyframing.has(key)) keyframing.delete(key);
     else keyframing.add(key);
@@ -2323,7 +2390,7 @@ function keyControls(blockId: string, layer: Layer): HTMLElement {
   const addKey = document.createElement('button');
   addKey.type = 'button';
   addKey.className = 'ghost add-key';
-  addKey.textContent = 'Add key at the playhead';
+  addKey.textContent = t('params.keys.add');
   addKey.addEventListener('click', () => {
     const at = Math.max(0, playheadSeconds.peek());
     editLayer(blockId, layer.id, (l) => {
@@ -2343,7 +2410,7 @@ function keyControls(blockId: string, layer: Layer): HTMLElement {
   if (keys.length === 0) {
     const note = document.createElement('p');
     note.className = 'note';
-    note.textContent = 'No keys yet. A keyed layer moves by its keys instead of where it was placed.';
+    note.textContent = t('params.keys.none');
     body.append(note);
   }
   keys.forEach((k, index) => {
@@ -2351,7 +2418,7 @@ function keyControls(blockId: string, layer: Layer): HTMLElement {
     line.className = 'key-row';
     const when = document.createElement('span');
     when.className = 'key-at';
-    when.textContent = `${k.at} s`;
+    when.textContent = t('params.keys.at', { at: k.at });
     const setKeys = (next: LayerKey[]) => {
       editLayer(blockId, layer.id, (l) => {
         const out: Layer = { ...l, keys: sanitizeKeys(next) ?? [] };
@@ -2362,8 +2429,8 @@ function keyControls(blockId: string, layer: Layer): HTMLElement {
     };
     const easing = selectOf(KEY_EASINGS, EASING_LABELS, k.easing, (v) => {
       setKeys(keys.map((other, i) => (i === index ? { ...other, easing: v, ...(v === 'curve' ? { curve: other.curve ?? [...DEFAULT_CURVE] as typeof DEFAULT_CURVE } : {}) } : other)));
-    }, `${layer.label} key at ${k.at} s easing`);
-    const remove = iconButton('trash', `Remove ${layer.label} key at ${k.at} s`);
+    }, t('params.keys.easing.aria-label', { layer: layer.label, at: k.at }));
+    const remove = iconButton('trash', t('params.keys.remove', { layer: layer.label, at: k.at }));
     remove.addEventListener('click', () => setKeys(keys.filter((_, i) => i !== index)));
     line.append(when, easing);
     if (k.easing === 'curve') {
@@ -2375,7 +2442,7 @@ function keyControls(blockId: string, layer: Layer): HTMLElement {
           const nextCurve = [...(k.curve ?? DEFAULT_CURVE)] as [number, number, number, number];
           nextCurve[ci] = v;
           setKeys(keys.map((other, i) => (i === index ? { ...other, curve: nextCurve } : other)));
-        }, `${layer.label} key at ${k.at} s curve ${labels[ci]}`);
+        }, t('params.keys.curve.aria-label', { layer: layer.label, at: k.at, point: labels[ci]! }));
         field.classList.add('key-curve');
         line.append(field);
       });
@@ -2390,22 +2457,28 @@ function keyControls(blockId: string, layer: Layer): HTMLElement {
 /** Which layers have their Look open, across rebuilds of the form; keyed block.layer. */
 const openLook = new Set<string>();
 
-const BLEND_LABELS: Record<BlendMode, string> = { normal: 'Normal', multiply: 'Multiply', screen: 'Screen', overlay: 'Overlay' };
+const BLEND_LABELS: Readonly<Record<BlendMode, string>> = {
+  get normal() { return t('params.look.blend.normal'); },
+  get multiply() { return t('params.look.blend.multiply'); },
+  get screen() { return t('params.look.blend.screen'); },
+  get overlay() { return t('params.look.blend.overlay'); },
+};
 
 /** What the folded Look line says: which of its parts are in play, or nothing while the template's draw stands. */
 function lookSummary(look: LayerLook | undefined): string {
-  if (!look || isDefaultLook(look)) return 'Look';
+  if (!look || isDefaultLook(look)) return t('params.look.summary');
+  // The parts in play, listed (milestone 59: each a word of its own in the catalog).
   const parts: string[] = [];
-  if (look.opacity !== 1) parts.push(`${Math.round(look.opacity * 100)}%`);
-  if (hasShadow(look)) parts.push('shadow');
-  if (look.glowSize > 0) parts.push('glow');
-  if (look.outlineWidth > 0) parts.push('outline');
-  if (look.blur > 0) parts.push('blur');
+  if (look.opacity !== 1) parts.push(t('params.look.part.opacity', { percent: Math.round(look.opacity * 100) }));
+  if (hasShadow(look)) parts.push(t('params.look.part.shadow'));
+  if (look.glowSize > 0) parts.push(t('params.look.part.glow'));
+  if (look.outlineWidth > 0) parts.push(t('params.look.part.outline'));
+  if (look.blur > 0) parts.push(t('params.look.part.blur'));
   if (look.blend !== 'normal') parts.push(BLEND_LABELS[look.blend]);
-  if (look.brightness !== 0 || look.saturation !== 1 || look.tint) parts.push('color');
-  if (look.corners > 0) parts.push('corners');
-  if (look.feather > 0) parts.push('soft edges');
-  return `Look · ${parts.join(', ')}`;
+  if (look.brightness !== 0 || look.saturation !== 1 || look.tint) parts.push(t('params.look.part.color'));
+  if (look.corners > 0) parts.push(t('params.look.part.corners'));
+  if (look.feather > 0) parts.push(t('params.look.part.feather'));
+  return t('params.look.summary.parts', { parts: parts.join(t('params.list.separator')) });
 }
 
 /**
@@ -2450,39 +2523,40 @@ function lookControls(blockId: string, layer: Layer): HTMLElement {
     commitParams();
     summary.textContent = lookSummary(stored);
   };
-  const name = (what: string) => `${layer.label} ${what}`;
-  const pct = (label: string, k: keyof LayerLook, limit: { min: number; max: number }, step: number, scale: number) =>
-    typeField(label, numberOf(current[k] as number, limit, step, (v) => put({ [k]: v } as Partial<LayerLook>), name(label.toLowerCase()), scale));
+  const named = { layer: layer.label };
+  /** A number field: its label, and its accessible name, which is the label lowered after the layer's name. */
+  const pct = (label: MessageId, name: MessageId, k: keyof LayerLook, limit: { min: number; max: number }, step: number, scale: number) =>
+    typeField(t(label), numberOf(current[k] as number, limit, step, (v) => put({ [k]: v } as Partial<LayerLook>), t(name, named), scale));
 
   const grid = document.createElement('div');
   grid.className = 'type-grid';
   grid.append(
-    pct('Opacity, %', 'opacity', LOOK_LIMITS.opacity, 1, 100),
-    typeField('Blend', selectOf(BLEND_MODES, BLEND_LABELS, current.blend, (v) => put({ blend: v }), name('blend'))),
-    typeField('Shadow color', colorField(current.shadowColor, (hex) => put({ shadowColor: hex }))),
-    pct('Shadow distance, %', 'shadowDistance', LOOK_LIMITS.size, 0.1, 100),
-    pct('Shadow angle, °', 'shadowAngle', LOOK_LIMITS.angle, 1, 1),
-    pct('Shadow softness, %', 'shadowSoftness', LOOK_LIMITS.size, 0.1, 100),
-    typeField('Glow color', colorField(current.glowColor, (hex) => put({ glowColor: hex }))),
-    pct('Glow size, %', 'glowSize', LOOK_LIMITS.size, 0.1, 100),
-    typeField('Outline color', colorField(current.outlineColor, (hex) => put({ outlineColor: hex }))),
-    pct('Outline width, %', 'outlineWidth', LOOK_LIMITS.size, 0.05, 100),
-    pct('Blur, %', 'blur', LOOK_LIMITS.size, 0.1, 100),
-    pct('Brightness', 'brightness', LOOK_LIMITS.brightness, 0.05, 1),
-    pct('Saturation', 'saturation', LOOK_LIMITS.saturation, 0.05, 1),
+    pct('params.look.opacity', 'params.look.opacity.aria-label', 'opacity', LOOK_LIMITS.opacity, 1, 100),
+    typeField(t('params.look.blend'), selectOf(BLEND_MODES, BLEND_LABELS, current.blend, (v) => put({ blend: v }), t('params.look.blend.aria-label', named))),
+    typeField(t('params.look.shadow-color'), colorField(current.shadowColor, (hex) => put({ shadowColor: hex }))),
+    pct('params.look.shadow-distance', 'params.look.shadow-distance.aria-label', 'shadowDistance', LOOK_LIMITS.size, 0.1, 100),
+    pct('params.look.shadow-angle', 'params.look.shadow-angle.aria-label', 'shadowAngle', LOOK_LIMITS.angle, 1, 1),
+    pct('params.look.shadow-softness', 'params.look.shadow-softness.aria-label', 'shadowSoftness', LOOK_LIMITS.size, 0.1, 100),
+    typeField(t('params.look.glow-color'), colorField(current.glowColor, (hex) => put({ glowColor: hex }))),
+    pct('params.look.glow-size', 'params.look.glow-size.aria-label', 'glowSize', LOOK_LIMITS.size, 0.1, 100),
+    typeField(t('params.look.outline-color'), colorField(current.outlineColor, (hex) => put({ outlineColor: hex }))),
+    pct('params.look.outline-width', 'params.look.outline-width.aria-label', 'outlineWidth', LOOK_LIMITS.size, 0.05, 100),
+    pct('params.look.blur', 'params.look.blur.aria-label', 'blur', LOOK_LIMITS.size, 0.1, 100),
+    pct('params.look.brightness', 'params.look.brightness.aria-label', 'brightness', LOOK_LIMITS.brightness, 0.05, 1),
+    pct('params.look.saturation', 'params.look.saturation.aria-label', 'saturation', LOOK_LIMITS.saturation, 0.05, 1),
   );
   // A tint is a color or nothing: the switch says which, and the color waits beside it.
-  const tintOn = checkOf(current.tint !== null, (on) => put({ tint: on ? tintColor : null }), name('tint on'));
+  const tintOn = checkOf(current.tint !== null, (on) => put({ tint: on ? tintColor : null }), t('params.look.tint-on.aria-label', named));
   let tintColor = current.tint ?? '#ffffff';
   const tintField = colorField(tintColor, (hex) => { tintColor = hex; if (current.tint !== null) put({ tint: hex }); });
   const tintWrap = document.createElement('div');
   tintWrap.className = 'tint-field';
   tintWrap.append(tintOn, tintField);
-  grid.append(typeField('Tint', tintWrap));
+  grid.append(typeField(t('params.look.tint'), tintWrap));
   if (layer.type !== 'text') {
     grid.append(
-      pct('Corners, %', 'corners', LOOK_LIMITS.size, 0.1, 100),
-      pct('Soft edges, %', 'feather', LOOK_LIMITS.size, 0.1, 100),
+      pct('params.look.corners', 'params.look.corners.aria-label', 'corners', LOOK_LIMITS.size, 0.1, 100),
+      pct('params.look.feather', 'params.look.feather.aria-label', 'feather', LOOK_LIMITS.size, 0.1, 100),
     );
   }
   return grid;
@@ -2516,14 +2590,37 @@ function angleField(blockId: string, layer: Layer): HTMLElement {
       return { ...l, placement: placements };
     }, true);
     commitParams();
-  }, `${layer.label} angle`);
-  return typeField('Angle, degrees', input);
+  }, t('params.layer.angle.aria-label', { layer: layer.label }));
+  return typeField(t('params.layer.angle'), input);
 }
 
-const CASE_LABELS: Record<TextLayer['case'], string> = { none: 'As typed', upper: 'Uppercase', lower: 'Lowercase', title: 'Title case' };
-const OVERFLOW_LABELS: Record<TextLayer['overflow'], string> = { wrap: 'Wrap', shrink: 'Shrink to fit', truncate: 'Truncate' };
-const ALIGN_LABELS: Record<TextLayer['align'], string> = { left: 'Left', center: 'Center', right: 'Right' };
-const WEIGHT_LABELS: Record<number, string> = { 100: 'Thin', 200: 'Extra light', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semibold', 700: 'Bold', 800: 'Extra bold', 900: 'Black' };
+const CASE_LABELS: Readonly<Record<TextLayer['case'], string>> = {
+  get none() { return t('params.type.case.none'); },
+  get upper() { return t('params.type.case.upper'); },
+  get lower() { return t('params.type.case.lower'); },
+  get title() { return t('params.type.case.title'); },
+};
+const OVERFLOW_LABELS: Readonly<Record<TextLayer['overflow'], string>> = {
+  get wrap() { return t('params.type.overflow.wrap'); },
+  get shrink() { return t('params.type.overflow.shrink'); },
+  get truncate() { return t('params.type.overflow.truncate'); },
+};
+const ALIGN_LABELS: Readonly<Record<TextLayer['align'], string>> = {
+  get left() { return t('params.layer.align.left'); },
+  get center() { return t('params.layer.align.center'); },
+  get right() { return t('params.layer.align.right'); },
+};
+const WEIGHT_LABELS: Readonly<Record<number, string>> = {
+  get 100() { return t('params.type.weight.100'); },
+  get 200() { return t('params.type.weight.200'); },
+  get 300() { return t('params.type.weight.300'); },
+  get 400() { return t('params.type.weight.400'); },
+  get 500() { return t('params.type.weight.500'); },
+  get 600() { return t('params.type.weight.600'); },
+  get 700() { return t('params.type.weight.700'); },
+  get 800() { return t('params.type.weight.800'); },
+  get 900() { return t('params.type.weight.900'); },
+};
 
 type FamilyKind = 'bundled' | 'imported' | 'own';
 
@@ -2574,7 +2671,7 @@ function familyMissing(family: string): boolean {
 
 /** What the license note says about an imported family, for where it is chosen; empty when there is none. */
 function importedNote(font: ImportedFont | undefined): string {
-  return font?.note.trim() ? `Imported · ${font.note.trim()}` : 'Imported';
+  return font?.note.trim() ? t('params.font.imported.note', { note: font.note.trim() }) : t('params.font.imported');
 }
 
 /**
@@ -2599,7 +2696,7 @@ function familyPicker(current: string, onPick: (stack: string) => void): HTMLEle
   const list = document.createElement('ul');
   list.className = 'family-list';
   list.setAttribute('role', 'listbox');
-  list.setAttribute('aria-label', 'Font family');
+  list.setAttribute('aria-label', t('params.font.list.aria-label'));
   list.hidden = true;
   const close = () => {
     list.hidden = true;
@@ -2622,7 +2719,7 @@ function familyPicker(current: string, onPick: (stack: string) => void): HTMLEle
     for (const choice of familyChoices(button.dataset.family ?? current)) {
       if (choice.kind !== shownKind) {
         shownKind = choice.kind;
-        list.append(divider(choice.kind === 'imported' ? 'Imported' : 'This template\'s'));
+        list.append(divider(choice.kind === 'imported' ? t('params.font.divider.imported') : t('params.font.divider.template')));
       }
       const li = document.createElement('li');
       li.setAttribute('role', 'option');
@@ -2670,8 +2767,8 @@ function fontImportRow(onDone: () => void): HTMLElement {
   const start = document.createElement('button');
   start.type = 'button';
   start.className = 'font-import-start';
-  start.textContent = 'Import font…';
-  start.dataset.tip = 'Copy a TTF, OTF or WOFF2 file of your own into Pulp\'s fonts folder';
+  start.textContent = t('params.font.import');
+  start.dataset.tip = t('params.font.import.tip');
   const form = document.createElement('div');
   form.className = 'font-import-form';
   form.hidden = true;
@@ -2679,11 +2776,11 @@ function fontImportRow(onDone: () => void): HTMLElement {
   who.className = 'font-import-family';
   const note = document.createElement('input');
   note.type = 'text';
-  note.placeholder = 'License note, e.g. "Bought from the foundry, desktop license"';
-  note.setAttribute('aria-label', 'License note for the imported font');
+  note.placeholder = t('params.font.license.placeholder');
+  note.setAttribute('aria-label', t('params.font.license.aria-label'));
   const add = document.createElement('button');
   add.type = 'button';
-  add.textContent = 'Add';
+  add.textContent = t('params.font.add');
   const error = document.createElement('p');
   error.className = 'note error';
   error.hidden = true;
@@ -2700,7 +2797,7 @@ function fontImportRow(onDone: () => void): HTMLElement {
         return;
       }
       chosen = result;
-      who.textContent = `${result.family} — its license is yours to know. A note to keep with it:`;
+      who.textContent = t('params.font.license.ask', { family: result.family });
       form.hidden = false;
       note.value = '';
       note.focus();
@@ -2788,7 +2885,7 @@ function checkOf(current: boolean, onChange: (v: boolean) => void, name: string)
 /** One line that says how the layer is set, for the closed disclosure: "Georgia · 8.9% · Regular · Italic". */
 function typographySummary(layer: TextLayer): string {
   const parts = [familyLabel(layer.family), `${Math.round(layer.size * 1000) / 10}%`, WEIGHT_LABELS[layer.weight] ?? String(layer.weight)];
-  if (layer.italic) parts.push('Italic');
+  if (layer.italic) parts.push(t('params.type.summary.italic'));
   if (layer.case !== 'none') parts.push(CASE_LABELS[layer.case]);
   return parts.join(' · ');
 }
@@ -2824,26 +2921,27 @@ function typographyControls(blockId: string, layer: TextLayer): HTMLElement {
 
   const grid = document.createElement('div');
   grid.className = 'type-grid';
-  grid.append(typeField('Family', familyPicker(layer.family, (stack) => set('family', stack)), true));
-  grid.append(typeField('Size, % of frame', numberOf(layer.size, LAYER_LIMITS.size, 0.1, (v) => set('size', v), `${layer.label} size`, 100)));
+  const named = { layer: layer.label };
+  grid.append(typeField(t('params.type.family'), familyPicker(layer.family, (stack) => set('family', stack)), true));
+  grid.append(typeField(t('params.layer.size'), numberOf(layer.size, LAYER_LIMITS.size, 0.1, (v) => set('size', v), t('params.layer.size.aria-label', named), 100)));
   const weights = [100, 200, 300, 400, 500, 600, 700, 800, 900].map(String);
-  const weightLabels = Object.fromEntries(weights.map((w) => [w, `${w} ${WEIGHT_LABELS[Number(w)]}`])) as Record<string, string>;
-  grid.append(typeField('Weight', selectOf(weights, weightLabels, String(layer.weight), (v) => set('weight', Number(v)), `${layer.label} weight`)));
-  const italic = typeField('Italic', checkOf(layer.italic, (v) => set('italic', v), `${layer.label} italic`));
+  const weightLabels = Object.fromEntries(weights.map((w) => [w, t('params.type.weight.option', { weight: w, name: WEIGHT_LABELS[Number(w)]! })])) as Record<string, string>;
+  grid.append(typeField(t('params.type.weight'), selectOf(weights, weightLabels, String(layer.weight), (v) => set('weight', Number(v)), t('params.type.weight.aria-label', named))));
+  const italic = typeField(t('params.type.italic'), checkOf(layer.italic, (v) => set('italic', v), t('params.type.italic.aria-label', named)));
   italic.classList.add('check');
   grid.append(italic);
-  grid.append(typeField('Case', selectOf(TEXT_CASES, CASE_LABELS, layer.case, (v) => set('case', v), `${layer.label} case`)));
-  grid.append(typeField('Letter spacing, em', numberOf(layer.letterSpacing, LAYER_LIMITS.letterSpacing, 0.01, (v) => set('letterSpacing', v), `${layer.label} letter spacing`)));
-  const kerning = typeField('Kerning', checkOf(layer.kerning, (v) => set('kerning', v), `${layer.label} kerning`));
+  grid.append(typeField(t('params.type.case'), selectOf(TEXT_CASES, CASE_LABELS, layer.case, (v) => set('case', v), t('params.type.case.aria-label', named))));
+  grid.append(typeField(t('params.type.letter-spacing'), numberOf(layer.letterSpacing, LAYER_LIMITS.letterSpacing, 0.01, (v) => set('letterSpacing', v), t('params.type.letter-spacing.aria-label', named))));
+  const kerning = typeField(t('params.type.kerning'), checkOf(layer.kerning, (v) => set('kerning', v), t('params.type.kerning.aria-label', named)));
   kerning.classList.add('check');
   grid.append(kerning);
-  grid.append(typeField('Line height', numberOf(layer.lineHeight, LAYER_LIMITS.lineHeight, 0.05, (v) => set('lineHeight', v), `${layer.label} line height`)));
-  grid.append(typeField('Space before, % of frame', numberOf(layer.spaceBefore, LAYER_LIMITS.spaceBefore, 0.1, (v) => set('spaceBefore', v), `${layer.label} space before`, 100)));
-  grid.append(typeField('Color', colorField(layer.color, (hex) => set('color', hex)), true));
+  grid.append(typeField(t('params.type.line-height'), numberOf(layer.lineHeight, LAYER_LIMITS.lineHeight, 0.05, (v) => set('lineHeight', v), t('params.type.line-height.aria-label', named))));
+  grid.append(typeField(t('params.type.space-before'), numberOf(layer.spaceBefore, LAYER_LIMITS.spaceBefore, 0.1, (v) => set('spaceBefore', v), t('params.type.space-before.aria-label', named), 100)));
+  grid.append(typeField(t('params.layer.color'), colorField(layer.color, (hex) => set('color', hex)), true));
   const align = document.createElement('div');
   align.className = 'segmented';
   align.setAttribute('role', 'group');
-  align.setAttribute('aria-label', `${layer.label} alignment`);
+  align.setAttribute('aria-label', t('params.layer.align.aria-label', named));
   const alignButtons = LAYER_ALIGNS.map((a) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -2857,9 +2955,9 @@ function typographyControls(blockId: string, layer: TextLayer): HTMLElement {
     align.append(b);
     return b;
   });
-  grid.append(typeField('Alignment', align));
-  grid.append(typeField('Overflow', selectOf(TEXT_OVERFLOWS, OVERFLOW_LABELS, layer.overflow, (v) => set('overflow', v), `${layer.label} overflow`)));
-  const maxLines = typeField('Lines at most', numberOf(layer.maxLines, LAYER_LIMITS.maxLines, 1, (v) => set('maxLines', Math.round(v)), `${layer.label} lines at most`));
+  grid.append(typeField(t('params.layer.alignment'), align));
+  grid.append(typeField(t('params.type.overflow'), selectOf(TEXT_OVERFLOWS, OVERFLOW_LABELS, layer.overflow, (v) => set('overflow', v), t('params.type.overflow.aria-label', named))));
+  const maxLines = typeField(t('params.type.max-lines'), numberOf(layer.maxLines, LAYER_LIMITS.maxLines, 1, (v) => set('maxLines', Math.round(v)), t('params.type.max-lines.aria-label', named)));
   maxLines.hidden = layer.overflow !== 'wrap';
   grid.append(maxLines);
   details.append(grid);
@@ -2890,8 +2988,8 @@ function paramField(param: TemplateParameter, heading?: string): HTMLElement {
   reset.type = 'button';
   reset.className = 'field-reset';
   reset.dataset.param = param.id;
-  reset.textContent = 'Reset';
-  reset.title = `Reset ${param.label} to its default`;
+  reset.textContent = t('params.field.reset');
+  reset.title = t('params.field.reset.title', { parameter: param.label });
   reset.hidden = !(param.id in p.raw);
   reset.addEventListener('click', (e) => {
     e.preventDefault();
@@ -2953,7 +3051,7 @@ function acceptItemDrop(section: HTMLElement, block: string, layer: ImageLayer |
 
 /** A layer's card in the tab, by the ids the stack carries; escaped, so the selector is only ever a lookup. */
 function layerCardEl(block: string, id: string): HTMLElement | null {
-  return document.querySelector<HTMLElement>(`#params .param-card[data-block="${CSS.escape(block)}"][data-layer="${CSS.escape(id)}"]`);
+  return document.querySelector<HTMLElement>(`#params .param-card[data-block="${CSS.escape(block)}"][data-layer="${CSS.escape(id)}"]`); // i18n-exempt(technical)
 }
 
 /**
@@ -3052,7 +3150,7 @@ function buildParamForm(manifest: TemplateManifest): void {
   if (parameters.length === 0 && manifest.blocks.length === 0 && !manifest.structure && !manifest.sound) {
     const note = document.createElement('p');
     note.className = 'note';
-    note.textContent = 'This template has no editable parameters.';
+    note.textContent = t('params.empty');
     els.params.append(note);
     // The captions are the project's rather than the template's, so they are offered even here.
     els.params.append(captionsCard(currentCaptions()));
@@ -3251,11 +3349,11 @@ export function initInspectorParams(): void {
     },
     addLayer: (type, label, itemId) => {
       const selected = selectedTemplate.value;
-      if (!selected) return { refused: 'No template is open.' };
+      if (!selected) return { refused: t('params.add-layer.no-template') };
       // The first block that takes added layers. A template whose blocks are all closed has
       // decided its stack is its own, and a drop says so rather than quietly doing nothing.
       const block = selected.manifest.blocks.find((b) => b.open);
-      if (!block) return { refused: 'This template does not take added layers.' };
+      if (!block) return { refused: t('params.add-layer.closed') };
       const layers = currentLayers();
       const stack = layers[block.id] ?? [];
       const fresh = addedLayer(type, block, stack, label);
@@ -3291,10 +3389,19 @@ export function initInspectorParams(): void {
     },
   });
 
+  // A change of language draws the tab again: every word on it is read as it is built (milestone 59).
+  whenLocaleChanges(() => untracked(() => {
+    const selected = selectedTemplate.value;
+    if (!selected) return;
+    const head = els.presetList.options[0];
+    if (head) head.textContent = presetListHead();
+    buildParamForm(selected.manifest);
+  }));
+
   // The stage's selection lights the layer's card and brings it into view, both ways.
   effect(() => {
     const chosen = selectedLayer.value;
-    document.querySelectorAll('#params .param-card.stage-selected').forEach((el) => el.classList.remove('stage-selected'));
+    document.querySelectorAll('#params .param-card.stage-selected').forEach((el) => el.classList.remove('stage-selected')); // i18n-exempt(technical)
     if (!chosen) return;
     const card = layerCardEl(chosen.block, chosen.id);
     if (card) {

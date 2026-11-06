@@ -52,11 +52,11 @@ export function parseXml(source: string): XmlElement {
       at = SPACE.exec(source) ? SPACE.lastIndex : at;
       if (source.startsWith('<!--', at)) {
         const end = source.indexOf('-->', at + 4);
-        if (end === -1) throw new XmlError('an unclosed comment');
+        if (end === -1) throw new XmlError('an unclosed comment'); // i18n-exempt(diagnostic)
         at = end + 3;
       } else if (source.startsWith('<?', at)) {
         const end = source.indexOf('?>', at + 2);
-        if (end === -1) throw new XmlError('an unclosed processing instruction');
+        if (end === -1) throw new XmlError('an unclosed processing instruction'); // i18n-exempt(diagnostic)
         at = end + 2;
       } else if (source.startsWith('<!DOCTYPE', at) || source.startsWith('<!doctype', at)) {
         // A doctype may hold an internal subset in brackets; skip to the > past any [].
@@ -68,7 +68,7 @@ export function parseXml(source: string): XmlElement {
           else if (ch === ']') depth -= 1;
           else if (ch === '>' && depth === 0) break;
         }
-        if (i >= source.length) throw new XmlError('an unclosed doctype');
+        if (i >= source.length) throw new XmlError('an unclosed doctype'); // i18n-exempt(diagnostic)
         at = i + 1;
       } else return;
     }
@@ -83,7 +83,7 @@ export function parseXml(source: string): XmlElement {
       if (ch === '>' || ch === '/' || ch === undefined) return attrs;
       NAME.lastIndex = at;
       const name = NAME.exec(source)?.[0];
-      if (!name) throw new XmlError(`a tag with an unreadable attribute at ${at}`);
+      if (!name) throw new XmlError(`a tag with an unreadable attribute at ${at}`); // i18n-exempt(diagnostic)
       at += name.length;
       SPACE.lastIndex = at;
       at = SPACE.exec(source) ? SPACE.lastIndex : at;
@@ -95,9 +95,9 @@ export function parseXml(source: string): XmlElement {
       SPACE.lastIndex = at;
       at = SPACE.exec(source) ? SPACE.lastIndex : at;
       const quote = source[at];
-      if (quote !== '"' && quote !== "'") throw new XmlError(`attribute "${name}" has an unquoted value`);
+      if (quote !== '"' && quote !== "'") throw new XmlError(`attribute "${name}" has an unquoted value`); // i18n-exempt(diagnostic)
       const end = source.indexOf(quote, at + 1);
-      if (end === -1) throw new XmlError(`attribute "${name}" never closes its quote`);
+      if (end === -1) throw new XmlError(`attribute "${name}" never closes its quote`); // i18n-exempt(diagnostic)
       attrs[name] = decodeEntities(source.slice(at + 1, end));
       at = end + 1;
     }
@@ -105,43 +105,43 @@ export function parseXml(source: string): XmlElement {
 
   const readElement = (): XmlElement => {
     const start = at;
-    if (source[at] !== '<') throw new XmlError(`expected an element at ${at}`);
+    if (source[at] !== '<') throw new XmlError(`expected an element at ${at}`); // i18n-exempt(diagnostic)
     at += 1;
     NAME.lastIndex = at;
     const name = NAME.exec(source)?.[0];
-    if (!name) throw new XmlError(`a tag with no name at ${start}`);
+    if (!name) throw new XmlError(`a tag with no name at ${start}`); // i18n-exempt(diagnostic)
     at += name.length;
     const attrs = readAttrs();
     const selfClosing = source[at] === '/';
     if (selfClosing) at += 1;
-    if (source[at] !== '>') throw new XmlError(`the tag <${name}> never closes`);
+    if (source[at] !== '>') throw new XmlError(`the tag <${name}> never closes`); // i18n-exempt(diagnostic)
     at += 1;
     const openEnd = at;
     const element: XmlElement = { name, attrs, children: [], text: '', start, end: at, openEnd, selfClosing };
     if (selfClosing) return element;
     for (;;) {
       const lt = source.indexOf('<', at);
-      if (lt === -1) throw new XmlError(`<${name}> is never closed`);
+      if (lt === -1) throw new XmlError(`<${name}> is never closed`); // i18n-exempt(diagnostic)
       element.text += decodeEntities(source.slice(at, lt));
       at = lt;
       if (source.startsWith('</', at)) {
         const end = source.indexOf('>', at);
-        if (end === -1) throw new XmlError(`</${name} never closes`);
+        if (end === -1) throw new XmlError(`</${name} never closes`); // i18n-exempt(diagnostic)
         const closing = source.slice(at + 2, end).trim();
-        if (closing !== name) throw new XmlError(`<${name}> is closed by </${closing}>`);
+        if (closing !== name) throw new XmlError(`<${name}> is closed by </${closing}>`); // i18n-exempt(diagnostic)
         at = end + 1;
         element.end = at;
         return element;
       }
       if (source.startsWith('<!--', at)) {
         const end = source.indexOf('-->', at + 4);
-        if (end === -1) throw new XmlError('an unclosed comment');
+        if (end === -1) throw new XmlError('an unclosed comment'); // i18n-exempt(diagnostic)
         at = end + 3;
         continue;
       }
       if (source.startsWith('<![CDATA[', at)) {
         const end = source.indexOf(']]>', at + 9);
-        if (end === -1) throw new XmlError('an unclosed CDATA section');
+        if (end === -1) throw new XmlError('an unclosed CDATA section'); // i18n-exempt(diagnostic)
         element.text += source.slice(at + 9, end);
         at = end + 3;
         continue;

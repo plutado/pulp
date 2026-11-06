@@ -10,6 +10,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
+import { tr } from '../core/i18n';
 import { parseProject, type Project } from '../core/project';
 import { bundledExamplesDir } from './resources';
 
@@ -68,12 +69,12 @@ export async function readExample(path: string): Promise<ExampleReadResult> {
   // Membership in the list is the whole check: the list's paths are built here, from the index file.
   const examples = await listExamples();
   const found = examples.find((e) => normalize(e.path) === normal);
-  if (!found) return { ok: false, message: 'That is not one of the example projects.' };
+  if (!found) return { ok: false, message: tr('examples.not-an-example') };
   try {
     const parsed = parseProject(await readFile(normal, 'utf8'));
     if (!parsed.ok) return { ok: false, message: parsed.error };
     return { ok: true, name: found.name, project: parsed.project };
   } catch (err) {
-    return { ok: false, message: `Could not read the example: ${(err as Error).message}` };
+    return { ok: false, message: tr('examples.read-failed', { reason: (err as Error).message }) };
   }
 }

@@ -14,18 +14,19 @@
 import { DEFAULT_KEY_EASING, IDENTITY_KEY, sanitizeKeys, type LayerKey } from './layer-keys';
 import { DEFAULT_TRANSITION, type LayerTransition, type LayerTransitions, type TransitionDirection } from './layer-time';
 import type { Layer } from './layers';
+import { tr } from './i18n';
 
 export const MOTION_PRESETS = [
-  { id: 'still', label: 'Still', note: 'Arrives and leaves with no movement at all.' },
-  { id: 'fade', label: 'Fade in and out', note: 'The gentle default: half a second each way.' },
-  { id: 'slide-left', label: 'Slide in from the left', note: 'Slides in from the left and fades out.' },
-  { id: 'slide-right', label: 'Slide in from the right', note: 'Slides in from the right and fades out.' },
-  { id: 'rise', label: 'Rise from below', note: 'Rises into place and fades out.' },
-  { id: 'pop', label: 'Pop', note: 'Scales up into place and scales away.' },
-  { id: 'wipe', label: 'Wipe on', note: 'Uncovered from the left, covered back the same way.' },
-  { id: 'drift', label: 'Drift across', note: 'Fades, and drifts slowly to the right the whole time it is on.' },
-  { id: 'pulse', label: 'Pulse', note: 'Fades, and swells a little in the middle of its time.' },
-  { id: 'spin-in', label: 'Spin in', note: 'Turns and grows into place from nothing, then fades out.' },
+  { id: 'still', get label() { return tr('motion.still'); }, get note() { return tr('motion.still.note'); } },
+  { id: 'fade', get label() { return tr('motion.fade'); }, get note() { return tr('motion.fade.note'); } },
+  { id: 'slide-left', get label() { return tr('motion.slide-left'); }, get note() { return tr('motion.slide-left.note'); } },
+  { id: 'slide-right', get label() { return tr('motion.slide-right'); }, get note() { return tr('motion.slide-right.note'); } },
+  { id: 'rise', get label() { return tr('motion.rise'); }, get note() { return tr('motion.rise.note'); } },
+  { id: 'pop', get label() { return tr('motion.pop'); }, get note() { return tr('motion.pop.note'); } },
+  { id: 'wipe', get label() { return tr('motion.wipe'); }, get note() { return tr('motion.wipe.note'); } },
+  { id: 'drift', get label() { return tr('motion.drift'); }, get note() { return tr('motion.drift.note'); } },
+  { id: 'pulse', get label() { return tr('motion.pulse'); }, get note() { return tr('motion.pulse.note'); } },
+  { id: 'spin-in', get label() { return tr('motion.spin-in'); }, get note() { return tr('motion.spin-in.note'); } },
 ] as const;
 
 export type MotionPresetId = (typeof MOTION_PRESETS)[number]['id'];

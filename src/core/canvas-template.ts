@@ -24,6 +24,7 @@ import type { Layer, LayerValues } from './layers';
 import { pruneExpose } from './expose';
 import type { TemplateManifest, TemplateParameter } from './manifest';
 import { slug } from './pack';
+import { tr } from './i18n';
 
 export interface CanvasSaveInput {
   /** What the template is called: the folder name the person chose. */
@@ -95,13 +96,12 @@ function layerJson(layer: Layer, notes: string[]): Record<string, unknown> {
     return { ...common, shape: layer.shape, color: layer.color, size: round(layer.size), ratio: round(layer.ratio), align: layer.align };
   }
   if (layer.type === 'audio') {
-    if (layer.sound) notes.push(`${layer.label}: its sound stays behind — a template never ships a library id. The layer is saved silent, for the next person to fill.`);
+    if (layer.sound) notes.push(tr('canvas.note.sound-stays', { layer: layer.label }));
     return common;
   }
   const chosen = layer.type === 'image' ? layer.image : layer.clip;
   if (chosen) {
-    const what = layer.type === 'image' ? 'picture' : 'clip';
-    notes.push(`${layer.label}: its ${what} stays behind — a template never ships a library id. The layer is saved empty, for the next person to fill.`);
+    notes.push(layer.type === 'image' ? tr('canvas.note.picture-stays', { layer: layer.label }) : tr('canvas.note.clip-stays', { layer: layer.label }));
   }
   return { ...common, size: round(layer.size), align: layer.align };
 }
@@ -115,13 +115,14 @@ function parameterJson(exposure: ExposedParam, layer: Layer, notes: string[]): T
     return { id: exposure.id, type: 'color', label: exposure.label, default: layer.color, element: layer.label } as TemplateParameter;
   }
   if (exposure.prop === 'image') {
-    notes.push(`${exposure.label}: a picture parameter cannot travel yet — the saved layer takes its picture at use time instead.`);
+    notes.push(tr('canvas.note.picture-parameter', { parameter: exposure.label }));
   }
   return null;
 }
 
 /** The generated page: the canvas block laid out and drawn, the picked parameters written onto their layers first. */
 function pageFor(name: string, blockId: string, picks: readonly { layer: string; field: 'text' | 'color'; param: string }[]): string {
+  // i18n-exempt(technical)
   return `<!doctype html>
 <html>
 <head>
@@ -174,13 +175,13 @@ export type CanvasTemplateResult = { ok: true; files: CanvasTemplateFiles } | { 
 
 export function canvasTemplateFiles(input: CanvasSaveInput): CanvasTemplateResult {
   const name = input.name.trim();
-  if (name === '') return { ok: false, message: 'The template needs a name: the folder it is saved as.' };
+  if (name === '') return { ok: false, message: tr('canvas.error.no-name') };
   const block = input.canvas.blocks[0];
-  if (!block) return { ok: false, message: 'The canvas declares no block to save.' };
+  if (!block) return { ok: false, message: tr('canvas.error.no-block') };
   const folder = slug(name, 'template');
   const templateId = `custom.${folder}`;
   const stack = input.layers[block.id] ?? [];
-  if (stack.length === 0) return { ok: false, message: 'Nothing is on the canvas yet: add a layer before saving it as a template.' };
+  if (stack.length === 0) return { ok: false, message: tr('canvas.error.empty') };
 
   const notes: string[] = [];
   const live = pruneExpose(input.expose, input.layers);
@@ -200,6 +201,7 @@ export function canvasTemplateFiles(input: CanvasSaveInput): CanvasTemplateResul
     formatVersion: 1,
     id: templateId,
     name,
+    // i18n-exempt(content)
     description: 'Made with Pulp’s template editor: one block of layers, laid out and drawn by the standard layer machinery. Edit template.json by hand as you like.',
     version: '1.0.0',
     // The work is the person's own; the id is required by the format and theirs to change in the file.

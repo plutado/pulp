@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { detectFfmpeg, type FfmpegStatus } from '../core/ffmpeg';
+import { tr } from '../core/i18n';
 import { sanitizePsdChoice } from '../core/image-slot';
 import type { MediaEntry } from '../core/library-types';
 import { AUDIO_PRESETS, buildMediaRenderPlan, isAudioPresetId, parseProgressLine, sourceFromEntry, type MediaRenderPlan, type MediaSource } from '../core/media-render';
@@ -45,7 +46,7 @@ export interface MediaRenderJob {
 export async function mediaSourceFor(entry: MediaEntry, ffmpeg: FfmpegStatus & { ok: true }, scratchDir?: string, params: Record<string, unknown> = {}, target?: { width?: number; height?: number }): Promise<MediaSource> {
   if (isLayeredPath(entry.path)) {
     const read = await layeredFileFor(entry.path);
-    if (!read.ok) throw new RenderPlanError(`the layered file could not be read: ${read.message}`);
+    if (!read.ok) throw new RenderPlanError(tr('render.media.layered-unreadable', { reason: read.message }));
     const { width, height } = read.handle.outline;
     if (!scratchDir) {
       // Planned, not run: the size is all that is needed.
@@ -88,10 +89,10 @@ export async function planMediaRender(entry: MediaEntry, presetId: string, optio
 function encoderProblem(ffmpeg: FfmpegStatus & { ok: true }, presetId: string): string | null {
   if (isAudioPresetId(presetId)) {
     const preset = AUDIO_PRESETS[presetId];
-    return preset.encoder.startsWith('pcm') || ffmpeg.encoders.includes(preset.encoder) ? null : `${preset.label} needs the ${preset.encoder} encoder, which this ffmpeg lacks`;
+    return preset.encoder.startsWith('pcm') || ffmpeg.encoders.includes(preset.encoder) ? null : tr('render.media.encoder-missing', { preset: preset.label, encoder: preset.encoder });
   }
   const preset = OUTPUT_PRESETS[presetId as PresetId];
-  if (!preset) return `unknown output preset "${presetId}"`;
+  if (!preset) return tr('render.media.unknown-preset', { preset: presetId });
   return presetUnavailableReason(ffmpeg.encoders, preset);
 }
 
@@ -132,7 +133,7 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
     await mkdir(dirname(plan.output), { recursive: true });
     const total = plan.timing.totalFrames;
     for (let i = 0; i < plan.stages.length; i += 1) {
-      if (job.signal?.aborted) return { ok: false, cancelled: true, message: 'Render canceled.' };
+      if (job.signal?.aborted) return { ok: false, cancelled: true, message: tr('render.canceled') };
       const stage = plan.stages[i]!;
       const last = i === plan.stages.length - 1;
       const { code, stderr } = await runStage(ffmpeg.path, stage.args, job, (frame, seconds) => {
@@ -142,9 +143,9 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
       });
       if (job.signal?.aborted) {
         await Promise.all([plan.output, plan.matteOutput].filter((f): f is string => !!f && !/%0?\d*d/.test(f)).map((f) => rm(f, { force: true })));
-        return { ok: false, cancelled: true, message: 'Render canceled.' };
+        return { ok: false, cancelled: true, message: tr('render.canceled') };
       }
-      if (code !== 0) return { ok: false, message: `ffmpeg exited with code ${code}${last ? '' : ' while making the loop unit'}: ${stderr.trim() || 'no error output'}` };
+      if (code !== 0) return { ok: false, message: `ffmpeg exited with code ${code}${last ? '' : ' while making the loop unit'}: ${stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
     }
     job.onProgress?.({ frame: total, totalFrames: total });
 
@@ -156,7 +157,7 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
     if (job.options?.coverFrame !== undefined) {
       const written = await writeMediaCover(ffmpeg.path, source, job, plan.output);
       if (written.ok) cover = written.output;
-      else warnings.push(`The cover image could not be written: ${written.message}`);
+      else warnings.push(tr('render.warning.cover', { reason: written.message }));
     }
     // The platform's limits against the file that was written (milestone 20), not the one planned.
     warnings.push(...(await finishedFileWarnings({
@@ -167,11 +168,11 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
     })));
     return {
       ok: true, output: plan.output, frames: total, warnings,
-      transport: plan.stages.length > 1 ? 'ffmpeg (loop unit, then stream loop)' : 'ffmpeg',
+      transport: plan.stages.length > 1 ? 'ffmpeg (loop unit, then stream loop)' : 'ffmpeg', // i18n-exempt(diagnostic)
       ...(cover ? { cover } : {}),
     };
   } catch (err) {
-    return { ok: false, message: err instanceof RenderPlanError ? err.message : `Render failed: ${(err as Error).message}` };
+    return { ok: false, message: err instanceof RenderPlanError ? err.message : tr('render.failed', { reason: (err as Error).message }) };
   } finally {
     await rm(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
@@ -202,7 +203,7 @@ async function writeMediaCover(
     });
     for (const stage of plan.stages) {
       const result = await nodeRunner(ffmpegPath, stage.args);
-      if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
+      if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
     }
     return { ok: true, output: plan.output };
   } catch (err) {

@@ -15,6 +15,7 @@
 import type { LibraryEntry, LibraryIndex } from './library-types';
 import { sanitizeImageValue } from './image-slot';
 import type { RenderOptions } from './render-plan';
+import { tr } from './i18n';
 
 export const COLLECTION_FORMAT_VERSION = 1;
 
@@ -140,14 +141,14 @@ export function parseCollection(text: string): ParsedCollection {
   try {
     raw = JSON.parse(text);
   } catch {
-    return { ok: false, error: 'That file is not a collection: it is not readable JSON.' };
+    return { ok: false, error: tr('collection-file.error.not-json') };
   }
-  if (!raw || typeof raw !== 'object') return { ok: false, error: 'That file is not a collection.' };
+  if (!raw || typeof raw !== 'object') return { ok: false, error: tr('collection-file.error.not-collection') };
   const r = raw as { formatVersion?: unknown; items?: unknown };
   if (r.formatVersion !== COLLECTION_FORMAT_VERSION) {
-    return { ok: false, error: `This collection was written in format ${String(r.formatVersion)}; this version of Pulp reads ${COLLECTION_FORMAT_VERSION}.` };
+    return { ok: false, error: tr('collection-file.error.format', { found: String(r.formatVersion), reads: COLLECTION_FORMAT_VERSION }) };
   }
-  if (!Array.isArray(r.items)) return { ok: false, error: 'That collection has no items.' };
+  if (!Array.isArray(r.items)) return { ok: false, error: tr('collection-file.error.no-items') };
   const items: CollectionItem[] = [];
   for (const entry of r.items) {
     const i = entry as Partial<CollectionItem>;
@@ -233,11 +234,12 @@ export function renderableItems(resolved: readonly ResolvedItem[]): ResolvedItem
 
 /** One line for the tray: "4 items · 1 missing", "3 items". */
 export function collectionSummary(resolved: readonly ResolvedItem[]): string {
-  if (resolved.length === 0) return 'Nothing collected yet.';
-  const parts = [`${resolved.length} ${resolved.length === 1 ? 'item' : 'items'}`];
+  if (resolved.length === 0) return tr('collection-summary.empty');
   const missing = resolved.filter((r) => r.missing).length;
   const offline = resolved.filter((r) => r.offline).length;
-  if (missing > 0) parts.push(`${missing} missing`);
-  if (offline > 0) parts.push(`${offline} offline`);
-  return parts.join(' · ');
+  const values = { count: resolved.length, missing, offline };
+  if (missing > 0 && offline > 0) return tr('collection-summary.items-missing-offline', values);
+  if (missing > 0) return tr('collection-summary.items-missing', values);
+  if (offline > 0) return tr('collection-summary.items-offline', values);
+  return tr('collection-summary.items', values);
 }

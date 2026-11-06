@@ -4,6 +4,7 @@
  */
 
 import { execFile, spawn } from 'node:child_process';
+import { tr } from './i18n';
 import type { OutputPreset } from './render-plan';
 
 export { presetUnavailableReason } from './ffmpeg-presets';
@@ -27,11 +28,10 @@ export type FfmpegStatus =
     }
   | { ok: false; message: string };
 
-export const FFMPEG_MISSING_MESSAGE =
-  'ffmpeg was not found. Pulp needs ffmpeg to encode renders. ' +
-  'Install it (macOS: "brew install ffmpeg"; Windows: "winget install Gyan.FFmpeg"; Linux: your package manager), ' +
-  'or set PULP_FFMPEG_PATH to the full path of the ffmpeg executable, then restart Pulp. ' +
-  'In the window, Settings → FFmpeg will fetch a build from its publisher for you, after saying what it would fetch.';
+/** What is said when there is no ffmpeg, in the window and on the command line: in the interface's language now. */
+export function ffmpegMissingMessage(): string {
+  return tr('ffmpeg.missing');
+}
 
 /**
  * The build Pulp fetched for this machine, where there is one: the download
@@ -192,14 +192,14 @@ export async function detectFfmpeg(
     }
     return { ok: true, path: candidate, version, encoders, alphaModeAware };
   }
-  return { ok: false, message: FFMPEG_MISSING_MESSAGE };
+  return { ok: false, message: ffmpegMissingMessage() };
 }
 
 /** Returns an error message if the detected ffmpeg cannot encode this preset, otherwise null. */
 export function checkPresetSupport(status: FfmpegStatus, preset: OutputPreset): string | null {
   if (!status.ok) return status.message;
   if (status.encoders.length > 0 && !status.encoders.includes(preset.encoder)) {
-    return `The installed ffmpeg (${status.path}, version ${status.version}) has no "${preset.encoder}" encoder, which ${preset.label} needs. Install a full ffmpeg build or choose another preset.`;
+    return tr('ffmpeg.encoder-missing', { path: status.path, version: status.version, encoder: preset.encoder, preset: preset.label });
   }
   return null;
 }

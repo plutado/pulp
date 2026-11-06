@@ -14,6 +14,7 @@
  * src/renderer/stage-menu.ts.
  */
 
+import { tr } from './i18n';
 import type { LayerLook } from './layer-look';
 import { isWholeGraphic, MIN_ON_SCREEN, roundSeconds, spanWindow, type LayerSpan } from './layer-time';
 import { newLayer, type BlockDefaults, type Layer, type LayerType } from './layers';
@@ -132,7 +133,7 @@ function item(command: MenuCommand, label: string, state: MenuState): MenuItemSp
 /** The pictures and clips to add, or one line saying there are none — as Open Recent says it. */
 function assetSubmenu(assets: readonly StageAsset[], state: MenuState): MenuItemSpec[] {
   const offered = assets.slice(0, STAGE_MENU_ASSETS);
-  if (offered.length === 0) return [{ label: 'No pictures or clips in your library', disabled: true, enabled: false }];
+  if (offered.length === 0) return [{ label: tr('stage-menu.assets.none'), disabled: true, enabled: false }];
   // A picture and a clip are different layers, so the asset says which; the id rides as the
   // command's argument, the way a recent project's path does.
   return offered.map((a) => ({
@@ -156,55 +157,55 @@ export function stageMenu(context: StageMenuContext): MenuItemSpec[] {
   if (context.template && context.layerLabel !== null) {
     items.push(
       // What this layer itself holds comes first: the words in a line, the picture in a picture.
-      ...(state.canEditText ? [item('layer.editText', 'Edit Text', state)] : []),
-      ...(state.canReplaceImage ? [item('layer.replaceImage', 'Replace Image…', state)] : []),
-      ...(state.canReplaceClip ? [item('layer.replaceClip', 'Replace Clip…', state)] : []),
+      ...(state.canEditText ? [item('layer.editText', tr('menu.layer.editText'), state)] : []),
+      ...(state.canReplaceImage ? [item('layer.replaceImage', tr('menu.layer.replaceImage'), state)] : []),
+      ...(state.canReplaceClip ? [item('layer.replaceClip', tr('menu.layer.replaceClip'), state)] : []),
       ...(state.canEditText || state.canReplaceImage || state.canReplaceClip ? [sep] : []),
       // Picking a property off the canvas (milestone 55): it becomes a named parameter in the Parameters tab.
-      ...(state.canEditText ? [item('layer.exposeText', 'Make Words a Parameter', state)] : []),
-      ...(state.canExposeColor ? [item('layer.exposeColor', 'Make Color a Parameter', state)] : []),
-      ...(state.canReplaceImage ? [item('layer.exposeImage', 'Make Picture a Parameter', state)] : []),
+      ...(state.canEditText ? [item('layer.exposeText', tr('menu.layer.exposeText'), state)] : []),
+      ...(state.canExposeColor ? [item('layer.exposeColor', tr('menu.layer.exposeColor'), state)] : []),
+      ...(state.canReplaceImage ? [item('layer.exposeImage', tr('menu.layer.exposeImage'), state)] : []),
       ...(state.canEditText || state.canExposeColor || state.canReplaceImage ? [sep] : []),
-      item('layer.cut', 'Cut', state),
-      item('layer.copy', 'Copy', state),
-      item('layer.paste', 'Paste', state),
-      item('layer.duplicate', 'Duplicate', state),
-      item('layer.delete', 'Delete', state),
+      item('layer.cut', tr('menu.layer.cut'), state),
+      item('layer.copy', tr('menu.layer.copy'), state),
+      item('layer.paste', tr('menu.layer.paste'), state),
+      item('layer.duplicate', tr('menu.layer.duplicate'), state),
+      item('layer.delete', tr('menu.layer.delete'), state),
       sep,
       {
-        label: 'Order',
+        label: tr('stage-menu.order'),
         enabled: state.canLayerForward || state.canLayerBackward,
         submenu: [
-          item('layer.forward', 'Bring Forward', state),
-          item('layer.backward', 'Send Backward', state),
+          item('layer.forward', tr('menu.layer.forward'), state),
+          item('layer.backward', tr('menu.layer.backward'), state),
           sep,
-          item('layer.front', 'Bring to Front', state),
-          item('layer.back', 'Send to Back', state),
+          item('layer.front', tr('menu.layer.front'), state),
+          item('layer.back', tr('menu.layer.back'), state),
         ],
       },
       sep,
-      item('layer.copyLook', 'Copy Look', state),
-      item('layer.pasteLook', 'Paste Look', state),
+      item('layer.copyLook', tr('menu.layer.copyLook'), state),
+      item('layer.pasteLook', tr('menu.layer.pasteLook'), state),
       sep,
-      item('layer.startHere', 'Start at Playhead', state),
-      item('layer.endHere', 'End at Playhead', state),
+      item('layer.startHere', tr('menu.layer.startHere'), state),
+      item('layer.endHere', tr('menu.layer.endHere'), state),
       sep,
       // Motion (milestone 55): the presets, and keyframe recording for this layer.
-      { label: 'Animate', enabled: state.canEditLayer, submenu: motionSubmenu().map((spec) => ({ ...spec, enabled: itemEnabled(spec, state) })) },
-      { ...item('layer.keyframing', 'Record Keyframes', state), type: 'checkbox', checked: state.keyframing },
+      { label: tr('menu.animate'), enabled: state.canEditLayer, submenu: motionSubmenu().map((spec) => ({ ...spec, enabled: itemEnabled(spec, state) })) },
+      { ...item('layer.keyframing', tr('menu.layer.keyframing'), state), type: 'checkbox', checked: state.keyframing },
       sep,
-      item('layer.reset', 'Reset Layer', state),
+      item('layer.reset', tr('menu.layer.reset'), state),
       sep,
     );
   }
   if (context.template) {
     items.push(
-      item('layer.addText', 'Add Text Here', state),
-      item('layer.addShape', 'Add Shape Here', state),
-      { label: 'Add Asset Here', enabled: state.canAddLayer, submenu: assetSubmenu(context.assets, state) },
+      item('layer.addText', tr('stage-menu.add-text'), state),
+      item('layer.addShape', tr('stage-menu.add-shape'), state),
+      { label: tr('stage-menu.add-asset'), enabled: state.canAddLayer, submenu: assetSubmenu(context.assets, state) },
     );
     // With no layer under the pointer, Paste is the only edit that still means something.
-    if (context.layerLabel === null) items.push(item('layer.paste', 'Paste', state));
+    if (context.layerLabel === null) items.push(item('layer.paste', tr('menu.layer.paste'), state));
   }
   // What the stage is doing with whatever is shown, offered over bare picture only: on a layer
   // the menu is already about that layer, and these belong to the picture as a whole. They are
@@ -212,14 +213,14 @@ export function stageMenu(context: StageMenuContext): MenuItemSpec[] {
   if (context.layerLabel === null) {
     if (items.length > 0) items.push(sep);
     items.push(
-      item('collection.add', 'Add to Collection', state),
+      item('collection.add', tr('menu.collection.add'), state),
       sep,
       {
-        label: 'Background',
+        label: tr('stage-menu.background'),
         enabled: true,
         submenu: backgroundSubmenu().map((b) => ({ ...b, enabled: true, checked: itemChecked(b, state) })),
       },
-      { ...item('view.theater', 'Theater', state), type: 'checkbox', checked: state.theater },
+      { ...item('view.theater', tr('menu.view.theater'), state), type: 'checkbox', checked: state.theater },
     );
   }
   return items;
@@ -373,13 +374,22 @@ export function layerWithSpan(layer: Layer, span: LayerSpan | undefined): Layer 
  * where it was asked for, and there would be nothing on the stage to take hold
  * of. The words are what a person types over.
  */
+// i18n-exempt(content): the words a new line holds go into the graphic and its render, as a template's own default words do.
 export const NEW_TEXT_WORDS = 'Text';
+
+/** The name a layer added to a stack this long is given, in the interface's language now: "Line 3", "Image 2". */
+function addedLabel(type: LayerType, number: number): string {
+  if (type === 'text') return tr('stage-menu.added-label.text', { number });
+  if (type === 'video') return tr('stage-menu.added-label.video', { number });
+  if (type === 'audio') return tr('stage-menu.added-label.audio', { number });
+  if (type === 'shape') return tr('stage-menu.added-label.shape', { number });
+  return tr('stage-menu.added-label.image', { number });
+}
 
 /** A fresh layer for a block, named so it reads in the stack: "Line 3", "Picture 2". */
 export function addedLayer(type: LayerType, block: BlockDefaults, stack: readonly Layer[], label?: string): Layer {
   // The words the Parameters tab's own Add buttons use, so a layer added there and one added
   // on the stage are named alike.
-  const stem = type === 'text' ? 'Line' : type === 'video' ? 'Video' : type === 'audio' ? 'Sound' : type === 'shape' ? 'Shape' : 'Image';
-  const made = newLayer(type, block, freeLayerId(stack, type), freeLayerLabel(stack, label ?? `${stem} ${stack.length + 1}`));
+  const made = newLayer(type, block, freeLayerId(stack, type), freeLayerLabel(stack, label ?? addedLabel(type, stack.length + 1)));
   return made.type === 'text' ? { ...made, text: NEW_TEXT_WORDS } : made;
 }

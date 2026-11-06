@@ -48,7 +48,7 @@ export function filteredRows(rgba: Uint8Array, width: number, height: number): U
 
 /** An 8-bit RGBA PNG. `deflate` is zlib's deflate (with the zlib header), as node:zlib's deflateSync gives it. */
 export function encodePng(rgba: Uint8Array, width: number, height: number, deflate: (bytes: Uint8Array) => Uint8Array): Uint8Array {
-  if (rgba.length < width * height * 4) throw new Error(`encodePng: ${rgba.length} bytes for ${width} × ${height}`);
+  if (rgba.length < width * height * 4) throw new Error(`encodePng: ${rgba.length} bytes for ${width} × ${height}`); // i18n-exempt(diagnostic)
   const header = new Uint8Array(13);
   header.set(u32(width), 0);
   header.set(u32(height), 4);
@@ -96,7 +96,7 @@ function paeth(a: number, b: number, c: number): number {
  */
 export function decodePng(bytes: Uint8Array, inflate: (data: Uint8Array) => Uint8Array): DecodedPng {
   const magic = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-  if (bytes.length < 8 || magic.some((b, i) => bytes[i] !== b)) throw new Error('not a PNG');
+  if (bytes.length < 8 || magic.some((b, i) => bytes[i] !== b)) throw new Error('not a PNG'); // i18n-exempt(diagnostic)
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let at = 8;
   let width = 0;
@@ -114,17 +114,17 @@ export function decodePng(bytes: Uint8Array, inflate: (data: Uint8Array) => Uint
       height = view.getUint32(at + 12);
       const depth = bytes[at + 16]!;
       colorType = bytes[at + 17]!;
-      if (depth !== 8) throw new Error(`${depth}-bit PNG channels are not read (8-bit is)`);
-      if (bytes[at + 20] !== 0) throw new Error('an interlaced PNG is not read');
+      if (depth !== 8) throw new Error(`${depth}-bit PNG channels are not read (8-bit is)`); // i18n-exempt(diagnostic)
+      if (bytes[at + 20] !== 0) throw new Error('an interlaced PNG is not read'); // i18n-exempt(diagnostic)
     } else if (type === 'PLTE') palette = new Uint8Array(data);
     else if (type === 'tRNS') alphaTable = new Uint8Array(data);
     else if (type === 'IDAT') idat.push(data);
     else if (type === 'IEND') break;
     at += 12 + length;
   }
-  if (width === 0 || height === 0 || idat.length === 0) throw new Error('a PNG with no picture');
+  if (width === 0 || height === 0 || idat.length === 0) throw new Error('a PNG with no picture'); // i18n-exempt(diagnostic)
   const channels = colorType === 6 ? 4 : colorType === 2 ? 3 : colorType === 4 ? 2 : 1;
-  if (![0, 2, 3, 4, 6].includes(colorType)) throw new Error(`PNG color type ${colorType} is not read`);
+  if (![0, 2, 3, 4, 6].includes(colorType)) throw new Error(`PNG color type ${colorType} is not read`); // i18n-exempt(diagnostic)
   const joined = new Uint8Array(idat.reduce((n, c) => n + c.length, 0));
   let o = 0;
   for (const c of idat) {
@@ -133,7 +133,7 @@ export function decodePng(bytes: Uint8Array, inflate: (data: Uint8Array) => Uint
   }
   const raw = inflate(joined);
   const stride = width * channels;
-  if (raw.length < (stride + 1) * height) throw new Error('a PNG shorter than its own size');
+  if (raw.length < (stride + 1) * height) throw new Error('a PNG shorter than its own size'); // i18n-exempt(diagnostic)
   const lines = new Uint8Array(stride * height);
   for (let y = 0; y < height; y += 1) {
     const filter = raw[y * (stride + 1)]!;
@@ -149,7 +149,7 @@ export function decodePng(bytes: Uint8Array, inflate: (data: Uint8Array) => Uint
       else if (filter === 2) v += up;
       else if (filter === 3) v += (left + up) >> 1;
       else if (filter === 4) v += paeth(left, up, upLeft);
-      else if (filter !== 0) throw new Error(`PNG filter ${filter} is not one the format has`);
+      else if (filter !== 0) throw new Error(`PNG filter ${filter} is not one the format has`); // i18n-exempt(diagnostic)
       lines[out + x] = v & 0xff;
     }
   }

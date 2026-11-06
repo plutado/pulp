@@ -150,6 +150,7 @@ function panelJob(id: number): PanelJobAnswer | undefined {
     return { state: 'done', file, name: basename(file) };
   }
   if (job.status === 'failed' || job.status === 'cancelled') {
+    // i18n-exempt(technical): the panel bridge's answer, shown by the editor panel's own interface (panels/)
     return { state: 'failed', message: job.message ?? 'The render did not finish.' };
   }
   return { state: 'rendering', fraction: job.totalFrames > 0 ? job.frame / job.totalFrames : null };
@@ -161,7 +162,7 @@ function panelJob(id: number): PanelJobAnswer | undefined {
  * so a change made in Pulp is a change the next drop from the panel carries.
  */
 async function panelOpen(target: { kind: 'item'; id: string } | { kind: 'collection'; uid: string }): Promise<{ ok: true } | { ok: false; message: string }> {
-  if (!panelWindow || panelWindow.isDestroyed()) return { ok: false, message: 'Pulp’s window is not open.' };
+  if (!panelWindow || panelWindow.isDestroyed()) return { ok: false, message: 'Pulp’s window is not open.' }; // i18n-exempt(technical)
   panelWindow.webContents.send('panel:open', target);
   if (panelWindow.isMinimized()) panelWindow.restore();
   panelWindow.show();

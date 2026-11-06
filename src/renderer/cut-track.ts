@@ -34,6 +34,7 @@ import type { TemplateManifest } from '../core/manifest';
 import type { MediaEntry } from '../core/library-types';
 import { resolveLength } from '../core/timing';
 import { layerEditor } from './layer-edit';
+import { bindAttr, bindText, t, whenLocaleChanges } from './i18n';
 import { appState, playheadSeconds, selectedTemplate, trim } from './store';
 
 /** The elements of one cut, kept across updates so a drag keeps its pointer. */
@@ -62,9 +63,13 @@ let selected: number | null = null;
 /** How close a drag must come to a target before it snaps, in pixels of the lane. */
 const SNAP_PX = 8;
 
+/** What the lane was last drawn from, so a change of language can draw it again in the new words. */
+let lastUpdate: Parameters<typeof cutTrackUpdate> | null = null;
+
 /** Draw the lane for this track at this length; nothing when the project has no track. */
 export function cutTrackUpdate(track: CutTrack | null, manifest: TemplateManifest | null, chosenLength: number | undefined, showing: boolean): void {
   if (!host) return;
+  lastUpdate = [track, manifest, chosenLength, showing];
   current = {
     track,
     length: manifest ? resolveLength(manifest.duration, manifest.structure ?? null, chosenLength) : 0,
@@ -98,29 +103,38 @@ export function cutTrackUpdate(track: CutTrack | null, manifest: TemplateManifes
     el.root.dataset.index = String(index);
     el.root.style.left = pct(windows[index]!.start);
     el.root.style.width = pct(cutSeconds(cut));
-    const name = mediaFor(cut.id)?.name ?? 'Clip not found';
+    // Read with t(), not bound: the name may itself be a word in the language, so the lane is drawn
+    // again when the language changes (mountCutTrack) rather than stamped.
+    const name = mediaFor(cut.id)?.name ?? t('cut-track.cut.missing');
     el.label.textContent = name;
     const speed = speedLabel(cut);
     el.speed.textContent = speed;
     el.speed.toggleAttribute('hidden', speed === '');
     el.root.classList.toggle('hold', cut.hold !== undefined);
-    const how = cut.hold !== undefined ? `, a frame at ${tidy(cut.from)} s of the clip held for ${tidy(cut.hold)} s` : `, from ${tidy(cut.from)} s of the clip${speed ? ` at ${speed}` : ''}`;
-    const said = `${name}: ${tidy(windows[index]!.start)}-${tidy(windows[index]!.end)} s${how}`;
-    el.body.title = said;
-    el.body.setAttribute('aria-label', `Cut ${index + 1}, ${said}`);
+    const said = { number: index + 1, name, start: tidy(windows[index]!.start), end: tidy(windows[index]!.end), from: tidy(cut.from) };
+    if (cut.hold !== undefined) {
+      el.body.title = t('cut-track.cut.title.hold', { ...said, hold: tidy(cut.hold) });
+      el.body.setAttribute('aria-label', t('cut-track.cut.aria-label.hold', { ...said, hold: tidy(cut.hold) }));
+    } else if (speed) {
+      el.body.title = t('cut-track.cut.title.speed', { ...said, speed });
+      el.body.setAttribute('aria-label', t('cut-track.cut.aria-label.speed', { ...said, speed }));
+    } else {
+      el.body.title = t('cut-track.cut.title', said);
+      el.body.setAttribute('aria-label', t('cut-track.cut.aria-label', said));
+    }
     for (const [handle, which, value] of [[el.start, 'start', windows[index]!.start], [el.end, 'end', windows[index]!.end]] as const) {
-      handle.setAttribute('aria-label', `Cut ${index + 1} ${which}, seconds`);
+      handle.setAttribute('aria-label', t(which === 'start' ? 'cut-track.trim.start.aria-label' : 'cut-track.trim.end.aria-label', { number: index + 1 }));
       handle.setAttribute('aria-valuemin', '0');
       handle.setAttribute('aria-valuemax', String(tidy(Math.max(current.length, trackDuration(track!)))));
       handle.setAttribute('aria-valuenow', String(tidy(value)));
-      handle.setAttribute('aria-valuetext', `${tidy(value)} seconds`);
+      handle.setAttribute('aria-valuetext', t('cut-track.trim.aria-valuetext', { seconds: tidy(value) }));
     }
   });
   cuts.forEach((cut, index) => {
     const el = cutEls[index]!;
     const transition = track ? transitionAt(track, index) : null;
     el.join.toggleAttribute('hidden', !transition);
-    if (transition) el.join.title = `${TRANSITION_LABELS[transition.type]} over ${transition.seconds} s`;
+    if (transition) el.join.title = joinTitle(transition);
   });
   // The shaded silences were found for the track as it stood; an edit makes them stale.
   if (silences.length > 0 && JSON.stringify(track?.cuts ?? []) !== silenceKey) clearSilences();
@@ -129,7 +143,13 @@ export function cutTrackUpdate(track: CutTrack | null, manifest: TemplateManifes
   paintWaves();
 }
 
-const TRANSITION_LABELS: Record<CutTransition['type'], string> = { dissolve: 'Dissolve', dip: 'Dip', wipe: 'Wipe' };
+/** What the mark at a boundary says of the transition there. */
+function joinTitle(transition: CutTransition): string {
+  const values = { seconds: transition.seconds };
+  if (transition.type === 'dissolve') return t('cut-track.join.dissolve.title', values);
+  if (transition.type === 'dip') return t('cut-track.join.dip.title', values);
+  return t('cut-track.join.wipe.title', values);
+}
 
 /** A rate as the lane says it: ¼×, ½×, 2×, and anything else as a decimal. */
 function rateText(rate: number): string {
@@ -140,7 +160,7 @@ function rateText(rate: number): string {
 
 /** What a cut's speed says on it (milestone 56): nothing in real time, the rate, a ramp, or a held frame. */
 function speedLabel(cut: Cut): string {
-  if (cut.hold !== undefined) return `Hold ${tidy(cut.hold)} s`;
+  if (cut.hold !== undefined) return t('cut-track.speed.hold', { seconds: tidy(cut.hold) });
   const { start, end } = cutRates(cut);
   if (start === 1 && end === 1) return '';
   return start === end ? rateText(start) : `${rateText(start)}→${rateText(end)}`;
@@ -196,7 +216,7 @@ export function cutTrackTakeDrop(id: string): boolean {
   const track = editor.track() ?? { cuts: [] };
   const next = withCutInserted(track, track.cuts.length, cutFromClip(id, entry.meta.duration, entry.path));
   if (next === track) {
-    say('The cut track is full.');
+    say(t('cut-track.full'));
     return true;
   }
   selected = next.cuts.length - 1;
@@ -476,30 +496,30 @@ const HOLDS = [0.5, 1, 2, 3, 5] as const;
 function cutMenuItems(track: CutTrack, index: number): MenuItemSpec[] {
   const cut = track.cuts[index]!;
   const last = index === track.cuts.length - 1;
-  const t = cut.transition;
+  const tr = cut.transition;
   const radio = (label: string, arg: string, checked: boolean): MenuItemSpec =>
     ({ command: 'cut.transition', label, arg, type: 'radio', checked });
   const transition: MenuItemSpec[] = [
-    radio('None', 'none', !t),
-    radio('Dissolve', 'dissolve', t?.type === 'dissolve'),
-    radio('Dip to black', 'dip:#000000', t?.type === 'dip' && (t.color ?? '#000000') === '#000000'),
-    radio('Dip to white', 'dip:#ffffff', t?.type === 'dip' && t.color === '#ffffff'),
-    ...wipeChoices().map((w) => radio(w.name, `wipe:${w.id}`, t?.type === 'wipe' && t.template === w.id)),
+    radio(t('cut-track.menu.transition.none'), 'none', !tr),
+    radio(t('cut-track.menu.transition.dissolve'), 'dissolve', tr?.type === 'dissolve'),
+    radio(t('cut-track.menu.transition.dip-black'), 'dip:#000000', tr?.type === 'dip' && (tr.color ?? '#000000') === '#000000'),
+    radio(t('cut-track.menu.transition.dip-white'), 'dip:#ffffff', tr?.type === 'dip' && tr.color === '#ffffff'),
+    ...wipeChoices().map((w) => radio(w.name, `wipe:${w.id}`, tr?.type === 'wipe' && tr.template === w.id)),
     { type: 'separator' },
     ...[0.25, 0.5, 1, 2].map((seconds): MenuItemSpec => ({
-      command: 'cut.transitionSeconds', label: `Over ${seconds} s`, arg: String(seconds), type: 'radio',
-      checked: (t?.seconds ?? DEFAULT_TRANSITION_SECONDS) === seconds, enabled: Boolean(t),
+      command: 'cut.transitionSeconds', label: t('cut-track.menu.transition.seconds', { seconds }), arg: String(seconds), type: 'radio',
+      checked: (tr?.seconds ?? DEFAULT_TRANSITION_SECONDS) === seconds, enabled: Boolean(tr),
     })),
   ];
   const soundRadio = (label: string, arg: string, checked: boolean): MenuItemSpec =>
     ({ command: 'cut.sound', label, arg, type: 'radio', checked });
   const sd = cut.sound;
   const sound: MenuItemSpec[] = [
-    soundRadio('Linked', 'linked', !sd),
-    soundRadio('Muted', 'muted', sd?.muted === true),
+    soundRadio(t('cut-track.menu.sound.linked'), 'linked', !sd),
+    soundRadio(t('cut-track.menu.sound.muted'), 'muted', sd?.muted === true),
     { type: 'separator' },
-    ...[0.25, 0.5, 1].map((v) => soundRadio(`Leads ${v} s (J cut)`, `lead:${v}`, sd?.lead === v && !sd?.muted)),
-    ...[0.25, 0.5, 1].map((v) => soundRadio(`Trails ${v} s (L cut)`, `tail:${v}`, sd?.tail === v && !sd?.muted)),
+    ...[0.25, 0.5, 1].map((v) => soundRadio(t('cut-track.menu.sound.lead', { seconds: v }), `lead:${v}`, sd?.lead === v && !sd?.muted)),
+    ...[0.25, 0.5, 1].map((v) => soundRadio(t('cut-track.menu.sound.tail', { seconds: v }), `tail:${v}`, sd?.tail === v && !sd?.muted)),
   ];
   // The speed (milestone 56): a rate, a ramp from the rate to another across the cut, and smooth
   // slow motion where frames have to be made up. A freeze frame offers how long it holds instead.
@@ -509,22 +529,22 @@ function cutMenuItems(track: CutTrack, index: number): MenuItemSpec[] {
   const speed: MenuItemSpec[] = [
     ...RATES.map((r) => speedRadio(rateText(r), String(r), rate === r)),
     { type: 'separator' },
-    rampRadio('No ramp', 'none', cut.speed?.to === undefined),
-    ...RATES.map((r) => rampRadio(`Ramp to ${rateText(r)}`, String(r), cut.speed?.to === r)),
+    rampRadio(t('cut-track.menu.ramp.none'), 'none', cut.speed?.to === undefined),
+    ...RATES.map((r) => rampRadio(t('cut-track.menu.ramp.to', { rate: rateText(r) }), String(r), cut.speed?.to === r)),
     { type: 'separator' },
-    { command: 'cut.smooth', label: 'Smooth slow motion', type: 'checkbox', checked: cut.speed?.smooth === true, enabled: Math.min(rate, rateTo) < 1 },
+    { command: 'cut.smooth', label: t('cut-track.menu.smooth'), type: 'checkbox', checked: cut.speed?.smooth === true, enabled: Math.min(rate, rateTo) < 1 },
   ];
-  const hold: MenuItemSpec[] = HOLDS.map((v) => ({ command: 'cut.hold', label: `${v} s`, arg: String(v), type: 'radio', checked: cut.hold === v }));
-  const freeze: MenuItemSpec[] = HOLDS.map((v) => ({ command: 'cut.freeze', label: `Hold ${v} s`, arg: String(v) }));
+  const hold: MenuItemSpec[] = HOLDS.map((v) => ({ command: 'cut.hold', label: t('cut-track.menu.hold.seconds', { seconds: v }), arg: String(v), type: 'radio', checked: cut.hold === v }));
+  const freeze: MenuItemSpec[] = HOLDS.map((v) => ({ command: 'cut.freeze', label: t('cut-track.menu.freeze.seconds', { seconds: v }), arg: String(v) }));
   return [
-    ...(last ? [] : [{ label: 'Transition', submenu: transition } satisfies MenuItemSpec]),
-    { label: 'Sound', submenu: sound },
-    ...(cut.hold !== undefined ? [{ label: 'Hold', submenu: hold } satisfies MenuItemSpec] : [{ label: 'Speed', submenu: speed } satisfies MenuItemSpec]),
-    { label: 'Freeze Frame', submenu: freeze },
+    ...(last ? [] : [{ label: t('cut-track.menu.transition'), submenu: transition } satisfies MenuItemSpec]),
+    { label: t('cut-track.menu.sound'), submenu: sound },
+    ...(cut.hold !== undefined ? [{ label: t('cut-track.menu.hold'), submenu: hold } satisfies MenuItemSpec] : [{ label: t('cut-track.menu.speed'), submenu: speed } satisfies MenuItemSpec]),
+    { label: t('cut-track.menu.freeze'), submenu: freeze },
     { type: 'separator' },
-    { command: 'cut.silences', label: 'Remove Silences…' },
-    { command: 'cut.export', label: 'Export Edit…' },
-    { command: 'cut.delete', label: 'Ripple Delete' },
+    { command: 'cut.silences', label: t('cut-track.menu.silences') },
+    { command: 'cut.export', label: t('cut-track.menu.export') },
+    { command: 'cut.delete', label: t('cut-track.menu.delete') },
   ];
 }
 
@@ -565,7 +585,7 @@ function runCutCommand(command: string, arg: string | null, index: number): void
     const entry = selectedTemplate.value;
     if (!entry) return;
     void window.pulp.exportEdit({ templateId: entry.id, name: entry.manifest.name, params: editor.params() }).then((result) => {
-      if (result.ok) say(`Exported the edit: ${result.fcpxml}`);
+      if (result.ok) say(t('cut-track.exported', { path: result.fcpxml }));
       else if (!result.cancelled) say(result.message);
     });
     return;
@@ -641,7 +661,7 @@ function clearSilences(): void {
   const cutButton = document.getElementById('silence-cut') as HTMLButtonElement | null;
   if (cutButton) cutButton.disabled = true;
   const found = document.getElementById('silence-found');
-  if (found) found.textContent = '';
+  if (found) foundText(found, '');
 }
 
 /** Shade the found stretches on the lane, where the cut will fall. */
@@ -653,10 +673,17 @@ function paintSilences(): void {
     shade.className = 'cut-silence';
     shade.style.left = `${(range.start / current.length) * 100}%`;
     shade.style.width = `${((range.end - range.start) / current.length) * 100}%`;
-    shade.title = `Quiet: ${Math.round(range.start * 100) / 100}-${Math.round(range.end * 100) / 100} s`;
+    bindAttr(shade, 'title', 'cut-track.silence.title', { from: Math.round(range.start * 100) / 100, to: Math.round(range.end * 100) / 100 });
     host.append(shade);
     shades.push(shade);
   }
+}
+
+/** The silence dialog's finding in words already worked out (none, here), so no message stamped on it earlier comes back. */
+function foundText(el: HTMLElement, text: string): void {
+  delete el.dataset.i18n;
+  delete el.dataset.i18nValues;
+  el.textContent = text;
 }
 
 function openSilenceDialog(): void {
@@ -674,7 +701,7 @@ function wireSilenceDialog(): void {
   find.addEventListener('click', () => {
     const track = layerEditor()?.track();
     if (!track) return;
-    found.textContent = 'Listening…';
+    bindText(found, 'cut-track.silence.listening');
     const asked = JSON.stringify(track.cuts);
     void window.pulp.trackSilences({ cuts: track.cuts.map((c) => ({ id: c.id, from: c.from, to: c.to })), thresholdDb: Number(threshold.value), minSeconds: Number(minimum.value) })
       .then(({ ranges }) => {
@@ -683,7 +710,8 @@ function wireSilenceDialog(): void {
         silenceKey = asked;
         paintSilences();
         const total = Math.round(ranges.reduce((sum, r) => sum + (r.end - r.start), 0) * 10) / 10;
-        found.textContent = ranges.length === 0 ? 'Nothing that quiet for that long.' : `${ranges.length} quiet ${ranges.length === 1 ? 'stretch' : 'stretches'}, ${total} s, shaded on the track.`;
+        if (ranges.length === 0) bindText(found, 'cut-track.silence.none');
+        else bindText(found, 'cut-track.silence.found', { count: ranges.length, total });
         cutButton.disabled = ranges.length === 0;
       });
   });
@@ -717,7 +745,7 @@ function onDrop(e: DragEvent): void {
   if (!itemId) return;
   e.preventDefault();
   if (!current.showing) {
-    say('Open a template before building its cut track.');
+    say(t('cut-track.drop.no-template'));
     return;
   }
   const entry = mediaFor(itemId);
@@ -738,14 +766,14 @@ function onDrop(e: DragEvent): void {
       return;
     }
     if (wipe) {
-      say('A wipe goes between two cuts: the track needs at least two.');
+      say(t('cut-track.drop.wipe-needs-two'));
       return;
     }
-    say('Only a clip can join the cut track.');
+    say(t('cut-track.drop.clip-only'));
     return;
   }
   if (entry.offline || !entry.meta?.duration || entry.meta.duration <= 0) {
-    say('That clip has no measured length yet, so it cannot be cut.');
+    say(t('cut-track.drop.no-length'));
     return;
   }
   const track = current.track ?? { cuts: [] };
@@ -756,7 +784,7 @@ function onDrop(e: DragEvent): void {
   const index = under === null ? track.cuts.length : time - windows[under]!.start < cutSeconds(track.cuts[under]!) / 2 ? under : under + 1;
   const next = withCutInserted(track, index, cutFromClip(entry.id, entry.meta.duration, entry.path));
   if (next === track) {
-    say('The cut track is full.');
+    say(t('cut-track.full'));
     return;
   }
   selected = Math.min(index, next.cuts.length - 1);
@@ -780,6 +808,10 @@ export function mountCutTrack(el: HTMLDivElement, lanesEl: HTMLDivElement, note:
   lanes.addEventListener('drop', onDrop);
   window.addEventListener('keydown', onSplitKey);
   wireSilenceDialog();
+  // The lane's words are read as it is drawn: a change of language draws it again.
+  whenLocaleChanges(() => {
+    if (lastUpdate) cutTrackUpdate(...lastUpdate);
+  });
   // Peaks arrive in the background: the cuts catch up when they land.
   effect(() => {
     void waveforms.value;

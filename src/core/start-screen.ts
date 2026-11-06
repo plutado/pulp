@@ -12,15 +12,19 @@ import { categoryInfo, categoryScope } from './categories';
 import { entryType } from './taxonomy';
 import { SAMPLE_MEDIA_FOLDER_NAME } from './sample-media';
 import { typeLabel } from './display';
+import { tr } from './i18n';
 
 // ---------------------------------------------------------------- get going
 
-/** New project by shape: every aspect the output system knows, said in words. */
-export const PROJECT_SHAPES: readonly { id: string; label: string; hint: string }[] = ASPECTS.map((a) => ({
-  id: a.id,
-  label: a.id,
-  hint: a.w > a.h ? 'Landscape' : a.w < a.h ? 'Vertical' : 'Square',
-}));
+/** New project by shape: every aspect the output system knows, said in words — in the interface's language now (a getter, milestone 59). */
+export const PROJECT_SHAPES: readonly { id: string; label: string; readonly hint: string }[] = ASPECTS.map((a) => {
+  const shape = a.w > a.h ? 'landscape' : a.w < a.h ? 'vertical' : 'square';
+  return {
+    id: a.id,
+    label: a.id,
+    get hint() { return tr(`start.shape.${shape}`); },
+  };
+});
 
 // ---------------------------------------------------------------- what are you making?
 
@@ -41,12 +45,13 @@ export interface MakingChoice {
   forTheme: string;
 }
 
+/** Named in the interface's language now: the label and hint are getters reading the catalog (milestone 59). */
 export const MAKING_CHOICES: readonly MakingChoice[] = [
-  { id: 'interview', label: 'An interview', hint: 'Lower thirds to name who is speaking', category: 'lower-thirds', forTheme: 'podcast' },
-  { id: 'sports', label: 'A sports opener', hint: 'Openers and titles with a matchday look', category: 'titles-openers', forTheme: 'sports' },
-  { id: 'wedding', label: 'A wedding', hint: 'Elegant titles and reveals', category: 'titles-openers', forTheme: 'wedding' },
-  { id: 'social', label: 'A social clip', hint: 'Cards, handles and subscribe graphics', category: 'titles-openers', forTheme: 'social-media' },
-  { id: 'news', label: 'A news package', hint: 'Lower thirds, straps and bugs for the newsdesk', category: 'lower-thirds', forTheme: 'news' },
+  { id: 'interview', get label() { return tr('start.making.interview'); }, get hint() { return tr('start.making.interview.hint'); }, category: 'lower-thirds', forTheme: 'podcast' },
+  { id: 'sports', get label() { return tr('start.making.sports'); }, get hint() { return tr('start.making.sports.hint'); }, category: 'titles-openers', forTheme: 'sports' },
+  { id: 'wedding', get label() { return tr('start.making.wedding'); }, get hint() { return tr('start.making.wedding.hint'); }, category: 'titles-openers', forTheme: 'wedding' },
+  { id: 'social', get label() { return tr('start.making.social'); }, get hint() { return tr('start.making.social.hint'); }, category: 'titles-openers', forTheme: 'social-media' },
+  { id: 'news', get label() { return tr('start.making.news'); }, get hint() { return tr('start.making.news.hint'); }, category: 'lower-thirds', forTheme: 'news' },
 ];
 
 /**
@@ -104,21 +109,21 @@ export function setupChecklist(facts: SetupFacts): ChecklistItem[] {
   return [
     {
       id: 'ffmpeg',
-      label: facts.ffmpegOk ? 'FFmpeg found, so rendering works' : 'FFmpeg not found — install it to render',
+      label: facts.ffmpegOk ? tr('start.setup.ffmpeg.done') : tr('start.setup.ffmpeg.todo'),
       done: facts.ffmpegOk,
-      action: !facts.ffmpegOk && facts.ffmpegDownloadable ? 'Get FFmpeg…' : '',
+      action: !facts.ffmpegOk && facts.ffmpegDownloadable ? tr('start.setup.ffmpeg.action') : '',
     },
     {
       id: 'folder',
-      label: userFolders.length > 0 ? 'A library folder of your own is added' : 'Add a library folder of your own',
+      label: userFolders.length > 0 ? tr('start.setup.folder.done') : tr('start.setup.folder.todo'),
       done: userFolders.length > 0,
-      action: userFolders.length > 0 ? '' : 'Your media folder…',
+      action: userFolders.length > 0 ? '' : tr('start.setup.folder.action'),
     },
     {
       id: 'samples',
-      label: hasSampleMedia(facts.roots) ? 'Sample media is made' : 'Make sample media to try templates with',
+      label: hasSampleMedia(facts.roots) ? tr('start.setup.samples.done') : tr('start.setup.samples.todo'),
       done: hasSampleMedia(facts.roots),
-      action: hasSampleMedia(facts.roots) ? '' : 'Sample media…',
+      action: hasSampleMedia(facts.roots) ? '' : tr('start.setup.samples.action'),
     },
   ];
 }
@@ -143,7 +148,7 @@ export interface StartArrangement {
 }
 
 export function checklistProgress(items: readonly ChecklistItem[]): string {
-  return `${items.filter((i) => i.done).length} of ${items.length} done`;
+  return tr('start.setup.progress', { done: items.filter((i) => i.done).length, total: items.length });
 }
 
 export function startArrangement(items: readonly ChecklistItem[], recents: number, checklistAsked = false): StartArrangement {
@@ -180,8 +185,7 @@ export function ideaPicture(choice: MakingChoice, index: LibraryIndex | null, pr
 
 /** The library at a glance: counts, favorites, and the most common template categories. */
 export function libraryGlance(index: LibraryIndex | null): string {
-  if (!index) return 'The library has not been scanned yet.';
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  if (!index) return tr('start.glance.not-scanned');
   const favorites = [...index.templates, ...index.media].filter((e) => e.favorite).length;
   const byType = new Map<string, number>();
   for (const t of index.templates) {
@@ -189,10 +193,17 @@ export function libraryGlance(index: LibraryIndex | null): string {
     if (type) byType.set(type, (byType.get(type) ?? 0) + 1);
   }
   const top = [...byType.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => typeLabel(id));
-  const parts = [`${plural(index.templates.length, 'template')} and ${plural(index.media.length, 'media file')}`];
-  if (favorites > 0) parts.push(plural(favorites, 'favorite'));
-  if (top.length > 0) parts.push(`most of all ${top.join(', ').toLowerCase()}`);
-  return `${parts.join(' · ')}.`;
+  // One sentence per shape the line can take, the counts as phrases inside it (milestone 59).
+  const values = {
+    templates: tr('start.glance.templates', { count: index.templates.length }),
+    media: tr('start.glance.media-files', { count: index.media.length }),
+    favoriteCount: tr('start.glance.favorites', { count: favorites }),
+    types: top.join(', ').toLowerCase(),
+  };
+  if (favorites > 0 && top.length > 0) return tr('start.glance.summary.favorites-types', values);
+  if (favorites > 0) return tr('start.glance.summary.favorites', values);
+  if (top.length > 0) return tr('start.glance.summary.types', values);
+  return tr('start.glance.summary', values);
 }
 
 // ---------------------------------------------------------------- recent projects
@@ -230,13 +241,13 @@ export function lastOpenedLabel(iso: string, now: Date = new Date()): string {
   const then = new Date(iso);
   if (Number.isNaN(then.getTime())) return '';
   const days = Math.floor((now.getTime() - then.getTime()) / 86_400_000);
-  if (days <= 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 30) return `${days} days ago`;
+  if (days <= 0) return tr('start.recent.today');
+  if (days === 1) return tr('start.recent.yesterday');
+  if (days < 30) return tr('start.recent.days-ago', { count: days });
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months} ${months === 1 ? 'month' : 'months'} ago`;
+  if (months < 12) return tr('start.recent.months-ago', { count: months });
   const years = Math.floor(days / 365);
-  return `${years} ${years === 1 ? 'year' : 'years'} ago`;
+  return tr('start.recent.years-ago', { count: years });
 }
 
 // ---------------------------------------------------------------- the tour
@@ -253,40 +264,41 @@ export interface TourStep {
   body: string;
 }
 
+/** In the interface's language now: each step's words are getters reading the catalog (milestone 59). */
 export const TOUR_STEPS: readonly TourStep[] = [
   {
     target: 'region-search',
-    title: 'Search',
-    body: 'Find templates and media by name, tag or a filter such as type:wipe or duration:>5; the chips narrow by kind, shape, transparency and favorites, and For… and Look by theme and style. Ctrl+F or ⌘F puts the caret here from anywhere.',
+    get title() { return tr('tour.step.search.title'); },
+    get body() { return tr('tour.step.search.body'); },
   },
   {
     target: 'browse-tree',
-    title: 'Browse',
-    body: 'The library by what things are: lower thirds, titles, backgrounds, overlays, stock video and the rest. Choose a category to narrow the results to it; the funnel in the heading filters the categories as you type.',
+    get title() { return tr('tour.step.browse.title'); },
+    get body() { return tr('tour.step.browse.body'); },
   },
   {
     target: 'region-results',
-    title: 'Results',
-    body: 'Everything the category and the search leave. Choose an item to preview it on the stage; drag it to the collection tray to keep it for rendering.',
+    get title() { return tr('tour.step.results.title'); },
+    get body() { return tr('tour.step.results.body'); },
   },
   {
     target: 'region-stage',
-    title: 'Stage',
-    body: 'The picture, as the output will show it: choose what sits behind transparency, show the safe areas, and move, resize or turn layers right on it.',
+    get title() { return tr('tour.step.stage.title'); },
+    get body() { return tr('tour.step.stage.body'); },
   },
   {
     target: 'region-transport',
-    title: 'Transport row',
-    body: 'Play, step a frame at a time, loop, set in and out points and the volume. The scrub bar runs the width of the window, with a bar for each layer under it showing when it is on screen.',
+    get title() { return tr('tour.step.transport.title'); },
+    get body() { return tr('tour.step.transport.body'); },
   },
   {
     target: 'tab-parameters',
-    title: 'Inspector',
-    body: 'Parameters, Output and Info open as a drawer over the results, so the picture stays in view while you edit. Choose a tab again, or press Esc, to close it; the pin keeps it open.',
+    get title() { return tr('tour.step.inspector.title'); },
+    get body() { return tr('tour.step.inspector.body'); },
   },
   {
     target: 'region-tray',
-    title: 'Collection tray',
-    body: 'The items gathered for this project, each with its own settings, rendered in one go with Render all. A finished render drags straight into your editor.',
+    get title() { return tr('tour.step.tray.title'); },
+    get body() { return tr('tour.step.tray.body'); },
   },
 ];

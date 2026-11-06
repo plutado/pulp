@@ -27,6 +27,7 @@ import { isBuiltInAspect } from './aspect';
 import { isValidColor, type TemplateCategory } from './manifest';
 import { OUTPUT_PRESETS, type PresetId } from './render-plan';
 import { isBuiltInType } from './taxonomy';
+import { tr } from './i18n';
 
 /** What the Output tab remembers for a type: the choices that describe a kind of output, none that describe one piece. */
 export interface TypeOutputDefault {
@@ -96,29 +97,29 @@ export interface AssetOutputPreset {
 export const ASSET_OUTPUT_PRESETS: readonly AssetOutputPreset[] = [
   {
     id: 'transparent-overlay',
-    label: 'Transparent overlay',
-    tip: 'ProRes 4444 with the alpha kept: drops straight onto footage in Premiere Pro, Resolve or Final Cut.',
+    get label() { return tr('output.asset.transparent-overlay'); },
+    get tip() { return tr('output.asset.transparent-overlay.tip'); },
     appliesTo: { alpha: true },
     choices: { presetId: 'prores-4444' },
   },
   {
     id: 'editor-safe',
-    label: 'Editor-safe, with matte',
-    tip: 'H.264 flattened over black with the alpha beside it as a gray matte file, for editors and pipelines that cannot read an alpha channel.',
+    get label() { return tr('output.asset.editor-safe'); },
+    get tip() { return tr('output.asset.editor-safe.tip'); },
     appliesTo: { alpha: true },
     choices: { presetId: 'h264-mp4', background: '#000000', matte: true },
   },
   {
     id: 'full-screen-background',
-    label: 'Full-screen background',
-    tip: 'H.264 of the whole frame: a background to cut shots over, sized and paced by the template.',
+    get label() { return tr('output.asset.full-screen-background'); },
+    get tip() { return tr('output.asset.full-screen-background.tip'); },
     appliesTo: { categories: ['background'] },
     choices: { presetId: 'h264-mp4', background: '#000000' },
   },
   {
     id: 'web-alpha',
-    label: 'Web overlay (VP9)',
-    tip: 'WebM VP9 with alpha: small files for browsers, OBS and web players that take transparency.',
+    get label() { return tr('output.asset.web-alpha'); },
+    get tip() { return tr('output.asset.web-alpha.tip'); },
     appliesTo: { alpha: true },
     choices: { presetId: 'webm-vp9-alpha' },
   },

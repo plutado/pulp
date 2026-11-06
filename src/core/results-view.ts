@@ -9,6 +9,7 @@
 import { entryLabel } from './app-state';
 import { orientationOf, templateDefaultSize, templateOrientations } from './aspect';
 import { dimensionsLabel, mediaKindLabel, runningTime, themeLabel, typeLabel } from './display';
+import { tr } from './i18n';
 import type { LibraryEntry } from './library-types';
 import { resolutionTag } from './media-meta';
 import { entryType } from './taxonomy';
@@ -249,15 +250,15 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   const { width, height } = entrySize(entry);
   const tag = resolutionTag(width, height);
   if (tag && width && height) badges.push({ id: 'resolution', label: tag, tip: dimensionsLabel(width, height) });
-  if (hasAlpha(entry)) badges.push({ id: 'alpha', label: 'Alpha', tip: 'Transparent background' });
-  if (entryType(entry) === 'animated-loop') badges.push({ id: 'loop', label: 'Loop', tip: 'Made to loop seamlessly' });
+  if (hasAlpha(entry)) badges.push({ id: 'alpha', label: tr('results.badge.alpha'), tip: tr('results.badge.alpha.tip') });
+  if (entryType(entry) === 'animated-loop') badges.push({ id: 'loop', label: tr('results.badge.loop'), tip: tr('results.badge.loop.tip') });
   const orientation = entryOrientationBadge(entry);
   if (orientation) badges.push(orientation);
-  if (entry.kind === 'template' && entry.pack) badges.push({ id: 'pack', label: entry.pack.name, tip: `From the pack ${entry.pack.name}` });
+  if (entry.kind === 'template' && entry.pack) badges.push({ id: 'pack', label: entry.pack.name, tip: tr('results.badge.pack.tip', { name: entry.pack.name }) });
   // A template that carries its own sound (milestone 16) says so on its card, with how many variations.
   if (entry.kind === 'template' && entry.manifest.sound) {
     const count = entry.manifest.sound.variants.length;
-    badges.push({ id: 'sound', label: 'Sound', tip: count > 1 ? `Carries its own sound, ${count} variations` : 'Carries its own sound' });
+    badges.push({ id: 'sound', label: tr('results.badge.sound'), tip: count > 1 ? tr('results.badge.sound.tip-variations', { count }) : tr('results.badge.sound.tip') });
   }
   return badges;
 }
@@ -271,14 +272,14 @@ function entryOrientationBadge(entry: LibraryEntry): ResultBadge | null {
   if (entry.kind === 'template') {
     const shapes = templateOrientations(entry.manifest);
     const tall = entry.manifest.aspects.filter((a) => { const [w, h] = a.split(':').map(Number); return w !== undefined && h !== undefined && w < h; });
-    if (shapes.includes('portrait')) return { id: 'vertical', label: 'Vertical', tip: shapes.length > 1 ? `Draws tall as well (${tall.join(', ')})` : 'Vertical' };
-    if (shapes.includes('square')) return { id: 'square', label: 'Square', tip: shapes.length > 1 ? 'Draws square as well (1:1)' : 'Square' };
+    if (shapes.includes('portrait')) return { id: 'vertical', label: tr('results.badge.vertical'), tip: shapes.length > 1 ? tr('results.badge.vertical.tip-also', { aspects: tall.join(', ') }) : tr('results.badge.vertical') };
+    if (shapes.includes('square')) return { id: 'square', label: tr('results.badge.square'), tip: shapes.length > 1 ? tr('results.badge.square.tip-also') : tr('results.badge.square') };
     return null;
   }
   const { width, height } = entrySize(entry);
   if (!width || !height) return null;
   const o = orientationOf(width, height);
-  return o === 'portrait' ? { id: 'vertical', label: 'Vertical', tip: 'Vertical' } : o === 'square' ? { id: 'square', label: 'Square', tip: 'Square' } : null;
+  return o === 'portrait' ? { id: 'vertical', label: tr('results.badge.vertical'), tip: tr('results.badge.vertical') } : o === 'square' ? { id: 'square', label: tr('results.badge.square'), tip: tr('results.badge.square') } : null;
 }
 
 /** The list view's columns (docs/ui-layout.md): name, duration, type, themes, file. */

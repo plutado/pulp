@@ -15,6 +15,8 @@
  * generated, never shipped.
  */
 
+import { tr, type MessageId } from './i18n';
+
 export const PSD_EXTENSION = '.psd';
 
 /** The extensions read as layered stills (milestone 33). `.ai` reads through the PDF it carries. */
@@ -55,25 +57,44 @@ const BLEND_KEYS: Record<string, PsdBlend> = {
   pass: 'normal',
 };
 
-/** Photoshop's own modes with no canvas equivalent: drawn as normal, named in words. */
-const BLEND_NAMES: Record<string, string> = {
-  diss: 'dissolve', lbrn: 'linear burn', dkCl: 'darker color', lddg: 'linear dodge', lgCl: 'lighter color',
-  vLit: 'vivid light', lLit: 'linear light', pLit: 'pin light', hMix: 'hard mix', fsub: 'subtract', fdiv: 'divide',
+/** Photoshop's own modes with no canvas equivalent: drawn as normal, named in words (in the interface's language when read). */
+const BLEND_NAMES: Record<string, MessageId> = {
+  diss: 'psd.blend.dissolve',
+  lbrn: 'psd.blend.linear-burn',
+  dkCl: 'psd.blend.darker-color',
+  lddg: 'psd.blend.linear-dodge',
+  lgCl: 'psd.blend.lighter-color',
+  vLit: 'psd.blend.vivid-light',
+  lLit: 'psd.blend.linear-light',
+  pLit: 'psd.blend.pin-light',
+  hMix: 'psd.blend.hard-mix',
+  fsub: 'psd.blend.subtract',
+  fdiv: 'psd.blend.divide',
 };
 
-/** Additional-info keys that mean a layer is something Pulp cannot reproduce, and what to call it. */
-const LIMIT_KEYS: Record<string, string> = {
-  lfx2: 'layer effects', lrFX: 'layer effects', lmfx: 'layer effects',
-  SoLd: 'smart object', PlLd: 'smart object', SoLE: 'smart object',
-  SoCo: 'fill layer', GdFl: 'fill layer', PtFl: 'fill layer',
-  levl: 'adjustment layer (levels)', curv: 'adjustment layer (curves)', brit: 'adjustment layer (brightness/contrast)',
-  hue2: 'adjustment layer (hue/saturation)', blnc: 'adjustment layer (color balance)', selc: 'adjustment layer (selective color)',
-  mixr: 'adjustment layer (channel mixer)', grdm: 'adjustment layer (gradient map)', phfl: 'adjustment layer (photo filter)',
-  expA: 'adjustment layer (exposure)', vibA: 'adjustment layer (vibrance)', blwh: 'adjustment layer (black and white)',
-  nvrt: 'adjustment layer (invert)', post: 'adjustment layer (posterize)', thrs: 'adjustment layer (threshold)',
-  clrL: 'adjustment layer (color lookup)',
-  vmsk: 'vector mask', vsms: 'vector mask', vogk: 'vector mask',
-  TySh: 'text layer (its rendered pixels are used)',
+/** Additional-info keys that mean a layer is something Pulp cannot reproduce, and the message that names it. */
+const LIMIT_KEYS: Record<string, MessageId> = {
+  lfx2: 'psd.limit.layer-effects', lrFX: 'psd.limit.layer-effects', lmfx: 'psd.limit.layer-effects',
+  SoLd: 'psd.limit.smart-object', PlLd: 'psd.limit.smart-object', SoLE: 'psd.limit.smart-object',
+  SoCo: 'psd.limit.fill-layer', GdFl: 'psd.limit.fill-layer', PtFl: 'psd.limit.fill-layer',
+  levl: 'psd.limit.adjustment.levels',
+  curv: 'psd.limit.adjustment.curves',
+  brit: 'psd.limit.adjustment.brightness-contrast',
+  hue2: 'psd.limit.adjustment.hue-saturation',
+  blnc: 'psd.limit.adjustment.color-balance',
+  selc: 'psd.limit.adjustment.selective-color',
+  mixr: 'psd.limit.adjustment.channel-mixer',
+  grdm: 'psd.limit.adjustment.gradient-map',
+  phfl: 'psd.limit.adjustment.photo-filter',
+  expA: 'psd.limit.adjustment.exposure',
+  vibA: 'psd.limit.adjustment.vibrance',
+  blwh: 'psd.limit.adjustment.black-and-white',
+  nvrt: 'psd.limit.adjustment.invert',
+  post: 'psd.limit.adjustment.posterize',
+  thrs: 'psd.limit.adjustment.threshold',
+  clrL: 'psd.limit.adjustment.color-lookup',
+  vmsk: 'psd.limit.vector-mask', vsms: 'psd.limit.vector-mask', vogk: 'psd.limit.vector-mask',
+  TySh: 'psd.limit.text-layer',
 };
 
 export interface PsdLayer {
@@ -139,7 +160,7 @@ class Reader {
     this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   }
   need(n: number): void {
-    if (this.at + n > this.bytes.length) throw new Error('the file ends early');
+    if (this.at + n > this.bytes.length) throw new Error('the file ends early'); // i18n-exempt(diagnostic)
   }
   u8(): number { this.need(1); return this.bytes[this.at++]!; }
   u16(): number { this.need(2); const v = this.view.getUint16(this.at); this.at += 2; return v; }
@@ -219,13 +240,13 @@ function readChannel(r: Reader, width: number, height: number, depth: number, co
     for (let y = 0; y < height; y += 1) raw.set(unpackBits(r.slice(rowLengths[y]!), rowBytes), y * rowBytes);
   } else if (compression === 2 || compression === 3) {
     // Zip: one zlib stream per channel. With prediction (3), rows are deltas.
-    if (!inflate) throw new Error('zip-compressed layer data needs an inflate, and none was given');
-    if (length === null) throw new Error('zip-compressed data with no stated length');
+    if (!inflate) throw new Error('zip-compressed layer data needs an inflate, and none was given'); // i18n-exempt(diagnostic)
+    if (length === null) throw new Error('zip-compressed data with no stated length'); // i18n-exempt(diagnostic)
     const inflated = inflate(r.slice(length));
-    if (inflated.length < count * bytesPer) throw new Error('zip-compressed channel data is shorter than the layer');
+    if (inflated.length < count * bytesPer) throw new Error('zip-compressed channel data is shorter than the layer'); // i18n-exempt(diagnostic)
     raw = compression === 3 ? undoPrediction(inflated.subarray(0, count * bytesPer), width, height, depth) : inflated.subarray(0, count * bytesPer);
   } else {
-    throw new Error(`compression ${compression} is not one the format has`);
+    throw new Error(`compression ${compression} is not one the format has`); // i18n-exempt(diagnostic)
   }
   if (length !== null) r.at = start + length;
   if (bytesPer === 1) return raw;
@@ -265,7 +286,7 @@ function readLayerRecord(r: Reader): RawLayer {
   const channelCount = r.u16();
   const channels: { id: number; length: number }[] = [];
   for (let c = 0; c < channelCount; c += 1) channels.push({ id: r.i16(), length: r.u32() });
-  if (r.ascii(4) !== '8BIM') throw new Error('a layer record is not where it should be');
+  if (r.ascii(4) !== '8BIM') throw new Error('a layer record is not where it should be'); // i18n-exempt(diagnostic)
   const blendKey = r.ascii(4);
   const opacity = r.u8() / 255;
   const clipping = r.u8() !== 0;
@@ -283,8 +304,8 @@ function readLayerRecord(r: Reader): RawLayer {
   r.skip((4 - ((nameLength + 1) % 4)) % 4);
   let section = 0;
   const limits: string[] = [];
-  if (maskLength > 0) limits.push('layer mask (not applied)');
-  if (clipping) limits.push('clipping mask (drawn unclipped)');
+  if (maskLength > 0) limits.push(tr('psd.limit.layer-mask'));
+  if (clipping) limits.push(tr('psd.limit.clipping-mask'));
   while (r.at + 12 <= extraEnd) {
     const sig = r.ascii(4);
     if (sig !== '8BIM' && sig !== '8B64') break;
@@ -299,7 +320,8 @@ function readLayerRecord(r: Reader): RawLayer {
     } else if (key === 'lsct') {
       section = r.u32();
     } else if (LIMIT_KEYS[key]) {
-      if (!limits.includes(LIMIT_KEYS[key]!)) limits.push(LIMIT_KEYS[key]!);
+      const limit = tr(LIMIT_KEYS[key]!);
+      if (!limits.includes(limit)) limits.push(limit);
     }
     // Lengths are padded to an even count; what a block held past what was read is skipped.
     r.at = dataStart + length + (length % 2);
@@ -315,21 +337,23 @@ function readLayerRecord(r: Reader): RawLayer {
  */
 export function parsePsd(bytes: Uint8Array, options: { inflate?: Inflate } = {}): PsdResult {
   try {
+    // i18n-exempt(diagnostic)
     if (bytes.length < 26 || String.fromCharCode(...bytes.subarray(0, 4)) !== '8BPS') return { ok: false, message: 'not a Photoshop file (no 8BPS signature)' };
     const r = new Reader(bytes);
     r.skip(4);
     const version = r.u16();
-    if (version !== 1) return { ok: false, message: version === 2 ? 'a large-document .psb file is not supported' : `unknown version ${version}` };
+    if (version !== 1) return { ok: false, message: version === 2 ? tr('psd.refused.psb') : `unknown version ${version}` }; // i18n-exempt(diagnostic)
     r.skip(6);
     const channelCount = r.u16();
     const height = r.u32();
     const width = r.u32();
     const depth = r.u16();
     const modeCode = r.u16();
+    // i18n-exempt(diagnostic)
     if (width === 0 || height === 0 || width > 30_000 || height > 30_000) return { ok: false, message: `an unreadable size, ${width} × ${height}` };
-    if (depth !== 8 && depth !== 16) return { ok: false, message: `${depth}-bit channels are not supported (8 and 16 are)` };
+    if (depth !== 8 && depth !== 16) return { ok: false, message: tr('psd.refused.depth', { depth }) };
     const mode = modeCode === 3 ? 'rgb' : modeCode === 1 ? 'grayscale' : null;
-    if (!mode) return { ok: false, message: `color mode ${modeCode} is not supported (RGB and grayscale are)` };
+    if (!mode) return { ok: false, message: tr('psd.refused.color-mode', { mode: modeCode }) };
     const gray = mode === 'grayscale';
     const limits: string[] = [];
 
@@ -373,7 +397,10 @@ export function parsePsd(bytes: Uint8Array, options: { inflate?: Inflate } = {})
           const depthHere = open.length;
           const blend = BLEND_KEYS[raw.blendKey] ?? 'normal';
           const layerLimits = [...raw.limits];
-          if (!BLEND_KEYS[raw.blendKey]) layerLimits.push(`blend mode "${BLEND_NAMES[raw.blendKey] ?? raw.blendKey.trim()}" drawn as normal`);
+          if (!BLEND_KEYS[raw.blendKey]) {
+            const named = BLEND_NAMES[raw.blendKey];
+            layerLimits.push(tr('psd.limit.blend', { mode: named ? tr(named) : raw.blendKey.trim() }));
+          }
           if (raw.section === 3) {
             // The divider stands in for the group until its own record arrives.
             const group: PsdLayer = { id, name: '', kind: 'group', visible: true, opacity: 1, blend: 'normal', blendKey: 'pass', left: 0, top: 0, width: 0, height: 0, parent, depth: depthHere, limits: [] };
@@ -406,7 +433,7 @@ export function parsePsd(bytes: Uint8Array, options: { inflate?: Inflate } = {})
         });
         // A group left open is a file that ended oddly; it keeps a plain name.
         for (const g of open) {
-          g.layer.name = g.layer.name || 'Group';
+          g.layer.name = g.layer.name || tr('layered.layer.default-group');
           Object.assign(g.layer, union(g.children));
         }
       }
@@ -437,14 +464,14 @@ export function parsePsd(bytes: Uint8Array, options: { inflate?: Inflate } = {})
           if (c < ids.length) channels.set(ids[c]!, bytesPer === 1 ? raw : raw.filter((_, j) => j % 2 === 0));
         }
       } else {
-        limits.push('the stored composite uses zip compression, which is not read; the layers are composited instead');
+        limits.push(tr('psd.limit.composite-zip'));
       }
       if (channels.size > 0) composite = interleave(channels, count, gray);
     } catch {
-      limits.push('the stored composite could not be read; the layers are composited instead');
+      limits.push(tr('psd.limit.composite-unreadable'));
     }
-    if (layers.length === 0) limits.push('the file has no layers; only the flattened picture');
-    if (depth === 16) limits.push('16-bit channels are read down to 8 bits');
+    if (layers.length === 0) limits.push(tr('psd.limit.no-layers'));
+    if (depth === 16) limits.push(tr('psd.limit.sixteen-bit'));
     return { ok: true, document: { width, height, depth, mode, layers, composite, limits } };
   } catch (err) {
     return { ok: false, message: (err as Error).message };
@@ -641,13 +668,23 @@ export function placeableLayers(outline: Pick<PsdOutline, 'layers'>, hidden: Rea
   return outline.layers.filter((l) => l.kind === 'layer' && l.width > 0 && l.height > 0 && l.hasPixels !== false && layerShown(outline.layers, l.id, hidden));
 }
 
-/** A sentence on what the file has that Pulp does not reproduce, across all its layers; empty when nothing. */
+/** Is a layer's limit the "blend mode … drawn as normal" one, in the language it was read in now? */
+function isBlendLimit(limit: string): boolean {
+  const [before = '', after = ''] = tr('psd.limit.blend', { mode: '\u0000' }).split('\u0000');
+  return limit.length > before.length + after.length && limit.startsWith(before) && limit.endsWith(after);
+}
+
+/**
+ * A sentence on what the file has that Pulp does not reproduce, across all its layers; empty when nothing.
+ * Its sentences are messages of their own; the list of kinds is joined with a comma, and the document's
+ * own limits with full stops, here.
+ */
 export function psdLimitSummary(outline: Pick<PsdOutline, 'layers' | 'limits' | 'hasComposite'>): string {
   const kinds = new Set<string>();
-  for (const layer of outline.layers) for (const limit of layer.limits) kinds.add(limit.replace(/ \(.*\)$/, '').replace(/^blend mode .*$/, 'other blend modes'));
+  for (const layer of outline.layers) for (const limit of layer.limits) kinds.add(isBlendLimit(limit) ? tr('psd.summary.other-blend-modes') : limit.replace(/ \(.*\)$/, ''));
   const parts = [...kinds];
   if (parts.length === 0 && outline.limits.length === 0) return '';
-  const named = parts.length > 0 ? `Not reproduced: ${parts.join(', ')}.` : '';
-  const fallback = outline.hasComposite ? ' The picture Photoshop stored is used where layers cannot be drawn.' : '';
+  const named = parts.length > 0 ? tr('psd.summary.not-reproduced', { kinds: parts.join(', ') }) : '';
+  const fallback = outline.hasComposite ? ` ${tr('psd.summary.stored-picture')}` : '';
   return `${named}${outline.limits.length > 0 ? ` ${outline.limits.join('. ')}.` : ''}${fallback}`.trim();
 }

@@ -11,6 +11,7 @@
 import { platformPreset } from './platform-presets';
 import { OUTPUT_PRESETS, type PresetId } from './render-plan';
 import type { RenderJobStatus, RenderQueueJob } from './render-queue';
+import { tr } from './i18n';
 
 export interface QueueCardStatus {
   kind: RenderJobStatus;
@@ -42,27 +43,32 @@ export interface QueueCard {
 
 /** "180 frames", "1 frame". */
 function frames(n: number): string {
-  return `${n} ${n === 1 ? 'frame' : 'frames'}`;
+  return tr('queue.frames', { count: n });
 }
 
 function status(job: RenderQueueJob): QueueCardStatus {
   switch (job.status) {
     case 'queued':
-      return { kind: 'queued', text: `Queued · ${frames(job.totalFrames)}` };
+      return { kind: 'queued', text: tr('queue.status.queued', { frames: frames(job.totalFrames) }) };
     case 'running':
       return {
         kind: 'running',
-        text: `Frame ${job.frame} of ${job.totalFrames}`,
+        text: tr('queue.status.running', { frame: job.frame, total: job.totalFrames }),
         progress: job.totalFrames > 0 ? Math.min(1, Math.max(0, job.frame / job.totalFrames)) : 0,
       };
     case 'done':
       // Warnings are counted here and spelled out in the tooltip: a card is one line.
-      return { kind: 'done', text: job.warnings.length > 0 ? `Done · ${frames(job.frame)} · ${job.warnings.length} warning${job.warnings.length === 1 ? '' : 's'}` : `Done · ${frames(job.frame)}` };
+      return {
+        kind: 'done',
+        text: job.warnings.length > 0
+          ? tr('queue.status.done-warnings', { frames: frames(job.frame), warnings: tr('queue.warnings', { count: job.warnings.length }) })
+          : tr('queue.status.done', { frames: frames(job.frame) }),
+      };
     case 'cancelled':
-      return { kind: 'cancelled', text: 'Canceled' };
+      return { kind: 'cancelled', text: tr('queue.status.cancelled') };
     case 'failed':
       // The one place a path may show: a failure that hides where it happened cannot be acted on.
-      return { kind: 'failed', text: job.message ?? 'The render did not finish.' };
+      return { kind: 'failed', text: job.message ?? tr('queue.status.failed') };
   }
 }
 

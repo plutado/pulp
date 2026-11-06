@@ -11,6 +11,9 @@
  */
 
 import guideText from '../../docs/user-guide.md?raw';
+import { britishSpelling } from '../core/spelling';
+import type { LocaleId } from '../core/i18n';
+import { locale, whenLocaleChanges } from './i18n';
 import { docSections, isDocList, isDocTable, type DocSection } from '../core/doc-page';
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -69,43 +72,69 @@ function renderSection(section: DocSection, body: HTMLElement): void {
   }
 }
 
-let built = false;
+/**
+ * The guide in a language (milestone 59): a locale's own guide where there is one, else the source.
+ * British English is the source in British spelling (src/core/spelling.ts) — the same words, so one
+ * guide to keep rather than a copy that drifts. A language translated in full brings its own file,
+ * `docs/user-guide.<locale>.md`, added to GUIDES (docs/translating.md).
+ */
+const GUIDES: Partial<Record<LocaleId, string>> = {};
+
+export function guideFor(locale: LocaleId): string {
+  const own = GUIDES[locale];
+  if (own) return own;
+  return locale === 'en-GB' ? britishSpelling(guideText) : guideText;
+}
+
+/** The language the dialog's guide was built in; it is built again in another. */
+let builtIn: LocaleId | null = null;
+
+function build(): void {
+  const body = $('guide-body');
+  const sections = docSections(guideFor(locale.value));
+  const contents = $('guide-contents');
+  contents.replaceChildren();
+  // The first section is the page's own title, which the dialog already wears.
+  for (const section of sections.slice(1).filter((s) => s.level === 1)) {
+    const jump = document.createElement('button');
+    jump.type = 'button';
+    jump.className = 'ghost';
+    jump.textContent = section.title;
+    jump.addEventListener('click', () => $(sectionId(section.title)).scrollIntoView({ block: 'start' }));
+    contents.append(jump);
+  }
+  body.replaceChildren();
+  for (const section of sections) {
+    // The title section's own words are the opening paragraphs; its heading is the dialog's.
+    if (section === sections[0]) {
+      for (const block of section.blocks) {
+        if (typeof block !== 'string') continue;
+        const p = document.createElement('p');
+        p.textContent = block;
+        body.append(p);
+      }
+      continue;
+    }
+    renderSection(section, body);
+  }
+  builtIn = locale.value;
+}
 
 export function showUserGuide(): void {
-  const body = $('guide-body');
-  if (!built) {
-    const sections = docSections(guideText);
-    const contents = $('guide-contents');
-    contents.replaceChildren();
-    // The first section is the page's own title, which the dialog already wears.
-    for (const section of sections.slice(1).filter((s) => s.level === 1)) {
-      const jump = document.createElement('button');
-      jump.type = 'button';
-      jump.className = 'ghost';
-      jump.textContent = section.title;
-      jump.addEventListener('click', () => $(sectionId(section.title)).scrollIntoView({ block: 'start' }));
-      contents.append(jump);
-    }
-    body.replaceChildren();
-    for (const section of sections) {
-      // The title section's own words are the opening paragraphs; its heading is the dialog's.
-      if (section === sections[0]) {
-        for (const block of section.blocks) {
-          if (typeof block !== 'string') continue;
-          const p = document.createElement('p');
-          p.textContent = block;
-          body.append(p);
-        }
-        continue;
-      }
-      renderSection(section, body);
-    }
-    built = true;
-  }
-  body.scrollTop = 0;
+  if (builtIn !== locale.value) build();
+  $('guide-body').scrollTop = 0;
   $<HTMLDialogElement>('guide-dialog').showModal();
 }
 
 export function initUserGuide(): void {
   $('guide-close').addEventListener('click', () => $<HTMLDialogElement>('guide-dialog').close());
+  // Open while the language changes: the guide is built again in the new one, where the reader is.
+  whenLocaleChanges(() => {
+    if ($<HTMLDialogElement>('guide-dialog').open) {
+      const body = $('guide-body');
+      const at = body.scrollTop;
+      build();
+      body.scrollTop = at;
+    }
+  });
 }

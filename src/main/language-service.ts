@@ -11,7 +11,7 @@
  */
 
 import { app, BrowserWindow } from 'electron';
-import { resolveLocale, sanitizeLanguage, SOURCE_LOCALE, translator, type LanguageChoice, type LocaleId, type Translator } from '../core/i18n';
+import { resolveLocale, sanitizeLanguage, setCurrentLocale, SOURCE_LOCALE, translator, type LanguageChoice, type LocaleId, type Translator } from '../core/i18n';
 import type { LanguageState } from '../shared/api';
 import { loadSettings, updateSettings } from './settings';
 
@@ -28,6 +28,8 @@ function apply(next: LanguageChoice): LanguageState {
   choice = next;
   locale = resolveLocale(next, systemLanguages());
   t = translator(locale);
+  // What the main process says itself — dialogs, the messages it answers the window with — through `tr`.
+  setCurrentLocale(locale);
   return { choice, locale, system: systemLanguages() };
 }
 

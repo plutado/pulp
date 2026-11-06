@@ -15,6 +15,7 @@ import { entryType, typeInfo } from '../core/taxonomy';
 import { wantsWaveform, waveformPath } from '../core/waveform';
 import { Icon, MEDIA_KIND_ICONS, TYPE_GROUP_ICONS, type IconName } from './icons';
 import { peaksFor } from './waveforms';
+import { t } from './i18n';
 
 /** The empty-thumbnail placeholder: the item's type-group icon, or the media kind's. */
 export function placeholderIcon(entry: LibraryEntry): IconName {
@@ -118,7 +119,7 @@ export function Thumb({ entry, scrubbable, gridRatio, runningTime }: { entry: Li
         />
       )}
       {/* How long it runs, as a clock reading in the corner (milestone 66); a still has none. */}
-      {runningTime && <span class="thumb-time" data-tip="Duration">{runningTime}</span>}
+      {runningTime && <span class="thumb-time" data-tip={t('results.running-time.data-tip')}>{runningTime}</span>}
     </span>
   );
 }

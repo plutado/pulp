@@ -9,6 +9,7 @@ import type { LibraryEntry, LibraryIndex } from './library-types';
 import { templateDefaultSize } from './aspect';
 import { audioLabel, categoryLabel, codecLabel, dimensionsLabel, durationLabel, extensionLabel, frameRateLabel, mediaKindLabel, rootLabel, sizeLabel, typeLabel } from './display';
 import { buildBrowseTree, type TreeNode } from './browse-tree';
+import { tr } from './i18n';
 
 import { formatTimecode } from './timecode';
 import { isFinished, type RenderJobStatus, type RenderQueueSnapshot } from './render-queue';
@@ -34,15 +35,15 @@ export interface Scope {
 
 export type SortKey = 'relevance' | 'name' | 'recent' | 'duration';
 
-/** The filter chips in the search bar; each contributes query text while pressed. */
+/** The filter chips in the search bar; each contributes query text while pressed. Named as the markup's chips are (a getter, in the interface's language now); the filter is search syntax, the same in every language. */
 export const FILTER_CHIPS = [
-  { id: 'templates', label: 'Templates', filter: 'type:template' },
-  { id: 'video', label: 'Video', filter: 'type:video' },
-  { id: 'image', label: 'Images', filter: 'type:image' },
-  { id: 'audio', label: 'Audio', filter: 'type:audio' },
-  { id: 'vertical', label: 'Vertical', filter: 'orientation:portrait' },
-  { id: 'alpha', label: 'Alpha', filter: 'alpha:yes' },
-  { id: 'favorites', label: 'Favorites', filter: 'favorite:yes' },
+  { id: 'templates', get label() { return tr('ui.chip-templates.templates'); }, filter: 'type:template' },
+  { id: 'video', get label() { return tr('ui.chip-video.video'); }, filter: 'type:video' },
+  { id: 'image', get label() { return tr('ui.chip-image.images'); }, filter: 'type:image' },
+  { id: 'audio', get label() { return tr('ui.chip-audio.audio'); }, filter: 'type:audio' },
+  { id: 'vertical', get label() { return tr('ui.chip-vertical.vertical'); }, filter: 'orientation:portrait' },
+  { id: 'alpha', get label() { return tr('ui.chip-alpha.alpha'); }, filter: 'alpha:yes' },
+  { id: 'favorites', get label() { return tr('ui.chip-favorites.favorites'); }, filter: 'favorite:yes' },
 ] as const;
 export type FilterChipId = (typeof FILTER_CHIPS)[number]['id'];
 
@@ -221,7 +222,7 @@ export function shownEntry(s: Pick<AppState, 'index' | 'shownKey'>): LibraryEntr
 export function itemDetails(entry: LibraryEntry): string {
   if (entry.kind === 'template') {
     const m = entry.manifest;
-    return [m.description, `License: ${m.license}`, m.author ? `Author: ${m.author}` : ''].filter(Boolean).join('  ·  ');
+    return [m.description, tr('info.details.license', { license: m.license }), m.author ? tr('info.details.author', { author: m.author }) : ''].filter(Boolean).join('  ·  ');
   }
   const kind = entry.type ? `${mediaKindLabel(entry.mediaKind)} · ${typeLabel(entry.type)}` : mediaKindLabel(entry.mediaKind);
   return [`${kind} · ${extensionLabel(entry.ext)} · ${sizeLabel(entry.size)}`, describeMeta(entry), entry.path].filter(Boolean).join(' · ');
@@ -354,9 +355,13 @@ export function createTreeSelector(): (s: ResultsInput) => TreeNode[] {
 /** The flat list of fixed nodes; the tree (browse-tree.ts) supersedes it for the panel, it stays for the Favorites and Recent scopes. */
 export function browseScopes(index: LibraryIndex | null): Scope[] {
   const folders = (index?.roots ?? []).map(
-    (root): Scope => ({ label: rootLabel(root, index?.builtInRoot), root, kind: root === index?.builtInRoot ? 'built-in' : 'folder' }),
+    (root): Scope => ({ get label() { return rootLabel(root, index?.builtInRoot); }, root, kind: root === index?.builtInRoot ? 'built-in' : 'folder' }),
   );
-  return [{ label: 'Favorites', filter: 'favorite:yes', kind: 'favorites' }, { label: 'Recently used', filter: 'recent:yes', kind: 'recent' }, ...folders];
+  return [
+    { get label() { return tr('browse.favorites'); }, filter: 'favorite:yes', kind: 'favorites' },
+    { get label() { return tr('browse.recent'); }, filter: 'recent:yes', kind: 'recent' },
+    ...folders,
+  ];
 }
 
 /** Two scopes are the same browse node. */
@@ -367,6 +372,15 @@ export function sameScope(a: Scope | null, b: Scope | null): boolean {
 export function hasFinishedJobs(s: AppState): boolean {
   return s.jobs.jobs.some(isFinished);
 }
+
+/** How many renders are in each state, for the tray's line: "1 running", "2 done". */
+const TRAY_STATUS = {
+  running: 'tray.summary.running',
+  queued: 'tray.summary.queued',
+  done: 'tray.summary.done',
+  failed: 'tray.summary.failed',
+  cancelled: 'tray.summary.cancelled',
+} as const satisfies Record<RenderJobStatus, string>;
 
 /** One line for the collapsed tray: "No renders yet." or "3 renders · 1 running · 2 done". */
 /**
@@ -382,10 +396,10 @@ export function traySummary(s: AppState): string {
     const counts = new Map<RenderJobStatus, number>();
     for (const j of jobs) counts.set(j.status, (counts.get(j.status) ?? 0) + 1);
     const order: RenderJobStatus[] = ['running', 'queued', 'done', 'failed', 'cancelled'];
-    const by = order.filter((st) => counts.has(st)).map((st) => `${counts.get(st)} ${st}`);
-    parts.push(`${jobs.length} ${jobs.length === 1 ? 'render' : 'renders'} · ${by.join(' · ')}`);
+    const by = order.filter((st) => counts.has(st)).map((st) => tr(TRAY_STATUS[st], { count: counts.get(st)! }));
+    parts.push(tr('tray.summary.renders', { count: jobs.length, statuses: by.join(' · ') }));
   }
-  return parts.length === 0 ? 'Nothing collected yet.' : parts.join('  ·  ');
+  return parts.length === 0 ? tr('tray.summary.empty') : parts.join('  ·  ');
 }
 
 /** Name and meta line for a result row or the stage details. */
@@ -395,7 +409,7 @@ export function entryLabel(entry: LibraryEntry): { name: string; meta: string } 
     // The declared type when there is one; the category it was written with otherwise.
     const kind = m.type ? typeLabel(m.type) : categoryLabel(m.category);
     const size = templateDefaultSize(m);
-    return { name: m.name, meta: `${kind} · ${durationLabel(m.duration)} · ${dimensionsLabel(size.width, size.height)}${m.alpha ? ' · Alpha' : ''}` };
+    return { name: m.name, meta: `${kind} · ${durationLabel(m.duration)} · ${dimensionsLabel(size.width, size.height)}${m.alpha ? ` · ${tr('results.meta.alpha')}` : ''}` };
   }
   return { name: entry.name, meta: [`${mediaKindLabel(entry.mediaKind)} · ${extensionLabel(entry.ext)} · ${sizeLabel(entry.size)}`, describeMeta(entry)].filter(Boolean).join(' · ') };
 }
@@ -412,7 +426,7 @@ export function describeMeta(entry: Extract<LibraryEntry, { kind: 'media' }>): s
   }
   if (m.fps && entry.mediaKind === 'video') parts.push(frameRateLabel(m.fps));
   if (m.codec) parts.push(codecLabel(m.codec));
-  if (m.alpha) parts.push('Alpha');
+  if (m.alpha) parts.push(tr('results.meta.alpha'));
   if (m.audioCodec && !m.codec) parts.push(audioLabel(m.audioCodec, m.channels, m.sampleRate));
   return parts.join(' · ');
 }

@@ -29,13 +29,14 @@ import { templateDefaultSize, type Size } from '../core/aspect';
 import { chosenImageIds, imageGrantKey, imageGrantRequests, imageRequests, imageSlots, MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
 import { mediaSlotChoices, mediaSlotDrawnHeight, mediaSlots } from '../core/media-slot';
 import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, layerSoundChoices, layerTexts, type BlockState } from '../core/layer-layout';
-import { readClipFrames, resolveClipAudio, resolveClipSource, type ClipFrameData } from './clip-grant';
+import { readClipFrames, resolveClipAudio, resolveClipSource, type ClipFrameData, type ClipReadProblem } from './clip-grant';
 import { ffprobePathFor } from '../core/media-probe';
 import type { ClipSource } from '../core/video-layer';
 import { resolveLayers } from '../core/layers';
 import { checkImages, readSlotImages } from './image-grant';
 import { findMediaIdByPath, findTemplate, lookupClipItem, lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg, runForBuffer, runWithInput } from '../core/ffmpeg';
+import { tr } from '../core/i18n';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan, type RenderPlanInput } from '../core/render-plan';
 import { applyLayerAudio, applyStemAudio, audibleLayers, measureMixArgs, parseMixLoudness, type AudioLayer, type LoudnessTarget, type MixLoudness } from '../core/layer-audio';
@@ -114,12 +115,12 @@ export function detectCaptureFormat(): Promise<CaptureProbe> {
     });
     try {
       win.setContentSize(CAPTURE_PROBE_SIZE, CAPTURE_PROBE_SIZE);
-      await withTimeout(win.loadURL(CAPTURE_PROBE_URL), 10_000, 'capture probe did not load within 10 s');
+      await withTimeout(win.loadURL(CAPTURE_PROBE_URL), 10_000, 'capture probe did not load within 10 s'); // i18n-exempt(diagnostic)
       // Captured once a frame drawn after the load has been presented (capturePresented).
       const image = await capturePresented(win);
       const size = image.getSize();
       if (size.width !== CAPTURE_PROBE_SIZE || size.height !== CAPTURE_PROBE_SIZE) {
-        return { format: null, reason: `probe captured at ${size.width}x${size.height} instead of ${CAPTURE_PROBE_SIZE}x${CAPTURE_PROBE_SIZE}` };
+        return { format: null, reason: `probe captured at ${size.width}x${size.height} instead of ${CAPTURE_PROBE_SIZE}x${CAPTURE_PROBE_SIZE}` }; // i18n-exempt(diagnostic)
       }
       const bytes = image.toBitmap();
       const format = classifyCapture(bytes);
@@ -157,9 +158,11 @@ async function mixLoudnessFor(
     const run = await runForBuffer(ffmpegPath, measureMixArgs(audible, plan));
     const measured = run.code === 0 ? parseMixLoudness(run.stderr) : null;
     if (measured) return { target, measured };
-    warnings.push(`The mix could not be measured for leveling (${run.code === 0 ? 'nothing to read' : `ffmpeg exited with ${run.code}`}); it is leveled to ${target.lufs} LUFS in one pass instead.`);
+    // i18n-exempt(diagnostic): why, as ffmpeg's run left it
+    const why = run.code === 0 ? 'nothing to read' : `ffmpeg exited with ${run.code}`;
+    warnings.push(tr('render.warning.loudness-unmeasured', { reason: why, lufs: target.lufs }));
   } catch (err) {
-    warnings.push(`The mix could not be measured for leveling (${(err as Error).message}); it is leveled to ${target.lufs} LUFS in one pass instead.`);
+    warnings.push(tr('render.warning.loudness-unmeasured', { reason: (err as Error).message, lufs: target.lufs }));
   }
   return { target };
 }
@@ -181,7 +184,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       transport = `raw (${describeCaptureFormat(probe.format)})`;
     } else {
       frameFormat = 'png';
-      warnings.push(`Could not determine the capture pixel format (${probe.reason}); frames are sent to ffmpeg as PNG instead.`);
+      warnings.push(tr('render.warning.capture-format', { reason: probe.reason }));
     }
   }
 
@@ -214,7 +217,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   for (const [index, cut] of (track?.cuts ?? []).entries()) {
     const found = lookupClipItem(cut.id);
     if (!found || found.kind !== 'media' || found.entry.sequence) {
-      return { ok: false, message: 'A clip on the cut track is not in the library, is offline, or is not a file ffmpeg can read.' };
+      return { ok: false, message: tr('render.track.clip-unreadable') };
     }
     // The transition leaving this cut, as it will play: clamped by both sides (src/core/cut-track.ts).
     const transition = track ? transitionAt(track, index) : null;
@@ -272,8 +275,9 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   const { params: rawParams, layers: rawLayers } = splitLayers(params);
   const { values, issues } = resolveParams(manifest, rawParams);
   const { values: layers, issues: layerIssues } = resolveLayers(manifest, rawLayers);
-  warnings.push(...layerIssues.map((i) => `layer ${i.layer ? `${i.block}.${i.layer}` : i.block}: ${i.message}`));
-  warnings.push(...plan.warnings, ...issues.map((i) => `parameter ${i.id}: ${i.message}`));
+  warnings.push(...layerIssues.map((i) => `layer ${i.layer ? `${i.block}.${i.layer}` : i.block}: ${i.message}`)); // i18n-exempt(diagnostic)
+  // The detail is the template author's (src/core/params.ts); the frame around it is the interface's.
+  warnings.push(...plan.warnings, ...issues.map((i) => tr('render.warning.parameter', { id: i.id, detail: i.message })));
 
   // Image slots (ADR 0013): the chosen stills must be in the library, online and within the size
   // bound before anything is loaded; then the template is granted exactly those ids while it renders.
@@ -296,7 +300,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     // Read the file if the library has not: a headless render never runs the background pass.
     const source = await resolveClipSource(ffprobePathFor(ffmpeg.path), choice.id);
     if (source) clipSources[choice.id] = source;
-    else return { ok: false, message: 'slot' in choice ? `Template "${manifest.name}": the clip chosen for "${choice.slot}" is not in the library, is offline, or could not be read.` : `A clip chosen for a layer is not in the library, is offline, or could not be read.` };
+    else return { ok: false, message: 'slot' in choice ? tr('render.slot.clip-unreadable', { template: manifest.name, slot: choice.slot }) : tr('render.layer.clip-unreadable') };
   }
 
   // Every layer's sound (milestone 48): each audible video layer's clip and each audio layer's
@@ -324,7 +328,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     const found = await resolveSoundSource(ffprobePathFor(ffmpeg.path), choice.id);
     // A sound that cannot be read stops the render by name: a voice-over silently dropped from a
     // delivery is worse than being told, and the person can hide the layer if they meant to.
-    if (!found) return { ok: false, message: `Template "${manifest.name}": the sound chosen for "${choice.layer}" is not in the library, is offline, or could not be read.` };
+    if (!found) return { ok: false, message: tr('render.layer.sound-unreadable', { template: manifest.name, layer: choice.layer }) };
     const layer = { kind: 'sound' as const, path: found.path, value: choice, source: found.source, ...(choice.span ? { span: choice.span } : {}) };
     if (stemsAside && choice.stem) stemFiles.push({ layer, label: choice.stem.label });
     else audioLayers.push(layer);
@@ -342,7 +346,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   const ownVariant = manifest.sound ? resolveTemplateSoundChoice(manifest.sound, soundIn(params)) : null;
   if (manifest.sound && ownVariant) {
     const found = await resolveTemplateSoundFile(ffprobePathFor(ffmpeg.path), job.template, ownVariant.file);
-    if (!found) return { ok: false, message: `Template "${manifest.name}": its sound "${ownVariant.label}" (${ownVariant.file}) could not be read from the template folder.` };
+    if (!found) return { ok: false, message: tr('render.template.sound-unreadable', { template: manifest.name, sound: ownVariant.label, file: ownVariant.file }) };
     const made = templateSoundValue(manifest.sound, ownVariant, manifest, plan.length);
     audioLayers.push({ kind: 'sound', path: found.path, value: made.value, source: found.source, ...(made.speed !== undefined ? { speed: made.speed } : {}) });
   }
@@ -356,7 +360,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     if (!made) continue;
     const found = await resolveTemplateSoundFile(ffprobePathFor(ffmpeg.path), entry, made.value.id!);
     if (!found) {
-      warnings.push(`The wipe "${entry.manifest.name}" names a sound that could not be read from its folder; the wipe plays silently.`);
+      warnings.push(tr('render.warning.wipe-sound', { wipe: entry.manifest.name }));
       continue;
     }
     audioLayers.push({ kind: 'sound', path: found.path, value: made.value, source: found.source, speed: made.speed });
@@ -379,8 +383,8 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     if (!captionStyle?.manifest.captions) {
       captionStyle = null;
       warnings.push(captions.style
-        ? `The caption style "${captions.style}" is not in the library, so the captions were not drawn; the subtitle files beside the render still carry them.`
-        : 'The project\'s captions have no style chosen, so they were not drawn; the subtitle files beside the render still carry them.');
+        ? tr('render.warning.caption-style-missing', { style: captions.style })
+        : tr('render.warning.caption-style-none'));
     }
   }
   const captionBand = captionBandFor(plan.width, plan.height);
@@ -455,7 +459,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       );
     } catch (err) {
       if (err instanceof RenderTimeoutError) return { ok: false, message: err.message };
-      return { ok: false, message: `Could not load template "${manifest.name}": ${(err as Error).message}` };
+      return { ok: false, message: tr('render.load-failed', { template: manifest.name, reason: (err as Error).message }) };
     }
     // A window fitted to a small screen now tells its page the frame's own size (Linux).
     await fitPageToFrame(capture);
@@ -470,7 +474,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       if (!clipSources[choice.id] || clipData.some((c) => c.id === choice.id)) continue;
       const drawn = layerDrawnHeight(blocks, choice.id, plan.height);
       const read = await readClipFrames(ffmpeg.path, choice.id, choice, clipSources[choice.id]!, drawn);
-      if (!read.ok) return { ok: false, message: `Template "${manifest.name}": a clip chosen for a layer ${read.message}.` };
+      if (!read.ok) return { ok: false, message: layerClipProblem(manifest.name, read.problem) };
       clipData.push(read.data);
     }
     // A media slot's window, decoded at the height its box draws it (milestone 22).
@@ -480,23 +484,23 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       const slot = mediaBoxes[choice.slot];
       const drawn = slot ? mediaSlotDrawnHeight(slot, plan.height) : plan.height;
       const read = await readClipFrames(ffmpeg.path, choice.id, choice, clipSources[choice.id]!, drawn);
-      if (!read.ok) return { ok: false, message: `Template "${manifest.name}": the clip chosen for "${choice.slot}" ${read.message}.` };
+      if (!read.ok) return { ok: false, message: slotClipProblem(manifest.name, choice.slot, read.problem) };
       clipData.push(read.data);
     }
     if (requests.length > 0 || clipData.length > 0) {
       try {
         // One read per id and layered choice: a layered file with other layers hidden is other bytes.
         const handed = await readSlotImages(imageGrantRequests(requests));
-        if (handed.missing.length > 0) return { ok: false, message: `The image for "${slotLabel(manifest, slots, handed.missing[0]!)}" could not be read.` };
+        if (handed.missing.length > 0) return { ok: false, message: tr('render.image.unreadable', { slot: slotLabel(manifest, slots, handed.missing[0]!) }) };
         const srcByKey = new Map(handed.images.map((i) => [i.key, i.src]));
         const withBytes = requests.map((r) => ({ ...r, src: srcByKey.get(imageGrantKey(r)) }));
         await withTimeout(
           win.webContents.executeJavaScript(`window.__pulp.prepare(${JSON.stringify([...withBytes, ...clipData])})`),
           loadTimeoutMs,
-          `Template "${manifest.name}": its images did not load within ${Math.round(loadTimeoutMs / 1000)} s`,
+          tr('render.images-timeout', { template: manifest.name, seconds: Math.round(loadTimeoutMs / 1000) }),
         );
       } catch (err) {
-        return { ok: false, message: err instanceof RenderTimeoutError ? err.message : `Template "${manifest.name}": ${(err as Error).message}` };
+        return { ok: false, message: err instanceof RenderTimeoutError ? err.message : tr('render.template-failed', { template: manifest.name, reason: (err as Error).message }) };
       }
     }
 
@@ -524,7 +528,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     // final name is checked here; a staged file from a render that was killed is cleared first.
     if (!overwrite) {
       const taken = [...staged.keys()].find((f) => existsSync(f));
-      if (taken) return { ok: false, message: `${taken} already exists` };
+      if (taken) return { ok: false, message: tr('render.output-exists', { path: taken }) };
     }
     await Promise.all([...staged.values()].map((f) => rm(f, { force: true })));
     child = spawn(ffmpeg.path, ffmpegArgs, { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });
@@ -540,7 +544,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     // trimmed render starts at plan.firstFrame rather than 0.
     const timeline = { ...manifest, fps: plan.fps };
     for (let i = 0; i < plan.totalFrames; i++) {
-      if (job.signal?.aborted) return await fail({ ok: false, cancelled: true, message: 'Render canceled.' });
+      if (job.signal?.aborted) return await fail({ ok: false, cancelled: true, message: tr('render.canceled') });
       if (child.exitCode !== null) break;
 
       const frame = plan.firstFrame + i;
@@ -579,7 +583,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     const [code] = await exited;
     await cleanTemp();
     if (code !== 0) {
-      return await fail({ ok: false, message: `ffmpeg exited with code ${code}: ${stderr.trim() || 'no error output'}` });
+      return await fail({ ok: false, message: `ffmpeg exited with code ${code}: ${stderr.trim() || 'no error output'}` }); // i18n-exempt(diagnostic)
     }
     // Whole: each staged file takes its final name, which is the moment the render exists.
     for (const [final, partial] of staged) {
@@ -602,7 +606,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
         background: job.options?.background ?? '#000000',
       });
       if (written.ok) cover = plan.coverOutput;
-      else warnings.push(`The cover image could not be written: ${written.message}`);
+      else warnings.push(tr('render.warning.cover', { reason: written.message }));
     }
     // The platform's limits against the file that was written (milestone 20), not the one planned.
     warnings.push(...(await finishedFileWarnings({
@@ -625,7 +629,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
         await writeFile(paths.vtt, vttText(cues));
         subtitles = paths;
       } catch (err) {
-        warnings.push(`The subtitle files could not be written beside the render: ${(err as Error).message}`);
+        warnings.push(tr('render.warning.subtitles', { reason: (err as Error).message }));
       }
       if (captionsMode === 'track' && captionStyle) {
         const rendered = await renderTemplate({
@@ -643,7 +647,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
           ...(job.frameFormat ? { frameFormat: job.frameFormat } : {}),
         });
         if (rendered.ok) captionTrack = rendered.output;
-        else warnings.push(`The caption track could not be rendered beside the video: ${rendered.message}`);
+        else warnings.push(tr('render.warning.caption-track', { reason: rendered.message }));
       }
     }
     return {
@@ -653,7 +657,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       ...(captionTrack ? { captionTrack } : {}),
     };
   } catch (err) {
-    return await fail({ ok: false, message: `Render failed: ${(err as Error).message}` });
+    return await fail({ ok: false, message: tr('render.failed', { reason: (err as Error).message }) });
   } finally {
     captionWin?.destroy();
     win.destroy();
@@ -683,7 +687,7 @@ async function openStylePage(style: TemplateEntry, size: Size, loadTimeoutMs: nu
     return { ok: true, win };
   } catch (err) {
     win.destroy();
-    return { ok: false, message: err instanceof RenderTimeoutError ? err.message : `Could not load the caption style "${style.manifest.name}": ${(err as Error).message}` };
+    return { ok: false, message: err instanceof RenderTimeoutError ? err.message : tr('render.caption-style.load-failed', { style: style.manifest.name, reason: (err as Error).message }) };
   }
 }
 
@@ -734,11 +738,11 @@ async function writeCover(input: {
     const png = await withTimeout(
       captureFrame(win, input.state, frameSize, 'png'),
       input.frameTimeoutMs,
-      `the cover frame did not draw within ${Math.round(input.frameTimeoutMs / 1000)} s`,
+      `the cover frame did not draw within ${Math.round(input.frameTimeoutMs / 1000)} s`, // i18n-exempt(diagnostic)
     );
     const args = coverArgs(plan.preset, { width: plan.width, height: plan.height }, input.background, plan.coverOutput!);
     const result = await runWithInput(input.ffmpegPath, args, png);
-    if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
+    if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
     return { ok: true };
   } catch (err) {
     return { ok: false, message: (err as Error).message };
@@ -769,14 +773,34 @@ function slotLabel(manifest: TemplateEntry['manifest'], slots: ReturnType<typeof
   return manifest.parameters.find((p) => p.id === slot)?.label ?? slot ?? id;
 }
 
+/** A clip a layer chose that could not be read, said as one sentence per reason. */
+function layerClipProblem(template: string, problem: ClipReadProblem): string {
+  switch (problem.kind) {
+    case 'not-a-clip': return tr('render.layer.clip.not-a-clip', { template });
+    case 'no-frames': return tr('render.layer.clip.no-frames', { template });
+    case 'too-long': return tr('render.layer.clip.too-long', { template, frames: problem.frames, max: problem.max, seconds: problem.seconds });
+    case 'failed': return tr('render.layer.clip.failed', { template, detail: problem.detail });
+  }
+}
+
+/** A clip a media slot chose that could not be read, said as one sentence per reason. */
+function slotClipProblem(template: string, slot: string, problem: ClipReadProblem): string {
+  switch (problem.kind) {
+    case 'not-a-clip': return tr('render.slot.clip.not-a-clip', { template, slot });
+    case 'no-frames': return tr('render.slot.clip.no-frames', { template, slot });
+    case 'too-long': return tr('render.slot.clip.too-long', { template, slot, frames: problem.frames, max: problem.max, seconds: problem.seconds });
+    case 'failed': return tr('render.slot.clip.failed', { template, slot, detail: problem.detail });
+  }
+}
+
 /** Why a render cannot start with these images, or null when all is well. */
 function imageProblem(manifest: TemplateEntry['manifest'], slots: ReturnType<typeof imageSlots>, ids: string[]): string | null {
   if (ids.length === 0) return null;
   const { missing } = checkImages(ids);
-  if (missing.length > 0) return `The image for "${slotLabel(manifest, slots, missing[0]!)}" is not in the library, or its folder is offline.`;
+  if (missing.length > 0) return tr('render.image.missing', { slot: slotLabel(manifest, slots, missing[0]!) });
   for (const id of ids) {
     const size = lookupMedia(id)?.entry.size ?? 0;
-    if (size > MAX_IMAGE_FILE_BYTES) return `The image for "${slotLabel(manifest, slots, id)}" is ${Math.round(size / 1048576)} MB; images over ${MAX_IMAGE_FILE_BYTES / 1048576} MB are not loaded.`;
+    if (size > MAX_IMAGE_FILE_BYTES) return tr('render.image.too-large', { slot: slotLabel(manifest, slots, id), size: Math.round(size / 1048576), max: MAX_IMAGE_FILE_BYTES / 1048576 });
   }
   return null;
 }
@@ -854,7 +878,7 @@ async function captureTrackWipes(
   for (const wipe of wipes) {
     const entry = await findTemplate(wipe.template);
     if (!entry) {
-      warnings.push('A wipe on the cut track is not in the library and plays as a straight cut.');
+      warnings.push(tr('render.warning.wipe-missing'));
       continue;
     }
     const frames = Math.max(2, Math.round(wipe.seconds * fps));
@@ -862,7 +886,7 @@ async function captureTrackWipes(
     const wanted = Array.from({ length: frames }, (_, k) => Math.round((k / (frames - 1)) * (own - 1)));
     const shot = await captureTemplateFrames(entry, wanted, { size, frameTimeoutMs: 20_000 });
     if (!shot.ok) {
-      warnings.push(`The wipe "${entry.manifest.name}" could not be drawn and plays as a straight cut: ${shot.message}`);
+      warnings.push(tr('render.warning.wipe-undrawn', { wipe: entry.manifest.name, reason: shot.message }));
       continue;
     }
     const dir = await mkdtemp(join(tmpdir(), 'pulp-wipe-'));
@@ -908,13 +932,13 @@ export async function captureTemplateFrames(
     } catch (err) {
       // A load that ran out of time says the machine was busy, not that the template is broken.
       if (err instanceof RenderTimeoutError) return { ok: false, message: err.message, timedOut: true };
-      return { ok: false, message: `Could not load template "${manifest.name}": ${(err as Error).message}` };
+      return { ok: false, message: tr('render.load-failed', { template: manifest.name, reason: (err as Error).message }) };
     }
     await fitPageToFrame(capture);
     const frameTimeoutMs = options.frameTimeoutMs ?? DEFAULT_FRAME_TIMEOUT_MS;
     const captured: Buffer[] = [];
     for (const frame of frames) {
-      if (options.signal?.aborted) return { ok: false, message: 'Canceled.' };
+      if (options.signal?.aborted) return { ok: false, message: tr('render.frames.canceled') };
       try {
         captured.push(await withTimeout(captureFrame(win, frameState(manifest, frame, values, frameSize, layers), frameSize, 'png'), frameTimeoutMs, frameTimeoutMessage(manifest.name, frame, frameTimeoutMs)));
       } catch (err) {
@@ -960,7 +984,7 @@ export async function openCapturePage(url: string, size: Size, timeoutMs = DEFAU
     // The render path's cadence (docs/platform-notes.md): the waits around each draw run at the
     // window's begin-frame rate, and 60 Hz costs two intervals per frame.
     win.webContents.setFrameRate(240);
-    await withTimeout(win.loadURL(url), timeoutMs, `the page did not load within ${Math.round(timeoutMs / 1000)} s`);
+    await withTimeout(win.loadURL(url), timeoutMs, `the page did not load within ${Math.round(timeoutMs / 1000)} s`); // i18n-exempt(diagnostic)
     await fitPageToFrame(capture);
   } catch (err) {
     win.destroy();
@@ -970,15 +994,15 @@ export async function openCapturePage(url: string, size: Size, timeoutMs = DEFAU
     await withTimeout(
       win.webContents.executeJavaScript(
         // No animation-frame wait after the draw: the capture is ordered by a presented frame (capturePresented).
-        `Promise.resolve(window.pulpRender(${JSON.stringify(state)})).then(function () { return true; })`,
+        `Promise.resolve(window.pulpRender(${JSON.stringify(state)})).then(function () { return true; })`, // i18n-exempt(technical)
       ),
       timeoutMs,
-      `the page did not draw within ${Math.round(timeoutMs / 1000)} s`,
+      `the page did not draw within ${Math.round(timeoutMs / 1000)} s`, // i18n-exempt(diagnostic)
     );
     const image = await capturePresented(win);
     const got = image.getSize();
     if (got.width !== size.width || got.height !== size.height) {
-      throw new Error(`captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}`);
+      throw new Error(`captured at ${got.width}x${got.height} instead of ${size.width}x${size.height}`); // i18n-exempt(diagnostic)
     }
     return image;
   };

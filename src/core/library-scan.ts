@@ -6,6 +6,7 @@
 import { createHash } from 'node:crypto';
 import { open, readdir, readFile, stat } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, relative, sep } from 'node:path';
+import { tr } from './i18n';
 import { type TemplateManifest, MANIFEST_FILENAME, parseManifest } from './manifest';
 import type { TemplateSound } from './template-sound';
 import type { LibraryProblem, MediaKind, TemplateEntry } from './library-types';
@@ -172,16 +173,16 @@ export async function loadTemplate(dir: string, root: string, pack?: PackContext
   try {
     text = await readFile(manifestPath, 'utf8');
   } catch (err) {
-    return { path: manifestPath, message: `could not read manifest: ${(err as Error).message}` };
+    return { path: manifestPath, message: tr('library.problem.manifest-unreadable', { reason: (err as Error).message }) };
   }
   const result = parseManifest(text);
-  if (!result.ok) return { path: manifestPath, message: 'invalid template manifest', issues: result.errors };
+  if (!result.ok) return { path: manifestPath, message: tr('library.problem.manifest-invalid'), issues: result.errors };
 
   const entryPath = join(dir, result.manifest.entry);
   try {
     if (!(await stat(entryPath)).isFile()) throw new Error('not a file');
   } catch {
-    return { path: manifestPath, message: `entry file "${result.manifest.entry}" does not exist` };
+    return { path: manifestPath, message: tr('library.problem.entry-missing', { entry: result.manifest.entry }) };
   }
 
   const onDisk = await folderBytes(dir);
@@ -245,7 +246,7 @@ export async function loadLottie(path: string, root: string, folderSegments: rea
   try {
     info = await stat(path);
   } catch (err) {
-    return { path, message: `could not read the file: ${(err as Error).message}` };
+    return { path, message: tr('library.problem.file-unreadable', { reason: (err as Error).message }) };
   }
   const format: LottieFormat = extname(path).toLowerCase() === '.lottie' ? 'lottie' : 'json';
   let document: LottieDocument;
@@ -263,7 +264,7 @@ export async function loadLottie(path: string, root: string, folderSegments: rea
       document = parseLottie(await readFile(path, 'utf8'));
     }
   } catch (err) {
-    return { path, message: `could not read the Lottie animation: ${(err as Error).message}` };
+    return { path, message: tr('library.problem.lottie-unreadable', { reason: (err as Error).message }) };
   }
   const extras = lottieExtras(document.data);
   const editables = lottieEditables(document.data);
@@ -284,7 +285,7 @@ export async function loadLottie(path: string, root: string, folderSegments: rea
     editables,
     limits,
   });
-  if (!result.ok) return { path, message: 'the Lottie animation could not be read as a template', issues: result.errors };
+  if (!result.ok) return { path, message: tr('library.problem.lottie-invalid'), issues: result.errors };
   return {
     kind: 'template',
     key,

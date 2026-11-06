@@ -31,7 +31,7 @@ function watch(view: Window, source: string): void {
   view.addEventListener('unhandledrejection', (event) => {
     const reason = (event as PromiseRejectionEvent).reason as unknown;
     const err = reason instanceof Error ? reason : undefined;
-    record(source, err?.message ?? `unhandled rejection: ${String(reason)}`, err?.stack);
+    record(source, err?.message ?? `unhandled rejection: ${String(reason)}`, err?.stack); // i18n-exempt(diagnostic): a line for the log
   });
 }
 

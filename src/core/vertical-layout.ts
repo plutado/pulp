@@ -115,7 +115,7 @@ export function placementProblems(rect: PixelRect, width: number, height: number
   const right = rect.x + rect.width;
   const bottom = rect.y + rect.height;
   const past = (by: number, side: string) => {
-    if (by > tolerance) problems.push(`${Math.round(by)} px past the safe box's ${side} edge`);
+    if (by > tolerance) problems.push(`${Math.round(by)} px past the safe box's ${side} edge`); // i18n-exempt(terminal)
   };
   past(box.left - rect.x, 'left');
   past(box.top - rect.y, 'top');
@@ -126,7 +126,7 @@ export function placementProblems(rect: PixelRect, width: number, height: number
     const zr = (zone.left + zone.width) * width, zb = (zone.top + zone.height) * height;
     const across = Math.min(right, zr) - Math.max(rect.x, zx);
     const down = Math.min(bottom, zb) - Math.max(rect.y, zy);
-    if (across > tolerance && down > tolerance) problems.push(`${Math.round(across)} × ${Math.round(down)} px inside the ${zone.label.toLowerCase()}`);
+    if (across > tolerance && down > tolerance) problems.push(`${Math.round(across)} × ${Math.round(down)} px inside the ${zone.label.toLowerCase()}`); // i18n-exempt(terminal)
   }
   return problems;
 }

@@ -37,6 +37,7 @@
 import { LENGTH_KEY } from './params';
 import type { TemplateManifest } from './manifest';
 import { entranceSeconds, exitSeconds, maximumLength, minimumLength, type TemplateStructure } from './timing';
+import { tr } from './i18n';
 
 /** What a template needs to say for a saved hold to be translated against it. */
 export type HoldManifest = Pick<TemplateManifest, 'id' | 'duration'> & { structure?: TemplateStructure };
@@ -67,7 +68,7 @@ export const LEGACY_HOLD_PARAMS: Readonly<Record<string, string>> = {
 };
 
 /** The label all eleven gave it, which a CSV column may be headed with instead of the id. */
-export const LEGACY_HOLD_LABEL = 'Hold, seconds';
+export const LEGACY_HOLD_LABEL = 'Hold, seconds'; // i18n-exempt(technical)
 
 /** The parameter this template lost, or undefined for every other template. */
 export function legacyHoldParam(manifestId: string): string | undefined {
@@ -118,12 +119,12 @@ export function withLegacyHold(manifest: HoldManifest, raw: Record<string, unkno
   delete rest[key];
   // A length that was chosen outranks one worked out from a parameter that no longer exists.
   if (raw[LENGTH_KEY] !== undefined) {
-    return { params: rest, note: `"${LEGACY_HOLD_LABEL}" is no longer a parameter; the length saved with this one is used instead.` };
+    return { params: rest, note: tr('legacy-hold.note.length-kept', { label: LEGACY_HOLD_LABEL }) };
   }
   const length = lengthForLegacyHold(manifest, saved);
   if (length === null) return { params: rest };
   return {
     params: { ...rest, [LENGTH_KEY]: length },
-    note: `"${LEGACY_HOLD_LABEL}" is no longer a parameter: the saved ${saved} s became a length of ${length} s.`,
+    note: tr('legacy-hold.note.became-length', { label: LEGACY_HOLD_LABEL, saved: String(saved), length }),
   };
 }

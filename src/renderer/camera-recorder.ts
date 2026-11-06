@@ -17,11 +17,14 @@
  */
 
 import { runningTime } from '../core/display';
+import type { MessageId, MessageValues } from '../core/i18n';
+import { RECORDINGS_FOLDER_NAME } from '../core/recording';
 import { cameraFrameRate, DEFAULT_VIDEO_INPUTS, mirrorsPreview, pickTakeMimeType, takeBitrate, type VideoInputs } from '../core/video-take';
 import type { DeviceAccess, VideoTakeFacts } from '../shared/api';
 import { menuStateChanged } from './menu';
 import { recordingActive, registerVoiceBlocker, showSavedTake } from './recorder';
 import { sayInTray } from './tray';
+import { bindText, t } from './i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -68,7 +71,8 @@ function paint(): void {
   const recording = phase === 'recording';
   $('record-video').setAttribute('aria-pressed', String(recording));
   const record = $<HTMLButtonElement>('camera-record');
-  record.textContent = recording ? 'Stop' : 'Record';
+  // Bound, so a change of language reaches the button while nothing is recording too.
+  bindText(record, recording ? 'camera.record.stop' : 'ui.camera-record');
   record.setAttribute('aria-pressed', String(recording));
   record.disabled = !(phase === 'recording' || (phase === 'preview' && stream !== null));
   $<HTMLSelectElement>('camera-source').disabled = phase !== 'preview';
@@ -77,13 +81,23 @@ function paint(): void {
   menuStateChanged();
 }
 
-function say(text: string): void {
-  $('camera-status').textContent = text;
+/** The status line from the catalog: a change of language rewrites it while it shows. */
+function sayStatus(id: MessageId, values?: MessageValues): void {
+  bindText($('camera-status'), id, values);
+}
+
+/** The status line emptied, and whatever message it held let go of, so a change of language does not bring it back. */
+function sayNothing(): void {
+  const status = $('camera-status');
+  delete status.dataset.i18n;
+  delete status.dataset.i18nValues;
+  status.textContent = '';
 }
 
 function sayRefused(access: Extract<DeviceAccess, { ok: false }>): void {
   // A microphone refused still leaves the picture: No sound records without it.
-  const note = access.device === 'microphone' ? `${access.message} Or choose No sound to record the picture alone.` : access.message;
+  // The refusal's own words are the main process's (or the camera's, below), already in the language.
+  const note = access.device === 'microphone' ? t('camera.denied.microphone', { message: access.message }) : access.message;
   $('camera-denied').hidden = false;
   $('camera-denied-note').textContent = note;
   const open = $<HTMLButtonElement>('camera-open-settings');
@@ -103,17 +117,20 @@ async function fillMenus(): Promise<void> {
   const devices = await navigator.mediaDevices.enumerateDevices();
   const cameras = devices.filter((d) => d.kind === 'videoinput');
   const mics = devices.filter((d) => d.kind === 'audioinput' && d.deviceId !== 'default' && d.deviceId !== 'communications');
-  const option = (value: string, label: string) => {
+  // A device's own label is the system's; what Pulp names, it names from the catalog, bound so the
+  // menus follow a change of language while the preview is up.
+  const option = (value: string, label: string | null, id: MessageId, values?: MessageValues) => {
     const o = document.createElement('option');
     o.value = value;
-    o.textContent = label;
+    if (label) o.textContent = label;
+    else bindText(o, id, values);
     return o;
   };
   const source = $<HTMLSelectElement>('camera-source');
-  source.replaceChildren(option('', 'System default'), ...cameras.map((d, i) => option(d.deviceId, d.label || `Camera ${i + 1}`)));
+  source.replaceChildren(option('', null, 'camera.source.default'), ...cameras.map((d, i) => option(d.deviceId, d.label, 'camera.source.unnamed', { number: i + 1 })));
   source.value = inputs.camera && cameras.some((d) => d.deviceId === inputs.camera!.id) ? inputs.camera.id : '';
   const sound = $<HTMLSelectElement>('camera-sound');
-  sound.replaceChildren(option('off', 'No sound'), option('', 'System default microphone'), ...mics.map((d, i) => option(d.deviceId, d.label || `Microphone ${i + 1}`)));
+  sound.replaceChildren(option('off', null, 'camera.sound.off'), option('', null, 'camera.sound.default'), ...mics.map((d, i) => option(d.deviceId, d.label, 'camera.sound.unnamed', { number: i + 1 })));
   sound.value = !inputs.sound ? 'off' : inputs.microphone && mics.some((d) => d.deviceId === inputs.microphone!.id) ? inputs.microphone.id : '';
 }
 
@@ -122,13 +139,13 @@ async function startPreview(): Promise<void> {
   const ticket = ++opening;
   release();
   $('camera-denied').hidden = true;
-  say('Opening the camera…');
+  sayStatus('camera.status.opening');
   paint();
   const access = await window.pulp.cameraAccess(inputs.sound);
   if (ticket !== opening || phase !== 'preview') return;
   if (!access.ok) {
     sayRefused(access);
-    say('');
+    sayNothing();
     return;
   }
   // The camera at up to 1080p and 30 frames/s, what it gives within that kept as it is: Chromium
@@ -137,7 +154,7 @@ async function startPreview(): Promise<void> {
   const video: MediaTrackConstraints = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 }, ...(inputs.camera ? { deviceId: { ideal: inputs.camera.id } } : {}) };
   const audio: MediaTrackConstraints | boolean = inputs.sound ? (inputs.microphone ? { deviceId: { ideal: inputs.microphone.id } } : true) : false;
   let opened: MediaStream;
-  let note = '';
+  let noMicrophone = false;
   try {
     opened = await navigator.mediaDevices.getUserMedia({ video, audio });
   } catch (err) {
@@ -146,18 +163,18 @@ async function startPreview(): Promise<void> {
       // A camera and no microphone at all: the picture alone, said plainly, rather than nothing.
       try {
         opened = await navigator.mediaDevices.getUserMedia({ video, audio: false });
-        note = 'No microphone was found: the take will have no sound.';
+        noMicrophone = true;
       } catch {
-        if (ticket === opening) say('No camera could be opened.');
+        if (ticket === opening) sayStatus('camera.status.no-camera');
         return;
       }
     } else {
       if (ticket !== opening) return;
       if (name === 'NotAllowedError' || name === 'SecurityError') {
-        sayRefused({ ok: false, device: 'camera', message: 'Pulp may not use the camera. Allow it in the system settings, then record again.', canOpenSettings: false });
-        say('');
+        sayRefused({ ok: false, device: 'camera', message: t('camera.denied.camera'), canOpenSettings: false });
+        sayNothing();
       } else {
-        say('No camera could be opened.');
+        sayStatus('camera.status.no-camera');
       }
       return;
     }
@@ -177,13 +194,13 @@ async function startPreview(): Promise<void> {
   track?.addEventListener('ended', () => {
     if (phase === 'preview' && stream === opened) {
       release();
-      say('The camera stopped. Choose it again, or another, to go on.');
+      sayStatus('camera.status.stopped');
       paint();
     }
   });
   const rate = cameraFrameRate(settings.frameRate);
-  const facts = `${settings.width ?? '?'} × ${settings.height ?? '?'}, ${Number(rate.fps.toFixed(2))} frames/s`;
-  say(note ? `${facts}. ${note}` : facts);
+  const facts = { width: settings.width ?? '?', height: settings.height ?? '?', fps: Number(rate.fps.toFixed(2)) };
+  sayStatus(noMicrophone ? 'camera.status.facts-no-microphone' : 'camera.status.facts', facts);
   await fillMenus();
   paint();
 }
@@ -192,12 +209,12 @@ async function startPreview(): Promise<void> {
 async function openPreview(): Promise<void> {
   if (phase !== 'off') return;
   if (recordingActive()) {
-    sayInTray('A voice is being recorded; stop it before recording from the camera.');
+    sayInTray(t('camera.voice-busy'));
     return;
   }
   phase = 'preview';
   inputs = await window.pulp.getVideoInputs();
-  say('');
+  sayNothing();
   if (!dialog().open) dialog().showModal();
   paint();
   await startPreview();
@@ -211,7 +228,7 @@ function startTake(): void {
   const sound = opened.getAudioTracks().length > 0;
   const mimeType = pickTakeMimeType(sound, (type) => MediaRecorder.isTypeSupported(type));
   if (!mimeType) {
-    say('This window cannot record video.');
+    sayStatus('camera.unsupported');
     return;
   }
   const settings = track.getSettings();
@@ -225,7 +242,7 @@ function startTake(): void {
   const started = performance.now();
   const current: Take = {
     id, recorder, facts, started, pieces: 0, failed: null, closing: false,
-    sent: id.then(() => undefined, (err: Error) => { current.failed ??= new Error(`the recording could not begin: ${err.message}`); }),
+    sent: id.then(() => undefined, (err: Error) => { current.failed ??= new Error(t('camera.take.begin-failed', { reason: err.message })); }),
     // A live clock floors, as the voice's does: 0:01 only once a whole second has gone by.
     clock: setInterval(() => {
       const whole = Math.floor((performance.now() - started) / 1000);
@@ -276,17 +293,17 @@ async function saveTake(done: Take): Promise<void> {
   const id = await done.id.catch(() => null);
   if (id === null || done.pieces === 0 || done.failed) {
     if (id !== null) await window.pulp.abandonVideoTake(id).catch(() => undefined);
-    if (done.failed) sayInTray(`The recording could not be saved: ${done.failed.message}`, true);
-    else sayInTray('Nothing was recorded.');
+    if (done.failed) sayInTray(t('camera.save-failed', { reason: done.failed.message }), true);
+    else sayInTray(t('camera.nothing'));
     return;
   }
-  sayInTray('Saving the take into Recordings…');
+  sayInTray(t('camera.saving', { folder: RECORDINGS_FOLDER_NAME }));
   try {
     const saved = await window.pulp.finishVideoTake(id, done.facts);
-    sayInTray(saved.note ?? `Recorded ${runningTime(seconds)} of video into Recordings.`);
+    sayInTray(saved.note ?? t('camera.saved', { time: runningTime(seconds), folder: RECORDINGS_FOLDER_NAME }));
     if (saved.id) showSavedTake(saved.id);
   } catch (err) {
-    sayInTray(`The recording could not be saved: ${(err as Error).message}`, true);
+    sayInTray(t('camera.save-failed', { reason: (err as Error).message }), true);
   }
 }
 
@@ -312,12 +329,12 @@ export function initCameraRecorder(): void {
   });
   $<HTMLSelectElement>('camera-source').addEventListener('change', (e) => {
     const select = e.currentTarget as HTMLSelectElement;
-    choose({ camera: select.value ? { id: select.value, label: select.selectedOptions[0]?.textContent ?? 'Camera' } : null });
+    choose({ camera: select.value ? { id: select.value, label: select.selectedOptions[0]?.textContent ?? t('camera.source.fallback') } : null });
   });
   $<HTMLSelectElement>('camera-sound').addEventListener('change', (e) => {
     const select = e.currentTarget as HTMLSelectElement;
     if (select.value === 'off') choose({ sound: false });
-    else choose({ sound: true, microphone: select.value ? { id: select.value, label: select.selectedOptions[0]?.textContent ?? 'Microphone' } : null });
+    else choose({ sound: true, microphone: select.value ? { id: select.value, label: select.selectedOptions[0]?.textContent ?? t('camera.sound.fallback') } : null });
   });
   // Escape while recording ends the take rather than the preview under it.
   // Escape with nothing recording turns the camera off at the key, not a task later when 'close' runs.
@@ -341,5 +358,5 @@ export function initCameraRecorder(): void {
     }
   });
   // A voice and a camera's take never hold the microphone at once.
-  registerVoiceBlocker(() => (phase === 'off' ? null : 'The camera is open; close it before recording a voice.'));
+  registerVoiceBlocker(() => (phase === 'off' ? null : t('camera.blocks-voice')));
 }

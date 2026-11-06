@@ -14,6 +14,7 @@
  * channel (the `@layers` rule, src/core/params.ts).
  */
 
+import { tr } from './i18n';
 import { sanitizeImageValue, type ImageValue } from './image-slot';
 import type { Layer, LayerValues } from './layers';
 import { isValidColor } from './manifest';
@@ -85,12 +86,20 @@ export function exposableProps(layer: Pick<Layer, 'type'>): ExposableProp[] {
   return [];
 }
 
-/** What a picked property is called where it is offered and when it is first named. */
-export const PROP_LABELS: Record<ExposableProp, string> = { text: 'Words', color: 'Color', image: 'Picture' };
+/** What a picked property is called where it is offered, in the interface's language now (milestone 59). */
+export const PROP_LABELS: Readonly<Record<ExposableProp, string>> = {
+  get text() { return tr('expose.prop.text'); },
+  get color() { return tr('expose.prop.color'); },
+  get image() { return tr('expose.prop.image'); },
+};
 
-/** The name a fresh exposure starts with: "Line 1 words" — the person's to change. */
+/**
+ * The name a fresh exposure starts with: "Line 1 words" — the person's to change. A whole pattern per
+ * property, not the label lower-cased and appended, since word order and capitals differ by language.
+ */
 export function suggestedLabel(layerLabel: string, prop: ExposableProp): string {
-  return `${layerLabel} ${PROP_LABELS[prop].toLowerCase()}`;
+  const id = prop === 'text' ? 'expose.suggested.text' : prop === 'color' ? 'expose.suggested.color' : 'expose.suggested.image';
+  return tr(id, { layer: layerLabel });
 }
 
 /** An identifier for a label — "Who it is" becomes who_it_is — kept unique against what is taken. */

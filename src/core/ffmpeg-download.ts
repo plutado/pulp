@@ -22,6 +22,8 @@
  * unpacking and the checking are src/main/ffmpeg-service.ts.
  */
 
+import { tr } from './i18n';
+
 /**
  * One archive to fetch, and the one file to take out of it. `bytes` and
  * `sha256` are the published archive's own, read from the publisher's
@@ -70,13 +72,13 @@ export interface FfmpegBuild {
  * "latest" names the same publishers offer would break the checksum the
  * first time they rebuilt.
  */
+// The publisher's name is words (milestone 59): each build reads it in a getter of its own, since a
+// getter spread into a build would be read once, at load, and stay in the language of that moment.
 const MARTIN_RIEDL = {
-  publisher: 'Martin Riedl\'s FFmpeg build server',
   publisherUrl: 'https://ffmpeg.martin-riedl.de/',
 } as const;
 
 const GYAN = {
-  publisher: 'Gyan Doshi\'s FFmpeg builds for Windows',
   publisherUrl: 'https://www.gyan.dev/ffmpeg/builds/',
 } as const;
 
@@ -86,8 +88,9 @@ export const FFMPEG_DOWNLOAD_LICENSE = 'GPL-3.0-or-later';
 export const FFMPEG_BUILDS: readonly FfmpegBuild[] = [
   {
     id: 'darwin-arm64',
-    label: 'macOS (Apple Silicon)',
+    get label() { return tr('ffmpeg-download.platform.darwin-arm64'); },
     version: '9.0.2',
+    get publisher() { return tr('ffmpeg-download.publisher.martin-riedl'); },
     ...MARTIN_RIEDL,
     license: FFMPEG_DOWNLOAD_LICENSE,
     archives: [
@@ -109,8 +112,9 @@ export const FFMPEG_BUILDS: readonly FfmpegBuild[] = [
   },
   {
     id: 'darwin-x64',
-    label: 'macOS (Intel)',
+    get label() { return tr('ffmpeg-download.platform.darwin-x64'); },
     version: '9.0.2',
+    get publisher() { return tr('ffmpeg-download.publisher.martin-riedl'); },
     ...MARTIN_RIEDL,
     license: FFMPEG_DOWNLOAD_LICENSE,
     archives: [
@@ -132,8 +136,9 @@ export const FFMPEG_BUILDS: readonly FfmpegBuild[] = [
   },
   {
     id: 'win32-x64',
-    label: 'Windows (64-bit)',
+    get label() { return tr('ffmpeg-download.platform.win32-x64'); },
     version: '9.0.2',
+    get publisher() { return tr('ffmpeg-download.publisher.gyan'); },
     ...GYAN,
     license: FFMPEG_DOWNLOAD_LICENSE,
     archives: [
@@ -157,8 +162,9 @@ export const FFMPEG_BUILDS: readonly FfmpegBuild[] = [
   },
   {
     id: 'linux-x64',
-    label: 'Linux (64-bit)',
+    get label() { return tr('ffmpeg-download.platform.linux-x64'); },
     version: '9.0.2',
+    get publisher() { return tr('ffmpeg-download.publisher.martin-riedl'); },
     ...MARTIN_RIEDL,
     license: FFMPEG_DOWNLOAD_LICENSE,
     archives: [
@@ -180,8 +186,9 @@ export const FFMPEG_BUILDS: readonly FfmpegBuild[] = [
   },
   {
     id: 'linux-arm64',
-    label: 'Linux (ARM64)',
+    get label() { return tr('ffmpeg-download.platform.linux-arm64'); },
     version: '9.0.2',
+    get publisher() { return tr('ffmpeg-download.publisher.martin-riedl'); },
     ...MARTIN_RIEDL,
     license: FFMPEG_DOWNLOAD_LICENSE,
     archives: [
@@ -221,7 +228,7 @@ export function downloadBytes(build: FfmpegBuild): number {
 
 /** A download's size as the dialog says it: whole megabytes, the only precision anyone reads. */
 export function downloadSizeText(bytes: number): string {
-  return `${Math.round(bytes / 1_000_000)} MB`;
+  return tr('ffmpeg-download.size', { megabytes: Math.round(bytes / 1_000_000) });
 }
 
 /** The folder a fetched build is kept in, beside the settings and the speech models. */
@@ -238,10 +245,12 @@ export function ffmpegBinaryName(binary: 'ffmpeg' | 'ffprobe', platform: string)
  * rather than a part of it.
  */
 export function ffmpegDownloadNote(build: FfmpegBuild): string {
-  return (
-    `FFmpeg ${build.version} for ${build.label}, ${downloadSizeText(downloadBytes(build))}, ` +
-    `from ${build.publisher} — ${build.license}. ` +
-    'It is checked against a published checksum as it arrives, kept beside your settings, and run as a separate program; ' +
-    'Pulp itself stays MIT and ships no part of it.'
-  );
+  const what = tr('ffmpeg-download.note.what', {
+    version: build.version,
+    platform: build.label,
+    size: downloadSizeText(downloadBytes(build)),
+    publisher: build.publisher,
+    licenseId: build.license,
+  });
+  return `${what} ${tr('ffmpeg-download.note.how')}`;
 }

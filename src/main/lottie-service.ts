@@ -82,13 +82,13 @@ async function makeHandle(entry: TemplateEntry): Promise<LottieHandle> {
 
 /** The handle for a Lottie template entry, read once per change of the file. */
 export async function lottieFileFor(entry: TemplateEntry): Promise<LottieResult> {
-  if (!entry.lottie) return { ok: false, message: `${entry.manifest.name} is not a Lottie animation` };
+  if (!entry.lottie) return { ok: false, message: `${entry.manifest.name} is not a Lottie animation` }; // i18n-exempt(diagnostic): the template page's 404
   const path = entry.lottie.path;
   let signature: string;
   try {
     signature = await signatureOf(path);
   } catch (err) {
-    return { ok: false, message: `could not read the file: ${(err as Error).message}` };
+    return { ok: false, message: `could not read the file: ${(err as Error).message}` }; // i18n-exempt(diagnostic)
   }
   const kept = held.get(path);
   if (kept && kept.signature === signature) {

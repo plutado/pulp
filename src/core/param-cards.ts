@@ -14,9 +14,11 @@
 
 import type { Block, Layer, LayerValues } from './layers';
 import type { TemplateManifest, TemplateParameter } from './manifest';
+import { tr } from './i18n';
 
 /** The heading over the settings that belong to no one part: position, timing, duration. */
-export const REST_CARD_LABEL = 'Layout and timing';
+/** As a template's manifest names it in a parameter's `element`, so it is matched in US English; shown through the catalog. */
+export const REST_CARD_LABEL = 'Layout and timing'; // i18n-exempt(content)
 
 export type ParamCardKind = 'layer' | 'element' | 'rest';
 
@@ -71,7 +73,7 @@ export function paramCards(manifest: Pick<TemplateManifest, 'parameters' | 'bloc
     });
   }
 
-  const rest: ParamCard = { id: 'rest', label: REST_CARD_LABEL, kind: 'rest', params: [] };
+  const rest: ParamCard = { id: 'rest', label: tr('params.card.rest'), kind: 'rest', params: [] };
   // Unless a layer is already called that, in which case the layer keeps the name.
   if (!byKey.has(key(REST_CARD_LABEL))) byKey.set(key(REST_CARD_LABEL), rest);
 

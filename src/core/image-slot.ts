@@ -111,12 +111,12 @@ export function validateSlotBoxes(box: unknown, path: string, errors: Validation
   if (isObject(box) && Object.keys(box).length > 0 && Object.values(box).every(isObject)) {
     const start = errors.length;
     for (const [key, value] of Object.entries(box)) {
-      if (key !== 'default' && !/^\d+:\d+$/.test(key)) errors.push({ path: `${path}.${key}`, message: 'must be an aspect id such as "16:9", or "default"' });
-      if (!isSlotBox(value)) errors.push({ path: `${path}.${key}`, message: 'must be { x, y, width, height } as fractions of the frame, inside it' });
+      if (key !== 'default' && !/^\d+:\d+$/.test(key)) errors.push({ path: `${path}.${key}`, message: 'must be an aspect id such as "16:9", or "default"' }); // i18n-exempt(diagnostic)
+      if (!isSlotBox(value)) errors.push({ path: `${path}.${key}`, message: 'must be { x, y, width, height } as fractions of the frame, inside it' }); // i18n-exempt(diagnostic)
     }
     return errors.length === start ? (box as Record<string, SlotBox>) : null;
   }
-  errors.push({ path, message: 'must be { x, y, width, height } as fractions of the frame, or one such box per aspect' });
+  errors.push({ path, message: 'must be { x, y, width, height } as fractions of the frame, or one such box per aspect' }); // i18n-exempt(diagnostic)
   return null;
 }
 

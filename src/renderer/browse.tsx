@@ -33,6 +33,7 @@ import type { TreeNode } from '../core/browse-tree';
 import { appState, browseTree, dispatch } from './store';
 import { Icon, scopeIcon } from './icons';
 import { itemCount } from '../core/display';
+import { t } from './i18n';
 
 const activeScope = computed(() => appState.value.scope);
 /** Folded sections and groups, by node id; the tree starts fully open. */
@@ -112,7 +113,7 @@ function onFindKeyDown(e: KeyboardEvent): void {
     chooseNode(first.id, first.scope);
   } else if (e.key === 'ArrowDown') {
     // Into the tree: the first row that can be chosen takes the focus.
-    const row = document.querySelector<HTMLButtonElement>('#browse-tree .browse-node');
+    const row = document.querySelector<HTMLButtonElement>('#browse-tree .browse-node'); // i18n-exempt(technical): a selector
     row?.focus();
   } else {
     return;
@@ -127,14 +128,14 @@ function Find() {
     <div class="find-field">
       <input
         type="text"
-        placeholder="Filter categories"
-        aria-label="Filter categories"
+        placeholder={t('browse.filter.placeholder')}
+        aria-label={t('browse.filter.placeholder')}
         aria-controls="browse-tree"
         value={findQuery.value}
         onInput={(e) => setFindQuery((e.currentTarget as HTMLInputElement).value)}
         onKeyDown={onFindKeyDown}
       />
-      {nothing && <p class="find-none" role="status">No category matches</p>}
+      {nothing && <p class="find-none" role="status">{t('browse.filter.none')}</p>}
     </div>
   );
 }
@@ -196,7 +197,7 @@ function NodeButton({ node, depth, open }: RowProps & { open?: boolean }) {
       role="treeitem"
       aria-pressed={scope ? active : undefined}
       aria-expanded={foldable ? open : undefined}
-      aria-label={`${node.label}, ${itemCount(node.count)}`}
+      aria-label={t('browse.node.aria-label', { label: node.label, items: itemCount(node.count) })}
       data-node={node.id}
       data-filter={scope?.filter}
       data-count={node.count}
@@ -271,7 +272,7 @@ function Tree() {
 /** The row of the list item a row belongs to — its parent in the tree, or null at the top. */
 function parentRow(row: HTMLElement): HTMLButtonElement | null {
   const parentItem = row.closest('li')?.parentElement?.closest('li');
-  return parentItem?.querySelector<HTMLButtonElement>(':scope > .section-heading, :scope > .node-row > .browse-node') ?? null;
+  return parentItem?.querySelector<HTMLButtonElement>(':scope > .section-heading, :scope > .node-row > .browse-node') ?? null; // i18n-exempt(technical): a selector
 }
 
 /** Roving keyboard focus over the visible rows; the container is the tree. */

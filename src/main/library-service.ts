@@ -12,6 +12,7 @@
 import { app, BrowserWindow } from 'electron';
 import { performance } from 'node:perf_hooks';
 import type { MainPerformance } from '../core/perf';
+import { tr } from '../core/i18n';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
@@ -166,15 +167,15 @@ export function importedImages(): ImportedImage[] {
  * or null when the file is not an image. A name clash keeps both files.
  */
 export async function importImageFile(source: string): Promise<{ id: string } | { error: string }> {
-  if (mediaKindForPath(source) !== 'image') return { error: 'Only image files can be used in an image slot.' };
+  if (mediaKindForPath(source) !== 'image') return { error: tr('import.image.not-an-image') };
   let info;
   try {
     info = await stat(source);
   } catch {
-    return { error: 'That file could not be read.' };
+    return { error: tr('import.image.unreadable') };
   }
-  if (!info.isFile()) return { error: 'That is not a file.' };
-  if (info.size > MAX_IMAGE_FILE_BYTES) return { error: `Images over ${MAX_IMAGE_FILE_BYTES / 1048576} MB are not loaded.` };
+  if (!info.isFile()) return { error: tr('import.image.not-a-file') };
+  if (info.size > MAX_IMAGE_FILE_BYTES) return { error: tr('import.image.too-large', { max: MAX_IMAGE_FILE_BYTES / 1048576 }) };
   await mkdir(importedRoot(), { recursive: true });
   const ext = extname(source);
   const stem = basename(source, ext).replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'image';
@@ -492,24 +493,24 @@ function transientFailure(reason: string): HoverStripResult {
 }
 
 async function makeStrip(id: string): Promise<HoverStripResult> {
-  if (!persistent) return { url: null, reason: 'headless mode keeps no cache' };
+  if (!persistent) return { url: null, reason: 'headless mode keeps no cache' }; // i18n-exempt(diagnostic)
   const st = getStore();
   const cached = st.findStripById(id);
-  if (cached) return cached.file ? { url: stripUrlFor(id) } : { url: null, reason: 'a strip for this item failed before and is not retried until it changes' };
+  if (cached) return cached.file ? { url: stripUrlFor(id) } : { url: null, reason: 'a strip for this item failed before and is not retried until it changes' }; // i18n-exempt(diagnostic)
   const entry = st.findEntryById(id);
-  if (!entry) return { url: null, reason: `no library item with id ${id}` };
+  if (!entry) return { url: null, reason: `no library item with id ${id}` }; // i18n-exempt(diagnostic)
   // "Nothing to scrub" is only final for a still or a sound. A clip waiting to be
   // probed, or a folder that has gone offline, is "not yet": the card must ask again.
   if (!wantsStrip(entry)) {
     return canHaveStrip(entry)
-      ? { url: null, reason: entry.offline ? 'its folder is offline' : 'the clip has not been probed for a duration yet', transient: true }
+      ? { url: null, reason: entry.offline ? 'its folder is offline' : 'the clip has not been probed for a duration yet', transient: true } // i18n-exempt(diagnostic)
       : { url: null };
   }
   if (ffmpegPath === undefined) {
     const status = await detectFfmpeg();
     ffmpegPath = status.ok ? status.path : null;
   }
-  if (!ffmpegPath) return transientFailure('ffmpeg was not found');
+  if (!ffmpegPath) return transientFailure('ffmpeg was not found'); // i18n-exempt(diagnostic)
 
   const dir = thumbnailDir();
   await mkdir(dir, { recursive: true });
@@ -537,8 +538,8 @@ async function mediaStrip(entry: MediaEntry, out: string): Promise<HoverStripRes
     ? sequenceStripArgs(join(seq.dir, sequencePatternName(seq)), seq.start, out, duration, entry.meta?.fps ?? SEQUENCE_FPS)
     : mediaStripArgs(entry.path, out, duration);
   const result = await nodeRunner(ffmpegPath!, args);
-  if (result.code !== 0) return { url: null, reason: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` };
-  if (!existsSync(out)) return { url: null, reason: 'ffmpeg wrote no strip' };
+  if (result.code !== 0) return { url: null, reason: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
+  if (!existsSync(out)) return { url: null, reason: 'ffmpeg wrote no strip' }; // i18n-exempt(diagnostic)
   return { url: out };
 }
 
@@ -555,8 +556,8 @@ async function templateStrip(entry: TemplateEntry, out: string): Promise<HoverSt
     return shot.timedOut ? { url: null, reason: shot.message, transient: true } : { url: null, reason: shot.message };
   }
   const tiled = await runWithInput(ffmpegPath!, framesStripArgs(out, shot.frames.length), Buffer.concat(shot.frames));
-  if (tiled.code !== 0) return { url: null, reason: `ffmpeg exited with ${tiled.code}: ${tiled.stderr.trim() || 'no error output'}` };
-  if (!existsSync(out)) return { url: null, reason: 'ffmpeg wrote no strip' };
+  if (tiled.code !== 0) return { url: null, reason: `ffmpeg exited with ${tiled.code}: ${tiled.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
+  if (!existsSync(out)) return { url: null, reason: 'ffmpeg wrote no strip' }; // i18n-exempt(diagnostic)
   return { url: out };
 }
 
@@ -577,25 +578,25 @@ export function waveform(id: string): Promise<WaveformResult> {
 }
 
 async function makeWaveform(id: string): Promise<WaveformResult> {
-  if (!persistent) return { peaks: null, reason: 'headless mode keeps no cache' };
+  if (!persistent) return { peaks: null, reason: 'headless mode keeps no cache' }; // i18n-exempt(diagnostic)
   const st = getStore();
   const cached = st.findWaveformById(id);
-  if (cached) return cached.peaks ? { peaks: cached.peaks } : { peaks: null, reason: 'ffmpeg could not read this file\'s audio' };
+  if (cached) return cached.peaks ? { peaks: cached.peaks } : { peaks: null, reason: 'ffmpeg could not read this file\'s audio' }; // i18n-exempt(diagnostic)
   const entry = st.findEntryById(id);
-  if (!entry) return { peaks: null, reason: `no library item with id ${id}` };
+  if (!entry) return { peaks: null, reason: `no library item with id ${id}` }; // i18n-exempt(diagnostic)
   if (!wantsWaveform(entry)) return { peaks: null };
   if (ffmpegPath === undefined) {
     const status = await detectFfmpeg();
     ffmpegPath = status.ok ? status.path : null;
   }
-  if (!ffmpegPath) return { peaks: null, reason: 'ffmpeg was not found', transient: true };
+  if (!ffmpegPath) return { peaks: null, reason: 'ffmpeg was not found', transient: true }; // i18n-exempt(diagnostic)
 
   let result: WaveformResult;
   try {
     result = await heavyWork(async () => {
       const decoded = await runForBuffer(ffmpegPath!, waveformArgs((entry as Extract<LibraryEntry, { kind: 'media' }>).path));
-      if (decoded.code !== 0) return { peaks: null, reason: `ffmpeg exited with ${decoded.code}: ${decoded.stderr.trim() || 'no error output'}` };
-      if (decoded.stdout.length === 0) return { peaks: null, reason: 'the file decoded to no audio' };
+      if (decoded.code !== 0) return { peaks: null, reason: `ffmpeg exited with ${decoded.code}: ${decoded.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
+      if (decoded.stdout.length === 0) return { peaks: null, reason: 'the file decoded to no audio' }; // i18n-exempt(diagnostic)
       return { peaks: encodePeaks(peaksFromPcm(decoded.stdout)) };
     });
   } catch (err) {

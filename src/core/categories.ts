@@ -10,19 +10,25 @@
  * Themes and styles leave the tree here: they narrow a category as the "For…"
  * and "Look" chips in the search bar rather than being trees of their own, so
  * browsing is one path (Lower thirds › For: Wedding › Look: Elegant). Pure.
+ *
+ * A category's name and description, and the label of every scope and card made
+ * from one, are getters reading the message catalog (milestone 59): a scope held
+ * in the state, or a tree built before a change of language, says its name in the
+ * language the interface is in when it is shown.
  */
 
 import type { Scope } from './app-state';
 import { styleLabel, themeLabel, typeLabel } from './display';
+import { tr } from './i18n';
 import type { LibraryEntry } from './library-types';
 import { entryMoods, MOODS, entryType, isBuiltInTheme, STYLES, THEME_GROUPS, TYPES, themeGroupOf } from './taxonomy';
 
 export interface BrowseCategory {
   /** Permanent, like a taxonomy id: a tree node is "category:<id>" and a scope carries it as its group. */
   id: string;
-  label: string;
+  readonly label: string;
   /** One line on what the category holds, shown under its heading and on hover. */
-  description: string;
+  readonly description: string;
   /** The icon that stands for it (a Phosphor name the renderer knows). */
   icon: string;
   /** The taxonomy types it gathers; empty for Matching sets, which gathers packs instead. */
@@ -30,21 +36,21 @@ export interface BrowseCategory {
 }
 
 export const BROWSE_CATEGORIES: readonly BrowseCategory[] = [
-  { id: 'lower-thirds', label: 'Lower thirds', description: 'Name and title bars that sit at the bottom of the frame.', icon: 'subtitles', types: ['lower-third'] },
-  { id: 'titles-openers', label: 'Titles and openers', description: 'Title cards, openers, captions, logo reveals and social call-outs.', icon: 'text-t', types: ['title', 'opener', 'callout', 'social', 'logo-reveal'] },
-  { id: 'end-cards', label: 'End cards', description: 'Closing cards and credits to end a video on.', icon: 'film-slate', types: ['end-card'] },
-  { id: 'matching-sets', label: 'Matching sets', description: 'Templates designed together — an opener, a lower third, a bug and more in one look.', icon: 'package', types: [] },
-  { id: 'animated-backgrounds', label: 'Animated backgrounds', description: 'Moving loops to sit behind titles and graphics.', icon: 'film-reel', types: ['animated-loop'] },
-  { id: 'still-backgrounds', label: 'Still backgrounds', description: 'Gradients, textures and patterns that hold still.', icon: 'image-square', types: ['still-background', 'texture'] },
-  { id: 'overlays-frames', label: 'Overlays and frames', description: 'Light, grain, borders, bugs and vignettes laid over the whole picture.', icon: 'stack', types: ['overlay', 'frame', 'light-particles', 'film-grunge', 'logo-bug', 'vignette'] },
-  { id: 'transitions-wipes', label: 'Transitions and wipes', description: 'Wipes, reveals, flashes and glitches that take one shot to the next.', icon: 'arrows-left-right', types: ['wipe', 'reveal', 'flash', 'glitch'] },
-  { id: 'design-elements', label: 'Design elements', description: 'Shapes, icons, arrows, charts, counters and countdowns.', icon: 'shapes', types: ['shapes', 'icons', 'arrows', 'infographic', 'counter', 'countdown'] },
-  { id: 'effects', label: 'Effects', description: 'Fire, smoke, sparks, splashes and confetti on transparency, placed on a frame.', icon: 'fire', types: ['fire', 'smoke', 'sparks', 'explosion-asset', 'energy', 'light-asset', 'weather-asset', 'liquid', 'confetti', 'brush'] },
-  { id: 'objects', label: 'Objects', description: 'Props on transparency, by what they are for: sports, celebrations, business, nature and more.', icon: 'cube', types: ['sports-objects', 'celebration-objects', 'holiday-objects', 'business-objects', 'science-objects', 'media-objects', 'nature-objects', 'travel-objects', 'home-objects', 'community-objects'] },
-  { id: 'stock-video', label: 'Stock video', description: 'Footage and B-roll clips.', icon: 'film-strip', types: ['stock-footage'] },
-  { id: 'photos-stills', label: 'Photos and stills', description: 'Photographs, illustrations and layered graphics.', icon: 'image', types: ['photo', 'illustration', 'layered-graphic'] },
-  { id: 'music', label: 'Music', description: 'Full mixes, stems and stings.', icon: 'music-notes', types: ['full-mix', 'stems', 'sting'] },
-  { id: 'sound-effects', label: 'Sound effects', description: 'Hits, whooshes, ambiences, alarms and every other sound a cut needs.', icon: 'speaker-high', types: ['ambience', 'impact', 'whoosh', 'ui-tech', 'alarm', 'nature-weather', 'animals', 'vehicles', 'crowd', 'foley', 'explosion', 'sci-fi', 'musical-phrase'] },
+  { id: 'lower-thirds', get label() { return tr('category.lower-thirds'); }, get description() { return tr('category.lower-thirds.description'); }, icon: 'subtitles', types: ['lower-third'] },
+  { id: 'titles-openers', get label() { return tr('category.titles-openers'); }, get description() { return tr('category.titles-openers.description'); }, icon: 'text-t', types: ['title', 'opener', 'callout', 'social', 'logo-reveal'] },
+  { id: 'end-cards', get label() { return tr('category.end-cards'); }, get description() { return tr('category.end-cards.description'); }, icon: 'film-slate', types: ['end-card'] },
+  { id: 'matching-sets', get label() { return tr('category.matching-sets'); }, get description() { return tr('category.matching-sets.description'); }, icon: 'package', types: [] },
+  { id: 'animated-backgrounds', get label() { return tr('category.animated-backgrounds'); }, get description() { return tr('category.animated-backgrounds.description'); }, icon: 'film-reel', types: ['animated-loop'] },
+  { id: 'still-backgrounds', get label() { return tr('category.still-backgrounds'); }, get description() { return tr('category.still-backgrounds.description'); }, icon: 'image-square', types: ['still-background', 'texture'] },
+  { id: 'overlays-frames', get label() { return tr('category.overlays-frames'); }, get description() { return tr('category.overlays-frames.description'); }, icon: 'stack', types: ['overlay', 'frame', 'light-particles', 'film-grunge', 'logo-bug', 'vignette'] },
+  { id: 'transitions-wipes', get label() { return tr('category.transitions-wipes'); }, get description() { return tr('category.transitions-wipes.description'); }, icon: 'arrows-left-right', types: ['wipe', 'reveal', 'flash', 'glitch'] },
+  { id: 'design-elements', get label() { return tr('category.design-elements'); }, get description() { return tr('category.design-elements.description'); }, icon: 'shapes', types: ['shapes', 'icons', 'arrows', 'infographic', 'counter', 'countdown'] },
+  { id: 'effects', get label() { return tr('category.effects'); }, get description() { return tr('category.effects.description'); }, icon: 'fire', types: ['fire', 'smoke', 'sparks', 'explosion-asset', 'energy', 'light-asset', 'weather-asset', 'liquid', 'confetti', 'brush'] },
+  { id: 'objects', get label() { return tr('category.objects'); }, get description() { return tr('category.objects.description'); }, icon: 'cube', types: ['sports-objects', 'celebration-objects', 'holiday-objects', 'business-objects', 'science-objects', 'media-objects', 'nature-objects', 'travel-objects', 'home-objects', 'community-objects'] },
+  { id: 'stock-video', get label() { return tr('category.stock-video'); }, get description() { return tr('category.stock-video.description'); }, icon: 'film-strip', types: ['stock-footage'] },
+  { id: 'photos-stills', get label() { return tr('category.photos-stills'); }, get description() { return tr('category.photos-stills.description'); }, icon: 'image', types: ['photo', 'illustration', 'layered-graphic'] },
+  { id: 'music', get label() { return tr('category.music'); }, get description() { return tr('category.music.description'); }, icon: 'music-notes', types: ['full-mix', 'stems', 'sting'] },
+  { id: 'sound-effects', get label() { return tr('category.sound-effects'); }, get description() { return tr('category.sound-effects.description'); }, icon: 'speaker-high', types: ['ambience', 'impact', 'whoosh', 'ui-tech', 'alarm', 'nature-weather', 'animals', 'vehicles', 'crowd', 'foley', 'explosion', 'sci-fi', 'musical-phrase'] },
 ];
 
 /** The id of a tree node for a category, "category:lower-thirds". */
@@ -77,15 +83,15 @@ export function categoryOfEntry(entry: LibraryEntry): BrowseCategory | undefined
 export function categoryScope(category: BrowseCategory): Scope | null {
   if (category.types.length === 0) {
     if (category.id !== MATCHING_SETS) return null;
-    return { label: category.label, filter: 'pack:any', kind: 'category', group: category.id };
+    return { get label() { return category.label; }, filter: 'pack:any', kind: 'category', group: category.id };
   }
-  return { label: category.label, filter: category.types.map((t) => `type:${t}`).join(' '), kind: 'category', group: category.id };
+  return { get label() { return category.label; }, filter: category.types.map((t) => `type:${t}`).join(' '), kind: 'category', group: category.id };
 }
 
 /** A type's scope, carrying its category so the icon and the description can be found from it. */
 export function typeScope(typeId: string): Scope {
   const category = categoryByType.get(typeId);
-  return { label: typeLabel(typeId), filter: `type:${typeId}`, kind: 'type', ...(category ? { group: category.id } : {}) };
+  return { get label() { return typeLabel(typeId); }, filter: `type:${typeId}`, kind: 'type', ...(category ? { group: category.id } : {}) };
 }
 
 /**
@@ -113,8 +119,8 @@ export function scopeCategory(scope: Scope | null): BrowseCategory | undefined {
 
 export interface CategoryCard {
   id: string;
-  label: string;
-  description: string;
+  readonly label: string;
+  readonly description: string;
   count: number;
   scope: Scope;
   /** An entry whose picture stands for the card; null when nothing here has one yet. */
@@ -141,7 +147,7 @@ export function categoryCards(entries: readonly LibraryEntry[], scope: Scope | n
       const own = category.types.length > 0 ? entries.filter((e) => categoryOfEntry(e)?.id === category.id) : entries.filter((e) => e.kind === 'template' && e.pack);
       const cardScope = categoryScope(category);
       if (own.length === 0 || !cardScope) return [];
-      return [{ id: `category:${category.id}`, label: category.label, description: category.description, count: own.length, scope: cardScope, sample: representative(own), icon: category.icon }];
+      return [{ id: `category:${category.id}`, get label() { return category.label; }, get description() { return category.description; }, count: own.length, scope: cardScope, sample: representative(own), icon: category.icon }];
     });
   }
   if (scope.kind !== 'category' || !scope.group) return null;
@@ -150,7 +156,7 @@ export function categoryCards(entries: readonly LibraryEntry[], scope: Scope | n
   return category.types.flatMap((type) => {
     const own = entries.filter((e) => entryType(e) === type);
     if (own.length === 0) return [];
-    return [{ id: `type:${type}`, label: typeLabel(type), description: '', count: own.length, scope: typeScope(type), sample: representative(own), icon: category.icon }];
+    return [{ id: `type:${type}`, get label() { return typeLabel(type); }, description: '', count: own.length, scope: typeScope(type), sample: representative(own), icon: category.icon }];
   });
 }
 
@@ -184,7 +190,7 @@ export function forOptions(entries: readonly LibraryEntry[], chosen: string | nu
   })).filter((g) => g.options.length > 0);
   const custom = [...byTheme.keys()].filter((t) => !isBuiltInTheme(t) && themeGroupOf(t) === undefined).sort((a, b) => a.localeCompare(b));
   if (chosen && !isBuiltInTheme(chosen) && !custom.includes(chosen)) custom.push(chosen);
-  if (custom.length > 0) groups.push({ label: 'Custom', options: custom.map((t) => ({ id: t, label: themeLabel(t), count: count(t) })) });
+  if (custom.length > 0) groups.push({ label: tr('category.for-options.custom'), options: custom.map((t) => ({ id: t, label: themeLabel(t), count: count(t) })) });
   return groups;
 }
 

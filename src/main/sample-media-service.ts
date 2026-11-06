@@ -96,7 +96,7 @@ async function encodeClip(page: CapturePage, recipe: Extract<SampleMediaItem['re
   child.stdin.end();
   const code = await exited;
   if (!shot.ok) return shot.message;
-  return code === 0 ? null : `ffmpeg exited with ${code}: ${stderr.trim() || 'no error output'}`;
+  return code === 0 ? null : `ffmpeg exited with ${code}: ${stderr.trim() || 'no error output'}`; // i18n-exempt(diagnostic)
 }
 
 async function makeOne(item: SampleMediaItem, out: string, encoder: Encoder): Promise<string | null> {
@@ -104,7 +104,7 @@ async function makeOne(item: SampleMediaItem, out: string, encoder: Encoder): Pr
   const { recipe } = item;
   if (recipe.kind === 'audio') {
     const result = await nodeRunner(ffmpegPath, sampleAudioArgs(recipe, out, item.moods ?? []));
-    return result.code === 0 ? null : `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}`;
+    return result.code === 0 ? null : `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}`; // i18n-exempt(diagnostic)
   }
   if (recipe.kind === 'still') {
     const opened = await pooledPage(recipe.page, recipe.width, recipe.height);
@@ -116,7 +116,7 @@ async function makeOne(item: SampleMediaItem, out: string, encoder: Encoder): Pr
       return null;
     }
     const encoded = await runWithInput(ffmpegPath, sampleJpegArgs(out), shot.png);
-    return encoded.code === 0 ? null : `ffmpeg exited with ${encoded.code}: ${encoded.stderr.trim() || 'no error output'}`;
+    return encoded.code === 0 ? null : `ffmpeg exited with ${encoded.code}: ${encoded.stderr.trim() || 'no error output'}`; // i18n-exempt(diagnostic)
   }
   if (recipe.kind === 'asset') {
     // A still asset is one frame of the same page; a clip is every frame, piped to ffmpeg as PNGs
@@ -132,7 +132,7 @@ async function makeOne(item: SampleMediaItem, out: string, encoder: Encoder): Pr
     return encodeClip(opened.page, recipe, out, encoder);
   }
   const template = await findTemplate(recipe.templateId);
-  if (!template) return `template "${recipe.templateId}" is not in the library`;
+  if (!template) return `template "${recipe.templateId}" is not in the library`; // i18n-exempt(diagnostic)
   const fps = template.manifest.fps;
   const result = await renderTemplate({
     template,
@@ -207,7 +207,7 @@ export async function generateSampleMedia(
       } catch (err) {
         reason = (err as Error).message;
       }
-      result = reason === null && existsSync(out) ? { file, outcome: 'written' } : { file, outcome: 'failed', reason: reason ?? 'nothing was written' };
+      result = reason === null && existsSync(out) ? { file, outcome: 'written' } : { file, outcome: 'failed', reason: reason ?? 'nothing was written' }; // i18n-exempt(diagnostic)
     }
     outcomes[index] = result;
     done++;
@@ -238,7 +238,7 @@ export async function generateSampleMedia(
     if (!result) continue;
     if (result.outcome === 'written') report.written.push(result.file);
     else if (result.outcome === 'skipped') report.skipped.push(result.file);
-    else report.failed.push({ file: result.file, reason: result.reason ?? 'nothing was written' });
+    else report.failed.push({ file: result.file, reason: result.reason ?? 'nothing was written' }); // i18n-exempt(diagnostic)
   }
   return report;
 }

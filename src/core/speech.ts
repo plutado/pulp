@@ -18,6 +18,7 @@
  */
 
 import { spreadWords, type CaptionWord } from './captions';
+import { tr } from './i18n';
 import { atempoChain } from './layer-audio';
 
 /**
@@ -28,7 +29,8 @@ import { atempoChain } from './layer-audio';
  */
 export interface SpeechModel {
   id: string;
-  label: string;
+  /** Named in the interface's language now (milestone 59). */
+  readonly label: string;
   /** The file's name, which is also what it is kept as. */
   file: string;
   url: string;
@@ -37,7 +39,7 @@ export interface SpeechModel {
   /** Every language the model was trained on, or English alone. */
   multilingual: boolean;
   /** What it is for, in the sentence the dialog shows beside its size. */
-  note: string;
+  readonly note: string;
 }
 
 /** Where the models come from: the whisper.cpp project's own converted weights (MIT; ADR 0021). */
@@ -54,33 +56,33 @@ export const SPEECH_MODEL_LICENSE = 'MIT';
 export const SPEECH_MODELS: readonly SpeechModel[] = [
   {
     id: 'tiny',
-    label: 'Whisper tiny',
+    get label() { return tr('speech.model.tiny'); },
     file: 'ggml-tiny.bin',
     url: `${MODEL_BASE}ggml-tiny.bin`,
     bytes: 77_691_713,
     sha256: 'be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21',
     multilingual: true,
-    note: 'The fastest, and the one that mishears most.',
+    get note() { return tr('speech.model.tiny.note'); },
   },
   {
     id: 'base',
-    label: 'Whisper base',
+    get label() { return tr('speech.model.base'); },
     file: 'ggml-base.bin',
     url: `${MODEL_BASE}ggml-base.bin`,
     bytes: 147_951_465,
     sha256: '60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe',
     multilingual: true,
-    note: 'The default: good enough to edit rather than rewrite, on any machine.',
+    get note() { return tr('speech.model.base.note'); },
   },
   {
     id: 'small',
-    label: 'Whisper small',
+    get label() { return tr('speech.model.small'); },
     file: 'ggml-small.bin',
     url: `${MODEL_BASE}ggml-small.bin`,
     bytes: 487_601_967,
     sha256: '1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b',
     multilingual: true,
-    note: 'The most accurate of the three, and several times slower.',
+    get note() { return tr('speech.model.small.note'); },
   },
 ] as const;
 
@@ -111,10 +113,11 @@ export function speechRunnerPaths(env: Record<string, string | undefined>): stri
   return [...new Set(list)];
 }
 
-export const SPEECH_RUNNER_MISSING_MESSAGE =
-  'whisper.cpp was not found. Pulp transcribes with it, on this machine (decision record 0021). ' +
-  'Install it (macOS: "brew install whisper-cpp"; elsewhere: build whisper.cpp and put whisper-cli on your PATH), ' +
-  'or set PULP_WHISPER_PATH to the full path of whisper-cli, then restart Pulp.';
+/** What the captions dialog says when whisper.cpp is not on this machine, in the interface's language now. */
+export function speechRunnerMissingMessage(): string {
+  return tr('speech.runner-missing');
+}
+
 
 /** A stretch of a library item's sound, and where it sits on the project's timeline. */
 export interface SpeechSegment {
@@ -144,35 +147,110 @@ export const SPEECH_LANGUAGE_AUTO = 'auto';
 /**
  * The languages the multilingual models were trained on, as whisper names
  * them: the two-letter code the program takes after `-l`, and the name the
- * dialog shows. The order is the model's own list, alphabetised here by name
- * for the person choosing. `auto` is offered first and is the default.
+ * dialog shows, in the interface's language now (milestone 59). The order is
+ * the model's own list, alphabetised here by its US English name; the dialog
+ * sorts by the names it shows. `auto` is offered first and is the default.
  */
-export const SPEECH_LANGUAGES: readonly { code: string; name: string }[] = [
-  { code: 'af', name: 'Afrikaans' }, { code: 'sq', name: 'Albanian' }, { code: 'am', name: 'Amharic' }, { code: 'ar', name: 'Arabic' },
-  { code: 'hy', name: 'Armenian' }, { code: 'as', name: 'Assamese' }, { code: 'az', name: 'Azerbaijani' }, { code: 'ba', name: 'Bashkir' },
-  { code: 'eu', name: 'Basque' }, { code: 'be', name: 'Belarusian' }, { code: 'bn', name: 'Bengali' }, { code: 'bs', name: 'Bosnian' },
-  { code: 'br', name: 'Breton' }, { code: 'bg', name: 'Bulgarian' }, { code: 'my', name: 'Burmese' }, { code: 'ca', name: 'Catalan' },
-  { code: 'zh', name: 'Chinese' }, { code: 'hr', name: 'Croatian' }, { code: 'cs', name: 'Czech' }, { code: 'da', name: 'Danish' },
-  { code: 'nl', name: 'Dutch' }, { code: 'en', name: 'English' }, { code: 'et', name: 'Estonian' }, { code: 'fo', name: 'Faroese' },
-  { code: 'fi', name: 'Finnish' }, { code: 'fr', name: 'French' }, { code: 'gl', name: 'Galician' }, { code: 'ka', name: 'Georgian' },
-  { code: 'de', name: 'German' }, { code: 'el', name: 'Greek' }, { code: 'gu', name: 'Gujarati' }, { code: 'ht', name: 'Haitian Creole' },
-  { code: 'ha', name: 'Hausa' }, { code: 'haw', name: 'Hawaiian' }, { code: 'he', name: 'Hebrew' }, { code: 'hi', name: 'Hindi' },
-  { code: 'hu', name: 'Hungarian' }, { code: 'is', name: 'Icelandic' }, { code: 'id', name: 'Indonesian' }, { code: 'it', name: 'Italian' },
-  { code: 'ja', name: 'Japanese' }, { code: 'jw', name: 'Javanese' }, { code: 'kn', name: 'Kannada' }, { code: 'kk', name: 'Kazakh' },
-  { code: 'km', name: 'Khmer' }, { code: 'ko', name: 'Korean' }, { code: 'lo', name: 'Lao' }, { code: 'la', name: 'Latin' },
-  { code: 'lv', name: 'Latvian' }, { code: 'ln', name: 'Lingala' }, { code: 'lt', name: 'Lithuanian' }, { code: 'lb', name: 'Luxembourgish' },
-  { code: 'mk', name: 'Macedonian' }, { code: 'mg', name: 'Malagasy' }, { code: 'ms', name: 'Malay' }, { code: 'ml', name: 'Malayalam' },
-  { code: 'mt', name: 'Maltese' }, { code: 'mi', name: 'Maori' }, { code: 'mr', name: 'Marathi' }, { code: 'mn', name: 'Mongolian' },
-  { code: 'ne', name: 'Nepali' }, { code: 'no', name: 'Norwegian' }, { code: 'nn', name: 'Norwegian Nynorsk' }, { code: 'oc', name: 'Occitan' },
-  { code: 'ps', name: 'Pashto' }, { code: 'fa', name: 'Persian' }, { code: 'pl', name: 'Polish' }, { code: 'pt', name: 'Portuguese' },
-  { code: 'pa', name: 'Punjabi' }, { code: 'ro', name: 'Romanian' }, { code: 'ru', name: 'Russian' }, { code: 'sa', name: 'Sanskrit' },
-  { code: 'sr', name: 'Serbian' }, { code: 'sn', name: 'Shona' }, { code: 'sd', name: 'Sindhi' }, { code: 'si', name: 'Sinhala' },
-  { code: 'sk', name: 'Slovak' }, { code: 'sl', name: 'Slovenian' }, { code: 'so', name: 'Somali' }, { code: 'es', name: 'Spanish' },
-  { code: 'su', name: 'Sundanese' }, { code: 'sw', name: 'Swahili' }, { code: 'sv', name: 'Swedish' }, { code: 'tl', name: 'Tagalog' },
-  { code: 'tg', name: 'Tajik' }, { code: 'ta', name: 'Tamil' }, { code: 'tt', name: 'Tatar' }, { code: 'te', name: 'Telugu' },
-  { code: 'th', name: 'Thai' }, { code: 'bo', name: 'Tibetan' }, { code: 'tr', name: 'Turkish' }, { code: 'tk', name: 'Turkmen' },
-  { code: 'uk', name: 'Ukrainian' }, { code: 'ur', name: 'Urdu' }, { code: 'uz', name: 'Uzbek' }, { code: 'vi', name: 'Vietnamese' },
-  { code: 'cy', name: 'Welsh' }, { code: 'yi', name: 'Yiddish' }, { code: 'yo', name: 'Yoruba' },
+export const SPEECH_LANGUAGES: readonly { code: string; readonly name: string }[] = [
+  { code: 'af', get name() { return tr('speech.language.af'); } },
+  { code: 'sq', get name() { return tr('speech.language.sq'); } },
+  { code: 'am', get name() { return tr('speech.language.am'); } },
+  { code: 'ar', get name() { return tr('speech.language.ar'); } },
+  { code: 'hy', get name() { return tr('speech.language.hy'); } },
+  { code: 'as', get name() { return tr('speech.language.as'); } },
+  { code: 'az', get name() { return tr('speech.language.az'); } },
+  { code: 'ba', get name() { return tr('speech.language.ba'); } },
+  { code: 'eu', get name() { return tr('speech.language.eu'); } },
+  { code: 'be', get name() { return tr('speech.language.be'); } },
+  { code: 'bn', get name() { return tr('speech.language.bn'); } },
+  { code: 'bs', get name() { return tr('speech.language.bs'); } },
+  { code: 'br', get name() { return tr('speech.language.br'); } },
+  { code: 'bg', get name() { return tr('speech.language.bg'); } },
+  { code: 'my', get name() { return tr('speech.language.my'); } },
+  { code: 'ca', get name() { return tr('speech.language.ca'); } },
+  { code: 'zh', get name() { return tr('speech.language.zh'); } },
+  { code: 'hr', get name() { return tr('speech.language.hr'); } },
+  { code: 'cs', get name() { return tr('speech.language.cs'); } },
+  { code: 'da', get name() { return tr('speech.language.da'); } },
+  { code: 'nl', get name() { return tr('speech.language.nl'); } },
+  { code: 'en', get name() { return tr('speech.language.en'); } },
+  { code: 'et', get name() { return tr('speech.language.et'); } },
+  { code: 'fo', get name() { return tr('speech.language.fo'); } },
+  { code: 'fi', get name() { return tr('speech.language.fi'); } },
+  { code: 'fr', get name() { return tr('speech.language.fr'); } },
+  { code: 'gl', get name() { return tr('speech.language.gl'); } },
+  { code: 'ka', get name() { return tr('speech.language.ka'); } },
+  { code: 'de', get name() { return tr('speech.language.de'); } },
+  { code: 'el', get name() { return tr('speech.language.el'); } },
+  { code: 'gu', get name() { return tr('speech.language.gu'); } },
+  { code: 'ht', get name() { return tr('speech.language.ht'); } },
+  { code: 'ha', get name() { return tr('speech.language.ha'); } },
+  { code: 'haw', get name() { return tr('speech.language.haw'); } },
+  { code: 'he', get name() { return tr('speech.language.he'); } },
+  { code: 'hi', get name() { return tr('speech.language.hi'); } },
+  { code: 'hu', get name() { return tr('speech.language.hu'); } },
+  { code: 'is', get name() { return tr('speech.language.is'); } },
+  { code: 'id', get name() { return tr('speech.language.id'); } },
+  { code: 'it', get name() { return tr('speech.language.it'); } },
+  { code: 'ja', get name() { return tr('speech.language.ja'); } },
+  { code: 'jw', get name() { return tr('speech.language.jw'); } },
+  { code: 'kn', get name() { return tr('speech.language.kn'); } },
+  { code: 'kk', get name() { return tr('speech.language.kk'); } },
+  { code: 'km', get name() { return tr('speech.language.km'); } },
+  { code: 'ko', get name() { return tr('speech.language.ko'); } },
+  { code: 'lo', get name() { return tr('speech.language.lo'); } },
+  { code: 'la', get name() { return tr('speech.language.la'); } },
+  { code: 'lv', get name() { return tr('speech.language.lv'); } },
+  { code: 'ln', get name() { return tr('speech.language.ln'); } },
+  { code: 'lt', get name() { return tr('speech.language.lt'); } },
+  { code: 'lb', get name() { return tr('speech.language.lb'); } },
+  { code: 'mk', get name() { return tr('speech.language.mk'); } },
+  { code: 'mg', get name() { return tr('speech.language.mg'); } },
+  { code: 'ms', get name() { return tr('speech.language.ms'); } },
+  { code: 'ml', get name() { return tr('speech.language.ml'); } },
+  { code: 'mt', get name() { return tr('speech.language.mt'); } },
+  { code: 'mi', get name() { return tr('speech.language.mi'); } },
+  { code: 'mr', get name() { return tr('speech.language.mr'); } },
+  { code: 'mn', get name() { return tr('speech.language.mn'); } },
+  { code: 'ne', get name() { return tr('speech.language.ne'); } },
+  { code: 'no', get name() { return tr('speech.language.no'); } },
+  { code: 'nn', get name() { return tr('speech.language.nn'); } },
+  { code: 'oc', get name() { return tr('speech.language.oc'); } },
+  { code: 'ps', get name() { return tr('speech.language.ps'); } },
+  { code: 'fa', get name() { return tr('speech.language.fa'); } },
+  { code: 'pl', get name() { return tr('speech.language.pl'); } },
+  { code: 'pt', get name() { return tr('speech.language.pt'); } },
+  { code: 'pa', get name() { return tr('speech.language.pa'); } },
+  { code: 'ro', get name() { return tr('speech.language.ro'); } },
+  { code: 'ru', get name() { return tr('speech.language.ru'); } },
+  { code: 'sa', get name() { return tr('speech.language.sa'); } },
+  { code: 'sr', get name() { return tr('speech.language.sr'); } },
+  { code: 'sn', get name() { return tr('speech.language.sn'); } },
+  { code: 'sd', get name() { return tr('speech.language.sd'); } },
+  { code: 'si', get name() { return tr('speech.language.si'); } },
+  { code: 'sk', get name() { return tr('speech.language.sk'); } },
+  { code: 'sl', get name() { return tr('speech.language.sl'); } },
+  { code: 'so', get name() { return tr('speech.language.so'); } },
+  { code: 'es', get name() { return tr('speech.language.es'); } },
+  { code: 'su', get name() { return tr('speech.language.su'); } },
+  { code: 'sw', get name() { return tr('speech.language.sw'); } },
+  { code: 'sv', get name() { return tr('speech.language.sv'); } },
+  { code: 'tl', get name() { return tr('speech.language.tl'); } },
+  { code: 'tg', get name() { return tr('speech.language.tg'); } },
+  { code: 'ta', get name() { return tr('speech.language.ta'); } },
+  { code: 'tt', get name() { return tr('speech.language.tt'); } },
+  { code: 'te', get name() { return tr('speech.language.te'); } },
+  { code: 'th', get name() { return tr('speech.language.th'); } },
+  { code: 'bo', get name() { return tr('speech.language.bo'); } },
+  { code: 'tr', get name() { return tr('speech.language.tr'); } },
+  { code: 'tk', get name() { return tr('speech.language.tk'); } },
+  { code: 'uk', get name() { return tr('speech.language.uk'); } },
+  { code: 'ur', get name() { return tr('speech.language.ur'); } },
+  { code: 'uz', get name() { return tr('speech.language.uz'); } },
+  { code: 'vi', get name() { return tr('speech.language.vi'); } },
+  { code: 'cy', get name() { return tr('speech.language.cy'); } },
+  { code: 'yi', get name() { return tr('speech.language.yi'); } },
+  { code: 'yo', get name() { return tr('speech.language.yo'); } },
 ];
 
 /** A language the model knows, or `auto`: anything else is read as `auto` rather than handed to the program. */

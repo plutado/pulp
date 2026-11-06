@@ -64,7 +64,7 @@ function choose(item: MenuItemSpec): void {
 
 /** The pressable items of one panel, in order: what the arrow keys walk. */
 function itemsOf(panel: HTMLElement): HTMLButtonElement[] {
-  return [...panel.querySelectorAll<HTMLButtonElement>(':scope > button:not([disabled])')];
+  return [...panel.querySelectorAll<HTMLButtonElement>(':scope > button:not([disabled])')]; // i18n-exempt(technical): a selector
 }
 
 function moveFocus(panel: HTMLElement, delta: number): void {
@@ -94,6 +94,7 @@ function place(panel: HTMLElement, x: number, y: number, flipFrom?: { left: numb
 }
 
 function closeSubmenus(panel: HTMLElement): void {
+  // i18n-exempt(technical): a selector
   for (const open of panel.querySelectorAll<HTMLElement>(':scope > button[aria-expanded="true"]')) open.setAttribute('aria-expanded', 'false');
   for (const child of element().querySelectorAll<HTMLElement>('.context-menu.submenu')) {
     if (child.dataset.parent === panel.dataset.panel) child.remove();

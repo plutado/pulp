@@ -17,7 +17,7 @@ import type { LibraryIndex, MediaEntry, TemplateEntry } from '../src/core/librar
 import { parseQuery, splitFreeText, type SearchHit } from '../src/core/search';
 import {
   blendSemantic, cosine, embeddingArgs, packVector, parseEmbeddings, SEMANTIC_MODEL, SEMANTIC_QUERY_PREFIX,
-  SEMANTIC_RUNNER_MISSING_MESSAGE, semanticRunnerPaths, semanticTextFor, unpackVector,
+  semanticRunnerMissingMessage, semanticRunnerPaths, semanticTextFor, unpackVector,
 } from '../src/core/semantic';
 import { validManifest } from './fixtures';
 
@@ -43,8 +43,8 @@ describe('the pinned model', () => {
     expect(paths[0]).toBe('/x/llama-embedding');
     expect(paths).toContain('llama-embedding');
     expect(paths).toContain('/opt/homebrew/bin/llama-embedding');
-    expect(SEMANTIC_RUNNER_MISSING_MESSAGE).toContain('brew install llama.cpp');
-    expect(SEMANTIC_RUNNER_MISSING_MESSAGE).toContain('PULP_LLAMA_EMBEDDING_PATH');
+    expect(semanticRunnerMissingMessage()).toContain('brew install llama.cpp');
+    expect(semanticRunnerMissingMessage()).toContain('PULP_LLAMA_EMBEDDING_PATH');
   });
 });
 

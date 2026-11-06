@@ -9,6 +9,7 @@ import { app, dialog } from 'electron';
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, join, relative, resolve, sep } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
+import { tr } from '../core/i18n';
 import type { TemplateEntry } from '../core/library-types';
 import { inspectPack, PACK_FILENAME, planInstall, slug, type CollisionChoice, type ExistingTemplate, type PackManifest, type PackPreview } from '../core/pack';
 import { readZip, writeZip, ZipError, type ZipEntry } from '../core/zip';
@@ -31,7 +32,7 @@ async function readFolder(root: string, limitBytes = 512 * 1024 * 1024): Promise
       else if (entry.isFile()) {
         const data = await readFile(full);
         total += data.length;
-        if (total > limitBytes) throw new Error('pack folder is larger than 512 MiB');
+        if (total > limitBytes) throw new Error(tr('pack.read.too-large'));
         out.set(relative(root, full).split(sep).join('/'), data);
       }
     }
@@ -62,9 +63,9 @@ export interface PackPreviewResult {
 /** Open dialog for a pack, or null when canceled. */
 export async function choosePackFile(): Promise<string | null> {
   const pick = await dialog.showOpenDialog({
-    title: 'Import template pack',
+    title: tr('dialog.pack.import.title'),
     properties: ['openFile'],
-    filters: [{ name: 'Template pack', extensions: ['zip'] }],
+    filters: [{ name: tr('dialog.pack.filter'), extensions: ['zip'] }],
   });
   return pick.canceled ? null : (pick.filePaths[0] ?? null);
 }
@@ -74,7 +75,7 @@ export async function previewPack(path: string): Promise<PackPreviewResult | { e
     const files = await readPackSource(path);
     return { path, preview: inspectPack(files, await existingTemplates()) };
   } catch (err) {
-    const message = err instanceof ZipError ? `Not a usable pack: ${err.message}` : `Could not read the pack: ${(err as Error).message}`;
+    const message = err instanceof ZipError ? tr('pack.read.not-usable', { reason: err.message }) : tr('pack.read.failed', { reason: (err as Error).message });
     return { error: message };
   }
 }
@@ -91,7 +92,7 @@ export async function installPack(path: string, choices: Record<string, Collisio
   const read = await previewPack(path);
   if ('error' in read) return read;
   const { preview } = read;
-  if (!preview.manifest || preview.problems.length > 0) return { error: preview.problems[0] ?? 'invalid pack' };
+  if (!preview.manifest || preview.problems.length > 0) return { error: preview.problems[0] ?? tr('pack.install.invalid') };
   const files = await readPackSource(path);
   const prefix = files.has(PACK_FILENAME) ? '' : ([...files.keys()].find((k) => k.endsWith(`/${PACK_FILENAME}`)) ?? PACK_FILENAME).slice(0, -PACK_FILENAME.length);
   const plan = planInstall(preview, choices);
@@ -101,12 +102,12 @@ export async function installPack(path: string, choices: Record<string, Collisio
   for (const item of plan) {
     const t = preview.templates.find((x) => x.folder === item.folder)!;
     if (item.action === 'skip') {
-      result.skipped.push({ folder: item.folder, reason: item.reason ?? 'skipped' });
+      result.skipped.push({ folder: item.folder, reason: item.reason ?? tr('pack.skip.skipped') });
       continue;
     }
     const dest = resolve(packsDir(), t.installDir);
     if (!dest.startsWith(packRoot + sep)) {
-      result.skipped.push({ folder: item.folder, reason: 'unsafe install folder' });
+      result.skipped.push({ folder: item.folder, reason: tr('pack.skip.unsafe-folder') });
       continue;
     }
     if (item.action === 'replace') {
@@ -190,9 +191,9 @@ export async function exportPackTo(destination: string, templates: TemplateEntry
 /** Save dialog for an exported pack, or null when canceled. */
 export async function chooseExportFile(suggested: string): Promise<string | null> {
   const save = await dialog.showSaveDialog({
-    title: 'Export template pack',
+    title: tr('dialog.pack.export.title'),
     defaultPath: join(app.getPath('documents') || app.getPath('home'), `${slug(suggested, 'pack')}.zip`),
-    filters: [{ name: 'Template pack', extensions: ['zip'] }],
+    filters: [{ name: tr('dialog.pack.filter'), extensions: ['zip'] }],
   });
   return save.canceled || !save.filePath ? null : save.filePath;
 }

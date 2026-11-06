@@ -7,7 +7,7 @@
 
 import { deflateSync, inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { AI_NO_PDF_MESSAGE, KRA_PIXELS_LIMIT, parseKra, parseOra, sniffPdf, UNREADABLE_DESIGN_FORMATS, unreadableDesignNote } from '../src/core/layered';
+import { aiNoPdfMessage, kraPixelsLimit, parseKra, parseOra, sniffPdf, UNREADABLE_DESIGN_FORMATS, unreadableDesignNote } from '../src/core/layered';
 import { encodePng } from '../src/core/png';
 import { compositePsd, fileHiddenLayers, isLayeredExtension, layersTopFirst, placeableLayers, psdOutline } from '../src/core/psd';
 import { writeZip } from '../src/core/zip';
@@ -110,7 +110,7 @@ describe('Krita (milestone 33)', () => {
       ['Backdrop', 'layer', true],
     ]);
     expect(doc.layers.find((l) => l.name === 'Mark')!.opacity).toBeCloseTo(0.5, 2);
-    expect(doc.limits).toEqual([KRA_PIXELS_LIMIT]);
+    expect(doc.limits).toEqual([kraPixelsLimit()]);
     // No layer pixels: the merged picture stands in whatever is hidden, and nothing is placeable alone.
     expect(px(compositePsd(doc), 4, 0, 0)).toEqual(BLUE);
     expect(px(compositePsd(doc, new Set(['L2'])), 4, 0, 0)).toEqual(BLUE);
@@ -130,7 +130,7 @@ describe('a PDF, or an .ai that carries one (milestone 33)', () => {
     expect(sniffPdf(new TextEncoder().encode('junk\n%PDF-1.4'))).toBe('pdf');
     expect(sniffPdf(new TextEncoder().encode('%!PS-Adobe-3.0\n'))).toBe('postscript');
     expect(sniffPdf(new TextEncoder().encode('GIF89a'))).toBe('neither');
-    expect(AI_NO_PDF_MESSAGE).toContain('Create PDF Compatible File');
+    expect(aiNoPdfMessage()).toContain('Create PDF Compatible File');
   });
 });
 

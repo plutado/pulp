@@ -16,6 +16,7 @@ import { isFinished, type RenderQueueJob } from '../core/render-queue';
 import { Icon } from './icons';
 import { appState } from './store';
 import { mountRovingGroup, paintRovingStops } from './roving';
+import { t } from './i18n';
 
 const jobs = computed(() => appState.value.jobs.jobs);
 
@@ -61,25 +62,25 @@ function Actions({ card }: { card: QueueCard }) {
         <button
           type="button"
           class="icon-button"
-          aria-label={`Open the ${handOff.label} upload page`}
-          data-tip={`Open the ${handOff.label} upload page in the browser and show the file, ready to drop`}
+          aria-label={t('queue.upload.aria-label', { platform: handOff.label })}
+          data-tip={t('queue.upload.data-tip', { platform: handOff.label })}
           onClick={() => void window.pulp.openUploadPage(file, handOff.platform)}
         >
           <Icon name="upload-simple" />
         </button>
       )}
       {window.pulp.platform === 'darwin' && (
-        <button type="button" class="icon-button" aria-label="Share…" onClick={() => void window.pulp.shareFile(file)}>
+        <button type="button" class="icon-button" aria-label={t('queue.share.aria-label')} onClick={() => void window.pulp.shareFile(file)}>
           <Icon name="share-network" />
         </button>
       )}
       <button type="button" class="icon-button" aria-label={revealLabel(window.pulp.platform)} onClick={() => void window.pulp.revealFile(file)}>
         <Icon name="folder" />
       </button>
-      <button type="button" class="icon-button" aria-label="Copy path" onClick={() => void window.pulp.copyFilePath(file)}>
+      <button type="button" class="icon-button" aria-label={t('queue.copy-path.aria-label')} onClick={() => void window.pulp.copyFilePath(file)}>
         <Icon name="copy" />
       </button>
-      <button type="button" class="icon-button" aria-label="Remove from the tray" onClick={() => void window.pulp.removeRender(card.id)}>
+      <button type="button" class="icon-button" aria-label={t('queue.remove.aria-label')} onClick={() => void window.pulp.removeRender(card.id)}>
         <Icon name="x" />
       </button>
     </span>
@@ -135,11 +136,11 @@ function Job({ job }: { job: RenderQueueJob }) {
         {card.status.progress !== undefined && <progress max={1} value={card.status.progress} />}
         <span class={`job-status ${card.status.kind}`}>{card.status.text}</span>
       </span>
-      {card.draggable && <span class="drag-hint">Drag to your editor</span>}
+      {card.draggable && <span class="drag-hint">{t('queue.drag-hint')}</span>}
       <Actions card={card} />
       {!isFinished(job) && (
         <button type="button" class="job-cancel" onClick={() => void window.pulp.cancelRender(job.id)}>
-          Cancel
+          {t('queue.cancel')}
         </button>
       )}
     </li>
@@ -150,7 +151,7 @@ function Queue() {
   const list = jobs.value;
   // The tray's one-line summary already says when there is nothing; this message is
   // only worth showing when the tray is otherwise bare.
-  if (list.length === 0) return appState.value.collection.items.length > 0 ? null : <li class="empty">Nothing rendered yet.</li>;
+  if (list.length === 0) return appState.value.collection.items.length > 0 ? null : <li class="empty">{t('queue.empty')}</li>;
   return (
     <>
       {list.map((job) => (

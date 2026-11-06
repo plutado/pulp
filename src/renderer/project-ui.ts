@@ -10,9 +10,9 @@
  */
 
 import { effect } from '@preact/signals';
-import { UNTITLED_PROJECT } from '../core/app-state';
 import { appState } from './store';
-import { isDirty, newProject, offerRecovery, openProjectFrom, projectDirty, relinkMissing, saveProject, setUnsavedPrompt } from './project';
+import { isDirty, newProject, offerRecovery, openProjectFrom, projectDirty, relinkMissing, saveProject, setUnsavedPrompt, shownProjectName } from './project';
+import { bindAttr, bindText, t } from './i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -46,7 +46,7 @@ async function fillRecent(): Promise<void> {
     const forget = document.createElement('button');
     forget.type = 'button';
     forget.className = 'icon-button';
-    forget.setAttribute('aria-label', `Forget ${fileName(path)}`);
+    bindAttr(forget, 'aria-label', 'project.recent.forget', { name: fileName(path) });
     forget.textContent = '×';
     forget.addEventListener('click', () => {
       void window.pulp.forgetProject(path).then(() => fillRecent());
@@ -96,16 +96,16 @@ function ask<T>(dialogId: string, buttons: Record<string, T>, onEscape: T): Prom
 
 /** Ask what to do about unsaved changes. Escaping the question changes nothing, so it cancels. */
 function askUnsaved(name: string): Promise<'save' | 'discard' | 'cancel'> {
-  $('unsaved-text').textContent = `"${name}" has changes that have not been saved. Save them before carrying on?`;
+  bindText($('unsaved-text'), 'project.unsaved.text', { name });
   return ask('unsaved-dialog', { 'unsaved-save': 'save', 'unsaved-discard': 'discard', 'unsaved-cancel': 'cancel' } as const, 'cancel');
 }
 
 /** Offer a recovery copy. Declining clears it, so the question is asked once; escaping declines. */
 function askRecovery(name: string, savedAt: string): Promise<boolean> {
   const when = savedAt ? new Date(savedAt) : null;
-  const stamp = when && !Number.isNaN(when.getTime()) ? ` from ${when.toLocaleString()}` : '';
-  $('recovery-text').textContent =
-    `Pulp closed with unsaved changes to "${name}"${stamp}. Recover them? Discarding them cannot be undone.`;
+  const text = $('recovery-text');
+  if (when && !Number.isNaN(when.getTime())) bindText(text, 'recover.text.dated', { name, when: when.toLocaleString() });
+  else bindText(text, 'recover.text', { name });
   return ask('recovery-dialog', { 'recovery-open': true, 'recovery-discard': false }, false);
 }
 
@@ -118,16 +118,20 @@ export function initProjectUi(): void {
   // title says the same thing (src/main/index.ts), so neither has to be looked for.
   effect(() => {
     const s = appState.value;
-    button.querySelector('.label')!.textContent = s.project.name || UNTITLED_PROJECT;
+    // The name is the project's own, not the markup's Untitled: its stamp goes, and the effect
+    // itself follows a change of language (`t` reads the locale), Untitled included (milestone 59).
+    const label = button.querySelector<HTMLElement>('.label')!;
+    delete label.dataset.i18n;
+    label.textContent = shownProjectName(s.project.name, s.project.path);
     button.classList.toggle('dirty', projectDirty.value);
-    button.title = s.project.path ?? 'Not saved anywhere yet';
+    button.title = s.project.path ?? t('project.button.not-saved');
   });
 
   button.addEventListener('click', () => {
     const s = appState.value;
-    $('project-where').textContent = s.project.path
-      ? `${s.project.name} — ${s.project.path}${isDirty() ? ' (unsaved changes)' : ''}`
-      : 'This project has not been saved anywhere yet.';
+    const where = $('project-where');
+    if (!s.project.path) bindText(where, 'project.where.not-saved');
+    else bindText(where, isDirty() ? 'project.where.unsaved' : 'project.where', { name: s.project.name, path: s.project.path });
     void fillRecent();
     dialog.showModal();
   });
@@ -173,9 +177,9 @@ export async function askAboutRecovery(): Promise<boolean> {
 export async function offerInterruptedRenders(): Promise<void> {
   const jobs = await window.pulp.interruptedRenders();
   if (jobs.length === 0) return;
-  const named = jobs.slice(0, 3).map((j) => `"${j.label}"`).join(', ');
-  const more = jobs.length > 3 ? ` and ${jobs.length - 3} more` : '';
-  $('interrupted-text').textContent =
-    `Pulp closed while rendering ${named}${more}. The unfinished ${jobs.length === 1 ? 'file has' : 'files have'} been removed. Render ${jobs.length === 1 ? 'it' : 'them'} again now, to the same ${jobs.length === 1 ? 'place' : 'places'}?`;
+  const names = jobs.slice(0, 3).map((j) => t('recover.renders.name', { name: j.label })).join(', ');
+  const text = $('interrupted-text');
+  if (jobs.length > 3) bindText(text, 'recover.renders.text.more', { count: jobs.length, names, more: jobs.length - 3 });
+  else bindText(text, 'recover.renders.text', { count: jobs.length, names });
   if (await ask('interrupted-dialog', { 'interrupted-render': true, 'interrupted-skip': false }, false)) await window.pulp.renderAgain();
 }

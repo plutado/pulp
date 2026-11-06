@@ -17,6 +17,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { detectFfmpeg, nodeRunner } from '../core/ffmpeg';
+import { tr } from '../core/i18n';
 import { freeRecordingPath, RECORDINGS_FOLDER_NAME, writeRecordingFile } from '../core/recording';
 import { cameraFrameRate, h264EncodersFor, TakeFile, videoTakeArgs, type TakeRate } from '../core/video-take';
 import type { DeviceAccess, MediaDevice, SavedRecording, SavedVideoTake, VideoTakeFacts } from '../shared/api';
@@ -33,12 +34,13 @@ export function recordingsDir(): string {
  * into Recordings only once it is whole.
  */
 function stagingDir(): string {
-  return join(app.getPath('userData'), 'Recordings in progress');
+  return join(app.getPath('userData'), 'Recordings in progress'); // i18n-exempt(content): a folder on disk
 }
 
-const REFUSED: Record<MediaDevice, string> = {
-  microphone: 'Pulp may not use the microphone. Allow it in the system settings, then record again.',
-  camera: 'Pulp may not use the camera. Allow it in the system settings, then record again.',
+/** What is said when the system refuses a device, in the interface's language when it is said. */
+const REFUSED: Record<MediaDevice, () => string> = {
+  microphone: () => tr('recording.refused.microphone'),
+  camera: () => tr('recording.refused.camera'),
 };
 
 /**
@@ -50,7 +52,7 @@ const REFUSED: Record<MediaDevice, string> = {
  */
 async function deviceAccess(device: MediaDevice): Promise<DeviceAccess> {
   if (process.env.PULP_FAKE_MEDIA) return { ok: true };
-  const refused = { ok: false as const, device, message: REFUSED[device], canOpenSettings: process.platform !== 'linux' };
+  const refused = { ok: false as const, device, message: REFUSED[device](), canOpenSettings: process.platform !== 'linux' };
   if (process.platform === 'darwin') {
     const status = systemPreferences.getMediaAccessStatus(device);
     if (status === 'granted') return { ok: true };
@@ -119,7 +121,7 @@ export async function beginVideoTake(): Promise<string> {
 
 export function appendVideoTake(id: string, piece: Uint8Array): Promise<void> {
   const take = videoTakes.get(id);
-  if (!take) return Promise.reject(new Error('That recording is not open.'));
+  if (!take) return Promise.reject(new Error(tr('recording.not-open')));
   return take.file.append(piece);
 }
 
@@ -130,12 +132,15 @@ export async function abandonVideoTake(id: string): Promise<void> {
   await take?.file.discard();
 }
 
+/** Why a take could not be converted: the note says it in a sentence of its own for each. */
+type NotConverted = { ok: false; why: 'no-ffmpeg' } | { ok: false; why: 'no-encoder' } | { ok: false; why: 'failed'; detail: string };
+
 /** Convert with the first H.264 encoder that works here; null — with why — when none did. */
-async function convertTake(input: string, output: string, facts: VideoTakeFacts, rate: TakeRate): Promise<{ ok: true } | { ok: false; why: string }> {
+async function convertTake(input: string, output: string, facts: VideoTakeFacts, rate: TakeRate): Promise<{ ok: true } | NotConverted> {
   const ffmpeg = await detectFfmpeg();
-  if (!ffmpeg.ok) return { ok: false, why: 'FFmpeg was not found to convert it' };
+  if (!ffmpeg.ok) return { ok: false, why: 'no-ffmpeg' };
   const encoders = h264EncodersFor(ffmpeg.encoders);
-  if (encoders.length === 0) return { ok: false, why: 'this FFmpeg has no H.264 encoder' };
+  if (encoders.length === 0) return { ok: false, why: 'no-encoder' };
   let last = '';
   for (const encoder of encoders) {
     const result = await nodeRunner(ffmpeg.path, videoTakeArgs({ input, output, rate, sound: facts.sound, encoder, width: facts.width, height: facts.height }));
@@ -143,7 +148,7 @@ async function convertTake(input: string, output: string, facts: VideoTakeFacts,
     last = result.stderr.trim().split('\n').at(-1) ?? '';
     await rm(output, { force: true });
   }
-  return { ok: false, why: `FFmpeg could not convert it (${last || 'no reason given'})` };
+  return { ok: false, why: 'failed', detail: last || 'no reason given' }; // i18n-exempt(diagnostic): FFmpeg's last line, or that it gave none
 }
 
 /**
@@ -155,12 +160,12 @@ async function convertTake(input: string, output: string, facts: VideoTakeFacts,
  */
 export async function finishVideoTake(id: string, facts: VideoTakeFacts): Promise<SavedVideoTake> {
   const take = videoTakes.get(id);
-  if (!take) throw new Error('That recording is not open.');
+  if (!take) throw new Error(tr('recording.not-open'));
   videoTakes.delete(id);
   const size = await take.file.close();
   if (size === 0) {
     await rm(take.file.path, { force: true });
-    throw new Error('The camera recorded nothing.');
+    throw new Error(tr('recording.camera.nothing'));
   }
   const staged = join(stagingDir(), `${id}.mp4`);
   const converted = await convertTake(take.file.path, staged, facts, cameraFrameRate(facts.frameRate));
@@ -175,7 +180,9 @@ export async function finishVideoTake(id: string, facts: VideoTakeFacts): Promis
   } else {
     path = freeRecordingPath(recordingsDir(), take.at, 'webm');
     await rename(take.file.path, path);
-    note = `Kept as WebM: ${converted.why}. Pulp plays it; an editor may not open it.`;
+    note = converted.why === 'no-ffmpeg' ? tr('recording.kept-webm.no-ffmpeg')
+      : converted.why === 'no-encoder' ? tr('recording.kept-webm.no-encoder')
+        : tr('recording.kept-webm.failed', { detail: converted.detail });
   }
   return { path, id: await intoLibrary(path), converted: converted.ok, note };
 }

@@ -16,6 +16,7 @@
  * with more than two forms (few, many) needs nothing but the forms.
  */
 
+import { signal } from '@preact/signals-core';
 import { enUS, type MessageId } from '../locales/en-US';
 import { enGB } from '../locales/en-GB';
 
@@ -26,11 +27,24 @@ export type Message = string | Partial<Record<Intl.LDMLPluralRule, string>> & { 
 
 export type Catalog = Partial<Record<MessageId, Message>>;
 
-/** The languages offered, in the order Settings → Language lists them: English first. */
+/**
+ * The languages offered, in the order Settings → Language lists them: English first. Each is
+ * labeled in its own language — "Deutsch", not "German" — and never translated, so a person can
+ * find theirs whatever language the window is in now.
+ *
+ * A `variant` of the source (British English) holds only what it says differently and falls back
+ * for the rest by design. Any other language holds every message: one that fell back would show
+ * the window half in English, so the tests refuse a catalog with a message missing.
+ */
 export const LOCALES = [
-  { id: 'en-US', label: 'English (US)', dir: 'ltr' },
-  { id: 'en-GB', label: 'English (UK)', dir: 'ltr' },
+  { id: 'en-US', label: 'English (US)', dir: 'ltr', variant: false }, // i18n-exempt(content): a language's own name for itself
+  { id: 'en-GB', label: 'English (UK)', dir: 'ltr', variant: true }, // i18n-exempt(content): a language's own name for itself
 ] as const;
+
+/** The catalog a locale brings, before the source fills in what it does not say: for checking one. */
+export function ownCatalog(locale: LocaleId): Catalog {
+  return CATALOGS[locale];
+}
 
 export type LocaleId = (typeof LOCALES)[number]['id'];
 
@@ -122,6 +136,39 @@ export function translator(locale: LocaleId): Translator {
 
 /** US English: what a caller that has no language of its own yet — a test, a headless render — reads. */
 export const SOURCE_TRANSLATOR: Translator = translator(SOURCE_LOCALE);
+
+// ---------------------------------------------------------------- the language now
+
+/**
+ * The language the interface is in now, in this process: the window sets it from Settings →
+ * Language (src/renderer/i18n.ts), the main process from the same setting (src/main/language-service.ts),
+ * and a test or a headless render leaves it at the source. A signal, so anything that reads a word
+ * through `tr` inside an effect or a component is drawn again when the language changes.
+ */
+export const currentLocale = signal<LocaleId>(SOURCE_LOCALE);
+
+const catalogs = new Map<LocaleId, Catalog>();
+
+function cachedCatalog(locale: LocaleId): Catalog {
+  let catalog = catalogs.get(locale);
+  if (!catalog) catalogs.set(locale, (catalog = catalogFor(locale)));
+  return catalog;
+}
+
+export function setCurrentLocale(locale: LocaleId): void {
+  currentLocale.value = locale;
+}
+
+/**
+ * A message in the language the interface is in now: what every word built in code reads. A table
+ * of names (the taxonomy, the presets, the categories) reads through it in a getter, so its `label`
+ * is always the current language's and its callers need not know — while whatever a module works out
+ * from a label once, at load (search's aliases), is the source's, which a typed English word still finds.
+ */
+export function tr(id: MessageId, values?: MessageValues): string {
+  const locale = currentLocale.value;
+  return translate(cachedCatalog(locale), locale, id, values);
+}
 
 /** The placeholders a message uses, across all its forms: a translation must use the same ones. */
 export function placeholdersOf(message: Message): string[] {

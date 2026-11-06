@@ -16,16 +16,18 @@
 import { PICKER_LIMIT, searchPlaceable, type PlaceableItem } from '../core/search';
 import { mediaUrlFor } from '../shared/api';
 import { appState } from './store';
+import { t } from './i18n';
+import type { MessageId } from '../core/i18n';
 
 export interface MediaPickerOptions {
   /** Which kind of layer may be made here; a clip chooser takes Lotties too (milestone 35), a sound chooser music and voice-overs (milestone 48). */
   layers: readonly ('image' | 'video' | 'audio')[];
-  /** What these are called, for the search box and the empty lines: "stills", "clips", "sounds". */
-  noun: string;
+  /** What these are, for the search box and the empty lines: "stills", "clips", "sounds", "stems" — each said in the catalog. */
+  noun: PickerNoun;
   /** What the chooser is for, for the search box's accessible name: "Logo". */
   label: string;
   /** What to say when the library holds none of them at all. */
-  emptyLibrary: string;
+  emptyLibrary: MessageId;
   /** The id chosen now, so the list can mark it. */
   chosen: () => string | undefined;
   /** Chosen. The picker closes itself first, so this is free to rebuild the card around it. */
@@ -33,6 +35,16 @@ export interface MediaPickerOptions {
   /** Anything else that belongs beside the search box (the stills chooser's File…). */
   head?: readonly HTMLElement[];
 }
+
+export type PickerNoun = 'stills' | 'clips' | 'sounds' | 'stems';
+
+/** The search box's words and the no-match line, by what is being chosen: whole sentences, not a noun put into one. */
+const PICKER_WORDS: Record<PickerNoun, { field: MessageId; name: MessageId; none: MessageId }> = {
+  stills: { field: 'picker.search.stills', name: 'picker.search.stills.aria-label', none: 'picker.no-match.stills' },
+  clips: { field: 'picker.search.clips', name: 'picker.search.clips.aria-label', none: 'picker.no-match.clips' },
+  sounds: { field: 'picker.search.sounds', name: 'picker.search.sounds.aria-label', none: 'picker.no-match.sounds' },
+  stems: { field: 'picker.search.stems', name: 'picker.search.stems.aria-label', none: 'picker.no-match.stems' },
+};
 
 export interface MediaPicker {
   /** The element to put in the field; hidden until it is opened. */
@@ -53,8 +65,9 @@ export function mediaPicker(options: MediaPickerOptions): MediaPicker {
   head.className = 'picker-head';
   const search = document.createElement('input');
   search.type = 'search';
-  search.placeholder = `Search ${options.noun}`;
-  search.setAttribute('aria-label', `Search ${options.noun} for ${options.label}`);
+  const words = PICKER_WORDS[options.noun];
+  search.placeholder = t(words.field);
+  search.setAttribute('aria-label', t(words.name, { label: options.label }));
   head.append(search, ...(options.head ?? []));
 
   const choices = document.createElement('ul');
@@ -67,7 +80,7 @@ export function mediaPicker(options: MediaPickerOptions): MediaPicker {
     if (found.length === 0) {
       const li = document.createElement('li');
       li.className = 'note';
-      li.textContent = search.value.trim() ? `No ${options.noun} match.` : options.emptyLibrary;
+      li.textContent = search.value.trim() ? t(words.none) : t(options.emptyLibrary);
       choices.append(li);
       return;
     }
@@ -97,7 +110,7 @@ export function mediaPicker(options: MediaPickerOptions): MediaPicker {
       if (entry.lottie) {
         const badge = document.createElement('span');
         badge.className = 'choice-badge';
-        badge.textContent = 'Lottie';
+        badge.textContent = t('picker.badge.lottie');
         button.append(badge);
       }
       button.addEventListener('click', () => {

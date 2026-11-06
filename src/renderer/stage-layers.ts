@@ -14,6 +14,7 @@ import { angleFromDrag, clampPlacement, clampScale, EMPTY_LAID, framePointIn, hi
 import { isIdentityPlacement, placementFor, type Layer, type LayerPlacement, type LayerPlacements } from '../core/layers';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import { layerEditor, selectedLayer } from './layer-edit';
+import { bindAttr, t } from './i18n';
 
 /** How close a drag has to come to a line before it takes, in screen pixels. */
 const SNAP_SCREEN_PX = 6;
@@ -163,7 +164,7 @@ function paintSelection(): void {
   const rotate = document.createElement('div');
   rotate.className = 'stage-handle rotate';
   rotate.dataset.handle = 'rotate';
-  rotate.title = 'Turn the layer; hold Shift for 15° steps';
+  bindAttr(rotate, 'title', 'stage.layer.rotate.title');
   el.append(rotate);
   if (drag?.kind === 'rotate') {
     const readout = document.createElement('div');
@@ -369,7 +370,7 @@ export function mountStageDrop(
     const found = lookup(itemId);
     if (!found) return;
     if (found.kind === 'other') {
-      note('Only a picture, a clip or a sound can be dropped on the stage.');
+      note(t('stage.drop.refused'));
       return;
     }
     // A clip from the library lands on the cut track (milestone 49): the shots of the project.

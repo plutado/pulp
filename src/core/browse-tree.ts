@@ -13,11 +13,16 @@
  * map of what the library has, not of the whole vocabulary. The fixed places —
  * Favorites, Recently used, Untyped, folders — are always there and dim at
  * zero. Pure.
+ *
+ * A node's label and description, and its scope's label, are getters reading the
+ * message catalog (milestone 59): the tree is rebuilt only when what it counts
+ * changes, so a change of language must reach it when it is drawn, not built.
  */
 
 import type { Scope } from './app-state';
 import { BROWSE_CATEGORIES, categoryScope, MATCHING_SETS, typeScope } from './categories';
-import { rootLabel } from './display';
+import { rootLabel, typeLabel } from './display';
+import { tr } from './i18n';
 import type { LibraryEntry } from './library-types';
 import { entryType } from './taxonomy';
 import { MADE_FOR_VERTICAL_TAG } from './vertical-layout';
@@ -25,7 +30,7 @@ import { MADE_FOR_VERTICAL_TAG } from './vertical-layout';
 export interface TreeNode {
   /** Unique within the tree: "category:lower-thirds", "type:wipe", "pack:news", "root:/path", "untyped"… */
   id: string;
-  label: string;
+  readonly label: string;
   /** Entries this node would scope to. */
   count: number;
   /** Null for a heading that only groups children. */
@@ -76,8 +81,8 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
       if (packs.length === 0) continue;
       categoryNodes.push({
         id: `category:${category.id}`,
-        label: category.label,
-        description: category.description,
+        get label() { return category.label; },
+        get description() { return category.description; },
         count: packs.reduce((n, [, p]) => n + p.count, 0),
         // Selectable itself (milestone 34's card test): everything from any set, `pack:any`.
         scope: categoryScope(category),
@@ -91,38 +96,42 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     const scope = categoryScope(category);
     const children = category.types.length < 2
       ? []
-      : category.types.filter((t) => (byType.get(t) ?? 0) > 0).map((t): TreeNode => ({ id: `type:${t}`, label: typeScope(t).label, count: byType.get(t) ?? 0, scope: typeScope(t), children: [] }));
-    categoryNodes.push({ id: `category:${category.id}`, label: category.label, description: category.description, count, scope, children });
+      : category.types.filter((t) => (byType.get(t) ?? 0) > 0).map((t): TreeNode => ({ id: `type:${t}`, get label() { return typeLabel(t); }, count: byType.get(t) ?? 0, scope: typeScope(t), children: [] }));
+    categoryNodes.push({ id: `category:${category.id}`, get label() { return category.label; }, get description() { return category.description; }, count, scope, children });
   }
   // Always present: the place for what has no type yet, dimmed when nothing is there.
-  categoryNodes.push({ id: 'untyped', label: 'Untyped', description: 'Items no folder or manifest has said the type of yet.', count: untyped, scope: { label: 'Untyped', filter: 'type:untyped', kind: 'untyped' }, children: [] });
-  const categories: TreeNode = { id: 'categories', label: 'Categories', count: entries.length, scope: null, fixed: true, children: categoryNodes };
+  categoryNodes.push({
+    id: 'untyped', get label() { return tr('browse.untyped'); }, get description() { return tr('browse.untyped.description'); }, count: untyped,
+    scope: { get label() { return tr('browse.untyped'); }, filter: 'type:untyped', kind: 'untyped' }, children: [],
+  });
+  const categories: TreeNode = { id: 'categories', get label() { return tr('browse.categories'); }, count: entries.length, scope: null, fixed: true, children: categoryNodes };
 
   const quick: TreeNode = {
     id: 'quick',
-    label: 'Quick access',
+    get label() { return tr('browse.quick'); },
     count: entries.length,
     scope: null,
     children: [
-      { id: 'favorites', label: 'Favorites', count: favorites, scope: { label: 'Favorites', filter: 'favorite:yes', kind: 'favorites' }, children: [] },
-      { id: 'recent', label: 'Recently used', count: recent, scope: { label: 'Recently used', filter: 'recent:yes', kind: 'recent' }, children: [] },
+      { id: 'favorites', get label() { return tr('browse.favorites'); }, count: favorites, scope: { get label() { return tr('browse.favorites'); }, filter: 'favorite:yes', kind: 'favorites' }, children: [] },
+      { id: 'recent', get label() { return tr('browse.recent'); }, count: recent, scope: { get label() { return tr('browse.recent'); }, filter: 'recent:yes', kind: 'recent' }, children: [] },
       // Designed tall first (milestone 65, docs/vertical-layouts.md): there when the library has any.
       ...(vertical > 0 ? [{
-        id: 'vertical', label: 'Made for vertical', count: vertical,
-        description: 'Designed for a tall 9:16 frame first: hook titles, captions, frame layouts and overlays placed clear of what the short-video apps lay over the picture.',
-        scope: { label: 'Made for vertical', filter: `tag:${MADE_FOR_VERTICAL_TAG}`, kind: 'vertical' as const }, children: [],
+        id: 'vertical', get label() { return tr('browse.vertical'); }, count: vertical,
+        get description() { return tr('browse.vertical.description'); },
+        scope: { get label() { return tr('browse.vertical'); }, filter: `tag:${MADE_FOR_VERTICAL_TAG}`, kind: 'vertical' as const }, children: [],
       }] : []),
     ],
   };
 
   const folders: TreeNode = {
     id: 'folders',
-    label: 'My folders',
+    get label() { return tr('browse.folders'); },
     count: roots.length,
     scope: null,
     children: roots.map((root) => {
-      const label = rootLabel(root, builtInRoot);
-      return { id: `root:${root}`, label, count: byRoot.get(root) ?? 0, scope: { label, root, kind: root === builtInRoot ? 'built-in' : 'folder' }, children: [] };
+      // The bundled root is named in the interface's language; a folder's own name is the same in any.
+      const label = () => rootLabel(root, builtInRoot);
+      return { id: `root:${root}`, get label() { return label(); }, count: byRoot.get(root) ?? 0, scope: { get label() { return label(); }, root, kind: root === builtInRoot ? 'built-in' : 'folder' }, children: [] };
     }),
   };
 

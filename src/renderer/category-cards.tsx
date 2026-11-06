@@ -14,6 +14,7 @@ import { categoryCards } from '../core/categories';
 import { browseFoldToActive } from './browse';
 import { Icon, isIconName } from './icons';
 import { appState, dispatch, facets, hasIndex } from './store';
+import { t } from './i18n';
 
 /** Cards apply with nothing typed; a search is already an answer, and the cards would only push it down. */
 const cards = computed(() => {
@@ -36,7 +37,7 @@ function Cards() {
           class="category-card"
           data-card={card.id}
           data-tip={card.description || undefined}
-          aria-label={`${card.label}, ${card.count} ${card.count === 1 ? 'item' : 'items'}`}
+          aria-label={t('browse.card.aria-label', { label: card.label, count: card.count })}
           onClick={() => {
             dispatch((s) => setScope(s, card.scope));
             browseFoldToActive();

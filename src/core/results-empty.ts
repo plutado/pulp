@@ -9,6 +9,7 @@
  */
 
 import type { FilterChipId, Scope } from './app-state';
+import { tr } from './i18n';
 import type { LibraryIndex } from './library-types';
 
 /** Why the region is empty. */
@@ -62,13 +63,13 @@ export function emptyResults(context: ResultsContext): EmptyResults | null {
   // Nothing anywhere: the library itself is what is missing, whatever else is set.
   if (index.templates.length === 0 && index.media.length === 0) {
     return {
-      reason: 'library',
-      title: 'Nothing in the library yet',
-      detail: 'Add a folder of templates or media. Pulp can also make a folder of sample media to try.',
+      reason: 'library', // i18n-exempt(technical): which reason, not its words
+      title: tr('results.empty.library.title'),
+      detail: tr('results.empty.library.detail'),
       actions: [
         // The words the Add menu uses, so the same thing is called the same thing (milestone 47).
-        { id: 'add-folder', label: 'Your media folder…' },
-        { id: 'add-sample-media', label: 'Sample media…' },
+        { id: 'add-folder', label: tr('results.empty.add-folder') },
+        { id: 'add-sample-media', label: tr('results.empty.add-sample-media') },
       ],
     };
   }
@@ -77,13 +78,13 @@ export function emptyResults(context: ResultsContext): EmptyResults | null {
   const chips = filters.length + (context.forTheme ? 1 : 0) + (context.look ? 1 : 0);
   if (query !== '' || chips > 0) {
     const actions: EmptyAction[] = [];
-    if (query !== '') actions.push({ id: 'clear-search', label: 'Clear search' });
-    if (chips > 0) actions.push({ id: 'clear-filters', label: chips > 1 ? 'Clear filters' : 'Clear filter' });
-    if (scope) actions.push({ id: 'clear-scope', label: 'Search the whole library' });
+    if (query !== '') actions.push({ id: 'clear-search', label: tr('results.empty.clear-search') });
+    if (chips > 0) actions.push({ id: 'clear-filters', label: tr('results.empty.clear-filters', { count: chips }) });
+    if (scope) actions.push({ id: 'clear-scope', label: tr('results.empty.clear-scope') });
     return {
-      reason: 'search',
-      title: query !== '' ? `No matches for “${query}”` : 'No matches',
-      detail: scope ? `Nothing in ${scope.label} matches. Searching the whole library may find it.` : undefined,
+      reason: 'search', // i18n-exempt(technical): which reason, not its words
+      title: query !== '' ? tr('results.empty.search.title-query', { query }) : tr('results.empty.search.title'),
+      detail: scope ? tr('results.empty.search.detail-scope', { scope: scope.label }) : undefined,
       actions,
     };
   }
@@ -91,17 +92,18 @@ export function emptyResults(context: ResultsContext): EmptyResults | null {
   // A corner of the library with nothing in it.
   if (scope) {
     return {
-      reason: 'scope',
-      title: `Nothing in ${scope.label} yet`,
-      detail: 'Items land here when something in the library carries it.',
-      actions: [{ id: 'clear-scope', label: 'Search the whole library' }],
+      reason: 'scope', // i18n-exempt(technical): which reason, not its words
+      title: tr('results.empty.scope.title', { scope: scope.label }),
+      detail: tr('results.empty.scope.detail'),
+      actions: [{ id: 'clear-scope', label: tr('results.empty.clear-scope') }],
     };
   }
 
-  return { reason: 'none', title: 'Nothing to show', actions: [] };
+  // i18n-exempt(technical): which reason, not its words
+  return { reason: 'none', title: tr('results.empty.none.title'), actions: [] };
 }
 
 /** The region's own label, which says what it holds whether or not it holds anything. */
 export function resultsLabel(count: number): string {
-  return `Results · ${count} ${count === 1 ? 'item' : 'items'}`;
+  return tr('results.label', { count });
 }

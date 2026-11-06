@@ -12,6 +12,7 @@ import { clipValueFromText } from './video-layer';
 import { soundValueFromText } from './sound-layer';
 import type { TemplateManifest } from './manifest';
 import { LAYERS_KEY, LENGTH_KEY } from './params';
+import { tr } from './i18n';
 
 export interface BatchRow {
   /** 1-based row number in the CSV, excluding the header. */
@@ -103,7 +104,7 @@ export function planBatch(manifest: HoldManifest & Pick<TemplateManifest, 'param
   const plan: BatchPlan = { columns: [], unknownColumns: [], rows: [], warnings: [] };
   const table = parseCsv(csv);
   if (table.length === 0) {
-    plan.warnings.push('The CSV is empty.');
+    plan.warnings.push(tr('batch.warning.empty'));
     return plan;
   }
   const headers = table[0]!.map((h) => h.trim());
@@ -161,18 +162,18 @@ export function planBatch(manifest: HoldManifest & Pick<TemplateManifest, 'param
     if (h !== '') plan.unknownColumns.push(h);
     return null;
   });
-  if (plan.columns.length === 0) plan.warnings.push('No column matches a parameter or a layer of this template.');
+  if (plan.columns.length === 0) plan.warnings.push(tr('batch.warning.no-columns'));
   if (plan.unknownColumns.length > 0) {
-    plan.warnings.push(`Unknown column${plan.unknownColumns.length > 1 ? 's' : ''} ignored: ${plan.unknownColumns.join(', ')}.`);
+    plan.warnings.push(tr('batch.warning.unknown-columns', { count: plan.unknownColumns.length, columns: plan.unknownColumns.join(', ') }));
   }
   if (holdIndex >= 0) {
-    plan.warnings.push(`"${LEGACY_HOLD_LABEL}" is no longer a parameter of this template: each row's value becomes the length that matches that hold.`);
+    plan.warnings.push(tr('batch.warning.legacy-hold', { label: LEGACY_HOLD_LABEL }));
   }
   // The row's label when no name column: the first text parameter with a column, else the first text layer with one.
   const firstText = manifest.parameters.find((p) => p.type === 'text' && columnIds.includes(p.id))?.id;
   // A clip id makes a poor file name, and so does a settings cell, so only a text layer's words name a row.
   const firstLayerColumn = [...layerColumns.entries()].filter(([, l]) => l.type === 'text' && !l.settings).map(([i]) => i).sort((a, b) => a - b)[0];
-  if (table.length === 1) plan.warnings.push('The CSV has a header but no rows.');
+  if (table.length === 1) plan.warnings.push(tr('batch.warning.no-rows'));
 
   const used = new Map<string, number>();
   for (let r = 1; r < table.length; r++) {
@@ -193,7 +194,7 @@ export function planBatch(manifest: HoldManifest & Pick<TemplateManifest, 'param
       // JSON is reported here, since nothing downstream would see it, and changes nothing.
       const settings = layer.settings ? parseSettings(v) : undefined;
       if (layer.settings && settings === null) {
-        plan.warnings.push(`Row ${r}: "${layer.id} settings" is not a JSON object; ignored.`);
+        plan.warnings.push(tr('batch.warning.row-settings-not-json', { row: r, layer: layer.id }));
         return;
       }
       layers ??= defaultLayers({ blocks: [...(manifest.blocks ?? [])] });
@@ -214,7 +215,7 @@ export function planBatch(manifest: HoldManifest & Pick<TemplateManifest, 'param
       const cell = cells[holdIndex]?.trim() ?? '';
       if (cell !== '') {
         const length = lengthForLegacyHold(manifest, cell);
-        if (length === null) plan.warnings.push(`Row ${r}: "${LEGACY_HOLD_LABEL}" is not a number of seconds; ignored.`);
+        if (length === null) plan.warnings.push(tr('batch.warning.row-legacy-hold-nan', { row: r, label: LEGACY_HOLD_LABEL }));
         else params[LENGTH_KEY] = length;
       }
     }

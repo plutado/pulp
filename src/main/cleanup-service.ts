@@ -17,6 +17,7 @@ import {
   sceneDetectArgs, sceneFolder, scenePattern, sceneSplitArgs, type ChromaKeySettings,
 } from '../core/clip-clean';
 import { detectFfmpeg, runForBuffer } from '../core/ffmpeg';
+import { tr } from '../core/i18n';
 import { lookupMedia, rescan } from './library-service';
 
 /** Keying or splitting a long file decodes the whole of it; generous, but an end. */
@@ -38,7 +39,7 @@ async function ffmpegPath(): Promise<string | null> {
 async function run(ffmpeg: string, args: string[]): Promise<{ code: number; stdout: Buffer; stderr: string }> {
   return Promise.race([
     runForBuffer(ffmpeg, args),
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('ffmpeg did not finish in time')), CLEANUP_TIMEOUT_MS)),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(tr('cleanup.timeout'))), CLEANUP_TIMEOUT_MS)),
   ]);
 }
 
@@ -49,9 +50,9 @@ async function run(ffmpeg: string, args: string[]): Promise<{ code: number; stdo
  */
 export async function chromaKeyPreview(id: string, rawSettings: unknown, atSeconds: unknown): Promise<{ ok: true; plain: string; keyed: string } | { ok: false; message: string }> {
   const clip = clipFor(id);
-  if (!clip) return { ok: false, message: 'That item is not a clip in the library, or its folder is offline.' };
+  if (!clip) return { ok: false, message: tr('cleanup.not-a-clip') };
   const ffmpeg = await ffmpegPath();
-  if (!ffmpeg) return { ok: false, message: 'FFmpeg was not found, so nothing can be keyed.' };
+  if (!ffmpeg) return { ok: false, message: tr('cleanup.key.no-ffmpeg') };
   const settings = sanitizeChromaKey(rawSettings);
   // The frame asked for, held inside the clip: the playhead may have been left on a longer item.
   let at = typeof atSeconds === 'number' && Number.isFinite(atSeconds) && atSeconds >= 0 ? atSeconds : PREVIEW_SECONDS;
@@ -67,8 +68,10 @@ export async function chromaKeyPreview(id: string, rawSettings: unknown, atSecon
       run(ffmpeg, chromaKeyStillArgs(clip.path, settings, 0)),
     ]);
   }
-  if (plain.code !== 0 || plain.stdout.length === 0) return { ok: false, message: `The frame could not be read: ${plain.stderr.trim().slice(-200) || 'no error output'}` };
-  if (keyed.code !== 0 || keyed.stdout.length === 0) return { ok: false, message: `The key could not be drawn: ${keyed.stderr.trim().slice(-200) || 'no error output'}` };
+  // i18n-exempt(diagnostic): the tool's own words, or that it said none
+  if (plain.code !== 0 || plain.stdout.length === 0) return { ok: false, message: tr('cleanup.key.frame-unreadable', { detail: plain.stderr.trim().slice(-200) || 'no error output' }) };
+  // i18n-exempt(diagnostic)
+  if (keyed.code !== 0 || keyed.stdout.length === 0) return { ok: false, message: tr('cleanup.key.key-failed', { detail: keyed.stderr.trim().slice(-200) || 'no error output' }) };
   const url = (png: Buffer) => `data:image/png;base64,${png.toString('base64')}`;
   return { ok: true, plain: url(plain.stdout), keyed: url(keyed.stdout) };
 }
@@ -79,15 +82,15 @@ export async function chromaKeyPreview(id: string, rawSettings: unknown, atSecon
  */
 export async function chromaKeyClip(id: string, rawSettings: unknown): Promise<{ ok: true; path: string } | { ok: false; message: string }> {
   const clip = clipFor(id);
-  if (!clip) return { ok: false, message: 'That item is not a clip in the library, or its folder is offline.' };
+  if (!clip) return { ok: false, message: tr('cleanup.not-a-clip') };
   const ffmpeg = await ffmpegPath();
-  if (!ffmpeg) return { ok: false, message: 'FFmpeg was not found, so nothing can be keyed.' };
+  if (!ffmpeg) return { ok: false, message: tr('cleanup.key.no-ffmpeg') };
   const settings: ChromaKeySettings = sanitizeChromaKey(rawSettings);
   const output = keyedClipPath(clip.path);
-  if (existsSync(output)) return { ok: false, message: `There is already a keyed clip beside it (${output.split(/[\\/]/).pop()}); move or rename it first.` };
+  if (existsSync(output)) return { ok: false, message: tr('cleanup.key.exists', { file: output.split(/[\\/]/).pop() ?? output }) };
   try {
     const made = await run(ffmpeg, chromaKeyArgs(clip.path, settings, output));
-    if (made.code !== 0) return { ok: false, message: `ffmpeg exited with ${made.code}: ${made.stderr.trim().slice(-300) || 'no error output'}` };
+    if (made.code !== 0) return { ok: false, message: `ffmpeg exited with ${made.code}: ${made.stderr.trim().slice(-300) || 'no error output'}` }; // i18n-exempt(diagnostic)
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }
@@ -102,23 +105,23 @@ export async function chromaKeyClip(id: string, rawSettings: unknown): Promise<{
  */
 export async function splitScenes(id: string): Promise<{ ok: true; clips: number; folder: string } | { ok: false; message: string }> {
   const clip = clipFor(id);
-  if (!clip) return { ok: false, message: 'That item is not a clip in the library, or its folder is offline.' };
+  if (!clip) return { ok: false, message: tr('cleanup.not-a-clip') };
   const ffmpeg = await ffmpegPath();
-  if (!ffmpeg) return { ok: false, message: 'FFmpeg was not found, so nothing can be split.' };
+  if (!ffmpeg) return { ok: false, message: tr('cleanup.split.no-ffmpeg') };
   let cuts: number[];
   try {
     const detect = await run(ffmpeg, sceneDetectArgs(clip.path));
-    if (detect.code !== 0) return { ok: false, message: `ffmpeg exited with ${detect.code} while looking for cuts: ${detect.stderr.trim().slice(-300) || 'no error output'}` };
+    if (detect.code !== 0) return { ok: false, message: `ffmpeg exited with ${detect.code} while looking for cuts: ${detect.stderr.trim().slice(-300) || 'no error output'}` }; // i18n-exempt(diagnostic)
     cuts = parseSceneCuts(detect.stderr);
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }
-  if (cuts.length === 0) return { ok: false, message: 'No cuts were found: the footage reads as one scene.' };
+  if (cuts.length === 0) return { ok: false, message: tr('cleanup.split.no-cuts') };
   const folder = sceneFolder(clip.path);
   await mkdir(folder, { recursive: true });
   try {
     const split = await run(ffmpeg, sceneSplitArgs(clip.path, cuts, join(folder, scenePattern(clip.path))));
-    if (split.code !== 0) return { ok: false, message: `ffmpeg exited with ${split.code} while splitting: ${split.stderr.trim().slice(-300) || 'no error output'}` };
+    if (split.code !== 0) return { ok: false, message: `ffmpeg exited with ${split.code} while splitting: ${split.stderr.trim().slice(-300) || 'no error output'}` }; // i18n-exempt(diagnostic)
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }

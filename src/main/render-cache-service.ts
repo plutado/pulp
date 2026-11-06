@@ -13,6 +13,7 @@ import { basename, extname, join, resolve, sep } from 'node:path';
 import { writeFileAtomic } from '../core/atomic-file';
 import { CACHE_INDEX_FILE, cacheFileName, planEviction, sanitizeCacheIndex, type CachedFile } from '../core/render-cache';
 import { sizeLabel } from '../core/display';
+import { tr } from '../core/i18n';
 import { readFile } from 'node:fs/promises';
 import { expandSequence } from '../core/render-guard';
 import { loadSettings, updateSettings } from './settings';
@@ -98,7 +99,7 @@ export async function cacheStats(): Promise<CacheStats> {
   const dir = await cacheDir();
   const files = await listCache(dir);
   const bytes = files.reduce((n, f) => n + f.bytes, 0);
-  return { dir, files: files.length, bytes, maxMB: settings.renderCacheMaxMB, summary: `${files.length} file${files.length === 1 ? '' : 's'}, ${sizeLabel(bytes)} of ${sizeLabel(settings.renderCacheMaxMB * 1024 * 1024)}` };
+  return { dir, files: files.length, bytes, maxMB: settings.renderCacheMaxMB, summary: tr('render-cache.summary', { count: files.length, size: sizeLabel(bytes), max: sizeLabel(settings.renderCacheMaxMB * 1024 * 1024) }) };
 }
 
 /** Delete the oldest cached renders until the folder is under its limit. `keep` protects files in use. */
@@ -125,7 +126,7 @@ export async function ensureCacheDir(): Promise<string> {
 }
 
 export async function chooseRenderCacheDir(): Promise<CacheStats | null> {
-  const pick = await dialog.showOpenDialog({ title: 'Render cache folder', properties: ['openDirectory', 'createDirectory'], defaultPath: await cacheDir() });
+  const pick = await dialog.showOpenDialog({ title: tr('dialog.render-cache.title'), properties: ['openDirectory', 'createDirectory'], defaultPath: await cacheDir() });
   const folder = pick.filePaths[0];
   if (pick.canceled || !folder) return null;
   await updateSettings((s) => ({ ...s, renderCacheDir: folder }));

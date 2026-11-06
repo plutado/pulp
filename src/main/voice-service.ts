@@ -91,7 +91,7 @@ async function treat(kind: 'sound' | 'clip', id: string, voice: NonNullable<Retu
   ]);
   const made = await Promise.race([
     run,
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('the treatment did not finish in time')), TREAT_TIMEOUT_MS)),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('the treatment did not finish in time')), TREAT_TIMEOUT_MS)), // i18n-exempt(diagnostic)
   ]);
   if (made.code !== 0) {
     await rm(file, { force: true }).catch(() => undefined);

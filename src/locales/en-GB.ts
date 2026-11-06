@@ -1,14 +1,18 @@
 /**
  * The interface's words in British English (milestone 59): only what differs
- * from US English, the source (src/locales/en-US.ts) — colour, grey, centre,
+ * from US English, the source (src/locales/en-US/) — colour, grey, centre,
  * favourite, theatre, licence, customise — and US English for everything else.
- * The search field's filter keywords (`favorite:`) are syntax, not words, and
- * stay as they are typed in every language.
+ * Every entry is the source in British spelling by the rules in
+ * src/core/spelling.ts, and tests/i18n.test.ts holds the two together: a
+ * message the rules change needs its entry here, and an entry they do not
+ * change does not belong. The search field's filter keywords (`favorite:`)
+ * are syntax, not words, and stay as they are typed in every language.
  */
 
 import type { Catalog } from '../core/i18n';
 
 export const enGB: Catalog = {
+  // ---------------------------------------------------------------- markup (src/locales/en-US/markup.ts)
   'ui.chip-favorites.aria-label': 'Favourites',
   'ui.chip-favorites.data-tip': 'Favourites only',
   'ui.chip-favorites.favorites': 'Favourites',
@@ -34,6 +38,91 @@ export const enGB: Catalog = {
   'ui.key-dialog.color': 'Colour',
   'ui.pack-export-fields.an-spdx-license-identifier-e.title': 'An SPDX licence identifier, e.g. CC0-1.0 or MIT',
   'ui.pack-export-fields.license': 'Licence',
+  // ---------------------------------------------------------------- menu (src/locales/en-US/menu.ts)
   'menu.layer.exposeColor': 'Make Colour a Parameter',
   'menu.view.theater': 'Theatre',
+  // ---------------------------------------------------------------- inspector (src/locales/en-US/inspector.ts)
+  'output.asset.editor-safe.tip': 'H.264 flattened over black with the alpha beside it as a grey matte file, for editors and pipelines that cannot read an alpha channel.',
+  'voice.clean-voice.description': 'Room noise down, rumble and hum out, gently levelled, a little clarity, the esses softened',
+  'platform.summary': '{aspect} · {width} × {height} · {fps} fps · {preset} · levelled to {lufs} LUFS',
+  'preset.prores-422hq.description': 'QuickTime .mov without alpha. Transparent areas are flattened over the background colour.',
+  'preset.h264-mp4.description': 'Universal delivery or review file without alpha. Transparent areas are flattened over the background colour.',
+  'guided.summary.matte': 'A grey matte file is written beside the render, for pipelines that cannot read an alpha channel.',
+  'params.image.treatment.tinted.tip': 'Flatten the image to one colour',
+  'params.image.treatment.aria-label': 'Colour treatment',
+  'params.image.tint.aria-label': 'Tint colour',
+  'params.color.picker.title': 'Colour',
+  'params.expose.color.aria-label': '{layer}: make colour a parameter',
+  'params.expose.color.title': 'Expose the colour as a template parameter, named and edited at the top of this tab',
+  'params.clip.border-color': 'Border colour',
+  'params.layer.color': 'Colour',
+  'params.look.part.color': 'colour',
+  'params.look.shadow-color': 'Shadow colour',
+  'params.look.glow-color': 'Glow colour',
+  'params.look.outline-color': 'Outline colour',
+  'params.layer.align.center': 'Centre',
+  'params.font.license.placeholder': 'Licence note, e.g. "Bought from the foundry, desktop licence"',
+  'params.font.license.aria-label': 'Licence note for the imported font',
+  'params.font.license.ask': '{family} — its licence is yours to know. A note to keep with it:',
+  'output.media.tint': 'recoloured {color}',
+  'guided.flatten.note': 'This format keeps no transparency, so the graphic is flattened over this colour.',
+  'guided.matte.note': 'The matte is the alpha as grey, a second file, for editors and pipelines that cannot read an alpha channel.',
+  'expose.prop.color': 'Colour',
+  'expose.suggested.color': '{layer} colour',
+  // ---------------------------------------------------------------- library (src/locales/en-US/library.ts)
+  'browse.favorites': 'Favourites',
+  'info.details.license': 'Licence: {license}',
+  'tray.summary.cancelled': { one: '{count} cancelled', other: '{count} cancelled' },
+  'info.section.credits': 'Credits and licence',
+  'info.value.editable-colors': { one: '{count} colour', other: '{count} colours' },
+  'info.row.license': 'Licence',
+  'sample-hint.tip': { one: 'Make {count} original CC0 file for {label} and add them to your library. Just these, not the whole catalogue; sounds and clips need FFmpeg.', other: 'Make {count} original CC0 files for {label} and add them to your library. Just these, not the whole catalogue; sounds and clips need FFmpeg.' },
+  'sample-hint.tip.this-category': { one: 'Make {count} original CC0 file for this category and add them to your library. Just these, not the whole catalogue; sounds and clips need FFmpeg.', other: 'Make {count} original CC0 files for this category and add them to your library. Just these, not the whole catalogue; sounds and clips need FFmpeg.' },
+  'queue.status.cancelled': 'Cancelled',
+  'queue.cancelled-before-start': 'Cancelled before it started.',
+  'collection.settings.tint': 'recoloured',
+  'results.favorite.aria-label': 'Favourite',
+  'info.cleanup.note': 'Footage made ready to composite: a colour keyed to transparency, or long footage split into its scenes.',
+  'info.cleanup.key': 'Key out a colour…',
+  'info.favorite.aria-label': 'Favourite',
+  'info.layers.blend.color-dodge': 'colour dodge',
+  'info.layers.blend.color-burn': 'colour burn',
+  'info.layers.blend.color': 'colour',
+  // ---------------------------------------------------------------- stage (src/locales/en-US/stage.ts)
+  'loudness.tip.on': 'The mix measures {lufs} LUFS. A render aimed at {platform} is levelled to {target} LUFS — which is on it.',
+  'loudness.tip.above': 'The mix measures {lufs} LUFS. A render aimed at {platform} is levelled to {target} LUFS — {off} LU above it.',
+  'loudness.tip.below': 'The mix measures {lufs} LUFS. A render aimed at {platform} is levelled to {target} LUFS — {off} LU below it.',
+  'loudness.tip.peak.on': 'The mix measures {lufs} LUFS, peaking at {peak} dBTP. A render aimed at {platform} is levelled to {target} LUFS — which is on it.',
+  'loudness.tip.peak.above': 'The mix measures {lufs} LUFS, peaking at {peak} dBTP. A render aimed at {platform} is levelled to {target} LUFS — {off} LU above it.',
+  'loudness.tip.peak.below': 'The mix measures {lufs} LUFS, peaking at {peak} dBTP. A render aimed at {platform} is levelled to {target} LUFS — {off} LU below it.',
+  'loudness.tip.no-platform': 'The mix measures {lufs} LUFS (EBU R128). A render aimed at a platform is levelled to its target.',
+  'background.button.custom.aria-label': 'Preview background: custom colour {hex}',
+  'background.button.custom.data-tip': 'Background: custom colour {hex}',
+  'theater.button.off.aria-label': 'Theatre off: bring the panels back',
+  'theater.button.display.aria-label': 'Theatre: the stage fills its display',
+  'theater.button.window.aria-label': 'Theatre: the stage takes the window',
+  'background.gray': 'Grey',
+  // ---------------------------------------------------------------- app (src/locales/en-US/app.ts)
+  'start.glance.favorites': { one: '{count} favourite', other: '{count} favourites' },
+  'tour.step.search.body': 'Find templates and media by name, tag or a filter such as type:wipe or duration:>5; the chips narrow by kind, shape, transparency and favourites, and For… and Look by theme and style. Ctrl+F or ⌘F puts the caret here from anywhere.',
+  'pack-dialog.meta.license': 'licence {licenseId}',
+  'pack-dialog.license-warning': 'Pack licence: {warning}.',
+  'pack-dialog.template-license-warning': 'Template licence: {warning}.',
+  // ---------------------------------------------------------------- main-process (src/locales/en-US/main-process.ts)
+  'psd.blend.darker-color': 'darker colour',
+  'psd.blend.lighter-color': 'lighter colour',
+  'psd.limit.adjustment.color-balance': 'adjustment layer (colour balance)',
+  'psd.limit.adjustment.selective-color': 'adjustment layer (selective colour)',
+  'psd.limit.adjustment.color-lookup': 'adjustment layer (colour lookup)',
+  'psd.refused.color-mode': 'colour mode {mode} is not supported (RGB and greyscale are)',
+  'pack.license.none': 'no licence given',
+  'pack.license.not-open': 'not an open licence',
+  'pack.license.unknown': 'licence "{license}" is not in the known open list; check its terms',
+  'render.warning.loudness-unmeasured': 'The mix could not be measured for levelling ({reason}); it is levelled to {lufs} LUFS in one pass instead.',
+  'render.canceled': 'Render cancelled.',
+  'render.frames.canceled': 'Cancelled.',
+  'queue.batch.canceled': 'Batch cancelled.',
+  'queue.collection.canceled': 'Render all cancelled.',
+  'pack.export.canceled': 'Export cancelled.',
+  'about.credits': 'Built on Electron, Chromium and open-source work under their own licences: Help → Acknowledgements.',
 };

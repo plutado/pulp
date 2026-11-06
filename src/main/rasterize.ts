@@ -15,6 +15,7 @@
 import { BrowserWindow } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { tr } from '../core/i18n';
 import { pdfJsBuildDir } from './resources';
 
 let win: BrowserWindow | null = null;
@@ -48,7 +49,7 @@ async function run<T>(script: string): Promise<T> {
 
 function dataUrlToPng(dataUrl: string): Buffer {
   const prefix = 'data:image/png;base64,';
-  if (!dataUrl.startsWith(prefix)) throw new Error('the rasterizer answered something that is not a PNG');
+  if (!dataUrl.startsWith(prefix)) throw new Error('the rasterizer answered something that is not a PNG'); // i18n-exempt(diagnostic)
   return Buffer.from(dataUrl.slice(prefix.length), 'base64');
 }
 
@@ -58,6 +59,7 @@ export function rasterizeSvg(svg: string, width: number, height: number): Promis
     const w = Math.max(1, Math.round(width));
     const h = Math.max(1, Math.round(height));
     const src = `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
+    // i18n-exempt(technical)
     const dataUrl = await run<string>(`new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
@@ -82,6 +84,7 @@ async function ensurePdfJs(): Promise<void> {
   // worker started from another, so the sandboxed page reaches no scheme and no network for either.
   const lib = await readFile(join(pdfJsBuildDir(), 'pdf.min.mjs'), 'utf8');
   const worker = await readFile(join(pdfJsBuildDir(), 'pdf.worker.min.mjs'), 'utf8');
+  // i18n-exempt(technical)
   await run(`(async () => {
     const libUrl = URL.createObjectURL(new Blob([${JSON.stringify(lib)}], { type: 'text/javascript' }));
     const workerUrl = URL.createObjectURL(new Blob([${JSON.stringify(worker)}], { type: 'text/javascript' }));
@@ -104,6 +107,7 @@ export interface PdfInfo {
   groups: { ocgId: string; name: string; visible: boolean; depth: number }[];
 }
 
+// i18n-exempt(technical)
 const PDF_PAGE_HELPERS = `
   async function pulpOpenPdf(base64) {
     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -127,6 +131,7 @@ const PDF_PAGE_HELPERS = `
 export function pdfInfo(bytes: Buffer): Promise<PdfInfo> {
   return enqueue(async () => {
     await ensurePdfJs();
+    // i18n-exempt(technical)
     return run<PdfInfo>(`(async () => { ${PDF_PAGE_HELPERS}
       const { doc, page, close } = await pulpOpenPdf(${JSON.stringify(bytes.toString('base64'))});
       const viewport = page.getViewport({ scale: 96 / 72 });
@@ -135,7 +140,7 @@ export function pdfInfo(bytes: Buffer): Promise<PdfInfo> {
       const groups = flat.map((f) => {
         const group = config.getGroup(f.id) || {};
         const visible = typeof group.visible === 'boolean' ? group.visible : config.isVisible({ type: 'OCG', id: f.id }) !== false;
-        return { ocgId: f.id, name: String(group.name || 'Layer'), visible, depth: f.depth };
+        return { ocgId: f.id, name: String(group.name || ${JSON.stringify(tr('layered.layer.default-name'))}), visible, depth: f.depth };
       });
       const out = { width: Math.round(viewport.width), height: Math.round(viewport.height), pages: doc.numPages, groups };
       close();
@@ -151,6 +156,7 @@ export function pdfInfo(bytes: Buffer): Promise<PdfInfo> {
 export function rasterizePdf(bytes: Buffer, scale: number, visibleOcgIds?: readonly string[]): Promise<Buffer> {
   return enqueue(async () => {
     await ensurePdfJs();
+    // i18n-exempt(technical)
     const dataUrl = await run<string>(`(async () => { ${PDF_PAGE_HELPERS}
       const { doc, page, close } = await pulpOpenPdf(${JSON.stringify(bytes.toString('base64'))});
       const viewport = page.getViewport({ scale: ${Math.max(0.05, scale)} * 96 / 72 });

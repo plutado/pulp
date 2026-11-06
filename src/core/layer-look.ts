@@ -171,7 +171,7 @@ export function readLook(raw: unknown, base: LayerLook | undefined, issue: Issue
   if (raw === undefined) return base ? { ...base } : undefined;
   if (raw === null) return undefined;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    issue('look', 'must be an object of look settings, such as {"opacity":0.5,"blur":0.01}');
+    issue('look', 'must be an object of look settings, such as {"opacity":0.5,"blur":0.01}'); // i18n-exempt(diagnostic)
     return base ? { ...base } : undefined;
   }
   const r = raw as Record<string, unknown>;
@@ -179,35 +179,35 @@ export function readLook(raw: unknown, base: LayerLook | undefined, issue: Issue
   const number = (key: keyof LayerLook, limit: { min: number; max: number }, what: string) => {
     if (r[key] === undefined) return;
     if (inRange(r[key], limit)) (out as unknown as Record<string, number>)[key] = tidy(r[key]);
-    else issue(`look.${key}`, `must be ${what} from ${limit.min} to ${limit.max}`);
+    else issue(`look.${key}`, `must be ${what} from ${limit.min} to ${limit.max}`); // i18n-exempt(diagnostic)
   };
   const colour = (key: 'shadowColor' | 'glowColor' | 'outlineColor') => {
     if (r[key] === undefined) return;
     if (typeof r[key] === 'string' && isValidColor(r[key])) out[key] = r[key].toLowerCase();
-    else issue(`look.${key}`, 'must be a color such as #rrggbb or #rrggbbaa');
+    else issue(`look.${key}`, 'must be a color such as #rrggbb or #rrggbbaa'); // i18n-exempt(diagnostic)
   };
   number('opacity', LOOK_LIMITS.opacity, 'a number');
   colour('shadowColor');
-  number('shadowDistance', LOOK_LIMITS.size, 'a fraction of the frame\'s short side');
-  number('shadowAngle', LOOK_LIMITS.angle, 'an angle in degrees');
-  number('shadowSoftness', LOOK_LIMITS.size, 'a fraction of the frame\'s short side');
+  number('shadowDistance', LOOK_LIMITS.size, 'a fraction of the frame\'s short side'); // i18n-exempt(diagnostic)
+  number('shadowAngle', LOOK_LIMITS.angle, 'an angle in degrees'); // i18n-exempt(diagnostic)
+  number('shadowSoftness', LOOK_LIMITS.size, 'a fraction of the frame\'s short side'); // i18n-exempt(diagnostic)
   colour('glowColor');
-  number('glowSize', LOOK_LIMITS.size, 'a fraction of the frame\'s short side');
+  number('glowSize', LOOK_LIMITS.size, 'a fraction of the frame\'s short side'); // i18n-exempt(diagnostic)
   colour('outlineColor');
-  number('outlineWidth', LOOK_LIMITS.size, 'a fraction of the frame\'s short side');
-  number('blur', LOOK_LIMITS.size, 'a fraction of the frame\'s short side');
+  number('outlineWidth', LOOK_LIMITS.size, 'a fraction of the frame\'s short side'); // i18n-exempt(diagnostic)
+  number('blur', LOOK_LIMITS.size, 'a fraction of the frame\'s short side'); // i18n-exempt(diagnostic)
   if (r.blend !== undefined) {
     if ((BLEND_MODES as readonly unknown[]).includes(r.blend)) out.blend = r.blend as BlendMode;
-    else issue('look.blend', `must be one of: ${BLEND_MODES.join(', ')}`);
+    else issue('look.blend', `must be one of: ${BLEND_MODES.join(', ')}`); // i18n-exempt(diagnostic)
   }
   number('brightness', LOOK_LIMITS.brightness, 'a number');
   number('saturation', LOOK_LIMITS.saturation, 'a number');
   if (r.tint !== undefined) {
     if (r.tint === null) out.tint = null;
     else if (typeof r.tint === 'string' && isValidColor(r.tint)) out.tint = r.tint.toLowerCase();
-    else issue('look.tint', 'must be a color such as #rrggbb, or null for none');
+    else issue('look.tint', 'must be a color such as #rrggbb, or null for none'); // i18n-exempt(diagnostic)
   }
-  number('corners', LOOK_LIMITS.size, 'a fraction of the frame\'s short side');
-  number('feather', LOOK_LIMITS.size, 'a fraction of the frame\'s short side');
+  number('corners', LOOK_LIMITS.size, 'a fraction of the frame\'s short side'); // i18n-exempt(diagnostic)
+  number('feather', LOOK_LIMITS.size, 'a fraction of the frame\'s short side'); // i18n-exempt(diagnostic)
   return isDefaultLook(out) ? undefined : out;
 }

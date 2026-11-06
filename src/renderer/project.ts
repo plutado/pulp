@@ -19,6 +19,7 @@ import { emptyProject, hasUnsavedChanges, missingPaths, relinkItem, type Project
 import { appState, dispatch } from './store';
 import { menuRecentChanged } from './menu';
 import { setCollection } from '../core/app-state';
+import { t } from './i18n';
 
 /** How long after the last change the recovery copy is written. */
 const AUTOSAVE_AFTER_MS = 2000;
@@ -60,10 +61,18 @@ function refreshDirty(): void {
   projectDirty.value = hasUnsavedChanges(currentProject(), saved);
 }
 
+/**
+ * The name a project is shown by: its own, or Untitled in the interface's language (milestone 59)
+ * for one never saved — whose state holds the source's word, `UNTITLED_PROJECT`, as its name.
+ */
+export function shownProjectName(name: string, path: string | null): string {
+  return !name || (name === UNTITLED_PROJECT && path === null) ? t('project.untitled') : name;
+}
+
 /** The project's name and whether it has unsaved changes, which the window title shows. */
 function pushTitle(): void {
   const s = appState.value;
-  void window.pulp.setProjectTitle(s.project.name || UNTITLED_PROJECT, projectDirty.value);
+  void window.pulp.setProjectTitle(shownProjectName(s.project.name, s.project.path), projectDirty.value);
 }
 
 /** Mark what is on screen as what was saved: after a save, a new project and an open. */
@@ -100,7 +109,7 @@ export async function saveProject(options: { saveAs?: boolean; path?: string } =
   const s = appState.value;
   const project = currentProject();
   const target = options.path ?? (options.saveAs ? null : s.project.path);
-  const result = await window.pulp.saveProject(project, target, s.project.name || 'project');
+  const result = await window.pulp.saveProject(project, target, s.project.name || 'project'); // i18n-exempt(content): the file name the save dialog suggests
   if (!result.ok) {
     if (!result.cancelled) say(result.message, true);
     return false;
@@ -109,7 +118,7 @@ export async function saveProject(options: { saveAs?: boolean; path?: string } =
   markSaved(project);
   // Open Recent follows a save and an open, rather than being read again when the menu is opened.
   menuRecentChanged(result.recent);
-  say(`Saved as ${result.name}.`);
+  say(t('project.tray.saved-as', { name: result.name }));
   return true;
 }
 
@@ -128,16 +137,20 @@ async function noteMissingFolders(project: Project): Promise<string> {
   if (project.libraryFolders.length === 0) return '';
   const missing = await window.pulp.missingLibraryFolders(project.libraryFolders);
   if (missing.length === 0) return '';
-  return ` This project draws from ${missing.length} ${missing.length === 1 ? 'folder' : 'folders'} this computer does not have: ${missing.join(', ')}.`;
+  return t('project.tray.missing-folders', { count: missing.length, folders: missing.join(', ') });
 }
 
 /** What a freshly opened project has to say for itself: what is missing, and what moved. */
 function openedNote(name: string, project: Project, folders: string, fromCollection: boolean): string {
   const list = resolveCollection(project.collection, appState.value.index);
   const lost = list.filter((r) => r.missing || r.offline).length;
-  const lostNote = lost > 0 ? ` ${lost} ${lost === 1 ? 'item is' : 'items are'} not available here.` : '';
-  const asProject = fromCollection ? ' Saving will write a project; Save As can write a collection again.' : '';
-  return `Opened ${name}.${lostNote}${folders}${asProject}`;
+  // Whole sentences, each its own message, said one after another (milestone 59).
+  return [
+    t('project.tray.opened', { name }),
+    lost > 0 ? t('project.tray.unavailable', { count: lost }) : '',
+    folders,
+    fromCollection ? t('project.tray.from-collection') : '',
+  ].filter(Boolean).join(' ');
 }
 
 export async function openProjectFrom(path: string | null): Promise<boolean> {
@@ -172,7 +185,7 @@ export async function openExampleFrom(path: string): Promise<boolean> {
   }
   adopt(result.project, { path: null, name: result.name });
   markSaved(result.project);
-  say(`Opened a copy of the ${result.name} example. Saving will ask where to put it.`);
+  say(t('project.tray.opened-example', { name: result.name }));
   return true;
 }
 
@@ -180,7 +193,7 @@ export async function newProject(): Promise<boolean> {
   if (!(await confirmDiscard())) return false;
   dispatch((s) => openProjectState(s, { items: [] }, initialProjectState));
   markSaved(emptyProject);
-  say('New project.');
+  say(t('project.tray.new'));
   return true;
 }
 
@@ -208,7 +221,7 @@ export async function confirmDiscard(): Promise<boolean> {
   if (!isDirty() || asking) return !isDirty();
   asking = true;
   try {
-    const answer = await askUnsaved(appState.value.project.name || UNTITLED_PROJECT);
+    const answer = await askUnsaved(shownProjectName(appState.value.project.name, appState.value.project.path));
     if (answer === 'cancel') return false;
     if (answer === 'discard') return true;
     return await saveProject();
@@ -229,7 +242,7 @@ export async function relinkMissing(uid: string, answer?: string): Promise<void>
   const s = appState.value;
   const item = s.collection.items.find((i) => i.uid === uid);
   if (!item?.path) {
-    say('That item does not record where it was, so there is nothing to relink from.', true);
+    say(t('project.tray.relink-no-path'), true);
     return;
   }
   const resolved = resolveCollection(s.collection, s.index);
@@ -246,7 +259,7 @@ export async function relinkMissing(uid: string, answer?: string): Promise<void>
     return setCollection(state, collection);
   });
   const extra = result.relinked.length - 1;
-  say(extra > 0 ? `Relinked ${item.name} and ${extra} more that moved with it.` : `Relinked ${item.name}.`);
+  say(extra > 0 ? t('project.tray.relinked-more', { name: item.name, count: extra }) : t('project.tray.relinked', { name: item.name }));
 }
 
 // ---------------------------------------------------------------- wiring
@@ -278,7 +291,7 @@ export async function offerRecovery(ask: (name: string, savedAt: string) => Prom
   const recovery = await window.pulp.pendingRecovery();
   if (!recovery) return false;
   const name = recovery.name || UNTITLED_PROJECT;
-  if (!(await ask(name, recovery.savedAt))) {
+  if (!(await ask(shownProjectName(name, recovery.path), recovery.savedAt))) {
     await window.pulp.clearRecovery();
     return false;
   }
@@ -287,6 +300,6 @@ export async function offerRecovery(ask: (name: string, savedAt: string) => Prom
   saved = emptyProject;
   refreshDirty();
   pushTitle();
-  say(`Recovered ${name}. The changes have not been saved yet.`);
+  say(t('project.tray.recovered', { name: shownProjectName(name, recovery.path) }));
   return true;
 }

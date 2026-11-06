@@ -13,6 +13,7 @@
  */
 
 import { STAGE_BACKGROUND_COLORS, STAGE_BACKGROUNDS, type PlayerState } from '../core/player';
+import { bindAttr } from './i18n';
 
 /** Paint the button with the current choice, and say it in its label and tooltip. */
 export function showBackgroundChoice(button: HTMLElement, player: Pick<PlayerState, 'background' | 'customBackground'>): void {
@@ -22,9 +23,16 @@ export function showBackgroundChoice(button: HTMLElement, player: Pick<PlayerSta
     current.classList.toggle('checker', bg === 'checker');
     current.style.backgroundColor = bg === 'checker' ? '' : bg === 'custom' ? player.customBackground : STAGE_BACKGROUND_COLORS[bg];
   }
-  const name = player.background === 'custom' ? `custom color ${player.customBackground}` : (STAGE_BACKGROUNDS.find((b) => b.id === player.background)?.label ?? '');
-  button.setAttribute('aria-label', `Preview background: ${name}`);
-  button.dataset.tip = `Background: ${name}`;
+  // Bound, so a change of language rewrites them; the stage paints them again then too, since the
+  // background's name is itself a word in the language (src/renderer/stage.ts).
+  if (player.background === 'custom') {
+    bindAttr(button, 'aria-label', 'background.button.custom.aria-label', { hex: player.customBackground });
+    bindAttr(button, 'data-tip', 'background.button.custom.data-tip', { hex: player.customBackground });
+    return;
+  }
+  const name = STAGE_BACKGROUNDS.find((b) => b.id === player.background)?.label ?? '';
+  bindAttr(button, 'aria-label', 'background.button.aria-label', { name });
+  bindAttr(button, 'data-tip', 'background.button.data-tip', { name });
 }
 
 /** Open and close the picker from its button: a choice, Escape or a press anywhere else closes it. */
@@ -48,7 +56,7 @@ export function mountBackgroundPicker(button: HTMLButtonElement, picker: HTMLEle
     listening.addEventListener('pointerdown', onPointer, true);
     listening.addEventListener('keydown', onKey, true);
     // The keyboard starts on the choice that is on.
-    picker.querySelector<HTMLElement>('[aria-pressed="true"], .active')?.focus();
+    picker.querySelector<HTMLElement>('[aria-pressed="true"], .active')?.focus(); // i18n-exempt(technical)
   }
   function close(refocus: boolean): void {
     if (picker.hidden) return;

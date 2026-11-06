@@ -16,6 +16,7 @@
  * in em of the layer's size; line height is a multiple of it.
  */
 
+import { tr } from './i18n';
 import { sanitizeImageValue, validateSlotBoxes, type ImageValue, type SlotBoxes } from './image-slot';
 import { sanitizeClipValue, type ClipValue } from './video-layer';
 import { sanitizeSoundValue, type SoundValue } from './sound-layer';
@@ -366,44 +367,44 @@ function readTypography(raw: Record<string, unknown>, base: Typography, path: st
   const t: Typography = pickTypography(base);
   if (raw.family !== undefined) {
     if (isNonEmptyString(raw.family)) t.family = raw.family.trim();
-    else issue('family', 'must be a non-empty font family name');
+    else issue('family', 'must be a non-empty font family name'); // i18n-exempt(diagnostic)
   }
   if (raw.size !== undefined) {
     if (inRange(raw.size, LAYER_LIMITS.size)) t.size = raw.size;
-    else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`);
+    else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`); // i18n-exempt(diagnostic)
   }
   if (raw.weight !== undefined) {
     if (Number.isInteger(raw.weight) && inRange(raw.weight, LAYER_LIMITS.weight)) t.weight = raw.weight as number;
-    else issue('weight', 'must be an integer from 100 to 900');
+    else issue('weight', 'must be an integer from 100 to 900'); // i18n-exempt(diagnostic)
   }
   for (const key of ['italic', 'kerning'] as const) {
     if (raw[key] === undefined) continue;
     if (typeof raw[key] === 'boolean') t[key] = raw[key] as boolean;
-    else issue(key, 'must be a boolean');
+    else issue(key, 'must be a boolean'); // i18n-exempt(diagnostic)
   }
   if (raw.case !== undefined) {
     if (oneOf(TEXT_CASES, raw.case)) t.case = raw.case;
-    else issue('case', `must be one of: ${TEXT_CASES.join(', ')}`);
+    else issue('case', `must be one of: ${TEXT_CASES.join(', ')}`); // i18n-exempt(diagnostic)
   }
   if (raw.letterSpacing !== undefined) {
     if (inRange(raw.letterSpacing, LAYER_LIMITS.letterSpacing)) t.letterSpacing = raw.letterSpacing;
-    else issue('letterSpacing', `must be a number in em, from ${LAYER_LIMITS.letterSpacing.min} to ${LAYER_LIMITS.letterSpacing.max}`);
+    else issue('letterSpacing', `must be a number in em, from ${LAYER_LIMITS.letterSpacing.min} to ${LAYER_LIMITS.letterSpacing.max}`); // i18n-exempt(diagnostic)
   }
   if (raw.lineHeight !== undefined) {
     if (inRange(raw.lineHeight, LAYER_LIMITS.lineHeight)) t.lineHeight = raw.lineHeight;
-    else issue('lineHeight', `must be a multiple of the size, from ${LAYER_LIMITS.lineHeight.min} to ${LAYER_LIMITS.lineHeight.max}`);
+    else issue('lineHeight', `must be a multiple of the size, from ${LAYER_LIMITS.lineHeight.min} to ${LAYER_LIMITS.lineHeight.max}`); // i18n-exempt(diagnostic)
   }
   if (raw.color !== undefined) {
     if (isValidColor(raw.color)) t.color = raw.color.toLowerCase();
-    else issue('color', 'must be a color in #RRGGBB or #RRGGBBAA form');
+    else issue('color', 'must be a color in #RRGGBB or #RRGGBBAA form'); // i18n-exempt(diagnostic)
   }
   if (raw.align !== undefined) {
     if (oneOf(LAYER_ALIGNS, raw.align)) t.align = raw.align;
-    else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`);
+    else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`); // i18n-exempt(diagnostic)
   }
   if (raw.overflow !== undefined) {
     if (oneOf(TEXT_OVERFLOWS, raw.overflow)) t.overflow = raw.overflow;
-    else issue('overflow', `must be one of: ${TEXT_OVERFLOWS.join(', ')}`);
+    else issue('overflow', `must be one of: ${TEXT_OVERFLOWS.join(', ')}`); // i18n-exempt(diagnostic)
   }
   void path;
   return t;
@@ -418,17 +419,17 @@ function readTypography(raw: Record<string, unknown>, base: Typography, path: st
 function readMotion(raw: unknown, base: LayerMotion, issue: (field: string, message: string) => void): LayerMotion {
   if (raw === undefined) return { ...base };
   if (!isRecord(raw)) {
-    issue('motion', `must be an object naming a type (${LAYER_MOTIONS.join(', ')}) and an optional delay in seconds`);
+    issue('motion', `must be an object naming a type (${LAYER_MOTIONS.join(', ')}) and an optional delay in seconds`); // i18n-exempt(diagnostic)
     return { ...base };
   }
   const out = { ...base };
   if (raw.type !== undefined) {
     if (oneOf(LAYER_MOTIONS, raw.type)) out.type = raw.type;
-    else issue('motion.type', `must be one of: ${LAYER_MOTIONS.join(', ')}`);
+    else issue('motion.type', `must be one of: ${LAYER_MOTIONS.join(', ')}`); // i18n-exempt(diagnostic)
   }
   if (raw.delay !== undefined) {
     if (inRange(raw.delay, LAYER_LIMITS.motionDelay)) out.delay = raw.delay;
-    else issue('motion.delay', `must be a number of seconds from ${LAYER_LIMITS.motionDelay.min} to ${LAYER_LIMITS.motionDelay.max}`);
+    else issue('motion.delay', `must be a number of seconds from ${LAYER_LIMITS.motionDelay.min} to ${LAYER_LIMITS.motionDelay.max}`); // i18n-exempt(diagnostic)
   }
   return out;
 }
@@ -437,21 +438,21 @@ function readMotion(raw: unknown, base: LayerMotion, issue: (field: string, mess
 function readTransition(raw: unknown, base: LayerTransition, end: 'in' | 'out', issue: (field: string, message: string) => void): LayerTransition {
   if (raw === undefined) return { ...base };
   if (!isRecord(raw)) {
-    issue(`transition.${end}`, `must be an object naming a type (${LAYER_TRANSITIONS.join(', ')}), seconds and a direction`);
+    issue(`transition.${end}`, `must be an object naming a type (${LAYER_TRANSITIONS.join(', ')}), seconds and a direction`); // i18n-exempt(diagnostic)
     return { ...base };
   }
   const out = { ...base };
   if (raw.type !== undefined) {
     if (oneOf(LAYER_TRANSITIONS, raw.type)) out.type = raw.type;
-    else issue(`transition.${end}.type`, `must be one of: ${LAYER_TRANSITIONS.join(', ')}`);
+    else issue(`transition.${end}.type`, `must be one of: ${LAYER_TRANSITIONS.join(', ')}`); // i18n-exempt(diagnostic)
   }
   if (raw.seconds !== undefined) {
     if (inRange(raw.seconds, TRANSITION_LIMITS.seconds)) out.seconds = roundSeconds(raw.seconds);
-    else issue(`transition.${end}.seconds`, `must be a number of seconds from ${TRANSITION_LIMITS.seconds.min} to ${TRANSITION_LIMITS.seconds.max}`);
+    else issue(`transition.${end}.seconds`, `must be a number of seconds from ${TRANSITION_LIMITS.seconds.min} to ${TRANSITION_LIMITS.seconds.max}`); // i18n-exempt(diagnostic)
   }
   if (raw.direction !== undefined) {
     if (oneOf(TRANSITION_DIRECTIONS, raw.direction)) out.direction = raw.direction;
-    else issue(`transition.${end}.direction`, `must be one of: ${TRANSITION_DIRECTIONS.join(', ')}`);
+    else issue(`transition.${end}.direction`, `must be one of: ${TRANSITION_DIRECTIONS.join(', ')}`); // i18n-exempt(diagnostic)
   }
   return out;
 }
@@ -464,7 +465,7 @@ function readTransition(raw: unknown, base: LayerTransition, end: 'in' | 'out', 
 function readTransitions(raw: unknown, base: LayerTransitions | undefined, issue: (field: string, message: string) => void): LayerTransitions | undefined {
   if (raw === null) return undefined;
   if (raw !== undefined && !isRecord(raw)) {
-    issue('transition', 'must be an object with in and out, such as {"in":{"type":"fade","seconds":0.4}}');
+    issue('transition', 'must be an object with in and out, such as {"in":{"type":"fade","seconds":0.4}}'); // i18n-exempt(diagnostic)
     return base ? { in: { ...base.in }, out: { ...base.out } } : undefined;
   }
   const from = base ?? DEFAULT_TRANSITIONS;
@@ -494,22 +495,22 @@ function transitionsFromMotion(motion: LayerMotion): { transition?: LayerTransit
  */
 function readOnePlacement(raw: unknown, issue: (field: string, message: string) => void): LayerPlacement | null {
   if (!isRecord(raw)) {
-    issue('placement', 'each aspect must be an object of dx, dy, scale and rotate');
+    issue('placement', 'each aspect must be an object of dx, dy, scale and rotate'); // i18n-exempt(diagnostic)
     return null;
   }
   const out = { ...IDENTITY_PLACEMENT };
   for (const key of ['dx', 'dy'] as const) {
     if (raw[key] === undefined) continue;
     if (inRange(raw[key], LAYER_LIMITS.placementOffset)) out[key] = raw[key] as number;
-    else issue(`placement.${key}`, `must be a fraction of the frame, from ${LAYER_LIMITS.placementOffset.min} to ${LAYER_LIMITS.placementOffset.max}`);
+    else issue(`placement.${key}`, `must be a fraction of the frame, from ${LAYER_LIMITS.placementOffset.min} to ${LAYER_LIMITS.placementOffset.max}`); // i18n-exempt(diagnostic)
   }
   if (raw.scale !== undefined) {
     if (inRange(raw.scale, LAYER_LIMITS.placementScale)) out.scale = raw.scale;
-    else issue('placement.scale', `must be a factor from ${LAYER_LIMITS.placementScale.min} to ${LAYER_LIMITS.placementScale.max}`);
+    else issue('placement.scale', `must be a factor from ${LAYER_LIMITS.placementScale.min} to ${LAYER_LIMITS.placementScale.max}`); // i18n-exempt(diagnostic)
   }
   if (raw.rotate !== undefined) {
     if (typeof raw.rotate === 'number' && Number.isFinite(raw.rotate)) out.rotate = normalizeAngle(raw.rotate);
-    else issue('placement.rotate', 'must be an angle in degrees');
+    else issue('placement.rotate', 'must be an angle in degrees'); // i18n-exempt(diagnostic)
   }
   return out;
 }
@@ -524,13 +525,13 @@ function readPlacement(raw: unknown, base: LayerPlacements | undefined, issue: (
   if (raw === undefined) return base ? { ...base } : undefined;
   if (raw === null) return undefined;
   if (!isRecord(raw)) {
-    issue('placement', 'must be an object of placements by aspect id, such as {"16:9":{"dx":0.1}}');
+    issue('placement', 'must be an object of placements by aspect id, such as {"16:9":{"dx":0.1}}'); // i18n-exempt(diagnostic)
     return base ? { ...base } : undefined;
   }
   const out: LayerPlacements = {};
   for (const [key, value] of Object.entries(raw)) {
     if (key !== 'default' && !/^\d+:\d+$/.test(key)) {
-      issue('placement', `"${key}" is not an aspect id such as "16:9", or "default"`);
+      issue('placement', `"${key}" is not an aspect id such as "16:9", or "default"`); // i18n-exempt(diagnostic)
       continue;
     }
     const one = readOnePlacement(value, issue);
@@ -563,18 +564,18 @@ function readSpan(raw: unknown, base: LayerSpan | undefined, issue: (field: stri
   if (raw === undefined) return base ? { ...base } : undefined;
   if (raw === null) return undefined;
   if (!isRecord(raw)) {
-    issue('span', 'must be an object of start and end in seconds, such as {"start":2,"end":8}');
+    issue('span', 'must be an object of start and end in seconds, such as {"start":2,"end":8}'); // i18n-exempt(diagnostic)
     return base ? { ...base } : undefined;
   }
   const out: LayerSpan = base ? { ...base } : { start: 0, end: null };
   if (raw.start !== undefined) {
     if (inRange(raw.start, LAYER_LIMITS.spanSeconds)) out.start = roundSeconds(raw.start);
-    else issue('span.start', `must be a number of seconds from ${LAYER_LIMITS.spanSeconds.min} to ${LAYER_LIMITS.spanSeconds.max}`);
+    else issue('span.start', `must be a number of seconds from ${LAYER_LIMITS.spanSeconds.min} to ${LAYER_LIMITS.spanSeconds.max}`); // i18n-exempt(diagnostic)
   }
   if (raw.end !== undefined) {
     if (raw.end === null) out.end = null;
     else if (inRange(raw.end, LAYER_LIMITS.spanSeconds)) out.end = roundSeconds(raw.end);
-    else issue('span.end', `must be a number of seconds from ${LAYER_LIMITS.spanSeconds.min} to ${LAYER_LIMITS.spanSeconds.max}, or null to run to the end`);
+    else issue('span.end', `must be a number of seconds from ${LAYER_LIMITS.spanSeconds.min} to ${LAYER_LIMITS.spanSeconds.max}, or null to run to the end`); // i18n-exempt(diagnostic)
   }
   return isWholeGraphic(out) ? undefined : out;
 }
@@ -608,7 +609,7 @@ function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issu
     if (raw.keys === null) delete out.keys;
     else {
       const keys = sanitizeKeys(raw.keys);
-      if (keys === undefined) issue('keys', 'must be a list of keys, each with `at` in seconds and the pose it holds');
+      if (keys === undefined) issue('keys', 'must be a list of keys, each with `at` in seconds and the pose it holds'); // i18n-exempt(diagnostic)
       else if (keys.length > 0) out.keys = keys;
       else delete out.keys;
     }
@@ -616,25 +617,34 @@ function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issu
   else delete out.keys;
   if (raw.label !== undefined) {
     if (isNonEmptyString(raw.label)) out.label = raw.label.trim();
-    else issue('label', 'must be a non-empty string');
+    else issue('label', 'must be a non-empty string'); // i18n-exempt(diagnostic)
   }
   if (raw.hidden !== undefined) {
     if (typeof raw.hidden === 'boolean') out.hidden = raw.hidden;
-    else issue('hidden', 'must be a boolean');
+    else issue('hidden', 'must be a boolean'); // i18n-exempt(diagnostic)
   }
   if (raw.spaceBefore !== undefined) {
     if (inRange(raw.spaceBefore, LAYER_LIMITS.spaceBefore)) out.spaceBefore = raw.spaceBefore;
-    else issue('spaceBefore', `must be a fraction of the frame's short side, from 0 to ${LAYER_LIMITS.spaceBefore.max}`);
+    else issue('spaceBefore', `must be a fraction of the frame's short side, from 0 to ${LAYER_LIMITS.spaceBefore.max}`); // i18n-exempt(diagnostic)
   }
   return out;
 }
 
+/** The name a layer is given when nothing names it, in the interface's language now (milestone 59). */
+function fallbackLayerLabel(type: LayerType): string {
+  if (type === 'text') return tr('layers.fallback-label.text');
+  if (type === 'video') return tr('layers.fallback-label.video');
+  if (type === 'audio') return tr('layers.fallback-label.audio');
+  if (type === 'shape') return tr('layers.fallback-label.shape');
+  return tr('layers.fallback-label.image');
+}
+
 /** A fresh layer of a type, as a block hands it out: the block's typography, the default image size, nothing required. */
 export function newLayer(type: LayerType, block: BlockDefaults, id: string, label?: string): Layer {
-  const fallbackLabel = type === 'text' ? 'Text' : type === 'video' ? 'Video' : type === 'audio' ? 'Audio' : type === 'shape' ? 'Shape' : 'Image';
+  const named = label ?? fallbackLayerLabel(type);
   // A sound has no motion; everything else starts with the block's, where the block declares one (milestone 55).
   const starts = block.transition && type !== 'audio' ? { transition: { in: { ...block.transition.in }, out: { ...block.transition.out } } } : {};
-  const base: LayerBase = { id, label: label ?? fallbackLabel, required: false, hidden: false, spaceBefore: 0, ...starts };
+  const base: LayerBase = { id, label: named, required: false, hidden: false, spaceBefore: 0, ...starts };
   if (type === 'text') return { ...base, ...block.typography, type: 'text', text: '', maxLines: DEFAULT_MAX_LINES };
   if (type === 'audio') return { ...base, type: 'audio', sound: null };
   if (type === 'video') return { ...base, type: 'video', clip: null, size: DEFAULT_IMAGE_LAYER_SIZE, align: block.align };
@@ -650,29 +660,29 @@ export function newLayer(type: LayerType, block: BlockDefaults, id: string, labe
  */
 export function validateLayer(raw: unknown, path: string, block: BlockDefaults, errors: ValidationIssue[]): Layer | null {
   if (!isRecord(raw)) {
-    errors.push({ path, message: 'must be an object' });
+    errors.push({ path, message: 'must be an object' }); // i18n-exempt(diagnostic)
     return null;
   }
   const start = errors.length;
   const issue = (field: string, message: string) => errors.push({ path: `${path}.${field}`, message });
-  if (typeof raw.id !== 'string' || !LAYER_ID_PATTERN.test(raw.id)) issue('id', 'must be an identifier (letters, digits, underscore; not starting with a digit)');
-  if (!isNonEmptyString(raw.label)) issue('label', 'must be a non-empty string');
+  if (typeof raw.id !== 'string' || !LAYER_ID_PATTERN.test(raw.id)) issue('id', 'must be an identifier (letters, digits, underscore; not starting with a digit)'); // i18n-exempt(diagnostic)
+  if (!isNonEmptyString(raw.label)) issue('label', 'must be a non-empty string'); // i18n-exempt(diagnostic)
   if (!oneOf(LAYER_TYPES, raw.type)) {
-    issue('type', `must be one of: ${LAYER_TYPES.join(', ')}`);
+    issue('type', `must be one of: ${LAYER_TYPES.join(', ')}`); // i18n-exempt(diagnostic)
     return null;
   }
-  if (raw.required !== undefined && typeof raw.required !== 'boolean') issue('required', 'must be a boolean');
+  if (raw.required !== undefined && typeof raw.required !== 'boolean') issue('required', 'must be a boolean'); // i18n-exempt(diagnostic)
   const id = typeof raw.id === 'string' ? raw.id : '';
   const fresh = newLayer(raw.type, block, id, typeof raw.label === 'string' ? raw.label.trim() : undefined);
   const base = readLayerBase(raw, fresh, issue);
   const common: LayerBase = { id, label: base.label, required: raw.required === true, hidden: base.hidden, spaceBefore: base.spaceBefore, ...(base.transition ? { transition: base.transition } : {}), ...(base.placement ? { placement: base.placement } : {}), ...(base.span ? { span: base.span } : {}), ...(base.look ? { look: base.look } : {}), ...(base.keys ? { keys: base.keys } : {}) };
   let layer: Layer;
   if (raw.type === 'text') {
-    if (typeof raw.text !== 'string') issue('text', 'must be a string (the layer\'s default text)');
+    if (typeof raw.text !== 'string') issue('text', 'must be a string (the layer\'s default text)'); // i18n-exempt(diagnostic)
     let maxLines = DEFAULT_MAX_LINES;
     if (raw.maxLines !== undefined) {
       if (Number.isInteger(raw.maxLines) && inRange(raw.maxLines, LAYER_LIMITS.maxLines)) maxLines = raw.maxLines as number;
-      else issue('maxLines', `must be an integer from ${LAYER_LIMITS.maxLines.min} to ${LAYER_LIMITS.maxLines.max}`);
+      else issue('maxLines', `must be an integer from ${LAYER_LIMITS.maxLines.min} to ${LAYER_LIMITS.maxLines.max}`); // i18n-exempt(diagnostic)
     }
     layer = { ...common, ...readTypography(raw, block.typography, path, issue), type: 'text', text: typeof raw.text === 'string' ? raw.text : '', maxLines };
   } else if (raw.type === 'shape') {
@@ -680,47 +690,47 @@ export function validateLayer(raw: unknown, path: string, block: BlockDefaults, 
     let shape = shaped.shape;
     if (raw.shape !== undefined) {
       if (oneOf(SHAPE_KINDS, raw.shape)) shape = raw.shape;
-      else issue('shape', `must be one of: ${SHAPE_KINDS.join(', ')}`);
+      else issue('shape', `must be one of: ${SHAPE_KINDS.join(', ')}`); // i18n-exempt(diagnostic)
     }
     let color = shaped.color;
     if (raw.color !== undefined) {
       if (isValidColor(raw.color)) color = (raw.color as string).toLowerCase();
-      else issue('color', 'must be #rrggbb or #rrggbbaa');
+      else issue('color', 'must be #rrggbb or #rrggbbaa'); // i18n-exempt(diagnostic)
     }
     let size = shaped.size;
     if (raw.size !== undefined) {
       if (inRange(raw.size, LAYER_LIMITS.size)) size = raw.size;
-      else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`);
+      else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`); // i18n-exempt(diagnostic)
     }
     let ratio = shaped.ratio;
     if (raw.ratio !== undefined) {
       if (inRange(raw.ratio, LAYER_LIMITS.ratio)) ratio = raw.ratio;
-      else issue('ratio', `must be width over height, from ${LAYER_LIMITS.ratio.min} to ${LAYER_LIMITS.ratio.max}`);
+      else issue('ratio', `must be width over height, from ${LAYER_LIMITS.ratio.min} to ${LAYER_LIMITS.ratio.max}`); // i18n-exempt(diagnostic)
     }
     let align = block.align;
     if (raw.align !== undefined) {
       if (oneOf(LAYER_ALIGNS, raw.align)) align = raw.align;
-      else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`);
+      else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`); // i18n-exempt(diagnostic)
     }
     layer = { ...common, type: 'shape', shape, color, size, ratio, align };
   } else if (raw.type === 'audio') {
     // A template ships no library ids, so it declares the slot and never the sound.
-    if (raw.sound !== undefined && raw.sound !== null) issue('sound', 'an audio layer has no sound of its own: leave it out or set it to null');
+    if (raw.sound !== undefined && raw.sound !== null) issue('sound', 'an audio layer has no sound of its own: leave it out or set it to null'); // i18n-exempt(diagnostic)
     layer = { ...common, type: 'audio', sound: null };
   } else {
     // A template ships no library ids, so neither an image nor a clip is declared here.
     const chosen = raw.type === 'video' ? 'clip' : 'image';
-    const kind = raw.type === 'video' ? 'a video layer has no clip of its own' : 'an image layer has no image of its own';
-    if (raw[chosen] !== undefined && raw[chosen] !== null) issue(chosen, `${kind}: leave it out or set it to null`);
+    const kind = raw.type === 'video' ? 'a video layer has no clip of its own' : 'an image layer has no image of its own'; // i18n-exempt(diagnostic)
+    if (raw[chosen] !== undefined && raw[chosen] !== null) issue(chosen, `${kind}: leave it out or set it to null`); // i18n-exempt(diagnostic)
     let size = DEFAULT_IMAGE_LAYER_SIZE;
     if (raw.size !== undefined) {
       if (inRange(raw.size, LAYER_LIMITS.size)) size = raw.size;
-      else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`);
+      else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`); // i18n-exempt(diagnostic)
     }
     let align = block.align;
     if (raw.align !== undefined) {
       if (oneOf(LAYER_ALIGNS, raw.align)) align = raw.align;
-      else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`);
+      else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`); // i18n-exempt(diagnostic)
     }
     layer = raw.type === 'video'
       ? { ...common, type: 'video', clip: null, size, align }
@@ -732,39 +742,39 @@ export function validateLayer(raw: unknown, path: string, block: BlockDefaults, 
 /** Validate a block from a manifest, filling every default; its layers are validated against its typography. */
 export function validateBlock(raw: unknown, path: string, errors: ValidationIssue[]): Block | null {
   if (!isRecord(raw)) {
-    errors.push({ path, message: 'must be an object' });
+    errors.push({ path, message: 'must be an object' }); // i18n-exempt(diagnostic)
     return null;
   }
   const start = errors.length;
   const issue = (field: string, message: string) => errors.push({ path: `${path}.${field}`, message });
-  if (typeof raw.id !== 'string' || !LAYER_ID_PATTERN.test(raw.id)) issue('id', 'must be an identifier (letters, digits, underscore; not starting with a digit)');
-  if (!isNonEmptyString(raw.label)) issue('label', 'must be a non-empty string');
+  if (typeof raw.id !== 'string' || !LAYER_ID_PATTERN.test(raw.id)) issue('id', 'must be an identifier (letters, digits, underscore; not starting with a digit)'); // i18n-exempt(diagnostic)
+  if (!isNonEmptyString(raw.label)) issue('label', 'must be a non-empty string'); // i18n-exempt(diagnostic)
   const box = validateSlotBoxes(raw.box, `${path}.box`, errors);
 
   let direction: BlockDirection = 'column';
   if (raw.direction !== undefined) {
     if (oneOf(BLOCK_DIRECTIONS, raw.direction)) direction = raw.direction;
-    else issue('direction', `must be one of: ${BLOCK_DIRECTIONS.join(', ')}`);
+    else issue('direction', `must be one of: ${BLOCK_DIRECTIONS.join(', ')}`); // i18n-exempt(diagnostic)
   }
   let gap = 0;
   if (raw.gap !== undefined) {
     if (inRange(raw.gap, LAYER_LIMITS.gap)) gap = raw.gap;
-    else issue('gap', `must be a fraction of the frame's short side, from 0 to ${LAYER_LIMITS.gap.max}`);
+    else issue('gap', `must be a fraction of the frame's short side, from 0 to ${LAYER_LIMITS.gap.max}`); // i18n-exempt(diagnostic)
   }
   let align: LayerAlign = 'left';
   if (raw.align !== undefined) {
     if (oneOf(LAYER_ALIGNS, raw.align)) align = raw.align;
-    else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`);
+    else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`); // i18n-exempt(diagnostic)
   }
   let verticalAlign: VerticalAlign = 'top';
   if (raw.verticalAlign !== undefined) {
     if (oneOf(VERTICAL_ALIGNS, raw.verticalAlign)) verticalAlign = raw.verticalAlign;
-    else issue('verticalAlign', `must be one of: ${VERTICAL_ALIGNS.join(', ')}`);
+    else issue('verticalAlign', `must be one of: ${VERTICAL_ALIGNS.join(', ')}`); // i18n-exempt(diagnostic)
   }
   let open = true;
   if (raw.open !== undefined) {
     if (typeof raw.open === 'boolean') open = raw.open;
-    else issue('open', 'must be a boolean');
+    else issue('open', 'must be a boolean'); // i18n-exempt(diagnostic)
   }
   // What layers in this block start with, where the template has no movement of its own to lend (milestone 55).
   const transition = raw.transition === undefined ? undefined : readTransitions(raw.transition, undefined, (field, message) => errors.push({ path: `${path}.${field}`, message }));
@@ -772,19 +782,19 @@ export function validateBlock(raw: unknown, path: string, errors: ValidationIssu
   let typography: Typography = { ...DEFAULT_TYPOGRAPHY, align };
   if (raw.typography !== undefined) {
     if (isRecord(raw.typography)) typography = readTypography(raw.typography, typography, `${path}.typography`, (field, message) => errors.push({ path: `${path}.typography.${field}`, message }));
-    else issue('typography', 'must be an object');
+    else issue('typography', 'must be an object'); // i18n-exempt(diagnostic)
   }
 
   const layers: Layer[] = [];
   if (raw.layers !== undefined) {
-    if (!Array.isArray(raw.layers)) issue('layers', 'must be an array');
+    if (!Array.isArray(raw.layers)) issue('layers', 'must be an array'); // i18n-exempt(diagnostic)
     else {
       const seen = new Set<string>();
       raw.layers.forEach((l, i) => {
         const layer = validateLayer(l, `${path}.layers[${i}]`, { typography, align, ...(transition ? { transition } : {}) }, errors);
         if (!layer) return;
         if (seen.has(layer.id)) {
-          errors.push({ path: `${path}.layers[${i}].id`, message: `duplicate layer id "${layer.id}"` });
+          errors.push({ path: `${path}.layers[${i}].id`, message: `duplicate layer id "${layer.id}"` }); // i18n-exempt(diagnostic)
           return;
         }
         seen.add(layer.id);
@@ -837,12 +847,12 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
     let text = base.text;
     if (raw.text !== undefined) {
       if (typeof raw.text === 'string') text = raw.text;
-      else issue('text', 'must be a string');
+      else issue('text', 'must be a string'); // i18n-exempt(diagnostic)
     }
     let maxLines = base.maxLines;
     if (raw.maxLines !== undefined) {
       if (Number.isInteger(raw.maxLines) && inRange(raw.maxLines, LAYER_LIMITS.maxLines)) maxLines = raw.maxLines as number;
-      else issue('maxLines', `must be an integer from ${LAYER_LIMITS.maxLines.min} to ${LAYER_LIMITS.maxLines.max}`);
+      else issue('maxLines', `must be an integer from ${LAYER_LIMITS.maxLines.min} to ${LAYER_LIMITS.maxLines.max}`); // i18n-exempt(diagnostic)
     }
     return settled({ ...base, ...common, ...typography, text, maxLines });
   }
@@ -850,7 +860,7 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
     let sound = base.sound;
     if (raw.sound !== undefined) {
       const value = sanitizeSoundValue(raw.sound);
-      if (value === undefined) issue('sound', 'must be a library id with optional in, out, ending, delay, volume, fades and voice, or null');
+      if (value === undefined) issue('sound', 'must be a library id with optional in, out, ending, delay, volume, fades and voice, or null'); // i18n-exempt(diagnostic)
       else sound = value;
     }
     void block;
@@ -860,51 +870,51 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
     let shape = base.shape;
     if (raw.shape !== undefined) {
       if (oneOf(SHAPE_KINDS, raw.shape)) shape = raw.shape;
-      else issue('shape', `must be one of: ${SHAPE_KINDS.join(', ')}`);
+      else issue('shape', `must be one of: ${SHAPE_KINDS.join(', ')}`); // i18n-exempt(diagnostic)
     }
     let color = base.color;
     if (raw.color !== undefined) {
       if (isValidColor(raw.color)) color = (raw.color as string).toLowerCase();
-      else issue('color', 'must be #rrggbb or #rrggbbaa');
+      else issue('color', 'must be #rrggbb or #rrggbbaa'); // i18n-exempt(diagnostic)
     }
     let shapeSize = base.size;
     if (raw.size !== undefined) {
       if (inRange(raw.size, LAYER_LIMITS.size)) shapeSize = raw.size;
-      else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`);
+      else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`); // i18n-exempt(diagnostic)
     }
     let ratio = base.ratio;
     if (raw.ratio !== undefined) {
       if (inRange(raw.ratio, LAYER_LIMITS.ratio)) ratio = raw.ratio;
-      else issue('ratio', `must be width over height, from ${LAYER_LIMITS.ratio.min} to ${LAYER_LIMITS.ratio.max}`);
+      else issue('ratio', `must be width over height, from ${LAYER_LIMITS.ratio.min} to ${LAYER_LIMITS.ratio.max}`); // i18n-exempt(diagnostic)
     }
     let shapeAlign = base.align;
     if (raw.align !== undefined) {
       if (oneOf(LAYER_ALIGNS, raw.align)) shapeAlign = raw.align;
-      else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`);
+      else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`); // i18n-exempt(diagnostic)
     }
     return settled({ ...base, ...common, shape, color, size: shapeSize, ratio, align: shapeAlign });
   }
   let image = base.type === 'image' ? base.image : null;
   if (base.type === 'image' && raw.image !== undefined) {
     const value = sanitizeImageValue(raw.image);
-    if (value === undefined) issue('image', 'must be a library id with an optional treatment, or null');
+    if (value === undefined) issue('image', 'must be a library id with an optional treatment, or null'); // i18n-exempt(diagnostic)
     else image = value;
   }
   let clip = base.type === 'video' ? base.clip : null;
   if (base.type === 'video' && raw.clip !== undefined) {
     const value = sanitizeClipValue(raw.clip);
-    if (value === undefined) issue('clip', 'must be a library id with optional in, out, ending, speed, delay, volume and voice, or null');
+    if (value === undefined) issue('clip', 'must be a library id with optional in, out, ending, speed, delay, volume and voice, or null'); // i18n-exempt(diagnostic)
     else clip = value;
   }
   let size = base.size;
   if (raw.size !== undefined) {
     if (inRange(raw.size, LAYER_LIMITS.size)) size = raw.size;
-    else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`);
+    else issue('size', `must be a fraction of the frame's short side, from ${LAYER_LIMITS.size.min} to ${LAYER_LIMITS.size.max}`); // i18n-exempt(diagnostic)
   }
   let align = base.align;
   if (raw.align !== undefined) {
     if (oneOf(LAYER_ALIGNS, raw.align)) align = raw.align;
-    else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`);
+    else issue('align', `must be one of: ${LAYER_ALIGNS.join(', ')}`); // i18n-exempt(diagnostic)
   }
   void block;
   if (base.type === 'video') return settled({ ...base, ...common, clip, size, align });
@@ -942,38 +952,38 @@ export function parseLayersArgument(text: string, manifest: Pick<TemplateManifes
   try {
     raw = JSON.parse(text);
   } catch (err) {
-    return { ok: false, message: `layers: not valid JSON (${(err as Error).message}).` };
+    return { ok: false, message: `layers: not valid JSON (${(err as Error).message}).` }; // i18n-exempt(terminal)
   }
-  if (!isRecord(raw)) return { ok: false, message: 'layers: expected an object of layer stacks by block id, such as {"strap":[{"id":"name","text":"Ada"}]}.' };
+  if (!isRecord(raw)) return { ok: false, message: 'layers: expected an object of layer stacks by block id, such as {"strap":[{"id":"name","text":"Ada"}]}.' }; // i18n-exempt(terminal)
   const known = manifest.blocks.map((b) => b.id);
   const problems: string[] = [];
   for (const [blockId, stack] of Object.entries(raw)) {
     const block = manifest.blocks.find((b) => b.id === blockId);
     if (!block) {
-      problems.push(`"${blockId}" is not a block of this template${known.length > 0 ? ` (it has ${known.map((b) => `"${b}"`).join(', ')})` : ' (it declares none)'}`);
+      problems.push(`"${blockId}" is not a block of this template${known.length > 0 ? ` (it has ${known.map((b) => `"${b}"`).join(', ')})` : ' (it declares none)'}`); // i18n-exempt(terminal)
       continue;
     }
     if (!Array.isArray(stack)) {
-      problems.push(`"${blockId}" must be an array of layers`);
+      problems.push(`"${blockId}" must be an array of layers`); // i18n-exempt(terminal)
       continue;
     }
     stack.forEach((entry, i) => {
       if (!isRecord(entry)) {
-        problems.push(`"${blockId}" layer ${i} must be an object`);
+        problems.push(`"${blockId}" layer ${i} must be an object`); // i18n-exempt(terminal)
         return;
       }
       const own = typeof entry.id === 'string' ? block.layers.find((l) => l.id === entry.id) : undefined;
       if (own) return;
       if (typeof entry.id === 'string' && !oneOf(LAYER_TYPES, entry.type)) {
         const ids = block.layers.map((l) => `"${l.id}"`).join(', ');
-        problems.push(`"${blockId}" has no layer "${entry.id}"${ids ? ` (it has ${ids})` : ''}; to add one, give it a type of ${LAYER_TYPES.join(' or ')}`);
+        problems.push(`"${blockId}" has no layer "${entry.id}"${ids ? ` (it has ${ids})` : ''}; to add one, give it a type of ${LAYER_TYPES.join(' or ')}`); // i18n-exempt(terminal)
         return;
       }
-      if (!oneOf(LAYER_TYPES, entry.type)) problems.push(`"${blockId}" layer ${i} needs an id of one of its layers, or a type of ${LAYER_TYPES.join(' or ')} to add one`);
-      else if (!block.open) problems.push(`"${blockId}" takes no more layers`);
+      if (!oneOf(LAYER_TYPES, entry.type)) problems.push(`"${blockId}" layer ${i} needs an id of one of its layers, or a type of ${LAYER_TYPES.join(' or ')} to add one`); // i18n-exempt(terminal)
+      else if (!block.open) problems.push(`"${blockId}" takes no more layers`); // i18n-exempt(terminal)
     });
   }
-  if (problems.length > 0) return { ok: false, message: `layers: ${problems.join('; ')}.` };
+  if (problems.length > 0) return { ok: false, message: `layers: ${problems.join('; ')}.` }; // i18n-exempt(terminal)
   // Patch: every block starts as the template has it, and what was given lands on top of it.
   const patched: Record<string, Record<string, unknown>[]> = {};
   for (const block of manifest.blocks) {
@@ -1002,12 +1012,12 @@ export function resolveLayers(manifest: Pick<TemplateManifest, 'blocks'>, input:
   const issues: LayerIssue[] = [];
   const values: LayerValues = {};
   if (input !== undefined && input !== null && !isRecord(input)) {
-    issues.push({ block: '', message: 'layers must be an object of stacks by block id; using the template\'s' });
+    issues.push({ block: '', message: 'layers must be an object of stacks by block id; using the template\'s' }); // i18n-exempt(diagnostic)
     input = undefined;
   }
   const given = (input ?? {}) as Record<string, unknown>;
   for (const key of Object.keys(given)) {
-    if (!manifest.blocks.some((b) => b.id === key)) issues.push({ block: key, message: 'not a block of this template; ignored' });
+    if (!manifest.blocks.some((b) => b.id === key)) issues.push({ block: key, message: 'not a block of this template; ignored' }); // i18n-exempt(diagnostic)
   }
   for (const block of manifest.blocks) {
     const raw = given[block.id];
@@ -1016,7 +1026,7 @@ export function resolveLayers(manifest: Pick<TemplateManifest, 'blocks'>, input:
       continue;
     }
     if (!Array.isArray(raw)) {
-      issues.push({ block: block.id, message: 'must be an array of layers; using the template\'s' });
+      issues.push({ block: block.id, message: 'must be an array of layers; using the template\'s' }); // i18n-exempt(diagnostic)
       values[block.id] = block.layers.map((l) => ({ ...l }));
       continue;
     }
@@ -1031,30 +1041,30 @@ export function resolveLayers(manifest: Pick<TemplateManifest, 'blocks'>, input:
     };
     raw.forEach((entry, i) => {
       if (!isRecord(entry)) {
-        issues.push({ block: block.id, message: `layer ${i} is not an object; dropped` });
+        issues.push({ block: block.id, message: `layer ${i} is not an object; dropped` }); // i18n-exempt(diagnostic)
         return;
       }
       const own = typeof entry.id === 'string' ? block.layers.find((l) => l.id === entry.id) : undefined;
       if (own && used.has(own.id)) {
-        issues.push({ block: block.id, layer: own.id, message: 'appears twice; the second dropped' });
+        issues.push({ block: block.id, layer: own.id, message: 'appears twice; the second dropped' }); // i18n-exempt(diagnostic)
         return;
       }
       let base: Layer;
       if (own) {
-        if (entry.type !== undefined && entry.type !== own.type) issues.push({ block: block.id, layer: own.id, message: `is a ${own.type} layer; its type cannot change` });
+        if (entry.type !== undefined && entry.type !== own.type) issues.push({ block: block.id, layer: own.id, message: `is a ${own.type} layer; its type cannot change` }); // i18n-exempt(diagnostic)
         base = own;
       } else {
         if (!oneOf(LAYER_TYPES, entry.type)) {
-          issues.push({ block: block.id, message: `layer ${i} has no type (${LAYER_TYPES.join(', ')}); dropped` });
+          issues.push({ block: block.id, message: `layer ${i} has no type (${LAYER_TYPES.join(', ')}); dropped` }); // i18n-exempt(diagnostic)
           return;
         }
         if (!block.open) {
-          issues.push({ block: block.id, message: `is full: added ${entry.type} layer dropped` });
+          issues.push({ block: block.id, message: `is full: added ${entry.type} layer dropped` }); // i18n-exempt(diagnostic)
           return;
         }
         let id = typeof entry.id === 'string' && LAYER_ID_PATTERN.test(entry.id) && !used.has(entry.id) ? entry.id : '';
         if (id === '') {
-          if (entry.id !== undefined) issues.push({ block: block.id, message: `layer ${i} has an unusable id; renamed` });
+          if (entry.id !== undefined) issues.push({ block: block.id, message: `layer ${i} has an unusable id; renamed` }); // i18n-exempt(diagnostic)
           id = freshId();
         }
         base = newLayer(entry.type, block, id);
@@ -1066,7 +1076,7 @@ export function resolveLayers(manifest: Pick<TemplateManifest, 'blocks'>, input:
     // Required layers come back where the template had them.
     block.layers.forEach((own, index) => {
       if (!own.required || used.has(own.id)) return;
-      issues.push({ block: block.id, layer: own.id, message: 'is required; put back' });
+      issues.push({ block: block.id, layer: own.id, message: 'is required; put back' }); // i18n-exempt(diagnostic)
       stack.splice(Math.min(index, stack.length), 0, { ...own });
       used.add(own.id);
     });

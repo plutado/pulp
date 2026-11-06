@@ -25,6 +25,7 @@ import type { Layer, LayerValues } from '../core/layers';
 import type { TemplateManifest } from '../core/manifest';
 import { resolveLength } from '../core/timing';
 import { layerEditor, selectedLayer } from './layer-edit';
+import { bindAttr, t } from './i18n';
 import { appState } from './store';
 
 /** A dropped clip's height as a fraction of the frame's short side: a corner's worth, not the frame's. */
@@ -89,9 +90,9 @@ export function overlayTrackUpdate(manifest: TemplateManifest | null, layers: La
     el.root.style.order = String(index);
     const name = layer.type === 'video' && layer.clip?.id ? (appState.value.index?.media.find((m) => m.id === layer.clip!.id)?.name ?? layer.label) : layer.label;
     el.label.textContent = name;
-    const said = `${name}: ${tidy(window.from)}-${tidy(window.to)} s over the shots`;
-    el.body.title = said;
-    el.body.setAttribute('aria-label', `Picture-in-picture ${index + 1}, ${said}`);
+    const said = { number: index + 1, name, from: tidy(window.from), to: tidy(window.to) };
+    bindAttr(el.body, 'title', 'overlay-track.pip.title', said);
+    bindAttr(el.body, 'aria-label', 'overlay-track.pip.aria-label', said);
     const selected = selectedLayer.value;
     el.root.classList.toggle('selected', selected?.block === block && selected.id === layer.id);
   });
@@ -154,7 +155,7 @@ export function overlayTrackTakeDrop(id: string, time: number): boolean {
     };
   }, true);
   selectedLayer.value = { block: added.block, id: added.id };
-  say(`${entry.name} is on the picture track from ${tidy(start)} s: move and size it on the stage.`);
+  say(t('overlay-track.added', { name: entry.name, start: tidy(start) }));
   return true;
 }
 

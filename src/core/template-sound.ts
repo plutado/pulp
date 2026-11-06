@@ -68,36 +68,36 @@ export function isTemplateSoundFile(file: string): boolean {
 export function validateTemplateSound(raw: unknown, duration: number, errors: TemplateSoundIssue[]): TemplateSound | null {
   const start = errors.length;
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    errors.push({ path: 'sound', message: 'must be an object with a list of variants' });
+    errors.push({ path: 'sound', message: 'must be an object with a list of variants' }); // i18n-exempt(diagnostic)
     return null;
   }
   const r = raw as Record<string, unknown>;
   const variants: TemplateSoundVariant[] = [];
   if (!Array.isArray(r.variants) || r.variants.length === 0) {
-    errors.push({ path: 'sound.variants', message: 'must be a non-empty array of { value, label, file }' });
+    errors.push({ path: 'sound.variants', message: 'must be a non-empty array of { value, label, file }' }); // i18n-exempt(diagnostic)
   } else {
     const values = new Set<string>();
     r.variants.forEach((entry, i) => {
       const path = `sound.variants[${i}]`;
       if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
-        errors.push({ path, message: 'must be { value, label, file }' });
+        errors.push({ path, message: 'must be { value, label, file }' }); // i18n-exempt(diagnostic)
         return;
       }
       const v = entry as Record<string, unknown>;
       const before = errors.length;
       if (typeof v.value !== 'string' || v.value.trim() === '' || v.value === TEMPLATE_SOUND_NONE) {
-        errors.push({ path: `${path}.value`, message: `must be a non-empty string other than "${TEMPLATE_SOUND_NONE}"` });
+        errors.push({ path: `${path}.value`, message: `must be a non-empty string other than "${TEMPLATE_SOUND_NONE}"` }); // i18n-exempt(diagnostic)
       } else if (values.has(v.value)) {
-        errors.push({ path: `${path}.value`, message: 'is duplicated' });
+        errors.push({ path: `${path}.value`, message: 'is duplicated' }); // i18n-exempt(diagnostic)
       }
       if (typeof v.label !== 'string' || v.label.trim() === '') {
-        errors.push({ path: `${path}.label`, message: 'must be a non-empty string' });
+        errors.push({ path: `${path}.label`, message: 'must be a non-empty string' }); // i18n-exempt(diagnostic)
       }
       if (typeof v.file !== 'string' || !isSafeRelativePath(v.file) || !isTemplateSoundFile(v.file)) {
-        errors.push({ path: `${path}.file`, message: `must be a relative path inside the template folder ending in ${TEMPLATE_SOUND_EXTENSIONS.join(', ')}` });
+        errors.push({ path: `${path}.file`, message: `must be a relative path inside the template folder ending in ${TEMPLATE_SOUND_EXTENSIONS.join(', ')}` }); // i18n-exempt(diagnostic)
       }
       if (v.gain !== undefined && (typeof v.gain !== 'number' || !Number.isFinite(v.gain) || v.gain < 0 || v.gain > 1)) {
-        errors.push({ path: `${path}.gain`, message: 'must be a number from 0 to 1' });
+        errors.push({ path: `${path}.gain`, message: 'must be a number from 0 to 1' }); // i18n-exempt(diagnostic)
       }
       if (errors.length !== before) return;
       values.add(v.value as string);
@@ -109,11 +109,11 @@ export function validateTemplateSound(raw: unknown, duration: number, errors: Te
       });
     });
     if (r.default !== undefined && (typeof r.default !== 'string' || (r.default !== TEMPLATE_SOUND_NONE && !values.has(r.default)))) {
-      errors.push({ path: 'sound.default', message: `must be one of the variant values, or "${TEMPLATE_SOUND_NONE}"` });
+      errors.push({ path: 'sound.default', message: `must be one of the variant values, or "${TEMPLATE_SOUND_NONE}"` }); // i18n-exempt(diagnostic)
     }
   }
   if (r.at !== undefined && (typeof r.at !== 'number' || !Number.isFinite(r.at) || r.at < 0 || r.at > duration)) {
-    errors.push({ path: 'sound.at', message: 'must be a moment in seconds of the template\'s own time, from 0 to its duration' });
+    errors.push({ path: 'sound.at', message: 'must be a moment in seconds of the template\'s own time, from 0 to its duration' }); // i18n-exempt(diagnostic)
   }
   if (errors.length !== start) return null;
   return {

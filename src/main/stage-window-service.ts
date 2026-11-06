@@ -8,6 +8,7 @@
  * display with it for theater.
  */
 
+import { tr } from '../core/i18n';
 import { app, ipcMain, screen, type BrowserWindow, type BrowserWindowConstructorOptions, type Display } from 'electron';
 import type { StageOnDisplayResult } from '../shared/api';
 import {
@@ -60,7 +61,7 @@ export function stageWindowOptions(frameName: string): BrowserWindowConstructorO
     ...stageWindowPlacement(remembered, displays()),
     minWidth: STAGE_WINDOW_MIN.width,
     minHeight: STAGE_WINDOW_MIN.height,
-    title: 'Stage',
+    title: tr('stage-window.title'),
     // The palette it opens in, as the main window's (milestone 62).
     backgroundColor: windowBackground(),
     // The application menu is the main window's; here it would only take a row from the picture.
@@ -77,7 +78,7 @@ export function stageWindowOptions(frameName: string): BrowserWindowConstructorO
 export function adoptStageWindow(win: BrowserWindow, main: BrowserWindow): void {
   stageWindow = win;
   closeAllowed = false;
-  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' })); // i18n-exempt(technical)
   win.webContents.on('will-navigate', (event) => event.preventDefault());
 
   // Where it is, remembered as it settles; not while full screen or minimized, which are not places.

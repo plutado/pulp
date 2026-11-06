@@ -16,9 +16,10 @@
  * beside the thumbnails and the waveforms.
  */
 
+import { tr } from './i18n';
 import type { LibraryEntry } from './library-types';
 import type { SearchHit } from './search';
-import { entryMoods, TYPES } from './taxonomy';
+import { entryMoods, typeSourceLabel } from './taxonomy';
 
 /**
  * The embedding model Pulp fetches when semantic search is turned on. `bytes`
@@ -30,7 +31,7 @@ import { entryMoods, TYPES } from './taxonomy';
  */
 export const SEMANTIC_MODEL = {
   id: 'bge-small-en-v1.5-q8',
-  label: 'BGE small v1.5',
+  label: 'BGE small v1.5', // i18n-exempt(content): the model's published name
   file: 'bge-small-en-v1.5-q8_0.gguf',
   url: 'https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/bge-small-en-v1.5-q8_0.gguf',
   bytes: 36_806_944,
@@ -38,7 +39,10 @@ export const SEMANTIC_MODEL = {
   license: 'MIT',
   /** The vectors' length; what the parser and the store hold every row to. */
   dims: 384,
-  note: 'Embeds names, descriptions, themes and tags so a search can match meaning, English first.',
+  /** Shown in Settings beside the model's name, in the interface's language now. */
+  get note(): string {
+    return tr('semantic.model.note');
+  },
 } as const;
 
 /** Where the runner may be, in the order tried: an override, PATH, then where Homebrew puts things. */
@@ -51,16 +55,17 @@ export function semanticRunnerPaths(env: Record<string, string | undefined>): st
   return [...new Set(list)];
 }
 
-export const SEMANTIC_RUNNER_MISSING_MESSAGE =
-  'llama.cpp was not found. Semantic search embeds with it, on this machine (decision record 0024). ' +
-  'Install it (macOS: "brew install llama.cpp"; elsewhere: build llama.cpp and put llama-embedding on your PATH), ' +
-  'or set PULP_LLAMA_EMBEDDING_PATH to the full path of llama-embedding, then restart Pulp.';
+/** Why semantic search cannot run here, and what to do about it: in the interface's language when it is said. */
+export function semanticRunnerMissingMessage(): string {
+  return tr('semantic.runner-missing');
+}
+
 
 /**
  * BGE models are trained with this in front of a *query* — and nothing in
  * front of what is searched — so retrieval asks the question the model knows.
  */
-export const SEMANTIC_QUERY_PREFIX = 'Represent this sentence for searching relevant passages: ';
+export const SEMANTIC_QUERY_PREFIX = 'Represent this sentence for searching relevant passages: '; // i18n-exempt(technical): the model's own query instruction
 
 /** How many hits a semantic ask answers with, and the similarity below which a hit is noise. */
 export const SEMANTIC_LIMIT = 50;
@@ -80,13 +85,14 @@ export function semanticTextFor(entry: LibraryEntry): string {
     const m = entry.manifest;
     parts.push(m.name);
     const type = m.type ?? m.category;
-    parts.push(TYPES.find((t) => t.id === type)?.label ?? type);
+    // The type's US English name whatever the interface's language: the model reads English first (ADR 0024).
+    parts.push(typeSourceLabel(type) ?? type);
     if (m.description) parts.push(m.description);
     if (m.themes?.length) parts.push(`themes: ${m.themes.join(', ')}`);
     if (m.styles?.length) parts.push(`styles: ${m.styles.join(', ')}`);
   } else {
     parts.push(entry.name);
-    if (entry.type) parts.push(TYPES.find((t) => t.id === entry.type)?.label ?? entry.type);
+    if (entry.type) parts.push(typeSourceLabel(entry.type) ?? entry.type);
     parts.push(entry.mediaKind);
     if (entry.themes?.length) parts.push(`themes: ${entry.themes.join(', ')}`);
     const moods = entryMoods(entry);

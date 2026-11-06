@@ -35,7 +35,7 @@ import {
 } from '../core/results-view';
 import { categoryOfEntry } from '../core/categories';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
-import { emptyResults, resultsLabel, type EmptyActionId } from '../core/results-empty';
+import { emptyResults, type EmptyActionId } from '../core/results-empty';
 import { setQuery } from '../core/app-state';
 import { virtualWindow } from '../core/virtual-list';
 import { windowTiming } from './perf';
@@ -45,6 +45,7 @@ import { appState, dispatch, hasIndex, results, resultsView, selectedKey } from 
 import { runLibraryAdd } from './library-add';
 import { rovingTarget } from '../core/roving';
 import { isPolished } from '../core/polished';
+import { bindText, t } from './i18n';
 
 /**
  * The id the listbox points `aria-activedescendant` at, so a screen reader
@@ -85,7 +86,7 @@ function Badges({ badges }: { badges: ResultBadge[] }) {
 
 function Favorite({ entry }: { entry: LibraryEntry }) {
   return (
-    <span class="fav" hidden={!entry.favorite} aria-label="Favorite">
+    <span class="fav" hidden={!entry.favorite} aria-label={t('results.favorite.aria-label')}>
       {entry.favorite && <Icon name="star-fill" />}
     </span>
   );
@@ -101,7 +102,7 @@ interface ItemProps {
 function summary(entry: LibraryEntry): string {
   const { name, meta } = entryLabel(entry);
   const tags = entry.tags.length ? ` · ${entry.tags.map(tagLabel).join(', ')}` : '';
-  return `${name} — ${entry.offline ? 'Offline · ' : ''}${meta}${tags}`;
+  return (entry.offline ? t('results.summary.offline', { name, meta }) : t('results.summary', { name, meta })) + tags;
 }
 
 function Card({ entry, selected, onSelect, gridRatio }: ItemProps & { gridRatio: number }) {
@@ -370,7 +371,8 @@ export function mountResults(container: HTMLElement, actions: ResultsActions): v
   // The region says what it holds, whether or not it holds anything — and when it holds nothing,
   // why, in the heading that is all that is left of it (milestone 42).
   const label = document.getElementById('results-label');
-  if (label) effect(() => { label.textContent = hasIndex.value ? resultsLabel(results.value.entries.length) : 'Results'; });
+  // Bound to its message, not merely written: the markup names one for this element, which a change of language would put back.
+  if (label) effect(() => { if (hasIndex.value) bindText(label, 'results.label', { count: results.value.entries.length }); else bindText(label, 'ui.results-label'); });
   const emptySlot = document.getElementById('results-empty');
   if (emptySlot) {
     render(<Empty />, emptySlot);

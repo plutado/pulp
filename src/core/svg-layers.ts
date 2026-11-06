@@ -13,6 +13,7 @@
  * fetches nothing external — so a file from anywhere stays a picture.
  */
 
+import { tr } from './i18n';
 import type { PsdOutline } from './psd';
 import { parseXml, type XmlElement } from './xml';
 
@@ -54,7 +55,7 @@ function hiddenByAttrs(attrs: Record<string, string>): boolean {
 }
 
 function layerName(attrs: Record<string, string>, index: number): string {
-  return attrs['inkscape:label'] || attrs['aria-label'] || attrs['data-name'] || attrs.id || `Layer ${index + 1}`;
+  return attrs['inkscape:label'] || attrs['aria-label'] || attrs['data-name'] || attrs.id || tr('svg.layer.default-name', { number: index + 1 });
 }
 
 function findAll(root: XmlElement, name: string, out: XmlElement[] = []): XmlElement[] {
@@ -66,7 +67,7 @@ function findAll(root: XmlElement, name: string, out: XmlElement[] = []): XmlEle
 /** Read an SVG's size and top-level groups, and what of it is named rather than drawn. */
 export function parseSvgLayers(source: string): SvgDocument {
   const root = parseXml(source);
-  if (root.name !== 'svg' && !root.name.endsWith(':svg')) throw new Error('not an SVG (no <svg> root)');
+  if (root.name !== 'svg' && !root.name.endsWith(':svg')) throw new Error('not an SVG (no <svg> root)'); // i18n-exempt(diagnostic)
   let width = dimension(root.attrs.width);
   let height = dimension(root.attrs.height);
   const viewBox = (root.attrs.viewBox ?? '').trim().split(/[\s,]+/).map(Number);
@@ -79,7 +80,7 @@ export function parseSvgLayers(source: string): SvgDocument {
       height = viewBox[3]!;
     }
   }
-  if (!width || !height) throw new Error('the file declares no size and no viewBox');
+  if (!width || !height) throw new Error('the file declares no size and no viewBox'); // i18n-exempt(diagnostic)
 
   const groups = root.children.filter((c) => c.name === 'g');
   const layers: SvgLayerSource[] = groups.map((g, i) => ({
@@ -92,10 +93,10 @@ export function parseSvgLayers(source: string): SvgDocument {
   }));
 
   const limits: string[] = [];
-  if (findAll(root, 'script').length > 0) limits.push('scripts inside the file are not run');
-  if (findAll(root, 'foreignObject').length > 0) limits.push('embedded HTML (foreignObject) is not drawn');
+  if (findAll(root, 'script').length > 0) limits.push(tr('svg.limit.scripts'));
+  if (findAll(root, 'foreignObject').length > 0) limits.push(tr('svg.limit.foreign-object'));
   if (/@font-face|font-family\s*:/.test(source) || findAll(root, 'text').length > 0) {
-    if (/@font-face/.test(source)) limits.push('fonts the file carries or names are not loaded; its text draws in a default face');
+    if (/@font-face/.test(source)) limits.push(tr('svg.limit.fonts'));
   }
   return { width: Math.round(width), height: Math.round(height), layers, limits, source };
 }

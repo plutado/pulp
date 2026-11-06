@@ -26,6 +26,7 @@ import type { TemplateManifest } from '../core/manifest';
 import { resolveLength } from '../core/timing';
 import { WAVEFORM_BUCKETS, waveformPath } from '../core/waveform';
 import { openContextMenu } from './context-menu';
+import { bindAttr, bindText, t } from './i18n';
 import { layerEditor, selectedLayer } from './layer-edit';
 import { appState, playheadSeconds } from './store';
 import { requestWaveform, waveforms } from './waveforms';
@@ -125,8 +126,8 @@ function makeBar(block: string, id: string, stem?: number): Bar {
   body.append(wave, enter, leave, label, start, end);
   // A stem's lane carries the mixer's two buttons (milestone 16): mute, and solo.
   if (stem !== undefined) {
-    const mute = stemButton('M', 'bar-mute');
-    const solo = stemButton('S', 'bar-solo');
+    const mute = stemButton('bars.stem.mute', 'bar-mute');
+    const solo = stemButton('bars.stem.solo', 'bar-solo');
     mute.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleStem(block, id, stem, 'muted');
@@ -153,7 +154,7 @@ function makeBar(block: string, id: string, stem?: number): Bar {
       x: e.clientX,
       y: e.clientY,
       doc: body.ownerDocument,
-      items: [{ command: 'key.paste', label: 'Paste Key at Playhead' }],
+      items: [{ command: 'key.paste', label: t('bars.key.paste') }],
       run: () => pasteKey(block, id),
     });
   });
@@ -189,24 +190,24 @@ function placeBar(bar: Bar, layer: Layer, length: number, stem?: number): void {
   const stemValue = stem !== undefined && layer.type === 'audio' ? layer.sound?.stems?.[stem] : undefined;
   const label = stemValue ? `${layer.label} · ${stemValue.label}` : layer.label;
   bar.label.textContent = stemValue ? stemValue.label : layer.label;
-  bar.body.title = `${label}: ${tidy(window.from)}-${tidy(window.to)} s`;
+  bindAttr(bar.body, 'title', 'bars.body.title', { label, from: tidy(window.from), to: tidy(window.to) });
   if (stemValue) {
     // The lane says what the mixer holds: a pressed M, a pressed S, and a dimmed body while silent.
     const mute = bar.body.querySelector<HTMLButtonElement>('.bar-mute');
     const solo = bar.body.querySelector<HTMLButtonElement>('.bar-solo');
     mute?.setAttribute('aria-pressed', String(stemValue.muted));
-    mute?.setAttribute('aria-label', `Mute ${label}`);
+    if (mute) bindAttr(mute, 'aria-label', 'bars.stem.mute.aria-label', { label });
     solo?.setAttribute('aria-pressed', String(stemValue.solo));
-    solo?.setAttribute('aria-label', `Solo ${label}`);
+    if (solo) bindAttr(solo, 'aria-label', 'bars.stem.solo.aria-label', { label });
     const heard = layer.type === 'audio' && layer.sound ? heardStems(layer.sound).includes(stemValue) : true;
     bar.root.classList.toggle('stem-silent', !heard);
   }
   for (const [handle, which, value] of [[bar.start, 'start', window.from], [bar.end, 'end', window.to]] as const) {
-    handle.setAttribute('aria-label', `${label} ${which}, seconds`);
+    bindAttr(handle, 'aria-label', which === 'start' ? 'bars.end.start.aria-label' : 'bars.end.end.aria-label', { label });
     handle.setAttribute('aria-valuemin', which === 'start' ? '0' : String(tidy(window.from + MIN_ON_SCREEN)));
     handle.setAttribute('aria-valuemax', which === 'start' ? String(tidy(window.to - MIN_ON_SCREEN)) : String(tidy(length)));
     handle.setAttribute('aria-valuenow', String(tidy(value)));
-    handle.setAttribute('aria-valuetext', `${tidy(value)} seconds`);
+    bindAttr(handle, 'aria-valuetext', 'bars.end.aria-valuetext', { seconds: tidy(value) });
   }
   bar.layer = layer;
   paintWave(bar, layer, length, stem);
@@ -214,11 +215,11 @@ function placeBar(bar: Bar, layer: Layer, length: number, stem?: number): void {
 }
 
 /** One of the lane's two letters, pressed or not; the state is painted by placeBar. */
-function stemButton(letter: 'M' | 'S', className: string): HTMLButtonElement {
+function stemButton(letter: 'bars.stem.mute' | 'bars.stem.solo', className: string): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = `bar-stem ${className}`;
-  b.textContent = letter;
+  bindText(b, letter);
   b.setAttribute('aria-pressed', 'false');
   return b;
 }
@@ -271,12 +272,12 @@ function placeKeys(bar: Bar, layer: Layer, length: number): void {
     const mark = bar.marks[index]!;
     mark.dataset.index = String(index);
     mark.style.left = `${Math.min(100, (key.at / Math.max(0.001, length)) * 100)}%`;
-    mark.setAttribute('aria-label', `${layer.label} key at ${key.at} s`);
+    bindAttr(mark, 'aria-label', 'bars.key.aria-label', { label: layer.label, at: key.at });
     mark.setAttribute('aria-valuemin', '0');
     mark.setAttribute('aria-valuemax', String(tidy(length)));
     mark.setAttribute('aria-valuenow', String(key.at));
-    mark.setAttribute('aria-valuetext', `${key.at} seconds`);
-    mark.title = `${layer.label} key at ${key.at} s`;
+    bindAttr(mark, 'aria-valuetext', 'bars.key.aria-valuetext', { at: key.at });
+    bindAttr(mark, 'title', 'bars.key.title', { label: layer.label, at: key.at });
   });
 }
 
@@ -419,10 +420,10 @@ function onKeyContextMenu(e: MouseEvent, block: string, id: string): void {
     doc: mark.ownerDocument,
     focusBack: mark,
     items: [
-      { command: 'key.copy', label: 'Copy Key' },
-      { command: 'key.paste', label: 'Paste Key at Playhead', enabled: copiedKey !== null },
+      { command: 'key.copy', label: t('bars.key.copy') },
+      { command: 'key.paste', label: t('bars.key.paste'), enabled: copiedKey !== null },
       { type: 'separator' },
-      { command: 'key.delete', label: 'Delete Key' },
+      { command: 'key.delete', label: t('bars.key.delete') },
     ],
     run: (command) => {
       const found = markKey(mark, block, id);

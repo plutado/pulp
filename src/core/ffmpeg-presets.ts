@@ -4,9 +4,12 @@
  */
 
 import type { OutputPreset } from './render-plan';
+import { tr } from './i18n';
 
 /** Short reason a preset is unavailable with this ffmpeg (for the preset list), or null if it is usable. */
 export function presetUnavailableReason(encoders: readonly string[], preset: OutputPreset): string | null {
   if (encoders.length === 0 || encoders.includes(preset.encoder)) return null;
-  return `no "${preset.encoder}" encoder in this ffmpeg${preset.platformNote ? ` (${preset.platformNote})` : ''}`;
+  return preset.platformNote
+    ? tr('preset.unavailable.no-encoder.note', { encoder: preset.encoder, note: preset.platformNote })
+    : tr('preset.unavailable.no-encoder', { encoder: preset.encoder });
 }

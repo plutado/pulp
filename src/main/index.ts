@@ -10,6 +10,7 @@ import { loadLayerClips, loadTrackFrames } from './clip-grant';
 import { existsSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
+import { tr } from '../core/i18n';
 import { CAPTIONS_MODES, FRAME_FORMATS, OUTPUT_PRESETS, STEMS_MODES, type CaptionsMode, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
 import { PLATFORM_IDS, platformPreset } from '../core/platform-presets';
 import { EXIT_CODES, helpText, parseCommandLine, usageErrorText, type ParsedCli } from '../core/cli';
@@ -186,9 +187,9 @@ function createWindow(): void {
   // window service places and watches.
   mainWindow.webContents.setWindowOpenHandler(({ url, frameName }) => {
     const stage = stageWindowOptions(frameName);
-    if (stage) return { action: 'allow', overrideBrowserWindowOptions: stage };
+    if (stage) return { action: 'allow', overrideBrowserWindowOptions: stage }; // i18n-exempt(technical)
     if (url.startsWith('https://')) void shell.openExternal(url);
-    return { action: 'deny' };
+    return { action: 'deny' }; // i18n-exempt(technical)
   });
   mainWindow.webContents.on('did-create-window', (win, details) => {
     if (details.frameName === STAGE_WINDOW_NAME && mainWindow) adoptStageWindow(win, mainWindow);
@@ -253,11 +254,11 @@ function registerIpc(): void {
   // The clips a video layer chose, read the same way and by the same rule (milestone 26).
   ipcMain.handle('clips:load', (_event, requests: unknown) => loadLayerClips(Array.isArray(requests) ? requests : []));
   ipcMain.handle('library:diagnostics', () => libraryDiagnostics());
-  ipcMain.handle('images:import', (_event, path: unknown) => (typeof path === 'string' && path ? importImageFile(path) : { error: 'No file was chosen.' }));
+  ipcMain.handle('images:import', (_event, path: unknown) => (typeof path === 'string' && path ? importImageFile(path) : { error: tr('import.no-file') }));
   ipcMain.handle('fonts:list', () => listImportedFonts());
   ipcMain.handle('fonts:choose', () => chooseFontFile());
   ipcMain.handle('fonts:import', (_event, path: unknown, note: unknown) =>
-    typeof path === 'string' && path ? importFontFile(path, typeof note === 'string' ? note : '') : { error: 'No file was chosen.' });
+    typeof path === 'string' && path ? importFontFile(path, typeof note === 'string' ? note : '') : { error: tr('import.no-file') });
   /**
    * Where the sample media lives: the folder a run was made in, or — for a folder made before that
    * was recorded — a library folder named like the one the generator makes. Null when there is none
@@ -306,7 +307,7 @@ function registerIpc(): void {
   });
   ipcMain.handle('library:add-folder', async () => {
     const result = await dialog.showOpenDialog({
-      title: 'Add library folder',
+      title: tr('dialog.library.add-folder'),
       properties: ['openDirectory'],
     });
     const folder = result.filePaths[0];
@@ -385,7 +386,7 @@ function registerIpc(): void {
     saveProjectTo(project, typeof path === 'string' && path ? path : null, String(name ?? '')));
   ipcMain.handle('project:open', () => openProjectDialog());
   ipcMain.handle('project:open-path', (_event, path: unknown) =>
-    typeof path === 'string' && path ? readProjectFile(path) : { ok: false as const, message: 'No project was chosen.' });
+    typeof path === 'string' && path ? readProjectFile(path) : { ok: false as const, message: tr('dialog.project.none-chosen') });
   // The window is ready for the file the system handed over, if there was one (milestone 17);
   // from here on a new one is pushed to it as it arrives.
   ipcMain.handle('project:take-pending-open', () => {
@@ -412,7 +413,7 @@ function registerIpc(): void {
   // Recording a voice (milestone 63): the microphone's permission, the finished take, the chosen input.
   ipcMain.handle('recording:access', () => microphoneAccess());
   ipcMain.handle('recording:save', (_event, wav: unknown) => {
-    if (!(wav instanceof ArrayBuffer) || wav.byteLength === 0) throw new Error('A recording arrived empty.');
+    if (!(wav instanceof ArrayBuffer) || wav.byteLength === 0) throw new Error('A recording arrived empty.'); // i18n-exempt(diagnostic): the window sent nothing
     return saveRecording(new Uint8Array(wav));
   });
   ipcMain.handle('recording:open-settings', (_event, device: unknown) => openPrivacySettings(device === 'camera' ? 'camera' : 'microphone'));
@@ -428,11 +429,11 @@ function registerIpc(): void {
   ipcMain.handle('video:access', (_event, sound: unknown) => cameraAccess(sound !== false));
   ipcMain.handle('video:begin', () => beginVideoTake());
   ipcMain.handle('video:append', (_event, id: unknown, piece: unknown) => {
-    if (typeof id !== 'string' || !(piece instanceof ArrayBuffer)) throw new Error('A piece of a recording arrived malformed.');
+    if (typeof id !== 'string' || !(piece instanceof ArrayBuffer)) throw new Error('A piece of a recording arrived malformed.'); // i18n-exempt(diagnostic)
     return appendVideoTake(id, new Uint8Array(piece));
   });
   ipcMain.handle('video:finish', (_event, id: unknown, facts: unknown) => {
-    if (typeof id !== 'string' || !facts || typeof facts !== 'object') throw new Error('A recording ended malformed.');
+    if (typeof id !== 'string' || !facts || typeof facts !== 'object') throw new Error('A recording ended malformed.'); // i18n-exempt(diagnostic)
     const f = facts as { width?: unknown; height?: unknown; frameRate?: unknown; sound?: unknown };
     const whole = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.round(n) : 0);
     return finishVideoTake(id, {
@@ -532,10 +533,10 @@ function registerIpc(): void {
     // a pack cannot carry it, and zipping its folder would carry everything beside it.
     const chosen = index.templates.filter((t) => ids.has(t.manifest.id) && !t.offline);
     const templates = chosen.filter((t) => !t.lottie);
-    const lottieSkipped = chosen.filter((t) => t.lottie).map((t) => `${t.manifest.name} is a Lottie animation, which a pack cannot carry; share the .json or .lottie file itself.`);
-    if (templates.length === 0) return { ok: false, message: lottieSkipped[0] ?? 'No templates to export.' };
+    const lottieSkipped = chosen.filter((t) => t.lottie).map((t) => tr('pack.export.lottie-skipped', { name: t.manifest.name }));
+    if (templates.length === 0) return { ok: false, message: lottieSkipped[0] ?? tr('pack.export.nothing') };
     const destination = await chooseExportFile(meta?.name || templates[0]!.manifest.name);
-    if (!destination) return { ok: false, cancelled: true, message: 'Export canceled.' };
+    if (!destination) return { ok: false, cancelled: true, message: tr('pack.export.canceled') };
     try {
       const out = await exportPackTo(destination, templates, { name: String(meta?.name || 'Pack'), license: String(meta?.license || ''), ...(meta?.author ? { author: String(meta.author) } : {}), ...(meta?.description ? { description: String(meta.description) } : {}) });
       // A pack never carries a person's imported fonts: a template whose type is set in one is named here,
@@ -544,7 +545,7 @@ function registerIpc(): void {
       const warnings = templates
         .map((t) => ({ name: t.manifest.name, fonts: familiesUsedBy(t.manifest.blocks).filter((f) => imported.has(f)) }))
         .filter((t) => t.fonts.length > 0)
-        .map((t) => `${t.name} is set in ${t.fonts.join(' and ')}, an imported font that is not in the pack; whoever installs it needs that font.`);
+        .map((t) => tr('pack.export.imported-font', { name: t.name, fonts: t.fonts.reduce((a, b) => tr('pack.export.imported-font.and', { a, b })) }));
       return { ok: true, path: destination, bytes: out.bytes, warnings: [...lottieSkipped, ...warnings] };
     } catch (err) {
       return { ok: false, message: (err as Error).message };
@@ -583,7 +584,7 @@ function registerIpc(): void {
   ipcMain.handle('cleanup:key', (_event, id: unknown, settings: unknown) => chromaKeyClip(String(id), settings));
   ipcMain.handle('cleanup:split-scenes', (_event, id: unknown) => splitScenes(String(id)));
   ipcMain.handle('cleanup:choose-lut', async () => {
-    const pick = await dialog.showOpenDialog({ title: 'Choose a LUT', filters: [{ name: 'Cube LUT', extensions: ['cube'] }], properties: ['openFile'] });
+    const pick = await dialog.showOpenDialog({ title: tr('dialog.lut.title'), filters: [{ name: tr('dialog.lut.filter'), extensions: ['cube'] }], properties: ['openFile'] });
     return pick.canceled || !pick.filePaths[0] ? null : pick.filePaths[0];
   });
   // The mix's loudness for the transport row's meter (milestone 52): ids and settings in, LUFS out.
@@ -738,7 +739,7 @@ async function runSafeBox(): Promise<number> {
   for (const f of failed) process.stderr.write(`could not check ${f.what}: ${f.error}\n`);
   const outside = results.filter((r) => r.problems.length > 0);
   for (const r of outside) {
-    const at = r.words ? ` (words at ${r.words.x},${r.words.y} ${r.words.width}×${r.words.height})` : '';
+    const at = r.words ? ` (words at ${r.words.x},${r.words.y} ${r.words.width}×${r.words.height})` : ''; // i18n-exempt(terminal)
     process.stdout.write(`OUTSIDE ${r.template} ${r.moment}${at}: ${r.problems.join('; ')}\n`);
   }
   // A template with no words (a progress bar) is checked and has no moment to place.
@@ -789,7 +790,7 @@ function cliRenderFrom(parsed: Extract<ParsedCli, { kind: 'command' }>): CliRend
   const sizeRaw = get('--size');
   if (sizeRaw !== undefined) {
     const m = /^(\d+)x(\d+)$/i.exec(sizeRaw.trim());
-    if (!m) badNumbers.push(`--size ${sizeRaw} (expected <width>x<height>)`);
+    if (!m) badNumbers.push(`--size ${sizeRaw} (expected <width>x<height>)`); // i18n-exempt(terminal)
     else {
       options.width = Number(m[1]);
       options.height = Number(m[2]);
@@ -801,13 +802,13 @@ function cliRenderFrom(parsed: Extract<ParsedCli, { kind: 'command' }>): CliRend
   const captionsRaw = get('--captions');
   if (captionsRaw !== undefined) {
     if ((CAPTIONS_MODES as readonly string[]).includes(captionsRaw)) options.captions = captionsRaw as CaptionsMode;
-    else badNumbers.push(`--captions ${captionsRaw} (expected ${CAPTIONS_MODES.join(', ')})`);
+    else badNumbers.push(`--captions ${captionsRaw} (expected ${CAPTIONS_MODES.join(', ')})`); // i18n-exempt(terminal)
   }
   // Music that came in as stems (milestone 16): in the mix, or one WAV per stem beside the render.
   const stemsRaw = get('--stems');
   if (stemsRaw !== undefined) {
     if ((STEMS_MODES as readonly string[]).includes(stemsRaw)) options.stems = stemsRaw as 'mix' | 'files';
-    else badNumbers.push(`--stems ${stemsRaw} (expected ${STEMS_MODES.join(', ')})`);
+    else badNumbers.push(`--stems ${stemsRaw} (expected ${STEMS_MODES.join(', ')})`); // i18n-exempt(terminal)
   }
   const length = get('--length');
   const batch = get('--batch');
@@ -1167,7 +1168,7 @@ if (!cliMode) {
 app.whenReady().then(async () => {
   // The platform's About panel is a role Pulp cannot put a button on, so its credits line points
   // at the third-party notices, which Help → Acknowledgements shows in full (milestone 8).
-  app.setAboutPanelOptions({ applicationName: app.getName(), applicationVersion: app.getVersion(), credits: 'Built on Electron, Chromium and open-source work under their own licenses: Help → Acknowledgements.' });
+  app.setAboutPanelOptions({ applicationName: app.getName(), applicationVersion: app.getVersion(), credits: tr('about.credits') });
   handleTemplateProtocol();
   handleMediaProtocol();
   handleThumbProtocol();

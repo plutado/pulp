@@ -4,6 +4,8 @@
  * forwards snapshots to the UI.
  */
 
+import { tr } from './i18n';
+
 export type RenderJobStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
 
 export interface RenderQueueJob {
@@ -56,7 +58,7 @@ export class RenderQueue {
 
   /** Append a job in the queued state. */
   add(input: NewRenderJob): RenderQueueJob {
-    const job: RenderQueueJob = { ...input, id: this.nextId++, status: 'queued', frame: 0, warnings: [] };
+    const job: RenderQueueJob = { ...input, id: this.nextId++, status: 'queued', frame: 0, warnings: [] }; // i18n-exempt(technical): a job's state
     this.jobs.push(job);
     this.changed();
     return { ...job };
@@ -73,7 +75,7 @@ export class RenderQueue {
     if (this.jobs.some((j) => j.status === 'running')) return null;
     const job = this.jobs.find((j) => j.status === 'queued');
     if (!job) return null;
-    job.status = 'running';
+    job.status = 'running'; // i18n-exempt(technical): a job's state
     this.changed();
     return { ...job };
   }
@@ -89,12 +91,12 @@ export class RenderQueue {
     const job = this.find(id);
     if (!job || job.status !== 'running') return;
     if (outcome.ok) {
-      job.status = 'done';
+      job.status = 'done'; // i18n-exempt(technical): a job's state
       job.frame = outcome.frames;
       job.output = outcome.output;
       job.warnings = [...outcome.warnings];
     } else {
-      job.status = outcome.cancelled ? 'cancelled' : 'failed';
+      job.status = outcome.cancelled ? 'cancelled' : 'failed'; // i18n-exempt(technical): a job's state
       job.message = outcome.message;
     }
     this.changed();
@@ -109,8 +111,9 @@ export class RenderQueue {
     if (!job) return 'ignored';
     if (job.status === 'running') return 'running';
     if (job.status !== 'queued') return 'ignored';
-    job.status = 'cancelled';
-    job.message = 'Canceled before it started.';
+    job.status = 'cancelled'; // i18n-exempt(technical): a job's state
+    // Said in the main process's language when it is canceled, and kept with the job as its reason.
+    job.message = tr('queue.cancelled-before-start');
     this.changed();
     return 'cancelled';
   }
@@ -123,7 +126,7 @@ export class RenderQueue {
    */
   addFinished(input: NewRenderJob, output: string, frames: number): RenderQueueJob {
     // Not add() then mutate: add returns a copy, so the stored job has to be built here.
-    const job: RenderQueueJob = { ...input, id: this.nextId++, status: 'done', frame: frames, output, warnings: [] };
+    const job: RenderQueueJob = { ...input, id: this.nextId++, status: 'done', frame: frames, output, warnings: [] }; // i18n-exempt(technical): a job's state
     this.jobs.push(job);
     this.changed();
     return { ...job };

@@ -231,23 +231,23 @@ function isNonEmptyString(value: unknown): value is string {
 
 function validateParameter(raw: unknown, path: string, errors: ValidationIssue[]): TemplateParameter | null {
   if (!isRecord(raw)) {
-    errors.push({ path, message: 'must be an object' });
+    errors.push({ path, message: 'must be an object' }); // i18n-exempt(diagnostic)
     return null;
   }
   const start = errors.length;
   const { id, label, type } = raw;
 
   if (typeof id !== 'string' || !PARAM_ID_PATTERN.test(id)) {
-    errors.push({ path: `${path}.id`, message: 'must be an identifier (letters, digits, underscore; not starting with a digit)' });
+    errors.push({ path: `${path}.id`, message: 'must be an identifier (letters, digits, underscore; not starting with a digit)' }); // i18n-exempt(diagnostic)
   }
   if (!isNonEmptyString(label)) {
-    errors.push({ path: `${path}.label`, message: 'must be a non-empty string' });
+    errors.push({ path: `${path}.label`, message: 'must be a non-empty string' }); // i18n-exempt(diagnostic)
   }
   if (raw.element !== undefined && !isNonEmptyString(raw.element)) {
-    errors.push({ path: `${path}.element`, message: 'must be a non-empty string: the part of the graphic this setting belongs to' });
+    errors.push({ path: `${path}.element`, message: 'must be a non-empty string: the part of the graphic this setting belongs to' }); // i18n-exempt(diagnostic)
   }
   if (typeof type !== 'string' || !(PARAMETER_TYPES as readonly string[]).includes(type)) {
-    errors.push({ path: `${path}.type`, message: `must be one of: ${PARAMETER_TYPES.join(', ')}` });
+    errors.push({ path: `${path}.type`, message: `must be one of: ${PARAMETER_TYPES.join(', ')}` }); // i18n-exempt(diagnostic)
     return null;
   }
 
@@ -255,78 +255,78 @@ function validateParameter(raw: unknown, path: string, errors: ValidationIssue[]
   const at = `${path}.default`;
   switch (type as ParameterType) {
     case 'text':
-      if (typeof def !== 'string') errors.push({ path: at, message: 'must be a string' });
+      if (typeof def !== 'string') errors.push({ path: at, message: 'must be a string' }); // i18n-exempt(diagnostic)
       if (raw.maxLength !== undefined && (!Number.isInteger(raw.maxLength) || (raw.maxLength as number) < 1)) {
-        errors.push({ path: `${path}.maxLength`, message: 'must be a positive integer' });
+        errors.push({ path: `${path}.maxLength`, message: 'must be a positive integer' }); // i18n-exempt(diagnostic)
       } else if (typeof def === 'string' && typeof raw.maxLength === 'number' && def.length > raw.maxLength) {
-        errors.push({ path: at, message: `is longer than maxLength (${raw.maxLength})` });
+        errors.push({ path: at, message: `is longer than maxLength (${raw.maxLength})` }); // i18n-exempt(diagnostic)
       }
       break;
     case 'color':
-      if (!isValidColor(def)) errors.push({ path: at, message: 'must be a color in #RRGGBB or #RRGGBBAA form' });
+      if (!isValidColor(def)) errors.push({ path: at, message: 'must be a color in #RRGGBB or #RRGGBBAA form' }); // i18n-exempt(diagnostic)
       break;
     case 'number': {
-      if (!isFiniteNumber(def)) errors.push({ path: at, message: 'must be a finite number' });
+      if (!isFiniteNumber(def)) errors.push({ path: at, message: 'must be a finite number' }); // i18n-exempt(diagnostic)
       for (const key of ['min', 'max', 'step'] as const) {
         if (raw[key] !== undefined && !isFiniteNumber(raw[key])) {
-          errors.push({ path: `${path}.${key}`, message: 'must be a finite number' });
+          errors.push({ path: `${path}.${key}`, message: 'must be a finite number' }); // i18n-exempt(diagnostic)
         }
       }
       const { min, max, step } = raw as { min?: number; max?: number; step?: number };
       if (isFiniteNumber(min) && isFiniteNumber(max) && min > max) {
-        errors.push({ path: `${path}.min`, message: 'must not be greater than max' });
+        errors.push({ path: `${path}.min`, message: 'must not be greater than max' }); // i18n-exempt(diagnostic)
       }
-      if (isFiniteNumber(step) && step <= 0) errors.push({ path: `${path}.step`, message: 'must be greater than 0' });
+      if (isFiniteNumber(step) && step <= 0) errors.push({ path: `${path}.step`, message: 'must be greater than 0' }); // i18n-exempt(diagnostic)
       if (isFiniteNumber(def)) {
-        if (isFiniteNumber(min) && def < min) errors.push({ path: at, message: 'is below min' });
-        if (isFiniteNumber(max) && def > max) errors.push({ path: at, message: 'is above max' });
+        if (isFiniteNumber(min) && def < min) errors.push({ path: at, message: 'is below min' }); // i18n-exempt(diagnostic)
+        if (isFiniteNumber(max) && def > max) errors.push({ path: at, message: 'is above max' }); // i18n-exempt(diagnostic)
       }
       break;
     }
     case 'boolean':
-      if (typeof def !== 'boolean') errors.push({ path: at, message: 'must be a boolean' });
+      if (typeof def !== 'boolean') errors.push({ path: at, message: 'must be a boolean' }); // i18n-exempt(diagnostic)
       break;
     case 'select': {
       const options = raw.options;
       if (!Array.isArray(options) || options.length === 0) {
-        errors.push({ path: `${path}.options`, message: 'must be a non-empty array' });
+        errors.push({ path: `${path}.options`, message: 'must be a non-empty array' }); // i18n-exempt(diagnostic)
         break;
       }
       const values = new Set<string>();
       options.forEach((option, i) => {
         if (!isRecord(option) || typeof option.value !== 'string' || !isNonEmptyString(option.label)) {
-          errors.push({ path: `${path}.options[${i}]`, message: 'must be { value: string, label: string }' });
+          errors.push({ path: `${path}.options[${i}]`, message: 'must be { value: string, label: string }' }); // i18n-exempt(diagnostic)
           return;
         }
-        if (values.has(option.value)) errors.push({ path: `${path}.options[${i}].value`, message: 'is duplicated' });
+        if (values.has(option.value)) errors.push({ path: `${path}.options[${i}].value`, message: 'is duplicated' }); // i18n-exempt(diagnostic)
         values.add(option.value);
       });
-      if (typeof def !== 'string' || !values.has(def)) errors.push({ path: at, message: 'must be one of the option values' });
+      if (typeof def !== 'string' || !values.has(def)) errors.push({ path: at, message: 'must be one of the option values' }); // i18n-exempt(diagnostic)
       break;
     }
     case 'font': {
-      if (!isNonEmptyString(def)) errors.push({ path: at, message: 'must be a non-empty font-family string' });
+      if (!isNonEmptyString(def)) errors.push({ path: at, message: 'must be a non-empty font-family string' }); // i18n-exempt(diagnostic)
       const options = raw.options;
       if (options !== undefined) {
         if (!Array.isArray(options) || options.length === 0 || !options.every(isNonEmptyString)) {
-          errors.push({ path: `${path}.options`, message: 'must be a non-empty array of strings' });
+          errors.push({ path: `${path}.options`, message: 'must be a non-empty array of strings' }); // i18n-exempt(diagnostic)
         } else if (typeof def === 'string' && !options.includes(def)) {
-          errors.push({ path: at, message: 'must be one of the options' });
+          errors.push({ path: at, message: 'must be one of the options' }); // i18n-exempt(diagnostic)
         }
       }
       break;
     }
     case 'media': {
-      if (def !== undefined && def !== null) errors.push({ path: at, message: 'a media slot has no default: leave it out or set it to null' });
+      if (def !== undefined && def !== null) errors.push({ path: at, message: 'a media slot has no default: leave it out or set it to null' }); // i18n-exempt(diagnostic)
       validateSlotBoxes(raw.box, `${path}.box`, errors);
       if (raw.fit !== undefined && !(IMAGE_FITS as readonly string[]).includes(raw.fit as string)) {
-        errors.push({ path: `${path}.fit`, message: `must be one of: ${IMAGE_FITS.join(', ')}` });
+        errors.push({ path: `${path}.fit`, message: `must be one of: ${IMAGE_FITS.join(', ')}` }); // i18n-exempt(diagnostic)
       }
       if (raw.align !== undefined && !(IMAGE_ALIGNS as readonly string[]).includes(raw.align as string)) {
-        errors.push({ path: `${path}.align`, message: `must be one of: ${IMAGE_ALIGNS.join(', ')}` });
+        errors.push({ path: `${path}.align`, message: `must be one of: ${IMAGE_ALIGNS.join(', ')}` }); // i18n-exempt(diagnostic)
       }
       if (raw.margin !== undefined && (!isFiniteNumber(raw.margin) || raw.margin < 0 || raw.margin > 0.45)) {
-        errors.push({ path: `${path}.margin`, message: 'must be a number from 0 to 0.45 (a fraction of the box)' });
+        errors.push({ path: `${path}.margin`, message: 'must be a number from 0 to 0.45 (a fraction of the box)' }); // i18n-exempt(diagnostic)
       }
       if (errors.length === start) {
         return { ...raw, default: null, fit: raw.fit ?? 'contain', align: raw.align ?? 'center', margin: raw.margin ?? 0 } as unknown as TemplateParameter;
@@ -334,19 +334,19 @@ function validateParameter(raw: unknown, path: string, errors: ValidationIssue[]
       break;
     }
     case 'image': {
-      if (def !== undefined && def !== null) errors.push({ path: at, message: 'an image slot has no default: leave it out or set it to null' });
+      if (def !== undefined && def !== null) errors.push({ path: at, message: 'an image slot has no default: leave it out or set it to null' }); // i18n-exempt(diagnostic)
       validateSlotBoxes(raw.box, `${path}.box`, errors);
       if (raw.fit !== undefined && !(IMAGE_FITS as readonly string[]).includes(raw.fit as string)) {
-        errors.push({ path: `${path}.fit`, message: `must be one of: ${IMAGE_FITS.join(', ')}` });
+        errors.push({ path: `${path}.fit`, message: `must be one of: ${IMAGE_FITS.join(', ')}` }); // i18n-exempt(diagnostic)
       }
       if (raw.align !== undefined && !(IMAGE_ALIGNS as readonly string[]).includes(raw.align as string)) {
-        errors.push({ path: `${path}.align`, message: `must be one of: ${IMAGE_ALIGNS.join(', ')}` });
+        errors.push({ path: `${path}.align`, message: `must be one of: ${IMAGE_ALIGNS.join(', ')}` }); // i18n-exempt(diagnostic)
       }
       if (raw.margin !== undefined && (!isFiniteNumber(raw.margin) || raw.margin < 0 || raw.margin > 0.45)) {
-        errors.push({ path: `${path}.margin`, message: 'must be a number from 0 to 0.45 (a fraction of the box)' });
+        errors.push({ path: `${path}.margin`, message: 'must be a number from 0 to 0.45 (a fraction of the box)' }); // i18n-exempt(diagnostic)
       }
       if (raw.fallbackText !== undefined && !isNonEmptyString(raw.fallbackText)) {
-        errors.push({ path: `${path}.fallbackText`, message: 'must be the id of a text parameter' });
+        errors.push({ path: `${path}.fallbackText`, message: 'must be the id of a text parameter' }); // i18n-exempt(diagnostic)
       }
       if (errors.length === start) {
         // Filled defaults, so every reader sees a complete slot.
@@ -368,37 +368,37 @@ export function validateManifest(raw: unknown): ValidationResult {
   const warnings: ValidationIssue[] = [];
 
   if (!isRecord(raw)) {
-    return { ok: false, errors: [{ path: '', message: 'manifest must be a JSON object' }], warnings };
+    return { ok: false, errors: [{ path: '', message: 'manifest must be a JSON object' }], warnings }; // i18n-exempt(diagnostic)
   }
 
   if (raw.formatVersion !== CURRENT_FORMAT_VERSION) {
-    errors.push({ path: 'formatVersion', message: `must be ${CURRENT_FORMAT_VERSION}` });
+    errors.push({ path: 'formatVersion', message: `must be ${CURRENT_FORMAT_VERSION}` }); // i18n-exempt(diagnostic)
   }
   if (typeof raw.id !== 'string' || !ID_PATTERN.test(raw.id)) {
-    errors.push({ path: 'id', message: 'must be lowercase letters and digits separated by "." or "-"' });
+    errors.push({ path: 'id', message: 'must be lowercase letters and digits separated by "." or "-"' }); // i18n-exempt(diagnostic)
   }
-  if (!isNonEmptyString(raw.name)) errors.push({ path: 'name', message: 'must be a non-empty string' });
+  if (!isNonEmptyString(raw.name)) errors.push({ path: 'name', message: 'must be a non-empty string' }); // i18n-exempt(diagnostic)
   if (raw.description !== undefined && typeof raw.description !== 'string') {
-    errors.push({ path: 'description', message: 'must be a string' });
+    errors.push({ path: 'description', message: 'must be a string' }); // i18n-exempt(diagnostic)
   }
   if (typeof raw.version !== 'string' || !SEMVER_PATTERN.test(raw.version)) {
-    errors.push({ path: 'version', message: 'must be a semantic version such as 1.0.0' });
+    errors.push({ path: 'version', message: 'must be a semantic version such as 1.0.0' }); // i18n-exempt(diagnostic)
   }
-  if (raw.author !== undefined && typeof raw.author !== 'string') errors.push({ path: 'author', message: 'must be a string' });
+  if (raw.author !== undefined && typeof raw.author !== 'string') errors.push({ path: 'author', message: 'must be a string' }); // i18n-exempt(diagnostic)
   if (!isNonEmptyString(raw.license)) {
-    errors.push({ path: 'license', message: 'must be an SPDX license identifier, e.g. CC0-1.0' });
+    errors.push({ path: 'license', message: 'must be an SPDX license identifier, e.g. CC0-1.0' }); // i18n-exempt(diagnostic)
   }
   if (typeof raw.category !== 'string' || !(TEMPLATE_CATEGORIES as readonly string[]).includes(raw.category)) {
-    errors.push({ path: 'category', message: `must be one of: ${TEMPLATE_CATEGORIES.join(', ')}` });
+    errors.push({ path: 'category', message: `must be one of: ${TEMPLATE_CATEGORIES.join(', ')}` }); // i18n-exempt(diagnostic)
   }
 
   if (raw.type !== undefined && (typeof raw.type !== 'string' || !isBuiltInType(raw.type))) {
-    errors.push({ path: 'type', message: 'must be a type id from the built-in list (see docs/template-format.md)' });
+    errors.push({ path: 'type', message: 'must be a type id from the built-in list (see docs/template-format.md)' }); // i18n-exempt(diagnostic)
   }
   let themes: string[] | undefined;
   if (raw.themes !== undefined) {
     if (!Array.isArray(raw.themes) || !raw.themes.every(isNonEmptyString)) {
-      errors.push({ path: 'themes', message: 'must be an array of non-empty strings' });
+      errors.push({ path: 'themes', message: 'must be an array of non-empty strings' }); // i18n-exempt(diagnostic)
     } else {
       themes = [...new Set(raw.themes.map(normalizeTheme))].filter((t) => t.length > 0);
     }
@@ -406,12 +406,12 @@ export function validateManifest(raw: unknown): ValidationResult {
   let styles: string[] | undefined;
   if (raw.styles !== undefined) {
     if (!Array.isArray(raw.styles) || !raw.styles.every(isNonEmptyString)) {
-      errors.push({ path: 'styles', message: 'must be an array of non-empty strings' });
+      errors.push({ path: 'styles', message: 'must be an array of non-empty strings' }); // i18n-exempt(diagnostic)
     } else {
       styles = [...new Set(raw.styles.map((v) => v.trim().toLowerCase()))];
       for (const style of styles) {
         if (!isBuiltInStyle(style)) {
-          errors.push({ path: 'styles', message: `"${style}" is not a built-in style (${STYLES.map((v) => v.id).join(', ')})` });
+          errors.push({ path: 'styles', message: `"${style}" is not a built-in style (${STYLES.map((v) => v.id).join(', ')})` }); // i18n-exempt(diagnostic)
         }
       }
     }
@@ -420,14 +420,14 @@ export function validateManifest(raw: unknown): ValidationResult {
   let tags: string[] = [];
   if (raw.tags !== undefined) {
     if (!Array.isArray(raw.tags) || !raw.tags.every(isNonEmptyString)) {
-      errors.push({ path: 'tags', message: 'must be an array of non-empty strings' });
+      errors.push({ path: 'tags', message: 'must be an array of non-empty strings' }); // i18n-exempt(diagnostic)
     } else {
       tags = [...new Set(raw.tags.map((t) => t.trim().toLowerCase()))];
     }
   }
 
   if (!isFiniteNumber(raw.duration) || raw.duration <= 0 || raw.duration > MAX_DURATION_SECONDS) {
-    errors.push({ path: 'duration', message: `must be a number of seconds in (0, ${MAX_DURATION_SECONDS}]` });
+    errors.push({ path: 'duration', message: `must be a number of seconds in (0, ${MAX_DURATION_SECONDS}]` }); // i18n-exempt(diagnostic)
   }
   // The parts that may stretch, if the template says (milestone 30). Checked against the
   // duration above, so a structure is only read once that is known to be a usable number.
@@ -438,7 +438,7 @@ export function validateManifest(raw: unknown): ValidationResult {
       if (read.problem) errors.push({ path: 'structure', message: read.problem });
       structure = read.structure;
     } else {
-      errors.push({ path: 'structure', message: 'cannot be read without a usable duration' });
+      errors.push({ path: 'structure', message: 'cannot be read without a usable duration' }); // i18n-exempt(diagnostic)
     }
   }
   // The template's own sound (milestone 16). Its start is checked against the duration, so it
@@ -448,30 +448,30 @@ export function validateManifest(raw: unknown): ValidationResult {
     if (isFiniteNumber(raw.duration) && raw.duration > 0) {
       sound = validateTemplateSound(raw.sound, raw.duration, errors);
     } else {
-      errors.push({ path: 'sound', message: 'cannot be read without a usable duration' });
+      errors.push({ path: 'sound', message: 'cannot be read without a usable duration' }); // i18n-exempt(diagnostic)
     }
   }
   if (!isFiniteNumber(raw.fps) || raw.fps <= 0 || raw.fps > 240) {
-    errors.push({ path: 'fps', message: 'must be a number in (0, 240]' });
+    errors.push({ path: 'fps', message: 'must be a number in (0, 240]' }); // i18n-exempt(diagnostic)
   } else if (!Number.isInteger(raw.fps) && ![23.976, 29.97, 59.94].includes(raw.fps)) {
-    warnings.push({ path: 'fps', message: 'non-integer frame rates other than 23.976, 29.97 and 59.94 are unusual' });
+    warnings.push({ path: 'fps', message: 'non-integer frame rates other than 23.976, 29.97 and 59.94 are unusual' }); // i18n-exempt(diagnostic)
   }
   // Shape: `aspects`, or the older `width` and `height`, or both (the size is then the default resolution).
   let aspects: string[] | undefined;
   let aspectsOk = true;
   if (raw.aspects !== undefined) {
     if (!Array.isArray(raw.aspects) || !raw.aspects.every(isNonEmptyString)) {
-      errors.push({ path: 'aspects', message: `must be an array of aspect ratios (${ASPECT_IDS.join(', ')})` });
+      errors.push({ path: 'aspects', message: `must be an array of aspect ratios (${ASPECT_IDS.join(', ')})` }); // i18n-exempt(diagnostic)
       aspectsOk = false;
     } else {
       aspects = [...new Set(raw.aspects.map((a) => a.trim()))];
       if (aspects.length === 0) {
-        errors.push({ path: 'aspects', message: 'must name at least one aspect ratio' });
+        errors.push({ path: 'aspects', message: 'must name at least one aspect ratio' }); // i18n-exempt(diagnostic)
         aspectsOk = false;
       }
       for (const a of aspects) {
         if (!isBuiltInAspect(a)) {
-          errors.push({ path: 'aspects', message: `"${a}" is not a supported aspect ratio (${ASPECT_IDS.join(', ')})` });
+          errors.push({ path: 'aspects', message: `"${a}" is not a supported aspect ratio (${ASPECT_IDS.join(', ')})` }); // i18n-exempt(diagnostic)
           aspectsOk = false;
         }
       }
@@ -483,10 +483,10 @@ export function validateManifest(raw: unknown): ValidationResult {
     for (const key of ['width', 'height'] as const) {
       const v = raw[key];
       if (!Number.isInteger(v) || (v as number) < MIN_DIMENSION || (v as number) > MAX_DIMENSION) {
-        errors.push({ path: key, message: `must be an integer between ${MIN_DIMENSION} and ${MAX_DIMENSION} (width and height go together)` });
+        errors.push({ path: key, message: `must be an integer between ${MIN_DIMENSION} and ${MAX_DIMENSION} (width and height go together)` }); // i18n-exempt(diagnostic)
         sizeOk = false;
       } else if ((v as number) % 2 !== 0) {
-        warnings.push({ path: key, message: 'odd dimensions are not supported by some encoders (yuv420p output will fail)' });
+        warnings.push({ path: key, message: 'odd dimensions are not supported by some encoders (yuv420p output will fail)' }); // i18n-exempt(diagnostic)
       }
     }
     if (sizeOk) {
@@ -494,41 +494,41 @@ export function validateManifest(raw: unknown): ValidationResult {
       const own = aspectOf(size.width, size.height);
       if (aspects === undefined) aspects = [own];
       else if (aspectsOk && !aspects.includes(own)) {
-        errors.push({ path: 'width', message: `${size.width}x${size.height} is ${own}, which is not among the declared aspects (${aspects.join(', ')})` });
+        errors.push({ path: 'width', message: `${size.width}x${size.height} is ${own}, which is not among the declared aspects (${aspects.join(', ')})` }); // i18n-exempt(diagnostic)
       }
     }
   } else if (aspects === undefined) {
-    errors.push({ path: 'aspects', message: `declare the aspect ratios the template draws for (${ASPECT_IDS.join(', ')}), or a width and height` });
+    errors.push({ path: 'aspects', message: `declare the aspect ratios the template draws for (${ASPECT_IDS.join(', ')}), or a width and height` }); // i18n-exempt(diagnostic)
   }
-  if (raw.alpha !== undefined && typeof raw.alpha !== 'boolean') errors.push({ path: 'alpha', message: 'must be a boolean' });
-  if (raw.captions !== undefined && typeof raw.captions !== 'boolean') errors.push({ path: 'captions', message: 'must be a boolean' });
+  if (raw.alpha !== undefined && typeof raw.alpha !== 'boolean') errors.push({ path: 'alpha', message: 'must be a boolean' }); // i18n-exempt(diagnostic)
+  if (raw.captions !== undefined && typeof raw.captions !== 'boolean') errors.push({ path: 'captions', message: 'must be a boolean' }); // i18n-exempt(diagnostic)
   // A caption style is drawn over the picture, so it has to be transparent: one that flattened
   // its own background would hide the shot it captions.
   if (raw.captions === true && raw.alpha !== true) {
-    errors.push({ path: 'captions', message: 'a caption style draws over the picture, so it must declare "alpha": true' });
+    errors.push({ path: 'captions', message: 'a caption style draws over the picture, so it must declare "alpha": true' }); // i18n-exempt(diagnostic)
   }
 
   const entry = raw.entry === undefined ? 'index.html' : raw.entry;
   if (typeof entry !== 'string' || !isSafeRelativePath(entry) || !/\.html?$/i.test(entry)) {
-    errors.push({ path: 'entry', message: 'must be a relative path to an .html file inside the template folder' });
+    errors.push({ path: 'entry', message: 'must be a relative path to an .html file inside the template folder' }); // i18n-exempt(diagnostic)
   }
   if (raw.thumbnail !== undefined && (typeof raw.thumbnail !== 'string' || !isSafeRelativePath(raw.thumbnail))) {
-    errors.push({ path: 'thumbnail', message: 'must be a relative path inside the template folder' });
+    errors.push({ path: 'thumbnail', message: 'must be a relative path inside the template folder' }); // i18n-exempt(diagnostic)
   }
   if (raw.posterAt !== undefined && (typeof raw.posterAt !== 'number' || !Number.isFinite(raw.posterAt) || raw.posterAt < 0)) {
-    errors.push({ path: 'posterAt', message: 'must be a time in seconds, zero or more' });
+    errors.push({ path: 'posterAt', message: 'must be a time in seconds, zero or more' }); // i18n-exempt(diagnostic)
   }
 
   const parameters: TemplateParameter[] = [];
   if (raw.parameters !== undefined && !Array.isArray(raw.parameters)) {
-    errors.push({ path: 'parameters', message: 'must be an array' });
+    errors.push({ path: 'parameters', message: 'must be an array' }); // i18n-exempt(diagnostic)
   } else if (Array.isArray(raw.parameters)) {
     const seen = new Set<string>();
     raw.parameters.forEach((p, i) => {
       const param = validateParameter(p, `parameters[${i}]`, errors);
       if (!param) return;
       if (seen.has(param.id)) {
-        errors.push({ path: `parameters[${i}].id`, message: `duplicate parameter id "${param.id}"` });
+        errors.push({ path: `parameters[${i}].id`, message: `duplicate parameter id "${param.id}"` }); // i18n-exempt(diagnostic)
         return;
       }
       seen.add(param.id);
@@ -540,14 +540,14 @@ export function validateManifest(raw: unknown): ValidationResult {
   // Blocks and their layers (milestone 23); a template without any declares none.
   const blocks: Block[] = [];
   if (raw.blocks !== undefined && !Array.isArray(raw.blocks)) {
-    errors.push({ path: 'blocks', message: 'must be an array' });
+    errors.push({ path: 'blocks', message: 'must be an array' }); // i18n-exempt(diagnostic)
   } else if (Array.isArray(raw.blocks)) {
     const seen = new Set<string>();
     raw.blocks.forEach((b, i) => {
       const block = validateBlock(b, `blocks[${i}]`, errors);
       if (!block) return;
       if (seen.has(block.id)) {
-        errors.push({ path: `blocks[${i}].id`, message: `duplicate block id "${block.id}"` });
+        errors.push({ path: `blocks[${i}].id`, message: `duplicate block id "${block.id}"` }); // i18n-exempt(diagnostic)
         return;
       }
       seen.add(block.id);
@@ -562,7 +562,7 @@ export function validateManifest(raw: unknown): ValidationResult {
     const parameter = parameters.find((other) => other.id === param.fallbackText);
     const layer = blocks.flatMap((b) => b.layers).find((l) => l.id === param.fallbackText);
     if ((!parameter || parameter.type !== 'text') && (!layer || layer.type !== 'text')) {
-      errors.push({ path: `parameters[${i}].fallbackText`, message: `"${param.fallbackText}" is not a text parameter or a text layer of this template` });
+      errors.push({ path: `parameters[${i}].fallbackText`, message: `"${param.fallbackText}" is not a text parameter or a text layer of this template` }); // i18n-exempt(diagnostic)
     }
   }
 
@@ -572,7 +572,7 @@ export function validateManifest(raw: unknown): ValidationResult {
   ]);
   for (const key of Object.keys(raw)) {
     if (!known.has(key) && !key.startsWith('x-')) {
-      warnings.push({ path: key, message: 'unknown field (use an "x-" prefix for custom extensions)' });
+      warnings.push({ path: key, message: 'unknown field (use an "x-" prefix for custom extensions)' }); // i18n-exempt(diagnostic)
     }
   }
 
@@ -614,7 +614,7 @@ export function parseManifest(text: string): ValidationResult {
   try {
     raw = JSON.parse(text);
   } catch (err) {
-    return { ok: false, errors: [{ path: '', message: `invalid JSON: ${(err as Error).message}` }], warnings: [] };
+    return { ok: false, errors: [{ path: '', message: `invalid JSON: ${(err as Error).message}` }], warnings: [] }; // i18n-exempt(diagnostic)
   }
   return validateManifest(raw);
 }

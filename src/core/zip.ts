@@ -65,18 +65,18 @@ export function readZip(buf: Buffer, limits: ZipLimits = {}): ZipEntry[] {
       break;
     }
   }
-  if (eocd < 0) throw new ZipError('not a zip file (no central directory)');
+  if (eocd < 0) throw new ZipError('not a zip file (no central directory)'); // i18n-exempt(diagnostic)
   const count = buf.readUInt16LE(eocd + 10);
   const cdSize = buf.readUInt32LE(eocd + 12);
   const cdOffset = buf.readUInt32LE(eocd + 16);
-  if (count > maxEntries) throw new ZipError(`too many entries (${count})`);
-  if (cdOffset + cdSize > buf.length) throw new ZipError('damaged central directory');
+  if (count > maxEntries) throw new ZipError(`too many entries (${count})`); // i18n-exempt(diagnostic)
+  if (cdOffset + cdSize > buf.length) throw new ZipError('damaged central directory'); // i18n-exempt(diagnostic)
 
   const entries: ZipEntry[] = [];
   let total = 0;
   let p = cdOffset;
   for (let n = 0; n < count; n++) {
-    if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) throw new ZipError('damaged central directory entry');
+    if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) throw new ZipError('damaged central directory entry'); // i18n-exempt(diagnostic)
     const method = buf.readUInt16LE(p + 10);
     const crc = buf.readUInt32LE(p + 16);
     const compressedSize = buf.readUInt32LE(p + 20);
@@ -90,22 +90,22 @@ export function readZip(buf: Buffer, limits: ZipLimits = {}): ZipEntry[] {
 
     if (rawName.endsWith('/')) continue; // directory entry
     const name = safeZipPath(rawName);
-    if (!name) throw new ZipError(`unsafe entry name "${rawName}"`);
+    if (!name) throw new ZipError(`unsafe entry name "${rawName}"`); // i18n-exempt(diagnostic)
     if (limits.wanted && !limits.wanted(name)) continue;
     total += size;
-    if (total > maxBytes) throw new ZipError(`unpacked size exceeds ${Math.round(maxBytes / 1024 / 1024)} MiB`);
+    if (total > maxBytes) throw new ZipError(`unpacked size exceeds ${Math.round(maxBytes / 1024 / 1024)} MiB`); // i18n-exempt(diagnostic)
 
-    if (localOffset + 30 > buf.length || buf.readUInt32LE(localOffset) !== 0x04034b50) throw new ZipError(`damaged entry "${name}"`);
+    if (localOffset + 30 > buf.length || buf.readUInt32LE(localOffset) !== 0x04034b50) throw new ZipError(`damaged entry "${name}"`); // i18n-exempt(diagnostic)
     const localNameLength = buf.readUInt16LE(localOffset + 26);
     const localExtraLength = buf.readUInt16LE(localOffset + 28);
     const start = localOffset + 30 + localNameLength + localExtraLength;
-    if (start + compressedSize > buf.length) throw new ZipError(`damaged entry "${name}"`);
+    if (start + compressedSize > buf.length) throw new ZipError(`damaged entry "${name}"`); // i18n-exempt(diagnostic)
     const compressed = buf.subarray(start, start + compressedSize);
     let data: Buffer;
     if (method === 0) data = Buffer.from(compressed);
     else if (method === 8) data = inflateRawSync(compressed, { maxOutputLength: size + 1 });
-    else throw new ZipError(`unsupported compression method ${method} for "${name}"`);
-    if (data.length !== size || crc32(data) !== crc) throw new ZipError(`entry "${name}" is corrupt`);
+    else throw new ZipError(`unsupported compression method ${method} for "${name}"`); // i18n-exempt(diagnostic)
+    if (data.length !== size || crc32(data) !== crc) throw new ZipError(`entry "${name}" is corrupt`); // i18n-exempt(diagnostic)
     entries.push({ name, data });
   }
   return entries;
@@ -118,7 +118,7 @@ export function writeZip(entries: ZipEntry[]): Buffer {
   let offset = 0;
   for (const entry of entries) {
     const name = safeZipPath(entry.name);
-    if (!name) throw new ZipError(`unsafe entry name "${entry.name}"`);
+    if (!name) throw new ZipError(`unsafe entry name "${entry.name}"`); // i18n-exempt(diagnostic)
     const nameBuf = Buffer.from(name, 'utf8');
     const crc = crc32(entry.data);
     const deflated = deflateRawSync(entry.data, { level: 6 });

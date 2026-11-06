@@ -13,15 +13,13 @@ import { editing, mountCollection, resolved } from './collection';
 import { openProjectFrom, rememberRenderFolder } from './project';
 import { dragNotice, mountQueue } from './queue';
 import { setCacheSummary } from './status-bar';
+import { bindText, t } from './i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
   if (!el) throw new Error(`missing #${id}`);
   return el as T;
 };
-
-const NOTICE =
-  'Your editor links to that file rather than copying it. Keep the render while the project uses it: clearing the cache, or the cache dropping its oldest files, takes the clip offline there.';
 
 async function refreshCacheStats(): Promise<void> {
   const stats = await window.pulp.renderCacheStats();
@@ -45,7 +43,7 @@ function initDragNotice(): void {
   });
   effect(() => {
     if (!dragNotice.value || seen) return;
-    $('drag-notice-text').textContent = NOTICE;
+    bindText($('drag-notice-text'), 'tray.drag-notice');
     notice.hidden = false;
   });
 }
@@ -122,8 +120,9 @@ export function initCollection(): void {
       }
       // Where this project's renders go, kept with it so a reopened project knows.
       rememberRenderFolder(result.folder);
-      const skipped = result.skipped.length > 0 ? ` Skipped: ${result.skipped.join('; ')}.` : '';
-      say(`Rendering ${result.jobIds.length} ${result.jobIds.length === 1 ? 'item' : 'items'}.${skipped}`);
+      // The line is said once, in the language it is said in, and fades (src/core/tray-note.ts).
+      const count = result.jobIds.length;
+      say(result.skipped.length > 0 ? t('tray.render-all.started-skipped', { count, skipped: result.skipped.join('; ') }) : t('tray.render-all.started', { count }));
     })();
   });
 
@@ -131,7 +130,7 @@ export function initCollection(): void {
     const item = editing.value;
     if (!item) return;
     dispatch((s) => setCollection(s, applyToAll(s.collection, { presetId: item.presetId, options: item.options })));
-    say('Every item now has those output settings.');
+    say(t('tray.apply-all.done'));
   });
 
   $('collection-save').addEventListener('click', () => {
@@ -142,7 +141,7 @@ export function initCollection(): void {
         return;
       }
       dispatch((s) => setCollection(s, s.collection, result.name));
-      say(`Saved as ${result.name}.`);
+      say(t('tray.saved-as', { name: result.name }));
     })();
   });
 

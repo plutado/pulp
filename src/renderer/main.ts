@@ -26,7 +26,8 @@ import { initProject, openProjectFrom } from './project';
 import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './project-ui';
 import { initMenu, registerBlankCanvasOpener, registerSavedTemplateOpener } from './menu';
 import { initAppearance } from './appearance';
-import { initI18n } from './i18n';
+import { bindText, initI18n, t, whenLocaleChanges } from './i18n';
+import type { MessageId, MessageValues } from '../core/i18n';
 import { initRecorder, registerRecordingOpener } from './recorder';
 import { initCameraRecorder } from './camera-recorder';
 import { registerExposer } from './stage-menu';
@@ -85,15 +86,23 @@ const els = {
 /** Pushes index, query and selection into the shared state (the Results component renders the list from it) and redraws the summary. */
 function renderResults(): void {
   dispatch((s) => setSelection(setQuery(s, els.search.value), selectedTemplate.value?.key ?? null));
+  paintSummary();
+}
+
+/** The library's counts and its first problems, in the status row: drawn again when the language changes too. */
+function paintSummary(): void {
   const index = appState.value.index;
   els.summary.replaceChildren();
   if (!index) return;
   const counts = document.createElement('div');
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
   // Short, since the counts share the transport row's line with the controls (milestone 42):
   // the items, with the templates, the media files and the folders told apart in the tooltip.
-  counts.textContent = plural(index.templates.length + index.media.length, 'item');
-  counts.dataset.tip = [plural(index.templates.length, 'template'), plural(index.media.length, 'media file'), plural(index.roots.length, 'folder')].join(' · ');
+  counts.textContent = t('library-summary.items', { count: index.templates.length + index.media.length });
+  counts.dataset.tip = t('library-summary.tip', {
+    templates: t('library-summary.templates', { count: index.templates.length }),
+    media: t('library-summary.media-files', { count: index.media.length }),
+    folders: t('library-summary.folders', { count: index.roots.length }),
+  });
   els.summary.append(counts);
   for (const p of index.problems.slice(0, 5)) {
     const div = document.createElement('div');
@@ -185,6 +194,27 @@ function select(entry: LibraryEntry): void {
 
 // ---------------------------------------------------------------- template packs
 
+/** Words that are not a message — a pack's or a template's own, a path — where a message's stamp may be left from before. */
+function sayPlain(el: HTMLElement, text: string): void {
+  delete el.dataset.i18n;
+  delete el.dataset.i18nValues;
+  el.textContent = text;
+}
+
+/** A message as an element of its own, bound so a change of language rewrites it. */
+function message(id: MessageId, values?: MessageValues): HTMLSpanElement {
+  const span = document.createElement('span');
+  bindText(span, id, values);
+  return span;
+}
+
+/** Sentences and words side by side in one element, joined as the line always was. */
+function sayParts(el: HTMLElement, parts: readonly (Node | string)[], separator: string): void {
+  delete el.dataset.i18n;
+  delete el.dataset.i18nValues;
+  el.replaceChildren(...parts.flatMap((part, i) => (i === 0 ? [part] : [separator, part])));
+}
+
 /** The pack being previewed for import, or the templates being exported. */
 let packState: { kind: 'import'; path: string; preview: PackPreview; choices: Record<string, CollisionChoice> } | { kind: 'export'; ids: string[] } | null = null;
 
@@ -201,8 +231,8 @@ async function showPackPreview(path: string): Promise<void> {
   els.packLicense.hidden = true;
   if ('error' in result) {
     packState = null;
-    els.packTitle.textContent = 'Template pack';
-    els.packMeta.textContent = path;
+    bindText(els.packTitle, 'ui.pack-title');
+    sayPlain(els.packMeta, path);
     els.packProblems.textContent = result.error;
     els.packConfirm.hidden = true;
     openPackDialog();
@@ -211,12 +241,20 @@ async function showPackPreview(path: string): Promise<void> {
   const { preview } = result;
   packState = { kind: 'import', path, preview, choices: {} };
   const m = preview.manifest;
-  els.packTitle.textContent = m ? `${m.name}${m.version ? ` ${m.version}` : ''}` : 'Template pack';
-  els.packMeta.textContent = m ? [m.author ? `by ${m.author}` : '', `license ${m.license}`, m.description ?? '', path].filter(Boolean).join(' · ') : path;
+  if (m) sayPlain(els.packTitle, `${m.name}${m.version ? ` ${m.version}` : ''}`);
+  else bindText(els.packTitle, 'ui.pack-title');
+  if (m) {
+    const parts: (Node | string)[] = [];
+    if (m.author) parts.push(message('pack-dialog.meta.author', { author: m.author }));
+    parts.push(message('pack-dialog.meta.license', { licenseId: m.license }));
+    if (m.description) parts.push(m.description);
+    if (path) parts.push(path);
+    sayParts(els.packMeta, parts, ' · ');
+  } else sayPlain(els.packMeta, path);
   if (preview.licenseWarning) {
     els.packLicense.hidden = false;
     els.packLicense.className = 'note warn';
-    els.packLicense.textContent = `Pack license: ${preview.licenseWarning}.`;
+    bindText(els.packLicense, 'pack-dialog.license-warning', { warning: preview.licenseWarning });
   }
   els.packProblems.textContent = preview.problems.join(' ');
   for (const t of preview.templates) {
@@ -226,23 +264,24 @@ async function showPackPreview(path: string): Promise<void> {
     name.textContent = t.manifest ? `${t.manifest.name} (${t.manifest.id})` : t.folder;
     const size = document.createElement('span');
     size.className = 'meta';
-    size.textContent = `${t.fileCount} files · ${formatBytes(t.bytes)}${t.manifest ? ` · ${t.manifest.license}` : ''}`;
+    if (t.manifest) bindText(size, 'pack-dialog.template.size-license', { count: t.fileCount, size: formatBytes(t.bytes), licenseId: t.manifest.license });
+    else bindText(size, 'pack-dialog.template.size', { count: t.fileCount, size: formatBytes(t.bytes) });
     const status = document.createElement('span');
     status.className = 'status';
     if (t.problems.length > 0) {
       status.classList.add('bad');
-      status.textContent = `Cannot install: ${t.problems.join('; ')}`;
+      bindText(status, 'pack-dialog.status.cannot-install', { problems: t.problems.join('; ') });
     } else if (t.collision?.where === 'library') {
       status.classList.add('warn');
-      status.textContent = `Skipped: a template with this id is already in your library (${t.collision.dir}).`;
+      bindText(status, 'pack-dialog.status.in-library', { dir: t.collision.dir });
     } else if (t.collision?.where === 'pack') {
       status.classList.add('warn');
-      status.textContent = 'Already installed from a pack. ';
+      status.replaceChildren(message('pack-dialog.status.from-pack'));
       const choice = document.createElement('select');
-      for (const [value, label] of [['skip', 'Keep installed copy'], ['replace', 'Replace with this one']] as const) {
+      for (const [value, label] of [['skip', 'pack-dialog.collision.keep'], ['replace', 'pack-dialog.collision.replace']] as const) {
         const opt = document.createElement('option');
         opt.value = value;
-        opt.textContent = label;
+        bindText(opt, label);
         choice.append(opt);
       }
       choice.addEventListener('change', () => {
@@ -250,19 +289,19 @@ async function showPackPreview(path: string): Promise<void> {
       });
       status.append(choice);
     } else {
-      status.textContent = `Will install into packs/${t.installDir}.`;
+      bindText(status, 'pack-dialog.status.will-install', { dir: t.installDir });
     }
     if (t.licenseWarning && t.problems.length === 0) {
       const lic = document.createElement('span');
       lic.className = 'status warn';
-      lic.textContent = `Template license: ${t.licenseWarning}.`;
+      bindText(lic, 'pack-dialog.template-license-warning', { warning: t.licenseWarning });
       li.append(name, size, status, lic);
     } else li.append(name, size, status);
     els.packTemplates.append(li);
   }
   const installable = preview.templates.some((t) => t.problems.length === 0 && (!t.collision || t.collision.where === 'pack'));
   els.packConfirm.hidden = false;
-  els.packConfirm.textContent = 'Install';
+  bindText(els.packConfirm, 'ui.pack-confirm');
   els.packConfirm.disabled = !m || preview.problems.length > 0 || !installable;
   openPackDialog();
 }
@@ -279,24 +318,26 @@ async function confirmPack(): Promise<void> {
         return;
       }
       els.packResult.className = 'note';
-      els.packResult.textContent = [
-        result.installed.length ? `Installed: ${result.installed.join(', ')}.` : '',
-        result.replaced.length ? `Replaced: ${result.replaced.join(', ')}.` : '',
-        result.skipped.length ? `Skipped: ${result.skipped.map((s) => `${s.folder} (${s.reason})`).join('; ')}.` : '',
-        `Into ${result.packDir}.`,
-      ]
-        .filter(Boolean)
-        .join(' ');
+      const said: Node[] = [];
+      if (result.installed.length) said.push(message('pack-dialog.result.installed', { names: result.installed.join(', ') }));
+      if (result.replaced.length) said.push(message('pack-dialog.result.replaced', { names: result.replaced.join(', ') }));
+      if (result.skipped.length) {
+        const list = result.skipped.map((s) => t('pack-dialog.result.skipped-item', { folder: s.folder, reason: s.reason })).join('; ');
+        said.push(message('pack-dialog.result.skipped', { list }));
+      }
+      said.push(message('pack-dialog.result.into', { dir: result.packDir }));
+      sayParts(els.packResult, said, ' ');
       els.packConfirm.hidden = true;
     } else {
       const result = await window.pulp.exportPack(packState.ids, {
-        name: els.packExportName.value.trim() || 'Pack',
+        name: els.packExportName.value.trim() || t('pack-dialog.export.default-name'),
         license: els.packExportLicense.value.trim(),
         ...(els.packExportAuthor.value.trim() ? { author: els.packExportAuthor.value.trim() } : {}),
       });
       els.packResult.className = result.ok || result.cancelled ? 'note' : 'note error';
       // A pack never carries an imported font; a template set in one is named so the warning travels with the file.
-      els.packResult.textContent = result.ok ? [`Wrote ${result.path} (${formatBytes(result.bytes)}).`, ...result.warnings].join(' ') : result.cancelled ? '' : result.message;
+      if (result.ok) sayParts(els.packResult, [message('pack-dialog.result.wrote', { path: result.path, size: formatBytes(result.bytes) }), ...result.warnings], ' ');
+      else sayPlain(els.packResult, result.cancelled ? '' : result.message);
       if (result.ok) els.packConfirm.hidden = true;
     }
   } finally {
@@ -311,8 +352,8 @@ function showExportDialog(): void {
   const listed = results.value.entries.filter((e): e is TemplateEntry => e.kind === 'template' && !e.offline);
   if (listed.length === 0) return;
   packState = { kind: 'export', ids: listed.map((t) => t.manifest.id) };
-  els.packTitle.textContent = `Export ${listed.length} template${listed.length === 1 ? '' : 's'} as a pack`;
-  els.packMeta.textContent = 'A .zip with a pack.json and one folder per template.';
+  bindText(els.packTitle, 'pack-dialog.export.title', { count: listed.length });
+  bindText(els.packMeta, 'pack-dialog.export.meta');
   els.packLicense.hidden = true;
   els.packProblems.textContent = '';
   els.packResult.textContent = '';
@@ -335,23 +376,24 @@ function showExportDialog(): void {
     const items = chosen.reduce((n, c) => n + c.items, 0);
     els.packLicense.hidden = false;
     els.packLicense.className = 'note warn';
-    els.packLicense.textContent =
-      `${items === 1 ? 'A picture or clip' : `${items} pictures and clips`} chosen for ` +
-      `${chosen.length === 1 ? 'one of these templates' : `${chosen.length} of these templates`} ` +
-      'will not be in the pack: library media stays in your library, as an imported font does. ' +
-      'Whoever installs the pack chooses their own.';
+    const note = chosen.length === 1
+      ? message('pack-dialog.export.media-note.one-template', { count: items })
+      : message('pack-dialog.export.media-note.templates', { count: items, templates: chosen.length });
+    sayParts(els.packLicense, [note, message('pack-dialog.export.media-note.choose')], ' ');
   }
   els.packExportFields.hidden = false;
   els.packExportName.value = listed.length === 1 ? listed[0]!.manifest.name : '';
   els.packConfirm.hidden = false;
   els.packConfirm.disabled = false;
-  els.packConfirm.textContent = 'Export…';
+  bindText(els.packConfirm, 'pack-dialog.export.confirm');
   openPackDialog();
 }
 
 // ---------------------------------------------------------------- wiring
 
 els.search.addEventListener('input', renderResults);
+// The summary's counts are words: a change of language draws them again (milestone 59).
+whenLocaleChanges(paintSummary);
 // And the other way: a query cleared from the results' heading (Clear search, milestone 42) or set
 // anywhere but the field itself shows in the field, so the two cannot disagree and a later redraw
 // cannot put the stale text back.

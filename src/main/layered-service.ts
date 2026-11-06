@@ -13,7 +13,8 @@
 import { readFile, stat } from 'node:fs/promises';
 import { basename, dirname, extname, resolve, sep } from 'node:path';
 import { inflateSync } from 'node:zlib';
-import { AI_NO_PDF_MESSAGE, isLayeredExtension, parseKra, parseOra, sniffPdf } from '../core/layered';
+import { tr } from '../core/i18n';
+import { aiNoPdfMessage, isLayeredExtension, parseKra, parseOra, sniffPdf } from '../core/layered';
 import { MEDIA_MIME } from '../core/media-serve';
 import { fileHiddenLayers, psdOutline, type PsdOutline } from '../core/psd';
 import { inlineSvgImages, parseSvgLayers, svgImageHrefs, svgOutline, svgWithLayers, type SvgDocument } from '../core/svg-layers';
@@ -108,7 +109,7 @@ async function svgHandle(path: string, text: string): Promise<LayeredResult> {
     for (const href of hrefs) resolved.set(href, await resolveSvgImage(path, href));
     const inlined = inlineSvgImages(doc.source, (href) => resolved.get(href) ?? null);
     doc = { ...doc, source: inlined.source };
-    if (inlined.missing.length > 0) doc.limits.push(`linked pictures it names are not beside it and are not drawn: ${inlined.missing.join(', ')}`);
+    if (inlined.missing.length > 0) doc.limits.push(tr('layered.limit.linked-missing', { files: inlined.missing.join(', ') }));
   }
   const outline = svgOutline(doc);
   const shownSet = (hide?: readonly string[]): Set<string> => {
@@ -130,19 +131,19 @@ async function pdfHandle(path: string, bytes: Buffer): Promise<LayeredResult> {
   const sniffed = sniffPdf(new Uint8Array(bytes.buffer, bytes.byteOffset, Math.min(1024, bytes.byteLength)));
   const isAi = extname(path).toLowerCase() === '.ai';
   if (sniffed !== 'pdf') {
-    if (isAi && sniffed === 'postscript') return { ok: false, message: AI_NO_PDF_MESSAGE };
-    return { ok: false, message: isAi ? AI_NO_PDF_MESSAGE : 'not a PDF (no %PDF header)' };
+    if (isAi && sniffed === 'postscript') return { ok: false, message: aiNoPdfMessage() };
+    return { ok: false, message: isAi ? aiNoPdfMessage() : 'not a PDF (no %PDF header)' }; // i18n-exempt(diagnostic)
   }
   let info: PdfInfo;
   try {
     info = await pdfInfo(bytes);
   } catch (err) {
-    return { ok: false, message: `pdf.js could not read it: ${(err as Error).message}` };
+    return { ok: false, message: `pdf.js could not read it: ${(err as Error).message}` }; // i18n-exempt(diagnostic)
   }
   const limits: string[] = [];
-  if (info.pages > 1) limits.push(`only the first of its ${info.pages} pages is read`);
+  if (info.pages > 1) limits.push(tr('layered.limit.pdf-pages', { count: info.pages }));
   if (info.groups.length === 0) {
-    limits.push(isAi ? 'saved without PDF layers (Illustrator asks when saving), so it is one picture' : 'the file has no layers; only the flattened picture');
+    limits.push(isAi ? tr('layered.limit.ai-no-layers') : tr('psd.limit.no-layers'));
   }
   // The file lists groups top first; the shared document is bottom first, so the panel's
   // top-first reversal shows them exactly as the file's layer panel would.
@@ -171,13 +172,13 @@ async function pdfHandle(path: string, bytes: Buffer): Promise<LayeredResult> {
 
 /** The handle for a layered file, read once per change of the file. */
 export async function layeredFileFor(path: string): Promise<LayeredResult> {
-  if (!isLayeredPath(path)) return { ok: false, message: `${basename(path)} is not a layered still` };
+  if (!isLayeredPath(path)) return { ok: false, message: tr('layered.read.not-layered', { file: basename(path) }) };
   if (isPsdPath(path)) return psdHandle(path); // the Photoshop service keeps its own cache
   let signature: string;
   try {
     signature = await signatureOf(path);
   } catch (err) {
-    return { ok: false, message: `could not read the file: ${(err as Error).message}` };
+    return { ok: false, message: tr('layered.read.file-unreadable', { reason: (err as Error).message }) };
   }
   const kept = held.get(path);
   if (kept && kept.signature === signature) {
@@ -208,8 +209,8 @@ export async function layeredFileFor(path: string): Promise<LayeredResult> {
 /** A library item's outline, by id (milestone 33): any layered format, or why it cannot be read. */
 export async function layeredOutlineFor(id: string): Promise<{ ok: true; outline: PsdOutline } | { ok: false; message: string }> {
   const found = lookupMedia(id);
-  if (!found || found.entry.kind !== 'media' || !isLayeredPath(found.entry.path)) return { ok: false, message: 'not a layered file in the library' };
-  if (!found.online) return { ok: false, message: 'its folder is offline' };
+  if (!found || found.entry.kind !== 'media' || !isLayeredPath(found.entry.path)) return { ok: false, message: tr('layered.read.not-in-library') };
+  if (!found.online) return { ok: false, message: tr('layered.read.offline') };
   const read = await layeredFileFor(found.entry.path);
   return read.ok ? { ok: true, outline: read.handle.outline } : read;
 }

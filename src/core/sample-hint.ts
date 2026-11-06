@@ -13,6 +13,7 @@
 
 import { scopeTypes } from './categories';
 import type { Scope } from './app-state';
+import { tr } from './i18n';
 
 /** How many catalog files are still to make, per taxonomy type; types with none left are absent. */
 export type UnmadeByType = Readonly<Record<string, number>>;
@@ -43,16 +44,15 @@ export function sampleHint(scope: Scope | null, unmade: UnmadeByType, label = sc
   if (count <= 0) return null;
   return {
     count,
-    label: `${count} more with sample media`,
-    action: 'Make them',
-    tip: `Make ${count} original CC0 ${count === 1 ? 'file' : 'files'} for ${label || 'this category'} and add them to your library. Just these, not the whole catalog; sounds and clips need FFmpeg.`,
+    label: tr('sample-hint.label', { count }),
+    action: tr('ui.results-hint-make'),
+    tip: label ? tr('sample-hint.tip', { count, label }) : tr('sample-hint.tip.this-category', { count }),
     types,
   };
 }
 
 /** What a run of the generator wrote, as the line reports it when the work is done. */
 export function sampleHintOutcome(written: number, failed: number): string {
-  if (written === 0 && failed === 0) return 'Nothing left to make.';
-  const made = `Made ${written} ${written === 1 ? 'file' : 'files'}.`;
-  return failed === 0 ? made : `${made} ${failed} could not be made.`;
+  if (written === 0 && failed === 0) return tr('sample-hint.outcome.none');
+  return failed === 0 ? tr('sample-hint.outcome.made', { count: written }) : tr('sample-hint.outcome.made-failed', { count: written, failed });
 }

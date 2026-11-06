@@ -15,6 +15,7 @@ import { canvasTemplateFiles, type CanvasSaveInput } from '../core/canvas-templa
 import { sanitizeExpose } from '../core/expose';
 import { resolveLayers } from '../core/layers';
 import { BLANK_CANVAS_ID } from '../core/menu';
+import { tr } from '../core/i18n';
 import { slug } from '../core/pack';
 import type { SaveCanvasResult } from '../shared/api';
 import { addLibraryFolder, findTemplate } from './library-service';
@@ -32,7 +33,7 @@ export interface SaveCanvasRequest {
 
 export async function saveCanvasTemplate(request: SaveCanvasRequest): Promise<SaveCanvasResult> {
   const canvas = await findTemplate(BLANK_CANVAS_ID);
-  if (!canvas) return { ok: false, message: 'The blank canvas is not in the library, so there is nothing to save from.' };
+  if (!canvas) return { ok: false, message: tr('dialog.save-canvas.no-canvas') };
 
   // The stacks arrive over IPC from Pulp's own window, and are held to their shape all the same:
   // resolved against the canvas as any stored stack is, wrong fields reported by falling back.
@@ -46,10 +47,10 @@ export async function saveCanvasTemplate(request: SaveCanvasRequest): Promise<Sa
     target = request.dir;
   } else {
     const save = await dialog.showSaveDialog({
-      title: 'Save as a template folder',
-      defaultPath: join(app.getPath('documents') || homedir(), 'Pulp Templates', 'My Template'),
-      buttonLabel: 'Save Template',
-      nameFieldLabel: 'Template name',
+      title: tr('dialog.save-canvas.title'),
+      defaultPath: join(app.getPath('documents') || homedir(), 'Pulp Templates', 'My Template'), // i18n-exempt(content)
+      buttonLabel: tr('dialog.save-canvas.button'),
+      nameFieldLabel: tr('dialog.save-canvas.name-field'),
     });
     if (save.canceled || !save.filePath) return { ok: false, cancelled: true, message: '' };
     target = save.filePath;
@@ -61,11 +62,11 @@ export async function saveCanvasTemplate(request: SaveCanvasRequest): Promise<Sa
   try {
     await mkdir(target, { recursive: true });
     const holds = await readdir(target);
-    if (holds.length > 0) return { ok: false, message: `${basename(target)} already holds files; a template is saved into a folder of its own.` };
+    if (holds.length > 0) return { ok: false, message: tr('dialog.save-canvas.folder-not-empty', { folder: basename(target) }) };
     await writeFile(join(target, 'template.json'), made.files.manifest);
     await writeFile(join(target, 'index.html'), made.files.page);
   } catch (err) {
-    return { ok: false, message: `Could not write the template: ${(err as Error).message}` };
+    return { ok: false, message: tr('dialog.save-canvas.write-failed', { reason: (err as Error).message }) };
   }
 
   // The library learns about it: the folder itself becomes a root — the scanner reads a root that
