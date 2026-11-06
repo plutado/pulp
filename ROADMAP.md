@@ -73,7 +73,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 56. Speed changes on the cut track (post-1.0, **done**) | 10-16 h |
 | 57. A second picture track (post-1.0, **done**) | 16-26 h |
 | 58. Reliability, scale and speed (post-1.0, **done**) | 16-28 h |
-| 59. Languages and locale (post-1.0) | 26-46 h |
+| 59. Languages and locale (post-1.0) | 22-39 h |
 | 60. A start screen with a clear way in (post-1.0, **done**) | 12-20 h |
 | 61. A polished set of bundled art (post-1.0, **done**) | 26-43 h |
 | 62. Light and dark appearance (post-1.0, **done**) | 8-12 h |
@@ -83,9 +83,11 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 66. Cards, a dialog and the start screen that read at a glance (post-1.0, **done**) | 5-8 h |
 | 67. Twice the polished art, and an airliner redone (post-1.0, **done**) | 21-35 h |
 | 68. Chinese and German (post-1.0, **done**) | 18-32 h |
+| 69. The library in German and Chinese (post-1.0, **done**) | 12-20 h |
+| 70. Right-to-left and complex scripts (post-1.0) | 12-23 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **35-59 h** |
-| **Total including post-1.0 items** | **1039-1700 h** |
+| **Total including post-1.0 items** | **1059-1736 h** |
 
 ## 0. Foundation (done)
 
@@ -776,7 +778,7 @@ Decided 2026-11-01, from the undecided list in `docs/ideas.md`.
 - [x] **A performance section** in Copy diagnostics: library size, index and search timings, memory (3-5 h) *Built 2026-11-02. `src/core/perf.ts` is the shape and the lines; the main process measures when asked — the library's size, the last scan's numbers, the index built and sized just then, each of Electron's processes' working set — and the window records as it goes what a keystroke's search (results, facets and tree over the whole library), a scroll's window and an arriving index cost it, last and worst with a count (`src/renderer/perf.ts`). The section sits under its own heading before the log's last lines, and a test holds it line for line.*
 
 
-## 59. Languages and locale (26-46 h, after 1.0)
+## 59. Languages and locale (22-39 h, after 1.0)
 
 Decided 2026-11-03. Pulp speaks one language today, with its words written into the code. This moves them out so the interface can be shown in the language a person chooses in Settings: US English by default, British English for those who want colour and centre, and other languages as they are translated. Takes over "Localization" from the undecided list in `docs/ideas.md`.
 
@@ -785,7 +787,6 @@ Decided 2026-11-03. Pulp speaks one language today, with its words written into 
 - [x] **British English** as the first catalog after the source: only the words that differ (color/colour, center/centre, gray/grey, license/licence and the like), falling back to US English for the rest (2-3 h) *Done 2026-11-05: 106 entries in `src/locales/en-GB.ts`, each the source in British spelling by the rules in `src/core/spelling.ts`, and held to them by a test (an entry wherever the rules change a message, none where they do not); the British user guide is made by the same rules. The search field's filter keywords (`favorite:`) are syntax and stay as typed.*
 - [ ] **Formats that follow the locale:** dates, numbers and file sizes shown the way the chosen locale writes them; timecode, frame rates and file formats stay as editors expect them everywhere (2-4 h)
 - [ ] **A first language beyond English**, complete, checked by a fluent speaker before it ships, and a pseudo-locale that lengthens every string so a layout that clips long words is caught by a test (4-8 h)
-- [ ] **Right-to-left and complex scripts:** the interface mirrored for a right-to-left language, and text layers that shape Arabic, Hebrew and Indic scripts correctly in the preview and the render alike (Noto Sans is bundled) (4-7 h)
 - [x] **For translators:** how to add a language, what a message id means, and how a catalog is checked for missing and unused strings (2-3 h) *Done 2026-11-05: `docs/translating.md` says what is translated and what is not and why, where the words are, what an id means, what a message may hold, how a language and its guide are added, and how a catalog is checked: missing (`I18N_LOCALE=<locale> … -t complete` lists what is left), unused, placeholders, the markup, and British English against `src/core/spelling.ts`.*
 
 ## 60. A start screen with a clear way in (done; 12-20 h, after 1.0)
@@ -882,3 +883,20 @@ Decided 2026-11-05. Milestone 59 takes the interface's words out of the code and
 - [x] **Each language named in itself:** the Language setting lists English (US), English (UK), Deutsch and 中文（简体）, each in its own language and script, so a person who cannot read the current one can still find theirs. Following the system, the choice is made at launch as milestone 59 does (1-2 h)
 - [x] **Translated with care, and said to be:** a short glossary per language for Pulp's own terms (template, lower third, layer, render, alpha, safe area, pack) so a word is translated the same way everywhere, in the translators' doc from milestone 59; and each catalog checked by a fluent speaker before a release offers it. Until it is, it is available only from a setting marked as a preview (1-2 h)
 - [x] **Tests:** both catalogs complete, with no missing and no unused message ids; an end-to-end test that switches to each language and finds the menus and the start screen translated, nothing clipped and nothing overlapping at 1280 × 788 and 960 × 600; Chinese text drawn with a Chinese face, not boxes; visual references of the start screen and main window in each. The suite itself still runs in US English (2-4 h)
+
+## 69. The library in German and Chinese (done; 12-20 h, after 1.0)
+
+Decided 2026-11-05. Milestone 68 translated the window, which left the library's words in English around German and Chinese controls. This translates what the library shows, on screen only, so files, renders, exports and saved projects keep the English.
+
+- [x] **The bundled templates' words:** names, descriptions, parameter labels and help, card headings, dropdown options and matching-set names, about 1,800 strings per language in `src/locales/library/` (7-12 h)
+- [x] **Pulp's words about a Lottie file:** its description, what the player cannot draw, and the labels Pulp gives its texts and colors, held as catalog messages so they follow the language; the file's own names stay as the file has them (2-3 h)
+- [x] **Search in both:** a typed English word still finds an item in any language, and so does its translated name (1-2 h)
+- [x] **Tests:** an end-to-end test finds the airliner by its English and translated names in each language and opens it with its parameters translated (2-3 h)
+
+## 70. Right-to-left and complex scripts (12-23 h, after 1.0)
+
+Decided 2026-11-06, moved out of milestone 59 for later. No right-to-left language is planned yet, and the mirroring is worth doing only alongside one.
+
+- [ ] **Text layers in Arabic, Hebrew and Indic scripts:** shaped correctly, with the right word order, the same in the preview and the render, since Noto Sans is bundled (3-6 h)
+- [ ] **The interface mirrored for a right-to-left language:** panels and menus mirrored, with timelines, scrub bars and playback controls decided one by one, since these usually stay left to right (6-12 h)
+- [ ] **Tests:** a render test of each script's text against its reference, and an end-to-end check of the mirrored window at 1280 × 788 and 960 × 600 (3-5 h)
