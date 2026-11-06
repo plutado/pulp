@@ -16,11 +16,12 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
-import { detectFfmpeg, type FfmpegStatus } from '../core/ffmpeg';
+import { detectFfmpeg, runForBuffer, type FfmpegStatus } from '../core/ffmpeg';
+import { clipSetStitchArgs } from '../core/clip-set';
 import { tr } from '../core/i18n';
 import { sanitizePsdChoice } from '../core/image-slot';
 import type { MediaEntry } from '../core/library-types';
-import { AUDIO_PRESETS, buildMediaRenderPlan, isAudioPresetId, parseProgressLine, sourceFromEntry, type MediaRenderPlan, type MediaSource } from '../core/media-render';
+import { AUDIO_PRESETS, buildMediaRenderPlan, DEFAULT_MEDIA_FPS, isAudioPresetId, MediaNotMeasuredError, parseProgressLine, sourceFromEntry, type MediaRenderPlan, type MediaSource } from '../core/media-render';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { sequenceMetadata, sequencePatternName } from '../core/media-sequence';
 import { coverOutputPath, OUTPUT_PRESETS, RenderPlanError, type PresetId, type RenderOptions } from '../core/render-plan';
@@ -29,6 +30,7 @@ import { nodeRunner } from '../core/ffmpeg';
 import type { RenderProgress, RenderResult } from '../shared/api';
 import { isLayeredPath, layeredFileFor } from './layered-service';
 import { finishedFileWarnings } from './platform-check';
+import { probeClipSet } from './library-service';
 
 export interface MediaRenderJob {
   entry: MediaEntry;
@@ -43,7 +45,8 @@ export interface MediaRenderJob {
 }
 
 /** What the planner needs to know about an item: the library's measurements, or a probe now; a layered file as its collected composite. */
-export async function mediaSourceFor(entry: MediaEntry, ffmpeg: FfmpegStatus & { ok: true }, scratchDir?: string, params: Record<string, unknown> = {}, target?: { width?: number; height?: number }): Promise<MediaSource> {
+export async function mediaSourceFor(entry: MediaEntry, ffmpeg: FfmpegStatus & { ok: true }, scratchDir?: string, params: Record<string, unknown> = {}, target?: { width?: number; height?: number }, options: RenderOptions = {}): Promise<MediaSource> {
+  if (entry.clipSet) return clipSetSource(entry, ffmpeg, scratchDir, options);
   if (isLayeredPath(entry.path)) {
     const read = await layeredFileFor(entry.path);
     if (!read.ok) throw new RenderPlanError(tr('render.media.layered-unreadable', { reason: read.message }));
@@ -71,13 +74,34 @@ export async function mediaSourceFor(entry: MediaEntry, ffmpeg: FfmpegStatus & {
   return source;
 }
 
+/**
+ * A clip set as a source (milestone 32): its parts stitched to the length asked — the intro once,
+ * the loop repeated, the outro at the end — so the render that follows plays one clip that is
+ * already as long as it should be, and never loops or crossfades it again. Planned, it is only
+ * measured; rendered, it is written into the render's scratch folder as ProRes 4444, alpha kept.
+ * Speed applies after, so the parts are stitched to the length the speed will bring to the one asked.
+ */
+async function clipSetSource(entry: MediaEntry, ffmpeg: FfmpegStatus & { ok: true }, scratchDir: string | undefined, options: RenderOptions): Promise<MediaSource> {
+  const meta = entry.meta?.parts ? entry.meta : await probeClipSet(ffprobePathFor(ffmpeg.path), entry);
+  if (!meta?.parts || !meta.width || !meta.height) throw new MediaNotMeasuredError(tr('media-render.error.not-measured.length'));
+  const fps = meta.fps ?? DEFAULT_MEDIA_FPS;
+  const measured = sourceFromEntry({ ...entry, meta }, options);
+  const length = measured.duration!;
+  if (!scratchDir) return measured;
+  const stitched = join(scratchDir, 'clip-set.mov');
+  const args = [...clipSetStitchArgs(entry.clipSet!, meta.parts, length, { fps, width: meta.width, height: meta.height }), '-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', '-y', stitched];
+  const run = await runForBuffer(ffmpeg.path, args);
+  if (run.code !== 0) throw new RenderPlanError(tr('render.media.clip-set-failed', { reason: run.stderr.trim().split('\n').slice(-3).join(' ') }));
+  return { ...measured, input: { path: stitched } };
+}
+
 /** The planner's answer for an item without running anything: what the Output tab and the queue validate with. */
 export async function planMediaRender(entry: MediaEntry, presetId: string, options: RenderOptions | undefined, params: Record<string, unknown>, outputPath: string): Promise<{ ok: true; plan: MediaRenderPlan } | { ok: false; message: string }> {
   const ffmpeg = await detectFfmpeg();
   if (!ffmpeg.ok) return { ok: false, message: ffmpeg.message };
   try {
     // A scratch folder is named but not made: the plan only has to know one would exist.
-    const source = await mediaSourceFor(entry, ffmpeg, undefined, params);
+    const source = await mediaSourceFor(entry, ffmpeg, undefined, params, undefined, options);
     const plan = buildMediaRenderPlan({ source, presetId, outputPath, options, scratchDir: join(tmpdir(), 'pulp-media') });
     return { ok: true, plan };
   } catch (err) {
@@ -128,7 +152,7 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
   if (problem) return { ok: false, message: problem };
   const scratch = await mkdtemp(join(tmpdir(), 'pulp-media-'));
   try {
-    const source = await mediaSourceFor(job.entry, ffmpeg, scratch, job.params, { ...(job.options?.width ? { width: job.options.width } : {}), ...(job.options?.height ? { height: job.options.height } : {}) });
+    const source = await mediaSourceFor(job.entry, ffmpeg, scratch, job.params, { ...(job.options?.width ? { width: job.options.width } : {}), ...(job.options?.height ? { height: job.options.height } : {}) }, job.options);
     const plan = buildMediaRenderPlan({ source, presetId: job.presetId, outputPath: job.outputPath, options: job.options, overwrite: job.overwrite, scratchDir: scratch });
     await mkdir(dirname(plan.output), { recursive: true });
     const total = plan.timing.totalFrames;

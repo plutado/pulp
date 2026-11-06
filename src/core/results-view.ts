@@ -202,7 +202,7 @@ export function columnsFor(width: number, cardWidth: number): number {
 
 // What a card and a row show.
 
-export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound';
+export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set';
 
 /**
  * The badges that are words, drawn as outlined tags; the rest are icons with their meaning in the
@@ -252,6 +252,8 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   if (tag && width && height) badges.push({ id: 'resolution', label: tag, tip: dimensionsLabel(width, height) });
   if (hasAlpha(entry)) badges.push({ id: 'alpha', label: tr('results.badge.alpha'), tip: tr('results.badge.alpha.tip') });
   if (entryType(entry) === 'animated-loop') badges.push({ id: 'loop', label: tr('results.badge.loop'), tip: tr('results.badge.loop.tip') });
+  // A clip set (milestone 32): one item made of an intro, a loop and an outro, that stretches.
+  if (entry.kind === 'media' && entry.clipSet) badges.push({ id: 'clip-set', label: tr('results.badge.clip-set'), tip: tr('results.badge.clip-set.tip', { parts: clipSetPartsLabel(entry.clipSet) }) });
   const orientation = entryOrientationBadge(entry);
   if (orientation) badges.push(orientation);
   if (entry.kind === 'template' && entry.pack) badges.push({ id: 'pack', label: entry.pack.name, tip: tr('results.badge.pack.tip', { name: entry.pack.name }) });
@@ -305,4 +307,9 @@ export function listRow(entry: LibraryEntry): ListRow {
     themes: (entry.themes ?? []).map(themeLabel).join(', '),
     file: entry.kind === 'media' ? baseName(entry.path) : baseName(entry.lottie?.path ?? entry.dir),
   };
+}
+
+/** A set's parts as a list in the interface's language: "intro, loop and outro". */
+export function clipSetPartsLabel(set: { intro?: string; outro?: string }): string {
+  return set.intro && set.outro ? tr('clip-set.parts.all') : set.intro ? tr('clip-set.parts.intro') : tr('clip-set.parts.outro');
 }

@@ -12,6 +12,7 @@
  */
 
 import type { MediaSequence } from './media-sequence';
+import { clipSetFrameAt, clipSetNaturalSeconds, type ClipSetTiming } from './clip-set';
 import { sanitizeVoice, voiceFromText, voiceToText, type VoiceValue } from './voice-treatment';
 
 /** How the clip plays when it reaches its out point. */
@@ -111,6 +112,12 @@ export interface ClipSource {
   fps: number;
   /** Set when the clip is a folder of frames rather than one file. */
   sequence?: MediaSequence;
+  /**
+   * Set when the clip is a clip set (milestone 32): how long its intro, loop and outro run. Its
+   * frames are the three laid end to end, and it fills whatever length it is played for — the
+   * intro once, the loop repeated, the outro at the end — rather than looping or stopping.
+   */
+  set?: ClipSetTiming;
 }
 
 /**
@@ -122,6 +129,8 @@ export interface ClipSource {
 export function clipWindow(value: Pick<ClipValue, 'inPoint' | 'outPoint'>, source: ClipSource): { first: number; last: number; frames: number } {
   const total = Math.max(0, Math.floor(source.frames));
   if (total === 0) return { first: 0, last: 0, frames: 0 };
+  // A clip set is handed whole: its parts decide what plays, not an in and out point.
+  if (source.set) return { first: 0, last: total - 1, frames: total };
   const last = value.outPoint < 0 || value.outPoint > total - 1 ? total - 1 : Math.floor(value.outPoint);
   const first = Math.min(Math.max(0, Math.floor(value.inPoint)), last);
   return { first, last, frames: last - first + 1 };
@@ -153,8 +162,16 @@ function clipSpeed(speed: number): number {
  * explosion that stops and stays is worse than one that ends. A `loop` clip
  * runs forever, so it is only ever absent during its delay.
  */
-export function clipFrameAt(time: number, value: ClipValue, source: ClipSource): number | null {
+export function clipFrameAt(time: number, value: ClipValue, source: ClipSource, length?: number): number | null {
   if (!Number.isFinite(time) || value.id === null || value.hidden) return null;
+  if (source.set) {
+    // A clip set fills the graphic from its delay to the end, at its speed (milestone 32); with
+    // no length known it plays its own, each part once.
+    const delay = Math.max(0, value.delay);
+    const speed = clipSpeed(value.speed);
+    const span = length !== undefined ? Math.max(0, (length - delay) * speed) : clipSetNaturalSeconds(source.set);
+    return clipSetFrameAt((time - delay) * speed, source.set, span, Math.max(1, source.fps));
+  }
   const { first, last, frames } = clipWindow(value, source);
   if (frames === 0) return null;
   const delay = Math.max(0, value.delay);
@@ -179,8 +196,8 @@ export function clipFrameAt(time: number, value: ClipValue, source: ClipSource):
  * The page is given the window's frames and nothing else — it never learns
  * what the in point was — so this is the index it draws by.
  */
-export function clipWindowIndexAt(time: number, value: ClipValue, source: ClipSource): number | null {
-  const frame = clipFrameAt(time, value, source);
+export function clipWindowIndexAt(time: number, value: ClipValue, source: ClipSource, length?: number): number | null {
+  const frame = clipFrameAt(time, value, source, length);
   if (frame === null) return null;
   return frame - clipWindow(value, source).first;
 }
@@ -220,7 +237,7 @@ export function clipMediaTimeAt(time: number, value: ClipValue, source: ClipSour
  */
 export function clipFramePlan(value: ClipValue, source: ClipSource, renderFrames: number, renderFps: number): (number | null)[] {
   const fps = Math.max(1, renderFps);
-  return Array.from({ length: Math.max(0, Math.floor(renderFrames)) }, (_, i) => clipFrameAt(i / fps, value, source));
+  return Array.from({ length: Math.max(0, Math.floor(renderFrames)) }, (_, i) => clipFrameAt(i / fps, value, source, renderFrames / fps));
 }
 
 /** A clip value with every field in range, from anything at all; `undefined` when the input is not one. */

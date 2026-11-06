@@ -22,6 +22,7 @@ import { folderTags, itemId, itemKey, loadLottie, loadTemplate, mediaKindForPath
 import { isLottieCandidate } from './lottie';
 import { unreadableDesignNote } from './layered';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
+import { groupClipSets } from './clip-set';
 import { PACK_FILENAME, parsePackManifest, slug } from './pack';
 import { inferMediaType, inferMoods, inferThemes } from './taxonomy';
 import type { MediaLookup } from './media-serve';
@@ -414,9 +415,73 @@ export class LibraryStore {
           upserts.push({ key, kind: 'media', size, mtimeMs, entry: media });
         }
 
+        // An intro, a loop and an outro that belong together are one item that stretches
+        // (milestone 32). Their files are skipped by the loop below, as a sequence's frames are.
+        const setMembers = new Set<string>();
+        const videoNames = entries.filter((e) => e.isFile() && !e.name.startsWith('.') && !sequenceFrames.has(e.name) && mediaKindForPath(e.name) === 'video').map((e) => e.name);
+        for (const found of groupClipSets(videoNames, basename(dir))) {
+          if (fileCount >= maxFiles) {
+            if (!truncated) problems.push({ path: rootPath, message: `stopped after ${maxFiles} files` });
+            truncated = true;
+            return;
+          }
+          const names = [found.files.intro, found.files.loop, found.files.outro].filter((n): n is string => n !== undefined);
+          fileCount += names.length;
+          stats.visited += 1;
+          for (const n of names) setMembers.add(n);
+          const files = {
+            ...(found.files.intro ? { intro: join(dir, found.files.intro) } : {}),
+            loop: join(dir, found.files.loop),
+            ...(found.files.outro ? { outro: join(dir, found.files.outro) } : {}),
+          };
+          // Keyed by the loop and the set's name, so a set is the same item across scans.
+          const key = itemKey('media', join(dir, `${found.name} [set]`), this.builtInRoot);
+          seen.add(key);
+          let infos;
+          try {
+            infos = await Promise.all(names.map((n) => stat(join(dir, n))));
+          } catch (err) {
+            problems.push({ path: join(dir, found.files.loop), message: `could not stat clip set: ${(err as Error).message}` });
+            seen.delete(key);
+            continue;
+          }
+          // Its signature is every part's: replacing any of them reads the set again.
+          const size = infos.reduce((n, i) => n + i.size, 0);
+          const mtimeMs = Math.max(...infos.map((i) => i.mtimeMs));
+          const storedSet = existing.get(key);
+          if (storedSet && storedSet.size === size && storedSet.mtime_ms === mtimeMs) {
+            stats.kept += 1;
+            continue;
+          }
+          stats.loaded += 1;
+          const segments = folderTags(rootPath, dir);
+          const inferredType = inferMediaType('video', segments);
+          const inferredThemes = inferThemes(segments);
+          const inferredMoods = inferMoods(segments);
+          const media: MediaEntry = {
+            kind: 'media',
+            key,
+            id: itemId(key),
+            path: files.loop,
+            root: rootPath,
+            name: found.name,
+            mediaKind: 'video',
+            ext: extname(found.files.loop).toLowerCase(),
+            size,
+            mtimeMs,
+            tags: segments,
+            clipSet: files,
+            ...(inferredType ? { type: inferredType } : {}),
+            ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
+            ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
+          };
+          upserts.push({ key, kind: 'media', size, mtimeMs, entry: media });
+        }
+
         for (const entry of entries) {
           if (entry.name.startsWith('.')) continue;
           if (sequenceFrames.has(entry.name)) continue;
+          if (setMembers.has(entry.name)) continue;
           const full = join(dir, entry.name);
           // Symlinks are skipped to avoid cycles and surprising scans outside the chosen roots.
           if (entry.isSymbolicLink()) continue;

@@ -16,6 +16,7 @@ const api: PulpApi = {
   },
   addLibraryFolder: () => ipcRenderer.invoke('library:add-folder'),
   addStockLibrary: () => ipcRenderer.invoke('library:add-stock'),
+  clipSetPreview: (id: string, length?: number) => ipcRenderer.invoke('clip-set:preview', id, length),
   removeStockLibrary: (path: string) => ipcRenderer.invoke('library:remove-stock', path),
   addSampleMedia: () => ipcRenderer.invoke('library:add-sample-media'),
   stageWindowState: () => ipcRenderer.invoke('stage-window:state'),

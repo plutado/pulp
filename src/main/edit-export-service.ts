@@ -70,7 +70,7 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
   for (const cut of track.cuts) {
     if (clips[cut.id]) continue;
     const found = lookupClipItem(cut.id);
-    if (!found || found.kind !== 'media' || found.entry.sequence) {
+    if (!found || found.kind !== 'media' || found.entry.sequence || found.entry.clipSet) {
       return { ok: false, message: tr('export-edit.clip-unreadable') };
     }
     const source = await resolveClipSource(ffprobePathFor(ffmpeg.path), cut.id);
@@ -101,7 +101,7 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
       }
       const found = lookupClipItem(layer.clip.id);
       // A drawn asset or a Lottie is a layer of the graphics, not a clip an editor can reference.
-      if (!found || found.kind !== 'media' || found.entry.sequence) {
+      if (!found || found.kind !== 'media' || found.entry.sequence || found.entry.clipSet) {
         kept.push(layer);
         continue;
       }

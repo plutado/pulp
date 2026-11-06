@@ -220,3 +220,37 @@ export async function serveVoicePreview(req: ServeRequest, dir: string): Promise
   if (!VOICE_PREVIEW_FILE.test(name)) return notFound();
   return serveFile(join(dir, name), req.method, req.range, MEDIA_MIME['.m4a']!);
 }
+
+// ---------------------------------------------------------------- clip-set previews (milestone 32)
+
+/** The host a clip set's stitched preview is served under; never a library id. */
+export const CLIP_SET_PREVIEW_HOST = 'clipset';
+
+/** The file names the clip-set preview cache writes and the only shape the handler serves. */
+export const CLIP_SET_PREVIEW_FILE = /^[a-f0-9]{40}\.webm$/;
+
+/** pulp-media://clipset/<hash>.webm — a preview the main process stitched into its own cache folder. */
+export function clipSetPreviewUrlFor(file: string): string {
+  return `${MEDIA_SCHEME}://${CLIP_SET_PREVIEW_HOST}/${file}`;
+}
+
+/** Serve a stitched clip-set preview, or nothing: the same rules as a treated voice preview. */
+export async function serveClipSetPreview(req: ServeRequest, dir: string): Promise<ServeResult | null> {
+  let url: URL;
+  try {
+    url = new URL(req.url);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== `${MEDIA_SCHEME}:` || url.hostname !== CLIP_SET_PREVIEW_HOST) return null;
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return { status: 405, headers: { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' } };
+  }
+  if (req.referrer && req.referrer.startsWith('pulp-template://')) {
+    return { status: 403, headers: { 'Cache-Control': 'no-store' } };
+  }
+  if (url.search || url.username || url.password) return notFound();
+  const name = url.pathname.replace(/^\/+/, '');
+  if (!CLIP_SET_PREVIEW_FILE.test(name)) return notFound();
+  return serveFile(join(dir, name), req.method, req.range, 'video/webm');
+}

@@ -16,6 +16,7 @@ import { tr } from '../core/i18n';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
+import { clipSetNaturalSeconds } from '../core/clip-set';
 import { canAddLibrary, defaultLibraryName, driveOf, samePlace, type StockLibrary, type StockLibraryState } from '../core/stock-library';
 import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput, runWithInputForBuffer } from '../core/ffmpeg';
 import { MAX_IMAGE_FILE_BYTES, type ImportedImage } from '../core/image-slot';
@@ -272,6 +273,11 @@ async function probePendingMetadata(): Promise<void> {
         await Promise.all(
           pending.slice(i, i + PROBE_CONCURRENCY).map(async (entry) => {
             // A sequence is probed through its first frame; the run says how long it runs for.
+            // A clip set is probed part by part, and measured as the three once (milestone 32).
+            if (entry.clipSet) {
+              st.setMetadata(entry, await probeClipSet(ffprobe!, entry));
+              return;
+            }
             const probed = isLayeredPath(entry.path) ? await layeredMetadata(entry.path) : await probeMedia(ffprobe!, entry.path, nodeRunner);
             const meta = entry.sequence ? sequenceMetadata(probed, entry.sequence) : probed;
             st.setMetadata(entry, meta);
@@ -284,6 +290,23 @@ async function probePendingMetadata(): Promise<void> {
     probing = false;
     void generatePendingThumbnails();
   }
+}
+
+/**
+ * A clip set's measurements (milestone 32): each part probed, the loop's picture and rate standing
+ * for the set's, its length the three parts once, and each part's own length kept for the timing.
+ * Null when the loop cannot be read, as for any unreadable clip.
+ */
+export async function probeClipSet(ffprobePath: string, entry: MediaEntry): Promise<MediaMetadata | null> {
+  const set = entry.clipSet!;
+  const [intro, loop, outro] = await Promise.all([
+    set.intro ? probeMedia(ffprobePath, set.intro, nodeRunner) : Promise.resolve(null),
+    probeMedia(ffprobePath, set.loop, nodeRunner),
+    set.outro ? probeMedia(ffprobePath, set.outro, nodeRunner) : Promise.resolve(null),
+  ]);
+  if (!loop?.duration) return null;
+  const parts = { intro: intro?.duration ?? 0, loop: loop.duration, outro: outro?.duration ?? 0 };
+  return { ...loop, duration: clipSetNaturalSeconds(parts), parts, alpha: Boolean(loop.alpha || intro?.alpha || outro?.alpha) };
 }
 
 /**

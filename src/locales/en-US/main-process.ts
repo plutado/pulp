@@ -307,4 +307,7 @@ export const mainProcess = {
   'dialog.sample-media.choose': 'Choose Folder',
   // ---------------------------------------------------------------- a parameter's warning in a render (src/main/render.ts)
   'render.warning.parameter': 'parameter {id}: {detail}',
+  'clip-set.preview.not-a-set': 'That item is not a clip set.',
+  'clip-set.preview.unreadable': 'The clip set\'s parts could not be read.',
+  'render.media.clip-set-failed': 'The clip set\'s parts could not be put together: {reason}',
 } as const;

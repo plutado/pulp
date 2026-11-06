@@ -22,6 +22,7 @@
 import type { MediaEntry } from './library-types';
 import { isValidColor } from './manifest';
 import { sequencePatternName, SEQUENCE_FPS } from './media-sequence';
+import { clipSetNaturalSeconds } from './clip-set';
 import {
   AUDIO_BIT_DEPTHS, AUDIO_SAMPLE_RATES, matteCodecArgs, matteFilters, matteOutputPath, normalizeOutputPath, OUTPUT_PRESETS, REC709_CONVERT, REC709_TAGS,
   RenderPlanError, RGB_FULL_TAGS, type AudioOptions, type OutputPreset, type PresetId, type RenderOptions,
@@ -91,8 +92,24 @@ export interface MediaSource {
  * measurements leave the fields out, and the timing says the item is not yet
  * measured rather than guessing.
  */
-export function sourceFromEntry(entry: MediaEntry): MediaSource {
+export function sourceFromEntry(entry: MediaEntry, options: Pick<RenderOptions, 'length' | 'speed'> = {}): MediaSource {
   const meta = entry.meta;
+  if (entry.clipSet) {
+    // A clip set (milestone 32) is stitched to the length asked before anything else sees it, so
+    // as a source it is one clip already that long: it never loops or crossfades again.
+    const natural = meta?.parts ? clipSetNaturalSeconds(meta.parts) : meta?.duration;
+    const length = options.length ?? natural;
+    return {
+      kind: 'video',
+      input: { path: entry.clipSet.loop },
+      ...(meta?.width ? { width: meta.width } : {}),
+      ...(meta?.height ? { height: meta.height } : {}),
+      ...(length ? { duration: length * (options.speed ?? 1) } : {}),
+      ...(meta?.fps ? { fps: meta.fps } : {}),
+      alpha: meta?.alpha === true,
+      hasAudio: false,
+    };
+  }
   if (entry.sequence) {
     const fps = meta?.fps ?? SEQUENCE_FPS;
     return {

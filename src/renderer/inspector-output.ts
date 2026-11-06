@@ -5,6 +5,7 @@
  * possible through the renderBlocked signal, which the tray's Prepare button follows.
  */
 
+import { formatNumber } from '../core/locale-format';
 import { effect, signal, untracked } from '@preact/signals';
 import { bindAttr, bindText, t, whenLocaleChanges } from './i18n';
 import type { MessageId } from '../core/i18n';
@@ -23,7 +24,7 @@ import { captionsIn, LAYERS_KEY } from '../core/params';
 import { lengthIn } from '../core/params';
 import { layersHaveStems, soundIdsInLayers } from '../core/sound-layer';
 import { lengthFrameCount, resolveLength } from '../core/timing';
-import { stageStop } from './stage';
+import { stageClipSetLength, stageStop } from './stage';
 import { appState, coverFrame, dispatch, frameSize, playheadSeconds, preferredAspect, preferredPlatform, renderBlocked, selectedTemplate, trim } from './store';
 import {
   PLATFORM_PRESETS, platformLimitsLabel, platformPreset, platformSummary, platformWarningsBefore, type PlatformPreset,
@@ -871,11 +872,14 @@ function updateMediaOptionsNote(entry: MediaEntry): void {
   else bindAttr(els.optLength, 'placeholder', 'ui.opt-length.placeholder');
   try {
     const options = readRenderOptions();
-    const timing = resolveMediaTiming(source, options);
+    // A clip set is as long as asked, by its parts rather than by looping the whole (milestone 32).
+    const timing = resolveMediaTiming(entry.clipSet ? sourceFromEntry(entry, options) : source, options);
     const last = timing.firstFrame + timing.totalFrames - 1;
+    if (entry.clipSet) stageClipSetLength(options.length);
     setPlainAttr(els.optOut, 'placeholder', formatTimecode(Math.max(1, Math.round(timing.length * timing.fps)) - 1, timing.fps));
     const parts: string[] = [];
-    if (timing.loops) parts.push(timing.crossfade > 0 ? t('output.media.loops-crossfade', { length: timing.length, crossfade: timing.crossfade }) : t('output.media.loops', { length: timing.length }));
+    if (entry.clipSet) parts.push(t('output.media.clip-set', { length: formatNumber(timing.length, 2) }));
+    else if (timing.loops) parts.push(timing.crossfade > 0 ? t('output.media.loops-crossfade', { length: timing.length, crossfade: timing.crossfade }) : t('output.media.loops', { length: timing.length }));
     else if (options.length !== undefined && source.kind !== 'image') parts.push(t('output.media.cut', { length: timing.length }));
     if (timing.speed !== 1) parts.push(t('output.media.speed', { speed: timing.speed }));
     if (source.kind !== 'audio') {

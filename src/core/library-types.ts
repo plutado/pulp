@@ -1,6 +1,7 @@
 /** Library index data types. Pure; shared with the renderer over IPC. */
 
 import type { StockLibraryState } from './stock-library';
+import type { ClipSetFiles } from './clip-set';
 import type { TemplateManifest, ValidationIssue } from './manifest';
 import type { MediaMetadata } from './media-meta';
 import type { MediaSequence } from './media-sequence';
@@ -89,6 +90,12 @@ export interface MediaEntry {
    * `mediaKind` is `video` however the frames are stored.
    */
   sequence?: MediaSequence;
+  /**
+   * Set when this entry is a clip set (milestone 32): an intro, a loop and an outro in separate
+   * files that play as one item that stretches. Full paths; `path` is then the loop's, which
+   * makes its poster, and `meta.parts` says how long each part runs once probed.
+   */
+  clipSet?: ClipSetFiles;
 }
 
 export type LibraryEntry = TemplateEntry | MediaEntry;

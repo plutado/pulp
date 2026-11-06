@@ -8,7 +8,7 @@
  * PULP_E2E=1 fails instead of skipping.
  */
 
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { closeSync, existsSync, openSync } from 'node:fs';
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
@@ -24,7 +24,7 @@ import { detectFfmpeg } from '../../src/core/ffmpeg';
 import { ffprobePathFor } from '../../src/core/media-probe';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
-import { snapshotTree, STOCK_FIXTURE_FILES, writeStockFixture } from '../stock-fixture';
+import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture } from '../stock-fixture';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
@@ -7272,6 +7272,73 @@ describe.skipIf(!electron)('inspector UI', () => {
         await fire('#search', '', 'input');
       }
     }, 150_000);
+  });
+
+  describe('clip sets (milestone 32)', () => {
+    it('shows an intro, a loop and an outro as one item that plays, previews and renders to any length', async () => {
+      const ffmpeg = await detectFfmpeg();
+      if (!haveVideo || !ffmpeg.ok || !ffmpeg.encoders.includes('qtrle')) {
+        console.info('ffmpeg not available; clip set check skipped.');
+        return;
+      }
+      // A generated set (red intro 1 s, green loop 0.5 s, blue outro 1 s) in a stock library, added through Add.
+      await writeClipSetFixture(ffmpeg.path, join(stockDir, 'Titles'), 'Swoosh');
+      const optLength = (v: string) => page.eval(`(() => { const l = document.getElementById('opt-length'); l.value = ${JSON.stringify(v)}; l.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      try {
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+
+        // One item, not three; its parts are not items of their own.
+        await fire('#search', 'swoosh', 'input');
+        await until(async () => (await resultNames()).includes('Swoosh'), 'the set as one item', 30_000);
+        expect(await resultNames()).not.toEqual(expect.arrayContaining(['Swoosh In', 'Swoosh Loop', 'Swoosh Out']));
+        expect((await resultNames()).filter((n) => /^Swoosh( In| Loop| Out)?$/.test(n))).toEqual(['Swoosh']);
+        // Measured, and saying it is a set.
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-id]')].some((li) => li.querySelector('.name')?.textContent === 'Swoosh' && li.textContent.includes('Clip set'))`), 'its Clip set badge', 30_000);
+
+        // On the stage it plays as one clip, its own length first: each part once, 2.5 s.
+        await clickResult('Swoosh');
+        await until(() => page.eval<boolean>(`document.getElementById('media-video')?.dataset.clipSet === '2.5'`), 'the set previewed at its own length', 60_000);
+        await until(() => page.eval<boolean>(`Math.abs((document.getElementById('media-video').duration || 0) - 2.5) < 0.15`), 'a 2.5 s preview playing');
+
+        // Asked for 6 s, the loop repeats to fill it: the note says so, and the preview is made again at 6 s.
+        await page.eval(`document.getElementById('tab-output').click()`);
+        await optLength('6');
+        await until(() => page.eval<boolean>(`document.getElementById('options-note').textContent.includes('Intro once, loop repeated, outro at the end: 6 s')`), 'the note on the set');
+        expect(await page.eval<string>(`document.getElementById('options-note').textContent`), 'never a crossfaded loop of the whole').not.toContain('crossfade');
+        await until(() => page.eval<boolean>(`document.getElementById('media-video').dataset.clipSet === '6'`), 'the preview made at 6 s', 60_000);
+        await until(() => page.eval<boolean>(`Math.abs((document.getElementById('media-video').duration || 0) - 6) < 0.15`), 'a 6 s preview playing');
+
+        // Rendered at 6 s: every frame from the part it should be — intro once, loop repeated, outro last.
+        await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'prores-4444'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await page.eval(`document.getElementById('drag-prepare').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].some((c) => c.querySelector('.job-name').textContent === 'Swoosh')`), 'the render of the set', 90_000);
+        const file = await page.eval<string>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].find((c) => c.querySelector('.job-name').textContent === 'Swoosh').dataset.file`);
+        const probe = spawnSync(ffmpeg.path, ['-v', 'error', '-i', file, '-vf', 'fps=10,scale=1:1,format=rgb24', '-f', 'rawvideo', 'pipe:1'], { maxBuffer: 64 * 1024 * 1024 });
+        const parts: string[] = [];
+        for (let i = 0; i + 2 < probe.stdout.length; i += 3) {
+          const [r, g, b] = [probe.stdout[i]!, probe.stdout[i + 1]!, probe.stdout[i + 2]!];
+          parts.push(r > 150 && g < 100 ? 'intro' : g > 150 && r < 100 ? 'loop' : b > 150 && r < 100 ? 'outro' : '?');
+        }
+        expect(parts, 'sixty tenths of a second').toHaveLength(60);
+        expect(parts.slice(0, 10).every((p) => p === 'intro'), parts.join(' ')).toBe(true);
+        expect(parts.slice(10, 50).every((p) => p === 'loop'), parts.join(' ')).toBe(true);
+        expect(parts.slice(50).every((p) => p === 'outro'), parts.join(' ')).toBe(true);
+        // Nothing written beside the stock media.
+        expect((await readdir(join(stockDir, 'Titles'))).sort()).toEqual(['Swoosh In.mov', 'Swoosh Loop.mov', 'Swoosh Out.mov']);
+      } finally {
+        await optLength('');
+        await fire('#search', '', 'input');
+        await window_removeStock();
+      }
+    }, 240_000);
+
+    /** Take the stock library back out, as its own test does. */
+    async function window_removeStock(): Promise<void> {
+      await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`);
+      await until(async () => !(await resultNames()).includes('Swoosh'), 'the set gone with its library', 30_000);
+    }
   });
 
   describe('recording a voice (milestone 63)', () => {

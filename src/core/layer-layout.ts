@@ -458,6 +458,8 @@ export interface ClipContext {
   /** Seconds into the graphic. */
   time: number;
   sources: Record<string, ClipSource>;
+  /** Seconds the graphic runs for: what a clip set stretches to fill (milestone 32). */
+  length?: number;
 }
 
 /** The per-frame state for one block: its box and layers in pixels, hidden ones left out. */
@@ -520,7 +522,7 @@ function layerState(layer: Layer, position: number, short: number, size: Size, c
     const video = layer as VideoLayer;
     const source = video.clip?.id ? clips?.sources[video.clip.id] : undefined;
     // No clip, or one the host has not measured yet: the layer is laid out but draws nothing.
-    const frame = video.clip && source ? clipWindowIndexAt(clips?.time ?? 0, video.clip, source) : null;
+    const frame = video.clip && source ? clipWindowIndexAt(clips?.time ?? 0, video.clip, source, clips?.length) : null;
     return { ...base, type: 'video', clip: video.clip, size: video.size * short, align: video.align, frame };
   }
   // An audio layer never reaches here: it draws nothing, so `blockState` leaves it out of the

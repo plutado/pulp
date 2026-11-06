@@ -833,7 +833,37 @@ export function stageShowTemplate(
 }
 
 /** Show a media item, served by id through pulp-media://. */
+/** The clip set on the stage, if one is (milestone 32), and the length its preview was made at. */
+let clipSetShown: MediaEntry | null = null;
+let clipSetLengthShown: number | undefined;
+let clipSetAsk = 0;
+
+/** Play a clip set stitched to `length` seconds (its own length when undefined). A later ask wins. */
+async function showClipSetPreview(entry: MediaEntry, length: number | undefined): Promise<void> {
+  const ask = ++clipSetAsk;
+  clipSetLengthShown = length;
+  els.mediaVideo.dataset.clipSet = 'making';
+  const made = await window.pulp.clipSetPreview(entry.id, length);
+  if (ask !== clipSetAsk || clipSetShown?.id !== entry.id) return;
+  if (!made.ok) {
+    els.mediaVideo.dataset.clipSet = 'failed';
+    delete els.previewEmpty.dataset.i18n;
+    els.previewEmpty.textContent = made.message;
+    els.previewEmpty.hidden = false;
+    return;
+  }
+  els.mediaVideo.dataset.clipSet = String(made.seconds);
+  els.mediaVideo.src = made.url;
+}
+
+/** The Output tab's length changed for the clip set on the stage: its preview is made at it. */
+export function stageClipSetLength(length: number | undefined): void {
+  if (!clipSetShown || length === clipSetLengthShown) return;
+  void showClipSetPreview(clipSetShown, length);
+}
+
 export function stageShowMedia(entry: MediaEntry): void {
+  clipSetShown = null;
   s.vertical = false;
   applySafeAreas();
   // A media item is its own picture: the cut track belongs to a project, and its canvas goes.
@@ -868,6 +898,9 @@ export function stageShowMedia(entry: MediaEntry): void {
     // The element draws the clip; the transport row plays, steps and scrubs it (milestone 37), counting
     // frames at the rate the Output tab trims it at.
     els.mediaVideo.hidden = false;
+    // A clip set plays as one clip at the length asked (milestone 32): its parts stitched by the
+    // main process into a preview it keeps in its own cache, made again when the length changes.
+    clipSetShown = entry.clipSet ? entry : null;
     s.media = { el: els.mediaVideo, fps: mediaDefaultFps(entry), frames: 0 };
     s.frame = 0;
     els.scrub.max = '0';
@@ -875,7 +908,8 @@ export function stageShowMedia(entry: MediaEntry): void {
       fit(els.mediaVideo.videoWidth, els.mediaVideo.videoHeight);
       setMediaLength(els.mediaVideo.duration);
     };
-    els.mediaVideo.src = url;
+    if (entry.clipSet) void showClipSetPreview(entry, undefined);
+    else els.mediaVideo.src = url;
     updateTransport();
   } else if (isPsdEntry(entry)) {
     // A layered file is shown composited by the main process, with the layers the Info tab hides left out.

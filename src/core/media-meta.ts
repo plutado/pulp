@@ -4,6 +4,7 @@
  * ffprobe lives in media-probe.ts.
  */
 
+import type { ClipSetTiming } from './clip-set';
 import { tr } from './i18n';
 import { moodsFromText } from './taxonomy';
 
@@ -26,6 +27,8 @@ export interface MediaMetadata {
   sampleRate?: number;
   /** Moods the file's own metadata names — its genre, mood or comment tag — matched to the built-in list. */
   moods?: string[];
+  /** For a clip set (milestone 32): how long each part runs, in seconds; `duration` is then the three once. */
+  parts?: ClipSetTiming;
 }
 
 const ALPHA_PIX_FMT = /^(yuva|rgba|argb|bgra|abgr|gbrap|ya|ayuv|pal8)/;

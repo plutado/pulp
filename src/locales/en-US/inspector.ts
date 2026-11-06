@@ -661,4 +661,6 @@ export const inspector = {
   'expose.suggested.text': '{layer} words',
   'expose.suggested.color': '{layer} color',
   'expose.suggested.image': '{layer} picture',
+  // ---------------------------------------------------------------- clip sets (milestone 32)
+  'output.media.clip-set': 'Intro once, loop repeated, outro at the end: {length} s',
 } as const;

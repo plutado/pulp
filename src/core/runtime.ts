@@ -92,7 +92,7 @@ export function frameState(
   const time = templateTimeAt(elapsed, manifest.duration, structure, length);
   // A video layer plays against the graphic a person sees, so its own time is the elapsed one:
   // a clip delayed five seconds starts five seconds in, however the hold is stretched.
-  const blocks = manifest.blocks ? blockStates({ blocks: manifest.blocks as Block[] }, layers, size, { time: elapsed, sources: clips }) : {};
+  const blocks = manifest.blocks ? blockStates({ blocks: manifest.blocks as Block[] }, layers, size, { time: elapsed, sources: clips, length }) : {};
   return {
     frame: f,
     time,

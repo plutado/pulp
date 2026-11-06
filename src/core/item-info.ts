@@ -95,6 +95,15 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
     const fps = meta.fps ?? 25;
     rows.push({ label: tr('info.row.duration'), value: `${clockLabel(meta.duration)} · ${formatTimecode(Math.round(meta.duration * fps), fps)}`, icon: 'duration' });
   }
+  // A clip set's parts, each with its own length, and what it does with a length (milestone 32).
+  if (entry.clipSet) {
+    const p = meta?.parts;
+    const name = (path: string | undefined) => (path ? path.split(/[\\/]/).pop()! : '');
+    const part = (id: 'intro' | 'loop' | 'outro', path: string | undefined, seconds: number | undefined) =>
+      path ? tr(`info.value.clip-set.${id}`, { file: name(path), seconds: seconds !== undefined ? durationLabel(Math.round(seconds * 100) / 100) : '—' }) : '';
+    rows.push({ label: tr('info.row.clip-set'), value: [part('intro', entry.clipSet.intro, p?.intro), part('loop', entry.clipSet.loop, p?.loop), part('outro', entry.clipSet.outro, p?.outro)].filter(Boolean).join(' · '), icon: 'loop' });
+    rows.push({ label: tr('info.row.loop'), value: tr('info.value.clip-set.stretches') });
+  }
   if (meta?.fps && entry.mediaKind === 'video') rows.push({ label: tr('info.row.frame-rate'), value: frameRateLabel(meta.fps) });
   if (meta?.codec) rows.push({ label: tr('info.row.codec'), value: codecLabel(meta.codec) });
   if (meta?.alpha) rows.push({ label: tr('info.row.alpha'), value: tr('info.value.transparent'), icon: 'alpha' });

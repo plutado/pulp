@@ -216,7 +216,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   const trackWipes: { template: string; at: number; seconds: number }[] = [];
   for (const [index, cut] of (track?.cuts ?? []).entries()) {
     const found = lookupClipItem(cut.id);
-    if (!found || found.kind !== 'media' || found.entry.sequence) {
+    if (!found || found.kind !== 'media' || found.entry.sequence || found.entry.clipSet) {
       return { ok: false, message: tr('render.track.clip-unreadable') };
     }
     // The transition leaving this cut, as it will play: clamped by both sides (src/core/cut-track.ts).

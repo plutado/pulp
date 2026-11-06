@@ -512,4 +512,15 @@ export const library = {
   'lottie.fit.fit': 'Fit inside the frame',
   'lottie.fit.fill': 'Fill the frame',
   'lottie.fit.center': 'Its own size, centered',
+  // ---------------------------------------------------------------- clip sets (milestone 32)
+  'results.badge.clip-set': 'Clip set',
+  'results.badge.clip-set.tip': 'One item from its {parts}: it plays once in, repeats its loop for as long as you ask, and plays out at the end',
+  'clip-set.parts.all': 'intro, loop and outro',
+  'clip-set.parts.intro': 'intro and loop',
+  'clip-set.parts.outro': 'loop and outro',
+  'info.row.clip-set': 'Clip set',
+  'info.value.clip-set.intro': 'Intro {file} ({seconds})',
+  'info.value.clip-set.loop': 'Loop {file} ({seconds})',
+  'info.value.clip-set.outro': 'Outro {file} ({seconds})',
+  'info.value.clip-set.stretches': 'Stretches to any length: the intro once, the loop repeated, the outro at the end',
 } as const;

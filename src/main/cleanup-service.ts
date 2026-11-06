@@ -26,7 +26,7 @@ const CLEANUP_TIMEOUT_MS = 20 * 60 * 1000;
 /** The item behind a clean-up ask: an online video file, never a sequence (a folder of frames has no streams to key or split). */
 function clipFor(id: string): { path: string; name: string; duration?: number } | null {
   const found = lookupMedia(id);
-  if (!found || !found.online || found.entry.sequence || found.entry.mediaKind !== 'video') return null;
+  if (!found || !found.online || found.entry.sequence || found.entry.clipSet || found.entry.mediaKind !== 'video') return null;
   return { path: found.entry.path, name: found.entry.name, ...(found.entry.meta?.duration ? { duration: found.entry.meta.duration } : {}) };
 }
 

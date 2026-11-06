@@ -21,7 +21,8 @@ import { sequencePatternName, SEQUENCE_FPS } from '../core/media-sequence';
 import { clipProxySize, clipWindow, EMPTY_CLIP, sanitizeClipValue, type ClipSource, type ClipValue } from '../core/video-layer';
 import { isCubeFile, lutFilter } from '../core/clip-clean';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
-import { lookupClipItem } from './library-service';
+import { lookupClipItem, probeClipSet } from './library-service';
+import { clipSetFramesArgs } from '../core/clip-set';
 import { templateDefaultSize } from '../core/aspect';
 
 /** One clip, ready for a template page: its frames in window order, as data URLs. */
@@ -44,6 +45,13 @@ export const MAX_CLIP_FRAME_SIDE = 2048;
 /** A clip entry's timing from metadata already in hand, or null when it is not there yet. */
 function sourceFromEntry(entry: MediaEntry, meta = entry.meta): ClipSource | null {
   if (entry.sequence) return { frames: entry.sequence.count, fps: meta?.fps ?? SEQUENCE_FPS, sequence: entry.sequence };
+  // A clip set (milestone 32): its three parts end to end, each counted at the loop's rate.
+  if (entry.clipSet) {
+    if (!meta?.parts || !meta.fps) return null;
+    const p = meta.parts;
+    const frames = Math.round(p.intro * meta.fps) + Math.round(p.loop * meta.fps) + Math.round(p.outro * meta.fps);
+    return { frames: Math.max(1, frames), fps: meta.fps, set: p };
+  }
   if (!meta?.fps || !meta.duration) return null;
   return { frames: Math.max(1, Math.round(meta.duration * meta.fps)), fps: meta.fps };
 }
@@ -76,7 +84,7 @@ export async function resolveClipSource(ffprobePath: string, id: string): Promis
   if (found.kind === 'drawn') return sourceFromTemplate(found.entry);
   const known = sourceFromEntry(found.entry);
   if (known) return known;
-  const meta = await probeMedia(ffprobePath, found.entry.path, nodeRunner);
+  const meta = found.entry.clipSet ? await probeClipSet(ffprobePath, found.entry) : await probeMedia(ffprobePath, found.entry.path, nodeRunner);
   if (!meta) return null;
   return sourceFromEntry(found.entry, meta);
 }
@@ -90,7 +98,8 @@ export async function resolveClipSource(ffprobePath: string, id: string): Promis
  */
 export async function resolveClipAudio(ffprobePath: string, id: string): Promise<{ path: string; hasAudio: boolean } | null> {
   const found = lookupClipItem(id);
-  if (!found || found.kind !== 'media' || found.entry.sequence) return null;
+  // A clip set's layer is silent for now: its parts' sounds are not stitched (milestone 32).
+  if (!found || found.kind !== 'media' || found.entry.sequence || found.entry.clipSet) return null;
   const meta = found.entry.meta ?? (ffprobePath ? await probeMedia(ffprobePath, found.entry.path, nodeRunner) : null);
   if (!meta) return null;
   return { path: found.entry.path, hasAudio: Boolean(meta.audioCodec) };
@@ -172,6 +181,12 @@ export function clipStamps(ids: readonly string[]): { id: string; size: number; 
 export function clipFramesArgs(entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, maxSide: number, lut?: string): string[] {
   const side = Math.max(16, Math.min(MAX_CLIP_FRAME_SIDE, Math.round(maxSide)));
   const scale = `scale=w='min(iw,${side})':h='min(ih,${side})':force_original_aspect_ratio=decrease`;
+  // A clip set is decoded as its parts end to end, each once: the frames the timing counts in.
+  if (entry.clipSet && source.set) {
+    const grade = lut && isCubeFile(lut) ? lutFilter(lut) : '';
+    const own = { fps: source.fps, width: entry.meta?.width ?? side, height: entry.meta?.height ?? side };
+    return clipSetFramesArgs(entry.clipSet, source.set, own, window, [grade, scale].filter(Boolean).join(','));
+  }
   const input = entry.sequence
     ? ['-start_number', String(entry.sequence.start + window.first), '-framerate', String(source.fps), '-i', join(entry.sequence.dir, sequencePatternName(entry.sequence))]
     : ['-ss', (window.first / Math.max(1, source.fps)).toFixed(6), '-i', entry.path];

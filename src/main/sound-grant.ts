@@ -33,7 +33,7 @@ export function soundStamps(ids: readonly string[]): { id: string; size: number;
 export async function resolveSoundSource(ffprobePath: string, id: string): Promise<{ path: string; source: SoundSource } | null> {
   const found = lookupMedia(id);
   // A sound is a file with sound in it: an audio item, or a clip whose own track is being used.
-  if (!found || !found.online || found.entry.sequence) return null;
+  if (!found || !found.online || found.entry.sequence || found.entry.clipSet) return null;
   const { entry } = found;
   if (entry.mediaKind !== 'audio' && entry.mediaKind !== 'video') return null;
   const meta = entry.meta ?? (ffprobePath ? await probeMedia(ffprobePath, entry.path, nodeRunner) : null);

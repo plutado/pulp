@@ -83,3 +83,26 @@ export async function snapshotTree(root: string): Promise<Record<string, string>
   await walk(root);
   return out;
 }
+
+/**
+ * A synthetic clip set (milestone 32): an intro, a loop and an outro as separate files, each one
+ * flat color so a frame says which part it came from — red for the intro, green for the loop, blue
+ * for the outro — at 10 frames a second and a small size. Made with ffmpeg's own color source.
+ */
+export const CLIP_SET_COLORS = { intro: [255, 0, 0], loop: [0, 255, 0], outro: [0, 0, 255] } as const;
+export async function writeClipSetFixture(
+  ffmpegPath: string,
+  dir: string,
+  name: string,
+  seconds: { intro: number; loop: number; outro: number } = { intro: 1, loop: 0.5, outro: 1 },
+  names: { intro: string; loop: string; outro: string } = { intro: `${name} In.mov`, loop: `${name} Loop.mov`, outro: `${name} Out.mov` },
+): Promise<void> {
+  const { spawnSync } = await import('node:child_process');
+  await mkdir(dir, { recursive: true });
+  const hex = { intro: '0xff0000', loop: '0x00ff00', outro: '0x0000ff' } as const;
+  for (const part of ['intro', 'loop', 'outro'] as const) {
+    const out = join(dir, names[part]);
+    const run = spawnSync(ffmpegPath, ['-v', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${hex[part]}:s=64x36:r=10:d=${seconds[part]}`, '-c:v', 'qtrle', out]);
+    if (run.status !== 0) throw new Error(`could not make ${out}: ${run.stderr}`);
+  }
+}

@@ -30,7 +30,7 @@ export const WAVEFORM_RATE = 8_000;
  * no one can say whether there is sound to draw.
  */
 export function wantsWaveform(entry: LibraryEntry): boolean {
-  if (entry.kind !== 'media' || entry.offline === true || entry.sequence) return false;
+  if (entry.kind !== 'media' || entry.offline === true || entry.sequence || entry.clipSet) return false;
   if (entry.mediaKind === 'audio') return true;
   return entry.mediaKind === 'video' && Boolean(entry.meta?.audioCodec);
 }

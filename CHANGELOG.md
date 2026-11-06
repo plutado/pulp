@@ -30,6 +30,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- **Clip sets as one item** (milestone 32). When stock media comes as separate intro, loop and outro files ("Swoosh In.mov", "Swoosh Loop.mov", "Swoosh Out.mov"), they show as one item with a Clip set badge, and its Info tab lists the parts. It stretches to any length: the intro plays once, the loop repeats for as long as you ask, and the outro plays at the end. The stage previews it at the length set in the Output tab, Render writes it at that length, and placed as a video layer it fills the graphic. The files stay where they are; the preview is made in Pulp's own cache.
+
 - **Stock libraries** (milestone 32). Add → Stock Library… adds a folder or a whole drive of stock media you own, and lists it under Stock libraries in the browse panel. Pulp reads it where it is: nothing in it is copied, moved or written, and what Pulp learns about it (thumbnails, metadata) stays in Pulp's own data. When its drive is not connected, the library stays listed with all its items, says "Not connected" on its row, and names the drive to connect. It comes back by itself when the drive does, with favorites and tags kept. Right-click → Remove from Pulp forgets a library without touching its files.
 
 - **Numbers, file sizes and dates follow the chosen language** (milestone 59). German writes "1.234 Elemente", "1,5 MB" and "1. November 2026", Chinese "2026年11月1日", and US English now writes dates the US way ("November 1, 2026", "Oct 24, 2026, 2:05 PM"). Timecode, frame rates and resolutions stay as editors read them. The render cache's summary follows a change of language at once.
