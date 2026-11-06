@@ -250,6 +250,16 @@ describe.skipIf(!electron)('inspector UI', () => {
    * and on a slow Linux runner, just after launch, a pass of 36 steps outran it — the suite's setup
    * failed and every test was skipped (docs/platform-notes.md, "Slow frames at launch"). A window
    * whose frames are slow now takes longer; one whose frames have stopped still fails, at the call.
+   *
+   * The pass's step budget is pinned when the pass begins and carried across its slices
+   * (`window.__pulpSweep`), never recomputed on a resume: on CI the library is still scanning for
+   * minutes into the suite, the list grows underneath the sweep, and a budget read fresh each slice
+   * let a pass chase the receding end for as long as the scan ran — the short-window squeeze spent
+   * its whole 60 s on three such chases and timed out on every platform (run 42158915782). Bounded
+   * by the list as it was when the pass began, a growing list ends the pass where the old one-call
+   * pass did, and the names collected so far are the truth of that moment. A resumed slice that
+   * finds the pass state gone (a test timed out mid-pass and its abandoned slices interleave with
+   * the next test's) ends the pass instead of throwing.
    */
   const SWEEP_MIN_STEP = 40;
   const SWEEP_SLICE_MS = 2_500;
@@ -258,7 +268,8 @@ describe.skipIf(!electron)('inspector UI', () => {
     const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const step = Math.max(${SWEEP_MIN_STEP}, box.clientHeight * 0.8);
     const atEnd = () => box.scrollTop >= box.scrollHeight - box.clientHeight - 1;
-    const steps = Math.ceil(box.scrollHeight / step) + 2;
+    ${resume ? '' : 'window.__pulpSweep = { left: Math.ceil(box.scrollHeight / step) + 2 };'}
+    const pass = window.__pulpSweep ?? { left: 0 };
     const started = performance.now();
     const outOfTime = () => performance.now() - started > ${SWEEP_SLICE_MS};
     /** One step down; false when the list did not move, which is its end. */
@@ -275,7 +286,7 @@ describe.skipIf(!electron)('inspector UI', () => {
     page.eval<'found' | 'end' | 'more'>(
       `(async () => {
         ${sweep(resume)}
-        for (let i = 0; i < steps; i++) {
+        for (; pass.left > 0; pass.left--) {
           if (${liFor(name)}) return 'found';
           if (atEnd()) return 'end';
           if (outOfTime()) return 'more';
@@ -344,10 +355,10 @@ describe.skipIf(!electron)('inspector UI', () => {
       `(async () => {
         ${sweep(resume)}
         if (!${resume}) window.__pulpSweepNames = new Map();
-        const seen = window.__pulpSweepNames;
+        const seen = window.__pulpSweepNames ?? new Map();
         const collect = () => { for (const li of box.querySelectorAll('li[data-id]')) seen.set(li.dataset.id, li.querySelector('.name').textContent); };
         collect();
-        for (let i = 0; i < steps && !atEnd(); i++) {
+        for (; pass.left > 0 && !atEnd(); pass.left--) {
           if (outOfTime()) return null;
           const moved = await down();
           collect();
