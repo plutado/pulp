@@ -24,7 +24,7 @@ import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
 import { ffprobePathFor, probeMedia } from '../../src/core/media-probe';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
-import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture, writeCatalogFixture, writeMusicFixture, writePreviewFixture, writeUnreadableFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
+import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeLayeredClipSetFixture, writeStockFixture, writeCatalogFixture, writeMusicFixture, writePreviewFixture, writeUnreadableFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
@@ -7336,6 +7336,69 @@ describe.skipIf(!electron)('inspector UI', () => {
         await optLength('');
         await fire('#search', '', 'input');
         await window_removeStock();
+      }
+    }, 240_000);
+
+    it('shows a set of several layers as one item that previews and renders composited, each layer from its own part', async () => {
+      const ffmpeg = await detectFfmpeg();
+      if (!haveVideo || !ffmpeg.ok || !ffmpeg.encoders.includes('qtrle')) {
+        console.info('ffmpeg not available; layered clip set check skipped.');
+        return;
+      }
+      // The base set (red, green, blue full frames) and a Flare layer over it: a box in the top-left
+      // corner, white, yellow and magenta for its intro, loop and outro.
+      await writeLayeredClipSetFixture(ffmpeg.path, join(stockDir, 'Titles'), 'Swoosh');
+      const optLength = (v: string) => page.eval(`(() => { const l = document.getElementById('opt-length'); l.value = ${JSON.stringify(v)}; l.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      try {
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+
+        // One item for the six files; neither layer's parts are items of their own.
+        await fire('#search', 'swoosh', 'input');
+        await until(async () => (await resultNames()).includes('Swoosh'), 'the layered set as one item', 30_000);
+        // (A bundled template is called Swoosh Arrow; only the set's own names count.)
+        expect((await resultNames()).filter((n) => /^Swoosh( Flare)?( In| Loop| Out)?$/.test(n))).toEqual(['Swoosh']);
+        // Info lists its layers, in the collection's own words.
+        await clickResult('Swoosh');
+        await openTab('info');
+        await until(() => page.eval<boolean>(`document.getElementById('region-inspector').textContent.includes('Swoosh · Flare')`), 'the Info tab naming the layers');
+        // It previews composited at its own length.
+        await until(() => page.eval<boolean>(`document.getElementById('media-video')?.dataset.clipSet === '2.5'`), 'the set previewed', 60_000);
+
+        // Rendered at 3 s: at every frame the center shows the base's part and the corner the flare's,
+        // intro once, loop repeated, outro at the end — the layers moving together.
+        await openTab('output');
+        await optLength('3');
+        await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'prores-4444'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await page.eval(`document.getElementById('drag-prepare').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].some((c) => c.querySelector('.job-name').textContent === 'Swoosh')`), 'the render of the set', 90_000);
+        const file = await page.eval<string>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].find((c) => c.querySelector('.job-name').textContent === 'Swoosh').dataset.file`);
+        const pixels = (x: number, y: number) => {
+          const run = spawnSync(ffmpeg.path, ['-v', 'error', '-i', file, '-vf', `fps=10,crop=1:1:${x}:${y},format=rgb24`, '-f', 'rawvideo', 'pipe:1'], { maxBuffer: 64 * 1024 * 1024 });
+          const out: number[][] = [];
+          for (let i = 0; i + 2 < run.stdout.length; i += 3) out.push([run.stdout[i]!, run.stdout[i + 1]!, run.stdout[i + 2]!]);
+          return out;
+        };
+        const near = (p: number[], c: readonly number[]) => Math.abs(p[0]! - c[0]!) + Math.abs(p[1]! - c[1]!) + Math.abs(p[2]! - c[2]!) < 120;
+        // The item renders at its own size, as the library made it; the sample points scale with it
+        // (the flare's box is the top-left quarter of the width and a third of the height).
+        const made = (await probeMedia(ffprobePathFor(ffmpeg.path), file, nodeRunner))!;
+        const [w, h] = [made.width!, made.height!];
+        const center = pixels(Math.round(w / 2), Math.round(h / 2)).map((p) => (near(p, [255, 0, 0]) ? 'intro' : near(p, [0, 255, 0]) ? 'loop' : near(p, [0, 0, 255]) ? 'outro' : `?${p.join(',')}`));
+        const corner = pixels(Math.round(w / 16), Math.round(h / 9)).map((p) => (near(p, [255, 255, 255]) ? 'intro' : near(p, [255, 255, 0]) ? 'loop' : near(p, [255, 0, 255]) ? 'outro' : `?${p.join(',')}`));
+        expect(center, 'thirty tenths of a second').toHaveLength(30);
+        const want = [...Array(10).fill('intro'), ...Array(10).fill('loop'), ...Array(10).fill('outro')];
+        expect(center, 'the base').toEqual(want);
+        expect(corner, 'the flare over it, in step').toEqual(want);
+        // Nothing written beside the stock media.
+        expect((await readdir(join(stockDir, 'Titles'))).sort()).toEqual(['Swoosh Flare In.mov', 'Swoosh Flare Loop.mov', 'Swoosh Flare Out.mov', 'Swoosh In.mov', 'Swoosh Loop.mov', 'Swoosh Out.mov']);
+      } finally {
+        await optLength('');
+        await fire('#search', '', 'input');
+        await page.eval(`window.pulp.clearFinishedRenders()`);
+        await window_removeStock();
+        await rm(join(stockDir, 'Titles'), { recursive: true, force: true });
       }
     }, 240_000);
 

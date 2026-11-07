@@ -21,7 +21,7 @@ import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEn
 import { folderTags, itemId, itemKey, loadLottie, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES, sniffLottieFile, type PackContext } from './library-scan';
 import { isLottieCandidate } from './lottie';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
-import { groupClipSets } from './clip-set';
+import { groupClipSetLayers, groupClipSets, type ClipSetFiles } from './clip-set';
 import { CATALOG_FILES, parseCatalog, type CatalogRow } from './library-catalog';
 import { catalogPreview, hasPreview, indexSiblings, isPreviewFolder, PreviewFolder, samePreview, sidecarPreviews, type MediaPreview } from './library-preview';
 import { embeddedPreview, sidecarPreview, unreadableFormat, type UnreadablePreview } from './unreadable-media';
@@ -604,21 +604,26 @@ export class LibraryStore {
         // (milestone 32). Their files are skipped by the loop below, as a sequence's frames are.
         const setMembers = new Set<string>();
         const videoNames = fileNames.filter((n) => !isPreviewFile(n) && mediaKindForPath(n) === 'video');
-        for (const found of groupClipSets(videoNames, basename(dir))) {
+        // Several sets that are the layers of one (a main graphic and a flare) are one item too.
+        for (const found of groupClipSetLayers(groupClipSets(videoNames, basename(dir)), basename(dir))) {
           if (fileCount >= maxFiles) {
             if (!truncated) problems.push({ path: rootPath, message: `stopped after ${maxFiles} files` });
             truncated = true;
             return;
           }
-          const names = [found.files.intro, found.files.loop, found.files.outro].filter((n): n is string => n !== undefined);
+          const partNames = (f: ClipSetFiles) => [f.intro, f.loop, f.outro].filter((n): n is string => n !== undefined);
+          const names = found.layers.flatMap((l) => partNames(l.files));
           fileCount += names.length;
           stats.visited += 1;
           for (const n of names) setMembers.add(n);
-          const files = {
-            ...(found.files.intro ? { intro: join(dir, found.files.intro) } : {}),
-            loop: join(dir, found.files.loop),
-            ...(found.files.outro ? { outro: join(dir, found.files.outro) } : {}),
-          };
+          const fullFiles = (f: ClipSetFiles): ClipSetFiles => ({
+            ...(f.intro ? { intro: join(dir, f.intro) } : {}),
+            loop: join(dir, f.loop),
+            ...(f.outro ? { outro: join(dir, f.outro) } : {}),
+          });
+          const base = found.layers[0]!.files;
+          const files = fullFiles(base);
+          const layers = found.layers.map((l) => ({ name: l.name, files: fullFiles(l.files) }));
           // Keyed by the loop and the set's name, so a set is the same item across scans.
           const key = itemKey('media', join(dir, `${found.name} [set]`), this.builtInRoot);
           seen.add(key);
@@ -626,7 +631,7 @@ export class LibraryStore {
           try {
             infos = await Promise.all(names.map((n) => stat(join(dir, n))));
           } catch (err) {
-            problems.push({ path: join(dir, found.files.loop), message: `could not stat clip set: ${(err as Error).message}` });
+            problems.push({ path: join(dir, base.loop), message: `could not stat clip set: ${(err as Error).message}` });
             seen.delete(key);
             continue;
           }
@@ -636,7 +641,7 @@ export class LibraryStore {
           // A set's preview is named after the set ("Swoosh.jpg", "Swoosh_preview.mp4"), beside its parts.
           const setSidecar = sidecarPreviews(found.name, 'video', names, siblings);
           for (const c of setSidecar.claimed) sidecarClaimed.add(c);
-          const setPreview = previewsFor(dir, found.files.loop, found.name, 'video', hasPreview(setSidecar.preview) ? { ...(setSidecar.preview.still ? { still: join(dir, setSidecar.preview.still) } : {}), ...(setSidecar.preview.media ? { media: join(dir, setSidecar.preview.media) } : {}) } : undefined);
+          const setPreview = previewsFor(dir, base.loop, found.name, 'video', hasPreview(setSidecar.preview) ? { ...(setSidecar.preview.still ? { still: join(dir, setSidecar.preview.still) } : {}), ...(setSidecar.preview.media ? { media: join(dir, setSidecar.preview.media) } : {}) } : undefined);
           const storedSet = existing.get(key);
           if (storedSet && storedSet.size === size && storedSet.mtime_ms === mtimeMs && samePreview((JSON.parse(storedSet.entry) as MediaEntry).preview, setPreview)) {
             stats.kept += 1;
@@ -655,11 +660,12 @@ export class LibraryStore {
             root: rootPath,
             name: found.name,
             mediaKind: 'video',
-            ext: extname(found.files.loop).toLowerCase(),
+            ext: extname(base.loop).toLowerCase(),
             size,
             mtimeMs,
             tags: segments,
             clipSet: files,
+            ...(layers.length > 1 ? { clipSetLayers: layers } : {}),
             ...(setPreview ? { preview: setPreview } : {}),
             ...(inferredType ? { type: inferredType } : {}),
             ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
@@ -1103,10 +1109,15 @@ export class LibraryStore {
   /** A media item by library id, with whether its root is reachable; undefined for unknown ids and templates. */
   findMediaById(id: string): MediaLookup | undefined {
     const row = this.db
-      .prepare("SELECT items.entry AS entry, items.root AS root, roots.online AS online FROM items JOIN roots ON roots.path = items.root WHERE items.id = ? AND items.kind = 'media'")
-      .get(id) as { entry: string; root: string; online: number } | undefined;
+      .prepare("SELECT items.key AS key, items.size AS size, items.mtime_ms AS mtime_ms, items.entry AS entry, items.root AS root, roots.online AS online FROM items JOIN roots ON roots.path = items.root WHERE items.id = ? AND items.kind = 'media'")
+      .get(id) as { key: string; size: number; mtime_ms: number; entry: string; root: string; online: number } | undefined;
     if (!row) return undefined;
-    return { entry: JSON.parse(row.entry) as MediaEntry, root: row.root, online: row.online === 1 };
+    const entry = JSON.parse(row.entry) as MediaEntry;
+    // Probed metadata rides along while its signature matches, as it does for the index: what
+    // decodes a clip needs its codec and alpha (milestone 32) and its size.
+    const m = this.db.prepare('SELECT size, mtime_ms, meta FROM media_meta WHERE key = ? AND meta IS NOT NULL').get(row.key) as { size: number; mtime_ms: number; meta: string } | undefined;
+    if (m && m.size === row.size && m.mtime_ms === row.mtime_ms) entry.meta = JSON.parse(m.meta) as MediaMetadata;
+    return { entry, root: row.root, online: row.online === 1 };
   }
 
   /** Media items in online roots that have no metadata for their current size and mtime, oldest first. */

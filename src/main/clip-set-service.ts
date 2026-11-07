@@ -10,9 +10,10 @@ import { app } from 'electron';
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { clipSetNaturalSeconds, clipSetStitchArgs } from '../core/clip-set';
+import { clipSetLayersStitchArgs, clipSetNaturalSeconds, type StitchLayer } from '../core/clip-set';
 import { detectFfmpeg, runForBuffer } from '../core/ffmpeg';
 import { ffprobePathFor } from '../core/media-probe';
+import { alphaDecoderFor } from '../core/media-meta';
 import { clipSetPreviewUrlFor } from '../core/media-serve';
 import { tr } from '../core/i18n';
 import { lookupMedia, probeClipSet } from './library-service';
@@ -43,12 +44,17 @@ export async function clipSetPreview(id: string, length: number | undefined): Pr
   const meta = entry.meta?.parts ? entry.meta : await probeClipSet(ffprobePathFor(ffmpeg.path), entry);
   if (!meta?.parts || !meta.width || !meta.height) return { ok: false, message: tr('clip-set.preview.unreadable') };
   const seconds = Math.min(MAX_PREVIEW_SECONDS, length !== undefined && Number.isFinite(length) && length > 0 ? length : clipSetNaturalSeconds(meta.parts));
-  const stamps = await Promise.all(Object.values(entry.clipSet!).map(async (p) => `${p}|${(await stat(p)).mtimeMs}`)).catch(() => null);
+  // A set of several layers (milestone 32) is stitched layer by layer and composited.
+  const decoder = alphaDecoderFor(meta);
+  const layers: StitchLayer[] = (entry.clipSetLayers && meta.layers?.length === entry.clipSetLayers.length
+    ? entry.clipSetLayers.map((l, i) => ({ files: l.files, timing: meta.layers![i]! }))
+    : [{ files: entry.clipSet!, timing: meta.parts }]).map((l) => (decoder ? { ...l, decoder } : l));
+  const stamps = await Promise.all(layers.flatMap((l) => Object.values(l.files)).map(async (p) => `${p}|${(await stat(p)).mtimeMs}`)).catch(() => null);
   if (!stamps) return { ok: false, message: tr('stage.empty.file-offline') };
   const name = `${createHash('sha1').update(`${stamps.join('|')}|${seconds}`).digest('hex')}.webm`;
   const running = inFlight.get(name);
   if (running) return running;
-  const work = make(ffmpeg.path, ffmpeg.encoders, entry.clipSet!, meta.parts, seconds, { fps: meta.fps ?? 30, width: meta.width, height: meta.height }, name);
+  const work = make(ffmpeg.path, ffmpeg.encoders, layers, seconds, { fps: meta.fps ?? 30, width: meta.width, height: meta.height }, name);
   inFlight.set(name, work);
   return work.finally(() => inFlight.delete(name));
 }
@@ -56,8 +62,7 @@ export async function clipSetPreview(id: string, length: number | undefined): Pr
 async function make(
   ffmpegPath: string,
   encoders: readonly string[],
-  files: Parameters<typeof clipSetStitchArgs>[0],
-  parts: Parameters<typeof clipSetStitchArgs>[1],
+  layers: readonly StitchLayer[],
   seconds: number,
   own: { fps: number; width: number; height: number },
   name: string,
@@ -79,7 +84,7 @@ async function make(
   const codec = encoders.includes('libvpx-vp9') ? 'libvpx-vp9' : 'libvpx';
   const partial = `${file}.part`;
   const run = await runForBuffer(ffmpegPath, [
-    ...clipSetStitchArgs(files, parts, seconds, size),
+    ...clipSetLayersStitchArgs(layers, seconds, size),
     '-c:v', codec, '-pix_fmt', 'yuva420p', '-auto-alt-ref', '0', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '0', '-crf', '36',
     '-f', 'webm', '-y', partial,
   ]);

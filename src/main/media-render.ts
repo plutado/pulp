@@ -17,7 +17,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { detectFfmpeg, runForBuffer, type FfmpegStatus } from '../core/ffmpeg';
-import { clipSetStitchArgs } from '../core/clip-set';
+import { clipSetLayersStitchArgs, type StitchLayer } from '../core/clip-set';
+import { alphaDecoderFor } from '../core/media-meta';
 import { tr } from '../core/i18n';
 import { sanitizePsdChoice } from '../core/image-slot';
 import type { MediaEntry } from '../core/library-types';
@@ -116,7 +117,12 @@ async function clipSetSource(entry: MediaEntry, ffmpeg: FfmpegStatus & { ok: tru
   const length = measured.duration!;
   if (!scratchDir) return measured;
   const stitched = join(scratchDir, 'clip-set.mov');
-  const args = [...clipSetStitchArgs(entry.clipSet!, meta.parts, length, { fps, width: meta.width, height: meta.height }), '-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', '-y', stitched];
+  // A set of several layers (milestone 32) is stitched layer by layer and composited.
+  const decoder = alphaDecoderFor(meta);
+  const layers: StitchLayer[] = (entry.clipSetLayers && meta.layers?.length === entry.clipSetLayers.length
+    ? entry.clipSetLayers.map((l, i) => ({ files: l.files, timing: meta.layers![i]! }))
+    : [{ files: entry.clipSet!, timing: meta.parts }]).map((l) => (decoder ? { ...l, decoder } : l));
+  const args = [...clipSetLayersStitchArgs(layers, length, { fps, width: meta.width, height: meta.height }), '-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', '-y', stitched];
   const run = await runForBuffer(ffmpeg.path, args);
   if (run.code !== 0) throw new RenderPlanError(tr('render.media.clip-set-failed', { reason: run.stderr.trim().split('\n').slice(-3).join(' ') }));
   return { ...measured, input: { path: stitched } };

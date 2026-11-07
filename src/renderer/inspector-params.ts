@@ -55,7 +55,7 @@ import { clockLabel, dimensionsLabel } from '../core/display';
 import { IMAGE_TREATMENTS, sanitizeImageValue, sanitizePsdChoice, type ImageValue } from '../core/image-slot';
 import { fileHiddenLayers, layersTopFirst, layerShown, placeableLayers, psdLimitSummary, type PsdOutline } from '../core/psd';
 import { hiddenDiffersFromFile, hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines } from './psd-state';
-import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, sanitizeClipValue, type ClipEnding, type ClipValue, CLIP_FRAME_LIMITS, DEFAULT_BORDER_COLOR, DEFAULT_BORDER_WIDTH, sanitizeCrop } from '../core/video-layer';
+import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, clipFitsFrame, sanitizeClipValue, type ClipEnding, type ClipValue, CLIP_FRAME_LIMITS, DEFAULT_BORDER_COLOR, DEFAULT_BORDER_WIDTH, sanitizeCrop } from '../core/video-layer';
 import { healedTrack, trackDuration, type CutTrack } from '../core/cut-track';
 import { DEFAULT_VOICE_AMOUNT, VOICE_DESCRIPTIONS, VOICE_LABELS, VOICE_LIMITS, VOICE_TREATMENTS, type VoiceValue } from '../core/voice-treatment';
 import { EMPTY_SOUND, SOUND_ENDINGS, SOUND_LIMITS, type SoundEnding, type SoundStem, type SoundValue } from '../core/sound-layer';
@@ -3370,15 +3370,19 @@ export function initInspectorParams(): void {
       const layers = currentLayers();
       const stack = layers[block.id] ?? [];
       const fresh = addedLayer(type, block, stack, label);
+      // A whole-frame graphic from the library — a clip set, a frame sequence, a clip with
+      // transparency — is placed to fit the frame at its own shape (milestone 32).
+      const placed = itemId !== undefined && type === 'video' ? appState.value.index?.media.find((m) => m.id === itemId) : undefined;
+      const fitted = placed !== undefined && clipFitsFrame(placed);
       const layer = itemId === undefined
         ? fresh
         : type === 'video'
-          ? { ...fresh, clip: { ...EMPTY_CLIP, id: itemId } }
+          ? { ...fresh, clip: { ...EMPTY_CLIP, id: itemId }, ...(fitted ? { size: LAYER_LIMITS.size.max } : {}) }
           : type === 'audio'
             ? { ...fresh, sound: { ...EMPTY_SOUND, ...placedSound(itemId) } }
             : { ...fresh, image: { id: itemId, treatment: 'original' as const, tint: '#ffffff', effect: 'none' as const, hidden: false, ...browsedPsdChoice(itemId) } };
       setLayers({ ...layers, [block.id]: [...stack, layer as Layer] }, true);
-      return { block: block.id, id: fresh.id };
+      return { block: block.id, id: fresh.id, ...(fitted ? { fitted: true as const } : {}) };
     },
     editText: (block, id) => openLayerCard(block, id, (card) => {
       const field = card.querySelector<HTMLInputElement>('.layer-text');

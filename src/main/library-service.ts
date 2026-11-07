@@ -16,7 +16,7 @@ import { tr } from '../core/i18n';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
-import { clipSetNaturalSeconds } from '../core/clip-set';
+import { clipSetNaturalSeconds, type ClipSetTiming } from '../core/clip-set';
 import { listZipFile, readZipMember } from '../core/zip-archive';
 import { browsable, browsableFile, unpackForUse, whenUnpacked } from './archive-service';
 import { canAddLibrary, defaultLibraryName, driveOf, samePlace, type StockLibrary, type StockLibraryState } from '../core/stock-library';
@@ -313,15 +313,20 @@ async function probePendingMetadata(): Promise<void> {
  * Null when the loop cannot be read, as for any unreadable clip.
  */
 export async function probeClipSet(ffprobePath: string, entry: MediaEntry): Promise<MediaMetadata | null> {
-  const set = entry.clipSet!;
-  const [intro, loop, outro] = await Promise.all([
+  // A set of several layers (milestone 32) is probed layer by layer; the bottom one's picture and
+  // rate stand for the set's, and the longest layer's parts are its timing.
+  const sets = entry.clipSetLayers?.map((l) => l.files) ?? [entry.clipSet!];
+  const probed = await Promise.all(sets.map((set) => Promise.all([
     set.intro ? probeMedia(ffprobePath, set.intro, nodeRunner) : Promise.resolve(null),
     probeMedia(ffprobePath, set.loop, nodeRunner),
     set.outro ? probeMedia(ffprobePath, set.outro, nodeRunner) : Promise.resolve(null),
-  ]);
-  if (!loop?.duration) return null;
-  const parts = { intro: intro?.duration ?? 0, loop: loop.duration, outro: outro?.duration ?? 0 };
-  return { ...loop, duration: clipSetNaturalSeconds(parts), parts, alpha: Boolean(loop.alpha || intro?.alpha || outro?.alpha) };
+  ])));
+  const [, baseLoop] = probed[0]!;
+  if (!baseLoop?.duration || probed.some(([, loop]) => !loop?.duration)) return null;
+  const timings: ClipSetTiming[] = probed.map(([intro, loop, outro]) => ({ intro: intro?.duration ?? 0, loop: loop!.duration!, outro: outro?.duration ?? 0 }));
+  const parts = timings.reduce((longest, t) => (clipSetNaturalSeconds(t) > clipSetNaturalSeconds(longest) ? t : longest));
+  const alpha = probed.some(([intro, loop, outro]) => Boolean(loop?.alpha || intro?.alpha || outro?.alpha));
+  return { ...baseLoop, duration: clipSetNaturalSeconds(parts), parts, ...(timings.length > 1 ? { layers: timings } : {}), alpha };
 }
 
 /**

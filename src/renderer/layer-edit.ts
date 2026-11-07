@@ -30,7 +30,12 @@ export interface LayerEditor {
    * showing that library item; without one it is a blank layer of that type.
    * Returns where it landed, or a reason when nothing can hold it.
    */
-  addLayer(type: LayerType, label?: string, itemId?: string): { block: string; id: string } | { refused: string };
+  /**
+   * Add a layer to the first open block; `fitted` says a clip was sized to fit the frame
+   * (milestone 32: a clip set, a frame sequence or a transparent clip is a whole-frame graphic),
+   * so what placed it leaves it centered rather than moving it to a point.
+   */
+  addLayer(type: LayerType, label?: string, itemId?: string): { block: string; id: string; fitted?: true } | { refused: string };
   /** One block's layers as they stand, for an edit that acts on the stack rather than on one layer. */
   stack(block: string): Layer[] | undefined;
   /** The template's blocks, with whether each takes added layers; the first open one is where things land. */

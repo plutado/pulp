@@ -10,13 +10,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { clipSetFrameAt, clipSetFramesArgs, clipSetMomentAt, clipSetPartOf, clipSetSpans, clipSetStitchArgs, groupClipSets } from '../src/core/clip-set';
+import { clipSetFrameAt, clipSetFramesArgs, clipSetLayersFramesArgs, clipSetLayersNaturalSeconds, clipSetLayersStitchArgs, clipSetMomentAt, clipSetPartOf, clipSetSpans, clipSetStitchArgs, groupClipSetLayers, groupClipSets, type FoundClipSet } from '../src/core/clip-set';
 import { clipFramePlan, clipWindow, EMPTY_CLIP, type ClipSource } from '../src/core/video-layer';
 import { detectFfmpeg, nodeRunner } from '../src/core/ffmpeg';
 import { LibraryStore } from '../src/core/library-store';
 import { ffprobePathFor, probeMedia } from '../src/core/media-probe';
 import { searchLibrary } from '../src/core/search';
-import { CLIP_SET_COLORS, writeClipSetFixture } from './stock-fixture';
+import { CLIP_SET_COLORS, CLIP_SET_FLARE_COLORS, writeClipSetFixture, writeLayeredClipSetFixture } from './stock-fixture';
 
 describe('which files make a set', () => {
   it('reads the part from a word at the end or the start of the name, as stock libraries write them', () => {
@@ -186,5 +186,109 @@ describe.skipIf(!canEncode)('a set read from generated clips (needs ffmpeg)', ()
     expect(late.slice(0, 20).every((f) => f === null)).toBe(true);
     expect(late[20]).toBe(0);
     expect(late.at(-1)).toBe(24);
+  });
+});
+
+describe('several layers in one set (milestone 32)', () => {
+  const set = (name: string, ext = '.mov'): FoundClipSet => ({ name, files: { intro: `${name} In${ext}`, loop: `${name} Loop${ext}`, outro: `${name} Out${ext}` } });
+
+  it('makes sets whose names extend another\'s the layers of it, the bare name at the bottom', () => {
+    const found = groupClipSetLayers([set('Swoosh Glow'), set('Swoosh'), set('Swoosh Flare'), set('Sunset')], 'Titles');
+    expect(found.map((f) => f.name)).toEqual(['Sunset', 'Swoosh']);
+    const swoosh = found.find((f) => f.name === 'Swoosh')!;
+    expect(swoosh.layers.map((l) => l.name)).toEqual(['Swoosh', 'Flare', 'Glow']);
+    expect(swoosh.layers[1]!.files.loop).toBe('Swoosh Flare Loop.mov');
+    // A set of another format is a set of its own, not a layer.
+    expect(groupClipSetLayers([set('Swoosh'), set('Swoosh Flare', '.webm')], 'Titles').map((f) => f.layers.length)).toEqual([1, 1]);
+  });
+
+  it('lets the folder name the set when every set in it begins with the folder\'s name, the base layer first', () => {
+    const found = groupClipSetLayers([set('Swoosh Flare'), set('Swoosh Main')], 'Swoosh');
+    expect(found).toHaveLength(1);
+    expect(found[0]!.name).toBe('Swoosh');
+    expect(found[0]!.layers.map((l) => l.name)).toEqual(['Main', 'Flare']);
+    // One set alone in a folder of its name is just that set; sets that do not share the folder's name stay apart.
+    expect(groupClipSetLayers([set('Swoosh Flare')], 'Swoosh')[0]!.layers).toHaveLength(1);
+    expect(groupClipSetLayers([set('Swoosh Flare'), set('Sunset Main')], 'Swoosh')).toHaveLength(2);
+  });
+
+  it('runs a layered set for the longest layer\'s own length, the others repeating their loops to meet it', () => {
+    expect(clipSetLayersNaturalSeconds([{ intro: 1, loop: 0.5, outro: 1 }, { intro: 0.5, loop: 2, outro: 0.5 }])).toBe(3);
+    const args = clipSetLayersStitchArgs([
+      { files: { intro: 'a-in.mov', loop: 'a-loop.mov', outro: 'a-out.mov' }, timing: { intro: 1, loop: 0.5, outro: 1 } },
+      { files: { loop: 'b-loop.mov' }, timing: { intro: 0, loop: 2, outro: 0 } },
+    ], 4, { fps: 10, width: 64, height: 36 });
+    const graph = args[args.indexOf('-filter_complex') + 1]!;
+    // Each layer concatenated on its own, then the second laid over the first with both alphas kept.
+    expect(graph).toContain('concat=n=3:v=1:a=0[l0]');
+    expect(graph).toContain('concat=n=1:v=1:a=0[l1]');
+    expect(graph).toMatch(/\[l0\]\[l1\]overlay=format=rgb:eof_action=pass,format=rgba\[set\]$/);
+    expect(args.slice(-1)[0]).toBe('40');
+    // One layer is the plain stitch, unchanged.
+    expect(clipSetLayersStitchArgs([{ files: { loop: 'x.mov' }, timing: { intro: 0, loop: 1, outro: 0 } }], 2, { fps: 10, width: 8, height: 8 }))
+      .toEqual(clipSetStitchArgs({ loop: 'x.mov' }, { intro: 0, loop: 1, outro: 0 }, 2, { fps: 10, width: 8, height: 8 }));
+  });
+});
+
+describe.skipIf(!canEncode)('a layered set read from generated clips (needs ffmpeg)', () => {
+  let dir = '';
+  afterAll(async () => { if (dir) await rm(dir, { recursive: true, force: true }); });
+  const ff = ffmpeg.ok ? ffmpeg.path : '';
+
+  /** The base's part at the center of each frame of a file, and the flare's at its corner. */
+  function layersOf(file: string): { base: string; flare: string }[] {
+    const pixel = (x: number, y: number) => {
+      const run = spawnSync(ff, ['-v', 'error', '-i', file, '-vf', `crop=1:1:${x}:${y},format=rgb24`, '-f', 'rawvideo', 'pipe:1'], { maxBuffer: 64 * 1024 * 1024 });
+      const out: number[][] = [];
+      for (let i = 0; i + 2 < run.stdout.length; i += 3) out.push([run.stdout[i]!, run.stdout[i + 1]!, run.stdout[i + 2]!]);
+      return out;
+    };
+    const near = (p: number[], c: readonly number[]) => Math.abs(p[0]! - c[0]!) + Math.abs(p[1]! - c[1]!) + Math.abs(p[2]! - c[2]!) < 90;
+    const which = (p: number[], colors: typeof CLIP_SET_COLORS | typeof CLIP_SET_FLARE_COLORS) => near(p, colors.intro) ? 'intro' : near(p, colors.loop) ? 'loop' : near(p, colors.outro) ? 'outro' : `?${p.join(',')}`;
+    const centers = pixel(32, 18);
+    const corners = pixel(4, 4);
+    return centers.map((c, i) => ({ base: which(c, CLIP_SET_COLORS), flare: which(corners[i]!, CLIP_SET_FLARE_COLORS) }));
+  }
+
+  it('scans the six files as one item with two layers, the flare over the base, and none of them as items', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'pulp-layered-'));
+    const lib = join(dir, 'Stock');
+    await writeLayeredClipSetFixture(ff, join(lib, 'Titles'), 'Swoosh');
+    const store = new LibraryStore(':memory:');
+    store.setRoots([lib]);
+    await store.scanRoots([lib]);
+    const media = store.toIndex().media;
+    expect(media.map((m) => m.name)).toEqual(['Swoosh']);
+    const item = media[0]!;
+    expect(item.clipSet!.loop).toBe(join(lib, 'Titles', 'Swoosh Loop.mov'));
+    expect(item.clipSetLayers!.map((l) => l.name)).toEqual(['Swoosh', 'Flare']);
+    expect(item.clipSetLayers![1]!.files).toEqual({ intro: join(lib, 'Titles', 'Swoosh Flare In.mov'), loop: join(lib, 'Titles', 'Swoosh Flare Loop.mov'), outro: join(lib, 'Titles', 'Swoosh Flare Out.mov') });
+    store.close();
+  });
+
+  it('composites the layers at any length, each from its own part at every frame, with the transparency kept', async () => {
+    const titles = join(dir, 'Stock', 'Titles');
+    const timing = { intro: 1, loop: 0.5, outro: 1 };
+    const layers = [
+      { files: { intro: join(titles, 'Swoosh In.mov'), loop: join(titles, 'Swoosh Loop.mov'), outro: join(titles, 'Swoosh Out.mov') }, timing },
+      { files: { intro: join(titles, 'Swoosh Flare In.mov'), loop: join(titles, 'Swoosh Flare Loop.mov'), outro: join(titles, 'Swoosh Flare Out.mov') }, timing },
+    ];
+    for (const length of [4, 2.5]) {
+      const out = join(dir, `layered-${length}.mov`);
+      const run = spawnSync(ff, [...clipSetLayersStitchArgs(layers, length, { fps: 10, width: 64, height: 36 }), '-c:v', 'qtrle', '-pix_fmt', 'argb', '-y', out]);
+      expect(run.status, String(run.stderr)).toBe(0);
+      const got = layersOf(out);
+      const want = Array.from({ length: Math.round(length * 10) }, (_, f) => clipSetMomentAt(f / 10 + 1e-6, timing, length)!.part);
+      expect(got.map((g) => g.base), `the base at ${length} s`).toEqual(want);
+      expect(got.map((g) => g.flare), `the flare at ${length} s`).toEqual(want);
+    }
+    // The flare's transparent part leaves the base showing: a pixel off the flare's box is the base's color,
+    // and a frame's alpha is whole where either layer paints and empty where neither does.
+    const probe = spawnSync(ff, ['-v', 'error', '-i', join(dir, 'layered-2.5.mov'), '-vf', 'crop=1:1:40:30,format=rgba', '-frames:v', '1', '-f', 'rawvideo', 'pipe:1']);
+    expect(probe.stdout[3], 'the base is opaque under the flare').toBe(255);
+    // Handed to a video layer: the composite's frames, each once, as many as the longest layer's parts hold.
+    const frames = spawnSync(ff, clipSetLayersFramesArgs(layers, { fps: 10, width: 64, height: 36 }, { first: 0, frames: 25 }, ''), { maxBuffer: 64 * 1024 * 1024 });
+    expect(frames.status, String(frames.stderr)).toBe(0);
+    expect(frames.stdout.toString('latin1').split('\x89PNG').length - 1).toBe(25);
   });
 });

@@ -383,8 +383,10 @@ export function mountStageDrop(
       note(added.refused);
       return;
     }
-    // A sound is nowhere on the picture, so there is nothing to place it at.
-    if (found.kind !== 'audio') placeLayerAt(added.block, added.id, dropPoint(e, el));
+    // A sound is nowhere on the picture, so there is nothing to place it at; a clip fitted to the
+    // frame (milestone 32) stays centered on it, selected where it is.
+    if (found.kind === 'audio' || added.fitted) selectedLayer.value = { block: added.block, id: added.id };
+    else placeLayerAt(added.block, added.id, dropPoint(e, el));
   });
 }
 

@@ -166,12 +166,13 @@ function endAtPlayhead(which: 'start' | 'end'): void {
 }
 
 /** A layer just added: put it where the menu was opened, select it, and show its card. */
-function landed(added: { block: string; id: string } | { refused: string }): void {
+function landed(added: { block: string; id: string; fitted?: true } | { refused: string }): void {
   if ('refused' in added) {
     host?.note(added.refused);
     return;
   }
-  if (openedAt) placeLayerAt(added.block, added.id, openedAt);
+  // A clip fitted to the frame (milestone 32) stays centered on it rather than moving to the click.
+  if (openedAt && !added.fitted) placeLayerAt(added.block, added.id, openedAt);
   else selectedLayer.value = { block: added.block, id: added.id };
   // The words of a new line are there to be typed over, so the tab that does it comes forward.
   openInspector('parameters');

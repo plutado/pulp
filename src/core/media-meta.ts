@@ -30,6 +30,12 @@ export interface MediaMetadata {
   /** For a clip set (milestone 32): how long each part runs, in seconds; `duration` is then the three once. */
   parts?: ClipSetTiming;
   /**
+   * For a clip set of several layers (milestone 32): each layer's own timing, in the order the
+   * entry lists its layers; `parts` is then the longest layer's, whose parts play once at the
+   * set's own length while the others repeat their loops to meet it.
+   */
+  layers?: ClipSetTiming[];
+  /**
    * Measured from the library's small preview, not the file (milestone 32): only the length is
    * known, when a preview clip or sound gave it. The picture's size, rate, codec and alpha are
    * read from the file itself when the item is placed or rendered, which replaces this.
@@ -38,6 +44,19 @@ export interface MediaMetadata {
 }
 
 const ALPHA_PIX_FMT = /^(yuva|rgba|argb|bgra|abgr|gbrap|ya|ayuv|pal8)/;
+
+/**
+ * The decoder a clip with transparency must be read with, or undefined for ffmpeg's own choice
+ * (milestone 32). WebM keeps its alpha in a second stream that ffmpeg's native VP9 and VP8
+ * decoders leave out — the picture comes back opaque — while the libvpx decoders read it, so a
+ * VP9 or VP8 clip the probe found transparent is read through libvpx wherever Pulp decodes it.
+ */
+export function alphaDecoderFor(meta: Pick<MediaMetadata, 'codec' | 'alpha'> | undefined): string | undefined {
+  if (!meta?.alpha) return undefined;
+  if (meta.codec === 'vp9') return 'libvpx-vp9';
+  if (meta.codec === 'vp8') return 'libvpx';
+  return undefined;
+}
 
 /**
  * HEVC with alpha (what macOS writes, and what VideoToolbox encodes) keeps the

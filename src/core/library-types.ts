@@ -1,7 +1,7 @@
 /** Library index data types. Pure; shared with the renderer over IPC. */
 
 import type { StockLibraryState } from './stock-library';
-import type { ClipSetFiles } from './clip-set';
+import type { ClipSetFiles, ClipSetLayer } from './clip-set';
 import type { MediaPreview } from './library-preview';
 import type { UnreadablePreview } from './unreadable-media';
 import type { TemplateManifest, ValidationIssue } from './manifest';
@@ -98,6 +98,13 @@ export interface MediaEntry {
    * makes its poster, and `meta.parts` says how long each part runs once probed.
    */
   clipSet?: ClipSetFiles;
+  /**
+   * Set when the clip set has several layers that move together (milestone 32) — a main graphic
+   * and a flare, each with its own intro, loop and outro — bottom first; `clipSet` is then the
+   * bottom layer's files, and `meta.layers` each layer's timing. Previewed, rendered and handed to
+   * a video layer composited as one picture.
+   */
+  clipSetLayers?: ClipSetLayer[];
   /**
    * Set when this entry is a file inside a zip archive (milestone 32), listed without unpacking it.
    * `path` is where it is unpacked to — beside the archive, in a folder named after it — which

@@ -524,6 +524,8 @@ export const library = {
   'info.value.clip-set.loop': 'Loop {file} ({seconds})',
   'info.value.clip-set.outro': 'Outro {file} ({seconds})',
   'info.value.clip-set.stretches': 'Stretches to any length: the intro once, the loop repeated, the outro at the end',
+  'info.row.layers': 'Layers',
+  'info.value.clip-set.layers': '{layers}: each with its own intro, loop and outro, timed as one and moving together',
   // ---------------------------------------------------------------- zipped downloads (milestone 32)
   'results.badge.archive': 'In archive',
   'results.badge.archive.tip': 'Inside {zip}, browsed without unpacking it. It is unpacked into the library the first time you use it',

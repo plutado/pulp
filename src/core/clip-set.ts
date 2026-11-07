@@ -115,9 +115,84 @@ export function groupClipSets(fileNames: readonly string[], folderName: string):
   return sets.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// ---------------------------------------------------------------- several layers in one set
+
+/** One layer of a set (milestone 32): its own intro, loop and outro, named as the collection names it. */
+export interface ClipSetLayer {
+  name: string;
+  files: ClipSetFiles;
+}
+
+/** A set as the library lists it: one layer, or several that move together, bottom first. */
+export interface FoundLayeredClipSet {
+  name: string;
+  layers: ClipSetLayer[];
+}
+
+/** A layer's words that say it is the base the others sit on, which goes to the bottom. */
+const BASE_WORDS = new Set(['main', 'base', 'background', 'bg', 'body', 'core']);
+
+const extOf = (set: FoundClipSet) => set.files.loop.slice(set.files.loop.lastIndexOf('.')).toLowerCase();
+
+/** The layers after the base, the one that says it is the base first and the rest by name. */
+function orderLayers(layers: ClipSetLayer[]): ClipSetLayer[] {
+  return [...layers].sort((a, b) => Number(BASE_WORDS.has(words(b.name))) - Number(BASE_WORDS.has(words(a.name))) || a.name.localeCompare(b.name));
+}
+
+/** A set's name with the first `prefixWords` words taken off: "Swoosh Flare" less "swoosh" is "Flare". */
+function remainder(name: string, prefixWords: string): string {
+  return name.slice(prefixWords.length).replace(/^[\s_\-.]+/, '').trim() || name;
+}
+
+/**
+ * Sets that are the layers of one item (milestone 32): a main graphic and a flare, each with its
+ * own intro, loop and outro, that move together. Two ways a folder says so, the names in the
+ * same format:
+ *
+ * - **A set whose name the others extend**: "Swoosh" with "Swoosh Flare" and "Swoosh Glow" is one
+ *   set with three layers, the bare name at the bottom and the rest named by their extra words.
+ * - **The folder names the set**: when no set has the folder's name but two or more begin with
+ *   it — "Swoosh Main" and "Swoosh Flare" in a folder called Swoosh — the folder is the set and
+ *   the layers are the rest of each name; one that says it is the base goes to the bottom.
+ *
+ * Every other set is a set of one layer. Layers are listed bottom first, as they are drawn.
+ */
+export function groupClipSetLayers(sets: readonly FoundClipSet[], folderName: string): FoundLayeredClipSet[] {
+  const remaining = new Set(sets);
+  const out: FoundLayeredClipSet[] = [];
+  // The shortest names first: a name is extended by a longer one, never the other way.
+  for (const base of [...sets].sort((a, b) => words(a.name).length - words(b.name).length)) {
+    if (!remaining.has(base)) continue;
+    const bw = words(base.name);
+    if (bw === '') continue;
+    const extras = [...remaining].filter((s) => s !== base && extOf(s) === extOf(base) && words(s.name).startsWith(`${bw} `));
+    if (extras.length === 0) continue;
+    remaining.delete(base);
+    for (const s of extras) remaining.delete(s);
+    out.push({ name: base.name, layers: [{ name: base.name, files: base.files }, ...orderLayers(extras.map((s) => ({ name: remainder(s.name, bw), files: s.files })))] });
+  }
+  const fw = words(folderName);
+  if (fw !== '') {
+    const byExt = new Map<string, FoundClipSet[]>();
+    for (const s of remaining) byExt.set(extOf(s), [...(byExt.get(extOf(s)) ?? []), s]);
+    for (const group of byExt.values()) {
+      if (group.length < 2 || !group.every((s) => words(s.name).startsWith(`${fw} `))) continue;
+      for (const s of group) remaining.delete(s);
+      out.push({ name: folderName, layers: orderLayers(group.map((s) => ({ name: remainder(s.name, fw), files: s.files }))) });
+    }
+  }
+  for (const s of remaining) out.push({ name: s.name, layers: [{ name: s.name, files: s.files }] });
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** The set's own length: each part once. What it runs for when no length is asked. */
 export function clipSetNaturalSeconds(timing: ClipSetTiming): number {
   return timing.intro + timing.loop + timing.outro;
+}
+
+/** A layered set's own length: the longest layer's, each of its parts once; the others repeat their loops to meet it. */
+export function clipSetLayersNaturalSeconds(timings: readonly ClipSetTiming[]): number {
+  return Math.max(0, ...timings.map(clipSetNaturalSeconds));
 }
 
 /**
@@ -182,23 +257,57 @@ export function clipSetStitchArgs(
   length: number,
   video: { fps: number; width: number; height: number },
 ): string[] {
-  const spans = clipSetSpans(timing, length);
+  return clipSetLayersStitchArgs([{ files: paths, timing }], length, video);
+}
+
+/** A layer to stitch: its files and how long each part runs. */
+export interface StitchLayer {
+  files: ClipSetFiles;
+  timing: ClipSetTiming;
+  /** The decoder its parts must be read with, where ffmpeg's own would lose their alpha (`alphaDecoderFor`). */
+  decoder?: string;
+}
+
+/**
+ * The same for a set of several layers (milestone 32): each layer stitched to the length by its
+ * own parts — its intro once, its loop repeated, its outro at the end — then laid over the one
+ * below it, bottom first, alpha blended, so the layers move together however their parts differ.
+ * One layer is the plain stitch.
+ */
+export function clipSetLayersStitchArgs(layers: readonly StitchLayer[], length: number, video: { fps: number; width: number; height: number }): string[] {
   const inputs: string[] = [];
   const chains: string[] = [];
-  const labels: string[] = [];
   const norm = `fps=${video.fps},scale=${video.width}:${video.height}:force_original_aspect_ratio=decrease,pad=${video.width}:${video.height}:(ow-iw)/2:(oh-ih)/2:color=black@0,format=rgba,setsar=1`;
-  const add = (file: string, from: number, duration: number, loop: boolean) => {
-    if (duration <= 1e-6) return;
-    const n = inputs.filter((a) => a === '-i').length;
-    if (loop) inputs.push('-stream_loop', '-1');
-    inputs.push('-i', file);
-    chains.push(`[${n}:v]trim=start=${from.toFixed(6)}:duration=${duration.toFixed(6)},setpts=PTS-STARTPTS,${norm}[p${n}]`);
-    labels.push(`[p${n}]`);
-  };
-  if (paths.intro) add(paths.intro, 0, spans.intro, false);
-  add(paths.loop, 0, spans.loop, true);
-  if (paths.outro) add(paths.outro, spans.outroFrom, spans.outro, false);
-  const graph = [...chains, `${labels.join('')}concat=n=${labels.length}:v=1:a=0[set]`].join(';');
+  const stitched: string[] = [];
+  layers.forEach((layer, k) => {
+    const spans = clipSetSpans(layer.timing, length);
+    const labels: string[] = [];
+    const add = (file: string, from: number, duration: number, loop: boolean) => {
+      if (duration <= 1e-6) return;
+      const n = inputs.filter((a) => a === '-i').length;
+      if (loop) inputs.push('-stream_loop', '-1');
+      if (layer.decoder) inputs.push('-c:v', layer.decoder);
+      inputs.push('-i', file);
+      chains.push(`[${n}:v]trim=start=${from.toFixed(6)}:duration=${duration.toFixed(6)},setpts=PTS-STARTPTS,${norm}[p${n}]`);
+      labels.push(`[p${n}]`);
+    };
+    if (layer.files.intro) add(layer.files.intro, 0, spans.intro, false);
+    add(layer.files.loop, 0, spans.loop, true);
+    if (layer.files.outro) add(layer.files.outro, spans.outroFrom, spans.outro, false);
+    const out = layers.length === 1 ? '[set]' : `[l${k}]`;
+    chains.push(`${labels.join('')}concat=n=${labels.length}:v=1:a=0${out}`);
+    stitched.push(out);
+  });
+  if (layers.length > 1) {
+    // Each layer over the ones below it; the alpha of both is kept, so a set stays transparent.
+    let below = stitched[0]!;
+    stitched.slice(1).forEach((above, i) => {
+      const out = i === stitched.length - 2 ? '[set]' : `[o${i}]`;
+      chains.push(`${below}${above}overlay=format=rgb:eof_action=pass,format=rgba${out}`);
+      below = out;
+    });
+  }
+  const graph = chains.join(';');
   return ['-v', 'error', '-nostdin', ...inputs, '-filter_complex', graph, '-map', '[set]', '-an', '-frames:v', String(Math.max(1, Math.round(length * video.fps)))];
 }
 
@@ -215,7 +324,20 @@ export function clipSetFramesArgs(
   window: { first: number; frames: number },
   filters: string,
 ): string[] {
-  const all = clipSetStitchArgs(paths, timing, clipSetNaturalSeconds(timing), own);
+  return clipSetLayersFramesArgs([{ files: paths, timing }], own, window, filters);
+}
+
+/**
+ * The same for a layered set (milestone 32): the layers composited at the set's own length — the
+ * longest layer's parts once, the others' loops repeating to meet it — and the window cut from that.
+ */
+export function clipSetLayersFramesArgs(
+  layers: readonly StitchLayer[],
+  own: { fps: number; width: number; height: number },
+  window: { first: number; frames: number },
+  filters: string,
+): string[] {
+  const all = clipSetLayersStitchArgs(layers, clipSetLayersNaturalSeconds(layers.map((l) => l.timing)), own);
   const at = all.indexOf('-filter_complex');
   const graph = all[at + 1]!.replace(/\[set\]$/, '[joined]');
   const last = window.first + window.frames - 1;

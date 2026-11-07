@@ -23,6 +23,7 @@ import type { MediaEntry } from './library-types';
 import { isValidColor } from './manifest';
 import { sequencePatternName, SEQUENCE_FPS } from './media-sequence';
 import { clipSetNaturalSeconds } from './clip-set';
+import { alphaDecoderFor } from './media-meta';
 import {
   AUDIO_BIT_DEPTHS, AUDIO_SAMPLE_RATES, matteCodecArgs, matteFilters, matteOutputPath, normalizeOutputPath, OUTPUT_PRESETS, REC709_CONVERT, REC709_TAGS,
   RenderPlanError, RGB_FULL_TAGS, type AudioOptions, type OutputPreset, type PresetId, type RenderOptions,
@@ -69,7 +70,7 @@ export function audioCodecArgsFor(preset: OutputPreset): string[] | null {
 // ---------------------------------------------------------------- what an item is
 
 export type MediaInput =
-  | { path: string }
+  | { path: string; /** The decoder the file must be read with, where ffmpeg's own would lose its alpha (milestone 32). */ decoder?: string }
   /** A run of numbered frames read as one clip (milestone 26). */
   | { pattern: string; start: number; fps: number };
 
@@ -126,7 +127,7 @@ export function sourceFromEntry(entry: MediaEntry, options: Pick<RenderOptions, 
   const ext = entry.ext.toLowerCase();
   return {
     kind: entry.mediaKind,
-    input: { path: entry.path },
+    input: { path: entry.path, ...(alphaDecoderFor(meta) ? { decoder: alphaDecoderFor(meta) } : {}) },
     ...(meta?.width ? { width: meta.width } : {}),
     ...(meta?.height ? { height: meta.height } : {}),
     ...(meta?.duration ? { duration: meta.duration } : {}),
@@ -295,7 +296,7 @@ function inputArgs(source: MediaSource, repeats: number, fps: number, holdSecond
   const loop = repeats > 0 ? ['-stream_loop', String(repeats)] : [];
   if ('pattern' in source.input) return [...loop, '-framerate', String(source.input.fps), '-start_number', String(source.input.start), '-i', source.input.pattern];
   if (source.kind === 'image') return ['-loop', '1', '-framerate', String(fps), '-t', String(holdSeconds ?? DEFAULT_STILL_SECONDS), '-i', source.input.path];
-  return [...loop, '-i', source.input.path];
+  return [...loop, ...(source.input.decoder ? ['-c:v', source.input.decoder] : []), '-i', source.input.path];
 }
 
 /** Scale into the asked size, keeping the picture's shape, with the rest left clear (or in the background color). */

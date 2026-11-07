@@ -17,12 +17,13 @@
 import { join } from 'node:path';
 import { detectFfmpeg, nodeRunner, runForBuffer } from '../core/ffmpeg';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
+import { alphaDecoderFor } from '../core/media-meta';
 import { sequencePatternName, SEQUENCE_FPS } from '../core/media-sequence';
 import { clipProxySize, clipWindow, EMPTY_CLIP, sanitizeClipValue, type ClipSource, type ClipValue } from '../core/video-layer';
 import { isCubeFile, lutFilter } from '../core/clip-clean';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { lookupClipItem, lookupMedia, probeClipSet, prepareForUse } from './library-service';
-import { clipSetFramesArgs } from '../core/clip-set';
+import { clipSetLayersFramesArgs } from '../core/clip-set';
 import { templateDefaultSize } from '../core/aspect';
 
 /** One clip, ready for a template page: its frames in window order, as data URLs. */
@@ -50,7 +51,7 @@ function sourceFromEntry(entry: MediaEntry, meta = entry.meta): ClipSource | nul
     if (!meta?.parts || !meta.fps) return null;
     const p = meta.parts;
     const frames = Math.round(p.intro * meta.fps) + Math.round(p.loop * meta.fps) + Math.round(p.outro * meta.fps);
-    return { frames: Math.max(1, frames), fps: meta.fps, set: p };
+    return { frames: Math.max(1, frames), fps: meta.fps, set: p, ...(meta.layers ? { setLayers: meta.layers } : {}) };
   }
   if (!meta?.fps || !meta.duration) return null;
   return { frames: Math.max(1, Math.round(meta.duration * meta.fps)), fps: meta.fps };
@@ -195,11 +196,19 @@ export function clipFramesArgs(entry: MediaEntry, source: ClipSource, window: { 
   if (entry.clipSet && source.set) {
     const grade = lut && isCubeFile(lut) ? lutFilter(lut) : '';
     const own = { fps: source.fps, width: entry.meta?.width ?? side, height: entry.meta?.height ?? side };
-    return clipSetFramesArgs(entry.clipSet, source.set, own, window, [grade, scale].filter(Boolean).join(','));
+    const filters = [grade, scale].filter(Boolean).join(',');
+    const decoder = alphaDecoderFor(entry.meta);
+    // A set of several layers is composited into the frames it is handed (milestone 32).
+    if (entry.clipSetLayers && source.setLayers?.length === entry.clipSetLayers.length) {
+      return clipSetLayersFramesArgs(entry.clipSetLayers.map((l, i) => ({ files: l.files, timing: source.setLayers![i]!, ...(decoder ? { decoder } : {}) })), own, window, filters);
+    }
+    return clipSetLayersFramesArgs([{ files: entry.clipSet, timing: source.set, ...(decoder ? { decoder } : {}) }], own, window, filters);
   }
+  // A WebM with alpha is read through libvpx, or its picture comes back opaque (milestone 32).
+  const decoder = alphaDecoderFor(entry.meta);
   const input = entry.sequence
     ? ['-start_number', String(entry.sequence.start + window.first), '-framerate', String(source.fps), '-i', join(entry.sequence.dir, sequencePatternName(entry.sequence))]
-    : ['-ss', (window.first / Math.max(1, source.fps)).toFixed(6), '-i', entry.path];
+    : ['-ss', (window.first / Math.max(1, source.fps)).toFixed(6), ...(decoder ? ['-c:v', decoder] : []), '-i', entry.path];
   // The layer's own grade (milestone 52) is decoded into the frames, so the preview and the
   // render show it by the one path, and the page never learns there was a file.
   const grade = lut && isCubeFile(lut) ? `${lutFilter(lut)},` : '';

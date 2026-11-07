@@ -252,3 +252,65 @@ export async function writePreviewFixture(root: string, ffmpegPath?: string): Pr
     if (run.status !== 0) throw new Error(`could not make the preview clip: ${run.stderr}`);
   }
 }
+
+/**
+ * A clip set of several layers (milestone 32): the base set `writeClipSetFixture` makes — red,
+ * green and blue full frames — and a second layer named after it ("Swoosh Flare In.mov"…), each
+ * part transparent but for a small box in the top-left corner in a color of its own, so a frame
+ * of the composite says which part of each layer it shows: the center pixel the base's, the
+ * corner the flare's. The flare's parts run as long as the base's, as a collection authors them.
+ */
+export const CLIP_SET_FLARE_COLORS = { intro: [255, 255, 255], loop: [255, 255, 0], outro: [255, 0, 255] } as const;
+
+/**
+ * A clip that is transparent but for an opaque box in its top-left corner, written with the codec
+ * arguments given. The box is an opaque color source laid over a clear one: ffmpeg's drawbox paints
+ * the picture planes and never the alpha, so a box drawn that way would stay transparent.
+ */
+async function writeTransparentBoxClip(ffmpegPath: string, out: string, frame: { width: number; height: number; fps: number; seconds: number }, box: { width: number; height: number; color: string }, codec: string[]): Promise<void> {
+  const { spawnSync } = await import('node:child_process');
+  const run = spawnSync(ffmpegPath, [
+    '-v', 'error', '-y',
+    '-f', 'lavfi', '-i', `color=c=black@0.0:s=${frame.width}x${frame.height}:r=${frame.fps}:d=${frame.seconds},format=rgba`,
+    '-f', 'lavfi', '-i', `color=c=${box.color}:s=${box.width}x${box.height}:r=${frame.fps}:d=${frame.seconds},format=rgba`,
+    '-filter_complex', '[0:v][1:v]overlay=0:0:format=rgb:shortest=1,format=rgba',
+    ...codec, out,
+  ]);
+  if (run.status !== 0) throw new Error(`could not make ${out}: ${run.stderr}`);
+}
+
+export async function writeLayeredClipSetFixture(ffmpegPath: string, dir: string, name: string, layer = 'Flare', seconds: { intro: number; loop: number; outro: number } = { intro: 1, loop: 0.5, outro: 1 }): Promise<void> {
+  await writeClipSetFixture(ffmpegPath, dir, name, seconds);
+  const hex = { intro: 'white', loop: 'yellow', outro: 'magenta' } as const;
+  const names = { intro: `${name} ${layer} In.mov`, loop: `${name} ${layer} Loop.mov`, outro: `${name} ${layer} Out.mov` };
+  for (const part of ['intro', 'loop', 'outro'] as const) {
+    await writeTransparentBoxClip(ffmpegPath, join(dir, names[part]), { width: 64, height: 36, fps: 10, seconds: seconds[part] }, { width: 16, height: 12, color: hex[part] }, ['-c:v', 'qtrle', '-pix_fmt', 'argb']);
+  }
+}
+
+/**
+ * Clips with transparency as stock libraries deliver them (milestone 32): the same picture — a
+ * transparent frame with an opaque box in its top-left quarter — at a size that is no standard
+ * frame (300 × 120) and a rate no graphic renders at (12 fps), in each format Pulp must take as
+ * it is: QuickTime Animation, QuickTime PNG, ProRes 4444 and VP9 with alpha. Only the formats
+ * this ffmpeg can write are made; the names say which.
+ */
+export const ALPHA_CLIP_SIZE = { width: 300, height: 120, fps: 12, seconds: 1 } as const;
+export async function writeAlphaClipsFixture(ffmpegPath: string, encoders: readonly string[], dir: string): Promise<string[]> {
+  await mkdir(dir, { recursive: true });
+  const { width, height, fps, seconds } = ALPHA_CLIP_SIZE;
+  const formats: { name: string; args: string[]; encoder: string }[] = [
+    { name: 'Animation.mov', encoder: 'qtrle', args: ['-c:v', 'qtrle', '-pix_fmt', 'argb'] },
+    { name: 'PNG.mov', encoder: 'png', args: ['-c:v', 'png', '-pix_fmt', 'rgba'] },
+    { name: 'ProRes 4444.mov', encoder: 'prores_ks', args: ['-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le'] },
+    { name: 'VP9.webm', encoder: 'libvpx-vp9', args: ['-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-auto-alt-ref', '0', '-b:v', '0', '-crf', '30'] },
+  ];
+  const made: string[] = [];
+  for (const f of formats) {
+    if (!encoders.includes(f.encoder)) continue;
+    const out = join(dir, f.name);
+    await writeTransparentBoxClip(ffmpegPath, out, { width, height, fps, seconds }, { width: width / 2, height: height / 2, color: '0x3070e0' }, f.args);
+    made.push(out);
+  }
+  return made;
+}

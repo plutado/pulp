@@ -118,6 +118,19 @@ export interface ClipSource {
    * intro once, the loop repeated, the outro at the end — rather than looping or stopping.
    */
   set?: ClipSetTiming;
+  /** For a set of several layers (milestone 32): each layer's own timing, bottom first; `set` is the longest layer's. */
+  setLayers?: ClipSetTiming[];
+}
+
+/**
+ * Whether a clip placed from the library should fit the frame rather than take the small
+ * picture-in-picture default (milestone 32): a clip set, a frame sequence, or any clip with
+ * transparency is a graphic made for a whole frame — a lower third on a transparent canvas, a
+ * spark, a wipe — at whatever size and rate the collection used, and it is placed as a video
+ * layer scaled to fit the frame, its own shape kept. Opaque footage is a picture to place small.
+ */
+export function clipFitsFrame(entry: { clipSet?: unknown; sequence?: unknown; meta?: { alpha?: boolean } }): boolean {
+  return entry.clipSet !== undefined || entry.sequence !== undefined || entry.meta?.alpha === true;
 }
 
 /**

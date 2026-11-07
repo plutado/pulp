@@ -124,6 +124,8 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
       path ? tr(`info.value.clip-set.${id}`, { file: name(path), seconds: seconds !== undefined ? durationLabel(Math.round(seconds * 100) / 100) : '—' }) : '';
     rows.push({ label: tr('info.row.clip-set'), value: [part('intro', entry.clipSet.intro, p?.intro), part('loop', entry.clipSet.loop, p?.loop), part('outro', entry.clipSet.outro, p?.outro)].filter(Boolean).join(' · '), icon: 'loop' });
     rows.push({ label: tr('info.row.loop'), value: tr('info.value.clip-set.stretches') });
+    // Several layers that move together (milestone 32), named as the collection names them.
+    if (entry.clipSetLayers?.length) rows.push({ label: tr('info.row.layers'), value: tr('info.value.clip-set.layers', { layers: entry.clipSetLayers.map((l) => l.name).join(' · ') }) });
   }
   if (meta?.fps && entry.mediaKind === 'video') rows.push({ label: tr('info.row.frame-rate'), value: frameRateLabel(meta.fps) });
   if (meta?.codec) rows.push({ label: tr('info.row.codec'), value: codecLabel(meta.codec) });
